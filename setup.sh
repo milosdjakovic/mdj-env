@@ -22,6 +22,9 @@ echo ""
 # Stow dotfiles to home directory
 "$SRC_DIR/setup-stow-dotfiles.sh"
 
+# Copy Claude Code configuration
+"$SRC_DIR/setup-claude-config.sh"
+
 # Install tmux plugins via TPM
 "$SRC_DIR/install-tmux-plugins.sh"
 
