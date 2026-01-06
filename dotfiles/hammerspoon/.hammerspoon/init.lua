@@ -1,35 +1,86 @@
-AppToggler = require("spoons.appToggler")
-keyBindings = require("spoons.keyBindings")
-WindowManagementBindings = require('spoons.windowManagementBindings')
-StageManager = require('spoons.stageManager')
-Workspaces = require("spoons.workspaces")
-TerminalHandler = require('spoons.terminalHandler')
+-- Hammerspoon Configuration
+-- Orchestrates all Spoons and configuration
 
-AppToggler.initialize({
-    toggles = keyBindings.appToggles,
+--------------------------------------------------------------------------------
+-- Load Configuration
+--------------------------------------------------------------------------------
+
+local apps = require("config.apps")
+local keys = require("config.keys")
+local settings = require("config.settings")
+
+-- Load workspace configurations
+local devWorkspace = require("config.workspaces.dev")
+local vicertWorkspace = require("config.workspaces.vicert")
+
+--------------------------------------------------------------------------------
+-- Load Spoons
+--------------------------------------------------------------------------------
+
+hs.loadSpoon("StageManager")
+hs.loadSpoon("WindowManager")
+hs.loadSpoon("AppToggler")
+hs.loadSpoon("WorkspaceEngine")
+hs.loadSpoon("TerminalHandler")
+hs.loadSpoon("DockMenuToggle")
+
+--------------------------------------------------------------------------------
+-- Initialize Spoons
+--------------------------------------------------------------------------------
+
+-- StageManager (no dependencies)
+spoon.StageManager:init()
+spoon.StageManager:bindHotkeys({ toggle = keys.toggleStageManager })
+
+-- WindowManager (depends on StageManager)
+spoon.WindowManager:init()
+spoon.WindowManager:configure({
+  stageManager = spoon.StageManager,
+  settings = settings,
 })
-WindowManagementBindings.initialize()
-StageManager.initialize({
-    keyBinding = keyBindings.stageManager,
+spoon.WindowManager:bindHotkeys(keys.windowManagement)
+
+-- AppToggler (standalone, uses apps config)
+spoon.AppToggler:init()
+spoon.AppToggler:configure({
+  apps = apps,
+  hideOthersDefault = settings.features.hideOthersDefault,
 })
-Workspaces.initialize()
-TerminalHandler.initialize()
+spoon.AppToggler:bindHotkeys(keys.appToggles)
+spoon.AppToggler:bindHideOthersToggle(keys.toggleHideOthers)
 
--- hs.loadSpoon("Hammerflow")
--- spoon.Hammerflow.loadFirstValidTomlFile({
---     "home.toml",
---     "work.toml",
---     "Spoons/Hammerflow.spoon/sample.toml"
--- })
--- -- optionally respect auto_reload setting in the toml config.
--- if spoon.Hammerflow.auto_reload then
---     hs.loadSpoon("ReloadConfiguration")
---     -- set any paths for auto reload
---     -- spoon.ReloadConfiguration.watch_paths = {hs.configDir, "~/path/to/my/configs/"}
---     spoon.ReloadConfiguration:start()
--- end
+-- WorkspaceEngine (depends on AppToggler, WindowManager)
+spoon.WorkspaceEngine:init()
+spoon.WorkspaceEngine:configure({
+  appToggler = spoon.AppToggler,
+  windowManager = spoon.WindowManager,
+  apps = apps,
+  settings = settings,
+})
+spoon.WorkspaceEngine:registerWorkspace(devWorkspace)
+spoon.WorkspaceEngine:registerWorkspace(vicertWorkspace)
+spoon.WorkspaceEngine:start()
 
--- Reload Hammerspoon configuration automatically
+-- TerminalHandler (depends on AppToggler, WindowManager)
+spoon.TerminalHandler:init()
+spoon.TerminalHandler:configure({
+  appToggler = spoon.AppToggler,
+  windowManager = spoon.WindowManager,
+  terminalBundleID = apps[settings.terminal.preferredTerminal],
+  timing = settings.terminal,
+})
+spoon.TerminalHandler:bindHotkeys({ terminal = keys.terminal })
+
+-- DockMenuToggle (standalone)
+spoon.DockMenuToggle:init()
+spoon.DockMenuToggle:bindHotkeys({ toggle = keys.toggleDockMenu })
+
+--------------------------------------------------------------------------------
+-- Auto-reload and IPC
+--------------------------------------------------------------------------------
+
+-- Reload Hammerspoon configuration automatically when files change
 hs.pathwatcher.new(os.getenv("HOME") .. "/.hammerspoon/", hs.reload):start()
--- hs.alert.show("Hammerspoon config loaded")
+
+-- Enable IPC for command-line control
 require("hs.ipc")
