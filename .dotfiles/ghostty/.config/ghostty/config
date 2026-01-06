@@ -1,0 +1,42 @@
+# === Appearance ===
+#font-family = "Hack Nerd Font"
+font-family = "MesloLGS NF"
+font-size = 18
+theme = aura
+
+# === Window settings ===
+# window-decoration = false
+macos-titlebar-style = hidden
+window-save-state = never
+window-inherit-working-directory = true
+window-save-state = never
+window-padding-y = 8
+window-padding-x = 8
+window-padding-balance = true
+
+# === Behavior ===
+confirm-close-surface = false
+
+# === Keybindings ===
+macos-option-as-alt = true
+
+# Delete the previous word
+keybind = alt+backspace=text:\x17
+
+# Delete from the cursor to the beginning of the line
+keybind = cmd+backspace=text:\x15
+
+# Move the cursor one word to the left
+keybind = opt+left=text:\x1b[1;5D
+ 
+# Move the cursor one word to the right
+keybind = opt+right=text:\x1b[1;5C
+
+
+keybind = shift+enter=text:\x1b\r
+
+# Quick-terminal
+quick-terminal-animation-duration = 0
+quick-terminal-position = center
+quick-terminal-screen = mouse
+keybind = global:cmd+backquote=toggle_quick_terminal

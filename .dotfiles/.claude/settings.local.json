@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(brew list:*)",
+      "WebFetch(domain:github.com)"
+    ]
+  }
+}
