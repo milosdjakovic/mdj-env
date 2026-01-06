@@ -4,10 +4,10 @@ set -e
 # Stow dotfiles to home directory using GNU Stow
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DOTFILES="$SCRIPT_DIR/../.dotfiles"
+DOTFILES="$SCRIPT_DIR/../dotfiles"
 
 if [[ ! -d "$DOTFILES" ]]; then
-    echo "Error: .dotfiles directory not found at $DOTFILES"
+    echo "Error: dotfiles directory not found at $DOTFILES"
     exit 1
 fi
 

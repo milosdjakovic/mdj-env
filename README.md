@@ -25,7 +25,7 @@ This runs all setup scripts in sequence. Restart your terminal when done, then r
 │   ├── setup-stow-dotfiles.sh        # GNU stow operations
 │   ├── setup-zshrc.sh                # .zshrc configuration
 │   └── set-dev-defaults.sh           # File type associations
-└── .dotfiles/                        # Stow-managed configs
+└── dotfiles/                         # Stow-managed configs
     ├── ghostty/
     ├── tmux/
     ├── nvim/
@@ -69,7 +69,7 @@ All scripts are idempotent (safe to re-run) and support both Apple Silicon and I
 To selectively stow configurations:
 
 ```bash
-cd .dotfiles
+cd dotfiles
 stow tmux           # Just tmux config
 stow -t ~ nvim      # Neovim config
 stow -t ~ alacritty # Alternative terminal
