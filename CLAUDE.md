@@ -62,10 +62,15 @@ Run `./src/setup-claude-config.sh` to copy config files. The script shows diffs 
 
 ### Hammerspoon
 
-Configuration in `dotfiles/hammerspoon/.hammerspoon/` with modular spoons:
-- `init.lua` - Entry point, loads all spoons
-- `spoons/` - Feature modules (appToggler, windowManagement, stageManager, workspaces, terminalHandler)
-- `spoons/keyBindings.lua` - Centralized key binding definitions
+Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
+- `init.lua` - Entry point, orchestrates all Spoons
+- `config/` - User-editable configuration (pure data)
+  - `apps.lua` - App bundle ID registry
+  - `keys.lua` - All keybinding definitions
+  - `settings.lua` - Global settings (margins, timing)
+  - `workspaces/` - Workspace definitions (dev.lua, vicert.lua)
+- `Spoons/` - Real Hammerspoon Spoons (reusable logic)
+  - AppToggler, WindowManager, StageManager, WorkspaceEngine, TerminalHandler, DockMenuToggle
 
 Config auto-reloads when files change. Get app bundle ID: `osascript -e 'id of app "APP_NAME"'`
 
