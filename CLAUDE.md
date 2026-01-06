@@ -19,6 +19,7 @@ macOS development environment bootstrap and dotfiles management using GNU Stow. 
 ./src/install-ohmyzsh-plugins.sh
 ./src/install-tmux-plugins.sh
 ./src/setup-stow-dotfiles.sh
+./src/setup-claude-config.sh
 ./src/setup-zshrc.sh
 
 # Set default editor for dev file types
@@ -40,6 +41,7 @@ stow -D -t ~ <package>        # Unlink a package
 - `Brewfile` - Homebrew packages and casks
 - `src/` - Modular setup scripts (all idempotent, support Apple Silicon and Intel)
 - `dotfiles/` - Stow-managed configurations, each subdirectory is a stow package
+- `templates/` - Copy-based configurations (not symlinked, for apps that modify their own config)
 
 ### Stow Packages
 
@@ -48,6 +50,15 @@ stow -D -t ~ <package>        # Unlink a package
 **Available but not stowed:** alacritty, kitty, wezterm
 
 Each package mirrors the home directory structure (e.g., `dotfiles/nvim/.config/nvim/` → `~/.config/nvim/`)
+
+### Claude Code
+
+Configuration in `templates/claude/.claude/` (copied, not symlinked):
+- `commands/` - Custom slash commands (e.g., `/commit`)
+- `settings.json` - Global settings (permissions, plugins, statusline)
+- `statusline-command.sh` - Custom status line script
+
+Run `./src/setup-claude-config.sh` to copy config files. The script shows diffs and prompts before overwriting existing files. Edit the script to include/exclude specific commands per machine.
 
 ### Hammerspoon
 
