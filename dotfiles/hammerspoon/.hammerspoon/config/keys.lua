@@ -73,7 +73,7 @@ return {
   },
 
   -- Feature toggles
-  toggleDockMenu = { modifiers = CTRL_ALT, key = "D" },
+  toggleDock = { modifiers = CTRL_ALT, key = "D" },
 
   -- Terminal handler
   terminal = { modifiers = { "alt" }, key = "`" },

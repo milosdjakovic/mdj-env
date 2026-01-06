@@ -22,7 +22,7 @@ hs.loadSpoon("WindowManager")
 hs.loadSpoon("AppToggler")
 hs.loadSpoon("WorkspaceEngine")
 hs.loadSpoon("TerminalHandler")
-hs.loadSpoon("DockMenuToggle")
+hs.loadSpoon("DockAutoHide")
 
 --------------------------------------------------------------------------------
 -- Initialize Spoons
@@ -70,9 +70,9 @@ spoon.TerminalHandler:configure({
 })
 spoon.TerminalHandler:bindHotkeys({ terminal = keys.terminal })
 
--- DockMenuToggle (standalone)
-spoon.DockMenuToggle:init()
-spoon.DockMenuToggle:bindHotkeys({ toggle = keys.toggleDockMenu })
+-- DockAutoHide (standalone)
+spoon.DockAutoHide:init()
+spoon.DockAutoHide:bindHotkeys({ toggle = keys.toggleDock })
 
 --------------------------------------------------------------------------------
 -- Auto-reload and IPC
