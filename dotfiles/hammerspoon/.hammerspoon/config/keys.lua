@@ -73,8 +73,7 @@ return {
   },
 
   -- Feature toggles
-  toggleHideOthers = { modifiers = CTRL_ALT, key = "O" },
-  toggleDockMenu =   { modifiers = CTRL_ALT, key = "D" },
+  toggleDockMenu = { modifiers = CTRL_ALT, key = "D" },
 
   -- Terminal handler
   terminal = { modifiers = { "alt" }, key = "`" },

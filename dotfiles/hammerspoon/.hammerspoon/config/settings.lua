@@ -32,9 +32,4 @@ return {
     screenRecording = { width = 2400, height = 1350 },
     smallSize = { width = 700, height = 800 },
   },
-
-  -- Feature flags
-  features = {
-    hideOthersDefault = false,
-  },
 }

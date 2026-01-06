@@ -45,12 +45,8 @@ spoon.WindowManager:bindHotkeys(keys.windowManagement)
 
 -- AppToggler (standalone, uses apps config)
 spoon.AppToggler:init()
-spoon.AppToggler:configure({
-  apps = apps,
-  hideOthersDefault = settings.features.hideOthersDefault,
-})
+spoon.AppToggler:configure({ apps = apps })
 spoon.AppToggler:bindHotkeys(keys.appToggles)
-spoon.AppToggler:bindHideOthersToggle(keys.toggleHideOthers)
 
 -- WorkspaceEngine (depends on AppToggler, WindowManager)
 spoon.WorkspaceEngine:init()
