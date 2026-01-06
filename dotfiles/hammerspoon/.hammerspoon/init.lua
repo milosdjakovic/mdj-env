@@ -28,14 +28,17 @@ hs.loadSpoon("DockMenuToggle")
 -- Initialize Spoons
 --------------------------------------------------------------------------------
 
--- StageManager (no dependencies)
+-- StageManager (no dependencies, reads fresh on each check)
 spoon.StageManager:init()
-spoon.StageManager:bindHotkeys({ toggle = keys.toggleStageManager })
 
--- WindowManager (depends on StageManager)
+-- WindowManager (uses margin system for canvas calculation)
 spoon.WindowManager:init()
 spoon.WindowManager:configure({
-  stageManager = spoon.StageManager,
+  margins = {
+    left = function()
+      return spoon.StageManager:isActive() and settings.stageManagerMargin or 0
+    end,
+  },
   settings = settings,
 })
 spoon.WindowManager:bindHotkeys(keys.windowManagement)

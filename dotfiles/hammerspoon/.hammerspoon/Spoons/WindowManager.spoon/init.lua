@@ -13,7 +13,7 @@ obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
 -- Dependencies (injected via configure)
-obj._stageManager = nil
+obj._margins = {}
 obj._settings = nil
 
 --- WindowManager:init()
@@ -29,26 +29,40 @@ end
 --- Configure the spoon with dependencies
 function obj:configure(opts)
   opts = opts or {}
-  self._stageManager = opts.stageManager
+  self._margins = opts.margins or {}
   self._settings = opts.settings or {}
   hs.window.animationDuration = self._settings.windowAnimationDuration or 0
   return self
 end
 
+--- WindowManager:_resolveMargin(value)
+--- Method
+--- Resolve a margin value (number or function returning number)
+function obj:_resolveMargin(value)
+  if type(value) == "function" then
+    return value() or 0
+  end
+  return value or 0
+end
+
 --- WindowManager:getScreenFrame(screen)
 --- Method
---- Get screen frame adjusted for Stage Manager
+--- Get screen frame adjusted for margins (canvas)
 function obj:getScreenFrame(screen)
   screen = screen or (hs.window.focusedWindow() and hs.window.focusedWindow():screen()) or hs.screen.mainScreen()
-  local screenFrame = screen:frame()
+  local f = screen:frame()
 
-  if self._stageManager and self._stageManager:isActive() then
-    local margin = self._settings.stageManagerMargin or 66
-    screenFrame.x = screenFrame.x + margin
-    screenFrame.w = screenFrame.w - margin
-  end
+  local top = self:_resolveMargin(self._margins.top)
+  local right = self:_resolveMargin(self._margins.right)
+  local bottom = self:_resolveMargin(self._margins.bottom)
+  local left = self:_resolveMargin(self._margins.left)
 
-  return screenFrame
+  return {
+    x = f.x + left,
+    y = f.y + top,
+    w = f.w - left - right,
+    h = f.h - top - bottom,
+  }
 end
 
 --- WindowManager:maximize()

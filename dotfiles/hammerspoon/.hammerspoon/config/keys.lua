@@ -73,9 +73,8 @@ return {
   },
 
   -- Feature toggles
-  toggleHideOthers =   { modifiers = CTRL_ALT, key = "O" },
-  toggleStageManager = { modifiers = CTRL_ALT, key = "M" },
-  toggleDockMenu =     { modifiers = CTRL_ALT, key = "D" },
+  toggleHideOthers = { modifiers = CTRL_ALT, key = "O" },
+  toggleDockMenu =   { modifiers = CTRL_ALT, key = "D" },
 
   -- Terminal handler
   terminal = { modifiers = { "alt" }, key = "`" },
