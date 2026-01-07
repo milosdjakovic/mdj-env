@@ -6,38 +6,43 @@ description: Create a git commit with conventional commit message
 
 # Git Commit
 
-## Step 1: Gather Context
-
-Run these commands in order:
+## Step 1: Check Staging Area
 
 ```bash
-# Check if this is initial commit
-git rev-list --count HEAD 2>/dev/null || echo "0"
-```
-
-```bash
-# Get commit history for scope patterns (skip if initial)
-git log --oneline -15 2>/dev/null
-```
-
-```bash
-# Show what's staged
 git diff --staged --stat
 ```
 
 ```bash
-# Show detailed staged changes
-git diff --staged
-```
-
-```bash
-# Show working tree status
 git status --short
 ```
 
-## Step 2: Analyze and Generate Message
+**If nothing is staged:**
+- Show the user the list of changed files from `git status --short`
+- Ask: "Nothing staged. Which files to stage? (all/select/abort)"
+  - `all` → run `git add -A`
+  - `select` → ask user to specify files/patterns, then run `git add <files>`
+  - `abort` → stop and let user handle staging manually
+- After staging, re-run `git diff --staged --stat` to confirm
 
-Using the output from Step 1:
+**If files are staged:** proceed to Step 2.
+
+## Step 2: Gather Context
+
+```bash
+git rev-list --count HEAD 2>/dev/null || echo "0"
+```
+
+```bash
+git log --oneline -15 2>/dev/null
+```
+
+```bash
+git diff --staged
+```
+
+## Step 3: Analyze and Generate Message
+
+Using the gathered context:
 
 ### Conventional Commit Format
 
@@ -89,19 +94,27 @@ If `git rev-list --count HEAD` returned "0" or failed:
 3. No period at end
 4. Lowercase (except proper nouns)
 
-## Step 3: Confirm and Commit
+## Step 4: Confirm and Commit
 
-If `$ARGUMENTS` is provided, use that as the commit message directly.
+If `$ARGUMENTS` is provided, use that as the commit message directly and skip confirmation.
 
-Otherwise, present the generated message and ask: "Commit with this message? (y/n/edit)"
+Otherwise, output exactly:
+
+```
+<type>(<scope>): <subject>
+
+Commit? (y/n/edit)
+```
+
+Wait for user response. On "edit", ask for the new message.
 
 Then run:
 
 ```bash
-git commit -m "type(scope): subject"
+git commit -m "<final message>"
 ```
 
-## Step 4: Verify
+## Step 5: Verify
 
 ```bash
 git log --oneline -1
