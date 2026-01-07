@@ -1,5 +1,5 @@
 ---
-allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git add:*), Bash(git commit:*), Bash(git log:*), Bash(git rev-list:*)
+allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git add:*), Bash(git commit:*), Bash(git log:*), Bash(git rev-list:*), AskUserQuestion
 argument-hint: [message]
 description: Create a git commit with conventional commit message
 ---
@@ -98,15 +98,14 @@ If `git rev-list --count HEAD` returned "0" or failed:
 
 If `$ARGUMENTS` is provided, use that as the commit message directly and skip confirmation.
 
-Otherwise, output exactly:
+Otherwise, use the `AskUserQuestion` tool to confirm:
+- Question: "Commit with this message?"
+- Header: "Commit"
+- Options:
+  1. Label: `<type>(<scope>): <subject>` (the generated message), Description: "Use this commit message"
+  2. Label: "Edit message", Description: "Provide a different commit message"
 
-```
-<type>(<scope>): <subject>
-
-Commit? (y/n/edit)
-```
-
-Wait for user response. On "edit", ask for the new message.
+If user selects "Edit message" or "Other", use their input as the commit message.
 
 Then run:
 
