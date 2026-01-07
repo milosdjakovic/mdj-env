@@ -98,14 +98,28 @@ If `git rev-list --count HEAD` returned "0" or failed:
 
 If `$ARGUMENTS` is provided, use that as the commit message directly and skip confirmation.
 
-Otherwise, use the `AskUserQuestion` tool to confirm:
-- Question: "Commit with this message?"
+Otherwise, first output a summary:
+
+```
+Staged: <list of staged files from git diff --staged --stat>
+
+--- Commit Message ---
+<type>(<scope>): <subject>
+----------------------
+```
+
+Then use the `AskUserQuestion` tool:
+- Question: "Proceed with commit?"
 - Header: "Commit"
 - Options:
-  1. Label: `<type>(<scope>): <subject>` (the generated message), Description: "Use this commit message"
-  2. Label: "Edit message", Description: "Provide a different commit message"
+  1. Label: "Accept", Description: "Commit with this message"
+  2. Label: "Modify", Description: "Edit the commit message"
+  3. Label: "Abort", Description: "Cancel the commit"
 
-If user selects "Edit message" or "Other", use their input as the commit message.
+Handle response:
+- "Accept" → proceed with commit
+- "Modify" or "Other" → use their input as the commit message
+- "Abort" → stop without committing
 
 Then run:
 
