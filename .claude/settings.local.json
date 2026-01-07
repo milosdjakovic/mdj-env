@@ -4,7 +4,8 @@
       "Bash(test:*)",
       "WebSearch",
       "Bash(tree:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }
