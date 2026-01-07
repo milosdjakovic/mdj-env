@@ -98,14 +98,15 @@ If `git rev-list --count HEAD` returned "0" or failed:
 
 If `$ARGUMENTS` is provided, use that as the commit message directly and skip confirmation.
 
-Otherwise, first output a summary:
+Otherwise, first output a summary with clear visual separation:
 
 ```
+
 Staged: <list of staged files from git diff --staged --stat>
 
---- Commit Message ---
-<type>(<scope>): <subject>
-----------------------
+Message:
+  <type>(<scope>): <subject>
+
 ```
 
 Then use the `AskUserQuestion` tool:
