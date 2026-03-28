@@ -48,26 +48,20 @@ if cd "$cwd" 2>/dev/null && git rev-parse --git-dir > /dev/null 2>&1; then
     [ -n "$branch" ] && git_info=" ($branch$status)"
 fi
 
-# Session context window percentage (current conversation) - showing remaining
-usage=$(echo "$input" | jq '.context_window.current_usage')
-size=$(echo "$input" | jq '.context_window.context_window_size')
+# Context usage percentage from pre-calculated field
+used=$(echo "$input" | jq '.context_window.used_percentage // 0')
 
-if [ "$usage" != "null" ]; then
-    current=$(echo "$usage" | jq '.input_tokens + .cache_creation_input_tokens + .cache_read_input_tokens')
-    pct=$((current * 100 / size))
-    remaining=$((100 - pct))
+# Build a 10-char fill bar. 0 = none filled, 1-10 = ceil(used/10), 100 = all filled.
+if [ "$used" -eq 0 ]; then
+    filled=0
 else
-    # At start of conversation, show 100% remaining
-    remaining=100
+    filled=$(( (used + 9) / 10 ))
 fi
-
-# Build a 10-char fill bar where filled portion represents context used
-used=$((100 - remaining))
-filled=$(( (used * 10 + 99) / 100 ))
+[ "$filled" -gt 10 ] && filled=10
 empty=$((10 - filled))
 bar=""
-for i in $(seq 1 $filled); do bar="${bar}█"; done
-for i in $(seq 1 $empty); do bar="${bar}░"; done
+[ "$filled" -gt 0 ] && printf -v fill "%${filled}s" && bar="${fill// /█}"
+[ "$empty" -gt 0 ] && printf -v pad "%${empty}s" && bar="${bar}${pad// /░}"
 
 # Color thresholds: gray under 50%, yellow at 50%, red at 75%
 gray="\033[38;2;153;153;153m"
@@ -84,4 +78,4 @@ else
 fi
 
 # Print status line with lighter gray color (#999 / RGB 153, 153, 153)
-printf "${gray}%s%s | %s | ${ctx_color}[${bar}] ${used}%%${reset}\n" "$dir" "$git_info" "$model"
+printf "${gray}%s%s | %s | ${ctx_color}${bar} ${used}%%${reset}\n" "$dir" "$git_info" "$model"
