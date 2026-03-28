@@ -4,7 +4,7 @@ local config = wezterm.config_builder()
 
 config.color_scheme = 'Aura (Gogh)'
 
-config.font = wezterm.font("Hack Nerd Font")
+config.font = wezterm.font("MesloLGS NF")
 config.font_size = 18
 
 config.harfbuzz_features = { 'calt=1', 'clig=1', 'liga=1' }

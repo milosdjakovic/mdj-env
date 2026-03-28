@@ -31,6 +31,7 @@ This runs all setup scripts in sequence. Restart your terminal when done, then r
     ├── nvim/
     ├── zsh/
     ├── hammerspoon/
+    ├── claude/
     ├── alacritty/
     ├── kitty/
     └── wezterm/
@@ -87,7 +88,7 @@ stow -t ~ alacritty # Alternative terminal
 
 ### Stowed by Default
 
-- ghostty, tmux, nvim, zsh, hammerspoon
+- ghostty, tmux, nvim, zsh, hammerspoon, claude
 
 ### Available but Not Stowed
 

@@ -38,5 +38,6 @@ keybind = shift+enter=text:\x1b\r
 # Quick-terminal
 quick-terminal-animation-duration = 0
 quick-terminal-position = center
+quick-terminal-size = 800px,1200px
 quick-terminal-screen = mouse
 keybind = global:cmd+backquote=toggle_quick_terminal
