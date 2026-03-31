@@ -73,17 +73,7 @@ Config auto-reloads when files change. Get app bundle ID: `osascript -e 'id of a
 
 ### Tmux
 
-Configuration in `dotfiles/tmux/.tmux.conf`. Prefix is `Alt-z` (with `Alt-Z` as secondary for caps lock tolerance).
-
-**Binding conventions.** Every custom prefix binding must use `-N "description"` so it appears in `tmux list-keys -N`. The `?` binding shows a searchable cheat sheet of all noted bindings via fzf.
-
-**Priority tags for binding order.** Custom bindings that should appear first in the cheat sheet use a `[p:N]` prefix in their `-N` note, where N controls sort order. For example `-N "[p:1] Sessions (fzf switcher)"`. The `?` cheat sheet strips the `[p:N]` prefix before display using awk, so the user only sees the clean description. Bindings without a `[p:N]` tag appear after all prioritized bindings.
-
-**FZF switchers.** Sessions (`s`), windows (`w`), and panes (`f`) each use fzf in a `display-popup`. They sort by last used, exclude the current item, and show context in the header. Uppercase variants (`S`, `W`, `F`) open native tmux tree views.
-
-**Status bar.** Changes color based on state. Green background when prefix is active, yellow when in copy mode, transparent otherwise. Copy mode state is tracked via a global `@copy_mode` variable propagated through hooks because `pane_in_mode` only works for the evaluated pane.
-
-**Plugins.** Managed through TPM. Resurrect and continuum handle session persistence. tmux-fzf provides additional management via `m`.
+Configuration in `dotfiles/tmux/`. See `dotfiles/tmux/CLAUDE.md` for binding conventions, priority system, scoped fzf switchers, popup workarounds, and status bar details.
 
 ### Neovim
 
