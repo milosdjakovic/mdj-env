@@ -70,15 +70,15 @@ State transitions use fzf's `become()` to relaunch the script with new filter ar
 
 Action labels use the `^x` shorthand instead of `ctrl-x` to keep the header line within the popup width.
 
-## Popup apps and the nested session workaround
+## Popup apps and the passthrough limitation
 
 tmux `display-popup` does not support `allow-passthrough` because popups have no real pane backing them. The `allow-passthrough` option is a pane option and popups have no associated window pane object. This means apps that send passthrough escape sequences for terminal detection (like yazi) will time out waiting for a response.
 
-The workaround is to nest a throwaway tmux session inside the popup. A real session creates a real pane where passthrough works. The inner session hides its status bar with `set status off` and is destroyed when the app exits.
-
-The inner session is named `~files` (tilde prefix signals it is transient, not a user workspace).
+A nested session workaround exists (commented out in tmux.conf) but the file explorer binding now uses lf instead, which does not need passthrough. See `dotfiles/lf/CLAUDE.md` for details on why lf was chosen.
 
 This limitation is tracked in tmux issue 4329 and yazi issue 2308. A patch from the tmux maintainer exists but may not be in the current release. Lazygit does not need this workaround because it does not use passthrough escape sequences for terminal detection.
+
+Additionally, apps running inside a tmux popup cannot open their own tmux popups. tmux only supports one popup per client, so a second popup replaces the first. This is why lf's sub-commands (bat, nvim, fzf, trash confirmation) all run directly in lf's terminal rather than in popups.
 
 ## Passthrough
 

@@ -13,6 +13,8 @@ brew "fzf"
 brew "fd"
 brew "ripgrep"
 brew "yazi"
+brew "lf"
+brew "trash"
 brew "lazygit"
 
 # Shell

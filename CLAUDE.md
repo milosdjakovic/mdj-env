@@ -43,7 +43,7 @@ stow -D -t ~ <package>        # Unlink a package
 
 ### Stow Packages
 
-**Stowed by default:** ghostty, tmux, nvim, zsh, hammerspoon, claude
+**Stowed by default:** ghostty, tmux, nvim, zsh, hammerspoon, claude, lf
 
 **Available but not stowed:** alacritty, kitty, wezterm
 
@@ -74,6 +74,10 @@ Config auto-reloads when files change. Get app bundle ID: `osascript -e 'id of a
 ### Tmux
 
 Configuration in `dotfiles/tmux/`. See `dotfiles/tmux/CLAUDE.md` for binding conventions, priority system, scoped fzf switchers, popup workarounds, and status bar details.
+
+### lf
+
+Configuration in `dotfiles/lf/`. See `dotfiles/lf/CLAUDE.md` for why lf was chosen over yazi, the tmux popup nesting limitation, command type differences, and custom keybinding details.
 
 ### Neovim
 
