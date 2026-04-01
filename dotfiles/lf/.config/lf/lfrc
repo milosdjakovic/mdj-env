@@ -90,7 +90,8 @@ cmd fzf-find &{{
 
 # Show keybindings cheat sheet in a popup
 cmd help &{{
-  tmpfile=$(mktemp)
+  listfile=$(mktemp)
+  resultfile=$(mktemp)
   grep '^map .* # ' ~/.config/lf/lfrc | \
     sed 's/^map //' | \
     awk -F'#' '{
@@ -99,9 +100,10 @@ cmd help &{{
       desc=$2
       gsub(/^ +| +$/, "", desc)
       printf "%-10s %s\n", key, desc
-    }' > "$tmpfile"
-  selected=$(tmux display-popup -w 60% -h 50% -E "fzf --reverse --header='Keybindings (enter to execute)' --header-first < \"$tmpfile\"")
-  rm -f "$tmpfile"
+    }' > "$listfile"
+  tmux display-popup -w 60% -h 50% -E "fzf --reverse --header='Keybindings (enter to execute)' --header-first < \"$listfile\" > \"$resultfile\""
+  selected=$(cat "$resultfile" 2>/dev/null)
+  rm -f "$listfile" "$resultfile"
   if [ -n "$selected" ]; then
     key=$(echo "$selected" | awk '{print $1}')
     cmd=$(grep "^map $key " ~/.config/lf/lfrc | head -1 | awk '{print $3}')
