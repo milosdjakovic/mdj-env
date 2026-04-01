@@ -76,7 +76,7 @@ cmd trash &{{
 # Recursive fzf finder with scope toggling in a popup
 cmd fzf-find &{{
   tmpfile=$(mktemp)
-  tmux display-popup -w 80% -h 70% -E "~/.config/lf/scripts/fzf-find.sh all > \"$tmpfile\""
+  tmux display-popup -w 80% -h 70% -E "~/.config/lf/scripts/fzf-find.sh all current \"$PWD\" > \"$tmpfile\""
   result=$(cat "$tmpfile" 2>/dev/null)
   rm -f "$tmpfile"
   if [ -n "$result" ]; then
