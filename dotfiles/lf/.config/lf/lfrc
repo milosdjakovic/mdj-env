@@ -28,7 +28,7 @@ cmd back &{{
 # Disable default open so l does nothing on files but still enters directories
 cmd open
 
-# Preview file with bat (only text files, press q to return)
+# Preview file with bat in a popup (only text files)
 cmd preview &{{
   if [ -d "$f" ]; then
     lf -remote "send $id echo 'Cannot preview a directory'"
@@ -37,123 +37,48 @@ cmd preview &{{
     lf -remote "send $id echo 'Cannot preview binary file: $(basename "$f")'"
     sleep 3 && lf -remote "send $id echo" &
   else
-    lf -remote "send $id \$bat --paging=always --style=numbers \"$f\""
+    tmux display-popup -w 85% -h 85% -E "bat --paging=always --style=numbers \"$f\""
   fi
 }}
 
-# Open file in nvim (runs full screen within lf's terminal, :q to return)
-cmd edit-popup $nvim "$f"
-
-# Copy path to clipboard
-cmd path &{{
-  count=$(echo "$fx" | wc -l | tr -d ' ')
-  if [ "$count" -gt 1 ]; then
-    printf '%s' "$fx" | pbcopy
-    lf -remote "send $id echo 'Copied $count paths to clipboard'"
-  else
-    printf '%s' "$f" | pbcopy
-    lf -remote "send $id echo 'Copied path to clipboard'"
-  fi
+# Open file in nvim in a popup
+cmd edit-popup &{{
+  tmux display-popup -w 85% -h 85% -E "nvim \"$f\""
 }}
 
-# Copy name to clipboard
-cmd name &{{
+# Copy menu in a popup
+cmd copy-menu &{{
+  tmpfile=$(mktemp)
+  paths_file=$(mktemp)
+  echo "$fx" > "$paths_file"
   count=$(echo "$fx" | wc -l | tr -d ' ')
-  if [ "$count" -gt 1 ]; then
-    echo "$fx" | while read -r item; do basename "$item"; done | pbcopy
-    lf -remote "send $id echo 'Copied $count names to clipboard'"
-  else
-    basename "$f" | tr -d '\n' | pbcopy
-    lf -remote "send $id echo 'Copied name to clipboard'"
-  fi
+  tmux display-popup -w 24 -h 6 -E "~/.config/lf/scripts/copy-menu.sh $count \"$paths_file\" \"$tmpfile\""
+  choice=$(cat "$tmpfile" 2>/dev/null)
+  rm -f "$tmpfile" "$paths_file"
+  case "$choice" in
+    path) lf -remote "send $id echo 'Copied path to clipboard'";;
+    name) lf -remote "send $id echo 'Copied name to clipboard'";;
+  esac
 }}
 
-# Trash with confirmation
-cmd trash ${{
-  count=$(echo "$fx" | wc -l | tr -d ' ')
-  files=$(echo "$fx" | while read -r item; do [ -f "$item" ] && echo f; done | wc -l | tr -d ' ')
-  dirs=$(echo "$fx" | while read -r item; do [ -d "$item" ] && echo d; done | wc -l | tr -d ' ')
-
-  # Build header message
-  if [ "$count" -eq 1 ]; then
-    if [ -d "$f" ]; then
-      msg="Trash 1 selected directory?"
-    else
-      msg="Trash 1 selected file?"
-    fi
-  else
-    parts=""
-    if [ "$dirs" -gt 0 ]; then
-      parts="$dirs dir$([ "$dirs" -gt 1 ] && echo s)"
-    fi
-    if [ "$files" -gt 0 ]; then
-      [ -n "$parts" ] && parts="$parts and "
-      parts="$parts$files file$([ "$files" -gt 1 ] && echo s)"
-    fi
-    msg="Trash $count selected ($parts)?"
-  fi
-
-  clear
-  tput civis
-  rows=$(tput lines)
-  cols=$(tput cols)
-
-  # Header: message left, [Y]es / [N]o right with pipe separator
-  prompt='│ [Y]es / [N]o'
-  prompt_visible="│ [Y]es / [N]o"
-  pipe_col=$((cols - ${#prompt_visible} - 1))
-  remaining=$((cols - pipe_col - 1))
-
-  tput cup 0 1
-  printf '\033[1m%s\033[0m' "$msg"
-  tput cup 0 $pipe_col
-  printf '%s' "$prompt"
-
-  # Divider
-  tput cup 1 0
-  printf '%*s' "$cols" '' | tr ' ' '─'
-
-  # File list
-  available=$((rows - 3))
-  line=0
-  echo "$fx" | while read -r item; do
-    line=$((line + 1))
-    if [ "$line" -gt "$available" ]; then
-      tput cup $((line + 1)) 1
-      printf '\033[2m...\033[0m'
-      break
-    fi
-    display="$item"
-    # Truncate in the middle if too long
-    max=$((cols - 4))
-    if [ ${#display} -gt $max ]; then
-      half=$(( (max - 3) / 2 ))
-      display="${display:0:$half}...${display: -$half}"
-    fi
-    tput cup $((line + 1)) 1
-    if [ -d "$item" ]; then
-      printf '\033[1;34m%s/\033[0m' "$display"
-    else
-      printf '%s' "$display"
-    fi
-  done
-
-  # Wait for keypress
-  tput cup $rows 0
-  read -rsn 1 ans
-  tput cnorm
-
-  if [ "$ans" = "y" ] || [ "$ans" = "Y" ]; then
-    echo "$fx" | while read -r item; do
-      trash "$item"
-    done
+# Trash with confirmation popup
+cmd trash &{{
+  items_file=$(mktemp)
+  echo "$fx" > "$items_file"
+  tmux display-popup -w 70% -h 50% -E "~/.config/lf/scripts/trash-confirm.sh \"$items_file\""
+  if [ $? -eq 0 ]; then
+    lf -remote "send $id reload"
     lf -remote "send $id echo 'Moved to trash'"
   fi
+  rm -f "$items_file"
 }}
 
-# Recursive fzf finder with scope toggling
-cmd fzf-find ${{
-  result=$(~/.config/lf/scripts/fzf-find.sh)
+# Recursive fzf finder with scope toggling in a popup
+cmd fzf-find &{{
+  tmpfile=$(mktemp)
+  tmux display-popup -w 80% -h 70% -E "~/.config/lf/scripts/fzf-find.sh all > \"$tmpfile\""
+  result=$(cat "$tmpfile" 2>/dev/null)
+  rm -f "$tmpfile"
   if [ -n "$result" ]; then
     if [ -d "$result" ]; then
       lf -remote "send $id cd \"$result\""
@@ -163,9 +88,10 @@ cmd fzf-find ${{
   fi
 }}
 
-# Show keybindings cheat sheet
-cmd help ${{
-  selected=$(grep '^map .* # ' ~/.config/lf/lfrc | \
+# Show keybindings cheat sheet in a popup
+cmd help &{{
+  tmpfile=$(mktemp)
+  grep '^map .* # ' ~/.config/lf/lfrc | \
     sed 's/^map //' | \
     awk -F'#' '{
       split($1, parts, " ")
@@ -173,8 +99,9 @@ cmd help ${{
       desc=$2
       gsub(/^ +| +$/, "", desc)
       printf "%-10s %s\n", key, desc
-    }' | \
-    fzf --reverse --header='Keybindings (enter to execute)' --header-first)
+    }' > "$tmpfile"
+  selected=$(tmux display-popup -w 60% -h 50% -E "fzf --reverse --header='Keybindings (enter to execute)' --header-first < \"$tmpfile\"")
+  rm -f "$tmpfile"
   if [ -n "$selected" ]; then
     key=$(echo "$selected" | awk '{print $1}')
     cmd=$(grep "^map $key " ~/.config/lf/lfrc | head -1 | awk '{print $3}')
@@ -188,17 +115,12 @@ cmd help ${{
 
 map i preview            # Preview file with bat
 map o edit-popup         # Open in nvim
-map cp path              # Copy path to clipboard
-map cn name              # Copy name to clipboard
-map cq cancel            # Cancel copy
+map c copy-menu          # Copy to clipboard
 map D trash              # Trash selected items
 map F fzf-find           # Find files recursively
 map <esc> quit           # Quit lf
 map - back               # Previous directory
 map ? help               # Show keybindings
-
-cmd cancel echo
-map c
 
 # Trigger on-cd on startup to track initial directory
 on-cd
