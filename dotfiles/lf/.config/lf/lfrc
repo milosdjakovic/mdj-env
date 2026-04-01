@@ -99,13 +99,10 @@ cmd tag-browser &{{
 map F fzf-find           # Find files recursively
 map T tag-browser        # Browse tagged files
 cmd clear-all &{{
-  : > ~/.local/share/lf/tags 2>/dev/null
   lf -remote "send $id clear"
   lf -remote "send $id unselect"
-  sleep 0.1
-  lf -remote "send $id reload"
 }}
-map U clear-all          # Clear all selections and tags
+map U clear-all          # Clear selections and cut/copy marks
 map <esc> quit           # Quit lf
 map - back               # Previous directory
 map ? help               # Show keybindings
