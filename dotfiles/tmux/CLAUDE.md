@@ -70,21 +70,23 @@ State transitions use fzf's `become()` to relaunch the script with new filter ar
 
 Action labels use the `^x` shorthand instead of `ctrl-x` to keep the header line within the popup width.
 
-## Popup apps and the passthrough limitation
+## Popup apps and the nested session approach
 
-tmux `display-popup` does not support `allow-passthrough` because popups have no real pane backing them. The `allow-passthrough` option is a pane option and popups have no associated window pane object. This means apps that send passthrough escape sequences for terminal detection (like yazi) will time out waiting for a response.
+tmux `display-popup` does not support `allow-passthrough` because popups have no real pane. Apps like yazi that send passthrough escape sequences crash (tmux issue 4329, yazi issue 2308). lf is used instead because it does not need passthrough.
 
-A nested session workaround exists (commented out in tmux.conf) but the file explorer binding now uses lf instead, which does not need passthrough. See `dotfiles/lf/CLAUDE.md` for details on why lf was chosen.
+Popups also cannot nest by default. A second `display-popup` from within a popup targets the outer client. The workaround is to run a nested tmux session (`~files`) inside the popup. The nested session creates a real pane, which allows sub-commands to open their own popups. lf's sub-commands (bat, nvim, copy, trash, fzf find, tags, help) all use this to show popups overlaying lf.
 
-This limitation is tracked in tmux issue 4329 and yazi issue 2308. A patch from the tmux maintainer exists but may not be in the current release. Lazygit does not need this workaround because it does not use passthrough escape sequences for terminal detection.
-
-Additionally, apps running inside a tmux popup cannot open their own tmux popups. tmux only supports one popup per client, so a second popup replaces the first. This is why lf's sub-commands (bat, nvim, fzf, trash confirmation) all run directly in lf's terminal rather than in popups.
+Lazygit runs in a plain popup without a nested session because it does not need passthrough or sub-popups.
 
 ## Passthrough
 
 `allow-passthrough` is set to `all` (not `on`). The `all` setting enables passthrough from any pane, not just the active one. The `update-environment` entries for `TERM` and `TERM_PROGRAM` ensure these variables are refreshed when attaching to an existing session from a different terminal.
 
 Changing `allow-passthrough` requires a full tmux server restart (`tmux kill-server && tmux`), not just a config reload.
+
+## Escape time
+
+`escape-time` is set to 0 (overriding tmux-sensible's default of 10ms). This eliminates tmux's delay when processing the Escape key, which matters for nested popups where the delay would compound across layers.
 
 ## Status bar
 

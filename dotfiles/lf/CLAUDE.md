@@ -4,38 +4,32 @@ Terminal file manager configuration in `dotfiles/lf/.config/lf/`. Stow symlinks 
 
 ## Why lf instead of yazi
 
-Yazi sends passthrough escape sequences at startup to detect terminal capabilities (image protocol, cell size, light/dark mode). tmux `display-popup` does not support `allow-passthrough` because popups have no real pane backing them. This means yazi times out waiting for a response and crashes with "Terminal response timeout". A nested tmux session workaround exists but adds complexity. lf does not do terminal capability detection so it works directly in a plain `display-popup`. The yazi binding is kept commented out in tmux.conf for reference.
+Yazi sends passthrough escape sequences at startup to detect terminal capabilities. tmux `display-popup` does not support `allow-passthrough` because popups have no real pane backing them. Yazi times out and crashes. lf does not do terminal capability detection so it works directly in a popup.
 
-## tmux popup nesting limitation
+## Nested tmux session for popup nesting
 
-lf runs inside a tmux `display-popup`. Commands inside lf cannot open additional tmux popups because tmux only supports one popup per client. Opening a second popup replaces the first, and when the inner popup closes, lf's popup is also gone. This is why all sub-commands (bat preview, nvim edit, fzf find, trash confirmation) run directly in lf's terminal instead of in popups.
+lf runs inside a nested tmux session (`~files`) created by the tmux binding. This gives lf a real pane, which allows sub-commands to open their own tmux popups via `&{{ tmux display-popup }}`. Without the nested session, popups from within a popup target the outer client instead.
 
-## lf command types and when to use each
+All interactive sub-commands (bat preview, nvim edit, copy menu, trash confirmation, fzf find, tag browser, help) use `&{{ tmux display-popup }}` so lf stays visible behind the popup.
 
-`${{ }}` suspends lf, clears the screen, and gives the terminal to the command. Use for interactive full-screen tools like bat, nvim, fzf, and the trash confirmation screen. lf resumes when the command exits.
-
-`&{{ }}` runs the command in the background without suspending lf. Use for quick actions that only send messages back to lf via `lf -remote`, like copy-to-clipboard and go-to-previous-directory. Using `${{ }}` for these causes a visible screen flash.
-
-`%{{ }}` runs a pipe command at the bottom of lf's screen. Can display output and read input but requires pressing enter to interact. Not suitable for single-keypress prompts.
+The `&{{ }}` command type runs in the background without suspending lf. This is essential for the popup approach. Using `${{ }}` would suspend lf and clear the screen.
 
 ## Keybindings with descriptions
 
-Every `map` line that has a `# description` comment is picked up by the `?` help command. The help parser uses `grep '^map .* # '` to find described bindings, extracts the key and everything after `#` as the description. When adding new bindings, follow this pattern to have them appear in the help screen.
+Every `map` line with a `# description` comment is picked up by the `?` help command. The help parser greps for this pattern and extracts the key and description. Follow this pattern when adding new bindings.
 
-The `c` prefix is used for copy actions (`cp` path, `cn` name, `cq` cancel). lf natively waits for the second key and shows a built-in table of available sub-keys. This table cannot be customized visually.
+## Tags
 
-## Trash uses macOS trash command
+Tags persist across sessions and directories. `U` clears selections and cut/copy marks but preserves tags. Tag management lives in the `T` popup (tag-browser.sh) which supports removing individual tags with ctrl-d and removing all visible tags with ctrl-x (with confirmation). Tag removal is scope-aware, respecting the current dir / all filter.
 
-The `D` binding uses the `trash` CLI (Homebrew) instead of `rm`. Files go to macOS Trash and can be recovered from Finder. The confirmation screen is a custom full-screen UI built with tput that shows a header with the item summary, a divider, and the list of items to be trashed. It handles single files, single directories, and mixed multi-selections with appropriate messaging.
+## fzf find has two independent filters
 
-## Preview guards
+The `F` binding opens fzf with two toggleable dimensions. Scope (current dir / global) and type (all / dirs / files). Each can be changed independently. The active option shows in brackets, inactive ones show their shortcut. Uses `become()` for state transitions, same pattern as the tmux scoped fzf switchers.
 
-The `i` (preview) command only opens bat for text-based files. It checks the MIME type and silently ignores directories and binary files, showing a dismissable message in the status line instead. Messages auto-clear after 3 seconds.
+## Escape responsiveness in fzf popups
+
+fzf has a hardcoded ~100ms delay on Escape to distinguish it from escape sequences (arrow keys, etc). This is unavoidable. tmux escape-time is set to 0 to prevent additional delay. Scripts send results directly to lf via `lf -remote` instead of writing temp files, eliminating post-processing overhead after the popup closes.
 
 ## Previous directory tracking
 
-lf has no built-in "go to previous directory" feature. The `on-cd` hook saves the current directory to a temp file on every directory change. The `-` binding reads the previous directory from that file and navigates to it. The temp files use lf's instance id (`$id`) to avoid conflicts between multiple lf instances.
-
-## Recursive find with scope toggling
-
-The `F` binding opens fzf with all files and directories from the current location downward (using `fd`). Inside fzf, `^d` filters to directories only, `^f` to files only, `^a` resets to all. This uses fzf's `become()` to relaunch the script with different arguments, the same pattern used in the tmux scoped fzf switchers. Selecting a directory navigates into it. Selecting a file navigates to its location and highlights it.
+lf has no built-in previous directory feature. The `on-cd` hook saves the current directory to a temp file. The `-` binding navigates to the previous directory. Temp files use lf's instance id to avoid conflicts between multiple instances.
