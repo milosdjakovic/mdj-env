@@ -118,6 +118,14 @@ map o edit-popup         # Open in nvim
 map c copy-menu          # Copy to clipboard
 map D trash              # Trash selected items
 map F fzf-find           # Find files recursively
+cmd clear-all &{{
+  : > ~/.local/share/lf/tags 2>/dev/null
+  lf -remote "send $id clear"
+  lf -remote "send $id unselect"
+  sleep 0.1
+  lf -remote "send $id reload"
+}}
+map U clear-all          # Clear all selections and tags
 map <esc> quit           # Quit lf
 map - back               # Previous directory
 map ? help               # Show keybindings
