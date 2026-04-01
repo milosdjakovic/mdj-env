@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Tag browser popup for lf with scope toggling
-# Args: $1 = scope (current/all), $2 = base dir, $3 = result file
+# Args: $1 = scope (current/all), $2 = base dir, $3 = lf id
 
 SCRIPT="$0"
 SCOPE="${1:-current}"
 BASE_DIR="${2:-$PWD}"
-RESULT_FILE="$3"
+LF_ID="$3"
 TAGS_FILE="$HOME/.local/share/lf/tags"
 
 # Extract all tagged paths
@@ -44,9 +44,15 @@ else
   HEADER="$scope_line"
 fi
 
-echo "$LIST" | fzf --reverse \
+result=$(echo "$LIST" | fzf --reverse --no-mouse \
   --header="$HEADER" \
   --header-first \
   --bind "esc:abort" \
-  --bind "ctrl-s:become($SCRIPT current \"$BASE_DIR\" \"$RESULT_FILE\")" \
-  --bind "ctrl-a:become($SCRIPT all \"$BASE_DIR\" \"$RESULT_FILE\")" > "$RESULT_FILE"
+  --bind "ctrl-s:become($SCRIPT current \"$BASE_DIR\" \"$LF_ID\")" \
+  --bind "ctrl-a:become($SCRIPT all \"$BASE_DIR\" \"$LF_ID\")")
+
+if [ -n "$result" ] && [ -n "$LF_ID" ]; then
+  parent=$(dirname "$result")
+  lf -remote "send $LF_ID cd \"$parent\""
+  lf -remote "send $LF_ID select \"$(basename "$result")\""
+fi

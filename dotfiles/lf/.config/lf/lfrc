@@ -75,40 +75,12 @@ cmd trash &{{
 
 # Recursive fzf finder with scope toggling in a popup
 cmd fzf-find &{{
-  tmpfile=$(mktemp)
-  tmux display-popup -w 80% -h 70% -E "~/.config/lf/scripts/fzf-find.sh all current \"$PWD\" > \"$tmpfile\""
-  result=$(cat "$tmpfile" 2>/dev/null)
-  rm -f "$tmpfile"
-  if [ -n "$result" ]; then
-    if [ -d "$result" ]; then
-      lf -remote "send $id cd \"$result\""
-    else
-      lf -remote "send $id select \"$result\""
-    fi
-  fi
+  tmux display-popup -w 80% -h 70% -E "~/.config/lf/scripts/fzf-find.sh all current \"$PWD\" \"$id\""
 }}
 
 # Show keybindings cheat sheet in a popup
 cmd help &{{
-  listfile=$(mktemp)
-  resultfile=$(mktemp)
-  grep '^map .* # ' ~/.config/lf/lfrc | \
-    sed 's/^map //' | \
-    awk -F'#' '{
-      split($1, parts, " ")
-      key=parts[1]
-      desc=$2
-      gsub(/^ +| +$/, "", desc)
-      printf "%-10s %s\n", key, desc
-    }' > "$listfile"
-  tmux display-popup -w 60% -h 50% -E "fzf --reverse --header='Keybindings (enter to execute)' --header-first < \"$listfile\" > \"$resultfile\""
-  selected=$(cat "$resultfile" 2>/dev/null)
-  rm -f "$listfile" "$resultfile"
-  if [ -n "$selected" ]; then
-    key=$(echo "$selected" | awk '{print $1}')
-    cmd=$(grep "^map $key " ~/.config/lf/lfrc | head -1 | awk '{print $3}')
-    lf -remote "send $id $cmd"
-  fi
+  tmux display-popup -w 60% -h 50% -E "~/.config/lf/scripts/help-menu.sh \"$id\""
 }}
 
 # ============================================
@@ -121,15 +93,7 @@ map c copy-menu          # Copy to clipboard
 map D trash              # Trash selected items
 # Browse tagged files in a popup, navigate to selected
 cmd tag-browser &{{
-  resultfile=$(mktemp)
-  tmux display-popup -w 80% -h 60% -E "~/.config/lf/scripts/tag-browser.sh current \"$PWD\" \"$resultfile\""
-  result=$(cat "$resultfile" 2>/dev/null)
-  rm -f "$resultfile"
-  if [ -n "$result" ]; then
-    parent=$(dirname "$result")
-    lf -remote "send $id cd \"$parent\""
-    lf -remote "send $id select \"$(basename "$result")\""
-  fi
+  tmux display-popup -w 80% -h 60% -E "~/.config/lf/scripts/tag-browser.sh current \"$PWD\" \"$id\""
 }}
 
 map F fzf-find           # Find files recursively

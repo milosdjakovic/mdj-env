@@ -22,12 +22,12 @@ for ((i=0; i<cols; i++)); do printf '─'; done
 # Options
 if [ "$COUNT" -gt 1 ]; then
   tput cup 2 1
-  printf '[p]  %s paths' "$COUNT"
+  printf '[c]  %s paths' "$COUNT"
   tput cup 3 1
   printf '[n]  %s names' "$COUNT"
 else
   tput cup 2 1
-  printf '[p]  full path'
+  printf '[c]  full path'
   tput cup 3 1
   printf '[n]  file name'
 fi
@@ -39,7 +39,7 @@ tput cnorm
 paths=$(cat "$PATHS_FILE")
 
 case "$ans" in
-  p)
+  c)
     printf '%s' "$paths" | pbcopy
     echo "path" > "$RESULT_FILE"
     ;;

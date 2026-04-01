@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 # Recursive fzf finder for lf with two independent filter dimensions
-# Args: $1 = type (all/dirs/files), $2 = scope (current/global), $3 = base dir
-# Returns the selected path to stdout
+# Args: $1 = type (all/dirs/files), $2 = scope (current/global), $3 = base dir, $4 = lf id
 
 SCRIPT="$0"
 TYPE="${1:-all}"
 SCOPE="${2:-current}"
 BASE_DIR="${3:-$PWD}"
+LF_ID="$4"
 
-# Build fd command based on type and scope
 if [ "$SCOPE" = "global" ]; then
   SEARCH_DIR="$HOME"
 else
@@ -21,9 +20,6 @@ case "$TYPE" in
   files) FD_ARGS="$FD_ARGS --type f";;
 esac
 
-LIST_CMD="fd $FD_ARGS . \"$SEARCH_DIR\""
-
-# Build header showing both dimensions with active option in brackets
 if [ "$SCOPE" = "current" ]; then
   scope_line="[current dir]  ^a global"
 else
@@ -38,22 +34,20 @@ esac
 
 HEADER="$scope_line  |  $type_line"
 
-# Run fd in background and kill it when fzf exits
-tmpfifo=$(mktemp -u)
-mkfifo "$tmpfifo"
-eval "$LIST_CMD" > "$tmpfifo" 2>/dev/null &
-FD_PID=$!
-
-fzf --reverse \
+result=$(fd $FD_ARGS . "$SEARCH_DIR" | fzf --reverse --no-mouse \
   --header="$HEADER" \
   --header-first \
   --bind "esc:abort" \
-  --bind "ctrl-s:become($SCRIPT $TYPE current \"$BASE_DIR\")" \
-  --bind "ctrl-a:become($SCRIPT $TYPE global \"$BASE_DIR\")" \
-  --bind "ctrl-t:become($SCRIPT all $SCOPE \"$BASE_DIR\")" \
-  --bind "ctrl-d:become($SCRIPT dirs $SCOPE \"$BASE_DIR\")" \
-  --bind "ctrl-f:become($SCRIPT files $SCOPE \"$BASE_DIR\")" < "$tmpfifo"
+  --bind "ctrl-s:become($SCRIPT $TYPE current \"$BASE_DIR\" \"$LF_ID\")" \
+  --bind "ctrl-a:become($SCRIPT $TYPE global \"$BASE_DIR\" \"$LF_ID\")" \
+  --bind "ctrl-t:become($SCRIPT all $SCOPE \"$BASE_DIR\" \"$LF_ID\")" \
+  --bind "ctrl-d:become($SCRIPT dirs $SCOPE \"$BASE_DIR\" \"$LF_ID\")" \
+  --bind "ctrl-f:become($SCRIPT files $SCOPE \"$BASE_DIR\" \"$LF_ID\")")
 
-kill "$FD_PID" 2>/dev/null
-wait "$FD_PID" 2>/dev/null
-rm -f "$tmpfifo"
+if [ -n "$result" ] && [ -n "$LF_ID" ]; then
+  if [ -d "$result" ]; then
+    lf -remote "send $LF_ID cd \"$result\""
+  else
+    lf -remote "send $LF_ID select \"$result\""
+  fi
+fi
