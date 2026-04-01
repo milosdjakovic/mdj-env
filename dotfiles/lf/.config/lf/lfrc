@@ -119,7 +119,21 @@ map i preview            # Preview file with bat
 map o edit-popup         # Open in nvim
 map c copy-menu          # Copy to clipboard
 map D trash              # Trash selected items
+# Browse tagged files in a popup, navigate to selected
+cmd tag-browser &{{
+  resultfile=$(mktemp)
+  tmux display-popup -w 80% -h 60% -E "~/.config/lf/scripts/tag-browser.sh current \"$PWD\" \"$resultfile\""
+  result=$(cat "$resultfile" 2>/dev/null)
+  rm -f "$resultfile"
+  if [ -n "$result" ]; then
+    parent=$(dirname "$result")
+    lf -remote "send $id cd \"$parent\""
+    lf -remote "send $id select \"$(basename "$result")\""
+  fi
+}}
+
 map F fzf-find           # Find files recursively
+map T tag-browser        # Browse tagged files
 cmd clear-all &{{
   : > ~/.local/share/lf/tags 2>/dev/null
   lf -remote "send $id clear"
