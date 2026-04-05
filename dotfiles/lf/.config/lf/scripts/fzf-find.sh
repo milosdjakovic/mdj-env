@@ -32,12 +32,14 @@ case "$TYPE" in
   files) type_line="^t all  ^d dirs  [files]";;
 esac
 
-HEADER="$scope_line  |  $type_line"
+HEADER="$scope_line  |  $type_line  |  ^y copy path  ^c copy path + close"
 
 result=$(fd $FD_ARGS . "$SEARCH_DIR" | fzf --reverse --no-mouse \
   --header="$HEADER" \
   --header-first \
   --bind "esc:abort" \
+  --bind "ctrl-y:execute-silent(printf '%s' {} | pbcopy)" \
+  --bind "ctrl-c:execute-silent(printf '%s' {} | pbcopy)+abort" \
   --bind "ctrl-s:become($SCRIPT $TYPE current \"$BASE_DIR\" \"$LF_ID\")" \
   --bind "ctrl-a:become($SCRIPT $TYPE global \"$BASE_DIR\" \"$LF_ID\")" \
   --bind "ctrl-t:become($SCRIPT all $SCOPE \"$BASE_DIR\" \"$LF_ID\")" \
