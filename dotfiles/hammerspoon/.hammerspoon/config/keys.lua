@@ -30,7 +30,6 @@ return {
     { app = "Obsidian",         modifiers = HYPER, key = "O" },
     { app = "Safari",           modifiers = HYPER, key = "S" },
     { app = "VisualStudioCode", modifiers = HYPER, key = "V" },
-    { app = "PyCharm",          modifiers = HYPER, key = "P" },
     { app = "Notes",            modifiers = HYPER, key = "N" },
     { app = "iPhoneMirroring",  modifiers = HYPER, key = "I" },
     { app = "Zed",              modifiers = HYPER, key = "Z" },
@@ -38,8 +37,6 @@ return {
     { app = "Bruno",            modifiers = HYPER, key = "R" },
     { app = "Stickies",         modifiers = HYPER, key = "T" },
     { app = "Slack",            modifiers = HYPER, key = "L" },
-    { app = "Cursor",           modifiers = HYPER, key = "U" },
-    { app = "ChatGPT",          modifiers = HYPER, key = "H" },
     -- Third character
     { app = "Claude",           modifiers = HYPER, key = "A" },
     -- Disabled (uncomment to enable)
