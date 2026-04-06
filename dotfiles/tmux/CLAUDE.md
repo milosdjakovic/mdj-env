@@ -51,6 +51,7 @@ When adding a new binding, pick a priority number that places it in the right gr
 31. Split pane vertically (`%`)
 32. New window (`c`)
 33. Show all keybindings (`?`)
+34. Scratch shell popup (`` ` ``)
 
 Plugin bindings (tpm, yank, resurrect, sensible) do not use priority tags and appear after all prioritized bindings.
 
