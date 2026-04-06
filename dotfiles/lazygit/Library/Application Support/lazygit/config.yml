@@ -1,1 +1,4 @@
 notARepository: skip
+disableStartupPopups: true
+gui:
+  screenMode: half
