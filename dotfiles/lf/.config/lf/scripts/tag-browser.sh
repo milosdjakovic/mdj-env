@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Tag browser popup for lf with scope toggling and tag management
-# Args: $1 = scope (current/all), $2 = base dir, $3 = lf id
+# Args: $1 = scope (current/all), $2 = base dir, $3 = lf id, $4 = query
 
 SCRIPT="$0"
 SCOPE="${1:-current}"
 BASE_DIR="${2:-$PWD}"
 LF_ID="$3"
+QUERY="${4:-}"
 TAGS_FILE="$HOME/.local/share/lf/tags"
 
 # Export state for become() scripts to inherit
@@ -56,11 +57,12 @@ $action_line"
 fi
 
 result=$(echo "$LIST" | fzf --reverse --no-mouse \
+  --query="$QUERY" \
   --header="$HEADER" \
   --header-first \
   --bind "esc:abort" \
-  --bind "ctrl-s:become($SCRIPT current \"$BASE_DIR\" \"$LF_ID\")" \
-  --bind "ctrl-a:become($SCRIPT all \"$BASE_DIR\" \"$LF_ID\")" \
+  --bind "ctrl-s:become($SCRIPT current \"$BASE_DIR\" \"$LF_ID\" {q})" \
+  --bind "ctrl-a:become($SCRIPT all \"$BASE_DIR\" \"$LF_ID\" {q})" \
   --bind "ctrl-d:execute-silent(~/.config/lf/scripts/tag-delete.sh {})+reload($LIST_CMD)" \
   --bind "ctrl-x:execute(~/.config/lf/scripts/tag-clear-confirm.sh)+reload($LIST_CMD)")
 
