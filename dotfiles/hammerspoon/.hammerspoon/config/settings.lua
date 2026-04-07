@@ -25,7 +25,7 @@ return {
   -- Window sizing defaults
   windowSizing = {
     maxWidth = 2400,
-    maxHeight = 1200,
+    maxHeight = 1350,
     fullHeightMaxWidth = 2400,
     movePixels = 20,
     resizePixels = 50,
