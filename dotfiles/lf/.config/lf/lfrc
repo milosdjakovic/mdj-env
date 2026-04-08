@@ -78,6 +78,11 @@ cmd fzf-find &{{
   tmux display-popup -w 80% -h 70% -E "~/.config/lf/scripts/fzf-find.sh all current \"$PWD\" \"$id\""
 }}
 
+# Global fzf finder (starts with global scope)
+cmd fzf-find-global &{{
+  tmux display-popup -w 80% -h 70% -E "~/.config/lf/scripts/fzf-find.sh all global \"$PWD\" \"$id\""
+}}
+
 # Show keybindings cheat sheet in a popup
 cmd help &{{
   tmux display-popup -w 60% -h 50% -E "~/.config/lf/scripts/help-menu.sh \"$id\""
@@ -96,8 +101,15 @@ cmd tag-browser &{{
   tmux display-popup -w 80% -h 60% -E "~/.config/lf/scripts/tag-browser.sh current \"$PWD\" \"$id\""
 }}
 
-map F fzf-find           # Find files recursively
-map T tag-browser        # Browse tagged files
+# Global tag browser (starts with all tags)
+cmd tag-browser-global &{{
+  tmux display-popup -w 80% -h 60% -E "~/.config/lf/scripts/tag-browser.sh all \"$PWD\" \"$id\""
+}}
+
+map F fzf-find           # Find files in current dir
+map <a-f> fzf-find-global # Find files globally
+map T tag-browser        # Browse tags in current dir
+map <a-t> tag-browser-global # Browse all tags
 cmd clear-all &{{
   lf -remote "send $id clear"
   lf -remote "send $id unselect"
