@@ -18,6 +18,7 @@ When adding a new binding, pick a priority number that places it in the right gr
 
 ### Priority assignments
 
+0. Launcher / command palette (`Space`)
 1. Tmux actions via tmux-fzf (`m`)
 2. Tmux management menu (`M`)
 3. Lazygit popup (`g`)
@@ -70,6 +71,18 @@ Pane switcher shortcuts: same as windows plus `^w` filter by current window and 
 State transitions use fzf's `become()` to relaunch the script with new filter arguments. Canceling a pick returns to the previous filter state. The header updates contextually to show only relevant actions for the current state.
 
 Action labels use the `^x` shorthand instead of `ctrl-x` to keep the header line within the popup width.
+
+## FZF launcher (command palette)
+
+`prefix+Space` opens a command palette showing all available tools and actions. The launcher script lives at `~/.tmux/scripts/fzf-launcher.sh`.
+
+Entries are defined in a pipe-delimited data section at the top of the script. Each line has four fields: `category|display_key|description|command_id`. The display key is what the user sees (e.g. `prefix+g`), or `---` if no direct binding exists. The command ID maps to a case in the `execute_cmd` function which handles the actual tmux command. This separation avoids quoting issues with complex tmux commands in the data section.
+
+To add a new entry, add a line to the `ENTRIES` variable with the correct category, key, description, and a new command ID, then add a matching case to `execute_cmd`.
+
+Categories are toggled via keyboard shortcuts in the fzf header, using the same `become()` pattern as the scoped fzf switchers and lf fzf-find. The active category shows in brackets. Available categories are `tools` (popup apps like lazygit, lf, scratch shell), `nav` (session/window/pane switchers and tree views), and `tmux` (session management, config reload, plugin operations). The default view shows all.
+
+The pane's working directory is passed as `$PANE_PATH` from the `.tmux.conf` binding since `#{pane_current_path}` does not resolve inside a popup. Commands that need a working directory (lazygit, lf, scratch) use this variable.
 
 ## Popup apps and the nested session approach
 
