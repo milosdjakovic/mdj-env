@@ -35,9 +35,10 @@ keybind = opt+right=text:\x1b[1;5C
 
 keybind = shift+enter=text:\x1b\r
 
-# Quick-terminal
-quick-terminal-animation-duration = 0
+# Quick terminal
 quick-terminal-position = center
-quick-terminal-size = 800px,1200px
+quick-terminal-size = 80%,80%
+quick-terminal-animation-duration = 0
 quick-terminal-screen = mouse
-keybind = global:cmd+backquote=toggle_quick_terminal
+keybind = global:cmd+backquote=unbind
+
