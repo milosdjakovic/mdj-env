@@ -41,7 +41,7 @@ function obj:configure(opts)
     maxAttempts = 20,
   }
   self._size = opts.size or { width = 2400, height = 1350 }
-  self._minPadding = opts.minPadding or 50
+  self._minPadding = opts.minPadding or { x = 40, y = 20 }
   return self
 end
 
@@ -66,8 +66,8 @@ end
 --- TerminalHandler:_handleWindowPlacement(app)
 --- Method
 --- Handle window placement for terminal with padding-aware sizing.
---- Uses frame.y for the top (below menu bar) and fullFrame for the
---- bottom and sides (dock excluded).
+--- Uses frame (below menu bar, above dock) with minimum padding on
+--- all sides.
 function obj:_handleWindowPlacement(app)
   local screens = hs.screen.allScreens()
   local screenToMove = screens[2] or screens[1]
@@ -78,17 +78,17 @@ function obj:_handleWindowPlacement(app)
   if not win then return end
 
   local screen = win:screen()
-  local fullFrame = screen:fullFrame()
   local frame = screen:frame()
 
-  local availX = fullFrame.x
+  local availX = frame.x
   local availY = frame.y
-  local availW = fullFrame.w
-  local availH = (fullFrame.y + fullFrame.h) - frame.y
+  local availW = frame.w
+  local availH = frame.h
 
-  local padding = self._minPadding
-  local paddedW = availW - (padding * 2)
-  local paddedH = availH - (padding * 2)
+  local padX = self._minPadding.x
+  local padY = self._minPadding.y
+  local paddedW = availW - (padX * 2)
+  local paddedH = availH - (padY * 2)
 
   local targetW = math.min(self._size.width, paddedW)
   local targetH = math.min(self._size.height, paddedH)

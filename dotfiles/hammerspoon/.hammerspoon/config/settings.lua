@@ -15,7 +15,7 @@ return {
     maxAttempts = 20,         -- Maximum polls before giving up
     preferredTerminal = "Ghostty",  -- App name from config/apps.lua
     size = { width = 2400, height = 1350 },
-    minPadding = 65,
+    minPadding = { x = 40, y = 20 },
   },
 
   -- Workspace timing
