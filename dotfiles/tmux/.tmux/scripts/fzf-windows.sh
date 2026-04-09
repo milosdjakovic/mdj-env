@@ -8,22 +8,34 @@
 #
 # Filters:
 #   --session NAME  Show only windows from this session
+#   --all           Show windows from all sessions (overrides default)
+#   --query TEXT    Pre-fill fzf search query (for carryover across scope switches)
 
 SCRIPT="$0"
 CURRENT_SESSION=$(tmux display-message -p '#S')
 CURRENT_WINDOW=$(tmux display-message -p '#S:#I')
-CURRENT_WINDOW_DISPLAY=$(tmux display-message -p '#S:#I - #W')
+CURRENT_SESSION_NAME=$(tmux display-message -p '#S')
+CURRENT_WINDOW_NAME=$(tmux display-message -p '#W')
 
 MODE="main"
 FILTER_SESSION=""
+SHOW_ALL=""
+QUERY=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
     --session) FILTER_SESSION="$2"; shift 2;;
     --pick-session) MODE="pick-session"; shift;;
+    --all) SHOW_ALL=1; shift;;
+    --query) QUERY="$2"; shift 2;;
     *) shift;;
   esac
 done
+
+# Default to current session unless --all was passed or a session filter is set
+if [[ -z "$SHOW_ALL" && -z "$FILTER_SESSION" && "$MODE" == "main" ]]; then
+  FILTER_SESSION="$CURRENT_SESSION"
+fi
 
 list_windows() {
   local session_filter="$1"
@@ -58,26 +70,19 @@ fi
 
 # --- Main mode ---
 
-# Build header based on current filter state
+# Build header: ^a toggles between scoped and all
 if [[ -n "$FILTER_SESSION" ]]; then
-  FILTER_LINE="Filter: session [$FILTER_SESSION]"
-  if [[ "$FILTER_SESSION" == "$CURRENT_SESSION" ]]; then
-    ACTIONS="^a all sessions | ^e pick session"
-  else
-    ACTIONS="^s this session | ^a all sessions | ^e pick session"
-  fi
+  SCOPE_LINE="Session: [this]  ^a all"
+  BECOME_TOGGLE="$SCRIPT --all --query {q}"
 else
-  FILTER_LINE="Filter: all"
-  ACTIONS="^s this session | ^e pick session"
+  SCOPE_LINE="Session: [all]  ^a this"
+  BECOME_TOGGLE="$SCRIPT --session $CURRENT_SESSION --query {q}"
 fi
 
-HEADER="Windows | Current: $CURRENT_WINDOW_DISPLAY
-$FILTER_LINE
-$ACTIONS"
+HEADER="Windows | Session: $CURRENT_SESSION_NAME - Window: $CURRENT_WINDOW_NAME
+$SCOPE_LINE"
 
-# Build become commands for state transitions
-BECOME_THIS="$SCRIPT --session $CURRENT_SESSION"
-BECOME_ALL="$SCRIPT"
+# Pick session still works as a hidden shortcut
 if [[ -n "$FILTER_SESSION" ]]; then
   BECOME_PICK="$SCRIPT --pick-session --session $FILTER_SESSION"
 else
@@ -88,8 +93,8 @@ selected=$(list_windows "$FILTER_SESSION" | \
   fzf --reverse \
       --header="$HEADER" \
       --header-first \
-      --bind "ctrl-s:become($BECOME_THIS)" \
-      --bind "ctrl-a:become($BECOME_ALL)" \
+      --query="$QUERY" \
+      --bind "ctrl-a:become($BECOME_TOGGLE)" \
       --bind "ctrl-e:become($BECOME_PICK)")
 
 if [[ -n "$selected" ]]; then

@@ -64,13 +64,11 @@ Sessions (`s`), windows (`w`), and panes (`f`) each use fzf in a `display-popup`
 
 The window and pane switchers support dynamic scope filtering via keyboard shortcuts displayed in the fzf header. These live in dedicated scripts at `~/.tmux/scripts/fzf-windows.sh` and `~/.tmux/scripts/fzf-panes.sh`.
 
-Window switcher shortcuts: `^s` filter by current session, `^a` show all, `^e` pick a session from a list.
+Both switchers use a single `^a` toggle between scoped and all. The window switcher defaults to the current session and `^a` toggles to all sessions (and back). The pane switcher defaults to the current window and `^a` toggles to all panes (and back). The `--all` flag overrides the default scope when calling the scripts directly.
 
-Pane switcher shortcuts: same as windows plus `^w` filter by current window and `^f` pick a window from a list. The window pool respects the active session filter.
+The header is two lines: a context line showing the current session, window, and pane, and a scope line showing the active filter with the `^a` toggle. Hidden shortcuts `^e` (pick session) and `^f` (pick window, panes only) still work but are not shown in the header.
 
-State transitions use fzf's `become()` to relaunch the script with new filter arguments. Canceling a pick returns to the previous filter state. The header updates contextually to show only relevant actions for the current state.
-
-Action labels use the `^x` shorthand instead of `ctrl-x` to keep the header line within the popup width.
+State transitions use fzf's `become()` to relaunch the script with new filter arguments. Search text carries over across scope toggles via `{q}` passed as `--query`. Pick actions do not carry the query since they show a different list.
 
 ## FZF launcher (command palette)
 

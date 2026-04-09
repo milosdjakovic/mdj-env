@@ -10,16 +10,22 @@
 # Filters:
 #   --session NAME          Show only panes from this session
 #   --window SESSION:INDEX  Show only panes from this window
+#   --all                   Show panes from all sessions (overrides default)
+#   --query TEXT            Pre-fill fzf search query (for carryover across scope switches)
 
 SCRIPT="$0"
 CURRENT_SESSION=$(tmux display-message -p '#S')
 CURRENT_WINDOW=$(tmux display-message -p '#S:#I')
 CURRENT_PANE=$(tmux display-message -p '#S:#I.#P')
-CURRENT_PANE_DISPLAY=$(tmux display-message -p '#S:#I.#P - #W')
+CURRENT_SESSION_NAME=$(tmux display-message -p '#S')
+CURRENT_WINDOW_NAME=$(tmux display-message -p '#W')
+CURRENT_PANE_INDEX=$(tmux display-message -p '#P')
 
 MODE="main"
 FILTER_SESSION=""
 FILTER_WINDOW=""
+SHOW_ALL=""
+QUERY=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -27,9 +33,16 @@ while [[ $# -gt 0 ]]; do
     --window) FILTER_WINDOW="$2"; shift 2;;
     --pick-session) MODE="pick-session"; shift;;
     --pick-window) MODE="pick-window"; shift;;
+    --all) SHOW_ALL=1; shift;;
+    --query) QUERY="$2"; shift 2;;
     *) shift;;
   esac
 done
+
+# Default to current window unless --all was passed or a filter is set
+if [[ -z "$SHOW_ALL" && -z "$FILTER_SESSION" && -z "$FILTER_WINDOW" && "$MODE" == "main" ]]; then
+  FILTER_WINDOW="$CURRENT_WINDOW"
+fi
 
 list_panes() {
   local session_filter="$1"
@@ -104,47 +117,25 @@ fi
 
 # --- Main mode ---
 
+# Build header: ^a toggles between scoped and all
+if [[ -n "$FILTER_WINDOW" || -n "$FILTER_SESSION" ]]; then
+  SCOPE_LINE="Window: [this]  ^a all"
+  BECOME_TOGGLE="$SCRIPT --all --query {q}"
+else
+  SCOPE_LINE="Window: [all]  ^a this"
+  BECOME_TOGGLE="$SCRIPT --window $CURRENT_WINDOW --query {q}"
+fi
+
+HEADER="Panes | Session: $CURRENT_SESSION_NAME - Window: $CURRENT_WINDOW_NAME - Pane: $CURRENT_PANE_INDEX
+$SCOPE_LINE"
+
 # Determine the active session context (for scoping pick-window)
 ACTIVE_SESSION="$FILTER_SESSION"
 if [[ -n "$FILTER_WINDOW" ]]; then
-  # Extract session from window target (session:index -> session)
   ACTIVE_SESSION="${FILTER_WINDOW%%:*}"
 fi
 
-# Build header based on current filter state
-if [[ -n "$FILTER_WINDOW" ]]; then
-  WINDOW_NAME=$(tmux display-message -t "$FILTER_WINDOW" -p '#W' 2>/dev/null || echo "$FILTER_WINDOW")
-  FILTER_LINE="Filter: window [$FILTER_WINDOW - $WINDOW_NAME]"
-
-  ACTIONS="^a all | ^e pick session | ^f pick window"
-  if [[ "$ACTIVE_SESSION" != "$CURRENT_SESSION" ]]; then
-    ACTIONS="^s this session | $ACTIONS"
-  fi
-  if [[ "$FILTER_WINDOW" != "$CURRENT_WINDOW" ]]; then
-    ACTIONS="$ACTIONS | ^w this window"
-  fi
-elif [[ -n "$FILTER_SESSION" ]]; then
-  FILTER_LINE="Filter: session [$FILTER_SESSION]"
-
-  ACTIONS="^a all | ^e pick session | ^w this window | ^f pick window"
-  if [[ "$FILTER_SESSION" != "$CURRENT_SESSION" ]]; then
-    ACTIONS="^s this session | $ACTIONS"
-  fi
-else
-  FILTER_LINE="Filter: all"
-  ACTIONS="^s session | ^e pick session | ^w window | ^f pick window"
-fi
-
-HEADER="Panes | Current: $CURRENT_PANE_DISPLAY
-$FILTER_LINE
-$ACTIONS"
-
-# Build become commands for state transitions
-BECOME_THIS_SESSION="$SCRIPT --session $CURRENT_SESSION"
-BECOME_ALL="$SCRIPT"
-BECOME_THIS_WINDOW="$SCRIPT --window $CURRENT_WINDOW"
-
-# Pick session preserves current state for fallback on cancel
+# Pick shortcuts still work as hidden bindings
 if [[ -n "$FILTER_WINDOW" ]]; then
   BECOME_PICK_SESSION="$SCRIPT --pick-session --window $FILTER_WINDOW"
   BECOME_PICK_WINDOW="$SCRIPT --pick-window --session $ACTIVE_SESSION --window $FILTER_WINDOW"
@@ -160,10 +151,9 @@ selected=$(list_panes "$FILTER_SESSION" "$FILTER_WINDOW" | \
   fzf --reverse \
       --header="$HEADER" \
       --header-first \
-      --bind "ctrl-s:become($BECOME_THIS_SESSION)" \
-      --bind "ctrl-a:become($BECOME_ALL)" \
+      --query="$QUERY" \
+      --bind "ctrl-a:become($BECOME_TOGGLE)" \
       --bind "ctrl-e:become($BECOME_PICK_SESSION)" \
-      --bind "ctrl-w:become($BECOME_THIS_WINDOW)" \
       --bind "ctrl-f:become($BECOME_PICK_WINDOW)")
 
 if [[ -n "$selected" ]]; then
