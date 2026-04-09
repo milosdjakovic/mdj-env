@@ -67,6 +67,8 @@ spoon.TerminalHandler:configure({
   windowManager = spoon.WindowManager,
   terminalBundleID = apps[settings.terminal.preferredTerminal],
   timing = settings.terminal,
+  size = settings.terminal.size,
+  minPadding = settings.terminal.minPadding,
 })
 spoon.TerminalHandler:bindHotkeys({ terminal = keys.terminal })
 

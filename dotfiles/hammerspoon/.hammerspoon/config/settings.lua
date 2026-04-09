@@ -14,6 +14,8 @@ return {
     checkInterval = 0.25,     -- How often to poll for readiness
     maxAttempts = 20,         -- Maximum polls before giving up
     preferredTerminal = "Ghostty",  -- App name from config/apps.lua
+    size = { width = 2400, height = 1350 },
+    minPadding = 65,
   },
 
   -- Workspace timing
