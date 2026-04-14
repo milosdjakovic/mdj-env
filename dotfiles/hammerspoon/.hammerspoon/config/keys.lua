@@ -33,6 +33,7 @@ return {
     { app = "Notes",            modifiers = HYPER, key = "N" },
     { app = "iPhoneMirroring",  modifiers = HYPER, key = "I" },
     { app = "Zed",              modifiers = HYPER, key = "Z" },
+    { app = "Preview",          modifiers = HYPER, key = "P" },
     -- Second character
     { app = "Bruno",            modifiers = HYPER, key = "R" },
     { app = "Stickies",         modifiers = HYPER, key = "T" },

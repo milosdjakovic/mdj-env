@@ -9,6 +9,7 @@ return {
   Notes = "com.apple.Notes",
   Stickies = "com.apple.Stickies",
   Safari = "com.apple.Safari",
+  Preview= "com.apple.Preview",
 
   -- Terminals
   Terminal = "com.apple.Terminal",
