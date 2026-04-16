@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Tag browser popup for lf with scope toggling and tag management
-# Args: $1 = scope (current/all), $2 = base dir, $3 = lf id, $4 = query
+# Args: $1 = scope (current/all), $2 = base dir, $3 = result file, $4 = query
 
 SCRIPT="$0"
 SCOPE="${1:-current}"
 BASE_DIR="${2:-$PWD}"
-LF_ID="$3"
+RESULT_FILE="$3"
 QUERY="${4:-}"
 TAGS_FILE="$HOME/.local/share/lf/tags"
 
@@ -14,13 +14,12 @@ export TB_TAGS_FILE="$TAGS_FILE"
 export TB_SCRIPT="$SCRIPT"
 export TB_SCOPE="$SCOPE"
 export TB_BASE_DIR="$BASE_DIR"
-export TB_LF_ID="$LF_ID"
 
 # Build the reload command (reused for initial load and after delete)
 if [ "$SCOPE" = "current" ]; then
-  LIST_CMD="awk -F'\t' '{print \$1}' \"$TAGS_FILE\" 2>/dev/null | grep \"^$BASE_DIR\" || true"
+  LIST_CMD="sed 's/:.$//' \"$TAGS_FILE\" 2>/dev/null | grep \"^$BASE_DIR\" || true"
 else
-  LIST_CMD="awk -F'\t' '{print \$1}' \"$TAGS_FILE\" 2>/dev/null || true"
+  LIST_CMD="sed 's/:.$//' \"$TAGS_FILE\" 2>/dev/null || true"
 fi
 
 # Check tag counts
@@ -61,13 +60,11 @@ result=$(echo "$LIST" | fzf --reverse --no-mouse \
   --header="$HEADER" \
   --header-first \
   --bind "esc:abort" \
-  --bind "ctrl-s:become($SCRIPT current \"$BASE_DIR\" \"$LF_ID\" {q})" \
-  --bind "ctrl-a:become($SCRIPT all \"$BASE_DIR\" \"$LF_ID\" {q})" \
+  --bind "ctrl-s:become($SCRIPT current \"$BASE_DIR\" \"$RESULT_FILE\" {q})" \
+  --bind "ctrl-a:become($SCRIPT all \"$BASE_DIR\" \"$RESULT_FILE\" {q})" \
   --bind "ctrl-d:execute-silent(~/.config/lf/scripts/tag-delete.sh {})+reload($LIST_CMD)" \
   --bind "ctrl-x:execute(~/.config/lf/scripts/tag-clear-confirm.sh)+reload($LIST_CMD)")
 
-if [ -n "$result" ] && [ -n "$LF_ID" ]; then
-  parent=$(dirname "$result")
-  lf -remote "send $LF_ID cd \"$parent\""
-  lf -remote "send $LF_ID select \"$(basename "$result")\""
+if [ -n "$result" ] && [ -n "$RESULT_FILE" ]; then
+  printf '%s' "$result" > "$RESULT_FILE"
 fi

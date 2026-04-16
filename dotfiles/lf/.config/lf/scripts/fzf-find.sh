@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Recursive fzf finder for lf with two independent filter dimensions
-# Args: $1 = type (all/dirs/files), $2 = scope (current/global), $3 = base dir, $4 = lf id, $5 = query
+# Args: $1 = type (all/dirs/files), $2 = scope (current/global), $3 = base dir, $4 = result file, $5 = query
 
 SCRIPT="$0"
 TYPE="${1:-all}"
 SCOPE="${2:-current}"
 BASE_DIR="${3:-$PWD}"
-LF_ID="$4"
+RESULT_FILE="$4"
 QUERY="${5:-}"
 
 if [ "$SCOPE" = "global" ]; then
@@ -35,23 +35,20 @@ esac
 
 HEADER="$scope_line  |  $type_line  |  ^y copy path  ^c copy path + close"
 
-result=$(fd $FD_ARGS . "$SEARCH_DIR" | fzf --reverse --no-mouse \
+result=$(fzf --reverse --no-mouse \
   --query="$QUERY" \
   --header="$HEADER" \
   --header-first \
   --bind "esc:abort" \
   --bind "ctrl-y:execute-silent(printf '%s' {} | pbcopy)" \
   --bind "ctrl-c:execute-silent(printf '%s' {} | pbcopy)+abort" \
-  --bind "ctrl-s:become($SCRIPT $TYPE current \"$BASE_DIR\" \"$LF_ID\" {q})" \
-  --bind "ctrl-a:become($SCRIPT $TYPE global \"$BASE_DIR\" \"$LF_ID\" {q})" \
-  --bind "ctrl-t:become($SCRIPT all $SCOPE \"$BASE_DIR\" \"$LF_ID\" {q})" \
-  --bind "ctrl-d:become($SCRIPT dirs $SCOPE \"$BASE_DIR\" \"$LF_ID\" {q})" \
-  --bind "ctrl-f:become($SCRIPT files $SCOPE \"$BASE_DIR\" \"$LF_ID\" {q})")
+  --bind "ctrl-s:become($SCRIPT $TYPE current \"$BASE_DIR\" \"$RESULT_FILE\" {q})" \
+  --bind "ctrl-a:become($SCRIPT $TYPE global \"$BASE_DIR\" \"$RESULT_FILE\" {q})" \
+  --bind "ctrl-t:become($SCRIPT all $SCOPE \"$BASE_DIR\" \"$RESULT_FILE\" {q})" \
+  --bind "ctrl-d:become($SCRIPT dirs $SCOPE \"$BASE_DIR\" \"$RESULT_FILE\" {q})" \
+  --bind "ctrl-f:become($SCRIPT files $SCOPE \"$BASE_DIR\" \"$RESULT_FILE\" {q})" \
+  < <(fd $FD_ARGS . "$SEARCH_DIR"))
 
-if [ -n "$result" ] && [ -n "$LF_ID" ]; then
-  if [ -d "$result" ]; then
-    lf -remote "send $LF_ID cd \"$result\""
-  else
-    lf -remote "send $LF_ID select \"$result\""
-  fi
+if [ -n "$result" ] && [ -n "$RESULT_FILE" ]; then
+  printf '%s' "$result" > "$RESULT_FILE"
 fi

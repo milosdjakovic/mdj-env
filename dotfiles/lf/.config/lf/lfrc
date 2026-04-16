@@ -75,12 +75,32 @@ cmd trash &{{
 
 # Recursive fzf finder with scope toggling in a popup
 cmd fzf-find &{{
-  tmux display-popup -w 80% -h 70% -E "~/.config/lf/scripts/fzf-find.sh all current \"$PWD\" \"$id\""
+  tmpfile=$(mktemp)
+  tmux display-popup -w 80% -h 70% -E "~/.config/lf/scripts/fzf-find.sh all current \"$PWD\" \"$tmpfile\""
+  result=$(cat "$tmpfile" 2>/dev/null)
+  rm -f "$tmpfile"
+  if [ -n "$result" ]; then
+    if [ -d "$result" ]; then
+      lf -remote "send $id cd \"$result\""
+    else
+      lf -remote "send $id select \"$result\""
+    fi
+  fi
 }}
 
 # Global fzf finder (starts with global scope)
 cmd fzf-find-global &{{
-  tmux display-popup -w 80% -h 70% -E "~/.config/lf/scripts/fzf-find.sh all global \"$PWD\" \"$id\""
+  tmpfile=$(mktemp)
+  tmux display-popup -w 80% -h 70% -E "~/.config/lf/scripts/fzf-find.sh all global \"$PWD\" \"$tmpfile\""
+  result=$(cat "$tmpfile" 2>/dev/null)
+  rm -f "$tmpfile"
+  if [ -n "$result" ]; then
+    if [ -d "$result" ]; then
+      lf -remote "send $id cd \"$result\""
+    else
+      lf -remote "send $id select \"$result\""
+    fi
+  fi
 }}
 
 # Show keybindings cheat sheet in a popup
@@ -98,12 +118,32 @@ map c copy-menu          # Copy to clipboard
 map D trash              # Trash selected items
 # Browse tagged files in a popup, navigate to selected
 cmd tag-browser &{{
-  tmux display-popup -w 80% -h 60% -E "~/.config/lf/scripts/tag-browser.sh current \"$PWD\" \"$id\""
+  tmpfile=$(mktemp)
+  tmux display-popup -w 80% -h 60% -E "~/.config/lf/scripts/tag-browser.sh current \"$PWD\" \"$tmpfile\""
+  result=$(cat "$tmpfile" 2>/dev/null)
+  rm -f "$tmpfile"
+  if [ -n "$result" ]; then
+    if [ -d "$result" ]; then
+      lf -remote "send $id cd \"$result\""
+    else
+      lf -remote "send $id select \"$result\""
+    fi
+  fi
 }}
 
 # Global tag browser (starts with all tags)
 cmd tag-browser-global &{{
-  tmux display-popup -w 80% -h 60% -E "~/.config/lf/scripts/tag-browser.sh all \"$PWD\" \"$id\""
+  tmpfile=$(mktemp)
+  tmux display-popup -w 80% -h 60% -E "~/.config/lf/scripts/tag-browser.sh all \"$PWD\" \"$tmpfile\""
+  result=$(cat "$tmpfile" 2>/dev/null)
+  rm -f "$tmpfile"
+  if [ -n "$result" ]; then
+    if [ -d "$result" ]; then
+      lf -remote "send $id cd \"$result\""
+    else
+      lf -remote "send $id select \"$result\""
+    fi
+  fi
 }}
 
 map F fzf-find           # Find files in current dir

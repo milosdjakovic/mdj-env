@@ -8,9 +8,9 @@ BASE_DIR="$TB_BASE_DIR"
 
 # Get visible tags based on scope
 if [ "$SCOPE" = "current" ]; then
-  tags=$(awk -F'\t' '{print $1}' "$TAGS_FILE" 2>/dev/null | grep "^$BASE_DIR")
+  tags=$(sed 's/:.$//' "$TAGS_FILE" 2>/dev/null | grep "^$BASE_DIR")
 else
-  tags=$(awk -F'\t' '{print $1}' "$TAGS_FILE" 2>/dev/null)
+  tags=$(sed 's/:.$//' "$TAGS_FILE" 2>/dev/null)
 fi
 
 count=$(echo "$tags" | grep -c . 2>/dev/null)
@@ -72,7 +72,7 @@ tput cnorm
 
 if [ "$ans" = "y" ] || [ "$ans" = "Y" ]; then
   if [ "$SCOPE" = "current" ]; then
-    awk -F'\t' -v p="^$BASE_DIR" '$1 !~ p' "$TAGS_FILE" > "$TAGS_FILE.tmp" && mv "$TAGS_FILE.tmp" "$TAGS_FILE"
+    awk -v p="^$BASE_DIR" '{path=$0; sub(/:.$/, "", path)} path !~ p' "$TAGS_FILE" > "$TAGS_FILE.tmp" && mv "$TAGS_FILE.tmp" "$TAGS_FILE"
   else
     : > "$TAGS_FILE"
   fi
