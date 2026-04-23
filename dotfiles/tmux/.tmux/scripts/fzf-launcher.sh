@@ -52,7 +52,7 @@ execute_cmd() {
             --header-first | \
         xargs tmux switch-client -t"
       ;;
-    fzf-tags)        tmux display-popup -w 80 -h 70% -E "sed 's/:.$//' ~/.local/share/lf/tags 2>/dev/null | fzf --reverse --no-mouse --header='Tags (flagged in lf) | enter copies path' --header-first | tr -d '\n' | pbcopy";;
+    fzf-tags)        tmux display-popup -w 80% -h 70% -E "sed 's/:.$//' ~/.local/share/lf/tags 2>/dev/null | fzf --reverse --no-mouse --header='Tags (flagged in lf) | enter copies path' --header-first | tr -d '\n' | pbcopy";;
     fzf-files)       tmux display-popup -d "$PANE_PATH" -w 80% -h 70% -E "SEARCH_DIR='$PANE_PATH' ~/.tmux/scripts/fzf-files.sh";;
     fzf-files-global) tmux display-popup -w 80% -h 70% -E "SEARCH_DIR='$HOME' ~/.tmux/scripts/fzf-files.sh";;
     tree-sessions)   tmux choose-tree -Zs;;
