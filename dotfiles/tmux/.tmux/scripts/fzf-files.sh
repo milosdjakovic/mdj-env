@@ -4,14 +4,25 @@
 # do not expand inside the -E shell-command argument.
 #
 # Invocation patterns:
-#   $1 = type (dirs|files), $2 = query      -- normal and ^f toggle
+#   $1 = type (dirs|files), $2 = query      -- normal, ^f, and alt-. toggles
 #   $1 = --down, $2 = path, $3 = next type  -- ^l descend
 #   $1 = --up,   $2 = next type             -- ^h move one level up
 #
 # ^l on a directory enters it. ^l on a file jumps to its parent directory.
-# The active type (dirs or files) is preserved across navigation.
+# Type and hidden state persist across navigation within a popup session
+# and reset to defaults each time the popup reopens.
 
 SCRIPT="$0"
+
+# Directories never worth searching (vcs metadata, dep trees, caches,
+# build output, IDE state). Excluded regardless of the hidden toggle.
+EXCLUDE=(
+  .git .hg .svn
+  node_modules .next .nuxt .turbo
+  __pycache__ .venv venv .mypy_cache .pytest_cache .ruff_cache .tox
+  target dist build out
+  .direnv .cache .DS_Store .idea
+)
 
 # Handle --down: resolve selected path against SEARCH_DIR. If it resolves
 # to a file, use its parent directory. Preserves the requested type.
@@ -48,10 +59,24 @@ fi
 SEARCH_DIR="${SEARCH_DIR:-$PWD}"
 TYPE="${1:-dirs}"
 QUERY="${2:-}"
+SHOW_HIDDEN="${SHOW_HIDDEN:-0}"
 
-export SEARCH_DIR
+export SEARCH_DIR SHOW_HIDDEN
 
-FD_ARGS="--hidden --exclude .git"
+FD_ARGS=""
+for pattern in "${EXCLUDE[@]}"; do
+  FD_ARGS="$FD_ARGS --exclude $pattern"
+done
+
+if [ "$SHOW_HIDDEN" = "1" ]; then
+  FD_ARGS="--hidden $FD_ARGS"
+  NEXT_HIDDEN=0
+  hidden_hint="alt-. hide dotfiles"
+else
+  NEXT_HIDDEN=1
+  hidden_hint="alt-. show dotfiles"
+fi
+
 case "$TYPE" in
   dirs)  FD_ARGS="$FD_ARGS --type d"; TOGGLE_TYPE="files"; toggle_hint="^f files";;
   files) FD_ARGS="$FD_ARGS --type f"; TOGGLE_TYPE="dirs";  toggle_hint="^f directories";;
@@ -60,7 +85,7 @@ esac
 display_dir="${SEARCH_DIR/#$HOME/~}"
 
 HEADER="$display_dir
-<enter> copy path | ^h ← .. | ^l cd → | $toggle_hint"
+<enter> copy path | ^h ← .. | ^l cd → | alt-h home | $toggle_hint | $hidden_hint"
 
 # Run fd and fzf from SEARCH_DIR so the list shows paths relative to the
 # header base. The selected item gets re-joined to SEARCH_DIR before copy.
@@ -69,6 +94,8 @@ result=$(cd "$SEARCH_DIR" && fzf --reverse --no-mouse \
   --header="$HEADER" \
   --header-first \
   --bind "ctrl-f:become($SCRIPT $TOGGLE_TYPE {q})" \
+  --bind "alt-.:become(SHOW_HIDDEN=$NEXT_HIDDEN $SCRIPT $TYPE {q})" \
+  --bind "alt-h:become(SEARCH_DIR=\"$HOME\" $SCRIPT $TYPE {q})" \
   --bind "ctrl-l:become($SCRIPT --down {} $TYPE)" \
   --bind "ctrl-h:become($SCRIPT --up $TYPE)" \
   --bind "ctrl-j:down,ctrl-k:up" \
