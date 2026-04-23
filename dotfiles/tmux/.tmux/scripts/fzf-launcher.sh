@@ -22,12 +22,11 @@ done
 ENTRIES="tools|prefix+g|Lazygit popup|lazygit
 tools|prefix+b|File explorer popup (lf)|lf
 tools|prefix+\`|Scratch shell popup|scratch
+tools|prefix+t|Search lf tags (copy path)|fzf-tags
+tools|prefix+f|Find files (copy path)|fzf-files
+tools|prefix+F|Find files globally (copy path)|fzf-files-global
 nav|prefix+s|Sessions (fzf switcher)|fzf-sessions
-nav|prefix+w|Windows (fzf switcher)|fzf-windows
-nav|prefix+f|Panes (fzf switcher)|fzf-panes
 nav|prefix+S|Sessions (tree view)|tree-sessions
-nav|prefix+W|Windows (tree view)|tree-windows
-nav|prefix+F|Choose tree (all)|tree-all
 nav|prefix+e|Last session|last-session
 nav|prefix+a|Last window|last-window
 tmux|---|Save session|save-session
@@ -53,11 +52,10 @@ execute_cmd() {
             --header-first | \
         xargs tmux switch-client -t"
       ;;
-    fzf-windows)     tmux display-popup -w 80 -h 70% -E "~/.tmux/scripts/fzf-windows.sh";;
-    fzf-panes)       tmux display-popup -w 80 -h 70% -E "~/.tmux/scripts/fzf-panes.sh";;
+    fzf-tags)        tmux display-popup -w 80 -h 70% -E "sed 's/:.$//' ~/.local/share/lf/tags 2>/dev/null | fzf --reverse --no-mouse --header='Tags (flagged in lf) | enter copies path' --header-first | tr -d '\n' | pbcopy";;
+    fzf-files)       tmux display-popup -d "$PANE_PATH" -w 80% -h 70% -E "SEARCH_DIR='$PANE_PATH' ~/.tmux/scripts/fzf-files.sh";;
+    fzf-files-global) tmux display-popup -w 80% -h 70% -E "SEARCH_DIR='$HOME' ~/.tmux/scripts/fzf-files.sh";;
     tree-sessions)   tmux choose-tree -Zs;;
-    tree-windows)    tmux choose-tree -Zw;;
-    tree-all)        tmux choose-tree -Z;;
     last-session)    tmux switch-client -l;;
     last-window)     tmux last-window;;
     save-session)    ~/.tmux/plugins/tmux-resurrect/scripts/save.sh;;

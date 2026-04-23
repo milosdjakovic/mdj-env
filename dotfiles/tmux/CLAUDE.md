@@ -26,11 +26,7 @@ When adding a new binding, pick a priority number that places it in the right gr
 5. Switch to last window (`a`)
 6. Switch to last session (`e`)
 7. Sessions fzf switcher (`s`)
-8. Windows fzf switcher (`w`)
-9. Panes fzf switcher (`f`)
 10. Sessions tree view (`S`)
-11. Windows tree view (`W`)
-12. Choose tree, all (`F`)
 13. Switch to previous session (`(`)
 14. Switch to next session (`)`)
 15. Previous window (`p`)
@@ -53,22 +49,19 @@ When adding a new binding, pick a priority number that places it in the right gr
 32. New window (`c`)
 33. Show all keybindings (`?`)
 34. Scratch shell popup (`` ` ``)
+35. Search lf tags, copy path (`t`)
+36. Find files, copy path (`f`)
+37. Find files globally, copy path (`F`)
 
 Plugin bindings (tpm, yank, resurrect, sensible) do not use priority tags and appear after all prioritized bindings.
 
 ## FZF switchers
 
-Sessions (`s`), windows (`w`), and panes (`f`) each use fzf in a `display-popup`. They sort by last used, exclude the current item, and show context in the header. Uppercase variants (`S`, `W`, `F`) open native tmux tree views.
+Sessions (`s`) use fzf in a `display-popup`, sorting by last used and excluding the current session. `S` opens the native tmux tree view.
 
-### Scoped filtering for windows and panes
+## FZF search popups
 
-The window and pane switchers support dynamic scope filtering via keyboard shortcuts displayed in the fzf header. These live in dedicated scripts at `~/.tmux/scripts/fzf-windows.sh` and `~/.tmux/scripts/fzf-panes.sh`.
-
-Both switchers use a single `^a` toggle between scoped and all. The window switcher defaults to the current session and `^a` toggles to all sessions (and back). The pane switcher defaults to the current window and `^a` toggles to all panes (and back). The `--all` flag overrides the default scope when calling the scripts directly.
-
-The header is two lines: a context line showing the current session, window, and pane, and a scope line showing the active filter with the `^a` toggle. Hidden shortcuts `^e` (pick session) and `^f` (pick window, panes only) still work but are not shown in the header.
-
-State transitions use fzf's `become()` to relaunch the script with new filter arguments. Search text carries over across scope toggles via `{q}` passed as `--query`. Pick actions do not carry the query since they show a different list.
+Tags (`t`), files (`f`), and files globally (`F`) open fzf in a popup and copy the selected path to clipboard on Enter. Tags reads from lf's tags file. File search uses fd with process substitution (via `~/.tmux/scripts/fzf-files.sh`) so fzf exits instantly without waiting for fd to finish traversing.
 
 ## FZF launcher (command palette)
 
@@ -78,7 +71,7 @@ Entries are defined in a pipe-delimited data section at the top of the script. E
 
 To add a new entry, add a line to the `ENTRIES` variable with the correct category, key, description, and a new command ID, then add a matching case to `execute_cmd`.
 
-Categories are toggled via keyboard shortcuts in the fzf header, using the same `become()` pattern as the scoped fzf switchers and lf fzf-find. The active category shows in brackets. Available categories are `tools` (popup apps like lazygit, lf, scratch shell), `nav` (session/window/pane switchers and tree views), and `tmux` (session management, config reload, plugin operations). The default view shows all.
+Categories are toggled via keyboard shortcuts in the fzf header, using the same `become()` pattern as the scoped fzf switchers and lf fzf-find. The active category shows in brackets. Available categories are `tools` (popup apps like lazygit, lf, scratch shell, tag/file search), `nav` (session switcher and tree view), and `tmux` (session management, config reload, plugin operations). The default view shows all.
 
 The pane's working directory is passed as `$PANE_PATH` from the `.tmux.conf` binding since `#{pane_current_path}` does not resolve inside a popup. Commands that need a working directory (lazygit, lf, scratch) use this variable.
 
