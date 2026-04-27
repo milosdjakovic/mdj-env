@@ -41,7 +41,7 @@ function obj:configure(opts)
     maxAttempts = 20,
   }
   self._size = opts.size or { width = 2400, height = 1350 }
-  self._minPadding = opts.minPadding or { x = 40, y = 20 }
+  self._minPadding = opts.minPadding or { x = 20, y = 20 }
   return self
 end
 
