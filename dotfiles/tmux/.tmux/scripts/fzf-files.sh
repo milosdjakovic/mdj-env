@@ -14,14 +14,50 @@
 
 SCRIPT="$0"
 
-# Directories never worth searching (vcs metadata, dep trees, caches,
-# build output, IDE state). Excluded regardless of the hidden toggle.
-EXCLUDE=(
+# Version control metadata, dependency trees, caches, build output,
+# IDE state. Excluded regardless of the hidden toggle.
+DEV_DIRS=(
   .git .hg .svn
   node_modules .next .nuxt .turbo
   __pycache__ .venv venv .mypy_cache .pytest_cache .ruff_cache .tox
   target dist build out
   .direnv .cache .DS_Store .idea
+  coverage .terraform .parcel-cache .svelte-kit .angular .serverless
+)
+
+# macOS opaque bundle directories. Finder treats them as files but they
+# are folders containing tens of thousands of internal assets.
+MACOS_BUNDLES=(
+  '*.photoslibrary' '*.musiclibrary' '*.tvlibrary'
+  '*.imovielibrary' '*.fcpbundle'
+)
+
+# macOS Library subdirs that hold pure system noise. Library itself
+# stays searchable because Mobile Documents and CloudStorage live there.
+MACOS_LIBRARY=(
+  Caches Containers WebKit Cookies
+  'Saved Application State'
+)
+
+# Language toolchain homes in the user home directory. Hold downloaded
+# archives, compiled deps, and version manager installs.
+TOOLCHAIN_HOMES=(
+  .cargo .rustup .gradle .m2
+  .npm .yarn .pnpm-store .bun .deno
+  .nvm .pyenv .rbenv .sdkman .android
+)
+
+# Trash directories on both macOS and Linux.
+TRASH_DIRS=(
+  .Trash Trash
+)
+
+EXCLUDE=(
+  "${DEV_DIRS[@]}"
+  "${MACOS_BUNDLES[@]}"
+  "${MACOS_LIBRARY[@]}"
+  "${TOOLCHAIN_HOMES[@]}"
+  "${TRASH_DIRS[@]}"
 )
 
 # Handle --down: resolve selected path against SEARCH_DIR. If it resolves
@@ -63,13 +99,15 @@ SHOW_HIDDEN="${SHOW_HIDDEN:-0}"
 
 export SEARCH_DIR SHOW_HIDDEN
 
-FD_ARGS=""
+# fd respects gitignore by default. Turn that off so worktrees and
+# other intentionally ignored directories still surface in search.
+FD_ARGS=(--no-ignore)
 for pattern in "${EXCLUDE[@]}"; do
-  FD_ARGS="$FD_ARGS --exclude $pattern"
+  FD_ARGS+=(--exclude "$pattern")
 done
 
 if [ "$SHOW_HIDDEN" = "1" ]; then
-  FD_ARGS="--hidden $FD_ARGS"
+  FD_ARGS+=(--hidden)
   NEXT_HIDDEN=0
   hidden_hint="alt-. hide dotfiles"
 else
@@ -78,8 +116,8 @@ else
 fi
 
 case "$TYPE" in
-  dirs)  FD_ARGS="$FD_ARGS --type d"; TOGGLE_TYPE="files"; toggle_hint="^f files";;
-  files) FD_ARGS="$FD_ARGS --type f"; TOGGLE_TYPE="dirs";  toggle_hint="^f directories";;
+  dirs)  FD_ARGS+=(--type d); TOGGLE_TYPE="files"; toggle_hint="^f files";;
+  files) FD_ARGS+=(--type f); TOGGLE_TYPE="dirs";  toggle_hint="^f directories";;
 esac
 
 display_dir="${SEARCH_DIR/#$HOME/~}"
@@ -99,7 +137,7 @@ result=$(cd "$SEARCH_DIR" && fzf --reverse --no-mouse \
   --bind "ctrl-l:become($SCRIPT --down {} $TYPE)" \
   --bind "ctrl-h:become($SCRIPT --up $TYPE)" \
   --bind "ctrl-j:down,ctrl-k:up" \
-  < <(fd $FD_ARGS))
+  < <(fd "${FD_ARGS[@]}"))
 
 if [ -n "$result" ]; then
   case "$result" in
