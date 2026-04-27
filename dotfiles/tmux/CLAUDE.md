@@ -50,8 +50,8 @@ When adding a new binding, pick a priority number that places it in the right gr
 33. Show all keybindings (`?`)
 34. Scratch shell popup (`` ` ``)
 35. Search lf tags, copy path (`t`)
-36. Find files, copy path (`f`)
-37. Find files globally, copy path (`F`)
+36. Find files globally, copy path (`f`)
+37. Find files, copy path (`F`)
 
 Plugin bindings (tpm, yank, resurrect, sensible) do not use priority tags and appear after all prioritized bindings.
 

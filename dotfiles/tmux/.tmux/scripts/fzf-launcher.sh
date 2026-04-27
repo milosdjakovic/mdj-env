@@ -23,8 +23,8 @@ ENTRIES="tools|prefix+g|Lazygit popup|lazygit
 tools|prefix+b|File explorer popup (lf)|lf
 tools|prefix+\`|Scratch shell popup|scratch
 tools|prefix+t|Search lf tags (copy path)|fzf-tags
-tools|prefix+f|Find files (copy path)|fzf-files
-tools|prefix+F|Find files globally (copy path)|fzf-files-global
+tools|prefix+f|Find files globally (copy path)|fzf-files-global
+tools|prefix+F|Find files (copy path)|fzf-files
 nav|prefix+s|Sessions (fzf switcher)|fzf-sessions
 nav|prefix+S|Sessions (tree view)|tree-sessions
 nav|prefix+e|Last session|last-session
