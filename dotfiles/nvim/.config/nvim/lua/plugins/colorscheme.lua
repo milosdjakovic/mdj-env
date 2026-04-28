@@ -91,6 +91,15 @@ return {
         pattern = "aura-dark",
         callback = apply_aura_overrides,
       })
+      -- LazyVim sets the colorscheme during its priority 10000 setup, which
+      -- runs before this plugin's config. By the time our autocmd is
+      -- registered the ColorScheme event has already fired and we missed it,
+      -- so re-apply on User VeryLazy. Mini.icons is also lazy = true, so
+      -- VeryLazy is when its highlights are reliably available.
+      vim.api.nvim_create_autocmd("User", {
+        pattern = "VeryLazy",
+        callback = apply_aura_overrides,
+      })
       if vim.g.colors_name == "aura-dark" then
         apply_aura_overrides()
       end
