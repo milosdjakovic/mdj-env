@@ -25,8 +25,9 @@ export EDITOR=nvim
 export FZF_DEFAULT_OPTS='
   --color=fg:-1,bg:-1,fg+:-1,bg+:-1
   --color=hl:2,hl+:10
-  --color=prompt:5,pointer:5,marker:3,spinner:3
-  --color=info:#6d6d6d,header:#6d6d6d,border:#6d6d6d
+  --color=prompt:2,pointer:2,marker:3,spinner:3
+  --color=info:#949494,header:#949494,border:#949494
+  --color=separator:#949494,scrollbar:#949494,gutter:#949494
 '
 
 # Tool initializers
