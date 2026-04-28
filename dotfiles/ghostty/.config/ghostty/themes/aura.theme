@@ -20,7 +20,7 @@ palette = 4=a277ff  # Blue
 palette = 5=a277ff  # Magenta
 palette = 6=61ffca  # Cyan
 palette = 7=edecee  # White
-palette = 8=4d4d4d  # Bright Black
+palette = 8=949494  # Bright Black
 palette = 9=ff6767  # Bright Red
 palette = 10=61ffca # Bright Green
 palette = 11=ffca85 # Bright Yellow
