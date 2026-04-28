@@ -22,7 +22,16 @@ Resulting order is recentrepos as-is, then any newly-discovered worktrees append
 
 ## Display
 
-Paths with `$HOME` collapsed to `~` for readability. fzf header reads `Recent repos & worktrees`. Worktree paths self-identify because they contain `/worktrees/` so no extra annotation is needed.
+Paths with `$HOME` collapsed to `~` for readability. fzf header reads `Recent repos & worktrees`.
+
+Each entry is prefixed with a nerdfont icon to differentiate the kind of repo:
+
+- Main repo (path has a `.git` directory):  (nf-cod-repo)
+- Secondary worktree (path has a `.git` file):  (nf-cod-git_branch)
+
+The detection uses `[ -d "$path/.git" ]` rather than parsing porcelain output, since lazygit's recentrepos contains both kinds and we need a per-path classifier.
+
+The popup is sized `-w 60% -h 50%` so it stays smaller and more focused than the file/tag pickers (`-w 80% -h 70%`).
 
 ## Flow
 

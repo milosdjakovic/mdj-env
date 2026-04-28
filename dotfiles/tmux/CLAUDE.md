@@ -26,6 +26,7 @@ When adding a new binding, pick a priority number that places it in the right gr
 5. Switch to last window (`a`)
 6. Switch to last session (`e`)
 7. Sessions fzf switcher (`s`)
+8. Recent repos & worktrees lazygit (`G`)
 10. Sessions tree view (`S`)
 13. Switch to previous session (`(`)
 14. Switch to next session (`)`)

@@ -20,6 +20,7 @@ done
 # --- Entry data: category|display_key|description|command_id ---
 # To add a new entry: add a line here and a case in execute_cmd below
 ENTRIES="tools|prefix+g|Lazygit popup|lazygit
+tools|prefix+G|Recent repos & worktrees lazygit|lazygit-recent
 tools|prefix+b|File explorer popup (lf)|lf
 tools|prefix+\`|Scratch shell popup|scratch
 tools|prefix+t|Search lf tags (copy path)|fzf-tags
@@ -38,6 +39,7 @@ tmux|prefix+U|Update plugins|update-plugins"
 execute_cmd() {
   case "$1" in
     lazygit)         tmux display-popup -d "$PANE_PATH" -w 90% -h 90% -E "lazygit";;
+    lazygit-recent)  tmux display-popup -w 60% -h 50% -E "~/.tmux/scripts/fzf-recent-repos.sh";;
     lf)              tmux display-popup -d "$PANE_PATH" -w 90% -h 90% -E "tmux new-session -A -s '~files' -c '$PANE_PATH' lf \\; set status off";;
     scratch)         tmux display-popup -d "$PANE_PATH" -w 90% -h 90% -E "$SHELL";;
     fzf-sessions)
