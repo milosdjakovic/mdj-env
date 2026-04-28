@@ -36,24 +36,63 @@ return {
       vim.opt.rtp:append(plugin.dir .. "/packages/neovim")
     end,
     config = function()
-      -- Override aura's #6d6d6d gray with #949494 for better contrast.
-      -- Upstream aura applies palette.gray to these groups via guifg, so
-      -- we re-set them after the colorscheme finishes loading. Also apply
-      -- immediately in case aura-dark is already active when this runs.
-      local function apply_gray_override()
+      -- aura ships several highlight groups with gui = "inverse", which swaps
+      -- fg and bg at render time. For Visual the result is a near white bar
+      -- because Normal.fg (#edecee) becomes the rendered bg. Substitute uses
+      -- bg = white directly. Both feel out of place against the otherwise
+      -- muted aura look, so we replace them with solid backgrounds and
+      -- readable foregrounds drawn from the aura palette.
+      --
+      -- We also override aura's #6d6d6d gray with #949494 for better contrast,
+      -- and unify mini.icons colors so the file tree stops looking like a
+      -- rainbow.
+      local function apply_aura_overrides()
         local gray = "#949494"
+        local black = "#15141b"
+        local white = "#edecee"
+        local selection = "#3d375e" -- aura purple_faded with alpha stripped
+        local green = "#61ffca"
+        local blue = "#82e2ff"
+        local red = "#ff6767"
+        local orange = "#ffca85"
+
         vim.api.nvim_set_hl(0, "Comment", { fg = gray, italic = true })
         vim.api.nvim_set_hl(0, "Folded", { fg = gray, italic = true })
-        vim.api.nvim_set_hl(0, "FoldColumn", { fg = gray, bg = "#15141b" })
-        vim.api.nvim_set_hl(0, "TabLine", { fg = gray, bg = "#15141b" })
+        vim.api.nvim_set_hl(0, "FoldColumn", { fg = gray, bg = black })
+        vim.api.nvim_set_hl(0, "TabLine", { fg = gray, bg = black })
         vim.api.nvim_set_hl(0, "Gray", { fg = gray })
+
+        vim.api.nvim_set_hl(0, "Visual", { bg = selection, fg = white })
+        vim.api.nvim_set_hl(0, "VisualNOS", { bg = selection, fg = white })
+        vim.api.nvim_set_hl(0, "Search", { bg = selection, fg = orange })
+        vim.api.nvim_set_hl(0, "IncSearch", { bg = orange, fg = black })
+        vim.api.nvim_set_hl(0, "Substitute", { bg = selection, fg = red })
+        vim.api.nvim_set_hl(0, "TabLineSel", { bg = selection, fg = green, bold = true })
+        vim.api.nvim_set_hl(0, "DiffAdd", { bg = selection, fg = green })
+        vim.api.nvim_set_hl(0, "DiffChange", { bg = selection, fg = blue })
+        vim.api.nvim_set_hl(0, "DiffDelete", { bg = selection, fg = red })
+        vim.api.nvim_set_hl(0, "DiffText", { bg = selection, fg = orange })
+
+        for _, name in ipairs({
+          "MiniIconsAzure",
+          "MiniIconsBlue",
+          "MiniIconsCyan",
+          "MiniIconsGreen",
+          "MiniIconsGrey",
+          "MiniIconsOrange",
+          "MiniIconsPurple",
+          "MiniIconsRed",
+          "MiniIconsYellow",
+        }) do
+          vim.api.nvim_set_hl(0, name, { fg = gray })
+        end
       end
       vim.api.nvim_create_autocmd("ColorScheme", {
         pattern = "aura-dark",
-        callback = apply_gray_override,
+        callback = apply_aura_overrides,
       })
       if vim.g.colors_name == "aura-dark" then
-        apply_gray_override()
+        apply_aura_overrides()
       end
     end,
   },
