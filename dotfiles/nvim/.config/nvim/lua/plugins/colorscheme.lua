@@ -32,10 +32,15 @@ return {
     "daltonmenezes/aura-theme",
     lazy = false,
     priority = 1000,
+    -- Register the autocmd in `init` rather than `config`. Lazy.nvim runs
+    -- every plugin's init before any config, so by the time LazyVim's config
+    -- (priority 10000) calls `:colorscheme aura-dark`, the autocmd is already
+    -- waiting and our overrides apply during the colorscheme load itself,
+    -- before the first paint. Registering in config fires too late and the
+    -- user sees a flash of the original aura look.
     init = function(plugin)
       vim.opt.rtp:append(plugin.dir .. "/packages/neovim")
-    end,
-    config = function()
+
       -- aura ships several highlight groups with gui = "inverse", which swaps
       -- fg and bg at render time. For Visual the result is a near white bar
       -- because Normal.fg (#edecee) becomes the rendered bg. Substitute uses
@@ -87,17 +92,9 @@ return {
           vim.api.nvim_set_hl(0, name, { fg = gray })
         end
       end
+
       vim.api.nvim_create_autocmd("ColorScheme", {
         pattern = "aura-dark",
-        callback = apply_aura_overrides,
-      })
-      -- LazyVim sets the colorscheme during its priority 10000 setup, which
-      -- runs before this plugin's config. By the time our autocmd is
-      -- registered the ColorScheme event has already fired and we missed it,
-      -- so re-apply on User VeryLazy. Mini.icons is also lazy = true, so
-      -- VeryLazy is when its highlights are reliably available.
-      vim.api.nvim_create_autocmd("User", {
-        pattern = "VeryLazy",
         callback = apply_aura_overrides,
       })
       if vim.g.colors_name == "aura-dark" then
