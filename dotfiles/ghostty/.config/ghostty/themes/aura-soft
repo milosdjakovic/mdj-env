@@ -1,0 +1,32 @@
+# Ghostty Theme: Aura Soft Dark
+# Mapped from the Aura color palette spec, Main > Dark Soft variant.
+# https://github.com/daltonmenezes/aura-theme/blob/main/packages/color-palettes/README.md
+
+# Set the background and foreground colors
+background = 15141b
+foreground = bdbdbd
+
+# Set the cursor color
+cursor-color = 8464c6
+
+# Set the selection colors
+selection-background = 29263c
+selection-foreground = bdbdbd
+
+# Define the color palette
+palette = 0=110f18
+palette = 1=c55858
+palette = 2=54c59f
+palette = 3=c7a06f
+palette = 4=8464c6
+palette = 5=8464c6
+palette = 6=54c59f
+palette = 7=bdbdbd
+palette = 8=4d4d4d
+palette = 9=c55858
+palette = 10=54c59f
+palette = 11=c7a06f
+palette = 12=8464c6
+palette = 13=8464c6
+palette = 14=54c59f
+palette = 15=bdbdbd
