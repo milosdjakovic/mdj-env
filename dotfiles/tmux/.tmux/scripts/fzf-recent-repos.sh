@@ -7,8 +7,10 @@
 set -euo pipefail
 
 STATE_FILE="$HOME/Library/Application Support/lazygit/state.yml"
-ICON_REPO=""
-ICON_WORKTREE=""
+# Nerdfont glyphs constructed from UTF-8 bytes so the source stays editor-safe.
+# nf-cod-repo (U+EB16) for main repos, nf-cod-git_branch (U+EA68) for worktrees.
+ICON_REPO=$(printf '\xee\xac\x96')
+ICON_WORKTREE=$(printf '\xee\xa9\xa8')
 
 if [[ ! -f "$STATE_FILE" ]]; then
   printf 'lazygit state file not found at %s\n' "$STATE_FILE" >&2
