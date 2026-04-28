@@ -23,9 +23,9 @@ ENTRIES="tools|prefix+g|Lazygit popup|lazygit
 tools|prefix+G|Recent repos & worktrees lazygit|lazygit-recent
 tools|prefix+b|File explorer popup (lf)|lf
 tools|prefix+\`|Scratch shell popup|scratch
-tools|prefix+t|Search lf tags (copy path)|fzf-tags
-tools|prefix+f|Find files globally (copy path)|fzf-files-global
-tools|prefix+F|Find files (copy path)|fzf-files
+tools|prefix+t|Search lf tags (enter copy, ^v nvim, alt-v new window)|fzf-tags
+tools|prefix+f|Find files globally (enter copy, ^v nvim, alt-v new window)|fzf-files-global
+tools|prefix+F|Find files (enter copy, ^v nvim, alt-v new window)|fzf-files
 nav|prefix+s|Sessions (fzf switcher)|fzf-sessions
 nav|prefix+S|Sessions (tree view)|tree-sessions
 nav|prefix+e|Last session|last-session
@@ -54,9 +54,9 @@ execute_cmd() {
             --header-first | \
         xargs tmux switch-client -t"
       ;;
-    fzf-tags)        tmux display-popup -w 80% -h 70% -E "sed 's/:.$//' ~/.local/share/lf/tags 2>/dev/null | fzf --reverse --no-mouse --header='Tags (flagged in lf) | enter copies path' --header-first | tr -d '\n' | pbcopy";;
-    fzf-files)       tmux display-popup -d "$PANE_PATH" -w 80% -h 70% -E "SEARCH_DIR='$PANE_PATH' ~/.tmux/scripts/fzf-files.sh";;
-    fzf-files-global) tmux display-popup -w 80% -h 70% -E "SEARCH_DIR='$HOME' ~/.tmux/scripts/fzf-files.sh";;
+    fzf-tags)        tmux display-popup -w 90% -h 90% -E "~/.tmux/scripts/fzf-tags.sh";;
+    fzf-files)       tmux display-popup -d "$PANE_PATH" -w 90% -h 90% -E "SEARCH_DIR='$PANE_PATH' ~/.tmux/scripts/fzf-files.sh";;
+    fzf-files-global) tmux display-popup -w 90% -h 90% -E "SEARCH_DIR='$HOME' ~/.tmux/scripts/fzf-files.sh";;
     tree-sessions)   tmux choose-tree -Zs;;
     last-session)    tmux switch-client -l;;
     last-window)     tmux last-window;;

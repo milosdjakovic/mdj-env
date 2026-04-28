@@ -50,9 +50,9 @@ When adding a new binding, pick a priority number that places it in the right gr
 32. New window (`c`)
 33. Show all keybindings (`?`)
 34. Scratch shell popup (`` ` ``)
-35. Search lf tags, copy path (`t`)
-36. Find files globally, copy path (`f`)
-37. Find files, copy path (`F`)
+35. Search lf tags (`t`)
+36. Find files globally (`f`)
+37. Find files in pane working dir (`F`)
 
 Plugin bindings (tpm, yank, resurrect, sensible) do not use priority tags and appear after all prioritized bindings.
 
@@ -62,7 +62,11 @@ Sessions (`s`) use fzf in a `display-popup`, sorting by last used and excluding 
 
 ## FZF search popups
 
-Tags (`t`), files (`f`), and files globally (`F`) open fzf in a popup and copy the selected path to clipboard on Enter. Tags reads from lf's tags file. File search uses fd with process substitution (via `~/.tmux/scripts/fzf-files.sh`) so fzf exits instantly without waiting for fd to finish traversing.
+Tags (`t`), files (`f`), and files globally (`F`) open fzf in a popup. Tags reads from lf's tags file via `~/.tmux/scripts/fzf-tags.sh`. File search uses fd with process substitution (via `~/.tmux/scripts/fzf-files.sh`) so fzf exits instantly without waiting for fd to finish traversing.
+
+Three actions are available inside every finder popup, all selected by the key you press to leave fzf rather than by separate top-level bindings. Enter copies the selected path to the clipboard. `^v` opens the file or folder in nvim inline in the same popup, replacing the script process via `exec nvim`, so the popup closes when nvim exits. `alt-v` opens it in a new tmux window with the right cwd, and the window auto-closes when nvim exits because tmux's default `remain-on-exit` is off. Files and folders are both supported. The branching is implemented with fzf's `--expect=ctrl-v,alt-v` flag, which prints the pressed key as the first line of fzf's output.
+
+Popup size is 90% x 90% so inline nvim has room comparable to the lazygit and lf popups. The smaller 80 x 70% sizing was kept only on read-only popups (sessions list, cheat sheet) where extra height would just be empty space.
 
 ## FZF launcher (command palette)
 

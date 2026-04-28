@@ -123,14 +123,18 @@ esac
 display_dir="${SEARCH_DIR/#$HOME/~}"
 
 HEADER="$display_dir
-<enter> copy path | ^h ← .. | ^l cd → | alt-h home | $toggle_hint | $hidden_hint"
+<enter> copy path | ^v nvim here | alt-v nvim in new window | ^h ← .. | ^l cd → | alt-h home | $toggle_hint | $hidden_hint"
 
 # Run fd and fzf from SEARCH_DIR so the list shows paths relative to the
 # header base. The selected item gets re-joined to SEARCH_DIR before copy.
+# --expect makes ^v and alt-v terminate fzf with the key name printed first,
+# so we can branch between copy (enter), inline nvim (^v), and new-window
+# nvim (alt-v) below.
 result=$(cd "$SEARCH_DIR" && fzf --reverse --no-mouse \
   --query="$QUERY" \
   --header="$HEADER" \
   --header-first \
+  --expect=ctrl-v,alt-v \
   --bind "ctrl-f:become($SCRIPT $TOGGLE_TYPE {q})" \
   --bind "alt-.:become(SHOW_HIDDEN=$NEXT_HIDDEN $SCRIPT $TYPE {q})" \
   --bind "alt-h:become(SEARCH_DIR=\"$HOME\" $SCRIPT $TYPE {q})" \
@@ -139,9 +143,33 @@ result=$(cd "$SEARCH_DIR" && fzf --reverse --no-mouse \
   --bind "ctrl-j:down,ctrl-k:up" \
   < <(fd "${FD_ARGS[@]}"))
 
-if [ -n "$result" ]; then
-  case "$result" in
-    /*) printf '%s' "$result" | pbcopy;;
-    *)  printf '%s' "${SEARCH_DIR%/}/${result#./}" | pbcopy;;
-  esac
+key=$(printf '%s' "$result" | head -n1)
+sel=$(printf '%s' "$result" | tail -n +2)
+
+[ -z "$sel" ] && exit 0
+
+case "$sel" in
+  /*) abs_path="$sel";;
+  *)  abs_path="${SEARCH_DIR%/}/${sel#./}";;
+esac
+
+if [ -d "$abs_path" ]; then
+  nvim_cwd="$abs_path"
+else
+  nvim_cwd="$(dirname "$abs_path")"
 fi
+
+case "$key" in
+  ctrl-v)
+    # Replace this script with nvim so the popup hosts nvim directly.
+    # Popup closes when nvim exits because the script process ends.
+    cd "$nvim_cwd" && exec nvim "$abs_path"
+    ;;
+  alt-v)
+    # New window auto-closes on nvim exit (tmux remain-on-exit defaults off).
+    tmux new-window -c "$nvim_cwd" nvim "$abs_path"
+    ;;
+  *)
+    printf '%s' "$abs_path" | pbcopy
+    ;;
+esac
