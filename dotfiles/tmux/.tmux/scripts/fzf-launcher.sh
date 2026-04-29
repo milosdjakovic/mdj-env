@@ -54,9 +54,9 @@ execute_cmd() {
             --header-first | \
         xargs tmux switch-client -t"
       ;;
-    fzf-tags)        tmux display-popup -w 90% -h 90% -E "~/.tmux/scripts/fzf-tags.sh";;
-    fzf-files)       tmux display-popup -d "$PANE_PATH" -w 90% -h 90% -E "SEARCH_DIR='$PANE_PATH' ~/.tmux/scripts/fzf-files.sh";;
-    fzf-files-global) tmux display-popup -w 90% -h 90% -E "SEARCH_DIR='$HOME' ~/.tmux/scripts/fzf-files.sh";;
+    fzf-tags)        tmux display-popup -w 80% -h 80% -E "~/.tmux/scripts/fzf-tags.sh";;
+    fzf-files)       tmux display-popup -d "$PANE_PATH" -w 80% -h 80% -E "SEARCH_DIR='$PANE_PATH' ~/.tmux/scripts/fzf-files.sh";;
+    fzf-files-global) tmux display-popup -w 80% -h 80% -E "SEARCH_DIR='$HOME' ~/.tmux/scripts/fzf-files.sh";;
     tree-sessions)   tmux choose-tree -Zs;;
     last-session)    tmux switch-client -l;;
     last-window)     tmux last-window;;
