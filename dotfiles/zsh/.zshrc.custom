@@ -27,7 +27,7 @@ export FZF_DEFAULT_OPTS='
   --color=hl:2,hl+:10
   --color=prompt:2,pointer:2,marker:3,spinner:3
   --color=info:#949494,header:#949494,border:#949494
-  --color=separator:#949494,scrollbar:#949494,gutter:#949494
+  --color=separator:#949494,scrollbar:#949494,gutter:#15141b
 '
 
 # Tool initializers
