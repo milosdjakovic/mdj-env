@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# shellcheck source=fzf-base.sh
+. "$(dirname "$0")/fzf-base.sh"
 # File/folder search with fzf, copies selected path to clipboard.
 # Defaults to $PWD (set by display-popup -d) because tmux formats
 # do not expand inside the -E shell-command argument.
@@ -106,34 +108,37 @@ for pattern in "${EXCLUDE[@]}"; do
   FD_ARGS+=(--exclude "$pattern")
 done
 
+ICON_NVIM_WIN=$(printf '\xef\x82\x8e')   # nf-fa-external_link (nvim in new window)
+ICON_HOME=$(printf '\xef\x80\x95')       # nf-fa-home
+ICON_EYE=$(printf '\xef\x81\xae')        # nf-fa-eye (show hidden)
+ICON_EYE_SLASH=$(printf '\xef\x81\xb0')  # nf-fa-eye-slash (hide hidden)
+
 if [ "$SHOW_HIDDEN" = "1" ]; then
   FD_ARGS+=(--hidden)
   NEXT_HIDDEN=0
-  hidden_hint="alt-. hide dotfiles"
+  hidden_hint="alt-. ${ICON_EYE_SLASH}"
 else
   NEXT_HIDDEN=1
-  hidden_hint="alt-. show dotfiles"
+  hidden_hint="alt-. ${ICON_EYE}"
 fi
 
 case "$TYPE" in
   dirs)  FD_ARGS+=(--type d); TOGGLE_TYPE="files"; toggle_hint="^f files";;
-  files) FD_ARGS+=(--type f); TOGGLE_TYPE="dirs";  toggle_hint="^f directories";;
+  files) FD_ARGS+=(--type f); TOGGLE_TYPE="dirs";  toggle_hint="^f dirs";;
 esac
 
 display_dir="${SEARCH_DIR/#$HOME/~}"
-
-HEADER="$display_dir
-<enter> copy path | ^v nvim here | alt-v nvim in new window | ^h ← .. | ^l cd → | alt-h home | $toggle_hint | $hidden_hint"
+BORDER_LABEL=$(fzf_label "↵ copy" "^v nvim" "alt-v nvim ${ICON_NVIM_WIN}" "^h ←" "^l →" "alt-h ${ICON_HOME}" "$toggle_hint" "$hidden_hint")
 
 # Run fd and fzf from SEARCH_DIR so the list shows paths relative to the
 # header base. The selected item gets re-joined to SEARCH_DIR before copy.
 # --expect makes ^v and alt-v terminate fzf with the key name printed first,
 # so we can branch between copy (enter), inline nvim (^v), and new-window
 # nvim (alt-v) below.
-result=$(cd "$SEARCH_DIR" && fzf --reverse --no-mouse \
+result=$(cd "$SEARCH_DIR" && fzf "${FZF_BASE_OPTS[@]}" \
   --query="$QUERY" \
-  --header="$HEADER" \
-  --header-first \
+  --header="$display_dir" \
+  --border-label="$BORDER_LABEL" \
   --expect=ctrl-v,alt-v \
   --bind "ctrl-f:become($SCRIPT $TOGGLE_TYPE {q})" \
   --bind "alt-.:become(SHOW_HIDDEN=$NEXT_HIDDEN $SCRIPT $TYPE {q})" \

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# shellcheck source=fzf-base.sh
+. "$(dirname "$0")/fzf-base.sh"
 # Search lf tags via fzf.
 #   <enter> copies the path to the clipboard.
 #   ^v     opens the tagged file or folder in nvim inline in the popup;
@@ -7,10 +9,12 @@
 #
 # Tag file format is `path:X` (one char). The sed strips the trailing `:X`.
 
+ICON_NVIM_WIN=$(printf '\xef\x82\x8e')  # nf-fa-external_link
+
 result=$(sed 's/:.$//' ~/.local/share/lf/tags 2>/dev/null | \
-  fzf --reverse --no-mouse \
-      --header='Tags (flagged in lf) | <enter> copy | ^v nvim here | alt-v nvim in new window' \
-      --header-first \
+  fzf "${FZF_BASE_OPTS[@]}" \
+      --header='Tags' \
+      --border-label="$(fzf_label "↵ copy" "^v nvim" "alt-v nvim ${ICON_NVIM_WIN}")" \
       --expect=ctrl-v,alt-v)
 
 key=$(printf '%s' "$result" | head -n1)

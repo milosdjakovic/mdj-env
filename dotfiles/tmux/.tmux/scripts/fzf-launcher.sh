@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# shellcheck source=fzf-base.sh
+. "$(dirname "$0")/fzf-base.sh"
 # FZF launcher (command palette) for tmux
 # Called from: display-popup -w 80 -h 70% -E "PANE_PATH='...' ~/.tmux/scripts/fzf-launcher.sh"
 #
@@ -43,16 +45,7 @@ execute_cmd() {
     lf)              tmux display-popup -d "$PANE_PATH" -w 90% -h 90% -E "tmux new-session -A -s '~files' -c '$PANE_PATH' lf \\; set status off";;
     scratch)         tmux display-popup -d "$PANE_PATH" -w 90% -h 90% -E "$SHELL";;
     fzf-sessions)
-      local current_session
-      current_session=$(tmux display-message -p '#S')
-      tmux display-popup -w 80 -h 70% -E "\
-        tmux list-sessions -F '#{session_last_attached} #{session_name}' | \
-        sort -r | cut -d' ' -f2- | \
-        grep -v '^${current_session}\$' | \
-        fzf --reverse \
-            --header=\"Sessions | Current: ${current_session}\" \
-            --header-first | \
-        xargs tmux switch-client -t"
+      tmux display-popup -w 80 -h 70% -E "~/.tmux/scripts/fzf-sessions.sh"
       ;;
     fzf-tags)        tmux display-popup -w 80% -h 80% -E "~/.tmux/scripts/fzf-tags.sh";;
     fzf-files)       tmux display-popup -d "$PANE_PATH" -w 80% -h 80% -E "SEARCH_DIR='$PANE_PATH' ~/.tmux/scripts/fzf-files.sh";;
@@ -91,13 +84,10 @@ case "$CATEGORY" in
   tmux)  cat_line="^a all  ^t tools  ^n nav  [tmux]";;
 esac
 
-HEADER="Launcher | prefix+Space
-$cat_line"
-
 selected=$(build_list "$CATEGORY" | \
-  fzf --reverse \
-      --header="$HEADER" \
-      --header-first \
+  fzf "${FZF_BASE_OPTS[@]}" \
+      --header="Launcher" \
+      --border-label=" $cat_line " \
       --delimiter=$'\t' \
       --with-nth=2 \
       --bind "ctrl-a:become($SCRIPT --category all)" \

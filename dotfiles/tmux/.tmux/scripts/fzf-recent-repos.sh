@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# shellcheck source=fzf-base.sh
+. "$(dirname "$0")/fzf-base.sh"
 # fzf picker for recent lazygit repos and worktrees
 # Source: ~/Library/Application Support/lazygit/state.yml (recentrepos)
 # Augmented with `git worktree list` for any worktrees not yet visited via lazygit
@@ -76,12 +78,11 @@ if [[ -z "$list" ]]; then
 fi
 
 selected=$(printf '%s' "$list" \
-  | fzf --reverse \
+  | fzf "${FZF_BASE_OPTS[@]}" \
         --header="Recent repos & worktrees" \
-        --header-first \
+        --border-label=" ↵ open lazygit " \
         --delimiter=$'\t' \
-        --with-nth=2 \
-        --no-mouse)
+        --with-nth=2)
 
 [[ -z "$selected" ]] && exit 0
 
