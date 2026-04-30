@@ -157,7 +157,8 @@ result=$(cd "$SEARCH_DIR" && fzf "${FZF_BASE_OPTS[@]}" \
       bat --color=always --style=numbers --line-range=:200 "$abs" 2>/dev/null
     fi
   ' \
-  --preview-window='right:50%:hidden' \
+  --color='preview-border:#949494' \
+  --preview-window='right:50%:hidden:border-left' \
   --bind 'ctrl-p:toggle-preview' \
   --bind "ctrl-f:become($SCRIPT $TOGGLE_TYPE {q})" \
   --bind "alt-.:become(SHOW_HIDDEN=$NEXT_HIDDEN $SCRIPT $TYPE {q})" \
