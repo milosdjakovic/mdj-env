@@ -112,6 +112,7 @@ ICON_NVIM_WIN=$(printf '\xef\x82\x8e')   # nf-fa-external_link (nvim in new wind
 ICON_HOME=$(printf '\xef\x80\x95')       # nf-fa-home
 ICON_EYE=$(printf '\xef\x81\xae')        # nf-fa-eye (show hidden)
 ICON_EYE_SLASH=$(printf '\xef\x81\xb0')  # nf-fa-eye-slash (hide hidden)
+ICON_SEARCH=$(printf '\xef\x80\x82')     # nf-fa-search
 
 if [ "$SHOW_HIDDEN" = "1" ]; then
   FD_ARGS+=(--hidden)
@@ -128,7 +129,8 @@ case "$TYPE" in
 esac
 
 display_dir="${SEARCH_DIR/#$HOME/~}"
-BORDER_LABEL=$(fzf_label "↵ copy" "^v nvim" "alt-v nvim ${ICON_NVIM_WIN}" "^h ←" "^l →" "alt-h ${ICON_HOME}" "$toggle_hint" "$hidden_hint")
+BORDER_LABEL=$(fzf_label "↵ copy" "^v nvim" "alt-v nvim ${ICON_NVIM_WIN}" "^h ←" "^l →" "alt-h ${ICON_HOME}" "$toggle_hint" "$hidden_hint" "^p ${ICON_SEARCH}")
+
 
 # Run fd and fzf from SEARCH_DIR so the list shows paths relative to the
 # header base. The selected item gets re-joined to SEARCH_DIR before copy.
@@ -140,6 +142,23 @@ result=$(cd "$SEARCH_DIR" && fzf "${FZF_BASE_OPTS[@]}" \
   --header="$display_dir" \
   --border-label="$BORDER_LABEL" \
   --expect=ctrl-v,alt-v \
+  --preview='
+    f={}
+    abs="$SEARCH_DIR/$f"
+    mime=$(file --mime-type -b "$abs" 2>/dev/null)
+    if [ -d "$abs" ]; then
+      eza --tree --level=2 --color=always "$abs"
+    elif printf "%s" "$mime" | grep -q "^image/"; then
+      chafa --format=symbols --size="${FZF_PREVIEW_COLUMNS:-80}x${FZF_PREVIEW_LINES:-40}" "$abs"
+    elif file --mime-encoding -b "$abs" 2>/dev/null | grep -q "binary"; then
+      printf "\033[2m%s\033[0m\n\n" "$mime"
+      ls -lh "$abs"
+    else
+      bat --color=always --style=numbers --line-range=:200 "$abs" 2>/dev/null
+    fi
+  ' \
+  --preview-window='right:50%:hidden' \
+  --bind 'ctrl-p:toggle-preview' \
   --bind "ctrl-f:become($SCRIPT $TOGGLE_TYPE {q})" \
   --bind "alt-.:become(SHOW_HIDDEN=$NEXT_HIDDEN $SCRIPT $TYPE {q})" \
   --bind "alt-h:become(SEARCH_DIR=\"$HOME\" $SCRIPT $TYPE {q})" \
