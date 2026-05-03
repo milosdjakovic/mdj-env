@@ -166,6 +166,7 @@ result=$(cd "$SEARCH_DIR" && fzf "${FZF_BASE_OPTS[@]}" \
   --bind "ctrl-l:become($SCRIPT --down {} $TYPE)" \
   --bind "ctrl-h:become($SCRIPT --up $TYPE)" \
   --bind "ctrl-j:down,ctrl-k:up" \
+  --bind "alt-j:preview-half-page-down,alt-k:preview-half-page-up" \
   < <(fd "${FD_ARGS[@]}"))
 
 key=$(printf '%s' "$result" | head -n1)
