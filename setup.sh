@@ -28,8 +28,12 @@ echo ""
 # Setup .zshrc with Powerlevel10k
 "$SRC_DIR/setup-zshrc.sh"
 
+# Bootstrap Neovim plugins
+"$SRC_DIR/bootstrap-nvim.sh"
+
+# Set Zed as default for development file types
+"$SRC_DIR/setup-dev-defaults.sh"
+
 echo ""
 echo "==> Setup complete!"
-echo "    Restart your terminal, then run 'nvim' to let LazyVim bootstrap itself."
-echo ""
-echo "    Optional: Run 'src/set-dev-defaults.sh \"App Name\"' to set default editor for dev files."
+echo "    Restart your terminal to apply all changes."

@@ -20,8 +20,10 @@ macOS development environment bootstrap and dotfiles management using GNU Stow. 
 ./src/install-tmux-plugins.sh
 ./src/setup-stow-dotfiles.sh
 ./src/setup-zshrc.sh
+./src/bootstrap-nvim.sh
+./src/setup-dev-defaults.sh
 
-# Set default editor for dev file types
+# Set default editor for dev file types manually (setup-dev-defaults.sh defaults to Zed)
 ./src/set-dev-defaults.sh "Zed"
 ./src/set-dev-defaults.sh "Visual Studio Code"
 
