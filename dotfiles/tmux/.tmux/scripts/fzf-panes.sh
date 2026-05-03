@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Scoped fzf pane switcher for tmux
-# Called from tmux bind: display-popup -w 80 -h 70% -E "~/.tmux/scripts/fzf-panes.sh"
 #
 # Modes:
 #   (default)       Show panes with optional session/window filter

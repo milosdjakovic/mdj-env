@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Scoped fzf window switcher for tmux
-# Called from tmux bind: display-popup -w 80 -h 70% -E "~/.tmux/scripts/fzf-windows.sh"
 #
 # Modes:
 #   (default)       Show windows with optional session filter

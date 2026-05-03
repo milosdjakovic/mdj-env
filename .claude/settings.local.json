@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:ghostty.org)",
+      "Bash(tmux unbind *)",
+      "Bash(tmux list-keys *)",
+      "Bash(tmux source-file *)",
+      "Bash(tmux display-message *)",
+      "Bash(tmux run-shell *)",
+      "Bash(tmux set *)",
+      "Bash(tmux display-popup *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(tmux -V)"
+    ]
+  }
+}
