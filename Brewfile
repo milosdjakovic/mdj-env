@@ -16,6 +16,7 @@ brew "yazi"
 brew "lf"
 brew "trash"
 brew "lazygit"
+brew "chafa"
 
 # Shell
 brew "powerlevel10k"

@@ -43,7 +43,7 @@ stow -D -t ~ <package>        # Unlink a package
 
 ### Stow Packages
 
-**Stowed by default:** ghostty, tmux, nvim, zsh, hammerspoon, claude, lf
+**Stowed by default:** ghostty, tmux, nvim, zsh, hammerspoon, claude, lf, lazygit
 
 **Available but not stowed:** alacritty, kitty, wezterm
 
