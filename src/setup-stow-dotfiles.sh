@@ -16,6 +16,6 @@ cd "$DOTFILES"
 
 # Stow main configurations
 # --adopt: adopt existing files into the stow directory
-stow -t "$HOME" --adopt ghostty tmux nvim zsh hammerspoon claude lf lazygit
+stow -t "$HOME" ghostty tmux nvim zsh hammerspoon claude lf lazygit
 
 echo "Dotfiles stowed successfully"
