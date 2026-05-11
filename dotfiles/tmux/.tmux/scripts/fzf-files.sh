@@ -116,6 +116,8 @@ ICON_EYE_SLASH=$(printf '\xef\x81\xb0')  # nf-fa-eye-slash (hide hidden)
 ICON_LINK=$(printf '\xef\x83\x81')       # nf-fa-link (follow symlinks)
 ICON_UNLINK=$(printf '\xef\x84\xa7')     # nf-fa-chain_broken (skip symlinks)
 ICON_SEARCH=$(printf '\xef\x80\x82')     # nf-fa-search
+ICON_DIR=$(printf '\xef\x81\xbb')        # nf-fa-folder (directory entry)
+ICON_FILE=$(printf '\xef\x80\x96')       # nf-fa-file_o (file entry)
 
 if [ "$SHOW_HIDDEN" = "1" ]; then
   FD_ARGS+=(--hidden)
@@ -127,7 +129,7 @@ else
 fi
 
 if [ "$FOLLOW_LINKS" = "1" ]; then
-  FD_ARGS+=(--follow)
+  FD_ARGS+=(--follow --type l)
   NEXT_FOLLOW=0
   follow_hint="alt-s ${ICON_UNLINK}"
 else
@@ -136,9 +138,37 @@ else
 fi
 
 case "$TYPE" in
-  dirs)  FD_ARGS+=(--type d); TOGGLE_TYPE="files"; toggle_hint="^f files";;
-  files) FD_ARGS+=(--type f); TOGGLE_TYPE="dirs";  toggle_hint="^f dirs";;
+  dirs)  FD_ARGS+=(--type d); TOGGLE_TYPE="files"; toggle_hint="^f ${ICON_FILE}";;
+  files) FD_ARGS+=(--type f); TOGGLE_TYPE="dirs";  toggle_hint="^f ${ICON_DIR}";;
 esac
+
+# Tab-delimited output for fzf: <real-path>\t<icon>  <display-path>.
+# fzf renders only column 2 (--with-nth=2) while binds and selection
+# extraction read column 1 via {1} / cut -f1. Symlinks are filtered by
+# target type so dirs mode keeps only symlinks-to-dirs and files mode
+# keeps only symlinks-to-files. Tests run with CWD=SEARCH_DIR so they
+# resolve relative paths emitted by fd. fd 10+ appends a trailing /
+# to directory entries, which makes -L follow the link, so the lstat
+# test runs against the slash-stripped path while output preserves
+# fd's original formatting.
+classify_entries() {
+  local p bare
+  while IFS= read -r p; do
+    bare="${p%/}"
+    if [ -L "$bare" ]; then
+      if [ "$TYPE" = "dirs" ]; then
+        [ -d "$bare" ] || continue
+      else
+        [ -d "$bare" ] && continue
+      fi
+      printf '%s\t%s  %s\n' "$p" "$ICON_LINK" "$p"
+    elif [ -d "$p" ]; then
+      printf '%s\t%s  %s\n' "$p" "$ICON_DIR" "$p"
+    else
+      printf '%s\t%s  %s\n' "$p" "$ICON_FILE" "$p"
+    fi
+  done
+}
 
 display_dir="${SEARCH_DIR/#$HOME/~}"
 BORDER_LABEL=$(fzf_label "↵ copy" "^v nvim" "alt-v nvim ${ICON_NVIM_WIN}" "^h ←" "^l →" "alt-h ${ICON_HOME}" "$toggle_hint" "$hidden_hint" "$follow_hint" "^p ${ICON_SEARCH}")
@@ -154,8 +184,10 @@ result=$(cd "$SEARCH_DIR" && fzf "${FZF_BASE_OPTS[@]}" \
   --header="$display_dir" \
   --border-label="$BORDER_LABEL" \
   --expect=ctrl-v,alt-v \
+  --delimiter=$'\t' \
+  --with-nth=2 \
   --preview='
-    f={}
+    f={1}
     abs="$SEARCH_DIR/$f"
     mime=$(file --mime-type -b "$abs" 2>/dev/null)
     if [ -d "$abs" ]; then
@@ -176,14 +208,14 @@ result=$(cd "$SEARCH_DIR" && fzf "${FZF_BASE_OPTS[@]}" \
   --bind "alt-.:become(SHOW_HIDDEN=$NEXT_HIDDEN $SCRIPT $TYPE {q})" \
   --bind "alt-s:become(FOLLOW_LINKS=$NEXT_FOLLOW $SCRIPT $TYPE {q})" \
   --bind "alt-h:become(SEARCH_DIR=\"$HOME\" $SCRIPT $TYPE {q})" \
-  --bind "ctrl-l:become($SCRIPT --down {} $TYPE)" \
+  --bind "ctrl-l:become($SCRIPT --down {1} $TYPE)" \
   --bind "ctrl-h:become($SCRIPT --up $TYPE)" \
   --bind "ctrl-j:down,ctrl-k:up" \
   --bind "alt-j:preview-half-page-down,alt-k:preview-half-page-up" \
-  < <(fd "${FD_ARGS[@]}"))
+  < <(fd "${FD_ARGS[@]}" | classify_entries))
 
 key=$(printf '%s' "$result" | head -n1)
-sel=$(printf '%s' "$result" | tail -n +2)
+sel=$(printf '%s' "$result" | tail -n +2 | cut -f1)
 
 [ -z "$sel" ] && exit 0
 
