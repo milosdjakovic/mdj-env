@@ -6,7 +6,7 @@ FZF_BASE_OPTS=(
   --no-mouse
   --border=bottom
   --border-label-pos=1
-  --color='border:#15141b,label:#949494'
+  --color='border:#15141b,label:#949494,separator:#949494'
   # --header-first  # uncomment to pin header above the list
 )
 

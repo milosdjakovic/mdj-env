@@ -172,13 +172,17 @@ classify_entries() {
 
 display_dir="${SEARCH_DIR/#$HOME/~}"
 BORDER_LABEL=$(fzf_label "↵ copy" "^v nvim" "alt-v nvim ${ICON_NVIM_WIN}" "^h ←" "^l →" "alt-h ${ICON_HOME}" "$toggle_hint" "$hidden_hint" "$follow_hint" "^p ${ICON_SEARCH}")
-# Preview-only hint. The preview command only runs when the preview pane is
-# visible, so emitting this header line inside the preview body keeps the
+# Preview-only header. The preview command only runs when the preview pane
+# is visible, so emitting these two lines inside the preview body keeps the
 # alt-j / alt-k shortcuts tied to the preview half and hides them when ^p
-# closes the pane. ANSI 246 matches the #949494 used for the rest of the
-# popup chrome.
+# closes the pane. The rule line sits one row under the hint and lines up
+# vertically with fzf's own separator on the list side, giving symmetric
+# chrome on both halves. ANSI 246 matches the #949494 used for the rest of
+# the popup chrome. The rule is made wide enough to fill any reasonable
+# preview pane width, fzf clips overrun at the preview edge.
 PREVIEW_HINT_LINE=$(printf '\033[38;5;246malt-j ↓ | alt-k ↑\033[0m')
-export PREVIEW_HINT_LINE
+PREVIEW_RULE=$(printf '\033[38;5;246m'; printf '─%.0s' {1..200}; printf '\033[0m')
+export PREVIEW_HINT_LINE PREVIEW_RULE
 
 
 # Run fd and fzf from SEARCH_DIR so the list shows paths relative to the
@@ -194,7 +198,7 @@ result=$(cd "$SEARCH_DIR" && fzf "${FZF_BASE_OPTS[@]}" \
   --delimiter=$'\t' \
   --with-nth=2 \
   --preview='
-    printf "%s\n" "$PREVIEW_HINT_LINE"
+    printf "%s\n%s\n" "$PREVIEW_HINT_LINE" "$PREVIEW_RULE"
     f={1}
     abs="$SEARCH_DIR/$f"
     mime=$(file --mime-type -b "$abs" 2>/dev/null)
@@ -210,7 +214,7 @@ result=$(cd "$SEARCH_DIR" && fzf "${FZF_BASE_OPTS[@]}" \
     fi
   ' \
   --color='preview-border:#949494' \
-  --preview-window='right:50%:hidden:border-left:~1' \
+  --preview-window='right:50%:hidden:border-left:~2' \
   --bind 'ctrl-p:toggle-preview' \
   --bind "ctrl-f:become($SCRIPT $TOGGLE_TYPE {q})" \
   --bind "alt-.:become(SHOW_HIDDEN=$NEXT_HIDDEN $SCRIPT $TYPE {q})" \
