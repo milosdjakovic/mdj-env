@@ -6,13 +6,13 @@
 # do not expand inside the -E shell-command argument.
 #
 # Invocation patterns:
-#   $1 = type (dirs|files), $2 = query      -- normal, ^f, and alt-. toggles
+#   $1 = type (dirs|files), $2 = query      -- normal, ^f, alt-., alt-s toggles
 #   $1 = --down, $2 = path, $3 = next type  -- ^l descend
 #   $1 = --up,   $2 = next type             -- ^h move one level up
 #
 # ^l on a directory enters it. ^l on a file jumps to its parent directory.
-# Type and hidden state persist across navigation within a popup session
-# and reset to defaults each time the popup reopens.
+# Type, hidden, and follow-links state persist across navigation within a
+# popup session and reset to defaults each time the popup reopens.
 
 SCRIPT="$0"
 
@@ -98,8 +98,9 @@ SEARCH_DIR="${SEARCH_DIR:-$PWD}"
 TYPE="${1:-dirs}"
 QUERY="${2:-}"
 SHOW_HIDDEN="${SHOW_HIDDEN:-1}"
+FOLLOW_LINKS="${FOLLOW_LINKS:-1}"
 
-export SEARCH_DIR SHOW_HIDDEN
+export SEARCH_DIR SHOW_HIDDEN FOLLOW_LINKS
 
 # fd respects gitignore by default. Turn that off so worktrees and
 # other intentionally ignored directories still surface in search.
@@ -112,6 +113,8 @@ ICON_NVIM_WIN=$(printf '\xef\x82\x8e')   # nf-fa-external_link (nvim in new wind
 ICON_HOME=$(printf '\xef\x80\x95')       # nf-fa-home
 ICON_EYE=$(printf '\xef\x81\xae')        # nf-fa-eye (show hidden)
 ICON_EYE_SLASH=$(printf '\xef\x81\xb0')  # nf-fa-eye-slash (hide hidden)
+ICON_LINK=$(printf '\xef\x83\x81')       # nf-fa-link (follow symlinks)
+ICON_UNLINK=$(printf '\xef\x84\xa7')     # nf-fa-chain_broken (skip symlinks)
 ICON_SEARCH=$(printf '\xef\x80\x82')     # nf-fa-search
 
 if [ "$SHOW_HIDDEN" = "1" ]; then
@@ -123,13 +126,22 @@ else
   hidden_hint="alt-. ${ICON_EYE}"
 fi
 
+if [ "$FOLLOW_LINKS" = "1" ]; then
+  FD_ARGS+=(--follow)
+  NEXT_FOLLOW=0
+  follow_hint="alt-s ${ICON_UNLINK}"
+else
+  NEXT_FOLLOW=1
+  follow_hint="alt-s ${ICON_LINK}"
+fi
+
 case "$TYPE" in
   dirs)  FD_ARGS+=(--type d); TOGGLE_TYPE="files"; toggle_hint="^f files";;
   files) FD_ARGS+=(--type f); TOGGLE_TYPE="dirs";  toggle_hint="^f dirs";;
 esac
 
 display_dir="${SEARCH_DIR/#$HOME/~}"
-BORDER_LABEL=$(fzf_label "↵ copy" "^v nvim" "alt-v nvim ${ICON_NVIM_WIN}" "^h ←" "^l →" "alt-h ${ICON_HOME}" "$toggle_hint" "$hidden_hint" "^p ${ICON_SEARCH}")
+BORDER_LABEL=$(fzf_label "↵ copy" "^v nvim" "alt-v nvim ${ICON_NVIM_WIN}" "^h ←" "^l →" "alt-h ${ICON_HOME}" "$toggle_hint" "$hidden_hint" "$follow_hint" "^p ${ICON_SEARCH}")
 
 
 # Run fd and fzf from SEARCH_DIR so the list shows paths relative to the
@@ -162,6 +174,7 @@ result=$(cd "$SEARCH_DIR" && fzf "${FZF_BASE_OPTS[@]}" \
   --bind 'ctrl-p:toggle-preview' \
   --bind "ctrl-f:become($SCRIPT $TOGGLE_TYPE {q})" \
   --bind "alt-.:become(SHOW_HIDDEN=$NEXT_HIDDEN $SCRIPT $TYPE {q})" \
+  --bind "alt-s:become(FOLLOW_LINKS=$NEXT_FOLLOW $SCRIPT $TYPE {q})" \
   --bind "alt-h:become(SEARCH_DIR=\"$HOME\" $SCRIPT $TYPE {q})" \
   --bind "ctrl-l:become($SCRIPT --down {} $TYPE)" \
   --bind "ctrl-h:become($SCRIPT --up $TYPE)" \
