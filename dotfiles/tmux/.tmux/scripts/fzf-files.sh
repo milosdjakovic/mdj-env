@@ -6,7 +6,7 @@
 # do not expand inside the -E shell-command argument.
 #
 # Invocation patterns:
-#   $1 = type (dirs|files), $2 = query      -- normal, ^f, alt-., alt-s toggles
+#   $1 = type (dirs|files), $2 = query      -- normal, ^f, alt-., ^s toggles
 #   $1 = --down, $2 = path, $3 = next type  -- ^l descend
 #   $1 = --up,   $2 = next type             -- ^h move one level up
 #
@@ -131,10 +131,10 @@ fi
 if [ "$FOLLOW_LINKS" = "1" ]; then
   FD_ARGS+=(--follow --type l)
   NEXT_FOLLOW=0
-  follow_hint="alt-s ${ICON_UNLINK}"
+  follow_hint="^s ${ICON_UNLINK}"
 else
   NEXT_FOLLOW=1
-  follow_hint="alt-s ${ICON_LINK}"
+  follow_hint="^s ${ICON_LINK}"
 fi
 
 case "$TYPE" in
@@ -172,6 +172,13 @@ classify_entries() {
 
 display_dir="${SEARCH_DIR/#$HOME/~}"
 BORDER_LABEL=$(fzf_label "↵ copy" "^v nvim" "alt-v nvim ${ICON_NVIM_WIN}" "^h ←" "^l →" "alt-h ${ICON_HOME}" "$toggle_hint" "$hidden_hint" "$follow_hint" "^p ${ICON_SEARCH}")
+# Preview-only hint. The preview command only runs when the preview pane is
+# visible, so emitting this header line inside the preview body keeps the
+# alt-j / alt-k shortcuts tied to the preview half and hides them when ^p
+# closes the pane. ANSI 246 matches the #949494 used for the rest of the
+# popup chrome.
+PREVIEW_HINT_LINE=$(printf '\033[38;5;246malt-j ↓ | alt-k ↑\033[0m')
+export PREVIEW_HINT_LINE
 
 
 # Run fd and fzf from SEARCH_DIR so the list shows paths relative to the
@@ -187,6 +194,7 @@ result=$(cd "$SEARCH_DIR" && fzf "${FZF_BASE_OPTS[@]}" \
   --delimiter=$'\t' \
   --with-nth=2 \
   --preview='
+    printf "%s\n" "$PREVIEW_HINT_LINE"
     f={1}
     abs="$SEARCH_DIR/$f"
     mime=$(file --mime-type -b "$abs" 2>/dev/null)
@@ -202,11 +210,11 @@ result=$(cd "$SEARCH_DIR" && fzf "${FZF_BASE_OPTS[@]}" \
     fi
   ' \
   --color='preview-border:#949494' \
-  --preview-window='right:50%:hidden:border-left' \
+  --preview-window='right:50%:hidden:border-left:~1' \
   --bind 'ctrl-p:toggle-preview' \
   --bind "ctrl-f:become($SCRIPT $TOGGLE_TYPE {q})" \
   --bind "alt-.:become(SHOW_HIDDEN=$NEXT_HIDDEN $SCRIPT $TYPE {q})" \
-  --bind "alt-s:become(FOLLOW_LINKS=$NEXT_FOLLOW $SCRIPT $TYPE {q})" \
+  --bind "ctrl-s:become(FOLLOW_LINKS=$NEXT_FOLLOW $SCRIPT $TYPE {q})" \
   --bind "alt-h:become(SEARCH_DIR=\"$HOME\" $SCRIPT $TYPE {q})" \
   --bind "ctrl-l:become($SCRIPT --down {1} $TYPE)" \
   --bind "ctrl-h:become($SCRIPT --up $TYPE)" \
