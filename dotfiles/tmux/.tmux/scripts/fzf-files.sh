@@ -16,6 +16,18 @@
 
 SCRIPT="$0"
 
+# Flip the persisted preview visibility bit. Called from the ^p binding
+# via execute-silent so the state survives the next become() restart.
+if [ "$1" = "--toggle-preview-state" ]; then
+  state_file="$2"
+  if [ "$(cat "$state_file" 2>/dev/null)" = "1" ]; then
+    printf '0' > "$state_file"
+  else
+    printf '1' > "$state_file"
+  fi
+  exit 0
+fi
+
 # Version control metadata, dependency trees, caches, build output,
 # IDE state. Excluded regardless of the hidden toggle.
 DEV_DIRS=(
@@ -101,6 +113,34 @@ SHOW_HIDDEN="${SHOW_HIDDEN:-1}"
 FOLLOW_LINKS="${FOLLOW_LINKS:-1}"
 
 export SEARCH_DIR SHOW_HIDDEN FOLLOW_LINKS
+
+# Preview pane visibility persists across become() restarts so toggles
+# like ^f, ^s, alt-., and navigation do not snap the preview shut. The
+# session id seeds on first run and rides through becomes via env. The
+# state file is removed on script exit, which fires once the user
+# leaves the popup with enter or escape.
+if [ -z "${FZF_FILES_SESSION:-}" ]; then
+  FZF_FILES_SESSION="$$-$(date +%s 2>/dev/null)-$RANDOM"
+  export FZF_FILES_SESSION
+fi
+PREVIEW_STATE_FILE="${TMPDIR:-/tmp}/fzf-files-preview-$FZF_FILES_SESSION"
+export PREVIEW_STATE_FILE
+
+if [ -f "$PREVIEW_STATE_FILE" ]; then
+  PREVIEW_VISIBLE=$(cat "$PREVIEW_STATE_FILE" 2>/dev/null)
+else
+  PREVIEW_VISIBLE=0
+  printf '%s' "$PREVIEW_VISIBLE" > "$PREVIEW_STATE_FILE"
+fi
+[ "$PREVIEW_VISIBLE" = "1" ] || PREVIEW_VISIBLE=0
+
+trap 'rm -f "$PREVIEW_STATE_FILE"' EXIT
+
+if [ "$PREVIEW_VISIBLE" = "1" ]; then
+  PREVIEW_WINDOW='right:50%:border-left:~2'
+else
+  PREVIEW_WINDOW='right:50%:hidden:border-left:~2'
+fi
 
 # fd respects gitignore by default. Turn that off so worktrees and
 # other intentionally ignored directories still surface in search.
@@ -214,8 +254,8 @@ result=$(cd "$SEARCH_DIR" && fzf "${FZF_BASE_OPTS[@]}" \
     fi
   ' \
   --color='preview-border:#949494' \
-  --preview-window='right:50%:hidden:border-left:~2' \
-  --bind 'ctrl-p:toggle-preview' \
+  --preview-window="$PREVIEW_WINDOW" \
+  --bind "ctrl-p:toggle-preview+execute-silent($SCRIPT --toggle-preview-state $PREVIEW_STATE_FILE)" \
   --bind "ctrl-f:become($SCRIPT $TOGGLE_TYPE {q})" \
   --bind "alt-.:become(SHOW_HIDDEN=$NEXT_HIDDEN $SCRIPT $TYPE {q})" \
   --bind "ctrl-s:become(FOLLOW_LINKS=$NEXT_FOLLOW $SCRIPT $TYPE {q})" \
