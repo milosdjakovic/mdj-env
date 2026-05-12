@@ -37,7 +37,8 @@ fzf_cache_socket() {
 #   $1 = listen socket path (where fzf is listening)
 #   $2 = work cache (file fzf reads from)
 #   $3 = persist cache (under ~/.cache, kept across invocations)
-#   $4 = throttle (rows between in-flight reloads during the scan)
+#   $4 = throttle (rows between in-flight reloads during the scan,
+#        or 0 to skip mid-scan reloads and only refresh once on completion)
 #   $5 = reload action template. The literal {{cache}} is replaced
 #        with the work cache path before being sent to fzf.
 fzf_cache_consume() {
@@ -80,12 +81,13 @@ fzf_cache_consume() {
   while IFS= read -r line; do
     printf '%s\n' "$line" >> "$scan_tmp"
     count=$((count + 1))
-    if [ $((count % throttle)) -eq 0 ]; then
+    if [ "$throttle" -gt 0 ] && [ $((count % throttle)) -eq 0 ]; then
       _fzf_cache_swap_and_reload
     fi
   done
 
   # Final swap so any tail rows after the last throttle boundary show.
+  # When throttle is 0 this is the only reload the picker ever sees.
   _fzf_cache_swap_and_reload
 
   # Persist via a separate tmp path so the caller's own EXIT trap

@@ -192,10 +192,12 @@ if [ -f "$PERSIST_CACHE" ]; then
   cp "$PERSIST_CACHE" "$WORK_CACHE"
 fi
 
-# Background scanner. Streams emit_rows into the working cache with
-# throttled reloads pushed to fzf, then persists the final result.
+# Background scanner. Collects emit_rows in full, then performs a
+# single swap and reload once the scan completes, and persists the
+# final cache. Throttle 0 disables mid-scan reloads so the visible
+# list stops shrinking and regenerating mid-typing.
 ( emit_rows | fzf_cache_consume \
-    "$LISTEN_SOCK" "$WORK_CACHE" "$PERSIST_CACHE" 20 \
+    "$LISTEN_SOCK" "$WORK_CACHE" "$PERSIST_CACHE" 0 \
     "reload($FILTER {{cache}} {q})" ) &
 
 BORDER_LABEL=$(fzf_label "↵ lazygit" "^p path" "^b branch" "^n name")
