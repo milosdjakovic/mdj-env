@@ -4,7 +4,8 @@
 # fzf picker for recent lazygit repos and worktrees
 # Source: ~/Library/Application Support/lazygit/state.yml (recentrepos)
 # Augmented with `git worktree list` for any worktrees not yet visited via lazygit
-# On selection, exec lazygit at the chosen path
+# Invoked via tmux run-shell -b so fzf manages its own small popup
+# and lazygit opens in a separate 90% popup matching prefix+g
 
 set -euo pipefail
 
@@ -15,9 +16,7 @@ ICON_REPO=$(printf '\xee\xac\x96')
 ICON_WORKTREE=$(printf '\xee\xa9\xa8')
 
 if [[ ! -f "$STATE_FILE" ]]; then
-  printf 'lazygit state file not found at %s\n' "$STATE_FILE" >&2
-  printf 'open lazygit at least once to populate recent repos\n' >&2
-  read -rp "press enter to close..."
+  tmux display-message "lazygit state file not found, open lazygit once to populate recent repos"
   exit 1
 fi
 
@@ -72,13 +71,13 @@ while IFS= read -r p; do
 done <<< "$recent"$'\n'"$augmented"
 
 if [[ -z "$list" ]]; then
-  printf 'no recent repos found\n' >&2
-  read -rp "press enter to close..."
+  tmux display-message "no recent repos found"
   exit 1
 fi
 
 selected=$(printf '%s' "$list" \
-  | fzf "${FZF_BASE_OPTS[@]}" \
+  | fzf --tmux center,60%,50%,border-native \
+        "${FZF_BASE_OPTS[@]}" \
         --header="Recent repos & worktrees" \
         --border-label=" ↵ open lazygit " \
         --delimiter=$'\t' \
@@ -87,5 +86,4 @@ selected=$(printf '%s' "$list" \
 [[ -z "$selected" ]] && exit 0
 
 target=$(printf '%s' "$selected" | cut -f1)
-cd "$target"
-exec lazygit
+tmux display-popup -d "$target" -w 90% -h 90% -E lazygit

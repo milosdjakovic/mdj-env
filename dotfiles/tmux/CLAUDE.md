@@ -88,6 +88,8 @@ Popups also cannot nest by default. A second `display-popup` from within a popup
 
 Lazygit runs in a plain popup without a nested session because it does not need passthrough or sub-popups.
 
+The recent repos picker (`G`) needs two popups of different sizes, a small fzf picker followed by a full size lazygit. The binding uses `run-shell -b` instead of `display-popup -E` so the script runs outside any popup. fzf opens its own small popup via `fzf --tmux center,60%,50%`, and after fzf exits the script calls `tmux display-popup -w 90% -h 90% -E lazygit` so lazygit gets the same size as `prefix+g`. Chaining popups from inside a popup would fail because tmux refuses to open a second popup while one is already on screen.
+
 ## Passthrough
 
 `allow-passthrough` is set to `all` (not `on`). The `all` setting enables passthrough from any pane, not just the active one. The `update-environment` entries for `TERM` and `TERM_PROGRAM` ensure these variables are refreshed when attaching to an existing session from a different terminal.
