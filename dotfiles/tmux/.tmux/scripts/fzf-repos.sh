@@ -48,8 +48,6 @@ EXCLUDE=(
 
 ICON_REPO=$(printf '\xee\xac\x96')      # nf-cod-repo
 ICON_WORKTREE=$(printf '\xee\xa9\xa8')  # nf-cod-git_branch
-COL_DIM=$'\033[38;5;246m'
-COL_RESET=$'\033[0m'
 
 # Cache locations. PERSIST_CACHE survives across invocations and is
 # what makes the popup feel instant on every open after the first.
@@ -81,9 +79,9 @@ emit_row() {
   local kind="$1" path="$2" name="$3" branch="$4"
   local display
   if [ "$kind" = "repo" ]; then
-    display=$(printf ' %s  %s %s(%s)%s' "$ICON_REPO" "$name" "$COL_DIM" "$branch" "$COL_RESET")
+    display=$(printf ' %s  %s (%s)' "$ICON_REPO" "$name" "$branch")
   else
-    display=$(printf '   └─ %s  %s %s(%s)%s' "$ICON_WORKTREE" "$name" "$COL_DIM" "$branch" "$COL_RESET")
+    display=$(printf '   └─ %s  %s (%s)' "$ICON_WORKTREE" "$name" "$branch")
   fi
   printf '%s\t%s\t%s\t%s\t%s\n' "$kind" "$path" "$name" "$branch" "$display"
 }
@@ -215,7 +213,6 @@ result=$(fzf --tmux center,70%,70%,border-native \
   --border-label="$BORDER_LABEL" \
   --delimiter=$'\t' \
   --with-nth=5 \
-  --ansi \
   --no-sort \
   --disabled \
   --bind "change:reload($FILTER $WORK_CACHE {q})" \
