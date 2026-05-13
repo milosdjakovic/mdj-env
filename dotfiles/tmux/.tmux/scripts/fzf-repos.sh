@@ -91,10 +91,13 @@ emit_row() {
 # Walk REPOS_ROOT for `.git` entries, emit each repo followed by its
 # secondary worktrees. Order matters: the filter relies on a worktree
 # always appearing after its parent repo in the cache.
+# fd uses parallel traversal so its raw output order is non-deterministic
+# across runs. Sorting fixes the repo order to alphabetical path order so
+# the picker layout stays stable between invocations.
 emit_rows() {
   local gd repo_path repo_name repo_branch
   local wt_path wt_branch wt_name
-  fd '^\.git$' "$ROOT" "${FD_ARGS[@]}" 2>/dev/null | while IFS= read -r gd; do
+  fd '^\.git$' "$ROOT" "${FD_ARGS[@]}" 2>/dev/null | sort | while IFS= read -r gd; do
     [ -z "$gd" ] && continue
     # fd 10+ appends a trailing slash to directory entries.
     gd="${gd%/}"
