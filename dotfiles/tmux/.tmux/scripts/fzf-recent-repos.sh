@@ -81,7 +81,8 @@ selected=$(printf '%s' "$list" \
         --header="Recent repos & worktrees" \
         --border-label=" ↵ open lazygit " \
         --delimiter=$'\t' \
-        --with-nth=2)
+        --with-nth=2 \
+  || true)
 
 [[ -z "$selected" ]] && exit 0
 
