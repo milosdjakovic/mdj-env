@@ -13,6 +13,7 @@
 │       ├── dev.lua               # Dev workspace
 │       └── vicert.lua            # Vicert workspace
 └── Spoons/                       # Hammerspoon Spoons (reusable logic)
+    ├── HyperKey.spoon/           # Caps Lock (→F18) → Hyper on hold, Caps on tap
     ├── AppToggler.spoon/         # Smart app toggle with hide-others
     ├── WindowManager.spoon/      # Window sizing and positioning
     ├── StageManager.spoon/       # macOS Stage Manager integration
@@ -32,6 +33,9 @@ Edit `config/keys.lua`:
 ```lua
 { app = "NewApp", modifiers = HYPER, key = "W" },
 ```
+App toggles fire by holding the Hyper key (**Caps Lock**, remapped to **F18** by
+`src/setup-capslock-hyper.sh` and driven by `HyperKey.spoon`) plus the letter.
+A quick Caps Lock **tap** toggles real Caps Lock (via `hs.hid.capslock`).
 
 ## Adding New Workspaces
 

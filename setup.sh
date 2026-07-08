@@ -34,6 +34,9 @@ echo ""
 # Set Zed as default for development file types
 "$SRC_DIR/setup-dev-defaults.sh"
 
+# Remap Caps Lock -> F18 for the Hammerspoon Hyper key
+"$SRC_DIR/setup-capslock-hyper.sh"
+
 echo ""
 echo "==> Setup complete!"
 echo "    Restart your terminal to apply all changes."

@@ -19,7 +19,12 @@ return {
   },
 
   -- App toggle bindings (for AppToggler.spoon)
-  -- Uses app names from config/apps.lua
+  -- Uses app names from config/apps.lua.
+  -- These fire by holding the Hyper key (Caps Lock, remapped to F18 and driven
+  -- by HyperKey.spoon) plus the letter. A quick Caps Lock tap toggles real Caps
+  -- Lock instead. The `modifiers = HYPER` field is the FALLBACK: if HyperKey is
+  -- not wired up in init.lua, AppToggler binds these to the literal ⇧⌃⌥⌘ combo
+  -- instead. So it is not dead data -- remove HyperKey and the combo comes back.
   appToggles = {
     -- First character
     { app = "Books",            modifiers = HYPER, key = "B" },

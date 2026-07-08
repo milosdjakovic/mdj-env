@@ -14,6 +14,7 @@ obj.license = "MIT"
 
 -- Configuration
 obj._apps = nil
+obj._hyperKey = nil
 
 --- AppToggler:init()
 --- Method
@@ -28,6 +29,9 @@ end
 function obj:configure(opts)
   opts = opts or {}
   self._apps = opts.apps or {}
+  -- When a HyperKey spoon is provided, toggles bind into its modal (fired by
+  -- holding the physical Hyper key) instead of a literal modifier combination.
+  self._hyperKey = opts.hyperKey
   return self
 end
 
@@ -108,9 +112,16 @@ function obj:bindHotkeys(toggles)
   for _, toggle in ipairs(toggles) do
     local bundleID = self._apps[toggle.app]
     if bundleID then
-      hs.hotkey.bind(toggle.modifiers, toggle.key, function()
+      local action = function()
         self:focusOrCycle(bundleID)
-      end)
+      end
+      if self._hyperKey then
+        -- Fires while the physical Hyper key is held (HyperKey.spoon eventtap)
+        self._hyperKey:bind(toggle.key, action)
+      else
+        -- Fallback when no HyperKey is wired: the literal modifier combo
+        hs.hotkey.bind(toggle.modifiers, toggle.key, action)
+      end
     else
       print("AppToggler: Unknown app '" .. toggle.app .. "' in config")
     end

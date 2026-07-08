@@ -17,6 +17,7 @@ local vicertWorkspace = require("config.workspaces.vicert")
 -- Load Spoons
 --------------------------------------------------------------------------------
 
+hs.loadSpoon("HyperKey")
 hs.loadSpoon("StageManager")
 hs.loadSpoon("WindowManager")
 hs.loadSpoon("AppToggler")
@@ -27,6 +28,18 @@ hs.loadSpoon("DockAutoHide")
 --------------------------------------------------------------------------------
 -- Initialize Spoons
 --------------------------------------------------------------------------------
+
+-- HyperKey: Caps Lock (remapped to F18 via hidutil) as a Hyper key.
+-- Hold + letter = app toggles; quick tap = toggle real Caps Lock. No extra process.
+spoon.HyperKey:init()
+spoon.HyperKey:configure({
+  keyCode = 79, -- F18 (Caps Lock is remapped to F18 by src/setup-capslock-hyper.sh)
+  tapThreshold = 0.2,
+  onTap = function()
+    hs.hid.capslock.toggle()
+  end,
+})
+spoon.HyperKey:start()
 
 -- StageManager (no dependencies, reads fresh on each check)
 spoon.StageManager:init()
@@ -47,9 +60,9 @@ spoon.WindowManager:configure({
 })
 spoon.WindowManager:bindHotkeys(keys.windowManagement)
 
--- AppToggler (standalone, uses apps config)
+-- AppToggler (uses apps config; toggles fire via the Right-Cmd Hyper modal)
 spoon.AppToggler:init()
-spoon.AppToggler:configure({ apps = apps })
+spoon.AppToggler:configure({ apps = apps, hyperKey = spoon.HyperKey })
 spoon.AppToggler:bindHotkeys(keys.appToggles)
 
 -- WorkspaceEngine (depends on AppToggler, WindowManager)

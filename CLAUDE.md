@@ -69,7 +69,21 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
   - `settings.lua` - Global settings (margins, timing)
   - `workspaces/` - Workspace definitions (dev.lua, vicert.lua)
 - `Spoons/` - Real Hammerspoon Spoons (reusable logic)
-  - AppToggler, WindowManager, StageManager, WorkspaceEngine, TerminalHandler, DockMenuToggle
+  - HyperKey, AppToggler, WindowManager, StageManager, WorkspaceEngine, TerminalHandler, DockMenuToggle
+
+Caps Lock is the Hyper key. `src/setup-capslock-hyper.sh` remaps Caps Lock → F18
+via `hidutil` (LaunchAgent, ~0 RAM); `HyperKey.spoon` uses an `hs.eventtap` to
+dispatch **hold F18 + letter** to app toggles and **quick tap** to
+`hs.hid.capslock.toggle()`. No Karabiner or extra daemon. Raw Caps Lock can't be
+used directly (toggle key emits no key up/down); a real modifier can't either
+(its flag stamps every keystroke) — hence the F18 remap.
+
+Coupling is contained: `HyperKey` is an optional injected dependency of
+`AppToggler` only. If it is not wired up in `init.lua`, `AppToggler` falls back
+to binding the literal `HYPER` (⇧⌃⌥⌘) combo from `keys.lua` — so removing the
+Hyper key degrades gracefully, it does not break other spoons. Trade-offs: the
+remap is machine-wide (Caps Lock is F18 in every app), and Caps Lock toggling
+depends on Hammerspoon running. Undo steps are in `src/setup-capslock-hyper.sh`.
 
 Config auto-reloads when files change. Get app bundle ID: `osascript -e 'id of app "APP_NAME"'`
 
