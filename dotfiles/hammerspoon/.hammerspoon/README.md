@@ -56,7 +56,7 @@ Edit `config/keys.lua`:
 App toggles fire by holding the Hyper key (**Caps Lock**, remapped to **F18** by
 `src/setup-capslock-hyper.sh` and driven by `HyperKey.spoon`) plus the letter.
 A quick Caps Lock **tap** toggles real Caps Lock (via `hs.hid.capslock`).
-Holding Caps Lock ~0.4s with no key shows `HyperCheatSheet`: an overlay of the
+Holding Caps Lock ~0.6s with no key shows `HyperCheatSheet`: an overlay of the
 bindings, split into open vs not-running apps. Uninstalled apps (no resolvable
 bundle path) are filtered out; names/icons are cached at load, only the
 running-state split is recomputed per show.

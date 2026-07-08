@@ -76,7 +76,7 @@ via `hidutil` (LaunchAgent, ~0 RAM); `HyperKey.spoon` uses an `hs.eventtap` to
 dispatch **hold F18 + letter** to app toggles and **quick tap** to
 `hs.hid.capslock.toggle()`. No Karabiner or extra daemon. Raw Caps Lock can't be
 used directly (toggle key emits no key up/down); a real modifier can't either
-(its flag stamps every keystroke) — hence the F18 remap. Holding ~0.4s with no
+(its flag stamps every keystroke) — hence the F18 remap. Holding ~0.6s with no
 key fires `HyperKey`'s `onHold` → `HyperCheatSheet`, an overlay of the bindings
 split into open vs not-running apps (uninstalled/unresolvable apps filtered out;
 names+icons cached at load, only the running split recomputed per show).

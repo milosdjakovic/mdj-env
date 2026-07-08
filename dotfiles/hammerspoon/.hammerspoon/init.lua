@@ -35,7 +35,7 @@ spoon.HyperCheatSheet:init()
 spoon.HyperCheatSheet:configure({ apps = apps, toggles = keys.appToggles })
 
 -- HyperKey: Caps Lock (remapped to F18 via hidutil) as a Hyper key.
--- Hold + letter = app toggles; quick tap = toggle real Caps Lock; hold 0.4s
+-- Hold + letter = app toggles; quick tap = toggle real Caps Lock; hold 0.6s
 -- with no key = show the cheat sheet. No extra process.
 spoon.HyperKey:init()
 spoon.HyperKey:configure({
@@ -44,7 +44,7 @@ spoon.HyperKey:configure({
   onTap = function()
     hs.hid.capslock.toggle()
   end,
-  holdDelay = 0.4,
+  holdDelay = 0.6,
   onHold = function()
     spoon.HyperCheatSheet:show()
   end,
