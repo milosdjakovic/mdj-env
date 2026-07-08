@@ -19,15 +19,23 @@ obj._toggles = nil -- list of { app, key, modifiers }
 obj._items = nil   -- precomputed { key, name, bundleID, icon }, built once
 obj._canvas = nil
 
--- Layout constants
+-- Layout constants (tuned for 16px text)
+local TEXT = 16       -- font size for every text element
+local LINE_H = 20     -- line box used to vertically center TEXT
 local COLS = 4
-local COL_W = 190
-local ROW_H = 40
-local MARGIN = 24
-local TITLE_H = 26
-local GROUP_GAP = 16
-local BADGE = 24
-local ICON = 22
+local COL_W = 215     -- wide enough for names like "Activity Monitor"
+local ROW_H = 48
+local MARGIN = 28
+local TITLE_H = 32    -- section header line + gap below it
+local GROUP_GAP = 20
+local BADGE = 28
+local ICON = 32
+local GAP = 10        -- horizontal gap between badge/icon/name
+
+-- Vertical top for a LINE_H text box centered in a container of height h
+local function centerY(top, h)
+  return top + (h - LINE_H) / 2
+end
 
 --- HyperCheatSheet:init()
 function obj:init()
@@ -97,6 +105,7 @@ function obj:_appendEntries(elements, entries, contentY, alpha)
     local row = math.floor((i - 1) / COLS)
     local x = MARGIN + col * COL_W
     local y = contentY + row * ROW_H
+    local badgeTop = y + (ROW_H - BADGE) / 2
 
     -- key badge
     elements[#elements + 1] = {
@@ -104,19 +113,19 @@ function obj:_appendEntries(elements, entries, contentY, alpha)
       action = "fill",
       fillColor = { white = 1.0, alpha = 0.12 * alpha },
       roundedRectRadii = { xRadius = 6, yRadius = 6 },
-      frame = { x = x, y = y + (ROW_H - BADGE) / 2, w = BADGE, h = BADGE },
+      frame = { x = x, y = badgeTop, w = BADGE, h = BADGE },
     }
     elements[#elements + 1] = {
       type = "text",
       text = e.key,
       textColor = { white = 1.0, alpha = alpha },
-      textSize = 14,
+      textSize = TEXT,
       textAlignment = "center",
-      frame = { x = x, y = y + (ROW_H - BADGE) / 2 + 3, w = BADGE, h = BADGE },
+      frame = { x = x, y = centerY(badgeTop, BADGE), w = BADGE, h = LINE_H },
     }
 
     -- app icon (if resolvable)
-    local iconX = x + BADGE + 8
+    local iconX = x + BADGE + GAP
     if e.icon then
       elements[#elements + 1] = {
         type = "image",
@@ -128,13 +137,13 @@ function obj:_appendEntries(elements, entries, contentY, alpha)
     end
 
     -- app name
-    local nameX = iconX + ICON + 8
+    local nameX = iconX + ICON + GAP
     elements[#elements + 1] = {
       type = "text",
       text = e.name,
       textColor = { white = 1.0, alpha = 0.9 * alpha },
-      textSize = 14,
-      frame = { x = nameX, y = y + (ROW_H - 20) / 2, w = COL_W - (nameX - x) - 8, h = 20 },
+      textSize = TEXT,
+      frame = { x = nameX, y = centerY(y, ROW_H), w = COL_W - (nameX - x) - GAP, h = LINE_H },
     }
   end
 end
@@ -144,8 +153,8 @@ local function sectionTitle(elements, text, y)
     type = "text",
     text = text,
     textColor = { white = 1.0, alpha = 0.5 },
-    textSize = 11,
-    frame = { x = MARGIN, y = y, w = COLS * COL_W, h = TITLE_H },
+    textSize = TEXT,
+    frame = { x = MARGIN, y = y, w = COLS * COL_W, h = LINE_H },
   }
 end
 
