@@ -57,6 +57,11 @@ return {
     -- { app = "Xcode",          modifiers = HYPER, key = "X" },
   },
 
+  -- Clipboard history (for ClipboardHistory.spoon). Same modifiers/key shape as
+  -- appToggles so the HYPER field acts as the fallback combo when HyperKey is
+  -- not wired up.
+  clipboardHistory = { modifiers = HYPER, key = "X" },
+
   -- Window management bindings (for WindowManager.spoon)
   windowManagement = {
     maximize =             { modifiers = CTRL_ALT,       key = "return" },

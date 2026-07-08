@@ -148,6 +148,15 @@ function obj:start()
   return self
 end
 
+--- HyperKey:isActive()
+--- Method
+--- Return true while the Hyper key is physically held. Useful for actions that
+--- synthesize keystrokes: the event tap swallows all keys during a hold, so such
+--- actions must wait for release before posting their events.
+function obj:isActive()
+  return self._active
+end
+
 --- HyperKey:_cancelHold()
 --- Method
 --- Cancel any pending hold-overlay timer

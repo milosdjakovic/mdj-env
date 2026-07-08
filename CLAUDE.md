@@ -69,7 +69,7 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
   - `settings.lua` - Global settings (margins, timing)
   - `workspaces/` - Workspace definitions (dev.lua, vicert.lua)
 - `Spoons/` - Real Hammerspoon Spoons (reusable logic)
-  - HyperKey, HyperCheatSheet, AppToggler, WindowManager, StageManager, WorkspaceEngine, TerminalHandler, DockMenuToggle
+  - HyperKey, HyperCheatSheet, AppToggler, ClipboardHistory, WindowManager, StageManager, WorkspaceEngine, TerminalHandler, DockMenuToggle
 
 Caps Lock is the Hyper key. `src/setup-capslock-hyper.sh` remaps Caps Lock → F18
 via `hidutil` (LaunchAgent, ~0 RAM); `HyperKey.spoon` uses an `hs.eventtap` to
