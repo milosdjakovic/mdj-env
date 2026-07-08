@@ -23,6 +23,25 @@
     └── DockMenuToggle.spoon/     # Dock/menu bar auto-hide toggle
 ```
 
+## Adding a New Spoon (re-stow required)
+
+`~/.hammerspoon` and its `Spoons/` are **real directories** (they hold non-repo
+files like `.git` and `work.toml`), so stow links each *item inside* them
+individually rather than symlinking the whole folder. A brand-new Spoon folder
+added to this package therefore has **no symlink** under `~/.hammerspoon/Spoons/`
+until you re-stow — Hammerspoon simply won't find it (common after pulling on
+another machine).
+
+Fix: re-run stow for the package, which adds the missing per-item symlinks
+without touching existing links or untracked files:
+
+```bash
+cd dotfiles && stow -t ~ hammerspoon
+```
+
+Then reload Hammerspoon (`hs -c "hs.reload()"` or the menu) so it picks up the
+newly linked Spoon.
+
 ## Adding New Apps
 
 Edit `config/apps.lua`:
