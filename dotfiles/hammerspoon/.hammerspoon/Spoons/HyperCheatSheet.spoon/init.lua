@@ -67,6 +67,19 @@ function obj:configure(opts)
       }
     end
   end
+  -- Order by key: alphanumeric first (0-9, a-z), then non-alphanumeric symbols
+  -- (`, /, ...) at the end. Case-insensitive. The running/not-running split
+  -- below preserves this order, so each group ends up sorted the same way.
+  local function rank(k)
+    return k:match("^%w$") and 0 or 1 -- 0 = alphanumeric, 1 = symbol
+  end
+  table.sort(self._items, function(a, b)
+    local ra, rb = rank(a.key), rank(b.key)
+    if ra ~= rb then
+      return ra < rb
+    end
+    return a.key:lower() < b.key:lower()
+  end)
   return self
 end
 
