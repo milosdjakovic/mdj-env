@@ -45,6 +45,8 @@ return {
     { app = "Slack",            modifiers = HYPER, key = "L" },
     -- Third character
     { app = "Claude",           modifiers = HYPER, key = "A" },
+    -- Default terminal: plain focus/cycle. (alt+` summons it placed via TerminalHandler)
+    { app = "Ghostty",          modifiers = HYPER, key = "`" },
     -- Disabled (uncomment to enable)
     -- { app = "ChatGPTAtlas",   modifiers = HYPER, key = "A" },
     -- { app = "AndroidStudio",  modifiers = HYPER, key = "A" },
