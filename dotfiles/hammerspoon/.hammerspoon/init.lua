@@ -18,6 +18,7 @@ local vicertWorkspace = require("config.workspaces.vicert")
 --------------------------------------------------------------------------------
 
 hs.loadSpoon("HyperKey")
+hs.loadSpoon("HyperCheatSheet")
 hs.loadSpoon("StageManager")
 hs.loadSpoon("WindowManager")
 hs.loadSpoon("AppToggler")
@@ -29,14 +30,26 @@ hs.loadSpoon("DockAutoHide")
 -- Initialize Spoons
 --------------------------------------------------------------------------------
 
+-- HyperCheatSheet: overlay of Hyper app bindings (open vs not running)
+spoon.HyperCheatSheet:init()
+spoon.HyperCheatSheet:configure({ apps = apps, toggles = keys.appToggles })
+
 -- HyperKey: Caps Lock (remapped to F18 via hidutil) as a Hyper key.
--- Hold + letter = app toggles; quick tap = toggle real Caps Lock. No extra process.
+-- Hold + letter = app toggles; quick tap = toggle real Caps Lock; hold 0.4s
+-- with no key = show the cheat sheet. No extra process.
 spoon.HyperKey:init()
 spoon.HyperKey:configure({
   keyCode = 79, -- F18 (Caps Lock is remapped to F18 by src/setup-capslock-hyper.sh)
   tapThreshold = 0.2,
   onTap = function()
     hs.hid.capslock.toggle()
+  end,
+  holdDelay = 0.4,
+  onHold = function()
+    spoon.HyperCheatSheet:show()
+  end,
+  onHoldEnd = function()
+    spoon.HyperCheatSheet:hide()
   end,
 })
 spoon.HyperKey:start()

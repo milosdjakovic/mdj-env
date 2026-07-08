@@ -26,6 +26,8 @@ obj._active = false
 obj._used = false     -- was another key pressed during this hold?
 obj._downTime = 0
 obj._bindings = nil   -- keycode -> function
+obj._holdTimer = nil
+obj._holdShown = false
 
 -- F18 keycode (Caps Lock is remapped to F18 at the HID level)
 obj._keyCode = 79
@@ -33,6 +35,10 @@ obj._keyCode = 79
 obj._tapThreshold = 0.2
 -- Optional callback fired on a quick tap with no other key
 obj._onTap = nil
+-- Optional: fire _onHold after holding this long with no other key pressed
+obj._holdDelay = nil
+obj._onHold = nil    -- fired once when the hold passes _holdDelay
+obj._onHoldEnd = nil -- fired when a shown hold ends (release or key press)
 
 --- HyperKey:init()
 --- Method
@@ -47,11 +53,17 @@ end
 --- opts.keyCode      - keycode of the Hyper key (default 79, F18)
 --- opts.tapThreshold - seconds below which a hold counts as a tap (default 0.2)
 --- opts.onTap        - function to run on a quick tap with no other key
+--- opts.holdDelay    - seconds to hold (no other key) before onHold fires
+--- opts.onHold       - function to run once the hold passes holdDelay
+--- opts.onHoldEnd    - function to run when a shown hold ends
 function obj:configure(opts)
   opts = opts or {}
   self._keyCode = opts.keyCode or self._keyCode
   self._tapThreshold = opts.tapThreshold or self._tapThreshold
   self._onTap = opts.onTap or self._onTap
+  self._holdDelay = opts.holdDelay or self._holdDelay
+  self._onHold = opts.onHold or self._onHold
+  self._onHoldEnd = opts.onHoldEnd or self._onHoldEnd
   return self
 end
 
@@ -85,9 +97,24 @@ function obj:start()
         if not self._active then
           self._active = true
           self._used = false
+          self._holdShown = false
           self._downTime = hs.timer.secondsSinceEpoch()
+          -- Arm the hold overlay: fires only if still held and unused
+          if self._onHold and self._holdDelay then
+            self._holdTimer = hs.timer.doAfter(self._holdDelay, function()
+              if self._active and not self._used then
+                self._holdShown = true
+                self._onHold()
+              end
+            end)
+          end
         end
       elseif t == types.keyUp then
+        self:_cancelHold()
+        if self._holdShown and self._onHoldEnd then
+          self._onHoldEnd()
+        end
+        self._holdShown = false
         local heldFor = hs.timer.secondsSinceEpoch() - self._downTime
         local wasUsed = self._used
         self._active = false
@@ -102,6 +129,11 @@ function obj:start()
     if self._active then
       if t == types.keyDown then
         self._used = true
+        self:_cancelHold()
+        if self._holdShown and self._onHoldEnd then
+          self._onHoldEnd()
+          self._holdShown = false
+        end
         local fn = self._bindings[code]
         if fn then
           hs.timer.doAfter(0, fn)
@@ -116,6 +148,16 @@ function obj:start()
   return self
 end
 
+--- HyperKey:_cancelHold()
+--- Method
+--- Cancel any pending hold-overlay timer
+function obj:_cancelHold()
+  if self._holdTimer then
+    self._holdTimer:stop()
+    self._holdTimer = nil
+  end
+end
+
 --- HyperKey:stop()
 --- Method
 --- Stop watching
@@ -123,7 +165,9 @@ function obj:stop()
   if self._tap then
     self._tap:stop()
   end
+  self:_cancelHold()
   self._active = false
+  self._holdShown = false
   return self
 end
 
