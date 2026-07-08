@@ -10,6 +10,7 @@ return {
   Stickies = "com.apple.Stickies",
   Safari = "com.apple.Safari",
   Preview= "com.apple.Preview",
+  ActivityMonitor = "com.apple.ActivityMonitor",
 
   -- Terminals
   Terminal = "com.apple.Terminal",
