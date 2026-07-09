@@ -11,6 +11,7 @@ return {
   Safari = "com.apple.Safari",
   Preview= "com.apple.Preview",
   ActivityMonitor = "com.apple.ActivityMonitor",
+  SystemSettings = "com.apple.systempreferences",
 
   -- Terminals
   Terminal = "com.apple.Terminal",

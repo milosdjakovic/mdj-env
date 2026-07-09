@@ -49,6 +49,9 @@ return {
     { app = "Ghostty",          modifiers = HYPER, key = "`" },
     -- Activity Monitor
     { app = "ActivityMonitor",  modifiers = HYPER, key = "/" },
+    -- System Settings, opened straight to the General pane. The url field makes
+    -- AppToggler open (and navigate) to that pane instead of a plain focus.
+    { app = "SystemSettings",   modifiers = HYPER, key = ",", url = "x-apple.systempreferences:com.apple.systempreferences.GeneralSettings" },
     -- Disabled (uncomment to enable)
     -- { app = "ChatGPTAtlas",   modifiers = HYPER, key = "A" },
     -- { app = "AndroidStudio",  modifiers = HYPER, key = "A" },

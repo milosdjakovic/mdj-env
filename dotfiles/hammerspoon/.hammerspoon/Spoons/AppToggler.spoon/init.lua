@@ -48,6 +48,25 @@ function obj:toggle(bundleID)
   end
 end
 
+--- AppToggler:toggleURL(bundleID, url)
+--- Method
+--- Toggle an app that should land on a specific pane. Opens the URL when the app
+--- is not frontmost (launching it, or navigating an already-open window to that
+--- pane); hides the app when it is frontmost. Used for apps like System Settings
+--- whose panes are reachable via a URL scheme.
+function obj:toggleURL(bundleID, url)
+  local app = hs.application.get(bundleID)
+
+  if app and app:isFrontmost() and #app:allWindows() > 0 then
+    app:hide()
+  else
+    -- Use `open` rather than hs.urlevent.openURL: pane URL schemes like
+    -- x-apple.systempreferences: use a single colon and openURL rejects any URL
+    -- without '://'.
+    hs.execute("open " .. ("%q"):format(url))
+  end
+end
+
 --- AppToggler:launchOrFocus(bundleID)
 --- Method
 --- Launch or focus an app (for workspace engine)
@@ -112,8 +131,17 @@ function obj:bindHotkeys(toggles)
   for _, toggle in ipairs(toggles) do
     local bundleID = self._apps[toggle.app]
     if bundleID then
-      local action = function()
-        self:focusOrCycle(bundleID)
+      local action
+      if toggle.url then
+        -- Pane-specific apps (e.g. System Settings) open via a URL scheme so the
+        -- app lands on the right pane instead of wherever it was last.
+        action = function()
+          self:toggleURL(bundleID, toggle.url)
+        end
+      else
+        action = function()
+          self:focusOrCycle(bundleID)
+        end
       end
       if self._hyperKey then
         -- Fires while the physical Hyper key is held (HyperKey.spoon eventtap)
