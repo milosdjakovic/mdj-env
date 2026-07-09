@@ -79,9 +79,13 @@ spoon.AppToggler:init()
 spoon.AppToggler:configure({ apps = apps, hyperKey = spoon.HyperKey })
 spoon.AppToggler:bindHotkeys(keys.appToggles)
 
--- ClipboardHistory (opens Tahoe's Spotlight clipboard; binds via HyperKey)
+-- ClipboardHistory: reveal clipboard history on the Hyper key. The provider is
+-- the macOS Tahoe Spotlight clipboard; swap it to change backends.
 spoon.ClipboardHistory:init()
-spoon.ClipboardHistory:configure({ hyperKey = spoon.HyperKey })
+spoon.ClipboardHistory:configure({
+  hyperKey = spoon.HyperKey,
+  provider = spoon.ClipboardHistory.providers.spotlightTahoe,
+})
 spoon.ClipboardHistory:bindHotkeys({ open = keys.clipboardHistory })
 
 -- WorkspaceEngine (depends on AppToggler, WindowManager)
