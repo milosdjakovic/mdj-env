@@ -19,6 +19,10 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# Active VPN provider label for the launcher entry. The name is dynamic and
+# comes from whichever adapter fzf-vpn.sh is configured to use.
+VPN_LABEL="$(~/.tmux/scripts/fzf-vpn.sh --name 2>/dev/null)"
+
 # --- Entry data: category|display_key|description|command_id ---
 # To add a new entry: add a line here and a case in execute_cmd below
 ENTRIES="tools|prefix+g|Lazygit popup|lazygit
@@ -28,6 +32,7 @@ tools|prefix+\`|Scratch shell popup|scratch
 tools|prefix+t|Search lf tags (enter copy, ^v nvim, alt-v new window)|fzf-tags
 tools|prefix+f|Find files globally (enter copy, ^v nvim, alt-v new window)|fzf-files-global
 tools|prefix+F|Find files (enter copy, ^v nvim, alt-v new window)|fzf-files
+tools|---|VPN service${VPN_LABEL:+ ($VPN_LABEL)}|vpn
 nav|prefix+s|Sessions (fzf switcher)|fzf-sessions
 nav|prefix+S|Sessions (tree view)|tree-sessions
 nav|prefix+e|Last session|last-session
@@ -50,6 +55,7 @@ execute_cmd() {
     fzf-tags)        tmux display-popup -w 80% -h 80% -E "~/.tmux/scripts/fzf-tags.sh";;
     fzf-files)       tmux display-popup -d "$PANE_PATH" -w 80% -h 80% -E "SEARCH_DIR='$PANE_PATH' ~/.tmux/scripts/fzf-files.sh";;
     fzf-files-global) tmux display-popup -w 80% -h 80% -E "SEARCH_DIR='$HOME' ~/.tmux/scripts/fzf-files.sh";;
+    vpn)             tmux display-popup -w 80% -h 80% -E "~/.tmux/scripts/fzf-vpn.sh";;
     tree-sessions)   tmux choose-tree -Zs;;
     last-session)    tmux switch-client -l;;
     last-window)     tmux last-window;;

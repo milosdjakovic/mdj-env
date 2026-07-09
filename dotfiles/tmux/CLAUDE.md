@@ -81,6 +81,14 @@ Categories are toggled via keyboard shortcuts in the fzf header, using the same 
 
 The pane's working directory is passed as `$PANE_PATH` from the `.tmux.conf` binding since `#{pane_current_path}` does not resolve inside a popup. Commands that need a working directory (lazygit, lf, scratch) use this variable.
 
+## VPN control popup
+
+Reached only from the launcher, shown as `VPN service (Mullvad)` where the provider name is dynamic. It has no direct binding. The launcher computes the label at open time by calling `~/.tmux/scripts/fzf-vpn.sh --name`, so switching providers renames the entry automatically.
+
+The design splits a rigid interface from a swappable adapter. `fzf-vpn.sh` is the whole interface and never talks to a VPN directly. It asks the active adapter for normalized values and lays them out identically for any provider. All VPN specifics live in `vpn/<adapter>.sh`, selected by `VPN_ADAPTER` at the top of `fzf-vpn.sh` (default `mullvad`). An adapter defines six functions, `vpn_name`, `vpn_status`, `vpn_connect`, `vpn_disconnect`, `vpn_locations`, and `vpn_set_location`. Each may run several CLI commands to produce one normalized answer. `vpn_status` emits `STATE<TAB>LOCATION<TAB>RELAY<TAB>TARGET_ID` with STATE being `connected` or `disconnected` and TARGET_ID identifying the configured relay so the active row can be marked, and `vpn_locations` emits `DISPLAY<TAB>ID` rows where ID is opaque to the interface and handed back verbatim to `vpn_set_location`. To add a provider, copy `vpn/_template.sh`, implement the six functions, and point `VPN_ADAPTER` at it.
+
+The popup is a single fzf instance that never auto closes. The header is one line, provider then state then location and relay, with the state word in bright white. The bottom border carries the state-aware verb, disconnect when up and connect when down. The body is the searchable location list, and the currently configured relay is marked with a trailing ` <` so it reads the same whether or not the cursor is on it. Selecting a location runs `vpn_set_location` and connects, and `ctrl-space` toggles connect or disconnect. Both actions use fzf `execute-silent` with `reload` and `transform-header` plus `transform-border-label`, so the command runs, the list re-marks the new active row, the header and border rebuild from fresh adapter data, and the popup stays open. It closes only on `ctrl-c` or `ctrl-d`, leaving every printable key free for the search. Actions block briefly while the adapter waits for the tunnel so the refreshed status reads accurately.
+
 ## Popup apps and the nested session approach
 
 tmux `display-popup` does not support `allow-passthrough` because popups have no real pane. Apps like yazi that send passthrough escape sequences crash (tmux issue 4329, yazi issue 2308). lf is used instead because it does not need passthrough.
