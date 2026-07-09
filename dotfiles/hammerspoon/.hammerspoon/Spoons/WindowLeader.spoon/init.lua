@@ -66,16 +66,39 @@ function obj:bind(leaderKeyCode, key, fn, mods)
   return self
 end
 
+-- The only sub-modifiers a binding may require. `fn` is deliberately excluded:
+-- macOS stamps `fn` onto arrow (and nav) keys, so a raw containExactly() check
+-- would never match a Shift+arrow binding. We compare against these four only.
+local REAL_MODS = { "shift", "ctrl", "alt", "cmd" }
+
 --- WindowLeader:_resolve(list, flags)
 --- Method
---- Pick the handler for the current modifier flags: an exact-mods match wins,
---- otherwise fall back to a catch-all (mods == nil) binding if present.
+--- Pick the handler for the current modifier flags: an exact match on the real
+--- modifiers (shift/ctrl/alt/cmd, ignoring `fn`) wins, otherwise fall back to a
+--- catch-all (mods == nil) binding if present.
 function obj:_resolve(list, flags)
   if not list then return nil end
+
+  -- Which real modifiers are actually held right now.
+  local present = {}
+  for _, m in ipairs(REAL_MODS) do
+    if flags[m] then present[m] = true end
+  end
+
   local catchAll = nil
   for _, b in ipairs(list) do
     if b.mods then
-      if flags:containExactly(b.mods) then
+      local need = {}
+      for _, m in ipairs(b.mods) do need[m] = true end
+      -- Exact match: every real modifier's held-state equals its required-state.
+      local match = true
+      for _, m in ipairs(REAL_MODS) do
+        if (present[m] or false) ~= (need[m] or false) then
+          match = false
+          break
+        end
+      end
+      if match then
         return b.fn
       end
     else
