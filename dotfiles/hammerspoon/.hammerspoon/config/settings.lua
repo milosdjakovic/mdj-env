@@ -37,7 +37,7 @@ return {
   -- Colours are 0-1 RGB; opacity is the panel's alpha. Omit any field to keep
   -- the built-in default.
   cheatSheet = {
-    opacity = 0.92,                                    -- panel background alpha
+    opacity = 0.95,                                    -- panel background alpha
     background = { red = 0.09, green = 0.09, blue = 0.11 }, -- panel colour
     cornerRadius = 16,                                 -- panel corner roundness
     badgeRadius = 6,                                   -- key-badge roundness
