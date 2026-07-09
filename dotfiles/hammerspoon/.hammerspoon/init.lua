@@ -18,6 +18,7 @@ local vicertWorkspace = require("config.workspaces.vicert")
 --------------------------------------------------------------------------------
 
 hs.loadSpoon("ChordKey")
+hs.loadSpoon("CheatSheet")
 hs.loadSpoon("HyperKey")
 hs.loadSpoon("HyperCheatSheet")
 hs.loadSpoon("StageManager")
@@ -34,9 +35,17 @@ hs.loadSpoon("DockAutoHide")
 -- Initialize Spoons
 --------------------------------------------------------------------------------
 
+-- CheatSheet: the shared grid-overlay renderer behind both cheat sheets. Both
+-- builders below draw through this one instance (only ever one overlay is up).
+spoon.CheatSheet:init()
+
 -- HyperCheatSheet: overlay of Hyper app bindings (open vs not running)
 spoon.HyperCheatSheet:init()
-spoon.HyperCheatSheet:configure({ apps = apps, toggles = keys.appToggles })
+spoon.HyperCheatSheet:configure({
+  apps = apps,
+  toggles = keys.appToggles,
+  cheatSheet = spoon.CheatSheet,
+})
 
 -- ChordKey: the shared hold/tap/chord engine behind all three function-key
 -- leaders (HYPER=F18, SUPER=F17, META=F16). One event tap serves them all;
@@ -102,6 +111,7 @@ spoon.WindowCheatSheet:init()
 spoon.WindowCheatSheet:configure({
   windowManagement = keys.windowManagement,
   leaders = { [64] = "SUPER", [106] = "META" },
+  cheatSheet = spoon.CheatSheet,
 })
 spoon.WindowLeader:configure({
   chord = spoon.ChordKey,
