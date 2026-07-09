@@ -1,8 +1,8 @@
 --- === CheatSheet ===
 ---
---- Shared on-screen overlay renderer: a dark rounded panel of key bindings laid
---- out as a row-major grid. Purely presentational -- it draws whatever model it
---- is handed and owns nothing domain-specific.
+--- Shared on-screen overlay renderer: a rounded panel of key bindings laid out
+--- as a row-major grid. Purely presentational -- it draws whatever model it is
+--- handed and owns nothing domain-specific.
 ---
 --- The two callers (HyperCheatSheet, WindowCheatSheet) build the model and keep
 --- their own domain logic: resolving app icons and splitting running vs not, or
@@ -10,29 +10,44 @@
 --- (column count, badge width, whether rows carry icons), all of which are model
 --- fields here -- so one renderer serves both.
 ---
+--- APPEARANCE (colour, opacity, corner radius, font, inner padding) is global:
+--- set it once via configure() -- typically from config/settings.lua -- and both
+--- overlays pick it up. LAYOUT that legitimately differs per overlay (columns,
+--- badge width, icons) is passed per show(). configure(opts) accepts:
+---   opacity      - panel background alpha (0-1)
+---   background   - { red, green, blue } panel colour (0-1 each)
+---   cornerRadius - panel corner roundness (px)
+---   badgeRadius  - key-badge corner roundness (px)
+---   badgeAlpha   - key-badge fill alpha (0-1)
+---   fontSize     - text size (px); lineHeight follows unless set explicitly
+---   padding      - inner margin around the content (px)
+---
 --- show(model) where model is:
 ---   columns, colWidth, rowHeight, badgeWidth, badgeHeight, iconSize, gap,
----   margin, titleHeight, groupGap  -- layout, all optional (defaults below)
+---   margin, titleHeight, groupGap  -- per-overlay layout, all optional
 ---   sections = {                    -- one or more; empty sections are skipped
 ---     { title = "OPEN", alpha = 1.0, rows = {
 ---         { badge = "C", label = "Google Chrome", icon = <hs.image?> }, ... } },
 ---   }
 --- Rows are filled left-to-right, top-to-bottom across `columns`. An icon is
---- drawn only when iconSize > 0 and the row carries one. `alpha` fades a whole
---- section (used for the dimmed "not running" group).
+--- drawn only when iconSize > 0 and the row carries one. A section's `alpha`
+--- multiplies the theme alphas, so the dimmed "not running" group fades whole.
 
 local obj = {}
 obj.__index = obj
 
 -- Metadata
 obj.name = "CheatSheet"
-obj.version = "1.0"
+obj.version = "2.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
 obj._canvas = nil
+obj._theme = nil          -- effective appearance (DEFAULT_THEME + configure)
+obj._layoutDefaults = nil -- effective layout defaults (DEFAULTS + configure)
 
--- Layout defaults (tuned for 16px text). Any can be overridden per show().
+-- Per-overlay layout defaults. Any can be overridden per show(); `margin` (the
+-- inner padding) can also be set globally via configure({ padding = ... }).
 local DEFAULTS = {
   columns = 2,
   colWidth = 250,
@@ -41,32 +56,42 @@ local DEFAULTS = {
   badgeHeight = 28,
   iconSize = 0,      -- 0 = no icons
   gap = 12,          -- horizontal gap around badge/icon
-  margin = 28,
+  margin = 28,       -- inner padding around content
   titleHeight = 32,  -- section header line + gap below it
   groupGap = 20,     -- vertical gap between sections
 }
 
-local TEXT = 16   -- font size for every text element
-local LINE_H = 20 -- line box used to vertically center TEXT
+-- Global appearance defaults. configure() clones and overrides these; nothing
+-- mutates this table, so it stays the pristine baseline.
+local DEFAULT_THEME = {
+  fontSize = 16,
+  lineHeight = 20,
+  -- panel.color carries its own alpha -- that alpha IS the modal's opacity.
+  panel = { color = { red = 0.09, green = 0.09, blue = 0.11, alpha = 0.92 }, radius = 16 },
+  badge = { alpha = 0.12, radius = 6 }, -- translucent key-badge fill
+  text  = { badge = 1.0, label = 0.9, title = 0.5 }, -- white alphas per role
+}
 
--- Vertical top for a LINE_H text box centered in a container of height h
-local function centerY(top, h)
-  return top + (h - LINE_H) / 2
+-- Vertical top for a lineH text box centered in a container of height h
+local function centerY(top, h, lineH)
+  return top + (h - lineH) / 2
 end
 
 local function rowsFor(n, columns)
   return math.ceil(n / columns)
 end
 
---- CheatSheet:init()
-function obj:init()
-  return self
+-- Shallow copy of a table (one level)
+local function shallow(t)
+  local r = {}
+  for k, v in pairs(t) do r[k] = v end
+  return r
 end
 
--- Merge a model's layout fields over DEFAULTS
-local function layoutOf(model)
+-- Merge a model's layout fields over the effective defaults
+local function layoutOf(base, model)
   local l = {}
-  for k, v in pairs(DEFAULTS) do
+  for k, v in pairs(base) do
     l[k] = model[k] ~= nil and model[k] or v
   end
   return l
@@ -83,8 +108,55 @@ local function nonEmpty(sections)
   return out
 end
 
+--- CheatSheet:init()
+function obj:init()
+  self._theme = DEFAULT_THEME
+  self._layoutDefaults = DEFAULTS
+  return self
+end
+
+--- CheatSheet:configure(opts)
+--- Global appearance overrides applied to every overlay (see the header for the
+--- full list). Any omitted field keeps its default, so configure(nil) is valid.
+function obj:configure(opts)
+  opts = opts or {}
+
+  -- Clone the theme down to the tables we mutate, so DEFAULT_THEME stays clean.
+  local t = shallow(DEFAULT_THEME)
+  t.panel = shallow(DEFAULT_THEME.panel)
+  t.panel.color = shallow(DEFAULT_THEME.panel.color)
+  t.badge = shallow(DEFAULT_THEME.badge)
+  t.text = shallow(DEFAULT_THEME.text)
+
+  if opts.opacity ~= nil then t.panel.color.alpha = opts.opacity end
+  if opts.background then
+    if opts.background.red ~= nil then t.panel.color.red = opts.background.red end
+    if opts.background.green ~= nil then t.panel.color.green = opts.background.green end
+    if opts.background.blue ~= nil then t.panel.color.blue = opts.background.blue end
+  end
+  if opts.cornerRadius ~= nil then t.panel.radius = opts.cornerRadius end
+  if opts.badgeRadius ~= nil then t.badge.radius = opts.badgeRadius end
+  if opts.badgeAlpha ~= nil then t.badge.alpha = opts.badgeAlpha end
+  if opts.fontSize ~= nil then
+    t.fontSize = opts.fontSize
+    -- Keep the line box proportional to the font unless caller pins it.
+    t.lineHeight = opts.lineHeight or math.floor(opts.fontSize * 1.25 + 0.5)
+  elseif opts.lineHeight ~= nil then
+    t.lineHeight = opts.lineHeight
+  end
+  self._theme = t
+
+  -- Padding is the one layout knob that reads globally (the inner margin).
+  local l = shallow(DEFAULTS)
+  if opts.padding ~= nil then l.margin = opts.padding end
+  self._layoutDefaults = l
+
+  return self
+end
+
 -- Push the elements for one section's rows starting at contentY
 function obj:_appendRows(elements, rows, contentY, alpha, L)
+  local T = self._theme
   for i, r in ipairs(rows) do
     local col = (i - 1) % L.columns
     local row = math.floor((i - 1) / L.columns)
@@ -96,17 +168,17 @@ function obj:_appendRows(elements, rows, contentY, alpha, L)
     elements[#elements + 1] = {
       type = "rectangle",
       action = "fill",
-      fillColor = { white = 1.0, alpha = 0.12 * alpha },
-      roundedRectRadii = { xRadius = 6, yRadius = 6 },
+      fillColor = { white = 1.0, alpha = T.badge.alpha * alpha },
+      roundedRectRadii = { xRadius = T.badge.radius, yRadius = T.badge.radius },
       frame = { x = x, y = badgeTop, w = L.badgeWidth, h = L.badgeHeight },
     }
     elements[#elements + 1] = {
       type = "text",
       text = r.badge,
-      textColor = { white = 1.0, alpha = alpha },
-      textSize = TEXT,
+      textColor = { white = 1.0, alpha = T.text.badge * alpha },
+      textSize = T.fontSize,
       textAlignment = "center",
-      frame = { x = x, y = centerY(badgeTop, L.badgeHeight), w = L.badgeWidth, h = LINE_H },
+      frame = { x = x, y = centerY(badgeTop, L.badgeHeight, T.lineHeight), w = L.badgeWidth, h = T.lineHeight },
     }
 
     -- optional icon
@@ -126,9 +198,9 @@ function obj:_appendRows(elements, rows, contentY, alpha, L)
     elements[#elements + 1] = {
       type = "text",
       text = r.label,
-      textColor = { white = 1.0, alpha = 0.9 * alpha },
-      textSize = TEXT,
-      frame = { x = labelX, y = centerY(y, L.rowHeight), w = L.colWidth - (labelX - x) - L.gap, h = LINE_H },
+      textColor = { white = 1.0, alpha = T.text.label * alpha },
+      textSize = T.fontSize,
+      frame = { x = labelX, y = centerY(y, L.rowHeight, T.lineHeight), w = L.colWidth - (labelX - x) - L.gap, h = T.lineHeight },
     }
   end
 end
@@ -138,7 +210,8 @@ end
 function obj:show(model)
   self:hide()
   model = model or {}
-  local L = layoutOf(model)
+  local T = self._theme
+  local L = layoutOf(self._layoutDefaults, model)
   local sections = nonEmpty(model.sections)
   if #sections == 0 then
     return self
@@ -163,8 +236,8 @@ function obj:show(model)
   elements[#elements + 1] = {
     type = "rectangle",
     action = "fill",
-    fillColor = { red = 0.09, green = 0.09, blue = 0.11, alpha = 0.92 },
-    roundedRectRadii = { xRadius = 16, yRadius = 16 },
+    fillColor = T.panel.color,
+    roundedRectRadii = { xRadius = T.panel.radius, yRadius = T.panel.radius },
     frame = { x = 0, y = 0, w = w, h = h },
   }
 
@@ -175,9 +248,9 @@ function obj:show(model)
       elements[#elements + 1] = {
         type = "text",
         text = s.title,
-        textColor = { white = 1.0, alpha = 0.5 },
-        textSize = TEXT,
-        frame = { x = L.margin, y = cursor, w = L.columns * L.colWidth, h = LINE_H },
+        textColor = { white = 1.0, alpha = T.text.title },
+        textSize = T.fontSize,
+        frame = { x = L.margin, y = cursor, w = L.columns * L.colWidth, h = T.lineHeight },
       }
       cursor = cursor + L.titleHeight
     end

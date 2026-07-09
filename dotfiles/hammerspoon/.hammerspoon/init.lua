@@ -37,7 +37,10 @@ hs.loadSpoon("DockAutoHide")
 
 -- CheatSheet: the shared grid-overlay renderer behind both cheat sheets. Both
 -- builders below draw through this one instance (only ever one overlay is up).
+-- Appearance (opacity, colour, radius, font, padding) is set once here from
+-- config/settings.lua and applies to every overlay.
 spoon.CheatSheet:init()
+spoon.CheatSheet:configure(settings.cheatSheet)
 
 -- HyperCheatSheet: overlay of Hyper app bindings (open vs not running)
 spoon.HyperCheatSheet:init()

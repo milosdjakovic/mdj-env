@@ -31,6 +31,20 @@ return {
     timeout = 30,             -- Max seconds to wait per app
   },
 
+  -- Cheat-sheet overlay appearance (the Hyper / SUPER / META modals). One place
+  -- for how EVERY overlay looks; the shared CheatSheet renderer applies it to
+  -- all of them. Per-overlay layout (column count, icons) stays in the spoons.
+  -- Colours are 0-1 RGB; opacity is the panel's alpha. Omit any field to keep
+  -- the built-in default.
+  cheatSheet = {
+    opacity = 0.92,                                    -- panel background alpha
+    background = { red = 0.09, green = 0.09, blue = 0.11 }, -- panel colour
+    cornerRadius = 16,                                 -- panel corner roundness
+    badgeRadius = 6,                                   -- key-badge roundness
+    fontSize = 16,
+    padding = 28,                                      -- inner margin around content
+  },
+
   -- Window sizing defaults
   windowSizing = {
     maxWidth = 2400,
