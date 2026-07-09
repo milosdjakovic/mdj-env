@@ -113,7 +113,7 @@ today every binding is a single key press.
 `onHold` reveals a cheat sheet, and both cheat sheets draw through one shared
 grid renderer, `CheatSheet.spoon` (dark panel, key-badge rows filled row-major
 across columns). `HyperCheatSheet` and `WindowCheatSheet` only build the content
-model, so the drawing never diverges. Its appearance (opacity, background,
+model, so the drawing never diverges. Its appearance (opacity `0.95`, background,
 corner radius, font, padding) is global: set once via `CheatSheet:configure`
 from the `cheatSheet` block in `config/settings.lua`, so one edit restyles every
 overlay. Per-overlay layout (columns, badge width, icons) stays in the builders,
