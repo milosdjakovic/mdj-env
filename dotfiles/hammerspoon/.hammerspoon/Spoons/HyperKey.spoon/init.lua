@@ -1,44 +1,37 @@
 --- === HyperKey ===
 ---
---- Turn a single physical key into a "Hyper" trigger with a tap fallback.
+--- Domain adapter: turn a single physical key into a "Hyper" trigger with a tap
+--- fallback, for app-toggle style bindings (a flat key -> function map, no
+--- sub-modifiers).
 ---
---- The key must emit normal key-down/key-up events (e.g. F18, which Caps Lock
---- is remapped to via hidutil — see src/setup-capslock-hyper.sh). A real
---- modifier or a toggle key like raw Caps Lock will not work: modifiers stamp
---- their flag onto every keystroke, and Caps Lock emits no usable up/down.
----
---- While the key is held, matching keys are dispatched to their handlers and
---- swallowed (so nothing leaks through). A quick tap with no other key runs the
---- optional onTap callback (used here to toggle real Caps Lock). Everything
---- lives inside Hammerspoon, so it adds no background process or memory.
+--- The hold / tap / chord MECHANICS -- swallowing keys while held, hold-to-reveal
+--- timing, why the key must emit clean key-down/up -- live in ChordKey.spoon.
+--- This spoon owns only the binding table and the tap policy, and registers its
+--- key into the shared ChordKey engine (passed as opts.chord). Keeping it as a
+--- thin adapter preserves the :bind / :isActive contract that AppToggler and
+--- ClipboardHistory depend on, while the engine is shared with WindowLeader.
 
 local obj = {}
 obj.__index = obj
 
 -- Metadata
 obj.name = "HyperKey"
-obj.version = "3.0"
+obj.version = "4.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
-obj._tap = nil
-obj._active = false
-obj._used = false     -- was another key pressed during this hold?
-obj._downTime = 0
+obj._chord = nil      -- shared ChordKey engine
 obj._bindings = nil   -- keycode -> function
-obj._holdTimer = nil
-obj._holdShown = false
 
 -- F18 keycode (Caps Lock is remapped to F18 at the HID level)
 obj._keyCode = 79
 -- Max hold duration (seconds) that still counts as a tap
 obj._tapThreshold = 0.2
--- Optional callback fired on a quick tap with no other key
+-- Optional callbacks (see configure)
 obj._onTap = nil
--- Optional: fire _onHold after holding this long with no other key pressed
 obj._holdDelay = nil
-obj._onHold = nil    -- fired once when the hold passes _holdDelay
-obj._onHoldEnd = nil -- fired when a shown hold ends (release or key press)
+obj._onHold = nil
+obj._onHoldEnd = nil
 
 --- HyperKey:init()
 --- Method
@@ -50,6 +43,7 @@ end
 
 --- HyperKey:configure(opts)
 --- Method
+--- opts.chord        - the shared ChordKey engine to register into (required)
 --- opts.keyCode      - keycode of the Hyper key (default 79, F18)
 --- opts.tapThreshold - seconds below which a hold counts as a tap (default 0.2)
 --- opts.onTap        - function to run on a quick tap with no other key
@@ -58,6 +52,7 @@ end
 --- opts.onHoldEnd    - function to run when a shown hold ends
 function obj:configure(opts)
   opts = opts or {}
+  self._chord = opts.chord or self._chord
   self._keyCode = opts.keyCode or self._keyCode
   self._tapThreshold = opts.tapThreshold or self._tapThreshold
   self._onTap = opts.onTap or self._onTap
@@ -81,102 +76,45 @@ function obj:bind(key, fn)
   return self
 end
 
---- HyperKey:start()
---- Method
---- Begin watching for the Hyper key and its bound keys
-function obj:start()
-  local types = hs.eventtap.event.types
-  self._tap = hs.eventtap.new({ types.keyDown, types.keyUp }, function(e)
-    local t = e:getType()
-    local code = e:getKeyCode()
-
-    -- The Hyper key itself
-    if code == self._keyCode then
-      if t == types.keyDown then
-        -- Held keys auto-repeat key-down; only the first press starts a hold
-        if not self._active then
-          self._active = true
-          self._used = false
-          self._holdShown = false
-          self._downTime = hs.timer.secondsSinceEpoch()
-          -- Arm the hold overlay: fires only if still held and unused
-          if self._onHold and self._holdDelay then
-            self._holdTimer = hs.timer.doAfter(self._holdDelay, function()
-              if self._active and not self._used then
-                self._holdShown = true
-                self._onHold()
-              end
-            end)
-          end
-        end
-      elseif t == types.keyUp then
-        self:_cancelHold()
-        if self._holdShown and self._onHoldEnd then
-          self._onHoldEnd()
-        end
-        self._holdShown = false
-        local heldFor = hs.timer.secondsSinceEpoch() - self._downTime
-        local wasUsed = self._used
-        self._active = false
-        if not wasUsed and heldFor < self._tapThreshold and self._onTap then
-          hs.timer.doAfter(0, self._onTap)
-        end
-      end
-      return true, {} -- swallow the Hyper key entirely
-    end
-
-    -- Other keys, only while the Hyper key is held
-    if self._active then
-      if t == types.keyDown then
-        self._used = true
-        self:_cancelHold()
-        if self._holdShown and self._onHoldEnd then
-          self._onHoldEnd()
-          self._holdShown = false
-        end
-        local fn = self._bindings[code]
-        if fn then
-          hs.timer.doAfter(0, fn)
-        end
-      end
-      return true, {} -- swallow so nothing leaks while Hyper is held
-    end
-
-    return false
-  end)
-  self._tap:start()
-  return self
-end
-
 --- HyperKey:isActive()
 --- Method
---- Return true while the Hyper key is physically held. Useful for actions that
---- synthesize keystrokes: the event tap swallows all keys during a hold, so such
---- actions must wait for release before posting their events.
+--- Return true while the Hyper key is physically held. Delegates to ChordKey.
+--- Consumers (e.g. ClipboardHistory) use this to defer synthetic keystrokes
+--- until release, since the engine's tap swallows every key during a hold.
 function obj:isActive()
-  return self._active
+  return self._chord ~= nil and self._chord:isActive(self._keyCode)
 end
 
---- HyperKey:_cancelHold()
+--- HyperKey:start()
 --- Method
---- Cancel any pending hold-overlay timer
-function obj:_cancelHold()
-  if self._holdTimer then
-    self._holdTimer:stop()
-    self._holdTimer = nil
+--- Register the Hyper key into the shared ChordKey engine. The engine's own
+--- start() (called once from init.lua) begins the actual event tap. onHold /
+--- onHoldEnd are passed straight through -- ChordKey calls them with the
+--- keycode, which the Hyper callbacks simply ignore.
+function obj:start()
+  if not self._chord then
+    print("HyperKey: no ChordKey engine configured (opts.chord)")
+    return self
   end
+  local bindings = self._bindings
+  self._chord:addKey(self._keyCode, {
+    tapThreshold = self._tapThreshold,
+    holdDelay = self._holdDelay,
+    onTap = self._onTap,
+    onHold = self._onHold,
+    onHoldEnd = self._onHoldEnd,
+    -- App toggles are a flat lookup; sub-modifiers are irrelevant here.
+    onKey = function(code)
+      return bindings[code]
+    end,
+  })
+  return self
 end
 
 --- HyperKey:stop()
 --- Method
---- Stop watching
+--- No-op: the shared ChordKey engine owns the event tap.
 function obj:stop()
-  if self._tap then
-    self._tap:stop()
-  end
-  self:_cancelHold()
-  self._active = false
-  self._holdShown = false
   return self
 end
 

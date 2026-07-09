@@ -17,6 +17,7 @@ local vicertWorkspace = require("config.workspaces.vicert")
 -- Load Spoons
 --------------------------------------------------------------------------------
 
+hs.loadSpoon("ChordKey")
 hs.loadSpoon("HyperKey")
 hs.loadSpoon("HyperCheatSheet")
 hs.loadSpoon("StageManager")
@@ -37,11 +38,19 @@ hs.loadSpoon("DockAutoHide")
 spoon.HyperCheatSheet:init()
 spoon.HyperCheatSheet:configure({ apps = apps, toggles = keys.appToggles })
 
+-- ChordKey: the shared hold/tap/chord engine behind all three function-key
+-- leaders (HYPER=F18, SUPER=F17, META=F16). One event tap serves them all;
+-- HyperKey and WindowLeader register their keys into it below. These are the
+-- defaults each key inherits unless it overrides them.
+spoon.ChordKey:init()
+spoon.ChordKey:configure({ holdDelay = 0.6, tapThreshold = 0.2 })
+
 -- HyperKey: Caps Lock (remapped to F18 via hidutil) as a Hyper key.
 -- Hold + letter = app toggles; quick tap = toggle real Caps Lock; hold 0.6s
--- with no key = show the cheat sheet. No extra process.
+-- with no key = show the cheat sheet. Registers into the shared ChordKey engine.
 spoon.HyperKey:init()
 spoon.HyperKey:configure({
+  chord = spoon.ChordKey,
   keyCode = 79, -- F18 (Caps Lock is remapped to F18 by src/setup-capslock-hyper.sh)
   tapThreshold = 0.2,
   onTap = function()
@@ -95,6 +104,7 @@ spoon.WindowCheatSheet:configure({
   leaders = { [64] = "SUPER", [106] = "META" },
 })
 spoon.WindowLeader:configure({
+  chord = spoon.ChordKey,
   holdDelay = 0.6,
   onHold = function(leaderKeyCode)
     spoon.WindowCheatSheet:show(leaderKeyCode)
@@ -105,6 +115,10 @@ spoon.WindowLeader:configure({
 })
 
 spoon.WindowLeader:start()
+
+-- Every leader is now registered; start the one shared event tap that drives
+-- HYPER, SUPER and META together.
+spoon.ChordKey:start()
 
 -- AppToggler (uses apps config; toggles fire via the Caps Lock/F18 Hyper modal)
 spoon.AppToggler:init()

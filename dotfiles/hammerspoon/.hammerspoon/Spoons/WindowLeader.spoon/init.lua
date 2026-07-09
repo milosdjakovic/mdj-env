@@ -1,38 +1,39 @@
 --- === WindowLeader ===
 ---
---- Function-key "leader" modifiers for window management.
+--- Domain adapter: function-key "leader" modifiers for window management.
 ---
 --- Right Option and Right Command are remapped to F17 and F16 at the HID level
---- (see src/setup-capslock-hyper.sh). While a leader key is physically held,
---- bound keys dispatch to their handlers and are swallowed (nothing leaks
---- through). Unlike HyperKey there is no tap fallback -- these keys exist only
---- to drive window management, so a bare press/release does nothing.
+--- (see src/setup-capslock-hyper.sh). This spoon owns the per-leader binding
+--- tables and the sub-modifier resolution policy; the hold / tap / chord
+--- MECHANICS (swallowing keys while held, hold-to-reveal timing) live in
+--- ChordKey.spoon, the shared engine it registers its leaders into (opts.chord).
+--- Unlike HyperKey there is no tap fallback -- these keys exist only to drive
+--- window management, so a bare press/release does nothing.
 ---
 --- A binding may require exact sub-modifiers (e.g. Shift), so one leader can
---- host two tiers: on F16, a bare arrow switches display while Shift+arrow
---- moves the window. Bindings with no `mods` are catch-alls -- they fire
---- whenever no exact-mods binding matches the currently held modifiers.
+--- host two tiers: on F16, a bare arrow switches display while Shift+arrow moves
+--- the window. Bindings with no `mods` are catch-alls -- they fire whenever no
+--- exact-mods binding matches the currently held modifiers.
 ---
---- Like HyperKey, holding a leader ~holdDelay seconds with no other key fires
---- the optional onHold(leaderKeyCode) callback (used to reveal a cheat sheet);
---- pressing any bound key cancels it. Wire this via configure().
----
---- Everything lives inside Hammerspoon, so it adds no background process.
+--- Holding a leader ~holdDelay seconds with no other key fires the optional
+--- onHold(leaderKeyCode) callback (used to reveal a cheat sheet); pressing any
+--- bound key cancels it. Keeping WindowLeader a thin adapter preserves the
+--- :bind contract that WindowManager:bindToLeader depends on.
 
 local obj = {}
 obj.__index = obj
 
 -- Metadata
 obj.name = "WindowLeader"
-obj.version = "1.0"
+obj.version = "2.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
-obj._tap = nil
-obj._leaders = nil -- keyCode -> { active, used, shown, holdTimer, bindings = { code -> { {mods, fn}, ... } } }
+obj._chord = nil   -- shared ChordKey engine
+obj._leaders = nil -- keyCode -> { bindings = { code -> { {mods, fn}, ... } } }
 
--- Optional hold-to-reveal (parallels HyperKey). onHold receives the leader's
--- keycode so a cheat sheet can show that leader's bindings; onHoldEnd takes none.
+-- Hold-to-reveal (parallels HyperKey). onHold receives the leader's keycode so
+-- a cheat sheet can show that leader's bindings; onHoldEnd takes none.
 obj._holdDelay = 0.6
 obj._onHold = nil
 obj._onHoldEnd = nil
@@ -47,32 +48,24 @@ end
 
 --- WindowLeader:configure(opts)
 --- Method
+--- opts.chord     - the shared ChordKey engine to register into (required)
 --- opts.holdDelay - seconds to hold a leader (no other key) before onHold fires
 --- opts.onHold    - function(leaderKeyCode) run once the hold passes holdDelay
 --- opts.onHoldEnd - function() run when a shown hold ends (release or key press)
 function obj:configure(opts)
   opts = opts or {}
+  self._chord = opts.chord or self._chord
   self._holdDelay = opts.holdDelay or self._holdDelay
   self._onHold = opts.onHold or self._onHold
   self._onHoldEnd = opts.onHoldEnd or self._onHoldEnd
   return self
 end
 
---- WindowLeader:_cancelHold(leader)
---- Method
---- Cancel a leader's pending hold-overlay timer
-function obj:_cancelHold(leader)
-  if leader.holdTimer then
-    leader.holdTimer:stop()
-    leader.holdTimer = nil
-  end
-end
-
 --- WindowLeader:addLeader(keyCode)
 --- Method
 --- Register a leader key by its (remapped) virtual keycode, e.g. 64 (F17).
 function obj:addLeader(keyCode)
-  self._leaders[keyCode] = self._leaders[keyCode] or { active = false, bindings = {} }
+  self._leaders[keyCode] = self._leaders[keyCode] or { bindings = {} }
   return self
 end
 
@@ -143,81 +136,33 @@ end
 
 --- WindowLeader:start()
 --- Method
---- Begin watching for leader keys and their bound keys
+--- Register every leader into the shared ChordKey engine. The engine's own
+--- start() (called once from init.lua) begins the actual event tap. Each
+--- leader's onKey resolves the pressed key against that leader's bindings,
+--- honouring optional sub-modifiers.
 function obj:start()
-  local types = hs.eventtap.event.types
-  self._tap = hs.eventtap.new({ types.keyDown, types.keyUp }, function(e)
-    local t = e:getType()
-    local code = e:getKeyCode()
-
-    -- A leader key itself: track held state, arm the hold overlay, swallow it.
-    local leader = self._leaders[code]
-    if leader then
-      if t == types.keyDown then
-        -- Held keys auto-repeat key-down; only the first press starts a hold.
-        if not leader.active then
-          leader.active = true
-          leader.used = false
-          leader.shown = false
-          if self._onHold and self._holdDelay then
-            leader.holdTimer = hs.timer.doAfter(self._holdDelay, function()
-              if leader.active and not leader.used then
-                leader.shown = true
-                self._onHold(code)
-              end
-            end)
-          end
-        end
-      else -- keyUp
-        self:_cancelHold(leader)
-        if leader.shown and self._onHoldEnd then
-          self._onHoldEnd()
-        end
-        leader.shown = false
-        leader.active = false
-      end
-      return true, {}
-    end
-
-    -- Other keys, only while some leader is held.
-    for _, l in pairs(self._leaders) do
-      if l.active then
-        if t == types.keyDown then
-          -- A real key press means this is window management, not a cheat-sheet
-          -- hold: cancel the pending overlay (and dismiss it if already shown).
-          l.used = true
-          self:_cancelHold(l)
-          if l.shown and self._onHoldEnd then
-            self._onHoldEnd()
-            l.shown = false
-          end
-          local fn = self:_resolve(l.bindings[code], e:getFlags())
-          if fn then
-            hs.timer.doAfter(0, fn)
-          end
-        end
-        return true, {} -- swallow so nothing leaks while a leader is held
-      end
-    end
-
-    return false
-  end)
-  self._tap:start()
+  if not self._chord then
+    print("WindowLeader: no ChordKey engine configured (opts.chord)")
+    return self
+  end
+  for keyCode, leader in pairs(self._leaders) do
+    self._chord:addKey(keyCode, {
+      holdDelay = self._holdDelay,
+      onHold = self._onHold,
+      onHoldEnd = self._onHoldEnd,
+      -- No onTap: leaders have no tap fallback.
+      onKey = function(code, flags)
+        return self:_resolve(leader.bindings[code], flags)
+      end,
+    })
+  end
   return self
 end
 
 --- WindowLeader:stop()
 --- Method
---- Stop watching
+--- No-op: the shared ChordKey engine owns the event tap.
 function obj:stop()
-  if self._tap then
-    self._tap:stop()
-  end
-  for _, l in pairs(self._leaders or {}) do
-    self:_cancelHold(l)
-    l.active = false
-    l.shown = false
-  end
   return self
 end
 
