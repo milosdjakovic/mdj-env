@@ -23,6 +23,10 @@ done
 # comes from whichever adapter fzf-vpn.sh is configured to use.
 VPN_LABEL="$(~/.tmux/scripts/fzf-vpn.sh --name 2>/dev/null)"
 
+# Keep-awake status for the launcher entry, so the current state shows without
+# opening the popup. Empty when no keep-awake is active.
+CAFF_SUMMARY="$(~/.tmux/scripts/fzf-caffeinate.sh --summary 2>/dev/null)"
+
 # --- Entry data: category|display_key|description|command_id ---
 # To add a new entry: add a line here and a case in execute_cmd below
 ENTRIES="tools|prefix+g|Lazygit popup|lazygit
@@ -33,6 +37,7 @@ tools|prefix+t|Search lf tags (enter copy, ^v nvim, alt-v new window)|fzf-tags
 tools|prefix+f|Find files globally (enter copy, ^v nvim, alt-v new window)|fzf-files-global
 tools|prefix+F|Find files (enter copy, ^v nvim, alt-v new window)|fzf-files
 tools|---|VPN service${VPN_LABEL:+ ($VPN_LABEL)}|vpn
+tools|---|Keep awake${CAFF_SUMMARY:+ ($CAFF_SUMMARY)}|caffeinate
 nav|prefix+s|Sessions (fzf switcher)|fzf-sessions
 nav|prefix+S|Sessions (tree view)|tree-sessions
 nav|prefix+e|Last session|last-session
@@ -56,6 +61,7 @@ execute_cmd() {
     fzf-files)       tmux display-popup -d "$PANE_PATH" -w 80% -h 80% -E "SEARCH_DIR='$PANE_PATH' ~/.tmux/scripts/fzf-files.sh";;
     fzf-files-global) tmux display-popup -w 80% -h 80% -E "SEARCH_DIR='$HOME' ~/.tmux/scripts/fzf-files.sh";;
     vpn)             tmux display-popup -w 80% -h 80% -E "~/.tmux/scripts/fzf-vpn.sh";;
+    caffeinate)      tmux display-popup -w 80% -h 80% -E "~/.tmux/scripts/fzf-caffeinate.sh";;
     tree-sessions)   tmux choose-tree -Zs;;
     last-session)    tmux switch-client -l;;
     last-window)     tmux last-window;;
