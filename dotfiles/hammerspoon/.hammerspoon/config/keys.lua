@@ -80,7 +80,11 @@ return {
   -- the held function key; `key` is a single press (no sub-modifiers, though an
   -- optional `mods` list is still supported). Each label is the action name
   -- humanized (nextDisplay -> "Next Display"); add `description = "..."` to any
-  -- entry to override its label.
+  -- entry to override its label. An optional `when = "<predicate>"` gates the
+  -- binding on live state. When the named predicate returns false the key does
+  -- nothing and its cheat-sheet row is hidden. Predicates live in the registry
+  -- wired up in init.lua, so this stays pure data. Unknown names are treated as
+  -- always active so a typo fails visibly rather than silently hiding a binding.
   --   SUPER (Right Option): resize the focused window (halves, full height,
   --                         maximize, presets, grow/shrink). Recentering is a
   --                         side effect of resizing -- that's fine.
@@ -109,8 +113,8 @@ return {
     --   Move Up          | Move Down
     --   Move Left        | Move Right
     --   Center
-    { action = "previousDisplay",      leader = META, key = "," },
-    { action = "nextDisplay",          leader = META, key = "." },
+    { action = "previousDisplay",      leader = META, key = ",", when = "multipleDisplays" },
+    { action = "nextDisplay",          leader = META, key = ".", when = "multipleDisplays" },
     { action = "moveUp",               leader = META, key = "up" },
     { action = "moveDown",             leader = META, key = "down" },
     { action = "moveLeft",             leader = META, key = "left" },

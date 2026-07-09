@@ -20,8 +20,9 @@ obj.version = "2.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
-obj._byLeader = nil    -- leaderKeyCode -> { name = "SUPER", rows = { {badge,label} } }
+obj._byLeader = nil    -- leaderKeyCode -> { name = "SUPER", rows = { {badge,label,when} } }
 obj._cheatSheet = nil  -- shared CheatSheet renderer
+obj._predicates = nil  -- name -> function() -> bool, for conditional bindings
 
 -- Layout knobs for this overlay: two columns, wide badge (fits "⇧←"), no icons.
 local LAYOUT = {
@@ -62,18 +63,36 @@ end
 --- WindowCheatSheet:init()
 function obj:init()
   self._byLeader = {}
+  self._predicates = {}
   return self
+end
+
+--- WindowCheatSheet:_active(when)
+--- Is a binding carrying this `when` predicate name currently active? A binding
+--- with no `when` is always active. An unknown name is treated as active so a
+--- typo fails visibly (row shown) rather than silently hiding a binding. Called
+--- per row at show time, so it tracks live state such as the display count.
+function obj:_active(when)
+  if not when then return true end
+  local p = self._predicates[when]
+  if not p then
+    print("WindowCheatSheet: unknown predicate '" .. tostring(when) .. "'")
+    return true
+  end
+  return p() and true or false
 end
 
 --- WindowCheatSheet:configure(opts)
 --- opts.windowManagement - the ordered windowManagement list (config/keys.lua)
 --- opts.leaders          - leaderKeyCode -> display name, e.g. { [64]="SUPER" }
 --- opts.cheatSheet       - shared CheatSheet renderer to draw with
+--- opts.predicates       - name -> function() -> bool, for entries with `when`
 function obj:configure(opts)
   opts = opts or {}
   local wm = opts.windowManagement or {}
   local names = opts.leaders or {}
   self._cheatSheet = opts.cheatSheet or self._cheatSheet
+  self._predicates = opts.predicates or self._predicates
 
   -- windowManagement is an ordered list, so each leader's rows keep that
   -- sequence -- the overlay renders in the exact order authored in keys.lua
@@ -86,6 +105,7 @@ function obj:configure(opts)
       table.insert(self._byLeader[lc].rows, {
         badge = glyphFor(b.key, b.mods),
         label = b.description or humanize(b.action),
+        when = b.when,
       })
     end
   end
@@ -99,6 +119,16 @@ function obj:show(leaderKeyCode)
   local group = self._byLeader[leaderKeyCode]
   if not group then return self end
 
+  -- Drop rows whose `when` predicate is false right now. The renderer fills
+  -- row-major, so a shorter list just yields a shorter grid, no layout change.
+  local rows = {}
+  for _, row in ipairs(group.rows) do
+    if self:_active(row.when) then
+      table.insert(rows, row)
+    end
+  end
+  if #rows == 0 then return self end
+
   self._cheatSheet:show({
     columns = LAYOUT.columns,
     colWidth = LAYOUT.colWidth,
@@ -107,7 +137,7 @@ function obj:show(leaderKeyCode)
     badgeHeight = LAYOUT.badgeHeight,
     gap = LAYOUT.gap,
     sections = {
-      { title = group.name, alpha = 1.0, rows = group.rows },
+      { title = group.name, alpha = 1.0, rows = rows },
     },
   })
   return self

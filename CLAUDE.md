@@ -126,6 +126,19 @@ the same `keys.windowManagement` config, so it never drifts; each row's label is
 the action name humanized (`nextDisplay` → "Next Display") unless the entry sets
 an explicit `description` override.
 
+A binding may also carry an optional `when = "<predicate>"` that gates it on live
+state. When the named predicate returns false the key becomes a no-op (still
+swallowed by the held leader, so no raw character leaks) and its cheat-sheet row
+is hidden. The predicate registry (`windowPredicates` in `init.lua`) is the one
+place the logic lives, injected into both the dispatch gate
+(`WindowManager:bindToLeader`) and the overlay filter (`WindowCheatSheet`), so
+the key and the overlay never disagree, and `config/keys.lua` stays pure data.
+Predicates are evaluated live (at dispatch and at each overlay show), so they
+track runtime state; an unknown name is treated as always active so a typo fails
+visibly rather than silently disabling a binding. Today the only predicate is
+`multipleDisplays`, which hides `previousDisplay`/`nextDisplay` when a single
+display is attached.
+
 Most toggles focus or cycle their app. A toggle in `keys.lua` may instead carry
 an optional `url`, and `AppToggler` opens it with `open` so the app lands on a
 specific pane rather than wherever it was last. Hyper+, uses this to open System

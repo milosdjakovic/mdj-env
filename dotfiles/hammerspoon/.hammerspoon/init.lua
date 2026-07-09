@@ -104,7 +104,18 @@ spoon.WindowManager:configure({
 spoon.WindowLeader:init()
 spoon.WindowLeader:addLeader(64)  -- SUPER = F17 = Right Option (resize)
 spoon.WindowLeader:addLeader(106) -- META  = F16 = Right Command (move)
-spoon.WindowManager:bindToLeader(spoon.WindowLeader, keys.windowManagement)
+
+-- Predicates for conditional window bindings. A binding in keys.windowManagement
+-- may name one via `when = "<name>"`. The binding is then live only while its
+-- predicate returns true, and its cheat-sheet row is hidden otherwise. This one
+-- registry is the only place the logic lives, injected into both the dispatch
+-- gate (bindToLeader) and the overlay filter (WindowCheatSheet), so the key and
+-- the overlay never disagree. Keep predicates cheap and free of side effects,
+-- since they run on every dispatch and every overlay show.
+local windowPredicates = {
+  multipleDisplays = function() return #hs.screen.allScreens() > 1 end,
+}
+spoon.WindowManager:bindToLeader(spoon.WindowLeader, keys.windowManagement, windowPredicates)
 
 -- WindowCheatSheet: hold a leader ~0.6s with no other key to reveal that
 -- leader's window actions (same hold rule as Caps Lock -> HyperCheatSheet).
@@ -115,6 +126,7 @@ spoon.WindowCheatSheet:configure({
   windowManagement = keys.windowManagement,
   leaders = { [64] = "SUPER", [106] = "META" },
   cheatSheet = spoon.CheatSheet,
+  predicates = windowPredicates,
 })
 spoon.WindowLeader:configure({
   chord = spoon.ChordKey,

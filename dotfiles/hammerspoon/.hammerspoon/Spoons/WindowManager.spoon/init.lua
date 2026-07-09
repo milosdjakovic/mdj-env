@@ -430,17 +430,36 @@ function obj:actions()
   }
 end
 
---- WindowManager:bindToLeader(windowLeader, mapping)
+--- WindowManager:bindToLeader(windowLeader, mapping, predicates)
 --- Method
 --- Bind window actions onto a WindowLeader spoon. `mapping` is an ordered list;
 --- each entry is { action = <name>, leader = <keycode>, key = <key>,
---- mods = <optional list> }.
-function obj:bindToLeader(windowLeader, mapping)
+--- mods = <optional list>, when = <optional predicate name> }. `predicates` maps
+--- a `when` name to a function() -> bool. An entry with a `when` is wrapped so it
+--- runs only while its predicate holds; a false predicate makes the key a no-op
+--- (still swallowed by the held leader, so no raw character leaks). This is the
+--- same gate WindowCheatSheet applies to rows, so the key and the overlay agree.
+--- An unknown name is treated as always active, matching the overlay, so a typo
+--- fails visibly rather than silently disabling a binding.
+function obj:bindToLeader(windowLeader, mapping, predicates)
+  predicates = predicates or {}
   local actionMap = self:actions()
   for _, binding in ipairs(mapping) do
     local action = actionMap[binding.action]
     if action then
-      windowLeader:bind(binding.leader, binding.key, action, binding.mods)
+      local when = binding.when
+      local fn = action
+      if when then
+        local p = predicates[when]
+        if not p then
+          print("WindowManager: unknown predicate '" .. tostring(when) .. "'")
+        else
+          fn = function()
+            if p() then action() end
+          end
+        end
+      end
+      windowLeader:bind(binding.leader, binding.key, fn, binding.mods)
     else
       print("WindowManager: Unknown action '" .. tostring(binding.action) .. "'")
     end
