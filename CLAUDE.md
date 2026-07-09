@@ -57,7 +57,13 @@ Configuration in `dotfiles/claude/.claude/` (stow managed):
 - `commands/` - Custom slash commands (e.g., `/commit`)
 - `statusline-command.sh` - Custom status line script
 
-`settings.json` is not tracked in the repo because Claude Code modifies it directly.
+`settings.json` is not tracked in the repo because Claude Code modifies it
+directly. Since it is not stowed, the `statusLine` key that points at
+`statusline-command.sh` can't be symlinked in; `src/setup-claude-settings.sh`
+merges it into `~/.claude/settings.json` with `jq` (idempotent, preserves other
+keys) and runs from `setup.sh` after stow. `jq` is in the Brewfile because the
+statusline script and this merge both depend on it (macOS ships `jq` since 15,
+but the Brewfile guarantees it).
 
 ### Hammerspoon
 
