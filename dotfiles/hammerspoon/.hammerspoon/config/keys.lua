@@ -4,17 +4,25 @@
 -- Modifier key combinations
 local HYPER = { "shift", "ctrl", "alt", "cmd" }
 local CTRL_ALT = { "ctrl", "alt" }
-local CTRL_ALT_CMD = { "ctrl", "alt", "cmd" }
-local CTRL_ALT_SHIFT = { "ctrl", "alt", "shift" }
 local SHIFT_ALT = { "shift", "alt" }
+
+-- Window-management leader keys. Right Option and Right Command are remapped to
+-- F17 and F16 at the HID level (see src/setup-capslock-hyper.sh) and driven by
+-- WindowLeader.spoon: hold the leader, press the key. These are the (remapped)
+-- virtual keycodes of the function keys, not modifier lists.
+--
+-- Named for the classic modifier hierarchy META < SUPER < HYPER, ascending with
+-- the function-key number: META=F16, SUPER=F17, HYPER=F18 (Caps Lock, the app
+-- toggler driven by HyperKey.spoon -- the biggest, hence its own established
+-- name).
+local SUPER = 64  -- F17 (Right Option): base window ops
+local META = 106  -- F16 (Right Command): switch display + move window
 
 return {
   -- Expose modifiers for Spoons that need them
   modifiers = {
     HYPER = HYPER,
     CTRL_ALT = CTRL_ALT,
-    CTRL_ALT_CMD = CTRL_ALT_CMD,
-    CTRL_ALT_SHIFT = CTRL_ALT_SHIFT,
     SHIFT_ALT = SHIFT_ALT,
   },
 
@@ -65,26 +73,31 @@ return {
   -- not wired up.
   clipboardHistory = { modifiers = HYPER, key = "X" },
 
-  -- Window management bindings (for WindowManager.spoon)
+  -- Window management bindings (for WindowManager.spoon via WindowLeader.spoon).
+  -- `leader` is the held function key; `mods` (optional) requires extra real
+  -- modifiers held alongside it.
+  --   SUPER (Right Option): base ops -- hold + key.
+  --   META (Right Command): hold + arrow switches display,
+  --                         hold + Shift + arrow moves the window.
   windowManagement = {
-    maximize =             { modifiers = CTRL_ALT,       key = "return" },
-    center =               { modifiers = CTRL_ALT,       key = "C" },
-    fullHeightReasonable = { modifiers = CTRL_ALT,       key = "up" },
-    almostMaximize =       { modifiers = CTRL_ALT,       key = "down" },
-    leftHalf =             { modifiers = CTRL_ALT,       key = "left" },
-    rightHalf =            { modifiers = CTRL_ALT,       key = "right" },
-    reasonableSize =       { modifiers = CTRL_ALT,       key = "X" },
-    smallSize =            { modifiers = CTRL_ALT,       key = "Z" },
-    increaseSize =         { modifiers = CTRL_ALT,       key = "=" },
-    decreaseSize =         { modifiers = CTRL_ALT,       key = "-" },
-    nextDisplay =          { modifiers = CTRL_ALT_CMD,   key = "right" },
-    previousDisplay =      { modifiers = CTRL_ALT_CMD,   key = "left" },
-    hideAllExceptFocused = { modifiers = CTRL_ALT,       key = "H" },
-    screenRecording =      { modifiers = CTRL_ALT,       key = "R" },
-    moveLeft =             { modifiers = CTRL_ALT_SHIFT, key = "left" },
-    moveRight =            { modifiers = CTRL_ALT_SHIFT, key = "right" },
-    moveUp =               { modifiers = CTRL_ALT_SHIFT, key = "up" },
-    moveDown =             { modifiers = CTRL_ALT_SHIFT, key = "down" },
+    maximize =             { leader = SUPER, key = "return" },
+    center =               { leader = SUPER, key = "C" },
+    fullHeightReasonable = { leader = SUPER, key = "up" },
+    almostMaximize =       { leader = SUPER, key = "down" },
+    leftHalf =             { leader = SUPER, key = "left" },
+    rightHalf =            { leader = SUPER, key = "right" },
+    reasonableSize =       { leader = SUPER, key = "X" },
+    smallSize =            { leader = SUPER, key = "Z" },
+    increaseSize =         { leader = SUPER, key = "=" },
+    decreaseSize =         { leader = SUPER, key = "-" },
+    hideAllExceptFocused = { leader = SUPER, key = "H" },
+    screenRecording =      { leader = SUPER, key = "R" },
+    nextDisplay =          { leader = META, key = "right" },
+    previousDisplay =      { leader = META, key = "left" },
+    moveLeft =             { leader = META, mods = { "shift" }, key = "left" },
+    moveRight =            { leader = META, mods = { "shift" }, key = "right" },
+    moveUp =               { leader = META, mods = { "shift" }, key = "up" },
+    moveDown =             { leader = META, mods = { "shift" }, key = "down" },
   },
 
   -- Feature toggles

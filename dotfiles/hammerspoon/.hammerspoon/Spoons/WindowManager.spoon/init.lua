@@ -367,11 +367,11 @@ function obj:smallSize()
   self:center()
 end
 
---- WindowManager:bindHotkeys(mapping)
+--- WindowManager:actions()
 --- Method
---- Bind hotkeys for window management
-function obj:bindHotkeys(mapping)
-  local actionMap = {
+--- Return the action-name -> handler map used by hotkey/leader binding.
+function obj:actions()
+  return {
     maximize =             function() self:maximize() end,
     center =               function() self:center() end,
     fullHeightReasonable = function() self:fullHeightReasonableWidth() end,
@@ -391,16 +391,22 @@ function obj:bindHotkeys(mapping)
     moveUp =               function() self:moveByPixels("up") end,
     moveDown =             function() self:moveByPixels("down") end,
   }
+end
 
+--- WindowManager:bindToLeader(windowLeader, mapping)
+--- Method
+--- Bind window actions onto a WindowLeader spoon. Each `mapping` entry is
+--- { leader = <keycode>, key = <key>, mods = <optional list> }.
+function obj:bindToLeader(windowLeader, mapping)
+  local actionMap = self:actions()
   for actionName, binding in pairs(mapping) do
     local action = actionMap[actionName]
     if action then
-      hs.hotkey.bind(binding.modifiers, binding.key, action)
+      windowLeader:bind(binding.leader, binding.key, action, binding.mods)
     else
       print("WindowManager: Unknown action '" .. actionName .. "'")
     end
   end
-
   return self
 end
 

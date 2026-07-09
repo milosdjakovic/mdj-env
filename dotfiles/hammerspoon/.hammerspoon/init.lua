@@ -21,6 +21,7 @@ hs.loadSpoon("HyperKey")
 hs.loadSpoon("HyperCheatSheet")
 hs.loadSpoon("StageManager")
 hs.loadSpoon("WindowManager")
+hs.loadSpoon("WindowLeader")
 hs.loadSpoon("AppToggler")
 hs.loadSpoon("ClipboardHistory")
 hs.loadSpoon("WorkspaceEngine")
@@ -72,9 +73,19 @@ spoon.WindowManager:configure({
   },
   settings = settings,
 })
-spoon.WindowManager:bindHotkeys(keys.windowManagement)
+-- WindowLeader: the SUPER and META leader keys for window management. Named for
+-- the classic modifier hierarchy META < SUPER < HYPER, ascending with the Fn
+-- number (META=F16, SUPER=F17, HYPER=F18=Caps Lock/apps). Right Option (F17) and
+-- Right Command (F16) are remapped via src/setup-capslock-hyper.sh.
+-- Hold SUPER + key for base ops; hold META + arrow to switch display,
+-- + Shift + arrow to move the window.
+spoon.WindowLeader:init()
+spoon.WindowLeader:addLeader(64)  -- SUPER = F17 = Right Option (base ops)
+spoon.WindowLeader:addLeader(106) -- META  = F16 = Right Command (display + move)
+spoon.WindowManager:bindToLeader(spoon.WindowLeader, keys.windowManagement)
+spoon.WindowLeader:start()
 
--- AppToggler (uses apps config; toggles fire via the Right-Cmd Hyper modal)
+-- AppToggler (uses apps config; toggles fire via the Caps Lock/F18 Hyper modal)
 spoon.AppToggler:init()
 spoon.AppToggler:configure({ apps = apps, hyperKey = spoon.HyperKey })
 spoon.AppToggler:bindHotkeys(keys.appToggles)

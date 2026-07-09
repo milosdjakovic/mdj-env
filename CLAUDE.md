@@ -75,17 +75,34 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
   - `settings.lua` - Global settings (margins, timing)
   - `workspaces/` - Workspace definitions (dev.lua, vicert.lua)
 - `Spoons/` - Real Hammerspoon Spoons (reusable logic)
-  - HyperKey, HyperCheatSheet, AppToggler, ClipboardHistory, WindowManager, StageManager, WorkspaceEngine, TerminalHandler, DockMenuToggle
+  - HyperKey, HyperCheatSheet, AppToggler, ClipboardHistory, WindowManager, WindowLeader, StageManager, WorkspaceEngine, TerminalHandler, DockMenuToggle
 
-Caps Lock is the Hyper key. `src/setup-capslock-hyper.sh` remaps Caps Lock → F18
-via `hidutil` (LaunchAgent, ~0 RAM); `HyperKey.spoon` uses an `hs.eventtap` to
-dispatch **hold F18 + letter** to app toggles and **quick tap** to
-`hs.hid.capslock.toggle()`. No Karabiner or extra daemon. Raw Caps Lock can't be
-used directly (toggle key emits no key up/down); a real modifier can't either
-(its flag stamps every keystroke) — hence the F18 remap. Holding ~0.6s with no
-key fires `HyperKey`'s `onHold` → `HyperCheatSheet`, an overlay of the bindings
-split into open vs not-running apps (uninstalled/unresolvable apps filtered out;
-names+icons cached at load, only the running split recomputed per show).
+**Leader keys (META < SUPER < HYPER).** Three keys are remapped to unused
+function keys by `src/setup-capslock-hyper.sh` (one `hidutil` LaunchAgent, ~0
+RAM; all three mappings must share one `UserKeyMapping` or a later `--set`
+clobbers earlier ones). They are named for the classic X11/Emacs modifier
+hierarchy, ascending with the Fn number:
+
+| Key | Remap | Name | Spoon | Role |
+|-----|-------|------|-------|------|
+| Right Command | F16 | META | WindowLeader | hold + arrow = switch display; + Shift + arrow = move window |
+| Right Option | F17 | SUPER | WindowLeader | hold + key = base window ops (halves, maximize, center, sizes) |
+| Caps Lock | F18 | HYPER | HyperKey | hold + letter = app toggles; quick tap = `hs.hid.capslock.toggle()` |
+
+Why remap at all? Raw Caps Lock is a toggle key and emits no usable key
+up/down; Right Command / Right Option are real modifiers, but a held modifier
+stamps its flag onto every keystroke **and** `hs.hotkey` can't tell left from
+right (both report `cmd`/`alt`). Remapping each to a plain function key gives
+clean, side-specific events an `hs.eventtap` can measure and swallow. No
+Karabiner or extra daemon.
+
+`HyperKey.spoon` adds hold-vs-tap: holding F18 ~0.6s with no key fires
+`onHold` → `HyperCheatSheet`, an overlay of the app bindings split into open vs
+not-running (uninstalled/unresolvable apps filtered out; names+icons cached at
+load, only the running split recomputed per show). `WindowLeader.spoon` is
+simpler — no tap fallback (these keys only drive window management) — and
+supports mods-aware bindings so META hosts two tiers (bare arrow vs Shift+arrow)
+via exact-match-then-catch-all resolution.
 
 Most toggles focus or cycle their app. A toggle in `keys.lua` may instead carry
 an optional `url`, and `AppToggler` opens it with `open` so the app lands on a
@@ -97,9 +114,13 @@ bundle id, so the overlay stays complete without extra wiring.
 Coupling is contained: `HyperKey` is an optional injected dependency of
 `AppToggler` only. If it is not wired up in `init.lua`, `AppToggler` falls back
 to binding the literal `HYPER` (⇧⌃⌥⌘) combo from `keys.lua` — so removing the
-Hyper key degrades gracefully, it does not break other spoons. Trade-offs: the
-remap is machine-wide (Caps Lock is F18 in every app), and Caps Lock toggling
-depends on Hammerspoon running. Undo steps are in `src/setup-capslock-hyper.sh`.
+Hyper key degrades gracefully, it does not break other spoons. Window management
+has no such fallback: it goes only through `WindowLeader`, so it needs the F16/
+F17 remap applied. Trade-offs: the remaps are machine-wide (Caps Lock, Right
+Command and Right Option are F18/F16/F17 in every app — the right-side modifiers
+lose their normal function everywhere; the left ones still work), and all three
+keys only do anything while Hammerspoon runs. Undo steps are in
+`src/setup-capslock-hyper.sh`.
 
 Config auto-reloads when files change. Get app bundle ID: `osascript -e 'id of app "APP_NAME"'`
 
