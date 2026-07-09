@@ -63,12 +63,12 @@ spoon.StageManager:init()
 spoon.WindowManager:init()
 spoon.WindowManager:configure({
   margins = {
-    top = 4,
-    right = 4,
-    bottom = 4,
+    top = settings.gap,
+    right = settings.gap,
+    bottom = settings.gap,
     left = function()
       local base = spoon.StageManager:isActive() and settings.stageManagerMargin or 0
-      return base + 4
+      return base + settings.gap
     end,
   },
   settings = settings,

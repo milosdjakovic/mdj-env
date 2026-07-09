@@ -45,6 +45,15 @@ function obj:_resolveMargin(value)
   return value or 0
 end
 
+--- WindowManager:_gap()
+--- Method
+--- The configured window gap in pixels (0 when disabled). The same value insets
+--- the canvas (via the margins in init.lua) and forms the gutter between tiled
+--- windows, so outer and inner spacing stay uniform.
+function obj:_gap()
+  return (self._settings and self._settings.gap) or 0
+end
+
 --- WindowManager:getScreenFrame(screen)
 --- Method
 --- Get screen frame adjusted for margins (canvas)
@@ -164,9 +173,10 @@ function obj:leftHalf()
 
   local screen = win:screen()
   local screenFrame = self:getScreenFrame(screen)
+  local gap = self:_gap()
 
   local frame = win:frame()
-  frame.w = screenFrame.w / 2
+  frame.w = (screenFrame.w - gap) / 2
   frame.h = screenFrame.h
   frame.x = screenFrame.x
   frame.y = screenFrame.y
@@ -183,11 +193,12 @@ function obj:rightHalf()
 
   local screen = win:screen()
   local screenFrame = self:getScreenFrame(screen)
+  local gap = self:_gap()
 
   local frame = win:frame()
-  frame.w = screenFrame.w / 2
+  frame.w = (screenFrame.w - gap) / 2
   frame.h = screenFrame.h
-  frame.x = screenFrame.x + (screenFrame.w / 2)
+  frame.x = screenFrame.x + (screenFrame.w + gap) / 2
   frame.y = screenFrame.y
 
   win:setFrame(frame)
@@ -238,12 +249,20 @@ function obj:adjustSize(amount)
 
   local screen = win:screen()
   local windowFrame = win:frame()
-  local screenFrame = screen:frame()
+  -- Clamp to the gap-inset canvas so growing a window stops at the same border
+  -- as maximize (rather than flushing to the raw screen edge). max(0, ...) keeps
+  -- a window that is already outside the canvas from inverting on growth.
+  local screenFrame = self:getScreenFrame(screen)
 
-  local increaseLeft = math.min(amount / 2, windowFrame.x - screenFrame.x)
-  local increaseRight = math.min(amount / 2, (screenFrame.x + screenFrame.w) - (windowFrame.x + windowFrame.w))
-  local increaseTop = math.min(amount / 2, windowFrame.y - screenFrame.y)
-  local increaseBottom = math.min(amount / 2, (screenFrame.y + screenFrame.h) - (windowFrame.y + windowFrame.h))
+  local roomLeft = math.max(0, windowFrame.x - screenFrame.x)
+  local roomRight = math.max(0, (screenFrame.x + screenFrame.w) - (windowFrame.x + windowFrame.w))
+  local roomTop = math.max(0, windowFrame.y - screenFrame.y)
+  local roomBottom = math.max(0, (screenFrame.y + screenFrame.h) - (windowFrame.y + windowFrame.h))
+
+  local increaseLeft = math.min(amount / 2, roomLeft)
+  local increaseRight = math.min(amount / 2, roomRight)
+  local increaseTop = math.min(amount / 2, roomTop)
+  local increaseBottom = math.min(amount / 2, roomBottom)
 
   local newWidth = windowFrame.w + increaseLeft + increaseRight
   local newLeft = windowFrame.x - increaseLeft
