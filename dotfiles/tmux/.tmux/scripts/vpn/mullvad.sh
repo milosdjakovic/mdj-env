@@ -5,7 +5,11 @@
 #
 # Contract expected by fzf-vpn.sh:
 #   vpn_name          prints a human label
-#   vpn_status        prints STATE<TAB>LOCATION<TAB>RELAY (STATE connected|disconnected)
+#   vpn_status        prints STATE<TAB>LOCATION<TAB>RELAY<TAB>TARGET_ID
+#                     STATE is connected|disconnected. LOCATION is the human
+#                     label of the target relay. RELAY is the server hostname
+#                     when connected. TARGET_ID is the id of the target relay,
+#                     used to mark the active row in the list.
 #   vpn_connect       connects to the current or last relay
 #   vpn_disconnect    disconnects
 #   vpn_locations     prints DISPLAY<TAB>ID per line
@@ -16,16 +20,18 @@ MULLVAD="${MULLVAD:-/usr/local/bin/mullvad}"
 vpn_name() { printf 'Mullvad\n'; }
 
 vpn_status() {
-  local raw state relay location
+  local raw state relay target location
   raw="$("$MULLVAD" status 2>/dev/null)"
   if printf '%s' "$raw" | grep -q '^Connected'; then
     state=connected
+    relay="$(printf '%s\n' "$raw" | sed -n 's/.*Relay:[[:space:]]*//p')"
   else
     state=disconnected
+    relay=""
   fi
-  relay="$(printf '%s\n' "$raw" | sed -n 's/.*Relay:[[:space:]]*//p')"
-  location="$(printf '%s\n' "$raw" | sed -n 's/.*Visible location:[[:space:]]*//p' | sed 's/\. IPv4.*//')"
-  printf '%s\t%s\t%s\n' "$state" "$location" "$relay"
+  target="$(_vpn_target_id)"
+  location="$(_vpn_label_for_id "$target")"
+  printf '%s\t%s\t%s\t%s\n' "$state" "$location" "$relay" "$target"
 }
 
 vpn_connect() {
@@ -47,7 +53,7 @@ vpn_locations() {
       city=$0; sub(/^\t/,"",city)
       ccity=city; sub(/.*\(/,"",ccity); sub(/\).*/,"",ccity)
       cityname=city; sub(/ \(.*/,"",cityname)
-      printf "%s / %s\t%s %s\n", cname, cityname, cc, ccity
+      printf "%s (%s)\t%s %s\n", cname, cityname, cc, ccity
     }'
 }
 
@@ -60,8 +66,34 @@ vpn_set_location() {
   _vpn_wait_connected
 }
 
-# Not part of the contract. Waits briefly so status reads accurately right
-# after a connect, since mullvad establishes the tunnel asynchronously.
+# --- helpers, not part of the contract ---
+
+# The id of the currently configured relay, readable in both states. mullvad
+# prints the constraint as "city yyc, ca" or "country se", which we normalise
+# to the same "country city" or "country" id the location list uses.
+_vpn_target_id() {
+  local loc city cc
+  loc="$("$MULLVAD" relay get 2>/dev/null | sed -n 's/.*Location:[[:space:]]*//p' | head -1)"
+  case "$loc" in
+    city\ *)
+      city="$(printf '%s' "$loc" | sed -E 's/^city ([a-z]+),.*/\1/')"
+      cc="$(printf '%s' "$loc" | sed -E 's/^city [a-z]+, ([a-z]+).*/\1/')"
+      printf '%s %s' "$cc" "$city"
+      ;;
+    country\ *)
+      printf '%s' "$loc" | sed -E 's/^country ([a-z]+).*/\1/'
+      ;;
+  esac
+}
+
+# The human label for an id, resolved from the location list.
+_vpn_label_for_id() {
+  [ -z "$1" ] && return 0
+  vpn_locations | awk -F'\t' -v id="$1" '$2==id{print $1; exit}'
+}
+
+# Waits briefly so status reads accurately right after a connect, since mullvad
+# establishes the tunnel asynchronously.
 _vpn_wait_connected() {
   local i
   for i in 1 2 3 4 5 6 7 8; do

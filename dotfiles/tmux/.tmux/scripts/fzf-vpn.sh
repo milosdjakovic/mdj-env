@@ -23,45 +23,77 @@ fi
 # shellcheck source=/dev/null
 . "$DIR/vpn/$VPN_ADAPTER.sh"
 
-# The fixed top block, rebuilt from normalized adapter data on every action.
-status_header() {
-  local state location relay line
-  IFS=$'\t' read -r state location relay < <(vpn_status)
+# Bright white for the state word so it reads at a glance. Everything else in
+# the header keeps fzf's default (dimmer) header color for hierarchy.
+WHITE=$'\033[97m'
+RESET=$'\033[0m'
+# Trailing marker on the currently configured relay row.
+MARK=' <'
+
+# One status line: provider, state, location, and relay when connected.
+status_line() {
+  local state location relay target line
+  IFS=$'\t' read -r state location relay target < <(vpn_status)
   if [ "$state" = "connected" ]; then
-    line="● CONNECTED"
+    line="$(vpn_name)   ${WHITE}CONNECTED${RESET}"
     [ -n "$location" ] && line="$line   $location"
     [ -n "$relay" ] && line="$line   $relay"
-    printf 'VPN · %s\n%s\n^space disconnect\n' "$(vpn_name)" "$line"
   else
-    printf 'VPN · %s\n○ DISCONNECTED\n^space connect\n' "$(vpn_name)"
+    line="$(vpn_name)   ${WHITE}DISCONNECTED${RESET}"
+    [ -n "$location" ] && line="$line   $location"
   fi
+  printf '%s\n' "$line"
+}
+
+# Bottom border hints. The connect or disconnect verb follows the state.
+border_label() {
+  local state verb
+  IFS=$'\t' read -r state _ _ _ < <(vpn_status)
+  if [ "$state" = "connected" ]; then verb="disconnect"; else verb="connect"; fi
+  fzf_label "↵ switch here" "^space $verb" "^c / ^d close"
+}
+
+# The searchable list, DISPLAY<TAB>ID. The currently configured relay gets a
+# trailing marker so it reads the same whether or not the cursor is on it.
+render_list() {
+  local target disp id
+  target="$(vpn_status | cut -f4)"
+  vpn_locations | while IFS=$'\t' read -r disp id; do
+    if [ "$id" = "$target" ]; then
+      printf '%s%s\t%s\n' "$disp" "$MARK" "$id"
+    else
+      printf '%s\t%s\n' "$disp" "$id"
+    fi
+  done
 }
 
 # State-aware single action bound to ctrl-space.
 toggle() {
   local state
-  IFS=$'\t' read -r state _ _ < <(vpn_status)
+  IFS=$'\t' read -r state _ _ _ < <(vpn_status)
   if [ "$state" = "connected" ]; then vpn_disconnect; else vpn_connect; fi
 }
 
 # Internal subcommands invoked by the fzf key bindings and by the launcher.
 case "$1" in
   --name)   vpn_name; exit 0;;
-  --header) status_header; exit 0;;
-  --list)   vpn_locations; exit 0;;
+  --header) status_line; exit 0;;
+  --label)  border_label; exit 0;;
+  --list)   render_list; exit 0;;
   --toggle) toggle; exit 0;;
   --set)    vpn_set_location "$2"; exit 0;;
 esac
 
-vpn_locations | fzf "${FZF_BASE_OPTS[@]}" \
+render_list | fzf "${FZF_BASE_OPTS[@]}" \
+  --ansi \
   --delimiter=$'\t' \
   --with-nth=1 \
   --nth=1 \
   --header-first \
-  --header="$(status_header)" \
-  --border-label="$(fzf_label "↵ switch here" "^space connect/disconnect" "q / ^c / ^d close")" \
+  --header="$(status_line)" \
+  --border-label="$(border_label)" \
   --prompt='search> ' \
-  --bind "enter:execute-silent($SELF --set {2})+transform-header($SELF --header)" \
-  --bind "ctrl-space:execute-silent($SELF --toggle)+transform-header($SELF --header)" \
-  --bind "q:abort" \
+  --padding='0,1' \
+  --bind "enter:execute-silent($SELF --set {2})+reload($SELF --list)+transform-header($SELF --header)+transform-border-label($SELF --label)" \
+  --bind "ctrl-space:execute-silent($SELF --toggle)+reload($SELF --list)+transform-header($SELF --header)+transform-border-label($SELF --label)" \
   --bind "ctrl-d:abort"
