@@ -75,7 +75,7 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
   - `settings.lua` - Global settings (margins, timing)
   - `workspaces/` - Workspace definitions (dev.lua, vicert.lua)
 - `Spoons/` - Real Hammerspoon Spoons (reusable logic)
-  - HyperKey, HyperCheatSheet, AppToggler, ClipboardHistory, WindowManager, WindowLeader, WindowCheatSheet, StageManager, WorkspaceEngine, TerminalHandler, DockMenuToggle
+  - ChordKey, CheatSheet, HyperKey, HyperCheatSheet, AppToggler, ClipboardHistory, WindowManager, WindowLeader, WindowCheatSheet, StageManager, WorkspaceEngine, TerminalHandler, DockMenuToggle
 
 **Leader keys (META < SUPER < HYPER).** Three keys are remapped to unused
 function keys by `src/setup-capslock-hyper.sh` (one `hidutil` LaunchAgent, ~0
@@ -96,21 +96,31 @@ right (both report `cmd`/`alt`). Remapping each to a plain function key gives
 clean, side-specific events an `hs.eventtap` can measure and swallow. No
 Karabiner or extra daemon.
 
-`HyperKey.spoon` adds hold-vs-tap: holding F18 ~0.6s with no key fires
-`onHold` → `HyperCheatSheet`, an overlay of the app bindings split into open vs
-not-running (uninstalled/unresolvable apps filtered out; names+icons cached at
-load, only the running split recomputed per show). `WindowLeader.spoon` has no
-tap fallback (these keys only drive window management) but mirrors HyperKey's
-hold-to-reveal: holding a leader ~0.6s with no other key fires
-`onHold(leaderKeyCode)` → `WindowCheatSheet`, an overlay of just that leader's
-bindings (SUPER's resizes, or META's moves); pressing any bound key
-cancels it. Every binding is currently a single key press, but the resolver
-still supports optional per-binding `mods` (exact-match on shift/ctrl/alt/cmd,
-ignoring the `fn` flag macOS stamps on arrow keys, then catch-all fallback) if a
-future tier ever needs a sub-modifier. `WindowCheatSheet.spoon` reads the same
-`keys.windowManagement` config, so it never drifts; each row's label is the
-action name humanized (`nextDisplay` → "Next Display") unless the entry sets an
-explicit `description` override.
+The hold/tap/chord mechanism is one shared spoon, `ChordKey.spoon`: a single
+`hs.eventtap` serves all three keys (each registered via `addKey` with
+overridable hold/tap defaults), so N leaders cost one tap, not N. It owns only
+the state machine — swallow other keys while held, fire `onTap` on a quick
+release (Caps Lock's real toggle), fire `onHold(keyCode)` once ~0.6s pass with
+no other key. `HyperKey.spoon` and `WindowLeader.spoon` are thin domain adapters
+over it: they keep their public contracts (`HyperKey:bind`/`isActive` for
+AppToggler/ClipboardHistory, `WindowLeader:bind`/`addLeader` for WindowManager)
+and supply the per-key lookup — a flat `key → fn` map for Hyper, a mods-aware
+resolver for the leaders. That resolver supports optional per-binding `mods`
+(exact-match on shift/ctrl/alt/cmd, ignoring the `fn` flag macOS stamps on arrow
+keys, then catch-all fallback) if a future tier ever needs a sub-modifier;
+today every binding is a single key press.
+
+`onHold` reveals a cheat sheet, and both cheat sheets draw through one shared
+grid renderer, `CheatSheet.spoon` (dark panel, key-badge rows filled row-major
+across columns). `HyperCheatSheet` and `WindowCheatSheet` only build the content
+model, so the drawing never diverges. Holding F18 shows `HyperCheatSheet`, the
+app bindings split into open vs not-running (uninstalled/unresolvable apps
+filtered out; names+icons cached at load, only the running split recomputed per
+show). Holding a leader shows `WindowCheatSheet` — just that leader's bindings
+(SUPER's resizes, or META's moves); pressing any bound key cancels it. It reads
+the same `keys.windowManagement` config, so it never drifts; each row's label is
+the action name humanized (`nextDisplay` → "Next Display") unless the entry sets
+an explicit `description` override.
 
 Most toggles focus or cycle their app. A toggle in `keys.lua` may instead carry
 an optional `url`, and `AppToggler` opens it with `open` so the app lands on a
