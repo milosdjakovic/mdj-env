@@ -123,6 +123,25 @@ function obj:fullHeightReasonableWidth()
   win:setFrame(frame)
 end
 
+--- WindowManager:fullHeight()
+--- Method
+--- Expand the focused window to full height, leaving its width and x untouched
+--- (pure vertical fill). Distinct from fullHeightReasonableWidth(), which the
+--- workspace automation uses to also set a centered reasonable width.
+function obj:fullHeight()
+  local win = hs.window.focusedWindow()
+  if not win then return end
+
+  local screen = win:screen()
+  local screenFrame = self:getScreenFrame(screen)
+
+  local frame = win:frame()
+  frame.h = screenFrame.h
+  frame.y = screenFrame.y
+
+  win:setFrame(frame)
+end
+
 --- WindowManager:resizeToPercentage(widthPercentage, heightPercentage)
 --- Method
 --- Resize window to percentage of screen
@@ -393,8 +412,7 @@ function obj:actions()
   return {
     maximize =             function() self:maximize() end,
     center =               function() self:center() end,
-    fullHeightReasonable = function() self:fullHeightReasonableWidth() end,
-    almostMaximize =       function() self:resizeToPercentage(97, 100) end,
+    fullHeight =           function() self:fullHeight() end,
     leftHalf =             function() self:leftHalf() end,
     rightHalf =            function() self:rightHalf() end,
     reasonableSize =       function() self:resizeDefault() end,
@@ -414,16 +432,17 @@ end
 
 --- WindowManager:bindToLeader(windowLeader, mapping)
 --- Method
---- Bind window actions onto a WindowLeader spoon. Each `mapping` entry is
---- { leader = <keycode>, key = <key>, mods = <optional list> }.
+--- Bind window actions onto a WindowLeader spoon. `mapping` is an ordered list;
+--- each entry is { action = <name>, leader = <keycode>, key = <key>,
+--- mods = <optional list> }.
 function obj:bindToLeader(windowLeader, mapping)
   local actionMap = self:actions()
-  for actionName, binding in pairs(mapping) do
-    local action = actionMap[actionName]
+  for _, binding in ipairs(mapping) do
+    local action = actionMap[binding.action]
     if action then
       windowLeader:bind(binding.leader, binding.key, action, binding.mods)
     else
-      print("WindowManager: Unknown action '" .. actionName .. "'")
+      print("WindowManager: Unknown action '" .. tostring(binding.action) .. "'")
     end
   end
   return self

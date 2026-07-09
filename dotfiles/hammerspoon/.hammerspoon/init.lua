@@ -22,6 +22,7 @@ hs.loadSpoon("HyperCheatSheet")
 hs.loadSpoon("StageManager")
 hs.loadSpoon("WindowManager")
 hs.loadSpoon("WindowLeader")
+hs.loadSpoon("WindowCheatSheet")
 hs.loadSpoon("AppToggler")
 hs.loadSpoon("ClipboardHistory")
 hs.loadSpoon("WorkspaceEngine")
@@ -77,12 +78,32 @@ spoon.WindowManager:configure({
 -- the classic modifier hierarchy META < SUPER < HYPER, ascending with the Fn
 -- number (META=F16, SUPER=F17, HYPER=F18=Caps Lock/apps). Right Option (F17) and
 -- Right Command (F16) are remapped via src/setup-capslock-hyper.sh.
--- Hold SUPER + key for base ops; hold META + arrow to switch display,
--- + Shift + arrow to move the window.
+-- Hold SUPER + key to resize the window; hold META to move it (arrows nudge,
+-- C centers, , / . switch display).
 spoon.WindowLeader:init()
-spoon.WindowLeader:addLeader(64)  -- SUPER = F17 = Right Option (base ops)
-spoon.WindowLeader:addLeader(106) -- META  = F16 = Right Command (display + move)
+spoon.WindowLeader:addLeader(64)  -- SUPER = F17 = Right Option (resize)
+spoon.WindowLeader:addLeader(106) -- META  = F16 = Right Command (move)
 spoon.WindowManager:bindToLeader(spoon.WindowLeader, keys.windowManagement)
+
+-- WindowCheatSheet: hold a leader ~0.6s with no other key to reveal that
+-- leader's window actions (same hold rule as Caps Lock -> HyperCheatSheet).
+-- Labels are the action names humanized (nextDisplay -> "Next Display") unless
+-- an entry sets an explicit `description`.
+spoon.WindowCheatSheet:init()
+spoon.WindowCheatSheet:configure({
+  windowManagement = keys.windowManagement,
+  leaders = { [64] = "SUPER", [106] = "META" },
+})
+spoon.WindowLeader:configure({
+  holdDelay = 0.6,
+  onHold = function(leaderKeyCode)
+    spoon.WindowCheatSheet:show(leaderKeyCode)
+  end,
+  onHoldEnd = function()
+    spoon.WindowCheatSheet:hide()
+  end,
+})
+
 spoon.WindowLeader:start()
 
 -- AppToggler (uses apps config; toggles fire via the Caps Lock/F18 Hyper modal)

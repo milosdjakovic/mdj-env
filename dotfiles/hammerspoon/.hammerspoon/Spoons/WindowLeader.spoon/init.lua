@@ -13,6 +13,10 @@
 --- moves the window. Bindings with no `mods` are catch-alls -- they fire
 --- whenever no exact-mods binding matches the currently held modifiers.
 ---
+--- Like HyperKey, holding a leader ~holdDelay seconds with no other key fires
+--- the optional onHold(leaderKeyCode) callback (used to reveal a cheat sheet);
+--- pressing any bound key cancels it. Wire this via configure().
+---
 --- Everything lives inside Hammerspoon, so it adds no background process.
 
 local obj = {}
@@ -25,7 +29,13 @@ obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
 obj._tap = nil
-obj._leaders = nil -- keyCode -> { active = bool, bindings = { code -> { {mods, fn}, ... } } }
+obj._leaders = nil -- keyCode -> { active, used, shown, holdTimer, bindings = { code -> { {mods, fn}, ... } } }
+
+-- Optional hold-to-reveal (parallels HyperKey). onHold receives the leader's
+-- keycode so a cheat sheet can show that leader's bindings; onHoldEnd takes none.
+obj._holdDelay = 0.6
+obj._onHold = nil
+obj._onHoldEnd = nil
 
 --- WindowLeader:init()
 --- Method
@@ -33,6 +43,29 @@ obj._leaders = nil -- keyCode -> { active = bool, bindings = { code -> { {mods, 
 function obj:init()
   self._leaders = {}
   return self
+end
+
+--- WindowLeader:configure(opts)
+--- Method
+--- opts.holdDelay - seconds to hold a leader (no other key) before onHold fires
+--- opts.onHold    - function(leaderKeyCode) run once the hold passes holdDelay
+--- opts.onHoldEnd - function() run when a shown hold ends (release or key press)
+function obj:configure(opts)
+  opts = opts or {}
+  self._holdDelay = opts.holdDelay or self._holdDelay
+  self._onHold = opts.onHold or self._onHold
+  self._onHoldEnd = opts.onHoldEnd or self._onHoldEnd
+  return self
+end
+
+--- WindowLeader:_cancelHold(leader)
+--- Method
+--- Cancel a leader's pending hold-overlay timer
+function obj:_cancelHold(leader)
+  if leader.holdTimer then
+    leader.holdTimer:stop()
+    leader.holdTimer = nil
+  end
 end
 
 --- WindowLeader:addLeader(keyCode)
@@ -117,10 +150,32 @@ function obj:start()
     local t = e:getType()
     local code = e:getKeyCode()
 
-    -- A leader key itself: track held state and swallow it entirely.
+    -- A leader key itself: track held state, arm the hold overlay, swallow it.
     local leader = self._leaders[code]
     if leader then
-      leader.active = (t == types.keyDown)
+      if t == types.keyDown then
+        -- Held keys auto-repeat key-down; only the first press starts a hold.
+        if not leader.active then
+          leader.active = true
+          leader.used = false
+          leader.shown = false
+          if self._onHold and self._holdDelay then
+            leader.holdTimer = hs.timer.doAfter(self._holdDelay, function()
+              if leader.active and not leader.used then
+                leader.shown = true
+                self._onHold(code)
+              end
+            end)
+          end
+        end
+      else -- keyUp
+        self:_cancelHold(leader)
+        if leader.shown and self._onHoldEnd then
+          self._onHoldEnd()
+        end
+        leader.shown = false
+        leader.active = false
+      end
       return true, {}
     end
 
@@ -128,6 +183,14 @@ function obj:start()
     for _, l in pairs(self._leaders) do
       if l.active then
         if t == types.keyDown then
+          -- A real key press means this is window management, not a cheat-sheet
+          -- hold: cancel the pending overlay (and dismiss it if already shown).
+          l.used = true
+          self:_cancelHold(l)
+          if l.shown and self._onHoldEnd then
+            self._onHoldEnd()
+            l.shown = false
+          end
           local fn = self:_resolve(l.bindings[code], e:getFlags())
           if fn then
             hs.timer.doAfter(0, fn)
@@ -151,7 +214,9 @@ function obj:stop()
     self._tap:stop()
   end
   for _, l in pairs(self._leaders or {}) do
+    self:_cancelHold(l)
     l.active = false
+    l.shown = false
   end
   return self
 end

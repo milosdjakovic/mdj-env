@@ -15,8 +15,8 @@ local SHIFT_ALT = { "shift", "alt" }
 -- the function-key number: META=F16, SUPER=F17, HYPER=F18 (Caps Lock, the app
 -- toggler driven by HyperKey.spoon -- the biggest, hence its own established
 -- name).
-local SUPER = 64  -- F17 (Right Option): base window ops
-local META = 106  -- F16 (Right Command): switch display + move window
+local SUPER = 64  -- F17 (Right Option): resize the window
+local META = 106  -- F16 (Right Command): move the window (nudge, center, displays)
 
 return {
   -- Expose modifiers for Spoons that need them
@@ -74,30 +74,48 @@ return {
   clipboardHistory = { modifiers = HYPER, key = "X" },
 
   -- Window management bindings (for WindowManager.spoon via WindowLeader.spoon).
-  -- `leader` is the held function key; `mods` (optional) requires extra real
-  -- modifiers held alongside it.
-  --   SUPER (Right Option): base ops -- hold + key.
-  --   META (Right Command): hold + arrow switches display,
-  --                         hold + Shift + arrow moves the window.
+  -- This is an ORDERED list: the sequence here is exactly the cheat-sheet order
+  -- (WindowCheatSheet fills row-major, two columns), so reorder these lines to
+  -- reorder the overlay. `action` names the WindowManager handler; `leader` is
+  -- the held function key; `key` is a single press (no sub-modifiers, though an
+  -- optional `mods` list is still supported). Each label is the action name
+  -- humanized (nextDisplay -> "Next Display"); add `description = "..."` to any
+  -- entry to override its label.
+  --   SUPER (Right Option): resize the focused window (halves, full height,
+  --                         maximize, presets, grow/shrink). Recentering is a
+  --                         side effect of resizing -- that's fine.
+  --   META (Right Command): move the focused window without resizing -- arrows
+  --                         nudge, C centers, , / . switch display.
+  -- Hold a leader ~0.6s with no other key to reveal its cheat sheet.
   windowManagement = {
-    maximize =             { leader = SUPER, key = "return" },
-    center =               { leader = SUPER, key = "C" },
-    fullHeightReasonable = { leader = SUPER, key = "up" },
-    almostMaximize =       { leader = SUPER, key = "down" },
-    leftHalf =             { leader = SUPER, key = "left" },
-    rightHalf =            { leader = SUPER, key = "right" },
-    reasonableSize =       { leader = SUPER, key = "X" },
-    smallSize =            { leader = SUPER, key = "Z" },
-    increaseSize =         { leader = SUPER, key = "=" },
-    decreaseSize =         { leader = SUPER, key = "-" },
-    hideAllExceptFocused = { leader = SUPER, key = "H" },
-    screenRecording =      { leader = SUPER, key = "R" },
-    nextDisplay =          { leader = META, key = "right" },
-    previousDisplay =      { leader = META, key = "left" },
-    moveLeft =             { leader = META, mods = { "shift" }, key = "left" },
-    moveRight =            { leader = META, mods = { "shift" }, key = "right" },
-    moveUp =               { leader = META, mods = { "shift" }, key = "up" },
-    moveDown =             { leader = META, mods = { "shift" }, key = "down" },
+    -- SUPER = resize. Overlay layout:
+    --   Left Half     | Right Half
+    --   Full Height   | Reasonable Size
+    --   Maximize      | Small Size
+    --   Increase Size | Decrease Size
+    --   Hide All ...  | Screen Recording
+    { action = "leftHalf",             leader = SUPER, key = "left" },
+    { action = "rightHalf",            leader = SUPER, key = "right" },
+    { action = "fullHeight",           leader = SUPER, key = "up" },
+    { action = "reasonableSize",       leader = SUPER, key = "down" },
+    { action = "maximize",             leader = SUPER, key = "return" },
+    { action = "smallSize",            leader = SUPER, key = "Z" },
+    { action = "increaseSize",         leader = SUPER, key = "=" },
+    { action = "decreaseSize",         leader = SUPER, key = "-" },
+    { action = "hideAllExceptFocused", leader = SUPER, key = "H" },
+    { action = "screenRecording",      leader = SUPER, key = "R" },
+    -- META = move. Overlay layout:
+    --   Previous Display | Next Display
+    --   Move Up          | Move Down
+    --   Move Left        | Move Right
+    --   Center
+    { action = "previousDisplay",      leader = META, key = "," },
+    { action = "nextDisplay",          leader = META, key = "." },
+    { action = "moveUp",               leader = META, key = "up" },
+    { action = "moveDown",             leader = META, key = "down" },
+    { action = "moveLeft",             leader = META, key = "left" },
+    { action = "moveRight",            leader = META, key = "right" },
+    { action = "center",               leader = META, key = "C" },
   },
 
   -- Feature toggles
