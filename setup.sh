@@ -37,6 +37,9 @@ echo ""
 # Remap Caps Lock -> F18 for the Hammerspoon Hyper key
 "$SRC_DIR/setup-capslock-hyper.sh"
 
+# Wire the statusline script into Claude Code's settings.json
+"$SRC_DIR/setup-claude-settings.sh"
+
 echo ""
 echo "==> Setup complete!"
 echo "    Restart your terminal to apply all changes."
