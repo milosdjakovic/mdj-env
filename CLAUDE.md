@@ -113,7 +113,11 @@ today every binding is a single key press.
 `onHold` reveals a cheat sheet, and both cheat sheets draw through one shared
 grid renderer, `CheatSheet.spoon` (dark panel, key-badge rows filled row-major
 across columns). `HyperCheatSheet` and `WindowCheatSheet` only build the content
-model, so the drawing never diverges. Holding F18 shows `HyperCheatSheet`, the
+model, so the drawing never diverges. Its appearance (opacity, background,
+corner radius, font, padding) is global: set once via `CheatSheet:configure`
+from the `cheatSheet` block in `config/settings.lua`, so one edit restyles every
+overlay. Per-overlay layout (columns, badge width, icons) stays in the builders,
+where it legitimately differs. Holding F18 shows `HyperCheatSheet`, the
 app bindings split into open vs not-running (uninstalled/unresolvable apps
 filtered out; names+icons cached at load, only the running split recomputed per
 show). Holding a leader shows `WindowCheatSheet` — just that leader's bindings
