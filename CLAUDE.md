@@ -87,6 +87,13 @@ key fires `HyperKey`'s `onHold` → `HyperCheatSheet`, an overlay of the binding
 split into open vs not-running apps (uninstalled/unresolvable apps filtered out;
 names+icons cached at load, only the running split recomputed per show).
 
+Most toggles focus or cycle their app. A toggle in `keys.lua` may instead carry
+an optional `url`, and `AppToggler` opens it with `open` so the app lands on a
+specific pane rather than wherever it was last. Hyper+, uses this to open System
+Settings on the General pane, and pressing it again while frontmost hides it.
+These toggles still show in the cheat sheet like any other app, resolved by
+bundle id, so the overlay stays complete without extra wiring.
+
 Coupling is contained: `HyperKey` is an optional injected dependency of
 `AppToggler` only. If it is not wired up in `init.lua`, `AppToggler` falls back
 to binding the literal `HYPER` (⇧⌃⌥⌘) combo from `keys.lua` — so removing the
