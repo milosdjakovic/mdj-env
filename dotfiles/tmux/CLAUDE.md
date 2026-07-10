@@ -89,6 +89,57 @@ The design splits a rigid interface from a swappable adapter. `fzf-vpn.sh` is th
 
 The popup is a single fzf instance that never auto closes. The header is one line, provider then state then location and relay, with the state word in bright white. The bottom border carries the state-aware verb, disconnect when up and connect when down. The body is the searchable location list, and the currently configured relay is marked with a trailing ` <` so it reads the same whether or not the cursor is on it. Selecting a location runs `vpn_set_location` and connects, and `ctrl-space` toggles connect or disconnect. Both actions use fzf `execute-silent` with `reload` and `transform-header` plus `transform-border-label`, so the command runs, the list re-marks the new active row, the header and border rebuild from fresh adapter data, and the popup stays open. It closes only on `ctrl-c` or `ctrl-d`, leaving every printable key free for the search. Actions block briefly while the adapter waits for the tunnel so the refreshed status reads accurately.
 
+## Keep-awake control popup
+
+Reached only from the launcher, shown as `Keep awake` and, when a keep-awake is
+active, `Keep awake (ACTIVE, indefinite)` or `Keep awake (ACTIVE, until 16:45)`.
+The launcher computes the suffix at open time by calling
+`~/.tmux/scripts/fzf-caffeinate.sh --summary`, so the current state shows
+without opening the popup.
+
+It deliberately mirrors the VPN popup shape, a single fzf instance that never
+auto closes, a one-line status header with the state word in bright white, a
+state-aware bottom border, and a body list whose active row is marked with a
+trailing ` <`. It offers four actions. Indefinite keeps the Mac awake with no
+timeout. For a duration keeps it awake for N hours and minutes. Until a time
+keeps it awake until an HH:MM within the next 24h. Disable stops any active
+keep-awake. Enter applies the highlighted action, using fzf `transform` to run
+the script, which rebuilds the list, header, and border from fresh state so the
+popup stays open. It closes only on `q`, `ctrl-c`, or `ctrl-d`.
+
+Unlike VPN there is no swappable adapter, because macOS has a single backend,
+the `caffeinate` binary, so the interface and mechanism live in one file. A
+keep-awake is one detached `caffeinate -d -i -s` process, which prevents
+display, idle, and system sleep (`-s` holds only on AC power). A small state
+file under `$TMPDIR` records its pid, mode, and end epoch so status survives
+across popup opens, and a dead pid clears the file so a self-exited timer reads
+as inactive. Timed modes pass `-t <seconds>` so caffeinate self-exits, with the
+duration computed from a parser that requires a unit and accepts `1h30m`, `45m`,
+or `5h` but not a bare number, and the until time rolled to tomorrow when it has
+already passed today.
+
+The two timed actions need a typed value rather than a search, so fzf search is
+`--disabled` and the query becomes a free input field feeding the duration or
+HH:MM. The four fixed rows never filter, and selection still moves with the
+arrow keys. Input is guarded in two layers. As you type, a `change` binding runs
+`transform-query` through the script to strip the value to the charset the
+focused row allows, digits with `h` and `m` for a duration, digits and colon for
+a time, so a stray key like `y` never lands. A `focus` binding clears the field
+when you move rows, since each mode wants a different format. The dim gray format
+hints in parentheses are also re-rendered on `focus`, dark on the focused row so
+they read like normal highlighted text on the green bar rather than staying gray,
+because fzf keeps an ANSI foreground even on the current line. The focus handler
+emits a `reload` that recolors plus a `pos()` computed from the row index, since
+`reload` otherwise resets the cursor to the top. On enter the whole
+value is validated for a real format, and an invalid one like `12:45` for a
+duration writes a message that the header shows as a red INVALID line, leaving
+the bad input in place to fix. A valid apply clears the input. Enter is bound to
+fzf's `transform` action so the script decides the follow-up actions, clear and
+reload on success or just a header refresh on failure. The invalid message lives
+in a second temp file next to the state file and is cleared on the next
+keystroke, on a successful apply, and when the popup opens. `q` is bound to abort
+because the restricted charset never needs it, alongside `ctrl-c` and `ctrl-d`.
+
 ## Popup apps and the nested session approach
 
 tmux `display-popup` does not support `allow-passthrough` because popups have no real pane. Apps like yazi that send passthrough escape sequences crash (tmux issue 4329, yazi issue 2308). lf is used instead because it does not need passthrough.
