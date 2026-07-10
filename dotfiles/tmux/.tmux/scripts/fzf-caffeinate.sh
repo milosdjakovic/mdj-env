@@ -150,18 +150,6 @@ status_line() {
   printf '%s\n' "$line"
 }
 
-# The header the popup shows: the status line, padded with two blank lines on the
-# rows that hide the input. Hiding the input drops the input line and the info
-# line (two lines), so the two blanks hold the list at the same screen row
-# whether the input is shown or hidden. $1 is the focused row id.
-header_block() {
-  local s; s="$(status_line)"
-  case "$1" in
-    duration|until) printf '%s' "$s";;
-    *)              printf '%s\n \n ' "$s";;
-  esac
-}
-
 # Short status for the launcher entry label. Empty when inactive.
 summary() {
   local st pid mode end
@@ -253,24 +241,14 @@ apply() {
 case "$1" in
   --name)     printf 'Keep Awake\n'; exit 0;;
   --summary)  summary; exit 0;;
-  --header)   header_block "$2"; exit 0;;
+  --header)   status_line; exit 0;;
   --label)    border_label; exit 0;;
   --list)     render_list "$2"; exit 0;;
   --sanitize) sanitize "$2" "$3"; exit 0;;
   --apply)    apply "$2" "$3"; exit 0;;
-  # Re-render the list with $3 (focused id) as the dark row and restore the list
-  # cursor to its index ($2 from fzf's {n}, zero-based) since reload resets it.
-  # The rows that take a value show the input line and its prompt; the rest hide
-  # the input line, which drops the caret. The header pads with blank lines to
-  # match, so the list never shifts.
-  --refocus)
-    case "$3" in
-      duration|until) _act='show-input'; _p='value> ';;
-      *)              _act='hide-input'; _p='';;
-    esac
-    printf 'reload(%s --list %s)+pos(%d)+%s+change-prompt(%s)' \
-      "$SELF" "$3" "$(( ${2:-0} + 1 ))" "$_act" "$_p"
-    exit 0;;
+  # Re-render the list with $3 (focused id) as the dark row, then restore the
+  # cursor to its index ($2 from fzf's {n}, zero-based), since reload resets it.
+  --refocus)  printf 'reload(%s --list %s)+pos(%d)' "$SELF" "$3" "$(( ${2:-0} + 1 ))"; exit 0;;
 esac
 
 # Start clean so a stale message from a previous popup does not linger.
@@ -286,13 +264,12 @@ render_list | fzf "${FZF_BASE_OPTS[@]}" \
   --delimiter=$'\t' \
   --with-nth=1 \
   --header-first \
-  --header="$(header_block indefinite)" \
+  --header="$(status_line)" \
   --border-label="$(border_label)" \
   --prompt='value> ' \
   --padding='0,1' \
-  --bind "start:transform($SELF --refocus 0 indefinite)" \
-  --bind "change:transform-query($SELF --sanitize {2} {q})+transform-header($SELF --header {2})" \
-  --bind "focus:transform-query($SELF --sanitize {2})+transform-header($SELF --header {2})+transform($SELF --refocus {n} {2})" \
+  --bind "change:transform-query($SELF --sanitize {2} {q})+transform-header($SELF --header)" \
+  --bind "focus:transform-query($SELF --sanitize {2})+transform-header($SELF --header)+transform($SELF --refocus {n} {2})" \
   --bind "enter:transform($SELF --apply {2} {q})" \
   --bind "q:abort" \
   --bind "ctrl-d:abort"
