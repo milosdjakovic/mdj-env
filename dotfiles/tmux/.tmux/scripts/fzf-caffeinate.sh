@@ -23,7 +23,7 @@
 # successful apply clears the input.
 #
 # Called from fzf-launcher.sh:
-#   tmux display-popup -w 80% -h 80% -E "~/.tmux/scripts/fzf-caffeinate.sh"
+#   tmux display-popup -w 80 -h 20% -E "~/.tmux/scripts/fzf-caffeinate.sh"
 
 SELF="$0"
 CAFFEINATE="${CAFFEINATE:-/usr/bin/caffeinate}"
@@ -229,11 +229,11 @@ apply() {
     duration)
       secs=$(_dur_secs "$arg")
       if [ "$secs" -gt 0 ]; then _start duration "$secs"; _ok
-      else _err "duration needs a unit, like 1h30m or 45m"; fi;;
+      else _err "use e.g. 1h30m or 45m"; fi;;
     until)
       secs=$(_until_secs "$arg")
       if [ "$secs" -gt 0 ]; then _start until "$secs"; _ok
-      else _err "time must be HH:MM within the next 24h"; fi;;
+      else _err "use HH:MM, next 24h"; fi;;
   esac
 }
 

@@ -10,7 +10,7 @@
 # vpn_disconnect, vpn_locations, and vpn_set_location. See vpn/_template.sh.
 #
 # Called from fzf-launcher.sh:
-#   tmux display-popup -w 80% -h 80% -E "~/.tmux/scripts/fzf-vpn.sh"
+#   tmux display-popup -w 80 -h 70% -E "~/.tmux/scripts/fzf-vpn.sh"
 
 DIR="$(dirname "$0")"
 SELF="$0"
