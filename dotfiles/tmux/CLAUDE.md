@@ -130,7 +130,9 @@ hints in parentheses are also re-rendered on `focus`, dark on the focused row so
 they read like normal highlighted text on the green bar rather than staying gray,
 because fzf keeps an ANSI foreground even on the current line. The focus handler
 emits a `reload` that recolors plus a `pos()` computed from the row index, since
-`reload` otherwise resets the cursor to the top. On enter the whole
+`reload` otherwise resets the cursor to the top, and a `change-prompt` that shows
+the `value>` prompt only on the two rows that take input and blanks it on the
+others, keeping the query line in place so nothing shifts. On enter the whole
 value is validated for a real format, and an invalid one like `12:45` for a
 duration writes a message that the header shows as a red INVALID line, leaving
 the bad input in place to fix. A valid apply clears the input. Enter is bound to

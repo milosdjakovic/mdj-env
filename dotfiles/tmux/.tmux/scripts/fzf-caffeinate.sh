@@ -246,9 +246,15 @@ case "$1" in
   --list)     render_list "$2"; exit 0;;
   --sanitize) sanitize "$2" "$3"; exit 0;;
   --apply)    apply "$2" "$3"; exit 0;;
-  # Re-render the list with $3 (focused id) as the dark row, then restore the
-  # cursor to its index ($2 from fzf's {n}, zero-based), since reload resets it.
-  --refocus)  printf 'reload(%s --list %s)+pos(%d)' "$SELF" "$3" "$(( ${2:-0} + 1 ))"; exit 0;;
+  # Re-render the list with $3 (focused id) as the dark row, restore the list
+  # cursor to its index ($2 from fzf's {n}, zero-based) since reload resets it,
+  # and show the prompt only on the rows that take a value, blanking it on the
+  # rest without dropping the query line so nothing shifts.
+  --refocus)
+    case "$3" in duration|until) _p='value> ';; *) _p='';; esac
+    printf 'reload(%s --list %s)+pos(%d)+change-prompt(%s)' \
+      "$SELF" "$3" "$(( ${2:-0} + 1 ))" "$_p"
+    exit 0;;
 esac
 
 # Start clean so a stale message from a previous popup does not linger.
@@ -266,7 +272,7 @@ render_list | fzf "${FZF_BASE_OPTS[@]}" \
   --header-first \
   --header="$(status_line)" \
   --border-label="$(border_label)" \
-  --prompt='value> ' \
+  --prompt='' \
   --padding='0,1' \
   --bind "change:transform-query($SELF --sanitize {2} {q})+transform-header($SELF --header)" \
   --bind "focus:transform-query($SELF --sanitize {2})+transform-header($SELF --header)+transform($SELF --refocus {n} {2})" \
