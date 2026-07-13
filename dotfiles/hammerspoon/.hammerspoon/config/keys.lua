@@ -73,6 +73,16 @@ return {
   -- not wired up.
   clipboardHistory = { modifiers = HYPER, key = "X" },
 
+  -- Screen capture (for Capture.spoon). Provider-agnostic action names; the
+  -- active provider (macshot today, set in init.lua) maps them to its own
+  -- commands, so swapping capture apps never touches this list. Keys mirror the
+  -- macOS Cmd-Shift-4 / Cmd-Shift-5 muscle memory. The HYPER field is the
+  -- fallback combo used when HyperKey is not wired up, matching appToggles.
+  capture = {
+    { action = "captureArea", modifiers = HYPER, key = "4" },
+    { action = "recordArea",  modifiers = HYPER, key = "5" },
+  },
+
   -- Window management bindings (for WindowManager.spoon via WindowLeader.spoon).
   -- This is an ORDERED list: the sequence here is exactly the cheat-sheet order
   -- (WindowCheatSheet fills row-major, two columns), so reorder these lines to

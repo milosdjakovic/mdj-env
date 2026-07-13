@@ -27,6 +27,7 @@ hs.loadSpoon("WindowLeader")
 hs.loadSpoon("WindowCheatSheet")
 hs.loadSpoon("AppToggler")
 hs.loadSpoon("ClipboardHistory")
+hs.loadSpoon("Capture")
 hs.loadSpoon("WorkspaceEngine")
 hs.loadSpoon("TerminalHandler")
 hs.loadSpoon("DockAutoHide")
@@ -158,6 +159,22 @@ spoon.ClipboardHistory:configure({
   provider = spoon.ClipboardHistory.providers.spotlightTahoe,
 })
 spoon.ClipboardHistory:bindHotkeys({ open = keys.clipboardHistory })
+
+-- Capture: screen capture / recording on the Hyper key, backed by an ordered
+-- provider chain. Each action is handled by the first provider that is both
+-- installed and supports it, so macshot (its macshot:// URL scheme) is used when
+-- present and the native macOS shortcuts (Cmd+Shift+4 / Cmd+Shift+5) are the
+-- always-available fallback. Reorder this list to change priority; drop macshot
+-- to use only native (e.g. to sidestep macshot's own capture bugs).
+spoon.Capture:init()
+spoon.Capture:configure({
+  hyperKey = spoon.HyperKey,
+  providers = {
+    spoon.Capture.providers.macshot,
+    spoon.Capture.providers.native,
+  },
+})
+spoon.Capture:bindHotkeys(keys.capture)
 
 -- WorkspaceEngine (depends on AppToggler, WindowManager)
 spoon.WorkspaceEngine:init()

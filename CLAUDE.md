@@ -75,7 +75,7 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
   - `settings.lua` - Global settings (margins, timing)
   - `workspaces/` - Workspace definitions (dev.lua, vicert.lua)
 - `Spoons/` - Real Hammerspoon Spoons (reusable logic)
-  - ChordKey, CheatSheet, HyperKey, HyperCheatSheet, AppToggler, ClipboardHistory, WindowManager, WindowLeader, WindowCheatSheet, StageManager, WorkspaceEngine, TerminalHandler, DockMenuToggle
+  - ChordKey, CheatSheet, HyperKey, HyperCheatSheet, AppToggler, ClipboardHistory, Capture, WindowManager, WindowLeader, WindowCheatSheet, StageManager, WorkspaceEngine, TerminalHandler, DockMenuToggle
 
 **Leader keys (META < SUPER < HYPER).** Three keys are remapped to unused
 function keys by `src/setup-capslock-hyper.sh` (one `hidutil` LaunchAgent, ~0
