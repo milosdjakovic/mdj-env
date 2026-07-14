@@ -69,7 +69,7 @@ end
 
 --- WindowCheatSheet:configure(opts)
 --- opts.windowManagement - the ordered windowManagement list (config/keys.lua)
---- opts.leaders          - leaderKeyCode -> display name, e.g. { [64]="SUPER" }
+--- opts.leaders          - leaderKeyCode -> section title, e.g. { [106]="WINDOW MANAGEMENT" }
 --- opts.cheatSheet       - shared CheatSheet renderer to draw with
 --- opts.predicates       - name -> function() -> bool, for entries with `when`
 function obj:configure(opts)

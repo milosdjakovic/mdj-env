@@ -157,7 +157,10 @@ spoon.WindowManager:bindToLeader(spoon.WindowLeader, windowBindings, windowPredi
 spoon.WindowCheatSheet:init()
 spoon.WindowCheatSheet:configure({
   windowManagement = windowBindings,
-  leaders = { [windowLeaderCode] = keys.windowLeader },
+  -- The overlay section title. This is the leader's display name, shown as the
+  -- heading over its window actions, so it reads like the CAPTURE / CLIPBOARD
+  -- headings on the Hyper overlay rather than the raw leader name (META).
+  leaders = { [windowLeaderCode] = "WINDOW MANAGEMENT" },
   cheatSheet = spoon.CheatSheet,
   predicates = windowPredicates,
 })
