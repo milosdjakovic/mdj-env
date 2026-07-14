@@ -80,38 +80,13 @@ obj.providers.spotlightTahoe = {
   end,
 }
 
---- ClipboardHistory.providers.deck
---- Constant
---- Provider for the Deck clipboard manager (bundle com.yuzeguitar.Deck). Its
---- clipboard window opens only through a global shortcut, so show() fires the
---- shortcut assigned in Deck's settings, Shift+Ctrl+Option+Cmd+C.
---- Change the keystroke here if you rebind it in Deck. isAvailable() reports
---- Deck missing or quit so the chain can fall back and log the reason.
-obj.providers.deck = {
-  name = "Deck",
-  bundleID = "com.yuzeguitar.Deck",
-  deferUntilHyperRelease = true, -- sends a global shortcut, swallowed while held
-  isAvailable = function(self)
-    if not hs.application.pathForBundleID(self.bundleID) then
-      return false, "not installed"
-    end
-    if not hs.application.get(self.bundleID) then
-      return false, "not running"
-    end
-    return true
-  end,
-  show = function(self)
-    hs.eventtap.keyStroke({ "shift", "ctrl", "alt", "cmd" }, "c", 0)
-  end,
-}
-
 --- ClipboardHistory.providers.raycast
 --- Constant
---- Provider for Raycast's clipboard history. Unlike Maccy and Deck, Raycast
---- exposes a deeplink, so show() opens the command URL directly rather than
---- firing a shortcut. This needs no configured hotkey and cannot be thrown off
---- by a rebind. isAvailable() reports Raycast missing or quit so the chain can
---- fall back and log the reason.
+--- Provider for Raycast's clipboard history. Raycast exposes a deeplink, so
+--- show() opens the command URL directly rather than firing a shortcut. This
+--- needs no configured hotkey and cannot be thrown off by a rebind.
+--- isAvailable() reports Raycast missing or quit so the chain can fall back and
+--- log the reason.
 ---
 --- show() also toggles: a second press hides Raycast completely (one hide(),
 --- since Raycast's own Escape only steps back to root search and needs a second
@@ -158,9 +133,9 @@ obj.providers.raycast = {
 --- `chain` whose isAvailable() returns true (a provider with no isAvailable() is
 --- treated as always available, so place the guaranteed fallback last).
 --- Availability is checked at dispatch, not at load, because a backend like
---- Deck can be quit while Hammerspoon keeps running. Each skipped provider is
---- logged with its reason, so an absent Deck explains itself instead of failing
---- silently.
+--- Raycast can be quit while Hammerspoon keeps running. Each skipped provider is
+--- logged with its reason, so an absent Raycast explains itself instead of
+--- failing silently.
 function obj.providers.firstAvailable(chain)
   local function pick()
     for _, p in ipairs(chain) do

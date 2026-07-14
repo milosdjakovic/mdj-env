@@ -203,14 +203,12 @@ spoon.AppToggler:bindHotkeys(keys.appToggles)
 -- and fall back to the macOS Tahoe Spotlight clipboard when it is missing or
 -- quit. The chain logs each skip, so an unavailable backend explains itself.
 -- Availability is rechecked on every open, so quitting the backend reverts to
--- Spotlight with no reload. Reorder the list to change preference; the Deck
--- provider stays defined in the spoon, uncomment its line to bring it back.
+-- Spotlight with no reload. Reorder the list to change preference.
 spoon.ClipboardHistory:init()
 spoon.ClipboardHistory:configure({
   hyperKey = spoon.HyperKey,
   provider = spoon.ClipboardHistory.providers.firstAvailable({
     spoon.ClipboardHistory.providers.raycast,
-    -- spoon.ClipboardHistory.providers.deck,
     spoon.ClipboardHistory.providers.spotlightTahoe,
   }),
 })
