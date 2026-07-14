@@ -104,6 +104,16 @@ function obj:configure(opts)
   return self
 end
 
+-- Whether the displayplacer binary resolves in a login shell. This is the one
+-- thing the whole spoon depends on and cannot supply itself, so we probe it once
+-- at start and surface a clear error rather than letting a missing tool read as
+-- "no matching profile" later. `command -v` exits non-zero when nothing resolves,
+-- which hs.execute reports as a false status.
+function obj:_binaryAvailable()
+  local _, ok = hs.execute("command -v " .. self._binary, true)
+  return ok == true
+end
+
 -- Read the displays attached right now. Returns the union of persistent and
 -- serial ids as a set, plus the screen count. Both id types go in the set so a
 -- profile written with either kind matches.
@@ -203,8 +213,14 @@ end
 --- Method
 --- Apply the matching profile once, then watch for screen changes and reapply on
 --- each settled change. Screen events arrive in bursts, so they arm a delayed
---- timer and one reconcile runs once the burst stops.
+--- timer and one reconcile runs once the burst stops. If the displayplacer
+--- binary is missing, log an error to the console and do nothing, since nothing
+--- else here can work without it.
 function obj:start()
+  if not self:_binaryAvailable() then
+    print("DisplayProfiles: displayplacer not found on PATH, displays will not be managed; run brew bundle to install it")
+    return self
+  end
   self:reconcile()
   self._debounce = hs.timer.delayed.new(self._settleDelay, function()
     self:reconcile()
