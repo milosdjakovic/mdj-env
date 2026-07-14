@@ -75,15 +75,18 @@ return {
           .. '"id:s826946124 res:1920x1080 hz:60 color_depth:8 enabled:true scaling:off origin:(-204,-1080) degree:0"',
       },
 
-      -- Home. Capture this on site. Arrange the displays, then from the
-      -- Hammerspoon console run `spoon.DisplayProfiles:capture(true)`, which copies
-      -- the current arrangement to the clipboard. Paste it here as command, give
-      -- it a name, and save. For portability swap the persistent ids the capture
-      -- prints for the serial ids `displayplacer list` shows per external monitor.
-      -- {
-      --   name = "home office, built in and ...",
-      --   command = 'displayplacer "..." "..."',
-      -- },
+      -- home-office. Built in panel plus one 34 inch ultrawide external (serial
+      -- s810891350) at 3440x1440 75hz, sitting up and to the left of the built in
+      -- at origin (-991,-1440), with the built in as main at (0,0). Written with
+      -- the external's serial id so the same monitor matches on another Mac once
+      -- that machine has its own entry. Two screens, but no collision with the
+      -- one external vicert profile, that names a different Dell serial.
+      {
+        name = "home-office",
+        command = 'displayplacer '
+          .. '"id:s4251086178 res:1512x982 hz:120 color_depth:8 enabled:true scaling:on origin:(0,0) degree:0" '
+          .. '"id:s810891350 res:3440x1440 hz:75 color_depth:8 enabled:true scaling:off origin:(-991,-1440) degree:0"',
+      },
 
       -- laptop. The built in panel by itself. Location neutral, it matches
       -- whenever no externals are attached, since it names only this machine's
