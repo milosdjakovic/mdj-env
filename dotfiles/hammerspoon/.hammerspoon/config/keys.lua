@@ -85,6 +85,15 @@ return {
   -- not wired up. The `description` labels its row on the Hyper cheat sheet.
   clipboardHistory = { modifiers = HYPER, key = "X", description = "Clipboard history" },
 
+  -- System actions bound onto the Hyper key in init.lua. Hyper+Esc locks the
+  -- screen, Hyper+Shift+Esc sleeps the Mac. The `mods` list is a sub-modifier
+  -- within the Hyper modal, so the two share one key the way Hyper+4 and
+  -- Hyper+Shift+4 do for capture. The HYPER field is the fallback combo when
+  -- HyperKey is not wired up, and `description` labels each row on the Hyper cheat
+  -- sheet (a SYSTEM section).
+  lock  = { modifiers = HYPER, key = "escape",                     description = "Lock" },
+  sleep = { modifiers = HYPER, key = "escape", mods = { "shift" }, description = "Sleep" },
+
   -- Screen capture (for Capture.spoon). Provider-agnostic action names; the
   -- active provider maps them to its own commands, so swapping capture apps never
   -- touches this list. Screenshots and recording go through macshot (or native as
@@ -100,7 +109,7 @@ return {
     { action = "ocrArea",              modifiers = HYPER, key = "3",                     description = "OCR" },
     { action = "captureArea",          modifiers = HYPER, key = "4",                     description = "Screenshot" },
     { action = "captureAreaClipboard", modifiers = HYPER, key = "4", mods = { "shift" }, description = "Screenshot (copy)" },
-    { action = "recordArea",           modifiers = HYPER, key = "5",                     description = "Record" },
+    { action = "recordArea",           modifiers = HYPER, key = "5",                     description = "Record screen" },
   },
 
   -- Window management bindings (for WindowManager.spoon via WindowLeader.spoon).

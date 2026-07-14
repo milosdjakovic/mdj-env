@@ -59,17 +59,27 @@ spoon.CheatSheet:init()
 spoon.CheatSheet:configure(settings.cheatSheet)
 
 -- HyperCheatSheet: overlay of everything under Hyper. App toggles first (open vs
--- not running), then the static service sections. This is the one place that
--- names which non-app bindings surface on the overlay and in what order, so the
--- Capture and ClipboardHistory configs stay pure binding data.
+-- not running), then one ACTIONS group for the non-app commands. This is the one
+-- place that names which non-app bindings surface on the overlay and in what
+-- order, so the Capture, ClipboardHistory, and system configs stay pure binding
+-- data. The order below is the on-screen order: the four capture actions fill the
+-- first row (the grid is four columns) and clipboard, lock, and sleep fall to the
+-- second, since the renderer fills row-major.
+local hyperActions = {}
+for _, b in ipairs(keys.capture) do
+  hyperActions[#hyperActions + 1] = b
+end
+hyperActions[#hyperActions + 1] = keys.clipboardHistory
+hyperActions[#hyperActions + 1] = keys.lock
+hyperActions[#hyperActions + 1] = keys.sleep
+
 spoon.HyperCheatSheet:init()
 spoon.HyperCheatSheet:configure({
   apps = apps,
   toggles = keys.appToggles,
   cheatSheet = spoon.CheatSheet,
   sections = {
-    { title = "CAPTURE", bindings = keys.capture },
-    { title = "CLIPBOARD", bindings = { keys.clipboardHistory } },
+    { title = "ACTIONS", bindings = hyperActions },
   },
 })
 
@@ -214,6 +224,26 @@ spoon.Capture:configure({
   },
 })
 spoon.Capture:bindHotkeys(keys.capture)
+
+-- Lock the screen on Hyper+Esc and sleep the Mac on Hyper+Shift+Esc. These are
+-- lone system actions, not whole domains, so they are bound directly here in the
+-- composition root rather than given a spoon of their own. Each binds into the
+-- Hyper modal when HyperKey is wired (the `mods` list makes Shift+Esc distinct
+-- from Esc, like Hyper+Shift+4 vs Hyper+4), otherwise the literal HYPER combo,
+-- matching how the other Hyper consumers degrade.
+local function bindHyper(binding, fn)
+  if spoon.HyperKey then
+    spoon.HyperKey:bind(binding.key, fn, binding.mods)
+  else
+    hs.hotkey.bind(binding.modifiers, binding.key, fn)
+  end
+end
+bindHyper(keys.lock, function()
+  hs.caffeinate.lockScreen()
+end)
+bindHyper(keys.sleep, function()
+  hs.caffeinate.systemSleep()
+end)
 
 -- WorkspaceEngine (depends on AppToggler, WindowManager)
 spoon.WorkspaceEngine:init()
