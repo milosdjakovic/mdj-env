@@ -199,12 +199,20 @@ spoon.AppToggler:init()
 spoon.AppToggler:configure({ apps = apps, hyperKey = spoon.HyperKey })
 spoon.AppToggler:bindHotkeys(keys.appToggles)
 
--- ClipboardHistory: reveal clipboard history on the Hyper key. The provider is
--- the macOS Tahoe Spotlight clipboard; swap it to change backends.
+-- ClipboardHistory: reveal clipboard history on the Hyper key. Prefer Raycast,
+-- and fall back to the macOS Tahoe Spotlight clipboard when it is missing or
+-- quit. The chain logs each skip, so an unavailable backend explains itself.
+-- Availability is rechecked on every open, so quitting the backend reverts to
+-- Spotlight with no reload. Reorder the list to change preference; the Deck
+-- provider stays defined in the spoon, uncomment its line to bring it back.
 spoon.ClipboardHistory:init()
 spoon.ClipboardHistory:configure({
   hyperKey = spoon.HyperKey,
-  provider = spoon.ClipboardHistory.providers.spotlightTahoe,
+  provider = spoon.ClipboardHistory.providers.firstAvailable({
+    spoon.ClipboardHistory.providers.raycast,
+    -- spoon.ClipboardHistory.providers.deck,
+    spoon.ClipboardHistory.providers.spotlightTahoe,
+  }),
 })
 spoon.ClipboardHistory:bindHotkeys({ open = keys.clipboardHistory })
 
