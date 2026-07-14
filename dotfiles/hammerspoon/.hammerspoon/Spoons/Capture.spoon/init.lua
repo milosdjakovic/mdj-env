@@ -35,14 +35,17 @@ local obj = load("engine.lua")
 -- Inject the contract the engine validates the chain against.
 obj._contract = load("contract.lua")
 
--- Register the concrete providers and set the default chain order. macshot is
--- preferred, native is the always-available tail. The top-level init.lua may
--- still pass its own ordered list to configure; this is the fallback order used
--- when it does not.
+-- Register the concrete providers and set the default chain order. For the
+-- screenshot actions macshot is preferred and native is the always-available
+-- tail; macocr is the sole backend for the OCR action, so its position in the
+-- chain is immaterial (no other provider supports ocrArea) and it sits last. The
+-- top-level init.lua may still pass its own ordered list to configure; this is
+-- the fallback order used when it does not.
 obj.providers = {
   macshot = load("providers/macshot.lua"),
   native = load("providers/native.lua"),
+  macocr = load("providers/macocr.lua"),
 }
-obj._defaultProviders = { obj.providers.macshot, obj.providers.native }
+obj._defaultProviders = { obj.providers.macshot, obj.providers.native, obj.providers.macocr }
 
 return obj

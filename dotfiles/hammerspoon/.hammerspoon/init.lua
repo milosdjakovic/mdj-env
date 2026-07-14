@@ -196,18 +196,21 @@ spoon.ClipboardHistory:configure({
 })
 spoon.ClipboardHistory:bindHotkeys({ open = keys.clipboardHistory })
 
--- Capture: screen capture / recording on the Hyper key, backed by an ordered
--- provider chain. Each action is handled by the first provider that is both
--- installed and supports it, so macshot (its macshot:// URL scheme) is used when
--- present and the native macOS shortcuts (Cmd+Shift+4 / Cmd+Shift+5) are the
--- always-available fallback. Reorder this list to change priority; drop macshot
--- to use only native (e.g. to sidestep macshot's own capture bugs).
+-- Capture: screen capture / recording / OCR on the Hyper key, backed by an
+-- ordered provider chain. Each action is handled by the first provider that is
+-- both installed and supports it, so macshot (its macshot:// URL scheme) is used
+-- for screenshots when present and the native macOS shortcuts (Cmd+Shift+4 /
+-- Cmd+Shift+5) are the always-available fallback. macocr (schappim's `ocr` CLI)
+-- is the sole backend for the OCR action, so it just sits last. Reorder this list
+-- to change screenshot priority; drop macshot to use only native (e.g. to
+-- sidestep macshot's own capture bugs).
 spoon.Capture:init()
 spoon.Capture:configure({
   hyperKey = spoon.HyperKey,
   providers = {
     spoon.Capture.providers.macshot,
     spoon.Capture.providers.native,
+    spoon.Capture.providers.macocr,
   },
 })
 spoon.Capture:bindHotkeys(keys.capture)

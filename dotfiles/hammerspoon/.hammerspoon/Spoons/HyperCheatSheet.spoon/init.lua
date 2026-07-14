@@ -39,12 +39,12 @@ local LAYOUT = {
   groupGap = 20,
 }
 
--- Service sections (capture, clipboard) carry no icons, so they render in fewer
--- columns than the app grid. Three columns keep the capture actions on one row.
--- They reuse the app column width, freeing the icon gutter as extra label room,
--- so the columns keep the same tight rhythm as the app rows instead of spreading
--- across the whole panel.
-local SERVICE_COLUMNS = 3
+-- Service sections (capture, clipboard) carry no icons, so they render without
+-- the app grid's icon gutter. Four columns keep the capture actions (OCR,
+-- Screenshot, Screenshot copy, Record) on one row. They reuse the app column
+-- width, freeing the icon gutter as extra label room, so the columns keep the
+-- same tight rhythm as the app rows instead of spreading across the whole panel.
+local SERVICE_COLUMNS = 4
 local SERVICE_COLWIDTH = LAYOUT.colWidth
 
 --- HyperCheatSheet:init()

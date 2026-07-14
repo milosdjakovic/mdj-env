@@ -86,14 +86,18 @@ return {
   clipboardHistory = { modifiers = HYPER, key = "X", description = "Clipboard history" },
 
   -- Screen capture (for Capture.spoon). Provider-agnostic action names; the
-  -- active provider (macshot today, set in init.lua) maps them to its own
-  -- commands, so swapping capture apps never touches this list. Keys mirror the
-  -- macOS Cmd-Shift-4 / Cmd-Shift-5 muscle memory. The HYPER field is the
-  -- fallback combo used when HyperKey is not wired up, matching appToggles.
-  -- Optional `mods` are sub-modifiers within the Hyper modal, so Hyper+4 and
-  -- Hyper+Shift+4 are distinct, file vs clipboard. `description` labels the row
-  -- on the Hyper cheat sheet, where init.lua surfaces these as a CAPTURE section.
+  -- active provider maps them to its own commands, so swapping capture apps never
+  -- touches this list. Screenshots and recording go through macshot (or native as
+  -- fallback); ocrArea goes through the macocr provider (schappim's `ocr` CLI),
+  -- which drags a region, OCRs it, and copies the text to the clipboard. Keys
+  -- mirror the macOS Cmd-Shift-3 / Cmd-Shift-4 / Cmd-Shift-5 muscle memory. The
+  -- HYPER field is the fallback combo used when HyperKey is not wired up, matching
+  -- appToggles. Optional `mods` are sub-modifiers within the Hyper modal, so
+  -- Hyper+4 and Hyper+Shift+4 are distinct, file vs clipboard. `description`
+  -- labels the row on the Hyper cheat sheet, where init.lua surfaces these as a
+  -- CAPTURE section.
   capture = {
+    { action = "ocrArea",              modifiers = HYPER, key = "3",                     description = "OCR" },
     { action = "captureArea",          modifiers = HYPER, key = "4",                     description = "Screenshot" },
     { action = "captureAreaClipboard", modifiers = HYPER, key = "4", mods = { "shift" }, description = "Screenshot (copy)" },
     { action = "recordArea",           modifiers = HYPER, key = "5",                     description = "Record" },
