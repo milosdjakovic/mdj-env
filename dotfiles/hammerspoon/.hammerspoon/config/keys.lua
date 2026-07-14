@@ -78,9 +78,12 @@ return {
   -- commands, so swapping capture apps never touches this list. Keys mirror the
   -- macOS Cmd-Shift-4 / Cmd-Shift-5 muscle memory. The HYPER field is the
   -- fallback combo used when HyperKey is not wired up, matching appToggles.
+  -- Optional `mods` are sub-modifiers within the Hyper modal, so Hyper+4 and
+  -- Hyper+Shift+4 are distinct: file vs clipboard.
   capture = {
-    { action = "captureArea", modifiers = HYPER, key = "4" },
-    { action = "recordArea",  modifiers = HYPER, key = "5" },
+    { action = "captureArea",          modifiers = HYPER, key = "4" },
+    { action = "captureAreaClipboard", modifiers = HYPER, key = "4", mods = { "shift" } },
+    { action = "recordArea",           modifiers = HYPER, key = "5" },
   },
 
   -- Window management bindings (for WindowManager.spoon via WindowLeader.spoon).

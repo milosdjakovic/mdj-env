@@ -1,8 +1,14 @@
 --- === HyperKey ===
 ---
 --- Domain adapter: turn a single physical key into a "Hyper" trigger with a tap
---- fallback, for app-toggle style bindings (a flat key -> function map, no
---- sub-modifiers).
+--- fallback, for app-toggle style bindings (a key -> function map).
+---
+--- A binding may require exact sub-modifiers (e.g. Shift), so one key can host
+--- two tiers: Hyper+4 fires one action while Hyper+Shift+4 fires another.
+--- Bindings with no `mods` are catch-alls, they fire whenever no exact-mods
+--- binding matches the modifiers held. This mirrors WindowLeader's resolver, so
+--- both adapters share one policy; most Hyper bindings pass no mods and stay a
+--- plain key lookup.
 ---
 --- The hold / tap / chord MECHANICS -- swallowing keys while held, hold-to-reveal
 --- timing, why the key must emit clean key-down/up -- live in ChordKey.spoon.
@@ -21,7 +27,7 @@ obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
 obj._chord = nil      -- shared ChordKey engine
-obj._bindings = nil   -- keycode -> function
+obj._bindings = nil   -- keycode -> { { mods, fn }, ... }
 
 -- F18 keycode (Caps Lock is remapped to F18 at the HID level)
 obj._keyCode = 79
@@ -62,18 +68,61 @@ function obj:configure(opts)
   return self
 end
 
---- HyperKey:bind(key, fn)
+--- HyperKey:bind(key, fn, mods)
 --- Method
---- Register a handler that fires when the Hyper key is held and `key` is pressed
-function obj:bind(key, fn)
+--- Register a handler that fires when the Hyper key is held and `key` is pressed.
+--- `mods` is an optional list of required modifier names ({"shift"}); omit it for
+--- a catch-all binding that fires when no exact-mods binding matches.
+function obj:bind(key, fn, mods)
   local name = type(key) == "string" and key:lower() or key
   local code = hs.keycodes.map[name]
   if code then
-    self._bindings[code] = fn
+    self._bindings[code] = self._bindings[code] or {}
+    table.insert(self._bindings[code], { mods = mods, fn = fn })
   else
     print("HyperKey: unknown key '" .. tostring(key) .. "'")
   end
   return self
+end
+
+-- The only sub-modifiers a binding may require. `fn` is deliberately excluded:
+-- macOS stamps `fn` onto some keys, so a raw exact check would never match. We
+-- compare against these four only. Kept identical to WindowLeader's resolver.
+local REAL_MODS = { "shift", "ctrl", "alt", "cmd" }
+
+--- HyperKey:_resolve(list, flags)
+--- Method
+--- Pick the handler for the current modifier flags: an exact match on the real
+--- modifiers (shift/ctrl/alt/cmd, ignoring `fn`) wins, otherwise fall back to a
+--- catch-all (mods == nil) binding if present.
+function obj:_resolve(list, flags)
+  if not list then return nil end
+
+  local present = {}
+  for _, m in ipairs(REAL_MODS) do
+    if flags[m] then present[m] = true end
+  end
+
+  local catchAll = nil
+  for _, b in ipairs(list) do
+    if b.mods then
+      local need = {}
+      for _, m in ipairs(b.mods) do need[m] = true end
+      local match = true
+      for _, m in ipairs(REAL_MODS) do
+        if (present[m] or false) ~= (need[m] or false) then
+          match = false
+          break
+        end
+      end
+      if match then
+        return b.fn
+      end
+    else
+      catchAll = b.fn
+    end
+  end
+  return catchAll
 end
 
 --- HyperKey:isActive()
@@ -103,9 +152,9 @@ function obj:start()
     onTap = self._onTap,
     onHold = self._onHold,
     onHoldEnd = self._onHoldEnd,
-    -- App toggles are a flat lookup; sub-modifiers are irrelevant here.
-    onKey = function(code)
-      return bindings[code]
+    -- Resolve the pressed key against its bindings, honouring optional sub-mods.
+    onKey = function(code, flags)
+      return self:_resolve(bindings[code], flags)
     end,
   })
   return self
