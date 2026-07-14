@@ -104,11 +104,13 @@ release (Caps Lock's real toggle), fire `onHold(keyCode)` once ~0.6s pass with
 no other key. `HyperKey.spoon` and `WindowLeader.spoon` are thin domain adapters
 over it: they keep their public contracts (`HyperKey:bind`/`isActive` for
 AppToggler/ClipboardHistory, `WindowLeader:bind`/`addLeader` for WindowManager)
-and supply the per-key lookup — a flat `key → fn` map for Hyper, a mods-aware
-resolver for the leaders. That resolver supports optional per-binding `mods`
-(exact-match on shift/ctrl/alt/cmd, ignoring the `fn` flag macOS stamps on arrow
-keys, then catch-all fallback) if a future tier ever needs a sub-modifier;
-today every binding is a single key press.
+and supply the per-key lookup. Both now share one mods-aware resolver (Hyper and
+the leaders): optional per-binding `mods`, exact-match on shift/ctrl/alt/cmd,
+ignoring the `fn` flag macOS stamps on arrow keys, then a catch-all fallback. A
+binding with no `mods` is the catch-all, so most keys stay a single press. Hyper
+uses it for capture, where Hyper+4 saves an area screenshot to a file and
+Hyper+Shift+4 sends it to the clipboard; the leaders use it so a bare arrow can
+differ from Shift+arrow.
 
 `onHold` reveals a cheat sheet, and both cheat sheets draw through one shared
 grid renderer, `CheatSheet.spoon` (dark panel, key-badge rows filled row-major
@@ -158,6 +160,32 @@ keys only do anything while Hammerspoon runs. Undo steps are in
 `src/setup-capslock-hyper.sh`.
 
 Config auto-reloads when files change. Get app bundle ID: `osascript -e 'id of app "APP_NAME"'`
+
+**Structuring a spoon with swappable behavior.** When a spoon has a mechanism
+plus interchangeable backends, follow the Capture.spoon layout, which is the
+concrete form of the design principles in the global config. init.lua is the
+composition root and only that. It loads the pieces, names the concrete
+providers, sets the default order, and returns the assembled spoon. engine.lua
+is the Context. It owns the behavior and talks only through the contract, naming
+no provider. contract.lua declares the required methods and a validate helper,
+added once it has a real consumer rather than up front. providers/ holds one
+file per backend, each self contained, implementing available, supports, and
+trigger, and knowing nothing about the chain or each other. Adding a backend is
+a new file plus one line in init.lua, with no edit to the engine.
+
+Load sibling files by absolute path with debug.getinfo plus loadfile, since a
+spoon directory is not on package.path. Resolve and validate providers once at
+load, but check liveness at dispatch when the underlying state can change while
+Hammerspoon runs, as Capture does for macshot being quit. Keep a spoon's public
+contract stable, HyperKey exposes bind and isActive, WindowLeader exposes bind
+and addLeader, so adapters over the shared ChordKey engine degrade gracefully.
+When two adapters need the same behavior, share it rather than duplicating.
+HyperKey and WindowLeader use one resolver that matches optional modifiers, so
+Hyper plus Shift plus a key can differ from Hyper plus that key.
+
+Adding a whole new spoon requires stowing again, because `~/.hammerspoon/Spoons`
+holds one symlink per spoon. Adding files inside an already symlinked spoon does
+not, they resolve through the existing symlink.
 
 ### Tmux
 
