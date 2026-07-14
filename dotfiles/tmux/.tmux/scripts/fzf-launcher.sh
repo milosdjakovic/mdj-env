@@ -61,7 +61,7 @@ execute_cmd() {
     fzf-files)       tmux display-popup -d "$PANE_PATH" -w 80% -h 80% -E "SEARCH_DIR='$PANE_PATH' ~/.tmux/scripts/fzf-files.sh";;
     fzf-files-global) tmux display-popup -w 80% -h 80% -E "SEARCH_DIR='$HOME' ~/.tmux/scripts/fzf-files.sh";;
     vpn)             tmux display-popup -w 80 -h 70% -E "~/.tmux/scripts/fzf-vpn.sh";;
-    caffeinate)      tmux display-popup -w 52 -h 20% -E "~/.tmux/scripts/fzf-caffeinate.sh";;
+    caffeinate)      tmux display-popup -w 52 -h 11 -E "~/.tmux/scripts/fzf-caffeinate.sh";;
     tree-sessions)   tmux choose-tree -Zs;;
     last-session)    tmux switch-client -l;;
     last-window)     tmux last-window;;

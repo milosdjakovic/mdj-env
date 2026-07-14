@@ -23,7 +23,7 @@
 # successful apply clears the input.
 #
 # Called from fzf-launcher.sh:
-#   tmux display-popup -w 80 -h 20% -E "~/.tmux/scripts/fzf-caffeinate.sh"
+#   tmux display-popup -w 52 -h 11 -E "~/.tmux/scripts/fzf-caffeinate.sh"
 
 SELF="$0"
 CAFFEINATE="${CAFFEINATE:-/usr/bin/caffeinate}"
