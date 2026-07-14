@@ -75,7 +75,7 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
   - `settings.lua` - Global settings (margins, timing)
   - `workspaces/` - Workspace definitions (dev.lua, vicert.lua)
 - `Spoons/` - Real Hammerspoon Spoons (reusable logic)
-  - ChordKey, CheatSheet, HyperKey, HyperCheatSheet, AppToggler, ClipboardHistory, Capture, WindowManager, WindowLeader, WindowCheatSheet, StageManager, WorkspaceEngine, TerminalHandler, DockMenuToggle, KeyRemap
+  - ChordKey, CheatSheet, HyperKey, HyperCheatSheet, AppToggler, ClipboardHistory, Capture, WindowManager, WindowLeader, WindowCheatSheet, StageManager, WorkspaceEngine, TerminalHandler, DockMenuToggle, KeyRemap, DisplayProfiles
 
 **Leader keys (META < SUPER < HYPER).** Three physical keys can be remapped to
 unused function keys, named for the classic X11/Emacs modifier hierarchy,
@@ -181,6 +181,41 @@ it on quit. To free a key, stop referencing it; to disable everything, quit
 Hammerspoon.
 
 Config auto-reloads when files change. Get app bundle ID: `osascript -e 'id of app "APP_NAME"'`
+
+**DisplayProfiles.** Keeps display arrangements deterministic on top of what
+macOS remembers, using the `displayplacer` command line tool (in the Brewfile).
+macOS still scrambles the main display, scaling, or window positions when a dock
+wakes monitors in a different order, and the Settings UI cannot force a layout
+back. `DisplayProfiles.spoon` watches screen changes with `hs.screen.watcher` and
+reapplies the saved arrangement that fits whatever is attached. It is the
+mechanism only, it never names a machine or a layout. `config/displays.lua` holds
+the pure data, a list of profiles per machine keyed by `LocalHostName` (read with
+`scutil --get LocalHostName`), each profile a name plus a full `displayplacer`
+command. `init.lua`, the composition root, resolves this machine's name, the one
+place the per host split is decided, and injects that machine's list. The spoon
+stays ignorant of hostnames and of the catalog, and a machine with no entry does
+nothing, logged so the reason shows.
+
+Per host keying exists because the built in laptop panel has a different id on
+every Mac, so a profile that names it belongs to one machine. External monitors
+also expose a serial id, printed as `Serial screen id: sXXXX`, that stays stable
+even on another Mac, so profiles are written with serial ids and the same
+physical monitors following you to another machine keep working once that machine
+has its own entry. A profile is chosen when its screen count equals the number
+attached and every id it names is attached, comparing both persistent and serial
+ids, so the multi screen desk profile and the single screen laptop profile never
+collide and either id type matches. The first matching profile wins.
+
+Capturing a profile is copy and paste. Arrange the displays, run `displayplacer
+list`, and copy the full `displayplacer ...` line it prints. `spoon.DisplayProfiles:capture(true)`
+does the same from the console and copies the current arrangement to the
+clipboard. Tweaking is editing any value in a command and saving, since the
+config reload reapplies the match at once. Applying a layout fires the watcher
+again, so the loop guard skips when the match is the profile already applied,
+which holds because applying changes only the arrangement, not the set of
+attached displays. `reconcile(true)` forces a reapply and `apply(name)` forces a
+named one, for a manual fix when the displays did not change. Adding this spoon
+needed a restow, since `~/.hammerspoon/Spoons` holds one symlink per spoon.
 
 **Structuring a spoon with swappable behavior.** When a spoon has a mechanism
 plus interchangeable backends, follow the Capture.spoon layout, which is the

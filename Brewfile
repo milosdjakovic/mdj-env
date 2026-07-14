@@ -18,6 +18,7 @@ brew "lf"
 brew "trash"
 brew "lazygit"
 brew "chafa"
+brew "displayplacer"
 
 # Shell
 brew "powerlevel10k"

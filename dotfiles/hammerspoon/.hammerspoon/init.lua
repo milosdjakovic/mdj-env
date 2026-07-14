@@ -8,6 +8,7 @@
 local apps = require("config.apps")
 local keys = require("config.keys")
 local settings = require("config.settings")
+local displays = require("config.displays")
 
 -- Load workspace configurations
 local devWorkspace = require("config.workspaces.dev")
@@ -32,6 +33,7 @@ hs.loadSpoon("Capture")
 hs.loadSpoon("WorkspaceEngine")
 hs.loadSpoon("TerminalHandler")
 hs.loadSpoon("DockAutoHide")
+hs.loadSpoon("DisplayProfiles")
 
 --------------------------------------------------------------------------------
 -- Initialize Spoons
@@ -272,6 +274,25 @@ spoon.TerminalHandler:bindHotkeys({ terminal = keys.terminal })
 -- DockAutoHide (standalone)
 spoon.DockAutoHide:init()
 spoon.DockAutoHide:bindHotkeys({ toggle = keys.toggleDock })
+
+-- DisplayProfiles: reapply the saved display arrangement that fits whatever
+-- screens are attached, so a dock waking monitors in the wrong order does not
+-- leave the wrong main display or scaling. This is the composition root's job
+-- and only this. It resolves the machine name, the one place the per host split
+-- is decided, and injects that machine's profiles from config/displays.lua. The
+-- spoon stays ignorant of hostnames and of the catalog. A machine with no entry
+-- gets an empty list and simply does nothing, logged so the reason is visible.
+local host = (hs.execute("scutil --get LocalHostName") or ""):gsub("%s+$", "")
+local hostProfiles = displays.profiles[host] or {}
+spoon.DisplayProfiles:init()
+spoon.DisplayProfiles:configure({
+  profiles = hostProfiles,
+  settleDelay = displays.settleDelay,
+})
+spoon.DisplayProfiles:start()
+if #hostProfiles == 0 then
+  print("DisplayProfiles: no profiles for host '" .. host .. "', add one in config/displays.lua")
+end
 
 --------------------------------------------------------------------------------
 -- Auto-reload and IPC
