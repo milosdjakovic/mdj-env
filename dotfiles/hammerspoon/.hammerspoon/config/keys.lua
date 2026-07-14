@@ -133,6 +133,9 @@ return {
   -- key without touching a single line below. Hold the leader ~0.6s with no other
   -- key to reveal the cheat sheet.
   windowManagement = {
+    -- Switch display (first row; hidden on a single display by the predicate)
+    { action = "previousDisplay",      key = ",", when = "multipleDisplays" },
+    { action = "nextDisplay",          key = ".", when = "multipleDisplays" },
     -- Resize (bare key)
     { action = "leftHalf",             key = "left" },
     { action = "rightHalf",            key = "right" },
@@ -142,16 +145,14 @@ return {
     { action = "smallSize",            key = "Z" },
     { action = "increaseSize",         key = "=" },
     { action = "decreaseSize",         key = "-" },
-    { action = "hideAllExceptFocused", key = "H" },
-    { action = "screenRecording",      key = "R" },
-    -- Move (Shift+arrow), center, and switch display
+    -- Move (Shift+arrow) and center
     { action = "moveLeft",             key = "left",  mods = { "shift" } },
     { action = "moveRight",            key = "right", mods = { "shift" } },
     { action = "moveUp",               key = "up",    mods = { "shift" } },
     { action = "moveDown",             key = "down",  mods = { "shift" } },
     { action = "center",               key = "C" },
-    { action = "previousDisplay",      key = ",", when = "multipleDisplays" },
-    { action = "nextDisplay",          key = ".", when = "multipleDisplays" },
+    -- Hide all except the focused window (kept last so it sits in the last row)
+    { action = "hideAllExceptFocused", key = "H" },
   },
 
   -- Feature toggles
