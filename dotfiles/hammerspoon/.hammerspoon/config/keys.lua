@@ -8,15 +8,18 @@ local SHIFT_ALT = { "shift", "alt" }
 
 -- Window-management leader keys. Right Option and Right Command are remapped to
 -- F17 and F16 at the HID level (see src/setup-capslock-hyper.sh) and driven by
--- WindowLeader.spoon: hold the leader, press the key. These are the (remapped)
--- virtual keycodes of the function keys, not modifier lists.
+-- WindowLeader.spoon. Hold the leader, press the key. These are the (remapped)
+-- virtual keycodes of the function keys, not modifier lists. They sit just below
+-- HYPER, the F18 (Caps Lock) app toggler driven by HyperKey.spoon.
 --
--- Named for the classic modifier hierarchy META < SUPER < HYPER, ascending with
--- the function-key number: META=F16, SUPER=F17, HYPER=F18 (Caps Lock, the app
--- toggler driven by HyperKey.spoon -- the biggest, hence its own established
--- name).
-local SUPER = 64  -- F17 (Right Option): resize the window
-local META = 106  -- F16 (Right Command): move the window (nudge, center, displays)
+-- SUPER is the active window leader. All window management now lives on it, a
+-- bare arrow resizes and a Shift+arrow moves. META is kept here as a definition
+-- but is currently deactivated (nothing binds to it, and init.lua does not
+-- register it). To bring it back, uncomment its addLeader in init.lua, add
+-- [106]="META" to the WindowCheatSheet leaders map, and give some entries below
+-- `leader = META`.
+local SUPER = 64  -- F17 (Right Option), the active window leader
+local META  = 106 -- F16 (Right Command), defined but deactivated (see above)
 
 return {
   -- Expose modifiers for Spoons that need them
@@ -91,27 +94,22 @@ return {
   -- This is an ORDERED list: the sequence here is exactly the cheat-sheet order
   -- (WindowCheatSheet fills row-major, two columns), so reorder these lines to
   -- reorder the overlay. `action` names the WindowManager handler; `leader` is
-  -- the held function key; `key` is a single press (no sub-modifiers, though an
-  -- optional `mods` list is still supported). Each label is the action name
-  -- humanized (nextDisplay -> "Next Display"); add `description = "..."` to any
-  -- entry to override its label. An optional `when = "<predicate>"` gates the
-  -- binding on live state. When the named predicate returns false the key does
-  -- nothing and its cheat-sheet row is hidden. Predicates live in the registry
-  -- wired up in init.lua, so this stays pure data. Unknown names are treated as
-  -- always active so a typo fails visibly rather than silently hiding a binding.
-  --   SUPER (Right Option): resize the focused window (halves, full height,
-  --                         maximize, presets, grow/shrink). Recentering is a
-  --                         side effect of resizing -- that's fine.
-  --   META (Right Command): move the focused window without resizing -- arrows
-  --                         nudge, C centers, , / . switch display.
-  -- Hold a leader ~0.6s with no other key to reveal its cheat sheet.
+  -- the held function key; `key` is a single press. An optional `mods` list adds
+  -- required sub-modifiers, so a bare arrow and a Shift+arrow are two actions on
+  -- one key. Each label is the action name humanized (nextDisplay -> "Next
+  -- Display"); add `description = "..."` to any entry to override its label. An
+  -- optional `when = "<predicate>"` gates the binding on live state. When the
+  -- named predicate returns false the key does nothing and its cheat-sheet row is
+  -- hidden. Predicates live in the registry wired up in init.lua, so this stays
+  -- pure data. Unknown names are treated as always active so a typo fails visibly
+  -- rather than silently hiding a binding.
+  --
+  -- SUPER (Right Option) is the single window leader. Hold it, then a bare arrow
+  -- resizes (halves, full height) while a Shift+arrow moves the window. Letters
+  -- and symbols cover maximize, presets, grow/shrink, center, and display switch.
+  -- Hold SUPER ~0.6s with no other key to reveal the cheat sheet.
   windowManagement = {
-    -- SUPER = resize. Overlay layout:
-    --   Left Half     | Right Half
-    --   Full Height   | Reasonable Size
-    --   Maximize      | Small Size
-    --   Increase Size | Decrease Size
-    --   Hide All ...  | Screen Recording
+    -- Resize (bare key)
     { action = "leftHalf",             leader = SUPER, key = "left" },
     { action = "rightHalf",            leader = SUPER, key = "right" },
     { action = "fullHeight",           leader = SUPER, key = "up" },
@@ -122,18 +120,14 @@ return {
     { action = "decreaseSize",         leader = SUPER, key = "-" },
     { action = "hideAllExceptFocused", leader = SUPER, key = "H" },
     { action = "screenRecording",      leader = SUPER, key = "R" },
-    -- META = move. Overlay layout:
-    --   Previous Display | Next Display
-    --   Move Up          | Move Down
-    --   Move Left        | Move Right
-    --   Center
-    { action = "previousDisplay",      leader = META, key = ",", when = "multipleDisplays" },
-    { action = "nextDisplay",          leader = META, key = ".", when = "multipleDisplays" },
-    { action = "moveUp",               leader = META, key = "up" },
-    { action = "moveDown",             leader = META, key = "down" },
-    { action = "moveLeft",             leader = META, key = "left" },
-    { action = "moveRight",            leader = META, key = "right" },
-    { action = "center",               leader = META, key = "C" },
+    -- Move (Shift+arrow), center, and switch display
+    { action = "moveLeft",             leader = SUPER, key = "left",  mods = { "shift" } },
+    { action = "moveRight",            leader = SUPER, key = "right", mods = { "shift" } },
+    { action = "moveUp",               leader = SUPER, key = "up",    mods = { "shift" } },
+    { action = "moveDown",             leader = SUPER, key = "down",  mods = { "shift" } },
+    { action = "center",               leader = SUPER, key = "C" },
+    { action = "previousDisplay",      leader = SUPER, key = ",", when = "multipleDisplays" },
+    { action = "nextDisplay",          leader = SUPER, key = ".", when = "multipleDisplays" },
   },
 
   -- Feature toggles

@@ -85,9 +85,14 @@ hierarchy, ascending with the Fn number:
 
 | Key | Remap | Name | Spoon | Role |
 |-----|-------|------|-------|------|
-| Right Command | F16 | META | WindowLeader | hold to **move** (size unchanged): arrow = nudge (hold to glide); `C` = center; `,`/`.` = prev/next display |
-| Right Option | F17 | SUPER | WindowLeader | hold to **resize**: arrows = halves + full-height + reasonable; return = maximize; letters = presets + grow/shrink |
+| Right Command | F16 | META | WindowLeader | remapped but **deactivated**; kept as a definition in `config/keys.lua`, no bindings, reactivate its `addLeader` in `init.lua` |
+| Right Option | F17 | SUPER | WindowLeader | the one window leader: bare arrow = **resize** (halves + full-height + reasonable), `Shift`+arrow = **move**; return = maximize; `C` = center; `,`/`.` = prev/next display; letters = presets + grow/shrink |
 | Caps Lock | F18 | HYPER | HyperKey | hold + letter = app toggles; quick tap = `hs.hid.capslock.toggle()` |
+
+All window management now lives on SUPER, split by the mods-aware resolver: a
+bare key resizes, the same arrow with `Shift` moves. META was folded into SUPER
+and left defined but deactivated, so a bare Right Command press does nothing
+until its leader is registered again.
 
 Why remap at all? Raw Caps Lock is a toggle key and emits no usable key
 up/down; Right Command / Right Option are real modifiers, but a held modifier
@@ -97,8 +102,9 @@ clean, side-specific events an `hs.eventtap` can measure and swallow. No
 Karabiner or extra daemon.
 
 The hold/tap/chord mechanism is one shared spoon, `ChordKey.spoon`: a single
-`hs.eventtap` serves all three keys (each registered via `addKey` with
-overridable hold/tap defaults), so N leaders cost one tap, not N. It owns only
+`hs.eventtap` serves every registered key (each added via `addKey` with
+overridable hold/tap defaults), so N leaders cost one tap, not N. Today that is
+Caps Lock and Right Option; Right Command is defined but not registered. It owns only
 the state machine — swallow other keys while held, fire `onTap` on a quick
 release (Caps Lock's real toggle), fire `onHold(keyCode)` once ~0.6s pass with
 no other key. `HyperKey.spoon` and `WindowLeader.spoon` are thin domain adapters
@@ -123,7 +129,8 @@ where it legitimately differs. Holding F18 shows `HyperCheatSheet`, the
 app bindings split into open vs not-running (uninstalled/unresolvable apps
 filtered out; names+icons cached at load, only the running split recomputed per
 show). Holding a leader shows `WindowCheatSheet` — just that leader's bindings
-(SUPER's resizes, or META's moves); pressing any bound key cancels it. It reads
+(SUPER's resizes and moves, each arrow appearing twice, bare and `Shift`);
+pressing any bound key cancels it. It reads
 the same `keys.windowManagement` config, so it never drifts; each row's label is
 the action name humanized (`nextDisplay` → "Next Display") unless the entry sets
 an explicit `description` override.

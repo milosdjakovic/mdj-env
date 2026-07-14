@@ -58,10 +58,10 @@ spoon.HyperCheatSheet:configure({
   },
 })
 
--- ChordKey: the shared hold/tap/chord engine behind all three function-key
--- leaders (HYPER=F18, SUPER=F17, META=F16). One event tap serves them all;
--- HyperKey and WindowLeader register their keys into it below. These are the
--- defaults each key inherits unless it overrides them.
+-- ChordKey: the shared hold/tap/chord engine behind the function-key leaders
+-- (HYPER=F18, SUPER=F17). One event tap serves them all; HyperKey and
+-- WindowLeader register their keys into it below. These are the defaults each
+-- key inherits unless it overrides them.
 spoon.ChordKey:init()
 spoon.ChordKey:configure({ holdDelay = 0.6, tapThreshold = 0.2 })
 
@@ -103,15 +103,15 @@ spoon.WindowManager:configure({
   },
   settings = settings,
 })
--- WindowLeader: the SUPER and META leader keys for window management. Named for
--- the classic modifier hierarchy META < SUPER < HYPER, ascending with the Fn
--- number (META=F16, SUPER=F17, HYPER=F18=Caps Lock/apps). Right Option (F17) and
--- Right Command (F16) are remapped via src/setup-capslock-hyper.sh.
--- Hold SUPER + key to resize the window; hold META to move it (arrows nudge,
--- C centers, , / . switch display).
+-- WindowLeader: the SUPER leader key for window management. SUPER is Right Option
+-- remapped to F17 via src/setup-capslock-hyper.sh, sitting just below HYPER, the
+-- F18 (Caps Lock) app toggler. Hold SUPER and press a key. A bare arrow resizes,
+-- Shift+arrow moves the window, C centers, and , / . switch display. META (Right
+-- Command, F16) is kept as a definition in config/keys.lua but is deactivated;
+-- uncomment its addLeader below to bring it back.
 spoon.WindowLeader:init()
-spoon.WindowLeader:addLeader(64)  -- SUPER = F17 = Right Option (resize)
-spoon.WindowLeader:addLeader(106) -- META  = F16 = Right Command (move)
+spoon.WindowLeader:addLeader(64)  -- SUPER = F17 = Right Option (window leader)
+-- spoon.WindowLeader:addLeader(106) -- META = F16 = Right Command (deactivated)
 
 -- Predicates for conditional window bindings. A binding in keys.windowManagement
 -- may name one via `when = "<name>"`. The binding is then live only while its
@@ -132,7 +132,7 @@ spoon.WindowManager:bindToLeader(spoon.WindowLeader, keys.windowManagement, wind
 spoon.WindowCheatSheet:init()
 spoon.WindowCheatSheet:configure({
   windowManagement = keys.windowManagement,
-  leaders = { [64] = "SUPER", [106] = "META" },
+  leaders = { [64] = "SUPER" },
   cheatSheet = spoon.CheatSheet,
   predicates = windowPredicates,
 })
@@ -149,8 +149,8 @@ spoon.WindowLeader:configure({
 
 spoon.WindowLeader:start()
 
--- Every leader is now registered; start the one shared event tap that drives
--- HYPER, SUPER and META together.
+-- Every active leader is now registered; start the one shared event tap that
+-- drives HYPER and SUPER together (META is defined but deactivated).
 spoon.ChordKey:start()
 
 -- AppToggler (uses apps config; toggles fire via the Caps Lock/F18 Hyper modal)
