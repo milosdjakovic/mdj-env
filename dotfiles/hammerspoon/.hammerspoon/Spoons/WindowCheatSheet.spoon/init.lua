@@ -1,10 +1,10 @@
 --- === WindowCheatSheet ===
 ---
 --- Content builder for the window-management overlay: the bindings of one leader
---- key. Meant to be triggered from WindowLeader.spoon's onHold hook: hold SUPER
+--- key. Meant to be triggered from WindowLeader.spoon's onHold hook: hold META
 --- with no other key and its actions appear, mirroring how HyperKey +
 --- HyperCheatSheet reveal the app toggles on Caps Lock. It renders whatever
---- leaders are registered, so it also covers META if that leader is reactivated.
+--- leaders are registered, so it also covers SUPER if that leader is reactivated.
 ---
 --- Reads the same windowManagement config that WindowManager binds, so it never
 --- drifts from the real bindings. The label is the action name humanized

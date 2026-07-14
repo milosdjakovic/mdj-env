@@ -6,21 +6,6 @@ local HYPER = { "shift", "ctrl", "alt", "cmd" }
 local CTRL_ALT = { "ctrl", "alt" }
 local SHIFT_ALT = { "shift", "alt" }
 
--- Window-management leader keys. Right Command and Right Option are remapped to
--- F17 and F16 at the HID level (see src/setup-capslock-hyper.sh) and driven by
--- WindowLeader.spoon. Hold the leader, press the key. These are the (remapped)
--- virtual keycodes of the function keys, not modifier lists. They sit just below
--- HYPER, the F18 (Caps Lock) app toggler driven by HyperKey.spoon.
---
--- SUPER is the active window leader. All window management now lives on it, a
--- bare arrow resizes and a Shift+arrow moves. META is kept here as a definition
--- but is currently deactivated (nothing binds to it, and init.lua does not
--- register it). To bring it back, uncomment its addLeader in init.lua, add
--- [106]="META" to the WindowCheatSheet leaders map, and give some entries below
--- `leader = META`.
-local SUPER = 64  -- F17 (Right Command), the active window leader
-local META  = 106 -- F16 (Right Option), defined but deactivated (see above)
-
 return {
   -- Expose modifiers for Spoons that need them
   modifiers = {
@@ -28,6 +13,30 @@ return {
     CTRL_ALT = CTRL_ALT,
     SHIFT_ALT = SHIFT_ALT,
   },
+
+  -- Leader key catalog. Each entry maps a physical key we remap FROM to an
+  -- unused function key we remap TO, applied at the HID level by KeyRemap (wired
+  -- in init.lua). The catalog is pure fact, it names no consumer, so apps and
+  -- windows depend on it and never the other way around. A key is remapped only
+  -- when a consumer below references it by name; anything unreferenced stays a
+  -- normal key. To free a physical key, stop referencing its entry. To move a
+  -- domain to another key, change that domain's reference. Keycodes are resolved
+  -- from `fkey` in init.lua via hs.keycodes.map, so this stays free of raw
+  -- numbers.
+  leaderKeys = {
+    HYPER = { source = "capsLock",     fkey = "f18" }, -- Caps Lock
+    META  = { source = "rightOption",  fkey = "f16" }, -- Right Option
+    SUPER = { source = "rightCommand", fkey = "f17" }, -- Right Command
+  },
+
+  -- Which catalog key each domain uses. This single reference is the domain
+  -- naming its leader, the only place the app or window to physical key link
+  -- lives. Change a name to move that domain onto another key; leave a catalog
+  -- key unreferenced and it stays a normal key. HYPER drives app toggles,
+  -- clipboard, and capture; the window leader drives resize, move, center, and
+  -- display switching.
+  appLeader    = "HYPER",
+  windowLeader = "META",
 
   -- App toggle bindings (for AppToggler.spoon)
   -- Uses app names from config/apps.lua.
@@ -93,41 +102,43 @@ return {
   -- Window management bindings (for WindowManager.spoon via WindowLeader.spoon).
   -- This is an ORDERED list: the sequence here is exactly the cheat-sheet order
   -- (WindowCheatSheet fills row-major, two columns), so reorder these lines to
-  -- reorder the overlay. `action` names the WindowManager handler; `leader` is
-  -- the held function key; `key` is a single press. An optional `mods` list adds
-  -- required sub-modifiers, so a bare arrow and a Shift+arrow are two actions on
-  -- one key. Each label is the action name humanized (nextDisplay -> "Next
-  -- Display"); add `description = "..."` to any entry to override its label. An
-  -- optional `when = "<predicate>"` gates the binding on live state. When the
-  -- named predicate returns false the key does nothing and its cheat-sheet row is
-  -- hidden. Predicates live in the registry wired up in init.lua, so this stays
-  -- pure data. Unknown names are treated as always active so a typo fails visibly
-  -- rather than silently hiding a binding.
+  -- reorder the overlay. `action` names the WindowManager handler and `key` is a
+  -- single press. An optional `mods` list adds required sub-modifiers, so a bare
+  -- arrow and a Shift+arrow are two actions on one key. Each label is the action
+  -- name humanized (nextDisplay -> "Next Display"); add `description = "..."` to
+  -- any entry to override its label. An optional `when = "<predicate>"` gates the
+  -- binding on live state. When the named predicate returns false the key does
+  -- nothing and its cheat-sheet row is hidden. Predicates live in the registry
+  -- wired up in init.lua, so this stays pure data. Unknown names are treated as
+  -- always active so a typo fails visibly rather than silently hiding a binding.
   --
-  -- SUPER (Right Option) is the single window leader. Hold it, then a bare arrow
-  -- resizes (halves, full height) while a Shift+arrow moves the window. Letters
-  -- and symbols cover maximize, presets, grow/shrink, center, and display switch.
-  -- Hold SUPER ~0.6s with no other key to reveal the cheat sheet.
+  -- There is deliberately NO leader field here. Every binding attaches to
+  -- whichever catalog key `windowLeader` above names, resolved and stamped on in
+  -- init.lua. So a bare arrow resizes, a Shift+arrow moves, and letters and
+  -- symbols cover maximize, presets, grow/shrink, center, and display switch, all
+  -- on that one leader. Changing `windowLeader` moves the whole set to another
+  -- key without touching a single line below. Hold the leader ~0.6s with no other
+  -- key to reveal the cheat sheet.
   windowManagement = {
     -- Resize (bare key)
-    { action = "leftHalf",             leader = SUPER, key = "left" },
-    { action = "rightHalf",            leader = SUPER, key = "right" },
-    { action = "fullHeight",           leader = SUPER, key = "up" },
-    { action = "reasonableSize",       leader = SUPER, key = "down" },
-    { action = "maximize",             leader = SUPER, key = "return" },
-    { action = "smallSize",            leader = SUPER, key = "Z" },
-    { action = "increaseSize",         leader = SUPER, key = "=" },
-    { action = "decreaseSize",         leader = SUPER, key = "-" },
-    { action = "hideAllExceptFocused", leader = SUPER, key = "H" },
-    { action = "screenRecording",      leader = SUPER, key = "R" },
+    { action = "leftHalf",             key = "left" },
+    { action = "rightHalf",            key = "right" },
+    { action = "fullHeight",           key = "up" },
+    { action = "reasonableSize",       key = "down" },
+    { action = "maximize",             key = "return" },
+    { action = "smallSize",            key = "Z" },
+    { action = "increaseSize",         key = "=" },
+    { action = "decreaseSize",         key = "-" },
+    { action = "hideAllExceptFocused", key = "H" },
+    { action = "screenRecording",      key = "R" },
     -- Move (Shift+arrow), center, and switch display
-    { action = "moveLeft",             leader = SUPER, key = "left",  mods = { "shift" } },
-    { action = "moveRight",            leader = SUPER, key = "right", mods = { "shift" } },
-    { action = "moveUp",               leader = SUPER, key = "up",    mods = { "shift" } },
-    { action = "moveDown",             leader = SUPER, key = "down",  mods = { "shift" } },
-    { action = "center",               leader = SUPER, key = "C" },
-    { action = "previousDisplay",      leader = SUPER, key = ",", when = "multipleDisplays" },
-    { action = "nextDisplay",          leader = SUPER, key = ".", when = "multipleDisplays" },
+    { action = "moveLeft",             key = "left",  mods = { "shift" } },
+    { action = "moveRight",            key = "right", mods = { "shift" } },
+    { action = "moveUp",               key = "up",    mods = { "shift" } },
+    { action = "moveDown",             key = "down",  mods = { "shift" } },
+    { action = "center",               key = "C" },
+    { action = "previousDisplay",      key = ",", when = "multipleDisplays" },
+    { action = "nextDisplay",          key = ".", when = "multipleDisplays" },
   },
 
   -- Feature toggles

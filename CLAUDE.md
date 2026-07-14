@@ -75,26 +75,35 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
   - `settings.lua` - Global settings (margins, timing)
   - `workspaces/` - Workspace definitions (dev.lua, vicert.lua)
 - `Spoons/` - Real Hammerspoon Spoons (reusable logic)
-  - ChordKey, CheatSheet, HyperKey, HyperCheatSheet, AppToggler, ClipboardHistory, Capture, WindowManager, WindowLeader, WindowCheatSheet, StageManager, WorkspaceEngine, TerminalHandler, DockMenuToggle
+  - ChordKey, CheatSheet, HyperKey, HyperCheatSheet, AppToggler, ClipboardHistory, Capture, WindowManager, WindowLeader, WindowCheatSheet, StageManager, WorkspaceEngine, TerminalHandler, DockMenuToggle, KeyRemap
 
-**Leader keys (META < SUPER < HYPER).** Three keys are remapped to unused
-function keys by `src/setup-capslock-hyper.sh` (one `hidutil` LaunchAgent, ~0
-RAM; all three mappings must share one `UserKeyMapping` or a later `--set`
-clobbers earlier ones). They are named for the classic X11/Emacs modifier
-hierarchy, ascending with the Fn number:
+**Leader keys (META < SUPER < HYPER).** Three physical keys can be remapped to
+unused function keys, named for the classic X11/Emacs modifier hierarchy,
+ascending with the Fn number. Hammerspoon owns the remap now, not a login
+LaunchAgent. `config/keys.lua` holds a pure `leaderKeys` catalog, one row per
+remappable key giving only its physical source and target Fn key, and
+`KeyRemap.spoon` turns the active rows into one `hidutil` `UserKeyMapping` and
+applies it on load, clearing on quit. A single `--set` replaces the whole table,
+so each apply is idempotent and frees any dropped key.
 
-| Key | Remap | Name | Spoon | Role |
+| Key | Fn | Name | Spoon | Role |
 |-----|-------|------|-------|------|
-| Right Option | F16 | META | WindowLeader | remapped but **deactivated**; kept as a definition in `config/keys.lua`, no bindings, reactivate its `addLeader` in `init.lua` |
-| Right Command | F17 | SUPER | WindowLeader | the one window leader: bare arrow = **resize** (halves + full-height + reasonable), `Shift`+arrow = **move**; return = maximize; `C` = center; `,`/`.` = prev/next display; letters = presets + grow/shrink |
+| Right Option | F16 | META | WindowLeader | the active window leader: bare arrow = **resize** (halves + full-height + reasonable), `Shift`+arrow = **move**; return = maximize; `C` = center; `,`/`.` = prev/next display; letters = presets + grow/shrink |
+| Right Command | F17 | SUPER | WindowLeader | in the catalog but **unreferenced**, so it is not remapped and Right Command is a normal key; point `windowLeader` at it to swap |
 | Caps Lock | F18 | HYPER | HyperKey | hold + letter = app toggles; quick tap = `hs.hid.capslock.toggle()` |
 
-All window management now lives on SUPER, split by the mods-aware resolver: a
-bare key resizes, the same arrow with `Shift` moves. META was folded into SUPER
-and left defined but deactivated, so a bare Right Option press does nothing
-until its leader is registered again. The keycodes are unchanged (META = F16,
-SUPER = F17), only the physical key behind each was swapped, so SUPER is now
-Right Command and META is Right Option.
+A catalog key is "active" only by being **referenced**. The catalog names no
+consumer, so the dependency points one way, apps and windows name their leader
+and the catalog stays ignorant of both. `config/keys.lua` sets `appLeader =
+"HYPER"` and `windowLeader = "META"`; `init.lua`, the composition root, applies
+the remap for exactly that referenced set, resolves each `fkey` to a keycode via
+`hs.keycodes.map`, and stamps the chosen window leader onto the (leaderless)
+window bindings so `WindowManager` and `WindowCheatSheet` never learn the
+catalog. So moving all of window management to another physical key is one edit,
+`windowLeader = "SUPER"`, which also frees Right Option and claims Right Command
+automatically. An unreferenced key is neither remapped nor tapped, so it stays a
+normal key with no extra step. `src/setup-capslock-hyper.sh` no longer installs
+anything, it only removes the legacy LaunchAgent on older machines.
 
 Why remap at all? Raw Caps Lock is a toggle key and emits no usable key
 up/down; Right Command / Right Option are real modifiers, but a held modifier
@@ -131,7 +140,7 @@ where it legitimately differs. Holding F18 shows `HyperCheatSheet`, the
 app bindings split into open vs not-running (uninstalled/unresolvable apps
 filtered out; names+icons cached at load, only the running split recomputed per
 show). Holding a leader shows `WindowCheatSheet` — just that leader's bindings
-(SUPER's resizes and moves, each arrow appearing twice, bare and `Shift`);
+(META's resizes and moves, each arrow appearing twice, bare and `Shift`);
 pressing any bound key cancels it. It reads
 the same `keys.windowManagement` config, so it never drifts; each row's label is
 the action name humanized (`nextDisplay` → "Next Display") unless the entry sets
@@ -161,12 +170,15 @@ Coupling is contained: `HyperKey` is an optional injected dependency of
 `AppToggler` only. If it is not wired up in `init.lua`, `AppToggler` falls back
 to binding the literal `HYPER` (⇧⌃⌥⌘) combo from `keys.lua` — so removing the
 Hyper key degrades gracefully, it does not break other spoons. Window management
-has no such fallback: it goes only through `WindowLeader`, so it needs the F16/
-F17 remap applied. Trade-offs: the remaps are machine-wide (Caps Lock, Right
-Command and Right Option are F18/F17/F16 in every app — the right-side modifiers
-lose their normal function everywhere; the left ones still work), and all three
-keys only do anything while Hammerspoon runs. Undo steps are in
-`src/setup-capslock-hyper.sh`.
+has no such fallback: it goes only through `WindowLeader`, so its leader must be
+referenced in `config/keys.lua` (which is what applies its remap). Trade-offs:
+the remaps are machine-wide, so each referenced physical key loses its normal
+function in every app (today Caps Lock is F18 and Right Option is F16; the left
+modifiers still work, and Right Command is unreferenced so it stays a normal
+key). The remapped keys only do anything while Hammerspoon runs, and now the
+remap itself is applied only while it runs, KeyRemap sets it on load and clears
+it on quit. To free a key, stop referencing it; to disable everything, quit
+Hammerspoon.
 
 Config auto-reloads when files change. Get app bundle ID: `osascript -e 'id of app "APP_NAME"'`
 

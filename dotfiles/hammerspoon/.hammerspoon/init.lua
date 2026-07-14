@@ -17,6 +17,7 @@ local vicertWorkspace = require("config.workspaces.vicert")
 -- Load Spoons
 --------------------------------------------------------------------------------
 
+hs.loadSpoon("KeyRemap")
 hs.loadSpoon("ChordKey")
 hs.loadSpoon("CheatSheet")
 hs.loadSpoon("HyperKey")
@@ -35,6 +36,20 @@ hs.loadSpoon("DockAutoHide")
 --------------------------------------------------------------------------------
 -- Initialize Spoons
 --------------------------------------------------------------------------------
+
+-- Leader key remap. The catalog in config/keys.lua lists which physical key maps
+-- to which unused function key; KeyRemap applies that at the HID level. A leader
+-- is "active" only by being referenced, so we apply exactly the ones the domains
+-- name, HYPER for apps and the window leader, and every other catalog key stays a
+-- normal key. Keycodes are resolved here from each entry's fkey, so no raw
+-- function-key numbers live anywhere else, and the catalog stays ignorant of what
+-- consumes it.
+local catalog = keys.leaderKeys
+local function leaderCode(name)
+  return hs.keycodes.map[catalog[name].fkey]
+end
+spoon.KeyRemap:init()
+spoon.KeyRemap:apply(catalog, { keys.appLeader, keys.windowLeader })
 
 -- CheatSheet: the shared grid-overlay renderer behind both cheat sheets. Both
 -- builders below draw through this one instance (only ever one overlay is up).
@@ -59,19 +74,19 @@ spoon.HyperCheatSheet:configure({
 })
 
 -- ChordKey: the shared hold/tap/chord engine behind the function-key leaders
--- (HYPER=F18, SUPER=F17). One event tap serves them all; HyperKey and
--- WindowLeader register their keys into it below. These are the defaults each
--- key inherits unless it overrides them.
+-- (HYPER for apps, plus the active window leader). One event tap serves them all;
+-- HyperKey and WindowLeader register their keys into it below. These are the
+-- defaults each key inherits unless it overrides them.
 spoon.ChordKey:init()
 spoon.ChordKey:configure({ holdDelay = 0.6, tapThreshold = 0.2 })
 
--- HyperKey: Caps Lock (remapped to F18 via hidutil) as a Hyper key.
+-- HyperKey: Caps Lock (remapped to F18 by KeyRemap) as a Hyper key.
 -- Hold + letter = app toggles; quick tap = toggle real Caps Lock; hold 0.6s
 -- with no key = show the cheat sheet. Registers into the shared ChordKey engine.
 spoon.HyperKey:init()
 spoon.HyperKey:configure({
   chord = spoon.ChordKey,
-  keyCode = 79, -- F18 (Caps Lock is remapped to F18 by src/setup-capslock-hyper.sh)
+  keyCode = leaderCode(keys.appLeader), -- resolved from the catalog (HYPER -> F18)
   tapThreshold = 0.2,
   onTap = function()
     hs.hid.capslock.toggle()
@@ -103,15 +118,13 @@ spoon.WindowManager:configure({
   },
   settings = settings,
 })
--- WindowLeader: the SUPER leader key for window management. SUPER is Right
--- Command remapped to F17 via src/setup-capslock-hyper.sh, sitting just below
--- HYPER, the F18 (Caps Lock) app toggler. Hold SUPER and press a key. A bare
--- arrow resizes, Shift+arrow moves the window, C centers, and , / . switch
--- display. META (Right Option, F16) is kept as a definition in config/keys.lua
--- but is deactivated; uncomment its addLeader below to bring it back.
+-- WindowLeader: the window leader key. It is whichever catalog key config names
+-- as `windowLeader` (META today, Right Option). Hold it and press a key, a bare
+-- arrow resizes, Shift+arrow moves, C centers, and , / . switch display. Any
+-- other catalog key stays a normal key until some domain references it, so
+-- swapping the window leader is a one-word change in config/keys.lua.
 spoon.WindowLeader:init()
-spoon.WindowLeader:addLeader(64)  -- SUPER = F17 = Right Command (window leader)
--- spoon.WindowLeader:addLeader(106) -- META = F16 = Right Option (deactivated)
+spoon.WindowLeader:addLeader(leaderCode(keys.windowLeader))
 
 -- Predicates for conditional window bindings. A binding in keys.windowManagement
 -- may name one via `when = "<name>"`. The binding is then live only while its
@@ -123,7 +136,19 @@ spoon.WindowLeader:addLeader(64)  -- SUPER = F17 = Right Command (window leader)
 local windowPredicates = {
   multipleDisplays = function() return #hs.screen.allScreens() > 1 end,
 }
-spoon.WindowManager:bindToLeader(spoon.WindowLeader, keys.windowManagement, windowPredicates)
+-- The window bindings carry no leader (see config/keys.lua). Stamp the resolved
+-- window leader onto each here, in the composition root, so WindowManager and
+-- WindowCheatSheet keep working from a single leader without either learning the
+-- catalog. This resolve-and-inject is exactly the wiring the root exists for.
+local windowLeaderCode = leaderCode(keys.windowLeader)
+local windowBindings = {}
+for i, binding in ipairs(keys.windowManagement) do
+  local copy = {}
+  for k, v in pairs(binding) do copy[k] = v end
+  copy.leader = windowLeaderCode
+  windowBindings[i] = copy
+end
+spoon.WindowManager:bindToLeader(spoon.WindowLeader, windowBindings, windowPredicates)
 
 -- WindowCheatSheet: hold a leader ~0.6s with no other key to reveal that
 -- leader's window actions (same hold rule as Caps Lock -> HyperCheatSheet).
@@ -131,8 +156,8 @@ spoon.WindowManager:bindToLeader(spoon.WindowLeader, keys.windowManagement, wind
 -- an entry sets an explicit `description`.
 spoon.WindowCheatSheet:init()
 spoon.WindowCheatSheet:configure({
-  windowManagement = keys.windowManagement,
-  leaders = { [64] = "SUPER" },
+  windowManagement = windowBindings,
+  leaders = { [windowLeaderCode] = keys.windowLeader },
   cheatSheet = spoon.CheatSheet,
   predicates = windowPredicates,
 })
@@ -150,7 +175,8 @@ spoon.WindowLeader:configure({
 spoon.WindowLeader:start()
 
 -- Every active leader is now registered; start the one shared event tap that
--- drives HYPER and SUPER together (META is defined but deactivated).
+-- drives HYPER and the window leader together. Catalog keys nobody references
+-- are neither remapped nor tapped, so they stay normal keys.
 spoon.ChordKey:start()
 
 -- AppToggler (uses apps config; toggles fire via the Caps Lock/F18 Hyper modal)
