@@ -103,15 +103,15 @@ spoon.WindowManager:configure({
   },
   settings = settings,
 })
--- WindowLeader: the SUPER leader key for window management. SUPER is Right Option
--- remapped to F17 via src/setup-capslock-hyper.sh, sitting just below HYPER, the
--- F18 (Caps Lock) app toggler. Hold SUPER and press a key. A bare arrow resizes,
--- Shift+arrow moves the window, C centers, and , / . switch display. META (Right
--- Command, F16) is kept as a definition in config/keys.lua but is deactivated;
--- uncomment its addLeader below to bring it back.
+-- WindowLeader: the SUPER leader key for window management. SUPER is Right
+-- Command remapped to F17 via src/setup-capslock-hyper.sh, sitting just below
+-- HYPER, the F18 (Caps Lock) app toggler. Hold SUPER and press a key. A bare
+-- arrow resizes, Shift+arrow moves the window, C centers, and , / . switch
+-- display. META (Right Option, F16) is kept as a definition in config/keys.lua
+-- but is deactivated; uncomment its addLeader below to bring it back.
 spoon.WindowLeader:init()
-spoon.WindowLeader:addLeader(64)  -- SUPER = F17 = Right Option (window leader)
--- spoon.WindowLeader:addLeader(106) -- META = F16 = Right Command (deactivated)
+spoon.WindowLeader:addLeader(64)  -- SUPER = F17 = Right Command (window leader)
+-- spoon.WindowLeader:addLeader(106) -- META = F16 = Right Option (deactivated)
 
 -- Predicates for conditional window bindings. A binding in keys.windowManagement
 -- may name one via `when = "<name>"`. The binding is then live only while its

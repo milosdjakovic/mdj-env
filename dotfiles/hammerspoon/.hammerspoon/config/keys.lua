@@ -6,7 +6,7 @@ local HYPER = { "shift", "ctrl", "alt", "cmd" }
 local CTRL_ALT = { "ctrl", "alt" }
 local SHIFT_ALT = { "shift", "alt" }
 
--- Window-management leader keys. Right Option and Right Command are remapped to
+-- Window-management leader keys. Right Command and Right Option are remapped to
 -- F17 and F16 at the HID level (see src/setup-capslock-hyper.sh) and driven by
 -- WindowLeader.spoon. Hold the leader, press the key. These are the (remapped)
 -- virtual keycodes of the function keys, not modifier lists. They sit just below
@@ -18,8 +18,8 @@ local SHIFT_ALT = { "shift", "alt" }
 -- register it). To bring it back, uncomment its addLeader in init.lua, add
 -- [106]="META" to the WindowCheatSheet leaders map, and give some entries below
 -- `leader = META`.
-local SUPER = 64  -- F17 (Right Option), the active window leader
-local META  = 106 -- F16 (Right Command), defined but deactivated (see above)
+local SUPER = 64  -- F17 (Right Command), the active window leader
+local META  = 106 -- F16 (Right Option), defined but deactivated (see above)
 
 return {
   -- Expose modifiers for Spoons that need them

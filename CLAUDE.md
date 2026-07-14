@@ -85,14 +85,16 @@ hierarchy, ascending with the Fn number:
 
 | Key | Remap | Name | Spoon | Role |
 |-----|-------|------|-------|------|
-| Right Command | F16 | META | WindowLeader | remapped but **deactivated**; kept as a definition in `config/keys.lua`, no bindings, reactivate its `addLeader` in `init.lua` |
-| Right Option | F17 | SUPER | WindowLeader | the one window leader: bare arrow = **resize** (halves + full-height + reasonable), `Shift`+arrow = **move**; return = maximize; `C` = center; `,`/`.` = prev/next display; letters = presets + grow/shrink |
+| Right Option | F16 | META | WindowLeader | remapped but **deactivated**; kept as a definition in `config/keys.lua`, no bindings, reactivate its `addLeader` in `init.lua` |
+| Right Command | F17 | SUPER | WindowLeader | the one window leader: bare arrow = **resize** (halves + full-height + reasonable), `Shift`+arrow = **move**; return = maximize; `C` = center; `,`/`.` = prev/next display; letters = presets + grow/shrink |
 | Caps Lock | F18 | HYPER | HyperKey | hold + letter = app toggles; quick tap = `hs.hid.capslock.toggle()` |
 
 All window management now lives on SUPER, split by the mods-aware resolver: a
 bare key resizes, the same arrow with `Shift` moves. META was folded into SUPER
-and left defined but deactivated, so a bare Right Command press does nothing
-until its leader is registered again.
+and left defined but deactivated, so a bare Right Option press does nothing
+until its leader is registered again. The keycodes are unchanged (META = F16,
+SUPER = F17), only the physical key behind each was swapped, so SUPER is now
+Right Command and META is Right Option.
 
 Why remap at all? Raw Caps Lock is a toggle key and emits no usable key
 up/down; Right Command / Right Option are real modifiers, but a held modifier
@@ -161,7 +163,7 @@ to binding the literal `HYPER` (⇧⌃⌥⌘) combo from `keys.lua` — so remov
 Hyper key degrades gracefully, it does not break other spoons. Window management
 has no such fallback: it goes only through `WindowLeader`, so it needs the F16/
 F17 remap applied. Trade-offs: the remaps are machine-wide (Caps Lock, Right
-Command and Right Option are F18/F16/F17 in every app — the right-side modifiers
+Command and Right Option are F18/F17/F16 in every app — the right-side modifiers
 lose their normal function everywhere; the left ones still work), and all three
 keys only do anything while Hammerspoon runs. Undo steps are in
 `src/setup-capslock-hyper.sh`.
