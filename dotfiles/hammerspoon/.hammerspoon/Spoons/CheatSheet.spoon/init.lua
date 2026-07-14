@@ -32,6 +32,11 @@
 --- Rows are filled left-to-right, top-to-bottom across `columns`. An icon is
 --- drawn only when iconSize > 0 and the row carries one. A section's `alpha`
 --- multiplies the theme alphas, so the dimmed "not running" group fades whole.
+--- A section may also override any layout field (columns, colWidth, iconSize,
+--- ...) for its own rows, inheriting the model-level value for anything it omits.
+--- The panel takes the widest section's width and narrower sections left-align
+--- within it, so one panel can mix a four-column icon grid with a two-column
+--- text list without clipping the longer labels.
 
 local obj = {}
 obj.__index = obj
@@ -71,6 +76,30 @@ local DEFAULT_THEME = {
   badge = { alpha = 0.12, radius = 6 }, -- translucent key-badge fill
   text  = { badge = 1.0, label = 0.9, title = 0.5 }, -- white alphas per role
 }
+
+-- Key names -> display glyph, and sub-modifier names -> glyph prefixed onto it.
+-- Turning a key plus its modifiers into a badge string is pure presentation, so
+-- it lives here on the shared renderer rather than in each builder. Both callers
+-- use it: HyperCheatSheet for its capture rows, WindowCheatSheet for every row.
+-- Anything not mapped is uppercased (letters, =, and so on).
+local KEY_GLYPH = {
+  left = "←", right = "→", up = "↑", down = "↓",
+  ["return"] = "↩", space = "␣", escape = "⎋", tab = "⇥", delete = "⌫",
+}
+local MOD_GLYPH = { shift = "⇧", ctrl = "⌃", alt = "⌥", cmd = "⌘" }
+
+--- CheatSheet.glyphFor(key, mods) -> string
+--- Render a binding as a badge glyph, so ("left", {"shift"}) becomes "⇧←". A
+--- plain function with no state, called as CheatSheet.glyphFor(key, mods).
+function obj.glyphFor(key, mods)
+  local k = tostring(key):lower()
+  local g = KEY_GLYPH[k] or tostring(key):upper()
+  local prefix = ""
+  for _, m in ipairs(mods or {}) do
+    prefix = prefix .. (MOD_GLYPH[m] or "")
+  end
+  return prefix .. g
+end
 
 -- Vertical top for a lineH text box centered in a container of height h
 local function centerY(top, h, lineH)
@@ -217,13 +246,27 @@ function obj:show(model)
     return self
   end
 
-  -- Panel size: sum section heights, with groupGap between and titles included.
-  local w = L.columns * L.colWidth + L.margin * 2
+  -- Each section may override the panel layout (columns, colWidth, ...) for its
+  -- own rows, inheriting the model-level L for anything it omits. Precompute the
+  -- merged layout per section so width, height, and placement all agree.
+  local layouts = {}
+  for i, s in ipairs(sections) do
+    layouts[i] = layoutOf(L, s)
+  end
+
+  -- Panel width is the widest section's content; narrower sections left-align
+  -- within it. Height sums each section's own rows, with groupGap between and
+  -- titles included.
+  local contentW = 0
+  for i = 1, #sections do
+    contentW = math.max(contentW, layouts[i].columns * layouts[i].colWidth)
+  end
+  local w = contentW + L.margin * 2
   local h = L.margin
   for i, s in ipairs(sections) do
     if i > 1 then h = h + L.groupGap end
-    if s.title then h = h + L.titleHeight end
-    h = h + rowsFor(#s.rows, L.columns) * L.rowHeight
+    if s.title then h = h + layouts[i].titleHeight end
+    h = h + rowsFor(#s.rows, layouts[i].columns) * layouts[i].rowHeight
   end
   h = h + L.margin
 
@@ -243,6 +286,7 @@ function obj:show(model)
 
   local cursor = L.margin
   for i, s in ipairs(sections) do
+    local SL = layouts[i]
     if i > 1 then cursor = cursor + L.groupGap end
     if s.title then
       elements[#elements + 1] = {
@@ -250,12 +294,12 @@ function obj:show(model)
         text = s.title,
         textColor = { white = 1.0, alpha = T.text.title },
         textSize = T.fontSize,
-        frame = { x = L.margin, y = cursor, w = L.columns * L.colWidth, h = T.lineHeight },
+        frame = { x = L.margin, y = cursor, w = SL.columns * SL.colWidth, h = T.lineHeight },
       }
-      cursor = cursor + L.titleHeight
+      cursor = cursor + SL.titleHeight
     end
-    self:_appendRows(elements, s.rows, cursor, s.alpha or 1.0, L)
-    cursor = cursor + rowsFor(#s.rows, L.columns) * L.rowHeight
+    self:_appendRows(elements, s.rows, cursor, s.alpha or 1.0, SL)
+    cursor = cursor + rowsFor(#s.rows, SL.columns) * SL.rowHeight
   end
 
   self._canvas = hs.canvas.new({ x = x, y = y, w = w, h = h })

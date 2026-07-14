@@ -70,8 +70,8 @@ return {
 
   -- Clipboard history (for ClipboardHistory.spoon). Same modifiers/key shape as
   -- appToggles so the HYPER field acts as the fallback combo when HyperKey is
-  -- not wired up.
-  clipboardHistory = { modifiers = HYPER, key = "X" },
+  -- not wired up. The `description` labels its row on the Hyper cheat sheet.
+  clipboardHistory = { modifiers = HYPER, key = "X", description = "Clipboard history" },
 
   -- Screen capture (for Capture.spoon). Provider-agnostic action names; the
   -- active provider (macshot today, set in init.lua) maps them to its own
@@ -79,11 +79,12 @@ return {
   -- macOS Cmd-Shift-4 / Cmd-Shift-5 muscle memory. The HYPER field is the
   -- fallback combo used when HyperKey is not wired up, matching appToggles.
   -- Optional `mods` are sub-modifiers within the Hyper modal, so Hyper+4 and
-  -- Hyper+Shift+4 are distinct: file vs clipboard.
+  -- Hyper+Shift+4 are distinct, file vs clipboard. `description` labels the row
+  -- on the Hyper cheat sheet, where init.lua surfaces these as a CAPTURE section.
   capture = {
-    { action = "captureArea",          modifiers = HYPER, key = "4" },
-    { action = "captureAreaClipboard", modifiers = HYPER, key = "4", mods = { "shift" } },
-    { action = "recordArea",           modifiers = HYPER, key = "5" },
+    { action = "captureArea",          modifiers = HYPER, key = "4",                     description = "Screenshot" },
+    { action = "captureAreaClipboard", modifiers = HYPER, key = "4", mods = { "shift" }, description = "Screenshot (copy)" },
+    { action = "recordArea",           modifiers = HYPER, key = "5",                     description = "Record" },
   },
 
   -- Window management bindings (for WindowManager.spoon via WindowLeader.spoon).

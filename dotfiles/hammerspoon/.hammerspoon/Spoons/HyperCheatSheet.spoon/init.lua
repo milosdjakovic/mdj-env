@@ -1,12 +1,15 @@
 --- === HyperCheatSheet ===
 ---
---- Content builder for the Hyper app-toggle overlay: the bindings split into
---- apps that are currently running and apps that are not. Meant to be triggered
---- from HyperKey.spoon's onHold hook. Reads the same appToggles/apps config that
---- AppToggler uses, so it never drifts from the real bindings.
+--- Content builder for the Hyper overlay: everything reachable while the Hyper
+--- key is held. The app toggles come first, split into apps that are currently
+--- running and apps that are not, followed by any static service sections
+--- (capture, clipboard) passed in from the composition root. Meant to be
+--- triggered from HyperKey.spoon's onHold hook. Reads the same appToggles/apps
+--- config AppToggler uses, so the app rows never drift from the real bindings.
 ---
 --- This spoon owns only the domain logic -- resolving icons, filtering
---- uninstalled apps, and the running/not-running split. The actual drawing is
+--- uninstalled apps, the running/not-running split, and building the service
+--- rows. Turning a key into a badge glyph and the actual drawing are both
 --- delegated to the shared CheatSheet.spoon renderer (injected via configure).
 
 local obj = {}
@@ -18,10 +21,11 @@ obj.version = "2.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
-obj._apps = nil        -- name -> bundleID
-obj._toggles = nil     -- list of { app, key, modifiers }
-obj._items = nil       -- precomputed { key, name, bundleID, icon }, built once
-obj._cheatSheet = nil  -- shared CheatSheet renderer
+obj._apps = nil            -- name -> bundleID
+obj._toggles = nil         -- list of { app, key, modifiers }
+obj._items = nil           -- precomputed { key, name, bundleID, icon }, built once
+obj._staticSections = nil  -- precomputed service sections { title, rows }, built once
+obj._cheatSheet = nil      -- shared CheatSheet renderer
 
 -- Layout knobs for this overlay: four columns, square badge, app icons.
 local LAYOUT = {
@@ -35,6 +39,14 @@ local LAYOUT = {
   groupGap = 20,
 }
 
+-- Service sections (capture, clipboard) carry no icons, so they render in fewer
+-- columns than the app grid. Three columns keep the capture actions on one row.
+-- They reuse the app column width, freeing the icon gutter as extra label room,
+-- so the columns keep the same tight rhythm as the app rows instead of spreading
+-- across the whole panel.
+local SERVICE_COLUMNS = 3
+local SERVICE_COLWIDTH = LAYOUT.colWidth
+
 --- HyperCheatSheet:init()
 function obj:init()
   return self
@@ -44,6 +56,11 @@ end
 --- opts.apps       - app name -> bundleID registry (config/apps.lua)
 --- opts.toggles    - appToggles list (config/keys.lua)
 --- opts.cheatSheet - shared CheatSheet renderer to draw with
+--- opts.sections   - optional list of static service sections appended after the
+---                   app split, each { title, bindings }, where a binding is a
+---                   { key, mods, action, description } table. The badge is
+---                   rendered through the shared glyph helper and the label is
+---                   the description (falling back to the action, then the key).
 function obj:configure(opts)
   opts = opts or {}
   self._apps = opts.apps or {}
@@ -80,6 +97,18 @@ function obj:configure(opts)
     end
     return a.key:lower() < b.key:lower()
   end)
+  -- Build the static service sections once. They carry no running state, so
+  -- unlike the app split there is nothing to recompute per show. The badge is
+  -- rendered through the shared glyph helper so Hyper+Shift+4 reads "⇧4".
+  self._staticSections = {}
+  for _, section in ipairs(opts.sections or {}) do
+    local rows = {}
+    for _, b in ipairs(section.bindings or {}) do
+      local badge = self._cheatSheet and self._cheatSheet.glyphFor(b.key, b.mods) or tostring(b.key)
+      rows[#rows + 1] = { badge = badge, label = b.description or b.action or tostring(b.key) }
+    end
+    self._staticSections[#self._staticSections + 1] = { title = section.title, rows = rows }
+  end
   return self
 end
 
@@ -117,10 +146,28 @@ local function toRows(items)
 end
 
 --- HyperCheatSheet:show()
---- Build the running/not-running model and hand it to the renderer
+--- Build the running/not-running model, append the static service sections, and
+--- hand the whole thing to the renderer. Empty sections are dropped by the
+--- renderer, so a service group with no bindings simply does not appear.
 function obj:show()
   if not self._cheatSheet then return self end
   local open, closed = self:_entries()
+  local sections = {
+    { title = "OPEN", alpha = 1.0, rows = toRows(open) },
+    { title = "NOT RUNNING", alpha = 0.55, rows = toRows(closed) },
+  }
+  for _, s in ipairs(self._staticSections or {}) do
+    sections[#sections + 1] = {
+      title = s.title,
+      alpha = 1.0,
+      rows = s.rows,
+      -- Override the panel layout for these rows: fewer, wider columns and no
+      -- icon gutter, so long labels like "Screenshot to clipboard" are not cut.
+      columns = SERVICE_COLUMNS,
+      colWidth = SERVICE_COLWIDTH,
+      iconSize = 0,
+    }
+  end
   self._cheatSheet:show({
     columns = LAYOUT.columns,
     colWidth = LAYOUT.colWidth,
@@ -130,10 +177,7 @@ function obj:show()
     iconSize = LAYOUT.iconSize,
     gap = LAYOUT.gap,
     groupGap = LAYOUT.groupGap,
-    sections = {
-      { title = "OPEN", alpha = 1.0, rows = toRows(open) },
-      { title = "NOT RUNNING", alpha = 0.55, rows = toRows(closed) },
-    },
+    sections = sections,
   })
   return self
 end

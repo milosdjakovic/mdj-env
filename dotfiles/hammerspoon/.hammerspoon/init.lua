@@ -43,12 +43,19 @@ hs.loadSpoon("DockAutoHide")
 spoon.CheatSheet:init()
 spoon.CheatSheet:configure(settings.cheatSheet)
 
--- HyperCheatSheet: overlay of Hyper app bindings (open vs not running)
+-- HyperCheatSheet: overlay of everything under Hyper. App toggles first (open vs
+-- not running), then the static service sections. This is the one place that
+-- names which non-app bindings surface on the overlay and in what order, so the
+-- Capture and ClipboardHistory configs stay pure binding data.
 spoon.HyperCheatSheet:init()
 spoon.HyperCheatSheet:configure({
   apps = apps,
   toggles = keys.appToggles,
   cheatSheet = spoon.CheatSheet,
+  sections = {
+    { title = "CAPTURE", bindings = keys.capture },
+    { title = "CLIPBOARD", bindings = { keys.clipboardHistory } },
+  },
 })
 
 -- ChordKey: the shared hold/tap/chord engine behind all three function-key

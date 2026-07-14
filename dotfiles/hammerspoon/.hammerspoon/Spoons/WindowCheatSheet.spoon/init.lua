@@ -34,24 +34,8 @@ local LAYOUT = {
   gap = 12,
 }
 
--- Key names -> display glyph. Anything not listed is uppercased (letters, =, -).
-local KEY_GLYPH = {
-  left = "←", right = "→", up = "↑", down = "↓",
-  ["return"] = "↩", space = "␣", escape = "⎋", tab = "⇥", delete = "⌫",
-}
--- Sub-modifier names -> glyph, prefixed onto the key glyph (e.g. Shift+Left).
-local MOD_GLYPH = { shift = "⇧", ctrl = "⌃", alt = "⌥", cmd = "⌘" }
-
--- Render "shift+left" style bindings as "⇧←"
-local function glyphFor(key, mods)
-  local k = tostring(key):lower()
-  local g = KEY_GLYPH[k] or tostring(key):upper()
-  local prefix = ""
-  for _, m in ipairs(mods or {}) do
-    prefix = prefix .. (MOD_GLYPH[m] or "")
-  end
-  return prefix .. g
-end
+-- Badge glyphs (e.g. "⇧←") come from the shared CheatSheet.glyphFor, since both
+-- overlays render key badges the same way; see configure.
 
 -- camelCase action name -> "Title Case" label
 local function humanize(name)
@@ -103,7 +87,7 @@ function obj:configure(opts)
     if lc then
       self._byLeader[lc] = self._byLeader[lc] or { name = names[lc] or "", rows = {} }
       table.insert(self._byLeader[lc].rows, {
-        badge = glyphFor(b.key, b.mods),
+        badge = self._cheatSheet.glyphFor(b.key, b.mods),
         label = b.description or humanize(b.action),
         when = b.when,
       })
