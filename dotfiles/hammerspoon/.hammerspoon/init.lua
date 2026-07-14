@@ -227,12 +227,11 @@ spoon.Capture:configure({
 })
 spoon.Capture:bindHotkeys(keys.capture)
 
--- Lock the screen on Hyper+Esc and sleep the Mac on Hyper+Shift+Esc. These are
--- lone system actions, not whole domains, so they are bound directly here in the
+-- Sleep the Mac on Hyper+Esc and lock the screen on Hyper+§. These are lone
+-- system actions, not whole domains, so they are bound directly here in the
 -- composition root rather than given a spoon of their own. Each binds into the
--- Hyper modal when HyperKey is wired (the `mods` list makes Shift+Esc distinct
--- from Esc, like Hyper+Shift+4 vs Hyper+4), otherwise the literal HYPER combo,
--- matching how the other Hyper consumers degrade.
+-- Hyper modal when HyperKey is wired, otherwise the literal HYPER combo, matching
+-- how the other Hyper consumers degrade.
 local function bindHyper(binding, fn)
   if spoon.HyperKey then
     spoon.HyperKey:bind(binding.key, fn, binding.mods)

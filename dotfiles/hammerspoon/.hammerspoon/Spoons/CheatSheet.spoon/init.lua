@@ -82,9 +82,12 @@ local DEFAULT_THEME = {
 -- it lives here on the shared renderer rather than in each builder. Both callers
 -- use it: HyperCheatSheet for its capture rows, WindowCheatSheet for every row.
 -- Anything not mapped is uppercased (letters, =, and so on).
+-- Escape is the text "esc", not the ⎋ symbol (U+238B): the canvas uses the
+-- system UI font, which has no glyph for ⎋, so it rendered blank and "⇧⎋" showed
+-- as a lone "⇧". The other glyphs here are all present in that font.
 local KEY_GLYPH = {
   left = "←", right = "→", up = "↑", down = "↓",
-  ["return"] = "↩", space = "␣", escape = "⎋", tab = "⇥", delete = "⌫",
+  ["return"] = "↩", space = "␣", escape = "esc", tab = "⇥", delete = "⌫",
 }
 local MOD_GLYPH = { shift = "⇧", ctrl = "⌃", alt = "⌥", cmd = "⌘" }
 

@@ -85,14 +85,12 @@ return {
   -- not wired up. The `description` labels its row on the Hyper cheat sheet.
   clipboardHistory = { modifiers = HYPER, key = "X", description = "Clipboard history" },
 
-  -- System actions bound onto the Hyper key in init.lua. Hyper+Esc locks the
-  -- screen, Hyper+Shift+Esc sleeps the Mac. The `mods` list is a sub-modifier
-  -- within the Hyper modal, so the two share one key the way Hyper+4 and
-  -- Hyper+Shift+4 do for capture. The HYPER field is the fallback combo when
-  -- HyperKey is not wired up, and `description` labels each row on the Hyper cheat
-  -- sheet (a SYSTEM section).
-  lock  = { modifiers = HYPER, key = "escape",                     description = "Lock" },
-  sleep = { modifiers = HYPER, key = "escape", mods = { "shift" }, description = "Sleep" },
+  -- System actions bound onto the Hyper key in init.lua. Hyper+Esc sleeps the
+  -- Mac, Hyper+§ locks the screen. Each is a plain key with no sub-modifier. The
+  -- HYPER field is the fallback combo when HyperKey is not wired up, and
+  -- `description` labels each row on the Hyper cheat sheet (a SYSTEM section).
+  sleep = { modifiers = HYPER, key = "escape", description = "Sleep" },
+  lock  = { modifiers = HYPER, key = "§",      description = "Lock" },
 
   -- Screen capture (for Capture.spoon). Provider-agnostic action names; the
   -- active provider maps them to its own commands, so swapping capture apps never
