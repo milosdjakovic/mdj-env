@@ -52,79 +52,31 @@ local log = hs.logger.new("ClipboardHistory", "info")
 --------------------------------------------------------------------------------
 -- Providers
 --------------------------------------------------------------------------------
+-- The mechanism and the provider adapters each live in their own file, loaded by
+-- absolute path since a spoon dir is not on package.path. Each provider is a
+-- self-contained table satisfying the contract above. Raycast and Spotlight wrap
+-- external apps; the Hammerspoon one is a thin adapter over the manager/
+-- mechanism in this spoon, built by passing that mechanism in. To add a backend,
+-- drop a file in providers/ and name it in the chain.
 
-obj.providers = {}
+local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
+local function load(name)
+  local chunk, err = loadfile(spoonPath .. name)
+  if not chunk then
+    error("ClipboardHistory: failed to load " .. name .. ": " .. tostring(err))
+  end
+  return chunk()
+end
 
---- ClipboardHistory.providers.spotlightTahoe
---- Constant
---- Provider for the clipboard history built into Spotlight in macOS 26 (Tahoe).
---- Opens Spotlight (Cmd+Space) then selects its Clipboard category (Cmd+4),
---- skipping the open step when Spotlight is already showing (pressing Cmd+Space
---- again would close it). Spotlight's process always runs but only owns a window
---- while the panel is visible, which is how isShowing() detects it.
-obj.providers.spotlightTahoe = {
-  deferUntilHyperRelease = true, -- sends Cmd+Space / Cmd+4, swallowed while held
-  isShowing = function()
-    local sp = hs.application.get("com.apple.Spotlight")
-    return sp ~= nil and #sp:allWindows() > 0
-  end,
-  show = function(self)
-    if self:isShowing() then
-      hs.eventtap.keyStroke({ "cmd" }, "4", 0)
-    else
-      hs.eventtap.keyStroke({ "cmd" }, "space", 0)
-      hs.timer.doAfter(0.12, function()
-        hs.eventtap.keyStroke({ "cmd" }, "4", 0)
-      end)
-    end
-  end,
-}
+--- ClipboardHistory.manager
+--- The Hammerspoon clipboard mechanism, exposing configure/start/show/isShowing/
+--- clear. The composition root starts it once; see manager/init.lua.
+obj.manager = load("manager/init.lua")
 
---- ClipboardHistory.providers.raycast
---- Constant
---- Provider for Raycast's clipboard history. Raycast exposes a deeplink, so
---- show() opens the command URL directly rather than firing a shortcut. This
---- needs no configured hotkey and cannot be thrown off by a rebind.
---- isAvailable() reports Raycast missing or quit so the chain can fall back and
---- log the reason.
----
---- show() also toggles: a second press hides Raycast completely (one hide(),
---- since Raycast's own Escape only steps back to root search and needs a second
---- press to close). The hide fires only when Raycast is frontmost and this
---- provider is the one that opened it, tracked by _shown. So pressing the key
---- while the clipboard is up dismisses it, while pressing it with Raycast not
---- visible just opens it. _shown is validated against the live frontmost app,
---- so a Raycast closed by other means (Escape, click away) is reopened rather
---- than a stale hide firing into the wrong app.
-obj.providers.raycast = {
-  name = "Raycast",
-  bundleID = "com.raycast.macos",
-  url = "raycast://extensions/raycast/clipboard-history/clipboard-history",
-  deferUntilHyperRelease = false, -- opens a URL / hides, neither is swallowed
-  _shown = false,
-  isAvailable = function(self)
-    if not hs.application.pathForBundleID(self.bundleID) then
-      return false, "not installed"
-    end
-    if not hs.application.get(self.bundleID) then
-      return false, "not running"
-    end
-    return true
-  end,
-  show = function(self)
-    local front = hs.application.frontmostApplication()
-    local raycastFront = front ~= nil and front:bundleID() == self.bundleID
-    if self._shown and raycastFront then
-      local app = hs.application.get(self.bundleID)
-      if app then
-        app:hide()
-      end
-      self._shown = false
-    else
-      hs.urlevent.openURL(self.url)
-      self._shown = true
-    end
-  end,
+obj.providers = {
+  spotlightTahoe = load("providers/spotlight-tahoe.lua"),
+  raycast = load("providers/raycast.lua"),
+  hammerspoon = load("providers/hammerspoon.lua")(obj.manager),
 }
 
 --- ClipboardHistory.providers.firstAvailable(chain)

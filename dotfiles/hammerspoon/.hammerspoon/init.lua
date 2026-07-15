@@ -199,20 +199,29 @@ spoon.AppToggler:init()
 spoon.AppToggler:configure({ apps = apps, hyperKey = spoon.HyperKey })
 spoon.AppToggler:bindHotkeys(keys.appToggles)
 
--- ClipboardHistory: reveal clipboard history on the Hyper key. Prefer Raycast,
--- and fall back to the macOS Tahoe Spotlight clipboard when it is missing or
--- quit. The chain logs each skip, so an unavailable backend explains itself.
--- Availability is rechecked on every open, so quitting the backend reverts to
--- Spotlight with no reload. Reorder the list to change preference.
+-- ClipboardHistory: reveal clipboard history on the Hyper key. The Hammerspoon
+-- manager is placed first, so it always wins; Raycast and the macOS Tahoe
+-- Spotlight clipboard stay as fallbacks. The chain logs each skip, and
+-- availability is rechecked on every open. Reorder the list to change
+-- preference, or drop the hammerspoon line to fall back to Raycast.
 spoon.ClipboardHistory:init()
+spoon.ClipboardHistory.manager.start() -- begin the background pasteboard poll
 spoon.ClipboardHistory:configure({
   hyperKey = spoon.HyperKey,
   provider = spoon.ClipboardHistory.providers.firstAvailable({
+    spoon.ClipboardHistory.providers.hammerspoon,
     spoon.ClipboardHistory.providers.raycast,
     spoon.ClipboardHistory.providers.spotlightTahoe,
   }),
 })
 spoon.ClipboardHistory:bindHotkeys({ open = keys.clipboardHistory })
+
+-- Script / URL trigger: hammerspoon://clipboard opens the popup through the same
+-- provider chain, so Raycast, skhd, a shell script, or  hs -c "..."  can summon
+-- it without touching the hotkey binding.
+hs.urlevent.bind("clipboard", function()
+  spoon.ClipboardHistory:open()
+end)
 
 -- Capture: screen capture / recording / OCR on the Hyper key, backed by an
 -- ordered provider chain. Each action is handled by the first provider that is
