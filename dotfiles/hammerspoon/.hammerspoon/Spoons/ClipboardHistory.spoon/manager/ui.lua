@@ -291,21 +291,48 @@ local function startPreviewLoop()
   end)
 end
 
+-- The chooser clamps its own height to fit the screen, so its rendered height is
+-- not reliably rows*rowHeight. Read the real chooser window just after it shows
+-- and dock the preview against its actual frame, so both panes are always the
+-- same height and the preview sits flush to the chooser's true right edge.
+local function matchPreviewToChooser(previewW)
+  hs.timer.doAfter(0.03, function()
+    if not preview then return end
+    local app = hs.application.get("Hammerspoon")
+    if not app then return end
+    for _, w in ipairs(app:allWindows()) do
+      if (w:title() or "") == "Chooser" and w:isVisible() then
+        local cf = w:frame()
+        preview:frame({ x = cf.x + cf.w + cfg.uiGap, y = cf.y, w = previewW, h = cf.h })
+        return
+      end
+    end
+  end)
+end
+
 local function positionAndShow()
   local f = hs.screen.mainScreen():frame()
-  local floor = math.floor
-  local chooserW = floor(f.w * cfg.chooserWidthPct / 100)
-  local total = chooserW + cfg.uiGap + cfg.previewW
+  local floor, min = math.floor, math.min
+  local chooserW = min(floor(f.w * cfg.chooserWidthPct / 100), cfg.paneMaxW)
+  local previewW = min(cfg.previewW, cfg.paneMaxW)
+  local total = chooserW + cfg.uiGap + previewW
   local x = f.x + floor((f.w - total) / 2)
   local y = f.y + floor(f.h * cfg.uiTopFrac)
 
+  -- hs.chooser width is a percent of the screen, so translate the capped pixel
+  -- width back to a percent right before showing.
+  chooser:width(chooserW / f.w * 100)
+
   ensurePreview()
-  preview:frame({ x = x + chooserW + cfg.uiGap, y = y, w = cfg.previewW, h = cfg.previewH })
+  -- Seed the preview with the requested height; matchPreviewToChooser corrects
+  -- it to the chooser's real rendered frame a moment later.
+  preview:frame({ x = x + chooserW + cfg.uiGap, y = y, w = previewW, h = cfg.previewH })
   renderPreview(currentChoices[1] and currentChoices[1]._entry or nil)
   preview:show()
 
   lastPreviewRow = 1
   chooser:show({ x = x, y = y })
+  matchPreviewToChooser(previewW)
   startPreviewLoop()
 end
 
@@ -363,7 +390,7 @@ function UI.build()
   chooser = hs.chooser.new(onChoice)
   chooser:bgDark(true)
   chooser:width(cfg.chooserWidthPct)
-  chooser:rows(10)
+  chooser:rows(cfg.chooserRows)
   chooser:queryChangedCallback(function(q)
     chooser:choices(buildChoices(q))
     lastPreviewRow = nil -- filtering changed the top row, force a preview refresh

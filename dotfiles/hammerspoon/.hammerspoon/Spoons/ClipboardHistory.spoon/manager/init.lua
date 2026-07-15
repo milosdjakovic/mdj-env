@@ -39,6 +39,18 @@ local ui = load("ui.lua")
 local HOME = os.getenv("HOME")
 local DATA_DIR = HOME .. "/.cache/hs-clipboard"
 
+-- hs.chooser sizes by whole row count, not pixels, and it clamps its own height
+-- to fit the screen below where it opens, so rows(N) is only a request. The ui
+-- reads the chooser's real rendered frame after it shows and sizes the preview
+-- to match, so both panes are always the same height regardless of clamping. The
+-- fitted line (42pt per row over a 201pt search-field and chrome base) is kept
+-- only to seed the preview's first frame before that correction. 19 rows asks
+-- for about 1000pt, used in full where the screen has room. Fractional counts are
+-- rejected by hs.chooser, so this must stay a whole number.
+local CHOOSER_ROWS = 19 -- 201 + 19*42 = 999pt requested height
+local CHOOSER_ROW_H = 42 -- measured points per visible row
+local CHOOSER_BASE_H = 201 -- measured search-field and chrome overhead, points
+
 -- Defaults. The outer composition root may override any of these via configure()
 -- before start(). Stored outside the git-tracked config dir.
 local config = {
@@ -59,10 +71,12 @@ local config = {
   previewPoll = 0.08, -- follow-selection poll
 
   chooserWidthPct = 32, -- list width, percent of screen
-  previewW = 560,
-  previewH = 460,
+  paneMaxW = 500, -- cap for each pane's width, in points
+  chooserRows = CHOOSER_ROWS,
+  previewW = 500,
+  previewH = CHOOSER_BASE_H + CHOOSER_ROWS * CHOOSER_ROW_H, -- match the chooser's rendered height exactly
   uiGap = 12,
-  uiTopFrac = 0.16,
+  uiTopFrac = 0.06, -- start high enough that a ~1000pt chooser is not clamped to fit
 
   -- NSPasteboard hints that a copy must not be recorded; the concealed one is
   -- what password managers stamp.
