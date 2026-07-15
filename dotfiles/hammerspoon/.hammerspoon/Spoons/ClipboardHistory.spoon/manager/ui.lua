@@ -291,10 +291,26 @@ local function startPreviewLoop()
   end)
 end
 
+-- Vertical top-left of the pair on screen `sf`: biased toward the top by
+-- uiTopFrac, but never closer than minVPad to either edge. When the pair is too
+-- tall to keep both pads (a short screen with a clamped chooser), the top pad
+-- wins so it never rides off the top.
+local function topBiasedY(sf, paneH)
+  local floor, max, min = math.floor, math.max, math.min
+  local lo = sf.y + cfg.minVPad
+  local hi = sf.y + sf.h - cfg.minVPad - paneH
+  if hi < lo then
+    hi = lo
+  end
+  return max(lo, min(sf.y + floor(sf.h * cfg.uiTopFrac), hi))
+end
+
 -- The chooser clamps its own height to fit the screen, so its rendered height is
--- not reliably rows*rowHeight. Read the real chooser window just after it shows
--- and dock the preview against its actual frame, so both panes are always the
--- same height and the preview sits flush to the chooser's true right edge.
+-- not reliably rows*rowHeight and is only known once it shows. Read the real
+-- chooser window just after it appears, place it top-biased with padding on its
+-- actual screen, and dock the preview flush beside it at the same top and
+-- height. This keeps both panes the same size and the pair well placed even when
+-- the chooser came up shorter than requested or landed on another display.
 local function matchPreviewToChooser(previewW)
   hs.timer.doAfter(0.03, function()
     if not preview then return end
@@ -303,7 +319,10 @@ local function matchPreviewToChooser(previewW)
     for _, w in ipairs(app:allWindows()) do
       if (w:title() or "") == "Chooser" and w:isVisible() then
         local cf = w:frame()
-        preview:frame({ x = cf.x + cf.w + cfg.uiGap, y = cf.y, w = previewW, h = cf.h })
+        local sf = (w:screen() or hs.screen.mainScreen()):frame()
+        local y = topBiasedY(sf, cf.h)
+        w:setTopLeft({ x = cf.x, y = y })
+        preview:frame({ x = cf.x + cf.w + cfg.uiGap, y = y, w = previewW, h = cf.h })
         return
       end
     end
@@ -312,21 +331,30 @@ end
 
 local function positionAndShow()
   local f = hs.screen.mainScreen():frame()
-  local floor, min = math.floor, math.min
+  local floor, min, max = math.floor, math.min, math.max
+
+  -- Trim the row count so the pair fits between the mandatory pads on a short
+  -- screen. On a tall screen the full request survives.
+  local avail = f.h - 2 * cfg.minVPad
+  local maxRows = max(1, floor((avail - cfg.chooserBaseH) / cfg.chooserRowH))
+  local rows = min(cfg.chooserRows, maxRows)
+  chooser:rows(rows)
+  local paneH = cfg.chooserBaseH + rows * cfg.chooserRowH
+
   local chooserW = min(floor(f.w * cfg.chooserWidthPct / 100), cfg.paneMaxW)
   local previewW = min(cfg.previewW, cfg.paneMaxW)
   local total = chooserW + cfg.uiGap + previewW
   local x = f.x + floor((f.w - total) / 2)
-  local y = f.y + floor(f.h * cfg.uiTopFrac)
+  local y = topBiasedY(f, paneH)
 
   -- hs.chooser width is a percent of the screen, so translate the capped pixel
   -- width back to a percent right before showing.
   chooser:width(chooserW / f.w * 100)
 
   ensurePreview()
-  -- Seed the preview with the requested height; matchPreviewToChooser corrects
-  -- it to the chooser's real rendered frame a moment later.
-  preview:frame({ x = x + chooserW + cfg.uiGap, y = y, w = previewW, h = cfg.previewH })
+  -- Seed the preview here; matchPreviewToChooser corrects height and position to
+  -- the chooser's real rendered frame a moment later.
+  preview:frame({ x = x + chooserW + cfg.uiGap, y = y, w = previewW, h = paneH })
   renderPreview(currentChoices[1] and currentChoices[1]._entry or nil)
   preview:show()
 

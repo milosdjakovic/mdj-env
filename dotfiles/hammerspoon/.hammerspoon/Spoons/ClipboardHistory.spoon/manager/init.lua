@@ -72,11 +72,14 @@ local config = {
 
   chooserWidthPct = 32, -- list width, percent of screen
   paneMaxW = 500, -- cap for each pane's width, in points
-  chooserRows = CHOOSER_ROWS,
+  chooserRows = CHOOSER_ROWS, -- desired row count, trimmed on short screens to keep the padding
+  chooserRowH = CHOOSER_ROW_H, -- points per row, used to fit rows to the screen
+  chooserBaseH = CHOOSER_BASE_H, -- search-field and chrome overhead, points
   previewW = 500,
-  previewH = CHOOSER_BASE_H + CHOOSER_ROWS * CHOOSER_ROW_H, -- match the chooser's rendered height exactly
+  previewH = CHOOSER_BASE_H + CHOOSER_ROWS * CHOOSER_ROW_H, -- seed height, matchPreviewToChooser corrects it
   uiGap = 12,
-  uiTopFrac = 0.06, -- start high enough that a ~1000pt chooser is not clamped to fit
+  uiTopFrac = 0.06, -- bias the pair toward the top of the screen
+  minVPad = 60, -- mandatory space above and below the pair, honored on short screens
 
   -- NSPasteboard hints that a copy must not be recorded; the concealed one is
   -- what password managers stamp.
