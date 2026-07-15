@@ -48,6 +48,16 @@ return {
     if not url then
       return false
     end
-    return hs.urlevent.openURL(url)
+    -- Deliver the URL through `open` in the background instead of
+    -- hs.urlevent.openURL, which foregrounds macshot. Foregrounding steals key
+    -- focus from whatever is front, and an hs.chooser like the clipboard list
+    -- dismisses itself the moment it loses focus. The `-g` flag hands macshot the
+    -- URL without bringing it forward, matching how its own global hotkey fires.
+    local t = hs.task.new("/usr/bin/open", nil, { "-g", url })
+    if not t then
+      return false
+    end
+    t:start()
+    return true
   end,
 }
