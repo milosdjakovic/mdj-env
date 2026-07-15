@@ -92,6 +92,11 @@ function M.isShowing()
   return ui.isShowing()
 end
 
+--- M.hide() - dismiss the chooser and its preview pane.
+function M.hide()
+  ui.hide()
+end
+
 --- M.clear() - wipe history and media. Handy from the console:
 --- hs -c "spoon.ClipboardHistory.providers.hammerspoon.clear()"
 function M.clear()

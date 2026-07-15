@@ -22,8 +22,15 @@ return function(manager)
     isShowing = function()
       return manager.isShowing()
     end,
+    -- Toggle, like the Raycast provider. Firing while Hyper is still held (see
+    -- deferUntilHyperRelease above) is what lets a second Hyper+X close the
+    -- chooser this same press opened.
     show = function()
-      manager.show()
+      if manager.isShowing() then
+        manager.hide()
+      else
+        manager.show()
+      end
     end,
     -- Lifecycle passthrough for the composition root.
     start = manager.start,

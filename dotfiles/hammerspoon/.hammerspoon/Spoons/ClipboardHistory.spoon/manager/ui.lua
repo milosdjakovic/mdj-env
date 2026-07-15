@@ -343,6 +343,14 @@ function UI.isShowing()
   return chooser ~= nil and chooser:isVisible()
 end
 
+--- UI.hide() - dismiss the chooser and its preview pane.
+function UI.hide()
+  if chooser then
+    chooser:hide()
+  end
+  hidePreview()
+end
+
 --- UI.refresh() - rebuild the visible rows, e.g. after a clear.
 function UI.refresh()
   if chooser then
