@@ -109,6 +109,38 @@ local function centerY(top, h, lineH)
   return top + (h - lineH) / 2
 end
 
+-- Content-sized badges. A row may carry `badges`, a list of key strings, instead
+-- of a single `badge`. Each is drawn as its own box hugging its text, with a
+-- separator between, so alternate keys read as distinct boxes rather than one
+-- wide badge. This is opt-in: rows with a plain `badge` string keep the fixed
+-- width path, so the other overlays are unchanged.
+local BADGE_PAD_X = 10 -- horizontal padding inside a content-sized badge
+local BADGE_SEP = "or" -- default word between a row's badges, overridable per row
+local SEP_GAP = 8 -- gap on each side of the separator
+
+-- Rendered width of text in the canvas default font at `size`, so a box can hug
+-- its key. Falls back to a rough estimate if the measurement is unavailable.
+local function measureW(text, size)
+  local sz = hs.drawing.getTextDrawingSize(tostring(text), { font = ".AppleSystemUIFont", size = size })
+  return (sz and sz.w) or (#tostring(text) * size * 0.6)
+end
+
+-- Boxes for a `badges` row and the total block width, so labels can align past
+-- the widest block. Each box is at least `minH` wide, so a lone glyph stays
+-- square rather than a sliver.
+local function badgeBoxes(r, size, minH)
+  local boxes, total = {}, 0
+  for _, b in ipairs(r.badges) do
+    local w = math.max(minH, math.floor(measureW(b, size) + 2 * BADGE_PAD_X + 0.5))
+    boxes[#boxes + 1] = { text = b, w = w }
+    total = total + w
+  end
+  local sep = r.sep or BADGE_SEP
+  local sepW = math.floor(measureW(sep, size) + 0.5)
+  total = total + (#boxes - 1) * (SEP_GAP + sepW + SEP_GAP)
+  return boxes, total, sep, sepW
+end
+
 local function rowsFor(n, columns)
   return math.ceil(n / columns)
 end
@@ -189,32 +221,80 @@ end
 -- Push the elements for one section's rows starting at contentY
 function obj:_appendRows(elements, rows, contentY, alpha, L)
   local T = self._theme
+
+  -- For rows that use content-sized `badges`, align every label past the widest
+  -- badge block in this section, so a short row and a two-box row still line up.
+  local maxBlock = 0
+  for _, r in ipairs(rows) do
+    if r.badges then
+      local _, total = badgeBoxes(r, T.fontSize, L.badgeHeight)
+      if total > maxBlock then maxBlock = total end
+    end
+  end
+
   for i, r in ipairs(rows) do
     local col = (i - 1) % L.columns
     local row = math.floor((i - 1) / L.columns)
     local x = L.margin + col * L.colWidth
     local y = contentY + row * L.rowHeight
     local badgeTop = y + (L.rowHeight - L.badgeHeight) / 2
+    local labelX
 
-    -- key glyph badge
-    elements[#elements + 1] = {
-      type = "rectangle",
-      action = "fill",
-      fillColor = { white = 1.0, alpha = T.badge.alpha * alpha },
-      roundedRectRadii = { xRadius = T.badge.radius, yRadius = T.badge.radius },
-      frame = { x = x, y = badgeTop, w = L.badgeWidth, h = L.badgeHeight },
-    }
-    elements[#elements + 1] = {
-      type = "text",
-      text = r.badge,
-      textColor = { white = 1.0, alpha = T.text.badge * alpha },
-      textSize = T.fontSize,
-      textAlignment = "center",
-      frame = { x = x, y = centerY(badgeTop, L.badgeHeight, T.lineHeight), w = L.badgeWidth, h = T.lineHeight },
-    }
+    if r.badges then
+      -- Content-sized boxes with a separator between, labels aligned via maxBlock.
+      local boxes, _, sep, sepW = badgeBoxes(r, T.fontSize, L.badgeHeight)
+      local bx = x
+      for bi, box in ipairs(boxes) do
+        elements[#elements + 1] = {
+          type = "rectangle",
+          action = "fill",
+          fillColor = { white = 1.0, alpha = T.badge.alpha * alpha },
+          roundedRectRadii = { xRadius = T.badge.radius, yRadius = T.badge.radius },
+          frame = { x = bx, y = badgeTop, w = box.w, h = L.badgeHeight },
+        }
+        elements[#elements + 1] = {
+          type = "text",
+          text = box.text,
+          textColor = { white = 1.0, alpha = T.text.badge * alpha },
+          textSize = T.fontSize,
+          textAlignment = "center",
+          frame = { x = bx, y = centerY(badgeTop, L.badgeHeight, T.lineHeight), w = box.w, h = T.lineHeight },
+        }
+        bx = bx + box.w
+        if bi < #boxes then
+          elements[#elements + 1] = {
+            type = "text",
+            text = sep,
+            textColor = { white = 1.0, alpha = T.text.label * alpha },
+            textSize = T.fontSize,
+            textAlignment = "center",
+            frame = { x = bx + SEP_GAP, y = centerY(badgeTop, L.badgeHeight, T.lineHeight), w = sepW, h = T.lineHeight },
+          }
+          bx = bx + SEP_GAP + sepW + SEP_GAP
+        end
+      end
+      labelX = x + maxBlock + L.gap
+    else
+      -- key glyph badge (fixed width; original path)
+      elements[#elements + 1] = {
+        type = "rectangle",
+        action = "fill",
+        fillColor = { white = 1.0, alpha = T.badge.alpha * alpha },
+        roundedRectRadii = { xRadius = T.badge.radius, yRadius = T.badge.radius },
+        frame = { x = x, y = badgeTop, w = L.badgeWidth, h = L.badgeHeight },
+      }
+      elements[#elements + 1] = {
+        type = "text",
+        text = r.badge,
+        textColor = { white = 1.0, alpha = T.text.badge * alpha },
+        textSize = T.fontSize,
+        textAlignment = "center",
+        frame = { x = x, y = centerY(badgeTop, L.badgeHeight, T.lineHeight), w = L.badgeWidth, h = T.lineHeight },
+      }
+      labelX = x + L.badgeWidth + L.gap
+    end
 
     -- optional icon
-    local labelX = x + L.badgeWidth + L.gap
     if L.iconSize > 0 and r.icon then
       elements[#elements + 1] = {
         type = "image",

@@ -100,28 +100,38 @@ local function fileURLObjects(entry)
   return urls
 end
 
---- M.paste(entry) - put the entry on the pasteboard and paste it into the
---- frontmost app, then float it to the top of history.
-function M.paste(entry)
-  if not entry then
-    return
-  end
+-- Put one entry (or a synthetic text op, a table with kind "text" and a joined
+-- text field) on the pasteboard. Returns true when something was written, false
+-- when the media is gone, so a caller pasting a sequence can skip and continue.
+local function writeEntry(entry)
   if entry.kind == "image" then
     local img = hs.image.imageFromPath(entry.full)
     if not img then
       log.w("image file missing, cannot paste")
-      return
+      return false
     end
     hs.pasteboard.writeObjects(img)
   elseif entry.kind == "file" then
     local objs = fileURLObjects(entry)
     if not objs then
       log.w("no pasteable file for entry")
-      return
+      return false
     end
     hs.pasteboard.writeObjects(objs)
   else
-    hs.pasteboard.setContents(entry.text)
+    hs.pasteboard.setContents(entry.text or "")
+  end
+  return true
+end
+
+--- M.paste(entry) - put the entry on the pasteboard and paste it into the
+--- frontmost app, then float it to the top of history.
+function M.paste(entry)
+  if not entry then
+    return
+  end
+  if not writeEntry(entry) then
+    return
   end
 
   -- Self-capture guard, recorded before the Cmd+V so the poll ignores our write.
@@ -132,6 +142,67 @@ function M.paste(entry)
   hs.timer.doAfter(pasteDelay, function()
     hs.eventtap.keyStroke({ "cmd" }, "v", 0)
   end)
+end
+
+-- Turn a collected batch into an ordered list of paste ops. Consecutive text and
+-- url entries coalesce into one newline joined text op, so a run of snippets
+-- lands as separate lines in a single paste, while each image or file stays its
+-- own op. Order is preserved, so a text, image, text batch pastes in that order.
+local function batchOps(entries)
+  local ops, run = {}, {}
+  local function flush()
+    if #run > 0 then
+      ops[#ops + 1] = { kind = "text", text = table.concat(run, "\n") }
+      run = {}
+    end
+  end
+  for _, e in ipairs(entries) do
+    if e.kind == "text" or e.kind == "url" then
+      run[#run + 1] = e.text or ""
+    else
+      flush()
+      ops[#ops + 1] = e
+    end
+  end
+  flush()
+  return ops
+end
+
+--- M.pasteBatch(entries) - paste a collected batch into the frontmost app in the
+--- order the items were gathered, then reorder history. This is the deferred
+--- reorder: collecting never touches the store, so the list stays put while the
+--- picker is open, and only here, on commit and close, does each collected entry
+--- float to the top in collected order, saved once, so the next open reflects it.
+function M.pasteBatch(entries)
+  if not entries or #entries == 0 then
+    return
+  end
+  for _, e in ipairs(entries) do
+    store.moveToFront(e)
+  end
+
+  -- Each op writes the pasteboard, refreshes the guard so the poll ignores our
+  -- write, waits for the paste to settle, then sends Cmd+V. The next op starts
+  -- only after that settle, so a multi item paste does not race the pasteboard.
+  local ops = batchOps(entries)
+  local i = 0
+  local function step()
+    i = i + 1
+    local op = ops[i]
+    if not op then
+      return
+    end
+    if writeEntry(op) then
+      lastChange = hs.pasteboard.changeCount()
+      hs.timer.doAfter(pasteDelay, function()
+        hs.eventtap.keyStroke({ "cmd" }, "v", 0)
+        hs.timer.doAfter(pasteDelay + 0.05, step)
+      end)
+    else
+      step() -- an op whose media vanished is skipped, the rest still paste
+    end
+  end
+  step()
 end
 
 --------------------------------------------------------------------------------

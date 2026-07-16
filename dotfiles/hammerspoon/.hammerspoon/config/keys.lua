@@ -93,18 +93,24 @@ return {
   -- registry, so this list stays free of both. Adding a switcher later is a new
   -- block here plus its predicate in init.lua, with no engine change. A context
   -- is also modal, while it is live the base app toggles are suppressed so Hyper
-  -- belongs to the context, and any key it does not bind does nothing. Today the
-  -- one context is the clipboard chooser, giving vim style j and k navigation and
-  -- i to insert the highlighted item, the same as Return.
+  -- belongs to the context, and any key it does not bind does nothing.
+  --
+  -- The one context is the clipboard chooser. j and k navigate vim style, i
+  -- inserts the highlighted item the same as Return, a appends the highlighted
+  -- item to a batch so several items can be gathered and pasted together on close,
+  -- and / toggles a shortcut overlay drawn from these same bindings. Each
+  -- description labels its row on that overlay.
   hyperContexts = {
     {
       name = "clipboard",
       when = "clipboardOpen",
       priority = 100,
       bindings = {
-        { key = "j", action = "selectNext" },
-        { key = "k", action = "selectPrev" },
-        { key = "i", action = "insertSelected" },
+        { key = "i", action = "insertSelected",  description = "Paste" },
+        { key = "j", action = "selectNext",      description = "Move down" },
+        { key = "k", action = "selectPrev",      description = "Move up" },
+        { key = "a", action = "appendSelected",  description = "Append to batch" },
+        { key = "/", action = "toggleShortcuts", description = "Shortcuts" },
       },
     },
   },

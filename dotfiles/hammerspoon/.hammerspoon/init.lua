@@ -204,12 +204,66 @@ spoon.AppToggler:init()
 spoon.AppToggler:configure({ apps = apps, hyperKey = spoon.HyperKey })
 spoon.AppToggler:bindHotkeys(keys.appToggles)
 
+-- Clipboard shortcut overlay. The clipboard context reveals its own keys on
+-- demand with Hyper /, drawn by the shared CheatSheet renderer from the same
+-- keys.hyperContexts data, so the sheet never drifts from the real bindings. It
+-- lives here, not in the manager, because it draws through CheatSheet, a root
+-- concern. Return and Escape are not Hyper bindings, so they are appended as
+-- static rows for a complete legend. hideShortcuts is injected into the manager
+-- as its onClose below, so closing the clipboard also clears the sheet, and it is
+-- called before each context action so any key dismisses the sheet.
+local shortcutsShown = false
+local function clipboardShortcutModel()
+  local rows = {}
+  -- The context keys only fire while Hyper is held, but this panel is toggled on
+  -- and stays up with nothing pressed, so a bare badge would read as a plain key.
+  -- Spell the chord out, Hyper+J, so it cannot be misread. Return and Escape are
+  -- genuine plain keys of the chooser, so they stay bare, which also shows the
+  -- split between what needs Hyper and what does not.
+  for _, ctx in ipairs(keys.hyperContexts or {}) do
+    if ctx.name == "clipboard" then
+      for _, b in ipairs(ctx.bindings) do
+        local chord = "Hyper+" .. spoon.CheatSheet.glyphFor(b.key, b.mods)
+        -- Insert and Return are one commit, shown as two separate boxes joined by
+        -- "or" so they read as alternatives, not a combo you press together.
+        local badges = b.action == "insertSelected"
+          and { chord, spoon.CheatSheet.glyphFor("return") }
+          or { chord }
+        rows[#rows + 1] = { badges = badges, label = b.description or b.action }
+      end
+    end
+  end
+  rows[#rows + 1] = { badges = { spoon.CheatSheet.glyphFor("escape") }, label = "Cancel" }
+  return {
+    columns = 1,
+    colWidth = 320,
+    sections = { { title = "CLIPBOARD", rows = rows } },
+  }
+end
+local function hideShortcuts()
+  if shortcutsShown then
+    spoon.CheatSheet:hide()
+    shortcutsShown = false
+  end
+end
+local function toggleShortcuts()
+  if shortcutsShown then
+    hideShortcuts()
+  else
+    spoon.CheatSheet:show(clipboardShortcutModel())
+    shortcutsShown = true
+  end
+end
+
 -- ClipboardHistory: reveal clipboard history on the Hyper key. The Hammerspoon
 -- manager is placed first, so it always wins; Raycast and the macOS Tahoe
 -- Spotlight clipboard stay as fallbacks. The chain logs each skip, and
 -- availability is rechecked on every open. Reorder the list to change
 -- preference, or drop the hammerspoon line to fall back to Raycast.
 spoon.ClipboardHistory:init()
+-- Inject the overlay teardown as the manager's onClose before it starts, so it is
+-- captured when the ui is wired. Closing the chooser then clears the shortcut sheet.
+spoon.ClipboardHistory.manager.configure({ onClose = hideShortcuts })
 spoon.ClipboardHistory.manager.start() -- begin the background pasteboard poll
 spoon.ClipboardHistory:configure({
   hyperKey = spoon.HyperKey,
@@ -232,10 +286,15 @@ spoon.ClipboardHistory:bindHotkeys({ open = keys.clipboardHistory })
 -- and this action map.
 spoon.HyperKey:configure({ predicates = predicates })
 local clipManager = spoon.ClipboardHistory.manager
+-- Every action but the toggle itself first dismisses the shortcut overlay, so a
+-- glance at the sheet plus any key clears it. toggleShortcuts owns the overlay, so
+-- it is wired straight through.
 local contextActions = {
-  selectNext = function() clipManager.selectNext() end,
-  selectPrev = function() clipManager.selectPrev() end,
-  insertSelected = function() clipManager.insertSelected() end,
+  selectNext = function() hideShortcuts() clipManager.selectNext() end,
+  selectPrev = function() hideShortcuts() clipManager.selectPrev() end,
+  insertSelected = function() hideShortcuts() clipManager.insertSelected() end,
+  appendSelected = function() hideShortcuts() clipManager.appendSelected() end,
+  toggleShortcuts = toggleShortcuts,
 }
 for _, ctx in ipairs(keys.hyperContexts or {}) do
   for _, b in ipairs(ctx.bindings) do

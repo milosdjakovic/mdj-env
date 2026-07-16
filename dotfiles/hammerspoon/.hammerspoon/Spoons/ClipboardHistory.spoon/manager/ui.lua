@@ -51,6 +51,41 @@ local currentChoices = {} -- rows currently shown, for right-click delete
 local thumbCache = {} -- path -> hs.image (or false), for row thumbnails
 local iconCache = {} -- bundle id -> hs.image (or false), for row source-app icons
 
+-- Append batch. The Hyper a binding collects the highlighted entry here, in the
+-- order pressed, so several items can be gathered and pasted together on close.
+-- Membership is keyed by the live store reference each row carries, so a row's
+-- order badge is just its position in this list, and toggling an item off
+-- renumbers the rest for free. Collecting never touches the store, so the visible
+-- list never shifts while the picker is open; the reorder happens on commit. The
+-- batch is cleared on every close, so each open starts empty.
+local batch = {}
+
+-- Circled digits for the order badge, one per collected position. Present in the
+-- system UI font, so they render in a styled row title. Past twenty, a plain
+-- parenthesized number stands in rather than running out of glyphs.
+local BATCH_BADGES = {
+  "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩",
+  "⑪", "⑫", "⑬", "⑭", "⑮", "⑯", "⑰", "⑱", "⑲", "⑳",
+}
+
+local function batchPos(e)
+  for i = 1, #batch do
+    if batch[i] == e then
+      return i
+    end
+  end
+  return nil
+end
+
+local function toggleBatch(e)
+  local pos = batchPos(e)
+  if pos then
+    table.remove(batch, pos)
+  else
+    batch[#batch + 1] = e
+  end
+end
+
 -- Click-away focus handoff. hs.chooser unconditionally returns focus to the app
 -- that was frontmost when it opened, so a click onto another window to dismiss
 -- it flickers focus back to the old app. A mouse-down watcher live only while the
@@ -152,8 +187,13 @@ local function buildChoices(q)
   local out = {}
   for _, e in ipairs(store.all()) do
     if (not kind or e.kind == kind) and (rest == "" or haystack(e):find(rest, 1, true)) then
+      -- A collected row wears its order badge on the title, so its place in the
+      -- batch shows without moving the row. The badge feeds display only; search
+      -- still runs over the raw title in haystack, so it never affects matching.
+      local pos = batchPos(e)
+      local title = pos and ((BATCH_BADGES[pos] or ("(" .. pos .. ")")) .. "  " .. (e.title or "")) or e.title
       out[#out + 1] = {
-        text = styled(e.title, ROW_TITLE_SIZE, ROW_TITLE_COLOR),
+        text = styled(title, ROW_TITLE_SIZE, ROW_TITLE_COLOR),
         subText = styled(subTextFor(e), ROW_SUB_SIZE, ROW_SUB_COLOR),
         -- A true image copy shows its own thumbnail, every other row shows the
         -- icon of the app it came from, falling back to nothing when unknown.
@@ -379,6 +419,12 @@ local function hidePreview()
     preview:hide()
   end
   previewCache = {} -- drop encoded images between opens
+  batch = {} -- a close cancels any uncommitted batch; onChoice snapshots first
+  -- Tell the composition root the chooser closed, so it can drop the shortcut
+  -- overlay it may have shown. Injected, so the ui never learns about CheatSheet.
+  if cfg and cfg.onClose then
+    cfg.onClose()
+  end
 end
 
 local function startPreviewLoop()
@@ -483,8 +529,20 @@ end
 --------------------------------------------------------------------------------
 
 local function onChoice(choice)
+  -- Snapshot and clear the batch before hidePreview, which also clears it, so the
+  -- commit below sees the collected items even though closing resets the session.
+  local collected = batch
+  batch = {}
   hidePreview()
-  if choice then
+  -- No choice means Escape or a programmatic dismissal, which cancels the batch
+  -- and pastes nothing. With a choice, a non-empty batch commits as a group and
+  -- the highlighted row is ignored, otherwise the single highlighted item pastes.
+  if not choice then
+    return
+  end
+  if #collected > 0 then
+    monitor.pasteBatch(collected)
+  else
     monitor.paste(choice._entry)
   end
   -- A click-away dismissal is handled by the click watcher, which hides the
@@ -528,12 +586,29 @@ end
 
 --- UI.insertSelected() - paste the highlighted row, exactly as Return does.
 --- chooser:select dismisses the chooser and fires the completion callback, so
---- the existing onChoice paste path runs unchanged.
+--- the existing onChoice paste path runs unchanged. With a non-empty batch this
+--- commits the whole batch instead, since onChoice checks it first.
 function UI.insertSelected()
   if not chooser or not chooser:isVisible() then return end
   local r = chooser:selectedRow()
   if r and r >= 1 then
     chooser:select(r)
+  end
+end
+
+--- UI.appendSelected() - toggle the highlighted row in the append batch, for the
+--- Hyper a binding. The chooser stays open. Redrawing the rows shows the new
+--- order badges, and the selection is restored so the highlight does not jump,
+--- since setting choices resets it to the top.
+function UI.appendSelected()
+  if not chooser or not chooser:isVisible() then return end
+  local row = chooser:selectedRow()
+  local choice = currentChoices[row]
+  if not choice then return end
+  toggleBatch(choice._entry)
+  chooser:choices(buildChoices(chooser:query() or ""))
+  if row then
+    chooser:selectedRow(row)
   end
 end
 
@@ -544,6 +619,7 @@ end
 --- UI.show() - place the chooser and dock the live preview beside it.
 function UI.show()
   if not chooser then return end
+  batch = {} -- each open starts with an empty append batch
   chooser:query("")
   chooser:choices(buildChoices(""))
   positionAndShow()
@@ -576,6 +652,11 @@ function UI.build()
   chooser:bgDark(true)
   chooser:width(cfg.chooserWidthPct)
   chooser:rows(cfg.chooserRows)
+  -- A quiet nudge at rest, the one bit of text the chooser lets us own. It shows
+  -- only while the query is empty, so it fades the moment you type. Search is
+  -- implied by the field, so it names only the shortcut chord, kept short enough
+  -- not to clip in the narrow field. The full key list lives in the Hyper+/ overlay.
+  chooser:placeholderText("Hyper+/ shortcuts")
   chooser:queryChangedCallback(function(q)
     chooser:choices(buildChoices(q))
     lastPreviewRow = nil -- filtering changed the top row, force a preview refresh
