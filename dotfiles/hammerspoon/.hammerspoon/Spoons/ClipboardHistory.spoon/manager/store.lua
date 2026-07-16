@@ -11,6 +11,8 @@
 ---   image       { kind, ts, title, preview, full, thumb, prev, w, h }
 ---   file        { kind, ts, title, preview, files = { {path, stored, isDir,
 ---                 prev}, ... }, _key }
+--- Every shape also carries an optional sourceApp, the bundle id of the app
+--- frontmost when the copy happened, which the ui turns into the row icon.
 --- The files array is always used, so one file and many files are uniform. A
 --- raw entry from a reader instead carries _img (an hs.image to save) or _paths
 --- (original paths to snapshot); add() turns those into the fields above.
@@ -169,6 +171,7 @@ function S.add(entry)
       if history[i]._key == key then
         local h = table.remove(history, i)
         h.ts = entry.ts -- refresh recency
+        h.sourceApp = entry.sourceApp -- and the source, so the icon tracks the latest copy
         table.insert(history, 1, h)
         save()
         return h

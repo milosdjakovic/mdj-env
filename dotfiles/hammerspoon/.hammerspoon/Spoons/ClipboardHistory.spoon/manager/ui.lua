@@ -49,6 +49,7 @@ local renderToken = 0 -- bumped each render; async results check it to avoid sta
 local previewCache = {} -- entry -> html, for the synchronous kinds only
 local currentChoices = {} -- rows currently shown, for right-click delete
 local thumbCache = {} -- path -> hs.image (or false), for row thumbnails
+local iconCache = {} -- bundle id -> hs.image (or false), for row source-app icons
 
 --------------------------------------------------------------------------------
 -- Rows and filtering
@@ -86,6 +87,18 @@ local function thumbImage(path)
   if c ~= nil then return c or nil end
   local img = hs.image.imageFromPath(path) or false
   thumbCache[path] = img
+  return img or nil
+end
+
+-- The icon of the app an entry was copied from, resolved from its bundle id and
+-- cached. A false marks a bundle id that has no resolvable icon (uninstalled or
+-- iconless), so it is looked up only once. nil when the entry recorded no source.
+local function appIcon(bundleID)
+  if not bundleID then return nil end
+  local c = iconCache[bundleID]
+  if c ~= nil then return c or nil end
+  local img = hs.image.imageFromAppBundle(bundleID) or false
+  iconCache[bundleID] = img
   return img or nil
 end
 
@@ -130,7 +143,9 @@ local function buildChoices(q)
       out[#out + 1] = {
         text = styled(e.title, ROW_TITLE_SIZE, ROW_TITLE_COLOR),
         subText = styled(subTextFor(e), ROW_SUB_SIZE, ROW_SUB_COLOR),
-        image = e.kind == "image" and thumbImage(e.thumb) or nil,
+        -- A true image copy shows its own thumbnail, every other row shows the
+        -- icon of the app it came from, falling back to nothing when unknown.
+        image = (e.kind == "image" and thumbImage(e.thumb)) or appIcon(e.sourceApp) or nil,
         _entry = e,
       }
     end

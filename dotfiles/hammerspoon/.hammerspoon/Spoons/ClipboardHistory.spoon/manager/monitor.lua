@@ -40,6 +40,12 @@ local function capture()
     end
   end
 
+  -- The app frontmost when the pasteboard changed is the one that did the copy,
+  -- recorded so the row can show that app's icon. A bundle id survives reload and
+  -- resolves to an icon lazily in the ui.
+  local front = hs.application.frontmostApplication()
+  local sourceApp = front and front:bundleID() or nil
+
   local ctx = { set = set, avail = hs.pasteboard.typesAvailable() }
   for _, reader in ipairs(readers) do
     if reader.matches(ctx) then
@@ -47,6 +53,7 @@ local function capture()
       -- so a file-url present but unreadable does not fall through to text.
       local entry = reader.read(ctx)
       if entry then
+        entry.sourceApp = sourceApp
         store.add(entry)
       end
       return
