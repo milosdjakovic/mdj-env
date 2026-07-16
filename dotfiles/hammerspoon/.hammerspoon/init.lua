@@ -138,15 +138,20 @@ spoon.WindowManager:configure({
 spoon.WindowLeader:init()
 spoon.WindowLeader:addLeader(leaderCode(keys.windowLeader))
 
--- Predicates for conditional window bindings. A binding in keys.windowManagement
--- may name one via `when = "<name>"`. The binding is then live only while its
--- predicate returns true, and its cheat-sheet row is hidden otherwise. This one
--- registry is the only place the logic lives, injected into both the dispatch
--- gate (bindToLeader) and the overlay filter (WindowCheatSheet), so the key and
--- the overlay never disagree. Keep predicates cheap and free of side effects,
--- since they run on every dispatch and every overlay show.
-local windowPredicates = {
+-- Live-state predicates, one shared registry. A binding names one via
+-- `when = "<name>"` and is active only while that predicate returns true. Window
+-- bindings use it to hide the display-switch keys on a lone screen, and Hyper
+-- context layers use it to gate a context (like clipboard navigation) on that UI
+-- being open. The single registry is injected into every consumer (WindowManager,
+-- the window cheat sheet, and HyperKey), so a key and its overlay never disagree.
+-- Keep predicates cheap and free of side effects, since they run on every
+-- dispatch and every overlay show.
+local predicates = {
   multipleDisplays = function() return #hs.screen.allScreens() > 1 end,
+  -- The Hammerspoon clipboard chooser is open. Gates the clipboard Hyper context.
+  clipboardOpen = function()
+    return spoon.ClipboardHistory ~= nil and spoon.ClipboardHistory.manager.isShowing()
+  end,
 }
 -- The window bindings carry no leader (see config/keys.lua). Stamp the resolved
 -- window leader onto each here, in the composition root, so WindowManager and
@@ -160,7 +165,7 @@ for i, binding in ipairs(keys.windowManagement) do
   copy.leader = windowLeaderCode
   windowBindings[i] = copy
 end
-spoon.WindowManager:bindToLeader(spoon.WindowLeader, windowBindings, windowPredicates)
+spoon.WindowManager:bindToLeader(spoon.WindowLeader, windowBindings, predicates)
 
 -- WindowCheatSheet: hold a leader ~0.6s with no other key to reveal that
 -- leader's window actions (same hold rule as Caps Lock -> HyperCheatSheet).
@@ -174,7 +179,7 @@ spoon.WindowCheatSheet:configure({
   -- headings on the Hyper overlay rather than the raw leader name (META).
   leaders = { [windowLeaderCode] = "WINDOW MANAGEMENT" },
   cheatSheet = spoon.CheatSheet,
-  predicates = windowPredicates,
+  predicates = predicates,
 })
 spoon.WindowLeader:configure({
   chord = spoon.ChordKey,
@@ -199,12 +204,71 @@ spoon.AppToggler:init()
 spoon.AppToggler:configure({ apps = apps, hyperKey = spoon.HyperKey })
 spoon.AppToggler:bindHotkeys(keys.appToggles)
 
+-- Clipboard shortcut overlay. The clipboard context reveals its own keys on
+-- demand with Hyper /, drawn by the shared CheatSheet renderer from the same
+-- keys.hyperContexts data, so the sheet never drifts from the real bindings. It
+-- lives here, not in the manager, because it draws through CheatSheet, a root
+-- concern. Return and Escape are not Hyper bindings, so they ride along as a
+-- second "or" box on the Paste and Close rows for a complete legend. hideShortcuts is injected into the manager
+-- as its onClose below, so closing the clipboard also clears the sheet, and it is
+-- called before each context action so any key dismisses the sheet.
+local shortcutsShown = false
+local function clipboardShortcutModel()
+  local rows = {}
+  -- The context keys only fire while Hyper is held, but this panel is toggled on
+  -- and stays up with nothing pressed, so a bare badge would read as a plain key.
+  -- Spell the chord out, Hyper+J, so it cannot be misread. Return and Escape are
+  -- genuine plain keys of the chooser, so they stay bare, which also shows the
+  -- split between what needs Hyper and what does not. Paste and Close each have a
+  -- second, plain alternative, Return and Escape, drawn as a second box joined by
+  -- "or", so no separate legend row is needed.
+  for _, ctx in ipairs(keys.hyperContexts or {}) do
+    if ctx.name == "clipboard" then
+      for _, b in ipairs(ctx.bindings) do
+        local chord = "Hyper+" .. spoon.CheatSheet.glyphFor(b.key, b.mods)
+        -- Insert and Return are one commit, Close and Escape one dismiss, each
+        -- shown as two separate boxes joined by "or" so they read as alternatives,
+        -- not a combo you press together.
+        local badges = { chord }
+        if b.action == "insertSelected" then
+          badges = { chord, spoon.CheatSheet.glyphFor("return") }
+        elseif b.action == "closeClipboard" then
+          badges = { chord, spoon.CheatSheet.glyphFor("escape") }
+        end
+        rows[#rows + 1] = { badges = badges, label = b.description or b.action }
+      end
+    end
+  end
+  return {
+    columns = 1,
+    colWidth = 320,
+    sections = { { title = "CLIPBOARD", rows = rows } },
+  }
+end
+local function hideShortcuts()
+  if shortcutsShown then
+    spoon.CheatSheet:hide()
+    shortcutsShown = false
+  end
+end
+local function toggleShortcuts()
+  if shortcutsShown then
+    hideShortcuts()
+  else
+    spoon.CheatSheet:show(clipboardShortcutModel())
+    shortcutsShown = true
+  end
+end
+
 -- ClipboardHistory: reveal clipboard history on the Hyper key. The Hammerspoon
 -- manager is placed first, so it always wins; Raycast and the macOS Tahoe
 -- Spotlight clipboard stay as fallbacks. The chain logs each skip, and
 -- availability is rechecked on every open. Reorder the list to change
 -- preference, or drop the hammerspoon line to fall back to Raycast.
 spoon.ClipboardHistory:init()
+-- Inject the overlay teardown as the manager's onClose before it starts, so it is
+-- captured when the ui is wired. Closing the chooser then clears the shortcut sheet.
+spoon.ClipboardHistory.manager.configure({ onClose = hideShortcuts })
 spoon.ClipboardHistory.manager.start() -- begin the background pasteboard poll
 spoon.ClipboardHistory:configure({
   hyperKey = spoon.HyperKey,
@@ -215,6 +279,39 @@ spoon.ClipboardHistory:configure({
   }),
 })
 spoon.ClipboardHistory:bindHotkeys({ open = keys.clipboardHistory })
+
+-- Hyper context layers. Inject the shared predicate registry into HyperKey, then
+-- expand each context in keys.hyperContexts into HyperKey bindings that carry the
+-- context's `when` gate and `priority`. Action names resolve here against the
+-- manager methods, the one place that knows both the keys and the clipboard, so
+-- config/keys.lua stays pure data and the manager never learns about Hyper. The
+-- paste keystroke is delivered even while Hyper is held, because ChordKey ignores
+-- synthetic events, so no action needs to wait for release. Adding another
+-- switcher later touches only keys.hyperContexts, the predicate registry above,
+-- and this action map.
+spoon.HyperKey:configure({ predicates = predicates })
+local clipManager = spoon.ClipboardHistory.manager
+-- Every action but the toggle itself first dismisses the shortcut overlay, so a
+-- glance at the sheet plus any key clears it. toggleShortcuts owns the overlay, so
+-- it is wired straight through.
+local contextActions = {
+  selectNext = function() hideShortcuts() clipManager.selectNext() end,
+  selectPrev = function() hideShortcuts() clipManager.selectPrev() end,
+  insertSelected = function() hideShortcuts() clipManager.insertSelected() end,
+  appendSelected = function() hideShortcuts() clipManager.appendSelected() end,
+  closeClipboard = function() hideShortcuts() clipManager.hide() end,
+  toggleShortcuts = toggleShortcuts,
+}
+for _, ctx in ipairs(keys.hyperContexts or {}) do
+  for _, b in ipairs(ctx.bindings) do
+    local fn = contextActions[b.action]
+    if fn then
+      spoon.HyperKey:bind(b.key, fn, b.mods, { when = ctx.when, priority = ctx.priority })
+    else
+      print("hyperContexts: unknown action '" .. tostring(b.action) .. "'")
+    end
+  end
+end
 
 -- Script / URL trigger: hammerspoon://clipboard opens the popup through the same
 -- provider chain, so Raycast, skhd, a shell script, or  hs -c "..."  can summon

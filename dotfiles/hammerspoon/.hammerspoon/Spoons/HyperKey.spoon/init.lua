@@ -26,8 +26,10 @@ obj.version = "4.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
-obj._chord = nil      -- shared ChordKey engine
-obj._bindings = nil   -- keycode -> { { mods, fn }, ... }
+obj._chord = nil        -- shared ChordKey engine
+obj._bindings = nil     -- keycode -> { { mods, fn, when, priority }, ... }
+obj._predicates = nil   -- name -> function() -> bool, injected; gates `when` bindings
+obj._contextWhens = nil -- set of `when` names seen on bindings; drives modal mode
 
 -- F18 keycode (Caps Lock is remapped to F18 at the HID level)
 obj._keyCode = 79
@@ -44,6 +46,7 @@ obj._onHoldEnd = nil
 --- Initialize the spoon
 function obj:init()
   self._bindings = {}
+  self._contextWhens = {}
   return self
 end
 
@@ -56,6 +59,8 @@ end
 --- opts.holdDelay    - seconds to hold (no other key) before onHold fires
 --- opts.onHold       - function to run once the hold passes holdDelay
 --- opts.onHoldEnd    - function to run when a shown hold ends
+--- opts.predicates   - name -> function() -> bool registry, injected so a binding
+---                     may carry a `when` gate resolved by name (see bind)
 function obj:configure(opts)
   opts = opts or {}
   self._chord = opts.chord or self._chord
@@ -65,20 +70,36 @@ function obj:configure(opts)
   self._holdDelay = opts.holdDelay or self._holdDelay
   self._onHold = opts.onHold or self._onHold
   self._onHoldEnd = opts.onHoldEnd or self._onHoldEnd
+  self._predicates = opts.predicates or self._predicates
   return self
 end
 
---- HyperKey:bind(key, fn, mods)
+--- HyperKey:bind(key, fn, mods, opts)
 --- Method
 --- Register a handler that fires when the Hyper key is held and `key` is pressed.
 --- `mods` is an optional list of required modifier names ({"shift"}); omit it for
---- a catch-all binding that fires when no exact-mods binding matches.
-function obj:bind(key, fn, mods)
+--- a catch-all binding that fires when no exact-mods binding matches. `opts` is
+--- optional and carries the context extras, `when` (a predicate name gating the
+--- binding on live state) and `priority` (higher wins when several active
+--- bindings match the same key; the base bindings are priority 0). A binding with
+--- neither behaves exactly as a plain bind.
+function obj:bind(key, fn, mods, opts)
+  opts = opts or {}
   local name = type(key) == "string" and key:lower() or key
   local code = hs.keycodes.map[name]
   if code then
     self._bindings[code] = self._bindings[code] or {}
-    table.insert(self._bindings[code], { mods = mods, fn = fn })
+    table.insert(self._bindings[code], {
+      mods = mods,
+      fn = fn,
+      when = opts.when,
+      priority = opts.priority,
+    })
+    -- Remember which predicates gate a binding. When any of these is live the
+    -- Hyper key is modal (see _resolve), owned by that context.
+    if opts.when then
+      self._contextWhens[opts.when] = true
+    end
   else
     print("HyperKey: unknown key '" .. tostring(key) .. "'")
   end
@@ -90,11 +111,42 @@ end
 -- compare against these four only. Kept identical to WindowLeader's resolver.
 local REAL_MODS = { "shift", "ctrl", "alt", "cmd" }
 
+--- HyperKey:_passes(binding)
+--- Method
+--- Whether a binding's optional `when` predicate allows it right now. A binding
+--- with no `when` always passes. An unknown predicate name is treated as active,
+--- so a typo fails visibly (the key stays live) rather than silently dying.
+function obj:_passes(binding)
+  if not binding.when then return true end
+  local pred = self._predicates and self._predicates[binding.when]
+  if pred == nil then return true end
+  return pred() and true or false
+end
+
+--- HyperKey:_modal()
+--- Method
+--- Whether any context is currently live. When one is, Hyper belongs to that
+--- context, so the base bindings (those with no `when`) are suppressed and only
+--- context bindings act. This is what makes a context modal rather than an
+--- overlay, so while the clipboard is open Hyper+A does nothing instead of
+--- toggling an app.
+function obj:_modal()
+  for name in pairs(self._contextWhens or {}) do
+    local pred = self._predicates and self._predicates[name]
+    if pred and pred() then
+      return true
+    end
+  end
+  return false
+end
+
 --- HyperKey:_resolve(list, flags)
 --- Method
---- Pick the handler for the current modifier flags: an exact match on the real
---- modifiers (shift/ctrl/alt/cmd, ignoring `fn`) wins, otherwise fall back to a
---- catch-all (mods == nil) binding if present.
+--- Pick the handler for the current modifier flags. A binding is eligible only if
+--- its `when` predicate passes, and while a context is modal the base bindings
+--- (no `when`) are dropped so the context fully owns Hyper. Among the eligible, an
+--- exact match on the real modifiers (shift/ctrl/alt/cmd, ignoring `fn`) beats a
+--- catch-all (mods == nil), and within each tier the highest `priority` wins.
 function obj:_resolve(list, flags)
   if not list then return nil end
 
@@ -103,26 +155,41 @@ function obj:_resolve(list, flags)
     if flags[m] then present[m] = true end
   end
 
-  local catchAll = nil
+  local modal = self:_modal()
+
+  local function eligible(b)
+    if not self:_passes(b) then return false end
+    -- In a modal context, only context bindings act; base bindings are hidden.
+    if modal and not b.when then return false end
+    return true
+  end
+
+  local function modsMatch(b)
+    local need = {}
+    for _, m in ipairs(b.mods) do need[m] = true end
+    for _, m in ipairs(REAL_MODS) do
+      if (present[m] or false) ~= (need[m] or false) then
+        return false
+      end
+    end
+    return true
+  end
+
+  local bestExact, bestExactP = nil, -math.huge
+  local bestCatch, bestCatchP = nil, -math.huge
   for _, b in ipairs(list) do
-    if b.mods then
-      local need = {}
-      for _, m in ipairs(b.mods) do need[m] = true end
-      local match = true
-      for _, m in ipairs(REAL_MODS) do
-        if (present[m] or false) ~= (need[m] or false) then
-          match = false
-          break
+    if eligible(b) then
+      local p = b.priority or 0
+      if b.mods then
+        if modsMatch(b) and p > bestExactP then
+          bestExact, bestExactP = b.fn, p
         end
+      elseif p > bestCatchP then
+        bestCatch, bestCatchP = b.fn, p
       end
-      if match then
-        return b.fn
-      end
-    else
-      catchAll = b.fn
     end
   end
-  return catchAll
+  return bestExact or bestCatch
 end
 
 --- HyperKey:isActive()

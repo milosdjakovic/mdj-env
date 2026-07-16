@@ -115,6 +115,27 @@ function M.hide()
   ui.hide()
 end
 
+--- M.selectNext() / M.selectPrev() - move the chooser highlight, for the Hyper j
+--- and k navigation bindings wired in the composition root.
+function M.selectNext()
+  ui.selectNext()
+end
+
+function M.selectPrev()
+  ui.selectPrev()
+end
+
+--- M.insertSelected() - paste the highlighted entry, same as Return.
+function M.insertSelected()
+  ui.insertSelected()
+end
+
+--- M.appendSelected() - toggle the highlighted entry in the append batch, for the
+--- Hyper a binding. The chooser stays open so several items can be gathered.
+function M.appendSelected()
+  ui.appendSelected()
+end
+
 --- M.clear() - wipe history and media. Handy from the console:
 --- hs -c "spoon.ClipboardHistory.providers.hammerspoon.clear()"
 function M.clear()
