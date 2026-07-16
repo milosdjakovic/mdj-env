@@ -96,6 +96,13 @@ spoon.ChordKey:configure({ holdDelay = 0.6, tapThreshold = 0.2 })
 -- HyperKey: Caps Lock (remapped to F18 by KeyRemap) as a Hyper key.
 -- Hold + letter = app toggles; quick tap = toggle real Caps Lock; hold 0.6s
 -- with no key = show the cheat sheet. Registers into the shared ChordKey engine.
+--
+-- The hold reveals the ACTIVE layer's cheat sheet, not always the apps. The base
+-- layer is the app overlay. A live modal context reveals its own shortcuts
+-- instead. These two functions are forward declared here and assigned once the
+-- context overlays and predicates exist below, so the hold wiring stays in one
+-- place.
+local revealHyperLayer, hideHyperLayer
 spoon.HyperKey:init()
 spoon.HyperKey:configure({
   chord = spoon.ChordKey,
@@ -106,10 +113,10 @@ spoon.HyperKey:configure({
   end,
   holdDelay = 0.6,
   onHold = function()
-    spoon.HyperCheatSheet:show()
+    if revealHyperLayer then revealHyperLayer() end
   end,
   onHoldEnd = function()
-    spoon.HyperCheatSheet:hide()
+    if hideHyperLayer then hideHyperLayer() end
   end,
 })
 spoon.HyperKey:start()
@@ -205,21 +212,21 @@ spoon.AppToggler:init()
 spoon.AppToggler:configure({ apps = apps, hyperKey = spoon.HyperKey })
 spoon.AppToggler:bindHotkeys(keys.appToggles)
 
--- Clipboard shortcut overlay. The clipboard context reveals its own keys on
--- demand with Hyper /, drawn by the shared CheatSheet renderer from the same
--- keys.hyperContexts data, so the sheet never drifts from the real bindings. It
--- lives here, not in the manager, because it draws through CheatSheet, a root
--- concern. Return, Escape, and the arrows are not Hyper bindings, so they ride
--- along as a second "or" box on the Paste, Close, and move rows for a complete
--- legend. hideShortcuts is injected into the manager
--- as its onClose below, so closing the clipboard also clears the sheet, and it is
--- called before each context action so any key dismisses the sheet.
+-- Clipboard shortcut overlay. Holding Hyper while the chooser is open reveals its
+-- keys, drawn by the shared CheatSheet renderer from the same keys.hyperContexts
+-- data, so the sheet never drifts from the real bindings. It lives here, not in
+-- the manager, because it draws through CheatSheet, a root concern. Return,
+-- Escape, and the arrows are not Hyper bindings, so they ride along as a second
+-- "or" box on the Paste, Close, and move rows for a complete legend. hideShortcuts
+-- is injected into the manager as its onClose below, so closing the clipboard also
+-- clears the sheet, and it is called before each context action so any key
+-- dismisses the sheet.
 local shortcutsShown = false
 local function clipboardShortcutModel()
   local rows = {}
-  -- The context keys only fire while Hyper is held, but this panel is toggled on
-  -- and stays up with nothing pressed, so a bare badge would read as a plain key.
-  -- Spell the chord out, Hyper+J, so it cannot be misread. Return, Escape, and the
+  -- The context keys fire on Hyper plus the key, and this panel is revealed by a
+  -- Hyper hold, so a bare badge would read as a plain key. Spell the chord out,
+  -- Hyper+J, so it cannot be misread. Return, Escape, and the
   -- arrows are genuine plain keys of the chooser, so they stay bare, which also
   -- shows the split between what needs Hyper and what does not. Paste, Close, and
   -- the two move rows each have a second, plain alternative, Return, Escape, and
@@ -259,13 +266,44 @@ local function hideShortcuts()
     shortcutsShown = false
   end
 end
-local function toggleShortcuts()
-  if shortcutsShown then
-    hideShortcuts()
-  else
-    spoon.CheatSheet:show(clipboardShortcutModel())
-    shortcutsShown = true
+-- Assign the Hyper hold reveal now that the overlay model and predicates exist.
+-- A hold shows the active layer, either the base app overlay or a live modal
+-- context's own shortcuts, so holding Hyper inside the clipboard shows the
+-- clipboard keys, not the apps. contextOverlays maps a
+-- context name to its model builder, and the active one is the highest priority
+-- context whose predicate holds, read from the same registry the bindings use, so
+-- the hold and the keys never disagree. Setting shortcutsShown keeps the toggle
+-- state in sync, so a context keypress clears the peeked sheet like a toggled one.
+local contextOverlays = { clipboard = clipboardShortcutModel }
+local function activeContextOverlay()
+  local best
+  for _, ctx in ipairs(keys.hyperContexts or {}) do
+    local live = (not ctx.when) or (predicates[ctx.when] and predicates[ctx.when]())
+    if live and contextOverlays[ctx.name] and (not best or (ctx.priority or 0) > (best.priority or 0)) then
+      best = ctx
+    end
   end
+  return best and contextOverlays[best.name] or nil
+end
+local heldLayer = nil -- what the current hold revealed, context or apps
+revealHyperLayer = function()
+  local model = activeContextOverlay()
+  if model then
+    spoon.CheatSheet:show(model())
+    shortcutsShown = true
+    heldLayer = "context"
+  else
+    spoon.HyperCheatSheet:show()
+    heldLayer = "apps"
+  end
+end
+hideHyperLayer = function()
+  if heldLayer == "context" then
+    hideShortcuts()
+  elseif heldLayer == "apps" then
+    spoon.HyperCheatSheet:hide()
+  end
+  heldLayer = nil
 end
 
 -- ClipboardHistory: reveal clipboard history on the Hyper key. The Hammerspoon
@@ -307,16 +345,14 @@ spoon.ClipboardHistory:bindHotkeys({ open = keys.clipboardHistory })
 -- and this action map.
 spoon.HyperKey:configure({ predicates = predicates })
 local clipManager = spoon.ClipboardHistory.manager
--- Every action but the toggle itself first dismisses the shortcut overlay, so a
--- glance at the sheet plus any key clears it. toggleShortcuts owns the overlay, so
--- it is wired straight through.
+-- Every action first dismisses the shortcut overlay, so a glance at the peeked
+-- sheet plus any key clears it.
 local contextActions = {
   selectNext = function() hideShortcuts() clipManager.selectNext() end,
   selectPrev = function() hideShortcuts() clipManager.selectPrev() end,
   insertSelected = function() hideShortcuts() clipManager.insertSelected() end,
   appendSelected = function() hideShortcuts() clipManager.appendSelected() end,
   closeClipboard = function() hideShortcuts() clipManager.hide() end,
-  toggleShortcuts = toggleShortcuts,
 }
 for _, ctx in ipairs(keys.hyperContexts or {}) do
   for _, b in ipairs(ctx.bindings) do
