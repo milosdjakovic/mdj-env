@@ -29,7 +29,7 @@ local KIND_PREFIX = {
 
 local PREVIEW_CSS = [[<style>
   html,body{margin:0;height:100%;background:#1e1e22;color:#dcdcdc;
-    font:13px/1.5 -apple-system,BlinkMacSystemFont,Menlo,monospace;}
+    font:16px/1.5 -apple-system,BlinkMacSystemFont,Menlo,monospace;}
   .wrap{padding:16px;box-sizing:border-box;height:100%;overflow:auto;}
   .meta{color:#8a8a8a;font-size:11px;margin-bottom:10px;
     text-transform:uppercase;letter-spacing:.04em;}
@@ -54,6 +54,26 @@ local thumbCache = {} -- path -> hs.image (or false), for row thumbnails
 -- Rows and filtering
 --------------------------------------------------------------------------------
 
+-- hs.chooser has no font-size setting, but a row's text and subText accept an
+-- hs.styledtext, so the font is set per row here. Styling replaces the bgDark
+-- default text color, so a light main color and a dimmer sub color are supplied
+-- to keep the dark look. The system font is used at 16pt for the title and a
+-- smaller size for the secondary line.
+local ROW_FONT = ".AppleSystemUIFont"
+local ROW_TITLE_SIZE = 16
+local ROW_SUB_SIZE = 12
+local ROW_TITLE_COLOR = { white = 0.92 }
+local ROW_SUB_COLOR = { white = 0.55 }
+
+local function styled(str, size, color)
+  return hs.styledtext.new(str or "", {
+    font = { name = ROW_FONT, size = size },
+    color = color,
+    -- Keep each row to one line, cut with an ellipsis rather than wrapping.
+    paragraphStyle = { lineBreak = "truncateTail" },
+  })
+end
+
 local function thumbImage(path)
   if not path then return nil end
   local c = thumbCache[path]
@@ -65,9 +85,13 @@ end
 
 local function subTextFor(e)
   local parts = { KIND_LABEL[e.kind] or e.kind, util.relTime(e.ts) }
+  -- The file location belongs only in the preview, so the picker shows just the
+  -- count when several files were copied and nothing extra for a single one.
   if e.kind == "file" then
     local files = e.files or {}
-    parts[#parts + 1] = #files > 1 and (#files .. " files") or (files[1] and files[1].path or "")
+    if #files > 1 then
+      parts[#parts + 1] = #files .. " files"
+    end
   end
   return table.concat(parts, "  ·  ")
 end
@@ -98,8 +122,8 @@ local function buildChoices(q)
   for _, e in ipairs(store.all()) do
     if (not kind or e.kind == kind) and (rest == "" or haystack(e):find(rest, 1, true)) then
       out[#out + 1] = {
-        text = e.title,
-        subText = subTextFor(e),
+        text = styled(e.title, ROW_TITLE_SIZE, ROW_TITLE_COLOR),
+        subText = styled(subTextFor(e), ROW_SUB_SIZE, ROW_SUB_COLOR),
         image = e.kind == "image" and thumbImage(e.thumb) or nil,
         _entry = e,
       }
