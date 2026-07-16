@@ -195,16 +195,40 @@ function S.add(entry)
   return entry
 end
 
---- S.moveToFront(entry) - float a used entry to the top.
-function S.moveToFront(entry)
+-- Locate the live history element for an entry that may be a foreign copy. The
+-- chooser bridges its choices out through Objective C and hands its completion
+-- callback a freshly rebuilt Lua table, so the entry that comes back from a paste
+-- is a value copy, not the stored reference. Reference equality would miss it and
+-- the move would silently do nothing, so match on a stable field first, the
+-- dedupe _key for text, url, and file, or the unique full image path, and fall
+-- back to identity.
+local function indexOf(entry)
   for i = 1, #history do
-    if history[i] == entry then
-      table.remove(history, i)
-      table.insert(history, 1, entry)
-      save()
-      return
+    local h = history[i]
+    if h == entry then
+      return i
+    elseif h.kind == entry.kind then
+      if h._key and entry._key then
+        if h._key == entry._key then return i end
+      elseif h.kind == "image" and h.full == entry.full then
+        return i
+      end
     end
   end
+  return nil
+end
+
+--- S.moveToFront(entry) - float a used entry to the top and refresh its recency,
+--- the same treatment a duplicate copy gets, so a just pasted item reads as the
+--- most recent. Accepts a foreign copy of the entry, matched by stable field, see
+--- indexOf, so a paste coming back through the chooser callback still moves.
+function S.moveToFront(entry)
+  local i = indexOf(entry)
+  if not i then return end
+  local h = table.remove(history, i)
+  h.ts = os.time() -- refresh recency, mirroring the dedupe branch of add
+  table.insert(history, 1, h)
+  save()
 end
 
 --- S.removeEntry(entry) - delete one entry and its media.
