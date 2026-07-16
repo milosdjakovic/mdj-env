@@ -274,8 +274,11 @@ end
 -- preference, or drop the hammerspoon line to fall back to Raycast.
 spoon.ClipboardHistory:init()
 -- Inject the overlay teardown as the manager's onClose before it starts, so it is
--- captured when the ui is wired. Closing the chooser then clears the shortcut sheet.
-spoon.ClipboardHistory.manager.configure({ onClose = hideShortcuts })
+-- captured when the ui is wired. Closing the chooser then clears the shortcut
+-- sheet. The chooser theme is injected here too, from the one source in
+-- config/settings.lua, so the chooser and its preview follow the system light and
+-- dark appearance.
+spoon.ClipboardHistory.manager.configure({ onClose = hideShortcuts, theme = settings.chooserTheme })
 spoon.ClipboardHistory.manager.start() -- begin the background pasteboard poll
 spoon.ClipboardHistory:configure({
   hyperKey = spoon.HyperKey,

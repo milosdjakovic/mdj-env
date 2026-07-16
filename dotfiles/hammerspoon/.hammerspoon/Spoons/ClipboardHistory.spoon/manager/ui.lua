@@ -27,18 +27,57 @@ local KIND_PREFIX = {
   txt = "text", text = "text",
 }
 
-local PREVIEW_CSS = [[<style>
-  html,body{margin:0;height:100%;background:#1e1e22;color:#dcdcdc;
-    font:16px/1.5 -apple-system,BlinkMacSystemFont,Menlo,monospace;}
-  .wrap{padding:16px;box-sizing:border-box;height:100%;overflow:auto;}
-  .meta{color:#8a8a8a;font-size:11px;margin-bottom:10px;
-    text-transform:uppercase;letter-spacing:.04em;}
-  .path{color:#7a7a7a;font-size:11px;margin-bottom:6px;word-break:break-all;}
-  .note{color:#c8a86a;}
-  pre{white-space:pre-wrap;word-break:break-word;margin:0;}
-  img{max-width:100%;height:auto;border-radius:8px;margin-top:8px;}
-</style>]]
-local EMPTY_HTML = PREVIEW_CSS .. "<body></body>"
+-- Theme palettes come from config via configure (lifted to config/settings.lua
+-- so the chooser, its preview, and later the cheat sheets share one source). The
+-- active palette is reselected on each open (lazy) from hs.host.interfaceStyle,
+-- so every open reflects the current theme, including the automatic sunrise and
+-- sunset switch. A flip while the chooser is already open is picked up the next
+-- time it opens, not mid-session. Each palette names the chooser background flag,
+-- the two row text colors, and the preview webview colors.
+--
+-- FALLBACK is a minimal dark palette used only when the root injects no theme, so
+-- the ui still renders. It is the one duplicated color set, kept here as the seam.
+local FALLBACK = {
+  dark = {
+    bgDark = true,
+    titleColor = { white = 0.92 },
+    subColor = { white = 0.55 },
+    preview = { bg = "#1e1e22", fg = "#dcdcdc", meta = "#8a8a8a", path = "#7a7a7a", note = "#c8a86a" },
+  },
+}
+local palettes = FALLBACK -- replaced in UI.configure with the injected theme
+
+-- Build the preview webview stylesheet from a palette's color set. Concatenated
+-- rather than formatted so the literal percents in the CSS need no escaping.
+local function previewCss(p)
+  return "<style>"
+    .. "html,body{margin:0;height:100%;background:" .. p.bg .. ";color:" .. p.fg .. ";"
+    .. "font:16px/1.5 -apple-system,BlinkMacSystemFont,Menlo,monospace;}"
+    .. ".wrap{padding:16px;box-sizing:border-box;height:100%;overflow:auto;}"
+    .. ".meta{color:" .. p.meta .. ";font-size:11px;margin-bottom:10px;"
+    .. "text-transform:uppercase;letter-spacing:.04em;}"
+    .. ".path{color:" .. p.path .. ";font-size:11px;margin-bottom:6px;word-break:break-all;}"
+    .. ".note{color:" .. p.note .. ";}"
+    .. "pre{white-space:pre-wrap;word-break:break-word;margin:0;}"
+    .. "img{max-width:100%;height:auto;border-radius:8px;margin-top:8px;}"
+    .. "</style>"
+end
+
+-- The active palette and its prebuilt stylesheet, reselected by selectTheme on
+-- each open. Seeded from the fallback so any render before configure has colors.
+local theme = FALLBACK.dark
+local themeCss = previewCss(theme.preview)
+
+-- Point theme at the palette matching the current system appearance.
+-- interfaceStyle is "Dark" in dark mode and nil in light, so anything but Dark
+-- reads as light. Falls back to the dark entry when a light palette is absent.
+-- Called from UI.configure to seed and from UI.show, so each open reflects the
+-- live theme.
+local function selectTheme()
+  local dark = hs.host.interfaceStyle() == "Dark"
+  theme = (dark and palettes.dark) or palettes.light or palettes.dark or FALLBACK.dark
+  themeCss = previewCss(theme.preview)
+end
 
 -- State
 local chooser = nil
@@ -103,10 +142,11 @@ local paneFrames = { chooser = nil, preview = nil }
 --------------------------------------------------------------------------------
 
 -- hs.chooser has no font-size setting, but a row's text and subText accept an
--- hs.styledtext, so the font is set per row here. Styling replaces the bgDark
--- default text color, so a light main color and a dimmer sub color are supplied
--- to keep the dark look. The title matches the preview at 16pt for one readable
--- size across both panes.
+-- hs.styledtext, so the font is set per row here. Styling also replaces the
+-- default text color, so each row restates its color from the active palette, a
+-- light main with a dimmer sub on dark and a dark main with a dimmer sub on
+-- light. The title matches the preview at 16pt for one readable size across both
+-- panes.
 --
 -- One trade-off comes with 16pt. hs.chooser budgets about 42pt per row and a
 -- 16pt row renders a touch taller, so the drift clips the last visible row's
@@ -116,8 +156,6 @@ local paneFrames = { chooser = nil, preview = nil }
 local ROW_FONT = ".AppleSystemUIFont"
 local ROW_TITLE_SIZE = 16
 local ROW_SUB_SIZE = 12
-local ROW_TITLE_COLOR = { white = 0.92 }
-local ROW_SUB_COLOR = { white = 0.55 }
 
 local function styled(str, size, color)
   return hs.styledtext.new(str or "", {
@@ -193,8 +231,8 @@ local function buildChoices(q)
       local pos = batchPos(e)
       local title = pos and ((BATCH_BADGES[pos] or ("(" .. pos .. ")")) .. "  " .. (e.title or "")) or e.title
       out[#out + 1] = {
-        text = styled(title, ROW_TITLE_SIZE, ROW_TITLE_COLOR),
-        subText = styled(subTextFor(e), ROW_SUB_SIZE, ROW_SUB_COLOR),
+        text = styled(title, ROW_TITLE_SIZE, theme.titleColor),
+        subText = styled(subTextFor(e), ROW_SUB_SIZE, theme.subColor),
         -- A true image copy shows its own thumbnail, every other row shows the
         -- icon of the app it came from, falling back to nothing when unknown.
         image = (e.kind == "image" and thumbImage(e.thumb)) or appIcon(e.sourceApp) or nil,
@@ -217,7 +255,7 @@ local function imageDataURI(path)
 end
 
 local function wrap(inner)
-  return PREVIEW_CSS .. "<div class=wrap>" .. inner .. "</div>"
+  return themeCss .. "<div class=wrap>" .. inner .. "</div>"
 end
 
 local function note(inner)
@@ -329,7 +367,7 @@ local function renderPreview(e)
   end
   renderToken = renderToken + 1
   if not e then
-    preview:html(EMPTY_HTML)
+    preview:html(themeCss .. "<body></body>")
     return
   end
   if e.kind == "file" then
@@ -619,6 +657,8 @@ end
 --- UI.show() - place the chooser and dock the live preview beside it.
 function UI.show()
   if not chooser then return end
+  selectTheme() -- lazy: paint this open to the current system appearance
+  chooser:bgDark(theme.bgDark)
   batch = {} -- each open starts with an empty append batch
   chooser:query("")
   chooser:choices(buildChoices(""))
@@ -649,7 +689,7 @@ end
 --- which is the steady state the row font is tuned against.
 function UI.build()
   chooser = hs.chooser.new(onChoice)
-  chooser:bgDark(true)
+  chooser:bgDark(theme.bgDark)
   chooser:width(cfg.chooserWidthPct)
   chooser:rows(cfg.chooserRows)
   -- A quiet nudge at rest, the one bit of text the chooser lets us own. It shows
@@ -671,6 +711,8 @@ function UI.configure(opts)
   monitor = opts.monitor
   util = opts.util
   cfg = opts
+  palettes = opts.theme or FALLBACK
+  selectTheme() -- seed the active palette before build() reads theme.bgDark
   return UI
 end
 

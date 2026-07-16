@@ -45,6 +45,29 @@ return {
     padding = 28,                                      -- inner margin around content
   },
 
+  -- Chooser theme. One source for how the searchable chooser and its docked
+  -- preview look in light and dark. The clipboard reads it today; a future
+  -- chooser based tool (and later the cheat sheets) can read the same source, so
+  -- one edit restyles them all. The active side is picked per open from the live
+  -- system appearance, so it tracks the automatic light and dark switch. Each
+  -- side names the chooser background flag, the two row text colours (styledtext
+  -- white values, since a styled row must restate its colour), and the preview
+  -- webview colours (CSS hex). Omit the light block to fall back to dark.
+  chooserTheme = {
+    dark = {
+      bgDark = true,
+      titleColor = { white = 0.92 },
+      subColor = { white = 0.55 },
+      preview = { bg = "#1e1e22", fg = "#dcdcdc", meta = "#8a8a8a", path = "#7a7a7a", note = "#c8a86a" },
+    },
+    light = {
+      bgDark = false,
+      titleColor = { white = 0.15 },
+      subColor = { white = 0.42 },
+      preview = { bg = "#f2f2f5", fg = "#1c1c1e", meta = "#6b6b70", path = "#88888d", note = "#8a5a12" },
+    },
+  },
+
   -- Window sizing defaults
   windowSizing = {
     maxWidth = 2400,
