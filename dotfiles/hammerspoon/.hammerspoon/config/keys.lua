@@ -98,8 +98,10 @@ return {
   -- The one context is the clipboard chooser. j and k navigate vim style, i
   -- inserts the highlighted item the same as Return, a appends the highlighted
   -- item to a batch so several items can be gathered and pasted together on close,
-  -- and / toggles a shortcut overlay drawn from these same bindings. Each
-  -- description labels its row on that overlay.
+  -- / toggles a shortcut overlay drawn from these same bindings, and x closes the
+  -- chooser, the same as Escape. x needs its own binding because the context is
+  -- modal, so the base Hyper+X toggle is suppressed while the chooser is open.
+  -- Each description labels its row on that overlay.
   hyperContexts = {
     {
       name = "clipboard",
@@ -111,6 +113,7 @@ return {
         { key = "k", action = "selectPrev",      description = "Move up" },
         { key = "a", action = "appendSelected",  description = "Append to batch" },
         { key = "/", action = "toggleShortcuts", description = "Shortcuts" },
+        { key = "x", action = "closeClipboard",  description = "Close" },
       },
     },
   },

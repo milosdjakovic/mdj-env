@@ -208,8 +208,8 @@ spoon.AppToggler:bindHotkeys(keys.appToggles)
 -- demand with Hyper /, drawn by the shared CheatSheet renderer from the same
 -- keys.hyperContexts data, so the sheet never drifts from the real bindings. It
 -- lives here, not in the manager, because it draws through CheatSheet, a root
--- concern. Return and Escape are not Hyper bindings, so they are appended as
--- static rows for a complete legend. hideShortcuts is injected into the manager
+-- concern. Return and Escape are not Hyper bindings, so they ride along as a
+-- second "or" box on the Paste and Close rows for a complete legend. hideShortcuts is injected into the manager
 -- as its onClose below, so closing the clipboard also clears the sheet, and it is
 -- called before each context action so any key dismisses the sheet.
 local shortcutsShown = false
@@ -219,21 +219,26 @@ local function clipboardShortcutModel()
   -- and stays up with nothing pressed, so a bare badge would read as a plain key.
   -- Spell the chord out, Hyper+J, so it cannot be misread. Return and Escape are
   -- genuine plain keys of the chooser, so they stay bare, which also shows the
-  -- split between what needs Hyper and what does not.
+  -- split between what needs Hyper and what does not. Paste and Close each have a
+  -- second, plain alternative, Return and Escape, drawn as a second box joined by
+  -- "or", so no separate legend row is needed.
   for _, ctx in ipairs(keys.hyperContexts or {}) do
     if ctx.name == "clipboard" then
       for _, b in ipairs(ctx.bindings) do
         local chord = "Hyper+" .. spoon.CheatSheet.glyphFor(b.key, b.mods)
-        -- Insert and Return are one commit, shown as two separate boxes joined by
-        -- "or" so they read as alternatives, not a combo you press together.
-        local badges = b.action == "insertSelected"
-          and { chord, spoon.CheatSheet.glyphFor("return") }
-          or { chord }
+        -- Insert and Return are one commit, Close and Escape one dismiss, each
+        -- shown as two separate boxes joined by "or" so they read as alternatives,
+        -- not a combo you press together.
+        local badges = { chord }
+        if b.action == "insertSelected" then
+          badges = { chord, spoon.CheatSheet.glyphFor("return") }
+        elseif b.action == "closeClipboard" then
+          badges = { chord, spoon.CheatSheet.glyphFor("escape") }
+        end
         rows[#rows + 1] = { badges = badges, label = b.description or b.action }
       end
     end
   end
-  rows[#rows + 1] = { badges = { spoon.CheatSheet.glyphFor("escape") }, label = "Cancel" }
   return {
     columns = 1,
     colWidth = 320,
@@ -294,6 +299,7 @@ local contextActions = {
   selectPrev = function() hideShortcuts() clipManager.selectPrev() end,
   insertSelected = function() hideShortcuts() clipManager.insertSelected() end,
   appendSelected = function() hideShortcuts() clipManager.appendSelected() end,
+  closeClipboard = function() hideShortcuts() clipManager.hide() end,
   toggleShortcuts = toggleShortcuts,
 }
 for _, ctx in ipairs(keys.hyperContexts or {}) do
