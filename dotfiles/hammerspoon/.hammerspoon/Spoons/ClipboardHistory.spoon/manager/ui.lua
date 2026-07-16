@@ -57,8 +57,14 @@ local thumbCache = {} -- path -> hs.image (or false), for row thumbnails
 -- hs.chooser has no font-size setting, but a row's text and subText accept an
 -- hs.styledtext, so the font is set per row here. Styling replaces the bgDark
 -- default text color, so a light main color and a dimmer sub color are supplied
--- to keep the dark look. The system font is used at 16pt for the title and a
--- smaller size for the secondary line.
+-- to keep the dark look. The title matches the preview at 16pt for one readable
+-- size across both panes.
+--
+-- One trade-off comes with 16pt. hs.chooser budgets about 42pt per row and a
+-- 16pt row renders a touch taller, so the drift clips the last visible row's
+-- dimmed subtext at the bottom edge. That was chosen knowingly for the larger
+-- font. Dropping the title to 14pt removes the clip if a clean last row ever
+-- matters more than size.
 local ROW_FONT = ".AppleSystemUIFont"
 local ROW_TITLE_SIZE = 16
 local ROW_SUB_SIZE = 12
@@ -437,7 +443,9 @@ function UI.refresh()
   end
 end
 
---- UI.build() - create the chooser. Called once at start.
+--- UI.build() - create the chooser. Called once at start and reused across
+--- shows. hs.chooser settles to a compact height on the second and later shows,
+--- which is the steady state the row font is tuned against.
 function UI.build()
   chooser = hs.chooser.new(onChoice)
   chooser:bgDark(true)
