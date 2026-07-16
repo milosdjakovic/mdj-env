@@ -51,6 +51,18 @@ local currentChoices = {} -- rows currently shown, for right-click delete
 local thumbCache = {} -- path -> hs.image (or false), for row thumbnails
 local iconCache = {} -- bundle id -> hs.image (or false), for row source-app icons
 
+-- Click-away focus handoff. hs.chooser unconditionally returns focus to the app
+-- that was frontmost when it opened, so a click onto another window to dismiss
+-- it flickers focus back to the old app. A mouse-down watcher live only while the
+-- chooser shows owns the dismissal for an outside click: it hides the chooser
+-- (queuing that restore first), then focuses the clicked window (queued last, so
+-- it wins), and consumes the click so nothing re-activates after. That ordering
+-- is flicker-free, unlike reclaiming focus after the restore already showed.
+-- paneFrames are the two panes' screen rects, so a click inside either is a real
+-- interaction and is left alone.
+local clickWatcher = nil
+local paneFrames = { chooser = nil, preview = nil }
+
 --------------------------------------------------------------------------------
 -- Rows and filtering
 --------------------------------------------------------------------------------
@@ -312,8 +324,57 @@ local function stopPreviewLoop()
   end
 end
 
+local function pointInFrame(p, f)
+  return f and p.x >= f.x and p.x <= f.x + f.w and p.y >= f.y and p.y <= f.y + f.h
+end
+
+-- The topmost standard window under a screen point, front to back, so the click
+-- watcher learns which window a dismissing click landed on.
+local function windowUnderPoint(p)
+  for _, w in ipairs(hs.window.orderedWindows()) do
+    if w:isStandard() and pointInFrame(p, w:frame()) then
+      return w
+    end
+  end
+  return nil
+end
+
+-- Watch mouse-downs while the chooser is up. A click inside either pane is a
+-- real interaction, passed straight through to the chooser or preview. A click
+-- outside both is a dismissal: capture the clicked window, hide the chooser so
+-- its focus restore is queued first, then focus that window so it is queued last
+-- and wins, and consume the click so nothing re-activates after. A click with no
+-- window under it (desktop, menubar) just hides the chooser and lets its restore
+-- stand.
+local function startClickWatcher()
+  if clickWatcher then clickWatcher:stop() end
+  clickWatcher = hs.eventtap.new({ hs.eventtap.event.types.leftMouseDown }, function(e)
+    local p = e:location()
+    if pointInFrame(p, paneFrames.chooser) or pointInFrame(p, paneFrames.preview) then
+      return false
+    end
+    local target = windowUnderPoint(p)
+    if chooser then
+      chooser:hide() -- queues hs.chooser's restore to the old app first
+    end
+    if target then
+      target:focus() -- queued last, so the clicked window wins the focus race
+    end
+    return true -- consume, so the click does not re-activate anything after
+  end)
+  clickWatcher:start()
+end
+
+local function stopClickWatcher()
+  if clickWatcher then
+    clickWatcher:stop()
+    clickWatcher = nil
+  end
+end
+
 local function hidePreview()
   stopPreviewLoop()
+  stopClickWatcher()
   if preview then
     preview:hide()
   end
@@ -367,7 +428,10 @@ local function matchPreviewToChooser(previewW)
         local sf = (w:screen() or hs.screen.mainScreen()):frame()
         local y = topBiasedY(sf, cf.h)
         w:setTopLeft({ x = cf.x, y = y })
-        preview:frame({ x = cf.x + cf.w + cfg.uiGap, y = y, w = previewW, h = cf.h })
+        local pf = { x = cf.x + cf.w + cfg.uiGap, y = y, w = previewW, h = cf.h }
+        preview:frame(pf)
+        paneFrames.chooser = { x = cf.x, y = y, w = cf.w, h = cf.h }
+        paneFrames.preview = pf
         return
       end
     end
@@ -398,8 +462,12 @@ local function positionAndShow()
 
   ensurePreview()
   -- Seed the preview here; matchPreviewToChooser corrects height and position to
-  -- the chooser's real rendered frame a moment later.
-  preview:frame({ x = x + chooserW + cfg.uiGap, y = y, w = previewW, h = paneH })
+  -- the chooser's real rendered frame a moment later. Seed the pane frames too so
+  -- the click watcher has rects to test against before that correction lands.
+  local pf = { x = x + chooserW + cfg.uiGap, y = y, w = previewW, h = paneH }
+  preview:frame(pf)
+  paneFrames.chooser = { x = x, y = y, w = chooserW, h = paneH }
+  paneFrames.preview = pf
   renderPreview(currentChoices[1] and currentChoices[1]._entry or nil)
   preview:show()
 
@@ -407,6 +475,7 @@ local function positionAndShow()
   chooser:show({ x = x, y = y })
   matchPreviewToChooser(previewW)
   startPreviewLoop()
+  startClickWatcher()
 end
 
 --------------------------------------------------------------------------------
@@ -418,6 +487,9 @@ local function onChoice(choice)
   if choice then
     monitor.paste(choice._entry)
   end
+  -- A click-away dismissal is handled by the click watcher, which hides the
+  -- chooser and hands focus to the clicked window. Escape lands here too, with
+  -- no choice, and hs.chooser's normal restore to the previous app stands.
 end
 
 local function onRightClick(row)
