@@ -138,15 +138,20 @@ spoon.WindowManager:configure({
 spoon.WindowLeader:init()
 spoon.WindowLeader:addLeader(leaderCode(keys.windowLeader))
 
--- Predicates for conditional window bindings. A binding in keys.windowManagement
--- may name one via `when = "<name>"`. The binding is then live only while its
--- predicate returns true, and its cheat-sheet row is hidden otherwise. This one
--- registry is the only place the logic lives, injected into both the dispatch
--- gate (bindToLeader) and the overlay filter (WindowCheatSheet), so the key and
--- the overlay never disagree. Keep predicates cheap and free of side effects,
--- since they run on every dispatch and every overlay show.
-local windowPredicates = {
+-- Live-state predicates, one shared registry. A binding names one via
+-- `when = "<name>"` and is active only while that predicate returns true. Window
+-- bindings use it to hide the display-switch keys on a lone screen, and Hyper
+-- context layers use it to gate a context (like clipboard navigation) on that UI
+-- being open. The single registry is injected into every consumer (WindowManager,
+-- the window cheat sheet, and HyperKey), so a key and its overlay never disagree.
+-- Keep predicates cheap and free of side effects, since they run on every
+-- dispatch and every overlay show.
+local predicates = {
   multipleDisplays = function() return #hs.screen.allScreens() > 1 end,
+  -- The Hammerspoon clipboard chooser is open. Gates the clipboard Hyper context.
+  clipboardOpen = function()
+    return spoon.ClipboardHistory ~= nil and spoon.ClipboardHistory.manager.isShowing()
+  end,
 }
 -- The window bindings carry no leader (see config/keys.lua). Stamp the resolved
 -- window leader onto each here, in the composition root, so WindowManager and
@@ -160,7 +165,7 @@ for i, binding in ipairs(keys.windowManagement) do
   copy.leader = windowLeaderCode
   windowBindings[i] = copy
 end
-spoon.WindowManager:bindToLeader(spoon.WindowLeader, windowBindings, windowPredicates)
+spoon.WindowManager:bindToLeader(spoon.WindowLeader, windowBindings, predicates)
 
 -- WindowCheatSheet: hold a leader ~0.6s with no other key to reveal that
 -- leader's window actions (same hold rule as Caps Lock -> HyperCheatSheet).
@@ -174,7 +179,7 @@ spoon.WindowCheatSheet:configure({
   -- headings on the Hyper overlay rather than the raw leader name (META).
   leaders = { [windowLeaderCode] = "WINDOW MANAGEMENT" },
   cheatSheet = spoon.CheatSheet,
-  predicates = windowPredicates,
+  predicates = predicates,
 })
 spoon.WindowLeader:configure({
   chord = spoon.ChordKey,
@@ -215,6 +220,33 @@ spoon.ClipboardHistory:configure({
   }),
 })
 spoon.ClipboardHistory:bindHotkeys({ open = keys.clipboardHistory })
+
+-- Hyper context layers. Inject the shared predicate registry into HyperKey, then
+-- expand each context in keys.hyperContexts into HyperKey bindings that carry the
+-- context's `when` gate and `priority`. Action names resolve here against the
+-- manager methods, the one place that knows both the keys and the clipboard, so
+-- config/keys.lua stays pure data and the manager never learns about Hyper. The
+-- paste keystroke is delivered even while Hyper is held, because ChordKey ignores
+-- synthetic events, so no action needs to wait for release. Adding another
+-- switcher later touches only keys.hyperContexts, the predicate registry above,
+-- and this action map.
+spoon.HyperKey:configure({ predicates = predicates })
+local clipManager = spoon.ClipboardHistory.manager
+local contextActions = {
+  selectNext = function() clipManager.selectNext() end,
+  selectPrev = function() clipManager.selectPrev() end,
+  insertSelected = function() clipManager.insertSelected() end,
+}
+for _, ctx in ipairs(keys.hyperContexts or {}) do
+  for _, b in ipairs(ctx.bindings) do
+    local fn = contextActions[b.action]
+    if fn then
+      spoon.HyperKey:bind(b.key, fn, b.mods, { when = ctx.when, priority = ctx.priority })
+    else
+      print("hyperContexts: unknown action '" .. tostring(b.action) .. "'")
+    end
+  end
+end
 
 -- Script / URL trigger: hammerspoon://clipboard opens the popup through the same
 -- provider chain, so Raycast, skhd, a shell script, or  hs -c "..."  can summon

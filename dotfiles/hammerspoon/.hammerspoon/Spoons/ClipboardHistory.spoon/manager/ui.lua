@@ -500,6 +500,44 @@ local function onRightClick(row)
 end
 
 --------------------------------------------------------------------------------
+-- Keyboard navigation (driven by the Hyper context bindings in the root)
+--------------------------------------------------------------------------------
+
+-- Move the highlighted row by delta, through the chooser's own selectedRow so it
+-- scrolls natively. The preview poll follows the new selection on its own. Clamps
+-- at the ends rather than wrapping.
+local function moveSelection(delta)
+  if not chooser or not chooser:isVisible() then return end
+  local n = #currentChoices
+  if n == 0 then return end
+  local r = (chooser:selectedRow() or 1) + delta
+  if r < 1 then r = 1 end
+  if r > n then r = n end
+  chooser:selectedRow(r)
+end
+
+--- UI.selectNext() / UI.selectPrev() - move the highlight down or up, for the
+--- Hyper j and k bindings.
+function UI.selectNext()
+  moveSelection(1)
+end
+
+function UI.selectPrev()
+  moveSelection(-1)
+end
+
+--- UI.insertSelected() - paste the highlighted row, exactly as Return does.
+--- chooser:select dismisses the chooser and fires the completion callback, so
+--- the existing onChoice paste path runs unchanged.
+function UI.insertSelected()
+  if not chooser or not chooser:isVisible() then return end
+  local r = chooser:selectedRow()
+  if r and r >= 1 then
+    chooser:select(r)
+  end
+end
+
+--------------------------------------------------------------------------------
 -- Public
 --------------------------------------------------------------------------------
 

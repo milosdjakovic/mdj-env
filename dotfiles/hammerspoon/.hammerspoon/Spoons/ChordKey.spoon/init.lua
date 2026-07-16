@@ -33,6 +33,12 @@ obj.license = "MIT"
 obj._tap = nil
 obj._keys = nil        -- keyCode -> entry (config + runtime state)
 
+-- Real hardware key events carry this event-source state id
+-- (kCGEventSourceStateHIDSystemState). Keystrokes Hammerspoon posts itself, like
+-- the clipboard paste's Cmd+V, carry a private id instead, so this tells the two
+-- apart. See start(), which ignores everything that is not physical.
+local HID_SYSTEM_STATE = 1
+
 -- Defaults applied to any key that does not override them (see configure()).
 obj._holdDelay = 0.6
 obj._tapThreshold = 0.2
@@ -116,7 +122,16 @@ end
 --- one is held, the keys pressed against it.
 function obj:start()
   local types = hs.eventtap.event.types
+  local props = hs.eventtap.event.properties
   self._tap = hs.eventtap.new({ types.keyDown, types.keyUp }, function(e)
+    -- Only react to the physical keyboard. Keystrokes Hammerspoon posts itself
+    -- (the clipboard paste's Cmd+V) pass straight through, so an insert fired
+    -- while the leader is still held reaches the app instead of being swallowed
+    -- and misread as a chord.
+    if e:getProperty(props.eventSourceStateID) ~= HID_SYSTEM_STATE then
+      return false
+    end
+
     local t = e:getType()
     local code = e:getKeyCode()
 

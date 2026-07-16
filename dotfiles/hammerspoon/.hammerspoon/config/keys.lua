@@ -85,6 +85,30 @@ return {
   -- not wired up. The `description` labels its row on the Hyper cheat sheet.
   clipboardHistory = { modifiers = HYPER, key = "X", description = "Clipboard history" },
 
+  -- Hyper context layers. Each context is a group of Hyper bindings that are live
+  -- only while its `when` predicate holds. priority settles a key when several
+  -- contexts are active at once, higher wins, and any key no context binds falls
+  -- through to the app toggles. This is pure data. The composition root maps each
+  -- action name to a function and resolves the predicate name against the shared
+  -- registry, so this list stays free of both. Adding a switcher later is a new
+  -- block here plus its predicate in init.lua, with no engine change. A context
+  -- is also modal, while it is live the base app toggles are suppressed so Hyper
+  -- belongs to the context, and any key it does not bind does nothing. Today the
+  -- one context is the clipboard chooser, giving vim style j and k navigation and
+  -- i to insert the highlighted item, the same as Return.
+  hyperContexts = {
+    {
+      name = "clipboard",
+      when = "clipboardOpen",
+      priority = 100,
+      bindings = {
+        { key = "j", action = "selectNext" },
+        { key = "k", action = "selectPrev" },
+        { key = "i", action = "insertSelected" },
+      },
+    },
+  },
+
   -- System actions bound onto the Hyper key in init.lua. Hyper+Esc sleeps the
   -- Mac, Hyper+§ locks the screen. Each is a plain key with no sub-modifier. The
   -- HYPER field is the fallback combo when HyperKey is not wired up, and
