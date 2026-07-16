@@ -43,13 +43,13 @@ local DATA_DIR = HOME .. "/.cache/hs-clipboard"
 -- to fit the screen below where it opens, so rows(N) is only a request. The ui
 -- reads the chooser's real rendered frame after it shows and sizes the preview
 -- to match, so both panes are always the same height regardless of clamping. The
--- fitted line (42pt per row over a 201pt search-field and chrome base) is kept
--- only to seed the preview's first frame before that correction. 19 rows asks
--- for about 1000pt, used in full where the screen has room. Fractional counts are
--- rejected by hs.chooser, so this must stay a whole number.
-local CHOOSER_ROWS = 19 -- 201 + 19*42 = 999pt requested height
+-- fitted line (42pt per row over a 94pt search-field and chrome base, measured on
+-- the real Chooser window) seeds the preview's first frame before that
+-- correction. 9 rows renders 472pt, the closest to a 490pt target. Fractional
+-- counts are rejected by hs.chooser, so this must stay a whole number.
+local CHOOSER_ROWS = 9 -- 94 + 9*42 = 472pt requested height
 local CHOOSER_ROW_H = 42 -- measured points per visible row
-local CHOOSER_BASE_H = 201 -- measured search-field and chrome overhead, points
+local CHOOSER_BASE_H = 94 -- measured search-field and chrome overhead, points
 
 -- Defaults. The outer composition root may override any of these via configure()
 -- before start(). Stored outside the git-tracked config dir.
@@ -71,11 +71,11 @@ local config = {
   previewPoll = 0.08, -- follow-selection poll
 
   chooserWidthPct = 32, -- list width, percent of screen
-  paneMaxW = 500, -- cap for each pane's width, in points
+  paneMaxW = 490, -- cap for each pane's width, in points
   chooserRows = CHOOSER_ROWS, -- desired row count, trimmed on short screens to keep the padding
   chooserRowH = CHOOSER_ROW_H, -- points per row, used to fit rows to the screen
   chooserBaseH = CHOOSER_BASE_H, -- search-field and chrome overhead, points
-  previewW = 500,
+  previewW = 490,
   previewH = CHOOSER_BASE_H + CHOOSER_ROWS * CHOOSER_ROW_H, -- seed height, matchPreviewToChooser corrects it
   uiGap = 12,
   uiTopFrac = 0.06, -- bias the pair toward the top of the screen
