@@ -21,6 +21,7 @@ local vicertWorkspace = require("config.workspaces.vicert")
 hs.loadSpoon("KeyRemap")
 hs.loadSpoon("ChordKey")
 hs.loadSpoon("CheatSheet")
+hs.loadSpoon("Chooser")
 hs.loadSpoon("HyperKey")
 hs.loadSpoon("HyperCheatSheet")
 hs.loadSpoon("StageManager")
@@ -277,8 +278,13 @@ spoon.ClipboardHistory:init()
 -- captured when the ui is wired. Closing the chooser then clears the shortcut
 -- sheet. The chooser theme is injected here too, from the one source in
 -- config/settings.lua, so the chooser and its preview follow the system light and
--- dark appearance.
-spoon.ClipboardHistory.manager.configure({ onClose = hideShortcuts, theme = settings.chooserTheme })
+-- dark appearance. The Chooser atom (Chooser.spoon) is injected as the factory the
+-- ui builds its picker from, the shared mechanism behind the chooser window.
+spoon.ClipboardHistory.manager.configure({
+  onClose = hideShortcuts,
+  theme = settings.chooserTheme,
+  chooser = spoon.Chooser,
+})
 spoon.ClipboardHistory.manager.start() -- begin the background pasteboard poll
 spoon.ClipboardHistory:configure({
   hyperKey = spoon.HyperKey,

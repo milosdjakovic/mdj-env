@@ -1,11 +1,14 @@
---- The chooser and the live preview pane.
+--- The clipboard consumer of the shared Chooser atom, plus the live preview pane.
 ---
---- hs.chooser has no detail view and fires no event when the highlighted row
---- moves, so we own filtering (setting queryChangedCallback disables its built-in
---- match) and the preview is a separate non-activating webview docked beside the
---- chooser, refreshed by polling selectedRow() on a short timer. Non-activating
---- matters, the pane must never take key focus or typing would leave the search
---- field.
+--- The generic chooser behavior (the window, theming, row styling, navigation,
+--- positioning, and click away dismissal) lives in Chooser.spoon, injected here
+--- as a factory. This file supplies only clipboard policy. The rows, what a
+--- selection pastes, the append batch, right click delete, and the preview that
+--- docks in the companion pane the atom reserves beside the chooser.
+---
+--- The preview is a separate non-activating webview. Non-activating matters, the
+--- pane must never take key focus or typing would leave the search field. The
+--- atom polls the highlighted row and calls onHighlight, which renders here.
 ---
 --- Preview rendering is per kind. Text, url, and image render synchronously and
 --- are cached. A single text file is read off the main thread with hs.task so an
@@ -17,6 +20,8 @@ local UI = {}
 
 local store, monitor, util = nil, nil, nil
 local cfg = nil -- layout and size config, see configure
+local Chooser = nil -- the injected Chooser.spoon factory
+local picker = nil -- our Chooser instance, built once in UI.build
 
 -- Display labels and the type-filter query prefixes, both ui policy.
 local KIND_LABEL = { text = "Text", url = "URL", file = "File", image = "Image" }
@@ -26,26 +31,6 @@ local KIND_PREFIX = {
   file = "file", files = "file",
   txt = "text", text = "text",
 }
-
--- Theme palettes come from config via configure (lifted to config/settings.lua
--- so the chooser, its preview, and later the cheat sheets share one source). The
--- active palette is reselected on each open (lazy) from hs.host.interfaceStyle,
--- so every open reflects the current theme, including the automatic sunrise and
--- sunset switch. A flip while the chooser is already open is picked up the next
--- time it opens, not mid-session. Each palette names the chooser background flag,
--- the two row text colors, and the preview webview colors.
---
--- FALLBACK is a minimal dark palette used only when the root injects no theme, so
--- the ui still renders. It is the one duplicated color set, kept here as the seam.
-local FALLBACK = {
-  dark = {
-    bgDark = true,
-    titleColor = { white = 0.92 },
-    subColor = { white = 0.55 },
-    preview = { bg = "#1e1e22", fg = "#dcdcdc", meta = "#8a8a8a", path = "#7a7a7a", note = "#c8a86a" },
-  },
-}
-local palettes = FALLBACK -- replaced in UI.configure with the injected theme
 
 -- Build the preview webview stylesheet from a palette's color set. Concatenated
 -- rather than formatted so the literal percents in the CSS need no escaping.
@@ -63,32 +48,24 @@ local function previewCss(p)
     .. "</style>"
 end
 
--- The active palette and its prebuilt stylesheet, reselected by selectTheme on
--- each open. Seeded from the fallback so any render before configure has colors.
-local theme = FALLBACK.dark
-local themeCss = previewCss(theme.preview)
-
--- Point theme at the palette matching the current system appearance.
--- interfaceStyle is "Dark" in dark mode and nil in light, so anything but Dark
--- reads as light. Falls back to the dark entry when a light palette is absent.
--- Called from UI.configure to seed and from UI.show, so each open reflects the
--- live theme.
-local function selectTheme()
-  local dark = hs.host.interfaceStyle() == "Dark"
-  theme = (dark and palettes.dark) or palettes.light or palettes.dark or FALLBACK.dark
-  themeCss = previewCss(theme.preview)
-end
-
 -- State
-local chooser = nil
 local preview = nil
-local uiTimer = nil
-local lastPreviewRow = nil
 local renderToken = 0 -- bumped each render; async results check it to avoid stale writes
 local previewCache = {} -- entry -> html, for the synchronous kinds only
-local currentChoices = {} -- rows currently shown, for right-click delete
+local themeCss = nil -- preview CSS for the current open, built lazily from the atom's active theme
 local thumbCache = {} -- path -> hs.image (or false), for row thumbnails
 local iconCache = {} -- bundle id -> hs.image (or false), for row source-app icons
+
+-- The preview stylesheet for this open. Built from the palette the atom selected
+-- for the current appearance, so the preview follows light and dark like the
+-- chooser. Reset to nil on close, so the next open rebuilds it against the theme
+-- picked then.
+local function currentCss()
+  if not themeCss then
+    themeCss = previewCss(picker:activeTheme().preview)
+  end
+  return themeCss
+end
 
 -- Append batch. The Hyper a binding collects the highlighted entry here, in the
 -- order pressed, so several items can be gathered and pasted together on close.
@@ -125,46 +102,9 @@ local function toggleBatch(e)
   end
 end
 
--- Click-away focus handoff. hs.chooser unconditionally returns focus to the app
--- that was frontmost when it opened, so a click onto another window to dismiss
--- it flickers focus back to the old app. A mouse-down watcher live only while the
--- chooser shows owns the dismissal for an outside click: it hides the chooser
--- (queuing that restore first), then focuses the clicked window (queued last, so
--- it wins), and consumes the click so nothing re-activates after. That ordering
--- is flicker-free, unlike reclaiming focus after the restore already showed.
--- paneFrames are the two panes' screen rects, so a click inside either is a real
--- interaction and is left alone.
-local clickWatcher = nil
-local paneFrames = { chooser = nil, preview = nil }
-
 --------------------------------------------------------------------------------
--- Rows and filtering
+-- Rows and filtering (the atom's rows supplier)
 --------------------------------------------------------------------------------
-
--- hs.chooser has no font-size setting, but a row's text and subText accept an
--- hs.styledtext, so the font is set per row here. Styling also replaces the
--- default text color, so each row restates its color from the active palette, a
--- light main with a dimmer sub on dark and a dark main with a dimmer sub on
--- light. The title matches the preview at 16pt for one readable size across both
--- panes.
---
--- One trade-off comes with 16pt. hs.chooser budgets about 42pt per row and a
--- 16pt row renders a touch taller, so the drift clips the last visible row's
--- dimmed subtext at the bottom edge. That was chosen knowingly for the larger
--- font. Dropping the title to 14pt removes the clip if a clean last row ever
--- matters more than size.
-local ROW_FONT = ".AppleSystemUIFont"
-local ROW_TITLE_SIZE = 16
-local ROW_SUB_SIZE = 12
-
-local function styled(str, size, color)
-  return hs.styledtext.new(str or "", {
-    font = { name = ROW_FONT, size = size },
-    color = color,
-    -- Keep each row to one line, cut with an ellipsis rather than wrapping.
-    paragraphStyle = { lineBreak = "truncateTail" },
-  })
-end
 
 local function thumbImage(path)
   if not path then return nil end
@@ -219,6 +159,9 @@ local function parseQuery(q)
   return nil, q
 end
 
+-- The atom's rows supplier. Returns plain items; the atom styles them with the
+-- active palette. Filtering, the type prefix, the batch order badge, and the
+-- thumbnail or source-app icon are all clipboard policy and live here.
 local function buildChoices(q)
   local kind, rest = parseQuery(q)
   rest = (rest or ""):gsub("^%s+", ""):gsub("%s+$", ""):lower()
@@ -231,21 +174,20 @@ local function buildChoices(q)
       local pos = batchPos(e)
       local title = pos and ((BATCH_BADGES[pos] or ("(" .. pos .. ")")) .. "  " .. (e.title or "")) or e.title
       out[#out + 1] = {
-        text = styled(title, ROW_TITLE_SIZE, theme.titleColor),
-        subText = styled(subTextFor(e), ROW_SUB_SIZE, theme.subColor),
+        title = title,
+        subTitle = subTextFor(e),
         -- A true image copy shows its own thumbnail, every other row shows the
         -- icon of the app it came from, falling back to nothing when unknown.
         image = (e.kind == "image" and thumbImage(e.thumb)) or appIcon(e.sourceApp) or nil,
-        _entry = e,
+        item = e,
       }
     end
   end
-  currentChoices = out
   return out
 end
 
 --------------------------------------------------------------------------------
--- Preview rendering
+-- Preview rendering (the atom's onHighlight target)
 --------------------------------------------------------------------------------
 
 local function imageDataURI(path)
@@ -255,7 +197,7 @@ local function imageDataURI(path)
 end
 
 local function wrap(inner)
-  return themeCss .. "<div class=wrap>" .. inner .. "</div>"
+  return currentCss() .. "<div class=wrap>" .. inner .. "</div>"
 end
 
 local function note(inner)
@@ -367,7 +309,7 @@ local function renderPreview(e)
   end
   renderToken = renderToken + 1
   if not e then
-    preview:html(themeCss .. "<body></body>")
+    preview:html(currentCss() .. "<body></body>")
     return
   end
   if e.kind == "file" then
@@ -383,7 +325,7 @@ local function renderPreview(e)
 end
 
 --------------------------------------------------------------------------------
--- Pane lifecycle and positioning
+-- Preview pane lifecycle
 --------------------------------------------------------------------------------
 
 local function ensurePreview()
@@ -395,324 +337,141 @@ local function ensurePreview()
   preview:allowNewWindows(false)
 end
 
-local function stopPreviewLoop()
-  if uiTimer then
-    uiTimer:stop()
-    uiTimer = nil
-  end
-end
-
-local function pointInFrame(p, f)
-  return f and p.x >= f.x and p.x <= f.x + f.w and p.y >= f.y and p.y <= f.y + f.h
-end
-
--- The topmost standard window under a screen point, front to back, so the click
--- watcher learns which window a dismissing click landed on.
-local function windowUnderPoint(p)
-  for _, w in ipairs(hs.window.orderedWindows()) do
-    if w:isStandard() and pointInFrame(p, w:frame()) then
-      return w
-    end
-  end
-  return nil
-end
-
--- Watch mouse-downs while the chooser is up. A click inside either pane is a
--- real interaction, passed straight through to the chooser or preview. A click
--- outside both is a dismissal: capture the clicked window, hide the chooser so
--- its focus restore is queued first, then focus that window so it is queued last
--- and wins, and consume the click so nothing re-activates after. A click with no
--- window under it (desktop, menubar) just hides the chooser and lets its restore
--- stand.
-local function startClickWatcher()
-  if clickWatcher then clickWatcher:stop() end
-  clickWatcher = hs.eventtap.new({ hs.eventtap.event.types.leftMouseDown }, function(e)
-    local p = e:location()
-    if pointInFrame(p, paneFrames.chooser) or pointInFrame(p, paneFrames.preview) then
-      return false
-    end
-    local target = windowUnderPoint(p)
-    if chooser then
-      chooser:hide() -- queues hs.chooser's restore to the old app first
-    end
-    if target then
-      target:focus() -- queued last, so the clicked window wins the focus race
-    end
-    return true -- consume, so the click does not re-activate anything after
-  end)
-  clickWatcher:start()
-end
-
-local function stopClickWatcher()
-  if clickWatcher then
-    clickWatcher:stop()
-    clickWatcher = nil
-  end
-end
-
 local function hidePreview()
-  stopPreviewLoop()
-  stopClickWatcher()
   if preview then
     preview:hide()
   end
   previewCache = {} -- drop encoded images between opens
-  batch = {} -- a close cancels any uncommitted batch; onChoice snapshots first
-  -- Tell the composition root the chooser closed, so it can drop the shortcut
-  -- overlay it may have shown. Injected, so the ui never learns about CheatSheet.
+  themeCss = nil -- rebuild against the theme picked on the next open
+end
+
+--------------------------------------------------------------------------------
+-- Atom callbacks
+--------------------------------------------------------------------------------
+
+-- A row was chosen. A non-empty batch commits as a group and the highlighted row
+-- is ignored, otherwise the single highlighted item pastes. The atom fires this
+-- before onClose, so the batch is still intact here; onClose clears it after.
+local function onSelect(entry)
+  if #batch > 0 then
+    monitor.pasteBatch(batch)
+  else
+    monitor.paste(entry)
+  end
+end
+
+-- The chooser closed for any reason. Cancel any uncommitted batch, hide the
+-- preview, and tell the root (which drops the shortcut overlay). Injected as the
+-- atom's onClose, so this file never learns about the overlay or the click watcher.
+local function onClose()
+  batch = {}
+  hidePreview()
   if cfg and cfg.onClose then
     cfg.onClose()
   end
 end
 
-local function startPreviewLoop()
-  stopPreviewLoop()
-  uiTimer = hs.timer.doEvery(cfg.previewPoll, function()
-    if not chooser or not chooser:isVisible() then
-      hidePreview()
-      return
-    end
-    local row = chooser:selectedRow()
-    if row ~= lastPreviewRow then
-      lastPreviewRow = row
-      local choice = currentChoices[row]
-      renderPreview(choice and choice._entry or nil)
-    end
-  end)
-end
-
--- Vertical top-left of the pair on screen `sf`: biased toward the top by
--- uiTopFrac, but never closer than minVPad to either edge. When the pair is too
--- tall to keep both pads (a short screen with a clamped chooser), the top pad
--- wins so it never rides off the top.
-local function topBiasedY(sf, paneH)
-  local floor, max, min = math.floor, math.max, math.min
-  local lo = sf.y + cfg.minVPad
-  local hi = sf.y + sf.h - cfg.minVPad - paneH
-  if hi < lo then
-    hi = lo
-  end
-  return max(lo, min(sf.y + floor(sf.h * cfg.uiTopFrac), hi))
-end
-
--- The chooser clamps its own height to fit the screen, so its rendered height is
--- not reliably rows*rowHeight and is only known once it shows. Read the real
--- chooser window just after it appears, place it top-biased with padding on its
--- actual screen, and dock the preview flush beside it at the same top and
--- height. This keeps both panes the same size and the pair well placed even when
--- the chooser came up shorter than requested or landed on another display.
-local function matchPreviewToChooser(previewW)
-  hs.timer.doAfter(0.03, function()
-    if not preview then return end
-    local app = hs.application.get("Hammerspoon")
-    if not app then return end
-    for _, w in ipairs(app:allWindows()) do
-      if (w:title() or "") == "Chooser" and w:isVisible() then
-        local cf = w:frame()
-        local sf = (w:screen() or hs.screen.mainScreen()):frame()
-        local y = topBiasedY(sf, cf.h)
-        w:setTopLeft({ x = cf.x, y = y })
-        local pf = { x = cf.x + cf.w + cfg.uiGap, y = y, w = previewW, h = cf.h }
-        preview:frame(pf)
-        paneFrames.chooser = { x = cf.x, y = y, w = cf.w, h = cf.h }
-        paneFrames.preview = pf
-        return
-      end
-    end
-  end)
-end
-
-local function positionAndShow()
-  local f = hs.screen.mainScreen():frame()
-  local floor, min, max = math.floor, math.min, math.max
-
-  -- Trim the row count so the pair fits between the mandatory pads on a short
-  -- screen. On a tall screen the full request survives.
-  local avail = f.h - 2 * cfg.minVPad
-  local maxRows = max(1, floor((avail - cfg.chooserBaseH) / cfg.chooserRowH))
-  local rows = min(cfg.chooserRows, maxRows)
-  chooser:rows(rows)
-  local paneH = cfg.chooserBaseH + rows * cfg.chooserRowH
-
-  local chooserW = min(floor(f.w * cfg.chooserWidthPct / 100), cfg.paneMaxW)
-  local previewW = min(cfg.previewW, cfg.paneMaxW)
-  local total = chooserW + cfg.uiGap + previewW
-  local x = f.x + floor((f.w - total) / 2)
-  local y = topBiasedY(f, paneH)
-
-  -- hs.chooser width is a percent of the screen, so translate the capped pixel
-  -- width back to a percent right before showing.
-  chooser:width(chooserW / f.w * 100)
-
+-- The atom reserved a companion rect beside the chooser. Dock the preview there
+-- and render the current selection. Fired at show with a seed frame and again
+-- once the real chooser window settles, so re-docking is expected and harmless.
+local function onPositioned(_chooserFrame, companionFrame)
+  if not companionFrame then return end
   ensurePreview()
-  -- Seed the preview here; matchPreviewToChooser corrects height and position to
-  -- the chooser's real rendered frame a moment later. Seed the pane frames too so
-  -- the click watcher has rects to test against before that correction lands.
-  local pf = { x = x + chooserW + cfg.uiGap, y = y, w = previewW, h = paneH }
-  preview:frame(pf)
-  paneFrames.chooser = { x = x, y = y, w = chooserW, h = paneH }
-  paneFrames.preview = pf
-  renderPreview(currentChoices[1] and currentChoices[1]._entry or nil)
+  preview:frame(companionFrame)
   preview:show()
+  renderPreview(picker:selectedItem())
+end
 
-  lastPreviewRow = 1
-  chooser:show({ x = x, y = y })
-  matchPreviewToChooser(previewW)
-  startPreviewLoop()
-  startClickWatcher()
+local function onRightClick(entry)
+  if not entry then return end
+  store.removeEntry(entry)
+  picker:refresh()
 end
 
 --------------------------------------------------------------------------------
--- Callbacks
+-- Public API (the manager forwards these; the root's Hyper context binds the
+-- navigation methods)
 --------------------------------------------------------------------------------
 
-local function onChoice(choice)
-  -- Snapshot and clear the batch before hidePreview, which also clears it, so the
-  -- commit below sees the collected items even though closing resets the session.
-  local collected = batch
-  batch = {}
-  hidePreview()
-  -- No choice means Escape or a programmatic dismissal, which cancels the batch
-  -- and pastes nothing. With a choice, a non-empty batch commits as a group and
-  -- the highlighted row is ignored, otherwise the single highlighted item pastes.
-  if not choice then
-    return
-  end
-  if #collected > 0 then
-    monitor.pasteBatch(collected)
-  else
-    monitor.paste(choice._entry)
-  end
-  -- A click-away dismissal is handled by the click watcher, which hides the
-  -- chooser and hands focus to the clicked window. Escape lands here too, with
-  -- no choice, and hs.chooser's normal restore to the previous app stands.
-end
-
-local function onRightClick(row)
-  local choice = currentChoices[row]
-  if not choice then return end
-  store.removeEntry(choice._entry)
-  chooser:choices(buildChoices(chooser:query() or ""))
-end
-
---------------------------------------------------------------------------------
--- Keyboard navigation (driven by the Hyper context bindings in the root)
---------------------------------------------------------------------------------
-
--- Move the highlighted row by delta, through the chooser's own selectedRow so it
--- scrolls natively. The preview poll follows the new selection on its own. Clamps
--- at the ends rather than wrapping.
-local function moveSelection(delta)
-  if not chooser or not chooser:isVisible() then return end
-  local n = #currentChoices
-  if n == 0 then return end
-  local r = (chooser:selectedRow() or 1) + delta
-  if r < 1 then r = 1 end
-  if r > n then r = n end
-  chooser:selectedRow(r)
-end
-
---- UI.selectNext() / UI.selectPrev() - move the highlight down or up, for the
---- Hyper j and k bindings.
-function UI.selectNext()
-  moveSelection(1)
-end
-
-function UI.selectPrev()
-  moveSelection(-1)
-end
-
---- UI.insertSelected() - paste the highlighted row, exactly as Return does.
---- chooser:select dismisses the chooser and fires the completion callback, so
---- the existing onChoice paste path runs unchanged. With a non-empty batch this
---- commits the whole batch instead, since onChoice checks it first.
-function UI.insertSelected()
-  if not chooser or not chooser:isVisible() then return end
-  local r = chooser:selectedRow()
-  if r and r >= 1 then
-    chooser:select(r)
-  end
-end
-
---- UI.appendSelected() - toggle the highlighted row in the append batch, for the
---- Hyper a binding. The chooser stays open. Redrawing the rows shows the new
---- order badges, and the selection is restored so the highlight does not jump,
---- since setting choices resets it to the top.
-function UI.appendSelected()
-  if not chooser or not chooser:isVisible() then return end
-  local row = chooser:selectedRow()
-  local choice = currentChoices[row]
-  if not choice then return end
-  toggleBatch(choice._entry)
-  chooser:choices(buildChoices(chooser:query() or ""))
-  if row then
-    chooser:selectedRow(row)
-  end
-end
-
---------------------------------------------------------------------------------
--- Public
---------------------------------------------------------------------------------
-
---- UI.show() - place the chooser and dock the live preview beside it.
 function UI.show()
-  if not chooser then return end
-  selectTheme() -- lazy: paint this open to the current system appearance
-  chooser:bgDark(theme.bgDark)
-  batch = {} -- each open starts with an empty append batch
-  chooser:query("")
-  chooser:choices(buildChoices(""))
-  positionAndShow()
+  if picker then picker:show() end
 end
 
 function UI.isShowing()
-  return chooser ~= nil and chooser:isVisible()
+  return picker ~= nil and picker:isShowing()
 end
 
---- UI.hide() - dismiss the chooser and its preview pane.
 function UI.hide()
-  if chooser then
-    chooser:hide()
-  end
-  hidePreview()
+  if picker then picker:hide() end
 end
 
 --- UI.refresh() - rebuild the visible rows, e.g. after a clear.
 function UI.refresh()
-  if chooser then
-    chooser:choices(buildChoices(chooser:query() or ""))
-  end
+  if picker then picker:refresh() end
 end
 
---- UI.build() - create the chooser. Called once at start and reused across
---- shows. hs.chooser settles to a compact height on the second and later shows,
---- which is the steady state the row font is tuned against.
+function UI.selectNext()
+  if picker then picker:selectNext() end
+end
+
+function UI.selectPrev()
+  if picker then picker:selectPrev() end
+end
+
+function UI.insertSelected()
+  if picker then picker:insertSelected() end
+end
+
+--- UI.appendSelected() - toggle the highlighted row in the append batch, for the
+--- Hyper a binding. The chooser stays open. Refreshing redraws the rows with the
+--- new order badges, and the atom's refresh preserves the highlight.
+function UI.appendSelected()
+  if not picker or not picker:isShowing() then return end
+  local entry = picker:selectedItem()
+  if not entry then return end
+  toggleBatch(entry)
+  picker:refresh()
+end
+
+--- UI.build() - create the Chooser instance. Called once at start and reused
+--- across shows. Maps the clipboard layout config onto the atom's layout, wires
+--- the clipboard policy through the atom's callbacks, and reserves a companion
+--- pane the width of the preview.
 function UI.build()
-  chooser = hs.chooser.new(onChoice)
-  chooser:bgDark(theme.bgDark)
-  chooser:width(cfg.chooserWidthPct)
-  chooser:rows(cfg.chooserRows)
-  -- A quiet nudge at rest, the one bit of text the chooser lets us own. It shows
-  -- only while the query is empty, so it fades the moment you type. Search is
-  -- implied by the field, so it names only the shortcut chord, kept short enough
-  -- not to clip in the narrow field. The full key list lives in the Hyper+/ overlay.
-  chooser:placeholderText("Hyper+/ shortcuts")
-  chooser:queryChangedCallback(function(q)
-    chooser:choices(buildChoices(q))
-    lastPreviewRow = nil -- filtering changed the top row, force a preview refresh
-  end)
-  chooser:rightClickCallback(onRightClick)
+  picker = Chooser.new({
+    theme = cfg.theme,
+    fieldMode = "filter",
+    placeholder = "Hyper+/ shortcuts",
+    pollInterval = cfg.previewPoll,
+    rows = buildChoices,
+    onSelect = onSelect,
+    onHighlight = renderPreview,
+    onClose = onClose,
+    onPositioned = onPositioned,
+    onRightClick = onRightClick,
+    layout = {
+      widthPct = cfg.chooserWidthPct,
+      paneMaxW = cfg.paneMaxW,
+      rowH = cfg.chooserRowH,
+      baseH = cfg.chooserBaseH,
+      rowCount = cfg.chooserRows,
+      gap = cfg.uiGap,
+      topFrac = cfg.uiTopFrac,
+      minVPad = cfg.minVPad,
+      companionWidth = cfg.previewW,
+    },
+  })
   return UI
 end
 
---- UI.configure(opts) - inject store, monitor, util, and the layout config.
+--- UI.configure(opts) - inject store, monitor, util, the Chooser factory, the
+--- theme, and the layout config.
 function UI.configure(opts)
   store = opts.store
   monitor = opts.monitor
   util = opts.util
+  Chooser = opts.chooser
   cfg = opts
-  palettes = opts.theme or FALLBACK
-  selectTheme() -- seed the active palette before build() reads theme.bgDark
   return UI
 end
 
