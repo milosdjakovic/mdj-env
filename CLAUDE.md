@@ -266,13 +266,20 @@ step mirroring what the clipboard already does.
    function returning whether that surface is open.
 4. Register the surface in the `choosers` list in `init.lua`, so `activeChooser`
    and `routeNav` send the navigation actions to whichever surface is open.
-5. Add an entry in `contextOverlays` in `init.lua` only if you want the Hyper hold
-   to reveal the shortcut sheet. Leave it out and holding Hyper reveals nothing,
-   which is right for a panel whose actions are already visible, like caffeinate
-   and the VPN control panel. The overlay is drawn by the shared
-   `contextShortcutModel`, so it never drifts from the bindings.
-6. Inject the root's overlay teardown as the surface's `onClose` so closing it
-   also clears a peeked sheet, and bind the open key as a base HyperKey binding.
+5. Show the shortcuts. A searchable list on the web backend carries a persistent
+   footer bar inside its own window, so the shortcuts are always visible under the
+   surface rather than peeked in a separate window on a Hyper hold. Build the hints
+   with `footerFor(name)` in `init.lua`, which reads the same `hyperContexts`
+   bindings, and pass them as `config.footer`. A picker built directly takes it in
+   its config; one built inside a spoon is handed a `withFooter(spoon.Chooser,
+   footerFor(name))` decorated factory, so the spoon stays ignorant of Hyper
+   contexts. A single window hosts both the list and its footer, so nothing
+   competes for the frosted backdrop, which a second peek window did. `contextOverlays`
+   stays as an empty seam, so a context that wants a real hold overlay again can
+   register a model builder there without touching the reveal logic. The native
+   backend has no footer, so on native a context shows no shortcut hints.
+6. Inject the root's overlay teardown as the surface's `onClose` and bind the open
+   key as a base HyperKey binding.
 
 A tool with two surfaces, like the VPN control panel and its location picker,
 wires each surface as its own participant, its own context block, predicate,
@@ -318,8 +325,9 @@ The palette follows the picker checklist above like any other list tool. It has
 a dot called navigation adapter over the Chooser instance, a `commandPaletteOpen`
 predicate, a `commandPalette` context block giving it the shared j, k, and i
 navigation with Space to close (the open key doubles as the close, the way the
-clipboard's X does), an entry in `contextOverlays` so holding Hyper reveals the
-shortcut sheet, and `hideShortcuts` injected as its `onClose`. Native arrows,
+clipboard's X does), a `footer` built from `footerFor("commandPalette")` so its
+shortcuts show in its own footer bar, and `hideShortcuts` injected as its
+`onClose`. Native arrows,
 typing, Return, and Escape work whenever Hyper is released. The chosen row runs
 deferred by a short timer, so it fires only after the chooser tears down and
 macOS restores focus to the window that was frontmost before the palette opened,

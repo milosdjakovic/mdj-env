@@ -267,17 +267,17 @@ spoon.AppToggler:bindHotkeys(keys.appToggles)
 -- clears the sheet, and it is called before each context action so any key
 -- dismisses the sheet.
 local shortcutsShown = false
--- Build a shortcut overlay model for a named Hyper context, drawn from that
--- context's own bindings so it never drifts from the real keys. The context keys
--- fire on Hyper plus the key, and this panel is revealed by a Hyper hold, so a
--- bare badge would read as a plain key. Spell the chord out, Hyper+J, so it cannot
--- be misread. Return, Escape, and the arrows are genuine plain keys of the
--- chooser, so they stay bare, which also shows the split between what needs Hyper
--- and what does not. Insert and Return are one commit, Close and Escape one
--- dismiss, and the two move rows pair with the down and up arrows, each drawn as a
--- second box joined by "or", so no separate legend row is needed.
-local function contextShortcutModel(name, title)
-  local rows = {}
+-- Build the shortcut hint chips for a named Hyper context from that context's own
+-- bindings, so the footer never drifts from the real keys. The context keys fire
+-- on Hyper plus the key, so each chip spells the chord out, Hyper+J, which cannot
+-- be misread as a plain key, paired with the plain key that does the same thing,
+-- the arrows for move, Return for the primary action, Escape for close, so both
+-- ways in are shown at once. These live in each picker's own footer now, drawn
+-- persistently under the surface rather than peeked in a separate window on a
+-- Hyper hold, so no second window competes for the frosted backdrop. Returned as a
+-- list of { badges = {...}, label = ... }, the shape List:_footerHtml consumes.
+local function footerFor(name)
+  local hints = {}
   for _, ctx in ipairs(keys.hyperContexts or {}) do
     if ctx.name == name then
       for _, b in ipairs(ctx.bindings) do
@@ -292,45 +292,35 @@ local function contextShortcutModel(name, title)
         elseif b.action == "selectPrev" then
           badges = { chord, spoon.CheatSheet.glyphFor("up") }
         end
-        rows[#rows + 1] = { badges = badges, label = b.description or b.action }
+        hints[#hints + 1] = { badges = badges, label = b.description or b.action }
       end
     end
   end
-  return {
-    columns = 1,
-    colWidth = 320,
-    -- The peek activates like any sheet so it keeps its own frosted backdrop, which
-    -- WebKit paints only for the key window with a focused field. It briefly takes
-    -- focus from the open picker, but the picker regains it when the peek closes,
-    -- and while held the peek is the front sheet you are reading, so it is the one
-    -- that must stay frosted. Nav still routes to the picker through the Hyper chord,
-    -- not the picker's field, so stealing focus for the hold does not disturb it.
-    sections = { { title = title, rows = rows } },
-  }
+  return hints
 end
-local function clipboardShortcutModel() return contextShortcutModel("clipboard", "CLIPBOARD") end
+-- Decorate the Chooser factory so a picker built inside a spoon (the clipboard, the
+-- VPN locations) is stamped with its footer hints without the spoon learning about
+-- Hyper contexts. The policy stays here in the composition root; the spoon just
+-- calls new on whatever factory it was handed. The command palette is built here
+-- directly, so it takes footer in its config without this wrapper.
+local function withFooter(factory, hints)
+  return { new = function(cfg) cfg = cfg or {}; cfg.footer = hints; return factory.new(cfg) end }
+end
 local function hideShortcuts()
   if shortcutsShown then
     spoon.CheatSheet:hide()
     shortcutsShown = false
   end
 end
--- Assign the Hyper hold reveal now that the overlay model and predicates exist.
--- A hold shows the active layer. The base app overlay when nothing is modal, a
--- live modal context's own shortcuts when it has an overlay (the clipboard), and
--- nothing when a modal context has no overlay (caffeinate, whose command legend is
--- already in the body). contextOverlays maps a context name to its model builder,
--- and the active context is the highest priority one whose predicate holds, read
--- from the same registry the bindings use, so the hold and the keys never
--- disagree. Setting shortcutsShown keeps the toggle state in sync, so a context
--- keypress clears the peeked sheet like a toggled one.
-local function vpnLocationsShortcutModel() return contextShortcutModel("vpnLocations", "LOCATIONS") end
-local function commandPaletteShortcutModel() return contextShortcutModel("commandPalette", "COMMANDS") end
-local contextOverlays = {
-  clipboard = clipboardShortcutModel,
-  vpnLocations = vpnLocationsShortcutModel,
-  commandPalette = commandPaletteShortcutModel,
-}
+-- Assign the Hyper hold reveal now that the predicates exist. A hold shows the app
+-- cheat sheet when nothing modal is open. When a modal context is live (the
+-- clipboard, the VPN locations, the command palette) the hold reveals nothing,
+-- because each such surface already shows its shortcuts in its own footer, so a
+-- peek window would be redundant and would fight the picker for the frosted
+-- backdrop. contextOverlays is therefore empty; it stays as the seam so a context
+-- that wants a real hold overlay again can register one here without touching the
+-- reveal logic.
+local contextOverlays = {}
 local function activeContext()
   local best
   for _, ctx in ipairs(keys.hyperContexts or {}) do
@@ -382,7 +372,7 @@ spoon.ClipboardHistory:init()
 spoon.ClipboardHistory.manager.configure({
   onClose = hideShortcuts,
   theme = settings.chooserTheme,
-  chooser = spoon.Chooser,
+  chooser = withFooter(spoon.Chooser, footerFor("clipboard")),
 })
 spoon.ClipboardHistory.manager.start() -- begin the background pasteboard poll
 spoon.ClipboardHistory:configure({
@@ -412,7 +402,7 @@ spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
 -- are injected here from the one theme source. When the Mullvad CLI is missing the
 -- spoon logs to the console and stays inert, so this wiring is safe on any machine. The
 -- open key is a base HyperKey binding, suppressed while a modal context owns Hyper.
-spoon.Vpn.configure({ theme = settings.chooserTheme, panel = spoon.Panel, chooser = spoon.Chooser, onLocationsClose = hideShortcuts })
+spoon.Vpn.configure({ theme = settings.chooserTheme, panel = spoon.Panel, chooser = withFooter(spoon.Chooser, footerFor("vpnLocations")), onLocationsClose = hideShortcuts })
 spoon.Vpn.start()
 spoon.HyperKey:bind(keys.vpn.key, function() spoon.Vpn.show() end)
 
@@ -653,6 +643,7 @@ local commandPalette = spoon.Chooser.new({
   theme = settings.chooserTheme,
   placeholder = "Search apps and commands",
   rows = commandRows,
+  footer = footerFor("commandPalette"),
   onSelect = function(item)
     if item then hs.timer.doAfter(0.1, function() runItem(item) end) end
   end,

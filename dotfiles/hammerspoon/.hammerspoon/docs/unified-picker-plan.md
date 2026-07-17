@@ -158,14 +158,23 @@ load.
 Status. The cheat sheet grids now draw through the Surface. A new passive grid
 surface type hosts a block of positioned HTML inside the same frosted panel the
 lists use, themed from the same palette, so the overlays and the pickers share one
-background. A grid can be activating or passive per show. WebKit keeps a
+background. WebKit keeps a
 `backdrop-filter` alive only while the webview is the key window with a real text
 field focused, so a standalone sheet activates and focuses a hidden sink to hold
 its frosted panel, the same trick the Panel uses. Without it the blur drops about a
 second after the sheet appears, and a screen recording drops it at once, both by
-pulling key status away. The context peek is the exception, it stays passive so it
-never steals the open picker's search field, giving up its own backdrop, which
-barely shows over the already frosted picker behind it. `CheatSheet.spoon` kept its whole model contract, its geometry
+pulling key status away.
+
+The context peek over an open picker was dropped. Two overlapping frosted webviews
+of one app cannot both be the key window, so a peek shown over a picker either
+went transparent itself (passive) or made the picker behind it go transparent
+(activating). Instead each searchable list carries a persistent footer bar inside
+its own window, drawn from the same `hyperContexts` bindings through `footerFor` in
+the composition root, so the shortcuts are always visible under the surface and one
+window hosts both, nothing competing for the backdrop. A single reveal deferral
+was also added so switching between the Hyper and window leader sheets no longer
+flashes the previous sheet's still painted content, the shared grid webview waits
+for the new page to report ready before it shows. `CheatSheet.spoon` kept its whole model contract, its geometry
 math, and `glyphFor`, and only swapped the drawing primitive from canvas elements
 to absolutely positioned divs, so `HyperCheatSheet`, `WindowCheatSheet`, and the
 context overlays were not touched. The background now comes from `chooserTheme`

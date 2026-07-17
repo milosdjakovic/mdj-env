@@ -41,6 +41,8 @@ local DEFAULT_LAYOUT = {
   previewWidth = 0, -- 0 leaves the list single column; a positive width adds a
                     -- preview pane on the right, the clipboard split, inside the
                     -- same window. The consumer fills it through setPreview.
+  footerH = 36,   -- the shortcut hint bar height, points; only added when the
+                  -- consumer supplies footer hints, otherwise the bar is absent.
 }
 
 -- Type prefix map for the clipboard style "img ..." tokens. Injected per consumer
@@ -62,7 +64,7 @@ local TEMPLATE = [==[
   html,body { background:transparent; overflow:hidden; height:100%; }
   body { font-family:-apple-system,system-ui,sans-serif; -webkit-user-select:none; user-select:none; }
   .panel {
-    display:flex; flex-direction:row;
+    display:flex; flex-direction:column;
     height:100vh;
     background:rgba({{BG}}, {{OPACITY}});
     -webkit-backdrop-filter:blur(30px) saturate(160%);
@@ -72,6 +74,10 @@ local TEMPLATE = [==[
     overflow:hidden;
     color:{{FG}};
   }
+  /* The body is the list beside its optional preview; the footer sits below both,
+     spanning the full width, so the shortcut hints read as one bar under the whole
+     surface rather than under just the list column. */
+  .body { display:flex; flex-direction:row; flex:1 1 auto; min-height:0; }
   .listcol { display:flex; flex-direction:column; flex:1 1 auto; min-width:0; }
   .preview {
     flex:0 0 {{PREVIEWW}}px;
@@ -115,13 +121,35 @@ local TEMPLATE = [==[
   .row .sub { font-size:{{SUBSIZE}}px; color:{{META}}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
   .row .num { flex:0 0 auto; margin-left:10px; font-size:{{NUMSIZE}}px; font-weight:400; color:{{META}}; }
   .empty { padding:18px 14px; font-size:13px; color:{{META}}; }
+  /* The shortcut hint bar. A single row of chips, each a key badge (or two) and a
+     label, laid out left to right and clipped if it overruns. Absent entirely when
+     the consumer supplies no hints, via the nofooter class. */
+  .footer {
+    flex:0 0 {{FOOTERH}}px;
+    display:flex; align-items:center; gap:16px;
+    padding:0 14px;
+    border-top:1px solid rgba({{BORDER}});
+    overflow:hidden; white-space:nowrap;
+  }
+  .panel.nofooter .footer { display:none; }
+  .fhint { display:inline-flex; align-items:center; gap:6px; }
+  .fhint .kbd {
+    display:inline-flex; align-items:center; justify-content:center;
+    padding:2px 6px; border-radius:5px;
+    background:rgba({{BADGE}}); color:{{FG}};
+    font-size:11px; line-height:1;
+  }
+  .fhint .flabel { color:{{META}}; font-size:12px; }
 </style>
-<div class="panel {{SPLITCLASS}}">
-  <div class="listcol">
-    <div class="search"><input id="q" type="text" placeholder="{{PLACEHOLDER}}" autocomplete="off" spellcheck="false"></div>
-    <div class="scroll" id="scroll"><div class="spacer" id="spacer"></div></div>
+<div class="panel {{SPLITCLASS}} {{FOOTERCLASS}}">
+  <div class="body">
+    <div class="listcol">
+      <div class="search"><input id="q" type="text" placeholder="{{PLACEHOLDER}}" autocomplete="off" spellcheck="false"></div>
+      <div class="scroll" id="scroll"><div class="spacer" id="spacer"></div></div>
+    </div>
+    <div class="preview" id="preview"><div class="wrap" id="pvwrap"></div></div>
   </div>
-  <div class="preview" id="preview"><div class="wrap" id="pvwrap"></div></div>
+  <div class="footer" id="footer">{{FOOTER}}</div>
 </div>
 <script>
 window.onerror = function(msg, src, line){ window.__err = msg + ' @' + line; return false; };
@@ -303,6 +331,13 @@ local function json(v)
   return hs.json.encode(v)
 end
 
+-- Escape text bound for the footer html, since a key label could carry a glyph or
+-- a character the browser would read as markup.
+local function esc(s)
+  return (tostring(s or "")
+    :gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;"))
+end
+
 --------------------------------------------------------------------------------
 -- Icon resolution. iconKey hits the disk cache; an hs.image is encoded once and
 -- memoized by identity so flags and thumbnails are not re-encoded each open.
@@ -442,12 +477,37 @@ function List:_previewW()
   return pw > 0 and math.min(pw, L.paneMaxW) or 0
 end
 
+-- The footer hints for this instance, or nil when the consumer supplied none.
+function List:_footer()
+  local f = self.config.footer
+  return (f and #f > 0) and f or nil
+end
+
+-- Build the footer bar's inner html from the hints, each a chip of one or two key
+-- badges and a label. Reuses the same badge strings the cheat sheet builds, so the
+-- footer and the overlays never drift.
+function List:_footerHtml()
+  local hints = self:_footer()
+  if not hints then return "" end
+  local parts = {}
+  for _, h in ipairs(hints) do
+    local badges = {}
+    for _, b in ipairs(h.badges or {}) do
+      badges[#badges + 1] = '<span class="kbd">' .. esc(b) .. "</span>"
+    end
+    parts[#parts + 1] = '<span class="fhint">' .. table.concat(badges) ..
+      '<span class="flabel">' .. esc(h.label or "") .. "</span></span>"
+  end
+  return table.concat(parts)
+end
+
 function List:_frame()
   local L = self.layout
   local f = hs.screen.mainScreen():frame()
   local listW = math.min(math.floor(f.w * L.widthPct / 100), L.paneMaxW)
   local w = listW + self:_previewW() -- the +1px divider is absorbed by the border
   local h = L.headerH + L.visibleRows * L.rowH + 2 -- +2 for the header border
+  if self:_footer() then h = h + L.footerH end
   return self.shell:placeCentered(w, h, L.topFrac, L.minVPad)
 end
 
@@ -465,8 +525,12 @@ function List:_buildPage()
     META = pv.meta or whiteToCss(side.subColor),
     BORDER = dark and "255,255,255,0.09" or "0,0,0,0.09",
     ACTIVE = dark and "255,255,255,0.10" or "0,0,0,0.06",
+    BADGE = dark and "255,255,255,0.12" or "0,0,0,0.08",
     RADIUS = "14",
     HEADERH = tostring(L.headerH),
+    FOOTERH = tostring(L.footerH),
+    FOOTER = self:_footerHtml(),
+    FOOTERCLASS = self:_footer() and "" or "nofooter",
     ROWH = tostring(L.rowH),
     TITLESIZE = tostring(L.titleSize),
     SUBSIZE = tostring(L.subSize),
