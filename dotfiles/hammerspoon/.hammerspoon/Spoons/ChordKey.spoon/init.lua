@@ -174,7 +174,14 @@ function obj:start()
     -- Other keys, only while some chord key is held.
     for _, held in pairs(self._keys) do
       if held.active then
-        if t == types.keyDown then
+        -- A held key auto-repeats its key-down, but a chord is one discrete
+        -- press, so dispatch only on the first. Firing on each repeat re-runs
+        -- the handler, which for a toggle like the clipboard opens and closes it
+        -- over and over while the key stays down. The repeat is still swallowed
+        -- below so nothing leaks. This mirrors the first-press-only guard the
+        -- chord key itself uses above.
+        local repeated = e:getProperty(props.keyboardEventAutorepeat) ~= 0
+        if t == types.keyDown and not repeated then
           -- A real key press means this is a chord, not a cheat-sheet hold:
           -- cancel the pending overlay (and dismiss it if already shown).
           held.used = true
