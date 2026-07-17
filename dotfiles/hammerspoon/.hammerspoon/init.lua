@@ -32,6 +32,7 @@ hs.loadSpoon("WindowCheatSheet")
 hs.loadSpoon("AppToggler")
 hs.loadSpoon("ClipboardHistory")
 hs.loadSpoon("Caffeinate")
+hs.loadSpoon("Vpn")
 hs.loadSpoon("Capture")
 hs.loadSpoon("WorkspaceEngine")
 hs.loadSpoon("TerminalHandler")
@@ -76,6 +77,7 @@ for _, b in ipairs(keys.capture) do
 end
 hyperActions[#hyperActions + 1] = keys.clipboardHistory
 hyperActions[#hyperActions + 1] = keys.caffeinate
+hyperActions[#hyperActions + 1] = keys.vpn
 hyperActions[#hyperActions + 1] = keys.lock
 hyperActions[#hyperActions + 1] = keys.sleep
 
@@ -166,6 +168,12 @@ local predicates = {
   -- The keep awake chooser is open. Gates the caffeinate Hyper context.
   caffeinateOpen = function()
     return spoon.Caffeinate ~= nil and spoon.Caffeinate.isShowing()
+  end,
+  -- The VPN control panel is open. Gates the vpn Hyper context. The location search
+  -- is a separate chooser and does not report through here, so its arrow key and typing
+  -- navigation is left to the chooser itself.
+  vpnOpen = function()
+    return spoon.Vpn ~= nil and spoon.Vpn.isShowing()
   end,
 }
 -- The window bindings carry no leader (see config/keys.lua). Stamp the resolved
@@ -356,6 +364,16 @@ spoon.Caffeinate.configure({ theme = settings.chooserTheme, panel = spoon.Panel 
 spoon.Caffeinate.start()
 spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
 
+-- VPN controls: the control panel on Hyper+Y. It is the second consumer of the Panel
+-- atom, sharing it with caffeinate for its short fixed action list, and it also uses
+-- the Chooser atom for the location search, the same widget behind the clipboard. Both
+-- are injected here from the one theme source. When the Mullvad CLI is missing the
+-- spoon logs to the console and stays inert, so this wiring is safe on any machine. The
+-- open key is a base HyperKey binding, suppressed while a modal context owns Hyper.
+spoon.Vpn.configure({ theme = settings.chooserTheme, panel = spoon.Panel, chooser = spoon.Chooser })
+spoon.Vpn.start()
+spoon.HyperKey:bind(keys.vpn.key, function() spoon.Vpn.show() end)
+
 -- Hyper context layers. Inject the shared predicate registry into HyperKey, then
 -- expand each context in keys.hyperContexts into HyperKey bindings that carry the
 -- context's `when` gate and `priority`. config/keys.lua stays pure data and the
@@ -371,7 +389,7 @@ spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
 -- glance at the sheet plus any key clears it.
 spoon.HyperKey:configure({ predicates = predicates })
 local clipManager = spoon.ClipboardHistory.manager
-local choosers = { clipManager, spoon.Caffeinate }
+local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn }
 local function activeChooser()
   for _, c in ipairs(choosers) do
     if c.isShowing() then return c end

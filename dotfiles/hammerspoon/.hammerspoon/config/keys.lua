@@ -90,6 +90,11 @@ return {
   -- suppressed while a modal context owns Hyper.
   caffeinate = { modifiers = HYPER, key = "K", description = "Keep awake" },
 
+  -- VPN controls (for Vpn.spoon). Same shape again. Hyper+Y opens the VPN control
+  -- panel, a short list of actions with the live connection state at the top. It is
+  -- a base binding, suppressed while a modal context owns Hyper.
+  vpn = { modifiers = HYPER, key = "Y", description = "VPN" },
+
   -- Hyper context layers. Each context is a group of Hyper bindings that are live
   -- only while its `when` predicate holds. priority settles a key when several
   -- contexts are active at once, higher wins, and any key no context binds falls
@@ -100,7 +105,7 @@ return {
   -- is also modal, while it is live the base app toggles are suppressed so Hyper
   -- belongs to the context, and any key it does not bind does nothing.
   --
-  -- Two contexts share the navigation actions, since only one chooser is ever open
+  -- These contexts share the navigation actions, since only one tool is ever open
   -- and the composition root routes each action to the active one.
   --
   -- The clipboard chooser. j and k navigate vim style, i inserts the highlighted
@@ -115,6 +120,10 @@ return {
   -- Hyper released, since a held Hyper owns the keys. This context stays modal, so
   -- while it is open the base Hyper toggles are suppressed and Hyper belongs to it,
   -- and it is the active context so holding Hyper reveals nothing.
+  --
+  -- The VPN control panel is the same kind of list, so it carries the same j, k, and
+  -- x. Its location search is a separate chooser opened from a row, navigated with the
+  -- arrow keys and typing while Hyper is released, so it needs no context of its own.
   hyperContexts = {
     {
       name = "clipboard",
@@ -131,6 +140,16 @@ return {
     {
       name = "caffeinate",
       when = "caffeinateOpen",
+      priority = 100,
+      bindings = {
+        { key = "j", action = "selectNext",   description = "Move down" },
+        { key = "k", action = "selectPrev",   description = "Move up" },
+        { key = "x", action = "closeChooser", description = "Close" },
+      },
+    },
+    {
+      name = "vpn",
+      when = "vpnOpen",
       priority = 100,
       bindings = {
         { key = "j", action = "selectNext",   description = "Move down" },
