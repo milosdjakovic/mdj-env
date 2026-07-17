@@ -170,6 +170,21 @@ return {
         { key = "x", action = "closeChooser",   description = "Close" },
       },
     },
+    -- The command palette chooser. i runs the highlighted command the same as
+    -- Return, j and k navigate vim style, and Space closes it, the same as Escape.
+    -- Space is the open key, so it doubles as the close, the way the clipboard's X
+    -- does. Plain typing filters the list while Hyper is released.
+    {
+      name = "commandPalette",
+      when = "commandPaletteOpen",
+      priority = 100,
+      bindings = {
+        { key = "i",     action = "insertSelected", description = "Run" },
+        { key = "j",     action = "selectNext",     description = "Move down" },
+        { key = "k",     action = "selectPrev",     description = "Move up" },
+        { key = "space", action = "closeChooser",   description = "Close" },
+      },
+    },
   },
 
   -- System actions bound onto the Hyper key in init.lua. Hyper+Esc sleeps the
@@ -239,6 +254,16 @@ return {
     -- Hide all except the focused window (kept last so it sits in the last row)
     { action = "hideAllExceptFocused", key = "H" },
   },
+
+  -- Command palette / switcher (for the Chooser atom, wired in init.lua). Hyper+Space
+  -- opens a filterable list of every installed app (open first, then not running) plus
+  -- the Hyper and window-leader actions; apps with a Hyper toggle show their shortcut,
+  -- and Return runs the highlighted row. Same shape as clipboardHistory/vpn: a base
+  -- HyperKey binding, suppressed while a modal context owns Hyper, with the HYPER field
+  -- as the fallback combo. It also has its own hyperContext below, so while open it
+  -- takes the shared j/k/i navigation and Space closes it (the open key doubles as the
+  -- close, like the clipboard's X).
+  commandPalette = { modifiers = HYPER, key = "space", description = "Command palette" },
 
   -- Feature toggles
   toggleDock = { modifiers = CTRL_ALT, key = "D" },

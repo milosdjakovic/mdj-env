@@ -278,6 +278,53 @@ A tool with two surfaces, like the VPN control panel and its location picker,
 wires each surface as its own participant, its own context block, predicate,
 registry entry, and overlay.
 
+**Command palette / switcher.** Hyper+Space opens a filterable app switcher and
+command runner. It lists every installed application, open ones first then not
+running, and below them the Hyper and window leader actions. An app that has a
+Hyper toggle shows its shortcut, the rest are launchable by name, and typing
+filters by name or shortcut. Return, or Hyper+i, runs the highlighted row. It
+adds no spoon. The reusable mechanism is the Chooser atom, the same widget behind
+the clipboard and the VPN locations, so the palette is pure composition root
+policy in `init.lua`. It is the one place that maps the app list and the pure
+binding data in `config/keys.lua` (`appToggles`, `capture`, `clipboardHistory`,
+`caffeinate`, `vpn`, `lock`, `sleep`, and `windowManagement`) onto the domain
+spoons, reusing `AppToggler:focusOrCycle` / `toggleURL`, `Capture:capture`,
+`WindowManager:actions()`, and the show functions the base Hyper bindings call.
+
+Each row carries only a small serializable descriptor, its kind plus a name or
+bundle id, never a function. This matters because the Chooser hands every row to
+`hs.chooser`, which serialises it to a native object, and a function there cannot
+be converted, so a row holding one is silently dropped and the list comes up
+empty. One dispatcher turns the descriptor back into the right call, so this is
+the Command pattern with the command encoded as data, and the palette still never
+learns what a row does. Adding a row is a new entry in the build, never a change
+to the presenter. The installed app list is scanned once, lazily on first open,
+from the standard app directories and cached, so config load stays fast and a
+newly installed app appears after the next reload, which is automatic on file
+change. Running state is recomputed per open so open apps sort first, and a
+running app not on disk in the scanned dirs is included when it has a dock
+presence, to skip background helpers. Window rows carry their live `when`
+predicate, so the display switch rows drop out on a single display, matching the
+cheat sheet.
+
+App rows show the real app icon. The action rows have none of their own, so each
+gets a generic icon drawn from a glyph, since this Hammerspoon has no SF Symbol
+API and the named system images are too sparse. The glyph is rendered to an image
+once through `hs.canvas` and cached, so it lines up in the row with the app icons.
+Window actions share one glyph, the chord in the subtitle telling them apart,
+while capture and the system actions get a per-action one.
+
+The palette follows the picker checklist above like any other list tool. It has
+a dot called navigation adapter over the Chooser instance, a `commandPaletteOpen`
+predicate, a `commandPalette` context block giving it the shared j, k, and i
+navigation with Space to close (the open key doubles as the close, the way the
+clipboard's X does), an entry in `contextOverlays` so holding Hyper reveals the
+shortcut sheet, and `hideShortcuts` injected as its `onClose`. Native arrows,
+typing, Return, and Escape work whenever Hyper is released. The chosen row runs
+deferred by a short timer, so it fires only after the chooser tears down and
+macOS restores focus to the window that was frontmost before the palette opened,
+which the window actions need since they act on the focused window.
+
 ### Tmux
 
 Configuration in `dotfiles/tmux/`. See `dotfiles/tmux/CLAUDE.md` for binding conventions, priority system, scoped fzf switchers, popup workarounds, and status bar details.

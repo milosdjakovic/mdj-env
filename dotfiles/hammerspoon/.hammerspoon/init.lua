@@ -159,8 +159,18 @@ spoon.WindowLeader:addLeader(leaderCode(keys.windowLeader))
 -- the window cheat sheet, and HyperKey), so a key and its overlay never disagree.
 -- Keep predicates cheap and free of side effects, since they run on every
 -- dispatch and every overlay show.
+--
+-- Forward-declared so the predicate registry and the chooser navigation registry
+-- can name the command palette's navigation surface before it is built further
+-- below (it needs this predicate table and hideShortcuts, which are defined here).
+local commandPaletteSurface
 local predicates = {
   multipleDisplays = function() return #hs.screen.allScreens() > 1 end,
+  -- The command palette chooser is open. Gates the commandPalette Hyper context,
+  -- so it gets the same j/k/i navigation and hold overlay the clipboard chooser has.
+  commandPaletteOpen = function()
+    return commandPaletteSurface ~= nil and commandPaletteSurface.isShowing()
+  end,
   -- The Hammerspoon clipboard chooser is open. Gates the clipboard Hyper context.
   clipboardOpen = function()
     return spoon.ClipboardHistory ~= nil and spoon.ClipboardHistory.manager.isShowing()
@@ -292,7 +302,12 @@ end
 -- disagree. Setting shortcutsShown keeps the toggle state in sync, so a context
 -- keypress clears the peeked sheet like a toggled one.
 local function vpnLocationsShortcutModel() return contextShortcutModel("vpnLocations", "LOCATIONS") end
-local contextOverlays = { clipboard = clipboardShortcutModel, vpnLocations = vpnLocationsShortcutModel }
+local function commandPaletteShortcutModel() return contextShortcutModel("commandPalette", "COMMANDS") end
+local contextOverlays = {
+  clipboard = clipboardShortcutModel,
+  vpnLocations = vpnLocationsShortcutModel,
+  commandPalette = commandPaletteShortcutModel,
+}
 local function activeContext()
   local best
   for _, ctx in ipairs(keys.hyperContexts or {}) do
@@ -378,6 +393,262 @@ spoon.Vpn.configure({ theme = settings.chooserTheme, panel = spoon.Panel, choose
 spoon.Vpn.start()
 spoon.HyperKey:bind(keys.vpn.key, function() spoon.Vpn.show() end)
 
+-- Command palette / switcher: an app switcher and command runner on Hyper+Space.
+-- It lists every installed application (open ones first, then not running), and
+-- below them the Hyper and window-leader actions. An app that has a Hyper toggle
+-- shows its shortcut; the rest are launchable by name. Type to filter, Return or
+-- Hyper+i runs the highlighted row.
+--
+-- This is pure composition-root policy. The reusable mechanism is the Chooser
+-- atom (the same widget behind the clipboard and the VPN locations), so no new
+-- spoon is needed, and this is the one place that maps the app list and the pure
+-- binding data in config/keys.lua onto the domain spoons.
+--
+-- A chosen row carries only a small serializable descriptor, its kind plus a
+-- name or bundle id, never a function, because the Chooser hands each row to
+-- hs.chooser which serialises it to a native object (a function there is what
+-- made the list come up empty). A single dispatcher turns that descriptor back
+-- into the right call. This is the Command pattern with the command encoded as
+-- data, so the palette still never learns what a row does.
+--
+-- Like the clipboard it is wired into the Hyper contexts (see the checklist in
+-- CLAUDE.md): its navigation surface is registered in `choosers` below so the
+-- shared j/k/i actions reach it, its `commandPaletteOpen` predicate gates the
+-- context, and its hold overlay is registered in contextOverlays above. Native
+-- arrows, typing, Return, and Escape work whenever Hyper is released.
+
+-- camelCase action name -> "Title Case" label, the same rule WindowCheatSheet
+-- uses, applied when a binding sets no explicit description.
+local function humanize(name)
+  local s = tostring(name):gsub("(%l)(%u)", "%1 %2")
+  return s:sub(1, 1):upper() .. s:sub(2)
+end
+
+-- Render a chord as readable row text: the leader name plus the key glyph
+-- (CheatSheet.glyphFor turns "left" / {"shift"} into "⇧←"). Kept as words
+-- ("Hyper", "Meta") rather than badges, since a chooser row is plain text.
+local function chordLabel(leader, key, mods)
+  return leader .. " " .. spoon.CheatSheet.glyphFor(key, mods)
+end
+
+local windowActions = spoon.WindowManager:actions()
+local windowLeaderName = "Meta" -- keys.windowLeader is META today; display name
+
+-- The one dispatcher. Each palette row's `item` is a plain descriptor; this maps
+-- it back to a call, reusing the action functions the domain spoons already
+-- expose (AppToggler, WindowManager:actions(), Capture:capture, and the same show
+-- functions the base Hyper bindings call). Nothing here is serialised, so it may
+-- hold closures freely.
+local specialActions = {
+  clipboard = function() spoon.ClipboardHistory:open() end,
+  caffeinate = function() spoon.Caffeinate.show() end,
+  vpn = function() spoon.Vpn.show() end,
+  lock = function() hs.caffeinate.lockScreen() end,
+  sleep = function() hs.caffeinate.systemSleep() end,
+}
+local function runItem(it)
+  if not it then return end
+  if it.kind == "app" then
+    if it.url then
+      spoon.AppToggler:toggleURL(it.bundleID, it.url)
+    else
+      spoon.AppToggler:focusOrCycle(it.bundleID)
+    end
+  elseif it.kind == "window" then
+    local fn = windowActions[it.name]
+    if fn then fn() end
+  elseif it.kind == "capture" then
+    spoon.Capture:capture(it.name)
+  elseif it.kind == "special" then
+    local fn = specialActions[it.name]
+    if fn then fn() end
+  end
+end
+
+-- Action rows have no app icon of their own, so we give each a generic one. This
+-- Hammerspoon (1.1.1) has no SF Symbol API and the named system images are too
+-- sparse, so the icon is drawn from a glyph, once per glyph and cached, and lines
+-- up in the row with the real app icons above it. A nil glyph yields no icon.
+local glyphIconCache = {}
+local function glyphIcon(glyph)
+  if not glyph then return nil end
+  if glyphIconCache[glyph] == nil then
+    local size = 72
+    local c = hs.canvas.new({ x = 0, y = 0, w = size, h = size })
+    c[1] = { type = "text", text = glyph, textSize = 52, textAlignment = "center",
+             frame = { x = "0%", y = "8%", w = "100%", h = "100%" } }
+    glyphIconCache[glyph] = c:imageFromCanvas() or false -- false marks "tried, none"
+    c:delete()
+  end
+  return glyphIconCache[glyph] or nil
+end
+
+-- The static action rows, built once. Each row is
+-- { title, subTitle, image, item, when? } where item is a serializable descriptor
+-- for the dispatcher above. Apps are added live per open (their running state
+-- changes), so they are not here.
+local function buildActionRows()
+  local rows = {}
+  local function add(title, subTitle, item, glyph, when)
+    rows[#rows + 1] = { title = title, subTitle = subTitle, image = glyphIcon(glyph), item = item, when = when }
+  end
+  -- Category glyphs. Window actions all share one, since the chord in the subtitle
+  -- already tells them apart; capture and the system actions get a per-action one.
+  local captureGlyphs = { ocrArea = "🔤", captureArea = "📸", captureAreaClipboard = "📸", recordArea = "🎥" }
+  for _, c in ipairs(keys.capture) do
+    add(c.description or humanize(c.action), "Capture · " .. chordLabel("Hyper", c.key, c.mods),
+      { kind = "capture", name = c.action }, captureGlyphs[c.action] or "📸")
+  end
+  add(keys.clipboardHistory.description, "Clipboard · " .. chordLabel("Hyper", keys.clipboardHistory.key), { kind = "special", name = "clipboard" }, "📋")
+  add(keys.caffeinate.description, "System · " .. chordLabel("Hyper", keys.caffeinate.key), { kind = "special", name = "caffeinate" }, "☕")
+  add(keys.vpn.description, "Network · " .. chordLabel("Hyper", keys.vpn.key), { kind = "special", name = "vpn" }, "🌐")
+  add(keys.lock.description, "System · " .. chordLabel("Hyper", keys.lock.key), { kind = "special", name = "lock" }, "🔒")
+  add(keys.sleep.description, "System · " .. chordLabel("Hyper", keys.sleep.key), { kind = "special", name = "sleep" }, "🌙")
+  for _, b in ipairs(keys.windowManagement) do
+    if windowActions[b.action] then
+      add(b.description or humanize(b.action), "Window · " .. chordLabel(windowLeaderName, b.key, b.mods),
+        { kind = "window", name = b.action }, "🪟", b.when)
+    end
+  end
+  return rows
+end
+local actionRows = buildActionRows()
+
+-- The configured Hyper toggle for each app, keyed by bundle id, so an app row can
+-- show its shortcut (and reuse its url-pane behavior). Built from the same pure
+-- appToggles data the AppToggler binds.
+local configuredApps = {}
+for _, t in ipairs(keys.appToggles) do
+  local bundleID = apps[t.app]
+  if bundleID then configuredApps[bundleID] = { key = t.key, url = t.url } end
+end
+
+-- Enumerate installed applications once, lazily on first open, so config load
+-- stays fast. Scans the standard app directories for .app bundles and resolves
+-- each bundle id, name, and icon, deduped by bundle id. Cached; a newly installed
+-- app appears after the next Hammerspoon reload, which is automatic on file change.
+local APP_DIRS = {
+  "/Applications",
+  "/Applications/Utilities",
+  "/System/Applications",
+  "/System/Applications/Utilities",
+  os.getenv("HOME") .. "/Applications",
+}
+local installedApps
+local function scanInstalledApps()
+  local byId = {}
+  for _, dir in ipairs(APP_DIRS) do
+    if hs.fs.attributes(dir, "mode") == "directory" then
+      for file in hs.fs.dir(dir) do
+        if file:sub(-4) == ".app" then
+          local path = dir .. "/" .. file
+          local info = hs.application.infoForBundlePath(path)
+          local bundleID = info and info.CFBundleIdentifier
+          if bundleID and not byId[bundleID] then
+            byId[bundleID] = {
+              name = hs.application.nameForBundleID(bundleID) or file:sub(1, -5),
+              bundleID = bundleID,
+              icon = hs.image.imageFromAppBundle(bundleID),
+            }
+          end
+        end
+      end
+    end
+  end
+  return byId
+end
+
+-- The live app rows: every installed app plus any running app not on disk in the
+-- scanned dirs, marked open when running so open apps sort first. A running app
+-- outside the scan is included only when it has a dock presence (kind 1), to skip
+-- background helpers. Recomputed per open since running state changes; the costly
+-- disk scan is cached.
+local function appRows()
+  installedApps = installedApps or scanInstalledApps()
+  local byId = {}
+  for bundleID, a in pairs(installedApps) do
+    byId[bundleID] = { name = a.name, bundleID = bundleID, icon = a.icon, running = false }
+  end
+  for _, app in ipairs(hs.application.runningApplications()) do
+    local bundleID = app:bundleID()
+    if bundleID then
+      local e = byId[bundleID]
+      if e then
+        e.running = true
+      elseif app:kind() == 1 then
+        byId[bundleID] = { name = app:name() or bundleID, bundleID = bundleID, icon = hs.image.imageFromAppBundle(bundleID), running = true }
+      end
+    end
+  end
+  local list = {}
+  for _, e in pairs(byId) do list[#list + 1] = e end
+  table.sort(list, function(x, y)
+    if x.running ~= y.running then return x.running end -- open apps first
+    return (x.name or ""):lower() < (y.name or ""):lower()
+  end)
+
+  local rows = {}
+  for _, e in ipairs(list) do
+    local cfg = configuredApps[e.bundleID]
+    local status = e.running and "Open" or "Not running"
+    local subTitle = cfg and (status .. " · Hyper " .. cfg.key) or status
+    rows[#rows + 1] = {
+      title = e.name,
+      subTitle = subTitle,
+      image = e.icon,
+      item = { kind = "app", bundleID = e.bundleID, url = cfg and cfg.url },
+    }
+  end
+  return rows
+end
+
+-- The row supplier. Apps first (open, then not running), then the action rows.
+-- Case-insensitive substring match over the visible text, so typing filters by
+-- name or shortcut. Gated action rows (the display switches) drop out live through
+-- the same predicate registry the window bindings use, so the palette and the
+-- cheat sheet agree on what is available.
+local function commandRows(query)
+  local q = (query or ""):lower()
+  local out = {}
+  local function consider(row)
+    if row.when and not (predicates[row.when] and predicates[row.when]()) then return end
+    if q == "" or (row.title .. " " .. row.subTitle):lower():find(q, 1, true) then
+      out[#out + 1] = { title = row.title, subTitle = row.subTitle, image = row.image, item = row.item }
+    end
+  end
+  for _, row in ipairs(appRows()) do consider(row) end
+  for _, row in ipairs(actionRows) do consider(row) end
+  return out
+end
+
+-- The row runs deferred, after the chooser has torn down and macOS has restored
+-- focus to the app that was frontmost before the palette opened. Window actions
+-- act on hs.window.focusedWindow(), so they must run once that window is focused
+-- again rather than while the chooser holds focus. onClose clears any peeked
+-- shortcut overlay, matching the clipboard.
+local commandPalette = spoon.Chooser.new({
+  theme = settings.chooserTheme,
+  placeholder = "Search apps and commands",
+  rows = commandRows,
+  onSelect = function(item)
+    if item then hs.timer.doAfter(0.1, function() runItem(item) end) end
+  end,
+  onClose = hideShortcuts,
+})
+-- Dot-called navigation adapter over the Chooser instance (whose methods are
+-- colon-called), so the shared activeChooser / routeNav registry drives it exactly
+-- like the other pickers. This is step 1 of the "wire a picker into the Hyper
+-- contexts" checklist, the same wrap Vpn.spoon does for its location picker.
+commandPaletteSurface = {
+  isShowing = function() return commandPalette:isShowing() end,
+  selectNext = function() commandPalette:selectNext() end,
+  selectPrev = function() commandPalette:selectPrev() end,
+  insertSelected = function() commandPalette:insertSelected() end,
+  hide = function() commandPalette:hide() end,
+}
+-- Open key: a base HyperKey binding, suppressed while a modal context owns Hyper.
+spoon.HyperKey:bind(keys.commandPalette.key, function() commandPalette:show() end)
+
 -- Hyper context layers. Inject the shared predicate registry into HyperKey, then
 -- expand each context in keys.hyperContexts into HyperKey bindings that carry the
 -- context's `when` gate and `priority`. config/keys.lua stays pure data and the
@@ -393,7 +664,7 @@ spoon.HyperKey:bind(keys.vpn.key, function() spoon.Vpn.show() end)
 -- glance at the sheet plus any key clears it.
 spoon.HyperKey:configure({ predicates = predicates })
 local clipManager = spoon.ClipboardHistory.manager
-local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, spoon.Vpn.locations }
+local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, spoon.Vpn.locations, commandPaletteSurface }
 local function activeChooser()
   for _, c in ipairs(choosers) do
     if c.isShowing() then return c end
