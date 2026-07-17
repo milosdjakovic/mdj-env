@@ -1,7 +1,8 @@
 --- === Vpn ===
 ---
 --- A VPN control tool. Hyper+Y opens a small panel with the live connection state at
---- the top and a short list of actions, Connect, Disconnect, Reconnect, and Search
+--- the top and the two actions that make sense for that state. When disconnected it
+--- offers Connect and Search locations, when connected it offers Disconnect and Search
 --- locations. Search locations opens a filterable picker of every city the provider
 --- offers, and choosing one sets the relay and connects.
 ---
@@ -33,6 +34,7 @@ local cfg = nil       -- injected: the shared theme, the Panel factory, the Choo
 local panel = nil     -- the control panel, a Panel instance
 local locations = nil -- the location search, a Chooser instance
 local cache = {}      -- the last fetched location list, filtered by the supplier
+local current = { state = "unavailable" } -- status read once per open, read by both suppliers
 
 --------------------------------------------------------------------------------
 -- Status wording (command policy)
@@ -58,25 +60,31 @@ end
 -- The control panel rows and their meaning
 --------------------------------------------------------------------------------
 
-local OPTIONS = {
-  { id = "connect",    label = "Connect" },
-  { id = "disconnect", label = "Disconnect" },
-  { id = "reconnect",  label = "Reconnect" },
-  { id = "locations",  label = "Search locations" },
-}
+-- The rows depend on the state read at open. When the tunnel is up the primary action
+-- is Disconnect, otherwise it is Connect, and Search locations is always offered.
+-- Connecting counts as up so the action cancels it, and every other state, including a
+-- daemon that is not answering, offers Connect. The panel calls this on each show.
+local function panelRows()
+  local up = current.state == "connected" or current.state == "connecting"
+  local primary = up
+    and { id = "disconnect", label = "Disconnect" }
+    or { id = "connect", label = "Connect" }
+  return {
+    primary,
+    { id = "locations", label = "Search locations" },
+  }
+end
 
--- A row was applied. The three actions delegate to the engine and close the panel.
--- Search locations closes the panel and opens the location picker just after, so the
--- panel's focus restore settles before the picker takes focus. Returns nil so the
--- panel closes in every case.
+-- A row was applied. The actions delegate to the engine and close the panel. Search
+-- locations closes the panel and opens the location picker just after, so the panel's
+-- focus restore settles before the picker takes focus. Returns nil so the panel closes
+-- in every case.
 local function onApply(sel)
   local id = sel.id
   if id == "connect" then
     engine.connect()
   elseif id == "disconnect" then
     engine.disconnect()
-  elseif id == "reconnect" then
-    engine.reconnect()
   elseif id == "locations" then
     hs.timer.doAfter(0.08, function() M.showLocations() end)
   end
@@ -119,9 +127,12 @@ end
 -- Public control surface (dot-called, matching the clipboard and caffeinate)
 --------------------------------------------------------------------------------
 
---- M.show() - open the VPN control panel.
+--- M.show() - read the state once, then open the VPN control panel. Both the rows and
+--- the status line read this one snapshot, so a single status call drives the open.
 function M.show()
-  if panel then panel:show() end
+  if not panel then return end
+  current = engine.status()
+  panel:show()
 end
 
 --- M.showLocations() - open the location picker. The relay list is fetched fresh each
@@ -172,8 +183,8 @@ function M.start()
   panel = cfg.panel.new({
     name = "vpn",
     theme = cfg.theme,
-    options = OPTIONS,
-    status = function() return statusText(engine.status()) end,
+    options = panelRows,
+    status = function() return statusText(current) end,
     onApply = onApply,
   })
   locations = cfg.chooser.new({

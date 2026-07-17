@@ -54,7 +54,6 @@ end
 
 function M.connect() run("connect") end
 function M.disconnect() run("disconnect") end
-function M.reconnect() run("reconnect") end
 function M.setLocation(country, city) run("setLocation", country, city) end
 
 function M.listLocations(cb)

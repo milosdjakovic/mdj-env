@@ -24,9 +24,11 @@
 ---   theme    palette source with dark and light sides, each carrying bgDark and a
 ---            preview color set. Injected from config.
 ---   width    the panel width in points. Defaults to 380.
----   options  REQUIRED list of rows, each { id, label, entry }, where entry is nil for
----            a plain row, or duration or clock for a row that carries a small inline
----            hours and minutes field the panel builds and clamps.
+---   options  REQUIRED rows, each { id, label, entry }, where entry is nil for a plain
+---            row, or duration or clock for a row that carries a small inline hours and
+---            minutes field the panel builds and clamps. It may be a plain list, or a
+---            function returning one, evaluated on each show so the rows can track live
+---            state the way the status supplier does.
 ---   status   function returning the status line text shown at the top.
 ---   onApply  function(selection) called when a row is applied, returning nil on
 ---            success so the panel closes, or an error string so it stays open and
@@ -219,11 +221,19 @@ local function rowHtml(i, o)
     i - 1, o.id, o.entry or "", o.label, entry)
 end
 
+-- Resolve the rows, allowing a supplier so a consumer can vary them by live state.
+-- Called on each show, so the list is always current.
+function View:_options()
+  local o = self.config.options
+  if type(o) == "function" then o = o() end
+  return o or {}
+end
+
 function View:_buildHtml()
   local pv = self.side.preview or FALLBACK.preview
   local dark = self.side.bgDark
   local rows = {}
-  for i, o in ipairs(self.config.options or {}) do
+  for i, o in ipairs(self:_options()) do
     rows[#rows + 1] = rowHtml(i, o)
   end
   local map = {
@@ -246,7 +256,7 @@ end
 --------------------------------------------------------------------------------
 
 function View:_estHeight()
-  local n = #(self.config.options or {})
+  local n = #(self:_options())
   return 28 + n * 38 + 12 + 18 + 8
 end
 

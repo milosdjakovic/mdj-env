@@ -12,15 +12,15 @@
 ---                                   city, hostname }. state is connected, connecting,
 ---                                   disconnected, disconnecting, or unavailable when
 ---                                   the daemon does not answer. Fast, so synchronous.
----   connect(cb), disconnect(cb), reconnect(cb)  run the action off the main thread and
----                                   call cb(ok, err) on the main thread when it lands.
+---   connect(cb), disconnect(cb)     run the action off the main thread and call
+---                                   cb(ok, err) on the main thread when it lands.
 ---   setLocation(country, city, cb)  select that relay and connect to it, then cb(ok, err).
 ---   listLocations(cb)               fetch the relays and call cb(list), each entry
 ---                                   { id, label, country, countryCode, city, cityCode }.
 
 local M = {}
 
-M.methods = { "available", "status", "connect", "disconnect", "reconnect", "setLocation", "listLocations" }
+M.methods = { "available", "status", "connect", "disconnect", "setLocation", "listLocations" }
 
 function M.validate(provider)
   assert(type(provider) == "table", "vpn provider must be a table")

@@ -63,7 +63,6 @@ end
 
 function M.connect(cb) runAsync({ "connect" }, cb) end
 function M.disconnect(cb) runAsync({ "disconnect" }, cb) end
-function M.reconnect(cb) runAsync({ "reconnect" }, cb) end
 
 -- Select a relay and go there. Setting the location constraint alone does not
 -- connect when the tunnel is down, so this sets the location and then connects, which
