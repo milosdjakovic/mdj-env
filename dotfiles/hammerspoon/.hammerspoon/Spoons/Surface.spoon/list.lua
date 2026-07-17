@@ -36,6 +36,8 @@ local DEFAULT_LAYOUT = {
   minVPad = 60,
   titleSize = 15,
   subSize = 12,
+  iconSize = 34,  -- leading row icon box, points
+  numSize = 16,   -- the Cmd digit badge font size, points
   previewWidth = 0, -- 0 leaves the list single column; a positive width adds a
                     -- preview pane on the right, the clipboard split, inside the
                     -- same window. The consumer fills it through setPreview.
@@ -105,13 +107,13 @@ local TEMPLATE = [==[
     height:{{ROWH}}px; padding:0 12px;
   }
   .row.active { background:rgba({{ACTIVE}}); }
-  .row .icon { flex:0 0 22px; width:22px; height:22px; margin-right:10px; }
+  .row .icon { flex:0 0 {{ICONSIZE}}px; width:{{ICONSIZE}}px; height:{{ICONSIZE}}px; margin-right:12px; }
   .row .icon img { width:100%; height:100%; object-fit:contain; }
   .row .text { flex:1 1 auto; min-width:0; }
   .row .title { font-size:{{TITLESIZE}}px; color:{{FG}}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .row.disabled .title { opacity:0.4; }
   .row .sub { font-size:{{SUBSIZE}}px; color:{{META}}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
-  .row .num { flex:0 0 auto; margin-left:8px; font-size:11px; color:{{META}}; opacity:0.7; }
+  .row .num { flex:0 0 auto; margin-left:10px; font-size:{{NUMSIZE}}px; font-weight:400; color:{{META}}; }
   .empty { padding:18px 14px; font-size:13px; color:{{META}}; }
 </style>
 <div class="panel {{SPLITCLASS}}">
@@ -368,11 +370,13 @@ end
 function List:_onMessage(body)
   local a = body.action
   if a == "ready" then
-    -- The page is parsed; push the dataset built at show. Focus the field too,
-    -- since the reload may have dropped it.
-    if self.dataset then
-      self.shell:eval("window.__setRows(" .. json(self.dataset) .. ")")
-    end
+    -- The page is parsed; push the rows. Rebuild from the supplier now rather than
+    -- replaying the snapshot taken at show(), so rows that arrived between show and
+    -- the page becoming ready (a location list fetched async) are included instead
+    -- of lost to the handshake race. Focus the field too, since the reload may have
+    -- dropped it.
+    self.dataset = self:_buildDataset(self.lastQuery or "")
+    self.shell:eval("window.__setRows(" .. json(self.dataset) .. ")")
     self.shell:eval("window.__focus()")
   elseif a == "highlight" then
     self.highlightIndex = body.index
@@ -466,6 +470,8 @@ function List:_buildPage()
     ROWH = tostring(L.rowH),
     TITLESIZE = tostring(L.titleSize),
     SUBSIZE = tostring(L.subSize),
+    ICONSIZE = tostring(L.iconSize),
+    NUMSIZE = tostring(L.numSize),
     PLACEHOLDER = (self.config.placeholder or ""):gsub('"', "'"),
     FIELDMODE = self.fieldMode,
     PREFIXES = json(self.config.typePrefixes or EMPTY),
@@ -500,10 +506,12 @@ function List:isShowing() return self.shell:isShowing() end
 
 function List:refresh()
   if not self:isShowing() then return end
-  local ds = self:_buildDataset(self.lastQuery or "")
-  -- keepSel true, so a redraw after a batch toggle or a delete holds the
-  -- highlight in place rather than jumping to the top, matching the native atom.
-  self.shell:eval("window.__setRows(" .. json(ds) .. ", true)")
+  -- Keep self.dataset in sync so a refresh landing before the page reports ready
+  -- is not lost, the ready handler rebuilds from the same supplier. keepSel true,
+  -- so a redraw after a batch toggle or a delete holds the highlight in place
+  -- rather than jumping to the top, matching the native atom.
+  self.dataset = self:_buildDataset(self.lastQuery or "")
+  self.shell:eval("window.__setRows(" .. json(self.dataset) .. ", true)")
 end
 
 --- List:hasPreview() - true when this surface reserves a split preview pane, so a
