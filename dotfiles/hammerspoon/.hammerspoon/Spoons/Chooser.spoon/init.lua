@@ -30,8 +30,10 @@
 ---                a seed frame at show and a corrected frame once the real window
 ---                settles. A consumer docks its companion into companionFrame.
 ---   onInput      function(text) fired on Return while in input field mode.
----   fieldMode    "filter" (query filters rows), "off" (query inert), or "input"
----                (query is a typed value, Return calls onInput). Default filter.
+---   fieldMode    "filter" (query filters rows), "off" (query inert), "input"
+---                (query is a typed value, Return calls onInput), or "hybrid"
+---                (rows plus a typed value, Return submits the text when the field
+---                is non empty else selects the row). Default filter.
 ---   placeholder  the empty field hint.
 ---   layout       sizes: widthPct, paneMaxW, rowH, baseH, rowCount, gap, topFrac,
 ---                minVPad, companionWidth (0 for no companion), and the row font
@@ -313,11 +315,13 @@ end
 --------------------------------------------------------------------------------
 
 function Chooser:_completion(choice)
-  -- In input mode Return commits the typed text, not a row.
-  if self.fieldMode == "input" then
-    local text = self.chooser and self.chooser:query() or ""
+  -- Text submit. In input mode Return always commits the typed value. In hybrid
+  -- mode, where rows and a typed value coexist, Return commits the text only when
+  -- the field is non empty, otherwise it selects the highlighted row below.
+  local q = self.chooser and self.chooser:query() or ""
+  if self.config.onInput and (self.fieldMode == "input" or (self.fieldMode == "hybrid" and q ~= "")) then
     self:_teardown()
-    if self.config.onInput then self.config.onInput(text) end
+    self.config.onInput(q)
     return
   end
   local item, enabled = nil, true

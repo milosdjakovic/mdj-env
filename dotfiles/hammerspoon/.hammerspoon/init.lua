@@ -30,6 +30,7 @@ hs.loadSpoon("WindowLeader")
 hs.loadSpoon("WindowCheatSheet")
 hs.loadSpoon("AppToggler")
 hs.loadSpoon("ClipboardHistory")
+hs.loadSpoon("Caffeinate")
 hs.loadSpoon("Capture")
 hs.loadSpoon("WorkspaceEngine")
 hs.loadSpoon("TerminalHandler")
@@ -73,6 +74,7 @@ for _, b in ipairs(keys.capture) do
   hyperActions[#hyperActions + 1] = b
 end
 hyperActions[#hyperActions + 1] = keys.clipboardHistory
+hyperActions[#hyperActions + 1] = keys.caffeinate
 hyperActions[#hyperActions + 1] = keys.lock
 hyperActions[#hyperActions + 1] = keys.sleep
 
@@ -160,6 +162,10 @@ local predicates = {
   clipboardOpen = function()
     return spoon.ClipboardHistory ~= nil and spoon.ClipboardHistory.manager.isShowing()
   end,
+  -- The keep awake chooser is open. Gates the caffeinate Hyper context.
+  caffeinateOpen = function()
+    return spoon.Caffeinate ~= nil and spoon.Caffeinate.isShowing()
+  end,
 }
 -- The window bindings carry no leader (see config/keys.lua). Stamp the resolved
 -- window leader onto each here, in the composition root, so WindowManager and
@@ -222,28 +228,25 @@ spoon.AppToggler:bindHotkeys(keys.appToggles)
 -- clears the sheet, and it is called before each context action so any key
 -- dismisses the sheet.
 local shortcutsShown = false
-local function clipboardShortcutModel()
+-- Build a shortcut overlay model for a named Hyper context, drawn from that
+-- context's own bindings so it never drifts from the real keys. The context keys
+-- fire on Hyper plus the key, and this panel is revealed by a Hyper hold, so a
+-- bare badge would read as a plain key. Spell the chord out, Hyper+J, so it cannot
+-- be misread. Return, Escape, and the arrows are genuine plain keys of the
+-- chooser, so they stay bare, which also shows the split between what needs Hyper
+-- and what does not. Insert and Return are one commit, Close and Escape one
+-- dismiss, and the two move rows pair with the down and up arrows, each drawn as a
+-- second box joined by "or", so no separate legend row is needed.
+local function contextShortcutModel(name, title)
   local rows = {}
-  -- The context keys fire on Hyper plus the key, and this panel is revealed by a
-  -- Hyper hold, so a bare badge would read as a plain key. Spell the chord out,
-  -- Hyper+J, so it cannot be misread. Return, Escape, and the
-  -- arrows are genuine plain keys of the chooser, so they stay bare, which also
-  -- shows the split between what needs Hyper and what does not. Paste, Close, and
-  -- the two move rows each have a second, plain alternative, Return, Escape, and
-  -- the down and up arrows, drawn as a second box joined by "or", so no separate
-  -- legend row is needed.
   for _, ctx in ipairs(keys.hyperContexts or {}) do
-    if ctx.name == "clipboard" then
+    if ctx.name == name then
       for _, b in ipairs(ctx.bindings) do
         local chord = "Hyper+" .. spoon.CheatSheet.glyphFor(b.key, b.mods)
-        -- Insert and Return are one commit, Close and Escape one dismiss, Move
-        -- down and the down arrow one step, Move up and the up arrow one step, each
-        -- shown as two separate boxes joined by "or" so they read as alternatives,
-        -- not a combo you press together.
         local badges = { chord }
         if b.action == "insertSelected" then
           badges = { chord, spoon.CheatSheet.glyphFor("return") }
-        elseif b.action == "closeClipboard" then
+        elseif b.action == "closeChooser" then
           badges = { chord, spoon.CheatSheet.glyphFor("escape") }
         elseif b.action == "selectNext" then
           badges = { chord, spoon.CheatSheet.glyphFor("down") }
@@ -257,9 +260,10 @@ local function clipboardShortcutModel()
   return {
     columns = 1,
     colWidth = 320,
-    sections = { { title = "CLIPBOARD", rows = rows } },
+    sections = { { title = title, rows = rows } },
   }
 end
+local function clipboardShortcutModel() return contextShortcutModel("clipboard", "CLIPBOARD") end
 local function hideShortcuts()
   if shortcutsShown then
     spoon.CheatSheet:hide()
@@ -267,31 +271,37 @@ local function hideShortcuts()
   end
 end
 -- Assign the Hyper hold reveal now that the overlay model and predicates exist.
--- A hold shows the active layer, either the base app overlay or a live modal
--- context's own shortcuts, so holding Hyper inside the clipboard shows the
--- clipboard keys, not the apps. contextOverlays maps a
--- context name to its model builder, and the active one is the highest priority
--- context whose predicate holds, read from the same registry the bindings use, so
--- the hold and the keys never disagree. Setting shortcutsShown keeps the toggle
--- state in sync, so a context keypress clears the peeked sheet like a toggled one.
+-- A hold shows the active layer. The base app overlay when nothing is modal, a
+-- live modal context's own shortcuts when it has an overlay (the clipboard), and
+-- nothing when a modal context has no overlay (caffeinate, whose command legend is
+-- already in the body). contextOverlays maps a context name to its model builder,
+-- and the active context is the highest priority one whose predicate holds, read
+-- from the same registry the bindings use, so the hold and the keys never
+-- disagree. Setting shortcutsShown keeps the toggle state in sync, so a context
+-- keypress clears the peeked sheet like a toggled one.
 local contextOverlays = { clipboard = clipboardShortcutModel }
-local function activeContextOverlay()
+local function activeContext()
   local best
   for _, ctx in ipairs(keys.hyperContexts or {}) do
     local live = (not ctx.when) or (predicates[ctx.when] and predicates[ctx.when]())
-    if live and contextOverlays[ctx.name] and (not best or (ctx.priority or 0) > (best.priority or 0)) then
+    if live and (not best or (ctx.priority or 0) > (best.priority or 0)) then
       best = ctx
     end
   end
-  return best and contextOverlays[best.name] or nil
+  return best
 end
-local heldLayer = nil -- what the current hold revealed, context or apps
+local heldLayer = nil -- what the current hold revealed, context, apps, or none
 revealHyperLayer = function()
-  local model = activeContextOverlay()
-  if model then
-    spoon.CheatSheet:show(model())
-    shortcutsShown = true
-    heldLayer = "context"
+  local ctx = activeContext()
+  if ctx then
+    local model = contextOverlays[ctx.name]
+    if model then
+      spoon.CheatSheet:show(model())
+      shortcutsShown = true
+      heldLayer = "context"
+    else
+      heldLayer = "none" -- a modal context with no overlay reveals nothing
+    end
   else
     spoon.HyperCheatSheet:show()
     heldLayer = "apps"
@@ -334,25 +344,52 @@ spoon.ClipboardHistory:configure({
 })
 spoon.ClipboardHistory:bindHotkeys({ open = keys.clipboardHistory })
 
+-- Caffeinate: the keep awake panel on Hyper+K. It is a short navigable list, but
+-- it does not use the Chooser atom, because it needs inline numeric fields that
+-- clamp to hours and minutes, which a webview gives natively. It is its own webview
+-- panel (Caffeinate.spoon/webview.lua), sharing only the theme so it matches the
+-- chooser's light and dark look. The open key is a base HyperKey binding, so it
+-- opens when nothing modal owns Hyper and is suppressed while a modal context is
+-- live.
+spoon.Caffeinate.configure({ theme = settings.chooserTheme })
+spoon.Caffeinate.start()
+spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
+
 -- Hyper context layers. Inject the shared predicate registry into HyperKey, then
 -- expand each context in keys.hyperContexts into HyperKey bindings that carry the
--- context's `when` gate and `priority`. Action names resolve here against the
--- manager methods, the one place that knows both the keys and the clipboard, so
--- config/keys.lua stays pure data and the manager never learns about Hyper. The
--- paste keystroke is delivered even while Hyper is held, because ChordKey ignores
--- synthetic events, so no action needs to wait for release. Adding another
--- switcher later touches only keys.hyperContexts, the predicate registry above,
--- and this action map.
+-- context's `when` gate and `priority`. config/keys.lua stays pure data and the
+-- tools never learn about Hyper. The paste keystroke is delivered even while Hyper
+-- is held, because ChordKey ignores synthetic events, so no action waits for
+-- release. Adding another switcher later touches only keys.hyperContexts, the
+-- predicate registry above, and this action map.
+--
+-- The navigation actions are shared. Only one chooser is ever open, so they route
+-- to the active one, resolved from a small registry by isShowing, and both the
+-- clipboard and caffeinate contexts reference the same action names. Append is
+-- clipboard only. Every action first dismisses the peeked shortcut overlay, so a
+-- glance at the sheet plus any key clears it.
 spoon.HyperKey:configure({ predicates = predicates })
 local clipManager = spoon.ClipboardHistory.manager
--- Every action first dismisses the shortcut overlay, so a glance at the peeked
--- sheet plus any key clears it.
+local choosers = { clipManager, spoon.Caffeinate }
+local function activeChooser()
+  for _, c in ipairs(choosers) do
+    if c.isShowing() then return c end
+  end
+  return nil
+end
+local function routeNav(method)
+  return function()
+    hideShortcuts()
+    local c = activeChooser()
+    if c and c[method] then c[method]() end
+  end
+end
 local contextActions = {
-  selectNext = function() hideShortcuts() clipManager.selectNext() end,
-  selectPrev = function() hideShortcuts() clipManager.selectPrev() end,
-  insertSelected = function() hideShortcuts() clipManager.insertSelected() end,
+  selectNext = routeNav("selectNext"),
+  selectPrev = routeNav("selectPrev"),
+  insertSelected = routeNav("insertSelected"),
+  closeChooser = routeNav("hide"),
   appendSelected = function() hideShortcuts() clipManager.appendSelected() end,
-  closeClipboard = function() hideShortcuts() clipManager.hide() end,
 }
 for _, ctx in ipairs(keys.hyperContexts or {}) do
   for _, b in ipairs(ctx.bindings) do

@@ -85,6 +85,11 @@ return {
   -- not wired up. The `description` labels its row on the Hyper cheat sheet.
   clipboardHistory = { modifiers = HYPER, key = "X", description = "Clipboard history" },
 
+  -- Keep awake (for Caffeinate.spoon). Same shape as clipboardHistory. Hyper+K
+  -- opens the keep awake panel, a typed field, not a list. It is a base binding,
+  -- suppressed while a modal context owns Hyper.
+  caffeinate = { modifiers = HYPER, key = "K", description = "Keep awake" },
+
   -- Hyper context layers. Each context is a group of Hyper bindings that are live
   -- only while its `when` predicate holds. priority settles a key when several
   -- contexts are active at once, higher wins, and any key no context binds falls
@@ -95,24 +100,42 @@ return {
   -- is also modal, while it is live the base app toggles are suppressed so Hyper
   -- belongs to the context, and any key it does not bind does nothing.
   --
-  -- The one context is the clipboard chooser. j and k navigate vim style, i
-  -- inserts the highlighted item the same as Return, a appends the highlighted
-  -- item to a batch so several items can be gathered and pasted together on close,
-  -- and x closes the chooser, the same as Escape. x needs its own binding because
-  -- the context is modal, so the base Hyper+X toggle is suppressed while the
-  -- chooser is open. Holding Hyper reveals a shortcut overlay drawn from these same
-  -- bindings. Each description labels its row on that overlay.
+  -- Two contexts share the navigation actions, since only one chooser is ever open
+  -- and the composition root routes each action to the active one.
+  --
+  -- The clipboard chooser. j and k navigate vim style, i inserts the highlighted
+  -- item the same as Return, a appends the highlighted item to a batch so several
+  -- items can be gathered and pasted together on close, and x closes the chooser,
+  -- the same as Escape. x needs its own binding because the context is modal, so
+  -- the base Hyper+X toggle is suppressed while the chooser is open.
+  --
+  -- The keep awake panel is a list you navigate. j and k move the highlight down
+  -- and up vim style, the same as the arrow keys the panel handles natively, and x
+  -- closes it, the same as Escape. Typing the hours and minutes of a row happens with
+  -- Hyper released, since a held Hyper owns the keys. This context stays modal, so
+  -- while it is open the base Hyper toggles are suppressed and Hyper belongs to it,
+  -- and it is the active context so holding Hyper reveals nothing.
   hyperContexts = {
     {
       name = "clipboard",
       when = "clipboardOpen",
       priority = 100,
       bindings = {
-        { key = "i", action = "insertSelected",  description = "Paste" },
-        { key = "j", action = "selectNext",      description = "Move down" },
-        { key = "k", action = "selectPrev",      description = "Move up" },
-        { key = "a", action = "appendSelected",  description = "Append to batch" },
-        { key = "x", action = "closeClipboard",  description = "Close" },
+        { key = "i", action = "insertSelected", description = "Paste" },
+        { key = "j", action = "selectNext",     description = "Move down" },
+        { key = "k", action = "selectPrev",     description = "Move up" },
+        { key = "a", action = "appendSelected", description = "Append to batch" },
+        { key = "x", action = "closeChooser",   description = "Close" },
+      },
+    },
+    {
+      name = "caffeinate",
+      when = "caffeinateOpen",
+      priority = 100,
+      bindings = {
+        { key = "j", action = "selectNext",   description = "Move down" },
+        { key = "k", action = "selectPrev",   description = "Move up" },
+        { key = "x", action = "closeChooser", description = "Close" },
       },
     },
   },
