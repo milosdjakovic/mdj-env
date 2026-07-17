@@ -51,7 +51,7 @@ return {
   -- VPN locations, and the command palette, so switching them all is one edit. The
   -- native backend stays available as a fallback. A single consumer can still
   -- override this with config.provider when a backend is migrated one at a time.
-  chooserProvider = "native",
+  chooserProvider = "web",
 
   -- Chooser theme. One source for how the searchable chooser and its docked
   -- preview look in light and dark. The clipboard reads it today; a future
