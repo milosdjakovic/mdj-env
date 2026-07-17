@@ -1,9 +1,24 @@
 # Unified webview picker plan
 
+## Revision, keep both backends behind a provider seam
+
+The original goal was to retire `hs.chooser` outright. That changed. The native
+chooser stays as a swappable backend rather than being deleted, so styling can be
+compared side by side and a regression is one setting away from reverting. The
+`Chooser` spoon is now a facade over two providers, `native` wrapping
+`hs.chooser` (the original atom, moved to `providers/native.lua`) and `web` built
+on the `Surface` spoon. Every consumer calls the same `Chooser.new(config)`, and
+`settings.chooserProvider` picks the default for all of them at once, while a
+single instance can override with `config.provider` during a one at a time
+migration. This is the Strategy pattern behind a provider seam, the same shape
+the other spoons use. The sections below still describe the webview foundation,
+which is now the `web` backend rather than a replacement.
+
 ## Goal
 
-Retire the native `hs.chooser` and paint every picker surface through one
-webview foundation, so styling is cohesive and a single edit restyles them all.
+Paint every picker surface through one webview foundation, so styling is
+cohesive and a single edit restyles them all, offered as the `web` backend
+alongside the retained `native` one.
 Today three renderers draw the overlays, `hs.canvas` for the cheat sheets,
 `hs.webview` for the panels, and native `hs.chooser` for the searchable lists,
 and the native chooser is the one that cannot match a webview's corners, blur,

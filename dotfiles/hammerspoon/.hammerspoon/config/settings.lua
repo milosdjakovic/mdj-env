@@ -45,6 +45,14 @@ return {
     padding = 28,                                      -- inner margin around content
   },
 
+  -- Picker backend. The Chooser facade has two swappable backends, "native" (the
+  -- built in hs.chooser) and "web" (the themed webview list on the Surface spoon).
+  -- This one word picks the default for every chooser consumer, the clipboard, the
+  -- VPN locations, and the command palette, so switching them all is one edit. The
+  -- native backend stays available as a fallback. A single consumer can still
+  -- override this with config.provider when a backend is migrated one at a time.
+  chooserProvider = "native",
+
   -- Chooser theme. One source for how the searchable chooser and its docked
   -- preview look in light and dark. The clipboard reads it today; a future
   -- chooser based tool (and later the cheat sheets) can read the same source, so

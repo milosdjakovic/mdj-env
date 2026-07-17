@@ -21,6 +21,7 @@ local vicertWorkspace = require("config.workspaces.vicert")
 hs.loadSpoon("KeyRemap")
 hs.loadSpoon("ChordKey")
 hs.loadSpoon("CheatSheet")
+hs.loadSpoon("Surface")
 hs.loadSpoon("Chooser")
 hs.loadSpoon("Panel")
 hs.loadSpoon("HyperKey")
@@ -63,6 +64,18 @@ spoon.KeyRemap:apply(catalog, { keys.appLeader, keys.windowLeader })
 -- config/settings.lua and applies to every overlay.
 spoon.CheatSheet:init()
 spoon.CheatSheet:configure(settings.cheatSheet)
+
+-- Surface: the themed webview foundation behind the web picker backend. Its icon
+-- cache persists encoded app icons across reloads. Chooser is the picker facade
+-- with two swappable backends, native (hs.chooser) and web (a Surface list). The
+-- default backend is settings.chooserProvider, and the Surface spoon is injected
+-- so the web backend can build on it. Every chooser consumer below goes through
+-- this one facade, so flipping settings.chooserProvider swaps them all at once,
+-- while the native chooser stays available as a fallback.
+spoon.Surface:init()
+spoon.Surface:configure({ iconCacheDir = "~/.cache/hs-icons" })
+spoon.Chooser:init()
+spoon.Chooser:configure({ provider = settings.chooserProvider or "native", surface = spoon.Surface })
 
 -- HyperCheatSheet: overlay of everything under Hyper. App toggles first (open vs
 -- not running), then one ACTIONS group for the non-app commands. This is the one
