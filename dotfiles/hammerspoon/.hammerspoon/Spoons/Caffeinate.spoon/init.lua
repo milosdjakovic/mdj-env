@@ -63,16 +63,21 @@ end
 
 -- The option rows the view shows. Order is the display order. An entry kind of
 -- "duration" reads hours and minutes as a span, "clock" reads a 24 hour time, and a
--- row with no entry applies at once. Off is only useful when a session is running, so
--- it is offered only while active and hidden otherwise. A supplier rather than a
--- static list, so the panel re-reads it on each show and tracks the live state.
+-- row with no entry applies at once. Two rows are conditional. Indefinite is dropped
+-- while an indefinite session is already running (active with no expiry), since
+-- reapplying it does nothing, while the two timed rows always show so a running
+-- session can be given a new bound. Off shows only while a session is running, since
+-- turning off is meaningless when nothing is on. A supplier rather than a static list,
+-- so the panel re-reads it on each show and tracks the live state.
 local function optionRows()
-  local rows = {
-    { id = "indefinite", label = "Indefinite" },
-    { id = "for",        label = "For a duration", entry = "duration" },
-    { id = "until",      label = "Until a time",   entry = "clock" },
-  }
-  if engine.status().active then
+  local s = engine.status()
+  local rows = {}
+  if not (s.active and not s.expiry) then
+    rows[#rows + 1] = { id = "indefinite", label = "Indefinite" }
+  end
+  rows[#rows + 1] = { id = "for",   label = "For a duration", entry = "duration" }
+  rows[#rows + 1] = { id = "until", label = "Until a time",   entry = "clock" }
+  if s.active then
     rows[#rows + 1] = { id = "off", label = "Off" }
   end
   return rows
