@@ -139,7 +139,21 @@ function Shell:show(frame)
     if win then win:focus() end
     if self.config.onShown then self.config.onShown() end
   end)
-  self:_startClickWatcher()
+  if self.config.clickAway ~= false then self:_startClickWatcher() end
+end
+
+--- Shell:setPassive(passive) - switch the window between activating and passive at
+--- runtime, so one shell can host both a focused overlay that holds its frosted
+--- backdrop and a passive peek that never steals focus. Passive is borderless and
+--- nonactivating with text entry off; activating drops nonactivating and allows
+--- text entry, so an in page field can hold focus and keep the backdrop alive.
+function Shell:setPassive(passive)
+  self.passive = passive and true or false
+  if not self.wv then return end
+  local masks = hs.webview.windowMasks.borderless
+  if self.passive then masks = masks | hs.webview.windowMasks.nonactivating end
+  self.wv:windowStyle(masks)
+  self.wv:allowTextEntry(not self.passive)
 end
 
 --- Shell:hide() - hide the webview (kept warm), restore focus to the recorded

@@ -45,8 +45,17 @@ local TEMPLATE = [==[
   .label { position:absolute; display:flex; align-items:center; color:{{FG}}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .title { position:absolute; display:flex; align-items:center; color:{{TITLE}}; letter-spacing:.04em; }
   .ico { position:absolute; object-fit:contain; }
+  /* An offscreen focusable input. Keeping a real text field focused is what holds
+     the frosted backdrop, which WebKit drops the moment focus leaves a text field,
+     the same trick the Panel uses. Only matters when the overlay is activating; a
+     passive peek never becomes key, so the field never takes focus, and the peek
+     floats over an already frosted picker instead. */
+  .sink { position:absolute; top:0; left:0; width:1px; height:1px; opacity:0; border:0; padding:0; background:transparent; }
 </style>
-<div class="panel" style="width:{{W}}px;height:{{H}}px;">{{BODY}}</div>
+<div class="panel" style="width:{{W}}px;height:{{H}}px;">{{BODY}}<input id="sink" class="sink" aria-hidden="true"></div>
+<script>
+(function(){ var s = document.getElementById('sink'); if (s) s.focus(); })();
+</script>
 ]==]
 
 --------------------------------------------------------------------------------
@@ -74,6 +83,10 @@ end
 --- caller's content styling. The panel is placed centered on the main screen.
 function Grid:render(spec)
   spec = spec or {}
+  -- A standalone cheat sheet activates and focuses its sink so the backdrop holds.
+  -- A peek over an open picker stays passive so it never steals the picker's focus,
+  -- trading its own backdrop, which barely shows over the picker anyway.
+  self.shell:setPassive(spec.passive and true or false)
   self.shell:selectTheme()
   local side = self.shell:activeSide()
   local dark = side.bgDark
@@ -117,10 +130,12 @@ local function new(config, deps)
   config = config or {}
   deps = deps or {}
   local self = setmetatable({}, Grid)
+  -- clickAway off, the overlay is dismissed by releasing the held key, not by a
+  -- click. Activation is decided per render via setPassive, so it is not fixed here.
   self.shell = deps.shell.new({
     name = config.name or "surfacegrid",
     theme = config.theme,
-    passive = true,
+    clickAway = false,
   })
   return self
 end

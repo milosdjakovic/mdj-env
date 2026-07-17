@@ -299,6 +299,10 @@ local function contextShortcutModel(name, title)
   return {
     columns = 1,
     colWidth = 320,
+    -- A peek is shown over an open picker, so the overlay must stay passive and not
+    -- steal the picker's search focus. It gives up its own frosted backdrop for
+    -- that, which barely shows over the already frosted picker behind it.
+    passive = true,
     sections = { { title = title, rows = rows } },
   }
 end

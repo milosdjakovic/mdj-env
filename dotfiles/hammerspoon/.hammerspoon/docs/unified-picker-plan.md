@@ -158,9 +158,14 @@ load.
 Status. The cheat sheet grids now draw through the Surface. A new passive grid
 surface type hosts a block of positioned HTML inside the same frosted panel the
 lists use, themed from the same palette, so the overlays and the pickers share one
-background. Passive means the shell takes no key focus and is nonactivating, so a
-grid floats over an open picker without stealing its search field, which the Hyper
-context peek needs. `CheatSheet.spoon` kept its whole model contract, its geometry
+background. A grid can be activating or passive per show. WebKit keeps a
+`backdrop-filter` alive only while the webview is the key window with a real text
+field focused, so a standalone sheet activates and focuses a hidden sink to hold
+its frosted panel, the same trick the Panel uses. Without it the blur drops about a
+second after the sheet appears, and a screen recording drops it at once, both by
+pulling key status away. The context peek is the exception, it stays passive so it
+never steals the open picker's search field, giving up its own backdrop, which
+barely shows over the already frosted picker behind it. `CheatSheet.spoon` kept its whole model contract, its geometry
 math, and `glyphFor`, and only swapped the drawing primitive from canvas elements
 to absolutely positioned divs, so `HyperCheatSheet`, `WindowCheatSheet`, and the
 context overlays were not touched. The background now comes from `chooserTheme`

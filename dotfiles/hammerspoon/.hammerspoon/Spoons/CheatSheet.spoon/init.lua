@@ -363,6 +363,10 @@ function obj:show(model)
     h = h,
     fontSize = T.fontSize,
     badgeRadius = T.badge.radius,
+    -- A model may ask to stay passive, the peek shown over an open picker, so the
+    -- overlay does not steal the picker's focus. A standalone sheet omits it and
+    -- activates, holding its frosted backdrop.
+    passive = model.passive,
   })
   return self
 end
