@@ -40,20 +40,29 @@ local current = { state = "unavailable" } -- status read once per open, read by 
 -- Status wording (command policy)
 --------------------------------------------------------------------------------
 
+-- The provider name labels the control panel, so it is clear which VPN app this is
+-- driving. It comes from the provider itself (the one place that knows the backend),
+-- shown in parentheses after the live state, and named directly in the not responding
+-- line since there is no state to pair it with.
 local function statusText(s)
-  if not s or s.state == "unavailable" then return "Mullvad is not responding" end
+  local name = provider.name or "VPN"
+  if not s or s.state == "unavailable" then return name .. " is not responding" end
   local st = s.state
+  local base
   if st == "connected" then
-    if s.city and s.country then return "Connected, " .. s.city .. ", " .. s.country end
-    return s.hostname and ("Connected, " .. s.hostname) or "Connected"
+    if s.city and s.country then base = "Connected, " .. s.city .. ", " .. s.country
+    elseif s.hostname then base = "Connected, " .. s.hostname
+    else base = "Connected" end
   elseif st == "connecting" then
-    return "Connecting"
+    base = "Connecting"
   elseif st == "disconnecting" then
-    return "Disconnecting"
+    base = "Disconnecting"
   elseif st == "disconnected" then
-    return "Disconnected"
+    base = "Disconnected"
+  else
+    base = tostring(st)
   end
-  return tostring(st)
+  return base .. " (" .. name .. ")"
 end
 
 --------------------------------------------------------------------------------
@@ -195,6 +204,12 @@ end
 
 function M.selectPrev()
   if panel then panel:selectPrev() end
+end
+
+-- Apply the highlighted control panel row, routed here from Hyper+i, the same as
+-- pressing Return so Connect, Disconnect, and Search all confirm either way.
+function M.insertSelected()
+  if panel then panel:insertSelected() end
 end
 
 -- The location picker as a dot called participant, matching the shape the shared

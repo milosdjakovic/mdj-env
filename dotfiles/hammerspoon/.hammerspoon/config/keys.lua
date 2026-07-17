@@ -144,9 +144,10 @@ return {
       when = "caffeinateOpen",
       priority = 100,
       bindings = {
-        { key = "j", action = "selectNext",   description = "Move down" },
-        { key = "k", action = "selectPrev",   description = "Move up" },
-        { key = "x", action = "closeChooser", description = "Close" },
+        { key = "k", action = "selectPrev",     description = "Move up" },
+        { key = "j", action = "selectNext",     description = "Move down" },
+        { key = "i", action = "insertSelected", description = "Confirm" },
+        { key = "x", action = "closeChooser",   description = "Close" },
       },
     },
     {
@@ -154,9 +155,10 @@ return {
       when = "vpnOpen",
       priority = 100,
       bindings = {
-        { key = "j", action = "selectNext",   description = "Move down" },
-        { key = "k", action = "selectPrev",   description = "Move up" },
-        { key = "x", action = "closeChooser", description = "Close" },
+        { key = "k", action = "selectPrev",     description = "Move up" },
+        { key = "j", action = "selectNext",     description = "Move down" },
+        { key = "i", action = "insertSelected", description = "Confirm" },
+        { key = "x", action = "closeChooser",   description = "Close" },
       },
     },
     {
@@ -164,9 +166,9 @@ return {
       when = "vpnLocationsOpen",
       priority = 100,
       bindings = {
-        { key = "i", action = "insertSelected", description = "Connect" },
-        { key = "j", action = "selectNext",     description = "Move down" },
         { key = "k", action = "selectPrev",     description = "Move up" },
+        { key = "j", action = "selectNext",     description = "Move down" },
+        { key = "i", action = "insertSelected", description = "Connect" },
         { key = "x", action = "closeChooser",   description = "Close" },
       },
     },

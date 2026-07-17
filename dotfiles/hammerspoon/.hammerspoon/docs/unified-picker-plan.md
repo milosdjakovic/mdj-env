@@ -176,9 +176,14 @@ searchable list and the fixed `Panel` (keep awake and the VPN control panel), ea
 stamped with its hints by the shared `withFooter` factory decorator, so a fixed panel
 shows its Hyper shortcuts the same way a searchable list does. The chips wrap onto more
 rows when a picker is too narrow to hold them in one, so a narrow surface never
-clips them. Since a wrapped bar is taller, the page measures the footer's rendered
-height and reports it, and the Lua side grows the window to fit, keeping it
-centered. A single reveal deferral
+clips them. Since a wrapped bar is taller, the page measures its own rendered height
+and reports it, and the Lua side grows the window to fit, keeping it centered. The
+list posts its footer height on ready and on resize; the fixed `Panel` watches its
+whole panel box with a `ResizeObserver` and posts on every change, which is what makes
+a late wrap grow the window at once rather than leaving the second chip row clipped
+for a beat, the one shot measure it had before could miss the wrap. The fixed panels
+also take the same Hyper navigation the lists do, so Hyper+i confirms the highlighted
+row exactly like Return, and that confirm shows in the footer beside the two ways in. A single reveal deferral
 was also added so switching between the Hyper and window leader sheets no longer
 flashes the previous sheet's still painted content, the shared grid webview waits
 for the new page to report ready before it shows. `CheatSheet.spoon` kept its whole model contract, its geometry

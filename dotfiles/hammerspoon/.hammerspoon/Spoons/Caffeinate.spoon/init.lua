@@ -63,14 +63,20 @@ end
 
 -- The option rows the view shows. Order is the display order. An entry kind of
 -- "duration" reads hours and minutes as a span, "clock" reads a 24 hour time, and a
--- row with no entry applies at once. The view builds the fields and clamps them, so
--- this stays pure data.
-local OPTIONS = {
-  { id = "indefinite", label = "Indefinite" },
-  { id = "for",        label = "For a duration", entry = "duration" },
-  { id = "until",      label = "Until a time",   entry = "clock" },
-  { id = "off",        label = "Off" },
-}
+-- row with no entry applies at once. Off is only useful when a session is running, so
+-- it is offered only while active and hidden otherwise. A supplier rather than a
+-- static list, so the panel re-reads it on each show and tracks the live state.
+local function optionRows()
+  local rows = {
+    { id = "indefinite", label = "Indefinite" },
+    { id = "for",        label = "For a duration", entry = "duration" },
+    { id = "until",      label = "Until a time",   entry = "clock" },
+  }
+  if engine.status().active then
+    rows[#rows + 1] = { id = "off", label = "Off" }
+  end
+  return rows
+end
 
 -- A row was applied. indefinite and off act at once. for reads hours and minutes as
 -- a span and needs a positive total. until reads a 24 hour time and holds awake to
@@ -128,6 +134,12 @@ function M.selectPrev()
   if view then view:selectPrev() end
 end
 
+-- Apply the highlighted row, routed here from Hyper+i, the same as pressing Return so
+-- the two ways to confirm agree.
+function M.insertSelected()
+  if view then view:insertSelected() end
+end
+
 --- M.configure(opts) - inject the shared theme and the Panel factory.
 function M.configure(opts)
   cfg = opts or {}
@@ -141,7 +153,7 @@ function M.start()
   view = cfg.panel.new({
     name = "caffeinate",
     theme = cfg.theme,
-    options = OPTIONS,
+    options = optionRows,
     status = function() return statusText(engine.status()) end,
     onApply = onApply,
   })

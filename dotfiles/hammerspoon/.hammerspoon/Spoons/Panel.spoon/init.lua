@@ -210,8 +210,19 @@ local TEMPLATE = [[
   });
 
   window.moveHighlight = function (d) { highlight(idx + d); };
+  window.applyActive = apply;
   window.showError = function (t) { status.textContent = t; status.classList.add('error'); focusActive(); };
   window.setStatus = function (t) { status.textContent = t; status.classList.remove('error'); };
+
+  // Report the panel's rendered height so the Lua side grows the window to fit. A
+  // ResizeObserver fires whenever the panel box changes for any reason, the footer
+  // wrapping onto a second row being the one that matters, so a late wrap no longer
+  // leaves a clipped chip until something else nudges the frame.
+  var panelEl = document.querySelector('.panel');
+  function reportHeight() { post({ action: 'height', h: panelEl ? panelEl.offsetHeight : 0 }); }
+  if (window.ResizeObserver && panelEl) { new ResizeObserver(reportHeight).observe(panelEl); }
+  else { window.addEventListener('load', reportHeight); }
+
   window.addEventListener('DOMContentLoaded', function () { highlight(idx); });
   setTimeout(function () { highlight(idx); }, 20);
 </script>
@@ -335,11 +346,14 @@ function View:_place(h)
   self.wv:frame(self.frame)
 end
 
-function View:_fit()
-  self.wv:evaluateJavaScript("document.querySelector('.panel').offsetHeight", function(res)
-    local h = tonumber(res)
-    if h and self.active then self:_place(h) end
-  end)
+-- The page reported its rendered height (see the ResizeObserver in the template).
+-- Re-place at that height so a wrapped footer or any content change is accommodated
+-- at once, rather than clipped until a later nudge. Ignored unless open and the
+-- height actually changed, so setting the frame does not feed back into the observer.
+function View:_grow(h)
+  if not self.active or not h or h <= 0 then return end
+  if self.frame and math.abs(h - self.frame.h) < 0.5 then return end
+  self:_place(h)
 end
 
 --------------------------------------------------------------------------------
@@ -393,7 +407,6 @@ function View:show()
     local win = self.wv:hswindow()
     if win then win:focus() end
     self.wv:evaluateJavaScript("window.focusActive && window.focusActive()")
-    self:_fit()
   end)
   self:_startMouse()
 end
@@ -407,6 +420,13 @@ end
 
 function View:selectPrev()
   if self.active and self.wv then self.wv:evaluateJavaScript("window.moveHighlight && window.moveHighlight(-1)") end
+end
+
+--- View:insertSelected() - apply the highlighted row, the same as pressing Return, so
+--- the composition root can drive it from Hyper+i the way it drives the clipboard and
+--- the location picker. Routes through the page's apply so the entry fields are read.
+function View:insertSelected()
+  if self.active and self.wv then self.wv:evaluateJavaScript("window.applyActive && window.applyActive()") end
 end
 
 --- View:refresh() - update the status line while open (a live state changed).
@@ -456,6 +476,8 @@ function obj.new(config)
       self:_apply(body)
     elseif body.action == "close" then
       self:close()
+    elseif body.action == "height" then
+      self:_grow(tonumber(body.h))
     end
   end)
 

@@ -8,6 +8,11 @@
 
 local M = {}
 
+-- The human name of this backend, so the control panel can label which provider it
+-- is driving without the engine or the panel learning the concrete backend. Metadata
+-- beside the contract methods, the provider being the one place that knows it.
+M.name = "Mullvad"
+
 local CANDIDATES = { "/opt/homebrew/bin/mullvad", "/usr/local/bin/mullvad" }
 
 -- Resolve the CLI once. Prefer the known Homebrew paths, then fall back to a PATH
