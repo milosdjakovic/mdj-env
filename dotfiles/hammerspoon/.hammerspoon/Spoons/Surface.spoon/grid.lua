@@ -6,11 +6,20 @@
 --- the same frosted panel the list uses, themed from the same palette, so the
 --- overlays and the pickers share one background and one look.
 ---
---- The shell is passive here, so the overlay never takes key focus and floats over
---- an open picker without stealing its search field, which is exactly what the
---- Hyper context peek sheet needs while the clipboard is open. The caller sizes
---- the panel, since it owns the layout math, and this type only wraps that block
---- in the themed panel and places it centered on screen.
+--- The shell activates and focuses a hidden sink so the panel keeps its frosted
+--- backdrop, which WebKit renders only for the key window with a focused text
+--- field. This holds for a standalone sheet and for a peek shown over an open
+--- picker alike, since two overlapping frosted webviews of one app cannot both be
+--- key, so the front one, the sheet you are reading, is the one that must stay
+--- frosted. The caller sizes the panel, since it owns the layout math, and this
+--- type only wraps that block in the themed panel and places it centered on screen.
+---
+--- A single shared webview backs every sheet, so switching from one sheet to
+--- another reloads its content in place. To avoid revealing the previous sheet's
+--- still painted DOM while the new page loads, the reveal is deferred until the
+--- page reports it has parsed (the same ready handshake the list uses), keyed by a
+--- generation counter so a stale ready from a page that was already replaced is
+--- ignored.
 
 local Grid = {}
 Grid.__index = Grid
@@ -47,14 +56,16 @@ local TEMPLATE = [==[
   .ico { position:absolute; object-fit:contain; }
   /* An offscreen focusable input. Keeping a real text field focused is what holds
      the frosted backdrop, which WebKit drops the moment focus leaves a text field,
-     the same trick the Panel uses. Only matters when the overlay is activating; a
-     passive peek never becomes key, so the field never takes focus, and the peek
-     floats over an already frosted picker instead. */
+     the same trick the Panel uses. Focused on load and reported ready, so the Lua
+     side reveals the window only once the new content has painted. */
   .sink { position:absolute; top:0; left:0; width:1px; height:1px; opacity:0; border:0; padding:0; background:transparent; }
 </style>
 <div class="panel" style="width:{{W}}px;height:{{H}}px;">{{BODY}}<input id="sink" class="sink" aria-hidden="true"></div>
 <script>
-(function(){ var s = document.getElementById('sink'); if (s) s.focus(); })();
+(function(){
+  var s = document.getElementById('sink'); if (s) s.focus();
+  try { window.webkit.messageHandlers.{{BRIDGE}}.postMessage({ action:"ready", gen:{{GEN}} }); } catch(e){}
+})();
 </script>
 ]==]
 
@@ -80,18 +91,33 @@ end
 
 --- Grid:render(spec) - show the overlay. spec.body is the positioned HTML block,
 --- spec.w and spec.h its pixel size, spec.fontSize and spec.badgeRadius the
---- caller's content styling. The panel is placed centered on the main screen.
+--- caller's content styling. The panel is placed centered on the main screen. The
+--- window is revealed only once the page reports ready (see Grid:_onMessage), so
+--- the previous sheet's content never flashes while the new page loads.
 function Grid:render(spec)
   spec = spec or {}
-  -- A standalone cheat sheet activates and focuses its sink so the backdrop holds.
-  -- A peek over an open picker stays passive so it never steals the picker's focus,
-  -- trading its own backdrop, which barely shows over the picker anyway.
+  -- Every sheet activates and focuses its sink so the frosted backdrop holds, the
+  -- front sheet being the one that must stay frosted since two overlapping frosted
+  -- webviews of one app cannot both be key. spec.passive is honoured if set, but
+  -- the callers leave it off now.
   self.shell:setPassive(spec.passive and true or false)
   self.shell:selectTheme()
   local side = self.shell:activeSide()
   local dark = side.bgDark
   local pv = side.preview or {}
   local w, h = spec.w or 480, spec.h or 300
+  self._gen = (self._gen or 0) + 1
+  local f = hs.screen.mainScreen():frame()
+  local floor = math.floor
+  self._pending = {
+    gen = self._gen,
+    frame = {
+      x = f.x + floor((f.w - w) / 2),
+      y = f.y + floor((f.h - h) / 2),
+      w = w,
+      h = h,
+    },
+  }
   local map = {
     BG = hexRGB(pv.bg or "#1e1e22"),
     OPACITY = "0.72",
@@ -104,18 +130,39 @@ function Grid:render(spec)
     BADGERADIUS = tostring(spec.badgeRadius or 6),
     W = tostring(w),
     H = tostring(h),
+    BRIDGE = self.shell.bridge,
+    GEN = tostring(self._gen),
     BODY = spec.body or "",
   }
   local page = (TEMPLATE:gsub("{{(%w+)}}", map))
   self.shell:html(page)
-  local f = hs.screen.mainScreen():frame()
-  local floor = math.floor
-  self.shell:show({
-    x = f.x + floor((f.w - w) / 2),
-    y = f.y + floor((f.h - h) / 2),
-    w = w,
-    h = h,
-  })
+  -- Fallback, reveal anyway if the ready handshake is ever delayed, so a WebKit
+  -- quirk with a hidden view cannot leave the sheet stuck invisible.
+  if self._fallback then self._fallback:stop() end
+  local gen = self._gen
+  self._fallback = hs.timer.doAfter(0.2, function() self:_reveal(gen) end)
+end
+
+--- Grid:_reveal(gen) - show the pending frame, but only for the current
+--- generation, so a stale ready or fallback from a render already replaced by a
+--- newer one is ignored. Re-focus the sink after the reveal, since the window only
+--- just became key.
+function Grid:_reveal(gen)
+  local pending = self._pending
+  -- Ignore a stale gen, and dedupe the two triggers (ready and the fallback) so a
+  -- gen is revealed once. Tracking the revealed gen rather than isShowing lets a
+  -- re-render while visible still update to the new frame.
+  if not pending or gen ~= pending.gen or self._revealedGen == gen then return end
+  self._revealedGen = gen
+  if self._fallback then self._fallback:stop(); self._fallback = nil end
+  self.shell:show(pending.frame)
+  self.shell:eval("(function(){ var s = document.getElementById('sink'); if (s) s.focus(); })();")
+end
+
+--- Grid:_onMessage(body) - the page reported it parsed, reveal it.
+function Grid:_onMessage(body)
+  if not body or body.action ~= "ready" then return end
+  self:_reveal(body.gen)
 end
 
 function Grid:hide() self.shell:hide() end
@@ -132,10 +179,12 @@ local function new(config, deps)
   local self = setmetatable({}, Grid)
   -- clickAway off, the overlay is dismissed by releasing the held key, not by a
   -- click. Activation is decided per render via setPassive, so it is not fixed here.
+  -- onMessage carries the ready handshake that gates the deferred reveal.
   self.shell = deps.shell.new({
     name = config.name or "surfacegrid",
     theme = config.theme,
     clickAway = false,
+    onMessage = function(body) self:_onMessage(body) end,
   })
   return self
 end

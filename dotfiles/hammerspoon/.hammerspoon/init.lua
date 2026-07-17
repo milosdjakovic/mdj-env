@@ -299,10 +299,12 @@ local function contextShortcutModel(name, title)
   return {
     columns = 1,
     colWidth = 320,
-    -- A peek is shown over an open picker, so the overlay must stay passive and not
-    -- steal the picker's search focus. It gives up its own frosted backdrop for
-    -- that, which barely shows over the already frosted picker behind it.
-    passive = true,
+    -- The peek activates like any sheet so it keeps its own frosted backdrop, which
+    -- WebKit paints only for the key window with a focused field. It briefly takes
+    -- focus from the open picker, but the picker regains it when the peek closes,
+    -- and while held the peek is the front sheet you are reading, so it is the one
+    -- that must stay frosted. Nav still routes to the picker through the Hyper chord,
+    -- not the picker's field, so stealing focus for the hold does not disturb it.
     sections = { { title = title, rows = rows } },
   }
 end
