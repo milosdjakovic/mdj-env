@@ -35,6 +35,10 @@
 ---            shows it. selection is { id, h, m }, with h and m present only for an
 ---            entry row.
 ---   onClose  called once when the panel closes.
+---   footer   optional list of shortcut hints, each { badges = {...}, label = ... },
+---            drawn as a wrapping chip bar under the rows so the panel shows its Hyper
+---            shortcuts. Same shape the searchable list takes, stamped by withFooter in
+---            the composition root. Omitted means no footer bar.
 
 local obj = {}
 obj.__index = obj
@@ -71,15 +75,17 @@ local TEMPLATE = [[
   html, body { background: transparent; overflow: hidden; }
   body { font-family: -apple-system, system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
   .panel {
+    display: flex; flex-direction: column;
     background: rgba({{BG}}, 0.72);
     -webkit-backdrop-filter: blur(30px) saturate(160%);
     backdrop-filter: blur(30px) saturate(160%);
     border: 1px solid rgba({{BORDER}});
     border-radius: 14px;
-    padding: 14px;
     color: {{FG}};
     outline: none;
+    overflow: hidden;
   }
+  .content { padding: 14px; }
   .opts { display: flex; flex-direction: column; }
   .row {
     display: flex; align-items: center;
@@ -102,15 +108,38 @@ local TEMPLATE = [[
   .entry .u { color: {{META}}; }
   .status { margin-bottom: 12px; padding: 0 11px; font-size: 12px; color: {{FG}}; opacity: 0.7; }
   .status.error { color: #e0705a; opacity: 1; }
+  /* The shortcut hint bar under the rows, the same chips the searchable list draws,
+     so the fixed panels show their Hyper shortcuts too. Chips wrap onto more rows
+     when the panel is too narrow, and the panel measure (see _fit) grows the window
+     to fit. Hidden via the nofooter class when the consumer supplies no hints. */
+  .footer {
+    flex: 0 0 auto;
+    display: flex; flex-wrap: wrap; align-items: center;
+    gap: 8px 16px;
+    padding: 9px 14px;
+    border-top: 1px solid rgba({{BORDER}});
+  }
+  .panel.nofooter .footer { display: none; }
+  .fhint { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .fhint .kbd {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 2px 6px; border-radius: 5px;
+    background: rgba({{BADGE}}); color: {{FG}};
+    font-size: 11px; line-height: 1;
+  }
+  .fhint .flabel { color: {{META}}; font-size: 12px; }
   /* An offscreen but focusable input. Keeping a real text field focused on plain
      rows is what holds the frosted backdrop, which WebKit drops when focus is on a
      non text element. It absorbs stray keys harmlessly and is never read. */
   .sink { position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; border: 0; padding: 0; }
 </style>
-<div class="panel">
-  <div id="status" class="status">{{STATUS}}</div>
-  <div class="opts" id="opts">{{ROWS}}</div>
-  <input id="sink" class="sink" aria-hidden="true">
+<div class="panel {{FOOTERCLASS}}">
+  <div class="content">
+    <div id="status" class="status">{{STATUS}}</div>
+    <div class="opts" id="opts">{{ROWS}}</div>
+    <input id="sink" class="sink" aria-hidden="true">
+  </div>
+  <div class="footer">{{FOOTER}}</div>
 </div>
 <script>
   var rows = Array.prototype.slice.call(document.querySelectorAll('.row'));
@@ -228,6 +257,36 @@ function View:_options()
   return o or {}
 end
 
+-- Escape text bound for the footer html, since a key label could carry a glyph or a
+-- character the browser would read as markup.
+local function esc(s)
+  return (tostring(s or "")
+    :gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;"))
+end
+
+-- The footer hints for this instance, or nil when the consumer supplied none. Same
+-- shape and builder the searchable list uses, so the fixed panels and the lists draw
+-- an identical shortcut bar from the same footerFor hints.
+function View:_footer()
+  local f = self.config.footer
+  return (f and #f > 0) and f or nil
+end
+
+function View:_footerHtml()
+  local hints = self:_footer()
+  if not hints then return "" end
+  local parts = {}
+  for _, h in ipairs(hints) do
+    local badges = {}
+    for _, b in ipairs(h.badges or {}) do
+      badges[#badges + 1] = '<span class="kbd">' .. esc(b) .. "</span>"
+    end
+    parts[#parts + 1] = '<span class="fhint">' .. table.concat(badges) ..
+      '<span class="flabel">' .. esc(h.label or "") .. "</span></span>"
+  end
+  return table.concat(parts)
+end
+
 function View:_buildHtml()
   local pv = self.side.preview or FALLBACK.preview
   local dark = self.side.bgDark
@@ -242,9 +301,12 @@ function View:_buildHtml()
     META = pv.meta,
     BORDER = dark and "255, 255, 255, 0.09" or "0, 0, 0, 0.09",
     ACTIVE = dark and "255, 255, 255, 0.10" or "0, 0, 0, 0.06",
+    BADGE = dark and "255, 255, 255, 0.12" or "0, 0, 0, 0.08",
     FIELDFILL = dark and "255, 255, 255, 0.06" or "0, 0, 0, 0.04",
     FIELDBORDER = dark and "255, 255, 255, 0.13" or "0, 0, 0, 0.13",
     ROWS = table.concat(rows),
+    FOOTER = self:_footerHtml(),
+    FOOTERCLASS = self:_footer() and "" or "nofooter",
     STATUS = (self.config.status and self.config.status()) or "",
   }
   return (TEMPLATE:gsub("{{(%w+)}}", map))
@@ -256,7 +318,10 @@ end
 
 function View:_estHeight()
   local n = #(self:_options())
-  return 28 + n * 38 + 12 + 18 + 8
+  -- Seed a one row footer estimate so the panel does not jump before _fit measures
+  -- the real height, which includes any wrapped footer rows.
+  local footer = self:_footer() and 34 or 0
+  return 28 + n * 38 + 12 + 18 + 8 + footer
 end
 
 function View:_place(h)

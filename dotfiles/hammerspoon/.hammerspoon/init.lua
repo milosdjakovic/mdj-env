@@ -298,11 +298,12 @@ local function footerFor(name)
   end
   return hints
 end
--- Decorate the Chooser factory so a picker built inside a spoon (the clipboard, the
--- VPN locations) is stamped with its footer hints without the spoon learning about
--- Hyper contexts. The policy stays here in the composition root; the spoon just
--- calls new on whatever factory it was handed. The command palette is built here
--- directly, so it takes footer in its config without this wrapper.
+-- Decorate a picker factory, Chooser or Panel, so a surface built inside a spoon
+-- (the clipboard, the VPN locations, the keep awake panel, the VPN control panel) is
+-- stamped with its footer hints without the spoon learning about Hyper contexts. The
+-- policy stays here in the composition root; the spoon just calls new on whatever
+-- factory it was handed, and both factories read config.footer. The command palette
+-- is built here directly, so it takes footer in its config without this wrapper.
 local function withFooter(factory, hints)
   return { new = function(cfg) cfg = cfg or {}; cfg.footer = hints; return factory.new(cfg) end }
 end
@@ -392,7 +393,7 @@ spoon.ClipboardHistory:bindHotkeys({ open = keys.clipboardHistory })
 -- matches the chooser's light and dark look. The open key is a base HyperKey binding,
 -- so it opens when nothing modal owns Hyper and is suppressed while a modal context is
 -- live.
-spoon.Caffeinate.configure({ theme = settings.chooserTheme, panel = spoon.Panel })
+spoon.Caffeinate.configure({ theme = settings.chooserTheme, panel = withFooter(spoon.Panel, footerFor("caffeinate")) })
 spoon.Caffeinate.start()
 spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
 
@@ -402,7 +403,7 @@ spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
 -- are injected here from the one theme source. When the Mullvad CLI is missing the
 -- spoon logs to the console and stays inert, so this wiring is safe on any machine. The
 -- open key is a base HyperKey binding, suppressed while a modal context owns Hyper.
-spoon.Vpn.configure({ theme = settings.chooserTheme, panel = spoon.Panel, chooser = withFooter(spoon.Chooser, footerFor("vpnLocations")), onLocationsClose = hideShortcuts })
+spoon.Vpn.configure({ theme = settings.chooserTheme, panel = withFooter(spoon.Panel, footerFor("vpn")), chooser = withFooter(spoon.Chooser, footerFor("vpnLocations")), onLocationsClose = hideShortcuts })
 spoon.Vpn.start()
 spoon.HyperKey:bind(keys.vpn.key, function() spoon.Vpn.show() end)
 

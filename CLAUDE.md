@@ -266,18 +266,23 @@ step mirroring what the clipboard already does.
    function returning whether that surface is open.
 4. Register the surface in the `choosers` list in `init.lua`, so `activeChooser`
    and `routeNav` send the navigation actions to whichever surface is open.
-5. Show the shortcuts. A searchable list on the web backend carries a persistent
-   footer bar inside its own window, so the shortcuts are always visible under the
-   surface rather than peeked in a separate window on a Hyper hold. Build the hints
-   with `footerFor(name)` in `init.lua`, which reads the same `hyperContexts`
-   bindings, and pass them as `config.footer`. A picker built directly takes it in
-   its config; one built inside a spoon is handed a `withFooter(spoon.Chooser,
-   footerFor(name))` decorated factory, so the spoon stays ignorant of Hyper
-   contexts. A single window hosts both the list and its footer, so nothing
-   competes for the frosted backdrop, which a second peek window did. `contextOverlays`
-   stays as an empty seam, so a context that wants a real hold overlay again can
-   register a model builder there without touching the reveal logic. The native
-   backend has no footer, so on native a context shows no shortcut hints.
+5. Show the shortcuts. Each web surface carries a persistent footer bar inside its
+   own window, so the shortcuts are always visible under the surface rather than
+   peeked in a separate window on a Hyper hold. Both surface kinds draw it, the
+   searchable list (`Surface.spoon/list.lua`) and the fixed `Panel` (`Panel.spoon`,
+   keep awake and the VPN control panel), from the same `_footerHtml` chip builder,
+   so a short fixed panel shows its Hyper shortcuts the same way a long list does.
+   Build the hints with `footerFor(name)` in `init.lua`, which reads the same
+   `hyperContexts` bindings, and pass them as `config.footer`. A picker built
+   directly takes it in its config; one built inside a spoon is handed a
+   `withFooter(factory, footerFor(name))` decorated factory (the decorator is
+   factory agnostic, wrapping both `spoon.Chooser` and `spoon.Panel`), so the spoon
+   stays ignorant of Hyper contexts. A single window hosts both the list and its
+   footer, so nothing competes for the frosted backdrop, which a second peek window
+   did. `contextOverlays` stays as an empty seam, so a context that wants a real
+   hold overlay again can register a model builder there without touching the reveal
+   logic. The native backend has no footer, so on native a context shows no shortcut
+   hints.
 6. Inject the root's overlay teardown as the surface's `onClose` and bind the open
    key as a base HyperKey binding.
 

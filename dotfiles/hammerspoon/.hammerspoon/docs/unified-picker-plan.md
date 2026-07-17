@@ -168,10 +168,13 @@ pulling key status away.
 The context peek over an open picker was dropped. Two overlapping frosted webviews
 of one app cannot both be the key window, so a peek shown over a picker either
 went transparent itself (passive) or made the picker behind it go transparent
-(activating). Instead each searchable list carries a persistent footer bar inside
+(activating). Instead each surface carries a persistent footer bar inside
 its own window, drawn from the same `hyperContexts` bindings through `footerFor` in
 the composition root, so the shortcuts are always visible under the surface and one
-window hosts both, nothing competing for the backdrop. The chips wrap onto more
+window hosts both, nothing competing for the backdrop. Both backends draw it, the
+searchable list and the fixed `Panel` (keep awake and the VPN control panel), each
+stamped with its hints by the shared `withFooter` factory decorator, so a fixed panel
+shows its Hyper shortcuts the same way a searchable list does. The chips wrap onto more
 rows when a picker is too narrow to hold them in one, so a narrow surface never
 clips them. Since a wrapped bar is taller, the page measures the footer's rendered
 height and reports it, and the Lua side grows the window to fit, keeping it
