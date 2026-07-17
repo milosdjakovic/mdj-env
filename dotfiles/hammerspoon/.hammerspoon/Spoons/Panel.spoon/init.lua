@@ -117,7 +117,6 @@ local TEMPLATE = [[
   var status = document.getElementById('status');
   var sink = document.getElementById('sink');
   var idx = 0;
-  for (var i = 0; i < rows.length; i++) { if (rows[i].getAttribute('data-entry')) { idx = i; break; } }
 
   function post(p) { try { window.webkit.messageHandlers.{{BRIDGE}}.postMessage(p); } catch (e) {} }
 
