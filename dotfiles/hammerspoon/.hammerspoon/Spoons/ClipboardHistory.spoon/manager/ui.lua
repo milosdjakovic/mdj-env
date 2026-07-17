@@ -51,10 +51,19 @@ end
 -- State
 local preview = nil
 local renderToken = 0 -- bumped each render; async results check it to avoid stale writes
-local previewCache = {} -- entry -> html, for the synchronous kinds only
+local previewCache = {} -- entry -> inner html, for the synchronous kinds only
 local themeCss = nil -- preview CSS for the current open, built lazily from the atom's active theme
 local thumbCache = {} -- path -> hs.image (or false), for row thumbnails
 local iconCache = {} -- bundle id -> hs.image (or false), for row source-app icons
+
+-- Which preview sink this backend uses. The web backend embeds a preview pane in
+-- the picker window, so the html is pushed straight into it. The native backend
+-- docks a separate companion webview beside the chooser. Set once in UI.build by
+-- asking the picker whether it reserves an embedded pane. emit is forward declared
+-- here so the render functions can close over it before it is defined below, past
+-- the companion pane helpers it needs.
+local embedded = false
+local emit = nil
 
 -- The preview stylesheet for this open. Built from the palette the atom selected
 -- for the current appearance, so the preview follows light and dark like the
@@ -214,14 +223,16 @@ local function fileHeader(e)
   return h
 end
 
--- Synchronous kinds: text, url, image.
+-- Synchronous kinds: text, url, image. Each returns the inner html that goes
+-- inside the preview wrap; emit decides where it lands, so the same content feeds
+-- the embedded pane and the companion window.
 local function renderNonFile(e)
   if e.kind == "image" then
     local uri = e.prev and imageDataURI(e.prev) or ""
-    return wrap("<div class=meta>" .. util.esc(e.title) .. "</div><img src='" .. uri .. "'>")
+    return "<div class=meta>" .. util.esc(e.title) .. "</div><img src='" .. uri .. "'>"
   end
   local meta = util.esc((KIND_LABEL[e.kind] or e.kind) .. "  ·  " .. util.relTime(e.ts))
-  return wrap("<div class=meta>" .. meta .. "</div><pre>" .. util.esc(e.text or "") .. "</pre>")
+  return "<div class=meta>" .. meta .. "</div><pre>" .. util.esc(e.text or "") .. "</pre>"
 end
 
 local function multiFileHtml(e)
@@ -234,7 +245,7 @@ local function multiFileHtml(e)
       end
     end
   end
-  return wrap(body)
+  return body
 end
 
 -- Read the head of a file off the main thread, so a slow or large file cannot
@@ -253,13 +264,13 @@ end
 local function renderFile(e, token)
   local files = e.files or {}
   if #files ~= 1 then
-    preview:html(multiFileHtml(e))
+    emit(multiFileHtml(e))
     return
   end
 
   local el = files[1]
   if el.isDir then
-    preview:html(wrap(fileHeader(e) .. note("Folder.")))
+    emit(fileHeader(e) .. note("Folder."))
     return
   end
 
@@ -268,19 +279,19 @@ local function renderFile(e, token)
     or (hs.fs.attributes(el.path) and el.path)
     or nil
   if not readPath then
-    preview:html(wrap(fileHeader(e) .. note("File no longer exists.")))
+    emit(fileHeader(e) .. note("File no longer exists."))
     return
   end
 
   if util.RENDER_AS_IMAGE[util.fileExt(el.path)] then
     local src = (el.prev and hs.fs.attributes(el.prev) and el.prev) or readPath
     local uri = imageDataURI(src)
-    preview:html(wrap(fileHeader(e) .. (uri and ("<img src='" .. uri .. "'>") or note("Cannot render image."))))
+    emit(fileHeader(e) .. (uri and ("<img src='" .. uri .. "'>") or note("Cannot render image.")))
     return
   end
 
   -- Text: show the header at once, fill the body when the async read returns.
-  preview:html(wrap(fileHeader(e) .. note("Loading…")))
+  emit(fileHeader(e) .. note("Loading…"))
   asyncRead(readPath, cfg.fileReadCap, function(data, failed)
     if token ~= renderToken then
       return -- selection moved on
@@ -299,29 +310,26 @@ local function renderFile(e, token)
         .. (truncated and ("\n\n… truncated at " .. util.humanSize(cfg.fileReadCap)) or "")
         .. "</pre>"
     end
-    preview:html(wrap(fileHeader(e) .. body))
+    emit(fileHeader(e) .. body)
   end)
 end
 
 local function renderPreview(e)
-  if not preview then
-    return
-  end
   renderToken = renderToken + 1
   if not e then
-    preview:html(currentCss() .. "<body></body>")
+    emit("")
     return
   end
   if e.kind == "file" then
     renderFile(e, renderToken)
     return
   end
-  local html = previewCache[e]
-  if not html then
-    html = renderNonFile(e)
-    previewCache[e] = html
+  local inner = previewCache[e]
+  if not inner then
+    inner = renderNonFile(e)
+    previewCache[e] = inner
   end
-  preview:html(html)
+  emit(inner)
 end
 
 --------------------------------------------------------------------------------
@@ -343,6 +351,21 @@ local function hidePreview()
   end
   previewCache = {} -- drop encoded images between opens
   themeCss = nil -- rebuild against the theme picked on the next open
+end
+
+-- Route a preview fragment to the active sink. On the web backend the picker
+-- embeds the pane, so the inner html is pushed straight in and the page supplies
+-- the chrome and theme. On the native backend a companion webview is docked
+-- beside the chooser, so the fragment is wrapped with the theme css and written
+-- there. Assigned to the forward declared local so the render functions above,
+-- which close over it, reach this one definition.
+emit = function(inner)
+  if embedded then
+    picker:setPreview(inner or "")
+  else
+    ensurePreview()
+    preview:html(wrap(inner or ""))
+  end
 end
 
 --------------------------------------------------------------------------------
@@ -371,11 +394,13 @@ local function onClose()
   end
 end
 
--- The atom reserved a companion rect beside the chooser. Dock the preview there
--- and render the current selection. Fired at show with a seed frame and again
--- once the real chooser window settles, so re-docking is expected and harmless.
+-- The native atom reserved a companion rect beside the chooser. Dock the preview
+-- there and render the current selection. Fired at show with a seed frame and
+-- again once the real chooser window settles, so re-docking is expected and
+-- harmless. The web backend embeds the preview instead and never calls this, so
+-- it is inert there, driven only by onHighlight.
 local function onPositioned(_chooserFrame, companionFrame)
-  if not companionFrame then return end
+  if embedded or not companionFrame then return end
   ensurePreview()
   preview:frame(companionFrame)
   preview:show()
@@ -458,9 +483,18 @@ function UI.build()
       gap = cfg.uiGap,
       topFrac = cfg.uiTopFrac,
       minVPad = cfg.minVPad,
+      -- companionWidth drives the native atom's docked window; previewWidth and
+      -- visibleRows drive the web list's embedded split. Each backend reads only
+      -- the keys it knows, so passing both keeps this file backend agnostic.
       companionWidth = cfg.previewW,
+      previewWidth = cfg.previewW,
+      visibleRows = cfg.chooserRows,
     },
   })
+  -- Ask the picker whether it embeds a preview pane. The web list answers yes and
+  -- the fragments go into it; the native atom lacks the method and the companion
+  -- window path runs instead. This is the one place the two backends diverge.
+  embedded = (picker.hasPreview ~= nil and picker:hasPreview()) or false
   return UI
 end
 

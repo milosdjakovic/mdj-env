@@ -128,6 +128,18 @@ inherits it.
 
 ### Phase 2, migrate the searchable consumers
 
+Status. The clipboard split is built on the web backend. The searchable list now
+carries an optional preview pane on the right of the same window, off when
+`layout.previewWidth` is zero and on when it is positive, drawn by the page and
+themed from the same palette so it matches the list. The list gained `hasPreview`
+and `setPreview`, plus right click on a row and a highlight preserving refresh, so
+it holds the full clipboard contract. The clipboard `ui.lua` asks the picker once
+whether it embeds a preview. On the web backend it pushes preview fragments into
+the pane, on the native backend it keeps docking its companion window, so both
+backends work and swapping stays one setting. Both paths were verified live with
+no errors on the same clipboard code. Still to do below, migrate the VPN locations
+and the command palette, and wire the palette icons through the disk cache.
+
 Repoint the three `hs.chooser` consumers at the new atom. The command palette and
 the VPN locations picker are near drop in, since they already hand plain row
 tables to a supplier and speak the contract. The clipboard is the big one,

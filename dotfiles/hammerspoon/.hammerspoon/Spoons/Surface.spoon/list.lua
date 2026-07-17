@@ -36,6 +36,9 @@ local DEFAULT_LAYOUT = {
   minVPad = 60,
   titleSize = 15,
   subSize = 12,
+  previewWidth = 0, -- 0 leaves the list single column; a positive width adds a
+                    -- preview pane on the right, the clipboard split, inside the
+                    -- same window. The consumer fills it through setPreview.
 }
 
 -- Type prefix map for the clipboard style "img ..." tokens. Injected per consumer
@@ -57,7 +60,7 @@ local TEMPLATE = [==[
   html,body { background:transparent; overflow:hidden; height:100%; }
   body { font-family:-apple-system,system-ui,sans-serif; -webkit-user-select:none; user-select:none; }
   .panel {
-    display:flex; flex-direction:column;
+    display:flex; flex-direction:row;
     height:100vh;
     background:rgba({{BG}}, {{OPACITY}});
     -webkit-backdrop-filter:blur(30px) saturate(160%);
@@ -67,6 +70,21 @@ local TEMPLATE = [==[
     overflow:hidden;
     color:{{FG}};
   }
+  .listcol { display:flex; flex-direction:column; flex:1 1 auto; min-width:0; }
+  .preview {
+    flex:0 0 {{PREVIEWW}}px;
+    overflow:auto;
+    border-left:1px solid rgba({{BORDER}});
+    background:{{PVBG}};
+    color:{{FG}};
+  }
+  .panel.nosplit .preview { display:none; }
+  #preview .wrap { padding:16px; box-sizing:border-box; }
+  #preview .meta { color:{{META}}; font-size:11px; margin-bottom:10px; text-transform:uppercase; letter-spacing:.04em; }
+  #preview .path { color:{{PVPATH}}; font-size:11px; margin-bottom:6px; word-break:break-all; }
+  #preview .note { color:{{PVNOTE}}; }
+  #preview pre { white-space:pre-wrap; word-break:break-word; margin:0; color:{{FG}}; font:14px/1.5 -apple-system,BlinkMacSystemFont,Menlo,monospace; }
+  #preview img { max-width:100%; height:auto; border-radius:8px; margin-top:8px; }
   .search {
     flex:0 0 {{HEADERH}}px;
     display:flex; align-items:center;
@@ -96,9 +114,12 @@ local TEMPLATE = [==[
   .row .num { flex:0 0 auto; margin-left:8px; font-size:11px; color:{{META}}; opacity:0.7; }
   .empty { padding:18px 14px; font-size:13px; color:{{META}}; }
 </style>
-<div class="panel">
-  <div class="search"><input id="q" type="text" placeholder="{{PLACEHOLDER}}" autocomplete="off" spellcheck="false"></div>
-  <div class="scroll" id="scroll"><div class="spacer" id="spacer"></div></div>
+<div class="panel {{SPLITCLASS}}">
+  <div class="listcol">
+    <div class="search"><input id="q" type="text" placeholder="{{PLACEHOLDER}}" autocomplete="off" spellcheck="false"></div>
+    <div class="scroll" id="scroll"><div class="spacer" id="spacer"></div></div>
+  </div>
+  <div class="preview" id="preview"><div class="wrap" id="pvwrap"></div></div>
 </div>
 <script>
 window.onerror = function(msg, src, line){ window.__err = msg + ' @' + line; return false; };
@@ -116,6 +137,7 @@ window.onerror = function(msg, src, line){ window.__err = msg + ' @' + line; ret
   var q = document.getElementById('q');
   var scroll = document.getElementById('scroll');
   var spacer = document.getElementById('spacer');
+  var pvwrap = document.getElementById('pvwrap');
 
   function post(p){ try { window.webkit.messageHandlers.{{BRIDGE}}.postMessage(p); } catch(e){} }
 
@@ -155,7 +177,8 @@ window.onerror = function(msg, src, line){ window.__err = msg + ' @' + line; ret
     var el = document.createElement('div');
     el.className = 'row';
     el.innerHTML = '<span class="icon"></span><span class="text"><div class="title"></div><div class="sub"></div></span><span class="num"></span>';
-    el.addEventListener('mousedown', function(ev){ ev.preventDefault(); if (el._pos != null){ sel = el._pos; activate(); } });
+    el.addEventListener('mousedown', function(ev){ if (ev.button === 2) return; ev.preventDefault(); if (el._pos != null){ sel = el._pos; activate(); } });
+    el.addEventListener('contextmenu', function(ev){ ev.preventDefault(); if (el._pos != null){ sel = el._pos; render(); emitHighlight(); var d = data[view[sel]]; post({ action:"rightclick", index: d ? d.i : -1 }); } });
     scroll.appendChild(el);
     pool[n] = el;
     return el;
@@ -229,13 +252,21 @@ window.onerror = function(msg, src, line){ window.__err = msg + ' @' + line; ret
   q.addEventListener('input', function(){ if (fieldMode !== "off") filter(); });
 
   // Lua entry points.
-  window.__setRows = function(rows){
-    data = rows || []; sel = 0; scroll.scrollTop = 0; filter();
+  // keepSel holds the highlight where it is, for a refresh that redraws rows in
+  // place (the clipboard append badge). Without it a refresh jumps to the top.
+  window.__setRows = function(rows, keepSel){
+    data = rows || [];
+    if (!keepSel){ sel = 0; scroll.scrollTop = 0; }
+    filter();
+    if (keepSel){ ensureVisible(); render(); }
   };
   window.__setIcons = function(map){
     for (var key in map){ icons[key] = map[key]; delete pending[key]; }
     render();
   };
+  // Fill the preview pane of a split surface. Inner html only; the page owns the
+  // pane's chrome and theme, so the consumer sends just the body fragment.
+  window.__setPreview = function(html){ if (pvwrap) pvwrap.innerHTML = html || ''; };
   window.__move = function(d){ move(d); };
   window.__activate = function(){ activate(); };
   window.__focus = function(){ q.focus(); };
@@ -352,6 +383,11 @@ function List:_onMessage(body)
     self:_complete(body.index)
   elseif a == "input" then
     self:_completeInput(body.text)
+  elseif a == "rightclick" then
+    local item = body.index and body.index >= 1 and self.items[body.index] or nil
+    if item and self.config.onRightClick then
+      self.config.onRightClick(item, body.index)
+    end
   elseif a == "icons" then
     self:_answerIcons(body.keys)
   elseif a == "close" then
@@ -394,10 +430,19 @@ end
 -- Geometry and show
 --------------------------------------------------------------------------------
 
+-- Preview pane width for this instance, capped like the list itself, or 0 when
+-- the surface is a single column list.
+function List:_previewW()
+  local L = self.layout
+  local pw = L.previewWidth or 0
+  return pw > 0 and math.min(pw, L.paneMaxW) or 0
+end
+
 function List:_frame()
   local L = self.layout
   local f = hs.screen.mainScreen():frame()
-  local w = math.min(math.floor(f.w * L.widthPct / 100), L.paneMaxW)
+  local listW = math.min(math.floor(f.w * L.widthPct / 100), L.paneMaxW)
+  local w = listW + self:_previewW() -- the +1px divider is absorbed by the border
   local h = L.headerH + L.visibleRows * L.rowH + 2 -- +2 for the header border
   return self.shell:placeCentered(w, h, L.topFrac, L.minVPad)
 end
@@ -407,6 +452,7 @@ function List:_buildPage()
   local dark = side.bgDark
   local pv = side.preview or {}
   local L = self.layout
+  local pvW = self:_previewW()
   local map = {
     BRIDGE = self.shell.bridge,
     BG = hexRGB(pv.bg or "#1e1e22"),
@@ -423,6 +469,13 @@ function List:_buildPage()
     PLACEHOLDER = (self.config.placeholder or ""):gsub('"', "'"),
     FIELDMODE = self.fieldMode,
     PREFIXES = json(self.config.typePrefixes or EMPTY),
+    -- Split preview tokens. Width 0 with the nosplit class keeps the pane hidden,
+    -- so a plain list and the clipboard split share one page.
+    PREVIEWW = tostring(pvW),
+    SPLITCLASS = pvW > 0 and "split" or "nosplit",
+    PVBG = pv.bg or "#1e1e22",
+    PVPATH = pv.path or pv.meta or "#7a7a7a",
+    PVNOTE = pv.note or "#c8a86a",
   }
   return (TEMPLATE:gsub("{{(%w+)}}", map))
 end
@@ -448,7 +501,26 @@ function List:isShowing() return self.shell:isShowing() end
 function List:refresh()
   if not self:isShowing() then return end
   local ds = self:_buildDataset(self.lastQuery or "")
-  self.shell:eval("window.__setRows(" .. json(ds) .. ")")
+  -- keepSel true, so a redraw after a batch toggle or a delete holds the
+  -- highlight in place rather than jumping to the top, matching the native atom.
+  self.shell:eval("window.__setRows(" .. json(ds) .. ", true)")
+end
+
+--- List:hasPreview() - true when this surface reserves a split preview pane, so a
+--- consumer can push preview html here instead of docking a separate window. The
+--- native atom lacks this method, which is how the clipboard tells the backends
+--- apart.
+function List:hasPreview()
+  return self:_previewW() > 0
+end
+
+--- List:setPreview(html) - fill the split preview pane with an html fragment. The
+--- page wraps it in the themed pane chrome, so the consumer sends only the body.
+function List:setPreview(html)
+  -- hs.json.encode takes a table, not a bare string, so wrap the fragment, encode,
+  -- and read the field back in JS. This escapes the html safely for the eval.
+  local payload = json({ h = html or "" })
+  self.shell:eval("window.__setPreview((" .. payload .. ").h)")
 end
 
 function List:selectNext() self.shell:eval("window.__move(1)") end
