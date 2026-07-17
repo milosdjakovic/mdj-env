@@ -41,8 +41,9 @@ local DEFAULT_LAYOUT = {
   previewWidth = 0, -- 0 leaves the list single column; a positive width adds a
                     -- preview pane on the right, the clipboard split, inside the
                     -- same window. The consumer fills it through setPreview.
-  footerH = 36,   -- the shortcut hint bar height, points; only added when the
-                  -- consumer supplies footer hints, otherwise the bar is absent.
+  footerH = 36,   -- the one row estimate for the shortcut hint bar, points; the
+                  -- page measures the real height (it wraps) and the window grows
+                  -- to fit. Only reserved when the consumer supplies footer hints.
 }
 
 -- Type prefix map for the clipboard style "img ..." tokens. Injected per consumer
@@ -121,18 +122,21 @@ local TEMPLATE = [==[
   .row .sub { font-size:{{SUBSIZE}}px; color:{{META}}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
   .row .num { flex:0 0 auto; margin-left:10px; font-size:{{NUMSIZE}}px; font-weight:400; color:{{META}}; }
   .empty { padding:18px 14px; font-size:13px; color:{{META}}; }
-  /* The shortcut hint bar. A single row of chips, each a key badge (or two) and a
-     label, laid out left to right and clipped if it overruns. Absent entirely when
-     the consumer supplies no hints, via the nofooter class. */
+  /* The shortcut hint bar. Chips of a key badge (or two) and a label, laid out
+     left to right and wrapping onto more rows when the surface is too narrow to
+     hold them in one, so a narrow picker never clips them. The bar grows with the
+     rows it needs; the page measures its height and the Lua side grows the window
+     to fit (see the footerHeight message). Absent when the consumer supplies no
+     hints, via the nofooter class. */
   .footer {
-    flex:0 0 {{FOOTERH}}px;
-    display:flex; align-items:center; gap:16px;
-    padding:0 14px;
+    flex:0 0 auto;
+    display:flex; flex-wrap:wrap; align-items:center;
+    gap:8px 16px;
+    padding:9px 14px;
     border-top:1px solid rgba({{BORDER}});
-    overflow:hidden; white-space:nowrap;
   }
   .panel.nofooter .footer { display:none; }
-  .fhint { display:inline-flex; align-items:center; gap:6px; }
+  .fhint { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
   .fhint .kbd {
     display:inline-flex; align-items:center; justify-content:center;
     padding:2px 6px; border-radius:5px;
@@ -301,10 +305,22 @@ window.onerror = function(msg, src, line){ window.__err = msg + ' @' + line; ret
   window.__activate = function(){ activate(); };
   window.__focus = function(){ q.focus(); };
 
+  // The footer chips wrap to as many rows as the width needs, so the bar's height
+  // is not known until the page has laid out at the real window width. Report it,
+  // on load and on any resize, so the Lua side can grow the window to fit the
+  // wrapped rows instead of clipping them. A hidden footer (nofooter) has no
+  // offset parent, so it reports zero and the Lua side leaves the height alone.
+  function reportFooter(){
+    var f = document.getElementById('footer');
+    post({ action:"footerHeight", h: (f && f.offsetParent !== null) ? f.offsetHeight : 0 });
+  }
+  window.addEventListener('resize', reportFooter);
+
   q.focus();
   // Tell the Lua side the page is parsed and the entry points exist, so it can
   // push the dataset. This replaces guessing a delay after html().
   post({ action:"ready" });
+  reportFooter();
 })();
 </script>
 ]==]
@@ -429,9 +445,23 @@ function List:_onMessage(body)
     end
   elseif a == "icons" then
     self:_answerIcons(body.keys)
+  elseif a == "footerHeight" then
+    self:_applyFooterHeight(body.h)
   elseif a == "close" then
     self:hide()
   end
+end
+
+-- The page reported the footer's rendered height, which depends on how many rows
+-- the chips wrapped into at the current width. Grow or shrink the window to fit it
+-- exactly, keeping it centered. Guarded so a measurement equal to the reserved
+-- height does nothing, which also stops the resize event the growth itself fires
+-- from looping. The measured height is kept across opens as the next estimate, so
+-- only the first open of a narrow picker grows visibly.
+function List:_applyFooterHeight(h)
+  if not self:_footer() or not h or h <= 0 or h == self._footerH then return end
+  self._footerH = h
+  if self:isShowing() then self.shell:setFrame(self:_frame()) end
 end
 
 function List:_answerIcons(keys)
@@ -507,7 +537,9 @@ function List:_frame()
   local listW = math.min(math.floor(f.w * L.widthPct / 100), L.paneMaxW)
   local w = listW + self:_previewW() -- the +1px divider is absorbed by the border
   local h = L.headerH + L.visibleRows * L.rowH + 2 -- +2 for the header border
-  if self:_footer() then h = h + L.footerH end
+  -- Reserve the footer's height: the measured value once the page has reported it,
+  -- else the one row estimate. The page corrects it after layout (footerHeight).
+  if self:_footer() then h = h + (self._footerH or L.footerH) end
   return self.shell:placeCentered(w, h, L.topFrac, L.minVPad)
 end
 
@@ -528,7 +560,6 @@ function List:_buildPage()
     BADGE = dark and "255,255,255,0.12" or "0,0,0,0.08",
     RADIUS = "14",
     HEADERH = tostring(L.headerH),
-    FOOTERH = tostring(L.footerH),
     FOOTER = self:_footerHtml(),
     FOOTERCLASS = self:_footer() and "" or "nofooter",
     ROWH = tostring(L.rowH),

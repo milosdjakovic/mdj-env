@@ -171,7 +171,11 @@ went transparent itself (passive) or made the picker behind it go transparent
 (activating). Instead each searchable list carries a persistent footer bar inside
 its own window, drawn from the same `hyperContexts` bindings through `footerFor` in
 the composition root, so the shortcuts are always visible under the surface and one
-window hosts both, nothing competing for the backdrop. A single reveal deferral
+window hosts both, nothing competing for the backdrop. The chips wrap onto more
+rows when a picker is too narrow to hold them in one, so a narrow surface never
+clips them. Since a wrapped bar is taller, the page measures the footer's rendered
+height and reports it, and the Lua side grows the window to fit, keeping it
+centered. A single reveal deferral
 was also added so switching between the Hyper and window leader sheets no longer
 flashes the previous sheet's still painted content, the shared grid webview waits
 for the new page to report ready before it shows. `CheatSheet.spoon` kept its whole model contract, its geometry
