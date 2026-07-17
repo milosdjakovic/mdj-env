@@ -22,6 +22,7 @@ hs.loadSpoon("KeyRemap")
 hs.loadSpoon("ChordKey")
 hs.loadSpoon("CheatSheet")
 hs.loadSpoon("Chooser")
+hs.loadSpoon("Panel")
 hs.loadSpoon("HyperKey")
 hs.loadSpoon("HyperCheatSheet")
 hs.loadSpoon("StageManager")
@@ -344,14 +345,14 @@ spoon.ClipboardHistory:configure({
 })
 spoon.ClipboardHistory:bindHotkeys({ open = keys.clipboardHistory })
 
--- Caffeinate: the keep awake panel on Hyper+K. It is a short navigable list, but
--- it does not use the Chooser atom, because it needs inline numeric fields that
--- clamp to hours and minutes, which a webview gives natively. It is its own webview
--- panel (Caffeinate.spoon/webview.lua), sharing only the theme so it matches the
--- chooser's light and dark look. The open key is a base HyperKey binding, so it
--- opens when nothing modal owns Hyper and is suppressed while a modal context is
+-- Caffeinate: the keep awake panel on Hyper+K. It is a short navigable list, but it
+-- does not use the Chooser atom, because it needs inline numeric fields that clamp to
+-- hours and minutes, which a webview gives natively. It builds on the shared Panel
+-- atom (Panel.spoon), injected here as its view factory, sharing the same theme so it
+-- matches the chooser's light and dark look. The open key is a base HyperKey binding,
+-- so it opens when nothing modal owns Hyper and is suppressed while a modal context is
 -- live.
-spoon.Caffeinate.configure({ theme = settings.chooserTheme })
+spoon.Caffeinate.configure({ theme = settings.chooserTheme, panel = spoon.Panel })
 spoon.Caffeinate.start()
 spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
 

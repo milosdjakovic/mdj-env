@@ -1,30 +1,50 @@
---- The keep awake input view, a webview mechanism.
+--- === Panel ===
 ---
---- A small WKWebview panel that shows a short list of actions and lets you pick one
---- with up and down. Two of the rows carry an inline hours and minutes entry, and
---- when you land on such a row its field takes focus at once, so you move down and
---- type without a second step. The fields accept only digits and clamp to their
---- allowed range, so an out of range value cannot be entered. Return applies the
---- highlighted row, Escape closes.
+--- A themed, keyboard driven webview list panel, the reusable mechanism behind the
+--- keep awake tool and any similar short fixed list. It owns only the window, the
+--- HTML and CSS, the up and down navigation and focus, the frosted backdrop, the
+--- geometry, the click away dismissal, and the previous window restore. It knows
+--- nothing about keep awake, VPN, or any tool. Each consumer injects its own rows,
+--- the meaning of a selection, and a status supplier.
 ---
---- A webview earns its place here. It gives real form fields, so the constrained
---- numeric entry and the focus on highlight behavior are native, not hand drawn. It
---- also may take keyboard focus, which the clipboard preview never does, because
---- keep awake pastes nothing back and can hold focus like a normal window.
+--- This is a FACTORY, not a singleton spoon. Call spoon.Panel.new(config) to get an
+--- independent instance, so two tools never share one panel. The composition root
+--- creates the instance, injects the theme and callbacks, and binds a Hyper context
+--- to the navigation methods selectNext, selectPrev, and close.
 ---
---- The view owns only the window, the HTML and CSS, the navigation and focus, and
---- the click away dismissal. It knows nothing about keep awake. The policy injects
---- the option rows and their entry kind, a status supplier, and an apply callback.
---- onApply receives the chosen row and its hours and minutes, and returns nil on
---- success, on which the view closes, or an error string, on which it stays open and
---- shows it. The webview is built once and kept warm across opens.
+--- Why a webview and not the Chooser atom. The chooser is a filterable list whose
+--- rows are always numbered, right for a long searchable list like the clipboard but
+--- wrong for a short fixed list of actions. A webview gives a small styled panel with
+--- real form fields, so a row can carry a constrained inline entry, and it may take
+--- keyboard focus, which a tool that pastes nothing back can do like a normal window.
+---
+--- Config, all optional unless noted.
+---   name     the message bridge name, unique per tool so two panels never collide,
+---            for example caffeinate or vpn. Defaults to panel.
+---   theme    palette source with dark and light sides, each carrying bgDark and a
+---            preview color set. Injected from config.
+---   width    the panel width in points. Defaults to 380.
+---   options  REQUIRED list of rows, each { id, label, entry }, where entry is nil for
+---            a plain row, or duration or clock for a row that carries a small inline
+---            hours and minutes field the panel builds and clamps.
+---   status   function returning the status line text shown at the top.
+---   onApply  function(selection) called when a row is applied, returning nil on
+---            success so the panel closes, or an error string so it stays open and
+---            shows it. selection is { id, h, m }, with h and m present only for an
+---            entry row.
+---   onClose  called once when the panel closes.
 
-local M = {}
+local obj = {}
+obj.__index = obj
+obj.name = "Panel"
+obj.version = "1.0"
+obj.author = "mdj-env"
 
 local View = {}
 View.__index = View
 
-local LAYOUT = { width = 380, topFrac = 0.28 }
+local DEFAULT_WIDTH = 380
+local TOP_FRAC = 0.28
 
 local FALLBACK = {
   bgDark = true,
@@ -41,7 +61,8 @@ end
 -- active row carries a translucent highlight, and an entry row holds two constrained
 -- number fields. The document level keydown listener drives navigation, so up and
 -- down move the highlight even while a field is focused, and it focuses the active
--- row's field on every move.
+-- row's field on every move. The BRIDGE token is the message handler name, so two
+-- panels post to their own channels and never cross.
 local TEMPLATE = [[
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -96,7 +117,7 @@ local TEMPLATE = [[
   var idx = 0;
   for (var i = 0; i < rows.length; i++) { if (rows[i].getAttribute('data-entry')) { idx = i; break; } }
 
-  function post(p) { try { window.webkit.messageHandlers.caffeinate.postMessage(p); } catch (e) {} }
+  function post(p) { try { window.webkit.messageHandlers.{{BRIDGE}}.postMessage(p); } catch (e) {} }
 
   function focusActive() {
     var a = rows[idx];
@@ -206,6 +227,7 @@ function View:_buildHtml()
     rows[#rows + 1] = rowHtml(i, o)
   end
   local map = {
+    BRIDGE = self.bridge,
     BG = hexRGB(pv.bg),
     FG = pv.fg,
     META = pv.meta,
@@ -231,9 +253,9 @@ end
 function View:_place(h)
   local sf = hs.screen.mainScreen():frame()
   self.frame = {
-    x = sf.x + math.floor((sf.w - LAYOUT.width) / 2),
-    y = sf.y + math.floor(sf.h * LAYOUT.topFrac),
-    w = LAYOUT.width,
+    x = sf.x + math.floor((sf.w - self.width) / 2),
+    y = sf.y + math.floor(sf.h * TOP_FRAC),
+    w = self.width,
     h = h,
   }
   self.wv:frame(self.frame)
@@ -303,8 +325,8 @@ function View:show()
 end
 
 --- View:selectNext() / View:selectPrev() - move the highlight down or up, so the
---- main root can drive it from Hyper+j and Hyper+k the way it drives the clipboard.
---- The page keeps the index and focuses the landed row's field.
+--- composition root can drive it from Hyper+j and Hyper+k the way it drives the
+--- clipboard. The page keeps the index and focuses the landed row's field.
 function View:selectNext()
   if self.active and self.wv then self.wv:evaluateJavaScript("window.moveHighlight && window.moveHighlight(1)") end
 end
@@ -313,7 +335,7 @@ function View:selectPrev()
   if self.active and self.wv then self.wv:evaluateJavaScript("window.moveHighlight && window.moveHighlight(-1)") end
 end
 
---- View:refresh() - update the status line while open (a timed session ended).
+--- View:refresh() - update the status line while open (a live state changed).
 function View:refresh()
   if self.active and self.wv then
     local s = (self.config.status and self.config.status()) or ""
@@ -342,16 +364,18 @@ end
 -- Factory
 --------------------------------------------------------------------------------
 
---- M.new(config) -> view instance.
---- config: theme (the shared light and dark palette), options (list of
---- { id, label, entry }, where entry is nil, "duration", or "clock"), status
---- (function returning the status line text), onApply (function(selection) -> nil on
---- success or an error string, where selection is { id, h, m }), onClose.
-function M.new(config)
-  local self = setmetatable({ config = config or {}, active = false }, View)
+--- spoon.Panel.new(config) -> panel instance. See the header for the config fields.
+function obj.new(config)
+  config = config or {}
+  local self = setmetatable({
+    config = config,
+    bridge = config.name or "panel",
+    width = config.width or DEFAULT_WIDTH,
+    active = false,
+  }, View)
   self:_selectTheme()
 
-  local ucc = hs.webview.usercontent.new("caffeinate")
+  local ucc = hs.webview.usercontent.new(self.bridge)
   ucc:setCallback(function(msg)
     local body = (msg and msg.body) or {}
     if body.action == "apply" then
@@ -361,7 +385,7 @@ function M.new(config)
     end
   end)
 
-  local wv = hs.webview.new({ x = 0, y = 0, w = LAYOUT.width, h = 200 }, {}, ucc)
+  local wv = hs.webview.new({ x = 0, y = 0, w = self.width, h = 200 }, {}, ucc)
   wv:windowStyle(hs.webview.windowMasks.borderless)
   wv:level(hs.canvas.windowLevels.modalPanel)
   wv:transparent(true)
@@ -372,4 +396,4 @@ function M.new(config)
   return self
 end
 
-return M
+return obj
