@@ -169,11 +169,14 @@ local predicates = {
   caffeinateOpen = function()
     return spoon.Caffeinate ~= nil and spoon.Caffeinate.isShowing()
   end,
-  -- The VPN control panel is open. Gates the vpn Hyper context. The location search
-  -- is a separate chooser and does not report through here, so its arrow key and typing
-  -- navigation is left to the chooser itself.
+  -- The VPN control panel is open. Gates the vpn Hyper context.
   vpnOpen = function()
     return spoon.Vpn ~= nil and spoon.Vpn.isShowing()
+  end,
+  -- The VPN location picker is open. Gates the vpnLocations Hyper context, so it
+  -- gets the same Hyper navigation and hold overlay the clipboard chooser has.
+  vpnLocationsOpen = function()
+    return spoon.Vpn ~= nil and spoon.Vpn.locations.isShowing()
   end,
 }
 -- The window bindings carry no leader (see config/keys.lua). Stamp the resolved
@@ -288,7 +291,8 @@ end
 -- from the same registry the bindings use, so the hold and the keys never
 -- disagree. Setting shortcutsShown keeps the toggle state in sync, so a context
 -- keypress clears the peeked sheet like a toggled one.
-local contextOverlays = { clipboard = clipboardShortcutModel }
+local function vpnLocationsShortcutModel() return contextShortcutModel("vpnLocations", "LOCATIONS") end
+local contextOverlays = { clipboard = clipboardShortcutModel, vpnLocations = vpnLocationsShortcutModel }
 local function activeContext()
   local best
   for _, ctx in ipairs(keys.hyperContexts or {}) do
@@ -370,7 +374,7 @@ spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
 -- are injected here from the one theme source. When the Mullvad CLI is missing the
 -- spoon logs to the console and stays inert, so this wiring is safe on any machine. The
 -- open key is a base HyperKey binding, suppressed while a modal context owns Hyper.
-spoon.Vpn.configure({ theme = settings.chooserTheme, panel = spoon.Panel, chooser = spoon.Chooser })
+spoon.Vpn.configure({ theme = settings.chooserTheme, panel = spoon.Panel, chooser = spoon.Chooser, onLocationsClose = hideShortcuts })
 spoon.Vpn.start()
 spoon.HyperKey:bind(keys.vpn.key, function() spoon.Vpn.show() end)
 
@@ -389,7 +393,7 @@ spoon.HyperKey:bind(keys.vpn.key, function() spoon.Vpn.show() end)
 -- glance at the sheet plus any key clears it.
 spoon.HyperKey:configure({ predicates = predicates })
 local clipManager = spoon.ClipboardHistory.manager
-local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn }
+local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, spoon.Vpn.locations }
 local function activeChooser()
   for _, c in ipairs(choosers) do
     if c.isShowing() then return c end

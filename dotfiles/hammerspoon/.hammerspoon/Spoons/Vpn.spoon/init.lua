@@ -197,8 +197,21 @@ function M.selectPrev()
   if panel then panel:selectPrev() end
 end
 
---- M.configure(opts) - inject the shared theme, the Panel factory, and the Chooser
---- factory.
+-- The location picker as a dot called participant, matching the shape the shared
+-- control in the main root drives, so it can route Hyper navigation to it and gate a
+-- Hyper context on it, the same way the clipboard chooser plugs in. It is a thin
+-- adapter over the Chooser instance, which uses colon methods.
+M.locations = {
+  isShowing = function() return locations ~= nil and locations:isShowing() end,
+  selectNext = function() if locations then locations:selectNext() end end,
+  selectPrev = function() if locations then locations:selectPrev() end end,
+  insertSelected = function() if locations then locations:insertSelected() end end,
+  hide = function() if locations then locations:close() end end,
+}
+
+--- M.configure(opts) - inject the shared theme, the Panel factory, the Chooser factory,
+--- and onLocationsClose, the root's overlay teardown wired as the location picker's
+--- onClose so closing it also clears any peeked Hyper shortcut sheet.
 function M.configure(opts)
   cfg = opts or {}
   return M
@@ -226,6 +239,7 @@ function M.start()
     fieldMode = "filter",
     rows = locationRows,
     onSelect = onLocationPick,
+    onClose = cfg.onLocationsClose,
   })
   return M
 end

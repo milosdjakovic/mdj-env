@@ -122,8 +122,10 @@ return {
   -- and it is the active context so holding Hyper reveals nothing.
   --
   -- The VPN control panel is the same kind of list, so it carries the same j, k, and
-  -- x. Its location search is a separate chooser opened from a row, navigated with the
-  -- arrow keys and typing while Hyper is released, so it needs no context of its own.
+  -- x. Its location search is a separate chooser, like the clipboard, so it gets its
+  -- own context with j and k to move, i to connect to the highlighted city, and x to
+  -- close, plus the Hyper hold overlay that spells those out. Plain typing filters the
+  -- list while Hyper is released.
   hyperContexts = {
     {
       name = "clipboard",
@@ -155,6 +157,17 @@ return {
         { key = "j", action = "selectNext",   description = "Move down" },
         { key = "k", action = "selectPrev",   description = "Move up" },
         { key = "x", action = "closeChooser", description = "Close" },
+      },
+    },
+    {
+      name = "vpnLocations",
+      when = "vpnLocationsOpen",
+      priority = 100,
+      bindings = {
+        { key = "i", action = "insertSelected", description = "Connect" },
+        { key = "j", action = "selectNext",     description = "Move down" },
+        { key = "k", action = "selectPrev",     description = "Move up" },
+        { key = "x", action = "closeChooser",   description = "Close" },
       },
     },
   },
