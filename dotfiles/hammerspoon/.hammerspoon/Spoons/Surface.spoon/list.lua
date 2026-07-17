@@ -285,6 +285,18 @@ window.onerror = function(msg, src, line){ window.__err = msg + ' @' + line; ret
   });
   q.addEventListener('input', function(){ if (fieldMode !== "off") filter(); });
 
+  // Keep the search field focused for as long as the window is key, so the frosted
+  // backdrop, which WebKit renders only for the key window with a focused text field,
+  // never drops on its own. If the field blurs while the document still has focus,
+  // something inside the page pulled it (a click on the scroll gutter, the footer, or
+  // the preview), so take it back. If the document has lost focus the window is no
+  // longer key, the user moved to another app, so leave it be and let the click
+  // watcher dismiss the surface. The window focus handler covers the case where the
+  // window loses then regains key while still open, which is the drop the user could
+  // not otherwise catch.
+  q.addEventListener('blur', function(){ setTimeout(function(){ if (document.hasFocus()) q.focus(); }, 0); });
+  window.addEventListener('focus', function(){ q.focus(); });
+
   // Lua entry points.
   // keepSel holds the highlight where it is, for a refresh that redraws rows in
   // place (the clipboard append badge). Without it a refresh jumps to the top.
@@ -428,6 +440,11 @@ function List:_onMessage(body)
     -- dropped it.
     self.dataset = self:_buildDataset(self.lastQuery or "")
     self.shell:eval("window.__setRows(" .. json(self.dataset) .. ")")
+    -- Make the window key and focus the field together, now that the page is parsed
+    -- and the window is realized. On a cold or napped webview this is the first point
+    -- the focus can actually land, so the frosted backdrop comes up with the content
+    -- rather than a beat later.
+    self.shell:focusWindow()
     self.shell:eval("window.__focus()")
   elseif a == "highlight" then
     self.highlightIndex = body.index

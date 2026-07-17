@@ -135,11 +135,23 @@ function Shell:show(frame)
   end
   hs.timer.doAfter(0.04, function()
     if not self.active then return end
-    local win = self.wv:hswindow()
-    if win then win:focus() end
+    self:focusWindow()
     if self.config.onShown then self.config.onShown() end
   end)
   if self.config.clickAway ~= false then self:_startClickWatcher() end
+end
+
+--- Shell:focusWindow() - make the webview the key window, so its focused text field
+--- can hold the frosted backdrop. Safe to call repeatedly. The fixed delay in show is
+--- only a first attempt, since on a cold or napped webview hswindow can still be nil
+--- then and the focus silently no ops, leaving the backdrop off until a stray event
+--- promotes the window. A surface type calls this again from its ready handshake, the
+--- moment the window is realized, so the reveal is keyed rather than guessed. Passive
+--- overlays never take key focus, so they skip it.
+function Shell:focusWindow()
+  if not self.active or self.passive or not self.wv then return end
+  local win = self.wv:hswindow()
+  if win then win:focus() end
 end
 
 --- Shell:setPassive(passive) - switch the window between activating and passive at
