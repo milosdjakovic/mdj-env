@@ -243,6 +243,41 @@ Adding a whole new spoon requires stowing again, because `~/.hammerspoon/Spoons`
 holds one symlink per spoon. Adding files inside an already symlinked spoon does
 not, they resolve through the existing symlink.
 
+**Wiring a list tool into the Hyper contexts.** The picker atoms give only the
+widget. `Chooser.spoon` is for a long filterable list like the clipboard and the
+VPN locations, and `Panel.spoon` is for a short fixed list like caffeinate and
+the VPN control panel. Routing the Hyper keys to a picker and drawing the hold
+overlay is not part of the atom, because the atoms deliberately know nothing
+about HyperKey. It is opt in wiring done per consumer in the composition root.
+Forgetting it does not break the tool, it just leaves it without the Hyper
+shortcuts, which is exactly how the VPN location picker started before it was
+brought in line with the clipboard. The checklist to plug a new picker in, each
+step mirroring what the clipboard already does.
+
+1. Expose a control surface. The tool, or each of its surfaces, offers dot called
+   `isShowing` plus the navigation methods its bindings name, such as
+   `selectNext`, `selectPrev`, `insertSelected`, and `hide`. A Chooser instance
+   uses colon methods, so wrap it in a thin dot called adapter, as `Vpn.spoon`
+   does for its location picker.
+2. Add a context block in `config/keys.lua` under `hyperContexts`, with a name, a
+   `when` predicate name, a priority, and the bindings by action name. This stays
+   pure data.
+3. Add the predicate in the registry in `init.lua`, the `when` name mapped to a
+   function returning whether that surface is open.
+4. Register the surface in the `choosers` list in `init.lua`, so `activeChooser`
+   and `routeNav` send the navigation actions to whichever surface is open.
+5. Add an entry in `contextOverlays` in `init.lua` only if you want the Hyper hold
+   to reveal the shortcut sheet. Leave it out and holding Hyper reveals nothing,
+   which is right for a panel whose actions are already visible, like caffeinate
+   and the VPN control panel. The overlay is drawn by the shared
+   `contextShortcutModel`, so it never drifts from the bindings.
+6. Inject the root's overlay teardown as the surface's `onClose` so closing it
+   also clears a peeked sheet, and bind the open key as a base HyperKey binding.
+
+A tool with two surfaces, like the VPN control panel and its location picker,
+wires each surface as its own participant, its own context block, predicate,
+registry entry, and overlay.
+
 ### Tmux
 
 Configuration in `dotfiles/tmux/`. See `dotfiles/tmux/CLAUDE.md` for binding conventions, priority system, scoped fzf switchers, popup workarounds, and status bar details.
