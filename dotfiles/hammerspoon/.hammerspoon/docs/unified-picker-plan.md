@@ -155,9 +155,22 @@ load.
 
 ### Phase 3, optional total cohesion
 
-Fold the fixed list `Panel` behavior onto the same Surface so caffeinate and the
-VPN panel share one base, and consider moving the cheat sheet grid off canvas
-onto the Surface. Lowest payoff, do only if the cohesion is wanted end to end.
+Status. The cheat sheet grids now draw through the Surface. A new passive grid
+surface type hosts a block of positioned HTML inside the same frosted panel the
+lists use, themed from the same palette, so the overlays and the pickers share one
+background. Passive means the shell takes no key focus and is nonactivating, so a
+grid floats over an open picker without stealing its search field, which the Hyper
+context peek needs. `CheatSheet.spoon` kept its whole model contract, its geometry
+math, and `glyphFor`, and only swapped the drawing primitive from canvas elements
+to absolutely positioned divs, so `HyperCheatSheet`, `WindowCheatSheet`, and the
+context overlays were not touched. The background now comes from `chooserTheme`
+through the grid, and the `cheatSheet` settings block still tunes the content, font
+size, padding, and badge radius. Verified live on all three, the Hyper sheet, the
+window leader sheet, and the content sized badge peek.
+
+Still open. Fold the fixed list `Panel` behavior onto the same Surface so caffeinate
+and the VPN panel share one base, the last renderer still on its own. Lowest
+payoff, do only if the cohesion is wanted end to end.
 
 ## Out of scope
 

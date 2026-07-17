@@ -41,6 +41,7 @@ end
 
 local shell = load("shell.lua")
 local list = load("list.lua")
+local grid = load("grid.lua")
 
 --- obj.iconcache - the disk backed icon cache module. The root configures its
 --- directory and drives reconcile and warm for the app icons; list instances read
@@ -68,6 +69,14 @@ end
 --- icon cache so the list stays ignorant of how either is built.
 function obj:newList(config)
   return list.new(config, { shell = shell, iconcache = obj.iconcache })
+end
+
+--- Surface:newGrid(config) -> grid instance. A passive, display only overlay host
+--- for the cheat sheets, sharing the shell so it wears the same frosted panel and
+--- theme as the lists. Injects only the shell, since a grid resolves no icons of
+--- its own, the caller hands it fully positioned HTML.
+function obj:newGrid(config)
+  return grid.new(config, { shell = shell })
 end
 
 return obj

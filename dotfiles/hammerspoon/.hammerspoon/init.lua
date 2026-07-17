@@ -58,24 +58,28 @@ end
 spoon.KeyRemap:init()
 spoon.KeyRemap:apply(catalog, { keys.appLeader, keys.windowLeader })
 
--- CheatSheet: the shared grid-overlay renderer behind both cheat sheets. Both
--- builders below draw through this one instance (only ever one overlay is up).
--- Appearance (opacity, colour, radius, font, padding) is set once here from
--- config/settings.lua and applies to every overlay.
-spoon.CheatSheet:init()
-spoon.CheatSheet:configure(settings.cheatSheet)
-
--- Surface: the themed webview foundation behind the web picker backend. Its icon
--- cache persists encoded app icons across reloads. Chooser is the picker facade
--- with two swappable backends, native (hs.chooser) and web (a Surface list). The
--- default backend is settings.chooserProvider, and the Surface spoon is injected
--- so the web backend can build on it. Every chooser consumer below goes through
--- this one facade, so flipping settings.chooserProvider swaps them all at once,
--- while the native chooser stays available as a fallback.
+-- Surface: the themed webview foundation behind the web picker backend and the
+-- cheat sheet grids. Its icon cache persists encoded app icons across reloads.
+-- Chooser is the picker facade with two swappable backends, native (hs.chooser)
+-- and web (a Surface list). The default backend is settings.chooserProvider, and
+-- the Surface spoon is injected so the web backend can build on it. Every chooser
+-- consumer below goes through this one facade, so flipping settings.chooserProvider
+-- swaps them all at once, while the native chooser stays available as a fallback.
 spoon.Surface:init()
 spoon.Surface:configure({ iconCacheDir = "~/.cache/hs-icons" })
 spoon.Chooser:init()
 spoon.Chooser:configure({ provider = settings.chooserProvider or "native", surface = spoon.Surface })
+
+-- CheatSheet: the shared grid-overlay renderer behind both cheat sheets. Both
+-- builders below draw through this one instance (only ever one overlay is up). It
+-- now draws through the Surface grid, so the overlays wear the same frosted panel
+-- and palette as the pickers. The cheatSheet block still tunes the content, font
+-- size, padding, and badge radius, while the background and theme come from
+-- chooserTheme through the grid.
+spoon.CheatSheet:init()
+local cheatOpts = { surface = spoon.Surface, theme = settings.chooserTheme }
+for k, v in pairs(settings.cheatSheet or {}) do cheatOpts[k] = v end
+spoon.CheatSheet:configure(cheatOpts)
 
 -- HyperCheatSheet: overlay of everything under Hyper. App toggles first (open vs
 -- not running), then one ACTIONS group for the non-app commands. This is the one

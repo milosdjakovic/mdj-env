@@ -115,10 +115,13 @@ end
 --------------------------------------------------------------------------------
 
 --- Shell:show(frame) - place at frame, reveal, take focus, and arm dismissal.
---- Records the frontmost window on a fresh open so hide can hand focus back.
+--- Records the frontmost window on a fresh open so hide can hand focus back. A
+--- passive shell (a cheat sheet grid held under a modifier) skips all of that, it
+--- never takes key focus, never records or restores a window, and arms no click
+--- watcher, so it can float over an open picker without stealing its search field.
 function Shell:show(frame)
   if not self.wv then return end
-  if not self.active then
+  if not self.active and not self.passive then
     self.prevWindow = hs.window.focusedWindow()
   end
   self.active = true
@@ -126,6 +129,10 @@ function Shell:show(frame)
   self.wv:frame(frame)
   self.wv:show()
   self.wv:bringToFront(true)
+  if self.passive then
+    if self.config.onShown then self.config.onShown() end
+    return
+  end
   hs.timer.doAfter(0.04, function()
     if not self.active then return end
     local win = self.wv:hswindow()
@@ -136,15 +143,18 @@ function Shell:show(frame)
 end
 
 --- Shell:hide() - hide the webview (kept warm), restore focus to the recorded
---- window, and fire onClose once. Idempotent.
+--- window, and fire onClose once. Idempotent. A passive shell has no focus to
+--- restore and no click watcher to stop.
 function Shell:hide()
   if not self.active then return end
   self.active = false
   if self.clickWatcher then self.clickWatcher:stop(); self.clickWatcher = nil end
   if self.wv then self.wv:hide() end
-  local prev = self.prevWindow
-  self.prevWindow = nil
-  if prev then prev:focus() end
+  if not self.passive then
+    local prev = self.prevWindow
+    self.prevWindow = nil
+    if prev then prev:focus() end
+  end
   if self.config.onClose then self.config.onClose() end
 end
 
@@ -163,14 +173,18 @@ end
 --------------------------------------------------------------------------------
 
 --- Shell.new(config) -> shell. config: name (bridge id, unique per surface),
---- theme, onMessage(body), onShown, onClose. Builds the webview once and reuses
---- it across shows, hiding rather than destroying so it stays warm like Panel.
+--- theme, onMessage(body), onShown, onClose, passive. Builds the webview once and
+--- reuses it across shows, hiding rather than destroying so it stays warm like
+--- Panel. A passive shell is a display only overlay, it takes no key focus and is
+--- nonactivating, so text entry is off and no window is disturbed when it appears.
 local function new(config)
   config = config or {}
+  local passive = config.passive == true
   local self = setmetatable({
     config = config,
     bridge = config.name or "surface",
     active = false,
+    passive = passive,
     frame = { x = 0, y = 0, w = 480, h = 400 },
   }, Shell)
   self:selectTheme()
@@ -181,11 +195,13 @@ local function new(config)
     if config.onMessage then config.onMessage(body) end
   end)
 
+  local masks = hs.webview.windowMasks.borderless
+  if passive then masks = masks | hs.webview.windowMasks.nonactivating end
   local wv = hs.webview.new(self.frame, {}, ucc)
-  wv:windowStyle(hs.webview.windowMasks.borderless)
+  wv:windowStyle(masks)
   wv:level(hs.canvas.windowLevels.modalPanel)
   wv:transparent(true)
-  wv:allowTextEntry(true)
+  wv:allowTextEntry(not passive)
   wv:allowNewWindows(false)
   wv:behavior(hs.canvas.windowBehaviors.canJoinAllSpaces)
   self.wv = wv
