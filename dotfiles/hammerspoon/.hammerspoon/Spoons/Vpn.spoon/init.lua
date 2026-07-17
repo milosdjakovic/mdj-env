@@ -100,9 +100,41 @@ end
 -- Location search (the Chooser consumer)
 --------------------------------------------------------------------------------
 
+-- A country flag rendered to a small image, so each city row carries a flag rather
+-- than the chooser's default icon. The flag emoji is built from the two letter country
+-- code as a pair of regional indicator symbols, drawn once on an offscreen canvas and
+-- cached by code, since the supplier runs on every keystroke. A false marks a code that
+-- cannot render, so it is attempted only once.
+local flagCache = {}
+local function flagImage(cc)
+  if not cc or #cc ~= 2 then return nil end
+  local hit = flagCache[cc]
+  if hit ~= nil then return hit or nil end
+  local base, a = 0x1F1E6, string.byte("a")
+  local c1, c2 = cc:sub(1, 1):byte() - a, cc:sub(2, 2):byte() - a
+  if c1 < 0 or c1 > 25 or c2 < 0 or c2 > 25 then
+    flagCache[cc] = false
+    return nil
+  end
+  local size = 28
+  local cv = hs.canvas.new({ x = 0, y = 0, w = size, h = size })
+  cv[1] = {
+    type = "text",
+    text = utf8.char(base + c1, base + c2),
+    textSize = 21,
+    textAlignment = "center",
+    frame = { x = 0, y = 0, w = size, h = size },
+  }
+  local img = cv:imageFromCanvas()
+  cv:delete()
+  flagCache[cc] = img or false
+  return img
+end
+
 -- The supplier the chooser calls in filter mode. It receives the query and returns
 -- the matching cities, a case insensitive substring match on the label or the country
--- code, so typing London, USA, or gb all narrow the list.
+-- code, so typing London, USA, or gb all narrow the list. Each row carries its country
+-- flag as the icon.
 local function locationRows(query)
   local q = (query or ""):lower()
   local out = {}
@@ -111,6 +143,7 @@ local function locationRows(query)
       out[#out + 1] = {
         title = loc.label,
         subTitle = loc.countryCode .. " " .. loc.cityCode,
+        image = flagImage(loc.countryCode),
         item = loc,
       }
     end
