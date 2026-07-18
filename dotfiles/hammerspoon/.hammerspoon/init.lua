@@ -86,12 +86,14 @@ spoon.CheatSheet:configure(cheatOpts)
 -- place that names which non-app bindings surface on the overlay and in what
 -- order, so the Capture, ClipboardHistory, and system configs stay pure binding
 -- data. The order below is the on-screen order: the four capture actions fill the
--- first row (the grid is four columns) and clipboard, lock, and sleep fall to the
--- second, since the renderer fills row-major.
+-- first row (the grid is four columns) and the command palette, clipboard, keep
+-- awake, VPN, lock, and sleep fall to the rows below, since the renderer fills
+-- row-major.
 local hyperActions = {}
 for _, b in ipairs(keys.capture) do
   hyperActions[#hyperActions + 1] = b
 end
+hyperActions[#hyperActions + 1] = keys.commandPalette
 hyperActions[#hyperActions + 1] = keys.clipboardHistory
 hyperActions[#hyperActions + 1] = keys.caffeinate
 hyperActions[#hyperActions + 1] = keys.vpn
