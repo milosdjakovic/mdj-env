@@ -80,11 +80,14 @@ local TEMPLATE = [==[
      surface rather than under just the list column. */
   .body { display:flex; flex-direction:row; flex:1 1 auto; min-height:0; }
   .listcol { display:flex; flex-direction:column; flex:1 1 auto; min-width:0; }
+  /* Transparent so the panel's one frosted backdrop shows through here too, rather
+     than painting a solid block beside the translucent list. The list and its
+     preview then read as the same surface. */
   .preview {
     flex:0 0 {{PREVIEWW}}px;
     overflow:auto;
     border-left:1px solid rgba({{BORDER}});
-    background:{{PVBG}};
+    background:transparent;
     color:{{FG}};
   }
   .panel.nosplit .preview { display:none; }
@@ -591,7 +594,6 @@ function List:_buildPage()
     -- so a plain list and the clipboard split share one page.
     PREVIEWW = tostring(pvW),
     SPLITCLASS = pvW > 0 and "split" or "nosplit",
-    PVBG = pv.bg or "#1e1e22",
     PVPATH = pv.path or pv.meta or "#7a7a7a",
     PVNOTE = pv.note or "#c8a86a",
   }
