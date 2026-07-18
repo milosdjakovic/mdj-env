@@ -333,8 +333,11 @@ window.onerror = function(msg, src, line){ window.__err = msg + ' @' + line; ret
 
   q.focus();
   // Tell the Lua side the page is parsed and the entry points exist, so it can
-  // push the dataset. This replaces guessing a delay after html().
-  post({ action:"ready" });
+  // reveal the window and push the dataset. Carries the generation so a stale ready
+  // from a page already replaced by a newer show is ignored. This replaces guessing
+  // a delay after html() and reveals only once the new content has painted, so the
+  // previous open's still-painted DOM never flashes.
+  post({ action:"ready", gen:{{GEN}} });
   reportFooter();
 })();
 </script>
@@ -436,19 +439,11 @@ end
 function List:_onMessage(body)
   local a = body.action
   if a == "ready" then
-    -- The page is parsed; push the rows. Rebuild from the supplier now rather than
-    -- replaying the snapshot taken at show(), so rows that arrived between show and
-    -- the page becoming ready (a location list fetched async) are included instead
-    -- of lost to the handshake race. Focus the field too, since the reload may have
-    -- dropped it.
-    self.dataset = self:_buildDataset(self.lastQuery or "")
-    self.shell:eval("window.__setRows(" .. json(self.dataset) .. ")")
-    -- Make the window key and focus the field together, now that the page is parsed
-    -- and the window is realized. On a cold or napped webview this is the first point
-    -- the focus can actually land, so the frosted backdrop comes up with the content
-    -- rather than a beat later.
-    self.shell:focusWindow()
-    self.shell:eval("window.__focus()")
+    -- The page parsed and painted; reveal it now, then push the rows and focus. The
+    -- reveal is gated on this handshake rather than fired at show() so the previous
+    -- open's still-painted DOM never flashes. _reveal carries the row push and focus,
+    -- shared with the fallback path, and ignores a stale generation.
+    self:_reveal(body.gen)
   elseif a == "highlight" then
     self.highlightIndex = body.index
     if self.config.onHighlight then
@@ -571,6 +566,7 @@ function List:_buildPage()
   local pvW = self:_previewW()
   local map = {
     BRIDGE = self.shell.bridge,
+    GEN = tostring(self._gen or 0),
     BG = hexRGB(pv.bg or "#1e1e22"),
     OPACITY = "0.72",
     FG = pv.fg or whiteToCss(side.titleColor),
@@ -600,22 +596,58 @@ function List:_buildPage()
   return (TEMPLATE:gsub("{{(%w+)}}", map))
 end
 
---- List:show() - reselect the theme, rebuild the page and dataset, place, reveal.
---- The dataset is stored and pushed when the page reports ready (see _onMessage),
---- so nothing races a fixed delay after html().
+--- List:show() - reselect the theme, rebuild the page, and load it, but hold the
+--- reveal until the page reports it has parsed (see _reveal), so the previous open's
+--- still-painted DOM never flashes while the new page loads. The webview is reused
+--- warm across opens, which is exactly why an immediate reveal showed the stale
+--- content, the flicker this mirrors Grid to fix. A generation counter tags this
+--- open so a stale ready or fallback from a page already replaced is ignored, and a
+--- fallback timer reveals anyway should a hidden webview ever delay the handshake.
 function List:show()
   self.shell:selectTheme()
+  self._gen = (self._gen or 0) + 1
   self.dataset = self:_buildDataset("")
+  self._pending = { gen = self._gen, frame = self:_frame() }
   self.shell:html(self:_buildPage())
-  self.shell:show(self:_frame())
+  if self._fallback then self._fallback:stop() end
+  local gen = self._gen
+  self._fallback = hs.timer.doAfter(0.2, function() self:_reveal(gen) end)
+end
+
+--- List:_reveal(gen) - show the pending frame, then push the dataset and focus the
+--- field, but only for the current generation, so a stale ready or fallback from an
+--- open already replaced by a newer one is ignored and each generation reveals once.
+--- Revealing first makes the window key so the guarded shell:eval that pushes the
+--- rows and focuses lands, and the dataset is rebuilt from the supplier here rather
+--- than replayed from the show-time snapshot, so rows that arrived between show and
+--- ready (an async location list) are included instead of lost to the handshake race.
+function List:_reveal(gen)
+  local pending = self._pending
+  if not pending or gen ~= pending.gen or self._revealedGen == gen then return end
+  self._revealedGen = gen
+  if self._fallback then self._fallback:stop(); self._fallback = nil end
+  self.shell:show(pending.frame)
+  self.dataset = self:_buildDataset(self.lastQuery or "")
+  self.shell:eval("window.__setRows(" .. json(self.dataset) .. ")")
+  self.shell:focusWindow()
+  self.shell:eval("window.__focus()")
 end
 
 --------------------------------------------------------------------------------
 -- Public contract, matching the old Chooser atom
 --------------------------------------------------------------------------------
 
-function List:hide() self.shell:hide() end
-function List:close() self.shell:hide() end
+-- Cancel any pending reveal before hiding, so a dismiss inside the 0.2s fallback
+-- window (open then escape or click away before the page reports ready) cannot let
+-- a late fallback re-reveal the hidden window. Clearing _pending also makes a stale
+-- ready that arrives after the hide a no op.
+function List:_cancelReveal()
+  if self._fallback then self._fallback:stop(); self._fallback = nil end
+  self._pending = nil
+end
+
+function List:hide() self:_cancelReveal(); self.shell:hide() end
+function List:close() self:_cancelReveal(); self.shell:hide() end
 function List:isShowing() return self.shell:isShowing() end
 
 function List:refresh()
