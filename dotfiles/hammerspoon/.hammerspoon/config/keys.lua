@@ -110,9 +110,11 @@ return {
   --
   -- The clipboard chooser. j and k navigate vim style, i inserts the highlighted
   -- item the same as Return, a appends the highlighted item to a batch so several
-  -- items can be gathered and pasted together on close, and x closes the chooser,
-  -- the same as Escape. x needs its own binding because the context is modal, so
-  -- the base Hyper+X toggle is suppressed while the chooser is open.
+  -- items can be gathered and pasted together on close, d deletes the highlighted
+  -- item (or the whole batch once one is marked, when its label reads "Delete
+  -- marked"), and x closes the chooser, the same as Escape. x needs its own binding
+  -- because the context is modal, so the base Hyper+X toggle is suppressed while the
+  -- chooser is open.
   --
   -- The keep awake panel is a list you navigate. j and k move the highlight down
   -- and up vim style, the same as the arrow keys the panel handles natively, and x
@@ -141,6 +143,9 @@ return {
         { key = "j", mods = { "cmd" }, action = "scrollPreviewDown", description = "Scroll preview down" },
         { key = "k", mods = { "cmd" }, action = "scrollPreviewUp",   description = "Scroll preview up" },
         { key = "a", action = "appendSelected", description = "Append to batch" },
+        -- Delete the highlighted entry, or the whole marked batch. The composition
+        -- root relabels this to "Delete marked" while a batch is gathered.
+        { key = "d", action = "deleteSelected",  description = "Delete" },
         { key = "x", action = "closeChooser",   description = "Close" },
       },
     },

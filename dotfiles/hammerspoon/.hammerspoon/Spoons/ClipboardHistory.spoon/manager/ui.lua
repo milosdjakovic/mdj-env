@@ -111,6 +111,16 @@ local function toggleBatch(e)
   end
 end
 
+-- Push a fresh footer whenever the batch count changes, so the injected footer
+-- supplier can relabel the delete hint ("Delete" vs "Delete marked (N)") to match.
+-- The supplier owns the wording; this only hands it the live count and forwards the
+-- result to the picker. A no op on a backend whose picker has no setFooter (native).
+local function refreshFooter()
+  if picker and picker.setFooter and cfg and cfg.footerFor then
+    picker:setFooter(cfg.footerFor(#batch))
+  end
+end
+
 --------------------------------------------------------------------------------
 -- Rows and filtering (the atom's rows supplier)
 --------------------------------------------------------------------------------
@@ -388,6 +398,10 @@ end
 -- atom's onClose, so this file never learns about the overlay or the click watcher.
 local function onClose()
   batch = {}
+  -- Reset the footer to its no-batch labels now the batch is cleared, so the next
+  -- open does not come up still reading "Delete marked". The picker is hidden here,
+  -- so setFooter only updates the stored hints the next open renders from.
+  refreshFooter()
   hidePreview()
   if cfg and cfg.onClose then
     cfg.onClose()
@@ -473,6 +487,25 @@ function UI.appendSelected()
   if not entry then return end
   toggleBatch(entry)
   picker:refresh()
+  refreshFooter()
+end
+
+--- UI.deleteSelected() - delete from history, for the Hyper d binding. With a batch
+--- marked (Hyper a), delete the whole marked set and clear it, matching the "Delete
+--- marked" label; otherwise delete just the highlighted entry. Refreshing redraws the
+--- remaining rows, and refreshFooter restores the label once the batch is empty.
+function UI.deleteSelected()
+  if not picker or not picker:isShowing() then return end
+  if #batch > 0 then
+    for _, e in ipairs(batch) do store.removeEntry(e) end
+    batch = {}
+  else
+    local entry = picker:selectedItem()
+    if not entry then return end
+    store.removeEntry(entry)
+  end
+  picker:refresh()
+  refreshFooter()
 end
 
 --- UI.build() - create the Chooser instance. Called once at start and reused

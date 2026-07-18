@@ -147,6 +147,12 @@ function M.scrollPreviewUp()
   ui.scrollPreviewUp()
 end
 
+--- M.deleteSelected() - delete the highlighted entry, or the whole marked batch when
+--- one is gathered, for the Hyper d binding wired in the composition root.
+function M.deleteSelected()
+  ui.deleteSelected()
+end
+
 --- M.clear() - wipe history and media. Handy from the console:
 --- hs -c "spoon.ClipboardHistory.providers.hammerspoon.clear()"
 function M.clear()

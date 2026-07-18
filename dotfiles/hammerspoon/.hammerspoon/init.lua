@@ -294,7 +294,7 @@ local function footerFor(name)
         elseif b.action == "selectPrev" then
           badges = { chord, spoon.CheatSheet.glyphFor("up") }
         end
-        hints[#hints + 1] = { badges = badges, label = b.description or b.action }
+        hints[#hints + 1] = { badges = badges, label = b.description or b.action, action = b.action }
       end
     end
   end
@@ -308,6 +308,23 @@ end
 -- is built here directly, so it takes footer in its config without this wrapper.
 local function withFooter(factory, hints)
   return { new = function(cfg) cfg = cfg or {}; cfg.footer = hints; return factory.new(cfg) end }
+end
+-- The clipboard footer, with one state-dependent label. Once entries are marked for
+-- the batch (Hyper+a), Delete acts on the marked set, so its hint reads "Delete
+-- marked (N)" instead of plain "Delete"; every other chip is the static footerFor
+-- data. The clipboard invokes this with its live batch count and never learns the
+-- wording, so the label policy stays here with the rest of the footer content. Found
+-- by action rather than position, so reordering the bindings cannot mislabel a chip.
+local function clipboardFooter(marked)
+  local hints = footerFor("clipboard")
+  if marked and marked > 0 then
+    for _, h in ipairs(hints) do
+      if h.action == "deleteSelected" then
+        h.label = "Delete marked (" .. marked .. ")"
+      end
+    end
+  end
+  return hints
 end
 local function hideShortcuts()
   if shortcutsShown then
@@ -375,7 +392,11 @@ spoon.ClipboardHistory:init()
 spoon.ClipboardHistory.manager.configure({
   onClose = hideShortcuts,
   theme = settings.chooserTheme,
-  chooser = withFooter(spoon.Chooser, footerFor("clipboard")),
+  -- The initial footer is the no-batch labels (marked 0); footerFor is the supplier
+  -- the manager re-invokes with its live batch count to relabel Delete as the batch
+  -- grows and shrinks. Both come from the one clipboardFooter policy above.
+  chooser = withFooter(spoon.Chooser, clipboardFooter(0)),
+  footerFor = clipboardFooter,
 })
 spoon.ClipboardHistory.manager.start() -- begin the background pasteboard poll
 spoon.ClipboardHistory:configure({
@@ -701,6 +722,9 @@ local contextActions = {
   insertSelected = routeNav("insertSelected"),
   closeChooser = routeNav("hide"),
   appendSelected = function() hideShortcuts() clipManager.appendSelected() end,
+  -- Delete is clipboard only, like append, so it calls the manager directly rather
+  -- than routing to whatever chooser is active.
+  deleteSelected = function() hideShortcuts() clipManager.deleteSelected() end,
   -- Preview scroll routes like the other nav actions; only the clipboard surface
   -- answers scrollPreview, so on any other active chooser the routeNav method guard
   -- makes it a no op.

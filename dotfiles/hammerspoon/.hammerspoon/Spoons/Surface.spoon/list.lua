@@ -321,6 +321,10 @@ window.onerror = function(msg, src, line){ window.__err = msg + ' @' + line; ret
   // scroll container; #pvwrap is only its content. A no op when there is no pane.
   var pv = document.getElementById('preview');
   window.__scrollPreview = function(dy){ if (pv) pv.scrollTop += dy; };
+  // Replace the footer chips live, for a consumer whose shortcut labels change with
+  // state (the clipboard's Delete becoming "Delete marked"). Re-report the height,
+  // since a longer label can wrap the bar onto another row and the window regrows.
+  window.__setFooter = function(html){ var f = document.getElementById('footer'); if (f){ f.innerHTML = html || ''; reportFooter(); } };
   window.__move = function(d){ move(d); };
   window.__activate = function(){ activate(); };
   window.__focus = function(){ q.focus(); };
@@ -671,6 +675,19 @@ end
 --- apart.
 function List:hasPreview()
   return self:_previewW() > 0
+end
+
+--- List:setFooter(hints) - replace the footer hints live, for a consumer whose
+--- shortcuts change with state (the clipboard's Delete label once a batch is marked).
+--- Updates the stored config so the next open renders the new hints too, and redraws
+--- the bar now when showing. Same-shape updates only; a footer that already exists
+--- stays visible, this does not toggle the nofooter class.
+function List:setFooter(hints)
+  self.config.footer = hints
+  if self:isShowing() then
+    local payload = json({ h = self:_footerHtml() })
+    self.shell:eval("window.__setFooter((" .. payload .. ").h)")
+  end
 end
 
 --- List:setPreview(html) - fill the split preview pane with an html fragment. The
