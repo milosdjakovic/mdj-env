@@ -447,6 +447,23 @@ function UI.insertSelected()
   if picker then picker:insertSelected() end
 end
 
+-- How far one Hyper+Cmd+j/k press scrolls the preview, roughly a mouse-wheel
+-- notch, enough to read a long entry in a few presses without overshooting.
+local PREVIEW_SCROLL_STEP = 120
+
+--- UI.scrollPreviewDown() / UI.scrollPreviewUp() - scroll the embedded preview pane,
+--- for the Hyper+Cmd+j / Hyper+Cmd+k bindings, so a clipboard entry taller than the
+--- pane can be read. Only the web backend embeds a scrollable pane and exposes
+--- scrollPreview; on the native backend, whose preview is a separate docked webview,
+--- the guard makes these a no op.
+function UI.scrollPreviewDown()
+  if picker and picker.scrollPreview then picker:scrollPreview(PREVIEW_SCROLL_STEP) end
+end
+
+function UI.scrollPreviewUp()
+  if picker and picker.scrollPreview then picker:scrollPreview(-PREVIEW_SCROLL_STEP) end
+end
+
 --- UI.appendSelected() - toggle the highlighted row in the append batch, for the
 --- Hyper a binding. The chooser stays open. Refreshing redraws the rows with the
 --- new order badges, and the atom's refresh preserves the highlight.

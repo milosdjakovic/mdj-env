@@ -135,6 +135,11 @@ return {
         { key = "i", action = "insertSelected", description = "Paste" },
         { key = "j", action = "selectNext",     description = "Move down" },
         { key = "k", action = "selectPrev",     description = "Move up" },
+        -- Cmd is the sub-modifier within Hyper, so Hyper+Cmd+j/k scroll the preview
+        -- while bare Hyper+j/k still move the highlight. The resolver matches these
+        -- exact-mods bindings ahead of the mod-less move catch-alls on the same keys.
+        { key = "j", mods = { "cmd" }, action = "scrollPreviewDown", description = "Scroll preview down" },
+        { key = "k", mods = { "cmd" }, action = "scrollPreviewUp",   description = "Scroll preview up" },
         { key = "a", action = "appendSelected", description = "Append to batch" },
         { key = "x", action = "closeChooser",   description = "Close" },
       },

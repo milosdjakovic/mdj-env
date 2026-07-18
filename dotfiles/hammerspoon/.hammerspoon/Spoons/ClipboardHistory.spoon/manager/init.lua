@@ -136,6 +136,17 @@ function M.appendSelected()
   ui.appendSelected()
 end
 
+--- M.scrollPreviewDown() / M.scrollPreviewUp() - scroll the preview pane, for the
+--- Hyper+Cmd+j and Hyper+Cmd+k bindings wired in the composition root, so a long
+--- entry can be read without reaching for the mouse.
+function M.scrollPreviewDown()
+  ui.scrollPreviewDown()
+end
+
+function M.scrollPreviewUp()
+  ui.scrollPreviewUp()
+end
+
 --- M.clear() - wipe history and media. Handy from the console:
 --- hs -c "spoon.ClipboardHistory.providers.hammerspoon.clear()"
 function M.clear()

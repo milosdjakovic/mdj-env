@@ -701,6 +701,11 @@ local contextActions = {
   insertSelected = routeNav("insertSelected"),
   closeChooser = routeNav("hide"),
   appendSelected = function() hideShortcuts() clipManager.appendSelected() end,
+  -- Preview scroll routes like the other nav actions; only the clipboard surface
+  -- answers scrollPreview, so on any other active chooser the routeNav method guard
+  -- makes it a no op.
+  scrollPreviewDown = routeNav("scrollPreviewDown"),
+  scrollPreviewUp = routeNav("scrollPreviewUp"),
 }
 for _, ctx in ipairs(keys.hyperContexts or {}) do
   for _, b in ipairs(ctx.bindings) do

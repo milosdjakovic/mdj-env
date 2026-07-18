@@ -316,6 +316,11 @@ window.onerror = function(msg, src, line){ window.__err = msg + ' @' + line; ret
   // Fill the preview pane of a split surface. Inner html only; the page owns the
   // pane's chrome and theme, so the consumer sends just the body fragment.
   window.__setPreview = function(html){ if (pvwrap) pvwrap.innerHTML = html || ''; };
+  // Scroll the preview pane by a pixel delta, so a long clipboard entry that
+  // overflows the pane can be read without the mouse. The pane (#preview) is the
+  // scroll container; #pvwrap is only its content. A no op when there is no pane.
+  var pv = document.getElementById('preview');
+  window.__scrollPreview = function(dy){ if (pv) pv.scrollTop += dy; };
   window.__move = function(d){ move(d); };
   window.__activate = function(){ activate(); };
   window.__focus = function(){ q.focus(); };
@@ -680,6 +685,12 @@ end
 function List:selectNext() self.shell:eval("window.__move(1)") end
 function List:selectPrev() self.shell:eval("window.__move(-1)") end
 function List:insertSelected() self.shell:eval("window.__activate()") end
+
+--- List:scrollPreview(dy) - scroll the split preview pane by dy pixels, positive
+--- down and negative up, for a consumer whose preview overflows (the clipboard). A
+--- no op on a surface with no preview pane, where the page's __scrollPreview finds
+--- no element and does nothing.
+function List:scrollPreview(dy) self.shell:eval("window.__scrollPreview(" .. tostring(dy) .. ")") end
 
 function List:selectedItem()
   local i = self.highlightIndex
