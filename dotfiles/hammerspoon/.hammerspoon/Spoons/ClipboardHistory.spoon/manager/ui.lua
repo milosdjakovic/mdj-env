@@ -54,6 +54,7 @@ local renderToken = 0 -- bumped each render; async results check it to avoid sta
 local previewCache = {} -- entry -> inner html, for the synchronous kinds only
 local themeCss = nil -- preview CSS for the current open, built lazily from the atom's active theme
 local thumbCache = {} -- path -> hs.image (or false), for row thumbnails
+local dataURICache = {} -- prev path -> png data URI, so a re-highlight re-encodes nothing
 local iconCache = {} -- bundle id -> hs.image (or false), for row source-app icons
 
 -- Which preview sink this backend uses. The web backend embeds a preview pane in
@@ -209,10 +210,23 @@ end
 -- Preview rendering (the atom's onHighlight target)
 --------------------------------------------------------------------------------
 
+-- The preview file is already a small downscaled PNG, so embed its bytes directly
+-- as a data URI. Reading and base64-ing the file skips decoding it into an hs.image
+-- and re-encoding a fresh PNG, which was the real cost paid on every highlight.
+-- Cached by path; the generated files are content-unique and immutable, so a hit is
+-- always valid. Only successes are cached (the caller checks the file exists first),
+-- and the cache is dropped with the others on close and when new media lands.
 local function imageDataURI(path)
-  local img = hs.image.imageFromPath(path)
-  if not img then return nil end
-  return img:encodeAsURLString() -- path is already downscaled on disk, so this is small
+  local hit = dataURICache[path]
+  if hit then return hit end
+  local f = io.open(path, "rb")
+  if not f then return nil end
+  local bytes = f:read("*a")
+  f:close()
+  if not bytes then return nil end
+  local uri = "data:image/png;base64," .. hs.base64.encode(bytes)
+  dataURICache[path] = uri
+  return uri
 end
 
 local function wrap(inner)
@@ -293,10 +307,30 @@ local function renderFile(e, token)
     return
   end
 
-  if util.RENDER_AS_IMAGE[util.fileExt(el.path)] then
-    local src = (el.prev and hs.fs.attributes(el.prev) and el.prev) or readPath
-    local uri = imageDataURI(src)
+  -- A previewable file carries a small PNG (a raster image, a video frame, or a
+  -- pdf/icns page). Prefer it. While it is still being generated the path is set
+  -- but the file is absent, so show a pending note; mediaReady repaints when it
+  -- lands.
+  local ext = util.fileExt(el.path)
+  if el.prev then
+    if hs.fs.attributes(el.prev) then
+      local uri = imageDataURI(el.prev)
+      emit(fileHeader(e) .. (uri and ("<img src='" .. uri .. "'>") or note("Cannot render preview.")))
+    else
+      emit(fileHeader(e) .. note("Generating preview…"))
+    end
+    return
+  end
+  -- No preview was scheduled (generation failed, or no backend, e.g. ffmpeg is not
+  -- installed). A raster image can still fall back to the original bytes; a video
+  -- just says it has no frame.
+  if util.RASTER_EXT[ext] then
+    local uri = imageDataURI(readPath)
     emit(fileHeader(e) .. (uri and ("<img src='" .. uri .. "'>") or note("Cannot render image.")))
+    return
+  end
+  if util.VIDEO_EXT[ext] then
+    emit(fileHeader(e) .. note("No video preview."))
     return
   end
 
@@ -360,6 +394,7 @@ local function hidePreview()
     preview:hide()
   end
   previewCache = {} -- drop encoded images between opens
+  dataURICache = {} -- drop encoded preview bytes between opens
   themeCss = nil -- rebuild against the theme picked on the next open
 end
 
@@ -447,6 +482,21 @@ end
 --- UI.refresh() - rebuild the visible rows, e.g. after a clear.
 function UI.refresh()
   if picker then picker:refresh() end
+end
+
+--- UI.mediaReady() - a just-copied item's preview or thumbnail finished generating
+--- off the main thread. Drop the caches that may hold its not-yet-ready state (the
+--- thumb cache remembers a missing file as false, the preview cache an empty image)
+--- and, if the chooser is open, repaint the rows and the current preview so the
+--- fresh image or video frame appears without the user moving the selection.
+function UI.mediaReady()
+  previewCache = {}
+  thumbCache = {}
+  dataURICache = {}
+  if picker and picker:isShowing() then
+    picker:refresh()
+    renderPreview(picker:selectedItem())
+  end
 end
 
 function UI.selectNext()

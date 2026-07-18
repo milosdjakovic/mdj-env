@@ -6,6 +6,14 @@
 --- dedupes, trims to the cap, and saves. removeFiles is the garbage collector,
 --- run whenever an entry leaves history, so disk stays bounded by the count cap.
 ---
+--- The small preview and thumbnail images are produced by the injected preview
+--- module, off the main thread, so a large image or video never stalls
+--- Hammerspoon. The full-res original is always kept for a faithful paste; the
+--- preview is only for display. A previewable file (raster image, video, pdf,
+--- icns) gets a downscaled PNG; a video's preview is a single frame. Generation is
+--- async, so the entry is saved at once with the deterministic preview path and the
+--- file lands a moment later, which onMediaReady tells the ui to repaint.
+---
 --- Entry shapes on disk:
 ---   text / url  { kind, ts, title, preview, text, _key }
 ---   image       { kind, ts, title, preview, full, thumb, prev, w, h }
@@ -23,7 +31,16 @@ local SCHEMA = 2 -- bump to reset an incompatible on-disk store rather than migr
 
 local cfg = nil -- injected config, see configure
 local util = nil
+local preview = nil -- injected preview module, see configure
 local history = {} -- newest first
+
+-- Tell the ui a just-generated preview or thumbnail landed, so it can repaint the
+-- open chooser. A no-op until the composition root injects onMediaReady.
+local function mediaReady()
+  if cfg and cfg.onMediaReady then
+    cfg.onMediaReady()
+  end
+end
 
 --------------------------------------------------------------------------------
 -- Disk helpers
@@ -67,37 +84,32 @@ local function copyFile(src, dest)
   return true
 end
 
--- Write a downscaled PNG. setSize on a copy genuinely shrinks the saved file
--- (unlike encodeAsURLString, which ignores it), so the preview loads a small
--- image and encodes cheaply. Works from an hs.image or a source path.
-local function writeScaled(imgOrPath, dest, edge)
-  local img = type(imgOrPath) == "string" and hs.image.imageFromPath(imgOrPath) or imgOrPath
-  if not img then return false end
-  local ok = img:copy():setSize({ w = edge, h = edge }):saveToFile(dest)
-  return ok and true or false
-end
-
 --------------------------------------------------------------------------------
 -- Media persistence
 --------------------------------------------------------------------------------
 
 -- Full-res image for faithful paste, a thumbnail for the row, and a downscaled
--- preview for the pane. Only paths are ever kept in memory.
+-- preview for the pane. The full image is encoded once here (we hold the object,
+-- so this is unavoidable); the thumbnail and preview are then derived from that
+-- saved file off the main thread by the preview module, so a large copy does not
+-- stall Hammerspoon. Only paths are ever kept in memory; the derived files land a
+-- moment later and the ui repaints via mediaReady.
 local function saveImage(img)
   local id = newId()
   local full = cfg.dataDir .. "/img-" .. id .. ".png"
   local thumb = cfg.thumbDir .. "/thumb-" .. id .. ".png"
   local prev = cfg.dataDir .. "/prev-" .. id .. ".png"
   img:saveToFile(full)
-  writeScaled(img, thumb, cfg.thumbEdge)
-  writeScaled(img, prev, cfg.previewEdge)
+  preview.generate({ path = full, ext = "png", dest = thumb, edge = cfg.thumbEdge }, mediaReady)
+  preview.generate({ path = full, ext = "png", dest = prev, edge = cfg.previewEdge }, mediaReady)
   return { full = full, thumb = thumb, prev = prev }
 end
 
 -- Snapshot each copied path into our store so the entry survives the original
 -- being deleted or moved, and so paste can always write our own copy. Folders
--- and oversized files are referenced only. Image files also get a downscaled
--- preview so the pane never encodes a full-res image.
+-- and oversized files are referenced only. A previewable file (raster image,
+-- video, pdf, icns) also gets a downscaled PNG so the pane never encodes a
+-- full-res image and a video shows a frame.
 local function snapshotFiles(paths)
   local files = {}
   for _, p in ipairs(paths) do
@@ -107,15 +119,24 @@ local function snapshotFiles(paths)
       el.isDir = true
     elseif attr and attr.mode == "file" and (not attr.size or attr.size <= cfg.maxFileSnapshot) then
       local id = newId()
-      local ext = p:match("%.([%w]+)$")
-      local dest = cfg.filesDir .. "/file-" .. id .. (ext and ("." .. ext) or "")
+      local ext = (p:match("%.([%w]+)$") or ""):lower()
+      local dest = cfg.filesDir .. "/file-" .. id .. (ext ~= "" and ("." .. ext) or "")
       if copyFile(p, dest) then
         el.stored = dest
-        if util.RENDER_AS_IMAGE[(ext or ""):lower()] then
+        -- The preview is generated off the main thread. Set the deterministic
+        -- path now, before the file exists, so the entry saves complete; a failed
+        -- render clears the path and re-saves so nothing points at a missing file.
+        -- el is the live element stored on the entry, so both edits persist.
+        if preview.canPreview(ext) then
           local prev = cfg.filesDir .. "/prev-" .. id .. ".png"
-          if writeScaled(dest, prev, cfg.previewEdge) then
-            el.prev = prev
-          end
+          el.prev = prev
+          preview.generate({ path = dest, ext = ext, dest = prev, edge = cfg.previewEdge }, function(ok)
+            if not ok then
+              el.prev = nil
+              save()
+            end
+            mediaReady()
+          end)
         end
       end
     end
@@ -267,10 +288,12 @@ function S.load()
   return history
 end
 
---- S.configure(c) - inject paths, caps, sizes, and util. Creates the dirs.
+--- S.configure(c) - inject paths, caps, sizes, util, and the preview module.
+--- Creates the dirs.
 function S.configure(c)
   cfg = c
   util = c.util
+  preview = c.preview
   ensureDirs()
   return S
 end

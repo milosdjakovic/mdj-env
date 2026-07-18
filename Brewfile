@@ -19,6 +19,7 @@ brew "trash"
 brew "lazygit"
 brew "chafa"
 brew "displayplacer"
+brew "ffmpeg"
 
 # Shell
 brew "powerlevel10k"

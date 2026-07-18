@@ -6,14 +6,21 @@ local U = {}
 
 local floor = math.floor
 
--- File extensions the preview renders as an image inline. Anything macOS can
--- draw (including pdf, which renders the first page) belongs here. Shared by the
--- store, which pre-sizes a preview for these, and the ui, which picks the image
--- render path for them.
-U.RENDER_AS_IMAGE = {
-  png = true, jpg = true, jpeg = true, gif = true, bmp = true, tiff = true,
-  tif = true, heic = true, webp = true, icns = true, pdf = true,
+-- File-extension sets, pure data shared by the preview generators (which pick a
+-- backend by type), the store (which asks the preview module whether a file is
+-- previewable), and the ui (which picks the image render path). One list, so the
+-- three never disagree. Raster images go to sips, videos to ffmpeg, and the docs
+-- macOS can draw (pdf first page, icns) to hs.image.
+U.RASTER_EXT = {
+  png = true, jpg = true, jpeg = true, gif = true, bmp = true,
+  tiff = true, tif = true, heic = true, webp = true,
 }
+U.VIDEO_EXT = {
+  mp4 = true, mov = true, m4v = true, avi = true, mkv = true, webm = true,
+  flv = true, wmv = true, mpg = true, mpeg = true, ["3gp"] = true, ["3g2"] = true,
+  ogv = true,
+}
+U.DOC_EXT = { pdf = true, icns = true }
 
 -- Collapse whitespace to a single line and cap the length for display.
 function U.oneLine(s, n)

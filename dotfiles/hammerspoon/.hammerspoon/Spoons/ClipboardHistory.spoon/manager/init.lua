@@ -15,6 +15,7 @@
 ---
 --- Responsibilities split across the folder:
 ---   util.lua     pure string and pasteboard helpers
+---   preview.lua  async preview-image generation, a Chain of Responsibility
 ---   store.lua    history list, persistence, image and file media lifecycle
 ---   readers.lua  per-type capture readers, a Chain of Responsibility
 ---   monitor.lua  the poll engine and paste-back, owns the self-capture guard
@@ -31,6 +32,7 @@ local function load(name)
 end
 
 local util = load("util.lua")
+local preview = load("preview.lua")
 local store = load("store.lua")
 local readers = load("readers.lua")
 local monitor = load("monitor.lua")
@@ -63,8 +65,8 @@ local config = {
 
   maxEntries = 1000, -- history cap, trimmed on insert
   maxFileSnapshot = 50 * 1024 * 1024, -- do not snapshot files larger than this
-  thumbEdge = 64, -- row thumbnail box, points
-  previewEdge = 1200, -- downscaled preview image box, points
+  thumbEdge = 64, -- row thumbnail, max pixels on the larger edge
+  previewEdge = 500, -- downscaled preview image, max pixels on the larger edge (video width for ffmpeg)
   fileReadCap = 256 * 1024, -- how much of a text file to preview
 
   pollInterval = 0.5, -- changeCount poll
@@ -176,6 +178,15 @@ end
 function M.start()
   math.randomseed(os.time())
   config.util = util
+
+  -- Resolve the preview tools (logs a missing ffmpeg), then inject the module and
+  -- a repaint hook so a preview that lands after the entry saved repaints the open
+  -- chooser without the user moving the selection.
+  preview.configure({ util = util, ffmpeg = config.ffmpeg, ffprobe = config.ffprobe })
+  config.preview = preview
+  config.onMediaReady = function()
+    ui.mediaReady()
+  end
 
   store.configure(config)
   monitor.configure({
