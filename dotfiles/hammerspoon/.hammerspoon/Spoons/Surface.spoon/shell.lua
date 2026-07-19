@@ -96,7 +96,7 @@ end
 
 -- A single frame check, simpler than the old two rect chooser plus companion,
 -- because the list and its preview now share one window. A click inside passes
--- through; a click outside dismisses.
+-- through, a click outside dismisses.
 function Shell:_startClickWatcher()
   if self.clickWatcher then self.clickWatcher:stop() end
   self.clickWatcher = hs.eventtap.new(
@@ -125,6 +125,7 @@ function Shell:show(frame)
     self.prevWindow = hs.window.focusedWindow()
   end
   self.active = true
+  self._dismissArmed = false
   self.frame = frame
   self.wv:frame(frame)
   self.wv:show()
@@ -136,9 +137,31 @@ function Shell:show(frame)
   hs.timer.doAfter(0.04, function()
     if not self.active then return end
     self:focusWindow()
+    self._dismissArmed = true
     if self.config.onShown then self.config.onShown() end
   end)
   if self.config.clickAway ~= false then self:_startClickWatcher() end
+end
+
+--------------------------------------------------------------------------------
+-- Focus loss dismissal
+--------------------------------------------------------------------------------
+
+-- The frosted backdrop only renders while the webview is the key window, so any
+-- app that steals key focus, a click elsewhere, an app auto activating, a
+-- notification, leaves the surface visible but transparent and blurless. The
+-- click watcher only catches an outside click, so the webview reports its own
+-- key status instead through windowCallback, wired once at creation. On a
+-- focusChange to unfocused we dismiss, which makes the transparent ghost state
+-- impossible rather than trying to fight the OS to hold focus.
+--
+-- Gated on _dismissArmed, set only once the surface is fully shown and focused
+-- (from onShown), so the transient focus toggles during the reveal handshake and
+-- the page load cannot dismiss the window before the user ever sees it. A passive
+-- overlay never takes key focus, so it is never armed and never dismissed here.
+function Shell:_onFocusChange(hasFocus)
+  if hasFocus then return end
+  if self.active and not self.passive and self._dismissArmed then self:hide() end
 end
 
 --- Shell:focusWindow() - make the webview the key window, so its focused text field
@@ -174,6 +197,7 @@ end
 function Shell:hide()
   if not self.active then return end
   self.active = false
+  self._dismissArmed = false
   if self.clickWatcher then self.clickWatcher:stop(); self.clickWatcher = nil end
   if self.wv then self.wv:hide() end
   if not self.passive then
@@ -230,6 +254,12 @@ local function new(config)
   wv:allowTextEntry(not passive)
   wv:allowNewWindows(false)
   wv:behavior(hs.canvas.windowBehaviors.canJoinAllSpaces)
+  -- Dismiss the moment the window resigns key, so a stolen focus never leaves a
+  -- transparent blurless ghost on screen. The extra args differ per action, and
+  -- for focusChange the third is the boolean key state.
+  wv:windowCallback(function(action, _, hasFocus)
+    if action == "focusChange" then self:_onFocusChange(hasFocus) end
+  end)
   self.wv = wv
   self.ucc = ucc
   return self
