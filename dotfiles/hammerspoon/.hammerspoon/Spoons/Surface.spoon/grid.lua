@@ -165,7 +165,19 @@ function Grid:_onMessage(body)
   self:_reveal(body.gen)
 end
 
-function Grid:hide() self.shell:hide() end
+--- Grid:_cancelReveal() - drop any pending reveal before hiding, so a dismiss
+--- inside the reveal window cannot let a late fallback or ready re-reveal the
+--- hidden overlay. This matters when the Hyper hold sheet is up but not yet
+--- revealed and a chord like the clipboard is pressed, the chord hides the sheet,
+--- and without this the still armed reveal fires afterward and leaks the grid back
+--- over the picker. Clearing _pending also makes a stale ready arriving after the
+--- hide a no op. The list carries the same guard for the same reason.
+function Grid:_cancelReveal()
+  if self._fallback then self._fallback:stop(); self._fallback = nil end
+  self._pending = nil
+end
+
+function Grid:hide() self:_cancelReveal(); self.shell:hide() end
 function Grid:isShowing() return self.shell:isShowing() end
 function Grid:activeSide() return self.shell:activeSide() end
 
