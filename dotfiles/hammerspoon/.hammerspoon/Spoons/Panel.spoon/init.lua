@@ -214,14 +214,23 @@ local TEMPLATE = [[
   window.showError = function (t) { status.textContent = t; status.classList.add('error'); focusActive(); };
   window.setStatus = function (t) { status.textContent = t; status.classList.remove('error'); };
 
-  // Report the panel's rendered height so the Lua side grows the window to fit. A
+  // Report the panel's rendered height so the Lua side can place the window to fit. A
   // ResizeObserver fires whenever the panel box changes for any reason, the footer
-  // wrapping onto a second row being the one that matters, so a late wrap no longer
-  // leaves a clipped chip until something else nudges the frame.
+  // wrapping onto a second row being the one that matters. The first report gates the
+  // reveal, so the window opens at its true height with no clipped-then-grown frame;
+  // later reports handle a live change (a status error, a relabeled footer) after the
+  // window is already up. The gen tags the report so a stale one from a page already
+  // replaced by a newer open is ignored.
   var panelEl = document.querySelector('.panel');
-  function reportHeight() { post({ action: 'height', h: panelEl ? panelEl.offsetHeight : 0 }); }
+  function reportHeight() { post({ action: 'height', gen: {{GEN}}, h: panelEl ? panelEl.offsetHeight : 0 }); }
   if (window.ResizeObserver && panelEl) { new ResizeObserver(reportHeight).observe(panelEl); }
   else { window.addEventListener('load', reportHeight); }
+  // Report once synchronously now. Reading offsetHeight forces a layout, so the footer
+  // has already wrapped into its real number of rows, and the reveal is gated on the
+  // true height at once, even while the window is still hidden. Without this the reveal
+  // waits on the observer's first async callback, which a hidden window can defer long
+  // enough that the fallback reveals at the one-row estimate and the wrap flashes in.
+  reportHeight();
 
   window.addEventListener('DOMContentLoaded', function () { highlight(idx); });
   setTimeout(function () { highlight(idx); }, 20);
@@ -307,6 +316,7 @@ function View:_buildHtml()
   end
   local map = {
     BRIDGE = self.bridge,
+    GEN = tostring(self._gen or 0),
     BG = hexRGB(pv.bg),
     FG = pv.fg,
     META = pv.meta,
@@ -346,14 +356,47 @@ function View:_place(h)
   self.wv:frame(self.frame)
 end
 
--- The page reported its rendered height (see the ResizeObserver in the template).
--- Re-place at that height so a wrapped footer or any content change is accommodated
--- at once, rather than clipped until a later nudge. Ignored unless open and the
--- height actually changed, so setting the frame does not feed back into the observer.
+-- A later height report (after the window is already revealed), for a live content
+-- change such as a status error or a relabeled footer that rewraps. Re-place at that
+-- height so the change is accommodated at once. Ignored unless open and the height
+-- actually changed, so setting the frame does not feed back into the observer.
 function View:_grow(h)
   if not self.active or not h or h <= 0 then return end
   if self.frame and math.abs(h - self.frame.h) < 0.5 then return end
   self:_place(h)
+end
+
+-- The reveal, held until the page reports its first rendered height so the window
+-- opens at the true height rather than an estimate that clips a wrapped footer for a
+-- frame. Placed at the measured height, shown, brought to front, focused, and armed
+-- for click-away. Guarded on the generation and a once flag so a stale report or the
+-- fallback from an open already closed or replaced cannot reveal the wrong frame.
+function View:_reveal(h, gen)
+  if not self.active or self._revealed or gen ~= self._gen then return end
+  self._revealed = true
+  if self._fallback then self._fallback:stop(); self._fallback = nil end
+  self:_place(h or self:_estHeight())
+  self.wv:show()
+  self.wv:bringToFront(true)
+  -- Take key focus synchronously, in the same turn as show. The window is already
+  -- realized here (the reveal is gated on the page having loaded), so hswindow is
+  -- non nil and the focus lands at once. The frosted backdrop only composites while
+  -- the window is key, so focusing now means it is frosted from the first visible
+  -- frame, rather than appearing unblurred for the ~60ms a deferred focus left it.
+  self:_focus()
+  -- A backup attempt next tick, harmless when the first already took, for the rare
+  -- cold or napped case where the immediate focus silently no ops.
+  hs.timer.doAfter(0.06, function() if self.active then self:_focus() end end)
+  self:_startMouse()
+end
+
+-- Make the webview key and point the page at its active row's field, the pair that
+-- holds the frosted backdrop and the keyboard focus. Safe to call more than once.
+function View:_focus()
+  if not self.wv then return end
+  local win = self.wv:hswindow()
+  if win then win:focus() end
+  self.wv:evaluateJavaScript("window.focusActive && window.focusActive()")
 end
 
 --------------------------------------------------------------------------------
@@ -389,7 +432,14 @@ function View:_apply(sel)
   end
 end
 
---- View:show() - reselect the theme, rebuild the page, place, reveal, and focus.
+--- View:show() - reselect the theme, rebuild the page, and load it into the still
+--- hidden webview, then hold the reveal until the page reports its rendered height
+--- (see _reveal and the ResizeObserver in the template), so the window opens at its
+--- true height instead of an estimate that clips a wrapped footer for a frame. The
+--- webview is framed to the panel width first, hidden, so WebKit lays the page out at
+--- the real width and the footer wraps into its true number of rows before we measure.
+--- A generation tags this open so a stale report is ignored, and a fallback reveals at
+--- the estimate should the measurement never arrive.
 function View:show()
   if not self.wv then return end
   self:_selectTheme()
@@ -398,17 +448,13 @@ function View:show()
   -- webview itself.
   if not self.active then self.prevWindow = hs.window.focusedWindow() end
   self.active = true
+  self._gen = (self._gen or 0) + 1
+  self._revealed = false
+  local gen = self._gen
   self:_place(self:_estHeight())
   self.wv:html(self:_buildHtml())
-  self.wv:show()
-  self.wv:bringToFront(true)
-  hs.timer.doAfter(0.06, function()
-    if not self.active then return end
-    local win = self.wv:hswindow()
-    if win then win:focus() end
-    self.wv:evaluateJavaScript("window.focusActive && window.focusActive()")
-  end)
-  self:_startMouse()
+  if self._fallback then self._fallback:stop() end
+  self._fallback = hs.timer.doAfter(0.2, function() self:_reveal(nil, gen) end)
 end
 
 --- View:selectNext() / View:selectPrev() - move the highlight down or up, so the
@@ -441,6 +487,11 @@ end
 function View:close()
   if not self.active then return end
   self.active = false
+  -- Cancel any pending reveal, so a dismiss inside the fallback window (open then
+  -- escape or click away before the page reports its height) cannot let a late
+  -- fallback or a stale height report re-reveal the hidden window.
+  if self._fallback then self._fallback:stop(); self._fallback = nil end
+  self._revealed = false
   if self.mouse then self.mouse:stop(); self.mouse = nil end
   if self.wv then self.wv:hide() end
   -- Hand focus back to the window that had it, so the app is not just frontmost with
@@ -477,7 +528,18 @@ function obj.new(config)
     elseif body.action == "close" then
       self:close()
     elseif body.action == "height" then
-      self:_grow(tonumber(body.h))
+      -- The first report for this generation gates the reveal; later ones handle a
+      -- live content change once the window is up. A report from a superseded page is
+      -- ignored so it cannot resize the current one.
+      if tonumber(body.gen) ~= self._gen then return end
+      local h = tonumber(body.h)
+      if not self._revealed then
+        -- Reveal only on a real measurement; a zero (layout not settled yet) is left
+        -- for the next report or the fallback, so the window never opens at height 0.
+        if h and h > 0 then self:_reveal(h, self._gen) end
+      else
+        self:_grow(h)
+      end
     end
   end)
 
