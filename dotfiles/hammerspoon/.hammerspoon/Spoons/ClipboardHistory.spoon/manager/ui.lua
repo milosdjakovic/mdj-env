@@ -225,12 +225,24 @@ local function buildChoices(q)
       -- search still runs over the raw title in haystack, so it never affects
       -- matching.
       local pos = batchPos(e)
+      -- A true image copy shows its own thumbnail, every other row shows the icon of
+      -- the app it came from, falling back to nothing when unknown. The stable
+      -- iconKey (the thumbnail path or the source bundle id) is derived from the
+      -- image actually chosen, so the atom encodes each icon once and reuses it even
+      -- after the thumbnail cache is rebuilt, rather than re-encoding every open.
+      local img, iconKey
+      local thumb = e.kind == "image" and thumbImage(e.thumb) or nil
+      if thumb then
+        img, iconKey = thumb, "thumb:" .. e.thumb
+      else
+        local ic = appIcon(e.sourceApp)
+        if ic then img, iconKey = ic, "app:" .. e.sourceApp end
+      end
       out[#out + 1] = {
         title = e.title,
         subTitle = subTextFor(e),
-        -- A true image copy shows its own thumbnail, every other row shows the
-        -- icon of the app it came from, falling back to nothing when unknown.
-        image = (e.kind == "image" and thumbImage(e.thumb)) or appIcon(e.sourceApp) or nil,
+        image = img,
+        iconKey = iconKey,
         badge = pos and tostring(pos) or nil,
         item = e,
       }

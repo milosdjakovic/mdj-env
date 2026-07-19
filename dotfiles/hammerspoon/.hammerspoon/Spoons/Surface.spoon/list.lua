@@ -357,13 +357,17 @@ window.onerror = function(msg, src, line){ window.__err = msg + ' @' + line; ret
   window.addEventListener('resize', reportFooter);
 
   q.focus();
+  // Report the footer height first, then ready. The Lua side processes messages in
+  // order, so it learns the real footer height before the ready handler computes the
+  // reveal frame, and the window opens already sized to the footer's wrapped rows
+  // rather than revealing at the estimate and then resizing while visible.
+  reportFooter();
   // Tell the Lua side the page is parsed and the entry points exist, so it can
   // reveal the window and push the dataset. Carries the generation so a stale ready
   // from a page already replaced by a newer show is ignored. This replaces guessing
   // a delay after html() and reveals only once the new content has painted, so the
   // previous open's still-painted DOM never flashes.
   post({ action:"ready", gen:{{GEN}} });
-  reportFooter();
 })();
 </script>
 ]==]
@@ -407,6 +411,19 @@ function List:_iconURI(key, image)
     local uri = self.iconcache.dataURI(key)
     if uri then return uri end
   end
+  -- A consumer-provided (stable) key memoizes the encoded uri by the key itself, so
+  -- an icon survives its hs.image being rebuilt (a churned app-bundle image, a
+  -- regenerated clipboard thumbnail) without re-encoding on the main thread or
+  -- growing a per-image memo without bound. Synthetic per-index keys are not stable
+  -- across opens, so they fall back to memoizing by image identity.
+  if key and self.iconStable[key] then
+    local hit = self.uriByKey[key]
+    if hit == nil then
+      hit = (image and image:encodeAsURLString()) or false
+      self.uriByKey[key] = hit
+    end
+    return hit or nil
+  end
   if image then
     local hit = self.imgMemo[image]
     if hit == nil then
@@ -437,8 +454,11 @@ function List:_buildDataset(query)
     if not key and it.image then
       key = "img#" .. i
       self.iconByKey[key] = it.image
-    elseif key and it.image then
-      self.iconByKey[key] = it.image
+    elseif key then
+      if it.image then self.iconByKey[key] = it.image end
+      -- A consumer key is stable across opens, so its encoded uri is memoized by
+      -- the key in _iconURI rather than by the (rebuildable) image object.
+      self.iconStable[key] = true
     end
     local search = (it.search or ((it.title or "") .. " " .. (it.subTitle or ""))):lower()
     out[i] = {
@@ -637,6 +657,11 @@ function List:show()
   self._gen = (self._gen or 0) + 1
   self.dataset = self:_buildDataset("")
   self._pending = { gen = self._gen, frame = self:_frame() }
+  -- Size the still hidden webview to the final width before loading the page, so the
+  -- footer measures its real wrap at the true width instead of at whatever width the
+  -- warm webview was left at, which reported a taller footer and forced a visible
+  -- resize once the reveal placed it at the correct width.
+  self.shell:setFrame(self._pending.frame)
   self.shell:html(self:_buildPage())
   if self._fallback then self._fallback:stop() end
   local gen = self._gen
@@ -655,7 +680,10 @@ function List:_reveal(gen)
   if not pending or gen ~= pending.gen or self._revealedGen == gen then return end
   self._revealedGen = gen
   if self._fallback then self._fallback:stop(); self._fallback = nil end
-  self.shell:show(pending.frame)
+  -- Recompute the frame here rather than reuse the show-time snapshot, so it picks up
+  -- the footer height the page reported before ready. The window then opens at its
+  -- final height with no resize once visible.
+  self.shell:show(self:_frame())
   self.dataset = self:_buildDataset(self.lastQuery or "")
   self.shell:eval("window.__setRows(" .. json(self.dataset) .. ")")
   self.shell:focusWindow()
@@ -756,6 +784,8 @@ local function new(config, deps)
     fieldMode = config.fieldMode or "filter",
     iconcache = deps.iconcache,
     imgMemo = {},
+    uriByKey = {},
+    iconStable = {},
     items = {},
     highlightIndex = nil,
     lastQuery = "",

@@ -598,9 +598,12 @@ end
 -- The live app rows: every installed app plus any running app not on disk in the
 -- scanned dirs, marked open when running so open apps sort first. A running app
 -- outside the scan is included only when it has a dock presence (kind 1), to skip
--- background helpers. Recomputed per open since running state changes; the costly
--- disk scan is cached.
+-- background helpers. The disk scan is cached, and the assembled rows are cached
+-- too, rebuilt only when the running set changes (see the watcher below) rather
+-- than rescanned and resorted on every open, so opening the palette just filters.
+local appRowsCache
 local function appRows()
+  if appRowsCache then return appRowsCache end
   installedApps = installedApps or scanInstalledApps()
   local byId = {}
   for bundleID, a in pairs(installedApps) do
@@ -633,11 +636,26 @@ local function appRows()
       title = e.name,
       subTitle = subTitle,
       image = e.icon,
+      -- A stable key so the atom encodes each app icon once and reuses it across
+      -- opens, even when the bundle image is rebuilt for an unscanned running app.
+      iconKey = "app:" .. e.bundleID,
       item = { kind = "app", bundleID = e.bundleID, url = cfg and cfg.url },
     }
   end
+  appRowsCache = rows
   return rows
 end
+
+-- Invalidate the cached app rows when the running set changes, so open apps still
+-- sort first and the Open / Not running status stays accurate without rescanning on
+-- every open. Kept in a module local so the watcher is not garbage collected, and
+-- started once at load.
+local appRowsWatcher = hs.application.watcher.new(function(_, event)
+  if event == hs.application.watcher.launched or event == hs.application.watcher.terminated then
+    appRowsCache = nil
+  end
+end)
+appRowsWatcher:start()
 
 -- The row supplier. Apps first (open, then not running), then the action rows.
 -- Case-insensitive substring match over the visible text, so typing filters by
