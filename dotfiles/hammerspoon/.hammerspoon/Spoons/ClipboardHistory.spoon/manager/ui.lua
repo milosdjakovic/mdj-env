@@ -627,7 +627,7 @@ function UI.build()
   picker = Chooser.new({
     theme = cfg.theme,
     fieldMode = "filter",
-    placeholder = "Hold Hyper for shortcuts",
+    placeholder = "Search clipboard",
     pollInterval = cfg.previewPoll,
     rows = buildChoices,
     onSelect = onSelect,
