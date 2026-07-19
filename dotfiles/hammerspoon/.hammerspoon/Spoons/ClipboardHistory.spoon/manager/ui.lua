@@ -87,14 +87,6 @@ end
 -- batch is cleared on every close, so each open starts empty.
 local batch = {}
 
--- Circled digits for the order badge, one per collected position. Present in the
--- system UI font, so they render in a styled row title. Past twenty, a plain
--- parenthesized number stands in rather than running out of glyphs.
-local BATCH_BADGES = {
-  "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩",
-  "⑪", "⑫", "⑬", "⑭", "⑮", "⑯", "⑰", "⑱", "⑲", "⑳",
-}
-
 local function batchPos(e)
   for i = 1, #batch do
     if batch[i] == e then
@@ -227,17 +219,19 @@ local function buildChoices(q)
   local out = {}
   for _, e in ipairs(store.all()) do
     if (not kind or e.kind == kind) and (rest == "" or haystack(e):find(rest, 1, true)) then
-      -- A collected row wears its order badge on the title, so its place in the
-      -- batch shows without moving the row. The badge feeds display only; search
-      -- still runs over the raw title in haystack, so it never affects matching.
+      -- A collected row wears its order number as a badge over its icon, so its
+      -- place in the batch shows without touching the title, which kept the text
+      -- from shifting right when a row was appended. The badge is display only;
+      -- search still runs over the raw title in haystack, so it never affects
+      -- matching.
       local pos = batchPos(e)
-      local title = pos and ((BATCH_BADGES[pos] or ("(" .. pos .. ")")) .. "  " .. (e.title or "")) or e.title
       out[#out + 1] = {
-        title = title,
+        title = e.title,
         subTitle = subTextFor(e),
         -- A true image copy shows its own thumbnail, every other row shows the
         -- icon of the app it came from, falling back to nothing when unknown.
         image = (e.kind == "image" and thumbImage(e.thumb)) or appIcon(e.sourceApp) or nil,
+        badge = pos and tostring(pos) or nil,
         item = e,
       }
     end

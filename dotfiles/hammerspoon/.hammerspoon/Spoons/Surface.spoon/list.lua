@@ -117,8 +117,20 @@ local TEMPLATE = [==[
     height:{{ROWH}}px; padding:0 12px;
   }
   .row.active { background:rgba({{ACTIVE}}); }
-  .row .icon { flex:0 0 {{ICONSIZE}}px; width:{{ICONSIZE}}px; height:{{ICONSIZE}}px; margin-right:12px; }
+  .row .icon { position:relative; flex:0 0 {{ICONSIZE}}px; width:{{ICONSIZE}}px; height:{{ICONSIZE}}px; margin-right:12px; }
   .row .icon img { width:100%; height:100%; object-fit:contain; }
+  /* Order badge for a collected row: a pill centered over the icon, drawn in the
+     same translucent material as the panel (same colour, opacity, and blur) so it
+     reads as the frosted surface laid over the icon. Absolute so it never affects
+     the row's width, which is what kept the title from shifting. */
+  .row .icon .badge {
+    position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);
+    min-width:18px; height:18px; padding:0 4px; box-sizing:border-box;
+    border-radius:9px; background:rgba({{BG}}, {{OPACITY}}); color:{{FG}};
+    -webkit-backdrop-filter:blur(30px) saturate(160%);
+    backdrop-filter:blur(30px) saturate(160%);
+    font-size:11px; font-weight:700; line-height:18px; text-align:center;
+  }
   .row .text { flex:1 1 auto; min-width:0; }
   .row .title { font-size:{{TITLESIZE}}px; color:{{FG}}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .row.disabled .title { opacity:0.4; }
@@ -163,7 +175,7 @@ window.onerror = function(msg, src, line){ window.__err = msg + ' @' + line; ret
 (function(){
   var ROWH = {{ROWH}};
   var BUFFER = 6;                 // rows rendered above and below the viewport
-  var data = [];                  // full dataset, each {i,title,sub,key,enabled,search,kind}
+  var data = [];                  // full dataset, each {i,title,sub,key,enabled,search,kind,badge}
   var view = [];                  // indices into data that pass the current filter
   var sel = 0;                    // position within view
   var icons = {};                 // key -> data URI, filled by the Lua side
@@ -213,7 +225,7 @@ window.onerror = function(msg, src, line){ window.__err = msg + ' @' + line; ret
     if (pool[n]) return pool[n];
     var el = document.createElement('div');
     el.className = 'row';
-    el.innerHTML = '<span class="icon"></span><span class="text"><div class="title"></div><div class="sub"></div></span><span class="num"></span>';
+    el.innerHTML = '<span class="icon"><img><span class="badge"></span></span><span class="text"><div class="title"></div><div class="sub"></div></span><span class="num"></span>';
     el.addEventListener('mousedown', function(ev){ if (ev.button === 2) return; ev.preventDefault(); if (el._pos != null){ sel = el._pos; activate(); } });
     el.addEventListener('contextmenu', function(ev){ ev.preventDefault(); if (el._pos != null){ sel = el._pos; render(); emitHighlight(); var d = data[view[sel]]; post({ action:"rightclick", index: d ? d.i : -1 }); } });
     scroll.appendChild(el);
@@ -239,8 +251,12 @@ window.onerror = function(msg, src, line){ window.__err = msg + ' @' + line; ret
       el.querySelector('.sub').textContent = d.sub || '';
       el.querySelector('.num').textContent = pos < 9 ? ('⌘' + (pos + 1)) : '';
       var icoWrap = el.querySelector('.icon');
-      if (d.key && icons[d.key]) icoWrap.innerHTML = '<img src="' + icons[d.key] + '">';
-      else { icoWrap.innerHTML = ''; if (d.key) needKeys.push(d.key); }
+      var img = icoWrap.querySelector('img');
+      if (d.key && icons[d.key]) { img.src = icons[d.key]; img.style.display = ''; }
+      else { img.removeAttribute('src'); img.style.display = 'none'; if (d.key) needKeys.push(d.key); }
+      var badge = icoWrap.querySelector('.badge');
+      if (d.badge != null && d.badge !== '') { badge.textContent = d.badge; badge.style.display = ''; }
+      else { badge.style.display = 'none'; }
     }
     for (; n<pool.length; n++){ if (pool[n]) pool[n].style.display = 'none'; }
     if (!view.length){ /* empty handled by leaving rows hidden */ }
@@ -433,6 +449,10 @@ function List:_buildDataset(query)
       enabled = it.enabled ~= false,
       search = search,
       kind = it.kind,
+      -- Optional short text drawn as an overlay badge on the row icon. Generic:
+      -- the atom only renders it, the consumer decides what it means (the
+      -- clipboard puts the append-batch position here).
+      badge = it.badge,
     }
     self.items[i] = it.item
     self.itemEnabled = self.itemEnabled or {}
