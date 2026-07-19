@@ -56,6 +56,7 @@ local themeCss = nil -- preview CSS for the current open, built lazily from the 
 local thumbCache = {} -- path -> hs.image (or false), for row thumbnails
 local dataURICache = {} -- prev path -> png data URI, so a re-highlight re-encodes nothing
 local iconCache = {} -- bundle id -> hs.image (or false), for row source-app icons
+local existCache = {} -- linked-file path -> bool, so the badge does not restat per keystroke
 
 -- Which preview sink this backend uses. The web backend embeds a preview pane in
 -- the picker window, so the html is pushed straight into it. The native backend
@@ -147,14 +148,52 @@ local function appIcon(bundleID)
   return img or nil
 end
 
+-- Whether a linked original still exists, memoized per open so filtering, which
+-- rebuilds the rows on every keystroke, does not restat the same paths. Frozen
+-- files never reach here, only links, so the number of stats is small. Cleared on
+-- close and when new media lands, alongside the other caches.
+local function pathExists(p)
+  local c = existCache[p]
+  if c ~= nil then return c end
+  local ok = hs.fs.attributes(p) ~= nil
+  existCache[p] = ok
+  return ok
+end
+
+-- The file state badge, from the three-state model. A frozen element carries a
+-- stored copy and needs no check; only links (a file with no stored copy, and
+-- folders, which are never frozen) are stat'd. Returns "Deleted" if any linked
+-- original is gone, "Linked" if any element is a link but all still exist, or nil
+-- when every element is a frozen copy and nothing needs saying.
+local function fileBadge(e)
+  local anyLink, anyMissing = false, false
+  for _, el in ipairs(e.files or {}) do
+    if not el.stored then
+      anyLink = true
+      if not pathExists(el.path) then
+        anyMissing = true
+      end
+    end
+  end
+  if anyMissing then return "Deleted" end
+  if anyLink then return "Linked" end
+  return nil
+end
+
 local function subTextFor(e)
   local parts = { KIND_LABEL[e.kind] or e.kind, util.relTime(e.ts) }
   -- The file location belongs only in the preview, so the picker shows just the
-  -- count when several files were copied and nothing extra for a single one.
+  -- count when several files were copied and nothing extra for a single one. The
+  -- Linked/Deleted badge rides along so dead copies are visible without opening
+  -- the preview.
   if e.kind == "file" then
     local files = e.files or {}
     if #files > 1 then
       parts[#parts + 1] = #files .. " files"
+    end
+    local badge = fileBadge(e)
+    if badge then
+      parts[#parts + 1] = badge
     end
   end
   return table.concat(parts, "  ·  ")
@@ -237,10 +276,19 @@ local function note(inner)
   return "<div class=note>" .. inner .. "</div>"
 end
 
--- Header for a file entry: the item count and each original path.
+-- Header for a file entry: the item count, total size, the Linked/Deleted badge,
+-- and each original path.
 local function fileHeader(e)
   local files = e.files or {}
-  local h = "<div class=meta>File  ·  " .. #files .. " item" .. (#files == 1 and "" or "s") .. "</div>"
+  local meta = "File  ·  " .. #files .. " item" .. (#files == 1 and "" or "s")
+  if e.size and e.size > 0 then
+    meta = meta .. "  ·  " .. util.humanSize(e.size)
+  end
+  local badge = fileBadge(e)
+  if badge then
+    meta = meta .. "  ·  " .. badge
+  end
+  local h = "<div class=meta>" .. util.esc(meta) .. "</div>"
   for _, el in ipairs(files) do
     h = h .. "<div class=path>" .. util.esc(el.path) .. "</div>"
   end
@@ -253,10 +301,19 @@ end
 local function renderNonFile(e)
   if e.kind == "image" then
     local uri = e.prev and imageDataURI(e.prev) or ""
-    return "<div class=meta>" .. util.esc(e.title) .. "</div><img src='" .. uri .. "'>"
+    local meta = e.title
+    if e.size then
+      meta = meta .. "  ·  " .. util.humanSize(e.size)
+    end
+    return "<div class=meta>" .. util.esc(meta) .. "</div><img src='" .. uri .. "'>"
   end
-  local meta = util.esc((KIND_LABEL[e.kind] or e.kind) .. "  ·  " .. util.relTime(e.ts))
-  return "<div class=meta>" .. meta .. "</div><pre>" .. util.esc(e.text or "") .. "</pre>"
+  local meta = (KIND_LABEL[e.kind] or e.kind) .. "  ·  " .. util.relTime(e.ts)
+  -- Text shows its character count, computed once at capture, so the pane never
+  -- recounts on highlight.
+  if e.kind == "text" and e.chars then
+    meta = meta .. "  ·  " .. e.chars .. " chars"
+  end
+  return "<div class=meta>" .. util.esc(meta) .. "</div><pre>" .. util.esc(e.text or "") .. "</pre>"
 end
 
 local function multiFileHtml(e)
@@ -294,23 +351,15 @@ local function renderFile(e, token)
 
   local el = files[1]
   if el.isDir then
-    emit(fileHeader(e) .. note("Folder."))
-    return
-  end
-
-  -- Always prefer our snapshot; fall back to the original only if it survives.
-  local readPath = (el.stored and hs.fs.attributes(el.stored) and el.stored)
-    or (hs.fs.attributes(el.path) and el.path)
-    or nil
-  if not readPath then
-    emit(fileHeader(e) .. note("File no longer exists."))
+    emit(fileHeader(e) .. note(pathExists(el.path) and "Folder." or "Folder no longer exists."))
     return
   end
 
   -- A previewable file carries a small PNG (a raster image, a video frame, or a
-  -- pdf/icns page). Prefer it. While it is still being generated the path is set
-  -- but the file is absent, so show a pending note; mediaReady repaints when it
-  -- lands.
+  -- pdf/icns page) in our cache. Prefer it before anything else, since it is
+  -- durable and lets a Deleted file still show its thumbnail. While it is still
+  -- being generated the path is set but the file is absent, so show a pending note;
+  -- mediaReady repaints when it lands.
   local ext = util.fileExt(el.path)
   if el.prev then
     if hs.fs.attributes(el.prev) then
@@ -321,9 +370,19 @@ local function renderFile(e, token)
     end
     return
   end
-  -- No preview was scheduled (generation failed, or no backend, e.g. ffmpeg is not
-  -- installed). A raster image can still fall back to the original bytes; a video
-  -- just says it has no frame.
+
+  -- No cached preview. Prefer our frozen copy, fall back to the original only if it
+  -- survives, else the entry is a dead link.
+  local readPath = (el.stored and hs.fs.attributes(el.stored) and el.stored)
+    or (hs.fs.attributes(el.path) and el.path)
+    or nil
+  if not readPath then
+    emit(fileHeader(e) .. note("File no longer exists."))
+    return
+  end
+
+  -- A raster image can still fall back to the original bytes; a video just says it
+  -- has no frame.
   if util.RASTER_EXT[ext] then
     local uri = imageDataURI(readPath)
     emit(fileHeader(e) .. (uri and ("<img src='" .. uri .. "'>") or note("Cannot render image.")))
@@ -395,6 +454,7 @@ local function hidePreview()
   end
   previewCache = {} -- drop encoded images between opens
   dataURICache = {} -- drop encoded preview bytes between opens
+  existCache = {} -- recheck linked-file liveness on the next open
   themeCss = nil -- rebuild against the theme picked on the next open
 end
 
@@ -493,6 +553,7 @@ function UI.mediaReady()
   previewCache = {}
   thumbCache = {}
   dataURICache = {}
+  existCache = {}
   if picker and picker:isShowing() then
     picker:refresh()
     renderPreview(picker:selectedItem())

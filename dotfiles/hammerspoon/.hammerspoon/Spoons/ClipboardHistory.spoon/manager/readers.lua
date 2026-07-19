@@ -128,7 +128,7 @@ function M.build(util)
       if not u or #u == 0 then
         return nil
       end
-      return { kind = "url", text = u, ts = os.time(), title = util.oneLine(u, 100), preview = "URL" }
+      return { kind = "url", text = u, ts = os.time(), title = util.oneLine(u, 100), preview = "URL", size = #u }
     end,
   }
 
@@ -142,9 +142,17 @@ function M.build(util)
       if not s or #(s:gsub("%s", "")) == 0 then
         return nil
       end
+      -- Character count, not byte count, so a multibyte string reads honestly.
+      -- utf8.len returns nil on invalid data, so fall back to the byte length.
+      local chars = #s
+      if utf8 and utf8.len then
+        local n = utf8.len(s)
+        if n then chars = n end
+      end
       return {
         kind = "text", text = s, ts = os.time(),
-        title = util.oneLine(s, 100), preview = string.format("%d chars", #s),
+        title = util.oneLine(s, 100), preview = string.format("%d chars", chars),
+        size = #s, chars = chars,
       }
     end,
   }

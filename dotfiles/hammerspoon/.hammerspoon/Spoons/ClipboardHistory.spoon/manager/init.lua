@@ -64,7 +64,8 @@ local config = {
   storePath = DATA_DIR .. "/history.json",
 
   maxEntries = 1000, -- history cap, trimmed on insert
-  maxFileSnapshot = 50 * 1024 * 1024, -- do not snapshot files larger than this
+  maxFileSnapshot = 10 * 1024 * 1024, -- freeze a real copy only up to this size; bigger files are linked
+  maxSnapshotBytes = 2 * 1024 * 1024 * 1024, -- total frozen bytes on disk; over this the oldest are dropped (files demote to links, images are removed)
   thumbEdge = 64, -- row thumbnail, max pixels on the larger edge
   previewEdge = 500, -- downscaled preview image, max pixels on the larger edge (video width for ffmpeg)
   fileReadCap = 256 * 1024, -- how much of a text file to preview
