@@ -186,12 +186,17 @@ spoon.WindowLeader:addLeader(leaderCode(keys.windowLeader))
 -- can name the command palette's navigation surface before it is built further
 -- below (it needs this predicate table and hideShortcuts, which are defined here).
 local commandPaletteSurface
+local menuSearchSurface
 local predicates = {
   multipleDisplays = function() return #hs.screen.allScreens() > 1 end,
   -- The command palette chooser is open. Gates the commandPalette Hyper context,
   -- so it gets the same j/k/i navigation and hold overlay the clipboard chooser has.
   commandPaletteOpen = function()
     return commandPaletteSurface ~= nil and commandPaletteSurface.isShowing()
+  end,
+  -- The menu search chooser is open. Gates the menuSearch Hyper context.
+  menuSearchOpen = function()
+    return menuSearchSurface ~= nil and menuSearchSurface.isShowing()
   end,
   -- The Hammerspoon clipboard chooser is open. Gates the clipboard Hyper context.
   clipboardOpen = function()
@@ -748,6 +753,132 @@ local function showLauncher()
 end
 spoon.HyperKey:bind(keys.commandPalette.key, showLauncher)
 
+-- Menu search: Hyper+J lists every enabled menu bar item of the frontmost app and
+-- runs the chosen one. Like the command palette this is pure composition-root
+-- policy over the same Chooser atom, so it adds no spoon. macOS exposes each app's
+-- menus through the Accessibility API, which hs.application:getMenuItems reads; the
+-- callback form does the tree walk off the main thread, so a large menu never
+-- blocks Hammerspoon. The app frontmost when Hyper+J fires is captured as the
+-- target, since showing the chooser takes focus, and the chosen item is dispatched
+-- back to that app once focus returns to it.
+--
+-- Each row carries only a serializable descriptor, its menu path as a list of
+-- titles, never a function, the same reason the palette rows do: hs.chooser
+-- serialises each row and would silently drop a function. selectMenuItem takes
+-- that path. The menu tree is fetched per open (it changes with the app and its
+-- state), so the rows supplier reads a module-local list the fetch fills, and the
+-- chooser is shown only once the fetch has built the rows.
+
+-- hs decodes AXMenuItemCmdModifiers into a list of modifier names (e.g. { "cmd" }
+-- or { "cmd", "shift" }). Turn it plus the command char into a readable glyph for
+-- the row subtitle, in the canonical ⌃⌥⇧⌘ order, or nil when the item has no
+-- keyboard shortcut. Both alt/option and ctrl/control spellings are accepted.
+local function menuShortcutGlyph(char, mods)
+  if not char or char == "" then return nil end
+  local has = {}
+  for _, m in ipairs(mods or {}) do has[tostring(m):lower()] = true end
+  local g = ""
+  if has.ctrl or has.control then g = g .. "⌃" end
+  if has.alt or has.option then g = g .. "⌥" end
+  if has.shift then g = g .. "⇧" end
+  if has.cmd or has.command then g = g .. "⌘" end
+  return g .. char:upper()
+end
+
+-- Flatten the nested AX menu tree into leaf rows. An entry's submenu is its
+-- AXChildren[1] (a list); an entry with one is a container we recurse into, an
+-- entry without is a runnable leaf. Blank-title entries (separators) are skipped,
+-- and disabled items are dropped so the list stays actionable. Each leaf keeps the
+-- full title path for selectMenuItem, plus its parent path and shortcut for display.
+local function flattenMenus(entries, path, out)
+  for _, e in ipairs(entries) do
+    local title = e.AXTitle
+    if title and title ~= "" then
+      local kids = e.AXChildren and e.AXChildren[1]
+      local newPath = {}
+      for i = 1, #path do newPath[i] = path[i] end
+      newPath[#newPath + 1] = title
+      if type(kids) == "table" and #kids > 0 then
+        flattenMenus(kids, newPath, out)
+      elseif e.AXEnabled ~= false then
+        local parents = {}
+        for i = 1, #newPath - 1 do parents[i] = newPath[i] end
+        out[#out + 1] = {
+          title = title,
+          path = newPath,
+          parents = table.concat(parents, " ▸ "),
+          shortcut = menuShortcutGlyph(e.AXMenuItemCmdChar, e.AXMenuItemCmdModifiers),
+        }
+      end
+    end
+  end
+end
+
+local menuRows = {}   -- filled by the async fetch on each open
+local menuTargetApp   -- the app frontmost when Hyper+J fired, the dispatch target
+
+-- Rows supplier: case-insensitive substring over the item title and its menu path,
+-- so typing a parent menu name (File, Format) narrows too. The shortcut glyph rides
+-- in the subtitle after the path.
+local function menuSearchRows(query)
+  local q = (query or ""):lower()
+  local out = {}
+  for _, r in ipairs(menuRows) do
+    if q == "" or (r.title .. " " .. r.parents):lower():find(q, 1, true) then
+      local subtitle = r.parents
+      if r.shortcut then
+        subtitle = (subtitle ~= "" and (subtitle .. "   ") or "") .. r.shortcut
+      end
+      out[#out + 1] = { title = r.title, subTitle = subtitle, item = { path = r.path } }
+    end
+  end
+  return out
+end
+
+-- The chosen item runs deferred, after the chooser tears down and macOS restores
+-- focus to the captured app, since a menu action acts on that app. onClose clears
+-- any peeked shortcut overlay, matching the other pickers.
+local menuSearch = spoon.Chooser.new({
+  theme = settings.chooserTheme,
+  placeholder = "Search menu items",
+  rows = menuSearchRows,
+  footer = footerFor("menuSearch"),
+  onSelect = function(item)
+    if item and item.path and menuTargetApp then
+      local app = menuTargetApp
+      hs.timer.doAfter(0.1, function() app:selectMenuItem(item.path) end)
+    end
+  end,
+  onClose = hideShortcuts,
+})
+-- Dot-called navigation adapter over the Chooser instance, so the shared
+-- activeChooser / routeNav registry drives it exactly like the other pickers.
+menuSearchSurface = {
+  isShowing = function() return menuSearch:isShowing() end,
+  selectNext = function() menuSearch:selectNext() end,
+  selectPrev = function() menuSearch:selectPrev() end,
+  insertSelected = function() menuSearch:insertSelected() end,
+  hide = function() menuSearch:hide() end,
+}
+
+-- Open key: capture the frontmost app, fetch its menus asynchronously so a large
+-- tree never blocks, then show the chooser once the rows are built. Does nothing if
+-- no app is frontmost, the app exposes no menus, or focus moved before the fetch
+-- returned (so we never target the wrong app).
+local function showMenuSearch()
+  local app = hs.application.frontmostApplication()
+  if not app then return end
+  menuTargetApp = app
+  app:getMenuItems(function(menus)
+    if not menus then return end
+    if hs.application.frontmostApplication() ~= app then return end
+    menuRows = {}
+    flattenMenus(menus, {}, menuRows)
+    menuSearch:show()
+  end)
+end
+spoon.HyperKey:bind(keys.menuSearch.key, showMenuSearch)
+
 -- Hyper context layers. Inject the shared predicate registry into HyperKey, then
 -- expand each context in keys.hyperContexts into HyperKey bindings that carry the
 -- context's `when` gate and `priority`. config/keys.lua stays pure data and the
@@ -763,7 +894,7 @@ spoon.HyperKey:bind(keys.commandPalette.key, showLauncher)
 -- glance at the sheet plus any key clears it.
 spoon.HyperKey:configure({ predicates = predicates })
 local clipManager = spoon.ClipboardHistory.manager
-local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, spoon.Vpn.locations, commandPaletteSurface }
+local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, spoon.Vpn.locations, commandPaletteSurface, menuSearchSurface }
 local function activeChooser()
   for _, c in ipairs(choosers) do
     if c.isShowing() then return c end

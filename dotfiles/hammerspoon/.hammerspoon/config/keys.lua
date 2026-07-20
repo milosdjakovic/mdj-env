@@ -210,6 +210,23 @@ return {
         { key = "space", action = "closeChooser",   description = "Close" },
       },
     },
+    -- The menu search chooser. Lists the frontmost app's menu items on Hyper+J.
+    -- i runs the highlighted item the same as Return, j and k navigate vim style,
+    -- and Space closes it. The open key J is itself a nav key, so unlike the
+    -- command palette the open key cannot double as the close; Space is the close
+    -- here (and Escape closes natively). Plain typing filters while Hyper is
+    -- released.
+    {
+      name = "menuSearch",
+      when = "menuSearchOpen",
+      priority = 100,
+      bindings = {
+        { key = "i",     action = "insertSelected", description = "Run" },
+        { key = "j",     action = "selectNext",     description = "Move down" },
+        { key = "k",     action = "selectPrev",     description = "Move up" },
+        { key = "space", action = "closeChooser",   description = "Close" },
+      },
+    },
   },
 
   -- System actions bound onto the Hyper key in init.lua. Hyper+Esc sleeps the
@@ -289,6 +306,15 @@ return {
   -- takes the shared j/k/i navigation and Space closes it (the open key doubles as the
   -- close, like the clipboard's X).
   commandPalette = { modifiers = HYPER, key = "space", description = "Command palette" },
+
+  -- Menu search (for the Chooser atom, wired in init.lua). Hyper+J lists every
+  -- enabled menu bar item of the frontmost app, read through the macOS
+  -- Accessibility API, and runs the highlighted one. Same shape as the command
+  -- palette: a base HyperKey binding, suppressed while a modal context owns Hyper.
+  -- It also has its own hyperContext above, so while open it takes the shared
+  -- j/k/i navigation and Space closes it. There is no HYPER fallback combo, since
+  -- it has no meaning without HyperKey wired up (the menu tree is fetched live).
+  menuSearch = { modifiers = HYPER, key = "j", description = "Menu search" },
 
   -- External launcher shortcut, the palette's counterpart to clipboardShortcut.
   -- Hyper+Space fires this combo and whatever launcher you bind the SAME combo to
