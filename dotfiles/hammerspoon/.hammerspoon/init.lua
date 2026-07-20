@@ -844,6 +844,10 @@ end
 -- focus to the captured app, since a menu action acts on that app. onClose clears
 -- any peeked shortcut overlay, matching the other pickers.
 local menuSearch = spoon.Chooser.new({
+  -- Pinned to the native hs.chooser backend, which is noticeably snappier here
+  -- than the web surface the other pickers use. Per-instance override only, so the
+  -- global chooserProvider default stays "web"; drop this line to fall back in line.
+  provider = "native",
   theme = settings.chooserTheme,
   placeholder = "Search menu items",
   rows = menuSearchRows,
