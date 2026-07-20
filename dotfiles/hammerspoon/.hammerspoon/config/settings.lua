@@ -47,12 +47,12 @@ return {
 
   -- Picker backend. The Chooser facade has two swappable backends, "native" (the
   -- built in hs.chooser) and "web" (the themed webview list on the Surface spoon).
-  -- This one word picks the default for every chooser consumer that does not pin
-  -- its own backend, today the clipboard, so switching them is one edit. The
-  -- native backend stays available as a fallback. A single consumer can still
-  -- override this with config.provider; the VPN locations, menu search, and the
-  -- launcher all pin "native" that way, so they dock the shortcut panel below.
-  chooserProvider = "web",
+  -- This one word is the default backend for a chooser consumer that does not pin
+  -- its own. Every real consumer now runs native (the clipboard, VPN locations,
+  -- menu search, keep awake, and the launcher), each docking the shortcut panel, so
+  -- the web backend has no consumer left and stays only as a fallback. A consumer
+  -- can still override this with config.provider.
+  chooserProvider = "native",
 
   -- Chooser theme. One source for how the searchable chooser and its docked
   -- preview look in light and dark. The clipboard reads it today; a future
@@ -63,22 +63,25 @@ return {
   -- white values, since a styled row must restate its colour), and the preview
   -- webview colours (CSS hex). Omit the light block to fall back to dark.
   chooserTheme = {
+    -- preview also carries a border color; the canvas preview pane shares the panel
+    -- fill and border so it reads as one surface with the docked shortcut panel.
     dark = {
       bgDark = true,
       titleColor = { white = 0.92 },
       subColor = { white = 0.55 },
-      preview = { bg = "#1e1e22", fg = "#dcdcdc", meta = "#8a8a8a", path = "#7a7a7a", note = "#c8a86a" },
+      preview = { bg = "#2A2A2E", fg = "#dcdcdc", meta = "#8a8a8a", path = "#7a7a7a", note = "#c8a86a", border = "#000000" },
     },
     light = {
       bgDark = false,
       titleColor = { white = 0.15 },
       subColor = { white = 0.42 },
-      preview = { bg = "#f2f2f5", fg = "#1c1c1e", meta = "#6b6b70", path = "#88888d", note = "#8a5a12" },
+      preview = { bg = "#E5E1E3", fg = "#1c1c1e", meta = "#6b6b70", path = "#88888d", note = "#8a5a12", border = "#A09F9F" },
     },
   },
 
   -- Shortcut hint panel. The docked panel that spells out the Hyper navigation
-  -- shortcuts under a native chooser (menu search, VPN, launcher). delayMs is the idle delay
+  -- shortcuts under a native chooser (the clipboard, menu search, VPN, keep awake,
+  -- launcher). delayMs is the idle delay
   -- before it appears: the panel stays hidden while the field is being used, and only
   -- after this many milliseconds with no keypress does it reveal, staying up until the
   -- chooser closes. One source, so editing it applies to every chooser that docks the

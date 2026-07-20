@@ -305,33 +305,10 @@ local function footerFor(name)
   end
   return hints
 end
--- Decorate a picker factory, the Chooser atom, so a surface built inside a spoon (the
--- clipboard) is stamped with its footer hints without the spoon learning about Hyper
--- contexts. The policy stays here in the composition root, the spoon just calls new on
--- whatever factory it was handed, and the factory reads config.footer. The clipboard
--- is the only web consumer left, so it is the only one this footer path serves. The
--- native backend draws no footer, so the native surfaces, the launcher, menu search,
--- VPN, and keep awake, surface their shortcuts through the deferred HelperPanel instead.
-local function withFooter(factory, hints)
-  return { new = function(cfg) cfg = cfg or {}; cfg.footer = hints; return factory.new(cfg) end }
-end
--- The clipboard footer, with one state-dependent label. Once entries are marked for
--- the batch (Hyper+a), Delete acts on the marked set, so its hint reads "Delete
--- marked (N)" instead of plain "Delete"; every other chip is the static footerFor
--- data. The clipboard invokes this with its live batch count and never learns the
--- wording, so the label policy stays here with the rest of the footer content. Found
--- by action rather than position, so reordering the bindings cannot mislabel a chip.
-local function clipboardFooter(marked)
-  local hints = footerFor("clipboard")
-  if marked and marked > 0 then
-    for _, h in ipairs(hints) do
-      if h.action == "deleteSelected" then
-        h.label = "Delete marked (" .. marked .. ")"
-      end
-    end
-  end
-  return hints
-end
+-- Every chooser now runs on the native backend and docks the deferred HelperPanel
+-- for its shortcut hints, so nothing consumes the web footer path anymore; the
+-- footerFor hints above feed the panels directly. The web backend and its footer
+-- config still exist in Chooser.spoon as a fallback, but no consumer selects it.
 local function hideShortcuts()
   if shortcutsShown then
     spoon.CheatSheet:hide()
@@ -384,46 +361,33 @@ hideHyperLayer = function()
 end
 
 -- ClipboardHistory: reveal clipboard history from the launcher and the
--- hammerspoon://clipboard URL, and Hyper+X. The generic shortcut backend is placed
--- first and by default names no app, so it always fires the shared combo and
--- whatever manager is bound to it shows its history. Gate it on an app (give
--- clipboardShortcut an `app`) and it fires only while that app runs, letting the
--- native Hammerspoon manager take over otherwise, with Raycast and the macOS Tahoe
--- Spotlight clipboard behind it. The chain logs each skip, and availability is
--- rechecked on every open. Reorder the list to change preference, or drop the
--- shortcut line to always use the native manager.
+-- hammerspoon://clipboard URL, and Hyper+X. The native Hammerspoon manager (the
+-- canvas chooser with its docked preview) is placed first and is always available,
+-- so Hyper+X opens it. The external backends stay behind it as fallbacks: to hand
+-- the hotkey to one, move it ahead of hammerspoon (the shortcut backend fires the
+-- shared clipboardShortcut combo, optionally gated on an app). The chain logs each
+-- skip, and availability is rechecked on every open.
 spoon.ClipboardHistory:init()
--- Inject the overlay teardown as the manager's onClose before it starts, so it is
--- captured when the ui is wired. Closing the chooser then clears the shortcut
--- sheet. The chooser theme is injected here too, from the one source in
--- config/settings.lua, so the chooser and its preview follow the system light and
--- dark appearance. The Chooser atom (Chooser.spoon) is injected as the factory the
--- ui builds its picker from, the shared mechanism behind the chooser window.
-spoon.ClipboardHistory.manager.configure({
-  onClose = hideShortcuts,
-  theme = settings.chooserTheme,
-  -- The initial footer is the no-batch labels (marked 0); footerFor is the supplier
-  -- the manager re-invokes with its live batch count to relabel Delete as the batch
-  -- grows and shrinks. Both come from the one clipboardFooter policy above.
-  chooser = withFooter(spoon.Chooser, clipboardFooter(0)),
-  footerFor = clipboardFooter,
-})
-spoon.ClipboardHistory.manager.start() -- begin the background pasteboard poll
+-- The native manager's UI (its chooser, canvas preview, and docked shortcut panel)
+-- is configured and started further down with the other native-panel choosers,
+-- since it needs shortcutPanelFor, which is defined below. Only the reveal routing,
+-- which tool opens on the hotkey, is wired here.
 local clipShortcut = keys.clipboardShortcut
 spoon.ClipboardHistory:configure({
   hyperKey = spoon.HyperKey,
   provider = spoon.ClipboardHistory.providers.firstAvailable({
-    -- Generic external backend: fire clipShortcut's combo. With no `app` it is
-    -- always available and wins; with one (resolved to a bundle id here, the one
-    -- place concretions are named) it is gated so the native manager below takes
-    -- over when that app is not running.
+    -- Native manager first: always available, so Hyper+X opens the canvas clipboard.
+    spoon.ClipboardHistory.providers.hammerspoon,
+    -- External fallbacks, unreached while the native manager is first. The shortcut
+    -- backend fires clipShortcut's combo; give clipboardShortcut an `app` (resolved
+    -- to a bundle id here, the one place concretions are named) to gate it on that
+    -- app. Move one ahead of hammerspoon above to hand it the hotkey.
     spoon.ClipboardHistory.providers.shortcut({
       name = clipShortcut.app or "Shortcut",
       mods = clipShortcut.mods,
       key = clipShortcut.key,
       bundleID = clipShortcut.app and apps[clipShortcut.app] or nil,
     }),
-    spoon.ClipboardHistory.providers.hammerspoon,
     spoon.ClipboardHistory.providers.raycast,
     spoon.ClipboardHistory.providers.spotlightTahoe,
   }),
@@ -1030,6 +994,28 @@ spoon.Caffeinate.configure({
 })
 spoon.Caffeinate.start()
 spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
+
+-- Clipboard manager UI: the native chooser with its canvas preview docked in the
+-- companion pane and the same deferred shortcut panel the other native choosers use.
+-- Pinned to the native backend, so it draws no web footer; the panel spells the
+-- shortcuts out instead. The manager owns onPositioned to place its preview, so the
+-- panel's onPositioned is injected and composed inside the manager's (it forwards the
+-- chooser frame back out), while onActivity and onClose pass straight through. The
+-- theme comes from the one source in config/settings.lua so the preview follows the
+-- system light and dark appearance. start() begins the background pasteboard poll and
+-- builds the picker; the reveal routing (which tool opens on the hotkey) was wired
+-- above. The clipboard Hyper context (config/keys.lua) drives its shortcuts through
+-- the choosers registry below.
+local clipPanel = shortcutPanelFor("clipboard")
+spoon.ClipboardHistory.manager.configure({
+  provider = "native",
+  theme = settings.chooserTheme,
+  chooser = spoon.Chooser,
+  onPositioned = clipPanel.onPositioned,
+  onActivity = clipPanel.onActivity,
+  onClose = clipPanel.onClose,
+})
+spoon.ClipboardHistory.manager.start()
 
 -- Hyper context layers. Inject the shared predicate registry into HyperKey, then
 -- expand each context in keys.hyperContexts into HyperKey bindings that carry the

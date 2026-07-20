@@ -292,29 +292,44 @@ step mirroring what the clipboard already does.
    function returning whether that surface is open.
 4. Register the surface in the `choosers` list in `init.lua`, so `activeChooser`
    and `routeNav` send the navigation actions to whichever surface is open.
-5. Show the shortcuts. Each web surface carries a persistent footer bar inside its
-   own window, so the shortcuts are always visible under the surface rather than
-   peeked in a separate window on a Hyper hold. Both surface kinds draw it, the
-   searchable list (`Surface.spoon/list.lua`) and the fixed `Panel` (`Panel.spoon`,
-   keep awake and the VPN control panel), from the same `_footerHtml` chip builder,
-   so a short fixed panel shows its Hyper shortcuts the same way a long list does.
-   Build the hints with `footerFor(name)` in `init.lua`, which reads the same
-   `hyperContexts` bindings, and pass them as `config.footer`. A picker built
-   directly takes it in its config; one built inside a spoon is handed a
-   `withFooter(factory, footerFor(name))` decorated factory (the decorator is
-   factory agnostic, wrapping both `spoon.Chooser` and `spoon.Panel`), so the spoon
-   stays ignorant of Hyper contexts. A single window hosts both the list and its
-   footer, so nothing competes for the frosted backdrop, which a second peek window
-   did. `contextOverlays` stays as an empty seam, so a context that wants a real
-   hold overlay again can register a model builder there without touching the reveal
-   logic. The native backend has no footer, so on native a context shows no shortcut
-   hints.
-6. Inject the root's overlay teardown as the surface's `onClose` and bind the open
-   key as a base HyperKey binding.
+5. Show the shortcuts. Every chooser now runs on the native backend and docks a
+   deferred `HelperPanel` (a plain `hs.canvas`) below the list, so the hints stay
+   hidden while the field is in use and reveal once the user pauses
+   (`settings.shortcutsPanel.delayMs`). Build one with `shortcutPanelFor(name)` in
+   `init.lua`, which reads the hints from `footerFor(name)` (the same `hyperContexts`
+   bindings) and returns the three callbacks a native chooser is wired with, then
+   pass `onPositioned`, `onActivity`, and `onClose` into the chooser. `onPositioned`
+   arms the panel at the chooser frame, `onActivity` pokes its idle timer on each
+   keypress, and `onClose` hides it and clears any peeked overlay. A consumer that
+   already owns `onPositioned` (the clipboard, to place its canvas preview) composes
+   the panel's inside its own and forwards the chooser frame out. `contextOverlays`
+   stays as an empty seam, so a context that wants a real hold overlay again can
+   register a model builder there without touching the reveal logic. The web backend
+   and its `config.footer` still exist in `Chooser.spoon` as a fallback, but no
+   consumer selects it.
+6. Inject the panel's `onClose` (which also runs the root's overlay teardown) as the
+   surface's `onClose`, wire `onPositioned`/`onActivity`, and bind the open key as a
+   base HyperKey binding.
 
 A tool with two surfaces, like the VPN control panel and its location picker,
 wires each surface as its own participant, its own context block, predicate,
 registry entry, and overlay.
+
+**Clipboard preview.** The clipboard is the third native panel in the pair. Its
+manager reserves a companion pane beside the chooser (`layout.companionWidth`), and
+the atom polls the highlighted row and fires `onHighlight`, which draws the copied
+data into an `hs.canvas` docked in that companion frame, no webview. Rendering is
+per kind: text and url wrap in a monospace block, image and video show the store's
+downscaled preview PNG loaded straight as an `hs.image`, and a file shows its
+header plus that image or a note. Content taller than the pane scrolls with
+Hyper+Cmd+j/k, clamped to the overflow and clipped to the inner box. The canvas
+pane and the docked shortcut panel share the palette's `preview.bg`/`preview.border`
+so they read as one surface. Crucially the file storage and the preview sizing are
+decoupled from the UI: `manager/store.lua` owns the media lifecycle and
+`manager/preview.lua` is a Chain of Responsibility that produces the downscaled
+PNGs off the main thread (sips for rasters, ffmpeg for video, `hs.image` for
+pdf/icns), knowing nothing about the UI. `ui.lua` only consumes the resulting
+`e.prev`/`e.thumb` paths, so swapping the webview for the canvas touched neither.
 
 **Launcher.** Hyper+Space opens a filterable app switcher and
 command runner, the built-in one, wired straight to the Chooser atom with no
