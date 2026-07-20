@@ -23,7 +23,6 @@ hs.loadSpoon("ChordKey")
 hs.loadSpoon("CheatSheet")
 hs.loadSpoon("Surface")
 hs.loadSpoon("Chooser")
-hs.loadSpoon("Panel")
 hs.loadSpoon("HelperPanel")
 hs.loadSpoon("HyperKey")
 hs.loadSpoon("HyperCheatSheet")
@@ -306,12 +305,13 @@ local function footerFor(name)
   end
   return hints
 end
--- Decorate a picker factory, Chooser or Panel, so a surface built inside a spoon
--- (the clipboard, the VPN locations, the keep awake panel, the VPN control panel) is
--- stamped with its footer hints without the spoon learning about Hyper contexts. The
--- policy stays here in the composition root; the spoon just calls new on whatever
--- factory it was handed, and both factories read config.footer. The command palette
--- is built here directly, so it takes footer in its config without this wrapper.
+-- Decorate a picker factory, the Chooser atom, so a surface built inside a spoon (the
+-- clipboard) is stamped with its footer hints without the spoon learning about Hyper
+-- contexts. The policy stays here in the composition root, the spoon just calls new on
+-- whatever factory it was handed, and the factory reads config.footer. The command palette
+-- is built here directly, so it takes footer in its config without this wrapper. The
+-- native backend draws no footer, so the native surfaces, menu search, VPN, and keep
+-- awake, surface their shortcuts through the deferred HelperPanel instead.
 local function withFooter(factory, hints)
   return { new = function(cfg) cfg = cfg or {}; cfg.footer = hints; return factory.new(cfg) end }
 end
@@ -430,19 +430,9 @@ spoon.ClipboardHistory:configure({
 })
 spoon.ClipboardHistory:bindHotkeys({ open = keys.clipboardHistory })
 
--- Caffeinate: the keep awake panel on Hyper+K. It is a short navigable list, but it
--- does not use the Chooser atom, because it needs inline numeric fields that clamp to
--- hours and minutes, which a webview gives natively. It builds on the shared Panel
--- atom (Panel.spoon), injected here as its view factory, sharing the same theme so it
--- matches the chooser's light and dark look. The open key is a base HyperKey binding,
--- so it opens when nothing modal owns Hyper and is suppressed while a modal context is
--- live.
-spoon.Caffeinate.configure({ theme = settings.chooserTheme, panel = withFooter(spoon.Panel, footerFor("caffeinate")) })
-spoon.Caffeinate.start()
-spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
-
--- VPN controls are wired further down, alongside menu search, since both are native
--- choosers that dock the same deferred shortcut hint panel and share its factory.
+-- Caffeinate is wired further down, alongside menu search and VPN, since all three are
+-- native choosers that dock the same deferred shortcut hint panel and share its factory,
+-- which is defined below.
 
 -- Command palette / switcher: an app switcher and command runner on Hyper+Space.
 -- It lists every installed application (open ones first, then not running), and
@@ -1042,6 +1032,23 @@ spoon.Vpn.configure({
 })
 spoon.Vpn.start()
 spoon.HyperKey:bind(keys.vpn.key, function() spoon.Vpn.show() end)
+
+-- Caffeinate: the keep awake chooser on Hyper+K. Its search field doubles as the value
+-- entry, a clock like 15:55 or a duration like 1h30m, so it needs only the shared theme
+-- and the Chooser factory injected here, plus the same deferred shortcut panel menu search
+-- and VPN use, wired through the three chooser callbacks. The caffeinate Hyper context (see
+-- config/keys.lua) drives the j, k, i, and x shortcuts through the choosers registry below.
+-- The open key is a base HyperKey binding, suppressed while a modal context owns Hyper.
+local caffeinatePanel = shortcutPanelFor("caffeinate")
+spoon.Caffeinate.configure({
+  theme = settings.chooserTheme,
+  chooser = spoon.Chooser,
+  onPositioned = caffeinatePanel.onPositioned,
+  onActivity = caffeinatePanel.onActivity,
+  onClose = caffeinatePanel.onClose,
+})
+spoon.Caffeinate.start()
+spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
 
 -- Hyper context layers. Inject the shared predicate registry into HyperKey, then
 -- expand each context in keys.hyperContexts into HyperKey bindings that carry the
