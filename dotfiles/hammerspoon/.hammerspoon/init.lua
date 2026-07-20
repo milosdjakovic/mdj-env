@@ -208,15 +208,6 @@ local predicates = {
   caffeinateOpen = function()
     return spoon.Caffeinate ~= nil and spoon.Caffeinate.isShowing()
   end,
-  -- The VPN control panel is open. Gates the vpn Hyper context.
-  vpnOpen = function()
-    return spoon.Vpn ~= nil and spoon.Vpn.isShowing()
-  end,
-  -- The VPN location picker is open. Gates the vpnLocations Hyper context, so it
-  -- gets the same Hyper navigation and hold overlay the clipboard chooser has.
-  vpnLocationsOpen = function()
-    return spoon.Vpn ~= nil and spoon.Vpn.locations.isShowing()
-  end,
 }
 -- The window bindings carry no leader (see config/keys.lua). Stamp the resolved
 -- window leader onto each here, in the composition root, so WindowManager and
@@ -445,13 +436,14 @@ spoon.Caffeinate.configure({ theme = settings.chooserTheme, panel = withFooter(s
 spoon.Caffeinate.start()
 spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
 
--- VPN controls: the control panel on Hyper+Y. It is the second consumer of the Panel
--- atom, sharing it with caffeinate for its short fixed action list, and it also uses
--- the Chooser atom for the location search, the same widget behind the clipboard. Both
--- are injected here from the one theme source. When the Mullvad CLI is missing the
--- spoon logs to the console and stays inert, so this wiring is safe on any machine. The
--- open key is a base HyperKey binding, suppressed while a modal context owns Hyper.
-spoon.Vpn.configure({ theme = settings.chooserTheme, panel = withFooter(spoon.Panel, footerFor("vpn")), chooser = withFooter(spoon.Chooser, footerFor("vpnLocations")), onLocationsClose = hideShortcuts })
+-- VPN controls: a native chooser on Hyper+Y that works as a two level menu, the actions
+-- at the top and the location list one level down. It is pinned to the native backend
+-- inside the spoon, so it needs only the shared theme and the Chooser factory injected
+-- here. Native means no footer and no Hyper navigation context; the chooser drives itself
+-- with its own arrows, type-to-filter, Return, and Escape once Hyper is released. When the
+-- Mullvad CLI is missing the spoon logs to the console and stays inert, so this wiring is
+-- safe on any machine. The open key is a base HyperKey binding.
+spoon.Vpn.configure({ theme = settings.chooserTheme, chooser = spoon.Chooser })
 spoon.Vpn.start()
 spoon.HyperKey:bind(keys.vpn.key, function() spoon.Vpn.show() end)
 
@@ -1036,7 +1028,7 @@ spoon.HyperKey:bind(keys.menuSearch.key, openBuiltinMenuSearch)
 -- glance at the sheet plus any key clears it.
 spoon.HyperKey:configure({ predicates = predicates })
 local clipManager = spoon.ClipboardHistory.manager
-local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, spoon.Vpn.locations, commandPaletteSurface, menuSearchSurface }
+local choosers = { clipManager, spoon.Caffeinate, commandPaletteSurface, menuSearchSurface }
 local function activeChooser()
   for _, c in ipairs(choosers) do
     if c.isShowing() then return c end

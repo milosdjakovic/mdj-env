@@ -136,11 +136,9 @@ return {
   -- while it is open the base Hyper toggles are suppressed and Hyper belongs to it,
   -- and it is the active context so holding Hyper reveals nothing.
   --
-  -- The VPN control panel is the same kind of list, so it carries the same j, k, and
-  -- x. Its location search is a separate chooser, like the clipboard, so it gets its
-  -- own context with j and k to move, i to connect to the highlighted city, and x to
-  -- close, plus the Hyper hold overlay that spells those out. Plain typing filters the
-  -- list while Hyper is released.
+  -- The VPN chooser has no context: it runs on the native backend and is driven by its
+  -- own arrows, type-to-filter, Return, and Escape once Hyper is released, so it needs no
+  -- Hyper navigation of its own.
   hyperContexts = {
     {
       name = "clipboard",
@@ -170,28 +168,6 @@ return {
         { key = "k", action = "selectPrev",     description = "Move up" },
         { key = "j", action = "selectNext",     description = "Move down" },
         { key = "i", action = "insertSelected", description = "Confirm" },
-        { key = "x", action = "closeChooser",   description = "Close" },
-      },
-    },
-    {
-      name = "vpn",
-      when = "vpnOpen",
-      priority = 100,
-      bindings = {
-        { key = "k", action = "selectPrev",     description = "Move up" },
-        { key = "j", action = "selectNext",     description = "Move down" },
-        { key = "i", action = "insertSelected", description = "Confirm" },
-        { key = "x", action = "closeChooser",   description = "Close" },
-      },
-    },
-    {
-      name = "vpnLocations",
-      when = "vpnLocationsOpen",
-      priority = 100,
-      bindings = {
-        { key = "k", action = "selectPrev",     description = "Move up" },
-        { key = "j", action = "selectNext",     description = "Move down" },
-        { key = "i", action = "insertSelected", description = "Connect" },
         { key = "x", action = "closeChooser",   description = "Close" },
       },
     },
