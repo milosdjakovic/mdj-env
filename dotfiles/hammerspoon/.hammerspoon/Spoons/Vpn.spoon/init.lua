@@ -261,9 +261,6 @@ function M.start()
   engine.configure({ provider = provider, onChange = onChange })
   engine.start()
   chooser = cfg.chooser.new({
-    -- Pinned to the native hs.chooser backend, the snappy one the menu search uses,
-    -- which also drops the footer and themed rendering the web surface adds.
-    provider = "native",
     theme = cfg.theme,
     placeholder = "Search locations",
     fieldMode = "filter",

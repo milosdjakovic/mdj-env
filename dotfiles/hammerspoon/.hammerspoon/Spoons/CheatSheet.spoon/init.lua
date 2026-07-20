@@ -2,15 +2,16 @@
 ---
 --- Shared on-screen overlay renderer: a rounded panel of key bindings laid out
 --- as a row-major grid. Purely presentational, it draws whatever model it is
---- handed and owns nothing domain-specific.
+--- handed and owns nothing domain-specific. This spoon owns the layout math, it
+--- computes the panel size and positions every badge, label, icon, and title with
+--- absolute coordinates.
 ---
---- It draws through the shared Surface grid, a passive themed webview, so the
---- overlays wear the same frosted panel and palette as the pickers, one background
---- across everything. This spoon owns only the layout math: it computes the panel
---- size and positions every badge, label, icon, and title with absolute
---- coordinates, then emits them as HTML the grid hosts. Swapping canvas for the
---- grid changed the drawing primitive, not the geometry, so the model contract and
---- the callers are unchanged.
+--- The drawing primitive was a Surface webview grid, removed with the rest of the
+--- web stack. Until a canvas renderer is wired back in, show() builds the model
+--- and computes the geometry but has nothing to draw with, so it is inert (the
+--- self._grid guard returns early). The layout math, the model contract, and the
+--- two callers are left intact, so restoring the overlay is a matter of giving
+--- this spoon a renderer, not rebuilding the callers.
 ---
 --- The two callers (HyperCheatSheet, WindowCheatSheet) build the model and keep
 --- their own domain logic: resolving app icons and splitting running vs not, or
@@ -19,17 +20,13 @@
 --- fields here, so one renderer serves both.
 ---
 --- CONTENT styling (font size, inner padding, badge radius) is global: set it once
---- via configure(), typically from config/settings.lua. The BACKGROUND (colour,
---- opacity, blur, corner radius) is not set here anymore, it comes from the shared
---- palette through the grid, which is what keeps the overlays and pickers in step.
---- configure(opts) accepts:
----   surface      - the Surface spoon, injected so a grid can be built
----   theme        - the palette source ({ dark = {...}, light = {...} }) for the grid
+--- via configure(), typically from config/settings.lua. configure(opts) accepts:
+---   theme        - the palette source ({ dark = {...}, light = {...} })
 ---   fontSize     - text size (px); lineHeight follows unless set explicitly
 ---   padding      - inner margin around the content (px)
 ---   badgeRadius  - key-badge corner roundness (px)
 --- Legacy appearance keys (opacity, background, cornerRadius) are accepted and
---- ignored, since the grid palette owns the background now.
+--- ignored.
 ---
 --- show(model) where model is:
 ---   columns, colWidth, rowHeight, badgeWidth, badgeHeight, iconSize, gap,
@@ -55,7 +52,7 @@ obj.version = "3.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
-obj._grid = nil           -- the shared Surface grid this draws through
+obj._grid = nil           -- the renderer this draws through; nil since the web grid was removed, so show() is inert
 obj._theme = nil          -- effective content styling (DEFAULT_THEME + configure)
 obj._layoutDefaults = nil -- effective layout defaults (DEFAULTS + configure)
 obj._iconMemo = nil       -- hs.image -> data URI, so an icon is encoded once
@@ -296,11 +293,10 @@ function obj:configure(opts)
   if opts.padding ~= nil then l.margin = opts.padding end
   self._layoutDefaults = l
 
-  -- Build the grid once a surface is injected. The grid carries the palette, so
-  -- the overlay background matches the pickers.
-  if opts.surface then
-    self._grid = opts.surface:newGrid({ name = "cheatsheet", theme = opts.theme })
-  end
+  -- No renderer is wired: the Surface grid was removed with the web stack, so
+  -- self._grid stays nil and show() is inert. The theme is kept for whatever
+  -- canvas renderer replaces it. See the header.
+  self._theme.palette = opts.theme or self._theme.palette
 
   return self
 end

@@ -269,12 +269,14 @@ Adding a whole new spoon requires stowing again, because `~/.hammerspoon/Spoons`
 holds one symlink per spoon. Adding files inside an already symlinked spoon does
 not, they resolve through the existing symlink.
 
-**Wiring a list tool into the Hyper contexts.** The picker atoms give only the
-widget. `Chooser.spoon` is for a long filterable list like the clipboard and the
-VPN locations, and `Panel.spoon` is for a short fixed list like caffeinate and
-the VPN control panel. Routing the Hyper keys to a picker and drawing the hold
-overlay is not part of the atom, because the atoms deliberately know nothing
-about HyperKey. It is opt in wiring done per consumer in the composition root.
+**Wiring a list tool into the Hyper contexts.** The picker atom gives only the
+widget. `Chooser.spoon` wraps the native `hs.chooser` and backs every list tool,
+the clipboard, the VPN locations, caffeinate, menu search, and the launcher. It
+once had a second webview backend built on a `Surface.spoon`, selectable per
+consumer, plus a `Panel.spoon` for short fixed lists, but every consumer settled
+on native so the web backend, Surface, and Panel were all removed. Routing the
+Hyper keys to a picker and drawing the hold overlay is not part of the atom,
+because the atom deliberately knows nothing about HyperKey. It is opt in wiring done per consumer in the composition root.
 Forgetting it does not break the tool, it just leaves it without the Hyper
 shortcuts, which is exactly how the VPN location picker started before it was
 brought in line with the clipboard. The checklist to plug a new picker in, each
@@ -304,9 +306,7 @@ step mirroring what the clipboard already does.
    already owns `onPositioned` (the clipboard, to place its canvas preview) composes
    the panel's inside its own and forwards the chooser frame out. `contextOverlays`
    stays as an empty seam, so a context that wants a real hold overlay again can
-   register a model builder there without touching the reveal logic. The web backend
-   and its `config.footer` still exist in `Chooser.spoon` as a fallback, but no
-   consumer selects it.
+   register a model builder there without touching the reveal logic.
 6. Inject the panel's `onClose` (which also runs the root's overlay teardown) as the
    surface's `onClose`, wire `onPositioned`/`onActivity`, and bind the open key as a
    base HyperKey binding.
@@ -374,10 +374,9 @@ The launcher follows the picker checklist above like any other list tool. It has
 a dot called navigation adapter over the Chooser instance, a `launcherOpen`
 predicate, a `launcher` context block giving it the shared j, k, and i
 navigation with Space to close (the open key doubles as the close, the way the
-clipboard's X does). It is pinned to the native backend with `provider = "native"`,
-the same as menu search and VPN, so instead of a web footer it docks the deferred
-shortcut panel (`shortcutPanelFor("launcher")`) through the three chooser callbacks,
-which spell the shortcuts out on the same canvas once the user pauses. Native arrows,
+clipboard's X does). Like menu search and VPN it docks the deferred shortcut panel
+(`shortcutPanelFor("launcher")`) through the three chooser callbacks, which spell
+the shortcuts out on the same canvas once the user pauses. Native arrows,
 typing, Return, and Escape work whenever Hyper is released. The chosen row runs
 deferred by a short timer, so it fires only after the chooser tears down and
 macOS restores focus to the window that was frontmost before the launcher opened,

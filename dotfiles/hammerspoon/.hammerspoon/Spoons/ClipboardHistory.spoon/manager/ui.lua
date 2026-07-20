@@ -804,7 +804,6 @@ end
 --- the preview and the panel get placed.
 function UI.build()
   picker = Chooser.new({
-    provider = cfg.provider,
     theme = cfg.theme,
     fieldMode = "filter",
     placeholder = "Search clipboard",

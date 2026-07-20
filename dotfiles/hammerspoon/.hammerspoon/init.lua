@@ -21,7 +21,6 @@ local vicertWorkspace = require("config.workspaces.vicert")
 hs.loadSpoon("KeyRemap")
 hs.loadSpoon("ChordKey")
 hs.loadSpoon("CheatSheet")
-hs.loadSpoon("Surface")
 hs.loadSpoon("Chooser")
 hs.loadSpoon("HelperPanel")
 hs.loadSpoon("HyperKey")
@@ -58,26 +57,20 @@ end
 spoon.KeyRemap:init()
 spoon.KeyRemap:apply(catalog, { keys.appLeader, keys.windowLeader })
 
--- Surface: the themed webview foundation behind the web picker backend and the
--- cheat sheet grids. Its icon cache persists encoded app icons across reloads.
--- Chooser is the picker facade with two swappable backends, native (hs.chooser)
--- and web (a Surface list). The default backend is settings.chooserProvider, and
--- the Surface spoon is injected so the web backend can build on it. Every chooser
--- consumer below goes through this one facade, so flipping settings.chooserProvider
--- swaps them all at once, while the native chooser stays available as a fallback.
-spoon.Surface:init()
-spoon.Surface:configure({ iconCacheDir = "~/.cache/hs-icons" })
+-- Chooser is the picker facade behind every list tool below, the clipboard, the
+-- VPN locations, keep awake, menu search, and the launcher. It wraps the native
+-- hs.chooser. There was once a second webview backend built on a Surface spoon,
+-- selectable per consumer, but every consumer settled on native so the web backend
+-- and the Surface foundation were removed.
 spoon.Chooser:init()
-spoon.Chooser:configure({ provider = settings.chooserProvider or "native", surface = spoon.Surface })
 
--- CheatSheet: the shared grid-overlay renderer behind both cheat sheets. Both
--- builders below draw through this one instance (only ever one overlay is up). It
--- now draws through the Surface grid, so the overlays wear the same frosted panel
--- and palette as the pickers. The cheatSheet block still tunes the content, font
--- size, padding, and badge radius, while the background and theme come from
--- chooserTheme through the grid.
+-- CheatSheet: the shared overlay renderer behind both cheat sheets. Both builders
+-- below draw through this one instance (only ever one overlay is up). It used to
+-- draw through a Surface webview grid, removed with the rest of the web stack, so
+-- show() is inert until a canvas renderer is wired back in. The cheatSheet block
+-- still tunes the content, font size, padding, and badge radius.
 spoon.CheatSheet:init()
-local cheatOpts = { surface = spoon.Surface, theme = settings.chooserTheme }
+local cheatOpts = { theme = settings.chooserTheme }
 for k, v in pairs(settings.cheatSheet or {}) do cheatOpts[k] = v end
 spoon.CheatSheet:configure(cheatOpts)
 
@@ -305,10 +298,8 @@ local function footerFor(name)
   end
   return hints
 end
--- Every chooser now runs on the native backend and docks the deferred HelperPanel
--- for its shortcut hints, so nothing consumes the web footer path anymore; the
--- footerFor hints above feed the panels directly. The web backend and its footer
--- config still exist in Chooser.spoon as a fallback, but no consumer selects it.
+-- Every chooser runs on the native backend and docks the deferred HelperPanel for
+-- its shortcut hints. The footerFor hints above feed the panels directly.
 local function hideShortcuts()
   if shortcutsShown then
     spoon.CheatSheet:hide()
@@ -771,13 +762,11 @@ end
 -- The row runs deferred, after the chooser has torn down and macOS has restored
 -- focus to the app that was frontmost before the launcher opened. Window actions
 -- act on hs.window.focusedWindow(), so they must run once that window is focused
--- again rather than while the chooser holds focus. Pinned to the native backend
--- like menu search and VPN, so instead of a web footer it docks the same deferred
--- shortcut panel through the three chooser callbacks, and its onClose also clears
--- any peeked overlay, matching the clipboard.
+-- again rather than while the chooser holds focus. Like menu search and VPN it docks
+-- the same deferred shortcut panel through the three chooser callbacks, and its
+-- onClose also clears any peeked overlay, matching the clipboard.
 local launcherPanel = shortcutPanelFor("launcher")
 local launcher = spoon.Chooser.new({
-  provider = "native",
   theme = settings.chooserTheme,
   placeholder = "Search apps and commands",
   rows = commandRows,
@@ -896,10 +885,6 @@ end
 -- native chooser without the chooser knowing about it.
 local menuPanel = shortcutPanelFor("menuSearch")
 local menuSearch = spoon.Chooser.new({
-  -- Pinned to the native hs.chooser backend, which is noticeably snappier here
-  -- than the web surface the other pickers use. Per-instance override only, so the
-  -- global chooserProvider default stays "web"; drop this line to fall back in line.
-  provider = "native",
   theme = settings.chooserTheme,
   placeholder = "Search menu items",
   rows = menuSearchRows,
@@ -996,9 +981,8 @@ spoon.Caffeinate.start()
 spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
 
 -- Clipboard manager UI: the native chooser with its canvas preview docked in the
--- companion pane and the same deferred shortcut panel the other native choosers use.
--- Pinned to the native backend, so it draws no web footer; the panel spells the
--- shortcuts out instead. The manager owns onPositioned to place its preview, so the
+-- companion pane and the same deferred shortcut panel the other choosers use. The
+-- panel spells the shortcuts out below the list. The manager owns onPositioned to place its preview, so the
 -- panel's onPositioned is injected and composed inside the manager's (it forwards the
 -- chooser frame back out), while onActivity and onClose pass straight through. The
 -- theme comes from the one source in config/settings.lua so the preview follows the
@@ -1008,7 +992,6 @@ spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
 -- the choosers registry below.
 local clipPanel = shortcutPanelFor("clipboard")
 spoon.ClipboardHistory.manager.configure({
-  provider = "native",
   theme = settings.chooserTheme,
   chooser = spoon.Chooser,
   onPositioned = clipPanel.onPositioned,
