@@ -140,7 +140,8 @@ return {
   -- carries the same j, k, i, and x: j and k move the highlight, i confirms the
   -- highlighted row the same as Return (toggle the tunnel or connect to the city), and x
   -- closes it. It runs on the native backend, so plain typing filters the list while Hyper
-  -- is released, and no canvas hint pane is drawn.
+  -- is released. Like menu search, it docks the deferred shortcut hint panel, which stays
+  -- hidden until the user pauses (settings.shortcutsPanel.delayMs) and then spells these out.
   hyperContexts = {
     {
       name = "clipboard",

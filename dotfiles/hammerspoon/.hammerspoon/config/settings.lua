@@ -76,6 +76,16 @@ return {
     },
   },
 
+  -- Shortcut hint panel. The docked panel that spells out the Hyper navigation
+  -- shortcuts under a native chooser (menu search, VPN). delayMs is the idle delay
+  -- before it appears: the panel stays hidden while the field is being used, and only
+  -- after this many milliseconds with no keypress does it reveal, staying up until the
+  -- chooser closes. One source, so editing it applies to every chooser that docks the
+  -- panel. Set delayMs to nil (or 0) to show it instantly on open.
+  shortcutsPanel = {
+    delayMs = 3000,
+  },
+
   -- Window sizing defaults
   windowSizing = {
     maxWidth = 2400,

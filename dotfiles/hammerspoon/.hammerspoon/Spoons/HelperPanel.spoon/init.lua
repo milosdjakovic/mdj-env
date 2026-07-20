@@ -13,9 +13,20 @@
 ---
 --- FACTORY: spoon.HelperPanel.new(config) -> instance (dot-called).
 ---
+--- Reveal timing. By default the panel draws the instant show/arm is called. Give it a
+--- delay and it becomes idle-timed instead: arm(anchor) starts a countdown rather than
+--- drawing, poke() restarts that countdown (call it on each keypress), and when the
+--- countdown expires the panel reveals and latches, staying up until hide() regardless of
+--- later pokes. This is the deferred hint bar: hidden while the field is in active use,
+--- shown once the user pauses. The panel owns only the timing; it never learns where the
+--- pokes come from, so a caller wires its own activity source to poke().
+---
 --- config (all optional unless noted):
 ---   placement  "below" (default) | "above" | "left" | "right". Where the panel
 ---              docks relative to the anchor.
+---   delay      idle milliseconds before arm() reveals the panel; nil or 0 draws it
+---              instantly. Once revealed it stays until hide(), so poke() after that is
+---              a no-op.
 ---   gap        points between the anchor and the panel (default 8).
 ---   length     the panel's size along its own axis: height for below/above, width
 ---              for left/right. nil = auto from the content's preferred size.
@@ -152,8 +163,56 @@ function Panel:show(anchor)
   self.canvas:show()
 end
 
---- HelperPanel:hide() - hide the panel (kept alive for the next show).
+-- Start (or restart) the idle countdown. On expiry the panel reveals at the last armed
+-- anchor and latches, so it stays up until hide clears the state.
+function Panel:_startTimer()
+  self.timer = hs.timer.doAfter((self.config.delay or 0) / 1000, function()
+    self.timer = nil
+    self.shown = true
+    if self.anchor then self:show(self.anchor) end
+  end)
+end
+
+--- HelperPanel:arm(anchorFrame) - the reveal-timing entry point. With no delay it draws
+--- at once, the same as show. With a delay it stores the anchor and starts the idle
+--- countdown instead of drawing, unless the panel has already revealed, in which case it
+--- redraws at the corrected anchor (a chooser reports its frame twice as it settles).
+function Panel:arm(anchor)
+  if not anchor then return end
+  self.anchor = anchor
+  local delay = self.config.delay
+  if not delay or delay <= 0 then
+    self:show(anchor)
+    return
+  end
+  if self.shown then
+    self:show(anchor)
+    return
+  end
+  if not self.timer then self:_startTimer() end
+end
+
+--- HelperPanel:poke() - signal activity, restarting the idle countdown so the reveal is
+--- pushed back. A no-op with no delay, and a no-op once the panel has revealed, since it
+--- latches visible from then on.
+function Panel:poke()
+  local delay = self.config.delay
+  if not delay or delay <= 0 or self.shown then return end
+  if self.timer then
+    self.timer:stop()
+    self:_startTimer()
+  end
+end
+
+--- HelperPanel:hide() - hide the panel and clear the reveal state, so the next arm starts
+--- a fresh countdown (the canvas is kept alive for the next show).
 function Panel:hide()
+  if self.timer then
+    self.timer:stop()
+    self.timer = nil
+  end
+  self.shown = false
+  self.anchor = nil
   if self.canvas then self.canvas:hide() end
 end
 
@@ -165,7 +224,7 @@ end
 --- HelperPanel.new(config) -> instance.
 function obj.new(config)
   assert(config and config.content, "HelperPanel.new: config.content is required")
-  return setmetatable({ config = config, canvas = nil }, Panel)
+  return setmetatable({ config = config, canvas = nil, timer = nil, shown = false, anchor = nil }, Panel)
 end
 
 return obj

@@ -26,6 +26,9 @@
 ---                companion like the clipboard preview. Omit it and no poll runs.
 ---   onClose      function() fired once when the chooser tears down for any
 ---                reason (select, escape, click away, programmatic close).
+---   onActivity   function() fired on every key press while the chooser is open, via a
+---                passive eventtap (never consuming the key). A caller uses it as an
+---                idle signal, e.g. to defer a docked hint panel until the user pauses.
 ---   onPositioned function(chooserFrame, companionFrame) fired after layout, both
 ---                a seed frame at show and a corrected frame once the real window
 ---                settles. A consumer docks its companion into companionFrame.
@@ -151,6 +154,10 @@ function Chooser:_teardown()
     self.clickWatcher:stop()
     self.clickWatcher = nil
   end
+  if self.activityWatcher then
+    self.activityWatcher:stop()
+    self.activityWatcher = nil
+  end
   if self.config.onClose then
     self.config.onClose()
   end
@@ -242,6 +249,24 @@ function Chooser:_positionAndShow()
   self:_settleFrames()
   self:_startPollLoop()
   self:_startClickWatcher()
+  self:_startActivityWatcher()
+end
+
+--------------------------------------------------------------------------------
+-- Activity watcher (only when a consumer listens)
+--------------------------------------------------------------------------------
+
+-- Fire onActivity on every key press while the chooser is up, so a consumer can use it
+-- as an idle signal (a deferred hint panel resets its countdown on each key). The tap
+-- only observes, returning false so the key still reaches the chooser's field.
+function Chooser:_startActivityWatcher()
+  if not self.config.onActivity then return end
+  if self.activityWatcher then self.activityWatcher:stop() end
+  self.activityWatcher = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, function()
+    if self.active then self.config.onActivity() end
+    return false
+  end)
+  self.activityWatcher:start()
 end
 
 --------------------------------------------------------------------------------

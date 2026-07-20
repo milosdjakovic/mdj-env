@@ -441,17 +441,8 @@ spoon.Caffeinate.configure({ theme = settings.chooserTheme, panel = withFooter(s
 spoon.Caffeinate.start()
 spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
 
--- VPN controls: a native chooser on Hyper+Y that merges the controls and the locations
--- into one flat list, Connect or Disconnect on top and every city below. It is pinned to
--- the native backend inside the spoon, so it needs only the shared theme and the Chooser
--- factory injected here. The vpn Hyper context below wires the j, k, i, and x shortcuts
--- to it through the choosers registry, but no canvas hint pane is drawn, so the shortcuts
--- work without an overlay. When the Mullvad CLI is missing the spoon logs to the console
--- and stays inert, so this wiring is safe on any machine. The open key is a base HyperKey
--- binding, suppressed while a modal context owns Hyper.
-spoon.Vpn.configure({ theme = settings.chooserTheme, chooser = spoon.Chooser })
-spoon.Vpn.start()
-spoon.HyperKey:bind(keys.vpn.key, function() spoon.Vpn.show() end)
+-- VPN controls are wired further down, alongside menu search, since both are native
+-- choosers that dock the same deferred shortcut hint panel and share its factory.
 
 -- Command palette / switcher: an app switcher and command runner on Hyper+Space.
 -- It lists every installed application (open ones first, then not running), and
@@ -927,33 +918,48 @@ local function shortcutsContent(theme, hints)
   }
 end
 
-local menuHints = footerFor("menuSearch")
--- The shortcut hint bar for menu search: a HelperPanel docked below the chooser,
--- filled and bordered to match the native picker, with the shortcuts content as its
--- one purpose. The same panel reused for another purpose is a new instance with a
--- different content object and, if wanted, a different placement or size. fill and
--- border are functions so they re-resolve light/dark on every show.
-local menuShortcutPanel = spoon.HelperPanel.new({
-  placement = "below",
-  gap = 8,
-  padX = 14, padY = 10,
-  fill = function()
-    return (hs.host.interfaceStyle() == "Dark") and panelHexColor(PANEL_BG.dark) or panelHexColor(PANEL_BG.light)
-  end,
-  border = {
-    width = 1,
-    color = function()
-      return (hs.host.interfaceStyle() == "Dark") and panelHexColor(PANEL_BORDER.dark) or panelHexColor(PANEL_BORDER.light)
+-- The deferred shortcut hint panel, shared by every native chooser that wants one
+-- (menu search, VPN). One factory builds a HelperPanel docked below the chooser, filled
+-- and bordered to match the native picker, with that context's footerFor hints as its
+-- content, and returns the three callbacks a native chooser is wired with. arm on
+-- onPositioned starts the idle countdown (the panel stays hidden until the user pauses),
+-- poke on onActivity resets it on each keypress, and hide on onClose tears it down and
+-- clears any peeked overlay. The idle delay is the one settings.shortcutsPanel.delayMs,
+-- so editing it there applies to every panel this builds; nil or 0 there shows the panel
+-- instantly on open. fill and border are functions so they re-resolve light/dark on
+-- every show.
+local function shortcutPanelFor(context)
+  local panel = spoon.HelperPanel.new({
+    placement = "below",
+    gap = 8,
+    padX = 14, padY = 10,
+    delay = settings.shortcutsPanel and settings.shortcutsPanel.delayMs,
+    fill = function()
+      return (hs.host.interfaceStyle() == "Dark") and panelHexColor(PANEL_BG.dark) or panelHexColor(PANEL_BG.light)
     end,
-  },
-  content = shortcutsContent(settings.chooserTheme, menuHints),
-})
+    border = {
+      width = 1,
+      color = function()
+        return (hs.host.interfaceStyle() == "Dark") and panelHexColor(PANEL_BORDER.dark) or panelHexColor(PANEL_BORDER.light)
+      end,
+    },
+    content = shortcutsContent(settings.chooserTheme, footerFor(context)),
+  })
+  return {
+    onPositioned = function(frame) panel:arm(frame) end,
+    onActivity = function() panel:poke() end,
+    onClose = function()
+      hideShortcuts()
+      panel:hide()
+    end,
+  }
+end
 
 -- The chosen item runs deferred, after the chooser tears down and macOS restores
 -- focus to the captured app, since a menu action acts on that app. The shortcut
--- panel above is wired in through onPositioned/onClose, so it complements the native
--- chooser without the chooser knowing about it. onClose also clears any peeked
--- overlay, matching the other pickers.
+-- panel is wired in through onPositioned/onActivity/onClose, so it complements the
+-- native chooser without the chooser knowing about it.
+local menuPanel = shortcutPanelFor("menuSearch")
 local menuSearch = spoon.Chooser.new({
   -- Pinned to the native hs.chooser backend, which is noticeably snappier here
   -- than the web surface the other pickers use. Per-instance override only, so the
@@ -968,11 +974,9 @@ local menuSearch = spoon.Chooser.new({
       hs.timer.doAfter(0.1, function() app:selectMenuItem(item.path) end)
     end
   end,
-  onPositioned = function(frame) menuShortcutPanel:show(frame) end,
-  onClose = function()
-    hideShortcuts()
-    menuShortcutPanel:hide()
-  end,
+  onPositioned = menuPanel.onPositioned,
+  onActivity = menuPanel.onActivity,
+  onClose = menuPanel.onClose,
 })
 -- Dot-called navigation adapter over the Chooser instance, so the shared
 -- activeChooser / routeNav registry drives it exactly like the other pickers.
@@ -1018,6 +1022,26 @@ end
 -- Open key. Bound to the built-in chooser: fast, direct, shows the app icon. Swap to
 -- fireMenuSearchCombo (uncomment above) to hand off to an external tool instead.
 spoon.HyperKey:bind(keys.menuSearch.key, openBuiltinMenuSearch)
+
+-- VPN controls: a native chooser on Hyper+Y that merges the controls and the locations
+-- into one flat list, Connect or Disconnect on top and every city below. It is pinned to
+-- the native backend inside the spoon, so it needs only the shared theme and the Chooser
+-- factory injected here, plus the same deferred shortcut panel menu search uses, wired
+-- through the three chooser callbacks. The vpn Hyper context (see config/keys.lua) drives
+-- the j, k, i, and x shortcuts through the choosers registry below. When the Mullvad CLI
+-- is missing the spoon logs to the console and stays inert, so this wiring is safe on any
+-- machine. The open key is a base HyperKey binding, suppressed while a modal context owns
+-- Hyper.
+local vpnPanel = shortcutPanelFor("vpn")
+spoon.Vpn.configure({
+  theme = settings.chooserTheme,
+  chooser = spoon.Chooser,
+  onPositioned = vpnPanel.onPositioned,
+  onActivity = vpnPanel.onActivity,
+  onClose = vpnPanel.onClose,
+})
+spoon.Vpn.start()
+spoon.HyperKey:bind(keys.vpn.key, function() spoon.Vpn.show() end)
 
 -- Hyper context layers. Inject the shared predicate registry into HyperKey, then
 -- expand each context in keys.hyperContexts into HyperKey bindings that carry the

@@ -241,8 +241,11 @@ local function onChange()
   if chooser and chooser:isShowing() then chooser:refresh() end
 end
 
---- M.configure(opts) - inject the shared theme and the Chooser factory. Kept as the
---- single wiring seam so the main root stays the one place the atoms are handed in.
+--- M.configure(opts) - inject the shared theme, the Chooser factory, and the optional
+--- docked panel callbacks (onPositioned, onActivity, onClose) the root wires to its
+--- deferred shortcut hint panel. The spoon forwards those straight to its chooser without
+--- learning what they drive, so the panel stays the root's concern. Kept as the single
+--- wiring seam so the main root stays the one place the atoms are handed in.
 function M.configure(opts)
   cfg = opts or {}
   return M
@@ -266,6 +269,11 @@ function M.start()
     fieldMode = "filter",
     rows = rows,
     onSelect = onSelect,
+    -- The root's deferred shortcut hint panel, wired through the chooser's own seams so
+    -- the spoon stays ignorant of the panel. All optional; nil when no panel is injected.
+    onPositioned = cfg.onPositioned,
+    onActivity = cfg.onActivity,
+    onClose = cfg.onClose,
   })
   return M
 end
