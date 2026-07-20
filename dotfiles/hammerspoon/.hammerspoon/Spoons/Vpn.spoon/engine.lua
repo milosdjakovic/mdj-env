@@ -60,4 +60,11 @@ function M.listLocations(cb)
   if provider then provider.listLocations(cb) end
 end
 
+-- The relay the tunnel would use on connect, read live from the provider so the disconnected
+-- label can name where a connect would go.
+function M.selectedLocation()
+  if provider then return provider.selectedLocation() end
+  return nil
+end
+
 return M

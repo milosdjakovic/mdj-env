@@ -17,10 +17,14 @@
 ---   setLocation(country, city, cb)  select that relay and connect to it, then cb(ok, err).
 ---   listLocations(cb)               fetch the relays and call cb(list), each entry
 ---                                   { id, label, country, countryCode, city, cityCode }.
+---   selectedLocation()              the relay the tunnel would use on connect, read now
+---                                   from the location constraint, { countryCode, cityCode }
+---                                   with cityCode nil for a country only constraint, or nil
+---                                   when nothing is set. Fast, so synchronous.
 
 local M = {}
 
-M.methods = { "available", "status", "connect", "disconnect", "setLocation", "listLocations" }
+M.methods = { "available", "status", "connect", "disconnect", "setLocation", "listLocations", "selectedLocation" }
 
 function M.validate(provider)
   assert(type(provider) == "table", "vpn provider must be a table")

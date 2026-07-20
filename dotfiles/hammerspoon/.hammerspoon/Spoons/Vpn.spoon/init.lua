@@ -1,12 +1,13 @@
 --- === Vpn ===
 ---
---- A VPN control tool. Hyper+Y opens a native chooser that works as a two level menu.
---- The top level, the menu mode, shows the one action that fits the live state,
---- Disconnect when the tunnel is up and Connect when it is down, with the full status
---- spelled out in its subtitle, plus a Choose location row. Choosing that drops into the
---- locations mode, a filterable list of every city the provider offers, with a Back row
---- at the top of the unfiltered list that returns to the menu. Choosing a city sets the
---- relay and connects.
+--- A VPN control tool. Hyper+Y opens a single native chooser that merges the controls
+--- and the location search into one flat list. The first row is the action that fits the
+--- live state, its title naming the place, Disconnect from where the tunnel is when it is
+--- up and Connect to the selected relay when it is down, with the live state word and the
+--- provider in its subtitle. Every city the provider offers follows below it. Typing
+--- filters the cities, and once a filter is present the action row drops out so Return
+--- connects to the top matching city rather than toggling the tunnel. Choosing a city sets
+--- the relay and connects.
 ---
 --- This file is the composition root and the command policy. It loads the engine and the
 --- Mullvad provider, names them, validates the provider against the contract, and builds
@@ -15,19 +16,13 @@
 --- installed it logs the reason and the tool does nothing, so a machine without Mullvad
 --- degrades quietly.
 ---
---- One instance, two modes, not two instances. The native chooser dismisses its window on
---- any selection, so a drill down cannot keep one window open and repopulate it. Both
---- levels therefore re-show the same chooser, and a single `mode` field decides what the
---- row supplier returns and what a selection means. This is the State pattern living
---- inside one widget. The menu-to-locations and locations-to-menu hops re-show after a
---- short delay so the closing chooser's focus restore settles before the next open takes
---- focus, the same idiom the panel version used.
----
---- Native, so no footer and no Hyper navigation context: the chooser is driven by its own
---- arrow keys, type-to-filter, Return, and Escape once Hyper is released. Hyper+Y only
---- opens it.
+--- One flat list, not a drill down. The controls and the locations live in the same list,
+--- so there is no mode to switch and no second level to re-show. The location list is
+--- fetched on each open so a relay update is reflected, and the list is refreshed once it
+--- lands. The Hyper navigation shortcuts are wired from the main root (j, k, i, x), but no
+--- canvas hint pane is drawn, so the shortcuts work without an overlay.
 
-local M = { name = "Vpn", version = "2.0", author = "mdj-env" }
+local M = { name = "Vpn", version = "3.0", author = "mdj-env" }
 
 -- Load the siblings by absolute path, the Capture idiom (a spoon dir is not on
 -- package.path). The provider line is the one place the concrete backend is named,
@@ -38,38 +33,52 @@ local contract = dofile(spoonPath .. "contract.lua")
 local provider = contract.validate(dofile(spoonPath .. "providers/mullvad.lua"))
 
 local cfg = nil       -- injected: the shared theme and the Chooser factory
-local chooser = nil   -- the one native Chooser instance, re-shown in either mode
-local mode = "menu"   -- "menu" (the two actions) or "locations" (the city list)
+local chooser = nil   -- the one native Chooser instance
 local cache = {}      -- the last fetched location list, filtered by the supplier
-local current = { state = "unavailable" } -- status snapshot, refreshed on each menu open
+local current = { state = "unavailable" } -- status snapshot, refreshed on open and change
+local target = nil    -- the selected relay to connect to, { countryCode, cityCode }
 
 --------------------------------------------------------------------------------
--- Status wording (command policy)
+-- Status wording and location labels (command policy)
 --------------------------------------------------------------------------------
 
--- The provider name labels the status line, so it is clear which VPN app this is
--- driving. It comes from the provider itself (the one place that knows the backend),
--- shown in parentheses after the live state, and named directly in the not responding
--- line since there is no state to pair it with.
+-- The status line is just the live state word with the provider in parentheses, so it
+-- reads Connected, Connecting, Disconnecting, or Disconnected without the location, which
+-- the action title carries instead. The provider name comes from the provider itself, the
+-- one place that knows the backend, and is named directly in the not responding line since
+-- there is no state to pair it with.
+local STATE_WORD = {
+  connected = "Connected",
+  connecting = "Connecting",
+  disconnecting = "Disconnecting",
+  disconnected = "Disconnected",
+}
 local function statusText(s)
   local name = provider.name or "VPN"
   if not s or s.state == "unavailable" then return name .. " is not responding" end
-  local st = s.state
-  local base
-  if st == "connected" then
-    if s.city and s.country then base = "Connected, " .. s.city .. ", " .. s.country
-    elseif s.hostname then base = "Connected, " .. s.hostname
-    else base = "Connected" end
-  elseif st == "connecting" then
-    base = "Connecting"
-  elseif st == "disconnecting" then
-    base = "Disconnecting"
-  elseif st == "disconnected" then
-    base = "Disconnected"
-  else
-    base = tostring(st)
+  return (STATE_WORD[s.state] or tostring(s.state)) .. " (" .. name .. ")"
+end
+
+-- The place the live tunnel exits, from the connected status, as a City, Country label
+-- or the hostname when that is all there is. Nil when the status carries no location.
+local function connectedLabel(s)
+  if s.city and s.country then return s.city .. ", " .. s.country end
+  return s.hostname
+end
+
+-- The selected relay resolved to a human label. The constraint gives only codes, so it is
+-- matched against the loaded city list to recover the City, Country name, a country only
+-- constraint resolving to the country name. Before the list lands, or when no match is
+-- found, the raw codes stand in so the title is never blank. Nil when nothing is selected.
+local function targetLabel(t)
+  if not t then return nil end
+  for _, loc in ipairs(cache) do
+    if loc.countryCode == t.countryCode and (not t.cityCode or loc.cityCode == t.cityCode) then
+      return t.cityCode and loc.label or loc.country
+    end
   end
-  return base .. " (" .. name .. ")"
+  if t.cityCode then return t.cityCode:upper() .. ", " .. t.countryCode:upper() end
+  return t.countryCode:upper()
 end
 
 --------------------------------------------------------------------------------
@@ -78,8 +87,8 @@ end
 
 -- Render an emoji string to a small image so a row can carry it as its icon, an
 -- offscreen canvas drawn once and cached by the string, since a supplier runs on every
--- keystroke. The flags and the menu glyphs both go through this one path. A false marks
--- a string that cannot render, so it is attempted only once.
+-- keystroke. The flags and the action glyphs both go through this one path. A false
+-- marks a string that cannot render, so it is attempted only once.
 local glyphCache = {}
 local function emojiImage(str)
   local hit = glyphCache[str]
@@ -109,47 +118,47 @@ local function flagImage(cc)
   return emojiImage(utf8.char(base + c1, base + c2))
 end
 
--- The menu glyphs. Green and red circles read as go and stop at a glance, the globe
--- marks the location list, and the arrow marks the way back.
+-- The action glyphs. A green circle reads as go, a red one as stop.
 local ICON = {
   connect = "🟢",
   disconnect = "🔴",
-  locations = "🌍",
-  back = "⬅️",
 }
 
 --------------------------------------------------------------------------------
--- Row suppliers, one per mode
+-- Row supplier (one flat list)
 --------------------------------------------------------------------------------
 
--- The menu rows depend on the state read at open. When the tunnel is up the primary
--- action is Disconnect, otherwise it is Connect, and its subtitle carries the full live
--- status since the native chooser has no separate status line. Connecting counts as up
--- so the action cancels it, and every other state, including a daemon that is not
--- answering, offers Connect. Choose location is always the second row. The query is
--- ignored here, the menu is only two rows.
-local function menuRows()
+-- The one row that toggles the tunnel. When up the title names where the tunnel is,
+-- Disconnect from City, Country, and when down it names where a connect would go, Connect
+-- to City, Country from the selected relay. The location falls off the title when it is
+-- unknown, leaving a bare Connect or Disconnect. Connecting counts as up so the action
+-- cancels it, and every other state, including a daemon that is not answering, offers
+-- Connect. The status word plus provider sits in the subtitle. Shown only on the
+-- unfiltered list, so a typed filter targets the cities below and Return connects to the
+-- top match rather than toggling the tunnel.
+local function actionRow()
   local up = current.state == "connected" or current.state == "connecting"
-  local primary = up
-    and { title = "Disconnect", subTitle = statusText(current), image = emojiImage(ICON.disconnect), item = { id = "disconnect" } }
-    or { title = "Connect", subTitle = statusText(current), image = emojiImage(ICON.connect), item = { id = "connect" } }
-  return {
-    primary,
-    { title = "Choose location", subTitle = "Browse all locations", image = emojiImage(ICON.locations), item = { id = "locations" } },
-  }
+  local title, id, icon
+  if up then
+    local where = connectedLabel(current)
+    title = where and ("Disconnect from " .. where) or "Disconnect"
+    id, icon = "disconnect", ICON.disconnect
+  else
+    local where = targetLabel(target)
+    title = where and ("Connect to " .. where) or "Connect"
+    id, icon = "connect", ICON.connect
+  end
+  return { title = title, subTitle = statusText(current), image = emojiImage(icon), item = { id = id } }
 end
 
--- The locations supplier, a case insensitive substring match on the label or the country
--- code, so typing London, USA, or gb all narrow the list. Each row carries its country
--- flag as the icon. The Back row leads the unfiltered list so it is the first thing seen
--- on entering, but it is dropped the moment a query is typed, so Return on a filtered list
--- connects to the top matching city rather than bouncing back to the menu.
-local function locationRows(query)
+-- The merged supplier. On the unfiltered list the action row leads, then the cities. A
+-- query narrows the cities by a case insensitive substring match on the label or the
+-- country code, so typing London, USA, or gb all narrow the list, and it drops the action
+-- row so the top match is a city. Each city row carries its country flag as the icon.
+local function rows(query)
   local q = (query or ""):lower()
   local out = {}
-  if q == "" then
-    out[#out + 1] = { title = "Back", subTitle = "Return to VPN menu", image = emojiImage(ICON.back), item = { back = true } }
-  end
+  if q == "" then out[#out + 1] = actionRow() end
   for _, loc in ipairs(cache) do
     if q == "" or loc.label:lower():find(q, 1, true) or loc.countryCode:find(q, 1, true) then
       out[#out + 1] = {
@@ -163,72 +172,21 @@ local function locationRows(query)
   return out
 end
 
--- The one supplier the chooser calls, branching on the live mode.
-local function rows(query)
-  if mode == "menu" then return menuRows() end
-  return locationRows(query)
-end
-
---------------------------------------------------------------------------------
--- Re-show, the mechanism behind both levels
---------------------------------------------------------------------------------
-
--- Show the chooser for the current mode. The menu reads a fresh status snapshot each
--- open so both rows reflect the live state, and the placeholder names the mode. The atom
--- resets the query to empty on show, so entering a level always starts unfiltered.
-local function showChooser()
-  if not chooser then return end
-  if mode == "menu" then
-    current = engine.status()
-    chooser:setPlaceholder(provider.name or "VPN")
-  else
-    chooser:setPlaceholder("Search locations")
-  end
-  chooser:show()
-end
-
--- Enter the locations mode: fetch the relay list fresh so an update is reflected, show
--- the list, and refresh it once the list lands.
-local function enterLocations()
-  mode = "locations"
-  engine.listLocations(function(list)
-    cache = list or {}
-    if chooser then chooser:refresh() end
-  end)
-  showChooser()
-end
-
--- Return to the menu.
-local function enterMenu()
-  mode = "menu"
-  showChooser()
-end
-
 --------------------------------------------------------------------------------
 -- Selection dispatch (command policy)
 --------------------------------------------------------------------------------
 
--- A row was chosen; the native chooser has already closed. In menu mode Connect and
--- Disconnect delegate to the engine and the tool is done, while Choose location re-shows
--- in locations mode after a short delay so the closing chooser's focus restore settles
--- first. In locations mode Back re-shows the menu the same way, and a city sets the relay
--- and connects. The mode is left as it is; the next Hyper+Y resets it to menu via M.show.
+-- A row was chosen. Connect and Disconnect delegate to the engine, and any other row is
+-- a city, so set that relay and connect. The native chooser has already closed either
+-- way.
 local function onSelect(sel)
   if not sel then return end
-  if mode == "menu" then
-    if sel.id == "connect" then
-      engine.connect()
-    elseif sel.id == "disconnect" then
-      engine.disconnect()
-    elseif sel.id == "locations" then
-      hs.timer.doAfter(0.08, enterLocations)
-    end
+  if sel.id == "connect" then
+    engine.connect()
+  elseif sel.id == "disconnect" then
+    engine.disconnect()
   else
-    if sel.back then
-      hs.timer.doAfter(0.08, enterMenu)
-    else
-      engine.setLocation(sel.countryCode, sel.cityCode)
-    end
+    engine.setLocation(sel.countryCode, sel.cityCode)
   end
 end
 
@@ -236,13 +194,19 @@ end
 -- Public control surface (dot-called, matching the clipboard and caffeinate)
 --------------------------------------------------------------------------------
 
---- M.show() - open the VPN control chooser at the menu level. Resetting the mode here
---- means every fresh open starts at the menu regardless of how the last one ended, an
---- Escape out of the locations list included.
+--- M.show() - read the state and the selected relay once, fetch the relay list, and open
+--- the chooser. The status lives on the action row, not the placeholder, so the field just
+--- prompts the location filter. The list is refreshed once the relays land, which also
+--- resolves the selected relay's codes to its human label in the title.
 function M.show()
   if not chooser then return end
-  mode = "menu"
-  showChooser()
+  current = engine.status()
+  target = engine.selectedLocation()
+  engine.listLocations(function(list)
+    cache = list or {}
+    if chooser then chooser:refresh() end
+  end)
+  chooser:show()
 end
 
 function M.isShowing()
@@ -253,12 +217,28 @@ function M.hide()
   if chooser then chooser:hide() end
 end
 
--- The daemon state changed while the chooser may be open. Redraw the menu rows so the
--- action and its status subtitle follow. Only the menu shows status, so a locations-mode
--- refresh is harmless.
+-- Vim style navigation, routed here from the vpn Hyper context by the main root, the same
+-- shared control the clipboard and caffeinate use.
+function M.selectNext()
+  if chooser then chooser:selectNext() end
+end
+
+function M.selectPrev()
+  if chooser then chooser:selectPrev() end
+end
+
+--- M.insertSelected() - apply the highlighted row, exactly as Return does, routed here
+--- from Hyper+i.
+function M.insertSelected()
+  if chooser then chooser:insertSelected() end
+end
+
+-- The daemon state changed while the chooser may be open. Refresh the snapshot and the
+-- selected relay, then redraw so the action row's title and status follow the live state.
 local function onChange()
   current = engine.status()
-  if chooser and chooser:isShowing() and mode == "menu" then chooser:refresh() end
+  target = engine.selectedLocation()
+  if chooser and chooser:isShowing() then chooser:refresh() end
 end
 
 --- M.configure(opts) - inject the shared theme and the Chooser factory. Kept as the
@@ -282,7 +262,7 @@ function M.start()
     -- which also drops the footer and themed rendering the web surface adds.
     provider = "native",
     theme = cfg.theme,
-    placeholder = provider.name or "VPN",
+    placeholder = "Search locations",
     fieldMode = "filter",
     rows = rows,
     onSelect = onSelect,

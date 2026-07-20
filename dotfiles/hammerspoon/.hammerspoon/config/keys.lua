@@ -136,9 +136,11 @@ return {
   -- while it is open the base Hyper toggles are suppressed and Hyper belongs to it,
   -- and it is the active context so holding Hyper reveals nothing.
   --
-  -- The VPN chooser has no context: it runs on the native backend and is driven by its
-  -- own arrows, type-to-filter, Return, and Escape once Hyper is released, so it needs no
-  -- Hyper navigation of its own.
+  -- The VPN chooser is one flat list, the controls on top and the locations below. It
+  -- carries the same j, k, i, and x: j and k move the highlight, i confirms the
+  -- highlighted row the same as Return (toggle the tunnel or connect to the city), and x
+  -- closes it. It runs on the native backend, so plain typing filters the list while Hyper
+  -- is released, and no canvas hint pane is drawn.
   hyperContexts = {
     {
       name = "clipboard",
@@ -163,6 +165,17 @@ return {
     {
       name = "caffeinate",
       when = "caffeinateOpen",
+      priority = 100,
+      bindings = {
+        { key = "k", action = "selectPrev",     description = "Move up" },
+        { key = "j", action = "selectNext",     description = "Move down" },
+        { key = "i", action = "insertSelected", description = "Confirm" },
+        { key = "x", action = "closeChooser",   description = "Close" },
+      },
+    },
+    {
+      name = "vpn",
+      when = "vpnOpen",
       priority = 100,
       bindings = {
         { key = "k", action = "selectPrev",     description = "Move up" },

@@ -53,6 +53,25 @@ function M.status()
   return s
 end
 
+-- The relay the tunnel would use on connect, read from the location constraint rather
+-- than the live tunnel, since a disconnected tunnel still has a selection and its status
+-- reports the real geography, not the target. A fast synchronous read like status. The
+-- constraint prints as "Location: city lax, us" for a city, "Location: country us" for a
+-- country, or "any" when unset. Returns { countryCode, cityCode } with cityCode nil for a
+-- country only constraint, or nil when nothing is set.
+function M.selectedLocation()
+  if not cli then return nil end
+  local out, ok = hs.execute(cli .. " relay get 2>/dev/null")
+  if not ok or not out then return nil end
+  local rest = out:match("Location:%s*(.-)\n")
+  if not rest then return nil end
+  local city, country = rest:match("^city%s+(%S+),%s*(%a%a)")
+  if city and country then return { countryCode = country, cityCode = city } end
+  local c = rest:match("^country%s+(%a%a)")
+  if c then return { countryCode = c } end
+  return nil
+end
+
 -- Run a CLI subcommand off the main thread and fire the callback on completion. The
 -- callback lands on the main thread, so it is safe to touch the UI from it.
 local function runAsync(args, cb)
