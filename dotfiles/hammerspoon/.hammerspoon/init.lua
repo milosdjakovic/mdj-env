@@ -886,25 +886,20 @@ local function openBuiltinMenuSearch()
   end)
 end
 
--- Fire the external menu search combo (menuSearchShortcut, ⇧⌃⌥⌘J). Whatever tool
--- is bound to that same combo anywhere opens, so Hyper+J can hand off to an external
--- menu searcher instead of the built-in. It is a plain combo with no app conditions.
--- The combo is deferred until the Hyper key is released, matching the launcher,
--- since firing it while the leader is still held is unreliable.
-local menuShortcut = keys.menuSearchShortcut
-local function fireMenuSearchCombo()
-  local function fire() hs.eventtap.keyStroke(menuShortcut.mods, menuShortcut.key, 0) end
-  if spoon.HyperKey:isActive() then
-    hs.timer.waitUntil(function() return not spoon.HyperKey:isActive() end, fire, 0.02)
-  else
-    fire()
-  end
-end
+-- External combo hand-off, kept but disabled. Uncomment this block and bind
+-- fireMenuSearchCombo below (instead of openBuiltinMenuSearch) to make Hyper+J fire
+-- menuSearchShortcut (⇧⌃⌥⌘J) so an external tool bound to that same combo anywhere
+-- opens. Disabled because routing through an Alfred hotkey added noticeable latency
+-- versus the built-in chooser, which binds directly with no synthesized combo and no
+-- round-trip. The menuSearchShortcut data stays in config/keys.lua for re-enabling.
+-- local menuShortcut = keys.menuSearchShortcut
+-- local function fireMenuSearchCombo()
+--   hs.eventtap.keyStroke(menuShortcut.mods, menuShortcut.key, 0)
+-- end
 
--- Open key. Bound to fire the external combo, so Hyper+J hands off to whatever tool
--- is bound to menuSearchShortcut anywhere; swap the handler to openBuiltinMenuSearch
--- to use the built-in chooser instead.
-spoon.HyperKey:bind(keys.menuSearch.key, fireMenuSearchCombo)
+-- Open key. Bound to the built-in chooser: fast, direct, shows the app icon. Swap to
+-- fireMenuSearchCombo (uncomment above) to hand off to an external tool instead.
+spoon.HyperKey:bind(keys.menuSearch.key, openBuiltinMenuSearch)
 
 -- Hyper context layers. Inject the shared predicate registry into HyperKey, then
 -- expand each context in keys.hyperContexts into HyperKey bindings that carry the
