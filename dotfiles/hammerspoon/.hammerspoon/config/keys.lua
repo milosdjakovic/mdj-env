@@ -202,19 +202,19 @@ return {
     },
     -- The menu search chooser. Lists the frontmost app's menu items on Hyper+J.
     -- i runs the highlighted item the same as Return, j and k navigate vim style,
-    -- and Space closes it. The open key J is itself a nav key, so unlike the
-    -- command palette the open key cannot double as the close; Space is the close
-    -- here (and Escape closes natively). Plain typing filters while Hyper is
-    -- released.
+    -- and x closes it, the same as the clipboard, keep awake, and VPN choosers.
+    -- The open key J is itself a nav key, so unlike the command palette the open
+    -- key cannot double as the close; x is the close here (and Escape closes
+    -- natively). Plain typing filters while Hyper is released.
     {
       name = "menuSearch",
       when = "menuSearchOpen",
       priority = 100,
       bindings = {
-        { key = "i",     action = "insertSelected", description = "Run" },
-        { key = "j",     action = "selectNext",     description = "Move down" },
-        { key = "k",     action = "selectPrev",     description = "Move up" },
-        { key = "space", action = "closeChooser",   description = "Close" },
+        { key = "i", action = "insertSelected", description = "Run" },
+        { key = "j", action = "selectNext",     description = "Move down" },
+        { key = "k", action = "selectPrev",     description = "Move up" },
+        { key = "x", action = "closeChooser",   description = "Close" },
       },
     },
   },
