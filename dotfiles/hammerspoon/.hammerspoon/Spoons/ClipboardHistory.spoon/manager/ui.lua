@@ -178,33 +178,66 @@ local function parseQuery(q)
   return nil, q
 end
 
+-- An appended row (Hyper+a) is marked by swapping its icon for a big keycap-emoji
+-- number, since a tiny text prefix was too easy to miss. The glyph is a keycap
+-- digit 1..9, capping at the ten-keycap past nine, so the mark says "queued and
+-- roughly where", not exact depth.
+local KEYCAP = { "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣" }
+local function keycapGlyph(pos)
+  return KEYCAP[pos] or "🔟"
+end
+
+-- Render a keycap emoji to a square hs.image once per position, cached. hs.canvas
+-- draws the glyph and imageFromCanvas snapshots it; the image is independent of the
+-- canvas, so the scratch canvas is deleted right after. An hs.image serialises fine
+-- as a chooser row image (only functions are dropped), so it stands in as the icon.
+local keycapCache = {}
+local function keycapImage(pos)
+  local hit = keycapCache[pos]
+  if hit ~= nil then return hit or nil end
+  local S = 48
+  local c = hs.canvas.new({ x = 0, y = 0, w = S, h = S })
+  c[1] = { type = "text", text = keycapGlyph(pos), textSize = 34,
+           textAlignment = "center", frame = { x = 0, y = (S - 40) / 2, w = S, h = 42 } }
+  local img = c:imageFromCanvas() or false
+  c:delete()
+  keycapCache[pos] = img
+  return img or nil
+end
+
+-- The preview meta note for an appended entry, kept as readable text (the pane's
+-- monospace block, unlike the row icon, is no place for the emoji).
+local function withBatchMark(meta, e)
+  local pos = batchPos(e)
+  return pos and (meta .. "  ·  #" .. pos .. " Appended") or meta
+end
+
 -- The atom's rows supplier. Returns plain items; the atom styles them with the
--- active palette. Filtering, the type prefix, the batch order badge, and the
--- thumbnail or source-app icon are all clipboard policy and live here.
+-- active palette. Filtering, the type prefix, the batch mark, and the thumbnail or
+-- source-app icon are all clipboard policy and live here.
 local function buildChoices(q)
   local kind, rest = parseQuery(q)
   rest = (rest or ""):gsub("^%s+", ""):gsub("%s+$", ""):lower()
   local out = {}
   for _, e in ipairs(store.all()) do
     if (not kind or e.kind == kind) and (rest == "" or haystack(e):find(rest, 1, true)) then
-      -- A collected row wears its order number as a badge over its icon, so its
-      -- place in the batch shows without touching the title, which kept the text
-      -- from shifting right when a row was appended. The badge is display only;
-      -- search still runs over the raw title in haystack, so it never affects
-      -- matching.
+      -- An appended row shows its 1-based batch position as its icon (the keycap
+      -- number), the most visible mark on the native chooser, which renders no icon
+      -- badge. Otherwise a true image copy shows its own thumbnail and every other
+      -- row shows the icon of the app it came from, falling back to nothing when
+      -- unknown. The stable iconKey lets the atom encode each icon once and reuse it.
       local pos = batchPos(e)
-      -- A true image copy shows its own thumbnail, every other row shows the icon of
-      -- the app it came from, falling back to nothing when unknown. The stable
-      -- iconKey (the thumbnail path or the source bundle id) is derived from the
-      -- image actually chosen, so the atom encodes each icon once and reuses it even
-      -- after the thumbnail cache is rebuilt, rather than re-encoding every open.
       local img, iconKey
-      local thumb = e.kind == "image" and thumbImage(e.thumb) or nil
-      if thumb then
-        img, iconKey = thumb, "thumb:" .. e.thumb
+      if pos then
+        img, iconKey = keycapImage(pos), "batch:" .. pos
       else
-        local ic = appIcon(e.sourceApp)
-        if ic then img, iconKey = ic, "app:" .. e.sourceApp end
+        local thumb = e.kind == "image" and thumbImage(e.thumb) or nil
+        if thumb then
+          img, iconKey = thumb, "thumb:" .. e.thumb
+        else
+          local ic = appIcon(e.sourceApp)
+          if ic then img, iconKey = ic, "app:" .. e.sourceApp end
+        end
       end
       out[#out + 1] = {
         title = e.title,
@@ -414,6 +447,7 @@ local function buildFileHeader(e, w)
   if e.size and e.size > 0 then meta = meta .. "  ·  " .. util.humanSize(e.size) end
   local badge = fileBadge(e)
   if badge then meta = meta .. "  ·  " .. badge end
+  meta = withBatchMark(meta, e)
   local y = appendText(els, meta:upper(), 0, 0, w, colors.meta, META_SIZE)
   y = y + 4
   for _, el in ipairs(files) do
@@ -430,6 +464,7 @@ local function buildNonFile(e)
   if e.kind == "image" then
     local meta = e.title
     if e.size then meta = meta .. "  ·  " .. util.humanSize(e.size) end
+    meta = withBatchMark(meta, e)
     local y = appendText(els, meta:upper(), 0, 0, w, colors.meta, META_SIZE) + BLOCK_GAP
     local img = previewImage(e.prev)
     if img then
@@ -443,6 +478,7 @@ local function buildNonFile(e)
   -- Text shows its character count, computed once at capture, so the pane never
   -- recounts on highlight.
   if e.kind == "text" and e.chars then meta = meta .. "  ·  " .. e.chars .. " chars" end
+  meta = withBatchMark(meta, e)
   local y = appendText(els, meta:upper(), 0, 0, w, colors.meta, META_SIZE) + BLOCK_GAP
   local text = e.text or ""
   local capped = #text > TEXT_DISPLAY_CAP
@@ -736,6 +772,7 @@ function UI.appendSelected()
   if not entry then return end
   toggleBatch(entry)
   picker:refresh()
+  renderPreview(entry) -- update the preview's mark to match the row, without moving
   refreshFooter()
 end
 
