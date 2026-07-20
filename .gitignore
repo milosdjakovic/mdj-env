@@ -5,3 +5,6 @@ dotfiles/tmux/.tmux/plugins/
 
 # lazygit runtime state (not configuration)
 dotfiles/lazygit/Library/Application Support/lazygit/state.yml
+
+# LLVM coverage profiling artifacts
+*.profraw
