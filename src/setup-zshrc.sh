@@ -19,7 +19,7 @@ if [[ -r "\${XDG_CACHE_HOME:-\$HOME/.cache}/p10k-instant-prompt-\${(%):-%n}.zsh"
 fi
 
 # Homebrew PATH
-export PATH="$BREW_PREFIX/bin:\$PATH"
+export PATH="$BREW_PREFIX/bin:$BREW_PREFIX/sbin:\$PATH"
 
 # Load dotfiles config
 source ~/.zshrc.custom
