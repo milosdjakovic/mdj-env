@@ -8,7 +8,9 @@
 --- dedicated system shortcut for it, so the provider presses Cmd+Space to open
 --- Spotlight and then Cmd+4 to select its Clipboard category. Point opts.provider
 --- at a different table (e.g. a launcher's own clipboard command) to swap the
---- backend without touching the binding logic.
+--- backend without touching the binding logic. `providers.shortcut` is the generic
+--- one: give it a combo and any external clipboard manager bound to that combo
+--- becomes the backend, no app-specific code.
 ---
 --- A provider is a table implementing:
 ---   :isShowing() -> boolean          is the UI already visible (avoids a toggle)
@@ -77,6 +79,10 @@ obj.providers = {
   spotlightTahoe = load("providers/spotlight-tahoe.lua"),
   raycast = load("providers/raycast.lua"),
   hammerspoon = load("providers/hammerspoon.lua")(obj.manager),
+  -- A constructor, not a ready provider: the shortcut backend needs a combo (and
+  -- optional target) from the composition root, so it is called there like
+  -- firstAvailable rather than used directly.
+  shortcut = load("providers/shortcut.lua"),
 }
 
 --- ClipboardHistory.providers.firstAvailable(chain)

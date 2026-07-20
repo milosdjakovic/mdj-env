@@ -80,12 +80,23 @@ return {
     -- { app = "Xcode",          modifiers = HYPER, key = "X" },
   },
 
-  -- Clipboard history (for ClipboardHistory.spoon). Same modifiers/key shape as
-  -- appToggles so the HYPER field acts as the fallback combo when HyperKey is
-  -- not wired up. The `description` labels its row on the Hyper cheat sheet.
+  -- Clipboard history (for ClipboardHistory.spoon). Hyper+X opens it; the backend
+  -- is the provider chain wired in init.lua, the external app via clipboardShortcut
+  -- while it runs and the native manager otherwise. Same modifiers/key shape as
+  -- appToggles so the HYPER field is the fallback combo when HyperKey is not wired
+  -- up. The `description` labels its Hyper cheat sheet and command palette rows.
   clipboardHistory = { modifiers = HYPER, key = "X", description = "Clipboard history" },
 
-  -- Keep awake (for Caffeinate.spoon). Same shape as clipboardHistory. Hyper+K
+  -- External clipboard shortcut, for ClipboardHistory's generic `shortcut`
+  -- provider. Hammerspoon fires this combo and whatever clipboard manager you bind
+  -- the SAME combo to reveals its history. `app` names the target in the apps
+  -- registry, so while it runs the shortcut wins and when it is not the native
+  -- Hammerspoon clipboard takes over. This is the one place the combo lives, keep
+  -- it in step with the shortcut set inside that app. Drop `app` to make it always
+  -- win regardless of what is running.
+  clipboardShortcut = { mods = { "cmd", "alt", "ctrl", "shift" }, key = "c", app = "Monarch" },
+
+  -- Keep awake (for Caffeinate.spoon). Same shape as appToggles. Hyper+K
   -- opens the keep awake panel, a typed field, not a list. It is a base binding,
   -- suppressed while a modal context owns Hyper.
   caffeinate = { modifiers = HYPER, key = "K", description = "Keep awake" },
@@ -114,7 +125,7 @@ return {
   -- item (or the whole batch once one is marked, when its label reads "Delete
   -- marked"), and x closes the chooser, the same as Escape. x needs its own binding
   -- because the context is modal, so the base Hyper+X toggle is suppressed while the
-  -- chooser is open.
+  -- native chooser is open.
   --
   -- The keep awake panel is a list you navigate. j and k move the highlight down
   -- and up vim style, the same as the arrow keys the panel handles natively, and x

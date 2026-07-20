@@ -380,11 +380,14 @@ hideHyperLayer = function()
   heldLayer = nil
 end
 
--- ClipboardHistory: reveal clipboard history on the Hyper key. The Hammerspoon
--- manager is placed first, so it always wins; Raycast and the macOS Tahoe
--- Spotlight clipboard stay as fallbacks. The chain logs each skip, and
--- availability is rechecked on every open. Reorder the list to change
--- preference, or drop the hammerspoon line to fall back to Raycast.
+-- ClipboardHistory: reveal clipboard history from the command palette and the
+-- hammerspoon://clipboard URL, and Hyper+X. The generic shortcut backend is placed
+-- first, gated on its target app, so while that app runs opening the clipboard
+-- fires the shared combo and the app shows its history; when it is not running the
+-- native Hammerspoon manager takes over, with Raycast and the macOS Tahoe Spotlight
+-- clipboard behind it. The chain logs each skip, and availability is rechecked on
+-- every open. Reorder the list to change preference, or drop the shortcut line to
+-- always use the native manager.
 spoon.ClipboardHistory:init()
 -- Inject the overlay teardown as the manager's onClose before it starts, so it is
 -- captured when the ui is wired. Closing the chooser then clears the shortcut
@@ -402,9 +405,19 @@ spoon.ClipboardHistory.manager.configure({
   footerFor = clipboardFooter,
 })
 spoon.ClipboardHistory.manager.start() -- begin the background pasteboard poll
+local clipShortcut = keys.clipboardShortcut
 spoon.ClipboardHistory:configure({
   hyperKey = spoon.HyperKey,
   provider = spoon.ClipboardHistory.providers.firstAvailable({
+    -- Generic external backend: fire clipShortcut's combo, gated on its target app
+    -- (resolved to a bundle id here, the one place concretions are named) so the
+    -- native manager below takes over when that app is not running.
+    spoon.ClipboardHistory.providers.shortcut({
+      name = clipShortcut.app or "Shortcut",
+      mods = clipShortcut.mods,
+      key = clipShortcut.key,
+      bundleID = clipShortcut.app and apps[clipShortcut.app] or nil,
+    }),
     spoon.ClipboardHistory.providers.hammerspoon,
     spoon.ClipboardHistory.providers.raycast,
     spoon.ClipboardHistory.providers.spotlightTahoe,
