@@ -14,6 +14,14 @@
 ---   * holding past holdDelay with no other key runs onHold (used to reveal a
 ---     cheat sheet), and onHoldEnd fires when that shown hold releases.
 ---
+--- With passthrough on (a configure default, overridable per key), a held key
+--- that resolves to no handler no longer swallows the combo but leaks it to other
+--- apps as leader+key. Since the leader's own key-down was already swallowed, the
+--- engine synthesizes it once on the first unbound press, synthesizes the pressed
+--- key with its live modifiers, and emits the leader key-up on release. This lets
+--- an eventtap-based app downstream (a shortcut recorder, Raycast, Karabiner) bind
+--- combos the domain does not claim, while bound combos still run and swallow.
+---
 --- This is only the MECHANISM. The domain policy -- which keys map to what, and
 --- how sub-modifiers resolve -- lives in the callers (HyperKey, WindowLeader),
 --- which register their key(s) here via addKey() and supply an onKey() lookup.
@@ -39,9 +47,26 @@ obj._keys = nil        -- keyCode -> entry (config + runtime state)
 -- apart. See start(), which ignores everything that is not physical.
 local HID_SYSTEM_STATE = 1
 
+-- The modifier universe, most to least common. Used to turn a live flags table
+-- (from getFlags()) into the list form newKeyEvent wants, so a passed-through key
+-- keeps whatever real modifiers were held with it (fn included, as macOS stamps
+-- it onto arrow keys).
+local MODS = { "cmd", "alt", "ctrl", "shift", "fn" }
+local function modsList(flags)
+  local list = {}
+  for _, m in ipairs(MODS) do
+    if flags[m] then list[#list + 1] = m end
+  end
+  return list
+end
+
 -- Defaults applied to any key that does not override them (see configure()).
 obj._holdDelay = 0.6
 obj._tapThreshold = 0.2
+-- Whether an unbound combo leaks downstream instead of being swallowed. Off by
+-- default so a key that opts out (or a caller that never configures it) keeps the
+-- original swallow-everything behaviour.
+obj._passthrough = false
 
 --- ChordKey:init()
 --- Method
@@ -56,10 +81,12 @@ end
 --- Set the defaults inherited by keys registered without their own value.
 --- opts.holdDelay    - seconds held (nothing else pressed) before onHold fires
 --- opts.tapThreshold - seconds under which a bare press/release counts as a tap
+--- opts.passthrough  - default for whether unbound combos leak downstream (bool)
 function obj:configure(opts)
   opts = opts or {}
   if opts.holdDelay ~= nil then self._holdDelay = opts.holdDelay end
   if opts.tapThreshold ~= nil then self._tapThreshold = opts.tapThreshold end
+  if opts.passthrough ~= nil then self._passthrough = opts.passthrough end
   return self
 end
 
@@ -68,6 +95,7 @@ end
 --- Register a chord key by its (remapped) virtual keycode. opts:
 ---   holdDelay    - override the default hold delay for this key
 ---   tapThreshold - override the default tap threshold for this key
+---   passthrough  - override whether this key's unbound combos leak downstream
 ---   onTap        - function() on a quick tap with no other key (optional; omit
 ---                  for keys with no tap fallback, e.g. window leaders)
 ---   onHold       - function(keyCode) once the hold passes holdDelay (optional)
@@ -82,6 +110,7 @@ function obj:addKey(keyCode, opts)
     code = keyCode,
     holdDelay = opts.holdDelay or self._holdDelay,
     tapThreshold = opts.tapThreshold or self._tapThreshold,
+    passthrough = opts.passthrough ~= nil and opts.passthrough or self._passthrough,
     onTap = opts.onTap,
     onHold = opts.onHold,
     onHoldEnd = opts.onHoldEnd,
@@ -92,6 +121,8 @@ function obj:addKey(keyCode, opts)
     shown = false,  -- has onHold fired (overlay is up)?
     downTime = 0,
     holdTimer = nil,
+    passthroughDown = false, -- have we synthesized this leader's key-down?
+    passedKeys = {},         -- codes leaked downstream this hold, pending their up
   }
   return self
 end
@@ -113,6 +144,33 @@ function obj:_cancelHold(k)
   if k.holdTimer then
     k.holdTimer:stop()
     k.holdTimer = nil
+  end
+end
+
+--- ChordKey:_passDown(k)
+--- Method
+--- Synthesize this leader's key-down for downstream apps, once per hold. The real
+--- key-down was swallowed, so an app cannot see the leader is held until we post
+--- one. Posting the leader before the pressed key keeps the order the app expects.
+function obj:_passDown(k)
+  if k.passthroughDown then return end
+  k.passthroughDown = true
+  hs.eventtap.event.newKeyEvent({}, k.code, true):post()
+end
+
+--- ChordKey:_endPassthrough(k)
+--- Method
+--- Close out a hold's passthrough: emit an up for any key still held downstream
+--- (so nothing sticks), then the leader's own key-up if we ever synthesized its
+--- down. Keys first, leader last, mirroring the order they went out.
+function obj:_endPassthrough(k)
+  for code in pairs(k.passedKeys) do
+    hs.eventtap.event.newKeyEvent({}, code, false):post()
+  end
+  k.passedKeys = {}
+  if k.passthroughDown then
+    k.passthroughDown = false
+    hs.eventtap.event.newKeyEvent({}, k.code, false):post()
   end
 end
 
@@ -145,6 +203,8 @@ function obj:start()
           k.active = true
           k.used = false
           k.shown = false
+          k.passthroughDown = false
+          k.passedKeys = {}
           k.downTime = hs.timer.secondsSinceEpoch()
           if k.onHold and k.holdDelay then
             k.holdTimer = hs.timer.doAfter(k.holdDelay, function()
@@ -167,6 +227,7 @@ function obj:start()
         if k.onTap and not wasUsed and heldFor < k.tapThreshold then
           hs.timer.doAfter(0, k.onTap)
         end
+        if k.passthrough then self:_endPassthrough(k) end
       end
       return true, {} -- swallow the chord key entirely
     end
@@ -190,12 +251,30 @@ function obj:start()
             held.onHoldEnd(held.code)
             held.shown = false
           end
-          if held.onKey then
-            local fn = held.onKey(code, e:getFlags())
-            if fn then
-              hs.timer.doAfter(0, fn)
-            end
+          local fn = held.onKey and held.onKey(code, e:getFlags())
+          if fn then
+            hs.timer.doAfter(0, fn)
+            return true, {} -- bound: run the handler and swallow the key
           end
+          -- Unbound. With passthrough on, leak the combo downstream so another
+          -- app can bind it: synthesize the leader's key-down (once), then a copy
+          -- of this key with its live modifiers, and swallow the real one so the
+          -- ordering is ours. The matching up goes out when the key is released.
+          if held.passthrough then
+            self:_passDown(held)
+            held.passedKeys[code] = true
+            hs.eventtap.event.newKeyEvent(modsList(e:getFlags()), code, true):post()
+          end
+          return true, {}
+        end
+        -- The release of a key we leaked downstream: send the matching synthetic
+        -- up so the app never sees it stuck down. Repeats stay swallowed.
+        if held.passthrough and held.passedKeys[code] then
+          if t == types.keyUp then
+            held.passedKeys[code] = nil
+            hs.eventtap.event.newKeyEvent(modsList(e:getFlags()), code, false):post()
+          end
+          return true, {}
         end
         return true, {} -- swallow so nothing leaks while a chord key is held
       end
@@ -218,6 +297,8 @@ function obj:stop()
     self:_cancelHold(k)
     k.active = false
     k.shown = false
+    k.passthroughDown = false
+    k.passedKeys = {}
   end
   return self
 end

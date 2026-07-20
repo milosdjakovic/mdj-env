@@ -129,6 +129,25 @@ uses it for capture, where Hyper+4 saves an area screenshot to a file and
 Hyper+Shift+4 sends it to the clipboard; the leaders use it so a bare arrow can
 differ from Shift+arrow.
 
+Combos the domains do not claim no longer die at the tap. With `passthrough`
+on, a ChordKey `configure` default set once in `init.lua` and inherited by every
+leader (overridable per key), a held leader that resolves to no handler leaks the
+combo downstream as leader+key, so other apps can bind whatever we leave free.
+This is the point of exposing the leaders, a recorder in another app sees F18+G
+and can bind it, while a combo we do bind still runs here and never leaks. The
+mechanism lives entirely in `ChordKey`, so `HyperKey` and `WindowLeader` stay
+ignorant of it. Because the tap already swallowed the leader's own key-down, the
+engine synthesizes it once on the first unbound press, then synthesizes the
+pressed key carrying its live modifiers, swallowing the real events so the order
+is the engine's, and emits the leader key-up on release (plus an up for any key
+still leaked, so nothing sticks). Synthetic events carry a non-HID source id, so
+the same guard that ignores the clipboard paste's Cmd+V keeps these from looping
+back through the tap. Only eventtap-based apps (Raycast, BetterTouchTool,
+Karabiner, another Hammerspoon tap) can bind a function key held as a modifier,
+since F16/F17/F18 are not real modifiers and macOS's standard shortcut fields
+reject them; the trade is that the three leaders stay distinct, which one shared
+Hyper modifier combo could not give.
+
 `onHold` reveals a cheat sheet, and both cheat sheets draw through one shared
 grid renderer, `CheatSheet.spoon` (dark panel, key-badge rows filled row-major
 across columns). `HyperCheatSheet` and `WindowCheatSheet` only build the content

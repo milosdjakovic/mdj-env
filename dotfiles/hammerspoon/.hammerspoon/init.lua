@@ -113,9 +113,12 @@ spoon.HyperCheatSheet:configure({
 -- ChordKey: the shared hold/tap/chord engine behind the function-key leaders
 -- (HYPER for apps, plus the active window leader). One event tap serves them all;
 -- HyperKey and WindowLeader register their keys into it below. These are the
--- defaults each key inherits unless it overrides them.
+-- defaults each key inherits unless it overrides them. passthrough = true leaks
+-- any combo the domains do not claim downstream as leader+key (F18/F17/F16), so
+-- other apps can bind combos we leave free; combos we do bind still run here and
+-- never leak.
 spoon.ChordKey:init()
-spoon.ChordKey:configure({ holdDelay = 0.6, tapThreshold = 0.2 })
+spoon.ChordKey:configure({ holdDelay = 0.6, tapThreshold = 0.2, passthrough = true })
 
 -- HyperKey: Caps Lock (remapped to F18 by KeyRemap) as a Hyper key.
 -- Hold + letter = app toggles; quick tap = toggle real Caps Lock; hold 0.6s
