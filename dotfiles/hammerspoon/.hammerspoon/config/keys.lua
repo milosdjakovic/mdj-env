@@ -81,20 +81,22 @@ return {
   },
 
   -- Clipboard history (for ClipboardHistory.spoon). Hyper+X opens it; the backend
-  -- is the provider chain wired in init.lua, the external app via clipboardShortcut
-  -- while it runs and the native manager otherwise. Same modifiers/key shape as
-  -- appToggles so the HYPER field is the fallback combo when HyperKey is not wired
-  -- up. The `description` labels its Hyper cheat sheet and command palette rows.
+  -- is the provider chain wired in init.lua, the clipboardShortcut combo by default
+  -- (whatever manager you bind it to) and the native manager if you gate the shortcut
+  -- on an app that is not running. Same modifiers/key shape as appToggles so the
+  -- HYPER field is the fallback combo when HyperKey is not wired up. The
+  -- `description` labels its Hyper cheat sheet and command palette rows.
   clipboardHistory = { modifiers = HYPER, key = "X", description = "Clipboard history" },
 
   -- External clipboard shortcut, for ClipboardHistory's generic `shortcut`
   -- provider. Hammerspoon fires this combo and whatever clipboard manager you bind
-  -- the SAME combo to reveals its history. `app` names the target in the apps
-  -- registry, so while it runs the shortcut wins and when it is not the native
-  -- Hammerspoon clipboard takes over. This is the one place the combo lives, keep
-  -- it in step with the shortcut set inside that app. Drop `app` to make it always
-  -- win regardless of what is running.
-  clipboardShortcut = { mods = { "cmd", "alt", "ctrl", "shift" }, key = "c", app = "Monarch" },
+  -- the SAME combo to (Raycast, Alfred, or any other) reveals its history. It is
+  -- purely shortcut based and names no app, so it always fires and the manager on
+  -- the other end decides what happens. This is the one place the combo lives, keep
+  -- it in step with the shortcut set inside that app. Add an optional `app` naming
+  -- an entry in the apps registry to instead gate on it, firing only while it runs
+  -- and letting the native Hammerspoon clipboard take over otherwise.
+  clipboardShortcut = { mods = { "cmd", "alt", "ctrl", "shift" }, key = "c" },
 
   -- Keep awake (for Caffeinate.spoon). Same shape as appToggles. Hyper+K
   -- opens the keep awake panel, a typed field, not a list. It is a base binding,
@@ -290,11 +292,12 @@ return {
 
   -- External launcher shortcut, the palette's counterpart to clipboardShortcut.
   -- Hyper+Space fires this combo and whatever launcher you bind the SAME combo to
-  -- opens. `app` names the target in the apps registry, so while it runs Hyper+Space
-  -- routes to it and when it is not the built-in command palette opens instead. This
-  -- is the one place the combo lives, keep it in step with the launcher's own setting.
-  -- Drop `app` to always route to the external launcher regardless of what runs.
-  launcherShortcut = { mods = { "cmd", "alt", "ctrl", "shift" }, key = "space", app = "Monarch" },
+  -- (Raycast, Alfred, or any other) opens. It is purely shortcut based and names no
+  -- app, so Hyper+Space always fires it. This is the one place the combo lives, keep
+  -- it in step with the launcher's own setting. Add an optional `app` naming an entry
+  -- in the apps registry to instead gate on it, firing only while it runs and opening
+  -- the built-in command palette otherwise.
+  launcherShortcut = { mods = { "cmd", "alt", "ctrl", "shift" }, key = "space" },
 
   -- Feature toggles
   toggleDock = { modifiers = CTRL_ALT, key = "D" },

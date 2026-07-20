@@ -382,12 +382,13 @@ end
 
 -- ClipboardHistory: reveal clipboard history from the command palette and the
 -- hammerspoon://clipboard URL, and Hyper+X. The generic shortcut backend is placed
--- first, gated on its target app, so while that app runs opening the clipboard
--- fires the shared combo and the app shows its history; when it is not running the
--- native Hammerspoon manager takes over, with Raycast and the macOS Tahoe Spotlight
--- clipboard behind it. The chain logs each skip, and availability is rechecked on
--- every open. Reorder the list to change preference, or drop the shortcut line to
--- always use the native manager.
+-- first and by default names no app, so it always fires the shared combo and
+-- whatever manager is bound to it shows its history. Gate it on an app (give
+-- clipboardShortcut an `app`) and it fires only while that app runs, letting the
+-- native Hammerspoon manager take over otherwise, with Raycast and the macOS Tahoe
+-- Spotlight clipboard behind it. The chain logs each skip, and availability is
+-- rechecked on every open. Reorder the list to change preference, or drop the
+-- shortcut line to always use the native manager.
 spoon.ClipboardHistory:init()
 -- Inject the overlay teardown as the manager's onClose before it starts, so it is
 -- captured when the ui is wired. Closing the chooser then clears the shortcut
@@ -409,9 +410,10 @@ local clipShortcut = keys.clipboardShortcut
 spoon.ClipboardHistory:configure({
   hyperKey = spoon.HyperKey,
   provider = spoon.ClipboardHistory.providers.firstAvailable({
-    -- Generic external backend: fire clipShortcut's combo, gated on its target app
-    -- (resolved to a bundle id here, the one place concretions are named) so the
-    -- native manager below takes over when that app is not running.
+    -- Generic external backend: fire clipShortcut's combo. With no `app` it is
+    -- always available and wins; with one (resolved to a bundle id here, the one
+    -- place concretions are named) it is gated so the native manager below takes
+    -- over when that app is not running.
     spoon.ClipboardHistory.providers.shortcut({
       name = clipShortcut.app or "Shortcut",
       mods = clipShortcut.mods,
@@ -719,26 +721,29 @@ commandPaletteSurface = {
   hide = function() commandPalette:hide() end,
 }
 -- Open key: a base HyperKey binding, suppressed while a modal context owns Hyper.
--- Routed the same way the clipboard is: while the launcherShortcut target app runs,
--- Hyper+Space fires its combo so that launcher opens; otherwise the built-in command
--- palette opens. The target is resolved to a bundle id here, the one place a
--- concretion is named. The synthetic combo is deferred until the Hyper key is
--- released, matching the clipboard shortcut backend, since firing it while the leader
--- is still held is unreliable.
+-- Routed the same way the clipboard is. launcherShortcut names no app by default, so
+-- Hyper+Space always fires its combo and whatever external launcher is bound to that
+-- combo opens. If launcherShortcut gains an optional `app`, it is resolved to a bundle
+-- id here (the one place a concretion is named) and Hyper+Space fires the combo only
+-- while that app runs, opening the built-in command palette otherwise. The synthetic
+-- combo is deferred until the Hyper key is released, matching the clipboard shortcut
+-- backend, since firing it while the leader is still held is unreliable.
 local launcher = keys.launcherShortcut
 local launcherBundle = launcher.app and apps[launcher.app] or nil
 local function fireLauncherCombo()
   hs.eventtap.keyStroke(launcher.mods, launcher.key, 0)
 end
 local function showLauncher()
-  if launcherBundle and hs.application.get(launcherBundle) then
-    if spoon.HyperKey:isActive() then
-      hs.timer.waitUntil(function() return not spoon.HyperKey:isActive() end, fireLauncherCombo, 0.02)
-    else
-      fireLauncherCombo()
-    end
-  else
+  -- Only a named-but-absent target falls back to the built-in palette; with no target
+  -- named the combo always fires.
+  if launcherBundle and not hs.application.get(launcherBundle) then
     commandPalette:show()
+    return
+  end
+  if spoon.HyperKey:isActive() then
+    hs.timer.waitUntil(function() return not spoon.HyperKey:isActive() end, fireLauncherCombo, 0.02)
+  else
+    fireLauncherCombo()
   end
 end
 spoon.HyperKey:bind(keys.commandPalette.key, showLauncher)

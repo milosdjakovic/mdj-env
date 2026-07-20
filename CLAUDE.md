@@ -319,10 +319,11 @@ registry entry, and overlay.
 **Command palette / switcher.** Hyper+Space opens a filterable app switcher and
 command runner. It lists every installed application, open ones first then not
 running, and below them the Hyper and window leader actions. Hyper+Space is
-routed the same way the clipboard is, while the `launcherShortcut` target app in
-`config/keys.lua` runs, Hyper+Space fires that combo so an external launcher
-opens, and otherwise the built-in palette below opens, so the palette is the
-fallback rather than always the front end. An app that has a
+routed the same way the clipboard is, by default the `launcherShortcut` in
+`config/keys.lua` names no app, so Hyper+Space always fires that combo and
+whatever external launcher is bound to it opens. Give `launcherShortcut` an
+optional `app` and Hyper+Space fires the combo only while that app runs and opens
+the built-in palette below otherwise, so the palette becomes the fallback. An app that has a
 Hyper toggle shows its shortcut, the rest are launchable by name, and typing
 filters by name or shortcut. Return, or Hyper+i, runs the highlighted row. It
 adds no spoon. The reusable mechanism is the Chooser atom, the same widget behind

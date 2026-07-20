@@ -45,7 +45,6 @@ return {
   ChatGPTAtlas = "com.openai.atlas.web",
 
   -- Productivity
-  Monarch = "com.monarch.macos",
   Obsidian = "md.obsidian",
   Slack = "com.tinyspeck.slackmacgap",
   Yomu = "net.cecinestpasparis.yomu",
