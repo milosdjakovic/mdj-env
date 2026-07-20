@@ -24,6 +24,7 @@ hs.loadSpoon("CheatSheet")
 hs.loadSpoon("Surface")
 hs.loadSpoon("Chooser")
 hs.loadSpoon("Panel")
+hs.loadSpoon("HelperPanel")
 hs.loadSpoon("HyperKey")
 hs.loadSpoon("HyperCheatSheet")
 hs.loadSpoon("StageManager")
@@ -841,9 +842,120 @@ local function menuSearchRows(query)
   return out
 end
 
+-- Panel colours plucked from the live native chooser with Digital Color Meter, so
+-- the helper panel matches its solid fill and 1px border. Light is measured; dark is
+-- a placeholder until the dark picker is sampled.
+local PANEL_BG = { light = "#E5E1E3", dark = "#2A2A2E" }
+local PANEL_BORDER = { light = "#A09F9F", dark = "#000000" }
+local function panelHexColor(hex)
+  local r, g, b = hex:match("#?(%x%x)(%x%x)(%x%x)")
+  return { red = tonumber(r, 16) / 255, green = tonumber(g, 16) / 255,
+           blue = tonumber(b, 16) / 255, alpha = 1.0 }
+end
+
+-- Shortcut hints as a HelperPanel content renderer: the first PURPOSE of the panel.
+-- It measures and draws the chord chips, wrapping them to the width the panel offers,
+-- and knows nothing about placement or the panel's fill and border (the panel owns
+-- those). Theme aware per draw, so the text tracks light and dark. Another purpose is
+-- just another content object with the same preferredSize/draw contract. It draws in
+-- the panel's content box, origin (0, 0); the panel offsets it by its own padding.
+local function shortcutsContent(theme, hints)
+  local chipGapX, rowGapY = 16, 8
+  local hintGap = 6
+  local badgeH, badgePadX, badgeR = 18, 6, 5
+  local badgeSize, labelSize = 11, 12
+  local font = ".AppleSystemUIFont"
+
+  local function textW(str, size)
+    local sz = hs.drawing.getTextDrawingSize(hs.styledtext.new(str, { font = { name = font, size = size } }))
+    return math.ceil((sz and sz.w) or 0)
+  end
+  local function chipW(h)
+    local w = textW(h.label or "", labelSize)
+    for _, b in ipairs(h.badges or {}) do w = w + textW(b, badgeSize) + 2 * badgePadX end
+    return w + hintGap * #(h.badges or {})
+  end
+  -- Wrap chips into rows that fit width w, recording each chip's x within its row.
+  local function wrap(w)
+    local rows, cur, curW = {}, {}, 0
+    for _, h in ipairs(hints) do
+      local cw = chipW(h)
+      if #cur > 0 and curW + chipGapX + cw > w then rows[#rows + 1] = cur; cur, curW = {}, 0 end
+      local startX = (#cur == 0) and 0 or (curW + chipGapX)
+      cur[#cur + 1] = { h = h, x = startX }
+      curW = startX + cw
+    end
+    if #cur > 0 then rows[#rows + 1] = cur end
+    return rows
+  end
+  local function rowsHeight(rows)
+    return #rows * badgeH + math.max(0, #rows - 1) * rowGapY
+  end
+
+  return {
+    preferredSize = function(availW)
+      local w = availW or 320
+      return { w = w, h = rowsHeight(wrap(w)) }
+    end,
+    draw = function(w)
+      local dark = hs.host.interfaceStyle() == "Dark"
+      local side = (dark and theme.dark) or theme.light or theme.dark or {}
+      local fg = side.titleColor or { white = dark and 0.92 or 0.15 }
+      local meta = side.subColor or { white = dark and 0.55 or 0.42 }
+      local badgeBg = { white = dark and 1 or 0, alpha = dark and 0.12 or 0.06 }
+      local els, rows = {}, wrap(w)
+      for ri, row in ipairs(rows) do
+        local rowTop = (ri - 1) * (badgeH + rowGapY)
+        for _, chip in ipairs(row) do
+          local cx = chip.x
+          for _, b in ipairs(chip.h.badges or {}) do
+            local bw = textW(b, badgeSize) + 2 * badgePadX
+            els[#els + 1] = { type = "rectangle", action = "fill", fillColor = badgeBg,
+              roundedRectRadii = { xRadius = badgeR, yRadius = badgeR },
+              frame = { x = cx, y = rowTop, w = bw, h = badgeH } }
+            els[#els + 1] = { type = "text", text = b, textFont = font, textSize = badgeSize,
+              textColor = fg, textAlignment = "center",
+              frame = { x = cx, y = rowTop + (badgeH - badgeSize) / 2 - 1, w = bw, h = badgeSize + 4 } }
+            cx = cx + bw + hintGap
+          end
+          local lw = textW(chip.h.label or "", labelSize)
+          els[#els + 1] = { type = "text", text = chip.h.label or "", textFont = font,
+            textSize = labelSize, textColor = meta, textAlignment = "left",
+            frame = { x = cx, y = rowTop + (badgeH - labelSize) / 2, w = lw + 4, h = labelSize + 4 } }
+        end
+      end
+      return els
+    end,
+  }
+end
+
+local menuHints = footerFor("menuSearch")
+-- The shortcut hint bar for menu search: a HelperPanel docked below the chooser,
+-- filled and bordered to match the native picker, with the shortcuts content as its
+-- one purpose. The same panel reused for another purpose is a new instance with a
+-- different content object and, if wanted, a different placement or size. fill and
+-- border are functions so they re-resolve light/dark on every show.
+local menuShortcutPanel = spoon.HelperPanel.new({
+  placement = "below",
+  gap = 8,
+  padX = 14, padY = 10,
+  fill = function()
+    return (hs.host.interfaceStyle() == "Dark") and panelHexColor(PANEL_BG.dark) or panelHexColor(PANEL_BG.light)
+  end,
+  border = {
+    width = 1,
+    color = function()
+      return (hs.host.interfaceStyle() == "Dark") and panelHexColor(PANEL_BORDER.dark) or panelHexColor(PANEL_BORDER.light)
+    end,
+  },
+  content = shortcutsContent(settings.chooserTheme, menuHints),
+})
+
 -- The chosen item runs deferred, after the chooser tears down and macOS restores
--- focus to the captured app, since a menu action acts on that app. onClose clears
--- any peeked shortcut overlay, matching the other pickers.
+-- focus to the captured app, since a menu action acts on that app. The shortcut
+-- panel above is wired in through onPositioned/onClose, so it complements the native
+-- chooser without the chooser knowing about it. onClose also clears any peeked
+-- overlay, matching the other pickers.
 local menuSearch = spoon.Chooser.new({
   -- Pinned to the native hs.chooser backend, which is noticeably snappier here
   -- than the web surface the other pickers use. Per-instance override only, so the
@@ -852,14 +964,17 @@ local menuSearch = spoon.Chooser.new({
   theme = settings.chooserTheme,
   placeholder = "Search menu items",
   rows = menuSearchRows,
-  footer = footerFor("menuSearch"),
   onSelect = function(item)
     if item and item.path and menuTargetApp then
       local app = menuTargetApp
       hs.timer.doAfter(0.1, function() app:selectMenuItem(item.path) end)
     end
   end,
-  onClose = hideShortcuts,
+  onPositioned = function(frame) menuShortcutPanel:show(frame) end,
+  onClose = function()
+    hideShortcuts()
+    menuShortcutPanel:hide()
+  end,
 })
 -- Dot-called navigation adapter over the Chooser instance, so the shared
 -- activeChooser / routeNav registry drives it exactly like the other pickers.
