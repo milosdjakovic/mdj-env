@@ -86,14 +86,14 @@ spoon.CheatSheet:configure(cheatOpts)
 -- place that names which non-app bindings surface on the overlay and in what
 -- order, so the Capture, ClipboardHistory, and system configs stay pure binding
 -- data. The order below is the on-screen order: the four capture actions fill the
--- first row (the grid is four columns) and the command palette, menu search,
+-- first row (the grid is four columns) and the launcher, menu search,
 -- clipboard, keep awake, VPN, lock, and sleep fall to the rows below, since the
 -- renderer fills row-major.
 local hyperActions = {}
 for _, b in ipairs(keys.capture) do
   hyperActions[#hyperActions + 1] = b
 end
-hyperActions[#hyperActions + 1] = keys.commandPalette
+hyperActions[#hyperActions + 1] = keys.launcher
 hyperActions[#hyperActions + 1] = keys.menuSearch
 hyperActions[#hyperActions + 1] = keys.clipboardHistory
 hyperActions[#hyperActions + 1] = keys.caffeinate
@@ -184,16 +184,16 @@ spoon.WindowLeader:addLeader(leaderCode(keys.windowLeader))
 -- dispatch and every overlay show.
 --
 -- Forward-declared so the predicate registry and the chooser navigation registry
--- can name the command palette's navigation surface before it is built further
+-- can name the launcher's navigation surface before it is built further
 -- below (it needs this predicate table and hideShortcuts, which are defined here).
-local commandPaletteSurface
+local launcherSurface
 local menuSearchSurface
 local predicates = {
   multipleDisplays = function() return #hs.screen.allScreens() > 1 end,
-  -- The command palette chooser is open. Gates the commandPalette Hyper context,
+  -- The launcher chooser is open. Gates the launcher Hyper context,
   -- so it gets the same j/k/i navigation and hold overlay the clipboard chooser has.
-  commandPaletteOpen = function()
-    return commandPaletteSurface ~= nil and commandPaletteSurface.isShowing()
+  launcherOpen = function()
+    return launcherSurface ~= nil and launcherSurface.isShowing()
   end,
   -- The menu search chooser is open. Gates the menuSearch Hyper context.
   menuSearchOpen = function()
@@ -308,10 +308,10 @@ end
 -- Decorate a picker factory, the Chooser atom, so a surface built inside a spoon (the
 -- clipboard) is stamped with its footer hints without the spoon learning about Hyper
 -- contexts. The policy stays here in the composition root, the spoon just calls new on
--- whatever factory it was handed, and the factory reads config.footer. The command palette
--- is built here directly, so it takes footer in its config without this wrapper. The
--- native backend draws no footer, so the native surfaces, menu search, VPN, and keep
--- awake, surface their shortcuts through the deferred HelperPanel instead.
+-- whatever factory it was handed, and the factory reads config.footer. The clipboard
+-- is the only web consumer left, so it is the only one this footer path serves. The
+-- native backend draws no footer, so the native surfaces, the launcher, menu search,
+-- VPN, and keep awake, surface their shortcuts through the deferred HelperPanel instead.
 local function withFooter(factory, hints)
   return { new = function(cfg) cfg = cfg or {}; cfg.footer = hints; return factory.new(cfg) end }
 end
@@ -340,7 +340,7 @@ local function hideShortcuts()
 end
 -- Assign the Hyper hold reveal now that the predicates exist. A hold shows the app
 -- cheat sheet when nothing modal is open. When a modal context is live (the
--- clipboard, the VPN locations, the command palette) the hold reveals nothing,
+-- clipboard, the VPN locations, the launcher) the hold reveals nothing,
 -- because each such surface already shows its shortcuts in its own footer, so a
 -- peek window would be redundant and would fight the picker for the frosted
 -- backdrop. contextOverlays is therefore empty; it stays as the seam so a context
@@ -383,7 +383,7 @@ hideHyperLayer = function()
   heldLayer = nil
 end
 
--- ClipboardHistory: reveal clipboard history from the command palette and the
+-- ClipboardHistory: reveal clipboard history from the launcher and the
 -- hammerspoon://clipboard URL, and Hyper+X. The generic shortcut backend is placed
 -- first and by default names no app, so it always fires the shared combo and
 -- whatever manager is bound to it shows its history. Gate it on an app (give
@@ -434,7 +434,7 @@ spoon.ClipboardHistory:bindHotkeys({ open = keys.clipboardHistory })
 -- native choosers that dock the same deferred shortcut hint panel and share its factory,
 -- which is defined below.
 
--- Command palette / switcher: an app switcher and command runner on Hyper+Space.
+-- Launcher: an app switcher and command runner on Hyper+Space.
 -- It lists every installed application (open ones first, then not running), and
 -- below them the Hyper and window-leader actions. An app that has a Hyper toggle
 -- shows its shortcut; the rest are launchable by name. Type to filter, Return or
@@ -450,11 +450,11 @@ spoon.ClipboardHistory:bindHotkeys({ open = keys.clipboardHistory })
 -- hs.chooser which serialises it to a native object (a function there is what
 -- made the list come up empty). A single dispatcher turns that descriptor back
 -- into the right call. This is the Command pattern with the command encoded as
--- data, so the palette still never learns what a row does.
+-- data, so the launcher still never learns what a row does.
 --
 -- Like the clipboard it is wired into the Hyper contexts (see the checklist in
 -- CLAUDE.md): its navigation surface is registered in `choosers` below so the
--- shared j/k/i actions reach it, its `commandPaletteOpen` predicate gates the
+-- shared j/k/i actions reach it, its `launcherOpen` predicate gates the
 -- context, and its hold overlay is registered in contextOverlays above. Native
 -- arrows, typing, Return, and Escape work whenever Hyper is released.
 
@@ -680,147 +680,6 @@ local function commandRows(query)
   return out
 end
 
--- The row runs deferred, after the chooser has torn down and macOS has restored
--- focus to the app that was frontmost before the palette opened. Window actions
--- act on hs.window.focusedWindow(), so they must run once that window is focused
--- again rather than while the chooser holds focus. onClose clears any peeked
--- shortcut overlay, matching the clipboard.
-local commandPalette = spoon.Chooser.new({
-  theme = settings.chooserTheme,
-  placeholder = "Search apps and commands",
-  rows = commandRows,
-  footer = footerFor("commandPalette"),
-  onSelect = function(item)
-    if item then hs.timer.doAfter(0.1, function() runItem(item) end) end
-  end,
-  onClose = hideShortcuts,
-})
--- Dot-called navigation adapter over the Chooser instance (whose methods are
--- colon-called), so the shared activeChooser / routeNav registry drives it exactly
--- like the other pickers. This is step 1 of the "wire a picker into the Hyper
--- contexts" checklist, the same wrap Vpn.spoon does for its location picker.
-commandPaletteSurface = {
-  isShowing = function() return commandPalette:isShowing() end,
-  selectNext = function() commandPalette:selectNext() end,
-  selectPrev = function() commandPalette:selectPrev() end,
-  insertSelected = function() commandPalette:insertSelected() end,
-  hide = function() commandPalette:hide() end,
-}
--- Open key: a base HyperKey binding, suppressed while a modal context owns Hyper.
--- Routed the same way the clipboard is. launcherShortcut names no app by default, so
--- Hyper+Space always fires its combo and whatever external launcher is bound to that
--- combo opens. If launcherShortcut gains an optional `app`, it is resolved to a bundle
--- id here (the one place a concretion is named) and Hyper+Space fires the combo only
--- while that app runs, opening the built-in command palette otherwise. The synthetic
--- combo is deferred until the Hyper key is released, matching the clipboard shortcut
--- backend, since firing it while the leader is still held is unreliable.
-local launcher = keys.launcherShortcut
-local launcherBundle = launcher.app and apps[launcher.app] or nil
-local function fireLauncherCombo()
-  hs.eventtap.keyStroke(launcher.mods, launcher.key, 0)
-end
-local function showLauncher()
-  -- Only a named-but-absent target falls back to the built-in palette; with no target
-  -- named the combo always fires.
-  if launcherBundle and not hs.application.get(launcherBundle) then
-    commandPalette:show()
-    return
-  end
-  if spoon.HyperKey:isActive() then
-    hs.timer.waitUntil(function() return not spoon.HyperKey:isActive() end, fireLauncherCombo, 0.02)
-  else
-    fireLauncherCombo()
-  end
-end
-spoon.HyperKey:bind(keys.commandPalette.key, showLauncher)
-
--- Menu search: Hyper+J lists every enabled menu bar item of the frontmost app and
--- runs the chosen one. Like the command palette this is pure composition-root
--- policy over the same Chooser atom, so it adds no spoon. macOS exposes each app's
--- menus through the Accessibility API, which hs.application:getMenuItems reads; the
--- callback form does the tree walk off the main thread, so a large menu never
--- blocks Hammerspoon. The app frontmost when Hyper+J fires is captured as the
--- target, since showing the chooser takes focus, and the chosen item is dispatched
--- back to that app once focus returns to it.
---
--- Each row carries only a serializable descriptor, its menu path as a list of
--- titles, never a function, the same reason the palette rows do: hs.chooser
--- serialises each row and would silently drop a function. selectMenuItem takes
--- that path. The menu tree is fetched per open (it changes with the app and its
--- state), so the rows supplier reads a module-local list the fetch fills, and the
--- chooser is shown only once the fetch has built the rows.
-
--- hs decodes AXMenuItemCmdModifiers into a list of modifier names (e.g. { "cmd" }
--- or { "cmd", "shift" }). Turn it plus the command char into a readable glyph for
--- the row subtitle, in the canonical ⌃⌥⇧⌘ order, or nil when the item has no
--- keyboard shortcut. Both alt/option and ctrl/control spellings are accepted.
-local function menuShortcutGlyph(char, mods)
-  if not char or char == "" then return nil end
-  local has = {}
-  for _, m in ipairs(mods or {}) do has[tostring(m):lower()] = true end
-  local g = ""
-  if has.ctrl or has.control then g = g .. "⌃" end
-  if has.alt or has.option then g = g .. "⌥" end
-  if has.shift then g = g .. "⇧" end
-  if has.cmd or has.command then g = g .. "⌘" end
-  return g .. char:upper()
-end
-
--- Flatten the nested AX menu tree into leaf rows. An entry's submenu is its
--- AXChildren[1] (a list); an entry with one is a container we recurse into, an
--- entry without is a runnable leaf. Blank-title entries (separators) are skipped,
--- and disabled items are dropped so the list stays actionable. Each leaf keeps the
--- full title path for selectMenuItem, plus its parent path and shortcut for display.
-local function flattenMenus(entries, path, out)
-  for _, e in ipairs(entries) do
-    local title = e.AXTitle
-    if title and title ~= "" then
-      local kids = e.AXChildren and e.AXChildren[1]
-      local newPath = {}
-      for i = 1, #path do newPath[i] = path[i] end
-      newPath[#newPath + 1] = title
-      if type(kids) == "table" and #kids > 0 then
-        flattenMenus(kids, newPath, out)
-      elseif e.AXEnabled ~= false then
-        local parents = {}
-        for i = 1, #newPath - 1 do parents[i] = newPath[i] end
-        out[#out + 1] = {
-          title = title,
-          path = newPath,
-          parents = table.concat(parents, " ▸ "),
-          shortcut = menuShortcutGlyph(e.AXMenuItemCmdChar, e.AXMenuItemCmdModifiers),
-        }
-      end
-    end
-  end
-end
-
-local menuRows = {}   -- filled by the async fetch on each open
-local menuTargetApp   -- the app frontmost when Hyper+J fired, the dispatch target
-local menuAppIcon     -- the target app's icon, shown on every row (one app per open)
-local menuAppKey      -- a stable icon key so that icon is encoded once, not per row
-
--- Rows supplier: case-insensitive substring over the item title and its menu path,
--- so typing a parent menu name (File, Format) narrows too. The shortcut glyph rides
--- in the subtitle after the path.
-local function menuSearchRows(query)
-  local q = (query or ""):lower()
-  local out = {}
-  for _, r in ipairs(menuRows) do
-    if q == "" or (r.title .. " " .. r.parents):lower():find(q, 1, true) then
-      local subtitle = r.parents
-      if r.shortcut then
-        subtitle = (subtitle ~= "" and (subtitle .. "   ") or "") .. r.shortcut
-      end
-      -- Every item belongs to the one captured app, so each row shows that app's
-      -- icon. The stable key memoizes the encoded icon once rather than per row.
-      out[#out + 1] = { title = r.title, subTitle = subtitle, image = menuAppIcon,
-                        iconKey = menuAppKey, item = { path = r.path } }
-    end
-  end
-  return out
-end
-
 -- Panel colours plucked from the live native chooser with Digital Color Meter, so
 -- the helper panel matches its solid fill and 1px border. Light is measured; dark is
 -- a placeholder until the dark picker is sampled.
@@ -909,7 +768,7 @@ local function shortcutsContent(theme, hints)
 end
 
 -- The deferred shortcut hint panel, shared by every native chooser that wants one
--- (menu search, VPN). One factory builds a HelperPanel docked below the chooser, filled
+-- (the launcher, menu search, VPN). One factory builds a HelperPanel docked below the chooser, filled
 -- and bordered to match the native picker, with that context's footerFor hints as its
 -- content, and returns the three callbacks a native chooser is wired with. arm on
 -- onPositioned starts the idle countdown (the panel stays hidden until the user pauses),
@@ -943,6 +802,128 @@ local function shortcutPanelFor(context)
       panel:hide()
     end,
   }
+end
+
+-- The row runs deferred, after the chooser has torn down and macOS has restored
+-- focus to the app that was frontmost before the launcher opened. Window actions
+-- act on hs.window.focusedWindow(), so they must run once that window is focused
+-- again rather than while the chooser holds focus. Pinned to the native backend
+-- like menu search and VPN, so instead of a web footer it docks the same deferred
+-- shortcut panel through the three chooser callbacks, and its onClose also clears
+-- any peeked overlay, matching the clipboard.
+local launcherPanel = shortcutPanelFor("launcher")
+local launcher = spoon.Chooser.new({
+  provider = "native",
+  theme = settings.chooserTheme,
+  placeholder = "Search apps and commands",
+  rows = commandRows,
+  onSelect = function(item)
+    if item then hs.timer.doAfter(0.1, function() runItem(item) end) end
+  end,
+  onPositioned = launcherPanel.onPositioned,
+  onActivity = launcherPanel.onActivity,
+  onClose = launcherPanel.onClose,
+})
+-- Dot-called navigation adapter over the Chooser instance (whose methods are
+-- colon-called), so the shared activeChooser / routeNav registry drives it exactly
+-- like the other pickers. This is step 1 of the "wire a picker into the Hyper
+-- contexts" checklist, the same wrap Vpn.spoon does for its location picker.
+launcherSurface = {
+  isShowing = function() return launcher:isShowing() end,
+  selectNext = function() launcher:selectNext() end,
+  selectPrev = function() launcher:selectPrev() end,
+  insertSelected = function() launcher:insertSelected() end,
+  hide = function() launcher:hide() end,
+}
+-- Open key: a base HyperKey binding, suppressed while a modal context owns Hyper.
+-- Hyper+Space always opens this built-in launcher. Same shape as the clipboard.
+spoon.HyperKey:bind(keys.launcher.key, function() launcher:show() end)
+
+-- Menu search: Hyper+J lists every enabled menu bar item of the frontmost app and
+-- runs the chosen one. Like the launcher this is pure composition-root
+-- policy over the same Chooser atom, so it adds no spoon. macOS exposes each app's
+-- menus through the Accessibility API, which hs.application:getMenuItems reads; the
+-- callback form does the tree walk off the main thread, so a large menu never
+-- blocks Hammerspoon. The app frontmost when Hyper+J fires is captured as the
+-- target, since showing the chooser takes focus, and the chosen item is dispatched
+-- back to that app once focus returns to it.
+--
+-- Each row carries only a serializable descriptor, its menu path as a list of
+-- titles, never a function, the same reason the palette rows do: hs.chooser
+-- serialises each row and would silently drop a function. selectMenuItem takes
+-- that path. The menu tree is fetched per open (it changes with the app and its
+-- state), so the rows supplier reads a module-local list the fetch fills, and the
+-- chooser is shown only once the fetch has built the rows.
+
+-- hs decodes AXMenuItemCmdModifiers into a list of modifier names (e.g. { "cmd" }
+-- or { "cmd", "shift" }). Turn it plus the command char into a readable glyph for
+-- the row subtitle, in the canonical ⌃⌥⇧⌘ order, or nil when the item has no
+-- keyboard shortcut. Both alt/option and ctrl/control spellings are accepted.
+local function menuShortcutGlyph(char, mods)
+  if not char or char == "" then return nil end
+  local has = {}
+  for _, m in ipairs(mods or {}) do has[tostring(m):lower()] = true end
+  local g = ""
+  if has.ctrl or has.control then g = g .. "⌃" end
+  if has.alt or has.option then g = g .. "⌥" end
+  if has.shift then g = g .. "⇧" end
+  if has.cmd or has.command then g = g .. "⌘" end
+  return g .. char:upper()
+end
+
+-- Flatten the nested AX menu tree into leaf rows. An entry's submenu is its
+-- AXChildren[1] (a list); an entry with one is a container we recurse into, an
+-- entry without is a runnable leaf. Blank-title entries (separators) are skipped,
+-- and disabled items are dropped so the list stays actionable. Each leaf keeps the
+-- full title path for selectMenuItem, plus its parent path and shortcut for display.
+local function flattenMenus(entries, path, out)
+  for _, e in ipairs(entries) do
+    local title = e.AXTitle
+    if title and title ~= "" then
+      local kids = e.AXChildren and e.AXChildren[1]
+      local newPath = {}
+      for i = 1, #path do newPath[i] = path[i] end
+      newPath[#newPath + 1] = title
+      if type(kids) == "table" and #kids > 0 then
+        flattenMenus(kids, newPath, out)
+      elseif e.AXEnabled ~= false then
+        local parents = {}
+        for i = 1, #newPath - 1 do parents[i] = newPath[i] end
+        out[#out + 1] = {
+          title = title,
+          path = newPath,
+          parents = table.concat(parents, " ▸ "),
+          shortcut = menuShortcutGlyph(e.AXMenuItemCmdChar, e.AXMenuItemCmdModifiers),
+        }
+      end
+    end
+  end
+end
+
+local menuRows = {}   -- filled by the async fetch on each open
+local menuTargetApp   -- the app frontmost when Hyper+J fired, the dispatch target
+local menuAppIcon     -- the target app's icon, shown on every row (one app per open)
+local menuAppKey      -- a stable icon key so that icon is encoded once, not per row
+
+-- Rows supplier: case-insensitive substring over the item title and its menu path,
+-- so typing a parent menu name (File, Format) narrows too. The shortcut glyph rides
+-- in the subtitle after the path.
+local function menuSearchRows(query)
+  local q = (query or ""):lower()
+  local out = {}
+  for _, r in ipairs(menuRows) do
+    if q == "" or (r.title .. " " .. r.parents):lower():find(q, 1, true) then
+      local subtitle = r.parents
+      if r.shortcut then
+        subtitle = (subtitle ~= "" and (subtitle .. "   ") or "") .. r.shortcut
+      end
+      -- Every item belongs to the one captured app, so each row shows that app's
+      -- icon. The stable key memoizes the encoded icon once rather than per row.
+      out[#out + 1] = { title = r.title, subTitle = subtitle, image = menuAppIcon,
+                        iconKey = menuAppKey, item = { path = r.path } }
+    end
+  end
+  return out
 end
 
 -- The chosen item runs deferred, after the chooser tears down and macOS restores
@@ -1065,7 +1046,7 @@ spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
 -- glance at the sheet plus any key clears it.
 spoon.HyperKey:configure({ predicates = predicates })
 local clipManager = spoon.ClipboardHistory.manager
-local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, commandPaletteSurface, menuSearchSurface }
+local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, launcherSurface, menuSearchSurface }
 local function activeChooser()
   for _, c in ipairs(choosers) do
     if c.isShowing() then return c end

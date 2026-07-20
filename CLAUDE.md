@@ -316,18 +316,16 @@ A tool with two surfaces, like the VPN control panel and its location picker,
 wires each surface as its own participant, its own context block, predicate,
 registry entry, and overlay.
 
-**Command palette / switcher.** Hyper+Space opens a filterable app switcher and
-command runner. It lists every installed application, open ones first then not
-running, and below them the Hyper and window leader actions. Hyper+Space is
-routed the same way the clipboard is, by default the `launcherShortcut` in
-`config/keys.lua` names no app, so Hyper+Space always fires that combo and
-whatever external launcher is bound to it opens. Give `launcherShortcut` an
-optional `app` and Hyper+Space fires the combo only while that app runs and opens
-the built-in palette below otherwise, so the palette becomes the fallback. An app that has a
+**Launcher.** Hyper+Space opens a filterable app switcher and
+command runner, the built-in one, wired straight to the Chooser atom with no
+external launcher handoff. It lists every installed application, open ones first
+then not running, and below them the Hyper and window leader actions. Hyper+Space
+is a base HyperKey binding, suppressed while a modal context owns Hyper, so it
+always opens this launcher. An app that has a
 Hyper toggle shows its shortcut, the rest are launchable by name, and typing
 filters by name or shortcut. Return, or Hyper+i, runs the highlighted row. It
 adds no spoon. The reusable mechanism is the Chooser atom, the same widget behind
-the clipboard and the VPN locations, so the palette is pure composition root
+the clipboard and the VPN locations, so the launcher is pure composition root
 policy in `init.lua`. It is the one place that maps the app list and the pure
 binding data in `config/keys.lua` (`appToggles`, `capture`, `clipboardHistory`,
 `caffeinate`, `vpn`, `lock`, `sleep`, and `windowManagement`) onto the domain
@@ -339,7 +337,7 @@ bundle id, never a function. This matters because the Chooser hands every row to
 `hs.chooser`, which serialises it to a native object, and a function there cannot
 be converted, so a row holding one is silently dropped and the list comes up
 empty. One dispatcher turns the descriptor back into the right call, so this is
-the Command pattern with the command encoded as data, and the palette still never
+the Command pattern with the command encoded as data, and the launcher still never
 learns what a row does. Adding a row is a new entry in the build, never a change
 to the presenter. The installed app list is scanned once, lazily on first open,
 from the standard app directories and cached, so config load stays fast and a
@@ -357,16 +355,17 @@ once through `hs.canvas` and cached, so it lines up in the row with the app icon
 Window actions share one glyph, the chord in the subtitle telling them apart,
 while capture and the system actions get a per-action one.
 
-The palette follows the picker checklist above like any other list tool. It has
-a dot called navigation adapter over the Chooser instance, a `commandPaletteOpen`
-predicate, a `commandPalette` context block giving it the shared j, k, and i
+The launcher follows the picker checklist above like any other list tool. It has
+a dot called navigation adapter over the Chooser instance, a `launcherOpen`
+predicate, a `launcher` context block giving it the shared j, k, and i
 navigation with Space to close (the open key doubles as the close, the way the
-clipboard's X does), a `footer` built from `footerFor("commandPalette")` so its
-shortcuts show in its own footer bar, and `hideShortcuts` injected as its
-`onClose`. Native arrows,
+clipboard's X does). It is pinned to the native backend with `provider = "native"`,
+the same as menu search and VPN, so instead of a web footer it docks the deferred
+shortcut panel (`shortcutPanelFor("launcher")`) through the three chooser callbacks,
+which spell the shortcuts out on the same canvas once the user pauses. Native arrows,
 typing, Return, and Escape work whenever Hyper is released. The chosen row runs
 deferred by a short timer, so it fires only after the chooser tears down and
-macOS restores focus to the window that was frontmost before the palette opened,
+macOS restores focus to the window that was frontmost before the launcher opened,
 which the window actions need since they act on the focused window.
 
 ### Tmux

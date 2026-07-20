@@ -85,7 +85,7 @@ return {
   -- (whatever manager you bind it to) and the native manager if you gate the shortcut
   -- on an app that is not running. Same modifiers/key shape as appToggles so the
   -- HYPER field is the fallback combo when HyperKey is not wired up. The
-  -- `description` labels its Hyper cheat sheet and command palette rows.
+  -- `description` labels its Hyper cheat sheet and launcher rows.
   clipboardHistory = { modifiers = HYPER, key = "X", description = "Clipboard history" },
 
   -- External clipboard shortcut, for ClipboardHistory's generic `shortcut`
@@ -185,13 +185,13 @@ return {
         { key = "x", action = "closeChooser",   description = "Close" },
       },
     },
-    -- The command palette chooser. i runs the highlighted command the same as
+    -- The launcher chooser. i runs the highlighted command the same as
     -- Return, j and k navigate vim style, and Space closes it, the same as Escape.
     -- Space is the open key, so it doubles as the close, the way the clipboard's X
     -- does. Plain typing filters the list while Hyper is released.
     {
-      name = "commandPalette",
-      when = "commandPaletteOpen",
+      name = "launcher",
+      when = "launcherOpen",
       priority = 100,
       bindings = {
         { key = "i",     action = "insertSelected", description = "Run" },
@@ -203,7 +203,7 @@ return {
     -- The menu search chooser. Lists the frontmost app's menu items on Hyper+J.
     -- i runs the highlighted item the same as Return, j and k navigate vim style,
     -- and x closes it, the same as the clipboard, keep awake, and VPN choosers.
-    -- The open key J is itself a nav key, so unlike the command palette the open
+    -- The open key J is itself a nav key, so unlike the launcher the open
     -- key cannot double as the close; x is the close here (and Escape closes
     -- natively). Plain typing filters while Hyper is released.
     {
@@ -287,15 +287,15 @@ return {
     { action = "hideAllExceptFocused", key = "H" },
   },
 
-  -- Command palette / switcher (for the Chooser atom, wired in init.lua). Hyper+Space
-  -- opens a filterable list of every installed app (open first, then not running) plus
-  -- the Hyper and window-leader actions; apps with a Hyper toggle show their shortcut,
-  -- and Return runs the highlighted row. Same shape as clipboardHistory/vpn: a base
-  -- HyperKey binding, suppressed while a modal context owns Hyper, with the HYPER field
-  -- as the fallback combo. It also has its own hyperContext below, so while open it
-  -- takes the shared j/k/i navigation and Space closes it (the open key doubles as the
-  -- close, like the clipboard's X).
-  commandPalette = { modifiers = HYPER, key = "space", description = "Command palette" },
+  -- Launcher (for the Chooser atom, wired in init.lua). Hyper+Space opens a filterable
+  -- list of every installed app (open first, then not running) plus the Hyper and
+  -- window-leader actions; apps with a Hyper toggle show their shortcut, and Return runs
+  -- the highlighted row. Same shape as clipboardHistory/vpn: a base HyperKey binding,
+  -- suppressed while a modal context owns Hyper, with the HYPER field as the fallback
+  -- combo. It also has its own hyperContext below, so while open it takes the shared
+  -- j/k/i navigation and Space closes it (the open key doubles as the close, like the
+  -- clipboard's X).
+  launcher = { modifiers = HYPER, key = "space", description = "Launcher" },
 
   -- Menu search (for the Chooser atom, wired in init.lua). Hyper+J lists every
   -- enabled menu bar item of the frontmost app, read through the macOS
@@ -311,15 +311,6 @@ return {
   -- It is a plain shortcut with no app conditions, so it works everywhere. This is
   -- the one place the combo lives, keep it in step with the tool you bind it to.
   menuSearchShortcut = { mods = { "cmd", "alt", "ctrl", "shift" }, key = "j" },
-
-  -- External launcher shortcut, the palette's counterpart to clipboardShortcut.
-  -- Hyper+Space fires this combo and whatever launcher you bind the SAME combo to
-  -- (Raycast, Alfred, or any other) opens. It is purely shortcut based and names no
-  -- app, so Hyper+Space always fires it. This is the one place the combo lives, keep
-  -- it in step with the launcher's own setting. Add an optional `app` naming an entry
-  -- in the apps registry to instead gate on it, firing only while it runs and opening
-  -- the built-in command palette otherwise.
-  launcherShortcut = { mods = { "cmd", "alt", "ctrl", "shift" }, key = "space" },
 
   -- Feature toggles
   toggleDock = { modifiers = CTRL_ALT, key = "D" },

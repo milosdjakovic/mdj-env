@@ -47,10 +47,11 @@ return {
 
   -- Picker backend. The Chooser facade has two swappable backends, "native" (the
   -- built in hs.chooser) and "web" (the themed webview list on the Surface spoon).
-  -- This one word picks the default for every chooser consumer, the clipboard, the
-  -- VPN locations, and the command palette, so switching them all is one edit. The
+  -- This one word picks the default for every chooser consumer that does not pin
+  -- its own backend, today the clipboard, so switching them is one edit. The
   -- native backend stays available as a fallback. A single consumer can still
-  -- override this with config.provider when a backend is migrated one at a time.
+  -- override this with config.provider; the VPN locations, menu search, and the
+  -- launcher all pin "native" that way, so they dock the shortcut panel below.
   chooserProvider = "web",
 
   -- Chooser theme. One source for how the searchable chooser and its docked
@@ -77,7 +78,7 @@ return {
   },
 
   -- Shortcut hint panel. The docked panel that spells out the Hyper navigation
-  -- shortcuts under a native chooser (menu search, VPN). delayMs is the idle delay
+  -- shortcuts under a native chooser (menu search, VPN, launcher). delayMs is the idle delay
   -- before it appears: the panel stays hidden while the field is being used, and only
   -- after this many milliseconds with no keypress does it reveal, staying up until the
   -- chooser closes. One source, so editing it applies to every chooser that docks the
