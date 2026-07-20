@@ -63,6 +63,12 @@ end
 -- Defaults applied to any key that does not override them (see configure()).
 obj._holdDelay = 0.6
 obj._tapThreshold = 0.2
+-- Seconds to let a shown hold overlay tear down before the chorded action runs.
+-- Tearing the overlay canvas down and presenting a native panel (hs.chooser) in the
+-- same runloop tick races the panel's presentation, so it silently fails to show. A
+-- brief settle fixes it; the quick chord path, where no overlay was shown, stays
+-- immediate so nothing pays this cost.
+obj._overlaySettle = 0.05
 -- Whether an unbound combo leaks downstream instead of being swallowed. Off by
 -- default so a key that opts out (or a caller that never configures it) keeps the
 -- original swallow-everything behaviour.
@@ -247,13 +253,17 @@ function obj:start()
           -- cancel the pending overlay (and dismiss it if already shown).
           held.used = true
           self:_cancelHold(held)
+          -- Whether the hold overlay was up. When it was, its teardown needs a beat
+          -- to settle before the action runs, or a native panel the action opens
+          -- races the teardown and never shows (see _overlaySettle).
+          local wasShown = held.shown
           if held.shown and held.onHoldEnd then
             held.onHoldEnd(held.code)
             held.shown = false
           end
           local fn = held.onKey and held.onKey(code, e:getFlags())
           if fn then
-            hs.timer.doAfter(0, fn)
+            hs.timer.doAfter(wasShown and self._overlaySettle or 0, fn)
             return true, {} -- bound: run the handler and swallow the key
           end
           -- Unbound. With passthrough on, leak the combo downstream so another
