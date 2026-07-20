@@ -719,7 +719,29 @@ commandPaletteSurface = {
   hide = function() commandPalette:hide() end,
 }
 -- Open key: a base HyperKey binding, suppressed while a modal context owns Hyper.
-spoon.HyperKey:bind(keys.commandPalette.key, function() commandPalette:show() end)
+-- Routed the same way the clipboard is: while the launcherShortcut target app runs,
+-- Hyper+Space fires its combo so that launcher opens; otherwise the built-in command
+-- palette opens. The target is resolved to a bundle id here, the one place a
+-- concretion is named. The synthetic combo is deferred until the Hyper key is
+-- released, matching the clipboard shortcut backend, since firing it while the leader
+-- is still held is unreliable.
+local launcher = keys.launcherShortcut
+local launcherBundle = launcher.app and apps[launcher.app] or nil
+local function fireLauncherCombo()
+  hs.eventtap.keyStroke(launcher.mods, launcher.key, 0)
+end
+local function showLauncher()
+  if launcherBundle and hs.application.get(launcherBundle) then
+    if spoon.HyperKey:isActive() then
+      hs.timer.waitUntil(function() return not spoon.HyperKey:isActive() end, fireLauncherCombo, 0.02)
+    else
+      fireLauncherCombo()
+    end
+  else
+    commandPalette:show()
+  end
+end
+spoon.HyperKey:bind(keys.commandPalette.key, showLauncher)
 
 -- Hyper context layers. Inject the shared predicate registry into HyperKey, then
 -- expand each context in keys.hyperContexts into HyperKey bindings that carry the

@@ -288,6 +288,14 @@ return {
   -- close, like the clipboard's X).
   commandPalette = { modifiers = HYPER, key = "space", description = "Command palette" },
 
+  -- External launcher shortcut, the palette's counterpart to clipboardShortcut.
+  -- Hyper+Space fires this combo and whatever launcher you bind the SAME combo to
+  -- opens. `app` names the target in the apps registry, so while it runs Hyper+Space
+  -- routes to it and when it is not the built-in command palette opens instead. This
+  -- is the one place the combo lives, keep it in step with the launcher's own setting.
+  -- Drop `app` to always route to the external launcher regardless of what runs.
+  launcherShortcut = { mods = { "cmd", "alt", "ctrl", "shift" }, key = "space", app = "Monarch" },
+
   -- Feature toggles
   toggleDock = { modifiers = CTRL_ALT, key = "D" },
 
