@@ -816,6 +816,8 @@ end
 
 local menuRows = {}   -- filled by the async fetch on each open
 local menuTargetApp   -- the app frontmost when Hyper+J fired, the dispatch target
+local menuAppIcon     -- the target app's icon, shown on every row (one app per open)
+local menuAppKey      -- a stable icon key so that icon is encoded once, not per row
 
 -- Rows supplier: case-insensitive substring over the item title and its menu path,
 -- so typing a parent menu name (File, Format) narrows too. The shortcut glyph rides
@@ -829,7 +831,10 @@ local function menuSearchRows(query)
       if r.shortcut then
         subtitle = (subtitle ~= "" and (subtitle .. "   ") or "") .. r.shortcut
       end
-      out[#out + 1] = { title = r.title, subTitle = subtitle, item = { path = r.path } }
+      -- Every item belongs to the one captured app, so each row shows that app's
+      -- icon. The stable key memoizes the encoded icon once rather than per row.
+      out[#out + 1] = { title = r.title, subTitle = subtitle, image = menuAppIcon,
+                        iconKey = menuAppKey, item = { path = r.path } }
     end
   end
   return out
@@ -861,14 +866,17 @@ menuSearchSurface = {
   hide = function() menuSearch:hide() end,
 }
 
--- Open key: capture the frontmost app, fetch its menus asynchronously so a large
--- tree never blocks, then show the chooser once the rows are built. Does nothing if
--- no app is frontmost, the app exposes no menus, or focus moved before the fetch
--- returned (so we never target the wrong app).
-local function showMenuSearch()
+-- Open the built-in menu search: capture the frontmost app, fetch its menus
+-- asynchronously so a large tree never blocks, then show the chooser once the rows
+-- are built. Does nothing if no app is frontmost, the app exposes no menus, or focus
+-- moved before the fetch returned (so we never target the wrong app).
+local function openBuiltinMenuSearch()
   local app = hs.application.frontmostApplication()
   if not app then return end
   menuTargetApp = app
+  local bundleID = app:bundleID()
+  menuAppIcon = bundleID and hs.image.imageFromAppBundle(bundleID) or nil
+  menuAppKey = bundleID and ("menuapp:" .. bundleID) or nil
   app:getMenuItems(function(menus)
     if not menus then return end
     if hs.application.frontmostApplication() ~= app then return end
@@ -877,7 +885,26 @@ local function showMenuSearch()
     menuSearch:show()
   end)
 end
-spoon.HyperKey:bind(keys.menuSearch.key, showMenuSearch)
+
+-- Fire the external menu search combo (menuSearchShortcut, ⇧⌃⌥⌘J). Whatever tool
+-- is bound to that same combo anywhere opens, so Hyper+J can hand off to an external
+-- menu searcher instead of the built-in. It is a plain combo with no app conditions.
+-- The combo is deferred until the Hyper key is released, matching the launcher,
+-- since firing it while the leader is still held is unreliable.
+local menuShortcut = keys.menuSearchShortcut
+local function fireMenuSearchCombo()
+  local function fire() hs.eventtap.keyStroke(menuShortcut.mods, menuShortcut.key, 0) end
+  if spoon.HyperKey:isActive() then
+    hs.timer.waitUntil(function() return not spoon.HyperKey:isActive() end, fire, 0.02)
+  else
+    fire()
+  end
+end
+
+-- Open key. Bound to fire the external combo, so Hyper+J hands off to whatever tool
+-- is bound to menuSearchShortcut anywhere; swap the handler to openBuiltinMenuSearch
+-- to use the built-in chooser instead.
+spoon.HyperKey:bind(keys.menuSearch.key, fireMenuSearchCombo)
 
 -- Hyper context layers. Inject the shared predicate registry into HyperKey, then
 -- expand each context in keys.hyperContexts into HyperKey bindings that carry the

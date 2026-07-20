@@ -316,6 +316,12 @@ return {
   -- it has no meaning without HyperKey wired up (the menu tree is fetched live).
   menuSearch = { modifiers = HYPER, key = "j", description = "Menu search" },
 
+  -- External menu search combo. When Hyper+J is set to hand off (see init.lua) it
+  -- fires this combo, and whatever tool you bind the SAME combo to anywhere opens.
+  -- It is a plain shortcut with no app conditions, so it works everywhere. This is
+  -- the one place the combo lives, keep it in step with the tool you bind it to.
+  menuSearchShortcut = { mods = { "cmd", "alt", "ctrl", "shift" }, key = "j" },
+
   -- External launcher shortcut, the palette's counterpart to clipboardShortcut.
   -- Hyper+Space fires this combo and whatever launcher you bind the SAME combo to
   -- (Raycast, Alfred, or any other) opens. It is purely shortcut based and names no
