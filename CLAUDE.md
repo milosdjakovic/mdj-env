@@ -201,6 +201,13 @@ Hammerspoon.
 
 Config auto-reloads when files change. Get app bundle ID: `osascript -e 'id of app "APP_NAME"'`
 
+After any change to the Hammerspoon config always reload it, do not rely on the
+pathwatcher alone. Run `hs -c "hs.reload()"` so the change is guaranteed live,
+then verify with the `hs` command line tool, for example `hs -c "return
+spoon.SomeSpoon._field"` to read live state. The `hs` CLI talks to the running
+Hammerspoon over `hs.ipc`, so it both reloads and introspects, which is how a
+change should be confirmed rather than assumed.
+
 **DisplayProfiles.** Keeps display arrangements deterministic on top of what
 macOS remembers, using the `displayplacer` command line tool (in the Brewfile).
 macOS still scrambles the main display, scaling, or window positions when a dock
