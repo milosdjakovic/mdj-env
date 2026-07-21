@@ -165,7 +165,7 @@ local function rows(query)
     if s.active then
       return { { title = "Deactivate", subTitle = statusText(s), image = emojiImage(ICON.off), item = { id = "off" } } }
     end
-    return { { title = "Activate", subTitle = "Indefinite. " .. EXAMPLES, image = emojiImage(ICON.on), item = { id = "indefinite" } } }
+    return { { title = "Activate indefinitely", subTitle = "Specify a time like 18:45, or 2h30m as a duration", image = emojiImage(ICON.on), item = { id = "indefinite" } } }
   end
 
   local h, m = parseClock(q)
