@@ -808,12 +808,12 @@ launcherSurface = {
 -- Hyper+Space always opens this built-in launcher. Same shape as the clipboard.
 spoon.HyperKey:bind(keys.launcher.key, function() launcher:show() end)
 
--- Menu search: Hyper+J lists every enabled menu bar item of the frontmost app and
+-- Menu search: Hyper+E lists every enabled menu bar item of the frontmost app and
 -- runs the chosen one. Like the launcher this is pure composition-root
 -- policy over the same Chooser atom, so it adds no spoon. macOS exposes each app's
 -- menus through the Accessibility API, which hs.application:getMenuItems reads; the
 -- callback form does the tree walk off the main thread, so a large menu never
--- blocks Hammerspoon. The app frontmost when Hyper+J fires is captured as the
+-- blocks Hammerspoon. The app frontmost when Hyper+E fires is captured as the
 -- target, since showing the chooser takes focus, and the chosen item is dispatched
 -- back to that app once focus returns to it.
 --
@@ -870,7 +870,7 @@ local function flattenMenus(entries, path, out)
 end
 
 local menuRows = {}   -- filled by the async fetch on each open
-local menuTargetApp   -- the app frontmost when Hyper+J fired, the dispatch target
+local menuTargetApp   -- the app frontmost when Hyper+E fired, the dispatch target
 local menuAppIcon     -- the target app's icon, shown on every row (one app per open)
 local menuAppKey      -- a stable icon key so that icon is encoded once, not per row
 
@@ -945,7 +945,7 @@ local function openBuiltinMenuSearch()
 end
 
 -- External combo hand-off, kept but disabled. Uncomment this block and bind
--- fireMenuSearchCombo below (instead of openBuiltinMenuSearch) to make Hyper+J fire
+-- fireMenuSearchCombo below (instead of openBuiltinMenuSearch) to make Hyper+E fire
 -- menuSearchShortcut (⇧⌃⌥⌘J) so an external tool bound to that same combo anywhere
 -- opens. Disabled because routing through an Alfred hotkey added noticeable latency
 -- versus the built-in chooser, which binds directly with no synthesized combo and no

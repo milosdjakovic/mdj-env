@@ -58,7 +58,7 @@ return {
     { app = "Notes",            modifiers = HYPER, key = "N" },
     { app = "iPhoneMirroring",  modifiers = HYPER, key = "I" },
     { app = "Zed",              modifiers = HYPER, key = "Z" },
-    { app = "Preview",          modifiers = HYPER, key = "P" },
+    { app = "Preview",          modifiers = HYPER, key = "R" },
     -- Second character
     { app = "Stickies",         modifiers = HYPER, key = "T" },
     { app = "Slack",            modifiers = HYPER, key = "L" },
@@ -102,10 +102,10 @@ return {
   -- suppressed while a modal context owns Hyper.
   caffeinate = { modifiers = HYPER, key = "K", description = "Keep awake" },
 
-  -- VPN controls (for Vpn.spoon). Same shape again. Hyper+R opens the VPN control
+  -- VPN controls (for Vpn.spoon). Same shape again. Hyper+P opens the VPN control
   -- panel, a short list of actions with the live connection state at the top. It is
   -- a base binding, suppressed while a modal context owns Hyper.
-  vpn = { modifiers = HYPER, key = "R", description = "VPN" },
+  vpn = { modifiers = HYPER, key = "P", description = "VPN" },
 
   -- Colour picker (for Eyedropper.spoon). Hyper+2 turns the pointer into a screen
   -- eyedropper with a magnifier loupe, a click copies the pixel hex. It is not a
@@ -206,7 +206,7 @@ return {
         { key = "space", action = "closeChooser",   description = "Close" },
       },
     },
-    -- The menu search chooser. Lists the frontmost app's menu items on Hyper+J.
+    -- The menu search chooser. Lists the frontmost app's menu items on Hyper+E.
     -- i runs the highlighted item the same as Return, j and k navigate vim style,
     -- and x closes it, the same as the clipboard, keep awake, and VPN choosers.
     -- The open key J is itself a nav key, so unlike the launcher the open
@@ -304,16 +304,16 @@ return {
   -- clipboard's X).
   launcher = { modifiers = HYPER, key = "space", description = "Launcher" },
 
-  -- Menu search (for the Chooser atom, wired in init.lua). Hyper+J lists every
+  -- Menu search (for the Chooser atom, wired in init.lua). Hyper+E lists every
   -- enabled menu bar item of the frontmost app, read through the macOS
   -- Accessibility API, and runs the highlighted one. Same shape as the command
   -- palette: a base HyperKey binding, suppressed while a modal context owns Hyper.
   -- It also has its own hyperContext above, so while open it takes the shared
   -- j/k/i navigation and Space closes it. There is no HYPER fallback combo, since
   -- it has no meaning without HyperKey wired up (the menu tree is fetched live).
-  menuSearch = { modifiers = HYPER, key = "j", description = "Menu search" },
+  menuSearch = { modifiers = HYPER, key = "e", description = "Menu search" },
 
-  -- External menu search combo. When Hyper+J is set to hand off (see init.lua) it
+  -- External menu search combo. When Hyper+E is set to hand off (see init.lua) it
   -- fires this combo, and whatever tool you bind the SAME combo to anywhere opens.
   -- It is a plain shortcut with no app conditions, so it works everywhere. This is
   -- the one place the combo lives, keep it in step with the tool you bind it to.
