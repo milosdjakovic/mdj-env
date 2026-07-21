@@ -40,7 +40,9 @@
 ---   }
 --- Rows are filled left-to-right, top-to-bottom across `columns`. An icon is
 --- drawn only when iconSize > 0 and the row carries one. A section's `alpha`
---- fades its whole rows group. A section may also override any layout field
+--- fades its whole rows group, and an optional `titleAlpha` fades its title
+--- independently (defaulting to `alpha`) so a dimmed group can keep a full-weight
+--- header. A section may also override any layout field
 --- (columns, colWidth, iconSize, ...) for its own rows, inheriting the model-level
 --- value for anything it omits. The panel takes the widest section's width and
 --- narrower sections left-align within it, so one panel can mix a four-column icon
@@ -324,7 +326,7 @@ function obj:_build()
     if i > 1 then cursor = cursor + L.groupGap end
     if s.title then
       els[#els + 1] = textEl(s.title, 0, cursor, SL.columns * SL.colWidth, T.lineHeight,
-        T.fontSize, faded(C.meta, s.alpha or 1.0), "left")
+        T.fontSize, faded(C.meta, s.titleAlpha or s.alpha or 1.0), "left")
       cursor = cursor + SL.titleHeight
     end
     self:_rowsElements(els, s.rows, cursor, SL, s.alpha or 1.0, C)

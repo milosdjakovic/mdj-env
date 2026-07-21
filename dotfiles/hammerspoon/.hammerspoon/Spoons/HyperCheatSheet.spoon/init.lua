@@ -154,8 +154,8 @@ function obj:show()
   if not self._cheatSheet then return self end
   local open, closed = self:_entries()
   local sections = {
-    { title = "OPEN", alpha = 1.0, rows = toRows(open) },
-    { title = "NOT RUNNING", alpha = 0.55, rows = toRows(closed) },
+    { title = "RUNNING", alpha = 1.0, rows = toRows(open) },
+    { title = "DORMANT", alpha = 0.55, titleAlpha = 1.0, rows = toRows(closed) },
   }
   for _, s in ipairs(self._staticSections or {}) do
     sections[#sections + 1] = {
