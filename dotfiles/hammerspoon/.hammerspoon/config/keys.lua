@@ -108,6 +108,13 @@ return {
   -- a base binding, suppressed while a modal context owns Hyper.
   vpn = { modifiers = HYPER, key = "Y", description = "VPN" },
 
+  -- Colour picker (for Eyedropper.spoon). Hyper+2 turns the pointer into a screen
+  -- eyedropper with a magnifier loupe, a click copies the pixel hex. It is not a
+  -- chooser, so it has no Hyper context, it is a lone action like lock and sleep,
+  -- bound as a base HyperKey binding and surfaced as a launcher row. The HYPER
+  -- field is the fallback combo when HyperKey is not wired up.
+  colorPicker = { modifiers = HYPER, key = "2", description = "Color picker" },
+
   -- Hyper context layers. Each context is a group of Hyper bindings that are live
   -- only while its `when` predicate holds. priority settles a key when several
   -- contexts are active at once, higher wins, and any key no context binds falls

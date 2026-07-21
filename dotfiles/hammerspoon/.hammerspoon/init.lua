@@ -34,6 +34,7 @@ hs.loadSpoon("ClipboardHistory")
 hs.loadSpoon("Caffeinate")
 hs.loadSpoon("Vpn")
 hs.loadSpoon("Capture")
+hs.loadSpoon("Eyedropper")
 hs.loadSpoon("WorkspaceEngine")
 hs.loadSpoon("TerminalHandler")
 hs.loadSpoon("DockAutoHide")
@@ -83,6 +84,7 @@ local hyperActions = {}
 for _, b in ipairs(keys.capture) do
   hyperActions[#hyperActions + 1] = b
 end
+hyperActions[#hyperActions + 1] = keys.colorPicker
 hyperActions[#hyperActions + 1] = keys.launcher
 hyperActions[#hyperActions + 1] = keys.menuSearch
 hyperActions[#hyperActions + 1] = keys.clipboardHistory
@@ -436,6 +438,7 @@ local specialActions = {
   clipboard = function() spoon.ClipboardHistory:open() end,
   caffeinate = function() spoon.Caffeinate.show() end,
   vpn = function() spoon.Vpn.show() end,
+  colorPicker = function() spoon.Eyedropper:pick() end,
   lock = function() hs.caffeinate.lockScreen() end,
   sleep = function() hs.caffeinate.systemSleep() end,
 }
@@ -492,6 +495,7 @@ local function buildActionRows()
     add(c.description or humanize(c.action), "Capture · " .. chordLabel("Hyper", c.key, c.mods),
       { kind = "capture", name = c.action }, captureGlyphs[c.action] or "📸")
   end
+  add(keys.colorPicker.description, "Tools · " .. chordLabel("Hyper", keys.colorPicker.key), { kind = "special", name = "colorPicker" }, "🎨")
   add(keys.clipboardHistory.description, "Clipboard · " .. chordLabel("Hyper", keys.clipboardHistory.key), { kind = "special", name = "clipboard" }, "📋")
   add(keys.caffeinate.description, "System · " .. chordLabel("Hyper", keys.caffeinate.key), { kind = "special", name = "caffeinate" }, "☕")
   add(keys.vpn.description, "Network · " .. chordLabel("Hyper", keys.vpn.key), { kind = "special", name = "vpn" }, "🌐")
@@ -1099,6 +1103,69 @@ spoon.Capture:configure({
 })
 spoon.Capture:bindHotkeys(keys.capture)
 
+-- Eyedropper: a screen colour sampler on Hyper+2. Unlike the choosers it is a lone
+-- mechanism, not a list tool, so it needs no Hyper context, predicate, or choosers
+-- entry. It is wired exactly like lock and sleep, a base HyperKey binding (bound
+-- through bindHyper below), and it is also reachable as the color picker launcher
+-- row through the special action dispatcher above. The click copies the pixel hex.
+--
+-- The copied confirmation is drawn on the shared HelperPanel canvas, the same
+-- surface as the cheat sheet and the docked hint bars, so the feedback reads as one
+-- UI rather than a stray hs.alert. It is a centered panel showing the picked colour
+-- as a swatch beside its hex, shown on each pick and hidden shortly after by a timer.
+-- The content reads a small mutable state the onPick updates, so one panel instance
+-- is reused. This is the root owning the look while the spoon owns only the sampling.
+local function colorToastContent(theme, state)
+  local font = "Menlo"
+  local hexSize, swatch, gap = 18, 26, 12
+  local function textW(str)
+    local sz = hs.drawing.getTextDrawingSize(hs.styledtext.new(str, { font = { name = font, size = hexSize } }))
+    return math.ceil((sz and sz.w) or 0)
+  end
+  return {
+    preferredSize = function()
+      return { w = swatch + gap + textW(state.hex), h = swatch }
+    end,
+    draw = function(w, h)
+      local dark = hs.host.interfaceStyle() == "Dark"
+      local side = (dark and theme.dark) or theme.light or theme.dark or {}
+      local fg = side.titleColor or { white = dark and 0.92 or 0.15 }
+      local swStroke = { white = dark and 1 or 0, alpha = dark and 0.25 or 0.2 }
+      return {
+        { type = "rectangle", action = "strokeAndFill", fillColor = state.color,
+          strokeColor = swStroke, strokeWidth = 1,
+          roundedRectRadii = { xRadius = 5, yRadius = 5 },
+          frame = { x = 0, y = (h - swatch) / 2, w = swatch, h = swatch } },
+        { type = "text", text = state.hex, textFont = font, textSize = hexSize,
+          textColor = fg, textAlignment = "left",
+          frame = { x = swatch + gap, y = (h - hexSize) / 2 - 1, w = w - swatch - gap, h = hexSize + 6 } },
+      }
+    end,
+  }
+end
+local function hexToColor(hex)
+  local r, g, b = hex:match("#(%x%x)(%x%x)(%x%x)")
+  return { red = tonumber(r, 16) / 255, green = tonumber(g, 16) / 255, blue = tonumber(b, 16) / 255, alpha = 1 }
+end
+local pickState = { hex = "#000000", color = { red = 0, green = 0, blue = 0, alpha = 1 } }
+local colorToast = spoon.HelperPanel.new({
+  placement = "center",
+  fill = panelFill,
+  border = panelBorder(),
+  content = colorToastContent(settings.chooserTheme, pickState),
+})
+local colorToastTimer
+spoon.Eyedropper:init()
+spoon.Eyedropper:configure({
+  onPick = function(hex)
+    pickState.hex = hex
+    pickState.color = hexToColor(hex)
+    colorToast:show()
+    if colorToastTimer then colorToastTimer:stop() end
+    colorToastTimer = hs.timer.doAfter(1.1, function() colorToast:hide() end)
+  end,
+})
+
 -- Sleep the Mac on Hyper+Esc and lock the screen on Hyper+§. These are lone
 -- system actions, not whole domains, so they are bound directly here in the
 -- composition root rather than given a spoon of their own. Each binds into the
@@ -1116,6 +1183,9 @@ bindHyper(keys.lock, function()
 end)
 bindHyper(keys.sleep, function()
   hs.caffeinate.systemSleep()
+end)
+bindHyper(keys.colorPicker, function()
+  spoon.Eyedropper:pick()
 end)
 
 -- WorkspaceEngine (depends on AppToggler, WindowManager)
