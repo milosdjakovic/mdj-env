@@ -7,7 +7,7 @@
 ---
 --- The copy is silent here. Confirming it visually is the composition root's
 --- concern, handed out through the onPick seam below, so the confirmation is drawn
---- on the shared HelperPanel canvas like every other overlay rather than an
+--- on the shared CanvasPanel like every other overlay rather than an
 --- hs.alert, keeping the UI one surface.
 ---
 --- Hammerspoon has no binding for NSColorSampler, so the sampler lives in a tiny

@@ -7,12 +7,12 @@
 --- coordinates, and the chip and text colours.
 ---
 --- It does NOT draw its own panel. The surface (fill, border, corners, padding,
---- placement) is the shared HelperPanel canvas atom, the same one behind the
---- docked shortcut hint bar and the clipboard preview, so the overlay reads as the
---- same family. This spoon is a HelperPanel content strategy: it exposes
---- preferredSize/draw, HelperPanel owns everything around it. The composition root
---- injects the HelperPanel factory plus the fill and border it hands the hint bar,
---- so there is one panel look and one place that sets it.
+--- placement) is the shared CanvasPanel atom, the same one behind the docked
+--- shortcut hint bar and the clipboard preview, so the overlay reads as the same
+--- family. This spoon is a CanvasPanel content strategy: it exposes
+--- preferredSize/draw, CanvasPanel owns everything around it. CanvasPanel owns the
+--- surface look itself, so the composition root injects only the factory, not any
+--- fill or border, and there is one panel look in one place.
 ---
 --- The two callers (HyperCheatSheet, WindowCheatSheet) build the model and keep
 --- their own domain logic: resolving app icons and splitting running vs not, or
@@ -26,11 +26,10 @@
 ---                  and text colours track light and dark from it, matching the
 ---                  hint bar
 ---   fontSize     - text size (px); lineHeight follows unless set explicitly
----   padding      - inner panel padding (px), passed to HelperPanel as padX/padY
+---   padding      - inner panel padding (px), passed to CanvasPanel as padX/padY
 ---   badgeRadius  - key-badge corner roundness (px)
----   helperPanel  - the HelperPanel factory (spoon.HelperPanel) to draw through
----   fill, border - the panel fill and border, forwarded to HelperPanel so the
----                  cheat sheet shares the hint bar's surface
+---   canvasPanel  - the CanvasPanel factory (spoon.CanvasPanel) to draw through; it
+---                  owns the surface, so no fill or border is passed here
 ---
 --- show(model) where model is:
 ---   columns, colWidth, rowHeight, badgeWidth, badgeHeight, iconSize, gap,
@@ -58,13 +57,13 @@ obj.license = "MIT"
 
 obj._theme = nil          -- effective content styling (DEFAULT_THEME + configure)
 obj._layoutDefaults = nil -- effective layout defaults (DEFAULTS + configure)
-obj._panelCfg = nil       -- injected: { factory, fill, border, padding }
-obj._panel = nil          -- the one HelperPanel instance, built lazily
+obj._panelCfg = nil       -- injected: { factory, padding }
+obj._panel = nil          -- the one CanvasPanel instance, built lazily
 obj._model = nil          -- the model of the overlay currently being drawn
 obj._built = nil          -- cached { els, w, h } from the last preferredSize pass
 
 -- Per-overlay layout defaults. Any can be overridden per show(). The inner panel
--- padding is HelperPanel's, set globally via configure({ padding = ... }).
+-- padding is CanvasPanel's, set globally via configure({ padding = ... }).
 local DEFAULTS = {
   columns = 2,
   colWidth = 250,
@@ -87,7 +86,7 @@ local DEFAULT_THEME = {
 }
 
 local FONT = ".AppleSystemUIFont"
-local PANEL_PADDING = 20 -- HelperPanel padX/padY unless configure sets padding
+local PANEL_PADDING = 20 -- CanvasPanel padX/padY unless configure sets padding
 
 -- Key names -> display glyph, and sub-modifier names -> glyph prefixed onto it.
 -- Turning a key plus its modifiers into a badge string is pure presentation, so
@@ -177,7 +176,7 @@ local function nonEmpty(sections)
 end
 
 --------------------------------------------------------------------------------
--- Canvas content emission (elements only; HelperPanel draws the surface)
+-- Canvas content emission (elements only; CanvasPanel draws the surface)
 --------------------------------------------------------------------------------
 
 local function px(n) return math.floor(n + 0.5) end
@@ -284,7 +283,7 @@ function obj:_rowsElements(els, rows, contentY, L, alpha, C)
 end
 
 -- Compute the whole overlay: the content element list and its size, at origin
--- (0, 0). HelperPanel offsets it by its padding and draws the surface behind it,
+-- (0, 0). CanvasPanel offsets it by its padding and draws the surface behind it,
 -- so there is no outer margin here. Cached in self._built so preferredSize and
 -- the draw that follows it agree without recomputing.
 function obj:_build()
@@ -347,9 +346,8 @@ function obj:init()
 end
 
 --- CheatSheet:configure(opts)
---- Content styling plus the injected HelperPanel factory and surface (see the
---- header for the full list). Any omitted field keeps its default, so
---- configure(nil) is valid.
+--- Content styling plus the injected CanvasPanel factory (see the header for the
+--- full list). Any omitted field keeps its default, so configure(nil) is valid.
 function obj:configure(opts)
   opts = opts or {}
 
@@ -368,13 +366,10 @@ function obj:configure(opts)
 
   self._layoutDefaults = shallow(DEFAULTS)
 
-  -- The panel surface, injected. The factory plus the same fill and border the
-  -- root hands the hint bar, so one edit there restyles both. Rebuilt on the next
-  -- show if the config changed.
+  -- The panel factory, injected. CanvasPanel owns the surface look, so only the
+  -- factory and the padding are held here. Rebuilt on the next show if it changed.
   self._panelCfg = {
-    factory = opts.helperPanel or (self._panelCfg and self._panelCfg.factory),
-    fill = opts.fill or (self._panelCfg and self._panelCfg.fill),
-    border = opts.border or (self._panelCfg and self._panelCfg.border),
+    factory = opts.canvasPanel or (self._panelCfg and self._panelCfg.factory),
     padding = opts.padding or PANEL_PADDING,
   }
   self._panel = nil
@@ -382,7 +377,7 @@ function obj:configure(opts)
   return self
 end
 
--- Build the one HelperPanel instance the first time it is needed, a centered
+-- Build the one CanvasPanel instance the first time it is needed, a centered
 -- panel whose content is this spoon's live model. Returns nil when no factory was
 -- injected, so show() is inert rather than erroring.
 function obj:_ensurePanel()
@@ -392,8 +387,6 @@ function obj:_ensurePanel()
   self._panel = cfg.factory.new({
     placement = "center",
     padX = cfg.padding, padY = cfg.padding,
-    fill = cfg.fill,
-    border = cfg.border,
     content = {
       preferredSize = function()
         self._built = self:_build()

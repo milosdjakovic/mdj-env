@@ -264,7 +264,7 @@ end
 -- or ffmpeg off the main thread), loaded once as an hs.image; nothing sizes it here.
 
 -- Layout and type sizes for the canvas content. The padding matches the shortcut
--- panel (HelperPanel's 14/10) so the two canvas panels read as one component.
+-- panel (CanvasPanel's 14/10) so the two canvas panels read as one component.
 local PAD_X, PAD_Y = 14, 10
 local META_SIZE, PATH_SIZE, BODY_SIZE = 11, 11, 13
 local BODY_FONT = "Menlo" -- monospace, so text wraps by column math with exact heights
@@ -395,7 +395,7 @@ local function appendImage(els, img, x0, y0, w)
   return y0 + h
 end
 
--- Lay the content blocks into the canvas: solid fill and border first (unclipped),
+-- Lay the content blocks into the canvas: the shared surface first (unclipped),
 -- then a clip to the inner box, then the content shifted by the padding and the
 -- live scroll. maxScroll comes from the overflow, so a tall entry scrolls under the
 -- padding instead of spilling over the border. Records the model for repaint().
@@ -409,17 +409,15 @@ local function paint(contentEls, contentH)
   if scrollOffset > maxScroll then scrollOffset = maxScroll end
   if scrollOffset < 0 then scrollOffset = 0 end
 
-  -- Square fill and 1px border, drawn exactly like HelperPanel (the shortcut panel),
-  -- so the preview and the panel are the same component, just placed differently.
-  local els = {
-    { type = "rectangle", action = "fill", fillColor = colors.bg,
-      frame = { x = 0, y = 0, w = frame.w, h = frame.h } },
-    { type = "rectangle", action = "stroke", strokeColor = colors.border, strokeWidth = 1,
-      frame = { x = 0.5, y = 0.5, w = frame.w - 1, h = frame.h - 1 } },
-    -- Clip to the inner box; every element after this is restricted to it.
-    { type = "rectangle", action = "clip",
-      frame = { x = PAD_X, y = PAD_Y, w = innerW, h = innerH } },
-  }
+  -- Background and rounded border come from the shared surface, the same routine the
+  -- CanvasPanel hint bar draws, so the preview and the panel are one component just
+  -- placed differently. Then a clip to the inner box confines the content.
+  local els = {}
+  for _, el in ipairs(cfg.surface and cfg.surface(frame.w, frame.h) or {}) do
+    els[#els + 1] = el
+  end
+  els[#els + 1] = { type = "rectangle", action = "clip",
+    frame = { x = PAD_X, y = PAD_Y, w = innerW, h = innerH } }
   for _, el in ipairs(contentEls) do
     els[#els + 1] = shiftEl(el, PAD_X, PAD_Y - scrollOffset)
   end
@@ -603,10 +601,12 @@ end
 local function renderPreview(e)
   renderToken = renderToken + 1
   scrollOffset = 0
+  -- Only the text colours come from the palette; the pane's background and border are
+  -- the shared surface, drawn in paint() through the injected cfg.surface.
   local p = picker:activeTheme().preview
   colors = {
-    bg = hexColor(p.bg), fg = hexColor(p.fg), meta = hexColor(p.meta),
-    path = hexColor(p.path), note = hexColor(p.note), border = hexColor(p.border or p.meta),
+    fg = hexColor(p.fg), meta = hexColor(p.meta),
+    path = hexColor(p.path), note = hexColor(p.note),
   }
   if not e then
     paint({}, 0)
@@ -832,7 +832,8 @@ function UI.build()
 end
 
 --- UI.configure(opts) - inject store, monitor, util, the Chooser factory, the
---- theme, and the layout config.
+--- theme, the shared surface routine (opts.surface, drawing the preview pane's
+--- background and border), and the layout config.
 function UI.configure(opts)
   store = opts.store
   monitor = opts.monitor

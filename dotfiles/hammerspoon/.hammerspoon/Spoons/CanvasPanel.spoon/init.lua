@@ -1,17 +1,41 @@
---- === HelperPanel ===
+--- === CanvasPanel ===
 ---
---- A generic canvas panel that docks around an anchor frame, typically a chooser.
---- It is the mechanism only: placement (below / above / left / right), sizing, and
---- drawing its own matched fill and border. WHAT it shows is a pluggable content
+--- The default canvas surface for this config, plus a panel that docks it around an
+--- anchor frame (typically a chooser) or centers it on screen. It is two things that
+--- fit together.
+---
+--- First, it OWNS the shared surface look. One style, set once from the composition
+--- root via CanvasPanel.configure(style), holds the light and dark background, the
+--- border, the border width, and the corner radius. The panel resolves the current
+--- appearance on every draw, so a surface tracks the system light and dark switch.
+--- Because the style lives in one place, every surface drawn through this atom looks
+--- identical, and editing that one style restyles all of them at once.
+--- CanvasPanel.surfaceElements(w, h) is the single routine that paints the surface, a
+--- filled rounded rectangle plus a rounded border. The panel's own show() uses it, and
+--- a consumer that owns its own canvas (the clipboard preview) prepends the same
+--- elements, so nothing draws the surface a second way.
+---
+--- Second, it is the mechanism for a docked panel: placement (below / above / left /
+--- right / center), sizing, and reveal timing. WHAT it shows is a pluggable content
 --- renderer injected by the caller, so a purpose like a shortcut-hint bar is one
---- content object and the panel stays ignorant of it. The composition root creates
---- an instance per purpose and wires show/hide to a chooser's onPositioned/onClose.
+--- content object and the panel stays ignorant of it. The composition root creates an
+--- instance per purpose and wires show/hide to a chooser's onPositioned/onClose.
 ---
---- This is the Strategy pattern: the panel is the context that owns placement and
---- styling, the content is the strategy that owns what is drawn. Add a new purpose
---- by writing a new content object, never by editing the panel.
+--- This is the Strategy pattern: the panel is the context that owns placement and the
+--- surface, the content is the strategy that owns what is drawn. Add a new purpose by
+--- writing a new content object, never by editing the panel.
 ---
---- FACTORY: spoon.HelperPanel.new(config) -> instance (dot-called).
+--- MODULE API (dot-called):
+---   CanvasPanel.configure(style)               set the shared surface style (below).
+---   CanvasPanel.surfaceElements(w, h, style?)  the surface elements for a w x h box at
+---                                              origin (0, 0); style overrides the default.
+---   CanvasPanel.new(config) -> instance        a docked or centered panel.
+---
+--- style (all optional; omit a field to draw nothing for it):
+---   cornerRadius  surface rounding in points (0 = square).
+---   borderWidth   border stroke width (default 1).
+---   dark, light   each { bg = "#RRGGBB", border = "#RRGGBB" }. The side matching the
+---                 live appearance is used; light falls back to dark when absent.
 ---
 --- Reveal timing. By default the panel draws the instant show/arm is called. Give it a
 --- delay and it becomes idle-timed instead: arm(anchor) starts a countdown rather than
@@ -38,9 +62,7 @@
 ---   align      "start" (default) | "center" | "end", along the shared axis when
 ---              breadth is smaller than the anchor.
 ---   padX, padY inner padding around the content (default 14, 10).
----   fill       panel fill: a canvas color table, or a function returning one
----              (evaluated per show, so a caller can track light/dark).
----   border     { color = <color|fn>, width = <n, default 1> }, or nil for none.
+---   style      per-instance surface override; nil inherits the configured default.
 ---   level      canvas window level (default hs.canvas.windowLevels.popUpMenu).
 ---   content    REQUIRED renderer:
 ---                preferredSize(availW, availH) -> { w = , h = }
@@ -48,12 +70,12 @@
 ---                  be nil when that axis is auto); return the natural content size.
 ---                draw(w, h) -> { <canvas element>, ... }
 ---                  draw into a w x h box with its origin at (0, 0); the panel
----                  offsets the elements by its padding and draws the fill/border
----                  behind them.
+---                  offsets the elements by its padding and draws the surface behind
+---                  them.
 
 local obj = {}
 obj.__index = obj
-obj.name = "HelperPanel"
+obj.name = "CanvasPanel"
 obj.version = "1.0"
 obj.author = "mdj-env"
 
@@ -61,13 +83,60 @@ function obj:init()
   return self
 end
 
+-- The one shared surface style, injected by the composition root. Nil until then,
+-- in which case a panel simply draws no surface behind its content.
+local DEFAULT_STYLE = nil
+
+--- CanvasPanel.configure(style) - set the shared surface style (dark/light bg and
+--- border, border width, corner radius). One call at the root, so every surface this
+--- atom draws stays identical and one edit restyles them all.
+function obj.configure(style)
+  DEFAULT_STYLE = style
+  return obj
+end
+
+-- Pick the side of a style matching the live appearance, falling back to dark.
+local function styleSide(style)
+  local dark = hs.host.interfaceStyle() == "Dark"
+  return (dark and style.dark) or style.light or style.dark or {}
+end
+
+local function hexColor(hex)
+  local r, g, b = hex:match("#?(%x%x)(%x%x)(%x%x)")
+  if not r then return nil end
+  return { red = tonumber(r, 16) / 255, green = tonumber(g, 16) / 255,
+           blue = tonumber(b, 16) / 255, alpha = 1.0 }
+end
+
+--- CanvasPanel.surfaceElements(w, h, style) - the surface as canvas elements for a
+--- w x h box at origin (0, 0): a filled rounded rectangle plus a rounded border,
+--- resolved for the current appearance. This is the single place the surface is
+--- painted, reused by show() and by any consumer that manages its own canvas. `style`
+--- overrides the configured default for this call.
+function obj.surfaceElements(w, h, style)
+  style = style or DEFAULT_STYLE or {}
+  local side = styleSide(style)
+  local radius = style.cornerRadius or 0
+  local bw = style.borderWidth or 1
+  local radii = { xRadius = radius, yRadius = radius }
+  local els = {}
+  local bg = side.bg and hexColor(side.bg)
+  if bg then
+    els[#els + 1] = { type = "rectangle", action = "fill", fillColor = bg,
+      roundedRectRadii = radii, frame = { x = 0, y = 0, w = w, h = h } }
+  end
+  local border = side.border and hexColor(side.border)
+  if border then
+    -- Inset by half the stroke so the full border stays inside the canvas bounds.
+    els[#els + 1] = { type = "rectangle", action = "stroke", strokeColor = border,
+      strokeWidth = bw, roundedRectRadii = radii,
+      frame = { x = bw / 2, y = bw / 2, w = w - bw, h = h - bw } }
+  end
+  return els
+end
+
 local Panel = {}
 Panel.__index = Panel
-
-local function resolve(v)
-  if type(v) == "function" then return v() end
-  return v
-end
 
 -- Offset a content element's frame by the panel padding, returning a shifted copy so
 -- the content can draw in its own (0,0) box while the panel owns absolute placement.
@@ -140,25 +209,15 @@ function Panel:_layout(anchor)
   return { x = x, y = y, w = panelW, h = panelH }, contentW, contentH, padX, padY
 end
 
---- HelperPanel:show(anchorFrame) - place and draw the panel relative to anchorFrame
+--- CanvasPanel:show(anchorFrame) - place and draw the panel relative to anchorFrame
 --- ({ x, y, w, h }). Safe to call repeatedly; the canvas is built once and reused.
 function Panel:show(anchor)
   if not anchor and self.config.placement ~= "center" then return end
   local frame, contentW, contentH, padX, padY = self:_layout(anchor)
 
   local els = {}
-  local fill = resolve(self.config.fill)
-  if fill then
-    els[#els + 1] = { type = "rectangle", action = "fill", fillColor = fill,
-      frame = { x = 0, y = 0, w = frame.w, h = frame.h } }
-  end
-  local border = self.config.border
-  if border then
-    local bw = border.width or 1
-    -- Inset by half the stroke so the full border stays inside the canvas bounds.
-    els[#els + 1] = { type = "rectangle", action = "stroke",
-      strokeColor = resolve(border.color), strokeWidth = bw,
-      frame = { x = bw / 2, y = bw / 2, w = frame.w - bw, h = frame.h - bw } }
+  for _, el in ipairs(obj.surfaceElements(frame.w, frame.h, self.config.style)) do
+    els[#els + 1] = el
   end
   for _, el in ipairs(self.config.content.draw(contentW, contentH) or {}) do
     els[#els + 1] = shifted(el, padX, padY)
@@ -184,7 +243,7 @@ function Panel:_startTimer()
   end)
 end
 
---- HelperPanel:arm(anchorFrame) - the reveal-timing entry point. With no delay it draws
+--- CanvasPanel:arm(anchorFrame) - the reveal-timing entry point. With no delay it draws
 --- at once, the same as show. With a delay it stores the anchor and starts the idle
 --- countdown instead of drawing, unless the panel has already revealed, in which case it
 --- redraws at the corrected anchor (a chooser reports its frame twice as it settles).
@@ -203,7 +262,7 @@ function Panel:arm(anchor)
   if not self.timer then self:_startTimer() end
 end
 
---- HelperPanel:poke() - signal activity, restarting the idle countdown so the reveal is
+--- CanvasPanel:poke() - signal activity, restarting the idle countdown so the reveal is
 --- pushed back. A no-op with no delay, and a no-op once the panel has revealed, since it
 --- latches visible from then on.
 function Panel:poke()
@@ -215,7 +274,7 @@ function Panel:poke()
   end
 end
 
---- HelperPanel:hide() - hide the panel and clear the reveal state, so the next arm starts
+--- CanvasPanel:hide() - hide the panel and clear the reveal state, so the next arm starts
 --- a fresh countdown (the canvas is kept alive for the next show).
 function Panel:hide()
   if self.timer then
@@ -227,14 +286,14 @@ function Panel:hide()
   if self.canvas then self.canvas:hide() end
 end
 
---- HelperPanel:isShowing() - whether the panel is currently visible.
+--- CanvasPanel:isShowing() - whether the panel is currently visible.
 function Panel:isShowing()
   return self.canvas ~= nil and self.canvas:isShowing()
 end
 
---- HelperPanel.new(config) -> instance.
+--- CanvasPanel.new(config) -> instance.
 function obj.new(config)
-  assert(config and config.content, "HelperPanel.new: config.content is required")
+  assert(config and config.content, "CanvasPanel.new: config.content is required")
   return setmetatable({ config = config, canvas = nil, timer = nil, shown = false, anchor = nil }, Panel)
 end
 

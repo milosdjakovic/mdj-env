@@ -22,7 +22,7 @@ hs.loadSpoon("KeyRemap")
 hs.loadSpoon("ChordKey")
 hs.loadSpoon("CheatSheet")
 hs.loadSpoon("Chooser")
-hs.loadSpoon("HelperPanel")
+hs.loadSpoon("CanvasPanel")
 hs.loadSpoon("HyperKey")
 hs.loadSpoon("HyperCheatSheet")
 hs.loadSpoon("StageManager")
@@ -67,7 +67,7 @@ spoon.Chooser:init()
 
 -- CheatSheet: the shared overlay behind both cheat sheets. Both builders below
 -- draw through this one instance (only ever one overlay is up). It owns only the
--- grid layout and draws through the shared HelperPanel canvas atom, the same
+-- grid layout and draws through the shared CanvasPanel atom, the same
 -- surface as the docked shortcut hint bar; it is configured further down, once the
 -- panel fill and border the hint bar uses are in scope, so the two share one look.
 spoon.CheatSheet:init()
@@ -296,7 +296,7 @@ local function footerFor(name)
   end
   return hints
 end
--- Every chooser runs on the native backend and docks the deferred HelperPanel for
+-- Every chooser runs on the native backend and docks the deferred CanvasPanel for
 -- its shortcut hints. The footerFor hints above feed the panels directly.
 local function hideShortcuts()
   if shortcutsShown then
@@ -635,37 +635,18 @@ local function commandRows(query)
   return out
 end
 
--- Panel surface colours, the solid fill and 1px border the HelperPanel draws for the
--- cheat sheet, the docked hint bars, and the colour toast. This is not a second
--- source. The same surface is the chooser preview pane's background and border, so
--- both read the one theme in config/settings.lua and stay identical by construction.
--- Edit the colour there, once, and every canvas surface follows.
-local PANEL_BG = { light = settings.chooserTheme.light.preview.bg, dark = settings.chooserTheme.dark.preview.bg }
-local PANEL_BORDER = { light = settings.chooserTheme.light.preview.border, dark = settings.chooserTheme.dark.preview.border }
-local function panelHexColor(hex)
-  local r, g, b = hex:match("#?(%x%x)(%x%x)(%x%x)")
-  return { red = tonumber(r, 16) / 255, green = tonumber(g, 16) / 255,
-           blue = tonumber(b, 16) / 255, alpha = 1.0 }
-end
+-- The shared canvas surface. CanvasPanel owns the look (background, border, corner
+-- radius, per light and dark), sourced once from settings.surface. Every surface it
+-- draws, the docked hint bars, the cheat sheet, the colour toast, and the clipboard
+-- preview pane, reads this one style and stays identical by construction. Edit the
+-- values in config/settings.lua, once, and every canvas surface follows.
+spoon.CanvasPanel.configure(settings.surface)
 
--- The panel fill and border, resolved per show so they track light and dark. One
--- pair, handed to both the docked shortcut hint bar and the cheat sheet overlay,
--- so the two canvases share one surface look.
-local function panelFill()
-  return (hs.host.interfaceStyle() == "Dark") and panelHexColor(PANEL_BG.dark) or panelHexColor(PANEL_BG.light)
-end
-local function panelBorder()
-  return { width = 1, color = function()
-    return (hs.host.interfaceStyle() == "Dark") and panelHexColor(PANEL_BORDER.dark) or panelHexColor(PANEL_BORDER.light)
-  end }
-end
-
--- Now that the shared surface is in scope, finish wiring the cheat sheet. It draws
--- its binding grid through the HelperPanel atom with the same fill and border as
--- the hint bar, centered on screen. The cheatSheet settings block tunes only the
--- content, font size, padding, and badge radius; the surface comes from here.
-local cheatOpts = { theme = settings.chooserTheme, helperPanel = spoon.HelperPanel,
-                    fill = panelFill, border = panelBorder() }
+-- Finish wiring the cheat sheet. It draws its binding grid through the CanvasPanel
+-- atom, centered on screen, inheriting the one shared surface, so no fill or border
+-- is passed here. The cheatSheet settings block tunes only the content, font size,
+-- padding, and badge radius.
+local cheatOpts = { theme = settings.chooserTheme, canvasPanel = spoon.CanvasPanel }
 for k, v in pairs(settings.cheatSheet or {}) do cheatOpts[k] = v end
 spoon.CheatSheet:configure(cheatOpts)
 
@@ -746,23 +727,20 @@ local function shortcutsContent(theme, hints)
 end
 
 -- The deferred shortcut hint panel, shared by every native chooser that wants one
--- (the launcher, menu search, VPN). One factory builds a HelperPanel docked below the chooser, filled
--- and bordered to match the native picker, with that context's footerFor hints as its
--- content, and returns the three callbacks a native chooser is wired with. arm on
--- onPositioned starts the idle countdown (the panel stays hidden until the user pauses),
--- poke on onActivity resets it on each keypress, and hide on onClose tears it down and
--- clears any peeked overlay. The idle delay is the one settings.shortcutsPanel.delayMs,
--- so editing it there applies to every panel this builds; nil or 0 there shows the panel
--- instantly on open. fill and border are functions so they re-resolve light/dark on
--- every show.
+-- (the launcher, menu search, VPN). One factory builds a CanvasPanel docked below the
+-- chooser, inheriting the shared surface so it matches the native picker, with that
+-- context's footerFor hints as its content, and returns the three callbacks a native
+-- chooser is wired with. arm on onPositioned starts the idle countdown (the panel stays
+-- hidden until the user pauses), poke on onActivity resets it on each keypress, and hide
+-- on onClose tears it down and clears any peeked overlay. The idle delay is the one
+-- settings.shortcutsPanel.delayMs, so editing it there applies to every panel this
+-- builds; nil or 0 there shows the panel instantly on open.
 local function shortcutPanelFor(context)
-  local panel = spoon.HelperPanel.new({
+  local panel = spoon.CanvasPanel.new({
     placement = "below",
     gap = 8,
     padX = 14, padY = 10,
     delay = settings.shortcutsPanel and settings.shortcutsPanel.delayMs,
-    fill = panelFill,
-    border = panelBorder(),
     content = shortcutsContent(settings.chooserTheme, footerFor(context)),
   })
   return {
@@ -1010,6 +988,11 @@ local clipPanel = shortcutPanelFor("clipboard")
 spoon.ClipboardHistory.manager.configure({
   theme = settings.chooserTheme,
   chooser = spoon.Chooser,
+  -- The preview pane paints its background and border through the shared surface, so
+  -- it matches the docked hint panel and the cheat sheet and rounds the same way. The
+  -- clipboard draws its own canvas (it scrolls and clips), so it gets the surface as
+  -- elements to prepend rather than a CanvasPanel instance.
+  surface = spoon.CanvasPanel.surfaceElements,
   onPositioned = clipPanel.onPositioned,
   onActivity = clipPanel.onActivity,
   onClose = clipPanel.onClose,
@@ -1103,7 +1086,7 @@ spoon.Capture:bindHotkeys(keys.capture)
 -- through bindHyper below), and it is also reachable as the color picker launcher
 -- row through the special action dispatcher above. The click copies the pixel hex.
 --
--- The copied confirmation is drawn on the shared HelperPanel canvas, the same
+-- The copied confirmation is drawn on the shared CanvasPanel, the same
 -- surface as the cheat sheet and the docked hint bars, so the feedback reads as one
 -- UI rather than a stray hs.alert. It is a centered panel showing the picked colour
 -- as a swatch beside its hex, shown on each pick and hidden shortly after by a timer.
@@ -1142,10 +1125,8 @@ local function hexToColor(hex)
   return { red = tonumber(r, 16) / 255, green = tonumber(g, 16) / 255, blue = tonumber(b, 16) / 255, alpha = 1 }
 end
 local pickState = { hex = "#000000", color = { red = 0, green = 0, blue = 0, alpha = 1 } }
-local colorToast = spoon.HelperPanel.new({
+local colorToast = spoon.CanvasPanel.new({
   placement = "center",
-  fill = panelFill,
-  border = panelBorder(),
   content = colorToastContent(settings.chooserTheme, pickState),
 })
 local colorToastTimer
