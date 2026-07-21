@@ -436,6 +436,218 @@ local function innerWidth()
   return (previewFrame and previewFrame.w or cfg.previewW) - 2 * PAD_X
 end
 
+-- The inner content height, the companion frame minus vertical padding. Used to
+-- size the colour swatch so it fills the pane without forcing a scroll.
+local function innerHeight()
+  return (previewFrame and previewFrame.h or cfg.previewH) - 2 * PAD_Y
+end
+
+--------------------------------------------------------------------------------
+-- Colour swatch (a text entry that is a single colour literal)
+--------------------------------------------------------------------------------
+--
+-- When the copied text is nothing but one colour value (hex, rgb/rgba, or
+-- hsl/hsla), the preview shows that colour's three canonical forms and a large
+-- swatch filling the pane, instead of the raw monospace text. Parsing is strict,
+-- the whole trimmed string must be the colour, so prose that merely mentions #fff
+-- is left as ordinary text. All values are normalised to red/green/blue/alpha in
+-- 0..1, the canvas colour space.
+
+local function clamp01(x)
+  return x < 0 and 0 or (x > 1 and 1 or x)
+end
+
+-- Format an alpha as the shortest decimal (0.5, not 0.50; 1, not 1.00).
+local function trimNum(x)
+  local s = string.format("%.2f", x)
+  return (s:gsub("(%..-)0+$", "%1"):gsub("%.$", ""))
+end
+
+-- HSL (h in degrees, s and l in 0..1) to RGB in 0..1.
+local function hslToRgb(h, s, l)
+  h = (h % 360) / 360
+  if s == 0 then return l, l, l end
+  local function hue(p, q, t)
+    if t < 0 then t = t + 1 end
+    if t > 1 then t = t - 1 end
+    if t < 1 / 6 then return p + (q - p) * 6 * t end
+    if t < 1 / 2 then return q end
+    if t < 2 / 3 then return p + (q - p) * (2 / 3 - t) * 6 end
+    return p
+  end
+  local q = l < 0.5 and l * (1 + s) or l + s - l * s
+  local p = 2 * l - q
+  return hue(p, q, h + 1 / 3), hue(p, q, h), hue(p, q, h - 1 / 3)
+end
+
+-- RGB in 0..1 to HSL (h in degrees, s and l in 0..1), so any colour can be shown
+-- in every form regardless of how it was copied.
+local function rgbToHsl(r, g, b)
+  local mx, mn = math.max(r, g, b), math.min(r, g, b)
+  local l = (mx + mn) / 2
+  if mx == mn then return 0, 0, l end
+  local d = mx - mn
+  local s = l > 0.5 and d / (2 - mx - mn) or d / (mx + mn)
+  local h
+  if mx == r then
+    h = (g - b) / d + (g < b and 6 or 0)
+  elseif mx == g then
+    h = (b - r) / d + 2
+  else
+    h = (r - g) / d + 4
+  end
+  return h * 60, s, l
+end
+
+-- #rgb, #rgba, #rrggbb, or #rrggbbaa. Shorthand is expanded before slicing.
+local function parseHexColor(s)
+  local hex = s:match("^#(%x+)$")
+  if not hex then return nil end
+  local n = #hex
+  if n == 3 or n == 4 then
+    hex = hex:gsub("(%x)", "%1%1")
+    n = #hex
+  end
+  if n ~= 6 and n ~= 8 then return nil end
+  local function comp(i)
+    return tonumber(hex:sub(i, i + 1), 16) / 255
+  end
+  return { r = comp(1), g = comp(3), b = comp(5), a = n == 8 and comp(7) or 1 }
+end
+
+-- Split the args of a functional colour on commas, whitespace, or the slash CSS
+-- uses before alpha, so rgb(1 2 3 / 50%) and rgba(1, 2, 3, 0.5) both parse.
+local function colorArgs(inner)
+  local out = {}
+  for tok in inner:gmatch("[^,%s/]+") do
+    out[#out + 1] = tok
+  end
+  return out
+end
+
+-- Read a trailing alpha token, either 0..1 or a percentage. Defaults to 1.
+local function parseAlpha(tok)
+  if not tok then return 1 end
+  local pct = tok:match("^([%d%.]+)%%$")
+  if pct then return clamp01(tonumber(pct) / 100) end
+  return clamp01(tonumber(tok) or 1)
+end
+
+-- rgb(r, g, b) / rgba(r, g, b, a). Channels are 0..255 or percentages.
+local function parseRgbColor(s)
+  local inner = s:match("^rgba?%((.+)%)$")
+  if not inner then return nil end
+  local a = colorArgs(inner)
+  if #a < 3 or #a > 4 then return nil end
+  local function chan(tok)
+    local pct = tok:match("^([%d%.]+)%%$")
+    if pct then return clamp01(tonumber(pct) / 100) end
+    local v = tonumber(tok)
+    return v and clamp01(v / 255) or nil
+  end
+  local r, g, b = chan(a[1]), chan(a[2]), chan(a[3])
+  if not (r and g and b) then return nil end
+  return { r = r, g = g, b = b, a = parseAlpha(a[4]) }
+end
+
+-- hsl(h, s%, l%) / hsla(h, s%, l%, a). Hue in degrees, saturation and lightness
+-- as percentages.
+local function parseHslColor(s)
+  local inner = s:match("^hsla?%((.+)%)$")
+  if not inner then return nil end
+  local a = colorArgs(inner)
+  if #a < 3 or #a > 4 then return nil end
+  local h = tonumber((a[1]:gsub("deg$", "")))
+  local sat = tonumber((a[2]:gsub("%%$", "")))
+  local lit = tonumber((a[3]:gsub("%%$", "")))
+  if not (h and sat and lit) then return nil end
+  local r, g, b = hslToRgb(h, clamp01(sat / 100), clamp01(lit / 100))
+  return { r = r, g = g, b = b, a = parseAlpha(a[4]) }
+end
+
+-- The strict gate: a trimmed string that is exactly one colour literal, else nil.
+-- The length cap keeps the match cheap and rejects a stray paragraph outright.
+local function parseColor(text)
+  local s = tostring(text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+  if #s == 0 or #s > 64 then return nil end
+  s = s:lower()
+  return parseHexColor(s) or parseRgbColor(s) or parseHslColor(s)
+end
+
+-- The three canonical forms of a colour, aligned label + value in the monospace
+-- body, with alpha carried only when it is not fully opaque.
+local function colorReps(c)
+  local R = math.floor(c.r * 255 + 0.5)
+  local G = math.floor(c.g * 255 + 0.5)
+  local B = math.floor(c.b * 255 + 0.5)
+  local h, s, l = rgbToHsl(c.r, c.g, c.b)
+  h, s, l = math.floor(h + 0.5), math.floor(s * 100 + 0.5), math.floor(l * 100 + 0.5)
+  if c.a < 1 then
+    local A = math.floor(c.a * 255 + 0.5)
+    return {
+      string.format("HEX   #%02X%02X%02X%02X", R, G, B, A),
+      string.format("RGB   rgba(%d, %d, %d, %s)", R, G, B, trimNum(c.a)),
+      string.format("HSL   hsla(%d, %d%%, %d%%, %s)", h, s, l, trimNum(c.a)),
+    }
+  end
+  return {
+    string.format("HEX   #%02X%02X%02X", R, G, B),
+    string.format("RGB   rgb(%d, %d, %d)", R, G, B),
+    string.format("HSL   hsl(%d, %d%%, %d%%)", h, s, l),
+  }
+end
+
+-- A checkerboard behind a translucent swatch, so alpha reads against it instead of
+-- blending invisibly into the panel. Drawn only when the colour is not opaque, and
+-- clipped by the caller to the rounded swatch box. The cell scales with the swatch
+-- so the grid stays ~8 cells wide at any size, a fixed handful of rectangles.
+local function appendChecker(els, x0, y0, w, h)
+  local cell = math.max(8, math.floor(math.min(w, h) / 8))
+  els[#els + 1] = { type = "rectangle", action = "fill", fillColor = { white = 0.92, alpha = 1 },
+    frame = { x = x0, y = y0, w = w, h = h } }
+  local dark = { white = 0.72, alpha = 1 }
+  local rowIdx, yy = 0, y0
+  while yy < y0 + h do
+    local ch = math.min(cell, y0 + h - yy)
+    local colIdx, xx = 0, x0
+    while xx < x0 + w do
+      local cw = math.min(cell, x0 + w - xx)
+      if (rowIdx + colIdx) % 2 == 1 then
+        els[#els + 1] = { type = "rectangle", action = "fill", fillColor = dark,
+          frame = { x = xx, y = yy, w = cw, h = ch } }
+      end
+      xx, colIdx = xx + cell, colIdx + 1
+    end
+    yy, rowIdx = yy + cell, rowIdx + 1
+  end
+end
+
+-- The swatch block: a plain rectangle filled with the colour, over a checker for
+-- transparency so a translucent colour reads against it instead of blending into
+-- the panel. No border and no rounded corners, it is a flat block of the colour.
+local function appendSwatch(els, color, x0, y0, w, h)
+  if color.alpha < 1 then appendChecker(els, x0, y0, w, h) end
+  els[#els + 1] = { type = "rectangle", action = "fill", fillColor = color,
+    frame = { x = x0, y = y0, w = w, h = h } }
+  return y0 + h
+end
+
+-- Build the colour preview: an uppercase meta line, the three canonical forms, and
+-- the swatch. The swatch fills the width and is square, unless the space left in the
+-- pane is shorter than the width, in which case it takes that height so it still
+-- fits without a scroll (the pane is taller than wide, so a square usually fits).
+local function buildColor(e, c)
+  local els = {}
+  local w = innerWidth()
+  local meta = withBatchMark("Color  ·  " .. util.relTime(e.ts), e)
+  local y = appendText(els, meta:upper(), 0, 0, w, colors.meta, META_SIZE) + BLOCK_GAP
+  y = appendText(els, table.concat(colorReps(c), "\n"), 0, y, w, colors.fg, BODY_SIZE) + BLOCK_GAP
+  local avail = math.max(0, innerHeight() - y)
+  local side = (avail > 0 and avail < w) and avail or w
+  local fill = { red = c.r, green = c.g, blue = c.b, alpha = c.a }
+  return els, appendSwatch(els, fill, 0, y, w, side)
+end
+
 -- Header blocks for a file entry: an uppercase meta line (count, size, badge) and
 -- one path line per original. Returns the element list and the y below it.
 local function buildFileHeader(e, w)
@@ -471,6 +683,12 @@ local function buildNonFile(e)
       y = appendText(els, "No preview.", 0, y, w, colors.note, BODY_SIZE)
     end
     return els, y
+  end
+  -- A text entry that is nothing but a single colour literal renders as a swatch
+  -- with its canonical forms, rather than the raw monospace text.
+  if e.kind == "text" then
+    local c = parseColor(e.text)
+    if c then return buildColor(e, c) end
   end
   local meta = (KIND_LABEL[e.kind] or e.kind) .. "  ·  " .. util.relTime(e.ts)
   -- Text shows its character count, computed once at capture, so the pane never

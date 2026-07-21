@@ -367,7 +367,13 @@ the atom polls the highlighted row and fires `onHighlight`, which draws the copi
 data into an `hs.canvas` docked in that companion frame, no webview. Rendering is
 per kind: text and url wrap in a monospace block, image and video show the store's
 downscaled preview PNG loaded straight as an `hs.image`, and a file shows its
-header plus that image or a note. Content taller than the pane scrolls with
+header plus that image or a note. A text entry that is nothing but a single colour
+literal (hex, rgb/rgba, or hsl/hsla) is a special case, it renders the colour's
+three canonical forms and a large flat swatch filling the pane instead of the raw
+text. Detection is strict, the whole trimmed string must be the colour, so prose
+that merely mentions `#fff` stays ordinary text, and a translucent colour is drawn
+over a checkerboard so its alpha reads. This lives entirely in the per-kind builder
+in `ui.lua`, one consumer, so it is inline there with no new module or injection. Content taller than the pane scrolls with
 Hyper+Cmd+j/k, clamped to the overflow and clipped to the inner box. The canvas
 pane and the docked shortcut panel share the palette's `preview.bg`/`preview.border`
 so they read as one surface. Crucially the file storage and the preview sizing are
