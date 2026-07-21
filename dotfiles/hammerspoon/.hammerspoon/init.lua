@@ -1319,19 +1319,40 @@ spoon.WorkspaceEngine:registerWorkspace(vicertWorkspace)
 spoon.WorkspaceEngine:start()
 
 -- This machine's name, the one place the per host split is decided. Resolved
--- once here and reused by DisplayMemory (below) and DisplayProfiles (later).
+-- once here for DisplayProfiles (later); the terminal's per-location memory keys
+-- on the attached-display fingerprint instead, so it needs no machine name.
 local host = (hs.execute("scutil --get LocalHostName") or ""):gsub("%s+$", "")
 
--- DisplayMemory: remember which display the terminal was last moved to, on this
--- machine. It is the reusable Observer only; it watches the terminal's windows
--- and persists the display, and answers nil when nothing is remembered or the
--- remembered display is gone, so the caller layers its own default underneath.
+-- Attached-display fingerprint. A stable id for which screens are connected right
+-- now, the sorted UUIDs of the attached displays joined into one string. It is the
+-- same notion of a location DisplayProfiles matches on, that is which displays are
+-- plugged in, expressed as a single value so any per-location memory can key on it.
+-- Kept reusable and separate on purpose, a future per-location app placement scopes
+-- on this same helper with one line. hs.settings is per machine, so the built-in
+-- panel's machine-specific UUID already keeps this distinct across Macs without
+-- naming one.
+local function displayFingerprint()
+  local ids = {}
+  for _, s in ipairs(hs.screen.allScreens()) do
+    ids[#ids + 1] = s:getUUID() or tostring(s:id())
+  end
+  table.sort(ids)
+  return table.concat(ids, ",")
+end
+
+-- DisplayMemory: remember which display the terminal was last moved to, per
+-- location. It is the reusable Observer only; it watches the terminal's windows
+-- and persists the display under the current scope, and answers nil when nothing
+-- is remembered for this location or the remembered display is gone, so the caller
+-- layers its own default underneath. Scoping by displayFingerprint means the
+-- office and home setups each keep their own terminal display and switch
+-- automatically when displays are docked or undocked.
 local terminalBundleID = apps[settings.terminal.preferredTerminal]
 spoon.DisplayMemory:init()
 spoon.DisplayMemory:configure({
   bundleID = terminalBundleID,
   settingsKey = "terminalDisplay",
-  host = host,
+  scope = displayFingerprint,
 })
 spoon.DisplayMemory:start()
 

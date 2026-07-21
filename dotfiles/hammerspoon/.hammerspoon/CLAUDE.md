@@ -188,12 +188,26 @@ and the memory.
 watches one app's windows with an `hs.window.filter` on the terminal's bundle id,
 and on every `windowMoved` records the display the window lands on, whether it was
 dragged there or moved by the META leader's prev/next display. Identity is the
-display UUID, stable across reboots, and the value is stored per machine through
-`hs.settings` under `terminalDisplay.<LocalHostName>`, so each Mac remembers
-independently and the choice survives a reload or a reboot. It answers
-`rememberedScreen()` with that display while it is attached, else nil, so a caller
-can fall back. It never decides a default and never names a machine; the root
-injects the app to watch and this machine's name.
+display UUID, stable across reboots, and the memory is a table from scope to
+display UUID stored under one `hs.settings` key, `terminalDisplay`, surviving a
+reload or a reboot. It answers `rememberedScreen()` with the display remembered for
+the current scope while it is attached, else nil, so a caller can fall back. It
+never decides a default and never decides what a location is; the root injects the
+app to watch and a `scope`, a string or a function evaluated live.
+
+The scope is what makes it location aware, and it is where DisplayMemory and
+DisplayProfiles are mixed without being coupled. The root injects
+`displayFingerprint()`, the sorted UUIDs of the attached displays joined into one
+string, which is the same notion of a location DisplayProfiles matches on, namely
+which displays are plugged in. So the office setup and the home setup each keep
+their own remembered terminal display and switch automatically when displays are
+docked or undocked, and a single per machine slot can no longer clobber itself
+across places. The fingerprint is a small reusable helper in `init.lua`, separate
+from both spoons, so a future per-location app placement scopes on the same value
+with one line. `hs.settings` is per machine, so the built-in panel's
+machine-specific UUID already keeps the fingerprint distinct across Macs without
+naming one, which is why the terminal memory needs no `host` while DisplayProfiles
+still does.
 
 The default policy lives in one place in `init.lua`, `defaultTerminalScreen()`,
 the built-in panel if there is one, else the first attached screen. That single
