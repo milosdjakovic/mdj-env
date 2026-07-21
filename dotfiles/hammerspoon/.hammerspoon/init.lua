@@ -64,15 +64,12 @@ spoon.KeyRemap:apply(catalog, { keys.appLeader, keys.windowLeader })
 -- and the Surface foundation were removed.
 spoon.Chooser:init()
 
--- CheatSheet: the shared overlay renderer behind both cheat sheets. Both builders
--- below draw through this one instance (only ever one overlay is up). It used to
--- draw through a Surface webview grid, removed with the rest of the web stack, so
--- show() is inert until a canvas renderer is wired back in. The cheatSheet block
--- still tunes the content, font size, padding, and badge radius.
+-- CheatSheet: the shared overlay behind both cheat sheets. Both builders below
+-- draw through this one instance (only ever one overlay is up). It owns only the
+-- grid layout and draws through the shared HelperPanel canvas atom, the same
+-- surface as the docked shortcut hint bar; it is configured further down, once the
+-- panel fill and border the hint bar uses are in scope, so the two share one look.
 spoon.CheatSheet:init()
-local cheatOpts = { theme = settings.chooserTheme }
-for k, v in pairs(settings.cheatSheet or {}) do cheatOpts[k] = v end
-spoon.CheatSheet:configure(cheatOpts)
 
 -- HyperCheatSheet: overlay of everything under Hyper. App toggles first (open vs
 -- not running), then one ACTIONS group for the non-app commands. This is the one
@@ -645,6 +642,27 @@ local function panelHexColor(hex)
   return { red = tonumber(r, 16) / 255, green = tonumber(g, 16) / 255,
            blue = tonumber(b, 16) / 255, alpha = 1.0 }
 end
+
+-- The panel fill and border, resolved per show so they track light and dark. One
+-- pair, handed to both the docked shortcut hint bar and the cheat sheet overlay,
+-- so the two canvases share one surface look.
+local function panelFill()
+  return (hs.host.interfaceStyle() == "Dark") and panelHexColor(PANEL_BG.dark) or panelHexColor(PANEL_BG.light)
+end
+local function panelBorder()
+  return { width = 1, color = function()
+    return (hs.host.interfaceStyle() == "Dark") and panelHexColor(PANEL_BORDER.dark) or panelHexColor(PANEL_BORDER.light)
+  end }
+end
+
+-- Now that the shared surface is in scope, finish wiring the cheat sheet. It draws
+-- its binding grid through the HelperPanel atom with the same fill and border as
+-- the hint bar, centered on screen. The cheatSheet settings block tunes only the
+-- content, font size, padding, and badge radius; the surface comes from here.
+local cheatOpts = { theme = settings.chooserTheme, helperPanel = spoon.HelperPanel,
+                    fill = panelFill, border = panelBorder() }
+for k, v in pairs(settings.cheatSheet or {}) do cheatOpts[k] = v end
+spoon.CheatSheet:configure(cheatOpts)
 
 -- Shortcut hints as a HelperPanel content renderer: the first PURPOSE of the panel.
 -- It measures and draws the chord chips, wrapping them to the width the panel offers,

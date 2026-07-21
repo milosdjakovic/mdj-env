@@ -1,36 +1,40 @@
 --- === CheatSheet ===
 ---
---- Shared on-screen overlay renderer: a rounded panel of key bindings laid out
---- as a row-major grid. Purely presentational, it draws whatever model it is
---- handed and owns nothing domain-specific. This spoon owns the layout math, it
---- computes the panel size and positions every badge, label, icon, and title with
---- absolute coordinates.
+--- Shared on-screen overlay of key bindings laid out as a row-major grid. Purely
+--- presentational, it draws whatever model it is handed and owns nothing
+--- domain-specific. This spoon owns only the grid layout math, it computes the
+--- content size and positions every badge, label, icon, and title with absolute
+--- coordinates, and the chip and text colours.
 ---
---- The drawing primitive was a Surface webview grid, removed with the rest of the
---- web stack. Until a canvas renderer is wired back in, show() builds the model
---- and computes the geometry but has nothing to draw with, so it is inert (the
---- self._grid guard returns early). The layout math, the model contract, and the
---- two callers are left intact, so restoring the overlay is a matter of giving
---- this spoon a renderer, not rebuilding the callers.
+--- It does NOT draw its own panel. The surface (fill, border, corners, padding,
+--- placement) is the shared HelperPanel canvas atom, the same one behind the
+--- docked shortcut hint bar and the clipboard preview, so the overlay reads as the
+--- same family. This spoon is a HelperPanel content strategy: it exposes
+--- preferredSize/draw, HelperPanel owns everything around it. The composition root
+--- injects the HelperPanel factory plus the fill and border it hands the hint bar,
+--- so there is one panel look and one place that sets it.
 ---
 --- The two callers (HyperCheatSheet, WindowCheatSheet) build the model and keep
 --- their own domain logic: resolving app icons and splitting running vs not, or
 --- humanizing action names. They differ only in content and a few layout knobs
---- (column count, badge width, whether rows carry icons), all of which are model
---- fields here, so one renderer serves both.
+--- (column count, badge width, whether rows carry icons), all model fields here,
+--- so one renderer serves both.
 ---
---- CONTENT styling (font size, inner padding, badge radius) is global: set it once
---- via configure(), typically from config/settings.lua. configure(opts) accepts:
----   theme        - the palette source ({ dark = {...}, light = {...} })
+--- Content styling is global, set once via configure(), typically from
+--- config/settings.lua. configure(opts) accepts:
+---   theme        - the chooser palette ({ dark = {...}, light = {...} }); the chip
+---                  and text colours track light and dark from it, matching the
+---                  hint bar
 ---   fontSize     - text size (px); lineHeight follows unless set explicitly
----   padding      - inner margin around the content (px)
+---   padding      - inner panel padding (px), passed to HelperPanel as padX/padY
 ---   badgeRadius  - key-badge corner roundness (px)
---- Legacy appearance keys (opacity, background, cornerRadius) are accepted and
---- ignored.
+---   helperPanel  - the HelperPanel factory (spoon.HelperPanel) to draw through
+---   fill, border - the panel fill and border, forwarded to HelperPanel so the
+---                  cheat sheet shares the hint bar's surface
 ---
 --- show(model) where model is:
 ---   columns, colWidth, rowHeight, badgeWidth, badgeHeight, iconSize, gap,
----   margin, titleHeight, groupGap  -- per-overlay layout, all optional
+---   titleHeight, groupGap           -- per-overlay layout, all optional
 ---   sections = {                    -- one or more; empty sections are skipped
 ---     { title = "OPEN", alpha = 1.0, rows = {
 ---         { badge = "C", label = "Google Chrome", icon = <hs.image?> }, ... } },
@@ -48,17 +52,19 @@ obj.__index = obj
 
 -- Metadata
 obj.name = "CheatSheet"
-obj.version = "3.0"
+obj.version = "4.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
-obj._grid = nil           -- the renderer this draws through; nil since the web grid was removed, so show() is inert
 obj._theme = nil          -- effective content styling (DEFAULT_THEME + configure)
 obj._layoutDefaults = nil -- effective layout defaults (DEFAULTS + configure)
-obj._iconMemo = nil       -- hs.image -> data URI, so an icon is encoded once
+obj._panelCfg = nil       -- injected: { factory, fill, border, padding }
+obj._panel = nil          -- the one HelperPanel instance, built lazily
+obj._model = nil          -- the model of the overlay currently being drawn
+obj._built = nil          -- cached { els, w, h } from the last preferredSize pass
 
--- Per-overlay layout defaults. Any can be overridden per show(); `margin` (the
--- inner padding) can also be set globally via configure({ padding = ... }).
+-- Per-overlay layout defaults. Any can be overridden per show(). The inner panel
+-- padding is HelperPanel's, set globally via configure({ padding = ... }).
 local DEFAULTS = {
   columns = 2,
   colWidth = 250,
@@ -67,19 +73,21 @@ local DEFAULTS = {
   badgeHeight = 28,
   iconSize = 0,      -- 0 = no icons
   gap = 12,          -- horizontal gap around badge/icon
-  margin = 28,       -- inner padding around content
   titleHeight = 32,  -- section header line + gap below it
   groupGap = 20,     -- vertical gap between sections
 }
 
--- Content styling defaults. configure() clones and overrides these; nothing
--- mutates this table, so it stays the pristine baseline. Colours are not here,
--- they come from the grid palette.
+-- Content styling defaults. configure() clones and overrides these. Colours are
+-- not here; they come from the chooser palette per light/dark at draw time, the
+-- same source and treatment as the shortcut hint bar.
 local DEFAULT_THEME = {
   fontSize = 16,
   lineHeight = 20,
-  badge = { radius = 6 },
+  badge = { radius = 5 },
 }
+
+local FONT = ".AppleSystemUIFont"
+local PANEL_PADDING = 20 -- HelperPanel padX/padY unless configure sets padding
 
 -- Key names -> display glyph, and sub-modifier names -> glyph prefixed onto it.
 -- Turning a key plus its modifiers into a badge string is pure presentation, so
@@ -117,7 +125,7 @@ local SEP_GAP = 8 -- gap on each side of the separator
 -- Rendered width of text in the system UI font at `size`, so a box can hug its
 -- key. Falls back to a rough estimate if the measurement is unavailable.
 local function measureW(text, size)
-  local sz = hs.drawing.getTextDrawingSize(tostring(text), { font = ".AppleSystemUIFont", size = size })
+  local sz = hs.drawing.getTextDrawingSize(tostring(text), { font = FONT, size = size })
   return (sz and sz.w) or (#tostring(text) * size * 0.6)
 end
 
@@ -169,93 +177,162 @@ local function nonEmpty(sections)
 end
 
 --------------------------------------------------------------------------------
--- HTML emission
+-- Canvas content emission (elements only; HelperPanel draws the surface)
 --------------------------------------------------------------------------------
 
 local function px(n) return math.floor(n + 0.5) end
 
-local function esc(s)
-  return (tostring(s or ""):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"))
+-- A copy of a colour with its alpha scaled by `a`, so a section's group alpha
+-- fades each element (canvas has no group opacity). Colours are either
+-- { white, alpha } or { red, green, blue, alpha }; either shape is copied whole.
+local function faded(color, a)
+  if a >= 1 then return color end
+  local c = shallow(color)
+  c.alpha = (color.alpha or 1) * a
+  return c
 end
 
--- One absolutely positioned box. Flexbox in the grid CSS centres the content, so
--- a full row-height or badge-height box lines its text up vertically.
-local function box(cls, x, y, w, h, inner)
-  return string.format(
-    '<div class="%s" style="left:%dpx;top:%dpx;width:%dpx;height:%dpx;">%s</div>',
-    cls, px(x), px(y), px(w), px(h), inner)
+-- A filled, rounded rectangle element (the badge chip).
+local function chipEl(x, y, w, h, color, radius)
+  return { type = "rectangle", action = "fill", fillColor = color,
+    roundedRectRadii = { xRadius = radius, yRadius = radius },
+    frame = { x = px(x), y = px(y), w = px(w), h = px(h) } }
 end
 
--- The data URI for a row icon, encoded once and memoized by image identity, so
--- the app icons are not re-encoded on every overlay show.
-function obj:_iconURI(image)
-  if not image then return nil end
-  self._iconMemo = self._iconMemo or {}
-  local hit = self._iconMemo[image]
-  if hit == nil then
-    hit = image:encodeAsURLString() or false
-    self._iconMemo[image] = hit
-  end
-  return hit or nil
+-- A text element. Canvas text is top-aligned in its frame, so callers pass a
+-- frame already positioned to sit the glyphs where they want vertically.
+local function textEl(text, x, y, w, h, size, color, align)
+  return { type = "text", text = tostring(text), textFont = FONT, textSize = size,
+    textColor = color, textAlignment = align or "left",
+    frame = { x = px(x), y = px(y), w = px(w), h = px(h) } }
 end
 
--- The HTML for one section's rows, positioned from contentY, filled row-major
--- across L.columns. Mirrors the old canvas layout exactly, only emitting divs.
-function obj:_rowsHtml(rows, contentY, L)
-  local T = self._theme
-  local parts = {}
+-- The chip and text colours for the current appearance, tracking light and dark
+-- from the chooser palette exactly as the shortcut hint bar does.
+local function palette(theme)
+  local dark = hs.host.interfaceStyle() == "Dark"
+  local side = (dark and theme.dark) or theme.light or theme.dark or {}
+  return {
+    fg = side.titleColor or { white = dark and 0.92 or 0.15 },       -- labels, badge glyphs
+    meta = side.subColor or { white = dark and 0.55 or 0.42 },       -- section titles, separators
+    badgeBg = { white = dark and 1 or 0, alpha = dark and 0.12 or 0.06 },
+  }
+end
+
+-- One section's rows appended to `els`, positioned from contentY and filled
+-- row-major across L.columns. `alpha` fades the whole group.
+function obj:_rowsElements(els, rows, contentY, L, alpha, C)
+  local sz = self._theme.fontSize
+  local radius = self._theme.badge.radius
+  local fg = faded(C.fg, alpha)
+  local meta = faded(C.meta, alpha)
+  local badgeBg = faded(C.badgeBg, alpha)
 
   -- For content-sized `badges` rows, align every label past the widest badge
   -- block in this section, so a short row and a two-box row still line up.
   local maxBlock = 0
   for _, r in ipairs(rows) do
     if r.badges then
-      local _, total = badgeBoxes(r, T.fontSize, L.badgeHeight)
+      local _, total = badgeBoxes(r, sz, L.badgeHeight)
       if total > maxBlock then maxBlock = total end
     end
+  end
+
+  -- Badge glyph and label text, both sat vertically centred in their box.
+  local function glyphEl(text, x, top, w)
+    return textEl(text, x, top + (L.badgeHeight - sz) / 2 - 1, w, sz + 4, sz, fg, "center")
   end
 
   for i, r in ipairs(rows) do
     local col = (i - 1) % L.columns
     local row = math.floor((i - 1) / L.columns)
-    local x = L.margin + col * L.colWidth
+    local x = col * L.colWidth
     local y = contentY + row * L.rowHeight
     local badgeTop = y + (L.rowHeight - L.badgeHeight) / 2
     local labelX
 
     if r.badges then
-      local boxes, _, sep, sepW = badgeBoxes(r, T.fontSize, L.badgeHeight)
+      local boxes, _, sep, sepW = badgeBoxes(r, sz, L.badgeHeight)
       local bx = x
       for bi, b in ipairs(boxes) do
-        parts[#parts + 1] = box("badge", bx, badgeTop, b.w, L.badgeHeight, esc(b.text))
+        els[#els + 1] = chipEl(bx, badgeTop, b.w, L.badgeHeight, badgeBg, radius)
+        els[#els + 1] = glyphEl(b.text, bx, badgeTop, b.w)
         bx = bx + b.w
         if bi < #boxes then
-          parts[#parts + 1] = box("sep", bx + SEP_GAP, badgeTop, sepW, L.badgeHeight, esc(sep))
+          els[#els + 1] = textEl(sep, bx + SEP_GAP, badgeTop + (L.badgeHeight - sz) / 2 - 1,
+            sepW, sz + 4, sz, meta, "center")
           bx = bx + SEP_GAP + sepW + SEP_GAP
         end
       end
       labelX = x + maxBlock + L.gap
     else
-      parts[#parts + 1] = box("badge", x, badgeTop, L.badgeWidth, L.badgeHeight, esc(r.badge))
+      els[#els + 1] = chipEl(x, badgeTop, L.badgeWidth, L.badgeHeight, badgeBg, radius)
+      els[#els + 1] = glyphEl(r.badge, x, badgeTop, L.badgeWidth)
       labelX = x + L.badgeWidth + L.gap
     end
 
     if L.iconSize > 0 and r.icon then
-      local uri = self:_iconURI(r.icon)
-      if uri then
-        local iy = y + (L.rowHeight - L.iconSize) / 2
-        parts[#parts + 1] = string.format(
-          '<img class="ico" style="left:%dpx;top:%dpx;width:%dpx;height:%dpx;" src="%s">',
-          px(labelX), px(iy), px(L.iconSize), px(L.iconSize), uri)
-      end
+      local iy = y + (L.rowHeight - L.iconSize) / 2
+      els[#els + 1] = { type = "image", image = r.icon, imageScaling = "scaleProportionally",
+        imageAlpha = alpha, frame = { x = px(labelX), y = px(iy), w = px(L.iconSize), h = px(L.iconSize) } }
       labelX = labelX + L.iconSize + L.gap
     end
 
     local labelW = L.colWidth - (labelX - x) - L.gap
-    parts[#parts + 1] = box("label", labelX, y, labelW, L.rowHeight, esc(r.label or ""))
+    els[#els + 1] = textEl(r.label or "", labelX, y + (L.rowHeight - sz) / 2 - 1, labelW, sz + 4, sz, fg, "left")
+  end
+end
+
+-- Compute the whole overlay: the content element list and its size, at origin
+-- (0, 0). HelperPanel offsets it by its padding and draws the surface behind it,
+-- so there is no outer margin here. Cached in self._built so preferredSize and
+-- the draw that follows it agree without recomputing.
+function obj:_build()
+  local model = self._model or {}
+  local T = self._theme
+  local L = layoutOf(self._layoutDefaults, model)
+  local sections = nonEmpty(model.sections)
+  if #sections == 0 then
+    return { els = {}, w = 0, h = 0 }
   end
 
-  return table.concat(parts)
+  -- Each section may override the panel layout (columns, colWidth, ...) for its
+  -- own rows, inheriting the model-level L for anything it omits.
+  local layouts = {}
+  for i, s in ipairs(sections) do
+    layouts[i] = layoutOf(L, s)
+  end
+
+  -- Width is the widest section's content; narrower sections left-align within
+  -- it. Height sums each section's own rows, with groupGap between and titles
+  -- included.
+  local w = 0
+  for i = 1, #sections do
+    w = math.max(w, layouts[i].columns * layouts[i].colWidth)
+  end
+  local h = 0
+  for i, s in ipairs(sections) do
+    if i > 1 then h = h + L.groupGap end
+    if s.title then h = h + layouts[i].titleHeight end
+    h = h + rowsFor(#s.rows, layouts[i].columns) * layouts[i].rowHeight
+  end
+
+  local C = palette(T.palette or {})
+  local els = {}
+  local cursor = 0
+  for i, s in ipairs(sections) do
+    local SL = layouts[i]
+    if i > 1 then cursor = cursor + L.groupGap end
+    if s.title then
+      els[#els + 1] = textEl(s.title, 0, cursor, SL.columns * SL.colWidth, T.lineHeight,
+        T.fontSize, faded(C.meta, s.alpha or 1.0), "left")
+      cursor = cursor + SL.titleHeight
+    end
+    self:_rowsElements(els, s.rows, cursor, SL, s.alpha or 1.0, C)
+    cursor = cursor + rowsFor(#s.rows, SL.columns) * SL.rowHeight
+  end
+
+  return { els = els, w = w, h = h }
 end
 
 --------------------------------------------------------------------------------
@@ -266,13 +343,13 @@ end
 function obj:init()
   self._theme = DEFAULT_THEME
   self._layoutDefaults = DEFAULTS
-  self._iconMemo = {}
   return self
 end
 
 --- CheatSheet:configure(opts)
---- Content styling plus the injected grid (see the header for the full list). Any
---- omitted field keeps its default, so configure(nil) is valid.
+--- Content styling plus the injected HelperPanel factory and surface (see the
+--- header for the full list). Any omitted field keeps its default, so
+--- configure(nil) is valid.
 function obj:configure(opts)
   opts = opts or {}
 
@@ -286,91 +363,64 @@ function obj:configure(opts)
   elseif opts.lineHeight ~= nil then
     t.lineHeight = opts.lineHeight
   end
+  t.palette = opts.theme or t.palette
   self._theme = t
 
-  -- Padding is the one layout knob that reads globally (the inner margin).
-  local l = shallow(DEFAULTS)
-  if opts.padding ~= nil then l.margin = opts.padding end
-  self._layoutDefaults = l
+  self._layoutDefaults = shallow(DEFAULTS)
 
-  -- No renderer is wired: the Surface grid was removed with the web stack, so
-  -- self._grid stays nil and show() is inert. The theme is kept for whatever
-  -- canvas renderer replaces it. See the header.
-  self._theme.palette = opts.theme or self._theme.palette
+  -- The panel surface, injected. The factory plus the same fill and border the
+  -- root hands the hint bar, so one edit there restyles both. Rebuilt on the next
+  -- show if the config changed.
+  self._panelCfg = {
+    factory = opts.helperPanel or (self._panelCfg and self._panelCfg.factory),
+    fill = opts.fill or (self._panelCfg and self._panelCfg.fill),
+    border = opts.border or (self._panelCfg and self._panelCfg.border),
+    padding = opts.padding or PANEL_PADDING,
+  }
+  self._panel = nil
 
   return self
 end
 
---- CheatSheet:show(model)
---- Compute the panel size, position every element, emit the HTML, and hand it to
---- the grid to draw.
-function obj:show(model)
-  self:hide()
-  model = model or {}
-  if not self._grid then return self end
-  local T = self._theme
-  local L = layoutOf(self._layoutDefaults, model)
-  local sections = nonEmpty(model.sections)
-  if #sections == 0 then
-    return self
-  end
-
-  -- Each section may override the panel layout (columns, colWidth, ...) for its
-  -- own rows, inheriting the model-level L for anything it omits.
-  local layouts = {}
-  for i, s in ipairs(sections) do
-    layouts[i] = layoutOf(L, s)
-  end
-
-  -- Panel width is the widest section's content; narrower sections left-align
-  -- within it. Height sums each section's own rows, with groupGap between and
-  -- titles included.
-  local contentW = 0
-  for i = 1, #sections do
-    contentW = math.max(contentW, layouts[i].columns * layouts[i].colWidth)
-  end
-  local w = contentW + L.margin * 2
-  local h = L.margin
-  for i, s in ipairs(sections) do
-    if i > 1 then h = h + L.groupGap end
-    if s.title then h = h + layouts[i].titleHeight end
-    h = h + rowsFor(#s.rows, layouts[i].columns) * layouts[i].rowHeight
-  end
-  h = h + L.margin
-
-  local parts = {}
-  local cursor = L.margin
-  for i, s in ipairs(sections) do
-    local SL = layouts[i]
-    if i > 1 then cursor = cursor + L.groupGap end
-    if s.title then
-      parts[#parts + 1] = box("title", L.margin, cursor, SL.columns * SL.colWidth, T.lineHeight, esc(s.title))
-      cursor = cursor + SL.titleHeight
-    end
-    local rowsHtml = self:_rowsHtml(s.rows, cursor, SL)
-    -- A section's alpha fades its whole rows group, the dimmed "not running" set.
-    parts[#parts + 1] = string.format('<div class="sec" style="opacity:%s">%s</div>', s.alpha or 1.0, rowsHtml)
-    cursor = cursor + rowsFor(#s.rows, SL.columns) * SL.rowHeight
-  end
-
-  self._grid:render({
-    body = table.concat(parts),
-    w = w,
-    h = h,
-    fontSize = T.fontSize,
-    badgeRadius = T.badge.radius,
-    -- A model may ask to stay passive, the peek shown over an open picker, so the
-    -- overlay does not steal the picker's focus. A standalone sheet omits it and
-    -- activates, holding its frosted backdrop.
-    passive = model.passive,
+-- Build the one HelperPanel instance the first time it is needed, a centered
+-- panel whose content is this spoon's live model. Returns nil when no factory was
+-- injected, so show() is inert rather than erroring.
+function obj:_ensurePanel()
+  if self._panel then return self._panel end
+  local cfg = self._panelCfg
+  if not (cfg and cfg.factory) then return nil end
+  self._panel = cfg.factory.new({
+    placement = "center",
+    padX = cfg.padding, padY = cfg.padding,
+    fill = cfg.fill,
+    border = cfg.border,
+    content = {
+      preferredSize = function()
+        self._built = self:_build()
+        return { w = self._built.w, h = self._built.h }
+      end,
+      draw = function()
+        return (self._built or self:_build()).els
+      end,
+    },
   })
+  return self._panel
+end
+
+--- CheatSheet:show(model)
+--- Store the model and draw it through the shared panel, centered on screen.
+function obj:show(model)
+  self._model = model or {}
+  self._built = nil
+  local panel = self:_ensurePanel()
+  if panel then panel:show() end
   return self
 end
 
 --- CheatSheet:hide()
 --- Remove the overlay
 function obj:hide()
-  if self._grid then self._grid:hide() end
+  if self._panel then self._panel:hide() end
   return self
 end
 
