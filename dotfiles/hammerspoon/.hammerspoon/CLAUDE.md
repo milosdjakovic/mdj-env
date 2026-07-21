@@ -315,6 +315,28 @@ Adding a whole new spoon requires stowing again, because `~/.hammerspoon/Spoons`
 holds one symlink per spoon. Adding files inside an already symlinked spoon does
 not, they resolve through the existing symlink.
 
+**Documenting a spoon, and what this file keeps.** Decision records are split by
+a single seam. This file keeps only what spans spoons, the leader key model, the
+spoon lifecycle contract, the overlay display policy, and how `init.lua` wires
+everything as the composition root, so it answers where a thing lives and how the
+pieces connect. A spoon that carries a decision not obvious from reading it also
+gets its own `CLAUDE.md` beside its `init.lua`, holding that spoon's internal
+decisions, the tradeoffs it made, and why, what it deliberately does not do, what
+it degrades to, and what would break if the shape changed. That file answers why
+the spoon is shaped this way and never narrates the code line by line, since the
+code sits right there. `Launcher.spoon` is the worked example, and `ChordKey` and
+`HyperKey` document the hold, tap, chord engine and its adapter.
+
+Create one only when the spoon earns it, a thin mechanism like `DockMenuToggle`
+or `KeyRemap` stays covered by its paragraph here, which is the same reject
+ceremony rule the design principles set. Two rules keep the split honest. The
+decision and its doc live together, so a change to a spoon's internals edits that
+spoon's `CLAUDE.md` in the same commit, while a change to how spoons are wired
+edits this file. And any concrete wiring choice stays here, so there is one
+composition root of truth and the per spoon files stay ignorant of how they are
+assembled. Adding a `CLAUDE.md` inside an already symlinked spoon needs no
+restow, it resolves through the existing link like any new file.
+
 **Wiring a list tool into the Hyper contexts.** The picker atom gives only the
 widget. `Chooser.spoon` wraps the native `hs.chooser` and backs every list tool,
 the clipboard, the VPN locations, caffeinate, menu search, and the launcher. It
