@@ -33,15 +33,34 @@ end
 
 local native = load("providers/native.lua")
 
+-- The screen policy every chooser resolves against, injected once by the composition
+-- root so the five consumers never thread it through themselves. It is the same seam
+-- CanvasPanel reads, so the choosers and the cheat sheets agree on which display they
+-- use. Nil until configured, in which case an instance falls back to the native
+-- provider's own default (hs.screen.mainScreen).
+local DEFAULT_SCREEN = nil
+
 --- Chooser:init() - nothing to build; the native provider is loaded above.
 function obj:init()
   return self
 end
 
+--- Chooser.configure(opts) - module-level defaults every new() inherits. opts.screen is
+--- a function returning the hs.screen a chooser should appear on. One call at the root
+--- wires the shared overlay display policy into every chooser at once.
+function obj.configure(opts)
+  opts = opts or {}
+  DEFAULT_SCREEN = opts.screen
+  return obj
+end
+
 --- Chooser.new(config) -> picker instance. Dot called, matching the old atom. A
 --- config.provider field is accepted and ignored, since native is the only backend.
+--- The configured default screen policy is folded in unless the config names its own.
 function obj.new(config)
-  return native.new(config or {})
+  config = config or {}
+  if config.screen == nil then config.screen = DEFAULT_SCREEN end
+  return native.new(config)
 end
 
 return obj

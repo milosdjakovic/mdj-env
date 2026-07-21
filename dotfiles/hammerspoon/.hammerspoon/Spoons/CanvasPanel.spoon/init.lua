@@ -27,6 +27,10 @@
 ---
 --- MODULE API (dot-called):
 ---   CanvasPanel.configure(style)               set the shared surface style (below).
+---   CanvasPanel.setScreenProvider(fn)          inject the screen a centered panel uses;
+---                                              fn() returns an hs.screen. Defaults to
+---                                              hs.screen.mainScreen, so the atom still
+---                                              places itself if nothing is injected.
 ---   CanvasPanel.surfaceElements(w, h, style?)  the surface elements for a w x h box at
 ---                                              origin (0, 0); style overrides the default.
 ---   CanvasPanel.new(config) -> instance        a docked or centered panel.
@@ -87,11 +91,27 @@ end
 -- in which case a panel simply draws no surface behind its content.
 local DEFAULT_STYLE = nil
 
+-- The screen a centered panel resolves against, injected by the composition root so
+-- the atom does not name the display policy. It is the same seam every overlay reads,
+-- so the cheat sheets and choosers agree on which display they use. Defaults to
+-- hs.screen.mainScreen (the screen with the focused window), so a centered panel still
+-- places itself if the root injects nothing. Resolved on each draw, so it tracks the
+-- live state.
+local SCREEN_PROVIDER = hs.screen.mainScreen
+
 --- CanvasPanel.configure(style) - set the shared surface style (dark/light bg and
 --- border, border width, corner radius). One call at the root, so every surface this
 --- atom draws stays identical and one edit restyles them all.
 function obj.configure(style)
   DEFAULT_STYLE = style
+  return obj
+end
+
+--- CanvasPanel.setScreenProvider(fn) - inject the function a centered panel uses to
+--- pick its screen (fn() -> hs.screen). One call at the root wires the shared overlay
+--- display policy in; a nil clears it back to the hs.screen.mainScreen default.
+function obj.setScreenProvider(fn)
+  SCREEN_PROVIDER = fn or hs.screen.mainScreen
   return obj
 end
 
@@ -189,7 +209,8 @@ function Panel:_layout(anchor)
 
   local x, y
   if centered then
-    local sf = (hs.screen.mainScreen() or hs.screen.primaryScreen()):frame()
+    local screen = SCREEN_PROVIDER() or hs.screen.mainScreen() or hs.screen.primaryScreen()
+    local sf = screen:frame()
     x = sf.x + (sf.w - panelW) / 2
     y = sf.y + (sf.h - panelH) / 2
   elseif c.placement == "above" then

@@ -669,6 +669,104 @@ end
 -- values in config/settings.lua, once, and every canvas surface follows.
 spoon.CanvasPanel.configure(settings.surface)
 
+-- Overlay display policy, the one place that decides which display every transient
+-- overlay appears on. This is Strategy wired through injection, the same shape as
+-- TerminalHandler.targetScreen below: a small registry maps a mode name to a resolver
+-- returning an hs.screen, config/settings.lua picks the mode, and the chosen resolver
+-- is injected into the two atoms (the Chooser and the CanvasPanel). Neither atom names
+-- the policy or the modes, so both the choosers (with their docked panels) and the
+-- cheat sheets read one seam and agree on the display. Resolvers run at overlay-open
+-- time, so they track live state and may safely forward-reference DisplayProfiles,
+-- which is configured further down.
+local function activeWindowScreen()
+  local w = hs.window.focusedWindow()
+  return (w and w:screen()) or hs.screen.mainScreen() or hs.screen.primaryScreen()
+end
+local function cursorScreen()
+  return hs.mouse.getCurrentScreen() or hs.screen.primaryScreen()
+end
+
+-- Fixed mode turns a displayplacer serial id (the portable id config/displays.lua
+-- already uses) into a live hs.screen. hs.screen exposes no serial id, so we bridge
+-- through `displayplacer list`, which prints, per screen, both its Serial screen id
+-- and its Persistent screen id; the persistent id is the CoreGraphics display UUID,
+-- the same value hs.screen:getUUID returns, so serial -> persistent -> getUUID resolves
+-- exactly. The parse shells out, so the map is cached and cleared on a screen change
+-- (the same event DisplayProfiles reacts to), making fixed mode free per open after the
+-- first resolve on a given arrangement.
+local serialToUUID = nil
+local function refreshSerialMap()
+  serialToUUID = {}
+  local out = hs.execute("displayplacer list", true) or ""
+  local persistent, serial
+  local function flush()
+    if serial and persistent then serialToUUID[serial] = persistent end
+  end
+  for line in (out .. "\n"):gmatch("(.-)\n") do
+    local p = line:match("Persistent screen id:%s*(%S+)")
+    local s = line:match("Serial screen id:%s*(%S+)")
+    if p then
+      flush() -- close the previous screen block before starting this one
+      persistent, serial = p, nil
+    elseif s then
+      serial = s
+    end
+  end
+  flush()
+end
+local function screenForSerial(serial)
+  if not serial then return nil end
+  if not serialToUUID then refreshSerialMap() end
+  local uuid = serialToUUID[serial]
+  if not uuid then return nil end
+  for _, s in ipairs(hs.screen.allScreens()) do
+    if s:getUUID() == uuid then return s end
+  end
+  return nil
+end
+-- Rebuild the serial map lazily after any display change, and let the fixed-mode
+-- warning fire once per arrangement rather than on every open. Kept module-local so
+-- the watcher is not garbage collected.
+local fixedWarned = false
+local overlayScreenWatcher = hs.screen.watcher.new(function()
+  serialToUUID = nil
+  fixedWarned = false
+end)
+overlayScreenWatcher:start()
+
+local function fixedScreen()
+  local cfg = settings.overlayDisplay or {}
+  local profile = spoon.DisplayProfiles:current()
+  local serial = profile and (cfg.fixed or {})[profile]
+  local screen = serial and screenForSerial(serial)
+  if screen then return screen end
+  if not fixedWarned then
+    fixedWarned = true
+    print(string.format(
+      "overlayDisplay: fixed mode has no display for profile '%s' (serial '%s'), using active window",
+      tostring(profile), tostring(serial)))
+  end
+  return activeWindowScreen()
+end
+
+-- Keyed by the same overlayModes constants config/settings.lua names, so the valid
+-- mode names live in one place and the two sides cannot drift.
+local overlayScreenStrategies = {
+  [settings.overlayModes.activeWindow] = activeWindowScreen,
+  [settings.overlayModes.cursor] = cursorScreen,
+  [settings.overlayModes.fixed] = fixedScreen,
+}
+-- The injected contract. Reads the mode fresh each open, so switching modes in
+-- config/settings.lua takes effect on the next overlay with no other change. Unknown
+-- mode falls back to activeWindow, and a resolver returning nil to the primary screen.
+local function overlayScreen()
+  local mode = (settings.overlayDisplay or {}).mode
+  local fn = overlayScreenStrategies[mode] or activeWindowScreen
+  return fn() or hs.screen.primaryScreen()
+end
+spoon.CanvasPanel.setScreenProvider(overlayScreen)
+spoon.Chooser.configure({ screen = overlayScreen })
+
 -- Finish wiring the cheat sheet. It draws its binding grid through the CanvasPanel
 -- atom, centered on screen, inheriting the one shared surface, so no fill or border
 -- is passed here. The cheatSheet settings block tunes only the content, font size,

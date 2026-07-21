@@ -1,7 +1,20 @@
 -- Global settings
 -- All configurable values in one place
 
+-- Overlay display modes, named constants rather than bare strings, so the config
+-- below names a symbol (overlayModes.activeWindow) and a typo is a nil reference here
+-- rather than a silently wrong string down the line. Exposed on the returned table so
+-- init.lua's strategy registry keys off these same values, one source of truth for the
+-- valid mode names.
+local overlayModes = {
+  activeWindow = "activeWindow",
+  cursor = "cursor",
+  fixed = "fixed",
+}
+
 return {
+  overlayModes = overlayModes,
+
   -- Stage Manager margin (pixels to offset from left when active)
   stageManagerMargin = 66,
 
@@ -80,6 +93,30 @@ return {
       titleColor = { white = 0.15 },
       subColor = { white = 0.42 },
       preview = { fg = "#1c1c1e", meta = "#6b6b70", path = "#88888d", note = "#8a5a12" },
+    },
+  },
+
+  -- Overlay display policy. The one place that decides which display every
+  -- transient overlay appears on, the five choosers (clipboard, VPN, menu search,
+  -- launcher, keep awake), their docked shortcut panels, both cheat sheets, and the
+  -- colour toast. init.lua reads this into a small strategy registry and injects the
+  -- chosen resolver into the Chooser atom and the CanvasPanel, so editing mode here
+  -- moves every overlay together. Three modes:
+  --   "activeWindow" the display holding the focused window (today's behaviour).
+  --   "cursor"       the display the mouse pointer is on.
+  --   "fixed"        a chosen display per display arrangement, see fixed below.
+  -- fixed is read only in fixed mode. Its keys are the profile names from
+  -- config/displays.lua (whichever one is currently matched, resolved through
+  -- DisplayProfiles:current), and its values are displayplacer serial ids, the same
+  -- portable ids those profiles already use, so no second identity scheme is needed.
+  -- An arrangement with no entry, or a serial that does not resolve, falls back to
+  -- the activeWindow behaviour.
+  overlayDisplay = {
+    -- overlayModes.activeWindow | overlayModes.cursor | overlayModes.fixed
+    mode = overlayModes.activeWindow,
+    fixed = {
+      -- ["home-office"] = "s810891350",
+      -- ["vicert office, built in and two Dell P2318HC"] = "s826888524",
     },
   },
 

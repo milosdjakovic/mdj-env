@@ -209,6 +209,41 @@ the default alone, graceful degradation like HyperKey and AppToggler. Adding
 DisplayMemory needed a restow, since `~/.hammerspoon/Spoons` holds one symlink per
 spoon.
 
+**Overlay display policy.** One place decides which display every transient
+overlay appears on, the five choosers (clipboard, VPN, menu search, launcher,
+keep awake) with their docked shortcut panels, both cheat sheets, and the colour
+toast. This is Strategy wired through injection, the same shape as
+TerminalHandler's `targetScreen`. A small registry in `init.lua` maps a mode name
+to a resolver returning an `hs.screen`, `config/settings.lua` picks the mode in
+the pure-data `overlayDisplay` block, and the chosen resolver is injected into the
+two atoms, `CanvasPanel.setScreenProvider` and `Chooser.configure({ screen })`.
+Neither atom names the policy or the modes, so both the choosers and the cheat
+sheets read one seam and land on the same display. Editing `overlayDisplay.mode`
+moves every overlay together.
+
+Three modes. `activeWindow` uses the screen with the focused window, the effective
+default and the historical behaviour. `cursor` uses the screen under the mouse.
+`fixed` pins overlays to a chosen display per display arrangement, keyed by the
+`DisplayProfiles` profile name (resolved live through the new `DisplayProfiles:current()`)
+to a displayplacer serial id, reusing the portable ids `config/displays.lua`
+already holds. Resolvers run at overlay-open time, so they track live state and may
+forward-reference DisplayProfiles, which is configured later in the root. An unknown
+mode, an unmapped arrangement, or a serial that does not resolve all fall back to
+`activeWindow`, logged once per arrangement.
+
+Two mechanics make this reliable. The choosers place authoritatively rather than
+trusting the native `hs.chooser` default: the Chooser atom resolves the target
+screen once at show, before the chooser steals focus (resolving later would see the
+chooser's own window as focused), then `_settleFrames` forces the window onto that
+screen, centered horizontally and top biased, instead of adapting to wherever the
+widget dropped it. Fixed mode needs a serial-id to `hs.screen` bridge because
+`hs.screen` exposes no serial id; `displayplacer list` prints each screen's serial
+id alongside its persistent id, and the persistent id is the CoreGraphics UUID that
+`hs.screen:getUUID` returns, so serial resolves to persistent resolves to screen.
+That parse is cached and cleared on an `hs.screen.watcher` change, the same event
+DisplayProfiles reacts to, so fixed mode costs nothing per open after the first
+resolve on an arrangement.
+
 **Structuring a spoon with swappable behavior.** When a spoon has a mechanism
 plus interchangeable backends, follow the Capture.spoon layout, which is the
 concrete form of the design principles in the global config. init.lua is the

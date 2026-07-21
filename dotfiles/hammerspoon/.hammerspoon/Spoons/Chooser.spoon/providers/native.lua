@@ -17,6 +17,10 @@
 ---   theme        palette source { dark = {...}, light = {...} }, each with
 ---                bgDark, titleColor, subColor, and preview (a color set the
 ---                consumer reads for a companion). Injected from config.
+---   screen       function() -> hs.screen, the display the chooser appears on.
+---                Resolved once per show, before the chooser takes focus, and the
+---                window is then forced onto that screen. Defaults to
+---                hs.screen.mainScreen when omitted.
 ---   rows         REQUIRED supplier function(query) -> list of plain items, each
 ---                { title, subTitle, image, enabled, item }. Called on show,
 ---                refresh, and (in filter mode) on every query change.
@@ -167,6 +171,16 @@ end
 -- Positioning, with an optional reserved companion pane
 --------------------------------------------------------------------------------
 
+-- The display this open should appear on. Injected as config.screen by the root, so
+-- the atom does not name the policy; resolved here once at show, before the chooser
+-- takes focus, since resolving later (in the settle callback) would see the chooser's
+-- own window as focused. Falls back to hs.screen.mainScreen when nothing is injected.
+function Chooser:_resolveScreen()
+  local fn = self.config.screen
+  local s = fn and fn()
+  return s or hs.screen.mainScreen() or hs.screen.primaryScreen()
+end
+
 -- Vertical top-left on screen sf: biased toward the top by topFrac, never closer
 -- than minVPad to either edge. When too tall to keep both pads the top pad wins.
 function Chooser:_topBiasedY(sf, paneH)
@@ -186,10 +200,12 @@ function Chooser:_companionFrame(x, y, chooserW, h)
 end
 
 -- The chooser clamps its own height to fit the screen, so its rendered height is
--- known only once it shows. Read the real window a moment after it appears, place
--- it top biased with padding on its actual screen, recompute the companion rect
--- beside it, and report both. This keeps the pair placed even when the chooser
--- came up shorter than requested or landed on another display.
+-- known only once it shows. Read the real window a moment after it appears and place
+-- it authoritatively on the target screen, the same one the seed used: centered
+-- horizontally (accounting for the companion pane) and top biased, then recompute the
+-- companion rect beside it and report both. Forcing the position rather than adapting
+-- to wherever hs.chooser dropped it is what keeps the chooser on the policy's display,
+-- even when the widget came up shorter than requested or on another screen.
 function Chooser:_settleFrames()
   hs.timer.doAfter(0.03, function()
     if not self.active then return end
@@ -197,12 +213,17 @@ function Chooser:_settleFrames()
     if not app then return end
     for _, w in ipairs(app:allWindows()) do
       if (w:title() or "") == "Chooser" and w:isVisible() then
+        local L = self.layout
         local cf = w:frame()
-        local sf = (w:screen() or hs.screen.mainScreen()):frame()
+        local sf = (self._targetScreen or w:screen() or hs.screen.mainScreen()):frame()
+        local companionW = (L.companionWidth and L.companionWidth > 0)
+          and math.min(L.companionWidth, L.paneMaxW) or 0
+        local total = cf.w + (companionW > 0 and (L.gap + companionW) or 0)
+        local x = sf.x + math.floor((sf.w - total) / 2)
         local y = self:_topBiasedY(sf, cf.h)
-        w:setTopLeft({ x = cf.x, y = y })
-        local chooserFrame = { x = cf.x, y = y, w = cf.w, h = cf.h }
-        local companionFrame = self:_companionFrame(cf.x, y, cf.w, cf.h)
+        w:setTopLeft({ x = x, y = y })
+        local chooserFrame = { x = x, y = y, w = cf.w, h = cf.h }
+        local companionFrame = self:_companionFrame(x, y, cf.w, cf.h)
         self.paneFrames = { chooser = chooserFrame, companion = companionFrame }
         if self.config.onPositioned then
           self.config.onPositioned(chooserFrame, companionFrame)
@@ -215,7 +236,10 @@ end
 
 function Chooser:_positionAndShow()
   local L = self.layout
-  local f = hs.screen.mainScreen():frame()
+  -- Resolve the target display once, now, before hs.chooser:show steals focus, and
+  -- keep it for the settle correction that runs after the window appears.
+  self._targetScreen = self:_resolveScreen()
+  local f = self._targetScreen:frame()
   local floor, min, max = math.floor, math.min, math.max
 
   -- Trim the row count so the pair fits between the mandatory pads on a short

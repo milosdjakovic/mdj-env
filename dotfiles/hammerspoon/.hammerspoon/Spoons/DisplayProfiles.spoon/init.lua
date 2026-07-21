@@ -172,6 +172,19 @@ function obj:reconcile(force)
   return self
 end
 
+--- DisplayProfiles:current()
+--- Method
+--- Return the name of the profile that matches the displays attached right now, or
+--- nil when none matches. This is the read side of the same match used by reconcile,
+--- exposed so another policy can ask which arrangement is live without re-detecting
+--- the display set itself. Recomputed on each call, so it tracks the attached
+--- displays rather than the last applied layout.
+function obj:current()
+  local attachedIds, attachedCount = self:_attached()
+  local p = self:_match(attachedIds, attachedCount)
+  return p and p.name or nil
+end
+
 --- DisplayProfiles:apply(name)
 --- Method
 --- Apply a named profile unconditionally, ignoring what is attached. Useful from
