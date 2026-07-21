@@ -241,13 +241,14 @@ return {
   -- mirror the macOS Cmd-Shift-3 / Cmd-Shift-4 / Cmd-Shift-5 muscle memory. The
   -- HYPER field is the fallback combo used when HyperKey is not wired up, matching
   -- appToggles. Optional `mods` are sub-modifiers within the Hyper modal, so
-  -- Hyper+4 and Hyper+Shift+4 are distinct, file vs clipboard. `description`
-  -- labels the row on the Hyper cheat sheet, where init.lua surfaces these as a
-  -- CAPTURE section.
+  -- Hyper+4 and Hyper+Shift+4 are distinct, clipboard vs file. The bare Hyper+4
+  -- copies the region to the clipboard, the common case, and Hyper+Shift+4 saves it
+  -- to a file. `description` labels the row on the Hyper cheat sheet, where init.lua
+  -- surfaces these as a CAPTURE section.
   capture = {
     { action = "ocrArea",              modifiers = HYPER, key = "3",                     description = "OCR" },
-    { action = "captureArea",          modifiers = HYPER, key = "4",                     description = "Screenshot" },
-    { action = "captureAreaClipboard", modifiers = HYPER, key = "4", mods = { "shift" }, description = "Screenshot (copy)" },
+    { action = "captureAreaClipboard", modifiers = HYPER, key = "4",                     description = "Screenshot (copy)" },
+    { action = "captureArea",          modifiers = HYPER, key = "4", mods = { "shift" }, description = "Screenshot" },
     { action = "recordArea",           modifiers = HYPER, key = "5",                     description = "Record screen" },
   },
 

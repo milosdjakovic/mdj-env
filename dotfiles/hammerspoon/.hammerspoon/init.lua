@@ -76,20 +76,19 @@ spoon.CheatSheet:init()
 -- not running), then one ACTIONS group for the non-app commands. This is the one
 -- place that names which non-app bindings surface on the overlay and in what
 -- order, so the Capture, ClipboardHistory, and system configs stay pure binding
--- data. The order below is the on-screen order: the four capture actions fill the
--- first row (the grid is four columns) and the launcher, menu search,
--- clipboard, keep awake, VPN, lock, and sleep fall to the rows below, since the
--- renderer fills row-major.
-local hyperActions = {}
+-- data. The order below is the on-screen order, filled row-major into the four
+-- column grid: the colour picker leads, then the four capture actions (OCR,
+-- screenshot copy, screenshot file, record), then menu search, keep awake, VPN,
+-- clipboard, launcher, and finally lock and sleep.
+local hyperActions = { keys.colorPicker }
 for _, b in ipairs(keys.capture) do
   hyperActions[#hyperActions + 1] = b
 end
-hyperActions[#hyperActions + 1] = keys.colorPicker
-hyperActions[#hyperActions + 1] = keys.launcher
 hyperActions[#hyperActions + 1] = keys.menuSearch
-hyperActions[#hyperActions + 1] = keys.clipboardHistory
 hyperActions[#hyperActions + 1] = keys.caffeinate
 hyperActions[#hyperActions + 1] = keys.vpn
+hyperActions[#hyperActions + 1] = keys.clipboardHistory
+hyperActions[#hyperActions + 1] = keys.launcher
 hyperActions[#hyperActions + 1] = keys.lock
 hyperActions[#hyperActions + 1] = keys.sleep
 
@@ -491,14 +490,14 @@ local function buildActionRows()
   -- Category glyphs. Window actions all share one, since the chord in the subtitle
   -- already tells them apart; capture and the system actions get a per-action one.
   local captureGlyphs = { ocrArea = "🔤", captureArea = "📸", captureAreaClipboard = "📸", recordArea = "🎥" }
+  add(keys.colorPicker.description, "Tools · " .. chordLabel("Hyper", keys.colorPicker.key), { kind = "special", name = "colorPicker" }, "🎨")
   for _, c in ipairs(keys.capture) do
     add(c.description or humanize(c.action), "Capture · " .. chordLabel("Hyper", c.key, c.mods),
       { kind = "capture", name = c.action }, captureGlyphs[c.action] or "📸")
   end
-  add(keys.colorPicker.description, "Tools · " .. chordLabel("Hyper", keys.colorPicker.key), { kind = "special", name = "colorPicker" }, "🎨")
-  add(keys.clipboardHistory.description, "Clipboard · " .. chordLabel("Hyper", keys.clipboardHistory.key), { kind = "special", name = "clipboard" }, "📋")
   add(keys.caffeinate.description, "System · " .. chordLabel("Hyper", keys.caffeinate.key), { kind = "special", name = "caffeinate" }, "☕")
   add(keys.vpn.description, "Network · " .. chordLabel("Hyper", keys.vpn.key), { kind = "special", name = "vpn" }, "🌐")
+  add(keys.clipboardHistory.description, "Clipboard · " .. chordLabel("Hyper", keys.clipboardHistory.key), { kind = "special", name = "clipboard" }, "📋")
   add(keys.lock.description, "System · " .. chordLabel("Hyper", keys.lock.key), { kind = "special", name = "lock" }, "🔒")
   add(keys.sleep.description, "System · " .. chordLabel("Hyper", keys.sleep.key), { kind = "special", name = "sleep" }, "🌙")
   for _, b in ipairs(keys.windowManagement) do
