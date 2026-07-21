@@ -21,7 +21,7 @@ so each apply is idempotent and frees any dropped key.
 
 | Key | Fn | Name | Spoon | Role |
 |-----|-------|------|-------|------|
-| Right Option | F16 | META | WindowLeader | the active window leader: bare arrow = **resize** (halves + full-height + reasonable), `Shift`+arrow = **move**; return = maximize; `C` = center; `,`/`.` = prev/next display; letters = presets + grow/shrink |
+| Right Option | F16 | META | WindowLeader | the active window leader: bare arrow = **resize** (halves + full-height + reasonable), `WASD` = **move** (W up, A left, S down, D right); return = maximize; `C` = center; `,`/`.` = prev/next display; letters = presets + grow/shrink |
 | Right Command | F17 | SUPER | WindowLeader | in the catalog but **unreferenced**, so it is not remapped and Right Command is a normal key; point `windowLeader` at it to swap |
 | Caps Lock | F18 | HYPER | HyperKey | hold + letter = app toggles; quick tap = `hs.hid.capslock.toggle()` |
 
@@ -92,7 +92,7 @@ where it legitimately differs. Holding F18 shows `HyperCheatSheet`, the
 app bindings split into open vs not-running (uninstalled/unresolvable apps
 filtered out; names+icons cached at load, only the running split recomputed per
 show). Holding a leader shows `WindowCheatSheet` — just that leader's bindings
-(META's resizes and moves, each arrow appearing twice, bare and `Shift`);
+(META's resizes on the bare arrows and moves on WASD);
 pressing any bound key cancels it. It reads
 the same `keys.windowManagement` config, so it never drifts; each row's label is
 the action name humanized (`nextDisplay` → "Next Display") unless the entry sets

@@ -162,7 +162,7 @@ spoon.WindowManager:configure({
 })
 -- WindowLeader: the window leader key. It is whichever catalog key config names
 -- as `windowLeader` (META today, Right Option). Hold it and press a key, a bare
--- arrow resizes, Shift+arrow moves, C centers, and , / . switch display. Any
+-- arrow resizes, WASD moves, C centers, and , / . switch display. Any
 -- other catalog key stays a normal key until some domain references it, so
 -- swapping the window leader is a one-word change in config/keys.lua.
 spoon.WindowLeader:init()

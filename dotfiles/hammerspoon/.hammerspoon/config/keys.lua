@@ -284,11 +284,11 @@ return {
     { action = "smallSize",            key = "Z" },
     { action = "increaseSize",         key = "=" },
     { action = "decreaseSize",         key = "-" },
-    -- Move (Shift+arrow) and center
-    { action = "moveLeft",             key = "left",  mods = { "shift" } },
-    { action = "moveRight",            key = "right", mods = { "shift" } },
-    { action = "moveUp",               key = "up",    mods = { "shift" } },
-    { action = "moveDown",             key = "down",  mods = { "shift" } },
+    -- Move (WASD) and center
+    { action = "moveLeft",             key = "a" },
+    { action = "moveRight",            key = "d" },
+    { action = "moveUp",               key = "w" },
+    { action = "moveDown",             key = "s" },
     { action = "center",               key = "C" },
     -- Hide all except the focused window (kept last so it sits in the last row)
     { action = "hideAllExceptFocused", key = "H" },
