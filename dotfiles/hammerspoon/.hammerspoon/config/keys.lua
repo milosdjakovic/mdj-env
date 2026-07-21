@@ -60,7 +60,6 @@ return {
     { app = "Zed",              modifiers = HYPER, key = "Z" },
     { app = "Preview",          modifiers = HYPER, key = "P" },
     -- Second character
-    { app = "Bruno",            modifiers = HYPER, key = "R" },
     { app = "Stickies",         modifiers = HYPER, key = "T" },
     { app = "Slack",            modifiers = HYPER, key = "L" },
     -- Third character
@@ -103,10 +102,10 @@ return {
   -- suppressed while a modal context owns Hyper.
   caffeinate = { modifiers = HYPER, key = "K", description = "Keep awake" },
 
-  -- VPN controls (for Vpn.spoon). Same shape again. Hyper+Y opens the VPN control
+  -- VPN controls (for Vpn.spoon). Same shape again. Hyper+R opens the VPN control
   -- panel, a short list of actions with the live connection state at the top. It is
   -- a base binding, suppressed while a modal context owns Hyper.
-  vpn = { modifiers = HYPER, key = "Y", description = "VPN" },
+  vpn = { modifiers = HYPER, key = "R", description = "VPN" },
 
   -- Colour picker (for Eyedropper.spoon). Hyper+2 turns the pointer into a screen
   -- eyedropper with a magnifier loupe, a click copies the pixel hex. It is not a
