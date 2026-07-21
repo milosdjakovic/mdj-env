@@ -51,6 +51,7 @@ obj._configuredApps = nil
 obj._installedApps = nil
 obj._appRowsCache = nil
 obj._appRowsWatcher = nil
+obj._mru = nil              -- most-recently-used bundle ids, front is most recent
 
 -- App enumeration roots and the depth guard against a symlink-looped tree.
 local APP_DIRS = {
@@ -60,11 +61,37 @@ local APP_DIRS = {
 }
 local APP_SCAN_MAX_DEPTH = 4
 
+-- Most-recently-used ordering. macOS exposes no public read of the Command+Tab
+-- list, so we replicate it by observing app activations and keeping the same
+-- recency order Command+Tab uses. Persisted under one hs.settings key so it
+-- survives a reload (frequent here) and a reboot, and capped so it stays small.
+local MRU_SETTINGS_KEY = "launcherAppMRU"
+local MRU_MAX = 50
+-- Our own activations must not reorder the list, else opening the launcher would
+-- float Hammerspoon to the top instead of the app the user was just in.
+local SELF_BUNDLE = hs.processInfo and hs.processInfo.bundleID
+
 --- Launcher:init()
 --- Method
 --- Initialize the spoon.
 function obj:init()
+  self._mru = {}
   return self
+end
+
+--- Launcher:_promoteMru(bundleID)
+--- Method
+--- Move an app to the front of the most-recently-used list and persist, ignoring
+--- our own activation so opening the launcher never reorders the list.
+function obj:_promoteMru(bundleID)
+  if not bundleID or bundleID == SELF_BUNDLE then return end
+  local mru = self._mru
+  for i, id in ipairs(mru) do
+    if id == bundleID then table.remove(mru, i); break end
+  end
+  table.insert(mru, 1, bundleID)
+  while #mru > MRU_MAX do table.remove(mru) end
+  hs.settings.set(MRU_SETTINGS_KEY, mru)
 end
 
 --- Launcher:configure(opts)
@@ -260,9 +287,11 @@ end
 --- Launcher:_appRows()
 --- Method
 --- The live app rows, every installed app plus any running app not on disk in the
---- scanned dirs, marked open when running so open apps sort first. The disk scan is
---- cached, and the assembled rows are cached too, rebuilt only when the running set
---- changes, so opening the palette just filters.
+--- scanned dirs, marked open when running so open apps sort first. Running apps are
+--- ordered by the most-recently-used list, the same recency Command+Tab shows, then
+--- running apps never yet activated and finally not-running apps, both alphabetical.
+--- The disk scan is cached, and the assembled rows are cached too, rebuilt when the
+--- running set or the focused app changes, so opening the palette just filters.
 function obj:_appRows()
   if self._appRowsCache then return self._appRowsCache end
   self._installedApps = self._installedApps or scanInstalledApps()
@@ -283,8 +312,16 @@ function obj:_appRows()
   end
   local list = {}
   for _, e in pairs(byId) do list[#list + 1] = e end
+  -- Rank running apps by recency, front of the MRU list first.
+  local rank = {}
+  for i, id in ipairs(self._mru or {}) do rank[id] = i end
   table.sort(list, function(x, y)
     if x.running ~= y.running then return x.running end -- open apps first
+    if x.running then
+      local rx, ry = rank[x.bundleID], rank[y.bundleID]
+      if rx and ry then return rx < ry end       -- both seen: more recent first
+      if rx or ry then return rx ~= nil end       -- a seen app precedes an unseen one
+    end
     return (x.name or ""):lower() < (y.name or ""):lower()
   end)
 
@@ -355,13 +392,21 @@ end
 
 --- Launcher:start()
 --- Method
---- Begin owning live state. Invalidate the cached app rows when the running set
---- changes, so open apps still sort first without rescanning on every open.
---- Idempotent.
+--- Begin owning live state. Load the persisted most-recently-used order and seed
+--- the current frontmost app so the top row is right before the first switch. The
+--- watcher promotes the activated app in the MRU list and invalidates the cached
+--- rows when the running set or the focused app changes, so the sort tracks
+--- Command+Tab without rescanning on every open. Idempotent.
 function obj:start()
   if self._appRowsWatcher then return self end
-  self._appRowsWatcher = hs.application.watcher.new(function(_, event)
-    if event == hs.application.watcher.launched or event == hs.application.watcher.terminated then
+  self._mru = hs.settings.get(MRU_SETTINGS_KEY) or {}
+  local front = hs.application.frontmostApplication()
+  if front then self:_promoteMru(front:bundleID()) end
+  self._appRowsWatcher = hs.application.watcher.new(function(_, event, app)
+    if event == hs.application.watcher.activated then
+      self:_promoteMru(app and app:bundleID())
+      self._appRowsCache = nil
+    elseif event == hs.application.watcher.launched or event == hs.application.watcher.terminated then
       self._appRowsCache = nil
     end
   end)

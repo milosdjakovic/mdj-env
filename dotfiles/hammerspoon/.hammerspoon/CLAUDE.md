@@ -383,64 +383,7 @@ PNGs off the main thread (sips for rasters, ffmpeg for video, `hs.image` for
 pdf/icns), knowing nothing about the UI. `ui.lua` only consumes the resulting
 `e.prev`/`e.thumb` paths, so swapping the webview for the canvas touched neither.
 
-**Launcher.** Hyper+Space opens a filterable app switcher and
-command runner, the built-in one, wired straight to the Chooser atom with no
-external launcher handoff. It lists every installed application, open ones first
-then not running, and below them the Hyper and window leader actions. Hyper+Space
-is a base HyperKey binding, suppressed while a modal context owns Hyper, so it
-always opens this launcher. An app that has a
-Hyper toggle shows its shortcut, the rest are launchable by name, and typing
-filters by name or shortcut. Return, or Hyper+i, runs the highlighted row. It
-lives in `Launcher.spoon`, a coordinator, because it combines many plain spoons
-into one feature and owns real state, the app scan caches and an
-`hs.application.watcher`, so it outgrew inline wiring in the root. It is a layer
-two coordinator in the sense of the lifecycle contract below, built over the
-Chooser atom, the same widget behind the clipboard and the VPN locations, and it
-names no domain spoon. The root injects every collaborator through `configure`,
-the Chooser factory, the pure `keys` and `apps` data, `WindowManager:actions()`, a
-chord glyph resolver, the System Settings pane descriptors, the shared predicate
-registry, the docked shortcut panel, and a small `actions` table of leaf closures
-that do name the domain spoons (`AppToggler:focusOrCycle` / `toggleURL`,
-`Capture:capture`, `SystemSettings:open`, and the show functions the base Hyper
-bindings call). So the mapping of the pure `config/keys.lua` data onto behavior is
-still decided in one place, the root, while the row building, matching, app
-enumeration, and dispatch structure live in the spoon.
-
-Each row carries only a small serializable descriptor, its kind plus a name or
-bundle id, never a function. This matters because the Chooser hands every row to
-`hs.chooser`, which serialises it to a native object, and a function there cannot
-be converted, so a row holding one is silently dropped and the list comes up
-empty. One dispatcher turns the descriptor back into the right call, so this is
-the Command pattern with the command encoded as data, and the launcher still never
-learns what a row does. Adding a row is a new entry in the build, never a change
-to the presenter. The installed app list is scanned once, lazily on first open,
-from the standard app directories and cached, so config load stays fast and a
-newly installed app appears after the next reload, which is automatic on file
-change. Running state is recomputed per open so open apps sort first, and a
-running app not on disk in the scanned dirs is included when it has a dock
-presence, to skip background helpers. Window rows carry their live `when`
-predicate, so the display switch rows drop out on a single display, matching the
-cheat sheet.
-
-App rows show the real app icon. The action rows have none of their own, so each
-gets a generic icon drawn from a glyph, since this Hammerspoon has no SF Symbol
-API and the named system images are too sparse. The glyph is rendered to an image
-once through `hs.canvas` and cached, so it lines up in the row with the app icons.
-Window actions share one glyph, the chord in the subtitle telling them apart,
-while capture and the system actions get a per-action one.
-
-The launcher follows the picker checklist above like any other list tool. The
-spoon exposes its dot called navigation adapter through `surface()`, which the root
-drops into the shared `choosers` list, and the `launcherOpen` predicate reads
-`spoon.Launcher:isShowing()` directly. It has a `launcher` context block giving it the shared j, k, and i
-navigation with Space to close (the open key doubles as the close, the way the
-clipboard's X does). Like menu search and VPN it docks the deferred shortcut panel
-(`shortcutPanelFor("launcher")`) through the three chooser callbacks, which spell
-the shortcuts out on the same canvas once the user pauses. Native arrows,
-typing, Return, and Escape work whenever Hyper is released. The chosen row runs
-deferred by a short timer, so it fires only after the chooser tears down and
-macOS restores focus to the window that was frontmost before the launcher opened,
-which the window actions need since they act on the focused window.
+**Launcher.** Hyper+Space opens a filterable app switcher and command runner, the built-in one, built over the Chooser atom. It is a coordinator spoon that owns the app scan caches and an `hs.application.watcher`, orders open apps by recency the way Command+Tab does, and follows the picker checklist above. Its decision trail and internals live in `Spoons/Launcher.spoon/CLAUDE.md`.
 
 **Eyedropper.** A screen colour sampler on Hyper+2, on the native macOS
 eyedropper. It is deliberately not a chooser, so the picker checklist above does
