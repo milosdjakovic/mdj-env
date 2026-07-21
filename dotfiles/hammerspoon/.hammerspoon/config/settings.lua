@@ -54,7 +54,7 @@ return {
   surface = {
     cornerRadius = 0,    -- square, the look we have; raise it to round every surface at once
     borderWidth = 1,
-    dark  = { bg = "#29292e", border = "#000000" },
+    dark  = { bg = "#29292e", border = "#58565A" },
     light = { bg = "#cecace", border = "#A09F9F" },
   },
 
