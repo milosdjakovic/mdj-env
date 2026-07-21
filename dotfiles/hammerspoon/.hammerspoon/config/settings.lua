@@ -58,7 +58,7 @@ return {
       bgDark = true,
       titleColor = { white = 0.92 },
       subColor = { white = 0.55 },
-      preview = { bg = "#2A2A2E", fg = "#dcdcdc", meta = "#8a8a8a", path = "#7a7a7a", note = "#c8a86a", border = "#000000" },
+      preview = { bg = "#292B2D", fg = "#dcdcdc", meta = "#8a8a8a", path = "#7a7a7a", note = "#c8a86a", border = "#000000" },
     },
     light = {
       bgDark = false,

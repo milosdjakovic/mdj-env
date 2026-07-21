@@ -635,11 +635,13 @@ local function commandRows(query)
   return out
 end
 
--- Panel colours plucked from the live native chooser with Digital Color Meter, so
--- the helper panel matches its solid fill and 1px border. Light is measured; dark is
--- a placeholder until the dark picker is sampled.
-local PANEL_BG = { light = "#E5E1E3", dark = "#2A2A2E" }
-local PANEL_BORDER = { light = "#A09F9F", dark = "#000000" }
+-- Panel surface colours, the solid fill and 1px border the HelperPanel draws for the
+-- cheat sheet, the docked hint bars, and the colour toast. This is not a second
+-- source. The same surface is the chooser preview pane's background and border, so
+-- both read the one theme in config/settings.lua and stay identical by construction.
+-- Edit the colour there, once, and every canvas surface follows.
+local PANEL_BG = { light = settings.chooserTheme.light.preview.bg, dark = settings.chooserTheme.dark.preview.bg }
+local PANEL_BORDER = { light = settings.chooserTheme.light.preview.border, dark = settings.chooserTheme.dark.preview.border }
 local function panelHexColor(hex)
   local r, g, b = hex:match("#?(%x%x)(%x%x)(%x%x)")
   return { red = tonumber(r, 16) / 255, green = tonumber(g, 16) / 255,
@@ -759,15 +761,8 @@ local function shortcutPanelFor(context)
     gap = 8,
     padX = 14, padY = 10,
     delay = settings.shortcutsPanel and settings.shortcutsPanel.delayMs,
-    fill = function()
-      return (hs.host.interfaceStyle() == "Dark") and panelHexColor(PANEL_BG.dark) or panelHexColor(PANEL_BG.light)
-    end,
-    border = {
-      width = 1,
-      color = function()
-        return (hs.host.interfaceStyle() == "Dark") and panelHexColor(PANEL_BORDER.dark) or panelHexColor(PANEL_BORDER.light)
-      end,
-    },
+    fill = panelFill,
+    border = panelBorder(),
     content = shortcutsContent(settings.chooserTheme, footerFor(context)),
   })
   return {
