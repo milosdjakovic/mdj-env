@@ -542,35 +542,53 @@ for _, t in ipairs(keys.appToggles) do
 end
 
 -- Enumerate installed applications once, lazily on first open, so config load
--- stays fast. Scans the standard app directories for .app bundles and resolves
--- each bundle id, name, and icon, deduped by bundle id. Cached; a newly installed
--- app appears after the next Hammerspoon reload, which is automatic on file change.
+-- stays fast. Walks the standard app roots recursively, so an app nested in a
+-- vendor subfolder (DaVinci Resolve, Blackmagic RAW) is found too, but stops
+-- descending at every .app so the hundreds of helper bundles inside an app
+-- (Claude Helper (GPU).app and the like) never leak in. The Utilities folders
+-- are reached through recursion rather than listed. Resolves each bundle id,
+-- name, and icon, deduped by bundle id. Cached; a newly installed app appears
+-- after the next Hammerspoon reload, which is automatic on file change.
 local APP_DIRS = {
   "/Applications",
-  "/Applications/Utilities",
   "/System/Applications",
-  "/System/Applications/Utilities",
   os.getenv("HOME") .. "/Applications",
 }
+-- Depth guard so a pathological or symlink-looped tree can never spin. Real apps
+-- nest at most a folder or two deep, so this is generous.
+local APP_SCAN_MAX_DEPTH = 4
 local installedApps
+local function scanAppDir(dir, depth, byId)
+  if depth > APP_SCAN_MAX_DEPTH then return end
+  -- hs.fs.dir raises on an unreadable directory, so guard the whole walk of it.
+  local ok, iterFn, dirObj = pcall(hs.fs.dir, dir)
+  if not ok or not iterFn then return end
+  for entry in iterFn, dirObj do
+    if entry:sub(1, 1) ~= "." then -- skips ".", "..", and hidden entries
+      local path = dir .. "/" .. entry
+      if entry:sub(-4) == ".app" then
+        local info = hs.application.infoForBundlePath(path)
+        local bundleID = info and info.CFBundleIdentifier
+        if bundleID and not byId[bundleID] then
+          byId[bundleID] = {
+            name = hs.application.nameForBundleID(bundleID) or entry:sub(1, -5),
+            bundleID = bundleID,
+            icon = hs.image.imageFromAppBundle(bundleID),
+          }
+        end
+        -- Deliberately do not descend: the .app is the leaf, its internal
+        -- helper bundles are not apps the user launches.
+      elseif hs.fs.attributes(path, "mode") == "directory" then
+        scanAppDir(path, depth + 1, byId)
+      end
+    end
+  end
+end
 local function scanInstalledApps()
   local byId = {}
   for _, dir in ipairs(APP_DIRS) do
     if hs.fs.attributes(dir, "mode") == "directory" then
-      for file in hs.fs.dir(dir) do
-        if file:sub(-4) == ".app" then
-          local path = dir .. "/" .. file
-          local info = hs.application.infoForBundlePath(path)
-          local bundleID = info and info.CFBundleIdentifier
-          if bundleID and not byId[bundleID] then
-            byId[bundleID] = {
-              name = hs.application.nameForBundleID(bundleID) or file:sub(1, -5),
-              bundleID = bundleID,
-              icon = hs.image.imageFromAppBundle(bundleID),
-            }
-          end
-        end
-      end
+      scanAppDir(dir, 1, byId)
     end
   end
   return byId
