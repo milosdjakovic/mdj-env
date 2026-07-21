@@ -8,7 +8,7 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
   - `settings.lua` - Global settings (margins, timing)
   - `workspaces/` - Workspace definitions (dev.lua, vicert.lua)
 - `Spoons/` - Real Hammerspoon Spoons (reusable logic)
-  - ChordKey, CheatSheet, HyperKey, HyperCheatSheet, AppToggler, ClipboardHistory, Capture, Eyedropper, WindowManager, WindowLeader, WindowCheatSheet, StageManager, WorkspaceEngine, TerminalHandler, DisplayMemory, DockMenuToggle, KeyRemap, DisplayProfiles
+  - ChordKey, CheatSheet, HyperKey, HyperCheatSheet, AppToggler, ClipboardHistory, Capture, Eyedropper, WindowManager, WindowLeader, WindowCheatSheet, StageManager, WorkspaceEngine, TerminalHandler, DisplayMemory, Launcher, DockMenuToggle, KeyRemap, DisplayProfiles
 
 **Leader keys (META < SUPER < HYPER).** Three physical keys can be remapped to
 unused function keys, named for the classic X11/Emacs modifier hierarchy,
@@ -258,6 +258,37 @@ That parse is cached and cleared on an `hs.screen.watcher` change, the same even
 DisplayProfiles reacts to, so fixed mode costs nothing per open after the first
 resolve on an arrangement.
 
+**Spoon lifecycle contract.** Every spoon is created and wired the same way, so
+`init.lua` can treat them uniformly. This is a convention, not a base class,
+because a Lua contract is structural, a documented set of methods plus validation,
+not an inherited type. Two methods are required. `init()` returns self and does no
+side effects. `configure(opts)` takes a single `opts` table holding every
+collaborator and choice, defaults it, and returns self, so all injection goes
+through one door. `start()` and `stop()` are optional and exist only when a spoon
+owns live resources, a watcher, an eventtap, or a timer, that genuinely need to
+begin and be torn down. A spoon that only binds keys keeps using `bindHotkeys` or
+`bindToLeader` as its activation step rather than growing an empty `start`. Do not
+add `start`/`stop` with nothing to do, that is the ceremony the design principles
+reject. Both call styles are allowed, the colon and self spoons that are the norm
+and the dot called module style Vpn and the clipboard submodules use, since the
+contract is a method set and not an object model, so Vpn is not rewritten to
+conform. `DisplayMemory` and `Launcher` are the worked examples of the full set,
+each owns a watcher so each has a real `start` and `stop`, while `TerminalHandler`,
+`WindowManager`, and `AppToggler` correctly stop at `init` and `configure`.
+
+Layered composition follows from this. A plain spoon is a self sufficient
+configurable mechanism, the bottom layer. When two or more of them are combined
+into one feature, the deciding question is whether the combination carries behavior
+or state of its own. If it is only a choice or an ordering, it stays a closure in
+the composition root, that is still top down configuration and a separate entity
+would be single caller ceremony, which is why `TerminalHandler.targetScreen` and
+the overlay screen strategy are just injected closures in `init.lua`. If it has its
+own state or lifecycle it becomes a coordinator, itself a spoon following this same
+contract, instantiated in `init.lua` like any other, which is what `Launcher.spoon`
+is. Most combinations already have a natural owning engine and the glue belongs
+inside it as injected providers, the Capture.spoon layout below, so a standalone
+coordinator is reserved for glue that has no natural owner and holds state.
+
 **Structuring a spoon with swappable behavior.** When a spoon has a mechanism
 plus interchangeable backends, follow the Capture.spoon layout, which is the
 concrete form of the design principles in the global config. init.lua is the
@@ -354,13 +385,20 @@ is a base HyperKey binding, suppressed while a modal context owns Hyper, so it
 always opens this launcher. An app that has a
 Hyper toggle shows its shortcut, the rest are launchable by name, and typing
 filters by name or shortcut. Return, or Hyper+i, runs the highlighted row. It
-adds no spoon. The reusable mechanism is the Chooser atom, the same widget behind
-the clipboard and the VPN locations, so the launcher is pure composition root
-policy in `init.lua`. It is the one place that maps the app list and the pure
-binding data in `config/keys.lua` (`appToggles`, `capture`, `clipboardHistory`,
-`caffeinate`, `vpn`, `lock`, `sleep`, and `windowManagement`) onto the domain
-spoons, reusing `AppToggler:focusOrCycle` / `toggleURL`, `Capture:capture`,
-`WindowManager:actions()`, and the show functions the base Hyper bindings call.
+lives in `Launcher.spoon`, a coordinator, because it combines many plain spoons
+into one feature and owns real state, the app scan caches and an
+`hs.application.watcher`, so it outgrew inline wiring in the root. It is a layer
+two coordinator in the sense of the lifecycle contract below, built over the
+Chooser atom, the same widget behind the clipboard and the VPN locations, and it
+names no domain spoon. The root injects every collaborator through `configure`,
+the Chooser factory, the pure `keys` and `apps` data, `WindowManager:actions()`, a
+chord glyph resolver, the System Settings pane descriptors, the shared predicate
+registry, the docked shortcut panel, and a small `actions` table of leaf closures
+that do name the domain spoons (`AppToggler:focusOrCycle` / `toggleURL`,
+`Capture:capture`, `SystemSettings:open`, and the show functions the base Hyper
+bindings call). So the mapping of the pure `config/keys.lua` data onto behavior is
+still decided in one place, the root, while the row building, matching, app
+enumeration, and dispatch structure live in the spoon.
 
 Each row carries only a small serializable descriptor, its kind plus a name or
 bundle id, never a function. This matters because the Chooser hands every row to
@@ -385,9 +423,10 @@ once through `hs.canvas` and cached, so it lines up in the row with the app icon
 Window actions share one glyph, the chord in the subtitle telling them apart,
 while capture and the system actions get a per-action one.
 
-The launcher follows the picker checklist above like any other list tool. It has
-a dot called navigation adapter over the Chooser instance, a `launcherOpen`
-predicate, a `launcher` context block giving it the shared j, k, and i
+The launcher follows the picker checklist above like any other list tool. The
+spoon exposes its dot called navigation adapter through `surface()`, which the root
+drops into the shared `choosers` list, and the `launcherOpen` predicate reads
+`spoon.Launcher:isShowing()` directly. It has a `launcher` context block giving it the shared j, k, and i
 navigation with Space to close (the open key doubles as the close, the way the
 clipboard's X does). Like menu search and VPN it docks the deferred shortcut panel
 (`shortcutPanelFor("launcher")`) through the three chooser callbacks, which spell
