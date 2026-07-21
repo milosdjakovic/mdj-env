@@ -9,6 +9,7 @@ local apps = require("config.apps")
 local keys = require("config.keys")
 local settings = require("config.settings")
 local displays = require("config.displays")
+local settingsPanes = require("config.settingsPanes")
 
 -- Load workspace configurations
 local devWorkspace = require("config.workspaces.dev")
@@ -39,6 +40,7 @@ hs.loadSpoon("WorkspaceEngine")
 hs.loadSpoon("TerminalHandler")
 hs.loadSpoon("DockAutoHide")
 hs.loadSpoon("DisplayProfiles")
+hs.loadSpoon("SystemSettings")
 
 --------------------------------------------------------------------------------
 -- Initialize Spoons
@@ -440,6 +442,7 @@ local specialActions = {
   colorPicker = function() spoon.Eyedropper:pick() end,
   lock = function() hs.caffeinate.lockScreen() end,
   sleep = function() hs.caffeinate.systemSleep() end,
+  searchSettings = function() spoon.SystemSettings:focusSearch() end,
 }
 local function runItem(it)
   if not it then return end
@@ -457,6 +460,8 @@ local function runItem(it)
   elseif it.kind == "special" then
     local fn = specialActions[it.name]
     if fn then fn() end
+  elseif it.kind == "settingsPane" then
+    spoon.SystemSettings:open(it.url)
   end
 end
 
@@ -498,6 +503,7 @@ local function buildActionRows()
   add(keys.caffeinate.description, "System · " .. chordLabel("Hyper", keys.caffeinate.key), { kind = "special", name = "caffeinate" }, "☕")
   add(keys.vpn.description, "Network · " .. chordLabel("Hyper", keys.vpn.key), { kind = "special", name = "vpn" }, "🌐")
   add(keys.clipboardHistory.description, "Clipboard · " .. chordLabel("Hyper", keys.clipboardHistory.key), { kind = "special", name = "clipboard" }, "📋")
+  add("Search Settings", "System · opens the System Settings search field", { kind = "special", name = "searchSettings" }, "🔍")
   add(keys.lock.description, "System · " .. chordLabel("Hyper", keys.lock.key), { kind = "special", name = "lock" }, "🔒")
   add(keys.sleep.description, "System · " .. chordLabel("Hyper", keys.sleep.key), { kind = "special", name = "sleep" }, "🌙")
   for _, b in ipairs(keys.windowManagement) do
@@ -509,6 +515,21 @@ local function buildActionRows()
   return rows
 end
 local actionRows = buildActionRows()
+
+-- System Settings panes as launcher rows. SystemSettings.spoon owns the pane
+-- knowledge and the catalog is injected here, the one place that names the concrete
+-- config/settingsPanes data. The spoon returns pure descriptors, so this renders each
+-- glyph into an icon the same way buildActionRows does and keeps the hidden keywords
+-- for the matcher below. Built once at load, since the pane list does not change while
+-- Hammerspoon runs, and each item carries only a URL string, never a function.
+spoon.SystemSettings:configure({ panes = settingsPanes })
+local settingsPaneRows = {}
+for _, r in ipairs(spoon.SystemSettings:rows()) do
+  settingsPaneRows[#settingsPaneRows + 1] = {
+    title = r.title, subTitle = r.subTitle, image = glyphIcon(r.glyph),
+    keywords = r.keywords, item = r.item,
+  }
+end
 
 -- The configured Hyper toggle for each app, keyed by bundle id, so an app row can
 -- show its shortcut (and reuse its url-pane behavior). Built from the same pure
@@ -626,12 +647,17 @@ local function commandRows(query)
   local out = {}
   local function consider(row)
     if row.when and not (predicates[row.when] and predicates[row.when]()) then return end
-    if q == "" or (row.title .. " " .. row.subTitle):lower():find(q, 1, true) then
+    -- Match over the visible text plus any hidden keywords, so a settings pane is
+    -- found by a synonym its name lacks (wifi for Wi-Fi) without showing the synonym.
+    local hay = row.title .. " " .. row.subTitle
+    if row.keywords then hay = hay .. " " .. row.keywords end
+    if q == "" or hay:lower():find(q, 1, true) then
       out[#out + 1] = { title = row.title, subTitle = row.subTitle, image = row.image, item = row.item }
     end
   end
   for _, row in ipairs(appRows()) do consider(row) end
   for _, row in ipairs(actionRows) do consider(row) end
+  for _, row in ipairs(settingsPaneRows) do consider(row) end
   return out
 end
 
