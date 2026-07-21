@@ -38,6 +38,7 @@ hs.loadSpoon("Capture")
 hs.loadSpoon("Eyedropper")
 hs.loadSpoon("WorkspaceEngine")
 hs.loadSpoon("TerminalHandler")
+hs.loadSpoon("DisplayMemory")
 hs.loadSpoon("DockAutoHide")
 hs.loadSpoon("DisplayProfiles")
 hs.loadSpoon("SystemSettings")
@@ -1201,15 +1202,51 @@ spoon.WorkspaceEngine:registerWorkspace(devWorkspace)
 spoon.WorkspaceEngine:registerWorkspace(vicertWorkspace)
 spoon.WorkspaceEngine:start()
 
+-- This machine's name, the one place the per host split is decided. Resolved
+-- once here and reused by DisplayMemory (below) and DisplayProfiles (later).
+local host = (hs.execute("scutil --get LocalHostName") or ""):gsub("%s+$", "")
+
+-- DisplayMemory: remember which display the terminal was last moved to, on this
+-- machine. It is the reusable Observer only; it watches the terminal's windows
+-- and persists the display, and answers nil when nothing is remembered or the
+-- remembered display is gone, so the caller layers its own default underneath.
+local terminalBundleID = apps[settings.terminal.preferredTerminal]
+spoon.DisplayMemory:init()
+spoon.DisplayMemory:configure({
+  bundleID = terminalBundleID,
+  settingsKey = "terminalDisplay",
+  host = host,
+})
+spoon.DisplayMemory:start()
+
+-- The default display policy, the one place the "where by default" rule lives:
+-- the built-in panel if there is one, else the first attached screen. That single
+-- rule covers every machine, built-in on the MacBook and the iMac, first available
+-- on the Mac mini which has none, so no per host table is needed.
+local function defaultTerminalScreen()
+  local screens = hs.screen.allScreens()
+  for _, s in ipairs(screens) do
+    if s:name():match("Built%-in") then return s end
+  end
+  return screens[1]
+end
+
 -- TerminalHandler (depends on AppToggler, WindowManager)
+-- targetScreen chains the two: the remembered display wins while it is attached,
+-- otherwise the default policy. The engine calls this contract and stays ignorant
+-- of both, and dropping the DisplayMemory wiring above would leave it on the
+-- default alone.
 spoon.TerminalHandler:init()
 spoon.TerminalHandler:configure({
   appToggler = spoon.AppToggler,
   windowManager = spoon.WindowManager,
-  terminalBundleID = apps[settings.terminal.preferredTerminal],
+  terminalBundleID = terminalBundleID,
   timing = settings.terminal,
   size = settings.terminal.size,
   minPadding = settings.terminal.minPadding,
+  targetScreen = function()
+    return spoon.DisplayMemory:rememberedScreen() or defaultTerminalScreen()
+  end,
 })
 spoon.TerminalHandler:bindHotkeys({ terminal = keys.terminal })
 
@@ -1224,7 +1261,7 @@ spoon.DockAutoHide:bindHotkeys({ toggle = keys.toggleDock })
 -- is decided, and injects that machine's profiles from config/displays.lua. The
 -- spoon stays ignorant of hostnames and of the catalog. A machine with no entry
 -- gets an empty list and simply does nothing, logged so the reason is visible.
-local host = (hs.execute("scutil --get LocalHostName") or ""):gsub("%s+$", "")
+-- `host` is resolved once earlier, in the TerminalHandler block.
 local hostProfiles = displays.profiles[host] or {}
 spoon.DisplayProfiles:init()
 spoon.DisplayProfiles:configure({

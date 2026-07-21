@@ -19,6 +19,10 @@ obj._terminalBundleID = nil
 obj._timing = nil
 obj._size = nil
 obj._minPadding = nil
+-- targetScreen() returns the hs.screen to place the terminal on. Injected from
+-- the composition root, so the engine never decides where itself. Optional; when
+-- absent the engine falls back to the first attached screen.
+obj._targetScreen = nil
 
 --- TerminalHandler:init()
 --- Method
@@ -42,6 +46,7 @@ function obj:configure(opts)
   }
   self._size = opts.size or { width = 2400, height = 1350 }
   self._minPadding = opts.minPadding or { x = 20, y = 20 }
+  self._targetScreen = opts.targetScreen
   return self
 end
 
@@ -69,8 +74,8 @@ end
 --- Uses frame (below menu bar, above dock) with minimum padding on
 --- all sides.
 function obj:_handleWindowPlacement(app)
-  local screens = hs.screen.allScreens()
-  local screenToMove = screens[2] or screens[1]
+  local screenToMove = self._targetScreen and self._targetScreen()
+  screenToMove = screenToMove or hs.screen.allScreens()[1]
 
   self._windowManager:moveToScreen(screenToMove)
 

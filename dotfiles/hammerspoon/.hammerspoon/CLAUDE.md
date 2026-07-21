@@ -8,7 +8,7 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
   - `settings.lua` - Global settings (margins, timing)
   - `workspaces/` - Workspace definitions (dev.lua, vicert.lua)
 - `Spoons/` - Real Hammerspoon Spoons (reusable logic)
-  - ChordKey, CheatSheet, HyperKey, HyperCheatSheet, AppToggler, ClipboardHistory, Capture, Eyedropper, WindowManager, WindowLeader, WindowCheatSheet, StageManager, WorkspaceEngine, TerminalHandler, DockMenuToggle, KeyRemap, DisplayProfiles
+  - ChordKey, CheatSheet, HyperKey, HyperCheatSheet, AppToggler, ClipboardHistory, Capture, Eyedropper, WindowManager, WindowLeader, WindowCheatSheet, StageManager, WorkspaceEngine, TerminalHandler, DisplayMemory, DockMenuToggle, KeyRemap, DisplayProfiles
 
 **Leader keys (META < SUPER < HYPER).** Three physical keys can be remapped to
 unused function keys, named for the classic X11/Emacs modifier hierarchy,
@@ -175,6 +175,39 @@ which holds because applying changes only the arrangement, not the set of
 attached displays. `reconcile(true)` forces a reapply and `apply(name)` forces a
 named one, for a manual fix when the displays did not change. Adding this spoon
 needed a restow, since `~/.hammerspoon/Spoons` holds one symlink per spoon.
+
+**Terminal placement, and remembering the display.** Option+\` toggles the
+terminal through `TerminalHandler.spoon`, which now is pure mechanism. It no
+longer decides which screen to place on; it depends on one injected contract,
+`targetScreen()` returning an `hs.screen`, and never names how that is chosen. The
+composition root in `init.lua` supplies it. This is Strategy wired through
+injection, fed by an Observer, so the engine stays ignorant of both the default
+and the memory.
+
+`DisplayMemory.spoon` is the Observer and the only reusable part of the memory. It
+watches one app's windows with an `hs.window.filter` on the terminal's bundle id,
+and on every `windowMoved` records the display the window lands on, whether it was
+dragged there or moved by the META leader's prev/next display. Identity is the
+display UUID, stable across reboots, and the value is stored per machine through
+`hs.settings` under `terminalDisplay.<LocalHostName>`, so each Mac remembers
+independently and the choice survives a reload or a reboot. It answers
+`rememberedScreen()` with that display while it is attached, else nil, so a caller
+can fall back. It never decides a default and never names a machine; the root
+injects the app to watch and this machine's name.
+
+The default policy lives in one place in `init.lua`, `defaultTerminalScreen()`,
+the built-in panel if there is one, else the first attached screen. That single
+rule covers every machine, built-in on the MacBook and the iMac, first available
+on the Mac mini which has none, so no per host table is needed, unlike
+DisplayProfiles. Built-in is matched by the screen name containing "Built-in". The
+root chains the two into the injected `targetScreen`, remembered display first
+then default, so the terminal reappears wherever it was last placed on this
+machine and lands built-in the first time on a fresh machine. `host` is resolved
+once in the TerminalHandler block (`scutil --get LocalHostName`) and reused by
+DisplayProfiles later. Dropping the DisplayMemory wiring leaves TerminalHandler on
+the default alone, graceful degradation like HyperKey and AppToggler. Adding
+DisplayMemory needed a restow, since `~/.hammerspoon/Spoons` holds one symlink per
+spoon.
 
 **Structuring a spoon with swappable behavior.** When a spoon has a mechanism
 plus interchangeable backends, follow the Capture.spoon layout, which is the
