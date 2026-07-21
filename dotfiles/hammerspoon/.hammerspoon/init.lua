@@ -21,7 +21,6 @@ local vicertWorkspace = require("config.workspaces.vicert")
 hs.loadSpoon("KeyRemap")
 hs.loadSpoon("ChordKey")
 hs.loadSpoon("CheatSheet")
-hs.loadSpoon("Surface")
 hs.loadSpoon("Chooser")
 hs.loadSpoon("HelperPanel")
 hs.loadSpoon("HyperKey")
@@ -35,6 +34,7 @@ hs.loadSpoon("ClipboardHistory")
 hs.loadSpoon("Caffeinate")
 hs.loadSpoon("Vpn")
 hs.loadSpoon("Capture")
+hs.loadSpoon("Eyedropper")
 hs.loadSpoon("WorkspaceEngine")
 hs.loadSpoon("TerminalHandler")
 hs.loadSpoon("DockAutoHide")
@@ -58,28 +58,19 @@ end
 spoon.KeyRemap:init()
 spoon.KeyRemap:apply(catalog, { keys.appLeader, keys.windowLeader })
 
--- Surface: the themed webview foundation behind the web picker backend and the
--- cheat sheet grids. Its icon cache persists encoded app icons across reloads.
--- Chooser is the picker facade with two swappable backends, native (hs.chooser)
--- and web (a Surface list). The default backend is settings.chooserProvider, and
--- the Surface spoon is injected so the web backend can build on it. Every chooser
--- consumer below goes through this one facade, so flipping settings.chooserProvider
--- swaps them all at once, while the native chooser stays available as a fallback.
-spoon.Surface:init()
-spoon.Surface:configure({ iconCacheDir = "~/.cache/hs-icons" })
+-- Chooser is the picker facade behind every list tool below, the clipboard, the
+-- VPN locations, keep awake, menu search, and the launcher. It wraps the native
+-- hs.chooser. There was once a second webview backend built on a Surface spoon,
+-- selectable per consumer, but every consumer settled on native so the web backend
+-- and the Surface foundation were removed.
 spoon.Chooser:init()
-spoon.Chooser:configure({ provider = settings.chooserProvider or "native", surface = spoon.Surface })
 
--- CheatSheet: the shared grid-overlay renderer behind both cheat sheets. Both
--- builders below draw through this one instance (only ever one overlay is up). It
--- now draws through the Surface grid, so the overlays wear the same frosted panel
--- and palette as the pickers. The cheatSheet block still tunes the content, font
--- size, padding, and badge radius, while the background and theme come from
--- chooserTheme through the grid.
+-- CheatSheet: the shared overlay behind both cheat sheets. Both builders below
+-- draw through this one instance (only ever one overlay is up). It owns only the
+-- grid layout and draws through the shared HelperPanel canvas atom, the same
+-- surface as the docked shortcut hint bar; it is configured further down, once the
+-- panel fill and border the hint bar uses are in scope, so the two share one look.
 spoon.CheatSheet:init()
-local cheatOpts = { surface = spoon.Surface, theme = settings.chooserTheme }
-for k, v in pairs(settings.cheatSheet or {}) do cheatOpts[k] = v end
-spoon.CheatSheet:configure(cheatOpts)
 
 -- HyperCheatSheet: overlay of everything under Hyper. App toggles first (open vs
 -- not running), then one ACTIONS group for the non-app commands. This is the one
@@ -93,6 +84,7 @@ local hyperActions = {}
 for _, b in ipairs(keys.capture) do
   hyperActions[#hyperActions + 1] = b
 end
+hyperActions[#hyperActions + 1] = keys.colorPicker
 hyperActions[#hyperActions + 1] = keys.launcher
 hyperActions[#hyperActions + 1] = keys.menuSearch
 hyperActions[#hyperActions + 1] = keys.clipboardHistory
@@ -305,10 +297,8 @@ local function footerFor(name)
   end
   return hints
 end
--- Every chooser now runs on the native backend and docks the deferred HelperPanel
--- for its shortcut hints, so nothing consumes the web footer path anymore; the
--- footerFor hints above feed the panels directly. The web backend and its footer
--- config still exist in Chooser.spoon as a fallback, but no consumer selects it.
+-- Every chooser runs on the native backend and docks the deferred HelperPanel for
+-- its shortcut hints. The footerFor hints above feed the panels directly.
 local function hideShortcuts()
   if shortcutsShown then
     spoon.CheatSheet:hide()
@@ -448,6 +438,7 @@ local specialActions = {
   clipboard = function() spoon.ClipboardHistory:open() end,
   caffeinate = function() spoon.Caffeinate.show() end,
   vpn = function() spoon.Vpn.show() end,
+  colorPicker = function() spoon.Eyedropper:pick() end,
   lock = function() hs.caffeinate.lockScreen() end,
   sleep = function() hs.caffeinate.systemSleep() end,
 }
@@ -504,6 +495,7 @@ local function buildActionRows()
     add(c.description or humanize(c.action), "Capture · " .. chordLabel("Hyper", c.key, c.mods),
       { kind = "capture", name = c.action }, captureGlyphs[c.action] or "📸")
   end
+  add(keys.colorPicker.description, "Tools · " .. chordLabel("Hyper", keys.colorPicker.key), { kind = "special", name = "colorPicker" }, "🎨")
   add(keys.clipboardHistory.description, "Clipboard · " .. chordLabel("Hyper", keys.clipboardHistory.key), { kind = "special", name = "clipboard" }, "📋")
   add(keys.caffeinate.description, "System · " .. chordLabel("Hyper", keys.caffeinate.key), { kind = "special", name = "caffeinate" }, "☕")
   add(keys.vpn.description, "Network · " .. chordLabel("Hyper", keys.vpn.key), { kind = "special", name = "vpn" }, "🌐")
@@ -655,6 +647,27 @@ local function panelHexColor(hex)
            blue = tonumber(b, 16) / 255, alpha = 1.0 }
 end
 
+-- The panel fill and border, resolved per show so they track light and dark. One
+-- pair, handed to both the docked shortcut hint bar and the cheat sheet overlay,
+-- so the two canvases share one surface look.
+local function panelFill()
+  return (hs.host.interfaceStyle() == "Dark") and panelHexColor(PANEL_BG.dark) or panelHexColor(PANEL_BG.light)
+end
+local function panelBorder()
+  return { width = 1, color = function()
+    return (hs.host.interfaceStyle() == "Dark") and panelHexColor(PANEL_BORDER.dark) or panelHexColor(PANEL_BORDER.light)
+  end }
+end
+
+-- Now that the shared surface is in scope, finish wiring the cheat sheet. It draws
+-- its binding grid through the HelperPanel atom with the same fill and border as
+-- the hint bar, centered on screen. The cheatSheet settings block tunes only the
+-- content, font size, padding, and badge radius; the surface comes from here.
+local cheatOpts = { theme = settings.chooserTheme, helperPanel = spoon.HelperPanel,
+                    fill = panelFill, border = panelBorder() }
+for k, v in pairs(settings.cheatSheet or {}) do cheatOpts[k] = v end
+spoon.CheatSheet:configure(cheatOpts)
+
 -- Shortcut hints as a HelperPanel content renderer: the first PURPOSE of the panel.
 -- It measures and draws the chord chips, wrapping them to the width the panel offers,
 -- and knows nothing about placement or the panel's fill and border (the panel owns
@@ -771,13 +784,11 @@ end
 -- The row runs deferred, after the chooser has torn down and macOS has restored
 -- focus to the app that was frontmost before the launcher opened. Window actions
 -- act on hs.window.focusedWindow(), so they must run once that window is focused
--- again rather than while the chooser holds focus. Pinned to the native backend
--- like menu search and VPN, so instead of a web footer it docks the same deferred
--- shortcut panel through the three chooser callbacks, and its onClose also clears
--- any peeked overlay, matching the clipboard.
+-- again rather than while the chooser holds focus. Like menu search and VPN it docks
+-- the same deferred shortcut panel through the three chooser callbacks, and its
+-- onClose also clears any peeked overlay, matching the clipboard.
 local launcherPanel = shortcutPanelFor("launcher")
 local launcher = spoon.Chooser.new({
-  provider = "native",
   theme = settings.chooserTheme,
   placeholder = "Search apps and commands",
   rows = commandRows,
@@ -896,10 +907,6 @@ end
 -- native chooser without the chooser knowing about it.
 local menuPanel = shortcutPanelFor("menuSearch")
 local menuSearch = spoon.Chooser.new({
-  -- Pinned to the native hs.chooser backend, which is noticeably snappier here
-  -- than the web surface the other pickers use. Per-instance override only, so the
-  -- global chooserProvider default stays "web"; drop this line to fall back in line.
-  provider = "native",
   theme = settings.chooserTheme,
   placeholder = "Search menu items",
   rows = menuSearchRows,
@@ -996,9 +1003,8 @@ spoon.Caffeinate.start()
 spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
 
 -- Clipboard manager UI: the native chooser with its canvas preview docked in the
--- companion pane and the same deferred shortcut panel the other native choosers use.
--- Pinned to the native backend, so it draws no web footer; the panel spells the
--- shortcuts out instead. The manager owns onPositioned to place its preview, so the
+-- companion pane and the same deferred shortcut panel the other choosers use. The
+-- panel spells the shortcuts out below the list. The manager owns onPositioned to place its preview, so the
 -- panel's onPositioned is injected and composed inside the manager's (it forwards the
 -- chooser frame back out), while onActivity and onClose pass straight through. The
 -- theme comes from the one source in config/settings.lua so the preview follows the
@@ -1008,7 +1014,6 @@ spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
 -- the choosers registry below.
 local clipPanel = shortcutPanelFor("clipboard")
 spoon.ClipboardHistory.manager.configure({
-  provider = "native",
   theme = settings.chooserTheme,
   chooser = spoon.Chooser,
   onPositioned = clipPanel.onPositioned,
@@ -1098,6 +1103,69 @@ spoon.Capture:configure({
 })
 spoon.Capture:bindHotkeys(keys.capture)
 
+-- Eyedropper: a screen colour sampler on Hyper+2. Unlike the choosers it is a lone
+-- mechanism, not a list tool, so it needs no Hyper context, predicate, or choosers
+-- entry. It is wired exactly like lock and sleep, a base HyperKey binding (bound
+-- through bindHyper below), and it is also reachable as the color picker launcher
+-- row through the special action dispatcher above. The click copies the pixel hex.
+--
+-- The copied confirmation is drawn on the shared HelperPanel canvas, the same
+-- surface as the cheat sheet and the docked hint bars, so the feedback reads as one
+-- UI rather than a stray hs.alert. It is a centered panel showing the picked colour
+-- as a swatch beside its hex, shown on each pick and hidden shortly after by a timer.
+-- The content reads a small mutable state the onPick updates, so one panel instance
+-- is reused. This is the root owning the look while the spoon owns only the sampling.
+local function colorToastContent(theme, state)
+  local font = "Menlo"
+  local hexSize, swatch, gap = 18, 26, 12
+  local function textW(str)
+    local sz = hs.drawing.getTextDrawingSize(hs.styledtext.new(str, { font = { name = font, size = hexSize } }))
+    return math.ceil((sz and sz.w) or 0)
+  end
+  return {
+    preferredSize = function()
+      return { w = swatch + gap + textW(state.hex), h = swatch }
+    end,
+    draw = function(w, h)
+      local dark = hs.host.interfaceStyle() == "Dark"
+      local side = (dark and theme.dark) or theme.light or theme.dark or {}
+      local fg = side.titleColor or { white = dark and 0.92 or 0.15 }
+      local swStroke = { white = dark and 1 or 0, alpha = dark and 0.25 or 0.2 }
+      return {
+        { type = "rectangle", action = "strokeAndFill", fillColor = state.color,
+          strokeColor = swStroke, strokeWidth = 1,
+          roundedRectRadii = { xRadius = 5, yRadius = 5 },
+          frame = { x = 0, y = (h - swatch) / 2, w = swatch, h = swatch } },
+        { type = "text", text = state.hex, textFont = font, textSize = hexSize,
+          textColor = fg, textAlignment = "left",
+          frame = { x = swatch + gap, y = (h - hexSize) / 2 - 1, w = w - swatch - gap, h = hexSize + 6 } },
+      }
+    end,
+  }
+end
+local function hexToColor(hex)
+  local r, g, b = hex:match("#(%x%x)(%x%x)(%x%x)")
+  return { red = tonumber(r, 16) / 255, green = tonumber(g, 16) / 255, blue = tonumber(b, 16) / 255, alpha = 1 }
+end
+local pickState = { hex = "#000000", color = { red = 0, green = 0, blue = 0, alpha = 1 } }
+local colorToast = spoon.HelperPanel.new({
+  placement = "center",
+  fill = panelFill,
+  border = panelBorder(),
+  content = colorToastContent(settings.chooserTheme, pickState),
+})
+local colorToastTimer
+spoon.Eyedropper:init()
+spoon.Eyedropper:configure({
+  onPick = function(hex)
+    pickState.hex = hex
+    pickState.color = hexToColor(hex)
+    colorToast:show()
+    if colorToastTimer then colorToastTimer:stop() end
+    colorToastTimer = hs.timer.doAfter(1.1, function() colorToast:hide() end)
+  end,
+})
+
 -- Sleep the Mac on Hyper+Esc and lock the screen on Hyper+§. These are lone
 -- system actions, not whole domains, so they are bound directly here in the
 -- composition root rather than given a spoon of their own. Each binds into the
@@ -1115,6 +1183,9 @@ bindHyper(keys.lock, function()
 end)
 bindHyper(keys.sleep, function()
   hs.caffeinate.systemSleep()
+end)
+bindHyper(keys.colorPicker, function()
+  spoon.Eyedropper:pick()
 end)
 
 -- WorkspaceEngine (depends on AppToggler, WindowManager)

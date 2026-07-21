@@ -22,8 +22,11 @@
 --- pokes come from, so a caller wires its own activity source to poke().
 ---
 --- config (all optional unless noted):
----   placement  "below" (default) | "above" | "left" | "right". Where the panel
----              docks relative to the anchor.
+---   placement  "below" (default) | "above" | "left" | "right" | "center". The
+---              first four dock the panel relative to the anchor; "center" ignores
+---              the anchor and centers the panel on the active screen, so show()
+---              and arm() may be called with no anchor. Used by the cheat sheet
+---              overlay, which is a standalone centered panel rather than a dock.
 ---   delay      idle milliseconds before arm() reveals the panel; nil or 0 draws it
 ---              instantly. Once revealed it stays until hide(), so poke() after that is
 ---              a no-op.
@@ -83,12 +86,16 @@ function Panel:_layout(anchor)
   local c = self.config
   local padX, padY = c.padX or 14, c.padY or 10
   local gap = c.gap or 8
+  local centered = (c.placement == "center")
   local horizontal = (c.placement == "left" or c.placement == "right")
 
   -- The shared axis matches the anchor unless breadth overrides it; the free axis
-  -- comes from config.length, else the content's preferred size on that axis.
+  -- comes from config.length, else the content's preferred size on that axis. A
+  -- centered panel has no anchor to match, so both axes come from the content.
   local availW, availH
-  if horizontal then
+  if centered then
+    availW, availH = nil, nil
+  elseif horizontal then
     local breadth = c.breadth or anchor.h
     availH = breadth - 2 * padY
     availW = c.length and (c.length - 2 * padX) or nil
@@ -112,7 +119,11 @@ function Panel:_layout(anchor)
   end
 
   local x, y
-  if c.placement == "above" then
+  if centered then
+    local sf = (hs.screen.mainScreen() or hs.screen.primaryScreen()):frame()
+    x = sf.x + (sf.w - panelW) / 2
+    y = sf.y + (sf.h - panelH) / 2
+  elseif c.placement == "above" then
     x = alignOn(anchor.x, anchor.w, panelW)
     y = anchor.y - gap - panelH
   elseif c.placement == "left" then
@@ -132,7 +143,7 @@ end
 --- HelperPanel:show(anchorFrame) - place and draw the panel relative to anchorFrame
 --- ({ x, y, w, h }). Safe to call repeatedly; the canvas is built once and reused.
 function Panel:show(anchor)
-  if not anchor then return end
+  if not anchor and self.config.placement ~= "center" then return end
   local frame, contentW, contentH, padX, padY = self:_layout(anchor)
 
   local els = {}
@@ -178,7 +189,7 @@ end
 --- countdown instead of drawing, unless the panel has already revealed, in which case it
 --- redraws at the corrected anchor (a chooser reports its frame twice as it settles).
 function Panel:arm(anchor)
-  if not anchor then return end
+  if not anchor and self.config.placement ~= "center" then return end
   self.anchor = anchor
   local delay = self.config.delay
   if not delay or delay <= 0 then

@@ -25,10 +25,9 @@
 --- isShowing and hide, which the shared control in the main root calls on whichever tool
 --- is open.
 ---
---- Why the native Chooser now and not the webview Panel. The old panel existed only to
---- host inline hours and minutes fields that clamp. Folding the value into the search field
---- removes that need, so keep awake joins the VPN list and the menu search on the one snappy
---- native backend, and the Panel atom retires with no consumer left.
+--- The value entry folds into the search field, one morphing row, so keep awake needs no
+--- inline form fields and rides the same native chooser as the clipboard, the VPN list, and
+--- menu search.
 
 local M = { name = "Caffeinate", version = "3.0", author = "mdj-env" }
 
@@ -257,12 +256,10 @@ function M.start()
   engine.configure({ onChange = onChange })
   engine.start()
   chooser = cfg.chooser.new({
-    -- Pinned to the native hs.chooser backend, the snappy one the menu search and the VPN
-    -- list use. The field is a live filter, so the supplier re-parses the query on every
-    -- keystroke and the single row morphs as you type. Two rows tall, since the list only
-    -- ever holds the one morphing row but the larger row font clips it at one, so the extra
-    -- row of height gives the single row room to render fully.
-    provider = "native",
+    -- The field is a live filter, so the supplier re-parses the query on every keystroke and
+    -- the single row morphs as you type. Two rows tall, since the list only ever holds the
+    -- one morphing row but the larger row font clips it at one, so the extra row of height
+    -- gives the single row room to render fully.
     theme = cfg.theme,
     placeholder = "Time or duration",
     fieldMode = "filter",

@@ -31,28 +31,17 @@ return {
     timeout = 30,             -- Max seconds to wait per app
   },
 
-  -- Cheat-sheet overlay appearance (the Hyper and SUPER modals). One place
-  -- for how EVERY overlay looks; the shared CheatSheet renderer applies it to
-  -- all of them. Per-overlay layout (column count, icons) stays in the spoons.
-  -- Colours are 0-1 RGB; opacity is the panel's alpha. Omit any field to keep
-  -- the built-in default.
+  -- Cheat-sheet overlay content (the Hyper and SUPER modals). One place for the
+  -- grid content styling; the shared CheatSheet renderer applies it to every
+  -- overlay. Per-overlay layout (column count, icons) stays in the spoons. The
+  -- panel surface itself (fill, border, corners) is NOT here; the cheat sheet
+  -- draws through the shared HelperPanel atom, so it shares the docked hint bar's
+  -- surface, tuned from chooserTheme below. Omit any field to keep the default.
   cheatSheet = {
-    opacity = 0.95,                                    -- panel background alpha
-    background = { red = 0.09, green = 0.09, blue = 0.11 }, -- panel colour
-    cornerRadius = 16,                                 -- panel corner roundness
-    badgeRadius = 6,                                   -- key-badge roundness
+    badgeRadius = 5,   -- key-badge roundness, matching the hint bar chips
     fontSize = 16,
-    padding = 28,                                      -- inner margin around content
+    padding = 20,      -- inner panel padding (HelperPanel padX/padY)
   },
-
-  -- Picker backend. The Chooser facade has two swappable backends, "native" (the
-  -- built in hs.chooser) and "web" (the themed webview list on the Surface spoon).
-  -- This one word is the default backend for a chooser consumer that does not pin
-  -- its own. Every real consumer now runs native (the clipboard, VPN locations,
-  -- menu search, keep awake, and the launcher), each docking the shortcut panel, so
-  -- the web backend has no consumer left and stays only as a fallback. A consumer
-  -- can still override this with config.provider.
-  chooserProvider = "native",
 
   -- Chooser theme. One source for how the searchable chooser and its docked
   -- preview look in light and dark. The clipboard reads it today; a future
