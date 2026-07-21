@@ -927,11 +927,25 @@ local contextActions = {
   scrollPreviewDown = routeNav("scrollPreviewDown"),
   scrollPreviewUp = routeNav("scrollPreviewUp"),
 }
+-- Nav actions that auto-repeat while the key is held, so holding Hyper+j/k in any
+-- chooser scrolls like a held arrow key. The initial delay and repeat rate are the
+-- OS autorepeat's own timing (System Settings > Keyboard), inherited for free.
+-- Toggles are deliberately absent, so they still fire once per press.
+local repeatableActions = {
+  selectNext = true,
+  selectPrev = true,
+  scrollPreviewDown = true,
+  scrollPreviewUp = true,
+}
 for _, ctx in ipairs(keys.hyperContexts or {}) do
   for _, b in ipairs(ctx.bindings) do
     local fn = contextActions[b.action]
     if fn then
-      spoon.HyperKey:bind(b.key, fn, b.mods, { when = ctx.when, priority = ctx.priority })
+      spoon.HyperKey:bind(b.key, fn, b.mods, {
+        when = ctx.when,
+        priority = ctx.priority,
+        repeats = repeatableActions[b.action],
+      })
     else
       print("hyperContexts: unknown action '" .. tostring(b.action) .. "'")
     end

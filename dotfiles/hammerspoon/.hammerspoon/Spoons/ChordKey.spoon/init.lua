@@ -277,6 +277,20 @@ function obj:start()
           end
           return true, {}
         end
+        -- Autorepeat of a held key. Swallowed by default so a toggle fires once
+        -- (the guard above), but a binding may opt into repeat, so re-run only
+        -- those. The initial delay and repeat rate are the OS autorepeat's own
+        -- (System Settings > Keyboard), so a held nav key like a chooser's j/k
+        -- scrolls exactly like the arrow keys. Any hold overlay was already torn
+        -- down on the first press, so dispatch directly with no settle. onKey
+        -- returns the handler plus its repeats flag; keep both (an `and` guard
+        -- would truncate the pair to one value).
+        if t == types.keyDown and repeated then
+          local fn, repeats
+          if held.onKey then fn, repeats = held.onKey(code, e:getFlags()) end
+          if fn and repeats then fn() end
+          return true, {}
+        end
         -- The release of a key we leaked downstream: send the matching synthetic
         -- up so the app never sees it stuck down. Repeats stay swallowed.
         if held.passthrough and held.passedKeys[code] then

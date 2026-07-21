@@ -80,9 +80,11 @@ end
 --- `mods` is an optional list of required modifier names ({"shift"}); omit it for
 --- a catch-all binding that fires when no exact-mods binding matches. `opts` is
 --- optional and carries the context extras, `when` (a predicate name gating the
---- binding on live state) and `priority` (higher wins when several active
---- bindings match the same key; the base bindings are priority 0). A binding with
---- neither behaves exactly as a plain bind.
+--- binding on live state), `priority` (higher wins when several active bindings
+--- match the same key; the base bindings are priority 0), and `repeats` (when
+--- true the handler re-fires on each OS key autorepeat while the key is held,
+--- for nav like a chooser's j/k; omit it for toggles, which must fire once). A
+--- binding with none of these behaves exactly as a plain bind.
 function obj:bind(key, fn, mods, opts)
   opts = opts or {}
   local name = type(key) == "string" and key:lower() or key
@@ -94,6 +96,7 @@ function obj:bind(key, fn, mods, opts)
       fn = fn,
       when = opts.when,
       priority = opts.priority,
+      repeats = opts.repeats,
     })
     -- Remember which predicates gate a binding. When any of these is live the
     -- Hyper key is modal (see _resolve), owned by that context.
@@ -147,6 +150,8 @@ end
 --- (no `when`) are dropped so the context fully owns Hyper. Among the eligible, an
 --- exact match on the real modifiers (shift/ctrl/alt/cmd, ignoring `fn`) beats a
 --- catch-all (mods == nil), and within each tier the highest `priority` wins.
+--- Returns two values, the chosen handler and its `repeats` flag, so the engine
+--- knows whether to re-run it on each OS key autorepeat.
 function obj:_resolve(list, flags)
   if not list then return nil end
 
@@ -175,21 +180,22 @@ function obj:_resolve(list, flags)
     return true
   end
 
-  local bestExact, bestExactP = nil, -math.huge
-  local bestCatch, bestCatchP = nil, -math.huge
+  local bestExact, bestExactP, bestExactR = nil, -math.huge, nil
+  local bestCatch, bestCatchP, bestCatchR = nil, -math.huge, nil
   for _, b in ipairs(list) do
     if eligible(b) then
       local p = b.priority or 0
       if b.mods then
         if modsMatch(b) and p > bestExactP then
-          bestExact, bestExactP = b.fn, p
+          bestExact, bestExactP, bestExactR = b.fn, p, b.repeats
         end
       elseif p > bestCatchP then
-        bestCatch, bestCatchP = b.fn, p
+        bestCatch, bestCatchP, bestCatchR = b.fn, p, b.repeats
       end
     end
   end
-  return bestExact or bestCatch
+  if bestExact then return bestExact, bestExactR end
+  return bestCatch, bestCatchR
 end
 
 --- HyperKey:isActive()
