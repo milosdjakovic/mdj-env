@@ -7,7 +7,9 @@
 ---
 --- Paste-back lives here too, so the pasteboard write and the self-capture guard
 --- sit together. Writing to the pasteboard bumps changeCount, so we record the
---- new value immediately or the next poll would re-ingest our own paste.
+--- new value immediately or the next poll would re-ingest our own paste. A content
+--- signature backs that up for apps that rewrite the pasteboard when they receive
+--- our paste, a second bump the count guard alone cannot tell from a real copy.
 
 local M = {}
 
@@ -22,6 +24,43 @@ local pasteDelay = 0.1
 
 local timer = nil
 local lastChange = -1 -- last changeCount we have accounted for; the guard's state
+
+-- Content-signature backstop to the changeCount guard. The count guard stops the
+-- poll re-ingesting our own paste's write, but only that one change. An app that
+-- rewrites the pasteboard when it receives our paste (some editors do) bumps the
+-- count a second time with the same content, which the count guard cannot tell from
+-- a real copy. So we also remember a signature of what we just pasted for a short
+-- window and skip a capture that matches it. This matters most for a batch paste,
+-- whose newline-joined text is pasted but never stored, so its echo would otherwise
+-- land as a brand new entry carrying the destination app's icon.
+local selfSigs = {} -- signature -> expiry, seconds since epoch
+local selfWindow = 3.0 -- how long a self-written signature suppresses a matching capture
+
+-- A cheap content signature, shared by the paste side (recording what we wrote) and
+-- the capture side (matching an echo). Text and url share one space keyed by the
+-- string, since a url is written as plain text and may echo back as either kind.
+-- Files key on their ordered paths. Images have no cheap identity, so they are not
+-- signed and still rely on the changeCount guard alone.
+local function contentSig(kind, text, paths)
+  if kind == "text" or kind == "url" then
+    return "s\31" .. (text or "")
+  elseif kind == "file" then
+    return "f\31" .. table.concat(paths or {}, "\31")
+  end
+  return nil
+end
+
+-- True when sig was written by our own recent paste. Prunes expired signatures on
+-- the way, so the table stays as small as the last paste.
+local function selfWritten(sig)
+  local now = hs.timer.secondsSinceEpoch()
+  for s, exp in pairs(selfSigs) do
+    if exp < now then
+      selfSigs[s] = nil
+    end
+  end
+  return sig ~= nil and selfSigs[sig] ~= nil
+end
 
 --------------------------------------------------------------------------------
 -- Capture
@@ -53,6 +92,12 @@ local function capture()
       -- so a file-url present but unreadable does not fall through to text.
       local entry = reader.read(ctx)
       if entry then
+        if selfWritten(contentSig(entry.kind, entry.text, entry._paths)) then
+          -- Our own recent paste echoed back (the receiving app rewrote the
+          -- pasteboard). The item is already at the top from the paste, so ignore
+          -- this copy entirely rather than record it again.
+          return
+        end
         entry.sourceApp = sourceApp
         store.add(entry)
       end
@@ -81,21 +126,31 @@ local function encodePath(p)
   end))
 end
 
--- Build the file-url object(s) to paste, always preferring our snapshot so the
+-- The filesystem paths we will actually paste, always preferring our snapshot so the
 -- entry pastes our own copy, never the possibly-gone original. Falls back to the
--- original path only when there is no snapshot (a folder or an oversized file)
--- and it still exists. Returns a single object or an array for writeObjects.
-local function fileURLObjects(entry)
-  local urls = {}
+-- original path only when there is no snapshot (a folder or an oversized file) and it
+-- still exists. Order is preserved so the urls and the signature agree.
+local function writtenFilePaths(entry)
+  local paths = {}
   for _, el in ipairs(entry.files or {}) do
     local p = (el.stored and hs.fs.attributes(el.stored) and el.stored)
       or (hs.fs.attributes(el.path) and el.path)
       or nil
     if p then
-      urls[#urls + 1] = { url = "file://" .. encodePath(p) }
+      paths[#paths + 1] = p
     end
   end
-  if #urls == 0 then return nil end
+  return paths
+end
+
+-- Build the file-url object(s) for writeObjects from those paths, a single object or
+-- an array, or nil when nothing is left to paste.
+local function fileURLObjects(paths)
+  if #paths == 0 then return nil end
+  local urls = {}
+  for _, p in ipairs(paths) do
+    urls[#urls + 1] = { url = "file://" .. encodePath(p) }
+  end
   if #urls == 1 then return urls[1] end
   return urls
 end
@@ -104,6 +159,7 @@ end
 -- text field) on the pasteboard. Returns true when something was written, false
 -- when the media is gone, so a caller pasting a sequence can skip and continue.
 local function writeEntry(entry)
+  local sig
   if entry.kind == "image" then
     local img = hs.image.imageFromPath(entry.full)
     if not img then
@@ -111,15 +167,23 @@ local function writeEntry(entry)
       return false
     end
     hs.pasteboard.writeObjects(img)
+    -- images are not signed; they rely on the changeCount guard alone
   elseif entry.kind == "file" then
-    local objs = fileURLObjects(entry)
+    local paths = writtenFilePaths(entry)
+    local objs = fileURLObjects(paths)
     if not objs then
       log.w("no pasteable file for entry")
       return false
     end
     hs.pasteboard.writeObjects(objs)
+    sig = contentSig("file", nil, paths)
   else
     hs.pasteboard.setContents(entry.text or "")
+    sig = contentSig(entry.kind, entry.text, nil)
+  end
+  -- Remember what we just wrote so an echo from the receiving app is not re-ingested.
+  if sig then
+    selfSigs[sig] = hs.timer.secondsSinceEpoch() + selfWindow
   end
   return true
 end
