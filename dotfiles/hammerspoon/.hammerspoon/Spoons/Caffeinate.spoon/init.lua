@@ -290,16 +290,6 @@ function M.hide()
   if chooser then chooser:hide() end
 end
 
--- Vim style navigation, routed here from the caffeinate Hyper context by the main root, the
--- same shared control the clipboard and the VPN list use.
-function M.selectNext()
-  if chooser then chooser:selectNext() end
-end
-
-function M.selectPrev()
-  if chooser then chooser:selectPrev() end
-end
-
 --- M.insertSelected() - apply the highlighted row, exactly as Return does, routed here from
 --- Hyper+i.
 function M.insertSelected()

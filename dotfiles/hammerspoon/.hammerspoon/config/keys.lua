@@ -173,9 +173,9 @@ return {
       name = "caffeinate",
       when = "caffeinateOpen",
       priority = 100,
+      -- One morphing row, never a list, so there is nothing to move between. Only
+      -- confirm and close, no selectNext/selectPrev.
       bindings = {
-        { key = "k", action = "selectPrev",     description = "Move up" },
-        { key = "j", action = "selectNext",     description = "Move down" },
         { key = "i", action = "insertSelected", description = "Confirm" },
         { key = "x", action = "closeChooser",   description = "Close" },
       },
