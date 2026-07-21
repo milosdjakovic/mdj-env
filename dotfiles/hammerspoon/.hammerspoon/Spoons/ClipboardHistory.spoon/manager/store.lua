@@ -242,14 +242,33 @@ end
 --------------------------------------------------------------------------------
 
 -- A stable identity for dedupe: same text, same url, or the same ordered list of
--- file paths. Images have no cheap identity, so they are never deduped. Computed
--- from the raw entry (before media persistence) so a duplicate costs no copy.
+-- file paths. Images have no cheap identity, so they are never deduped. It works
+-- on both entry shapes, the raw one at capture (paths in _paths) and the stored one
+-- loaded from disk (paths in the files array), so a key recomputed on load matches
+-- one computed for a fresh copy.
+--
+-- The separator is the Unit Separator (0x1F), not a NUL byte. hs.json does not
+-- round-trip an embedded NUL, it rewrites it to U+2205, so a NUL-keyed entry read
+-- back from disk never matched a freshly computed NUL key and dedupe silently broke
+-- for everything loaded from disk. 0x1F survives the round-trip and is just as
+-- unlikely to appear in copied content.
+local KEY_SEP = "\31"
+
+local function keyPaths(e)
+  if e._paths then return e._paths end
+  local ps = {}
+  for _, el in ipairs(e.files or {}) do
+    ps[#ps + 1] = el.path
+  end
+  return ps
+end
+
 local function rawKey(e)
   if e.kind == "text" or e.kind == "url" then
-    return e.kind .. "\0" .. (e.text or "")
+    return e.kind .. KEY_SEP .. (e.text or "")
   end
   if e.kind == "file" then
-    return "file\0" .. table.concat(e._paths or {}, "\0")
+    return "file" .. KEY_SEP .. table.concat(keyPaths(e), KEY_SEP)
   end
   return nil
 end
@@ -269,8 +288,9 @@ function S.add(entry)
     for i = 1, #history do
       if history[i]._key == key then
         local h = table.remove(history, i)
-        h.ts = entry.ts -- refresh recency
-        h.sourceApp = entry.sourceApp -- and the source, so the icon tracks the latest copy
+        h.ts = entry.ts -- refresh recency so a re-copied item sorts back to the top
+        -- Keep the original sourceApp. The row icon marks where the content first
+        -- came from and stays put, it does not flip to whatever app copied it again.
         table.insert(history, 1, h)
         save()
         return h
@@ -370,6 +390,29 @@ function S.load()
   else
     history = {}
   end
+
+  -- Recompute every key from the entry's own content rather than trusting the value
+  -- on disk, so dedupe is immune to any serialization quirk (see rawKey). Then
+  -- collapse exact-key duplicates the earlier NUL-separator bug let accumulate,
+  -- keeping the newest of each (history is newest-first, so the first seen wins) and
+  -- reclaiming the dropped copies' media. Images carry no key, so they are left
+  -- alone, matching the rule that images are never deduped.
+  local seen, removed = {}, false
+  local i = 1
+  while i <= #history do
+    local k = rawKey(history[i])
+    history[i]._key = k
+    if k and seen[k] then
+      removeFiles(history[i])
+      table.remove(history, i)
+      removed = true
+    else
+      if k then seen[k] = true end
+      i = i + 1
+    end
+  end
+  if removed then save() end
+
   return history
 end
 
