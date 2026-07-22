@@ -438,12 +438,30 @@ policy, decided once at the root and shared by every chooser, the same Strategy
 through injection shape as the overlay display screen. The matcher lives in one
 file, `Chooser.spoon/match.lua`, a pure `match(query, hay) -> score or nil` where
 nil drops a row and a number ranks it, higher first with the original order breaking
-ties. `Chooser.matchers` exposes the strategies, `fuzzy` (a greedy fzy style
-subsequence scorer, linear and allocation free so it is cheap per keystroke, with
-boundary, camel, and consecutive bonuses) and `substring` (the pre-fuzzy behaviour,
-every match scoring zero so the list keeps its natural order). `init.lua` injects one
-of them through `Chooser.configure({ matcher = ... })`, so switching every list
-between fuzzy and plain substring is one edit. Today it is fuzzy.
+ties. `Chooser.matchers` exposes the strategies, `fuzzy` and `substring` (the
+pre-fuzzy behaviour, a plain substring test where every match scores zero so the list
+keeps its natural order). `init.lua` injects one through `Chooser.configure({ matcher
+= ... })`, so switching every list between fuzzy and plain substring is one edit. Today
+it is fuzzy.
+
+`fuzzy` is a small dynamic-programming subsequence scorer in the spirit of fzy, chosen
+over a greedy scan because greedy locks onto the leftmost occurrence of each letter, so
+it cannot find a term late in a long body and cannot tolerate a swapped letter, it
+starves the rest of the query once it takes a wrong turn. The DP explores every
+alignment for the query length times the haystack length per row, still well under a
+frame over a few hundred rows at typing speed. It carries three decisions worth
+knowing. Extending a contiguous run outscores landing on a word start, so a
+near-contiguous match beats the same letters scattered across the separate words of a
+keyword bag, the bug where Device Management outranked Displays for `dspl`. Inner gaps
+between matched characters cost real points while the leading and trailing gaps are
+nearly free, so a wide scattered span is penalized but a term sitting deep in a long
+clipboard body is not. And it tolerates typos, a query character it cannot place is
+skipped at a fixed cost, so a missed, misspelled, or swapped letter still hits, with no
+hard budget since enough skips just sink the score. A relevance floor scaled to the
+query length then drops whatever scores too low, the scattered tail, the absent letter,
+the query that is mostly wrong. The weights, the floor, and the typo cost are named
+constants at the top of `match.lua`, tuned so the floor cuts obvious noise while
+staying loose enough to forgive a fumbled letter; raising the floor step cuts more.
 
 The atom owns the filtering when a matcher is set and the field is in filter mode. The
 supplier returns the full candidate list and the atom scores it, keeps the matches,
