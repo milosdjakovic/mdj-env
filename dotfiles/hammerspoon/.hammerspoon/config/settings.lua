@@ -96,12 +96,12 @@ return {
     },
   },
 
-  -- Overlay display policy. The one place that decides which display every
-  -- transient overlay appears on, the five choosers (clipboard, VPN, menu search,
-  -- launcher, keep awake), their docked shortcut panels, both cheat sheets, and the
-  -- colour toast. init.lua reads this into a small strategy registry and injects the
-  -- chosen resolver into the Chooser atom and the CanvasPanel, so editing mode here
-  -- moves every overlay together. Three modes:
+  -- Overlay display policy. Decides which display every transient overlay appears
+  -- on, the five choosers (clipboard, VPN, menu search, launcher, keep awake), their
+  -- docked shortcut panels, both cheat sheets, and the colour toast. init.lua reads
+  -- this into a small strategy registry and injects the chosen resolver into the
+  -- Chooser atom and the CanvasPanel, so one choice moves every overlay together.
+  -- Three modes:
   --   "activeWindow" the display holding the focused window (today's behaviour).
   --   "cursor"       the display the mouse pointer is on.
   --   "fixed"        a chosen display per display arrangement, see fixed below.
@@ -111,6 +111,12 @@ return {
   -- portable ids those profiles already use, so no second identity scheme is needed.
   -- An arrangement with no entry, or a serial that does not resolve, falls back to
   -- the activeWindow behaviour.
+  --
+  -- This block is now only the DEFAULT SEED. The live choice is set at runtime from
+  -- the "Overlay Display" launcher row and persisted under the hs.settings key
+  -- overlayDisplayPolicy, which overrides these values; init.lua reads them through
+  -- effectiveMode/effectiveFixed, seed-then-persisted. So edit here to change the
+  -- fresh-machine default, and use the launcher picker for day to day switching.
   overlayDisplay = {
     -- overlayModes.activeWindow | overlayModes.cursor | overlayModes.fixed
     mode = overlayModes.activeWindow,

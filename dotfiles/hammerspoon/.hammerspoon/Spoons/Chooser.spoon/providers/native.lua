@@ -51,9 +51,13 @@
 ---                (rows plus a typed value, Return submits the text when the field
 ---                is non empty else selects the row). Default filter.
 ---   placeholder  the empty field hint.
----   layout       sizes: widthPct, paneMaxW, rowH, baseH, rowCount, gap, topFrac,
----                minVPad, companionWidth (0 for no companion), and the row font
----                (font, titleSize, subSize).
+---   layout       sizes: width (chooser width in px, the uniform default 480 unless
+---                a consumer overrides it, clamped to the screen; set false to use
+---                the responsive widthPct-of-screen-capped-at-paneMaxW fallback
+---                instead); plus rowH, baseH, rowCount, gap, topFrac, minVPad,
+---                companionWidth (0 for no companion), and the row font (font,
+---                titleSize, subSize). Width is always worked in pixels and converted
+---                to hs.chooser's percentage internally (see below).
 
 local obj = {}
 obj.__index = obj
@@ -73,8 +77,12 @@ local FALLBACK = {
 }
 
 local DEFAULT_LAYOUT = {
-  widthPct = 32,
-  paneMaxW = 480,
+  -- Uniform default chooser width, in points. Every chooser is this wide unless it
+  -- passes its own layout.width. Set width = false to opt out and use the responsive
+  -- fallback (widthPct of the screen, capped at paneMaxW) instead of a fixed width.
+  width = 480,
+  widthPct = 32,   -- responsive fallback width, used only when width is false/nil
+  paneMaxW = 480,  -- companion pane cap, and the widthPct cap for the fallback
   rowH = 42,
   baseH = 94,
   rowCount = 10,
@@ -275,6 +283,36 @@ function Chooser:_settleFrames()
   end)
 end
 
+-- Width handling. hs.chooser exposes no pixel width, only a percentage, and that
+-- percentage is measured against hs.screen.mainScreen(), the screen holding the
+-- focused window when the chooser opens, not the screen the chooser is shown on and
+-- not the primary. hs.window cannot resize the panel afterward either. So the atom
+-- does all width work in pixels and converts to that percentage against the main
+-- screen in exactly one place, below, which is the chooser's true contract rather
+-- than a guess: dividing by the target or the primary width scaled the window by
+-- mainW/thatW whenever they differed, which fixed-mode placement on a non-focused
+-- display exposed (a 480px pin came out 211px or ~1090px depending on focus).
+
+-- The chooser's target width in pixels on screen sf. An explicit layout.width wins,
+-- clamped to the screen, so a consumer can pin a fixed width; otherwise it is the
+-- responsive layout.widthPct of the target screen capped at layout.paneMaxW, which
+-- keeps it ~480px on a normal display and only shrinks on a narrow one.
+function Chooser:_desiredWidthPx(sf)
+  local L = self.layout
+  if L.width then return math.min(L.width, sf.w) end
+  return math.min(math.floor(sf.w * L.widthPct / 100), L.paneMaxW)
+end
+
+-- The percentage to hand hs.chooser so a window of desiredPx pixels comes out that
+-- wide on whatever screen it lands on. Divides by the main screen width, the base
+-- hs.chooser applies the percentage to. Resolved at show time (just before the
+-- chooser takes focus), so mainScreen is still the previously focused window's
+-- screen, the one the percentage will be measured against.
+function Chooser:_widthPercentFor(desiredPx)
+  local mainW = (hs.screen.mainScreen() or self._targetScreen):frame().w
+  return desiredPx / mainW * 100
+end
+
 function Chooser:_positionAndShow()
   local L = self.layout
   -- Resolve the target display once, now, before hs.chooser:show steals focus, and
@@ -291,15 +329,15 @@ function Chooser:_positionAndShow()
   self.chooser:rows(rows)
   local paneH = L.baseH + rows * L.rowH
 
-  local chooserW = min(floor(f.w * L.widthPct / 100), L.paneMaxW)
+  local chooserW = self:_desiredWidthPx(f)
   local companionW = (L.companionWidth and L.companionWidth > 0) and min(L.companionWidth, L.paneMaxW) or 0
   local total = chooserW + (companionW > 0 and (L.gap + companionW) or 0)
   local x = f.x + floor((f.w - total) / 2)
   local y = self:_topBiasedY(f, paneH)
 
-  -- hs.chooser width is a percent of the screen, so translate the capped pixel
-  -- width back to a percent right before showing.
-  self.chooser:width(chooserW / f.w * 100)
+  -- Pixels in, percentage out (see _widthPercentFor: hs.chooser measures against the
+  -- primary screen), so the window is chooserW wide on whatever screen it lands on.
+  self.chooser:width(self:_widthPercentFor(chooserW))
 
   -- Seed the frames so the companion and the click watcher have rects before the
   -- settle correction lands. Report the seed so a consumer can show its companion.

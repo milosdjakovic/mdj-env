@@ -186,6 +186,10 @@ spoon.WindowLeader:addLeader(leaderCode(keys.windowLeader))
 -- launcher's surface is not forward-declared, it lives in Launcher.spoon, so its
 -- predicate reads the spoon directly.
 local menuSearchSurface
+-- The overlay display picker's navigation surface, forward-declared so the predicate
+-- below and the choosers registry can name it before it is built with the other
+-- native-panel choosers further down.
+local overlayDisplaySurface
 local predicates = {
   multipleDisplays = function() return #hs.screen.allScreens() > 1 end,
   -- The launcher chooser is open. Gates the launcher Hyper context,
@@ -209,6 +213,11 @@ local predicates = {
   -- route to it while it is up.
   vpnOpen = function()
     return spoon.Vpn ~= nil and spoon.Vpn.isShowing()
+  end,
+  -- The overlay display picker is open. Gates the overlayDisplay Hyper context, so it
+  -- gets the same j/k/i/x navigation every other chooser has.
+  overlayDisplayOpen = function()
+    return overlayDisplaySurface ~= nil and overlayDisplaySurface.isShowing()
   end,
   -- The display profiles chooser is open. Gates the displayProfiles Hyper context.
   displayProfilesOpen = function()
@@ -432,6 +441,32 @@ local function cursorScreen()
   return hs.mouse.getCurrentScreen() or hs.screen.primaryScreen()
 end
 
+-- The runtime policy store, layered over the config default. config/settings.lua's
+-- overlayDisplay stays the documented seed; the launcher picker below writes the
+-- live choice here, under one hs.settings key, so it survives a reload (frequent
+-- here) and a reboot, the same persistence shape as the launcher MRU and
+-- DisplayMemory. effectiveMode / effectiveFixed read the stored value first and
+-- fall back to the config seed, and the resolvers below read only through them, so
+-- a picker choice takes effect on the next overlay with no reload and an unset key
+-- still honours the config default. The picker is the only writer; it lives further
+-- down and is forward-declared here so the launcher can name it.
+local OVERLAY_STORE_KEY = "overlayDisplayPolicy" -- { mode, fixed = { [profile] = serial } }
+local OVERLAY_NAMES_KEY = "overlayDisplayNames"  -- remembered { [id] = friendly name }
+local showOverlayDisplayPicker
+local function overlayStore()
+  return hs.settings.get(OVERLAY_STORE_KEY) or {}
+end
+local function effectiveMode()
+  return overlayStore().mode or (settings.overlayDisplay or {}).mode
+end
+local function effectiveFixed(profile)
+  if not profile then return nil end
+  local s = overlayStore()
+  local stored = s.fixed and s.fixed[profile]
+  if stored then return stored end
+  return ((settings.overlayDisplay or {}).fixed or {})[profile]
+end
+
 -- Fixed mode turns a displayplacer serial id (the portable id config/displays.lua
 -- already uses) into a live hs.screen. hs.screen exposes no serial id, so we bridge
 -- through `displayplacer list`, which prints, per screen, both its Serial screen id
@@ -440,13 +475,17 @@ end
 -- exactly. The parse shells out, so the map is cached and cleared on a screen change
 -- (the same event DisplayProfiles reacts to), making fixed mode free per open after the
 -- first resolve on a given arrangement.
-local serialToUUID = nil
+local serialToUUID = nil -- serial id -> persistent id (CoreGraphics UUID)
+local uuidToSerial = nil  -- the reverse, so an attached screen resolves to its serial
 local function refreshSerialMap()
-  serialToUUID = {}
+  serialToUUID, uuidToSerial = {}, {}
   local out = hs.execute("displayplacer list", true) or ""
   local persistent, serial
   local function flush()
-    if serial and persistent then serialToUUID[serial] = persistent end
+    if serial and persistent then
+      serialToUUID[serial] = persistent
+      uuidToSerial[persistent] = serial
+    end
   end
   for line in (out .. "\n"):gmatch("(.-)\n") do
     local p = line:match("Persistent screen id:%s*(%S+)")
@@ -470,20 +509,53 @@ local function screenForSerial(serial)
   end
   return nil
 end
--- Rebuild the serial map lazily after any display change, and let the fixed-mode
--- warning fire once per arrangement rather than on every open. Kept module-local so
--- the watcher is not garbage collected.
+-- Remembered display names, so the picker can label a display by its friendly name
+-- even while it is unplugged, the whole point of managing every setup from one
+-- place. hs.screen names a display only while it is attached, so we capture each
+-- attached screen's name against its serial id whenever the display set changes,
+-- persist it, and read it back for detached ids later. This is the same
+-- observe-and-persist shape as DisplayMemory: seeing a monitor once is enough for
+-- its name to show forever after.
+local function rememberAttachedNames()
+  if not uuidToSerial then refreshSerialMap() end
+  local names = hs.settings.get(OVERLAY_NAMES_KEY) or {}
+  local changed = false
+  for _, s in ipairs(hs.screen.allScreens()) do
+    local serial = uuidToSerial[s:getUUID() or ""]
+    local nm = s:name()
+    if serial and nm and names[serial] ~= nm then
+      names[serial] = nm
+      changed = true
+    end
+  end
+  if changed then hs.settings.set(OVERLAY_NAMES_KEY, names) end
+end
+-- The friendly name for a display id (a serial), attached or not: the live
+-- hs.screen name when it is plugged in, else the remembered name, else the raw id
+-- so nothing ever shows blank.
+local function displayName(id)
+  local screen = screenForSerial(id)
+  if screen then return screen:name() end
+  local names = hs.settings.get(OVERLAY_NAMES_KEY) or {}
+  return names[id] or id
+end
+
+-- Rebuild the serial map lazily after any display change, refresh the remembered
+-- names while the new set is attached, and let the fixed-mode warning fire once per
+-- arrangement rather than on every open. Kept module-local so the watcher is not
+-- garbage collected.
 local fixedWarned = false
 local overlayScreenWatcher = hs.screen.watcher.new(function()
-  serialToUUID = nil
+  serialToUUID, uuidToSerial = nil, nil
   fixedWarned = false
+  rememberAttachedNames()
 end)
 overlayScreenWatcher:start()
+rememberAttachedNames() -- seed from whatever is attached at load
 
 local function fixedScreen()
-  local cfg = settings.overlayDisplay or {}
   local profile = spoon.DisplayProfiles:current()
-  local serial = profile and (cfg.fixed or {})[profile]
+  local serial = effectiveFixed(profile)
   local screen = serial and screenForSerial(serial)
   if screen then return screen end
   if not fixedWarned then
@@ -502,12 +574,12 @@ local overlayScreenStrategies = {
   [settings.overlayModes.cursor] = cursorScreen,
   [settings.overlayModes.fixed] = fixedScreen,
 }
--- The injected contract. Reads the mode fresh each open, so switching modes in
--- config/settings.lua takes effect on the next overlay with no other change. Unknown
--- mode falls back to activeWindow, and a resolver returning nil to the primary screen.
+-- The injected contract. Reads the effective mode fresh each open (the persisted
+-- picker choice, else the config seed), so a mode switch takes effect on the next
+-- overlay with no reload. Unknown mode falls back to activeWindow, and a resolver
+-- returning nil to the primary screen.
 local function overlayScreen()
-  local mode = (settings.overlayDisplay or {}).mode
-  local fn = overlayScreenStrategies[mode] or activeWindowScreen
+  local fn = overlayScreenStrategies[effectiveMode()] or activeWindowScreen
   return fn() or hs.screen.primaryScreen()
 end
 spoon.CanvasPanel.setScreenProvider(overlayScreen)
@@ -518,6 +590,12 @@ spoon.CanvasPanel.setScreenProvider(overlayScreen)
 -- and then reusing this same matcher for the free-text part, caffeinate parsing a time.
 -- Swap to spoon.Chooser.matchers.substring here to return every list to the old behaviour.
 spoon.Chooser.configure({ screen = overlayScreen, matcher = spoon.Chooser.matchers.fuzzy })
+
+-- The overlay display picker is built below, alongside the other native-panel
+-- choosers, since it docks the shared shortcut hint panel and follows the picker
+-- checklist (its own control surface, `when` predicate, choosers-registry entry,
+-- and hyperContexts block) so the Hyper j/k/i/x navigation works in it too. It
+-- reads the store helpers (effectiveMode/effectiveFixed/displayName) defined above.
 
 -- Finish wiring the cheat sheet. It draws its binding grid through the CanvasPanel
 -- atom, centered on screen, inheriting the one shared surface, so no fill or border
@@ -630,6 +708,191 @@ local function shortcutPanelFor(context)
   }
 end
 
+-- The overlay display picker, a launcher-only chooser that switches the policy at
+-- runtime. It has no Hyper key by design (reached only through the launcher), but
+-- it follows the picker checklist like every other list tool, so once open it gets
+-- the shared Hyper j/k/i/x navigation and docks the same shortcut hint panel. Typing
+-- filters the current view's rows, and arrows, Return, and Escape drive it too.
+-- hs.chooser dismisses on every select, so a drill (into Configure, a profile, or
+-- Back) records the target view and reopens on a short timer, the reopen idiom menu
+-- search uses; a commit (a mode, or a display for a profile) writes the store and
+-- either closes or returns to the profile list so several can be set in a row.
+-- Wrapped in a do block so its helpers stay out of the root's local budget; only
+-- showOverlayDisplayPicker and overlayDisplaySurface, forward-declared above, escape
+-- for the launcher and the shared nav registry.
+do
+  local modes = settings.overlayModes
+  local MODE_LABEL = {
+    [modes.cursor] = "Follow mouse cursor",
+    [modes.activeWindow] = "Follow active window",
+    [modes.fixed] = "Pin to a display",
+  }
+  -- Row icons are emoji rendered to images in the left icon slot, matching the
+  -- launcher's look rather than a glyph prefix in the title. A selected row (the
+  -- active mode, the pinned display) shows the check; an unselected default row
+  -- shows its category emoji.
+  local MODE_ICON = {
+    [modes.cursor] = "🖱️",
+    [modes.activeWindow] = "🎯",
+    [modes.fixed] = "📌",
+  }
+  local ICON_SELECTED, ICON_BACK, ICON_CONFIG, ICON_DISPLAY = "✅", "⬅️", "⚙️", "🖥️"
+  -- Emoji -> image, once per emoji and cached, sized to line up with app icons, the
+  -- same technique Launcher uses for its glyph rows since this Hammerspoon has no SF
+  -- Symbol API.
+  local iconCache = {}
+  local function emojiIcon(glyph)
+    if not glyph then return nil end
+    if iconCache[glyph] == nil then
+      local size = 72
+      local c = hs.canvas.new({ x = 0, y = 0, w = size, h = size })
+      c[1] = { type = "text", text = glyph, textSize = 52, textAlignment = "center",
+               frame = { x = "0%", y = "8%", w = "100%", h = "100%" } }
+      iconCache[glyph] = c:imageFromCanvas() or false
+      c:delete()
+    end
+    return iconCache[glyph] or nil
+  end
+  -- The current view: "root" (modes + the Configure door), "configure" (the
+  -- profile list), or "profile" (one profile's displays). profile names the
+  -- profile while in the profile view. Reset to root on each fresh open.
+  local nav = { view = "root" }
+  local picker
+
+  -- The profile's ordered display ids, read live from DisplayProfiles.
+  local function profileIds(name)
+    for _, p in ipairs(spoon.DisplayProfiles:profiles()) do
+      if p.name == name then return p.ids end
+    end
+    return {}
+  end
+
+  -- Build the current view's rows, then filter by the typed query (case-insensitive
+  -- substring over title and subtitle), so the field filters like any chooser. The
+  -- query resets to empty on each show, so it clears when drilling between views.
+  local function buildRows(query)
+    local out = {}
+    if nav.view == "root" then
+      local mode = effectiveMode()
+      for _, m in ipairs({ modes.cursor, modes.activeWindow, modes.fixed }) do
+        out[#out + 1] = {
+          title = MODE_LABEL[m],
+          image = emojiIcon(mode == m and ICON_SELECTED or MODE_ICON[m]),
+          item = { commit = "mode", mode = m },
+        }
+      end
+      out[#out + 1] = {
+        title = "Configure displays…",
+        subTitle = "Set which display each setup pins to",
+        image = emojiIcon(ICON_CONFIG),
+        item = { nav = "configure" },
+      }
+    elseif nav.view == "configure" then
+      out[#out + 1] = { title = "Back", image = emojiIcon(ICON_BACK), item = { nav = "root" } }
+      local current = spoon.DisplayProfiles:current()
+      local profiles = spoon.DisplayProfiles:profiles()
+      if #profiles == 0 then
+        out[#out + 1] = { title = "No display setups defined", enabled = false,
+          subTitle = "Add profiles in config/displays.lua" }
+      end
+      for _, p in ipairs(profiles) do
+        local serial = effectiveFixed(p.name)
+        local pinned = serial and displayName(serial) or "not set"
+        local here = (p.name == current) and "   ● you are here" or ""
+        out[#out + 1] = {
+          title = p.name,
+          subTitle = "Pins to: " .. pinned .. here,
+          image = emojiIcon(ICON_DISPLAY),
+          item = { nav = "profile", profile = p.name },
+        }
+      end
+    elseif nav.view == "profile" then
+      out[#out + 1] = { title = "Back", image = emojiIcon(ICON_BACK), item = { nav = "configure" } }
+      local chosen = effectiveFixed(nav.profile)
+      for _, id in ipairs(profileIds(nav.profile)) do
+        out[#out + 1] = {
+          title = displayName(id),
+          subTitle = id,
+          image = emojiIcon(chosen == id and ICON_SELECTED or ICON_DISPLAY),
+          item = { commit = "pin", profile = nav.profile, serial = id },
+        }
+      end
+    end
+    local q = (query or ""):lower()
+    if q == "" then return out end
+    local filtered = {}
+    for _, r in ipairs(out) do
+      local hay = ((r.title or "") .. " " .. (r.subTitle or "")):lower()
+      if hay:find(q, 1, true) then filtered[#filtered + 1] = r end
+    end
+    return filtered
+  end
+
+  local function reopen()
+    hs.timer.doAfter(0.04, function() picker:show() end)
+  end
+
+  local function onSelect(item)
+    if not item then return end
+    if item.nav then
+      nav = { view = item.nav, profile = item.profile }
+      reopen()
+    elseif item.commit == "mode" then
+      local s = overlayStore()
+      s.mode = item.mode
+      hs.settings.set(OVERLAY_STORE_KEY, s)
+      nav = { view = "root" } -- committed, chooser closes
+    elseif item.commit == "pin" then
+      -- Configuring a pin is configuration only. It records which display this
+      -- profile pins to and never touches the active mode; pin mode is chosen
+      -- separately from the root view, so setting up pins does not silently switch
+      -- where overlays appear.
+      local s = overlayStore()
+      s.fixed = s.fixed or {}
+      s.fixed[item.profile] = item.serial
+      hs.settings.set(OVERLAY_STORE_KEY, s)
+      nav = { view = "configure" } -- back to the list so another setup can be set
+      reopen()
+    end
+  end
+
+  -- Docks the same deferred hint panel the other choosers use, so its Hyper j/k/i/x
+  -- hints spell out once the user pauses. The panel is closed on teardown (including
+  -- between drills) and re-armed on the reopen, which is fine.
+  local odPanel = shortcutPanelFor("overlayDisplay")
+  picker = spoon.Chooser.new({
+    theme = settings.chooserTheme,
+    placeholder = "Overlay display",
+    fieldMode = "filter", -- type to filter the current view's rows
+    -- A drill-in menu whose supplier morphs its rows per view and does its own
+    -- substring filter in buildRows, exactly the query-driven shape caffeinate and
+    -- the DisplayProfiles chooser are, so it opts out of the atom's fuzzy matcher.
+    -- Without this the atom would fuzzy-filter and reorder the morphing rows and hide
+    -- the Back and commit rows.
+    matcher = false,
+    rows = buildRows,
+    onSelect = onSelect,
+    onPositioned = odPanel.onPositioned,
+    onActivity = odPanel.onActivity,
+    onClose = odPanel.onClose,
+  })
+
+  -- Dot-called navigation adapter over the colon-called Chooser instance, so the
+  -- shared activeChooser / routeNav registry drives it like every other picker.
+  overlayDisplaySurface = {
+    isShowing = function() return picker:isShowing() end,
+    selectNext = function() picker:selectNext() end,
+    selectPrev = function() picker:selectPrev() end,
+    insertSelected = function() picker:insertSelected() end,
+    hide = function() picker:hide() end,
+  }
+
+  showOverlayDisplayPicker = function()
+    nav = { view = "root" }
+    picker:show()
+  end
+end
+
 -- The row runs deferred, after the chooser has torn down and macOS has restored
 -- focus to the app that was frontmost before the launcher opened. Window actions
 -- act on hs.window.focusedWindow(), so they must run once that window is focused
@@ -679,6 +942,7 @@ spoon.Launcher:configure({
       lock = function() hs.caffeinate.lockScreen() end,
       sleep = function() hs.caffeinate.systemSleep() end,
       searchSettings = function() spoon.SystemSettings:focusSearch() end,
+      overlayDisplay = function() showOverlayDisplayPicker() end,
       displayProfiles = function() spoon.DisplayProfiles.chooser.show() end,
     },
   },
@@ -941,7 +1205,7 @@ spoon.ClipboardHistory.manager.start()
 -- glance at the sheet plus any key clears it.
 spoon.HyperKey:configure({ predicates = predicates })
 local clipManager = spoon.ClipboardHistory.manager
-local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, spoon.Launcher:surface(), menuSearchSurface, spoon.DisplayProfiles.chooser, spoon.Emoji:surface() }
+local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, spoon.Launcher:surface(), menuSearchSurface, spoon.DisplayProfiles.chooser, spoon.Emoji:surface(), overlayDisplaySurface }
 local function activeChooser()
   for _, c in ipairs(choosers) do
     if c.isShowing() then return c end

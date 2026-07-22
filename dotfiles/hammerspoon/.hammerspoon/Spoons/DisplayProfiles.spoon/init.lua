@@ -179,6 +179,28 @@ function obj:current()
   return engine:current()
 end
 
+--- DisplayProfiles:profiles()
+--- Method
+--- The merged profiles as an ordered list of { name, ids }, curated first then captured,
+--- where ids are the displayplacer id tokens in the profile's command order, deduped. Read
+--- by the overlay display picker in the main root so it can offer each setup's displays to
+--- pin, without re-detecting anything. Reuses the engine's command parse rather than adding
+--- a second one, and returns fresh tables so a caller cannot mutate any internal state.
+function obj:profiles()
+  local out = {}
+  for _, p in ipairs(self:_merged()) do
+    local ids, seen = {}, {}
+    for _, d in ipairs(engine:parseDisplays(p.command)) do
+      if d.id and not seen[d.id] then
+        seen[d.id] = true
+        ids[#ids + 1] = d.id
+      end
+    end
+    out[#out + 1] = { name = p.name, ids = ids }
+  end
+  return out
+end
+
 --- DisplayProfiles:reconcile(force)
 --- Method
 --- Reapply the matching profile, forcing it when force is set.

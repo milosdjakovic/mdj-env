@@ -296,21 +296,32 @@ DisplayMemory needed a restow, since `~/.hammerspoon/Spoons` holds one symlink p
 spoon.
 
 **Overlay display policy.** One place decides which display every transient
-overlay appears on, the seven choosers (clipboard, VPN, menu search, launcher,
-keep awake, display profiles, emoji) with their docked shortcut panels, both cheat
+overlay appears on, the eight choosers (clipboard, VPN, menu search, launcher,
+keep awake, display profiles, emoji, overlay display) with their docked shortcut panels, both cheat
 sheets, and the colour toast. This is Strategy wired through injection, the same shape as
 TerminalHandler's `targetScreen`. A small registry in `init.lua` maps a mode name
 to a resolver returning an `hs.screen`, `config/settings.lua` picks the mode in
 the pure-data `overlayDisplay` block, and the chosen resolver is injected into the
 two atoms, `CanvasPanel.setScreenProvider` and `Chooser.configure({ screen })`.
 Neither atom names the policy or the modes, so both the choosers and the cheat
-sheets read one seam and land on the same display. Editing `overlayDisplay.mode`
-moves every overlay together.
+sheets read one seam and land on the same display.
+
+The live choice is set at runtime, not by editing config. The **Overlay Display**
+launcher row (a launcher-only picker, no Hyper key, but on the shared j/k/i/x
+navigation like every chooser) writes the choice to one `hs.settings` key,
+`overlayDisplayPolicy`, and a second key `overlayDisplayNames` remembers each
+display's friendly name so a detached monitor still reads by name. The resolvers
+read through `effectiveMode` and `effectiveFixed`, which return the persisted choice
+first and fall back to the `config/settings.lua` `overlayDisplay` block, so that
+block is now only the fresh-machine seed and a picker choice takes effect on the
+next overlay with no reload. The picker is a drill-in menu, root shows the modes
+plus a Configure door, Configure lists the profiles each with its pinned display,
+and a profile lists its displays to pin, committing straight to the store.
 
 Three modes. `activeWindow` uses the screen with the focused window, the effective
 default and the historical behaviour. `cursor` uses the screen under the mouse.
 `fixed` pins overlays to a chosen display per display arrangement, keyed by the
-`DisplayProfiles` profile name (resolved live through the new `DisplayProfiles:current()`)
+`DisplayProfiles` profile name (resolved live through `DisplayProfiles:current()`)
 to a displayplacer serial id, reusing the portable ids `config/displays.lua`
 already holds. Resolvers run at overlay-open time, so they track live state and may
 forward-reference DisplayProfiles, which is configured later in the root. An unknown
@@ -510,16 +521,18 @@ launcher's recency order and the VPN action row survive until the user types.
 Two knobs sit on the per-instance config, both the single `matcher` field. Omitting it
 inherits the root default. Setting it to `Chooser.matchers.substring` keeps search but
 drops fuzzy for that one tool. Setting it to `false` opts out of the shared matcher
-entirely, for a tool whose query is not a plain filter over a list. Four tools do that.
+entirely, for a tool whose query is not a plain filter over a list. Five tools do that.
 Caffeinate's field is a value being typed, a time or a duration, parsed into one morphing
 row, so a matcher would only filter that row against its own label. The DisplayProfiles
 menu is the same shape, a stack of frames whose field filters at the top but is a name
 entry on the rename and capture screens, so its supplier morphs the rows from the query
 and the atom must not second-guess them, which would hide the Back row and the Save row.
-The emoji picker filters over a hidden haystack, the folded name, aliases, tags, and
-category rather than the visible title and subtitle, and caps its rows to bound the glyph
-icon render, so its own supplier owns the query and the atom filtering again would drop a
-tag only match and undo the cap. The clipboard parses a leading type prefix (`img ...`) off its query, so it owns
+The overlay display picker is the same drill-in shape, a per-view menu that does its own
+substring filter over the current view's rows, so the atom must not rerank or hide its
+Back and commit rows. The emoji picker filters over a hidden haystack, the folded name,
+aliases, tags, and category rather than the visible title and subtitle, and caps its rows
+to bound the glyph icon render, so its own supplier owns the query and the atom filtering
+again would drop a tag only match and undo the cap. The clipboard parses a leading type prefix (`img ...`) off its query, so it owns
 filtering, but it still reuses the same injected matcher for the free-text part and keeps
 its rows in recency order rather than reranking, so the one matcher policy reaches it too.
 So every list chooser is fuzzy by default with no per-tool wiring, and a future list
