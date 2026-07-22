@@ -223,6 +223,22 @@ return {
         { key = "x", action = "closeChooser",   description = "Close" },
       },
     },
+    -- The emoji picker chooser. i inserts the highlighted glyph the same as Return,
+    -- j and k navigate vim style, and x closes it. The open key j is itself the move
+    -- down key here, so like menu search the open key cannot double as the close, x
+    -- is the close (and Escape closes natively). Plain typing filters while Hyper is
+    -- released.
+    {
+      name = "emoji",
+      when = "emojiOpen",
+      priority = 100,
+      bindings = {
+        { key = "i", action = "insertSelected", description = "Insert" },
+        { key = "j", action = "selectNext",     description = "Move down" },
+        { key = "k", action = "selectPrev",     description = "Move up" },
+        { key = "x", action = "closeChooser",   description = "Close" },
+      },
+    },
   },
 
   -- System actions bound onto the Hyper key in init.lua. Hyper+Esc sleeps the
@@ -312,6 +328,15 @@ return {
   -- j/k/i navigation and Space closes it. There is no HYPER fallback combo, since
   -- it has no meaning without HyperKey wired up (the menu tree is fetched live).
   menuSearch = { modifiers = HYPER, key = "e", description = "Menu search" },
+
+  -- Emoji picker (for Emoji.spoon, wired in init.lua). Hyper+J opens a filterable
+  -- list of every emoji, matched by name, shortcode, tag, or category, so a keyword
+  -- finds a glyph without its exact Unicode name. Same shape as the other pickers, a
+  -- base HyperKey binding suppressed while a modal context owns Hyper, with the HYPER
+  -- field as the fallback combo. It has its own hyperContext above, so while open it
+  -- takes the shared j and k navigation and i inserts, and x closes it the way menu
+  -- search does, since the open key j is itself the move down key inside.
+  emoji = { modifiers = HYPER, key = "j", description = "Emoji picker" },
 
   -- External menu search combo. When Hyper+E is set to hand off (see init.lua) it
   -- fires this combo, and whatever tool you bind the SAME combo to anywhere opens.
