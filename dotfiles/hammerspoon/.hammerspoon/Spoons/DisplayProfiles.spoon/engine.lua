@@ -92,14 +92,6 @@ function E:configure(opts)
   return self
 end
 
--- Whether the displayplacer binary resolves in a login shell. This is the one thing the
--- engine depends on and cannot supply itself, so we probe it once at start and surface a
--- clear error rather than letting a missing tool read as "no matching profile" later.
-function E:binaryAvailable()
-  local _, ok = hs.execute("command -v " .. self._binary, true)
-  return ok == true
-end
-
 -- Read the displays attached right now, cached until the next screen change. Returns the
 -- union of persistent and serial ids as a set, plus the screen count. Both id types go in
 -- the set so a profile written with either kind matches.
@@ -245,10 +237,16 @@ end
 --- displayplacer is missing, log an error and do nothing, since nothing here works without
 --- it.
 function E:start()
-  if not self:binaryAvailable() then
-    print("DisplayProfiles: displayplacer not found on PATH, displays will not be managed; run brew bundle to install it")
+  -- Resolve the one dependency and log the result at init, so the console shows plainly
+  -- whether displayplacer was found and how many profiles are being managed, rather than
+  -- leaving a missing tool to look like nothing ever matched.
+  local path, ok = hs.execute("command -v " .. self._binary, true)
+  if ok ~= true then
+    print("DisplayProfiles: dependency displayplacer NOT found on PATH, displays will not be managed; run brew bundle to install it")
     return self
   end
+  print(string.format("DisplayProfiles: dependency displayplacer found at %s, managing %d profile(s)",
+    (path or "?"):gsub("%s+$", ""), #self._profiles))
   self:reconcile()
   self._debounce = hs.timer.delayed.new(self._settleDelay, function()
     self._attachedCache = nil

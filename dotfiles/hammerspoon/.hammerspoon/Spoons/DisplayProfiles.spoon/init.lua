@@ -157,6 +157,9 @@ end
 --- once its view deps are injected, so it is not started here.
 function obj:start()
   engine:start()
+  local nCurated = #(self._curated or {})
+  local nCaptured = self._store and #self._store:list() or 0
+  print(string.format("DisplayProfiles: %d curated, %d captured profile(s) merged for this host", nCurated, nCaptured))
   return self
 end
 

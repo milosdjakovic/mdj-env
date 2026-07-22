@@ -233,11 +233,15 @@ return {
       name = "displayProfiles",
       when = "displayProfilesOpen",
       priority = 100,
+      -- enter is this tool's own confirm, an in-place drill or action rather than the shared
+      -- insertSelected, since selecting through the native chooser would close it and force a
+      -- re-show. Return is intercepted to the same in-place enter, so both keys step the menu
+      -- without a flash.
       bindings = {
-        { key = "i", action = "insertSelected", description = "Select" },
-        { key = "j", action = "selectNext",     description = "Move down" },
-        { key = "k", action = "selectPrev",     description = "Move up" },
-        { key = "x", action = "closeChooser",   description = "Close" },
+        { key = "i", action = "enter",        description = "Select" },
+        { key = "j", action = "selectNext",   description = "Move down" },
+        { key = "k", action = "selectPrev",   description = "Move up" },
+        { key = "x", action = "closeChooser", description = "Close" },
       },
     },
   },

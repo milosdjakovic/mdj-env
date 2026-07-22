@@ -456,6 +456,18 @@ A tool with two surfaces, like the VPN control panel and its location picker,
 wires each surface as its own participant, its own context block, predicate,
 registry entry, and overlay.
 
+**Back is the first row in a chooser menu.** For a menu style chooser with levels,
+like DisplayProfiles, the Back row is always the first row, not the last, so
+stepping out is the predictable default and the fresh highlight lands on it, and it
+is never hunted for at the bottom. Two related cases follow the same spirit rather
+than the letter. A confirm screen leads with the safe cancel, DisplayProfiles'
+delete leads with Keep, so the default and a stray Return do the harmless thing. A
+single input screen, where the field is a text entry and Return must commit the
+typed value, leads with the confirm row instead, DisplayProfiles' rename and
+capture lead with Save so Return saves, with Back trailing. So the rule is Back
+first on a navigable menu, and the safe or committing action first where selecting
+the first row on entry is what the user means.
+
 **Clipboard preview.** The clipboard is the third native panel in the pair. Its
 manager reserves a companion pane beside the chooser (`layout.companionWidth`), and
 the atom polls the highlighted row and fires `onHighlight`, which draws the copied

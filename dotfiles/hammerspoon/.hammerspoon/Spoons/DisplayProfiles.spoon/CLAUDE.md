@@ -35,21 +35,25 @@ would offer choices that can never take effect, which is the trap the design avo
 ## Nested menu stack over one chooser, with re-show
 
 The chooser is one native `hs.chooser` instance driven as a stack of frames, not a chain of
-separate instances. A drill in cannot keep the native chooser open, because `hs.chooser`
-hides itself whenever a row is chosen, and the atom's completion path cannot prevent that. So
-a navigation selection sets a reopen flag and the composed `onClose` re-shows the one
-instance at the new frame on the next tick, after the native chooser has finished hiding.
-This is the same re-show the Vpn spoon deliberately avoided by staying a flat list, taken on
-here because the tool is genuinely a menu. Escape and a click away close for real, which
-resets the stack to the top for the next open. If the re-show flash ever reads as janky, the
-alternative is to drive level changes through `refresh()` on a dedicated enter and back key
-rather than through selection, at the cost of Return no longer drilling in.
+separate instances. Navigation is in place, not a re-show. The native chooser closes on any
+Return, which would force a close and reopen to move between levels, and that flash is what
+reads as laggy. So a menu step mutates the frame stack and calls `refresh()` on the same
+instance, updating the visible rows with no reopen. Two things make that work. Confirm is the
+tool's own `enter`, wired to Hyper+i and to a scoped eventtap that swallows Return and the
+keypad enter while the chooser is up, so the native completion never fires and the step stays
+in place. And the one path that still reaches the native completion, a mouse click on a row,
+falls back to the old reopen, which is rare in this Hyper driven flow. Escape and a click away
+close for real, resetting the stack to the top for the next open.
 
-Every level starts with an empty field, because a re-show clears the query, which is exactly
-what the rename and capture screens want, since there the field is the name entry rather than
-a filter. The row supplier reads the top frame plus the live query, so the rename and capture
-rows morph as you type the same way the keep awake row does, and stay disabled until the name
-is valid so Return can never write a bad value.
+Each level clears the field, since a filter typed at one level must not narrow the next, and
+`refresh` jumps the highlight back to the first row of the new list. Clearing the field is
+also what the rename and capture screens want, where the field is the name entry rather than a
+filter. The row supplier reads the top frame plus the live query, so those rows morph as you
+type the same way the keep awake row does, and stay disabled until the name is valid.
+
+Entering a profile shows its displays straight away, one read only row per monitor, with
+Reapply, Rename, and Delete beneath, so there is no separate list displays step. An earlier
+version had that extra layer and it earned nothing.
 
 ## Storage, git tracked JSON merged with curated Lua
 

@@ -421,13 +421,26 @@ function Chooser:isShowing()
   return self.chooser ~= nil and self.chooser:isVisible()
 end
 
---- Chooser:refresh() - re-run the supplier for the current query, preserving the
---- highlighted row (setting choices otherwise resets it to the top).
-function Chooser:refresh()
+--- Chooser:refresh(resetRow) - re-run the supplier for the current query. By default the
+--- highlighted row is preserved (setting choices otherwise resets it to the top), which is
+--- what a live in-place update wants. Pass resetRow true to jump the highlight back to the
+--- first row, for a consumer that swaps the list wholesale, like a menu changing levels.
+function Chooser:refresh(resetRow)
   if not self.chooser then return end
   local row = self.chooser:selectedRow()
   self.chooser:choices(self:_build(self.chooser:query() or ""))
-  if row then self.chooser:selectedRow(row) end
+  if resetRow then
+    self.chooser:selectedRow(1)
+  elseif row then
+    self.chooser:selectedRow(row)
+  end
+end
+
+--- Chooser:setQuery(text) - set the field text, clearing it with "". A consumer that changes
+--- what the list means, like a menu drilling in, clears the filter so the new level is not
+--- narrowed by what was typed at the previous one.
+function Chooser:setQuery(text)
+  if self.chooser then self.chooser:query(text or "") end
 end
 
 -- Move the highlight by delta through the chooser's own selectedRow so it scrolls

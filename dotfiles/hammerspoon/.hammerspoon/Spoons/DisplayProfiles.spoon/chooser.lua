@@ -32,7 +32,8 @@ local M = { name = "DisplayProfiles.chooser" }
 local cfg = {}        -- injected across two calls: api from the spoon, view deps from the root
 local chooser = nil   -- the one native Chooser instance
 local stack = nil     -- the menu stack, stack[#stack] is the current frame
-local reopen = false  -- set by a navigation selection so onClose re-shows instead of ending
+local reopen = false  -- set by a click selection so onClose re-shows instead of ending
+local returnTap = nil -- swallows Return while open so a menu step stays in place, no re-show
 
 --------------------------------------------------------------------------------
 -- Row icons
@@ -115,8 +116,8 @@ local function topRows(query)
   for _, p in ipairs(cfg.api.list()) do
     if q == "" or p.name:lower():find(q, 1, true) then
       local isActive = p.name == active
-      local kind = p.editable and "Captured" or "Curated"
-      local sub = (isActive and "Active. " or "") .. kind .. ", " .. displayCount(p) .. " displays"
+      local n = displayCount(p)
+      local sub = (isActive and "Active, " or "") .. n .. (n == 1 and " display" or " displays")
       out[#out + 1] = row(p.name, sub, isActive and ICON.active or ICON.profile,
         { nav = true, to = "profile", name = p.name }, true)
     end
@@ -133,15 +134,24 @@ local function profileByName(name)
   return nil
 end
 
--- A profile's menu. List displays always, Reapply only on the active profile, Rename and
--- Delete only when the profile is captured, then Back. A curated profile shows neither
--- Rename nor Delete, since the tool never rewrites the hand maintained config/displays.lua.
+-- A profile screen. Back leads, per the chooser menu convention, so stepping out is the
+-- default and Return on the fresh highlight steps back. Then the displays show straight away,
+-- one read only row per monitor with resolution, id, refresh, and origin, the main display
+-- marked, so there is no extra list displays step. The actions follow, Reapply only on the
+-- active profile, and Rename and Delete only when the profile is captured. A curated profile
+-- shows neither Rename nor Delete, since the tool never rewrites the hand maintained
+-- config/displays.lua. The monitor rows are disabled, and a stray confirm on one stays put
+-- rather than closing, since the Return tap routes even a disabled row through the in-place
+-- enter.
 local function profileRows(name)
   local p = profileByName(name)
-  if not p then return { row("Profile is gone", "It may have been removed", ICON.warn, { noop = true }, false), backRow() } end
-  local out = {}
-  out[#out + 1] = row("List displays", displayCount(p) .. " displays", ICON.displays,
-    { nav = true, to = "displays", name = name }, true)
+  if not p then return { backRow(), row("Profile is gone", "It may have been removed", ICON.warn, { noop = true }, false) } end
+  local out = { backRow() }
+  for _, d in ipairs(cfg.api.displays(p.command)) do
+    local title = (d.res or "?") .. (d.main and "   (main)" or "")
+    local sub = "id " .. d.id .. (d.hz and (", " .. d.hz .. "hz") or "") .. ", origin (" .. d.origin .. ")"
+    out[#out + 1] = row(title, sub, ICON.displays, { noop = true }, false)
+  end
   if name == cfg.api.active() then
     out[#out + 1] = row("Reapply this arrangement", "Force it back if macOS scrambled the layout",
       ICON.reapply, { act = "reapply" }, true)
@@ -151,27 +161,6 @@ local function profileRows(name)
       { nav = true, to = "rename", name = name }, true)
     out[#out + 1] = row("Delete", "Remove this captured profile", ICON.delete,
       { nav = true, to = "delete", name = name }, true)
-  else
-    out[#out + 1] = row("Curated profile", "Edit config/displays.lua to change it", ICON.warn,
-      { noop = true }, false)
-  end
-  out[#out + 1] = backRow()
-  return out
-end
-
--- A profile's displays, read only. Back leads, unlike the other screens where it trails,
--- so the default highlight on this screen is an action, since the native chooser closes on
--- any Return and the monitor rows below are disabled. So Return here steps back rather than
--- dismissing, and Escape is still the way to close everything. Each monitor row shows its
--- resolution, id, refresh, and origin, the main display marked.
-local function displaysRows(name)
-  local p = profileByName(name)
-  if not p then return { backRow() } end
-  local out = { backRow() }
-  for _, d in ipairs(cfg.api.displays(p.command)) do
-    local title = (d.res or "?") .. (d.main and "   (main)" or "")
-    local sub = "id " .. d.id .. (d.hz and (", " .. d.hz .. "hz") or "") .. ", origin (" .. d.origin .. ")"
-    out[#out + 1] = row(title, sub, ICON.displays, { noop = true }, false)
   end
   return out
 end
@@ -227,7 +216,6 @@ local function rows(query)
   query = query or ""
   local top = stack[#stack]
   if top.kind == "profile" then return profileRows(top.name) end
-  if top.kind == "displays" then return displaysRows(top.name) end
   if top.kind == "rename" then return renameRows(top.name, query) end
   if top.kind == "delete" then return deleteRows(top.name) end
   if top.kind == "capture" then return captureRows(query) end
@@ -245,34 +233,26 @@ local function placeholderFor(top)
   return ""
 end
 
--- Show the one instance at the current frame and set its placeholder to match. Every level
--- transition and the first open route through here, so the field hint always fits the frame.
-local function present()
-  if not chooser then return end
-  chooser:show()
-  chooser:setPlaceholder(placeholderFor(stack[#stack]))
-end
-
 --------------------------------------------------------------------------------
--- Navigation and selection dispatch
+-- Selection dispatch, shared by the in-place path and the click fallback
 --------------------------------------------------------------------------------
 
 local function frameFor(item)
   if item.to == "profile" then return { kind = "profile", name = item.name } end
-  if item.to == "displays" then return { kind = "displays", name = item.name } end
   if item.to == "rename" then return { kind = "rename", name = item.name } end
   if item.to == "delete" then return { kind = "delete", name = item.name } end
   if item.to == "capture" then return { kind = "capture" } end
   return { kind = "top" }
 end
 
--- A row was chosen. A disabled hint does nothing. A navigation row pushes or pops a frame
--- and asks onClose to re-show at the new level. A terminal action calls the api, and on
--- success sends the stack where it should land next, the top after a capture or delete, the
--- renamed profile's menu after a rename, and closes for good after a reapply. A failed write
--- logs and re-shows the same screen, so nothing is lost.
-local function onSelect(item)
-  if not item or item.noop then return end
+-- Apply the chosen item to the stack and return where the chooser should go next, "stay" to
+-- remain open at the resulting frame or "close" to end. A disabled hint stays. A navigation
+-- row pushes or pops a frame. A terminal action calls the api, and on success sends the stack
+-- to where it should land, the top after a capture or delete, the renamed profile's menu
+-- after a rename, and Reapply closes for good. A failed write logs and stays on the screen so
+-- nothing is lost. This decides only the stack, the two callers decide how to move there.
+local function applySelection(item)
+  if not item or item.noop then return "stay" end
 
   if item.nav then
     if item.to == "back" then
@@ -280,20 +260,18 @@ local function onSelect(item)
     else
       stack[#stack + 1] = frameFor(item)
     end
-    reopen = true
-    return
+    return "stay"
   end
 
   if item.act == "reapply" then
     cfg.api.reapply()
-    return -- terminal, let it close
+    return "close"
   end
 
   if item.act == "capture" then
     local ok, err = cfg.api.capture(item.newName)
     if ok then stack = { { kind = "top" } } else print("DisplayProfiles: capture failed, " .. tostring(err)) end
-    reopen = true
-    return
+    return "stay"
   end
 
   if item.act == "saveRename" then
@@ -304,16 +282,67 @@ local function onSelect(item)
     else
       print("DisplayProfiles: rename failed, " .. tostring(err))
     end
-    reopen = true
-    return
+    return "stay"
   end
 
   if item.act == "delete" then
     local ok, err = cfg.api.remove(item.name)
     if ok then stack = { { kind = "top" } } else print("DisplayProfiles: delete failed, " .. tostring(err)) end
-    reopen = true
-    return
+    return "stay"
   end
+
+  return "stay"
+end
+
+-- Redraw the current frame in place, no re-show, so a menu step is instant. The query is
+-- cleared so a new level is not narrowed by a filter typed at the previous one, and the
+-- highlight jumps back to the first row of the new list.
+local function drawFrame()
+  chooser:setQuery("")
+  chooser:refresh(true)
+  chooser:setPlaceholder(placeholderFor(stack[#stack]))
+end
+
+--------------------------------------------------------------------------------
+-- Return interceptor, so a menu step never re-shows
+--------------------------------------------------------------------------------
+
+-- The native chooser closes on any Return, which would force a re-show to keep a menu open.
+-- To keep every step in place, a passive tap swallows Return and the keypad enter while this
+-- chooser is up and routes them through the in-place enter instead, so the native completion
+-- never fires. Plain typing and the arrows pass straight through. Started on show, stopped on
+-- close. Hyper+i routes to the same in-place enter, so both confirm keys behave identically.
+local RETURN_CODES = { [36] = true, [76] = true }
+local function startReturnTap()
+  if returnTap then returnTap:stop() end
+  returnTap = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, function(e)
+    if not (chooser and chooser:isShowing()) then return false end
+    if RETURN_CODES[e:getKeyCode()] then
+      M.enter()
+      return true
+    end
+    return false
+  end)
+  returnTap:start()
+end
+local function stopReturnTap()
+  if returnTap then returnTap:stop(); returnTap = nil end
+end
+
+-- Show the one instance at the current frame, set its placeholder to match, and arm the
+-- Return tap. The first open and the click fallback's re-show route through here.
+local function present()
+  if not chooser then return end
+  chooser:show()
+  chooser:setPlaceholder(placeholderFor(stack[#stack]))
+  startReturnTap()
+end
+
+-- A row was chosen by mouse click, the one path that still reaches the native completion, so
+-- the chooser has already closed. A stay result re-shows at the new frame on the next tick,
+-- after the native chooser finishes hiding, a close just lets it end.
+local function onSelect(item)
+  if applySelection(item) == "stay" then reopen = true end
 end
 
 --------------------------------------------------------------------------------
@@ -350,10 +379,22 @@ function M.selectPrev()
   if chooser then chooser:selectPrev() end
 end
 
---- M.insertSelected() - choose the highlighted row, exactly as Return does, routed here from
---- the displayProfiles Hyper context.
+--- M.enter() - the in-place confirm, from Hyper+i and from the Return tap. Reads the
+--- highlighted row, applies it to the stack, and either redraws the new frame in place with
+--- no re-show, or closes on a terminal action like Reapply.
+function M.enter()
+  if not (chooser and chooser:isShowing()) then return end
+  if applySelection(chooser:selectedItem()) == "close" then
+    chooser:hide()
+  else
+    drawFrame()
+  end
+end
+
+--- M.insertSelected() - alias for enter, so any generic routing that names the shared
+--- insertSelected action still confirms the highlighted row in place.
 function M.insertSelected()
-  if chooser then chooser:insertSelected() end
+  M.enter()
 end
 
 --- M.configure(opts) - merge injected deps across the two callers. The spoon composition
@@ -377,10 +418,12 @@ function M.start()
     onSelect = onSelect,
     onPositioned = cfg.onPositioned,
     onActivity = cfg.onActivity,
-    -- Compose the root's panel teardown with the menu stack behavior. A navigation
-    -- selection set reopen, so re-show at the new frame on the next tick, after the native
-    -- chooser has finished hiding itself. Any real dismissal resets the stack for next open.
+    -- Compose the root's panel teardown with the menu stack behavior. The Return tap is
+    -- stopped first, since the chooser is down. A click fallback set reopen, so re-show at
+    -- the new frame on the next tick (present re-arms the tap), after the native chooser has
+    -- finished hiding. Any real dismissal resets the stack for the next open.
     onClose = function()
+      stopReturnTap()
       if cfg.onClose then cfg.onClose() end
       if reopen then
         reopen = false

@@ -290,7 +290,7 @@ local function footerFor(name)
       for _, b in ipairs(ctx.bindings) do
         local chord = "Hyper+" .. spoon.CheatSheet.glyphFor(b.key, b.mods)
         local badges = { chord }
-        if b.action == "insertSelected" then
+        if b.action == "insertSelected" or b.action == "enter" then
           badges = { chord, spoon.CheatSheet.glyphFor("return") }
         elseif b.action == "closeChooser" then
           badges = { chord, spoon.CheatSheet.glyphFor("escape") }
@@ -921,6 +921,10 @@ local contextActions = {
   selectNext = routeNav("selectNext"),
   selectPrev = routeNav("selectPrev"),
   insertSelected = routeNav("insertSelected"),
+  -- The display profiles menu confirms in place through its own enter, so a drill or a step
+  -- back never closes and re-shows. Only that context binds it; on any other active chooser
+  -- routeNav's method guard makes it a no op.
+  enter = routeNav("enter"),
   closeChooser = routeNav("hide"),
   appendSelected = function() hideShortcuts() clipManager.appendSelected() end,
   -- Delete is clipboard only, like append, so it calls the manager directly rather
