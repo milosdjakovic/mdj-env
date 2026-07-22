@@ -43,6 +43,7 @@ hs.loadSpoon("Launcher")
 hs.loadSpoon("DockAutoHide")
 hs.loadSpoon("DisplayProfiles")
 hs.loadSpoon("SystemSettings")
+hs.loadSpoon("Emoji")
 
 --------------------------------------------------------------------------------
 -- Initialize Spoons
@@ -89,6 +90,7 @@ for _, b in ipairs(keys.capture) do
   hyperActions[#hyperActions + 1] = b
 end
 hyperActions[#hyperActions + 1] = keys.menuSearch
+hyperActions[#hyperActions + 1] = keys.emoji
 hyperActions[#hyperActions + 1] = keys.caffeinate
 hyperActions[#hyperActions + 1] = keys.vpn
 hyperActions[#hyperActions + 1] = keys.clipboardHistory
@@ -211,6 +213,11 @@ local predicates = {
   -- The display profiles chooser is open. Gates the displayProfiles Hyper context.
   displayProfilesOpen = function()
     return spoon.DisplayProfiles ~= nil and spoon.DisplayProfiles.chooser.isShowing()
+  end,
+  -- The emoji picker chooser is open. Gates the emoji Hyper context, so it takes the
+  -- shared j, k, i, and x navigation while it is up.
+  emojiOpen = function()
+    return spoon.Emoji:isShowing()
   end,
 }
 -- The window bindings carry no leader (see config/keys.lua). Stamp the resolved
@@ -867,6 +874,28 @@ spoon.Caffeinate.configure({
 spoon.Caffeinate.start()
 spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
 
+-- Emoji picker: a native chooser on Hyper+J that lists every emoji and matches by
+-- keyword, so a word finds a glyph without its exact name. It is a small coordinator
+-- spoon over the same Chooser atom, so the root injects only the Chooser factory, the
+-- shared theme, the same deferred shortcut panel the other choosers dock, and onInsert,
+-- the effect of a pick. onInsert types the glyph into the field that was focused before
+-- the picker opened, deferred a moment so it runs after the chooser tears down and macOS
+-- restores that focus, the same defer the launcher uses. The emoji Hyper context (see
+-- config/keys.lua) drives the j, k, i, and x shortcuts through the choosers registry
+-- below. The open key is a base HyperKey binding, suppressed while a modal context owns
+-- Hyper.
+spoon.Emoji:init()
+spoon.Emoji:configure({
+  chooser = spoon.Chooser,
+  theme = settings.chooserTheme,
+  placeholder = "Search emoji by name or keyword",
+  shortcutPanel = shortcutPanelFor("emoji"),
+  onInsert = function(glyph)
+    hs.timer.doAfter(0.1, function() hs.eventtap.keyStrokes(glyph) end)
+  end,
+})
+spoon.HyperKey:bind(keys.emoji.key, function() spoon.Emoji:show() end)
+
 -- Clipboard manager UI: the native chooser with its canvas preview docked in the
 -- companion pane and the same deferred shortcut panel the other choosers use. The
 -- panel spells the shortcuts out below the list. The manager owns onPositioned to place its preview, so the
@@ -912,7 +941,7 @@ spoon.ClipboardHistory.manager.start()
 -- glance at the sheet plus any key clears it.
 spoon.HyperKey:configure({ predicates = predicates })
 local clipManager = spoon.ClipboardHistory.manager
-local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, spoon.Launcher:surface(), menuSearchSurface, spoon.DisplayProfiles.chooser }
+local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, spoon.Launcher:surface(), menuSearchSurface, spoon.DisplayProfiles.chooser, spoon.Emoji:surface() }
 local function activeChooser()
   for _, c in ipairs(choosers) do
     if c.isShowing() then return c end

@@ -8,7 +8,7 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
   - `settings.lua` - Global settings (margins, timing)
   - `workspaces/` - Workspace definitions (dev.lua, vicert.lua)
 - `Spoons/` - Real Hammerspoon Spoons (reusable logic)
-  - ChordKey, CheatSheet, HyperKey, HyperCheatSheet, AppToggler, ClipboardHistory, Capture, Eyedropper, WindowManager, WindowLeader, WindowCheatSheet, StageManager, WorkspaceEngine, TerminalHandler, DisplayMemory, Launcher, DockMenuToggle, KeyRemap, DisplayProfiles
+  - ChordKey, CheatSheet, HyperKey, HyperCheatSheet, AppToggler, ClipboardHistory, Capture, Eyedropper, WindowManager, WindowLeader, WindowCheatSheet, StageManager, WorkspaceEngine, TerminalHandler, DisplayMemory, Launcher, Emoji, DockMenuToggle, KeyRemap, DisplayProfiles
 
 **Leader keys (META < SUPER < HYPER).** Three physical keys can be remapped to
 unused function keys, named for the classic X11/Emacs modifier hierarchy,
@@ -296,8 +296,8 @@ DisplayMemory needed a restow, since `~/.hammerspoon/Spoons` holds one symlink p
 spoon.
 
 **Overlay display policy.** One place decides which display every transient
-overlay appears on, the six choosers (clipboard, VPN, menu search, launcher,
-keep awake, display profiles) with their docked shortcut panels, both cheat
+overlay appears on, the seven choosers (clipboard, VPN, menu search, launcher,
+keep awake, display profiles, emoji) with their docked shortcut panels, both cheat
 sheets, and the colour toast. This is Strategy wired through injection, the same shape as
 TerminalHandler's `targetScreen`. A small registry in `init.lua` maps a mode name
 to a resolver returning an `hs.screen`, `config/settings.lua` picks the mode in
@@ -411,8 +411,8 @@ restow, it resolves through the existing link like any new file.
 
 **Wiring a list tool into the Hyper contexts.** The picker atom gives only the
 widget. `Chooser.spoon` wraps the native `hs.chooser` and backs every list tool,
-the clipboard, the VPN locations, caffeinate, menu search, the launcher, and the
-display profiles menu. It
+the clipboard, the VPN locations, caffeinate, menu search, the launcher, the
+display profiles menu, and the emoji picker. It
 once had a second webview backend built on a `Surface.spoon`, selectable per
 consumer, plus a `Panel.spoon` for short fixed lists, but every consumer settled
 on native so the web backend, Surface, and Panel were all removed. Routing the
@@ -510,13 +510,16 @@ launcher's recency order and the VPN action row survive until the user types.
 Two knobs sit on the per-instance config, both the single `matcher` field. Omitting it
 inherits the root default. Setting it to `Chooser.matchers.substring` keeps search but
 drops fuzzy for that one tool. Setting it to `false` opts out of the shared matcher
-entirely, for a tool whose query is not a plain filter over a list. Three tools do that.
+entirely, for a tool whose query is not a plain filter over a list. Four tools do that.
 Caffeinate's field is a value being typed, a time or a duration, parsed into one morphing
 row, so a matcher would only filter that row against its own label. The DisplayProfiles
 menu is the same shape, a stack of frames whose field filters at the top but is a name
 entry on the rename and capture screens, so its supplier morphs the rows from the query
 and the atom must not second-guess them, which would hide the Back row and the Save row.
-The clipboard parses a leading type prefix (`img ...`) off its query, so it owns
+The emoji picker filters over a hidden haystack, the folded name, aliases, tags, and
+category rather than the visible title and subtitle, and caps its rows to bound the glyph
+icon render, so its own supplier owns the query and the atom filtering again would drop a
+tag only match and undo the cap. The clipboard parses a leading type prefix (`img ...`) off its query, so it owns
 filtering, but it still reuses the same injected matcher for the free-text part and keeps
 its rows in recency order rather than reranking, so the one matcher policy reaches it too.
 So every list chooser is fuzzy by default with no per-tool wiring, and a future list
@@ -545,6 +548,8 @@ pdf/icns), knowing nothing about the UI. `ui.lua` only consumes the resulting
 `e.prev`/`e.thumb` paths, so swapping the webview for the canvas touched neither.
 
 **Launcher.** Hyper+Space opens a filterable app switcher and command runner, the built-in one, built over the Chooser atom. It is a coordinator spoon that owns the app scan caches and an `hs.application.watcher`, orders open apps by recency the way Command+Tab does, and follows the picker checklist above. Its decision trail and internals live in `Spoons/Launcher.spoon/CLAUDE.md`.
+
+**Emoji.** Hyper+J opens a filterable emoji picker over the Chooser atom. It is a small coordinator spoon that owns one vendored dataset, the GitHub gemoji set fetched once by its `regenerate.sh` and committed as `data.json`, and matches a query by name, shortcode, tag, or category so a keyword finds a glyph without its exact Unicode name. A pick is typed into the focused field through an injected `onInsert`, so the spoon never learns the effect, and it follows the picker checklist above. Its decision trail and internals live in `Spoons/Emoji.spoon/CLAUDE.md`.
 
 **Eyedropper.** A screen colour sampler on Hyper+2, on the native macOS
 eyedropper. It is deliberately not a chooser, so the picker checklist above does
