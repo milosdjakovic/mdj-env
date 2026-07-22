@@ -6,10 +6,14 @@ the spoon lifecycle contract this file refers to live there.
 
 ## What it is
 
-Hyper+J opens a filterable emoji picker over the Chooser atom. Typing matches by
-name, shortcode, tag, or category, so a keyword like happy or money or a group word
-like food finds the glyph without its exact Unicode name. Return, or Hyper+i, inserts
-the highlighted glyph into whatever field was focused before the picker opened.
+Hyper+J opens a filterable picker over the Chooser atom, carrying both emoji and a
+generous slice of native Unicode symbols, currency and arrows and math and the Mac
+modifier keys and more, the same glyphs the macOS Character Viewer shows. Typing
+matches by name, shortcode, tag, or category, so a keyword like happy or money or a
+group word like food finds the glyph without its exact Unicode name. Return, or
+Hyper+i, inserts the highlighted glyph into whatever field was focused before the
+picker opened. Emoji always rank above symbols in the results, so a query lists every
+matching emoji first and the plainer glyphs below, never interleaved.
 
 ## Why a spoon and not inline
 
@@ -22,38 +26,70 @@ eventtap, so it has no start or stop, matching the lifecycle contract.
 
 ## The data is vendored, not fetched at runtime
 
-The picker searches offline and opens instantly, so the emoji set is fetched once by
+The picker searches offline and opens instantly, so the set is fetched once by
 `regenerate.sh` and committed as `data.json` beside the spoon. Runtime never touches
-the network. The source is the GitHub gemoji project, chosen because one well
-maintained file already carries, per emoji, the glyph, a human name, the shortcode
-aliases, freeform tags, and a category, which is exactly the material a keyword match
-needs. Rerun `regenerate.sh` to refresh the set, for example when new Unicode emoji
-land, and commit the new `data.json`.
+the network. Two sources feed one flat list. Emoji come from the GitHub gemoji
+project, chosen because one well maintained file already carries, per emoji, the
+glyph, a human name, the shortcode aliases, freeform tags, and a category, which is
+exactly the material a keyword match needs. Symbols come from the official Unicode
+Character Database, a slice of the standard blocks the Character Viewer shows.
+Rerun `regenerate.sh` to refresh the set, for example when new Unicode glyphs land,
+and commit the new `data.json`.
 
-Each entry is reduced to four fields. `e` is the glyph, `n` is the display name, `a`
-is the shortcode aliases shown as the row subtitle, and `k` is a lowercased haystack
-that folds the name, the aliases, the tags, and the category into one string. Folding
-the category in is deliberate, it is what lets a group word surface a whole group,
-food or animal or flag, without an exact name. The reduction and the lowercasing
-happen once in the generator, so the runtime match is a plain substring scan with no
-per keystroke normalization.
+Each entry is reduced to the same shape whichever source it came from, so the spoon
+loads one file and never learns which source a row is. `e` is the glyph, `n` is the
+display name, `a` is the shortcode aliases or a synonym line shown as the row
+subtitle, `k` is a lowercased haystack that folds the name, the aliases or synonyms,
+the tags, and the category into one string, and `t` tags the source, `e` for an emoji
+and `s` for a symbol, which is the one field the ranking reads to keep emoji above
+symbols. Folding the category into `k` is deliberate, it is what lets a group word
+surface a whole group, food or animal or flag or arrow, without an exact name. The
+reduction and the lowercasing happen once in the generator, so the runtime match is a
+plain substring scan with no per keystroke normalization.
+
+### How the symbol slice stays safe and clean
+
+The symbol side of `regenerate.sh` earns its length because raw Unicode is not
+directly pickable. Three rules shape it. Only real standalone glyphs are taken, whose
+general category is a letter, number, punctuation, or symbol, so combining marks,
+invisible format and control characters, and separators are left out, since those
+render as nothing or attach to other text. The mass CJK ideograph and Hangul syllable
+blocks are excluded, tens of thousands of entries that are not keyword findable and
+would only slow the match. And a render filter, `filter-glyphs.lua`, drops anything
+that draws as a missing glyph box on this Mac, since the only authority on what the
+system fonts can draw is the render itself. It learns the boxes by rendering
+unassigned codepoints, which can only be boxes, then rejects any candidate whose image
+matches one. That is why regeneration needs Hammerspoon running and why the output
+depends on the machine's fonts as well as the upstream revision. A small synonym table
+keyed by codepoint adds words the official names lack, so euro finds the euro sign and
+command finds the command key though its real name is place of interest sign.
+
+A codepoint can appear in both sources at once, an emoji default glyph like the check
+mark or a zodiac sign also sits in a symbol block, which would list the same picture
+twice. So after both sources are tagged and merged, the list is deduplicated by glyph
+keeping the first occurrence. Emoji lead the list, so the emoji copy always wins and
+the redundant symbol copy is dropped.
 
 ## The match
 
-An empty field lists a leading slice in upstream order, which is grouped and roughly
-common first, so it browses. A query is split into whitespace tokens and an entry is
-kept only when every token appears in its haystack, so two words narrow with AND
-rather than widen. Kept entries are then ranked, an exact alias or exact name first,
-then a name that starts with the query, then the count of tokens found, with ties
-keeping the upstream order. The scan runs over the whole set on each keystroke, which
-is fast enough at this size that no index is needed, unlike the launcher whose app
-scan is the expensive part.
+An empty field lists a leading slice in upstream order, which is emoji first since
+they lead the dataset, grouped and roughly common first, so it browses. A query is
+split into whitespace tokens and an entry is kept only when every token appears in its
+haystack, so two words narrow with AND rather than widen. Kept entries are then ranked
+in two tiers. The `t` tag is the top tier, every matching emoji sorts above the first
+matching symbol, so a broad word like arrow or star lists the emoji arrows and then
+the glyph arrows below rather than weaving the two together. Within a tier a text
+score orders, an exact alias or exact name first, then a name that starts with the
+query, then the count of tokens found, with ties keeping the upstream order. The scan
+runs over the whole set on each keystroke, a few milliseconds over several thousand
+rows, so no index is needed, unlike the launcher whose app scan is the expensive part.
 
-The visible list is capped at a small maximum, both for an empty field and a query.
-The cap bounds only the display, the match still runs over the whole set, so any
-glyph stays findable by typing, and nobody scrolls past a few hundred rows to find an
-emoji rather than typing a better word. The cap also bounds how many icons a single
-open has to render, which is the reason it matters here rather than being cosmetic.
+The visible list is capped at a small maximum, `MAX_RESULTS`, both for an empty field
+and a query. The cap bounds only the display, the match still runs over the whole set,
+so any glyph stays findable by typing, and nobody scrolls past a hundred rows to find
+a glyph rather than typing a better word. The cap also bounds how many icons a single
+open has to render, which is the reason it matters here rather than being cosmetic,
+and is why it is kept modest even though the scan itself could show far more.
 
 ## Icons
 
@@ -64,6 +100,18 @@ hs.image and cached, the same idea as the launcher's glyph icons but sharing a s
 canvas rather than making one per glyph, since at this scale a canvas per glyph is the
 whole cost. A glyph is rendered at most once ever, and the cap above keeps any one
 open from rendering more than a bounded batch.
+
+Render once and keep forever is deliberate, not lazy. Measuring showed each rendered
+icon costs about 38KB and that memory is not reclaimed by the garbage collector until
+a config reload, a property of the canvas render rather than something a cache policy
+can undo, and the cost is the same at a small icon size as a large one, so shrinking
+the icon is not a lever. A bounded cache that cleared old icons would be worse, not
+better, since a re render only allocates fresh memory that also never comes back, so
+clearing then redrawing grows the total without bound. Keeping each glyph exactly once
+is therefore the leanest option, and `MAX_RESULTS` is what actually paces it, since it
+bounds how many distinct glyphs a session can ever reach. A normal session that views
+a few hundred glyphs costs tens of MB, and the ceiling, only reached if every glyph in
+the set is deliberately surfaced, is a couple of hundred MB, which a reload resets.
 
 Even one reused canvas is too slow to render the whole set at once, so the empty state
 icons are warmed in the background right after configure, in small batches on a self

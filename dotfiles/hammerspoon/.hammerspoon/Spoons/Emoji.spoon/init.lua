@@ -49,10 +49,13 @@ obj._prewarmTimer = nil      -- transient, warms the empty-state icons after con
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 
 -- The most rows a query returns. The match runs over the whole set, so any glyph is
--- still findable by typing, this only bounds the visible list, which keeps the icon
--- render per open bounded and keeps the tool a type to narrow picker rather than a
--- scroll through thousands.
-local MAX_RESULTS = 250
+-- still findable by typing, this only bounds the visible list. It matters more than
+-- cosmetics, since a first view renders one icon per visible row on the main thread,
+-- so this is the ceiling on that per keystroke render cost, kept modest so even a
+-- broad one letter query stays responsive over the several thousand row set. It also
+-- bounds how many distinct icons a view can render, which paces the icon memory below,
+-- since a narrow query renders far fewer than a broad one.
+local MAX_RESULTS = 100
 
 -- The glyph icon geometry, matching the launcher's glyph icons so an emoji row lines
 -- up with an app row, a large glyph centered in a square, nudged down a touch.
@@ -68,10 +71,12 @@ local function tokenize(q)
   return t
 end
 
--- Score a matched entry so the closest name floats up. An exact alias or an exact
--- name is the strongest signal, then a name that starts with the whole query, then
--- the count of tokens found anywhere in the haystack. Ties keep the upstream order,
--- which is grouped and roughly common first.
+-- Score a matched entry so the closest name floats up within its kind. An exact alias
+-- or an exact name is the strongest signal, then a name that starts with the whole
+-- query, then the count of tokens found anywhere in the haystack. This score never
+-- crosses the emoji and symbol tiers, the sort puts every matching emoji above every
+-- matching symbol first and only then applies this score, so score orders like against
+-- like. Ties keep the upstream order, which is grouped and roughly common first.
 local function score(entry, q, toks)
   local s = 0
   local name = (entry.n or ""):lower()
@@ -100,7 +105,11 @@ end
 --- The row icon for a glyph. hs.chooser has no emoji rendering, so the glyph is drawn
 --- once through one reused canvas into an hs.image and cached, so it sits in the icon
 --- slot like an app icon rather than inline in the title. A glyph is rendered at most
---- once ever, and false marks a glyph that produced no image so it is not retried.
+--- once ever and kept, so a glyph costs its render and its memory at most one time, and
+--- false marks a glyph that produced no image so it is not retried. The render is not
+--- reclaimable until a reload, so caching each glyph exactly once is the leanest option,
+--- a re-render would only allocate more that never comes back. MAX_RESULTS bounds how
+--- many distinct glyphs a session can reach, which is what keeps the total in hand.
 function obj:_glyphIcon(glyph)
   local cache = self._iconCache
   local img = cache[glyph]
@@ -122,9 +131,10 @@ end
 
 --- Emoji:_rows(query)
 --- Method
---- The row supplier. An empty field lists a leading slice in upstream order to browse.
---- A query keeps every entry whose haystack contains all of the query tokens, then
---- orders them by relevance. Either way the list is capped at MAX_RESULTS, which
+--- The row supplier. An empty field lists a leading slice in upstream order to browse,
+--- which is emoji first since they lead the dataset. A query keeps every entry whose
+--- haystack contains all of the query tokens, then orders them with emoji ranked above
+--- symbols and by relevance within each. Either way the list is capped at MAX_RESULTS, which
 --- bounds the icons rendered per open, the match itself still runs over the whole set
 --- so any glyph stays findable by typing. The haystack is already lowercased by the
 --- generator, so only the query is folded here.
@@ -144,7 +154,14 @@ function obj:_rows(query)
     end
     if ok then matched[#matched + 1] = { e = e, i = i, s = score(e, q, toks) } end
   end
+  -- Emoji win the top tier, so a query lists every matching emoji before the first
+  -- matching symbol rather than interleaving the two by score. The row's own t tag from
+  -- the generator decides the kind, e for emoji, so the ranking never guesses it. Within
+  -- a tier the text score orders, then upstream order breaks a tie.
   table.sort(matched, function(x, y)
+    local xEmoji = x.e.t == "e"
+    local yEmoji = y.e.t == "e"
+    if xEmoji ~= yEmoji then return xEmoji end
     if x.s ~= y.s then return x.s > y.s end
     return x.i < y.i
   end)
