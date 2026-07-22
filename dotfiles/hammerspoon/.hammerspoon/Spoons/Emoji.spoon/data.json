@@ -11218,5 +11218,2513 @@
     "n": "flag: Wales",
     "a": "wales",
     "k": "flag: wales wales flags"
+  },
+  {
+    "e": "$",
+    "n": "dollar sign",
+    "a": "dollar buck usd",
+    "k": "dollar sign currency money dollar buck usd"
+  },
+  {
+    "e": "¢",
+    "n": "cent sign",
+    "a": "cent",
+    "k": "cent sign currency money cent"
+  },
+  {
+    "e": "£",
+    "n": "pound sign",
+    "a": "pound sterling gbp",
+    "k": "pound sign currency money pound sterling gbp"
+  },
+  {
+    "e": "¤",
+    "n": "currency sign",
+    "a": "currency money",
+    "k": "currency sign currency money "
+  },
+  {
+    "e": "¥",
+    "n": "yen sign",
+    "a": "yen jpy",
+    "k": "yen sign currency money yen jpy"
+  },
+  {
+    "e": "±",
+    "n": "plus-minus sign",
+    "a": "plus minus",
+    "k": "plus-minus sign math plus minus"
+  },
+  {
+    "e": "×",
+    "n": "multiplication sign",
+    "a": "times multiply",
+    "k": "multiplication sign math times multiply"
+  },
+  {
+    "e": "÷",
+    "n": "division sign",
+    "a": "divide division",
+    "k": "division sign math divide division"
+  },
+  {
+    "e": "₠",
+    "n": "euro-currency sign",
+    "a": "currency money",
+    "k": "euro-currency sign currency money "
+  },
+  {
+    "e": "₡",
+    "n": "colon sign",
+    "a": "currency money",
+    "k": "colon sign currency money "
+  },
+  {
+    "e": "₢",
+    "n": "cruzeiro sign",
+    "a": "currency money",
+    "k": "cruzeiro sign currency money "
+  },
+  {
+    "e": "₣",
+    "n": "french franc sign",
+    "a": "currency money",
+    "k": "french franc sign currency money "
+  },
+  {
+    "e": "₤",
+    "n": "lira sign",
+    "a": "currency money",
+    "k": "lira sign currency money "
+  },
+  {
+    "e": "₥",
+    "n": "mill sign",
+    "a": "currency money",
+    "k": "mill sign currency money "
+  },
+  {
+    "e": "₦",
+    "n": "naira sign",
+    "a": "currency money",
+    "k": "naira sign currency money "
+  },
+  {
+    "e": "₧",
+    "n": "peseta sign",
+    "a": "currency money",
+    "k": "peseta sign currency money "
+  },
+  {
+    "e": "₨",
+    "n": "rupee sign",
+    "a": "currency money",
+    "k": "rupee sign currency money "
+  },
+  {
+    "e": "₩",
+    "n": "won sign",
+    "a": "won krw",
+    "k": "won sign currency money won krw"
+  },
+  {
+    "e": "₪",
+    "n": "new sheqel sign",
+    "a": "currency money",
+    "k": "new sheqel sign currency money "
+  },
+  {
+    "e": "₫",
+    "n": "dong sign",
+    "a": "currency money",
+    "k": "dong sign currency money "
+  },
+  {
+    "e": "€",
+    "n": "euro sign",
+    "a": "euro eur",
+    "k": "euro sign currency money euro eur"
+  },
+  {
+    "e": "₭",
+    "n": "kip sign",
+    "a": "currency money",
+    "k": "kip sign currency money "
+  },
+  {
+    "e": "₮",
+    "n": "tugrik sign",
+    "a": "currency money",
+    "k": "tugrik sign currency money "
+  },
+  {
+    "e": "₯",
+    "n": "drachma sign",
+    "a": "currency money",
+    "k": "drachma sign currency money "
+  },
+  {
+    "e": "₰",
+    "n": "german penny sign",
+    "a": "currency money",
+    "k": "german penny sign currency money "
+  },
+  {
+    "e": "₱",
+    "n": "peso sign",
+    "a": "currency money",
+    "k": "peso sign currency money "
+  },
+  {
+    "e": "₲",
+    "n": "guarani sign",
+    "a": "currency money",
+    "k": "guarani sign currency money "
+  },
+  {
+    "e": "₳",
+    "n": "austral sign",
+    "a": "currency money",
+    "k": "austral sign currency money "
+  },
+  {
+    "e": "₴",
+    "n": "hryvnia sign",
+    "a": "currency money",
+    "k": "hryvnia sign currency money "
+  },
+  {
+    "e": "₵",
+    "n": "cedi sign",
+    "a": "currency money",
+    "k": "cedi sign currency money "
+  },
+  {
+    "e": "₶",
+    "n": "livre tournois sign",
+    "a": "currency money",
+    "k": "livre tournois sign currency money "
+  },
+  {
+    "e": "₷",
+    "n": "spesmilo sign",
+    "a": "currency money",
+    "k": "spesmilo sign currency money "
+  },
+  {
+    "e": "₸",
+    "n": "tenge sign",
+    "a": "currency money",
+    "k": "tenge sign currency money "
+  },
+  {
+    "e": "₹",
+    "n": "indian rupee sign",
+    "a": "rupee inr",
+    "k": "indian rupee sign currency money rupee inr"
+  },
+  {
+    "e": "₺",
+    "n": "turkish lira sign",
+    "a": "currency money",
+    "k": "turkish lira sign currency money "
+  },
+  {
+    "e": "₻",
+    "n": "nordic mark sign",
+    "a": "currency money",
+    "k": "nordic mark sign currency money "
+  },
+  {
+    "e": "₼",
+    "n": "manat sign",
+    "a": "currency money",
+    "k": "manat sign currency money "
+  },
+  {
+    "e": "₽",
+    "n": "ruble sign",
+    "a": "ruble rub",
+    "k": "ruble sign currency money ruble rub"
+  },
+  {
+    "e": "₾",
+    "n": "lari sign",
+    "a": "currency money",
+    "k": "lari sign currency money "
+  },
+  {
+    "e": "₿",
+    "n": "bitcoin sign",
+    "a": "bitcoin btc",
+    "k": "bitcoin sign currency money bitcoin btc"
+  },
+  {
+    "e": "←",
+    "n": "leftwards arrow",
+    "a": "arrow",
+    "k": "leftwards arrow arrow "
+  },
+  {
+    "e": "↑",
+    "n": "upwards arrow",
+    "a": "arrow",
+    "k": "upwards arrow arrow "
+  },
+  {
+    "e": "→",
+    "n": "rightwards arrow",
+    "a": "arrow",
+    "k": "rightwards arrow arrow "
+  },
+  {
+    "e": "↓",
+    "n": "downwards arrow",
+    "a": "arrow",
+    "k": "downwards arrow arrow "
+  },
+  {
+    "e": "↔",
+    "n": "left right arrow",
+    "a": "arrow",
+    "k": "left right arrow arrow "
+  },
+  {
+    "e": "↕",
+    "n": "up down arrow",
+    "a": "arrow",
+    "k": "up down arrow arrow "
+  },
+  {
+    "e": "↖",
+    "n": "north west arrow",
+    "a": "arrow",
+    "k": "north west arrow arrow "
+  },
+  {
+    "e": "↗",
+    "n": "north east arrow",
+    "a": "arrow",
+    "k": "north east arrow arrow "
+  },
+  {
+    "e": "↘",
+    "n": "south east arrow",
+    "a": "arrow",
+    "k": "south east arrow arrow "
+  },
+  {
+    "e": "↙",
+    "n": "south west arrow",
+    "a": "arrow",
+    "k": "south west arrow arrow "
+  },
+  {
+    "e": "↚",
+    "n": "leftwards arrow with stroke",
+    "a": "arrow",
+    "k": "leftwards arrow with stroke arrow "
+  },
+  {
+    "e": "↛",
+    "n": "rightwards arrow with stroke",
+    "a": "arrow",
+    "k": "rightwards arrow with stroke arrow "
+  },
+  {
+    "e": "↜",
+    "n": "leftwards wave arrow",
+    "a": "arrow",
+    "k": "leftwards wave arrow arrow "
+  },
+  {
+    "e": "↝",
+    "n": "rightwards wave arrow",
+    "a": "arrow",
+    "k": "rightwards wave arrow arrow "
+  },
+  {
+    "e": "↞",
+    "n": "leftwards two headed arrow",
+    "a": "arrow",
+    "k": "leftwards two headed arrow arrow "
+  },
+  {
+    "e": "↟",
+    "n": "upwards two headed arrow",
+    "a": "arrow",
+    "k": "upwards two headed arrow arrow "
+  },
+  {
+    "e": "↠",
+    "n": "rightwards two headed arrow",
+    "a": "arrow",
+    "k": "rightwards two headed arrow arrow "
+  },
+  {
+    "e": "↡",
+    "n": "downwards two headed arrow",
+    "a": "arrow",
+    "k": "downwards two headed arrow arrow "
+  },
+  {
+    "e": "↢",
+    "n": "leftwards arrow with tail",
+    "a": "arrow",
+    "k": "leftwards arrow with tail arrow "
+  },
+  {
+    "e": "↣",
+    "n": "rightwards arrow with tail",
+    "a": "arrow",
+    "k": "rightwards arrow with tail arrow "
+  },
+  {
+    "e": "↤",
+    "n": "leftwards arrow from bar",
+    "a": "arrow",
+    "k": "leftwards arrow from bar arrow "
+  },
+  {
+    "e": "↥",
+    "n": "upwards arrow from bar",
+    "a": "arrow",
+    "k": "upwards arrow from bar arrow "
+  },
+  {
+    "e": "↦",
+    "n": "rightwards arrow from bar",
+    "a": "arrow",
+    "k": "rightwards arrow from bar arrow "
+  },
+  {
+    "e": "↧",
+    "n": "downwards arrow from bar",
+    "a": "arrow",
+    "k": "downwards arrow from bar arrow "
+  },
+  {
+    "e": "↨",
+    "n": "up down arrow with base",
+    "a": "arrow",
+    "k": "up down arrow with base arrow "
+  },
+  {
+    "e": "↩",
+    "n": "leftwards arrow with hook",
+    "a": "return enter hook",
+    "k": "leftwards arrow with hook arrow return enter hook"
+  },
+  {
+    "e": "↪",
+    "n": "rightwards arrow with hook",
+    "a": "arrow",
+    "k": "rightwards arrow with hook arrow "
+  },
+  {
+    "e": "↫",
+    "n": "leftwards arrow with loop",
+    "a": "arrow",
+    "k": "leftwards arrow with loop arrow "
+  },
+  {
+    "e": "↬",
+    "n": "rightwards arrow with loop",
+    "a": "arrow",
+    "k": "rightwards arrow with loop arrow "
+  },
+  {
+    "e": "↭",
+    "n": "left right wave arrow",
+    "a": "arrow",
+    "k": "left right wave arrow arrow "
+  },
+  {
+    "e": "↮",
+    "n": "left right arrow with stroke",
+    "a": "arrow",
+    "k": "left right arrow with stroke arrow "
+  },
+  {
+    "e": "↯",
+    "n": "downwards zigzag arrow",
+    "a": "arrow",
+    "k": "downwards zigzag arrow arrow "
+  },
+  {
+    "e": "↰",
+    "n": "upwards arrow with tip leftwards",
+    "a": "arrow",
+    "k": "upwards arrow with tip leftwards arrow "
+  },
+  {
+    "e": "↱",
+    "n": "upwards arrow with tip rightwards",
+    "a": "arrow",
+    "k": "upwards arrow with tip rightwards arrow "
+  },
+  {
+    "e": "↲",
+    "n": "downwards arrow with tip leftwards",
+    "a": "arrow",
+    "k": "downwards arrow with tip leftwards arrow "
+  },
+  {
+    "e": "↳",
+    "n": "downwards arrow with tip rightwards",
+    "a": "arrow",
+    "k": "downwards arrow with tip rightwards arrow "
+  },
+  {
+    "e": "↴",
+    "n": "rightwards arrow with corner downwards",
+    "a": "arrow",
+    "k": "rightwards arrow with corner downwards arrow "
+  },
+  {
+    "e": "↵",
+    "n": "downwards arrow with corner leftwards",
+    "a": "arrow",
+    "k": "downwards arrow with corner leftwards arrow "
+  },
+  {
+    "e": "↶",
+    "n": "anticlockwise top semicircle arrow",
+    "a": "arrow",
+    "k": "anticlockwise top semicircle arrow arrow "
+  },
+  {
+    "e": "↷",
+    "n": "clockwise top semicircle arrow",
+    "a": "arrow",
+    "k": "clockwise top semicircle arrow arrow "
+  },
+  {
+    "e": "↸",
+    "n": "north west arrow to long bar",
+    "a": "arrow",
+    "k": "north west arrow to long bar arrow "
+  },
+  {
+    "e": "↹",
+    "n": "leftwards arrow to bar over rightwards arrow to bar",
+    "a": "arrow",
+    "k": "leftwards arrow to bar over rightwards arrow to bar arrow "
+  },
+  {
+    "e": "↺",
+    "n": "anticlockwise open circle arrow",
+    "a": "arrow",
+    "k": "anticlockwise open circle arrow arrow "
+  },
+  {
+    "e": "↻",
+    "n": "clockwise open circle arrow",
+    "a": "arrow",
+    "k": "clockwise open circle arrow arrow "
+  },
+  {
+    "e": "↼",
+    "n": "leftwards harpoon with barb upwards",
+    "a": "arrow",
+    "k": "leftwards harpoon with barb upwards arrow "
+  },
+  {
+    "e": "↽",
+    "n": "leftwards harpoon with barb downwards",
+    "a": "arrow",
+    "k": "leftwards harpoon with barb downwards arrow "
+  },
+  {
+    "e": "↾",
+    "n": "upwards harpoon with barb rightwards",
+    "a": "arrow",
+    "k": "upwards harpoon with barb rightwards arrow "
+  },
+  {
+    "e": "↿",
+    "n": "upwards harpoon with barb leftwards",
+    "a": "arrow",
+    "k": "upwards harpoon with barb leftwards arrow "
+  },
+  {
+    "e": "⇀",
+    "n": "rightwards harpoon with barb upwards",
+    "a": "arrow",
+    "k": "rightwards harpoon with barb upwards arrow "
+  },
+  {
+    "e": "⇁",
+    "n": "rightwards harpoon with barb downwards",
+    "a": "arrow",
+    "k": "rightwards harpoon with barb downwards arrow "
+  },
+  {
+    "e": "⇂",
+    "n": "downwards harpoon with barb rightwards",
+    "a": "arrow",
+    "k": "downwards harpoon with barb rightwards arrow "
+  },
+  {
+    "e": "⇃",
+    "n": "downwards harpoon with barb leftwards",
+    "a": "arrow",
+    "k": "downwards harpoon with barb leftwards arrow "
+  },
+  {
+    "e": "⇄",
+    "n": "rightwards arrow over leftwards arrow",
+    "a": "arrow",
+    "k": "rightwards arrow over leftwards arrow arrow "
+  },
+  {
+    "e": "⇅",
+    "n": "upwards arrow leftwards of downwards arrow",
+    "a": "arrow",
+    "k": "upwards arrow leftwards of downwards arrow arrow "
+  },
+  {
+    "e": "⇆",
+    "n": "leftwards arrow over rightwards arrow",
+    "a": "arrow",
+    "k": "leftwards arrow over rightwards arrow arrow "
+  },
+  {
+    "e": "⇇",
+    "n": "leftwards paired arrows",
+    "a": "arrow",
+    "k": "leftwards paired arrows arrow "
+  },
+  {
+    "e": "⇈",
+    "n": "upwards paired arrows",
+    "a": "arrow",
+    "k": "upwards paired arrows arrow "
+  },
+  {
+    "e": "⇉",
+    "n": "rightwards paired arrows",
+    "a": "arrow",
+    "k": "rightwards paired arrows arrow "
+  },
+  {
+    "e": "⇊",
+    "n": "downwards paired arrows",
+    "a": "arrow",
+    "k": "downwards paired arrows arrow "
+  },
+  {
+    "e": "⇋",
+    "n": "leftwards harpoon over rightwards harpoon",
+    "a": "arrow",
+    "k": "leftwards harpoon over rightwards harpoon arrow "
+  },
+  {
+    "e": "⇌",
+    "n": "rightwards harpoon over leftwards harpoon",
+    "a": "arrow",
+    "k": "rightwards harpoon over leftwards harpoon arrow "
+  },
+  {
+    "e": "⇍",
+    "n": "leftwards double arrow with stroke",
+    "a": "arrow",
+    "k": "leftwards double arrow with stroke arrow "
+  },
+  {
+    "e": "⇎",
+    "n": "left right double arrow with stroke",
+    "a": "arrow",
+    "k": "left right double arrow with stroke arrow "
+  },
+  {
+    "e": "⇏",
+    "n": "rightwards double arrow with stroke",
+    "a": "arrow",
+    "k": "rightwards double arrow with stroke arrow "
+  },
+  {
+    "e": "⇐",
+    "n": "leftwards double arrow",
+    "a": "arrow",
+    "k": "leftwards double arrow arrow "
+  },
+  {
+    "e": "⇑",
+    "n": "upwards double arrow",
+    "a": "arrow",
+    "k": "upwards double arrow arrow "
+  },
+  {
+    "e": "⇒",
+    "n": "rightwards double arrow",
+    "a": "arrow",
+    "k": "rightwards double arrow arrow "
+  },
+  {
+    "e": "⇓",
+    "n": "downwards double arrow",
+    "a": "arrow",
+    "k": "downwards double arrow arrow "
+  },
+  {
+    "e": "⇔",
+    "n": "left right double arrow",
+    "a": "arrow",
+    "k": "left right double arrow arrow "
+  },
+  {
+    "e": "⇕",
+    "n": "up down double arrow",
+    "a": "arrow",
+    "k": "up down double arrow arrow "
+  },
+  {
+    "e": "⇖",
+    "n": "north west double arrow",
+    "a": "arrow",
+    "k": "north west double arrow arrow "
+  },
+  {
+    "e": "⇗",
+    "n": "north east double arrow",
+    "a": "arrow",
+    "k": "north east double arrow arrow "
+  },
+  {
+    "e": "⇘",
+    "n": "south east double arrow",
+    "a": "arrow",
+    "k": "south east double arrow arrow "
+  },
+  {
+    "e": "⇙",
+    "n": "south west double arrow",
+    "a": "arrow",
+    "k": "south west double arrow arrow "
+  },
+  {
+    "e": "⇚",
+    "n": "leftwards triple arrow",
+    "a": "arrow",
+    "k": "leftwards triple arrow arrow "
+  },
+  {
+    "e": "⇛",
+    "n": "rightwards triple arrow",
+    "a": "arrow",
+    "k": "rightwards triple arrow arrow "
+  },
+  {
+    "e": "⇜",
+    "n": "leftwards squiggle arrow",
+    "a": "arrow",
+    "k": "leftwards squiggle arrow arrow "
+  },
+  {
+    "e": "⇝",
+    "n": "rightwards squiggle arrow",
+    "a": "arrow",
+    "k": "rightwards squiggle arrow arrow "
+  },
+  {
+    "e": "⇞",
+    "n": "upwards arrow with double stroke",
+    "a": "arrow",
+    "k": "upwards arrow with double stroke arrow "
+  },
+  {
+    "e": "⇟",
+    "n": "downwards arrow with double stroke",
+    "a": "arrow",
+    "k": "downwards arrow with double stroke arrow "
+  },
+  {
+    "e": "⇠",
+    "n": "leftwards dashed arrow",
+    "a": "arrow",
+    "k": "leftwards dashed arrow arrow "
+  },
+  {
+    "e": "⇡",
+    "n": "upwards dashed arrow",
+    "a": "arrow",
+    "k": "upwards dashed arrow arrow "
+  },
+  {
+    "e": "⇢",
+    "n": "rightwards dashed arrow",
+    "a": "arrow",
+    "k": "rightwards dashed arrow arrow "
+  },
+  {
+    "e": "⇣",
+    "n": "downwards dashed arrow",
+    "a": "arrow",
+    "k": "downwards dashed arrow arrow "
+  },
+  {
+    "e": "⇤",
+    "n": "leftwards arrow to bar",
+    "a": "arrow",
+    "k": "leftwards arrow to bar arrow "
+  },
+  {
+    "e": "⇥",
+    "n": "rightwards arrow to bar",
+    "a": "arrow",
+    "k": "rightwards arrow to bar arrow "
+  },
+  {
+    "e": "⇦",
+    "n": "leftwards white arrow",
+    "a": "arrow",
+    "k": "leftwards white arrow arrow "
+  },
+  {
+    "e": "⇧",
+    "n": "upwards white arrow",
+    "a": "shift",
+    "k": "upwards white arrow arrow shift"
+  },
+  {
+    "e": "⇨",
+    "n": "rightwards white arrow",
+    "a": "arrow",
+    "k": "rightwards white arrow arrow "
+  },
+  {
+    "e": "⇩",
+    "n": "downwards white arrow",
+    "a": "arrow",
+    "k": "downwards white arrow arrow "
+  },
+  {
+    "e": "⇪",
+    "n": "upwards white arrow from bar",
+    "a": "caps lock capslock",
+    "k": "upwards white arrow from bar arrow caps lock capslock"
+  },
+  {
+    "e": "⇫",
+    "n": "upwards white arrow on pedestal",
+    "a": "arrow",
+    "k": "upwards white arrow on pedestal arrow "
+  },
+  {
+    "e": "⇬",
+    "n": "upwards white arrow on pedestal with horizontal bar",
+    "a": "arrow",
+    "k": "upwards white arrow on pedestal with horizontal bar arrow "
+  },
+  {
+    "e": "⇭",
+    "n": "upwards white arrow on pedestal with vertical bar",
+    "a": "arrow",
+    "k": "upwards white arrow on pedestal with vertical bar arrow "
+  },
+  {
+    "e": "⇮",
+    "n": "upwards white double arrow",
+    "a": "arrow",
+    "k": "upwards white double arrow arrow "
+  },
+  {
+    "e": "⇯",
+    "n": "upwards white double arrow on pedestal",
+    "a": "arrow",
+    "k": "upwards white double arrow on pedestal arrow "
+  },
+  {
+    "e": "⇰",
+    "n": "rightwards white arrow from wall",
+    "a": "arrow",
+    "k": "rightwards white arrow from wall arrow "
+  },
+  {
+    "e": "⇱",
+    "n": "north west arrow to corner",
+    "a": "arrow",
+    "k": "north west arrow to corner arrow "
+  },
+  {
+    "e": "⇲",
+    "n": "south east arrow to corner",
+    "a": "arrow",
+    "k": "south east arrow to corner arrow "
+  },
+  {
+    "e": "⇳",
+    "n": "up down white arrow",
+    "a": "arrow",
+    "k": "up down white arrow arrow "
+  },
+  {
+    "e": "⇴",
+    "n": "right arrow with small circle",
+    "a": "arrow",
+    "k": "right arrow with small circle arrow "
+  },
+  {
+    "e": "⇵",
+    "n": "downwards arrow leftwards of upwards arrow",
+    "a": "arrow",
+    "k": "downwards arrow leftwards of upwards arrow arrow "
+  },
+  {
+    "e": "⇶",
+    "n": "three rightwards arrows",
+    "a": "arrow",
+    "k": "three rightwards arrows arrow "
+  },
+  {
+    "e": "⇷",
+    "n": "leftwards arrow with vertical stroke",
+    "a": "arrow",
+    "k": "leftwards arrow with vertical stroke arrow "
+  },
+  {
+    "e": "⇸",
+    "n": "rightwards arrow with vertical stroke",
+    "a": "arrow",
+    "k": "rightwards arrow with vertical stroke arrow "
+  },
+  {
+    "e": "⇹",
+    "n": "left right arrow with vertical stroke",
+    "a": "arrow",
+    "k": "left right arrow with vertical stroke arrow "
+  },
+  {
+    "e": "⇺",
+    "n": "leftwards arrow with double vertical stroke",
+    "a": "arrow",
+    "k": "leftwards arrow with double vertical stroke arrow "
+  },
+  {
+    "e": "⇻",
+    "n": "rightwards arrow with double vertical stroke",
+    "a": "arrow",
+    "k": "rightwards arrow with double vertical stroke arrow "
+  },
+  {
+    "e": "⇼",
+    "n": "left right arrow with double vertical stroke",
+    "a": "arrow",
+    "k": "left right arrow with double vertical stroke arrow "
+  },
+  {
+    "e": "⇽",
+    "n": "leftwards open-headed arrow",
+    "a": "arrow",
+    "k": "leftwards open-headed arrow arrow "
+  },
+  {
+    "e": "⇾",
+    "n": "rightwards open-headed arrow",
+    "a": "arrow",
+    "k": "rightwards open-headed arrow arrow "
+  },
+  {
+    "e": "⇿",
+    "n": "left right open-headed arrow",
+    "a": "arrow",
+    "k": "left right open-headed arrow arrow "
+  },
+  {
+    "e": "∀",
+    "n": "for all",
+    "a": "math",
+    "k": "for all math "
+  },
+  {
+    "e": "∁",
+    "n": "complement",
+    "a": "math",
+    "k": "complement math "
+  },
+  {
+    "e": "∂",
+    "n": "partial differential",
+    "a": "math",
+    "k": "partial differential math "
+  },
+  {
+    "e": "∃",
+    "n": "there exists",
+    "a": "math",
+    "k": "there exists math "
+  },
+  {
+    "e": "∄",
+    "n": "there does not exist",
+    "a": "math",
+    "k": "there does not exist math "
+  },
+  {
+    "e": "∅",
+    "n": "empty set",
+    "a": "math",
+    "k": "empty set math "
+  },
+  {
+    "e": "∆",
+    "n": "increment",
+    "a": "math",
+    "k": "increment math "
+  },
+  {
+    "e": "∇",
+    "n": "nabla",
+    "a": "math",
+    "k": "nabla math "
+  },
+  {
+    "e": "∈",
+    "n": "element of",
+    "a": "math",
+    "k": "element of math "
+  },
+  {
+    "e": "∉",
+    "n": "not an element of",
+    "a": "math",
+    "k": "not an element of math "
+  },
+  {
+    "e": "∊",
+    "n": "small element of",
+    "a": "math",
+    "k": "small element of math "
+  },
+  {
+    "e": "∋",
+    "n": "contains as member",
+    "a": "math",
+    "k": "contains as member math "
+  },
+  {
+    "e": "∌",
+    "n": "does not contain as member",
+    "a": "math",
+    "k": "does not contain as member math "
+  },
+  {
+    "e": "∍",
+    "n": "small contains as member",
+    "a": "math",
+    "k": "small contains as member math "
+  },
+  {
+    "e": "∎",
+    "n": "end of proof",
+    "a": "math",
+    "k": "end of proof math "
+  },
+  {
+    "e": "∏",
+    "n": "n-ary product",
+    "a": "product",
+    "k": "n-ary product math product"
+  },
+  {
+    "e": "∐",
+    "n": "n-ary coproduct",
+    "a": "math",
+    "k": "n-ary coproduct math "
+  },
+  {
+    "e": "∑",
+    "n": "n-ary summation",
+    "a": "sum summation sigma",
+    "k": "n-ary summation math sum summation sigma"
+  },
+  {
+    "e": "−",
+    "n": "minus sign",
+    "a": "math",
+    "k": "minus sign math "
+  },
+  {
+    "e": "∓",
+    "n": "minus-or-plus sign",
+    "a": "math",
+    "k": "minus-or-plus sign math "
+  },
+  {
+    "e": "∔",
+    "n": "dot plus",
+    "a": "math",
+    "k": "dot plus math "
+  },
+  {
+    "e": "∕",
+    "n": "division slash",
+    "a": "math",
+    "k": "division slash math "
+  },
+  {
+    "e": "∖",
+    "n": "set minus",
+    "a": "math",
+    "k": "set minus math "
+  },
+  {
+    "e": "∗",
+    "n": "asterisk operator",
+    "a": "math",
+    "k": "asterisk operator math "
+  },
+  {
+    "e": "∘",
+    "n": "ring operator",
+    "a": "math",
+    "k": "ring operator math "
+  },
+  {
+    "e": "∙",
+    "n": "bullet operator",
+    "a": "math",
+    "k": "bullet operator math "
+  },
+  {
+    "e": "√",
+    "n": "square root",
+    "a": "square root sqrt",
+    "k": "square root math square root sqrt"
+  },
+  {
+    "e": "∛",
+    "n": "cube root",
+    "a": "math",
+    "k": "cube root math "
+  },
+  {
+    "e": "∜",
+    "n": "fourth root",
+    "a": "math",
+    "k": "fourth root math "
+  },
+  {
+    "e": "∝",
+    "n": "proportional to",
+    "a": "math",
+    "k": "proportional to math "
+  },
+  {
+    "e": "∞",
+    "n": "infinity",
+    "a": "infinity",
+    "k": "infinity math infinity"
+  },
+  {
+    "e": "∟",
+    "n": "right angle",
+    "a": "math",
+    "k": "right angle math "
+  },
+  {
+    "e": "∠",
+    "n": "angle",
+    "a": "math",
+    "k": "angle math "
+  },
+  {
+    "e": "∡",
+    "n": "measured angle",
+    "a": "math",
+    "k": "measured angle math "
+  },
+  {
+    "e": "∢",
+    "n": "spherical angle",
+    "a": "math",
+    "k": "spherical angle math "
+  },
+  {
+    "e": "∣",
+    "n": "divides",
+    "a": "math",
+    "k": "divides math "
+  },
+  {
+    "e": "∤",
+    "n": "does not divide",
+    "a": "math",
+    "k": "does not divide math "
+  },
+  {
+    "e": "∥",
+    "n": "parallel to",
+    "a": "math",
+    "k": "parallel to math "
+  },
+  {
+    "e": "∦",
+    "n": "not parallel to",
+    "a": "math",
+    "k": "not parallel to math "
+  },
+  {
+    "e": "∧",
+    "n": "logical and",
+    "a": "math",
+    "k": "logical and math "
+  },
+  {
+    "e": "∨",
+    "n": "logical or",
+    "a": "math",
+    "k": "logical or math "
+  },
+  {
+    "e": "∩",
+    "n": "intersection",
+    "a": "math",
+    "k": "intersection math "
+  },
+  {
+    "e": "∪",
+    "n": "union",
+    "a": "math",
+    "k": "union math "
+  },
+  {
+    "e": "∫",
+    "n": "integral",
+    "a": "integral",
+    "k": "integral math integral"
+  },
+  {
+    "e": "∬",
+    "n": "double integral",
+    "a": "math",
+    "k": "double integral math "
+  },
+  {
+    "e": "∭",
+    "n": "triple integral",
+    "a": "math",
+    "k": "triple integral math "
+  },
+  {
+    "e": "∮",
+    "n": "contour integral",
+    "a": "math",
+    "k": "contour integral math "
+  },
+  {
+    "e": "∯",
+    "n": "surface integral",
+    "a": "math",
+    "k": "surface integral math "
+  },
+  {
+    "e": "∰",
+    "n": "volume integral",
+    "a": "math",
+    "k": "volume integral math "
+  },
+  {
+    "e": "∱",
+    "n": "clockwise integral",
+    "a": "math",
+    "k": "clockwise integral math "
+  },
+  {
+    "e": "∲",
+    "n": "clockwise contour integral",
+    "a": "math",
+    "k": "clockwise contour integral math "
+  },
+  {
+    "e": "∳",
+    "n": "anticlockwise contour integral",
+    "a": "math",
+    "k": "anticlockwise contour integral math "
+  },
+  {
+    "e": "∴",
+    "n": "therefore",
+    "a": "math",
+    "k": "therefore math "
+  },
+  {
+    "e": "∵",
+    "n": "because",
+    "a": "math",
+    "k": "because math "
+  },
+  {
+    "e": "∶",
+    "n": "ratio",
+    "a": "math",
+    "k": "ratio math "
+  },
+  {
+    "e": "∷",
+    "n": "proportion",
+    "a": "math",
+    "k": "proportion math "
+  },
+  {
+    "e": "∸",
+    "n": "dot minus",
+    "a": "math",
+    "k": "dot minus math "
+  },
+  {
+    "e": "∹",
+    "n": "excess",
+    "a": "math",
+    "k": "excess math "
+  },
+  {
+    "e": "∺",
+    "n": "geometric proportion",
+    "a": "math",
+    "k": "geometric proportion math "
+  },
+  {
+    "e": "∻",
+    "n": "homothetic",
+    "a": "math",
+    "k": "homothetic math "
+  },
+  {
+    "e": "∼",
+    "n": "tilde operator",
+    "a": "math",
+    "k": "tilde operator math "
+  },
+  {
+    "e": "∽",
+    "n": "reversed tilde",
+    "a": "math",
+    "k": "reversed tilde math "
+  },
+  {
+    "e": "∾",
+    "n": "inverted lazy s",
+    "a": "math",
+    "k": "inverted lazy s math "
+  },
+  {
+    "e": "∿",
+    "n": "sine wave",
+    "a": "math",
+    "k": "sine wave math "
+  },
+  {
+    "e": "≀",
+    "n": "wreath product",
+    "a": "math",
+    "k": "wreath product math "
+  },
+  {
+    "e": "≁",
+    "n": "not tilde",
+    "a": "math",
+    "k": "not tilde math "
+  },
+  {
+    "e": "≂",
+    "n": "minus tilde",
+    "a": "math",
+    "k": "minus tilde math "
+  },
+  {
+    "e": "≃",
+    "n": "asymptotically equal to",
+    "a": "math",
+    "k": "asymptotically equal to math "
+  },
+  {
+    "e": "≄",
+    "n": "not asymptotically equal to",
+    "a": "math",
+    "k": "not asymptotically equal to math "
+  },
+  {
+    "e": "≅",
+    "n": "approximately equal to",
+    "a": "math",
+    "k": "approximately equal to math "
+  },
+  {
+    "e": "≆",
+    "n": "approximately but not actually equal to",
+    "a": "math",
+    "k": "approximately but not actually equal to math "
+  },
+  {
+    "e": "≇",
+    "n": "neither approximately nor actually equal to",
+    "a": "math",
+    "k": "neither approximately nor actually equal to math "
+  },
+  {
+    "e": "≈",
+    "n": "almost equal to",
+    "a": "approximately approx",
+    "k": "almost equal to math approximately approx"
+  },
+  {
+    "e": "≉",
+    "n": "not almost equal to",
+    "a": "math",
+    "k": "not almost equal to math "
+  },
+  {
+    "e": "≊",
+    "n": "almost equal or equal to",
+    "a": "math",
+    "k": "almost equal or equal to math "
+  },
+  {
+    "e": "≋",
+    "n": "triple tilde",
+    "a": "math",
+    "k": "triple tilde math "
+  },
+  {
+    "e": "≌",
+    "n": "all equal to",
+    "a": "math",
+    "k": "all equal to math "
+  },
+  {
+    "e": "≍",
+    "n": "equivalent to",
+    "a": "math",
+    "k": "equivalent to math "
+  },
+  {
+    "e": "≎",
+    "n": "geometrically equivalent to",
+    "a": "math",
+    "k": "geometrically equivalent to math "
+  },
+  {
+    "e": "≏",
+    "n": "difference between",
+    "a": "math",
+    "k": "difference between math "
+  },
+  {
+    "e": "≐",
+    "n": "approaches the limit",
+    "a": "math",
+    "k": "approaches the limit math "
+  },
+  {
+    "e": "≑",
+    "n": "geometrically equal to",
+    "a": "math",
+    "k": "geometrically equal to math "
+  },
+  {
+    "e": "≒",
+    "n": "approximately equal to or the image of",
+    "a": "math",
+    "k": "approximately equal to or the image of math "
+  },
+  {
+    "e": "≓",
+    "n": "image of or approximately equal to",
+    "a": "math",
+    "k": "image of or approximately equal to math "
+  },
+  {
+    "e": "≔",
+    "n": "colon equals",
+    "a": "math",
+    "k": "colon equals math "
+  },
+  {
+    "e": "≕",
+    "n": "equals colon",
+    "a": "math",
+    "k": "equals colon math "
+  },
+  {
+    "e": "≖",
+    "n": "ring in equal to",
+    "a": "math",
+    "k": "ring in equal to math "
+  },
+  {
+    "e": "≗",
+    "n": "ring equal to",
+    "a": "math",
+    "k": "ring equal to math "
+  },
+  {
+    "e": "≘",
+    "n": "corresponds to",
+    "a": "math",
+    "k": "corresponds to math "
+  },
+  {
+    "e": "≙",
+    "n": "estimates",
+    "a": "math",
+    "k": "estimates math "
+  },
+  {
+    "e": "≚",
+    "n": "equiangular to",
+    "a": "math",
+    "k": "equiangular to math "
+  },
+  {
+    "e": "≛",
+    "n": "star equals",
+    "a": "math",
+    "k": "star equals math "
+  },
+  {
+    "e": "≜",
+    "n": "delta equal to",
+    "a": "math",
+    "k": "delta equal to math "
+  },
+  {
+    "e": "≝",
+    "n": "equal to by definition",
+    "a": "math",
+    "k": "equal to by definition math "
+  },
+  {
+    "e": "≞",
+    "n": "measured by",
+    "a": "math",
+    "k": "measured by math "
+  },
+  {
+    "e": "≟",
+    "n": "questioned equal to",
+    "a": "math",
+    "k": "questioned equal to math "
+  },
+  {
+    "e": "≠",
+    "n": "not equal to",
+    "a": "not equal ne",
+    "k": "not equal to math not equal ne"
+  },
+  {
+    "e": "≡",
+    "n": "identical to",
+    "a": "math",
+    "k": "identical to math "
+  },
+  {
+    "e": "≢",
+    "n": "not identical to",
+    "a": "math",
+    "k": "not identical to math "
+  },
+  {
+    "e": "≣",
+    "n": "strictly equivalent to",
+    "a": "math",
+    "k": "strictly equivalent to math "
+  },
+  {
+    "e": "≤",
+    "n": "less-than or equal to",
+    "a": "less than or equal le",
+    "k": "less-than or equal to math less than or equal le"
+  },
+  {
+    "e": "≥",
+    "n": "greater-than or equal to",
+    "a": "greater than or equal ge",
+    "k": "greater-than or equal to math greater than or equal ge"
+  },
+  {
+    "e": "≦",
+    "n": "less-than over equal to",
+    "a": "math",
+    "k": "less-than over equal to math "
+  },
+  {
+    "e": "≧",
+    "n": "greater-than over equal to",
+    "a": "math",
+    "k": "greater-than over equal to math "
+  },
+  {
+    "e": "≨",
+    "n": "less-than but not equal to",
+    "a": "math",
+    "k": "less-than but not equal to math "
+  },
+  {
+    "e": "≩",
+    "n": "greater-than but not equal to",
+    "a": "math",
+    "k": "greater-than but not equal to math "
+  },
+  {
+    "e": "≪",
+    "n": "much less-than",
+    "a": "math",
+    "k": "much less-than math "
+  },
+  {
+    "e": "≫",
+    "n": "much greater-than",
+    "a": "math",
+    "k": "much greater-than math "
+  },
+  {
+    "e": "≬",
+    "n": "between",
+    "a": "math",
+    "k": "between math "
+  },
+  {
+    "e": "≭",
+    "n": "not equivalent to",
+    "a": "math",
+    "k": "not equivalent to math "
+  },
+  {
+    "e": "≮",
+    "n": "not less-than",
+    "a": "math",
+    "k": "not less-than math "
+  },
+  {
+    "e": "≯",
+    "n": "not greater-than",
+    "a": "math",
+    "k": "not greater-than math "
+  },
+  {
+    "e": "≰",
+    "n": "neither less-than nor equal to",
+    "a": "math",
+    "k": "neither less-than nor equal to math "
+  },
+  {
+    "e": "≱",
+    "n": "neither greater-than nor equal to",
+    "a": "math",
+    "k": "neither greater-than nor equal to math "
+  },
+  {
+    "e": "≲",
+    "n": "less-than or equivalent to",
+    "a": "math",
+    "k": "less-than or equivalent to math "
+  },
+  {
+    "e": "≳",
+    "n": "greater-than or equivalent to",
+    "a": "math",
+    "k": "greater-than or equivalent to math "
+  },
+  {
+    "e": "≴",
+    "n": "neither less-than nor equivalent to",
+    "a": "math",
+    "k": "neither less-than nor equivalent to math "
+  },
+  {
+    "e": "≵",
+    "n": "neither greater-than nor equivalent to",
+    "a": "math",
+    "k": "neither greater-than nor equivalent to math "
+  },
+  {
+    "e": "≶",
+    "n": "less-than or greater-than",
+    "a": "math",
+    "k": "less-than or greater-than math "
+  },
+  {
+    "e": "≷",
+    "n": "greater-than or less-than",
+    "a": "math",
+    "k": "greater-than or less-than math "
+  },
+  {
+    "e": "≸",
+    "n": "neither less-than nor greater-than",
+    "a": "math",
+    "k": "neither less-than nor greater-than math "
+  },
+  {
+    "e": "≹",
+    "n": "neither greater-than nor less-than",
+    "a": "math",
+    "k": "neither greater-than nor less-than math "
+  },
+  {
+    "e": "≺",
+    "n": "precedes",
+    "a": "math",
+    "k": "precedes math "
+  },
+  {
+    "e": "≻",
+    "n": "succeeds",
+    "a": "math",
+    "k": "succeeds math "
+  },
+  {
+    "e": "≼",
+    "n": "precedes or equal to",
+    "a": "math",
+    "k": "precedes or equal to math "
+  },
+  {
+    "e": "≽",
+    "n": "succeeds or equal to",
+    "a": "math",
+    "k": "succeeds or equal to math "
+  },
+  {
+    "e": "≾",
+    "n": "precedes or equivalent to",
+    "a": "math",
+    "k": "precedes or equivalent to math "
+  },
+  {
+    "e": "≿",
+    "n": "succeeds or equivalent to",
+    "a": "math",
+    "k": "succeeds or equivalent to math "
+  },
+  {
+    "e": "⊀",
+    "n": "does not precede",
+    "a": "math",
+    "k": "does not precede math "
+  },
+  {
+    "e": "⊁",
+    "n": "does not succeed",
+    "a": "math",
+    "k": "does not succeed math "
+  },
+  {
+    "e": "⊂",
+    "n": "subset of",
+    "a": "math",
+    "k": "subset of math "
+  },
+  {
+    "e": "⊃",
+    "n": "superset of",
+    "a": "math",
+    "k": "superset of math "
+  },
+  {
+    "e": "⊄",
+    "n": "not a subset of",
+    "a": "math",
+    "k": "not a subset of math "
+  },
+  {
+    "e": "⊅",
+    "n": "not a superset of",
+    "a": "math",
+    "k": "not a superset of math "
+  },
+  {
+    "e": "⊆",
+    "n": "subset of or equal to",
+    "a": "math",
+    "k": "subset of or equal to math "
+  },
+  {
+    "e": "⊇",
+    "n": "superset of or equal to",
+    "a": "math",
+    "k": "superset of or equal to math "
+  },
+  {
+    "e": "⊈",
+    "n": "neither a subset of nor equal to",
+    "a": "math",
+    "k": "neither a subset of nor equal to math "
+  },
+  {
+    "e": "⊉",
+    "n": "neither a superset of nor equal to",
+    "a": "math",
+    "k": "neither a superset of nor equal to math "
+  },
+  {
+    "e": "⊊",
+    "n": "subset of with not equal to",
+    "a": "math",
+    "k": "subset of with not equal to math "
+  },
+  {
+    "e": "⊋",
+    "n": "superset of with not equal to",
+    "a": "math",
+    "k": "superset of with not equal to math "
+  },
+  {
+    "e": "⊌",
+    "n": "multiset",
+    "a": "math",
+    "k": "multiset math "
+  },
+  {
+    "e": "⊍",
+    "n": "multiset multiplication",
+    "a": "math",
+    "k": "multiset multiplication math "
+  },
+  {
+    "e": "⊎",
+    "n": "multiset union",
+    "a": "math",
+    "k": "multiset union math "
+  },
+  {
+    "e": "⊏",
+    "n": "square image of",
+    "a": "math",
+    "k": "square image of math "
+  },
+  {
+    "e": "⊐",
+    "n": "square original of",
+    "a": "math",
+    "k": "square original of math "
+  },
+  {
+    "e": "⊑",
+    "n": "square image of or equal to",
+    "a": "math",
+    "k": "square image of or equal to math "
+  },
+  {
+    "e": "⊒",
+    "n": "square original of or equal to",
+    "a": "math",
+    "k": "square original of or equal to math "
+  },
+  {
+    "e": "⊓",
+    "n": "square cap",
+    "a": "math",
+    "k": "square cap math "
+  },
+  {
+    "e": "⊔",
+    "n": "square cup",
+    "a": "math",
+    "k": "square cup math "
+  },
+  {
+    "e": "⊕",
+    "n": "circled plus",
+    "a": "math",
+    "k": "circled plus math "
+  },
+  {
+    "e": "⊖",
+    "n": "circled minus",
+    "a": "math",
+    "k": "circled minus math "
+  },
+  {
+    "e": "⊗",
+    "n": "circled times",
+    "a": "math",
+    "k": "circled times math "
+  },
+  {
+    "e": "⊘",
+    "n": "circled division slash",
+    "a": "math",
+    "k": "circled division slash math "
+  },
+  {
+    "e": "⊙",
+    "n": "circled dot operator",
+    "a": "math",
+    "k": "circled dot operator math "
+  },
+  {
+    "e": "⊚",
+    "n": "circled ring operator",
+    "a": "math",
+    "k": "circled ring operator math "
+  },
+  {
+    "e": "⊛",
+    "n": "circled asterisk operator",
+    "a": "math",
+    "k": "circled asterisk operator math "
+  },
+  {
+    "e": "⊜",
+    "n": "circled equals",
+    "a": "math",
+    "k": "circled equals math "
+  },
+  {
+    "e": "⊝",
+    "n": "circled dash",
+    "a": "math",
+    "k": "circled dash math "
+  },
+  {
+    "e": "⊞",
+    "n": "squared plus",
+    "a": "math",
+    "k": "squared plus math "
+  },
+  {
+    "e": "⊟",
+    "n": "squared minus",
+    "a": "math",
+    "k": "squared minus math "
+  },
+  {
+    "e": "⊠",
+    "n": "squared times",
+    "a": "math",
+    "k": "squared times math "
+  },
+  {
+    "e": "⊡",
+    "n": "squared dot operator",
+    "a": "math",
+    "k": "squared dot operator math "
+  },
+  {
+    "e": "⊢",
+    "n": "right tack",
+    "a": "math",
+    "k": "right tack math "
+  },
+  {
+    "e": "⊣",
+    "n": "left tack",
+    "a": "math",
+    "k": "left tack math "
+  },
+  {
+    "e": "⊤",
+    "n": "down tack",
+    "a": "math",
+    "k": "down tack math "
+  },
+  {
+    "e": "⊥",
+    "n": "up tack",
+    "a": "math",
+    "k": "up tack math "
+  },
+  {
+    "e": "⊦",
+    "n": "assertion",
+    "a": "math",
+    "k": "assertion math "
+  },
+  {
+    "e": "⊧",
+    "n": "models",
+    "a": "math",
+    "k": "models math "
+  },
+  {
+    "e": "⊨",
+    "n": "true",
+    "a": "math",
+    "k": "true math "
+  },
+  {
+    "e": "⊩",
+    "n": "forces",
+    "a": "math",
+    "k": "forces math "
+  },
+  {
+    "e": "⊪",
+    "n": "triple vertical bar right turnstile",
+    "a": "math",
+    "k": "triple vertical bar right turnstile math "
+  },
+  {
+    "e": "⊫",
+    "n": "double vertical bar double right turnstile",
+    "a": "math",
+    "k": "double vertical bar double right turnstile math "
+  },
+  {
+    "e": "⊬",
+    "n": "does not prove",
+    "a": "math",
+    "k": "does not prove math "
+  },
+  {
+    "e": "⊭",
+    "n": "not true",
+    "a": "math",
+    "k": "not true math "
+  },
+  {
+    "e": "⊮",
+    "n": "does not force",
+    "a": "math",
+    "k": "does not force math "
+  },
+  {
+    "e": "⊯",
+    "n": "negated double vertical bar double right turnstile",
+    "a": "math",
+    "k": "negated double vertical bar double right turnstile math "
+  },
+  {
+    "e": "⊰",
+    "n": "precedes under relation",
+    "a": "math",
+    "k": "precedes under relation math "
+  },
+  {
+    "e": "⊱",
+    "n": "succeeds under relation",
+    "a": "math",
+    "k": "succeeds under relation math "
+  },
+  {
+    "e": "⊲",
+    "n": "normal subgroup of",
+    "a": "math",
+    "k": "normal subgroup of math "
+  },
+  {
+    "e": "⊳",
+    "n": "contains as normal subgroup",
+    "a": "math",
+    "k": "contains as normal subgroup math "
+  },
+  {
+    "e": "⊴",
+    "n": "normal subgroup of or equal to",
+    "a": "math",
+    "k": "normal subgroup of or equal to math "
+  },
+  {
+    "e": "⊵",
+    "n": "contains as normal subgroup or equal to",
+    "a": "math",
+    "k": "contains as normal subgroup or equal to math "
+  },
+  {
+    "e": "⊶",
+    "n": "original of",
+    "a": "math",
+    "k": "original of math "
+  },
+  {
+    "e": "⊷",
+    "n": "image of",
+    "a": "math",
+    "k": "image of math "
+  },
+  {
+    "e": "⊸",
+    "n": "multimap",
+    "a": "math",
+    "k": "multimap math "
+  },
+  {
+    "e": "⊹",
+    "n": "hermitian conjugate matrix",
+    "a": "math",
+    "k": "hermitian conjugate matrix math "
+  },
+  {
+    "e": "⊺",
+    "n": "intercalate",
+    "a": "math",
+    "k": "intercalate math "
+  },
+  {
+    "e": "⊻",
+    "n": "xor",
+    "a": "math",
+    "k": "xor math "
+  },
+  {
+    "e": "⊼",
+    "n": "nand",
+    "a": "math",
+    "k": "nand math "
+  },
+  {
+    "e": "⊽",
+    "n": "nor",
+    "a": "math",
+    "k": "nor math "
+  },
+  {
+    "e": "⊾",
+    "n": "right angle with arc",
+    "a": "math",
+    "k": "right angle with arc math "
+  },
+  {
+    "e": "⊿",
+    "n": "right triangle",
+    "a": "math",
+    "k": "right triangle math "
+  },
+  {
+    "e": "⋀",
+    "n": "n-ary logical and",
+    "a": "math",
+    "k": "n-ary logical and math "
+  },
+  {
+    "e": "⋁",
+    "n": "n-ary logical or",
+    "a": "math",
+    "k": "n-ary logical or math "
+  },
+  {
+    "e": "⋂",
+    "n": "n-ary intersection",
+    "a": "math",
+    "k": "n-ary intersection math "
+  },
+  {
+    "e": "⋃",
+    "n": "n-ary union",
+    "a": "math",
+    "k": "n-ary union math "
+  },
+  {
+    "e": "⋄",
+    "n": "diamond operator",
+    "a": "math",
+    "k": "diamond operator math "
+  },
+  {
+    "e": "⋅",
+    "n": "dot operator",
+    "a": "math",
+    "k": "dot operator math "
+  },
+  {
+    "e": "⋆",
+    "n": "star operator",
+    "a": "math",
+    "k": "star operator math "
+  },
+  {
+    "e": "⋇",
+    "n": "division times",
+    "a": "math",
+    "k": "division times math "
+  },
+  {
+    "e": "⋈",
+    "n": "bowtie",
+    "a": "math",
+    "k": "bowtie math "
+  },
+  {
+    "e": "⋉",
+    "n": "left normal factor semidirect product",
+    "a": "math",
+    "k": "left normal factor semidirect product math "
+  },
+  {
+    "e": "⋊",
+    "n": "right normal factor semidirect product",
+    "a": "math",
+    "k": "right normal factor semidirect product math "
+  },
+  {
+    "e": "⋋",
+    "n": "left semidirect product",
+    "a": "math",
+    "k": "left semidirect product math "
+  },
+  {
+    "e": "⋌",
+    "n": "right semidirect product",
+    "a": "math",
+    "k": "right semidirect product math "
+  },
+  {
+    "e": "⋍",
+    "n": "reversed tilde equals",
+    "a": "math",
+    "k": "reversed tilde equals math "
+  },
+  {
+    "e": "⋎",
+    "n": "curly logical or",
+    "a": "math",
+    "k": "curly logical or math "
+  },
+  {
+    "e": "⋏",
+    "n": "curly logical and",
+    "a": "math",
+    "k": "curly logical and math "
+  },
+  {
+    "e": "⋐",
+    "n": "double subset",
+    "a": "math",
+    "k": "double subset math "
+  },
+  {
+    "e": "⋑",
+    "n": "double superset",
+    "a": "math",
+    "k": "double superset math "
+  },
+  {
+    "e": "⋒",
+    "n": "double intersection",
+    "a": "math",
+    "k": "double intersection math "
+  },
+  {
+    "e": "⋓",
+    "n": "double union",
+    "a": "math",
+    "k": "double union math "
+  },
+  {
+    "e": "⋔",
+    "n": "pitchfork",
+    "a": "math",
+    "k": "pitchfork math "
+  },
+  {
+    "e": "⋕",
+    "n": "equal and parallel to",
+    "a": "math",
+    "k": "equal and parallel to math "
+  },
+  {
+    "e": "⋖",
+    "n": "less-than with dot",
+    "a": "math",
+    "k": "less-than with dot math "
+  },
+  {
+    "e": "⋗",
+    "n": "greater-than with dot",
+    "a": "math",
+    "k": "greater-than with dot math "
+  },
+  {
+    "e": "⋘",
+    "n": "very much less-than",
+    "a": "math",
+    "k": "very much less-than math "
+  },
+  {
+    "e": "⋙",
+    "n": "very much greater-than",
+    "a": "math",
+    "k": "very much greater-than math "
+  },
+  {
+    "e": "⋚",
+    "n": "less-than equal to or greater-than",
+    "a": "math",
+    "k": "less-than equal to or greater-than math "
+  },
+  {
+    "e": "⋛",
+    "n": "greater-than equal to or less-than",
+    "a": "math",
+    "k": "greater-than equal to or less-than math "
+  },
+  {
+    "e": "⋜",
+    "n": "equal to or less-than",
+    "a": "math",
+    "k": "equal to or less-than math "
+  },
+  {
+    "e": "⋝",
+    "n": "equal to or greater-than",
+    "a": "math",
+    "k": "equal to or greater-than math "
+  },
+  {
+    "e": "⋞",
+    "n": "equal to or precedes",
+    "a": "math",
+    "k": "equal to or precedes math "
+  },
+  {
+    "e": "⋟",
+    "n": "equal to or succeeds",
+    "a": "math",
+    "k": "equal to or succeeds math "
+  },
+  {
+    "e": "⋠",
+    "n": "does not precede or equal",
+    "a": "math",
+    "k": "does not precede or equal math "
+  },
+  {
+    "e": "⋡",
+    "n": "does not succeed or equal",
+    "a": "math",
+    "k": "does not succeed or equal math "
+  },
+  {
+    "e": "⋢",
+    "n": "not square image of or equal to",
+    "a": "math",
+    "k": "not square image of or equal to math "
+  },
+  {
+    "e": "⋣",
+    "n": "not square original of or equal to",
+    "a": "math",
+    "k": "not square original of or equal to math "
+  },
+  {
+    "e": "⋤",
+    "n": "square image of or not equal to",
+    "a": "math",
+    "k": "square image of or not equal to math "
+  },
+  {
+    "e": "⋥",
+    "n": "square original of or not equal to",
+    "a": "math",
+    "k": "square original of or not equal to math "
+  },
+  {
+    "e": "⋦",
+    "n": "less-than but not equivalent to",
+    "a": "math",
+    "k": "less-than but not equivalent to math "
+  },
+  {
+    "e": "⋧",
+    "n": "greater-than but not equivalent to",
+    "a": "math",
+    "k": "greater-than but not equivalent to math "
+  },
+  {
+    "e": "⋨",
+    "n": "precedes but not equivalent to",
+    "a": "math",
+    "k": "precedes but not equivalent to math "
+  },
+  {
+    "e": "⋩",
+    "n": "succeeds but not equivalent to",
+    "a": "math",
+    "k": "succeeds but not equivalent to math "
+  },
+  {
+    "e": "⋪",
+    "n": "not normal subgroup of",
+    "a": "math",
+    "k": "not normal subgroup of math "
+  },
+  {
+    "e": "⋫",
+    "n": "does not contain as normal subgroup",
+    "a": "math",
+    "k": "does not contain as normal subgroup math "
+  },
+  {
+    "e": "⋬",
+    "n": "not normal subgroup of or equal to",
+    "a": "math",
+    "k": "not normal subgroup of or equal to math "
+  },
+  {
+    "e": "⋭",
+    "n": "does not contain as normal subgroup or equal",
+    "a": "math",
+    "k": "does not contain as normal subgroup or equal math "
+  },
+  {
+    "e": "⋮",
+    "n": "vertical ellipsis",
+    "a": "math",
+    "k": "vertical ellipsis math "
+  },
+  {
+    "e": "⋯",
+    "n": "midline horizontal ellipsis",
+    "a": "math",
+    "k": "midline horizontal ellipsis math "
+  },
+  {
+    "e": "⋰",
+    "n": "up right diagonal ellipsis",
+    "a": "math",
+    "k": "up right diagonal ellipsis math "
+  },
+  {
+    "e": "⋱",
+    "n": "down right diagonal ellipsis",
+    "a": "math",
+    "k": "down right diagonal ellipsis math "
+  },
+  {
+    "e": "⋲",
+    "n": "element of with long horizontal stroke",
+    "a": "math",
+    "k": "element of with long horizontal stroke math "
+  },
+  {
+    "e": "⋳",
+    "n": "element of with vertical bar at end of horizontal stroke",
+    "a": "math",
+    "k": "element of with vertical bar at end of horizontal stroke math "
+  },
+  {
+    "e": "⋴",
+    "n": "small element of with vertical bar at end of horizontal stroke",
+    "a": "math",
+    "k": "small element of with vertical bar at end of horizontal stroke math "
+  },
+  {
+    "e": "⋵",
+    "n": "element of with dot above",
+    "a": "math",
+    "k": "element of with dot above math "
+  },
+  {
+    "e": "⋶",
+    "n": "element of with overbar",
+    "a": "math",
+    "k": "element of with overbar math "
+  },
+  {
+    "e": "⋷",
+    "n": "small element of with overbar",
+    "a": "math",
+    "k": "small element of with overbar math "
+  },
+  {
+    "e": "⋸",
+    "n": "element of with underbar",
+    "a": "math",
+    "k": "element of with underbar math "
+  },
+  {
+    "e": "⋹",
+    "n": "element of with two horizontal strokes",
+    "a": "math",
+    "k": "element of with two horizontal strokes math "
+  },
+  {
+    "e": "⋺",
+    "n": "contains with long horizontal stroke",
+    "a": "math",
+    "k": "contains with long horizontal stroke math "
+  },
+  {
+    "e": "⋻",
+    "n": "contains with vertical bar at end of horizontal stroke",
+    "a": "math",
+    "k": "contains with vertical bar at end of horizontal stroke math "
+  },
+  {
+    "e": "⋼",
+    "n": "small contains with vertical bar at end of horizontal stroke",
+    "a": "math",
+    "k": "small contains with vertical bar at end of horizontal stroke math "
+  },
+  {
+    "e": "⋽",
+    "n": "contains with overbar",
+    "a": "math",
+    "k": "contains with overbar math "
+  },
+  {
+    "e": "⋾",
+    "n": "small contains with overbar",
+    "a": "math",
+    "k": "small contains with overbar math "
+  },
+  {
+    "e": "⋿",
+    "n": "z notation bag membership",
+    "a": "math",
+    "k": "z notation bag membership math "
+  },
+  {
+    "e": "⌃",
+    "n": "up arrowhead",
+    "a": "control ctrl",
+    "k": "up arrowhead key modifier control ctrl"
+  },
+  {
+    "e": "⌘",
+    "n": "place of interest sign",
+    "a": "command cmd clover",
+    "k": "place of interest sign key modifier command cmd clover"
+  },
+  {
+    "e": "⌤",
+    "n": "up arrowhead between two horizontal bars",
+    "a": "enter",
+    "k": "up arrowhead between two horizontal bars key modifier enter"
+  },
+  {
+    "e": "⌥",
+    "n": "option key",
+    "a": "option alt",
+    "k": "option key key modifier option alt"
+  },
+  {
+    "e": "⌦",
+    "n": "erase to the right",
+    "a": "forward delete",
+    "k": "erase to the right key modifier forward delete"
+  },
+  {
+    "e": "⌫",
+    "n": "erase to the left",
+    "a": "delete backspace erase",
+    "k": "erase to the left key modifier delete backspace erase"
+  },
+  {
+    "e": "⎇",
+    "n": "alternative key symbol",
+    "a": "alternate option",
+    "k": "alternative key symbol key modifier alternate option"
+  },
+  {
+    "e": "⎋",
+    "n": "broken circle with northwest arrow",
+    "a": "escape esc",
+    "k": "broken circle with northwest arrow key modifier escape esc"
+  },
+  {
+    "e": "⏎",
+    "n": "return symbol",
+    "a": "return enter",
+    "k": "return symbol key modifier return enter"
+  },
+  {
+    "e": "⏏",
+    "n": "eject symbol",
+    "a": "eject",
+    "k": "eject symbol key modifier eject"
   }
 ]
