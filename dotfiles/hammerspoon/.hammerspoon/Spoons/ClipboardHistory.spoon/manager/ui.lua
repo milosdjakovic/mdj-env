@@ -214,13 +214,16 @@ end
 
 -- The atom's rows supplier. Returns plain items; the atom styles them with the
 -- active palette. Filtering, the type prefix, the batch mark, and the thumbnail or
--- source-app icon are all clipboard policy and live here.
+-- source-app icon are all clipboard policy and live here. The free-text part runs through
+-- the injected shared matcher, the same one every chooser uses, so the clipboard gets the
+-- same search without the atom's ranking, keeping entries in recency order. Its score is
+-- used only as a yes or no, so a match keeps the row and the store order is preserved.
 local function buildChoices(q)
   local kind, rest = parseQuery(q)
   rest = (rest or ""):gsub("^%s+", ""):gsub("%s+$", ""):lower()
   local out = {}
   for _, e in ipairs(store.all()) do
-    if (not kind or e.kind == kind) and (rest == "" or haystack(e):find(rest, 1, true)) then
+    if (not kind or e.kind == kind) and (rest == "" or cfg.matcher(rest, haystack(e)) ~= nil) then
       -- An appended row shows its 1-based batch position as its icon (the keycap
       -- number), the most visible mark on the native chooser, which renders no icon
       -- badge. Otherwise a true image copy shows its own thumbnail and every other
@@ -1024,6 +1027,10 @@ function UI.build()
   picker = Chooser.new({
     theme = cfg.theme,
     fieldMode = "filter",
+    -- Opt out of the atom's filtering and ranking. The clipboard owns its query (it parses
+    -- a type prefix) and keeps recency order, so buildChoices filters with the shared
+    -- matcher itself rather than handing the atom the full list to rank.
+    matcher = false,
     placeholder = "Search clipboard",
     pollInterval = cfg.previewPoll,
     rows = buildChoices,

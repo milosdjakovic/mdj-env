@@ -433,6 +433,39 @@ A tool with two surfaces, like the VPN control panel and its location picker,
 wires each surface as its own participant, its own context block, predicate,
 registry entry, and overlay.
 
+**One matching policy for every chooser.** How a query filters a list is a single
+policy, decided once at the root and shared by every chooser, the same Strategy
+through injection shape as the overlay display screen. The matcher lives in one
+file, `Chooser.spoon/match.lua`, a pure `match(query, hay) -> score or nil` where
+nil drops a row and a number ranks it, higher first with the original order breaking
+ties. `Chooser.matchers` exposes the strategies, `fuzzy` (a greedy fzy style
+subsequence scorer, linear and allocation free so it is cheap per keystroke, with
+boundary, camel, and consecutive bonuses) and `substring` (the pre-fuzzy behaviour,
+every match scoring zero so the list keeps its natural order). `init.lua` injects one
+of them through `Chooser.configure({ matcher = ... })`, so switching every list
+between fuzzy and plain substring is one edit. Today it is fuzzy.
+
+The atom owns the filtering when a matcher is set and the field is in filter mode. The
+supplier returns the full candidate list and the atom scores it, keeps the matches,
+sorts by score, and styles only the survivors, so a supplier no longer writes its own
+`:find` test and the matching logic exists in exactly one place rather than copied into
+each tool. A row searchable by more than its visible text sets `filterText` to fold in
+hidden keywords or synonyms, defaulting to the title plus the subtitle. On an empty
+query the atom skips scoring and keeps the supplier's order, which is what makes the
+launcher's recency order and the VPN action row survive until the user types.
+
+Two knobs sit on the per-instance config, both the single `matcher` field. Omitting it
+inherits the root default. Setting it to `Chooser.matchers.substring` keeps search but
+drops fuzzy for that one tool. Setting it to `false` opts out of the shared matcher
+entirely, for a tool whose query is not a plain filter over a list. Two tools do that.
+Caffeinate's field is a value being typed, a time or a duration, parsed into one
+morphing row, so a matcher would only filter that row against its own label. The
+clipboard parses a leading type prefix (`img ...`) off its query, so it owns filtering,
+but it still reuses the same injected matcher for the free-text part and keeps its rows
+in recency order rather than reranking, so the one matcher policy reaches it too. So
+every list chooser is fuzzy by default with no per-tool wiring, and a future list
+chooser inherits it for free, while the two structured-query tools opt out in one word.
+
 **Clipboard preview.** The clipboard is the third native panel in the pair. Its
 manager reserves a companion pane beside the chooser (`layout.companionWidth`), and
 the atom polls the highlighted row and fires `onHighlight`, which draws the copied

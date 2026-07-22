@@ -33,12 +33,24 @@ end
 
 local native = load("providers/native.lua")
 
+--- Chooser.matchers - the shared matching strategies, exposed so the composition root
+--- names one and injects it, keeping the concrete policy in one place. Each is a
+--- match(query, hay) -> score or nil. See match.lua.
+obj.matchers = load("match.lua")
+
 -- The screen policy every chooser resolves against, injected once by the composition
--- root so the five consumers never thread it through themselves. It is the same seam
+-- root so the consumers never thread it through themselves. It is the same seam
 -- CanvasPanel reads, so the choosers and the cheat sheets agree on which display they
 -- use. Nil until configured, in which case an instance falls back to the native
 -- provider's own default (hs.screen.mainScreen).
 local DEFAULT_SCREEN = nil
+
+-- The matching strategy every filter-mode chooser inherits, injected once at the root
+-- so fuzzy versus substring is decided in a single edit and applies uniformly. Nil
+-- means the atom does no matching and the consumer's supplier owns filtering, the
+-- pre-injection behaviour. A consumer passing matcher = false in its own config opts
+-- out even when a default is set, for a tool whose query is not a plain filter.
+local DEFAULT_MATCHER = nil
 
 --- Chooser:init() - nothing to build; the native provider is loaded above.
 function obj:init()
@@ -46,20 +58,25 @@ function obj:init()
 end
 
 --- Chooser.configure(opts) - module-level defaults every new() inherits. opts.screen is
---- a function returning the hs.screen a chooser should appear on. One call at the root
---- wires the shared overlay display policy into every chooser at once.
+--- a function returning the hs.screen a chooser should appear on. opts.matcher is the
+--- shared filter strategy from Chooser.matchers. One call at the root wires the overlay
+--- display policy and the matching policy into every chooser at once.
 function obj.configure(opts)
   opts = opts or {}
   DEFAULT_SCREEN = opts.screen
+  DEFAULT_MATCHER = opts.matcher
   return obj
 end
 
 --- Chooser.new(config) -> picker instance. Dot called, matching the old atom. A
 --- config.provider field is accepted and ignored, since native is the only backend.
---- The configured default screen policy is folded in unless the config names its own.
+--- The configured default screen and matcher policies are folded in unless the config
+--- names its own. config.matcher = false opts out of the default so the supplier keeps
+--- owning filtering; nil inherits the default.
 function obj.new(config)
   config = config or {}
   if config.screen == nil then config.screen = DEFAULT_SCREEN end
+  if config.matcher == nil then config.matcher = DEFAULT_MATCHER end
   return native.new(config)
 end
 

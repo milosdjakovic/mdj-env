@@ -22,8 +22,17 @@
 ---                window is then forced onto that screen. Defaults to
 ---                hs.screen.mainScreen when omitted.
 ---   rows         REQUIRED supplier function(query) -> list of plain items, each
----                { title, subTitle, image, enabled, item }. Called on show,
----                refresh, and (in filter mode) on every query change.
+---                { title, subTitle, image, enabled, item, filterText }. Called on
+---                show, refresh, and (in filter mode) on every query change. When a
+---                matcher is set the supplier returns the full candidate list and the
+---                atom filters and ranks it, so the supplier no longer filters itself.
+---   matcher      function(query, hay) -> score or nil, from Chooser.matchers, usually
+---                injected as the module default. When set and in filter mode, the atom
+---                keeps only rows whose filterText matches and orders them by score,
+---                original order breaking ties. false opts out (supplier owns
+---                filtering), the default for a tool whose query is not a plain filter.
+---   filterText   per-row, the text the matcher searches, defaulting to the title plus
+---                the subtitle. A row sets it to fold in hidden keywords or synonyms.
 ---   onSelect     function(item) fired when a row is chosen (Return or the insert
 ---                key). Not fired for a disabled row or an empty dismissal.
 ---   onHighlight  function(item) fired when the highlight moves. Drives a
@@ -131,13 +140,45 @@ function Chooser:_toChoice(it)
   }
 end
 
+-- The text the matcher searches for a row, the explicit filterText or the title plus
+-- the subtitle. Kept here so a supplier that adds no filterText still matches on what
+-- it shows, exactly the haystack the old per-consumer substring tests used.
+local function haystackOf(it)
+  return it.filterText or ((it.title or "") .. " " .. (it.subTitle or ""))
+end
+
 -- Run the consumer's supplier for the current query and map to chooser choices,
--- keeping the mapped list so navigation and selection can read items back.
+-- keeping the mapped list so navigation and selection can read items back. With a
+-- matcher set and a non-empty query in filter mode the atom owns filtering: score every
+-- candidate, drop the misses, and sort by score with the original order breaking ties,
+-- so a stable secondary order like the launcher's recency still shows through. The
+-- styling in _toChoice then runs only for the survivors, so a heavy list styles a few
+-- matched rows per keystroke rather than all of them. Without a matcher, or on an empty
+-- query, every returned item is kept in order, the pre-injection behaviour, which is
+-- also the path a supplier that owns its own filtering (matcher = false) always takes.
 function Chooser:_build(query)
   local items = self.config.rows and self.config.rows(query) or {}
+  local matcher = self.matcher
   local out = {}
-  for i = 1, #items do
-    out[i] = self:_toChoice(items[i])
+  if type(matcher) == "function" and self.fieldMode == "filter" and query ~= "" then
+    local ranked = {}
+    for i = 1, #items do
+      local score = matcher(query, haystackOf(items[i]))
+      if score ~= nil then
+        ranked[#ranked + 1] = { it = items[i], score = score, idx = i }
+      end
+    end
+    table.sort(ranked, function(a, b)
+      if a.score ~= b.score then return a.score > b.score end
+      return a.idx < b.idx
+    end)
+    for i = 1, #ranked do
+      out[i] = self:_toChoice(ranked[i].it)
+    end
+  else
+    for i = 1, #items do
+      out[i] = self:_toChoice(items[i])
+    end
   end
   self.currentChoices = out
   return out
@@ -498,6 +539,10 @@ function obj.new(config)
     config = config,
     layout = layout,
     fieldMode = config.fieldMode or "filter",
+    -- The injected filter strategy, resolved by the facade to the module default when
+    -- the consumer named none. A function means the atom filters; false or nil means it
+    -- does not and the supplier owns filtering.
+    matcher = config.matcher,
     currentChoices = {},
     active = false,
     theme = FALLBACK.dark,
