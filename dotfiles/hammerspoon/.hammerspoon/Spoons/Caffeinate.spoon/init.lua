@@ -317,6 +317,11 @@ function M.start()
     theme = cfg.theme,
     placeholder = "Time or duration",
     fieldMode = "filter",
+    -- Opt out of the shared matcher. The field is not a filter over a list, it is a value
+    -- being typed, so the supplier re-parses the query each keystroke and returns the one
+    -- morphing row. Letting the matcher filter that row would drop it whenever the parsed
+    -- value did not fuzzy-match its own label.
+    matcher = false,
     layout = { rowCount = 2 },
     rows = rows,
     onSelect = onSelect,

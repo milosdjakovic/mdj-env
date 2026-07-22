@@ -400,23 +400,23 @@ function obj:_orderedRows()
   return rows
 end
 
---- Launcher:_commandRows(query)
+--- Launcher:_commandRows()
 --- Method
---- The row supplier. Filters the recency-ordered list by a case-insensitive
---- substring over the visible text plus any hidden keywords, so a settings pane is
---- found by a synonym its name lacks. Gated rows drop out live through the shared
+--- The row supplier. Returns the full recency-ordered list and lets the atom's shared
+--- matcher filter and rank it, exposing the visible text plus any hidden keywords as
+--- filterText so a settings pane is still found by a synonym its name lacks. On the
+--- empty query the atom keeps the recency order untouched, and when the user types, match
+--- quality leads with recency breaking ties. Gated rows drop out live through the shared
 --- predicate registry the window bindings use.
-function obj:_commandRows(query)
-  local q = (query or ""):lower()
+function obj:_commandRows(_)
   local out = {}
   local preds = self._predicates
   for _, row in ipairs(self:_orderedRows()) do
     if not (row.when and not (preds[row.when] and preds[row.when]())) then
-      local hay = row.title .. " " .. row.subTitle
-      if row.keywords then hay = hay .. " " .. row.keywords end
-      if q == "" or hay:lower():find(q, 1, true) then
-        out[#out + 1] = { title = row.title, subTitle = row.subTitle, image = row.image, item = row.item }
-      end
+      local filterText = row.title .. " " .. row.subTitle
+      if row.keywords then filterText = filterText .. " " .. row.keywords end
+      out[#out + 1] = { title = row.title, subTitle = row.subTitle, image = row.image,
+                        item = row.item, filterText = filterText }
     end
   end
   return out

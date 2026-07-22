@@ -468,6 +468,60 @@ capture lead with Save so Return saves, with Back trailing. So the rule is Back
 first on a navigable menu, and the safe or committing action first where selecting
 the first row on entry is what the user means.
 
+**One matching policy for every chooser.** How a query filters a list is a single
+policy, decided once at the root and shared by every chooser, the same Strategy
+through injection shape as the overlay display screen. The matcher lives in one
+file, `Chooser.spoon/match.lua`, a pure `match(query, hay) -> score or nil` where
+nil drops a row and a number ranks it, higher first with the original order breaking
+ties. `Chooser.matchers` exposes the strategies, `fuzzy` and `substring` (the
+pre-fuzzy behaviour, a plain substring test where every match scores zero so the list
+keeps its natural order). `init.lua` injects one through `Chooser.configure({ matcher
+= ... })`, so switching every list between fuzzy and plain substring is one edit. Today
+it is fuzzy.
+
+`fuzzy` is a small dynamic-programming subsequence scorer in the spirit of fzy, chosen
+over a greedy scan because greedy locks onto the leftmost occurrence of each letter, so
+it cannot find a term late in a long body and cannot tolerate a swapped letter, it
+starves the rest of the query once it takes a wrong turn. The DP explores every
+alignment for the query length times the haystack length per row, still well under a
+frame over a few hundred rows at typing speed. It carries three decisions worth
+knowing. Extending a contiguous run outscores landing on a word start, so a
+near-contiguous match beats the same letters scattered across the separate words of a
+keyword bag, the bug where Device Management outranked Displays for `dspl`. Inner gaps
+between matched characters cost real points while the leading and trailing gaps are
+nearly free, so a wide scattered span is penalized but a term sitting deep in a long
+clipboard body is not. And it tolerates typos, a query character it cannot place is
+skipped at a fixed cost, so a missed, misspelled, or swapped letter still hits, with no
+hard budget since enough skips just sink the score. A relevance floor scaled to the
+query length then drops whatever scores too low, the scattered tail, the absent letter,
+the query that is mostly wrong. The weights, the floor, and the typo cost are named
+constants at the top of `match.lua`, tuned so the floor cuts obvious noise while
+staying loose enough to forgive a fumbled letter; raising the floor step cuts more.
+
+The atom owns the filtering when a matcher is set and the field is in filter mode. The
+supplier returns the full candidate list and the atom scores it, keeps the matches,
+sorts by score, and styles only the survivors, so a supplier no longer writes its own
+`:find` test and the matching logic exists in exactly one place rather than copied into
+each tool. A row searchable by more than its visible text sets `filterText` to fold in
+hidden keywords or synonyms, defaulting to the title plus the subtitle. On an empty
+query the atom skips scoring and keeps the supplier's order, which is what makes the
+launcher's recency order and the VPN action row survive until the user types.
+
+Two knobs sit on the per-instance config, both the single `matcher` field. Omitting it
+inherits the root default. Setting it to `Chooser.matchers.substring` keeps search but
+drops fuzzy for that one tool. Setting it to `false` opts out of the shared matcher
+entirely, for a tool whose query is not a plain filter over a list. Three tools do that.
+Caffeinate's field is a value being typed, a time or a duration, parsed into one morphing
+row, so a matcher would only filter that row against its own label. The DisplayProfiles
+menu is the same shape, a stack of frames whose field filters at the top but is a name
+entry on the rename and capture screens, so its supplier morphs the rows from the query
+and the atom must not second-guess them, which would hide the Back row and the Save row.
+The clipboard parses a leading type prefix (`img ...`) off its query, so it owns
+filtering, but it still reuses the same injected matcher for the free-text part and keeps
+its rows in recency order rather than reranking, so the one matcher policy reaches it too.
+So every list chooser is fuzzy by default with no per-tool wiring, and a future list
+chooser inherits it for free, while the structured-query tools opt out in one word.
+
 **Clipboard preview.** The clipboard is the third native panel in the pair. Its
 manager reserves a companion pane beside the chooser (`layout.companionWidth`), and
 the atom polls the highlighted row and fires `onHighlight`, which draws the copied

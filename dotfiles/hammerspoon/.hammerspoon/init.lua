@@ -504,7 +504,13 @@ local function overlayScreen()
   return fn() or hs.screen.primaryScreen()
 end
 spoon.CanvasPanel.setScreenProvider(overlayScreen)
-spoon.Chooser.configure({ screen = overlayScreen })
+-- One matching policy for every chooser, decided here. Fuzzy subsequence ranking is the
+-- default, so the launcher, VPN, and menu search filter alike and a future list chooser
+-- gets it for free. The clipboard and caffeinate opt out at their own new() (matcher =
+-- false) because their query is not a plain filter, the clipboard parsing a type prefix
+-- and then reusing this same matcher for the free-text part, caffeinate parsing a time.
+-- Swap to spoon.Chooser.matchers.substring here to return every list to the old behaviour.
+spoon.Chooser.configure({ screen = overlayScreen, matcher = spoon.Chooser.matchers.fuzzy })
 
 -- Finish wiring the cheat sheet. It draws its binding grid through the CanvasPanel
 -- atom, centered on screen, inheriting the one shared surface, so no fill or border
@@ -741,23 +747,21 @@ local menuTargetApp   -- the app frontmost when Hyper+E fired, the dispatch targ
 local menuAppIcon     -- the target app's icon, shown on every row (one app per open)
 local menuAppKey      -- a stable icon key so that icon is encoded once, not per row
 
--- Rows supplier: case-insensitive substring over the item title and its menu path,
--- so typing a parent menu name (File, Format) narrows too. The shortcut glyph rides
--- in the subtitle after the path.
-local function menuSearchRows(query)
-  local q = (query or ""):lower()
+-- Rows supplier. Returns every menu item and lets the atom's shared matcher filter and
+-- rank, so typing a parent menu name (File, Format) narrows too since the path rides in
+-- filterText. The shortcut glyph rides in the subtitle after the path.
+local function menuSearchRows(_)
   local out = {}
   for _, r in ipairs(menuRows) do
-    if q == "" or (r.title .. " " .. r.parents):lower():find(q, 1, true) then
-      local subtitle = r.parents
-      if r.shortcut then
-        subtitle = (subtitle ~= "" and (subtitle .. "   ") or "") .. r.shortcut
-      end
-      -- Every item belongs to the one captured app, so each row shows that app's
-      -- icon. The stable key memoizes the encoded icon once rather than per row.
-      out[#out + 1] = { title = r.title, subTitle = subtitle, image = menuAppIcon,
-                        iconKey = menuAppKey, item = { path = r.path } }
+    local subtitle = r.parents
+    if r.shortcut then
+      subtitle = (subtitle ~= "" and (subtitle .. "   ") or "") .. r.shortcut
     end
+    -- Every item belongs to the one captured app, so each row shows that app's
+    -- icon. The stable key memoizes the encoded icon once rather than per row.
+    out[#out + 1] = { title = r.title, subTitle = subtitle, image = menuAppIcon,
+                      iconKey = menuAppKey, item = { path = r.path },
+                      filterText = r.title .. " " .. r.parents }
   end
   return out
 end
@@ -877,6 +881,11 @@ local clipPanel = shortcutPanelFor("clipboard")
 spoon.ClipboardHistory.manager.configure({
   theme = settings.chooserTheme,
   chooser = spoon.Chooser,
+  -- The clipboard parses a type prefix off its query ("img ...") so it owns filtering and
+  -- opts out of the atom's matcher at its own new(). It reuses this same shared matcher for
+  -- the free-text part, so the one matcher policy still reaches the clipboard. Swap this to
+  -- spoon.Chooser.matchers.substring to give the clipboard plain substring search.
+  matcher = spoon.Chooser.matchers.fuzzy,
   -- The preview pane paints its background and border through the shared surface, so
   -- it matches the docked hint panel and the cheat sheet and rounds the same way. The
   -- clipboard draws its own canvas (it scrolls and clips), so it gets the surface as

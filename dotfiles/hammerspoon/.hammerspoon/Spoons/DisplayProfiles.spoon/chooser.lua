@@ -414,6 +414,12 @@ function M.start()
     theme = cfg.theme,
     placeholder = "Search profiles",
     fieldMode = "filter",
+    -- Opt out of the shared matcher. This is a stack of frames, not a plain list: the field
+    -- filters at the top but is a name entry on the rename and capture screens, and the
+    -- supplier morphs its rows from the query and the frame. Letting the atom filter and rank
+    -- those rows would drop the Save row while a name is typed and hide the Back row. The
+    -- supplier owns the query, the same choice caffeinate makes.
+    matcher = false,
     rows = rows,
     onSelect = onSelect,
     onPositioned = cfg.onPositioned,

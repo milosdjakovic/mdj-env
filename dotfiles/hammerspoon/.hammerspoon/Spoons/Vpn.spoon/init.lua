@@ -151,23 +151,22 @@ local function actionRow()
   return { title = title, subTitle = statusText(current), image = emojiImage(icon), item = { id = id } }
 end
 
--- The merged supplier. On the unfiltered list the action row leads, then the cities. A
--- query narrows the cities by a case insensitive substring match on the label or the
--- country code, so typing London, USA, or gb all narrow the list, and it drops the action
--- row so the top match is a city. Each city row carries its country flag as the icon.
+-- The merged supplier. The action row leads only on the empty query, then every city
+-- follows, and the atom's shared matcher filters and ranks the cities against the query.
+-- Each city carries filterText of its label plus country code, so typing London, USA, or
+-- gb all narrow it. The action row appears only when the field is empty, so a query never
+-- has to filter it out. Each city row carries its country flag as the icon.
 local function rows(query)
-  local q = (query or ""):lower()
   local out = {}
-  if q == "" then out[#out + 1] = actionRow() end
+  if (query or "") == "" then out[#out + 1] = actionRow() end
   for _, loc in ipairs(cache) do
-    if q == "" or loc.label:lower():find(q, 1, true) or loc.countryCode:find(q, 1, true) then
-      out[#out + 1] = {
-        title = loc.label,
-        subTitle = loc.countryCode .. " " .. loc.cityCode,
-        image = flagImage(loc.countryCode),
-        item = loc,
-      }
-    end
+    out[#out + 1] = {
+      title = loc.label,
+      subTitle = loc.countryCode .. " " .. loc.cityCode,
+      image = flagImage(loc.countryCode),
+      item = loc,
+      filterText = loc.label .. " " .. loc.countryCode,
+    }
   end
   return out
 end
