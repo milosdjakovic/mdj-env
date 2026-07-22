@@ -53,30 +53,52 @@ is recomputed per open so open apps sort first, and a running app not on disk in
 the scanned dirs is included when it has a dock presence, to skip background
 helpers.
 
-## Recency ordering, replicating Command+Tab
+## Recency ordering, one timeline across every row kind
 
-Open apps are ordered by recency, the same order Command+Tab shows, then open
-apps never yet focused and finally not-running apps, both alphabetical. macOS
-exposes no public read of the Command+Tab list, so the launcher replicates it as
-an Observer over a persisted most-recently-used policy, the same shape as
-DisplayMemory. The app watcher it already owns also handles `activated`, moving
-that app to the front of an MRU list of bundle ids and invalidating the row
-cache, so the next open re-sorts. The list is stored under one `hs.settings` key
-so it survives a reload (frequent here) and a reboot, capped small, and the
-spoon's own activation is ignored so opening the launcher never floats
-Hammerspoon to the top. On `start` it loads the saved list and seeds the current
-frontmost app, so the top row is right before the first switch, and a fresh
-machine with no history fills in as apps are focused.
+The last thing used bubbles to the top whether it was an app or a command. There
+is one most-recently-used timeline, not an app-only one, keyed by a
+kind-qualified item key (`app:<bundleID>`, `capture:<name>`, `special:<name>`,
+`window:<name>`, `settingsPane:<url>`) so an app and a command never collide.
+Every used row of any kind sorts above every unused one, used rows most-recent
+first, and unused rows keep their natural order, which is open apps first then
+alphabetical for apps and the curated order for the action and settings rows. So
+an untouched list still reads sensibly while the last pick sits on top. The
+interleaving is decided once in `_orderedRows`, above the per-kind builders,
+which is why `_appRows` now sorts only naturally and no longer knows about
+recency.
+
+Two observers feed that one timeline with equal weight, both through `_promote`.
+The app watcher's `activated` event promotes the focused app, the same signal
+Command+Tab follows, so open+Enter still lands on the last app and macOS-driven
+switches keep apps fresh at the top. The chooser's `onSelect` promotes whatever
+row was picked, so commands, captures, window actions, and settings panes join
+the timeline the moment they are chosen. macOS exposes no public read of the
+Command+Tab list, so this Observer shape, the same as DisplayMemory, is how the
+app half is replicated. The equal weight is a deliberate choice, so a command
+sinks below apps as you switch apps after picking it, and it is found by typing
+by then anyway; a stickier tier for launcher picks was considered and left out as
+unearned. The timeline is stored under one `hs.settings` key
+(`launcherRecency`), so it survives a reload (frequent here) and a reboot, capped
+small, and the spoon's own app is never promoted so opening the launcher does not
+float Hammerspoon to the top. On `start` it loads the saved list and seeds the
+current frontmost app, so the top row is right before the first switch, and a
+fresh machine with no history fills in as things are used. The key was renamed
+from the old app-only `launcherAppMRU`, so old bundle-id data is ignored rather
+than migrated and the order relearns within normal use.
 
 The persist on every activation is cheap, `hs.settings` is `NSUserDefaults`,
 which updates in memory and flushes to disk on its own schedule, so it is not a
-disk write per switch. Deriving the order at open time from
-`hs.window.orderedWindows()` was rejected, it enumerates windows through the
-accessibility API, which is slow enough to lag the open, the one path this
-design keeps instant. Doing the tiny work in the background on each switch and
-keeping the open a cache hit is the right trade. The only real limitation is
-correctness, not speed, it cannot know history from before Hammerspoon ran,
-which the persistence and the frontmost seed already minimize.
+disk write per switch. Two caches keep the open instant: `_appRowsCache` holds
+the app rows and is dropped only when the running set changes, and
+`_orderedRowsCache` holds the fully sorted list and is dropped on any promote, so
+a selection re-sorts without rescanning apps and a keystroke only filters.
+Deriving the order at open time from `hs.window.orderedWindows()` was rejected,
+it enumerates windows through the accessibility API, which is slow enough to lag
+the open, the one path this design keeps instant. This is also why unplugging the
+macOS signal would not buy performance, the watcher is nearly free and the only
+costly work is the one-time disk scan; dropping it would only change semantics.
+The one real limitation is correctness, not speed, it cannot know history from
+before Hammerspoon ran, which the persistence and the frontmost seed minimize.
 
 Window rows carry their live `when` predicate, so the display switch rows drop
 out on a single display, matching the cheat sheet.

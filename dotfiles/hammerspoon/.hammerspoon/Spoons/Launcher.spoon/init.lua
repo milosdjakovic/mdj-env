@@ -49,9 +49,11 @@ obj._actionRows = nil
 obj._settingsPaneRows = nil
 obj._configuredApps = nil
 obj._installedApps = nil
-obj._appRowsCache = nil
+obj._appRowsCache = nil          -- app rows only, invalidated on running-set change
+obj._orderedRowsCache = nil      -- all rows, recency-sorted, invalidated on any promote
 obj._appRowsWatcher = nil
-obj._mru = nil              -- most-recently-used bundle ids, front is most recent
+obj._mru = nil              -- most-recently-used item keys, front is most recent
+obj._selfKey = nil          -- our own app key, never promoted
 
 -- App enumeration roots and the depth guard against a symlink-looped tree.
 local APP_DIRS = {
@@ -61,37 +63,54 @@ local APP_DIRS = {
 }
 local APP_SCAN_MAX_DEPTH = 4
 
--- Most-recently-used ordering. macOS exposes no public read of the Command+Tab
--- list, so we replicate it by observing app activations and keeping the same
--- recency order Command+Tab uses. Persisted under one hs.settings key so it
--- survives a reload (frequent here) and a reboot, and capped so it stays small.
-local MRU_SETTINGS_KEY = "launcherAppMRU"
+-- Unified recency ordering. Every row kind shares one most-recently-used
+-- timeline, keyed by a kind-qualified item key (see recencyKey), so the last
+-- thing used bubbles to the top whether it was an app or a command. Two observers
+-- feed it with equal weight: an app activation (the same signal Command+Tab
+-- follows, so open+Enter still lands on the last app) and any launcher selection.
+-- Persisted under one hs.settings key so it survives a reload (frequent here) and
+-- a reboot, and capped so it stays small. The key is new (was app-only bundle ids
+-- under "launcherAppMRU"), so old data is ignored and the order relearns at once.
+local MRU_SETTINGS_KEY = "launcherRecency"
 local MRU_MAX = 50
 -- Our own activations must not reorder the list, else opening the launcher would
 -- float Hammerspoon to the top instead of the app the user was just in.
 local SELF_BUNDLE = hs.processInfo and hs.processInfo.bundleID
+
+-- The recency key for a row's serializable descriptor, qualified by kind so an app
+-- and a command never collide. Returns nil for a missing item, which sorts as unused.
+local function recencyKey(item)
+  if not item then return nil end
+  if item.kind == "app" then return "app:" .. tostring(item.bundleID) end
+  if item.kind == "settingsPane" then return "settingsPane:" .. tostring(item.url) end
+  return item.kind .. ":" .. tostring(item.name)
+end
 
 --- Launcher:init()
 --- Method
 --- Initialize the spoon.
 function obj:init()
   self._mru = {}
+  self._selfKey = SELF_BUNDLE and ("app:" .. SELF_BUNDLE) or nil
   return self
 end
 
---- Launcher:_promoteMru(bundleID)
+--- Launcher:_promote(key)
 --- Method
---- Move an app to the front of the most-recently-used list and persist, ignoring
---- our own activation so opening the launcher never reorders the list.
-function obj:_promoteMru(bundleID)
-  if not bundleID or bundleID == SELF_BUNDLE then return end
+--- Move an item to the front of the shared recency list, persist, and drop the
+--- ordered-rows cache so the next open re-sorts. Ignores our own app so opening
+--- the launcher never reorders the list, and a nil key (an item with no
+--- descriptor) is a no-op.
+function obj:_promote(key)
+  if not key or key == self._selfKey then return end
   local mru = self._mru
-  for i, id in ipairs(mru) do
-    if id == bundleID then table.remove(mru, i); break end
+  for i, k in ipairs(mru) do
+    if k == key then table.remove(mru, i); break end
   end
-  table.insert(mru, 1, bundleID)
+  table.insert(mru, 1, key)
   while #mru > MRU_MAX do table.remove(mru) end
   hs.settings.set(MRU_SETTINGS_KEY, mru)
+  self._orderedRowsCache = nil
 end
 
 --- Launcher:configure(opts)
@@ -130,7 +149,12 @@ function obj:configure(opts)
     placeholder = self._placeholder,
     rows = function(query) return self:_commandRows(query) end,
     onSelect = function(item)
-      if item then hs.timer.doAfter(0.1, function() self:_runItem(item) end) end
+      if item then
+        -- Promote now, on the true "user chose this row" moment, so the order
+        -- persists at once even though the run is deferred below. Any kind counts.
+        self:_promote(recencyKey(item))
+        hs.timer.doAfter(0.1, function() self:_runItem(item) end)
+      end
     end,
     onPositioned = sp.onPositioned,
     onActivity = sp.onActivity,
@@ -287,11 +311,11 @@ end
 --- Launcher:_appRows()
 --- Method
 --- The live app rows, every installed app plus any running app not on disk in the
---- scanned dirs, marked open when running so open apps sort first. Running apps are
---- ordered by the most-recently-used list, the same recency Command+Tab shows, then
---- running apps never yet activated and finally not-running apps, both alphabetical.
---- The disk scan is cached, and the assembled rows are cached too, rebuilt when the
---- running set or the focused app changes, so opening the palette just filters.
+--- scanned dirs, marked open when running. This is the app portion in its natural
+--- order only, open apps first then alphabetical; the recency interleaving across
+--- all row kinds happens once in _orderedRows. The disk scan is cached, and the
+--- assembled rows are cached too, rebuilt when the running set changes, so the
+--- recency re-sort on a selection never rescans apps.
 function obj:_appRows()
   if self._appRowsCache then return self._appRowsCache end
   self._installedApps = self._installedApps or scanInstalledApps()
@@ -312,16 +336,10 @@ function obj:_appRows()
   end
   local list = {}
   for _, e in pairs(byId) do list[#list + 1] = e end
-  -- Rank running apps by recency, front of the MRU list first.
-  local rank = {}
-  for i, id in ipairs(self._mru or {}) do rank[id] = i end
+  -- Natural order only: open apps first, then alphabetical. Recency is applied
+  -- across every row kind together in _orderedRows, not here.
   table.sort(list, function(x, y)
     if x.running ~= y.running then return x.running end -- open apps first
-    if x.running then
-      local rx, ry = rank[x.bundleID], rank[y.bundleID]
-      if rx and ry then return rx < ry end       -- both seen: more recent first
-      if rx or ry then return rx ~= nil end       -- a seen app precedes an unseen one
-    end
     return (x.name or ""):lower() < (y.name or ""):lower()
   end)
 
@@ -343,27 +361,59 @@ function obj:_appRows()
   return rows
 end
 
+--- Launcher:_orderedRows()
+--- Method
+--- Every row of every kind in one list, ordered by the shared recency timeline.
+--- The natural order is apps (open first, then alphabetical) then the curated
+--- action rows then the settings panes; each row carries that position as _n. A
+--- row used before, of any kind, carries its recency rank as _rank. The sort puts
+--- every used row above every unused one, used rows most-recent first, and unused
+--- rows in their natural order, so the last thing used sits on top while an
+--- untouched list keeps its sensible curated shape. Cached, rebuilt on any promote
+--- (a selection or an app activation) or a running-set change.
+function obj:_orderedRows()
+  if self._orderedRowsCache then return self._orderedRowsCache end
+  local rank = {}
+  for i, k in ipairs(self._mru or {}) do rank[k] = i end
+  local rows = {}
+  local n = 0
+  local function push(row)
+    n = n + 1
+    row._n = n
+    row._rank = rank[recencyKey(row.item)]
+    rows[#rows + 1] = row
+  end
+  for _, row in ipairs(self:_appRows()) do push(row) end
+  for _, row in ipairs(self._actionRows) do push(row) end
+  for _, row in ipairs(self._settingsPaneRows) do push(row) end
+  table.sort(rows, function(x, y)
+    if (x._rank ~= nil) ~= (y._rank ~= nil) then return x._rank ~= nil end -- used before unused
+    if x._rank and y._rank then return x._rank < y._rank end               -- more recent first
+    return x._n < y._n                                                     -- natural order otherwise
+  end)
+  self._orderedRowsCache = rows
+  return rows
+end
+
 --- Launcher:_commandRows(query)
 --- Method
---- The row supplier. Apps first, then action rows, then settings panes.
---- Case-insensitive substring over the visible text plus any hidden keywords, so a
---- settings pane is found by a synonym its name lacks. Gated action rows drop out
---- live through the shared predicate registry the window bindings use.
+--- The row supplier. Filters the recency-ordered list by a case-insensitive
+--- substring over the visible text plus any hidden keywords, so a settings pane is
+--- found by a synonym its name lacks. Gated rows drop out live through the shared
+--- predicate registry the window bindings use.
 function obj:_commandRows(query)
   local q = (query or ""):lower()
   local out = {}
   local preds = self._predicates
-  local function consider(row)
-    if row.when and not (preds[row.when] and preds[row.when]()) then return end
-    local hay = row.title .. " " .. row.subTitle
-    if row.keywords then hay = hay .. " " .. row.keywords end
-    if q == "" or hay:lower():find(q, 1, true) then
-      out[#out + 1] = { title = row.title, subTitle = row.subTitle, image = row.image, item = row.item }
+  for _, row in ipairs(self:_orderedRows()) do
+    if not (row.when and not (preds[row.when] and preds[row.when]())) then
+      local hay = row.title .. " " .. row.subTitle
+      if row.keywords then hay = hay .. " " .. row.keywords end
+      if q == "" or hay:lower():find(q, 1, true) then
+        out[#out + 1] = { title = row.title, subTitle = row.subTitle, image = row.image, item = row.item }
+      end
     end
   end
-  for _, row in ipairs(self:_appRows()) do consider(row) end
-  for _, row in ipairs(self._actionRows) do consider(row) end
-  for _, row in ipairs(self._settingsPaneRows) do consider(row) end
   return out
 end
 
@@ -392,22 +442,26 @@ end
 
 --- Launcher:start()
 --- Method
---- Begin owning live state. Load the persisted most-recently-used order and seed
---- the current frontmost app so the top row is right before the first switch. The
---- watcher promotes the activated app in the MRU list and invalidates the cached
---- rows when the running set or the focused app changes, so the sort tracks
+--- Begin owning live state. Load the persisted recency order and seed the current
+--- frontmost app so the top row is right before the first switch. The watcher
+--- promotes the activated app into the shared timeline and invalidates the cached
+--- rows when the running set or the focused app changes, so the order tracks
 --- Command+Tab without rescanning on every open. Idempotent.
 function obj:start()
   if self._appRowsWatcher then return self end
   self._mru = hs.settings.get(MRU_SETTINGS_KEY) or {}
+  self._orderedRowsCache = nil
   local front = hs.application.frontmostApplication()
-  if front then self:_promoteMru(front:bundleID()) end
+  local frontID = front and front:bundleID()
+  if frontID then self:_promote("app:" .. frontID) end
   self._appRowsWatcher = hs.application.watcher.new(function(_, event, app)
     if event == hs.application.watcher.activated then
-      self:_promoteMru(app and app:bundleID())
+      local id = app and app:bundleID()
+      if id then self:_promote("app:" .. id) end -- also clears the ordered cache
       self._appRowsCache = nil
     elseif event == hs.application.watcher.launched or event == hs.application.watcher.terminated then
       self._appRowsCache = nil
+      self._orderedRowsCache = nil
     end
   end)
   self._appRowsWatcher:start()
@@ -416,13 +470,14 @@ end
 
 --- Launcher:stop()
 --- Method
---- Stop the app watcher and drop the cache.
+--- Stop the app watcher and drop the caches.
 function obj:stop()
   if self._appRowsWatcher then
     self._appRowsWatcher:stop()
     self._appRowsWatcher = nil
   end
   self._appRowsCache = nil
+  self._orderedRowsCache = nil
   return self
 end
 
