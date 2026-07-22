@@ -229,6 +229,11 @@ function obj:_buildActionRows()
   add(keys.caffeinate.description, "System · " .. self:_chordLabel("Hyper", keys.caffeinate.key), { kind = "special", name = "caffeinate" }, "☕")
   add(keys.vpn.description, "Network · " .. self:_chordLabel("Hyper", keys.vpn.key), { kind = "special", name = "vpn" }, "🌐")
   add(keys.clipboardHistory.description, "Clipboard · " .. self:_chordLabel("Hyper", keys.clipboardHistory.key), { kind = "special", name = "clipboard" }, "📋")
+  -- Display profiles has no dedicated chord, it opens from here only, so its subtitle names
+  -- what it does rather than a shortcut.
+  if keys.displayProfiles then
+    add(keys.displayProfiles.description, "System · inspect and manage display arrangements", { kind = "special", name = "displayProfiles" }, "🖥️")
+  end
   add("Search Settings", "System · opens the System Settings search field", { kind = "special", name = "searchSettings" }, "🔍")
   add(keys.lock.description, "System · " .. self:_chordLabel("Hyper", keys.lock.key), { kind = "special", name = "lock" }, "🔒")
   add(keys.sleep.description, "System · " .. self:_chordLabel("Hyper", keys.sleep.key), { kind = "special", name = "sleep" }, "🌙")

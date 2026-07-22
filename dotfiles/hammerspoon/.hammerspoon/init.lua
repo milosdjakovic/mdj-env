@@ -208,6 +208,10 @@ local predicates = {
   vpnOpen = function()
     return spoon.Vpn ~= nil and spoon.Vpn.isShowing()
   end,
+  -- The display profiles chooser is open. Gates the displayProfiles Hyper context.
+  displayProfilesOpen = function()
+    return spoon.DisplayProfiles ~= nil and spoon.DisplayProfiles.chooser.isShowing()
+  end,
 }
 -- The window bindings carry no leader (see config/keys.lua). Stamp the resolved
 -- window leader onto each here, in the composition root, so WindowManager and
@@ -662,6 +666,7 @@ spoon.Launcher:configure({
       lock = function() hs.caffeinate.lockScreen() end,
       sleep = function() hs.caffeinate.systemSleep() end,
       searchSettings = function() spoon.SystemSettings:focusSearch() end,
+      displayProfiles = function() spoon.DisplayProfiles.chooser.show() end,
     },
   },
 })
@@ -898,7 +903,7 @@ spoon.ClipboardHistory.manager.start()
 -- glance at the sheet plus any key clears it.
 spoon.HyperKey:configure({ predicates = predicates })
 local clipManager = spoon.ClipboardHistory.manager
-local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, spoon.Launcher:surface(), menuSearchSurface }
+local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, spoon.Launcher:surface(), menuSearchSurface, spoon.DisplayProfiles.chooser }
 local function activeChooser()
   for _, c in ipairs(choosers) do
     if c.isShowing() then return c end
@@ -1154,23 +1159,53 @@ spoon.DockAutoHide:bindHotkeys({ toggle = keys.toggleDock })
 -- spoon stays ignorant of hostnames and of the catalog. A machine with no entry
 -- gets an empty list and simply does nothing, logged so the reason is visible.
 -- `host` is resolved once earlier, in the TerminalHandler block.
+-- The curated reference profiles are read only from the tool. The captured ones live in a
+-- git tracked JSON file the chooser writes, keyed by the same host, and its path is resolved
+-- from the live config directory here, the one place the concrete file location is named.
 local hostProfiles = displays.profiles[host] or {}
 spoon.DisplayProfiles:init()
 spoon.DisplayProfiles:configure({
   profiles = hostProfiles,
   settleDelay = displays.settleDelay,
+  host = host,
+  storePath = hs.configdir .. "/config/display-profiles.json",
 })
 spoon.DisplayProfiles:start()
+-- The inspect and manage chooser. Its api comes from the spoon, injected in configure above,
+-- so only the view deps are handed in here, the shared theme, the Chooser factory, and the
+-- same deferred shortcut hint panel the other native choosers dock. It opens from the
+-- launcher with no dedicated key, and its displayProfiles Hyper context (config/keys.lua)
+-- drives the j, k, i, and x shortcuts through the choosers registry above.
+local displayProfilesPanel = shortcutPanelFor("displayProfiles")
+spoon.DisplayProfiles.chooser.configure({
+  theme = settings.chooserTheme,
+  chooser = spoon.Chooser,
+  onPositioned = displayProfilesPanel.onPositioned,
+  onActivity = displayProfilesPanel.onActivity,
+  onClose = displayProfilesPanel.onClose,
+})
+spoon.DisplayProfiles.chooser.start()
 if #hostProfiles == 0 then
-  print("DisplayProfiles: no profiles for host '" .. host .. "', add one in config/displays.lua")
+  print("DisplayProfiles: no curated profiles for host '" .. host .. "', add one in config/displays.lua or capture from the chooser")
 end
 
 --------------------------------------------------------------------------------
 -- Auto-reload and IPC
 --------------------------------------------------------------------------------
 
--- Reload Hammerspoon configuration automatically when files change
-hs.pathwatcher.new(os.getenv("HOME") .. "/.hammerspoon/", hs.reload):start()
+-- Reload Hammerspoon configuration automatically when files change, except a write to the
+-- captured display profiles JSON. That file is runtime data the DisplayProfiles chooser
+-- writes, and it lives inside the watched tree, so reloading on it would restart Hammerspoon
+-- mid capture. The chooser already rebuilds the engine in memory after a write, so the change
+-- is live without a reload. A batch that touches anything else still reloads as before.
+hs.pathwatcher.new(os.getenv("HOME") .. "/.hammerspoon/", function(paths)
+  for _, p in ipairs(paths or {}) do
+    if not p:match("display%-profiles%.json$") then
+      hs.reload()
+      return
+    end
+  end
+end):start()
 
 -- Enable IPC for command-line control
 require("hs.ipc")

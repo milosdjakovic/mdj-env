@@ -223,8 +223,30 @@ config reload reapplies the match at once. Applying a layout fires the watcher
 again, so the loop guard skips when the match is the profile already applied,
 which holds because applying changes only the arrangement, not the set of
 attached displays. `reconcile(true)` forces a reapply and `apply(name)` forces a
-named one, for a manual fix when the displays did not change. Adding this spoon
-needed a restow, since `~/.hammerspoon/Spoons` holds one symlink per spoon.
+named one, for a manual fix when the displays did not change.
+
+The spoon now follows the Capture and Vpn layout, split into `engine.lua` (the
+watch, match, apply mechanism), `store.lua` (a git tracked JSON file of captured
+profiles), `chooser.lua` (an inspect and manage surface), and `init.lua` (the
+spoon composition root that merges the curated profiles with the captured ones
+and exposes the api the chooser talks through). The public colon contract above
+is unchanged and still delegates to the engine, so the overlay display policy
+that reads `current()` is untouched. The new surface is a nested menu chooser on
+`obj.chooser`, opened from the launcher with no dedicated key, that lists the
+profiles, marks the active one, captures the current arrangement when it matches
+none, and renames or deletes the captured ones, curated ones staying read only.
+The main root wires it like the other native choosers: the curated profiles and
+the JSON path (`hs.configdir .. "/config/display-profiles.json"`) are injected in
+`configure`, the view deps and the docked shortcut panel in
+`spoon.DisplayProfiles.chooser.configure`, plus the `displayProfilesOpen`
+predicate, the `displayProfiles` Hyper context in `config/keys.lua`, the
+`choosers` registry entry, and the launcher special action row. Because the JSON
+lives inside the watched tree, the pathwatcher callback skips a reload when only
+`display-profiles.json` changed, and the chooser rebuilds the engine in memory
+after a write, so a capture is live with no reload. The internal decisions live
+in `Spoons/DisplayProfiles.spoon/CLAUDE.md`. Adding the original spoon needed a
+restow, but the new sibling files inside it did not, they resolve through the
+existing symlink.
 
 **Terminal placement, and remembering the display.** Option+\` toggles the
 terminal through `TerminalHandler.spoon`, which now is pure mechanism. It no
@@ -274,9 +296,9 @@ DisplayMemory needed a restow, since `~/.hammerspoon/Spoons` holds one symlink p
 spoon.
 
 **Overlay display policy.** One place decides which display every transient
-overlay appears on, the five choosers (clipboard, VPN, menu search, launcher,
-keep awake) with their docked shortcut panels, both cheat sheets, and the colour
-toast. This is Strategy wired through injection, the same shape as
+overlay appears on, the six choosers (clipboard, VPN, menu search, launcher,
+keep awake, display profiles) with their docked shortcut panels, both cheat
+sheets, and the colour toast. This is Strategy wired through injection, the same shape as
 TerminalHandler's `targetScreen`. A small registry in `init.lua` maps a mode name
 to a resolver returning an `hs.screen`, `config/settings.lua` picks the mode in
 the pure-data `overlayDisplay` block, and the chosen resolver is injected into the
@@ -389,7 +411,8 @@ restow, it resolves through the existing link like any new file.
 
 **Wiring a list tool into the Hyper contexts.** The picker atom gives only the
 widget. `Chooser.spoon` wraps the native `hs.chooser` and backs every list tool,
-the clipboard, the VPN locations, caffeinate, menu search, and the launcher. It
+the clipboard, the VPN locations, caffeinate, menu search, the launcher, and the
+display profiles menu. It
 once had a second webview backend built on a `Surface.spoon`, selectable per
 consumer, plus a `Panel.spoon` for short fixed lists, but every consumer settled
 on native so the web backend, Surface, and Panel were all removed. Routing the

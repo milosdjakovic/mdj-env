@@ -223,6 +223,23 @@ return {
         { key = "x", action = "closeChooser",   description = "Close" },
       },
     },
+    -- The display profiles chooser. A nested menu you navigate. i drills into the
+    -- highlighted row the same as Return (enter a profile, list its displays, confirm an
+    -- action, or select the Back row to step out), j and k move the highlight, and x closes
+    -- the whole thing the same as Escape. There is no separate back key, a Back row sits at
+    -- each level. Plain typing filters the profile list and enters names while Hyper is
+    -- released. It docks the deferred shortcut hint panel like the other native choosers.
+    {
+      name = "displayProfiles",
+      when = "displayProfilesOpen",
+      priority = 100,
+      bindings = {
+        { key = "i", action = "insertSelected", description = "Select" },
+        { key = "j", action = "selectNext",     description = "Move down" },
+        { key = "k", action = "selectPrev",     description = "Move up" },
+        { key = "x", action = "closeChooser",   description = "Close" },
+      },
+    },
   },
 
   -- System actions bound onto the Hyper key in init.lua. Hyper+Esc sleeps the
@@ -318,6 +335,14 @@ return {
   -- It is a plain shortcut with no app conditions, so it works everywhere. This is
   -- the one place the combo lives, keep it in step with the tool you bind it to.
   menuSearchShortcut = { mods = { "cmd", "alt", "ctrl", "shift" }, key = "j" },
+
+  -- Display profiles (for DisplayProfiles.spoon, wired in init.lua). An inspect and manage
+  -- tool for the saved display arrangements, opened from the launcher only, so it has no
+  -- dedicated key and no modifiers. It lists the profiles, marks the active one, and lets you
+  -- capture, rename, and delete the captured ones. It has its own hyperContext above, so
+  -- while open it takes the shared j/k/i navigation and x closes it. `description` labels its
+  -- launcher row.
+  displayProfiles = { description = "Display profiles" },
 
   -- Feature toggles
   toggleDock = { modifiers = CTRL_ALT, key = "D" },
