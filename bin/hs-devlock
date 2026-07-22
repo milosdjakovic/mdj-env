@@ -13,16 +13,24 @@
 # a directory created atomically, so two sessions can never both win, and its
 # holder file records who took it and what to restore.
 #
+# Two hold styles. A plain acquire is a short hold for automated testing, with a
+# stale backstop that lets another session reclaim it after STALE_SECS in case a
+# holder crashed or forgot. A manual acquire, for a hands on test the user green
+# lights, disables that backstop and is freed only by an explicit release, so a
+# long human evaluation is never interrupted.
+#
 # Commands.
-#   status              Show whether the lock is free or held and which config is live.
-#   acquire [--wait]    Take the lock for this worktree and make its config live.
-#   release [--force]   Restore the previous config and free the lock.
-#   break               Alias for release --force, to clear a stuck lock.
+#   status               Show whether the lock is free or held and which config is live.
+#   acquire [flags]      Take the lock for this worktree and make its config live.
+#   release [--force]    Restore the previous config and free the lock.
+#   break                Alias for release --force, to clear a stuck lock.
 #
 # acquire flags.
-#   --wait              Poll until the lock frees instead of failing when held.
-#   --timeout=SECONDS   Overall wait budget with --wait. Defaults to 1800.
-#   --poll=SECONDS      Poll interval with --wait. Defaults to 5.
+#   --wait               Poll until the lock frees instead of failing when held.
+#   --manual             Hold until an explicit release, disabling the stale
+#                        reclaim, for a hands on test the user green lights.
+#   --timeout=SECONDS    Overall wait budget with --wait. Defaults to 1800.
+#   --poll=SECONDS       Poll interval with --wait. Defaults to 5.
 
 set -euo pipefail
 
@@ -35,10 +43,11 @@ MJ_KEY="MJConfigFile"
 LOCK_DIR="$HOME/.hammerspoon-devlock"
 HOLDER="$LOCK_DIR/holder.json"
 
-# A lock older than this with no release is treated as abandoned and reclaimed,
-# a backstop for a session that crashed or forgot to release. A real test burst
-# is tens of seconds to a couple of minutes, well under this, and between bursts
-# the lock is released, so this only ever fires on a genuine leak.
+# A short-hold lock older than this with no release is treated as abandoned and
+# reclaimed, a backstop for a session that crashed or forgot to release. A real
+# test burst is tens of seconds to a couple of minutes, well under this, and
+# between bursts the lock is released, so this only ever fires on a genuine leak.
+# A manual hold is exempt, so a hands on human test is never interrupted.
 STALE_SECS=900
 
 POLL_INTERVAL=5
@@ -86,18 +95,24 @@ relaunch_hs() {
 holder_field() { jq -r "$1 // \"\"" "$HOLDER" 2>/dev/null || echo ""; }
 
 write_holder() {
-  # Arguments are worktree, branch, config, previous MJConfigFile.
+  # Arguments are worktree, branch, config, previous MJConfigFile, and manual flag.
   local ts; ts="$(now)"
   jq -n \
     --arg wt "$1" --arg br "$2" --arg host "$(hostname)" \
-    --arg cfg "$3" --arg prev "$4" --argjson at "$ts" \
-    '{worktree:$wt, branch:$br, host:$host, config:$cfg, prevMJConfigFile:$prev, acquiredAt:$at, renewedAt:$at}' \
+    --arg cfg "$3" --arg prev "$4" --arg manual "${5:-0}" --argjson at "$ts" \
+    '{worktree:$wt, branch:$br, host:$host, config:$cfg, prevMJConfigFile:$prev, manual:($manual=="1"), acquiredAt:$at, renewedAt:$at}' \
     > "$HOLDER"
 }
 
 touch_holder() {
   local tmp; tmp="$(mktemp)"
   jq --argjson at "$(now)" '.renewedAt = $at' "$HOLDER" > "$tmp" && mv "$tmp" "$HOLDER"
+}
+
+# Promote an already held lock to a manual hold, preserving what it restores.
+set_manual() {
+  local tmp; tmp="$(mktemp)"
+  jq '.manual = true' "$HOLDER" > "$tmp" && mv "$tmp" "$HOLDER"
 }
 
 lock_age() {
@@ -116,10 +131,13 @@ cmd_status() {
   [ -z "$live" ] && live_label="~/.hammerspoon (main)"
 
   if [ -d "$LOCK_DIR" ] && [ -f "$HOLDER" ]; then
+    local mode="short, auto reclaim after ${STALE_SECS}s"
+    [ "$(holder_field '.manual')" = "true" ] && mode="manual hold, no auto timeout, explicit release only"
     echo "lock: HELD"
     echo "  worktree: $(holder_field '.worktree')"
     echo "  branch:   $(holder_field '.branch')"
     echo "  host:     $(holder_field '.host')"
+    echo "  mode:     $mode"
     echo "  since:    $(pretty_since) ($(lock_age)s ago)"
   elif [ -d "$LOCK_DIR" ]; then
     echo "lock: HELD (holder file missing, likely mid-acquire or corrupt)"
@@ -130,10 +148,11 @@ cmd_status() {
 }
 
 cmd_acquire() {
-  local wait=0 deadline
+  local wait=0 manual=0 deadline
   for arg in "$@"; do
     case "$arg" in
       --wait) wait=1 ;;
+      --manual|--hold) manual=1 ;;
       --timeout=*) WAIT_TIMEOUT="${arg#*=}" ;;
       --poll=*) POLL_INTERVAL="${arg#*=}" ;;
       *) die "unknown flag $arg" ;;
@@ -149,10 +168,14 @@ cmd_acquire() {
   while true; do
     if mkdir "$LOCK_DIR" 2>/dev/null; then
       local prev; prev="$(current_mj)"
-      write_holder "$wt" "$br" "$cfg" "$prev"
+      write_holder "$wt" "$br" "$cfg" "$prev" "$manual"
       set_mj "$cfg"
       relaunch_hs
-      echo "hs-devlock: acquired for $br, Hammerspoon now live on this worktree"
+      if [ "$manual" -eq 1 ]; then
+        echo "hs-devlock: acquired for $br in manual hold, held until an explicit release, no auto timeout"
+      else
+        echo "hs-devlock: acquired for $br, Hammerspoon now live on this worktree"
+      fi
       return 0
     fi
 
@@ -170,27 +193,33 @@ cmd_acquire() {
     local holder_wt; holder_wt="$(holder_field '.worktree')"
     if [ "$holder_wt" = "$wt" ]; then
       touch_holder
+      [ "$manual" -eq 1 ] && set_manual
       set_mj "$cfg"
       echo "hs-devlock: already held by this worktree, kept"
       return 0
     fi
 
-    if [ "$(lock_age)" -gt "$STALE_SECS" ]; then
+    # A manual hold is a deliberate human evaluation, so it is never reclaimed on
+    # age. Only a short hold ages out.
+    if [ "$(holder_field '.manual')" != "true" ] && [ "$(lock_age)" -gt "$STALE_SECS" ]; then
       echo "hs-devlock: reclaiming stale lock from $(holder_field '.branch') (held $(lock_age)s)" >&2
       rm -rf "$LOCK_DIR"
       continue
     fi
 
+    local mnote=""
+    [ "$(holder_field '.manual')" = "true" ] && mnote=" (manual hold, no auto timeout, needs an explicit release or break)"
+
     if [ "$wait" -eq 1 ] && [ "$(now)" -lt "$deadline" ]; then
       if [ "$announced" -eq 0 ]; then
-        echo "hs-devlock: held by $(holder_field '.branch') since $(pretty_since), waiting..." >&2
+        echo "hs-devlock: held by $(holder_field '.branch') since $(pretty_since)$mnote, waiting..." >&2
         announced=1
       fi
       sleep "$POLL_INTERVAL"
       continue
     fi
 
-    echo "hs-devlock: LOCKED by $(holder_field '.branch') ($holder_wt) since $(pretty_since)" >&2
+    echo "hs-devlock: LOCKED by $(holder_field '.branch') ($holder_wt) since $(pretty_since)$mnote" >&2
     echo "hs-devlock: rerun with --wait to block until it frees" >&2
     return 2
   done

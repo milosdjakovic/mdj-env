@@ -169,6 +169,18 @@ so a waiting session gets it. Never hold it speculatively. Whoever acquires must
 release and restore afterward, whether the test was run automatically or handed
 to the user to confirm.
 
+The human in the loop exception. When you hand a feature to the user to try by
+hand, to see how it looks, works, and feels, acquire with `bin/hs-devlock acquire
+--manual` and keep the lock with no timer until the user gives an explicit green
+light or says it is wrong. A manual hold is exempt from the stale reclaim, so a
+long evaluation is never interrupted by another session, and it is freed only by
+an explicit release. Do not release it on your own and do not let anything time
+it out. The cycle is, acquire with `--manual`, the user tries it, then on a good
+verdict you release, or on a bad one you release, do the analysis and the next
+round of implementation off the lock, and acquire again with `--manual` when the
+next hands on round is ready. A manual hold that is truly stuck is still
+recoverable with `bin/hs-devlock break`.
+
 Mechanics. `bin/hs-devlock status` shows whether the lock is free or held, who
 holds it, and which config is live, so run it to see whether Hammerspoon is on
 main. A lock left more than fifteen minutes with no release is treated as
