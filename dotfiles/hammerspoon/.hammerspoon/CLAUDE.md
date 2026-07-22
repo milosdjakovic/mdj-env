@@ -141,6 +141,44 @@ spoon.SomeSpoon._field"` to read live state. The `hs` CLI talks to the running
 Hammerspoon over `hs.ipc`, so it both reloads and introspects, which is how a
 change should be confirmed rather than assumed.
 
+**Testing a change in an isolated worktree, and the test lock.** There is only
+one Hammerspoon app on the machine, with one config directory and one set of
+global event taps, so only one config can be live at a time. Editing files
+touches nothing shared, so develop freely in a worktree, and many sessions can
+work in parallel worktrees at once. The one serialized step is making a
+worktree's config the live one for testing. The `bin/hs-devlock` script guards
+exactly that step. On acquire it points the `MJConfigFile` default at the current
+worktree's `init.lua` and relaunches Hammerspoon, so the worktree's own files and
+Spoons run without touching the stowed main config or its per spoon symlinks. On
+release it restores whatever was live before, which is always main, and
+relaunches. The resting state is main. The lock is a directory created
+atomically, held outside `~/.hammerspoon` so it never trips the pathwatcher, and
+its holder file records who took it and what to restore.
+
+The discipline every session must follow. Do not hold the lock across
+development, only across testing. When you reach a point where you need the live
+config, run `bin/hs-devlock acquire` from your worktree, or `bin/hs-devlock
+acquire --wait` in the background when another session holds it, which polls
+every five seconds and returns the moment it frees. Test with the `hs` CLI, then
+run `bin/hs-devlock release` when done, which returns Hammerspoon to main. Hold
+the lock across a tight burst of quick edit, reload, and test iterations, tens of
+seconds to a couple of minutes, and do not release and reacquire between each one,
+so the config is not relaunched needlessly. Release the moment testing stops being
+the focus, before any stretch of analysis, planning, or longer implementation,
+so a waiting session gets it. Never hold it speculatively. Whoever acquires must
+release and restore afterward, whether the test was run automatically or handed
+to the user to confirm.
+
+Mechanics. `bin/hs-devlock status` shows whether the lock is free or held, who
+holds it, and which config is live, so run it to see whether Hammerspoon is on
+main. A lock left more than fifteen minutes with no release is treated as
+abandoned and reclaimed by the next acquirer, a backstop for a crashed or
+forgotten session, well above any real test burst. `bin/hs-devlock release
+--force`, or its alias `bin/hs-devlock break`, clears a stuck lock and returns to
+main. For ordinary in place work on the already live config, reload with `hs -c
+"hs.reload()"` as above. The worktree lock is only for taking a worktree's own
+copy live in isolation.
+
 **DisplayProfiles.** Keeps display arrangements deterministic on top of what
 macOS remembers, using the `displayplacer` command line tool (in the Brewfile).
 macOS still scrambles the main display, scaling, or window positions when a dock

@@ -1,0 +1,245 @@
+#!/bin/bash
+#
+# hs-devlock. A machine wide test lock for the single live Hammerspoon config.
+#
+# There is only one Hammerspoon app, one config directory, and one set of global
+# event taps, so only one config can be live at a time. Editing files in a
+# worktree touches nothing shared and needs no lock. Only making a worktree's
+# config the live one, for testing, is the shared step that must be serialized.
+#
+# This tool guards exactly that step. Acquire points Hammerspoon at the current
+# worktree's config through the MJConfigFile default and relaunches. Release
+# restores whatever was live before, normally main, and relaunches. The lock is
+# a directory created atomically, so two sessions can never both win, and its
+# holder file records who took it and what to restore.
+#
+# Commands.
+#   status              Show whether the lock is free or held and which config is live.
+#   acquire [--wait]    Take the lock for this worktree and make its config live.
+#   release [--force]   Restore the previous config and free the lock.
+#   break               Alias for release --force, to clear a stuck lock.
+#
+# acquire flags.
+#   --wait              Poll until the lock frees instead of failing when held.
+#   --timeout=SECONDS   Overall wait budget with --wait. Defaults to 1800.
+#   --poll=SECONDS      Poll interval with --wait. Defaults to 5.
+
+set -euo pipefail
+
+APP="Hammerspoon"
+HS_DOMAIN="org.hammerspoon.Hammerspoon"
+MJ_KEY="MJConfigFile"
+
+# The lock lives beside the home directory, deliberately outside ~/.hammerspoon,
+# so creating and removing it never trips the config pathwatcher.
+LOCK_DIR="$HOME/.hammerspoon-devlock"
+HOLDER="$LOCK_DIR/holder.json"
+
+# A lock older than this with no release is treated as abandoned and reclaimed,
+# a backstop for a session that crashed or forgot to release. A real test burst
+# is tens of seconds to a couple of minutes, well under this, and between bursts
+# the lock is released, so this only ever fires on a genuine leak.
+STALE_SECS=900
+
+POLL_INTERVAL=5
+WAIT_TIMEOUT=1800
+
+die() { echo "hs-devlock: $1" >&2; exit 1; }
+now() { date +%s; }
+
+# The worktree this command runs inside, and the config file it would make live.
+my_worktree() {
+  git -C "$PWD" rev-parse --show-toplevel 2>/dev/null \
+    || die "not inside a git worktree; run this from the checkout you want to test"
+}
+my_branch() { git -C "$PWD" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?"; }
+config_for() { echo "$1/dotfiles/hammerspoon/.hammerspoon/init.lua"; }
+
+# The MJConfigFile value that is live right now. Empty means the key is unset,
+# which is plain main on ~/.hammerspoon.
+current_mj() { defaults read "$HS_DOMAIN" "$MJ_KEY" 2>/dev/null || true; }
+
+set_mj() { defaults write "$HS_DOMAIN" "$MJ_KEY" "$1"; }
+
+# Put MJConfigFile back to a recorded previous value. An empty previous means the
+# key was unset, so deleting it returns Hammerspoon to plain main.
+restore_mj() {
+  if [ -z "$1" ]; then
+    defaults delete "$HS_DOMAIN" "$MJ_KEY" 2>/dev/null || true
+  else
+    defaults write "$HS_DOMAIN" "$MJ_KEY" "$1"
+  fi
+}
+
+# Quit Hammerspoon, wait for it to exit, reopen it, then wait until its ipc
+# answers so a caller can run hs -c immediately after this returns.
+relaunch_hs() {
+  osascript -e "tell application \"$APP\" to quit" >/dev/null 2>&1 || true
+  for _ in $(seq 1 40); do pgrep -x "$APP" >/dev/null 2>&1 || break; sleep 0.25; done
+  open -a "$APP"
+  for _ in $(seq 1 40); do
+    if hs -c "return true" >/dev/null 2>&1; then break; fi
+    sleep 0.25
+  done
+}
+
+holder_field() { jq -r "$1 // \"\"" "$HOLDER" 2>/dev/null || echo ""; }
+
+write_holder() {
+  # Arguments are worktree, branch, config, previous MJConfigFile.
+  local ts; ts="$(now)"
+  jq -n \
+    --arg wt "$1" --arg br "$2" --arg host "$(hostname)" \
+    --arg cfg "$3" --arg prev "$4" --argjson at "$ts" \
+    '{worktree:$wt, branch:$br, host:$host, config:$cfg, prevMJConfigFile:$prev, acquiredAt:$at, renewedAt:$at}' \
+    > "$HOLDER"
+}
+
+touch_holder() {
+  local tmp; tmp="$(mktemp)"
+  jq --argjson at "$(now)" '.renewedAt = $at' "$HOLDER" > "$tmp" && mv "$tmp" "$HOLDER"
+}
+
+lock_age() {
+  local rn; rn="$(holder_field '.renewedAt')"
+  [ -n "$rn" ] && echo $(( $(now) - rn )) || echo 999999
+}
+
+pretty_since() {
+  local at; at="$(holder_field '.acquiredAt')"
+  [ -n "$at" ] && date -r "$at" "+%Y-%m-%d %H:%M:%S" || echo "unknown"
+}
+
+cmd_status() {
+  local live; live="$(current_mj)"
+  local live_label="$live"
+  [ -z "$live" ] && live_label="~/.hammerspoon (main)"
+
+  if [ -d "$LOCK_DIR" ] && [ -f "$HOLDER" ]; then
+    echo "lock: HELD"
+    echo "  worktree: $(holder_field '.worktree')"
+    echo "  branch:   $(holder_field '.branch')"
+    echo "  host:     $(holder_field '.host')"
+    echo "  since:    $(pretty_since) ($(lock_age)s ago)"
+  elif [ -d "$LOCK_DIR" ]; then
+    echo "lock: HELD (holder file missing, likely mid-acquire or corrupt)"
+  else
+    echo "lock: FREE"
+  fi
+  echo "live config: $live_label"
+}
+
+cmd_acquire() {
+  local wait=0 deadline
+  for arg in "$@"; do
+    case "$arg" in
+      --wait) wait=1 ;;
+      --timeout=*) WAIT_TIMEOUT="${arg#*=}" ;;
+      --poll=*) POLL_INTERVAL="${arg#*=}" ;;
+      *) die "unknown flag $arg" ;;
+    esac
+  done
+
+  local wt br cfg
+  wt="$(my_worktree)"; br="$(my_branch)"; cfg="$(config_for "$wt")"
+  [ -f "$cfg" ] || die "no Hammerspoon config at $cfg"
+  deadline=$(( $(now) + WAIT_TIMEOUT ))
+  local announced=0
+
+  while true; do
+    if mkdir "$LOCK_DIR" 2>/dev/null; then
+      local prev; prev="$(current_mj)"
+      write_holder "$wt" "$br" "$cfg" "$prev"
+      set_mj "$cfg"
+      relaunch_hs
+      echo "hs-devlock: acquired for $br, Hammerspoon now live on this worktree"
+      return 0
+    fi
+
+    # The directory exists, so someone holds it or a holder file is settling.
+    if [ ! -f "$HOLDER" ]; then
+      # Either an acquire is a few milliseconds ahead of writing its holder, or a
+      # crash left an empty directory. Give it a moment, then reclaim if it stays.
+      sleep 1
+      if [ ! -f "$HOLDER" ] && [ -d "$LOCK_DIR" ]; then
+        rm -rf "$LOCK_DIR"
+      fi
+      continue
+    fi
+
+    local holder_wt; holder_wt="$(holder_field '.worktree')"
+    if [ "$holder_wt" = "$wt" ]; then
+      touch_holder
+      set_mj "$cfg"
+      echo "hs-devlock: already held by this worktree, kept"
+      return 0
+    fi
+
+    if [ "$(lock_age)" -gt "$STALE_SECS" ]; then
+      echo "hs-devlock: reclaiming stale lock from $(holder_field '.branch') (held $(lock_age)s)" >&2
+      rm -rf "$LOCK_DIR"
+      continue
+    fi
+
+    if [ "$wait" -eq 1 ] && [ "$(now)" -lt "$deadline" ]; then
+      if [ "$announced" -eq 0 ]; then
+        echo "hs-devlock: held by $(holder_field '.branch') since $(pretty_since), waiting..." >&2
+        announced=1
+      fi
+      sleep "$POLL_INTERVAL"
+      continue
+    fi
+
+    echo "hs-devlock: LOCKED by $(holder_field '.branch') ($holder_wt) since $(pretty_since)" >&2
+    echo "hs-devlock: rerun with --wait to block until it frees" >&2
+    return 2
+  done
+}
+
+cmd_release() {
+  local force=0
+  for arg in "$@"; do
+    case "$arg" in
+      --force) force=1 ;;
+      *) die "unknown flag $arg" ;;
+    esac
+  done
+
+  if [ ! -d "$LOCK_DIR" ]; then
+    echo "hs-devlock: not locked, Hammerspoon is on main"
+    return 0
+  fi
+
+  if [ ! -f "$HOLDER" ]; then
+    [ "$force" -eq 1 ] || die "lock has no holder file, use release --force to clear it"
+    restore_mj ""
+    relaunch_hs
+    rm -rf "$LOCK_DIR"
+    echo "hs-devlock: forced clear, Hammerspoon restored to main"
+    return 0
+  fi
+
+  local holder_wt wt; holder_wt="$(holder_field '.worktree')"
+  wt="$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null || echo "")"
+  if [ "$holder_wt" != "$wt" ] && [ "$force" -eq 0 ]; then
+    die "held by $(holder_field '.branch') ($holder_wt), not this worktree; use release --force to override"
+  fi
+
+  restore_mj "$(holder_field '.prevMJConfigFile')"
+  relaunch_hs
+  rm -rf "$LOCK_DIR"
+  echo "hs-devlock: released, Hammerspoon restored to main"
+}
+
+main() {
+  local cmd="${1:-status}"; shift || true
+  case "$cmd" in
+    status) cmd_status "$@" ;;
+    acquire) cmd_acquire "$@" ;;
+    release) cmd_release "$@" ;;
+    break) cmd_release --force "$@" ;;
+    *) die "unknown command $cmd (use status, acquire, release, break)" ;;
+  esac
+}
+
+main "$@"
