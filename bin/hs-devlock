@@ -80,16 +80,20 @@ restore_mj() {
   fi
 }
 
-# Quit Hammerspoon, wait for it to exit, reopen it, then wait until its ipc
-# answers so a caller can run hs -c immediately after this returns.
+# Quit Hammerspoon if it is running, wait for it to exit, reopen it, then wait
+# for the process to come back plus a short grace for its ipc to settle. There is
+# deliberately no hs CLI probe here, because that call can block indefinitely when
+# ipc is not yet up, which would hang the whole command. Every wait is bounded, so
+# this can never stall. A caller that runs hs right after should tolerate a brief
+# unavailability and retry.
 relaunch_hs() {
-  osascript -e "tell application \"$APP\" to quit" >/dev/null 2>&1 || true
-  for _ in $(seq 1 40); do pgrep -x "$APP" >/dev/null 2>&1 || break; sleep 0.25; done
+  if pgrep -x "$APP" >/dev/null 2>&1; then
+    osascript -e "tell application \"$APP\" to quit" >/dev/null 2>&1 || true
+    for _ in $(seq 1 40); do pgrep -x "$APP" >/dev/null 2>&1 || break; sleep 0.25; done
+  fi
   open -a "$APP"
-  for _ in $(seq 1 40); do
-    if hs -c "return true" >/dev/null 2>&1; then break; fi
-    sleep 0.25
-  done
+  for _ in $(seq 1 40); do pgrep -x "$APP" >/dev/null 2>&1 && break; sleep 0.25; done
+  sleep 1.5
 }
 
 holder_field() { jq -r "$1 // \"\"" "$HOLDER" 2>/dev/null || echo ""; }
