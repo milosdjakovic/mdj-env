@@ -235,6 +235,7 @@ function obj:_buildActionRows()
     add(keys.displayProfiles.description, "System · inspect and manage display arrangements", { kind = "special", name = "displayProfiles" }, "🖥️")
   end
   add("Search Settings", "System · opens the System Settings search field", { kind = "special", name = "searchSettings" }, "🔍")
+  add("Overlay Display", "System · where panels and choosers appear", { kind = "special", name = "overlayDisplay" }, "🖥️")
   add(keys.lock.description, "System · " .. self:_chordLabel("Hyper", keys.lock.key), { kind = "special", name = "lock" }, "🔒")
   add(keys.sleep.description, "System · " .. self:_chordLabel("Hyper", keys.sleep.key), { kind = "special", name = "sleep" }, "🌙")
   for _, b in ipairs(keys.windowManagement) do

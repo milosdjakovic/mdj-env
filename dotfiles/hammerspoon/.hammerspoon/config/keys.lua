@@ -260,6 +260,21 @@ return {
         { key = "x", action = "closeChooser",   description = "Close" },
       },
     },
+    -- The overlay display picker (launcher-only). A drill-in menu, so i selects the
+    -- highlighted row (drilling into Configure or a profile, or committing a mode or
+    -- a display), j and k navigate vim style, and x closes it. Same shared nav as the
+    -- other choosers; it just has no Hyper open key of its own.
+    {
+      name = "overlayDisplay",
+      when = "overlayDisplayOpen",
+      priority = 100,
+      bindings = {
+        { key = "i", action = "insertSelected", description = "Select" },
+        { key = "j", action = "selectNext",     description = "Move down" },
+        { key = "k", action = "selectPrev",     description = "Move up" },
+        { key = "x", action = "closeChooser",   description = "Close" },
+      },
+    },
   },
 
   -- System actions bound onto the Hyper key in init.lua. Hyper+Esc sleeps the
