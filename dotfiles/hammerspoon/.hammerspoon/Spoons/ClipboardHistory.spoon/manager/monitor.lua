@@ -269,6 +269,51 @@ function M.pasteBatch(entries)
   step()
 end
 
+-- How long after the Cmd+V to put the original pasteboard back. Long enough that the
+-- receiving app has read our text, short enough that a user copy in between is unlikely.
+-- Restoring sooner risks the app reading the restored content and pasting that instead.
+local restoreDelay = 0.15
+
+--- M.pasteText(text) - insert arbitrary text into the frontmost app by pasting it.
+--- This is the reliable path for glyphs a synthesized keystroke mangles, an emoji or
+--- any character outside the basic multilingual plane, which terminals and some native
+--- apps drop or render as replacement boxes because they read the key event rather than
+--- reassembling the surrogate pair. A real paste delivers the bytes intact everywhere.
+--- The pasteboard is snapshotted across all its types, the text is written and pasted,
+--- and the snapshot is put back after, so the clipboard is left untouched. Both writes
+--- are hidden from the poll through the same guard M.paste uses, so nothing lands in
+--- history. It reuses this module because the self-capture guard lives here and belongs
+--- in one place.
+function M.pasteText(text)
+  if not text or text == "" then
+    return
+  end
+
+  -- Snapshot every type so an image or file clipboard is restored too, not just text.
+  local snapshot = hs.pasteboard.readAllData()
+  hs.pasteboard.setContents(text)
+
+  -- Suppress our write from the poll and its echo, exactly as writeEntry does.
+  lastChange = hs.pasteboard.changeCount()
+  selfSigs[contentSig("text", text, nil)] = hs.timer.secondsSinceEpoch() + selfWindow
+
+  -- A short delay lets focus return to the app the picker covered, then paste.
+  hs.timer.doAfter(pasteDelay, function()
+    hs.eventtap.keyStroke({ "cmd" }, "v", 0)
+    -- Put the original clipboard back once the paste has read ours, and keep that
+    -- restore out of history as well. The restore is not pasted anywhere, so the
+    -- changeCount guard alone covers it, no signature is needed.
+    hs.timer.doAfter(restoreDelay, function()
+      if snapshot and next(snapshot) then
+        hs.pasteboard.writeAllData(snapshot)
+      else
+        hs.pasteboard.clearContents()
+      end
+      lastChange = hs.pasteboard.changeCount()
+    end)
+  end)
+end
+
 --------------------------------------------------------------------------------
 -- Lifecycle
 --------------------------------------------------------------------------------

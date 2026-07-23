@@ -165,11 +165,23 @@ file degrades to an empty list rather than a load error.
 Each row carries only the glyph string as its item, which the Chooser serialises and
 hands back to onSelect, so no function is ever placed on a row, the same rule the
 launcher and menu search follow. The effect of a pick is injected as onInsert, so the
-spoon never learns what a pick does. The root wires onInsert to type the glyph through
-`hs.eventtap.keyStrokes`, deferred a moment so it runs after the chooser tears down
-and macOS restores focus to the field that was frontmost before the picker opened.
-Typing rather than copying to the clipboard was the choice, so a pick lands where the
-cursor is and the clipboard is left untouched.
+spoon never learns what a pick does. The root wires onInsert to insert the glyph into the
+field that was frontmost before the picker opened, which macOS restores once the chooser
+tears down.
+
+Insertion pastes through the clipboard rather than typing, which was a correction over an
+earlier typing path. `hs.eventtap.keyStrokes` synthesizes a Unicode key event, and a
+terminal and some native apps read that event rather than reassembling a character outside
+the basic multilingual plane, so an emoji, which is a surrogate pair in the key event,
+arrived as replacement boxes even though the same glyph pasted from the macOS Character
+Viewer landed fine. A paste carries the real bytes, so it works everywhere a terminal
+included. The root wires onInsert to the clipboard manager's `pasteText`, which snapshots
+the clipboard, writes the glyph, sends the paste, and puts the original clipboard back
+after, hiding both writes from the history poll. So a pick still lands where the cursor is
+and the clipboard is still left untouched, the promise the typing path made, now kept by a
+mechanism that also works in the apps the old one failed in. If the clipboard manager is
+not wired the root falls back to typing, the same graceful degradation the other optional
+dependencies take.
 
 ## Picker integration
 

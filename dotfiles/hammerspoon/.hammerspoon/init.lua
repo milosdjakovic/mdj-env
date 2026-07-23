@@ -1151,13 +1151,18 @@ spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
 -- through when the app is absent. The remaining options are the shared wiring the winning
 -- backend reads what it needs from. The hammerspoon backend uses the Chooser factory, the
 -- shared theme, the same deferred shortcut panel the other choosers dock, and onInsert, the
--- effect of a pick, while macos and custom ignore them. onInsert types the glyph into the
--- field that was focused before the picker opened, deferred a moment so it runs after the
--- chooser tears down and macOS restores that focus, the same defer the launcher uses. The
--- emoji Hyper context (see config/keys.lua) drives the j, k, i, and x shortcuts through the
--- choosers registry below, active only when the hammerspoon backend wins since only it
--- reports a real surface. The open key is a base HyperKey binding, suppressed while a modal
--- context owns Hyper.
+-- effect of a pick, while macos and custom ignore them. onInsert inserts the glyph into the
+-- field that was focused before the picker opened. It pastes through the clipboard manager
+-- rather than typing, because a synthesized keystroke mangles an emoji or other astral glyph
+-- in a terminal and in some native apps, they read the key event rather than reassembling
+-- the surrogate pair and show replacement boxes, while a paste delivers the bytes intact
+-- everywhere. pasteText snapshots the clipboard and puts it back after, hidden from history,
+-- so the paste is invisible and the clipboard stays untouched, the promise the old typing
+-- path kept. If the clipboard manager is absent this degrades to typing, the same graceful
+-- fallback HyperKey and AppToggler take. The emoji Hyper context (see config/keys.lua) drives
+-- the j, k, i, and x shortcuts through the choosers registry below, active only when the
+-- hammerspoon backend wins since only it reports a real surface. The open key is a base
+-- HyperKey binding, suppressed while a modal context owns Hyper.
 spoon.Emoji:init()
 local emojiProviders = spoon.Emoji.providers
 spoon.Emoji:configure({
@@ -1167,7 +1172,12 @@ spoon.Emoji:configure({
   placeholder = "Search by name or keyword",
   shortcutPanel = shortcutPanelFor("emoji"),
   onInsert = function(glyph)
-    hs.timer.doAfter(0.1, function() hs.eventtap.keyStrokes(glyph) end)
+    local mgr = spoon.ClipboardHistory and spoon.ClipboardHistory.manager
+    if mgr and mgr.pasteText then
+      mgr.pasteText(glyph)
+    else
+      hs.timer.doAfter(0.1, function() hs.eventtap.keyStrokes(glyph) end)
+    end
   end,
 })
 spoon.HyperKey:bind(keys.emoji.key, function() spoon.Emoji:show() end)

@@ -156,6 +156,16 @@ function M.deleteSelected()
   ui.deleteSelected()
 end
 
+--- M.pasteText(text) - insert arbitrary text into the frontmost app by pasting it,
+--- the reliable way to land an emoji or other astral glyph that a synthesized keystroke
+--- mangles in terminals and some native apps. The pasteboard is snapshotted and put back
+--- after, and the write is hidden from the poll, so the clipboard is left untouched and
+--- history is not polluted. A consumer with no relation to clipboard history can borrow
+--- this, which is why the emoji picker's onInsert is wired to it in the composition root.
+function M.pasteText(text)
+  monitor.pasteText(text)
+end
+
 --- M.clear() - wipe history and media. Handy from the console:
 --- hs -c "spoon.ClipboardHistory.providers.hammerspoon.clear()"
 function M.clear()
