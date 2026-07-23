@@ -15,6 +15,39 @@ Hyper+i, inserts the highlighted glyph into whatever field was focused before th
 picker opened. Emoji always rank above symbols in the results, so a query lists every
 matching emoji first and the plainer glyphs below, never interleaved.
 
+## The backends, a provider strategy
+
+Hyper+J does not open one fixed picker, it opens whichever backend the composition root
+put first. Emoji is a facade, the same shape Chooser.spoon uses. It owns no picker of its
+own, it holds a set of backends under providers/ and selects one, so swapping which emoji
+picker the key opens is a one line change at the root and never a change to this code.
+
+Three backends ship. The hammerspoon backend is the picker built over the Chooser atom,
+the one the rest of this file describes, and it is always available so it is the safe
+fallback. The macos backend triggers the system Character Viewer with Ctrl Cmd Space and
+inserts through it, so it needs no dataset or icons of its own. The custom backend runs an
+injected callback, so any external picker reached by a URL scheme, a remapped key, a shell
+command, or a remote trigger becomes a backend with no file of its own, which is why there
+is no Alfred or Raycast backend, each is just a custom one fronting the app by its own
+trigger. The custom file returns a factory, not a backend, called with either a bare
+function to run on show or a table carrying a name, a show, and an optional isAvailable and
+isShowing.
+
+Each backend honors one small contract, isAvailable, configure, show, isShowing, and
+surface. The root lists the backends by reference in priority order, and configure walks
+that order, logs any backend whose isAvailable is false, and configures only the first
+available one, so a backend that never wins pays no setup cost, the dataset load and the
+icon prewarm included. That walk is a Chain of Responsibility, the first backend that can
+handle the open wins, and a custom backend fronting an app that is not installed declines
+through its isAvailable so the facade falls through to the next, logging the skip so a
+missing app is visible rather than silent. show, isShowing, and surface delegate to the
+winner. Only the hammerspoon backend returns a real navigation surface, the macos and
+custom backends return a no op surface so they stay out of the shared j, k, i navigation
+registry, which is correct since a system or external picker drives its own keys.
+
+The rest of this file describes the hammerspoon backend, since it is the one with a
+dataset, a match, icons, and a pick memory to explain.
+
 ## Why a spoon and not inline
 
 Menu search lives inline in the root because it is only policy over the Chooser atom.
@@ -102,16 +135,19 @@ whole cost. A glyph is rendered at most once ever, and the cap above keeps any o
 open from rendering more than a bounded batch.
 
 Render once and keep forever is deliberate, not lazy. Measuring showed each rendered
-icon costs about 38KB and that memory is not reclaimed by the garbage collector until
-a config reload, a property of the canvas render rather than something a cache policy
-can undo, and the cost is the same at a small icon size as a large one, so shrinking
-the icon is not a lever. A bounded cache that cleared old icons would be worse, not
-better, since a re render only allocates fresh memory that also never comes back, so
-clearing then redrawing grows the total without bound. Keeping each glyph exactly once
-is therefore the leanest option, and `MAX_RESULTS` is what actually paces it, since it
-bounds how many distinct glyphs a session can ever reach. A normal session that views
-a few hundred glyphs costs tens of MB, and the ceiling, only reached if every glyph in
-the set is deliberately surfaced, is a couple of hundred MB, which a reload resets.
+icon holds its memory until a config reload, since the canvas render is not reclaimed by
+the garbage collector, a property of the render rather than something a cache policy can
+undo. The one real lever is the render size, the cost scales with the icon's pixel
+dimensions, so the canvas is drawn only about as large as the chooser row shows the icon
+times the retina scale, `ICON_SIZE`, which is why a glyph costs about 30KB at 44 points
+rather than the roughly 143KB it cost at the old 72. A bounded cache that cleared old
+icons would be worse, not better, since a re render only allocates fresh memory that also
+never comes back, so clearing then redrawing grows the total without bound. Keeping each
+glyph exactly once is therefore the leanest option, and `MAX_RESULTS` is what paces the
+count, since it bounds how many distinct glyphs a session can ever reach. A normal session
+that views a few hundred glyphs costs a few MB at this size, and the ceiling, only reached
+if every glyph in the set is deliberately surfaced, is well under a hundred MB, which a
+reload resets.
 
 Even one reused canvas is too slow to render the whole set at once, so the empty state
 icons are warmed in the background right after configure, in small batches on a self
@@ -154,10 +190,41 @@ would be dropped if the atom filtered again. `_rows` also caps the visible rows 
 the icon render, which the atom styling every survivor would undo. So `_rows` owns the
 query end to end and the atom does no second pass.
 
+## Recents, the most used first
+
+The picker remembers what you pick, so an empty field leads with your most used glyphs
+rather than the raw upstream slice. This is the same Observer shape the launcher uses for
+its recency timeline. `onSelect` promotes the chosen glyph through `_promote`, the one
+writer of the memory, which lives in one `hs.settings` key, `emojiRecency`, so a favorite
+survives a reload and a reboot, the same reason the launcher persists its own.
+
+The score is a decaying one, not a raw count, which is the important decision. A raw count
+locks an old favorite at the top forever, since a fresh glyph would need as many picks as
+the old one ever had to catch it. Instead each glyph holds a score that on a pick becomes
+its own value decayed by `DECAY` to the power of the picks since it was last touched, plus
+one. A glyph picked constantly converges to the geometric limit `1 / (1 - DECAY)`, so
+`DECAY` at 0.9 sets a natural ceiling of 10, and a glyph left unused sheds about a tenth of
+its standing per pick of anything else, so a new favorite overtakes a stale one within
+roughly ten to twenty picks rather than never. The decay is measured in picks, not wall
+clock, so the order reshuffles only as use moves on and an idle day changes nothing.
+Swapping to a time based half life later is only a change in how that age is measured.
+
+The score is computed lazily. A pick decays and bumps only the picked glyph and stamps it
+with the current value of a global pick tick, and every other glyph is decayed to that tick
+only when the recents are read, so a pick is one multiply and one add and never rewrites the
+rest of the table. An entry whose decayed score falls below `PRUNE_FLOOR` is dropped on the
+next pick, so the memory stays tiny. The empty view leads with the top glyphs by decayed
+score, the most recent pick breaking a tie, capped at a small `RECENTS_MAX`, and the rest of
+the leading slice follows in upstream order with those recents removed so none appears twice,
+still bounded by `MAX_RESULTS`. A typed query is unchanged, the name and keyword ranking
+stays in charge, so search stays predictable and the memory only shapes the browse view, the
+same split the launcher makes between its empty timeline and a typed rerank. A remembered
+glyph that a regenerated `data.json` no longer carries is skipped when the recents are built,
+so the list is always renderable and the memory never has to be migrated. The recents glyphs
+are warmed into the icon cache alongside the leading slice, since a favorite may sit outside
+that slice, and there are at most `RECENTS_MAX` of them so the extra render is trivial.
+
 ## What it does not do
 
-It keeps no recency or frequency memory, so a picked glyph does not float to the top
-next time. The launcher's recency timeline is the model to follow if that is wanted
-later, a small persisted list keyed by glyph, promoted on select. It also inserts one
-glyph per name, it does not offer skin tone variants, since the gemoji base set is one
-glyph per name.
+It inserts one glyph per name, it does not offer skin tone variants, since the gemoji base
+set is one glyph per name.

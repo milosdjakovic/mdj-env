@@ -222,6 +222,7 @@ function obj:_buildActionRows()
   -- capture and the system actions get a per-action one.
   local captureGlyphs = { ocrArea = "🔤", captureArea = "📸", captureAreaClipboard = "📸", recordArea = "🎥" }
   add(keys.colorPicker.description, "Tools · " .. self:_chordLabel("Hyper", keys.colorPicker.key), { kind = "special", name = "colorPicker" }, "🎨")
+  add(keys.emoji.description, "Tools · " .. self:_chordLabel("Hyper", keys.emoji.key), { kind = "special", name = "emoji" }, "😀")
   for _, c in ipairs(keys.capture) do
     add(c.description or humanize(c.action), "Capture · " .. self:_chordLabel("Hyper", c.key, c.mods),
       { kind = "capture", name = c.action }, captureGlyphs[c.action] or "📸")
