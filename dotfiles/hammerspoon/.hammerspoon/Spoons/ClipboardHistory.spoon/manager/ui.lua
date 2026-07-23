@@ -45,6 +45,10 @@ local thumbCache = {} -- path -> hs.image (or false), for row thumbnails
 local imageCache = {} -- preview png path -> hs.image (or false), so a re-highlight re-decodes nothing
 local iconCache = {} -- bundle id -> hs.image (or false), for row source-app icons
 local existCache = {} -- linked-file path -> bool, so the badge does not restat per keystroke
+-- entry -> its lowercased searchable text, built once. Weak keyed, so an entry that
+-- leaves the store falls out on its own and nothing needs to invalidate it, since an
+-- entry's content never changes after capture.
+local hayCache = setmetatable({}, { __mode = "k" })
 
 -- Append batch. The Hyper a binding collects the highlighted entry here, in the
 -- order pressed, so several items can be gathered and pasted together on close.
@@ -159,13 +163,21 @@ local function subTextFor(e)
   return table.concat(parts, "  ·  ")
 end
 
+-- The lowercased text the word matcher searches for an entry, its title, preview,
+-- body, and any file paths folded together. Built once per entry and cached against
+-- the live store reference, so a keystroke no longer rebuilds and lowercases the full
+-- body of the whole history, which was the bulk of the old per-keystroke cost.
 local function haystack(e)
+  local hit = hayCache[e]
+  if hit then return hit end
   local parts = { e.title, e.preview or "" }
   if e.text then parts[#parts + 1] = e.text end
   for _, el in ipairs(e.files or {}) do
     parts[#parts + 1] = el.path
   end
-  return table.concat(parts, " "):lower()
+  local hay = table.concat(parts, " "):lower()
+  hayCache[e] = hay
+  return hay
 end
 
 -- Split an optional leading type token ("img ...", "file: ...") off the query.
@@ -215,9 +227,10 @@ end
 -- The atom's rows supplier. Returns plain items; the atom styles them with the
 -- active palette. Filtering, the type prefix, the batch mark, and the thumbnail or
 -- source-app icon are all clipboard policy and live here. The free-text part runs through
--- the injected shared matcher, the same one every chooser uses, so the clipboard gets the
--- same search without the atom's ranking, keeping entries in recency order. Its score is
--- used only as a yes or no, so a match keeps the row and the store order is preserved.
+-- the injected word matcher (Chooser.matchers.words), not the fuzzy one the label choosers
+-- use, so the full body of every entry stays searchable with a cheap byte scan and nothing
+-- is truncated. Its result is used only as a yes or no, so a match keeps the row and the
+-- store's recency order is preserved.
 local function buildChoices(q)
   local kind, rest = parseQuery(q)
   rest = (rest or ""):gsub("^%s+", ""):gsub("%s+$", ""):lower()

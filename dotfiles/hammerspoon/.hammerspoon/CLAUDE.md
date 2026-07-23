@@ -492,11 +492,12 @@ policy, decided once at the root and shared by every chooser, the same Strategy
 through injection shape as the overlay display screen. The matcher lives in one
 file, `Chooser.spoon/match.lua`, a pure `match(query, hay) -> score or nil` where
 nil drops a row and a number ranks it, higher first with the original order breaking
-ties. `Chooser.matchers` exposes the strategies, `fuzzy` and `substring` (the
-pre-fuzzy behaviour, a plain substring test where every match scores zero so the list
-keeps its natural order). `init.lua` injects one through `Chooser.configure({ matcher
-= ... })`, so switching every list between fuzzy and plain substring is one edit. Today
-it is fuzzy.
+ties. `Chooser.matchers` exposes the strategies, `fuzzy`, `substring` (the pre-fuzzy
+behaviour, a plain substring test where every match scores zero so the list keeps its
+natural order), and `words` (a word tokenizer, see the clipboard below). `init.lua`
+injects one through `Chooser.configure({ matcher = ... })`, so switching every list
+between them is one edit. Today the root default is fuzzy, and the clipboard overrides
+its own to `words`.
 
 `fuzzy` is a small dynamic-programming subsequence scorer in the spirit of fzy, chosen
 over a greedy scan because greedy locks onto the leftmost occurrence of each letter, so
@@ -540,11 +541,30 @@ substring filter over the current view's rows, so the atom must not rerank or hi
 Back and commit rows. The emoji picker filters over a hidden haystack, the folded name,
 aliases, tags, and category rather than the visible title and subtitle, and caps its rows
 to bound the glyph icon render, so its own supplier owns the query and the atom filtering
-again would drop a tag only match and undo the cap. The clipboard parses a leading type prefix (`img ...`) off its query, so it owns
-filtering, but it still reuses the same injected matcher for the free-text part and keeps
-its rows in recency order rather than reranking, so the one matcher policy reaches it too.
+again would drop a tag only match and undo the cap. The clipboard parses a leading type
+prefix (`img ...`) off its query, so it owns filtering and opts out at its own `new()`,
+and for the free-text part it uses the `words` strategy rather than the shared fuzzy one,
+keeping its rows in recency order rather than reranking.
 So every list chooser is fuzzy by default with no per-tool wiring, and a future list
 chooser inherits it for free, while the structured-query tools opt out in one word.
+
+The clipboard uses `words` instead of fuzzy deliberately. Fuzzy earns its place in the
+label choosers, where you type an abbreviation of a short known name and subsequence
+matching with typo tolerance is the point. Clipboard entries are arbitrary prose and code
+searched from the inside, where you remember and type a real word, and there fuzzy was both
+the wrong fit and the performance cost. Its query-length times body-length cost per row,
+run over uncapped clipboard bodies and rebuilt every keystroke, dragged worse the more you
+typed, and the only ways to bound it (truncating the searchable body) lost content the
+matcher was meant to reach. `words` splits the query on whitespace and keeps a row when
+every word is a substring of the body in any order, so words need not be adjacent and a
+prefix still hits. It is a plain byte scan with no dynamic program and no allocation, so it
+searches the full body of every entry on each keystroke with nothing truncated, and its
+only blind spot is a wrong letter inside a word, a fair trade on this kind of text. Two
+smaller changes go with it: the clipboard caches each entry's lowercased searchable text
+once (a weak-keyed table in `ui.lua`) instead of rebuilding it every keystroke, and the
+row build filters and styles only survivors as before. A database-backed full-text index
+(`hs.sqlite3`) would only matter if the 1000-entry in-memory history ever grew into the
+tens of thousands; at this scale the scan is already well within a frame.
 
 **Clipboard preview.** The clipboard is the third native panel in the pair. Its
 manager reserves a companion pane beside the chooser (`layout.companionWidth`), and

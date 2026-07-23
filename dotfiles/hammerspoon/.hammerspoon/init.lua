@@ -1177,10 +1177,13 @@ spoon.ClipboardHistory.manager.configure({
   theme = settings.chooserTheme,
   chooser = spoon.Chooser,
   -- The clipboard parses a type prefix off its query ("img ...") so it owns filtering and
-  -- opts out of the atom's matcher at its own new(). It reuses this same shared matcher for
-  -- the free-text part, so the one matcher policy still reaches the clipboard. Swap this to
-  -- spoon.Chooser.matchers.substring to give the clipboard plain substring search.
-  matcher = spoon.Chooser.matchers.fuzzy,
+  -- opts out of the atom's matcher at its own new(). For the free-text part it uses the word
+  -- matcher, not fuzzy. Clipboard entries are prose and code searched from the inside, where
+  -- you type a real word you remember, so tokenized substring search over the full body fits
+  -- them and, being cheap, needs no truncation, while fuzzy's cost forced a cut and bought
+  -- little here. Fuzzy stays the default for the label choosers. Swap this to
+  -- spoon.Chooser.matchers.fuzzy or .substring to change only the clipboard's search.
+  matcher = spoon.Chooser.matchers.words,
   -- The preview pane paints its background and border through the shared surface, so
   -- it matches the docked hint panel and the cheat sheet and rounds the same way. The
   -- clipboard draws its own canvas (it scrolls and clips), so it gets the surface as

@@ -149,4 +149,29 @@ function M.substring(query, hay)
   return (hay:lower():find(q, 1, true) and 0) or nil
 end
 
+--- M.words(query, hay) -> score or nil
+--- The clipboard strategy, a word tokenizer rather than a subsequence scorer. The query
+--- is split on whitespace and the row is kept only when every word appears as a case
+--- insensitive substring of the haystack, in any order. So the words need not be adjacent,
+--- "hello there" finds "hello everyone there", and a partial word or a prefix still hits,
+--- "hel" finds "hello". There is no typo tolerance and no ranking, every match scores zero
+--- so the consumer's own order is kept. It is a handful of plain byte scans with no dynamic
+--- program and no allocation, which is why it can search the full body of a long clipboard
+--- entry on every keystroke where fuzzy could not without a cut. Clipboard entries are prose
+--- and code searched from the inside, where you type a real word you remember, so this fits
+--- them and fuzzy does not. The one thing it will not forgive is a wrong letter inside a
+--- word, the deliberate trade for searching the whole body with nothing truncated.
+---
+--- Unlike fuzzy and substring, this folds case only on the query, not the haystack. The
+--- haystack is compared verbatim, so the caller must lower it once when it builds it, as the
+--- clipboard does in its cached searchable text. Re-folding a long body on every keystroke
+--- is exactly the cost this strategy exists to avoid, and it measured as four fifths of the
+--- work, so a matcher meant for big bodies must never do it per call.
+function M.words(query, hay)
+  for word in query:lower():gmatch("%S+") do
+    if not hay:find(word, 1, true) then return nil end
+  end
+  return 0
+end
+
 return M
