@@ -5,8 +5,9 @@
 --- It is a small coordinator over the Chooser atom. It owns one thing of its own,
 --- the vendored emoji dataset loaded once at init, plus the chooser instance built
 --- over it, so it earns a spoon rather than inline wiring in the composition root.
---- It owns no watcher, timer, or eventtap, so it has no start or stop, matching the
---- lifecycle contract.
+--- It owns only a transient prewarm timer that self stops once the leading icons are
+--- warmed, and no watcher or eventtap, so nothing needs an explicit start or stop,
+--- matching the lifecycle contract.
 ---
 --- The match is keyword based, not exact name. Each entry carries a lowercased
 --- haystack folding its name, its shortcode aliases, its tags, and its category, so

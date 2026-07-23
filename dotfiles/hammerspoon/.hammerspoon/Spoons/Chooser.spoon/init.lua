@@ -18,7 +18,8 @@ local obj = {}
 obj.__index = obj
 obj.name = "Chooser"
 obj.version = "3.0"
-obj.author = "mdj-env"
+obj.author = "Milos Djakovic"
+obj.license = "MIT"
 
 -- Load the native provider by absolute path, the Capture idiom (a spoon dir is not
 -- on package.path). It is self contained and already honors the full contract.

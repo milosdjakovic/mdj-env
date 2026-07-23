@@ -22,9 +22,11 @@ does one thing while Hyper plus Shift plus 4 does another. Resolution compares o
 the real modifiers shift, ctrl, alt, and cmd, deliberately ignoring the `fn` flag
 macOS stamps onto some keys, since a raw exact check would never match. An exact
 mods match beats a catch all binding with no mods, and within a tier the highest
-priority wins. This is the same policy `WindowLeader` uses, kept identical so both
-adapters over the one engine behave the same, which is why Hyper plus Shift plus a
-key can differ from Hyper plus that key in both.
+priority wins. `WindowLeader` shares the same mods matching approach, an exact sub
+modifier check with a catch all fallback, which is why Hyper plus Shift plus a key can
+differ from Hyper plus that key in both. It is not identical though. Only HyperKey adds
+the priority ordering and the `when` gating below, since only it hosts the modal
+contexts, while `WindowLeader` keeps a single first match resolver with neither.
 
 ## Modal contexts
 

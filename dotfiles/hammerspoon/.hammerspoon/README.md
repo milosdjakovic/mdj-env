@@ -13,15 +13,13 @@
 │       ├── dev.lua               # Dev workspace
 │       └── vicert.lua            # Vicert workspace
 └── Spoons/                       # Hammerspoon Spoons (reusable logic)
-    ├── HyperKey.spoon/           # Caps Lock (→F18) → Hyper on hold, Caps on tap
-    ├── HyperCheatSheet.spoon/    # Overlay of Hyper app bindings (open/not running)
-    ├── AppToggler.spoon/         # Smart app toggle with hide-others
-    ├── WindowManager.spoon/      # Window sizing and positioning
-    ├── StageManager.spoon/       # macOS Stage Manager integration
-    ├── WorkspaceEngine.spoon/    # Generic workspace orchestration
-    ├── TerminalHandler.spoon/    # Terminal-specific handling
-    └── DockMenuToggle.spoon/     # Dock/menu bar auto-hide toggle
 ```
+
+The authoritative spoon list is the `Spoons/` directory and the `hs.loadSpoon`
+calls in `init.lua`. This README does not enumerate them, because a hand-kept list
+drifts as spoons are added or renamed. Each spoon with a non-obvious design keeps its
+own `CLAUDE.md` beside its `init.lua`, and the cross-spoon design notes live in the
+top-level `CLAUDE.md`.
 
 ## Adding a New Spoon (re-stow required)
 
@@ -53,8 +51,9 @@ Edit `config/keys.lua`:
 ```lua
 { app = "NewApp", modifiers = HYPER, key = "W" },
 ```
-App toggles fire by holding the Hyper key (**Caps Lock**, remapped to **F18** by
-`src/setup-capslock-hyper.sh` and driven by `HyperKey.spoon`) plus the letter.
+App toggles fire by holding the Hyper key (**Caps Lock**, remapped to **F18** at the
+HID level by `KeyRemap.spoon` from the `leaderKeys` catalog in `config/keys.lua`, and
+driven by `HyperKey.spoon`) plus the letter.
 A quick Caps Lock **tap** toggles real Caps Lock (via `hs.hid.capslock`).
 Holding Caps Lock ~0.6s with no key shows `HyperCheatSheet`: an overlay of the
 bindings, split into open vs not-running apps. Uninstalled apps (no resolvable

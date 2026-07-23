@@ -89,8 +89,8 @@ than migrated and the order relearns within normal use.
 The persist on every activation is cheap, `hs.settings` is `NSUserDefaults`,
 which updates in memory and flushes to disk on its own schedule, so it is not a
 disk write per switch. Two caches keep the open instant: `_appRowsCache` holds
-the app rows and is dropped only when the running set changes, and
-`_orderedRowsCache` holds the fully sorted list and is dropped on any promote, so
+the app rows and is dropped when the running set changes and on an app activation,
+and `_orderedRowsCache` holds the fully sorted list and is dropped on any promote, so
 a selection re-sorts without rescanning apps and a keystroke only filters.
 Deriving the order at open time from `hs.window.orderedWindows()` was rejected,
 it enumerates windows through the accessibility API, which is slow enough to lag

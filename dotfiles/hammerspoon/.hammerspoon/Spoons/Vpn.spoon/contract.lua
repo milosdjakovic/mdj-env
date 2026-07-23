@@ -3,7 +3,9 @@
 --- init.lua. It is added now because the engine is a real consumer, not up front. In
 --- a dynamic language a contract is a documented set of required methods plus a
 --- validation step, not a compiled interface, so validate checks the shape once at
---- load and fails loudly on a gap rather than at the first missing call.
+--- load. It returns (ok, missing) rather than throwing, the same soft shape Capture's
+--- contract uses, and the composition root in init.lua decides what a gap means. There
+--- it is a hard load-time failure, since the single provider is not optional.
 ---
 --- The methods a provider must implement.
 ---   available()                     returns whether the backend is installed, checked
@@ -24,14 +26,20 @@
 
 local M = {}
 
-M.methods = { "available", "status", "connect", "disconnect", "setLocation", "listLocations", "selectedLocation" }
+M.requiredMethods = { "available", "status", "connect", "disconnect", "setLocation", "listLocations", "selectedLocation" }
 
+--- contract.validate(provider) -> ok, missing
+--- Return true when the provider is a table carrying every required method, or false
+--- and the name of the first gap (or "not a table"). Never throws, so the caller owns
+--- the failure policy.
 function M.validate(provider)
-  assert(type(provider) == "table", "vpn provider must be a table")
-  for _, name in ipairs(M.methods) do
-    assert(type(provider[name]) == "function", "vpn provider missing method " .. name)
+  if type(provider) ~= "table" then return false, "not a table" end
+  for _, name in ipairs(M.requiredMethods) do
+    if type(provider[name]) ~= "function" then
+      return false, name
+    end
   end
-  return provider
+  return true
 end
 
 return M

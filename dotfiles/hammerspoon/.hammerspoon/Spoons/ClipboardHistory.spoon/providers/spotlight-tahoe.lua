@@ -5,7 +5,7 @@
 --- selects its Clipboard category (Cmd+4), skipping the open step when Spotlight
 --- is already showing (pressing Cmd+Space again would close it). Spotlight's
 --- process always runs but only owns a window while the panel is visible, which
---- is how isShowing() detects it. It omits isAvailable(), so it is always
+--- is how isShowing() detects it. It omits available(), so it is always
 --- available and belongs last in the chain, the guaranteed fallback.
 return {
   deferUntilHyperRelease = true, -- sends Cmd+Space / Cmd+4, swallowed while held

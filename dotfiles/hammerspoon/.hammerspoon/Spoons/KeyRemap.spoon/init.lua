@@ -25,6 +25,8 @@ obj.version = "1.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
+local log = hs.logger.new("KeyRemap", "info")
+
 -- Friendly name -> HID keyboard usage code. Sources are the physical keys we
 -- remap from, the f-keys are the unused targets we remap to. Add a row to
 -- support another key, nothing else here changes.
@@ -66,11 +68,11 @@ function obj:apply(catalog, activeNames)
       seen[name] = true
       local row = catalog[name]
       if not row then
-        print("KeyRemap: unknown key '" .. tostring(name) .. "'")
+        log.w("unknown key '" .. tostring(name) .. "'")
       else
         local src, dst = USAGE[row.source], USAGE[row.fkey]
         if not src or not dst then
-          print("KeyRemap: '" .. name .. "' has unknown source/fkey, "
+          log.w("'" .. name .. "' has unknown source/fkey, "
             .. tostring(row.source) .. " -> " .. tostring(row.fkey))
         else
           entries[#entries + 1] = string.format(

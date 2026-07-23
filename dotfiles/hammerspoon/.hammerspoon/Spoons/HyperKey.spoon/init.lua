@@ -26,6 +26,8 @@ obj.version = "4.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
+local log = hs.logger.new("HyperKey", "info")
+
 obj._chord = nil        -- shared ChordKey engine
 obj._bindings = nil     -- keycode -> { { mods, fn, when, priority }, ... }
 obj._predicates = nil   -- name -> function() -> bool, injected; gates `when` bindings
@@ -104,7 +106,7 @@ function obj:bind(key, fn, mods, opts)
       self._contextWhens[opts.when] = true
     end
   else
-    print("HyperKey: unknown key '" .. tostring(key) .. "'")
+    log.w("unknown key '" .. tostring(key) .. "'")
   end
   return self
 end
@@ -215,7 +217,7 @@ end
 --- keycode, which the Hyper callbacks simply ignore.
 function obj:start()
   if not self._chord then
-    print("HyperKey: no ChordKey engine configured (opts.chord)")
+    log.w("no ChordKey engine configured (opts.chord)")
     return self
   end
   local bindings = self._bindings
@@ -230,13 +232,6 @@ function obj:start()
       return self:_resolve(bindings[code], flags)
     end,
   })
-  return self
-end
-
---- HyperKey:stop()
---- Method
---- No-op: the shared ChordKey engine owns the event tap.
-function obj:stop()
   return self
 end
 

@@ -25,6 +25,8 @@
 local E = {}
 E.__index = E
 
+local log = hs.logger.new("DisplayProfiles", "info")
+
 -- Configured state
 E._profiles = nil     -- active list for this machine, each with precomputed ids and count
 E._binary = nil       -- displayplacer invocation used for the list query
@@ -78,7 +80,7 @@ function E:configure(opts)
   for _, p in ipairs(opts.profiles or {}) do
     local ids, count = commandIds(p.command or "")
     if count == 0 then
-      print("DisplayProfiles: profile '" .. tostring(p.name) .. "' names no id, ignored")
+      log.w("profile '" .. tostring(p.name) .. "' names no id, ignored")
     else
       self._profiles[#self._profiles + 1] = {
         name = p.name or "?",
@@ -140,7 +142,7 @@ function E:reconcile(force)
   local attachedIds, attachedCount = self:_attached()
   local p = self:_match(attachedIds, attachedCount)
   if not p then
-    print("DisplayProfiles: no profile for " .. attachedCount
+    log.w("no profile for " .. attachedCount
       .. " screens (" .. signatureOf(attachedIds) .. ")")
     return self
   end
@@ -149,7 +151,7 @@ function E:reconcile(force)
   end
   hs.execute(p.command, true)
   self._lastApplied = p.signature
-  print("DisplayProfiles: applied '" .. p.name .. "'")
+  log.i("applied '" .. p.name .. "'")
   return self
 end
 
@@ -171,11 +173,11 @@ function E:apply(name)
     if p.name == name then
       hs.execute(p.command, true)
       self._lastApplied = p.signature
-      print("DisplayProfiles: applied '" .. p.name .. "'")
+      log.i("applied '" .. p.name .. "'")
       return self
     end
   end
-  print("DisplayProfiles: no profile named '" .. tostring(name) .. "'")
+  log.w("no profile named '" .. tostring(name) .. "'")
   return self
 end
 
@@ -242,10 +244,10 @@ function E:start()
   -- leaving a missing tool to look like nothing ever matched.
   local path, ok = hs.execute("command -v " .. self._binary, true)
   if ok ~= true then
-    print("DisplayProfiles: dependency displayplacer NOT found on PATH, displays will not be managed; run brew bundle to install it")
+    log.w("dependency displayplacer NOT found on PATH, displays will not be managed; run brew bundle to install it")
     return self
   end
-  print(string.format("DisplayProfiles: dependency displayplacer found at %s, managing %d profile(s)",
+  log.i(string.format("dependency displayplacer found at %s, managing %d profile(s)",
     (path or "?"):gsub("%s+$", ""), #self._profiles))
   self:reconcile()
   self._debounce = hs.timer.delayed.new(self._settleDelay, function()

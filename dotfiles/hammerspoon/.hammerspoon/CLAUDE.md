@@ -7,8 +7,11 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
   - `keys.lua` - All keybinding definitions
   - `settings.lua` - Global settings (margins, timing)
   - `workspaces/` - Workspace definitions (dev.lua, vicert.lua)
-- `Spoons/` - Real Hammerspoon Spoons (reusable logic)
-  - ChordKey, CheatSheet, HyperKey, HyperCheatSheet, AppToggler, ClipboardHistory, Capture, Eyedropper, WindowManager, WindowLeader, WindowCheatSheet, StageManager, WorkspaceEngine, TerminalHandler, DisplayMemory, Launcher, Emoji, DockMenuToggle, KeyRemap, DisplayProfiles
+- `Spoons/` - Real Hammerspoon Spoons (reusable logic). The authoritative list is the
+  `Spoons/` directory itself and the `hs.loadSpoon` calls at the top of `init.lua`. This
+  file does not re-list the spoons, because a hand-kept roster drifts the moment one is
+  added, renamed, or removed. Each spoon that carries a non-obvious decision has its own
+  `CLAUDE.md` beside its `init.lua`.
 
 **Leader keys (META < SUPER < HYPER).** Three physical keys can be remapped to
 unused function keys, named for the classic X11/Emacs modifier hierarchy,
@@ -302,7 +305,7 @@ sheets, and the colour toast. This is Strategy wired through injection, the same
 TerminalHandler's `targetScreen`. A small registry in `init.lua` maps a mode name
 to a resolver returning an `hs.screen`, `config/settings.lua` picks the mode in
 the pure-data `overlayDisplay` block, and the chosen resolver is injected into the
-two atoms, `CanvasPanel.setScreenProvider` and `Chooser.configure({ screen })`.
+two atoms, `CanvasPanel.configure({ screen })` and `Chooser.configure({ screen })`.
 Neither atom names the policy or the modes, so both the choosers and the cheat
 sheets read one seam and land on the same display.
 
@@ -410,14 +413,19 @@ the spoon is shaped this way and never narrates the code line by line, since the
 code sits right there. `Launcher.spoon` is the worked example, and `ChordKey` and
 `HyperKey` document the hold, tap, chord engine and its adapter.
 
-Create one only when the spoon earns it, a thin mechanism like `DockMenuToggle`
+Create one only when the spoon earns it, a thin mechanism like `DockAutoHide`
 or `KeyRemap` stays covered by its paragraph here, which is the same reject
-ceremony rule the design principles set. Two rules keep the split honest. The
+ceremony rule the design principles set. Three rules keep the split honest. The
 decision and its doc live together, so a change to a spoon's internals edits that
 spoon's `CLAUDE.md` in the same commit, while a change to how spoons are wired
 edits this file. And any concrete wiring choice stays here, so there is one
 composition root of truth and the per spoon files stay ignorant of how they are
-assembled. Adding a `CLAUDE.md` inside an already symlinked spoon needs no
+assembled. And a decision record describes only why a thing is shaped the way it
+is, it never enumerates the set of spoons, restates a key binding, or copies a
+method signature, because those already live in the `Spoons/` directory, in
+`config/keys.lua`, and in the spoon's own code, so any copy here is a second source
+of truth that drifts. When you need to point at one, point at where it lives rather
+than restating it. Adding a `CLAUDE.md` inside an already symlinked spoon needs no
 restow, it resolves through the existing link like any new file.
 
 **Wiring a list tool into the Hyper contexts.** The picker atom gives only the

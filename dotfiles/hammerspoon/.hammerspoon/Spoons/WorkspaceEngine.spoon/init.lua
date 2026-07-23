@@ -12,6 +12,8 @@ obj.version = "1.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
+local log = hs.logger.new("WorkspaceEngine", "info")
+
 -- Dependencies (injected via configure)
 obj._appToggler = nil
 obj._windowManager = nil
@@ -192,7 +194,7 @@ function obj:_activateWorkspace(ws)
         self._appToggler:launchOrFocus(bundleID)
       end
     else
-      print("WorkspaceEngine: Unknown app '" .. appName .. "' in workspace '" .. ws.name .. "'")
+      log.w("Unknown app '" .. appName .. "' in workspace '" .. ws.name .. "'")
     end
   end
 

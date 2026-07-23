@@ -15,6 +15,8 @@ local settingsPanes = require("config.settingsPanes")
 local devWorkspace = require("config.workspaces.dev")
 local vicertWorkspace = require("config.workspaces.vicert")
 
+local log = hs.logger.new("hs.config", "info")
+
 --------------------------------------------------------------------------------
 -- Load Spoons
 --------------------------------------------------------------------------------
@@ -422,7 +424,7 @@ spoon.ClipboardHistory:bindHotkeys({ open = keys.clipboardHistory })
 -- draws, the docked hint bars, the cheat sheet, the colour toast, and the clipboard
 -- preview pane, reads this one style and stays identical by construction. Edit the
 -- values in config/settings.lua, once, and every canvas surface follows.
-spoon.CanvasPanel.configure(settings.surface)
+spoon.CanvasPanel.configure({ surface = settings.surface })
 
 -- Overlay display policy, the one place that decides which display every transient
 -- overlay appears on. This is Strategy wired through injection, the same shape as
@@ -560,7 +562,7 @@ local function fixedScreen()
   if screen then return screen end
   if not fixedWarned then
     fixedWarned = true
-    print(string.format(
+    log.w(string.format(
       "overlayDisplay: fixed mode has no display for profile '%s' (serial '%s'), using active window",
       tostring(profile), tostring(serial)))
   end
@@ -582,7 +584,7 @@ local function overlayScreen()
   local fn = overlayScreenStrategies[effectiveMode()] or activeWindowScreen
   return fn() or hs.screen.primaryScreen()
 end
-spoon.CanvasPanel.setScreenProvider(overlayScreen)
+spoon.CanvasPanel.configure({ screen = overlayScreen })
 -- One matching policy for every chooser, decided here. Fuzzy subsequence ranking is the
 -- default, so the launcher, VPN, and menu search filter alike and a future list chooser
 -- gets it for free. The clipboard and caffeinate opt out at their own new() (matcher =
@@ -1101,7 +1103,7 @@ end
 -- fireMenuSearchCombo (uncomment above) to hand off to an external tool instead.
 spoon.HyperKey:bind(keys.menuSearch.key, openBuiltinMenuSearch)
 
--- VPN controls: a native chooser on Hyper+Y that merges the controls and the locations
+-- VPN controls: a native chooser on Hyper+P that merges the controls and the locations
 -- into one flat list, Connect or Disconnect on top and every city below. It is pinned to
 -- the native backend inside the spoon, so it needs only the shared theme and the Chooser
 -- factory injected here, plus the same deferred shortcut panel menu search uses, wired
@@ -1258,7 +1260,7 @@ for _, ctx in ipairs(keys.hyperContexts or {}) do
         repeats = repeatableActions[b.action],
       })
     else
-      print("hyperContexts: unknown action '" .. tostring(b.action) .. "'")
+      log.w("hyperContexts: unknown action '" .. tostring(b.action) .. "'")
     end
   end
 end
@@ -1492,7 +1494,7 @@ spoon.DisplayProfiles.chooser.configure({
 })
 spoon.DisplayProfiles.chooser.start()
 if #hostProfiles == 0 then
-  print("DisplayProfiles: no curated profiles for host '" .. host .. "', add one in config/displays.lua or capture from the chooser")
+  log.i("DisplayProfiles: no curated profiles for host '" .. host .. "', add one in config/displays.lua or capture from the chooser")
 end
 
 --------------------------------------------------------------------------------

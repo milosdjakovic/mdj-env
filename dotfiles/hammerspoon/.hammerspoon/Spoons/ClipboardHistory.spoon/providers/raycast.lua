@@ -2,7 +2,7 @@
 ---
 --- Raycast's clipboard history. Raycast exposes a deeplink, so show() opens the
 --- command URL directly rather than firing a shortcut. This needs no configured
---- hotkey and cannot be thrown off by a rebind. isAvailable() reports Raycast
+--- hotkey and cannot be thrown off by a rebind. available() reports Raycast
 --- missing or quit so the chain can fall back and log the reason.
 ---
 --- show() also toggles: a second press hides Raycast completely (one hide(),
@@ -19,7 +19,7 @@ return {
   url = "raycast://extensions/raycast/clipboard-history/clipboard-history",
   deferUntilHyperRelease = false, -- opens a URL / hides, neither is swallowed
   _shown = false,
-  isAvailable = function(self)
+  available = function(self)
     if not hs.application.pathForBundleID(self.bundleID) then
       return false, "not installed"
     end

@@ -15,9 +15,9 @@
 --- A provider is a table implementing:
 ---   :isShowing() -> boolean          is the UI already visible (avoids a toggle)
 ---   :show()                          reveal the UI
----   :isAvailable() -> boolean, string  (optional) can this backend run right
+---   :available() -> boolean, string  (optional) can this backend run right
 ---                                    now; a false return may include a reason.
----                                    A provider with no isAvailable() is always
+---                                    A provider with no available() is always
 ---                                    available, so a built-in backend placed
 ---                                    last is the guaranteed fallback.
 ---   .deferUntilHyperRelease -> bool  (optional, default true) whether show()
@@ -88,7 +88,7 @@ obj.providers = {
 --- ClipboardHistory.providers.firstAvailable(chain)
 --- Constructor
 --- Build a provider that, on every show, delegates to the first provider in
---- `chain` whose isAvailable() returns true (a provider with no isAvailable() is
+--- `chain` whose available() returns true (a provider with no available() is
 --- treated as always available, so place the guaranteed fallback last).
 --- Availability is checked at dispatch, not at load, because a backend like
 --- Raycast can be quit while Hammerspoon keeps running. Each skipped provider is
@@ -97,10 +97,10 @@ obj.providers = {
 function obj.providers.firstAvailable(chain)
   local function pick()
     for _, p in ipairs(chain) do
-      if not p.isAvailable then
+      if not p.available then
         return p
       end
-      local ok, reason = p:isAvailable()
+      local ok, reason = p:available()
       if ok then
         return p
       end

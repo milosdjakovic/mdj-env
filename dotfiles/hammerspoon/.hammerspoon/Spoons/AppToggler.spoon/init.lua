@@ -12,6 +12,8 @@ obj.version = "1.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
+local log = hs.logger.new("AppToggler", "info")
+
 -- Configuration
 obj._apps = nil
 obj._hyperKey = nil
@@ -151,7 +153,7 @@ function obj:bindHotkeys(toggles)
         hs.hotkey.bind(toggle.modifiers, toggle.key, action)
       end
     else
-      print("AppToggler: Unknown app '" .. toggle.app .. "' in config")
+      log.w("Unknown app '" .. toggle.app .. "' in config")
     end
   end
   return self

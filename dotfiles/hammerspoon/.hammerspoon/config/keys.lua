@@ -135,12 +135,11 @@ return {
   -- because the context is modal, so the base Hyper+X toggle is suppressed while the
   -- native chooser is open.
   --
-  -- The keep awake panel is a list you navigate. j and k move the highlight down
-  -- and up vim style, the same as the arrow keys the panel handles natively, and x
-  -- closes it, the same as Escape. Typing the hours and minutes of a row happens with
-  -- Hyper released, since a held Hyper owns the keys. This context stays modal, so
-  -- while it is open the base Hyper toggles are suppressed and Hyper belongs to it,
-  -- and it is the active context so holding Hyper reveals nothing.
+  -- The keep awake field is a single morphing row, not a list, so the context binds
+  -- only the commit (i) and close (x) actions, no j and k highlight movement. Typing the
+  -- hours and minutes happens with Hyper released, since a held Hyper owns the keys. This
+  -- context stays modal, so while it is open the base Hyper toggles are suppressed and
+  -- Hyper belongs to it, and it is the active context so holding Hyper reveals nothing.
   --
   -- The VPN chooser is one flat list, the controls on top and the locations below. It
   -- carries the same j, k, i, and x: j and k move the highlight, i confirms the
@@ -208,10 +207,10 @@ return {
     },
     -- The menu search chooser. Lists the frontmost app's menu items on Hyper+E.
     -- i runs the highlighted item the same as Return, j and k navigate vim style,
-    -- and x closes it, the same as the clipboard, keep awake, and VPN choosers.
-    -- The open key J is itself a nav key, so unlike the launcher the open
-    -- key cannot double as the close; x is the close here (and Escape closes
-    -- natively). Plain typing filters while Hyper is released.
+    -- and x closes it, the same as the clipboard and VPN choosers. Menu search opens
+    -- on Hyper+E, so unlike the launcher, whose open key doubles as its close, there is
+    -- no open key to reuse here; x is the close (and Escape closes natively). Plain
+    -- typing filters while Hyper is released.
     {
       name = "menuSearch",
       when = "menuSearchOpen",

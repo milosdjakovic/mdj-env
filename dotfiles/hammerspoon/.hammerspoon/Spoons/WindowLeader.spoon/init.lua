@@ -2,8 +2,8 @@
 ---
 --- Domain adapter: function-key "leader" modifiers for window management.
 ---
---- Right Option and Right Command are remapped to F17 and F16 at the HID level
---- (see src/setup-capslock-hyper.sh). This spoon owns the per-leader binding
+--- Right Option and Right Command are remapped to function keys at the HID level by
+--- KeyRemap.spoon, from the leaderKeys catalog in config/keys.lua. This spoon owns the per-leader binding
 --- tables and the sub-modifier resolution policy; the hold / tap / chord
 --- MECHANICS (swallowing keys while held, hold-to-reveal timing) live in
 --- ChordKey.spoon, the shared engine it registers its leaders into (opts.chord).
@@ -28,6 +28,8 @@ obj.name = "WindowLeader"
 obj.version = "2.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
+
+local log = hs.logger.new("WindowLeader", "info")
 
 obj._chord = nil   -- shared ChordKey engine
 obj._leaders = nil -- keyCode -> { bindings = { code -> { {mods, fn}, ... } } }
@@ -76,14 +78,14 @@ end
 function obj:bind(leaderKeyCode, key, fn, mods)
   local leader = self._leaders[leaderKeyCode]
   if not leader then
-    print("WindowLeader: no leader registered for keycode " .. tostring(leaderKeyCode))
+    log.w("no leader registered for keycode " .. tostring(leaderKeyCode))
     return self
   end
 
   local name = type(key) == "string" and key:lower() or key
   local code = hs.keycodes.map[name]
   if not code then
-    print("WindowLeader: unknown key '" .. tostring(key) .. "'")
+    log.w("unknown key '" .. tostring(key) .. "'")
     return self
   end
 
@@ -142,7 +144,7 @@ end
 --- honouring optional sub-modifiers.
 function obj:start()
   if not self._chord then
-    print("WindowLeader: no ChordKey engine configured (opts.chord)")
+    log.w("no ChordKey engine configured (opts.chord)")
     return self
   end
   for keyCode, leader in pairs(self._leaders) do
@@ -156,13 +158,6 @@ function obj:start()
       end,
     })
   end
-  return self
-end
-
---- WindowLeader:stop()
---- Method
---- No-op: the shared ChordKey engine owns the event tap.
-function obj:stop()
   return self
 end
 

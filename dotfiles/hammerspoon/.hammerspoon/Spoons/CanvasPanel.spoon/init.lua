@@ -26,11 +26,13 @@
 --- writing a new content object, never by editing the panel.
 ---
 --- MODULE API (dot-called):
----   CanvasPanel.configure(style)               set the shared surface style (below).
----   CanvasPanel.setScreenProvider(fn)          inject the screen a centered panel uses;
----                                              fn() returns an hs.screen. Defaults to
----                                              hs.screen.mainScreen, so the atom still
----                                              places itself if nothing is injected.
+---   CanvasPanel.configure(opts)                the one injection door. opts.surface sets
+---                                              the shared surface style (below); opts.screen
+---                                              sets the function a centered panel uses to
+---                                              pick its screen (opts.screen() -> hs.screen),
+---                                              defaulting to hs.screen.mainScreen so the atom
+---                                              still places itself if nothing is injected.
+---                                              Callable more than once; each call merges.
 ---   CanvasPanel.surfaceElements(w, h, style?)  the surface elements for a w x h box at
 ---                                              origin (0, 0); style overrides the default.
 ---   CanvasPanel.new(config) -> instance        a docked or centered panel.
@@ -81,7 +83,8 @@ local obj = {}
 obj.__index = obj
 obj.name = "CanvasPanel"
 obj.version = "1.0"
-obj.author = "mdj-env"
+obj.author = "Milos Djakovic"
+obj.license = "MIT"
 
 function obj:init()
   return self
@@ -99,19 +102,18 @@ local DEFAULT_STYLE = nil
 -- live state.
 local SCREEN_PROVIDER = hs.screen.mainScreen
 
---- CanvasPanel.configure(style) - set the shared surface style (dark/light bg and
---- border, border width, corner radius). One call at the root, so every surface this
---- atom draws stays identical and one edit restyles them all.
-function obj.configure(style)
-  DEFAULT_STYLE = style
-  return obj
-end
-
---- CanvasPanel.setScreenProvider(fn) - inject the function a centered panel uses to
---- pick its screen (fn() -> hs.screen). One call at the root wires the shared overlay
---- display policy in; a nil clears it back to the hs.screen.mainScreen default.
-function obj.setScreenProvider(fn)
-  SCREEN_PROVIDER = fn or hs.screen.mainScreen
+--- CanvasPanel.configure(opts) - the one injection door.
+--- opts.surface sets the shared surface style (dark/light bg and border, border width,
+---   corner radius). One source, so every surface this atom draws stays identical and one
+---   edit restyles them all.
+--- opts.screen sets the function a centered panel uses to pick its screen (opts.screen() ->
+---   hs.screen), wiring the shared overlay display policy in.
+--- Callable more than once, each call merges, so the root can set the surface early and the
+--- screen later once its resolver exists. A field left out is left unchanged.
+function obj.configure(opts)
+  opts = opts or {}
+  if opts.surface ~= nil then DEFAULT_STYLE = opts.surface end
+  if opts.screen ~= nil then SCREEN_PROVIDER = opts.screen end
   return obj
 end
 

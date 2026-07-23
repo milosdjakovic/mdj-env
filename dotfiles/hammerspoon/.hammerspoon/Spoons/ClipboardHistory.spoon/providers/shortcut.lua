@@ -30,9 +30,9 @@ return function(opts)
     isShowing = function()
       return false
     end,
-    -- Only gate when a target is named; without one the provider is always
-    -- available (nil isAvailable), matching the contract in the spoon header.
-    isAvailable = opts.bundleID and function(self)
+    -- Only gate when a target is named; without one the provider omits the available
+    -- method entirely, so it is treated as always available, matching the spoon header.
+    available = opts.bundleID and function(self)
       if not hs.application.pathForBundleID(self.bundleID) then
         return false, "not installed"
       end

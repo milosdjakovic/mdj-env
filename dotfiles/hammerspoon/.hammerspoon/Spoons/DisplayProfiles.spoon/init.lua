@@ -36,12 +36,23 @@ obj.version = "2.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
--- Load the siblings by absolute path, the Capture idiom, since a spoon directory is not on
--- package.path. The chooser is exposed so the main root can reach its control surface.
+local log = hs.logger.new("DisplayProfiles", "info")
+
+-- Load the siblings by absolute path off this file's own location, the Capture idiom
+-- (loadfile, not require, since a spoon directory is not on package.path). The load helper
+-- wraps loadfile so a broken sibling fails with a DisplayProfiles-prefixed message rather
+-- than a bare Lua error. The chooser is exposed so the main root can reach its surface.
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
-local engine = dofile(spoonPath .. "engine.lua")
-local store = dofile(spoonPath .. "store.lua")
-obj.chooser = dofile(spoonPath .. "chooser.lua")
+local function load(name)
+  local chunk, err = loadfile(spoonPath .. name)
+  if not chunk then
+    error("DisplayProfiles: failed to load " .. name .. ": " .. tostring(err))
+  end
+  return chunk()
+end
+local engine = load("engine.lua")
+local store = load("store.lua")
+obj.chooser = load("chooser.lua")
 
 -- Owned state
 obj._store = nil        -- the captured profile persistence, or nil when no path was given
@@ -159,7 +170,7 @@ function obj:start()
   engine:start()
   local nCurated = #(self._curated or {})
   local nCaptured = self._store and #self._store:list() or 0
-  print(string.format("DisplayProfiles: %d curated, %d captured profile(s) merged for this host", nCurated, nCaptured))
+  log.i(string.format("%d curated, %d captured profile(s) merged for this host", nCurated, nCaptured))
   return self
 end
 

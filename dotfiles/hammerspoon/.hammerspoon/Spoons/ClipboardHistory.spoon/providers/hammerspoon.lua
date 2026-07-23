@@ -16,7 +16,7 @@ return function(manager)
     -- Opens its own chooser, not a swallowed keystroke, so fire while Hyper is
     -- still held (same as Raycast). This is what lets a second tap toggle.
     deferUntilHyperRelease = false,
-    isAvailable = function()
+    available = function()
       return true -- a pure-Lua backend has nothing external to be missing
     end,
     isShowing = function()

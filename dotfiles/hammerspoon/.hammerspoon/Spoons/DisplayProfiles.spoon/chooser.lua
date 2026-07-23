@@ -29,6 +29,8 @@
 
 local M = { name = "DisplayProfiles.chooser" }
 
+local log = hs.logger.new("DisplayProfiles", "info")
+
 local cfg = {}        -- injected across two calls: api from the spoon, view deps from the root
 local chooser = nil   -- the one native Chooser instance
 local stack = nil     -- the menu stack, stack[#stack] is the current frame
@@ -270,7 +272,7 @@ local function applySelection(item)
 
   if item.act == "capture" then
     local ok, err = cfg.api.capture(item.newName)
-    if ok then stack = { { kind = "top" } } else print("DisplayProfiles: capture failed, " .. tostring(err)) end
+    if ok then stack = { { kind = "top" } } else log.e("capture failed, " .. tostring(err)) end
     return "stay"
   end
 
@@ -280,14 +282,14 @@ local function applySelection(item)
       table.remove(stack) -- pop the rename frame
       stack[#stack] = { kind = "profile", name = item.newName } -- the profile menu, renamed
     else
-      print("DisplayProfiles: rename failed, " .. tostring(err))
+      log.e("rename failed, " .. tostring(err))
     end
     return "stay"
   end
 
   if item.act == "delete" then
     local ok, err = cfg.api.remove(item.name)
-    if ok then stack = { { kind = "top" } } else print("DisplayProfiles: delete failed, " .. tostring(err)) end
+    if ok then stack = { { kind = "top" } } else log.e("delete failed, " .. tostring(err)) end
     return "stay"
   end
 

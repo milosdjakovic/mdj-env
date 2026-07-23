@@ -38,6 +38,8 @@ obj.version = "3.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
+local log = hs.logger.new("Capture", "info")
+
 -- Injected by init.lua (the composition root)
 obj._contract = nil          -- provider contract, used to validate the chain
 obj._defaultProviders = nil  -- chain used when configure is given no providers
@@ -84,7 +86,7 @@ function obj:_validate(providers)
     if ok then
       table.insert(valid, provider)
     else
-      print("Capture: " .. name .. " dropped, does not implement " .. missing .. "()")
+      log.w(name .. " dropped, does not implement " .. missing .. "()")
     end
   end
   return valid
@@ -111,11 +113,11 @@ function obj:_logAvailability()
       anyFailed = true
       reason = reason or "unavailable"
       self._lastReason[name] = reason
-      print("Capture: " .. name .. " unavailable, " .. reason)
+      log.w(name .. " unavailable, " .. reason)
     end
   end
   if anyFailed then
-    print("Capture: active, " .. (next(active) and table.concat(active, ", ") or "no providers"))
+    log.i("active, " .. (next(active) and table.concat(active, ", ") or "no providers"))
   end
   return self
 end
@@ -140,7 +142,7 @@ function obj:capture(action)
         local ok, reason = provider:available()
         if ok then
           if self._lastReason[name] then
-            print("Capture: " .. name .. " available")
+            log.i(name .. " available")
             self._lastReason[name] = nil
           end
           if provider:trigger(action) ~= false then
@@ -149,13 +151,13 @@ function obj:capture(action)
         else
           reason = reason or "unavailable"
           if self._lastReason[name] ~= reason then
-            print("Capture: " .. name .. " unavailable, " .. reason)
+            log.w(name .. " unavailable, " .. reason)
             self._lastReason[name] = reason
           end
         end
       end
     end
-    print("Capture: no provider handled action '" .. tostring(action) .. "'")
+    log.w("no provider handled action '" .. tostring(action) .. "'")
   end
 
   if self._hyperKey and self._hyperKey:isActive() then

@@ -20,7 +20,7 @@ obj.__index = obj
 
 obj.name = "SystemSettings"
 obj.version = "1.0"
-obj.author = "mdj-env"
+obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
 -- The one piece of fixed domain knowledge, the URL scheme every pane shares. A

@@ -1,6 +1,6 @@
 --- === Vpn ===
 ---
---- A VPN control tool. Hyper+Y opens a single native chooser that merges the controls
+--- A VPN control tool. Hyper+P opens a single native chooser that merges the controls
 --- and the location search into one flat list. The first row is the action that fits the
 --- live state, its title naming the place, Disconnect from where the tunnel is when it is
 --- up and Connect to the selected relay when it is down, with the live state word and the
@@ -19,18 +19,39 @@
 --- One flat list, not a drill down. The controls and the locations live in the same list,
 --- so there is no mode to switch and no second level to re-show. The location list is
 --- fetched on each open so a relay update is reflected, and the list is refreshed once it
---- lands. The Hyper navigation shortcuts are wired from the main root (j, k, i, x), but no
---- canvas hint pane is drawn, so the shortcuts work without an overlay.
+--- lands. The Hyper navigation shortcuts are wired from the main root (j, k, i, x), and
+--- the root also docks its shared deferred shortcut hint panel below the list through the
+--- onPositioned, onActivity, and onClose seams this spoon forwards to its chooser.
 
-local M = { name = "Vpn", version = "3.0", author = "mdj-env" }
+local M = { name = "Vpn", version = "3.0", author = "Milos Djakovic", license = "MIT" }
 
--- Load the siblings by absolute path, the Capture idiom (a spoon dir is not on
--- package.path). The provider line is the one place the concrete backend is named,
--- validated against the contract at load so a missing method fails visibly here.
+local log = hs.logger.new("Vpn", "info")
+
+-- Load the siblings by absolute path off this file's own location, the Capture idiom
+-- (loadfile, not require, since a spoon dir is not on package.path). The load helper
+-- wraps loadfile so a broken sibling fails with a Vpn-prefixed message rather than a
+-- bare Lua error.
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
-local engine = dofile(spoonPath .. "engine.lua")
-local contract = dofile(spoonPath .. "contract.lua")
-local provider = contract.validate(dofile(spoonPath .. "providers/mullvad.lua"))
+local function load(name)
+  local chunk, err = loadfile(spoonPath .. name)
+  if not chunk then
+    error("Vpn: failed to load " .. name .. ": " .. tostring(err))
+  end
+  return chunk()
+end
+
+local engine = load("engine.lua")
+local contract = load("contract.lua")
+-- The provider line is the one place the concrete backend is named. It is validated
+-- against the contract at load, and since the single provider is not optional a gap is
+-- a hard failure here rather than graceful degradation.
+local provider = load("providers/mullvad.lua")
+do
+  local ok, missing = contract.validate(provider)
+  if not ok then
+    error("Vpn: mullvad provider does not implement " .. missing .. "()")
+  end
+end
 
 local cfg = nil       -- injected: the shared theme and the Chooser factory
 local chooser = nil   -- the one native Chooser instance
@@ -254,7 +275,7 @@ end
 --- When the CLI is missing it logs and returns without building, so the tool is inert.
 function M.start()
   if not provider.available() then
-    print("[Vpn] mullvad CLI not found, VPN controls disabled. Install the Mullvad app or run brew install --cask mullvad-vpn")
+    log.w("mullvad CLI not found, VPN controls disabled. Install the Mullvad app or run brew install --cask mullvad-vpn")
     return M
   end
   engine.configure({ provider = provider, onChange = onChange })

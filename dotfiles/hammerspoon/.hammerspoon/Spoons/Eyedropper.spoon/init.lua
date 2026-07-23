@@ -34,6 +34,8 @@ obj.version = "2.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
+local log = hs.logger.new("Eyedropper", "info")
+
 -- The Swift source beside this file, resolved the Capture way since a spoon dir is
 -- not on package.path. The compiled binary is cached under Library Caches, outside
 -- the watched config tree so building it never reloads Hammerspoon.
@@ -69,7 +71,7 @@ local function ensureBinary(done)
   hs.fs.mkdir(CACHE_DIR)
   local build = hs.task.new("/usr/bin/swiftc", function(code, _, err)
     if code ~= 0 then
-      print("Eyedropper: swiftc failed (" .. tostring(code) .. "): " .. tostring(err))
+      log.e("swiftc failed (" .. tostring(code) .. "): " .. tostring(err))
     end
     done(code == 0)
   end, { "-O", SOURCE, "-o", BINARY })
@@ -120,16 +122,19 @@ end
 function obj:configure(opts)
   opts = opts or {}
   self._onPick = opts.onPick
+  -- Warm the native sampler build in the background so the first pick stays instant.
+  -- This is the one wiring point, so the compile happens here rather than in init,
+  -- which stays a pure return per the lifecycle contract. It never blocks and is a no
+  -- op when the cached binary is already current.
+  ensureBinary(function() end)
   return self
 end
 
 --- Eyedropper:init()
 --- Method
---- Initialise the spoon and warm the helper. Compiling the native sampler ahead of
---- the first pick, in the background, keeps that first pick instant, and does
---- nothing when the cached binary is already current.
+--- Initialise the spoon. No side effects, per the lifecycle contract; the sampler
+--- build is warmed from configure, the one wiring point.
 function obj:init()
-  ensureBinary(function() end)
   return self
 end
 

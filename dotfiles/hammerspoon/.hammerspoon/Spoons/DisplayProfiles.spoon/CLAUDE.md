@@ -8,7 +8,9 @@ decisions, not the lines.
 The spoon does two things. It auto applies the saved arrangement that fits the attached
 displays, the original job, and it exposes an inspect and manage chooser, the new one. The
 public face stays the colon methods the rest of the config already calls, `current`,
-`reconcile`, `apply`, `capture`, `configure`, `start`, `stop`, all delegating to the engine.
+`reconcile`, `apply`, `capture`, `profiles`, `configure`, `start`, `stop`, the read and
+lifecycle methods delegating to the engine while `profiles` returns the merged curated and
+captured view the overlay picker lists.
 The overlay display policy in the main root reads `current()` to place overlays in fixed
 mode, so that contract could not change. The new surface hangs off `obj.chooser`, dot called,
 the same shape `ClipboardHistory.manager` uses, so the main root registers and gates it like

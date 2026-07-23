@@ -32,14 +32,23 @@
 --- inline form fields and rides the same native chooser as the clipboard, the VPN list, and
 --- menu search.
 
-local M = { name = "Caffeinate", version = "3.0", author = "mdj-env" }
+local M = { name = "Caffeinate", version = "3.0", author = "Milos Djakovic", license = "MIT" }
 
--- Load the engine sibling by absolute path, the Capture idiom (a spoon dir is not on
--- package.path). The view is the shared Chooser atom, injected by the root rather than
--- loaded here, since it lives in its own spoon and the clipboard, VPN, and menu search
--- use it too.
+-- Load the engine sibling by absolute path off this file's own location, the Capture
+-- idiom (loadfile, not require, since a spoon dir is not on package.path). The load
+-- helper wraps loadfile so a broken sibling fails with a Caffeinate-prefixed message
+-- rather than a bare Lua error. The view is the shared Chooser atom, injected by the root
+-- rather than loaded here, since it lives in its own spoon and the clipboard, VPN, and
+-- menu search use it too.
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
-local engine = dofile(spoonPath .. "engine.lua")
+local function load(name)
+  local chunk, err = loadfile(spoonPath .. name)
+  if not chunk then
+    error("Caffeinate: failed to load " .. name .. ": " .. tostring(err))
+  end
+  return chunk()
+end
+local engine = load("engine.lua")
 
 local cfg = nil       -- injected: the shared theme, the Chooser factory, and the panel callbacks
 local chooser = nil   -- the one native Chooser instance

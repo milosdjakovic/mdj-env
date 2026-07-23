@@ -23,10 +23,12 @@ local M = {}
 
 M.requiredMethods = { "available", "supports", "trigger" }
 
---- contract.validate(provider) -> ok, missingMethod
---- Return true when the provider carries every required method, or false and the
---- name of the first missing one.
+--- contract.validate(provider) -> ok, missing
+--- Return true when the provider is a table carrying every required method, or false
+--- and the name of the first gap (or "not a table"). Never throws; the engine drops a
+--- non-conforming provider and logs.
 function M.validate(provider)
+  if type(provider) ~= "table" then return false, "not a table" end
   for _, method in ipairs(M.requiredMethods) do
     if type(provider[method]) ~= "function" then
       return false, method

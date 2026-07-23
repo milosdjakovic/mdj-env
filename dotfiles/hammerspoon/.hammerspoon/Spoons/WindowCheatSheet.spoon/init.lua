@@ -21,6 +21,8 @@ obj.version = "2.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
+local log = hs.logger.new("WindowCheatSheet", "info")
+
 obj._byLeader = nil    -- leaderKeyCode -> { name = "SUPER", rows = { {badge,label,when} } }
 obj._cheatSheet = nil  -- shared CheatSheet renderer
 obj._predicates = nil  -- name -> function() -> bool, for conditional bindings
@@ -61,7 +63,7 @@ function obj:_active(when)
   if not when then return true end
   local p = self._predicates[when]
   if not p then
-    print("WindowCheatSheet: unknown predicate '" .. tostring(when) .. "'")
+    log.w("unknown predicate '" .. tostring(when) .. "'")
     return true
   end
   return p() and true or false

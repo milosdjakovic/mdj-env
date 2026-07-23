@@ -12,6 +12,8 @@ obj.version = "1.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
+local log = hs.logger.new("WindowManager", "info")
+
 -- Dependencies (injected via configure)
 obj._margins = {}
 obj._settings = nil
@@ -20,7 +22,6 @@ obj._settings = nil
 --- Method
 --- Initialize the spoon
 function obj:init()
-  hs.window.animationDuration = 0
   return self
 end
 
@@ -452,7 +453,7 @@ function obj:bindToLeader(windowLeader, mapping, predicates)
       if when then
         local p = predicates[when]
         if not p then
-          print("WindowManager: unknown predicate '" .. tostring(when) .. "'")
+          log.w("unknown predicate '" .. tostring(when) .. "'")
         else
           fn = function()
             if p() then action() end
@@ -461,7 +462,7 @@ function obj:bindToLeader(windowLeader, mapping, predicates)
       end
       windowLeader:bind(binding.leader, binding.key, fn, binding.mods)
     else
-      print("WindowManager: Unknown action '" .. tostring(binding.action) .. "'")
+      log.w("Unknown action '" .. tostring(binding.action) .. "'")
     end
   end
   return self
