@@ -71,6 +71,23 @@ row icon is an emoji rendered to a small image through a canvas and cached. The
 keep typing state uses a keyboard and the error state a warning triangle, which
 is how the two disabled states read apart at a glance.
 
+**Surviving a reload, and why the state is persisted.** The `displayIdle`
+assertion is process state that a config reload discards. The pathwatcher reloads
+on every Hammerspoon file edit, so a keep awake session would silently turn off the
+moment any file changed, which is what a live session hitting a reload actually did
+before this. The engine now persists the session to one `hs.settings` key on every
+change and restores it in `start()`. An indefinite hold comes back indefinite, a
+timed hold comes back with the timer re-armed for the time still left, and a timed
+hold whose end passed while the config was down comes back off. So a reload, and a
+full relaunch, both keep the session the user set.
+
+**Why the timer is `doAfter`, not `doAt`.** A timed session ends by firing a timer
+at the chosen moment. `hs.timer.doAt` reads its argument as a time of day, so
+handing it an absolute epoch value schedules the fire decades out and the session
+never ends on its own. The engine arms the expiry with `hs.timer.doAfter` on the
+remaining span instead, both when a session starts and when one is restored across
+a reload, so the end lands when it should.
+
 **Day aware end labels.** A duration that crosses midnight used to show only
 `ends HH:MM`, which quietly lied about which day it ended. One shared `endLabel`
 helper now names the day, used by both the typed rows and the running session
