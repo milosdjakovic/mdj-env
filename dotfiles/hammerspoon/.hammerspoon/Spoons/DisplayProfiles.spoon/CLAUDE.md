@@ -10,13 +10,13 @@ displays, the original job, and it exposes an inspect and manage chooser, the ne
 public face stays the colon methods the rest of the config already calls, `current`,
 `reconcile`, `apply`, `capture`, `profiles`, `configure`, `start`, `stop`, the read and
 lifecycle methods delegating to the engine while `profiles` returns the merged curated and
-captured view the overlay picker lists.
-The overlay display policy in the main root reads `current()` to place overlays in fixed
-mode, so that contract could not change. The new surface hangs off `obj.chooser`, dot called,
-the same shape `ClipboardHistory.manager` uses, so the main root registers and gates it like
-the other choosers without the spoon growing a second object model.
+captured view the chooser lists.
+A consumer in the main root reads `current()` to resolve the active arrangement, so that
+contract could not change. The new surface hangs off `obj.chooser`, dot called, the same dot
+called shape a manager surface uses, so the main root registers and gates it alongside its
+list surfaces without the spoon growing a second object model.
 
-## Capture and Vpn layout
+## The composition root, engine, provider layout
 
 `init.lua` is the composition root and names no policy beyond the merge. `engine.lua` is the
 mechanism, it watches, matches, and applies, and knows nothing about machines, a catalog, a
@@ -41,17 +41,18 @@ separate instances. Navigation is in place, not a re-show. The native chooser cl
 Return, which would force a close and reopen to move between levels, and that flash is what
 reads as laggy. So a menu step mutates the frame stack and calls `refresh()` on the same
 instance, updating the visible rows with no reopen. Two things make that work. Confirm is the
-tool's own `enter`, wired to Hyper+i and to a scoped eventtap that swallows Return and the
-keypad enter while the chooser is up, so the native completion never fires and the step stays
-in place. And the one path that still reaches the native completion, a mouse click on a row,
-falls back to the old reopen, which is rare in this Hyper driven flow. Escape and a click away
+tool's own `enter`, wired to its own confirm binding and to a scoped eventtap that swallows
+Return and the keypad enter while the chooser is up, so the native completion never fires and
+the step stays in place. And the one path that still reaches the native completion, a mouse
+click on a row, falls back to the old reopen, which is rare in this keyboard driven flow.
+Escape and a click away
 close for real, resetting the stack to the top for the next open.
 
 Each level clears the field, since a filter typed at one level must not narrow the next, and
 `refresh` jumps the highlight back to the first row of the new list. Clearing the field is
 also what the rename and capture screens want, where the field is the name entry rather than a
 filter. The row supplier reads the top frame plus the live query, so those rows morph as you
-type the same way the keep awake row does, and stay disabled until the name is valid.
+type, and stay disabled until the name is valid.
 
 Entering a profile shows its displays straight away, one read only row per monitor, with
 Reapply, Rename, and Delete beneath, so there is no separate list displays step. An earlier

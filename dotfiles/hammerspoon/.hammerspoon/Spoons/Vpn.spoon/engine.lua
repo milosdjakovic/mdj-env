@@ -1,8 +1,8 @@
 --- The VPN engine, the mechanism. It holds the current status and drives a provider
 --- through the contract, naming no backend. Truth lives in the VPN daemon, not here,
 --- so status reads the provider live, and the actions delegate and then refresh, firing
---- onChange so an open panel tracks the change. This is the Observer the caffeinate
---- engine also uses. Liveness is the provider's concern, checked at dispatch, since the
+--- onChange so an open panel tracks the change. This is the Observer pattern. Liveness is
+--- the provider's concern, checked at dispatch, since the
 --- daemon can stop while the CLI still exists, so status simply reports unavailable
 --- when the daemon does not answer.
 

@@ -3,7 +3,7 @@
 --- The reusable mechanism for reaching macOS System Settings. It owns all the
 --- System Settings domain knowledge and nothing about how it is surfaced, so the
 --- launcher can consume it without either side learning the other. This is the same
---- split apps.lua and AppToggler already use, pure data on one side, the mechanism
+--- split apps.lua already uses, pure data on one side, the mechanism
 --- on the other, wired together only in the composition root.
 ---
 --- It does three things. It turns an injected pane catalog into serializable row

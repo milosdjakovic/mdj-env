@@ -42,7 +42,7 @@ obj._prewarmTimer = nil      -- transient, warms the empty-state icons after con
 obj._byGlyph = nil           -- glyph string -> entry, maps a remembered pick back to its row
 obj._recency = nil           -- persisted pick memory, { n = tick, g = { [glyph] = { v, k } } }
 
--- Load the vendored dataset by absolute path, the Capture idiom, since a spoon
+-- Load the vendored dataset by absolute path, the loadfile pattern the spoons use, since a spoon
 -- directory is not on package.path. hs.json.read parses it natively, so there is no
 -- Lua escaping to get wrong, and regenerate.sh is the one place that produces it. This
 -- backend lives one level below the spoon root under providers/, so the data file sits
@@ -306,7 +306,7 @@ function obj:configure(opts)
     -- over the visible title and subtitle the shared matcher would see, so letting the atom
     -- filter would drop a glyph matched only by a tag. It also caps the visible rows to bound
     -- the icon render, which the atom styling every survivor would undo. So _rows owns the
-    -- query, the same opt out caffeinate and the display profiles menu take.
+    -- query end to end and the atom does no second pass.
     matcher = false,
     rows = function(query) return self:_rows(query) end,
     onSelect = function(glyph)

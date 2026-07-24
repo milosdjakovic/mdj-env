@@ -34,12 +34,12 @@
 
 local M = { name = "Caffeinate", version = "3.0", author = "Milos Djakovic", license = "MIT" }
 
--- Load the engine sibling by absolute path off this file's own location, the Capture
--- idiom (loadfile, not require, since a spoon dir is not on package.path). The load
+-- Load the engine sibling by absolute path off this file's own location, the loadfile
+-- pattern the spoons use (not require, since a spoon dir is not on package.path). The load
 -- helper wraps loadfile so a broken sibling fails with a Caffeinate-prefixed message
 -- rather than a bare Lua error. The view is the shared Chooser atom, injected by the root
--- rather than loaded here, since it lives in its own spoon and the clipboard, VPN, and
--- menu search use it too.
+-- rather than loaded here, since it lives in its own spoon and is shared across the list
+-- tools.
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local function load(name)
   local chunk, err = loadfile(spoonPath .. name)

@@ -1,6 +1,6 @@
 --- === DisplayProfiles.engine ===
 ---
---- The mechanism half of DisplayProfiles, the Context in the Capture and Vpn layout.
+--- The mechanism half of DisplayProfiles, the Context in the engine and provider layout.
 --- It reads the attached displays, matches them against an injected list of profiles,
 --- applies the winning one, and watches for screen changes to reapply. It knows how a
 --- profile is shaped, a name plus a displayplacer command, and nothing else. It never

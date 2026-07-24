@@ -6,16 +6,16 @@
 --- A binding may require exact sub-modifiers (e.g. Shift), so one key can host
 --- two tiers: Hyper+4 fires one action while Hyper+Shift+4 fires another.
 --- Bindings with no `mods` are catch-alls, they fire whenever no exact-mods
---- binding matches the modifiers held. This mirrors WindowLeader's resolver, so
---- both adapters share one policy; most Hyper bindings pass no mods and stay a
---- plain key lookup.
+--- binding matches the modifiers held. This is the same mods aware resolver the
+--- leaders use, so both adapters share one policy, and most Hyper bindings pass no
+--- mods and stay a plain key lookup.
 ---
 --- The hold / tap / chord MECHANICS -- swallowing keys while held, hold-to-reveal
 --- timing, why the key must emit clean key-down/up -- live in ChordKey.spoon.
 --- This spoon owns only the binding table and the tap policy, and registers its
---- key into the shared ChordKey engine (passed as opts.chord). Keeping it as a
---- thin adapter preserves the :bind / :isActive contract that AppToggler and
---- ClipboardHistory depend on, while the engine is shared with WindowLeader.
+--- key into the shared ChordKey engine (passed as opts.chord). Keeping it a thin
+--- adapter preserves the :bind and :isActive contract its consumers depend on,
+--- while the underlying engine stays the shared one.
 
 local obj = {}
 obj.__index = obj
@@ -113,7 +113,7 @@ end
 
 -- The only sub-modifiers a binding may require. `fn` is deliberately excluded:
 -- macOS stamps `fn` onto some keys, so a raw exact check would never match. We
--- compare against these four only. Kept identical to WindowLeader's resolver.
+-- compare against these four only. Kept identical to the leader resolver.
 local REAL_MODS = { "shift", "ctrl", "alt", "cmd" }
 
 --- HyperKey:_passes(binding)
@@ -203,7 +203,7 @@ end
 --- HyperKey:isActive()
 --- Method
 --- Return true while the Hyper key is physically held. Delegates to ChordKey.
---- Consumers (e.g. ClipboardHistory) use this to defer synthetic keystrokes
+--- Consumers use this to defer synthetic keystrokes
 --- until release, since the engine's tap swallows every key during a hold.
 function obj:isActive()
   return self._chord ~= nil and self._chord:isActive(self._keyCode)

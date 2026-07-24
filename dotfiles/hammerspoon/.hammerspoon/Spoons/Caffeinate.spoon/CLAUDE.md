@@ -1,6 +1,6 @@
 # Caffeinate.spoon
 
-A keep awake tool on Hyper+K. One native chooser whose search field doubles as
+A keep awake tool. One native chooser whose search field doubles as
 the value entry, showing a single row that morphs with what you type. Empty is
 the on and off toggle, a clock holds until a time, a duration holds for a span,
 and anything unfinished or wrong shows a disabled hint so Return can never apply
@@ -57,8 +57,8 @@ keyboard icon. Anything malformed is a disabled error row with the warning icon.
 Neither disabled row can be submitted, so Return is always safe.
 
 **Why validate and guide rather than block keystrokes.** The picker is the shared
-native Chooser atom that also backs the clipboard, the VPN list, menu search, and
-the launcher. Blocking illegal characters as they are typed would mean rewriting
+native Chooser atom that also backs the other list tools. Blocking illegal
+characters as they are typed would mean rewriting
 the field, which needs a new sanitize seam in the shared atom that every other
 picker would carry but never use, and that is the single consumer indirection the
 design principles reject. The morphing row already gives instant feedback the

@@ -428,6 +428,25 @@ of truth that drifts. When you need to point at one, point at where it lives rat
 than restating it. Adding a `CLAUDE.md` inside an already symlinked spoon needs no
 restow, it resolves through the existing link like any new file.
 
+**A spoon never knows how it is used.** Which physical keys open a spoon and drive
+its list, and any human wording that names those keys or the interaction, live only
+in `config/keys.lua` and the composition root, and reach the user through the shared
+deferred shortcut panel. A spoon supplies its rows as plain data, a title, a subtitle,
+and an icon, plus the action a chosen row performs, and nothing more. It never bakes a
+hint like "Return to copy", or the name of the key that opens it, into a row, a
+placeholder, or an alert, and it never reads a binding to decide its behavior. When a
+row's selection does something, express it as the action itself, "copy this command",
+"connect to this relay", never as the key that triggers it, since the key is config data
+that drifts the moment it is rebound. The rule covers the spoon's own doc comments too,
+they describe what the tool does, not the keys that reach it. This is the invariant the
+picker wiring below serves, the contexts, the predicates, and the shortcut panel are all
+assembled in the root, so the spoon exposes only a control surface and its rows and
+learns none of it. The payoff is that rebinding a key, or opening the tool another way,
+touches config alone, and the hint and the binding can never disagree because there is
+one source of truth. The Vpn spoon's unavailable install row is the worked example, it
+shows the install command as plain subtitle data and copies it on selection, and says
+nothing about which key copies it.
+
 **Wiring a list tool into the Hyper contexts.** The picker atom gives only the
 widget. `Chooser.spoon` wraps the native `hs.chooser` and backs every list tool,
 the clipboard, the VPN locations, caffeinate, menu search, the launcher, the

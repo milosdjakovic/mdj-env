@@ -1,12 +1,12 @@
 --- === WindowCheatSheet ===
 ---
 --- Content builder for the window-management overlay: the bindings of one leader
---- key. Meant to be triggered from WindowLeader.spoon's onHold hook: hold META
---- with no other key and its actions appear, mirroring how HyperKey +
---- HyperCheatSheet reveal the app toggles on Caps Lock. It renders whatever
+--- key. Meant to be triggered by the onHold hook the root wires. Hold META
+--- with no other key and its actions appear, the same way the app toggles are
+--- revealed while a key is held. It renders whatever
 --- leaders are registered, so it also covers SUPER if that leader is reactivated.
 ---
---- Reads the same windowManagement config that WindowManager binds, so it never
+--- Reads the same windowManagement config the bindings use, so it never
 --- drifts from the real bindings. The label is the action name humanized
 --- (`nextDisplay` -> "Next Display") unless the entry carries an explicit
 --- `description`. Drawing is delegated to the shared CheatSheet.spoon renderer
@@ -37,8 +37,8 @@ local LAYOUT = {
   gap = 12,
 }
 
--- Badge glyphs (e.g. "⇧←") come from the shared CheatSheet.glyphFor, since both
--- overlays render key badges the same way; see configure.
+-- Badge glyphs (e.g. "⇧←") come from the shared CheatSheet.glyphFor, since the
+-- key badges render the same way everywhere. See configure.
 
 -- camelCase action name -> "Title Case" label
 local function humanize(name)

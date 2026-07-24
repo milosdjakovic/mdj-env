@@ -21,8 +21,9 @@ obj.version = "3.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
--- Load the native provider by absolute path, the Capture idiom (a spoon dir is not
--- on package.path). It is self contained and already honors the full contract.
+-- Load the native provider by absolute path, the loadfile pattern the spoons use
+-- (a spoon dir is not on package.path). It is self contained and already honors
+-- the full contract.
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local function load(name)
   local chunk, err = loadfile(spoonPath .. name)

@@ -6,21 +6,21 @@ the spoon lifecycle contract this file refers to live there.
 
 ## What it is
 
-Hyper+J opens a filterable picker over the Chooser atom, carrying both emoji and a
+The picker is a filterable list over the Chooser atom, carrying both emoji and a
 generous slice of native Unicode symbols, currency and arrows and math and the Mac
 modifier keys and more, the same glyphs the macOS Character Viewer shows. Typing
 matches by name, shortcode, tag, or category, so a keyword like happy or money or a
-group word like food finds the glyph without its exact Unicode name. Return, or
-Hyper+i, inserts the highlighted glyph into whatever field was focused before the
-picker opened. Emoji always rank above symbols in the results, so a query lists every
+group word like food finds the glyph without its exact Unicode name. Selecting a row
+inserts the highlighted glyph into whatever field was focused before the picker
+opened. Emoji always rank above symbols in the results, so a query lists every
 matching emoji first and the plainer glyphs below, never interleaved.
 
 ## The backends, a provider strategy
 
-Hyper+J does not open one fixed picker, it opens whichever backend the composition root
+Opening does not launch one fixed picker, it launches whichever backend the composition root
 put first. Emoji is a facade, the same shape Chooser.spoon uses. It owns no picker of its
 own, it holds a set of backends under providers/ and selects one, so swapping which emoji
-picker the key opens is a one line change at the root and never a change to this code.
+picker opens is a one line change at the root and never a change to this code.
 
 Three backends ship. The hammerspoon backend is the picker built over the Chooser atom,
 the one the rest of this file describes, and it is always available so it is the safe
@@ -50,11 +50,11 @@ dataset, a match, icons, and a pick memory to explain.
 
 ## Why a spoon and not inline
 
-Menu search lives inline in the root because it is only policy over the Chooser atom.
+A tool that is only policy over the Chooser atom can live inline in the root.
 This picker owns something of its own, the vendored emoji dataset plus the matching
 and ranking over it, so folding it into the root would bloat the composition root
 with a data file and a scoring function that are not wiring. It is a small coordinator
-instead, the same call the launcher is, though leaner. It owns no watcher, timer, or
+spoon instead, though a lean one. It owns no watcher, timer, or
 eventtap, so it has no start or stop, matching the lifecycle contract.
 
 ## The data is vendored, not fetched at runtime
@@ -115,7 +115,7 @@ the glyph arrows below rather than weaving the two together. Within a tier a tex
 score orders, an exact alias or exact name first, then a name that starts with the
 query, then the count of tokens found, with ties keeping the upstream order. The scan
 runs over the whole set on each keystroke, a few milliseconds over several thousand
-rows, so no index is needed, unlike the launcher whose app scan is the expensive part.
+rows, so no index is needed, unlike a tool whose scan of its source is the expensive part.
 
 The visible list is capped at a small maximum, `MAX_RESULTS`, both for an empty field
 and a query. The cap bounds only the display, the match still runs over the whole set,
@@ -126,10 +126,10 @@ and is why it is kept modest even though the scan itself could show far more.
 
 ## Icons
 
-The glyph is the row icon, not text in the title, so a row reads like an app row in
-the launcher with a large glyph on the left and the name beside it. hs.chooser has no
+The glyph is the row icon, not text in the title, so a row reads like an app row
+with a large glyph on the left and the name beside it. hs.chooser has no
 emoji rendering, so each glyph is drawn once through one reused canvas into an
-hs.image and cached, the same idea as the launcher's glyph icons but sharing a single
+hs.image and cached, the same idea as glyph icons drawn elsewhere but sharing a single
 canvas rather than making one per glyph, since at this scale a canvas per glyph is the
 whole cost. A glyph is rendered at most once ever, and the cap above keeps any one
 open from rendering more than a bounded batch.
@@ -164,7 +164,7 @@ file degrades to an empty list rather than a load error.
 
 Each row carries only the glyph string as its item, which the Chooser serialises and
 hands back to onSelect, so no function is ever placed on a row, the same rule the
-launcher and menu search follow. The effect of a pick is injected as onInsert, so the
+other list tools follow. The effect of a pick is injected as onInsert, so the
 spoon never learns what a pick does. The root wires onInsert to insert the glyph into the
 field that was frontmost before the picker opened, which macOS restores once the chooser
 tears down.
@@ -175,12 +175,12 @@ terminal and some native apps read that event rather than reassembling a charact
 the basic multilingual plane, so an emoji, which is a surrogate pair in the key event,
 arrived as replacement boxes even though the same glyph pasted from the macOS Character
 Viewer landed fine. A paste carries the real bytes, so it works everywhere a terminal
-included. The root wires onInsert to the clipboard manager's `pasteText`, which snapshots
-the clipboard, writes the glyph, sends the paste, and puts the original clipboard back
-after, hiding both writes from the history poll. So a pick still lands where the cursor is
-and the clipboard is still left untouched, the promise the typing path made, now kept by a
-mechanism that also works in the apps the old one failed in. If the clipboard manager is
-not wired the root falls back to typing, the same graceful degradation the other optional
+included. So the injected onInsert must paste rather than type, and the root wires it to a
+paste path that snapshots the clipboard, writes the glyph, sends the paste, and restores
+the original clipboard after, so the write leaves no trace. A pick still lands where the
+cursor is and the clipboard is still left untouched, the promise the typing path made, now
+kept by a mechanism that also works in the apps the old one failed in. When no paste path
+is wired the insertion falls back to typing, the same graceful degradation the other optional
 dependencies take.
 
 ## Picker integration
@@ -189,13 +189,13 @@ It follows the picker checklist in the hammerspoon `CLAUDE.md` like the other li
 tools. It exposes a dot called navigation adapter through `surface()`, which the root
 drops into the shared `choosers` list, and the `emojiOpen` predicate reads
 `isShowing()` directly. It has an `emoji` context block giving it the shared j, k, and
-i navigation with x to close, the menu search shape, because the open key j is itself
-the move down key inside so it cannot double as the close the way the launcher's Space
-does. Escape closes natively. Like the other native choosers it docks the deferred
+i navigation with x to close, the same shape a pure policy picker uses, because the key
+that opens it is itself the move down key inside so it cannot double as the close the way
+an open key that is not also a navigation key can. Escape closes natively. Like the other native choosers it docks the deferred
 shortcut panel through the three chooser callbacks.
 
 It opts out of the shared fuzzy matcher with `matcher = false`, the same escape hatch
-caffeinate and the display profiles menu take. The shared matcher filters and ranks
+the structured-query tools take. The shared matcher filters and ranks
 over a row's visible title and subtitle, but this tool matches over the hidden haystack
 in `k`, the folded name, aliases, tags, and category, so a glyph found only by a tag
 would be dropped if the atom filtered again. `_rows` also caps the visible rows to bound
@@ -205,10 +205,10 @@ query end to end and the atom does no second pass.
 ## Recents, the most used first
 
 The picker remembers what you pick, so an empty field leads with your most used glyphs
-rather than the raw upstream slice. This is the same Observer shape the launcher uses for
-its recency timeline. `onSelect` promotes the chosen glyph through `_promote`, the one
+rather than the raw upstream slice. This is the same Observer shape a recency timeline uses.
+`onSelect` promotes the chosen glyph through `_promote`, the one
 writer of the memory, which lives in one `hs.settings` key, `emojiRecency`, so a favorite
-survives a reload and a reboot, the same reason the launcher persists its own.
+survives a reload and a reboot, the same reason such a memory is persisted elsewhere.
 
 The score is a decaying one, not a raw count, which is the important decision. A raw count
 locks an old favorite at the top forever, since a fresh glyph would need as many picks as
@@ -230,7 +230,7 @@ score, the most recent pick breaking a tie, capped at a small `RECENTS_MAX`, and
 the leading slice follows in upstream order with those recents removed so none appears twice,
 still bounded by `MAX_RESULTS`. A typed query is unchanged, the name and keyword ranking
 stays in charge, so search stays predictable and the memory only shapes the browse view, the
-same split the launcher makes between its empty timeline and a typed rerank. A remembered
+same split between an empty timeline view and a typed rerank. A remembered
 glyph that a regenerated `data.json` no longer carries is skipped when the recents are built,
 so the list is always renderable and the memory never has to be migrated. The recents glyphs
 are warmed into the icon cache alongside the leading slice, since a favorite may sit outside

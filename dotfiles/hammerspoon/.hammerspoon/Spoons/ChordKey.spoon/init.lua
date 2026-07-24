@@ -23,8 +23,8 @@
 --- combos the domain does not claim, while bound combos still run and swallow.
 ---
 --- This is only the MECHANISM. The domain policy -- which keys map to what, and
---- how sub-modifiers resolve -- lives in the callers (HyperKey, WindowLeader),
---- which register their key(s) here via addKey() and supply an onKey() lookup.
+--- how sub-modifiers resolve -- lives in the callers, which register their key(s)
+--- here via addKey() and supply an onKey() lookup.
 --- Because every key shares ONE eventtap, N leaders cost one tap, not N.
 ---
 --- Everything lives inside Hammerspoon, so it adds no background process.
@@ -43,8 +43,8 @@ obj._keys = nil        -- keyCode -> entry (config + runtime state)
 
 -- Real hardware key events carry this event-source state id
 -- (kCGEventSourceStateHIDSystemState). Keystrokes Hammerspoon posts itself, like
--- the clipboard paste's Cmd+V, carry a private id instead, so this tells the two
--- apart. See start(), which ignores everything that is not physical.
+-- a consumer's synthesized paste (Cmd+V), carry a private id instead, so this
+-- tells the two apart. See start(), which ignores everything that is not physical.
 local HID_SYSTEM_STATE = 1
 
 -- The modifier universe, most to least common. Used to turn a live flags table
@@ -189,7 +189,7 @@ function obj:start()
   local props = hs.eventtap.event.properties
   self._tap = hs.eventtap.new({ types.keyDown, types.keyUp }, function(e)
     -- Only react to the physical keyboard. Keystrokes Hammerspoon posts itself
-    -- (the clipboard paste's Cmd+V) pass straight through, so an insert fired
+    -- (a consumer's synthesized paste, Cmd+V) pass straight through, so an insert fired
     -- while the leader is still held reaches the app instead of being swallowed
     -- and misread as a chord.
     if e:getProperty(props.eventSourceStateID) ~= HID_SYSTEM_STATE then
@@ -243,7 +243,7 @@ function obj:start()
       if held.active then
         -- A held key auto-repeats its key-down, but a chord is one discrete
         -- press, so dispatch only on the first. Firing on each repeat re-runs
-        -- the handler, which for a toggle like the clipboard opens and closes it
+        -- the handler, which for a toggle consumer opens and closes it
         -- over and over while the key stays down. The repeat is still swallowed
         -- below so nothing leaks. This mirrors the first-press-only guard the
         -- chord key itself uses above.

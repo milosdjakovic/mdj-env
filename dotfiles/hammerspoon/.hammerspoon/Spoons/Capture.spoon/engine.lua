@@ -22,9 +22,9 @@
 --- CHANGES, so pressing the key while a backend stays down does not spam.
 ---
 --- Dispatch waits for the Hyper key to be released before running. The native
---- provider types real keystrokes, and the shared ChordKey tap swallows every key
---- while a leader is held, so firing mid-hold would eat those keystrokes (the
---- same reason ClipboardHistory defers). Waiting also means any capture overlay
+--- provider types real keystrokes, and the shared hold tap swallows every key
+--- while a leader is held, so firing mid-hold would eat those keystrokes (a
+--- consumer that types keystrokes must wait the same way). Waiting also means any capture overlay
 --- appears with no leader held, so its own Escape/Enter work. This is the one
 --- Capture-specific seam left in the engine, kept here on purpose rather than
 --- abstracted behind another indirection.
@@ -161,7 +161,7 @@ function obj:capture(action)
   end
 
   if self._hyperKey and self._hyperKey:isActive() then
-    -- Wait for release so ChordKey's tap stops swallowing keys; otherwise the
+    -- Wait for release so the shared tap stops swallowing keys; otherwise the
     -- native provider's synthetic chord is eaten and overlays ignore Escape.
     hs.timer.waitUntil(function()
       return not self._hyperKey:isActive()

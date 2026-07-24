@@ -21,7 +21,7 @@
 ---   monitor.lua  the poll engine and paste-back, owns the self-capture guard
 ---   ui.lua       the chooser and the live preview pane
 
--- Load siblings by absolute path, the same idiom Capture.spoon uses.
+-- Load siblings by absolute path, the loadfile pattern the spoons use.
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local function load(name)
   local chunk, err = loadfile(spoonPath .. name)

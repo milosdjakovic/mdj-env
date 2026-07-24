@@ -439,7 +439,7 @@ end
 --- a `when` name to a function() -> bool. An entry with a `when` is wrapped so it
 --- runs only while its predicate holds; a false predicate makes the key a no-op
 --- (still swallowed by the held leader, so no raw character leaks). This is the
---- same gate WindowCheatSheet applies to rows, so the key and the overlay agree.
+--- same gate the overlay applies to rows, so the key and the overlay agree.
 --- An unknown name is treated as always active, matching the overlay, so a typo
 --- fails visibly rather than silently disabling a binding.
 function obj:bindToLeader(windowLeader, mapping, predicates)

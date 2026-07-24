@@ -3,9 +3,9 @@
 --- Content builder for the Hyper overlay: everything reachable while the Hyper
 --- key is held. The app toggles come first, split into apps that are currently
 --- running and apps that are not, followed by any static service sections
---- (capture, clipboard) passed in from the composition root. Meant to be
---- triggered from HyperKey.spoon's onHold hook. Reads the same appToggles/apps
---- config AppToggler uses, so the app rows never drift from the real bindings.
+--- (the app bindings) passed in from the composition root. Meant to be
+--- triggered by the onHold hook the root wires. Reads the same appToggles and apps
+--- config the bindings use, so the app rows never drift.
 ---
 --- This spoon owns only the domain logic -- resolving icons, filtering
 --- uninstalled apps, the running/not-running split, and building the service

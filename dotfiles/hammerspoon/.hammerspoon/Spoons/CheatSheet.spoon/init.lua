@@ -14,7 +14,7 @@
 --- surface look itself, so the composition root injects only the factory, not any
 --- fill or border, and there is one panel look in one place.
 ---
---- The two callers (HyperCheatSheet, WindowCheatSheet) build the model and keep
+--- The callers build the model and keep
 --- their own domain logic: resolving app icons and splitting running vs not, or
 --- humanizing action names. They differ only in content and a few layout knobs
 --- (column count, badge width, whether rows carry icons), all model fields here,
@@ -93,7 +93,7 @@ local PANEL_PADDING = 20 -- CanvasPanel padX/padY unless configure sets padding
 -- Key names -> display glyph, and sub-modifier names -> glyph prefixed onto it.
 -- Turning a key plus its modifiers into a badge string is pure presentation, so
 -- it lives here on the shared renderer rather than in each builder. Both callers
--- use it: HyperCheatSheet for its capture rows, WindowCheatSheet for every row.
+-- use it, one caller styles only its capture rows, the other every row.
 -- Anything not mapped is uppercased (letters, =, and so on).
 local KEY_GLYPH = {
   left = "←", right = "→", up = "↑", down = "↓",

@@ -36,7 +36,7 @@ obj.license = "MIT"
 
 local log = hs.logger.new("Eyedropper", "info")
 
--- The Swift source beside this file, resolved the Capture way since a spoon dir is
+-- The Swift source beside this file, resolved by absolute path off this file since a spoon dir is
 -- not on package.path. The compiled binary is cached under Library Caches, outside
 -- the watched config tree so building it never reloads Hammerspoon.
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")

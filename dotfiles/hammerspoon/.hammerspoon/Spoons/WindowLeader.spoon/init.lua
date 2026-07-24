@@ -2,12 +2,12 @@
 ---
 --- Domain adapter: function-key "leader" modifiers for window management.
 ---
---- Right Option and Right Command are remapped to function keys at the HID level by
---- KeyRemap.spoon, from the leaderKeys catalog in config/keys.lua. This spoon owns the per-leader binding
+--- Right Option and Right Command are remapped to function keys at the HID level
+--- from the leaderKeys catalog in config/keys.lua. This spoon owns the per-leader binding
 --- tables and the sub-modifier resolution policy; the hold / tap / chord
 --- MECHANICS (swallowing keys while held, hold-to-reveal timing) live in
 --- ChordKey.spoon, the shared engine it registers its leaders into (opts.chord).
---- Unlike HyperKey there is no tap fallback -- these keys exist only to drive
+--- There is no tap fallback here. These keys exist only to drive
 --- window management, so a bare press/release does nothing.
 ---
 --- A binding may require exact sub-modifiers (e.g. Shift), so one leader can
@@ -18,7 +18,7 @@
 --- Holding a leader ~holdDelay seconds with no other key fires the optional
 --- onHold(leaderKeyCode) callback (used to reveal a cheat sheet); pressing any
 --- bound key cancels it. Keeping WindowLeader a thin adapter preserves the
---- :bind contract that WindowManager:bindToLeader depends on.
+--- :bind contract its consumer depends on.
 
 local obj = {}
 obj.__index = obj
@@ -34,7 +34,7 @@ local log = hs.logger.new("WindowLeader", "info")
 obj._chord = nil   -- shared ChordKey engine
 obj._leaders = nil -- keyCode -> { bindings = { code -> { {mods, fn}, ... } } }
 
--- Hold-to-reveal (parallels HyperKey). onHold receives the leader's keycode so
+-- Hold to reveal. onHold receives the leader's keycode so
 -- a cheat sheet can show that leader's bindings; onHoldEnd takes none.
 obj._holdDelay = 0.6
 obj._onHold = nil

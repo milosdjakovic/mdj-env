@@ -6,7 +6,7 @@
 --- the Settings UI gives no way to force it back. This spoon watches for screen changes and
 --- reapplies the saved arrangement that fits whatever is attached, through displayplacer.
 ---
---- This file is the spoon composition root, following the Capture and Vpn layout. It loads
+--- This file is the spoon composition root, following the composition root, engine, provider layout. It loads
 --- three siblings and wires them, and names no policy of its own beyond the merge. engine.lua
 --- is the mechanism, it watches, matches, and applies, and knows nothing about machines or a
 --- catalog. store.lua persists the captured profiles in a git tracked JSON file. chooser.lua
@@ -17,9 +17,8 @@
 --- The public contract stays what the rest of the config already calls, the colon methods
 --- current, reconcile, apply, capture, configure, start, and stop, all delegating to the
 --- engine, so the overlay display policy that reads current() and the main root that starts
---- the spoon are untouched. The new surface hangs off obj.chooser, dot called, the same
---- shape the clipboard manager uses, so the main root can register and gate it like the
---- other choosers.
+--- the spoon are untouched. The new surface hangs off obj.chooser, dot called, a shape the
+--- main root can register and gate like the other list tools.
 ---
 --- A profile matches when the number of screens it names equals the number attached and
 --- every id it names is attached, comparing persistent and serial ids, so a profile written
@@ -38,7 +37,7 @@ obj.license = "MIT"
 
 local log = hs.logger.new("DisplayProfiles", "info")
 
--- Load the siblings by absolute path off this file's own location, the Capture idiom
+-- Load the siblings by absolute path off this file's own location, the loadfile pattern the spoons use
 -- (loadfile, not require, since a spoon directory is not on package.path). The load helper
 -- wraps loadfile so a broken sibling fails with a DisplayProfiles-prefixed message rather
 -- than a bare Lua error. The chooser is exposed so the main root can reach its surface.

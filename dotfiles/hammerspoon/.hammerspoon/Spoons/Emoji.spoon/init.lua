@@ -27,7 +27,7 @@ obj.version = "2.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
--- Load the backends by absolute path, the Capture idiom, since a spoon directory is not on
+-- Load the backends by absolute path, the loadfile pattern the spoons use, since a spoon directory is not on
 -- package.path. Each file returns a provider object honoring the contract, except custom,
 -- which returns a factory taking the injected behavior and returning such an object.
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")

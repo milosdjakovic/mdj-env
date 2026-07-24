@@ -3,9 +3,9 @@
 --- A themed, keyboard driven chooser atom, the reusable mechanism behind the
 --- clipboard picker and any similar tool. It owns only the chooser window, its
 --- theming, row styling, j and k navigation, close on a key, top biased
---- positioning, and the click away dismissal. It knows nothing about clipboards,
---- caffeinate, HyperKey, or a preview. Each consumer injects its own rows, the
---- meaning of a selection, the field behavior, and an optional docked companion.
+--- positioning, and the click away dismissal. It knows nothing about what its
+--- rows mean. Each consumer injects its own rows, the meaning of a selection, the
+--- field behavior, and an optional docked companion.
 ---
 --- This is a FACTORY, not a singleton spoon. Call spoon.Chooser.new(config) to
 --- get an independent instance, so two tools never share one chooser. The
@@ -615,7 +615,7 @@ function obj.new(config)
       self.lastRow = nil -- top row changed, force a highlight refresh
     end
   end)
-  -- Right click hands the consumer the item under the row (clipboard deletes it),
+  -- Right click hands the consumer the item under the row (a consumer may delete it),
   -- which then calls refresh to redraw. Wired only when a handler is given.
   if config.onRightClick then
     c:rightClickCallback(function(row)

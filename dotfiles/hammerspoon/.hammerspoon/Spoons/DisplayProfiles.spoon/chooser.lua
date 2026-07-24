@@ -13,7 +13,7 @@
 --- and the live query, and selecting a row either navigates (push or pop a frame) or runs a
 --- terminal action. The native chooser closes itself whenever a row is chosen, which is why
 --- a drill in cannot keep it open, so a navigation selection re-shows the one instance at
---- the new level. This is the same re-show the Vpn spoon avoided by staying flat, done on
+--- the new level. This is the same re-show a flat list would avoid, done on
 --- purpose here because the tool is genuinely a menu. Escape and a click away close for
 --- real, which resets the stack to the top for the next open.
 ---
@@ -25,7 +25,7 @@
 --- is pure policy. The spoon composition root in init.lua builds that api by merging the
 --- curated profiles with the captured ones and owns the rebuild after a write. The theme,
 --- the Chooser factory, and the docked shortcut panel callbacks are injected by the main
---- root, the same way the VPN and keep awake choosers receive them.
+--- root, the same way the other choosers receive them.
 
 local M = { name = "DisplayProfiles.chooser" }
 
@@ -44,7 +44,7 @@ local returnTap = nil -- swallows Return while open so a menu step stays in plac
 -- Render an emoji string to a small image so a row can carry it as its icon, an offscreen
 -- canvas drawn once and cached by the string, since the supplier runs on every keystroke. A
 -- false marks a string that cannot render, so it is attempted only once. This is the same
--- helper the VPN and keep awake choosers use.
+-- helper the other choosers use.
 local glyphCache = {}
 local function emojiImage(str)
   local hit = glyphCache[str]
@@ -348,7 +348,7 @@ local function onSelect(item)
 end
 
 --------------------------------------------------------------------------------
--- Public control surface (dot-called, matching the clipboard, VPN, and keep awake)
+-- Public control surface (dot-called)
 --------------------------------------------------------------------------------
 
 --- M.show() - open at the top level. The list reads the live state itself, so there is
@@ -420,7 +420,7 @@ function M.start()
     -- filters at the top but is a name entry on the rename and capture screens, and the
     -- supplier morphs its rows from the query and the frame. Letting the atom filter and rank
     -- those rows would drop the Save row while a name is typed and hide the Back row. The
-    -- supplier owns the query, the same choice caffeinate makes.
+    -- supplier owns the query.
     matcher = false,
     rows = rows,
     onSelect = onSelect,

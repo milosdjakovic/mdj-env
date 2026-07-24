@@ -7,33 +7,33 @@ spoon is a thin adapter over.
 
 ## What it is
 
-A domain adapter that turns one physical key, Caps Lock remapped to F18, into a
-Hyper trigger for app toggle style bindings, a key to function map, with a quick
-tap falling back to the real Caps Lock toggle. It keeps a stable public contract,
-`bind` and `isActive`, that `AppToggler` and `ClipboardHistory` depend on, so
-removing the Hyper key degrades those gracefully rather than breaking them. It
-owns only the binding table and the tap policy and registers its key into the
-shared engine through `opts.chord`, so the state machine is never duplicated here.
+A domain adapter that turns one leader key into a Hyper trigger for app toggle
+style bindings, a key to function map, with a quick tap falling back to the key's
+own native behavior. It keeps a stable public contract, `bind` and `isActive`,
+that its consumers depend on, so removing the Hyper key degrades those gracefully
+rather than breaking them. It owns only the binding table and the tap policy and
+registers its key into the shared engine through `opts.chord`, so the state
+machine is never duplicated here.
 
-## The resolver, shared with WindowLeader
+## The resolver, shared with the leader adapter
 
-A binding may require exact sub modifiers, so one key hosts two tiers, Hyper plus 4
-does one thing while Hyper plus Shift plus 4 does another. Resolution compares only
+A binding may require exact sub modifiers, so one key hosts two tiers, the bare
+Hyper combo does one thing while adding Shift does another. Resolution compares only
 the real modifiers shift, ctrl, alt, and cmd, deliberately ignoring the `fn` flag
 macOS stamps onto some keys, since a raw exact check would never match. An exact
 mods match beats a catch all binding with no mods, and within a tier the highest
-priority wins. `WindowLeader` shares the same mods matching approach, an exact sub
+priority wins. The leader adapter shares the same mods matching approach, an exact sub
 modifier check with a catch all fallback, which is why Hyper plus Shift plus a key can
 differ from Hyper plus that key in both. It is not identical though. Only HyperKey adds
 the priority ordering and the `when` gating below, since only it hosts the modal
-contexts, while `WindowLeader` keeps a single first match resolver with neither.
+contexts, while the leader adapter keeps a single first match resolver with neither.
 
 ## Modal contexts
 
 When a binding carries a `when` predicate and that predicate is live, the Hyper key
 becomes modal, owned by that context, and the base bindings with no `when` are
-suppressed. This is what makes a context modal rather than an overlay, so while the
-clipboard is open Hyper plus A does nothing instead of toggling an app. An unknown
+suppressed. This is what makes a context modal rather than an overlay, so while such
+a context is open a base binding does nothing instead of toggling an app. An unknown
 predicate name is treated as active, so a typo fails visibly, the key stays live,
 rather than silently disabling a binding.
 
