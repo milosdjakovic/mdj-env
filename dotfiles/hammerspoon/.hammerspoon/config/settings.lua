@@ -44,6 +44,17 @@ return {
     timeout = 30,             -- Max seconds to wait per app
   },
 
+  -- Window layout memory. Records every standard window's frame per display
+  -- configuration and restores it automatically on docking, undocking, and waking.
+  -- tolerance is the pixel slack for the compare and skip guard, so a one or two pixel
+  -- nudge from an app snapping a window is not mistaken for a real move. The settle
+  -- timing is shared with DisplayProfiles (displays.settleDelay), so both coalesce the
+  -- same screen event burst, and the spoon adds its own small margin so frames are
+  -- restored only after the display geometry has been reapplied.
+  windowMemory = {
+    tolerance = 5,
+  },
+
   -- The shared canvas surface. One source for how every canvas panel looks in
   -- light and dark, the docked shortcut bars, the cheat sheet, the colour toast,
   -- and the clipboard preview pane. Background, border, border width, corner

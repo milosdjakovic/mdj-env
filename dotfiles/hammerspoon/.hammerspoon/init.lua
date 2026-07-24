@@ -41,6 +41,7 @@ hs.loadSpoon("Eyedropper")
 hs.loadSpoon("WorkspaceEngine")
 hs.loadSpoon("TerminalHandler")
 hs.loadSpoon("DisplayMemory")
+hs.loadSpoon("WindowMemory")
 hs.loadSpoon("Launcher")
 hs.loadSpoon("DockAutoHide")
 hs.loadSpoon("DisplayProfiles")
@@ -1447,6 +1448,24 @@ spoon.DisplayMemory:configure({
   scope = displayFingerprint,
 })
 spoon.DisplayMemory:start()
+
+-- WindowMemory: the same idea widened from the terminal to every window, and from a
+-- remembered display to a remembered frame. It records each standard window's position
+-- and size under the current location, keyed by the same displayFingerprint, and restores
+-- them automatically when the location changes by docking, undocking, or waking. It is
+-- session scoped on purpose, live window ids stay valid across docking and waking but not
+-- a reboot, so persisting them would guess wrong; the terminal keeps its own cross reboot
+-- display memory through DisplayMemory above. It is self contained, watching screens and
+-- wake itself and waiting for the display geometry to go quiet before it places, so it
+-- needs no wiring into DisplayProfiles, whose own displayplacer changes are just more screen
+-- events it already waits out.
+spoon.WindowMemory:init()
+spoon.WindowMemory:configure({
+  scope = displayFingerprint,
+  tolerance = settings.windowMemory.tolerance,
+  settleDelay = displays.settleDelay,
+})
+spoon.WindowMemory:start()
 
 -- The default display policy, the one place the "where by default" rule lives:
 -- the built-in panel if there is one, else the first attached screen. That single
