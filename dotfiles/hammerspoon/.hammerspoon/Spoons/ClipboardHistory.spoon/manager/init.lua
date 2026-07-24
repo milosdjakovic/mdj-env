@@ -14,12 +14,15 @@
 --- wires store, readers, monitor, and ui together.
 ---
 --- Responsibilities split across the folder:
----   util.lua     pure string and pasteboard helpers
----   preview.lua  async preview-image generation, a Chain of Responsibility
----   store.lua    history list, persistence, image and file media lifecycle
----   readers.lua  per-type capture readers, a Chain of Responsibility
----   monitor.lua  the poll engine and paste-back, owns the self-capture guard
----   ui.lua       the chooser and the live preview pane
+---   util.lua      pure string and pasteboard helpers
+---   preview.lua   async preview-image generation, a Chain of Responsibility
+---   store.lua     the store core, the ordered deduped persisted list plus the accept
+---                 gate, decides nothing about media or eviction on its own
+---   media.lua     the image and file lifecycle, an optional layer of the store
+---   retention.lua the eviction policies (count, age, bytes), combined as an or
+---   readers.lua   per-type capture readers, a Chain of Responsibility
+---   monitor.lua   the poll engine and paste-back, owns the self-capture guard
+---   ui.lua        the chooser and the live preview pane
 
 -- Load siblings by absolute path, the loadfile pattern the spoons use.
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
@@ -34,6 +37,8 @@ end
 local util = load("util.lua")
 local preview = load("preview.lua")
 local store = load("store.lua")
+local media = load("media.lua")
+local retention = load("retention.lua")
 local readers = load("readers.lua")
 local monitor = load("monitor.lua")
 local ui = load("ui.lua")
@@ -190,16 +195,44 @@ function M.start()
   math.randomseed(os.time())
   config.util = util
 
-  -- Resolve the preview tools (logs a missing ffmpeg), then inject the module and
-  -- a repaint hook so a preview that lands after the entry saved repaints the open
-  -- chooser without the user moving the selection.
+  -- Resolve the preview tools, logging a missing ffmpeg.
   preview.configure({ util = util, ffmpeg = config.ffmpeg, ffprobe = config.ffprobe })
-  config.preview = preview
-  config.onMediaReady = function()
-    ui.mediaReady()
-  end
 
-  store.configure(config)
+  -- The media layer, images and files, injected into the store. It gets the dirs and
+  -- sizes, the preview module, the store's save so a late async render can re-persist,
+  -- and a repaint hook so a preview that lands after the entry saved repaints the open
+  -- chooser without the user moving the selection.
+  media.configure({
+    cacheParent = config.cacheParent,
+    dataDir = config.dataDir,
+    thumbDir = config.thumbDir,
+    filesDir = config.filesDir,
+    maxFileSnapshot = config.maxFileSnapshot,
+    thumbEdge = config.thumbEdge,
+    previewEdge = config.previewEdge,
+    util = util,
+    preview = preview,
+    save = store.save,
+    onMediaReady = function()
+      ui.mediaReady()
+    end,
+  })
+
+  -- The store core. It accepts every kind, so text, url, image, and file all combine
+  -- into one rolling history. That wide accept set is the combine, one store taking many
+  -- kinds. Retention is count then bytes with no age, exactly the previous behavior, and
+  -- the media layer handles the images and files. A future snippet store reuses this same
+  -- core with a text only accept set and no media layer.
+  store.configure(merged({
+    accepts = { text = true, url = true, image = true, file = true },
+    retention = {
+      retention.count(config.maxEntries),
+      retention.bytes(config.maxSnapshotBytes),
+    },
+    media = media,
+    util = util,
+  }))
+
   monitor.configure({
     readers = readers.build(util),
     store = store,
