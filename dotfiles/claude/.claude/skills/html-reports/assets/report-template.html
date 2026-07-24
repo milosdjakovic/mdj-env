@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Report title</title>
+<style>
+  :root {
+    --bg: #eceded;
+    --paper: #ffffff;
+    --ink: #1a1a1a;
+    --muted: #666666;
+    --faint: #8a8a8a;
+    --line: #d9d9d9;
+    --hair: #ececec;
+    --soft: #f5f5f5;
+    --serif: Georgia, "Times New Roman", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.6;
+    font-size: 15px;
+    -webkit-font-smoothing: auto;
+  }
+  a { color: var(--ink); }
+
+  /* Type system. Exactly two fonts. Serif for headings, sans for everything else.
+     Headings stop at three levels, h1 h2 h3, and are always serif.
+     h1 is the document or sidebar title.
+     h2 is the single overview heading, the largest type in the body.
+     h3 is a section card title.
+     There is no h4 and below. Small uppercase section labels use .eyebrow,
+     a sans label that is never a heading. */
+  h1, h2, h3 { font-family: var(--serif); font-weight: 700; }
+
+  .layout { display: flex; min-height: 100vh; }
+
+  /* Left rail, white. Remove this whole block for a single column layout. */
+  .rail {
+    width: 320px;
+    flex: 0 0 320px;
+    background: var(--paper);
+    color: var(--ink);
+    border-right: 1px solid var(--line);
+    box-shadow: 2px 0 10px rgba(0, 0, 0, .04);
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 30px 22px;
+    z-index: 1;
+  }
+  .rail h1 { font-family: var(--serif); font-size: 18px; font-weight: 700; margin: 0 0 4px; }
+  .rail .sub { font-size: 12px; color: var(--muted); margin: 0 0 24px; }
+  .rail nav a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--ink);
+    padding: 9px 11px;
+    font-size: 13.5px;
+    margin-bottom: 2px;
+    border-left: 3px solid transparent;
+  }
+  .rail nav a:hover { background: var(--soft); border-left-color: var(--ink); }
+  .rail nav a .label { flex: 1 1 auto; line-height: 1.4; }
+  .rail nav a .code { font-weight: 700; display: block; }
+  .rail nav a .name { color: var(--muted); display: block; font-size: 13px; }
+  .rail nav a .badge { flex: 0 0 auto; }
+  .rail .railfoot { margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--hair); font-size: 11.5px; color: var(--faint); line-height: 1.5; }
+
+  /* Main, gray canvas with centered paper column */
+  main { flex: 1 1 auto; padding: 40px 40px 90px; }
+  .wrap { max-width: 880px; margin: 0 auto; }
+
+  /* Cards, white paper */
+  .card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 6px 22px rgba(0, 0, 0, .05);
+    padding: 34px 40px;
+    margin-bottom: 26px;
+  }
+  .card:last-child { margin-bottom: 0; }
+
+  /* Overview */
+  .intro h2 { font-family: var(--serif); font-size: 27px; font-weight: 700; margin: 0 0 8px; }
+  .intro p.lede { color: var(--muted); font-size: 15.5px; max-width: 68ch; margin: 0 0 26px; }
+
+  /* Badges, monochrome, square */
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    padding: 2px 8px;
+    line-height: 1.5;
+    white-space: nowrap;
+    border: 1px solid var(--ink);
+    color: var(--ink);
+    background: var(--paper);
+  }
+
+  /* At a glance table */
+  .glance { width: 100%; border-collapse: collapse; margin-bottom: 22px; }
+  .glance th, .glance td { text-align: left; padding: 13px 14px; border-bottom: 1px solid var(--hair); font-size: 14px; vertical-align: top; }
+  .glance thead th { border-bottom: 1px solid var(--line); color: var(--muted); font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: .6px; }
+  .glance tr:last-child td { border-bottom: none; }
+  .glance td.key { font-weight: 600; white-space: nowrap; }
+  .glance td.key a { color: var(--muted); font-weight: 600; font-size: 12px; display: block; margin-top: 2px; letter-spacing: .3px; }
+
+  /* Legend */
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; margin: 0; }
+  .legend .item { border: 1px solid var(--line); padding: 11px 14px; font-size: 12.5px; color: var(--muted); flex: 1 1 200px; }
+  .legend .item b { color: var(--ink); }
+
+  /* Section card header, title first then meta row */
+  section.entry { scroll-margin-top: 20px; }
+  section.entry > header { border-bottom: 1px solid var(--line); padding-bottom: 18px; margin-bottom: 22px; }
+  section.entry > header h3 { font-family: var(--serif); font-size: 23px; font-weight: 700; margin: 0 0 10px; line-height: 1.2; }
+  section.entry > header .meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  section.entry > header .ref {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    color: var(--ink);
+    text-decoration: none;
+    border-bottom: 1px solid var(--ink);
+    padding-bottom: 1px;
+  }
+  section.entry > header .ref:hover { color: var(--muted); border-bottom-color: var(--muted); }
+  section.entry > header .ref .arrow { font-weight: 400; }
+
+  .sub { margin: 0 0 22px; }
+  .sub:last-child { margin-bottom: 0; }
+  /* Eyebrow label, sans, not a heading. Headings stop at h3. */
+  .eyebrow { font-size: 12.5px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); margin: 0 0 10px; font-weight: 700; }
+  .lead { font-size: 15px; margin: 0; }
+  .lead .aside { color: var(--muted); font-size: 13px; }
+
+  /* Estimate or spec line, a single prominent figure under the lead. Label on its own line, serif value below, no divider. */
+  .estimate { margin: 16px 0 0; }
+  .estimate .lab { display: block; font-size: 12.5px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); font-weight: 700; margin: 0 0 6px; }
+  .estimate .val { font-family: var(--serif); font-size: 17px; font-weight: 700; color: var(--ink); }
+
+  /* Two column supported vs limits */
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .split ul { margin: 0; padding-left: 0; list-style: none; }
+  .split li { position: relative; padding-left: 20px; margin-bottom: 9px; font-size: 14px; line-height: 1.5; }
+  .split .ok li::before { content: "\2713"; position: absolute; left: 1px; top: 2px; line-height: 1.5; color: var(--ink); font-weight: 700; font-size: 12.5px; }
+  .split .gap li::before { content: "\2717"; position: absolute; left: 1px; top: 2px; line-height: 1.5; color: var(--ink); font-weight: 700; font-size: 12.5px; }
+
+  .values { list-style: none; padding: 0; margin: 0; }
+  .values li { padding: 11px 0; border-bottom: 1px solid var(--hair); font-size: 14px; line-height: 1.5; }
+  .values li:first-child { padding-top: 0; }
+  .values li:last-child { border-bottom: none; padding-bottom: 0; }
+  .values li b { color: var(--ink); }
+
+  /* Choices list, compact, no dividers, reads as decisions rather than a benefit list */
+  .choices { list-style: none; padding: 0; margin: 0; }
+  .choices li { margin-bottom: 10px; font-size: 14px; line-height: 1.5; }
+  .choices li:last-child { margin-bottom: 0; }
+  .choices b { color: var(--ink); }
+
+  .callout { position: relative; background: var(--soft); padding: 15px 17px; font-size: 14px; }
+  .callout::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--ink); }
+  .callout .eyebrow { color: var(--ink); }
+  .callout p { margin: 0; }
+  .note { border: 1px solid var(--line); background: var(--paper); padding: 12px 16px; font-size: 13.5px; color: var(--muted); margin-top: 13px; }
+  .note b { color: var(--ink); }
+
+  @media (max-width: 880px) {
+    .rail { display: none; }
+    main { padding: 26px 18px 60px; }
+    .card { padding: 24px 20px; }
+    .split { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- Sidebar. Delete this whole aside for a single column layout. -->
+  <aside class="rail">
+    <h1>Report title</h1>
+    <p class="sub">One line of framing</p>
+    <nav>
+      <a href="#overview"><span class="label"><span class="code">Overview</span></span></a>
+      <a href="#s1"><span class="label"><span class="code">SECTION-1</span> <span class="name">First section</span></span><span class="badge">A</span></a>
+      <a href="#s2"><span class="label"><span class="code">SECTION-2</span> <span class="name">Second section</span></span><span class="badge">B</span></a>
+    </nav>
+    <div class="railfoot">A short footnote about scope or provenance.</div>
+  </aside>
+
+  <main>
+    <div class="wrap">
+
+    <!-- Overview card -->
+    <div class="card intro" id="overview">
+      <h2>Document heading</h2>
+      <p class="lede">A short lede that frames what the reader is looking at and what each section covers.</p>
+
+      <table class="glance">
+        <thead>
+          <tr><th>Item</th><th>What it is</th><th>Tag</th><th>In one line</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="key">First section<a href="#s1">SECTION-1</a></td>
+            <td>What this item is</td>
+            <td><span class="badge">A</span></td>
+            <td>The single most useful sentence about it</td>
+          </tr>
+          <tr>
+            <td class="key">Second section<a href="#s2">SECTION-2</a></td>
+            <td>What this item is</td>
+            <td><span class="badge">B</span></td>
+            <td>The single most useful sentence about it</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="legend">
+        <div class="item"><b>A.</b> What this tag means.</div>
+        <div class="item"><b>B.</b> What this tag means.</div>
+      </div>
+    </div>
+
+    <!-- Section card -->
+    <section class="card entry" id="s1">
+      <header>
+        <h3>First section</h3>
+        <div class="meta">
+          <a class="ref" href="#" target="_blank" rel="noopener">SECTION-1 <span class="arrow">&#8599;</span></a>
+          <span class="badge">A</span>
+        </div>
+      </header>
+
+      <div class="sub">
+        <p class="eyebrow">Lead statement</p>
+        <p class="lead">The headline finding for this section, written plainly. <span class="aside">A quieter qualifying clause.</span></p>
+        <p class="estimate"><span class="lab">Estimate</span> <span class="val">The one prominent figure this section carries.</span></p>
+      </div>
+
+      <div class="sub split">
+        <div class="col">
+          <p class="eyebrow">What holds</p>
+          <ul class="ok">
+            <li>A supported point</li>
+            <li>Another supported point</li>
+          </ul>
+        </div>
+        <div class="col">
+          <p class="eyebrow">Where the limits are</p>
+          <ul class="gap">
+            <li>A boundary or caveat</li>
+            <li>Another boundary</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="sub">
+        <p class="eyebrow">Who it helps</p>
+        <ul class="values">
+          <li><b>A role,</b> the concrete payoff in their own terms, stated once and varied from the next line.</li>
+          <li><b>Another role,</b> the concrete payoff in their own terms, stated once and varied from the line above.</li>
+        </ul>
+      </div>
+
+      <div class="sub">
+        <p class="eyebrow">What depends on your needs</p>
+        <ul class="choices">
+          <li><b>A fork the reader decides.</b> The lighter answer keeps it small, the fuller answer grows the work, said in one plain line.</li>
+          <li><b>Another fork.</b> Name the choice, then what each way costs or simplifies, so scope is a conversation rather than a fixed number.</li>
+        </ul>
+      </div>
+
+      <div class="sub callout">
+        <p class="eyebrow">Key takeaway</p>
+        <p>The one thing to remember from this section, stated as advice or a recommendation.</p>
+        <div class="note"><b>Note.</b> A caveat that travels with this section.</div>
+      </div>
+    </section>
+
+    <!-- Duplicate the section card above for each further section, incrementing the id. -->
+
+    </div>
+  </main>
+</div>
+</body>
+</html>
