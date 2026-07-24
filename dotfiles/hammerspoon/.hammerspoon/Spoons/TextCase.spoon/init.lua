@@ -66,6 +66,7 @@ local ICON = {
   snake = "🐍", constant = "📢", kebab = "🍢", dot = "🔵",
 }
 local ICON_FALLBACK = "🔤"
+local EMPTY_ICON = "🚫" -- the no-selection guidance row
 
 -- Collapse whitespace to single spaces and elide, so a multi-line or long selection
 -- still reads as one tidy row. Bytes, not codepoints, so an elided multibyte tail is
@@ -91,8 +92,7 @@ end
 -- The row glyph as an image, rendered once through one canvas and cached, sized to line
 -- up with the app icons, the same technique the launcher and the overlay picker use since
 -- this Hammerspoon has no SF Symbol API.
-function obj:_icon(id)
-  local glyph = ICON[id] or ICON_FALLBACK
+function obj:_glyphIcon(glyph)
   local cache = self._iconCache
   if cache[glyph] == nil then
     local size = 72
@@ -105,6 +105,10 @@ function obj:_icon(id)
   return cache[glyph] or nil
 end
 
+function obj:_icon(id)
+  return self:_glyphIcon(ICON[id] or ICON_FALLBACK)
+end
+
 -- Build the rows for one open. With no selection captured it is a single non-actionable
 -- row guiding the user, the same shape Vpn's unavailable row uses (plain data, no key
 -- names). Otherwise one row per transform, the title demonstrating the case and the
@@ -113,7 +117,7 @@ end
 function obj:_buildRows(text)
   if not text or text:match("^%s*$") then
     return { { title = "No text selected", subTitle = "Select some text, then open Text Case",
-              enabled = false } }
+              image = self:_glyphIcon(EMPTY_ICON), enabled = false } }
   end
   local rows = {}
   for _, t in ipairs(self._transforms) do
