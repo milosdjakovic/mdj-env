@@ -13,6 +13,17 @@ local M = {}
 -- beside the contract methods, the provider being the one place that knows it.
 M.name = "Mullvad"
 
+-- How to get this backend when its CLI is absent, so the control panel can explain
+-- itself instead of opening empty, and the root can log the reason, without either one
+-- learning the concrete tool or the platform. This is the same idea as name, metadata
+-- the provider owns because it is the one place that knows both the CLI and how it is
+-- installed. note is a plain sentence, command is the macOS install line, the Mullvad
+-- app ships the mullvad CLI at one of the CANDIDATES paths above.
+M.install = {
+  note = "The Mullvad VPN app provides the mullvad CLI.",
+  command = "brew install --cask mullvad-vpn",
+}
+
 local CANDIDATES = { "/opt/homebrew/bin/mullvad", "/usr/local/bin/mullvad" }
 
 -- Resolve the CLI once. Prefer the known Homebrew paths, then fall back to a PATH

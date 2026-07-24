@@ -1,36 +1,40 @@
 --- === Vpn ===
 ---
---- A VPN control tool. Hyper+P opens a single native chooser that merges the controls
---- and the location search into one flat list. The first row is the action that fits the
---- live state, its title naming the place, Disconnect from where the tunnel is when it is
---- up and Connect to the selected relay when it is down, with the live state word and the
+--- A VPN control tool. It opens a single native chooser that merges the controls and the
+--- location search into one flat list. The first row is the action that fits the live
+--- state, its title naming the place, Disconnect from where the tunnel is when it is up
+--- and Connect to the selected relay when it is down, with the live state word and the
 --- provider in its subtitle. Every city the provider offers follows below it. Typing
---- filters the cities, and once a filter is present the action row drops out so Return
---- connects to the top matching city rather than toggling the tunnel. Choosing a city sets
---- the relay and connects.
+--- filters the cities, and once a filter is present the action row drops out so selecting
+--- the top row connects to the top matching city rather than toggling the tunnel. Choosing
+--- a city sets the relay and connects. It never names the keys that open or drive it, those
+--- live in config and the root.
 ---
 --- This file is the composition root and the command policy. It loads the engine and the
 --- Mullvad provider, names them, validates the provider against the contract, and builds
---- one Chooser instance pinned to the native hs.chooser backend, the snappy one the menu
---- search also uses. It turns a chosen row into an engine call. When the CLI is not
---- installed it logs the reason and the tool does nothing, so a machine without Mullvad
---- degrades quietly.
+--- one Chooser instance pinned to the native hs.chooser backend. It turns a chosen row
+--- into an engine call. When the CLI is not
+--- installed it logs the reason and still builds the chooser, which then opens to a single
+--- row naming the missing backend and its install command, both read from the provider's
+--- own install metadata so the panel never learns the concrete tool. The engine is left
+--- unstarted in that state, so a machine without Mullvad degrades to a self explaining
+--- panel rather than a dead key. Selecting the row copies the install command.
 ---
 --- One flat list, not a drill down. The controls and the locations live in the same list,
 --- so there is no mode to switch and no second level to re-show. The location list is
 --- fetched on each open so a relay update is reflected, and the list is refreshed once it
---- lands. The Hyper navigation shortcuts are wired from the main root (j, k, i, x), and
---- the root also docks its shared deferred shortcut hint panel below the list through the
---- onPositioned, onActivity, and onClose seams this spoon forwards to its chooser.
+--- lands. The navigation shortcuts are wired from the main root, this spoon never names
+--- them, and the root also docks its shared deferred shortcut hint panel below the list
+--- through the onPositioned, onActivity, and onClose seams this spoon forwards to its
+--- chooser.
 
 local M = { name = "Vpn", version = "3.0", author = "Milos Djakovic", license = "MIT" }
 
 local log = hs.logger.new("Vpn", "info")
 
--- Load the siblings by absolute path off this file's own location, the Capture idiom
--- (loadfile, not require, since a spoon dir is not on package.path). The load helper
--- wraps loadfile so a broken sibling fails with a Vpn-prefixed message rather than a
--- bare Lua error.
+-- Load the siblings by absolute path off this file's own location (loadfile, not require,
+-- since a spoon dir is not on package.path). The load helper wraps loadfile so a broken
+-- sibling fails with a Vpn-prefixed message rather than a bare Lua error.
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local function load(name)
   local chunk, err = loadfile(spoonPath .. name)
@@ -55,6 +59,7 @@ end
 
 local cfg = nil       -- injected: the shared theme and the Chooser factory
 local chooser = nil   -- the one native Chooser instance
+local available = false -- whether the provider's CLI was found at start
 local cache = {}      -- the last fetched location list, filtered by the supplier
 local current = { state = "unavailable" } -- status snapshot, refreshed on open and change
 local target = nil    -- the selected relay to connect to, { countryCode, cityCode }
@@ -172,12 +177,33 @@ local function actionRow()
   return { title = title, subTitle = statusText(current), image = emojiImage(icon), item = { id = id } }
 end
 
--- The merged supplier. The action row leads only on the empty query, then every city
--- follows, and the atom's shared matcher filters and ranks the cities against the query.
--- Each city carries filterText of its label plus country code, so typing London, USA, or
--- gb all narrow it. The action row appears only when the field is empty, so a query never
--- has to filter it out. Each city row carries its country flag as the icon.
+-- The single row shown when the provider's CLI was not found at start. It names the
+-- missing backend and its install command, both read from the provider's install
+-- metadata, so the panel explains the gap instead of opening empty and never names the
+-- concrete tool or the platform. Title and subtitle are plain data, the command as the
+-- subtitle, with no hint about which key operates the row, since how the row is driven is
+-- the root's concern and shows through the shared shortcut panel. A provider that carries
+-- no install metadata still gets a titled row, just without a command.
+local function unavailableRow()
+  local info = provider.install or {}
+  local name = provider.name or "VPN"
+  return {
+    title = name .. " CLI not found",
+    subTitle = info.command or info.note or "The provider CLI is not installed",
+    image = emojiImage("⚠️"),
+    item = { id = "install", command = info.command },
+  }
+end
+
+-- The merged supplier. When the provider is unavailable the whole list is the one
+-- self explaining install row, and typing has nothing to filter. Otherwise the action
+-- row leads only on the empty query, then every city follows, and the atom's shared
+-- matcher filters and ranks the cities against the query. Each city carries filterText
+-- of its label plus country code, so typing London, USA, or gb all narrow it. The action
+-- row appears only when the field is empty, so a query never has to filter it out. Each
+-- city row carries its country flag as the icon.
 local function rows(query)
+  if not available then return { unavailableRow() } end
   local out = {}
   if (query or "") == "" then out[#out + 1] = actionRow() end
   for _, loc in ipairs(cache) do
@@ -201,6 +227,15 @@ end
 -- way.
 local function onSelect(sel)
   if not sel then return end
+  if sel.id == "install" then
+    -- The unavailable row. Copy the install command to the clipboard so the fix is one
+    -- paste away, and confirm with a short alert. No command means nothing to copy.
+    if sel.command then
+      hs.pasteboard.setContents(sel.command)
+      hs.alert.show("Copied: " .. sel.command)
+    end
+    return
+  end
   if sel.id == "connect" then
     engine.connect()
   elseif sel.id == "disconnect" then
@@ -211,7 +246,7 @@ local function onSelect(sel)
 end
 
 --------------------------------------------------------------------------------
--- Public control surface (dot-called, matching the clipboard and caffeinate)
+-- Public control surface (dot-called)
 --------------------------------------------------------------------------------
 
 --- M.show() - read the state and the selected relay once, fetch the relay list, and open
@@ -220,12 +255,16 @@ end
 --- resolves the selected relay's codes to its human label in the title.
 function M.show()
   if not chooser then return end
-  current = engine.status()
-  target = engine.selectedLocation()
-  engine.listLocations(function(list)
-    cache = list or {}
-    if chooser then chooser:refresh() end
-  end)
+  -- When the provider is unavailable the engine was never started, so skip the live
+  -- reads and just open the chooser on its single install row.
+  if available then
+    current = engine.status()
+    target = engine.selectedLocation()
+    engine.listLocations(function(list)
+      cache = list or {}
+      if chooser then chooser:refresh() end
+    end)
+  end
   chooser:show()
 end
 
@@ -237,8 +276,8 @@ function M.hide()
   if chooser then chooser:hide() end
 end
 
--- Vim style navigation, routed here from the vpn Hyper context by the main root, the same
--- shared control the clipboard and caffeinate use.
+-- List navigation, routed here from the vpn context by the main root. The spoon exposes
+-- the methods and never names the keys bound to them.
 function M.selectNext()
   if chooser then chooser:selectNext() end
 end
@@ -247,8 +286,8 @@ function M.selectPrev()
   if chooser then chooser:selectPrev() end
 end
 
---- M.insertSelected() - apply the highlighted row, exactly as Return does, routed here
---- from Hyper+i.
+--- M.insertSelected() - apply the highlighted row, the same as choosing it, routed here
+--- from the navigation shortcut the root binds.
 function M.insertSelected()
   if chooser then chooser:insertSelected() end
 end
@@ -271,18 +310,26 @@ function M.configure(opts)
   return M
 end
 
---- M.start() - validate availability, wire the engine, and build the one native chooser.
---- When the CLI is missing it logs and returns without building, so the tool is inert.
+--- M.start() - resolve availability, wire the engine when the CLI is present, and build
+--- the one native chooser either way. When the CLI is missing it logs the reason, read
+--- from the provider's install metadata, and leaves the engine unstarted, so the chooser
+--- opens to the self explaining install row instead of the tool being a dead key.
 function M.start()
-  if not provider.available() then
-    log.w("mullvad CLI not found, VPN controls disabled. Install the Mullvad app or run brew install --cask mullvad-vpn")
-    return M
+  available = provider.available()
+  if available then
+    engine.configure({ provider = provider, onChange = onChange })
+    engine.start()
+  else
+    local info = provider.install or {}
+    local name = provider.name or "VPN"
+    local parts = { name .. " CLI not found, VPN controls disabled" }
+    if info.note then parts[#parts + 1] = info.note end
+    if info.command then parts[#parts + 1] = "install with: " .. info.command end
+    log.w(table.concat(parts, ". "))
   end
-  engine.configure({ provider = provider, onChange = onChange })
-  engine.start()
   chooser = cfg.chooser.new({
     theme = cfg.theme,
-    placeholder = "Search locations",
+    placeholder = available and "Search locations" or ((provider.name or "VPN") .. " not installed"),
     fieldMode = "filter",
     rows = rows,
     onSelect = onSelect,

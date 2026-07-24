@@ -3,9 +3,9 @@
 --- init.lua. It is added now because the engine is a real consumer, not up front. In
 --- a dynamic language a contract is a documented set of required methods plus a
 --- validation step, not a compiled interface, so validate checks the shape once at
---- load. It returns (ok, missing) rather than throwing, the same soft shape Capture's
---- contract uses, and the composition root in init.lua decides what a gap means. There
---- it is a hard load-time failure, since the single provider is not optional.
+--- load. It returns (ok, missing) rather than throwing, a soft shape the composition root
+--- in init.lua acts on to decide what a gap means. There it is a hard load-time failure,
+--- since the single provider is not optional.
 ---
 --- The methods a provider must implement.
 ---   available()                     returns whether the backend is installed, checked
@@ -23,6 +23,12 @@
 ---                                   from the location constraint, { countryCode, cityCode }
 ---                                   with cityCode nil for a country only constraint, or nil
 ---                                   when nothing is set. Fast, so synchronous.
+---
+--- A provider may also carry optional metadata beside these methods, which the panel
+--- renders and validate does not require. name is the human backend name. install is
+--- { note, command } naming how to get the backend when available() is false, so the
+--- control surface can explain the gap and offer the install line without learning the
+--- concrete tool or the platform.
 
 local M = {}
 

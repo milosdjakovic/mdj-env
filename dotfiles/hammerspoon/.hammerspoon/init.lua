@@ -1110,9 +1110,10 @@ spoon.HyperKey:bind(keys.menuSearch.key, openBuiltinMenuSearch)
 -- factory injected here, plus the same deferred shortcut panel menu search uses, wired
 -- through the three chooser callbacks. The vpn Hyper context (see config/keys.lua) drives
 -- the j, k, i, and x shortcuts through the choosers registry below. When the Mullvad CLI
--- is missing the spoon logs to the console and stays inert, so this wiring is safe on any
--- machine. The open key is a base HyperKey binding, suppressed while a modal context owns
--- Hyper.
+-- is missing the spoon logs to the console and its chooser opens to a single row naming
+-- the missing backend and its install command, so this wiring is safe on any machine and
+-- explains itself. The open key is a base HyperKey binding, suppressed while a modal
+-- context owns Hyper.
 local vpnPanel = shortcutPanelFor("vpn")
 spoon.Vpn.configure({
   theme = settings.chooserTheme,
