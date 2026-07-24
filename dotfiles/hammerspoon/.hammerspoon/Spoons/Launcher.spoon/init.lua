@@ -231,12 +231,14 @@ function obj:_buildActionRows()
   add(keys.vpn.description, "Network · " .. self:_chordLabel("Hyper", keys.vpn.key), { kind = "special", name = "vpn" }, "🌐")
   add(keys.clipboardHistory.description, "Clipboard · " .. self:_chordLabel("Hyper", keys.clipboardHistory.key), { kind = "special", name = "clipboard" }, "📋")
   -- Display profiles has no dedicated chord, it opens from here only, so its subtitle names
-  -- what it does rather than a shortcut.
+  -- what it does rather than a shortcut. The two display commands sit under a Displays
+  -- category rather than System, so their subtitle does not read like the "System Settings"
+  -- subtitle the Displays settings pane row carries.
   if keys.displayProfiles then
-    add(keys.displayProfiles.description, "System · inspect and manage display arrangements", { kind = "special", name = "displayProfiles" }, "🖥️")
+    add(keys.displayProfiles.description, "Displays · inspect and manage arrangements", { kind = "special", name = "displayProfiles" }, "🖥️")
   end
   add("Search Settings", "System · opens the System Settings search field", { kind = "special", name = "searchSettings" }, "🔍")
-  add("Overlay Display", "System · where panels and choosers appear", { kind = "special", name = "overlayDisplay" }, "🖥️")
+  add("Overlay Display", "Displays · where panels and choosers appear", { kind = "special", name = "overlayDisplay" }, "🖥️")
   add(keys.lock.description, "System · " .. self:_chordLabel("Hyper", keys.lock.key), { kind = "special", name = "lock" }, "🔒")
   add(keys.sleep.description, "System · " .. self:_chordLabel("Hyper", keys.sleep.key), { kind = "special", name = "sleep" }, "🌙")
   for _, b in ipairs(keys.windowManagement) do

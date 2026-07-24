@@ -732,14 +732,15 @@ do
   }
   -- Row icons are emoji rendered to images in the left icon slot, matching the
   -- launcher's look rather than a glyph prefix in the title. A selected row (the
-  -- active mode, the pinned display) shows the check; an unselected default row
-  -- shows its category emoji.
+  -- active mode, the pinned display) shows the green active marker; an unselected
+  -- default row shows its category emoji. The green circle is the shared active
+  -- marker every chooser uses, see the CLAUDE.md convention.
   local MODE_ICON = {
     [modes.cursor] = "🖱️",
     [modes.activeWindow] = "🎯",
     [modes.fixed] = "📌",
   }
-  local ICON_SELECTED, ICON_BACK, ICON_CONFIG, ICON_DISPLAY = "✅", "⬅️", "⚙️", "🖥️"
+  local ICON_SELECTED, ICON_BACK, ICON_CONFIG, ICON_DISPLAY = "🟢", "⬅️", "⚙️", "🖥️"
   -- Emoji -> image, once per emoji and cached, sized to line up with app icons, the
   -- same technique Launcher uses for its glyph rows since this Hammerspoon has no SF
   -- Symbol API.

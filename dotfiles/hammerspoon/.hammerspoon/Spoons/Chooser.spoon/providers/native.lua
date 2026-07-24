@@ -478,6 +478,12 @@ function Chooser:show()
   self.active = true
   self.chooser:query("")
   self.chooser:choices(self:_build(""))
+  -- Always open at the top. hs.chooser reuses one instance across shows and would
+  -- otherwise restore the row the last open left highlighted, so a reopen would flash
+  -- the old scroll position before snapping back. Resetting the highlight here, before
+  -- the window is revealed in _positionAndShow, makes every open start at the first row
+  -- with no visible jump.
+  self.chooser:selectedRow(1)
   -- Seed the highlight so a companion has content before the first poll tick.
   if self.config.onHighlight then
     self.config.onHighlight(self.currentChoices[1] and self.currentChoices[1]._item or nil)

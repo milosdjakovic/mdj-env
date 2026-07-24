@@ -121,6 +121,24 @@ Settings on the General pane, and pressing it again while frontmost hides it.
 These toggles still show in the cheat sheet like any other app, resolved by
 bundle id, so the overlay stays complete without extra wiring.
 
+**Two discoverability mandates, and a binding is not finished until both hold.**
+Every shortcut must be reachable two ways. First, a shortcut bound on a leader
+appears in that leader's held cheat sheet, HYPER in `HyperCheatSheet`, a window
+leader in `WindowCheatSheet`, and SUPER in whatever sheet it is later given, so
+holding the leader always reveals the full set of what it does and nothing bound
+is hidden from the hold. Second, every executable command shortcut also appears
+as a launcher row, so the same action is found by name without knowing its key,
+and an app toggle counts because its app row carries the shortcut. The only
+things exempt from the launcher rule are the surfaces used to reach the launcher
+itself, the launcher open key and the other discovery openers, since listing a
+finder inside the finder earns nothing. Both surfaces read the same
+`config/keys.lua` data, the cheat sheet through the sections the root assembles
+and the launcher through its action rows, so a new binding is added to that data
+and surfaced in both places rather than in code only one of them reads, and the
+key and its listings can never drift. A binding whose `when` predicate is false
+drops out of both together, so the rule still reads the same. A shortcut that
+reaches neither surface is considered unfinished.
+
 Coupling is contained: `HyperKey` is an optional injected dependency of
 `AppToggler` only. If it is not wired up in `init.lua`, `AppToggler` falls back
 to binding the literal `HYPER` (⇧⌃⌥⌘) combo from `keys.lua` — so removing the
@@ -493,6 +511,16 @@ step mirroring what the clipboard already does.
 A tool with two surfaces, like the VPN control panel and its location picker,
 wires each surface as its own participant, its own context block, predicate,
 registry entry, and overlay.
+
+**A green circle marks the active row, never a checkmark.** When a chooser marks
+one row as the live choice, the active display profile, the chosen overlay
+display mode, the pinned display, it shows a green circle in the row's icon slot.
+A checkmark reads as confirm this and a tick as done, while the list is showing
+state, which one of these is current right now, so the green dot reads as that
+status at a glance and never competes with the confirm and commit actions a menu
+also carries. A new chooser that highlights its active row reuses the green
+circle rather than inventing its own glyph, so the marker stays one thing across
+every list.
 
 **Back is the first row in a chooser menu.** For a menu style chooser with levels,
 like DisplayProfiles, the Back row is always the first row, not the last, so

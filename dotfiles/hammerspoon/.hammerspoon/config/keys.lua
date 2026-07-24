@@ -385,7 +385,7 @@ return {
   -- capture, rename, and delete the captured ones. It has its own hyperContext above, so
   -- while open it takes the shared j/k/i navigation and x closes it. `description` labels its
   -- launcher row.
-  displayProfiles = { description = "Display profiles" },
+  displayProfiles = { description = "Display Profiles" },
 
   -- Feature toggles
   toggleDock = { modifiers = CTRL_ALT, key = "D" },
