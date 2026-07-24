@@ -47,6 +47,7 @@ hs.loadSpoon("DockAutoHide")
 hs.loadSpoon("DisplayProfiles")
 hs.loadSpoon("SystemSettings")
 hs.loadSpoon("Emoji")
+hs.loadSpoon("TextCase")
 
 --------------------------------------------------------------------------------
 -- Initialize Spoons
@@ -230,6 +231,11 @@ local predicates = {
   -- shared j, k, i, and x navigation while it is up.
   emojiOpen = function()
     return spoon.Emoji:isShowing()
+  end,
+  -- The text case picker is open. Gates the textCase Hyper context, so it takes the
+  -- shared j, k, i, and x navigation while it is up.
+  textCaseOpen = function()
+    return spoon.TextCase:isShowing()
   end,
 }
 -- The window bindings carry no leader (see config/keys.lua). Stamp the resolved
@@ -949,6 +955,7 @@ spoon.Launcher:configure({
       searchSettings = function() spoon.SystemSettings:focusSearch() end,
       overlayDisplay = function() showOverlayDisplayPicker() end,
       displayProfiles = function() spoon.DisplayProfiles.chooser.show() end,
+      textCase = function() spoon.TextCase:show() end,
     },
   },
 })
@@ -1185,6 +1192,36 @@ spoon.Emoji:configure({
 })
 spoon.HyperKey:bind(keys.emoji.key, function() spoon.Emoji:show() end)
 
+-- TextCase: recase the current selection in place, opened from the launcher only. It is a
+-- picker over the Chooser atom that owns its own transform catalog, so it needs the Chooser
+-- factory, the shared theme, and the same deferred shortcut panel the other choosers dock.
+-- It names no clipboard: the two cross-spoon seams, reading the selection and writing the
+-- result in place, are injected here and backed by the ClipboardHistory manager, where the
+-- pasteboard snapshot/restore and the self-capture guard already live, so both leave the
+-- clipboard and its history untouched. copySelection is the read-side mirror of pasteText.
+-- If the manager is absent, apply degrades to a typed paste and read is omitted (the tool
+-- then only shows its guidance row), the same graceful fallback the emoji insert takes. Its
+-- textCase Hyper context (config/keys.lua) drives the j, k, i, and x shortcuts through the
+-- choosers registry below.
+local textCaseMgr = spoon.ClipboardHistory and spoon.ClipboardHistory.manager
+spoon.TextCase:init()
+spoon.TextCase:configure({
+  chooser = spoon.Chooser,
+  theme = settings.chooserTheme,
+  placeholder = "Convert the selection",
+  shortcutPanel = shortcutPanelFor("textCase"),
+  read = (textCaseMgr and textCaseMgr.copySelection)
+    and function(cb) textCaseMgr.copySelection(cb) end
+    or nil,
+  apply = function(text)
+    if textCaseMgr and textCaseMgr.pasteText then
+      textCaseMgr.pasteText(text)
+    else
+      hs.timer.doAfter(0.1, function() hs.eventtap.keyStrokes(text) end)
+    end
+  end,
+})
+
 -- Clipboard manager UI: the native chooser with its canvas preview docked in the
 -- companion pane and the same deferred shortcut panel the other choosers use. The
 -- panel spells the shortcuts out below the list. The manager owns onPositioned to place its preview, so the
@@ -1233,7 +1270,7 @@ spoon.ClipboardHistory.manager.start()
 -- glance at the sheet plus any key clears it.
 spoon.HyperKey:configure({ predicates = predicates })
 local clipManager = spoon.ClipboardHistory.manager
-local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, spoon.Launcher:surface(), menuSearchSurface, spoon.DisplayProfiles.chooser, spoon.Emoji:surface(), overlayDisplaySurface }
+local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, spoon.Launcher:surface(), menuSearchSurface, spoon.DisplayProfiles.chooser, spoon.Emoji:surface(), overlayDisplaySurface, spoon.TextCase:surface() }
 local function activeChooser()
   for _, c in ipairs(choosers) do
     if c.isShowing() then return c end

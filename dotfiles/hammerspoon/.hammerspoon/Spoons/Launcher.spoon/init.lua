@@ -239,6 +239,11 @@ function obj:_buildActionRows()
   end
   add("Search Settings", "System · opens the System Settings search field", { kind = "special", name = "searchSettings" }, "🔍")
   add("Overlay Display", "Displays · where panels and choosers appear", { kind = "special", name = "overlayDisplay" }, "🖥️")
+  -- Text case has no dedicated chord, it opens from here only, so its subtitle names what
+  -- it does rather than a shortcut.
+  if keys.textCase then
+    add(keys.textCase.description, "Text · recase the selection in place", { kind = "special", name = "textCase" }, "🔠")
+  end
   add(keys.lock.description, "System · " .. self:_chordLabel("Hyper", keys.lock.key), { kind = "special", name = "lock" }, "🔒")
   add(keys.sleep.description, "System · " .. self:_chordLabel("Hyper", keys.sleep.key), { kind = "special", name = "sleep" }, "🌙")
   for _, b in ipairs(keys.windowManagement) do

@@ -639,6 +639,22 @@ pdf/icns), knowing nothing about the UI. `ui.lua` only consumes the resulting
 
 **Emoji.** Hyper+J opens an emoji picker. Emoji is a facade over interchangeable backends, the same shape as Chooser, so the root names which one the key opens in a priority ordered list by reference and the first available wins. Three backends ship, the built in picker over the Chooser atom, the macos Character Viewer triggered by Ctrl Cmd Space, and a custom backend that runs an injected callback so an external picker reached by a URL scheme or a trigger becomes a backend with no file of its own. The default is the built in picker, which owns one vendored dataset fetched once by its `regenerate.sh` and committed as `data.json`, merging the GitHub gemoji set with a safe slice of native Unicode symbols from the official Character Database, currency and arrows and math and the Mac modifier keys and more, so a query by name, shortcode, tag, or category finds a glyph without its exact Unicode name. Every matching emoji ranks above every matching symbol, so a query lists the emoji first and the plainer glyphs below. A pick is inserted into the focused field through an injected `onInsert`, so the backend never learns the effect, and it follows the picker checklist above. The root wires `onInsert` to the clipboard manager's `pasteText`, which pastes the glyph rather than typing it, because a synthesized keystroke mangles an astral glyph like an emoji in a terminal and in some native apps while a paste carries the real bytes everywhere, and `pasteText` snapshots the clipboard and restores it after so the paste stays invisible. It degrades to typing when the clipboard manager is absent. The provider strategy, the decision trail and internals, the safe symbol selection, the render based tofu filter, and the icon memory behavior, live in `Spoons/Emoji.spoon/CLAUDE.md`.
 
+**TextCase.** Recases the current selection in place, opened from the launcher only with no
+dedicated key. It is a picker over the Chooser atom that owns its own transform catalog, so
+it is a lean spoon rather than inline wiring, the same reasoning as Emoji. It follows the
+picker checklist, its `textCase` context giving it the shared j, k, i navigation with x to
+close, and it reads the selection and lists every case with the selection previewed in each,
+pasting the chosen one over the selection. The cross-spoon seam is that it names no
+clipboard: the two mechanisms it needs, reading the selection and writing the result in
+place, are injected from the root and backed by the ClipboardHistory manager, `read` by a
+new `copySelection` and `apply` by `pasteText`, because that is where the pasteboard
+snapshot and restore and the self-capture guard already live, so both leave the clipboard
+and its history untouched. `copySelection` is the read-side mirror of `pasteText`, added
+alongside it in the manager. The launcher special action fires deferred after focus returns
+to the source app, so the selection is intact when the read runs. It degrades to a typed
+paste with no read when the clipboard manager is absent, the same graceful fallback the
+emoji insert takes. The decision trail and internals live in `Spoons/TextCase.spoon/CLAUDE.md`.
+
 **Eyedropper.** A screen colour sampler on Hyper+2, on the native macOS
 eyedropper. It is deliberately not a chooser, so the picker checklist above does
 not apply. It is a lone mechanism like lock and sleep, wired as a base HyperKey

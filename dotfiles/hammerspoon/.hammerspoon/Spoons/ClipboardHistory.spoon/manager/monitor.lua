@@ -24,6 +24,10 @@ local pasteDelay = 0.1
 
 local timer = nil
 local lastChange = -1 -- last changeCount we have accounted for; the guard's state
+-- True while copySelection owns the pasteboard for a read. It writes twice (the Cmd+C
+-- copy, then the restore), so rather than sign each write it suppresses the poll outright
+-- for the read window, which cannot race the 0.5s poll tick. Always cleared in the restore.
+local reading = false
 
 -- Content-signature backstop to the changeCount guard. The count guard stops the
 -- poll re-ingesting our own paste's write, but only that one change. An app that
@@ -107,6 +111,9 @@ local function capture()
 end
 
 local function poll()
+  if reading then
+    return -- copySelection owns the pasteboard; its writes are not history
+  end
   local c = hs.pasteboard.changeCount()
   if c == lastChange then
     return -- nothing new; the common case
@@ -312,6 +319,53 @@ function M.pasteText(text)
       lastChange = hs.pasteboard.changeCount()
     end)
   end)
+end
+
+-- How long to wait for a copy to land on the pasteboard before giving up, and the poll
+-- step. A copy bumps changeCount, so we watch it move; with nothing selected most apps do
+-- nothing on Cmd+C and the count never moves, which we report as no selection.
+local copyTimeout = 0.4
+local copyStep = 0.03
+
+--- M.copySelection(cb) - read the current selection without disturbing the clipboard.
+--- The read-side mirror of pasteText, kept here so the snapshot/restore and the
+--- self-capture guard live in one place. It snapshots the pasteboard, sends Cmd+C, and
+--- polls changeCount until the copy lands, then reads the text, restores the snapshot, and
+--- calls cb(text). The whole window runs with the `reading` flag set, so the background
+--- poll ingests neither the copy nor the restore into history, and the restore also rides
+--- the changeCount guard, so the clipboard and its history are left exactly as they were.
+--- cb(nil) when nothing was copied within the window (no selection) or the selection is not
+--- text. Callable only after configure/start, since it depends on this module's guard state.
+function M.copySelection(cb)
+  local snapshot = hs.pasteboard.readAllData()
+  local before = hs.pasteboard.changeCount()
+  reading = true
+  hs.eventtap.keyStroke({ "cmd" }, "c", 0)
+
+  local waited = 0
+  local function restore()
+    if snapshot and next(snapshot) then
+      hs.pasteboard.writeAllData(snapshot)
+    else
+      hs.pasteboard.clearContents()
+    end
+    lastChange = hs.pasteboard.changeCount()
+    reading = false
+  end
+  local function check()
+    if hs.pasteboard.changeCount() ~= before then
+      local text = hs.pasteboard.getContents()
+      restore()
+      cb(text)
+    elseif waited < copyTimeout then
+      waited = waited + copyStep
+      hs.timer.doAfter(copyStep, check)
+    else
+      restore()
+      cb(nil)
+    end
+  end
+  hs.timer.doAfter(copyStep, check)
 end
 
 --------------------------------------------------------------------------------

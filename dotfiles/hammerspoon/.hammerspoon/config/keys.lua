@@ -274,6 +274,21 @@ return {
         { key = "x", action = "closeChooser",   description = "Close" },
       },
     },
+    -- The text case picker (launcher-only). A flat list of cases, so i applies the
+    -- highlighted case to the selection the same as Return, j and k navigate vim style,
+    -- and x closes it. Same shared nav as the other choosers, it just has no Hyper open
+    -- key of its own. Plain typing filters the cases while Hyper is released.
+    {
+      name = "textCase",
+      when = "textCaseOpen",
+      priority = 100,
+      bindings = {
+        { key = "i", action = "insertSelected", description = "Apply" },
+        { key = "j", action = "selectNext",     description = "Move down" },
+        { key = "k", action = "selectPrev",     description = "Move up" },
+        { key = "x", action = "closeChooser",   description = "Close" },
+      },
+    },
   },
 
   -- System actions bound onto the Hyper key in init.lua. Hyper+Esc sleeps the
@@ -386,6 +401,13 @@ return {
   -- while open it takes the shared j/k/i navigation and x closes it. `description` labels its
   -- launcher row.
   displayProfiles = { description = "Display Profiles" },
+
+  -- Text case (for TextCase.spoon, wired in init.lua). Recases the current selection in
+  -- place. Opened from the launcher only, so it has no dedicated key and no modifiers. It
+  -- reads the selection, lists every case with the selection previewed in each, and pastes
+  -- the chosen one over the selection. It has its own hyperContext above, so while open it
+  -- takes the shared j/k/i navigation and x closes it. `description` labels its launcher row.
+  textCase = { description = "Text Case" },
 
   -- Feature toggles
   toggleDock = { modifiers = CTRL_ALT, key = "D" },

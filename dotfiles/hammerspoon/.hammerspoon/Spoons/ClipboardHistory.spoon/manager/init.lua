@@ -171,6 +171,16 @@ function M.pasteText(text)
   monitor.pasteText(text)
 end
 
+--- M.copySelection(cb) - read the current selection without disturbing the clipboard,
+--- the read-side mirror of pasteText. It copies the selection, reads the text, and
+--- restores the clipboard, hidden from the poll so history is not polluted, then calls
+--- cb(text), or cb(nil) when nothing was selected. A consumer with no relation to
+--- clipboard history can borrow this, which is why the text case picker's read is wired
+--- to it in the composition root.
+function M.copySelection(cb)
+  monitor.copySelection(cb)
+end
+
 --- M.clear() - wipe history and media. Handy from the console:
 --- hs -c "spoon.ClipboardHistory.providers.hammerspoon.clear()"
 function M.clear()
