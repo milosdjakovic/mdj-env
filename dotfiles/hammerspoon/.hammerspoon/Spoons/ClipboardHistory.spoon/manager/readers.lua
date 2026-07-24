@@ -79,6 +79,20 @@ local function readFilePaths(util)
   return paths
 end
 
+-- A plain-text string that is itself a single http or https url, trimmed. Browsers copy
+-- the address bar as plain text with no url type, so the url reader never sees it and a
+-- copied url would read as text. This lets the text reader promote such a string to a url.
+-- Strict on purpose, the whole string must be one address with no whitespace, so a link
+-- sitting inside a sentence stays text. No dot is required after the scheme, so a
+-- localhost address is recognised too.
+local function urlLike(s)
+  local t = s:match("^%s*(%S+)%s*$")
+  if t and t:match("^https?://.+") then
+    return t
+  end
+  return nil
+end
+
 function M.build(util)
   local fileReader = {
     kind = "file",
@@ -141,6 +155,12 @@ function M.build(util)
       local s = hs.pasteboard.readString()
       if not s or #(s:gsub("%s", "")) == 0 then
         return nil
+      end
+      -- A bare pasted url arrives as plain text with no url type, so promote it to a url
+      -- here, so the kind, the label, the preview, the url filter, and the icon all agree.
+      local u = urlLike(s)
+      if u then
+        return { kind = "url", text = u, ts = os.time(), title = util.oneLine(u, 100), preview = "URL", size = #u }
       end
       -- Character count, not byte count, so a multibyte string reads honestly.
       -- utf8.len returns nil on invalid data, so fall back to the byte length.

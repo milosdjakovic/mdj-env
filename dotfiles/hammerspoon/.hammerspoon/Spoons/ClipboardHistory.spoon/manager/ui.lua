@@ -112,6 +112,19 @@ local function appIcon(bundleID)
   return img or nil
 end
 
+-- The friendly name of the app an entry was copied from, resolved from its bundle id and
+-- cached. A false marks a bundle id with no resolvable name, looked up only once, nil when
+-- the entry recorded no source. Shown in the preview header beside the app icon.
+local nameCache = {}
+local function appName(bundleID)
+  if not bundleID then return nil end
+  local c = nameCache[bundleID]
+  if c ~= nil then return c or nil end
+  local name = hs.application.nameForBundleID(bundleID) or false
+  nameCache[bundleID] = name
+  return name or nil
+end
+
 -- Whether a linked original still exists, memoized per open so filtering, which
 -- rebuilds the rows on every keystroke, does not restat the same paths. Frozen
 -- files never reach here, only links, so the number of stats is small. Cleared on
@@ -224,9 +237,94 @@ local function withBatchMark(meta, e)
   return pos and (meta .. "  ·  #" .. pos .. " Appended") or meta
 end
 
+-- Forward declaration. parseColor is defined below in the colour section, but the row
+-- builder needs it to show a colour chip. It is only called at runtime, well after the
+-- whole file has loaded, so the later assignment is in place by then.
+local parseColor
+
+-- Row icon helpers. The row icon now says what kind an entry is, not which app it came
+-- from. Files show the system icon for their type, images their thumbnail, url and text a
+-- flat monochrome mark drawn on a scratch canvas the way the keycap badges are, and a
+-- colour literal a small chip of the colour. Each carries a stable iconKey so the atom
+-- encodes it once and reuses it.
+local ICON = 44 -- scratch canvas edge for the drawn marks, matching the keycap size
+
+-- File type icons, keyed so the same type is fetched once. An extension drives the icon
+-- with no need for the file to still exist, a folder and a generic file have their own
+-- keys.
+local fileIconCache = {}
+local function cachedIcon(key, producer)
+  local hit = fileIconCache[key]
+  if hit ~= nil then return hit or nil, key end
+  local img = producer() or false
+  fileIconCache[key] = img
+  return img or nil, key
+end
+
+local function fileRowIcon(e)
+  local el = (e.files or {})[1]
+  if not el then return nil, nil end
+  if el.isDir then
+    return cachedIcon("dir", function() return hs.image.iconForFileType("public.folder") end)
+  end
+  local ext = util.fileExt(el.path)
+  if ext ~= "" then
+    return cachedIcon("ext:" .. ext, function() return hs.image.iconForFileType(ext) end)
+  end
+  if hs.fs.attributes(el.path) then
+    return cachedIcon("path:" .. el.path, function() return hs.image.iconForFile(el.path) end)
+  end
+  return cachedIcon("data", function() return hs.image.iconForFileType("public.data") end)
+end
+
+-- Kind marks, drawn once and cached. Both are emoji rendered to an image the same way the
+-- keycap badges are, so the row icon family stays consistent. Text is the memo emoji, url is
+-- the link emoji.
+local glyphCache = {}
+
+local function drawEmojiGlyph(glyph)
+  local c = hs.canvas.new({ x = 0, y = 0, w = ICON, h = ICON })
+  c[1] = { type = "text", text = glyph, textSize = 30,
+    textAlignment = "center", frame = { x = 0, y = (ICON - 36) / 2, w = ICON, h = 38 } }
+  local img = c:imageFromCanvas() or false
+  c:delete()
+  return img
+end
+
+local function kindGlyph(kind)
+  local hit = glyphCache[kind]
+  if hit ~= nil then return hit or nil end
+  local img = drawEmojiGlyph(kind == "url" and "🔗" or "📝")
+  glyphCache[kind] = img
+  return img or nil
+end
+
+-- A small chip of a colour literal, cached by the colour so it is drawn once. A
+-- translucent colour sits over a light fill so its alpha is visible.
+local chipCache = {}
+local function colorChip(col)
+  local key = string.format("chip:%.3f,%.3f,%.3f,%.3f", col.r, col.g, col.b, col.a)
+  local hit = chipCache[key]
+  if hit ~= nil then return hit or nil, key end
+  local c = hs.canvas.new({ x = 0, y = 0, w = ICON, h = ICON })
+  local box = { x = 7, y = 7, w = ICON - 14, h = ICON - 14 }
+  local radii = { xRadius = 6, yRadius = 6 }
+  if col.a < 1 then
+    c[#c + 1] = { type = "rectangle", action = "fill", fillColor = { white = 0.9, alpha = 1 },
+      roundedRectRadii = radii, frame = box }
+  end
+  c[#c + 1] = { type = "rectangle", action = "fill",
+    fillColor = { red = col.r, green = col.g, blue = col.b, alpha = col.a },
+    roundedRectRadii = radii, frame = box }
+  local img = c:imageFromCanvas() or false
+  c:delete()
+  chipCache[key] = img
+  return img or nil, key
+end
+
 -- The atom's rows supplier. Returns plain items; the atom styles them with the
--- active palette. Filtering, the type prefix, the batch mark, and the thumbnail or
--- source-app icon are all clipboard policy and live here. The free-text part runs through
+-- active palette. Filtering, the type prefix, the batch mark, and the kind icon
+-- are all clipboard policy and live here. The free-text part runs through
 -- the injected word matcher (Chooser.matchers.words), not the fuzzy one the label choosers
 -- use, so the full body of every entry stays searchable with a cheap byte scan and nothing
 -- is truncated. Its result is used only as a yes or no, so a match keeps the row and the
@@ -239,20 +337,28 @@ local function buildChoices(q)
     if (not kind or e.kind == kind) and (rest == "" or cfg.matcher(rest, haystack(e)) ~= nil) then
       -- An appended row shows its 1-based batch position as its icon (the keycap
       -- number), the most visible mark on the native chooser, which renders no icon
-      -- badge. Otherwise a true image copy shows its own thumbnail and every other
-      -- row shows the icon of the app it came from, falling back to nothing when
-      -- unknown. The stable iconKey lets the atom encode each icon once and reuse it.
+      -- badge. Otherwise the icon says the kind: an image shows its own thumbnail, a
+      -- file the system icon for its type, a colour literal a chip of the colour, and
+      -- url and text a flat monochrome mark. The source app is no longer a row icon, it
+      -- moved to the preview header. The stable iconKey lets the atom encode each icon
+      -- once and reuse it.
       local pos = batchPos(e)
       local img, iconKey
       if pos then
         img, iconKey = keycapImage(pos), "batch:" .. pos
+      elseif e.kind == "image" then
+        local thumb = thumbImage(e.thumb)
+        if thumb then img, iconKey = thumb, "thumb:" .. e.thumb end
+      elseif e.kind == "file" then
+        img, iconKey = fileRowIcon(e)
+      elseif e.kind == "url" then
+        img, iconKey = kindGlyph("url"), "glyph:url"
       else
-        local thumb = e.kind == "image" and thumbImage(e.thumb) or nil
-        if thumb then
-          img, iconKey = thumb, "thumb:" .. e.thumb
+        local col = parseColor(e.text)
+        if col then
+          img, iconKey = colorChip(col)
         else
-          local ic = appIcon(e.sourceApp)
-          if ic then img, iconKey = ic, "app:" .. e.sourceApp end
+          img, iconKey = kindGlyph("text"), "glyph:text"
         end
       end
       out[#out + 1] = {
@@ -409,6 +515,24 @@ local function appendImage(els, img, x0, y0, w)
   els[#els + 1] = { type = "image", image = img, imageScaling = "scaleProportionally",
     imageAlignment = "topLeft", frame = { x = x0, y = y0, w = w, h = h } }
   return y0 + h
+end
+
+-- The preview header line. Draws the source-app icon at the left when the app is known and
+-- folds the app name into the meta text, so provenance lives here in the header, labeled,
+-- rather than as a bare row icon. Returns the y below the header line. Every kind's builder
+-- routes its meta through here, so the header is one place.
+local HDR_ICON = 15
+local function metaHeader(els, e, w, meta)
+  local ic = e and appIcon(e.sourceApp) or nil
+  local name = e and appName(e.sourceApp) or nil
+  local x = 0
+  if ic then
+    els[#els + 1] = { type = "image", image = ic, imageScaling = "scaleProportionally",
+      imageAlignment = "center", frame = { x = 0, y = 0, w = HDR_ICON, h = HDR_ICON } }
+    x = HDR_ICON + 6
+  end
+  if name then meta = meta .. "  ·  " .. name end
+  return appendText(els, meta:upper(), x, 0, w - x, colors.meta, META_SIZE)
 end
 
 -- Lay the content blocks into the canvas: the shared surface first (unclipped),
@@ -583,7 +707,7 @@ end
 
 -- The strict gate: a trimmed string that is exactly one colour literal, else nil.
 -- The length cap keeps the match cheap and rejects a stray paragraph outright.
-local function parseColor(text)
+parseColor = function(text)
   local s = tostring(text or ""):gsub("^%s+", ""):gsub("%s+$", "")
   if #s == 0 or #s > 64 then return nil end
   s = s:lower()
@@ -656,7 +780,7 @@ local function buildColor(e, c)
   local els = {}
   local w = innerWidth()
   local meta = withBatchMark("Color  ·  " .. util.relTime(e.ts), e)
-  local y = appendText(els, meta:upper(), 0, 0, w, colors.meta, META_SIZE) + BLOCK_GAP
+  local y = metaHeader(els, e, w, meta) + BLOCK_GAP
   y = appendText(els, table.concat(colorReps(c), "\n"), 0, y, w, colors.fg, BODY_SIZE) + BLOCK_GAP
   local avail = math.max(0, innerHeight() - y)
   local side = (avail > 0 and avail < w) and avail or w
@@ -674,8 +798,7 @@ local function buildFileHeader(e, w)
   local badge = fileBadge(e)
   if badge then meta = meta .. "  ·  " .. badge end
   meta = withBatchMark(meta, e)
-  local y = appendText(els, meta:upper(), 0, 0, w, colors.meta, META_SIZE)
-  y = y + 4
+  local y = metaHeader(els, e, w, meta) + 4
   for _, el in ipairs(files) do
     y = appendText(els, el.path, 0, y, w, colors.path, PATH_SIZE) + 2
   end
@@ -691,7 +814,7 @@ local function buildNonFile(e)
     local meta = e.title
     if e.size then meta = meta .. "  ·  " .. util.humanSize(e.size) end
     meta = withBatchMark(meta, e)
-    local y = appendText(els, meta:upper(), 0, 0, w, colors.meta, META_SIZE) + BLOCK_GAP
+    local y = metaHeader(els, e, w, meta) + BLOCK_GAP
     local img = previewImage(e.prev)
     if img then
       y = appendImage(els, img, 0, y, w)
@@ -711,7 +834,7 @@ local function buildNonFile(e)
   -- recounts on highlight.
   if e.kind == "text" and e.chars then meta = meta .. "  ·  " .. e.chars .. " chars" end
   meta = withBatchMark(meta, e)
-  local y = appendText(els, meta:upper(), 0, 0, w, colors.meta, META_SIZE) + BLOCK_GAP
+  local y = metaHeader(els, e, w, meta) + BLOCK_GAP
   local text = e.text or ""
   local capped = #text > TEXT_DISPLAY_CAP
   if capped then text = text:sub(1, TEXT_DISPLAY_CAP) .. "\n\n… truncated" end
