@@ -87,6 +87,7 @@ function obj:start()
 
   local bundleID = self._bundleID
   self._filter = hs.window.filter.new(function(win)
+    if not win then return false end
     local app = win:application()
     return app ~= nil and app:bundleID() == bundleID
   end)
