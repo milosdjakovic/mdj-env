@@ -72,6 +72,9 @@
     border-left: 3px solid transparent;
   }
   .rail nav a:hover { background: var(--soft); border-left-color: var(--ink); }
+  /* Active state, set by the scroll spy script on the link whose section is in view. */
+  .rail nav a.active { background: var(--soft); border-left-color: var(--ink); }
+  .rail nav a.active .code { text-decoration: underline; text-underline-offset: 3px; }
   .rail nav a .label { flex: 1 1 auto; line-height: 1.4; }
   .rail nav a .code { font-weight: 700; display: block; }
   .rail nav a .name { color: var(--muted); display: block; font-size: 13px; }
@@ -147,10 +150,16 @@
   .lead { font-size: 15px; margin: 0; }
   .lead .aside { color: var(--muted); font-size: 13px; }
 
-  /* Estimate or spec line, a single prominent figure under the lead. Label on its own line, serif value below, no divider. */
+  /* Estimate or spec line. Label on its own line, value below, no divider. */
   .estimate { margin: 16px 0 0; }
   .estimate .lab { display: block; font-size: 12.5px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); font-weight: 700; margin: 0 0 6px; }
+  /* Prefer the plain line. It reads as a consequence of scope rather than a headline number. */
+  .estimate .estval { font-size: 14px; line-height: 1.5; margin: 0; color: var(--ink); }
+  /* Serif figure, only for a single emphatic number such as a dollar amount or a count. */
   .estimate .val { font-family: var(--serif); font-size: 17px; font-weight: 700; color: var(--ink); }
+  /* Cutoff or as of date, body size and muted, sits in the header meta row.
+     Use when the section reflects a source that can change under you, such as a ticket. */
+  .asof { font-size: 15px; color: var(--muted); margin: 0; }
 
   /* Two column supported vs limits */
   .split { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
@@ -165,11 +174,20 @@
   .values li:last-child { border-bottom: none; padding-bottom: 0; }
   .values li b { color: var(--ink); }
 
-  /* Choices list, compact, no dividers, reads as decisions rather than a benefit list */
+  /* Choices list, compact single column, no dividers, reads as decisions rather than a benefit list.
+     Use when each fork needs only one short line. For choices that each need an explicit cost answer, use .forks. */
   .choices { list-style: none; padding: 0; margin: 0; }
   .choices li { margin-bottom: 10px; font-size: 14px; line-height: 1.5; }
   .choices li:last-child { margin-bottom: 0; }
   .choices b { color: var(--ink); }
+
+  /* Decision fork, two columns row aligned, the reader's choice on the left and what it costs on the right.
+     Use only when the size or shape of the thing genuinely depends on the reader's answer. Lighter than .split. */
+  .forks { display: grid; grid-template-columns: 1fr 1fr; column-gap: 26px; }
+  .forks .fh { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); font-weight: 700; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  .forks .cell { padding: 13px 0; border-bottom: 1px solid var(--hair); font-size: 14px; line-height: 1.5; }
+  .forks .cell:nth-last-child(-n+2) { border-bottom: none; padding-bottom: 0; }
+  .forks .cell b { color: var(--ink); }
 
   .callout { position: relative; background: var(--soft); padding: 15px 17px; font-size: 14px; }
   .callout::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--ink); }
@@ -183,6 +201,10 @@
     main { padding: 26px 18px 60px; }
     .card { padding: 24px 20px; }
     .split { grid-template-columns: 1fr; }
+    .forks { grid-template-columns: 1fr; column-gap: 0; }
+    .forks .fh { display: none; }
+    .forks .cell { border-bottom: 1px solid var(--hair); padding: 13px 0; }
+    .forks .cell:last-child { border-bottom: none; padding-bottom: 0; }
   }
 </style>
 </head>
@@ -242,13 +264,14 @@
         <div class="meta">
           <a class="ref" href="#" target="_blank" rel="noopener">SECTION-1 <span class="arrow">&#8599;</span></a>
           <span class="badge">A</span>
+          <!-- Optional cutoff date. Keep only when the section reflects a source that can change. -->
+          <span class="asof">as of 1 January 2026</span>
         </div>
       </header>
 
       <div class="sub">
         <p class="eyebrow">Lead statement</p>
         <p class="lead">The headline finding for this section, written plainly. <span class="aside">A quieter qualifying clause.</span></p>
-        <p class="estimate"><span class="lab">Estimate</span> <span class="val">The one prominent figure this section carries.</span></p>
       </div>
 
       <div class="sub split">
@@ -284,6 +307,23 @@
         </ul>
       </div>
 
+      <!-- Optional decision fork. Keep only when the size or shape genuinely depends on the reader's choice. -->
+      <div class="sub">
+        <p class="eyebrow">What moves the size</p>
+        <div class="forks">
+          <div class="fh">What you choose</div>
+          <div class="fh">What it takes</div>
+          <div class="cell"><b>The lighter path.</b> The choice stated in the reader's own terms.</div>
+          <div class="cell">What that path costs or simplifies on the build side.</div>
+          <div class="cell"><b>The fuller path.</b> The other way the reader could go.</div>
+          <div class="cell">What the fuller path adds, so the trade reads as effort rather than a fixed number.</div>
+        </div>
+        <div class="estimate">
+          <span class="lab">Estimate</span>
+          <p class="estval">A plain sentence or two that states the figure as a consequence of the scope above, rather than a headline number.</p>
+        </div>
+      </div>
+
       <div class="sub callout">
         <p class="eyebrow">Key takeaway</p>
         <p>The one thing to remember from this section, stated as advice or a recommendation.</p>
@@ -296,5 +336,73 @@
     </div>
   </main>
 </div>
+<script>
+  // Scroll spy for the sidebar. As a section scrolls under a fixed line near the
+  // top of the viewport, its matching sidebar link gets the active class and the
+  // URL hash updates, so the reader always knows which section is on screen and
+  // can link straight to it. An IntersectionObserver triggers a recompute, and a
+  // scroll and resize listener keeps it smooth between threshold crossings.
+  // Vanilla JS, no dependencies. Needs no change as long as each sidebar link
+  // href points at a section id. Delete this block for a single column layout.
+  (function () {
+    var links = Array.prototype.slice.call(document.querySelectorAll(".rail nav a"));
+    if (!links.length) { return; }
+    var linkById = {};
+    links.forEach(function (a) {
+      var id = a.getAttribute("href").replace("#", "");
+      linkById[id] = a;
+    });
+    var sections = Array.prototype.slice
+      .call(document.querySelectorAll("main [id]"))
+      .filter(function (el) { return linkById[el.id]; });
+    if (!sections.length) { return; }
+
+    var current = null;
+    function setActive(id) {
+      if (id === current) { return; }
+      current = id;
+      links.forEach(function (a) { a.classList.remove("active"); });
+      if (linkById[id]) { linkById[id].classList.add("active"); }
+      if (history.replaceState) {
+        history.replaceState(null, "", "#" + id);
+      }
+    }
+
+    // The line, measured from the top of the viewport, that decides which
+    // section counts as the one being read.
+    var LINE = 130;
+    function recompute() {
+      var active = sections[0].id;
+      for (var i = 0; i < sections.length; i++) {
+        if (sections[i].getBoundingClientRect().top - LINE <= 0) {
+          active = sections[i].id;
+        } else {
+          break;
+        }
+      }
+      // At the very bottom the last section may never reach the line, so pin it.
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 2) {
+        active = sections[sections.length - 1].id;
+      }
+      setActive(active);
+    }
+
+    var ticking = false;
+    function schedule() {
+      if (ticking) { return; }
+      ticking = true;
+      window.requestAnimationFrame(function () {
+        ticking = false;
+        recompute();
+      });
+    }
+
+    var observer = new IntersectionObserver(schedule, { threshold: [0, 0.1, 0.5, 1] });
+    sections.forEach(function (s) { observer.observe(s); });
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule, { passive: true });
+    recompute();
+  })();
+</script>
 </body>
 </html>
