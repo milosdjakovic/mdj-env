@@ -476,11 +476,11 @@ end
 
 -- A styled text run with a fixed line height, so the drawn height matches the line
 -- count exactly and the scroll clamp stays honest.
-local function styled(text, color, size, lineH)
+local function styled(text, color, size, lineH, align)
   return hs.styledtext.new(text, {
     font = { name = BODY_FONT, size = size },
     color = color,
-    paragraphStyle = { maximumLineHeight = lineH, minimumLineHeight = lineH },
+    paragraphStyle = { maximumLineHeight = lineH, minimumLineHeight = lineH, alignment = align },
   })
 end
 
@@ -517,22 +517,44 @@ local function appendImage(els, img, x0, y0, w)
   return y0 + h
 end
 
--- The preview header line. Draws the source-app icon at the left when the app is known and
--- folds the app name into the meta text, so provenance lives here in the header, labeled,
--- rather than as a bare row icon. Returns the y below the header line. Every kind's builder
--- routes its meta through here, so the header is one place.
+-- The preview header line, read as two anchored groups. The source, the app icon and its
+-- name, sits at the left. The facts the builder joined, the type and size and time, sit
+-- flush against the right edge in a quiet uppercase strip, joined by a plain gap where the
+-- builder used a dot, so the line reads as two calm anchors rather than one centred run. The
+-- name keeps its natural case so the source reads as a proper noun against the facts, and it
+-- is capped to the space before the facts so the two never touch. Returns the y below the
+-- single header line. Every kind's builder routes its meta through here, so the header is one
+-- place, and each still joins its parts with the canonical dot, which this presenter reforms.
 local HDR_ICON = 15
+local META_GAP = "   " -- the facts separator, a plain gap in place of the builder dot
 local function metaHeader(els, e, w, meta)
   local ic = e and appIcon(e.sourceApp) or nil
   local name = e and appName(e.sourceApp) or nil
+  local lineH = math.ceil(META_SIZE * LINE_MULT)
   local x = 0
   if ic then
     els[#els + 1] = { type = "image", image = ic, imageScaling = "scaleProportionally",
       imageAlignment = "center", frame = { x = 0, y = 0, w = HDR_ICON, h = HDR_ICON } }
     x = HDR_ICON + 6
   end
-  if name then meta = meta .. "  ·  " .. name end
-  return appendText(els, meta:upper(), x, 0, w - x, colors.meta, META_SIZE)
+  -- Facts flush right. The strip is pure ascii once the dot is gone, so the character count
+  -- times the mono glyph width estimates its pixel width, enough to reserve the name's room,
+  -- while the right alignment itself hugs the edge exactly with no reliance on that estimate.
+  local factsW = 0
+  if meta and #meta > 0 then
+    local facts = (meta:gsub("  ·  ", META_GAP)):upper()
+    factsW = math.ceil(#facts * monoCharWidth(META_SIZE))
+    els[#els + 1] = { type = "text", text = styled(facts, colors.meta, META_SIZE, lineH, "right"),
+      frame = { x = x, y = 0, w = w - x, h = lineH * 2 } }
+  end
+  if name then
+    local avail = math.max(0, w - x - factsW - 12)
+    if avail > 0 then
+      els[#els + 1] = { type = "text", text = styled(name, colors.meta, META_SIZE, lineH),
+        frame = { x = x, y = 0, w = avail, h = lineH * 2 } }
+    end
+  end
+  return lineH
 end
 
 -- Lay the content blocks into the canvas: the shared surface first (unclipped),
