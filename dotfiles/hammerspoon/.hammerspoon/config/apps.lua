@@ -32,6 +32,7 @@ return {
   -- Browsers
   GoogleChrome = "com.google.Chrome",
   GoogleChat = "com.google.Chrome.app.mdpkiolbdkhdjpekfbkbmhigcaggjagi",
+  Arc = "company.thebrowser.Browser",
 
   -- Dev tools
   Docker = "com.electron.dockerdesktop",

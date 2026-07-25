@@ -655,6 +655,37 @@ to the source app, so the selection is intact when the read runs. It degrades to
 paste with no read when the clipboard manager is absent, the same graceful fallback the
 emoji insert takes. The decision trail and internals live in `Spoons/TextCase.spoon/CLAUDE.md`.
 
+**BrowserTabs.** Hyper+W lists every open tab across the browsers that are switched on,
+ordered most recently looked at first, each row carrying its browser's application icon, and
+opening one selects that tab and raises its browser. The last row is a Settings door leading to
+a level where each browser is switched on or off and shows whether it is installed, open, and
+allowed to be scripted. It follows the picker checklist, its `browserTabs` context giving it the
+shared j, k, x navigation with i bound to the tool's own in-place `enter` rather than
+`insertSelected`, the same as DisplayProfiles, since it is a menu and a drill into settings must
+not close and re-show.
+
+The wiring choice that matters is where the browsers are named. The spoon exposes its backends
+as `spoon.BrowserTabs.providers` and the root names the concrete three and their order, the
+Emoji precedent, so adding a browser is a line in that block plus a file in the spoon's
+`providers/`. `providers.chromium` is a factory taking a name and a bundle id, because Chrome,
+Brave, Edge, Vivaldi and Opera all share one AppleScript dictionary, so which application is a
+parameter the root supplies; Safari and Arc each have their own dictionary and own their bundle
+id. The root also decides `defaultEnabled`, which is Safari alone, so a fresh machine scripts
+one browser and raises one Automation prompt and the rest are switched on deliberately. Those
+choices persist in `hs.settings` rather than a git tracked file, since they are per machine
+preference, matching the overlay display policy rather than the DisplayProfiles store.
+
+Two cross-cutting facts worth knowing here. A browser that is switched off or not running is
+never scripted at all, so it costs no Apple Events and raises no permission prompt, and the
+recency observer honours the same rule. And the tool opts out of the atom's shared matcher and
+scores its tab rows itself with the matcher the root injects, because it is a stack of frames
+with pinned rows and uniform filtering would rank away the Back row and pull the Settings row
+into the tab ranking, so the matcher is passed in explicitly rather than inherited. Everything
+else, why recency has to be observed rather than read, why tab identity is the bundle id plus
+the URL, why the permission probe is a Swift helper, why Arc reports no active tab, and why
+Firefox is absent, lives in `Spoons/BrowserTabs.spoon/CLAUDE.md`. Adding it needed a restow,
+since `~/.hammerspoon/Spoons` holds one symlink per spoon.
+
 **Eyedropper.** A screen colour sampler on Hyper+2, on the native macOS
 eyedropper. It is deliberately not a chooser, so the picker checklist above does
 not apply. It is a lone mechanism like lock and sleep, wired as a base HyperKey

@@ -48,6 +48,7 @@ hs.loadSpoon("DisplayProfiles")
 hs.loadSpoon("SystemSettings")
 hs.loadSpoon("Emoji")
 hs.loadSpoon("TextCase")
+hs.loadSpoon("BrowserTabs")
 
 --------------------------------------------------------------------------------
 -- Initialize Spoons
@@ -98,6 +99,7 @@ hyperActions[#hyperActions + 1] = keys.emoji
 hyperActions[#hyperActions + 1] = keys.caffeinate
 hyperActions[#hyperActions + 1] = keys.vpn
 hyperActions[#hyperActions + 1] = keys.clipboardHistory
+hyperActions[#hyperActions + 1] = keys.browserTabs
 hyperActions[#hyperActions + 1] = keys.launcher
 hyperActions[#hyperActions + 1] = keys.lock
 hyperActions[#hyperActions + 1] = keys.sleep
@@ -236,6 +238,11 @@ local predicates = {
   -- shared j, k, i, and x navigation while it is up.
   textCaseOpen = function()
     return spoon.TextCase:isShowing()
+  end,
+  -- The browser tabs chooser is open. Gates the browserTabs Hyper context, so it takes the
+  -- shared j, k, i, and x navigation while it is up.
+  browserTabsOpen = function()
+    return spoon.BrowserTabs ~= nil and spoon.BrowserTabs:isShowing()
   end,
 }
 -- The window bindings carry no leader (see config/keys.lua). Stamp the resolved
@@ -956,6 +963,7 @@ spoon.Launcher:configure({
       overlayDisplay = function() showOverlayDisplayPicker() end,
       displayProfiles = function() spoon.DisplayProfiles.chooser.show() end,
       textCase = function() spoon.TextCase:show() end,
+      browserTabs = function() spoon.BrowserTabs:show() end,
     },
   },
 })
@@ -1222,6 +1230,50 @@ spoon.TextCase:configure({
   end,
 })
 
+-- BrowserTabs: every open tab across the browsers, in one list ordered most recently looked
+-- at first, with a settings level behind the last row for switching each browser on and off.
+-- This block is the one place the concrete browsers are named. The spoon exposes the backends
+-- by reference and the order below is the order they are asked in, so adding one is a line
+-- here plus a file in the spoon's providers, with no change to its engine. Chromium is a
+-- factory rather than a module because Chrome, Brave, Edge, Vivaldi and Opera share one
+-- AppleScript dictionary, so which application is a parameter this root supplies; Safari and
+-- Arc each have their own dictionary and own their bundle id.
+--
+-- Only Safari is on by default. Every other browser starts switched off, so a fresh machine
+-- scripts exactly one browser and raises exactly one permission prompt, and the rest are
+-- switched on deliberately from the settings level. A browser added here later also starts
+-- off, since defaultEnabled and not mere presence is what turns one on.
+--
+-- Its browserTabs Hyper context (config/keys.lua) drives the j, k, i, and x shortcuts through
+-- the choosers registry below.
+local browserProviders = spoon.BrowserTabs.providers
+spoon.BrowserTabs:init()
+spoon.BrowserTabs:configure({
+  providers = {
+    browserProviders.safari,
+    browserProviders.chromium({ name = "Chrome", bundleID = apps.GoogleChrome }),
+    browserProviders.arc,
+  },
+  defaultEnabled = { apps.Safari },
+})
+spoon.BrowserTabs:start()
+-- The surface is wired the way every other native chooser is, the factory, the shared theme,
+-- and the docked shortcut panel. The matcher is handed in explicitly because this tool opts
+-- out of the atom's filtering (it is a menu with pinned rows) and scores its tab rows itself,
+-- so the shared matching policy still reaches it rather than being lost to that opt out.
+local browserTabsPanel = shortcutPanelFor("browserTabs")
+spoon.BrowserTabs.chooser.configure({
+  chooser = spoon.Chooser,
+  theme = settings.chooserTheme,
+  matcher = spoon.Chooser.matchers.fuzzy,
+  onPositioned = browserTabsPanel.onPositioned,
+  onActivity = browserTabsPanel.onActivity,
+  onClose = browserTabsPanel.onClose,
+})
+spoon.BrowserTabs.chooser.start()
+-- Open key: a base HyperKey binding, suppressed while a modal context owns Hyper.
+spoon.HyperKey:bind(keys.browserTabs.key, function() spoon.BrowserTabs:show() end)
+
 -- Clipboard manager UI: the native chooser with its canvas preview docked in the
 -- companion pane and the same deferred shortcut panel the other choosers use. The
 -- panel spells the shortcuts out below the list. The manager owns onPositioned to place its preview, so the
@@ -1270,7 +1322,7 @@ spoon.ClipboardHistory.manager.start()
 -- glance at the sheet plus any key clears it.
 spoon.HyperKey:configure({ predicates = predicates })
 local clipManager = spoon.ClipboardHistory.manager
-local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, spoon.Launcher:surface(), menuSearchSurface, spoon.DisplayProfiles.chooser, spoon.Emoji:surface(), overlayDisplaySurface, spoon.TextCase:surface() }
+local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, spoon.Launcher:surface(), menuSearchSurface, spoon.DisplayProfiles.chooser, spoon.Emoji:surface(), overlayDisplaySurface, spoon.TextCase:surface(), spoon.BrowserTabs.chooser }
 local function activeChooser()
   for _, c in ipairs(choosers) do
     if c.isShowing() then return c end

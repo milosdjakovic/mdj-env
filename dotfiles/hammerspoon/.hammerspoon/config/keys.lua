@@ -289,6 +289,23 @@ return {
         { key = "x", action = "closeChooser",   description = "Close" },
       },
     },
+    -- The browser tabs chooser. Every open tab across the switched on browsers, with a
+    -- settings level behind the last row, so it is a menu and not a flat list. i confirms the
+    -- highlighted row in place, opening a tab or stepping into settings and back out, j and k
+    -- move the highlight, and x closes it. Like display profiles it binds `enter` rather than
+    -- the shared insertSelected, so stepping into settings never closes and re-shows. Plain
+    -- typing filters the tabs while Hyper is released.
+    {
+      name = "browserTabs",
+      when = "browserTabsOpen",
+      priority = 100,
+      bindings = {
+        { key = "i", action = "enter",        description = "Select" },
+        { key = "j", action = "selectNext",   description = "Move down" },
+        { key = "k", action = "selectPrev",   description = "Move up" },
+        { key = "x", action = "closeChooser", description = "Close" },
+      },
+    },
   },
 
   -- System actions bound onto the Hyper key in init.lua. Hyper+Esc sleeps the
@@ -408,6 +425,15 @@ return {
   -- the chosen one over the selection. It has its own hyperContext above, so while open it
   -- takes the shared j/k/i navigation and x closes it. `description` labels its launcher row.
   textCase = { description = "Text Case" },
+
+  -- Browser tabs (for BrowserTabs.spoon, wired in init.lua). Hyper+W lists every open tab
+  -- across the browsers that are switched on, most recently looked at first, each row showing
+  -- its browser's icon, and the last row opens settings where each browser is switched on or
+  -- off. Same shape as the other pickers, a base HyperKey binding suppressed while a modal
+  -- context owns Hyper, with the HYPER field as the fallback combo. It has its own
+  -- hyperContext above, so while open it takes the shared j, k, i, and x navigation. W reads
+  -- as web, since B is already the Books toggle and T the Stickies one.
+  browserTabs = { modifiers = HYPER, key = "W", description = "Browser tabs" },
 
   -- Feature toggles
   toggleDock = { modifiers = CTRL_ALT, key = "D" },

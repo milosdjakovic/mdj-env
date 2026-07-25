@@ -230,6 +230,9 @@ function obj:_buildActionRows()
   add(keys.caffeinate.description, "System · " .. self:_chordLabel("Hyper", keys.caffeinate.key), { kind = "special", name = "caffeinate" }, "☕")
   add(keys.vpn.description, "Network · " .. self:_chordLabel("Hyper", keys.vpn.key), { kind = "special", name = "vpn" }, "🌐")
   add(keys.clipboardHistory.description, "Clipboard · " .. self:_chordLabel("Hyper", keys.clipboardHistory.key), { kind = "special", name = "clipboard" }, "📋")
+  if keys.browserTabs then
+    add(keys.browserTabs.description, "Tools · " .. self:_chordLabel("Hyper", keys.browserTabs.key), { kind = "special", name = "browserTabs" }, "📑")
+  end
   -- Display profiles has no dedicated chord, it opens from here only, so its subtitle names
   -- what it does rather than a shortcut. The two display commands sit under a Displays
   -- category rather than System, so their subtitle does not read like the "System Settings"
