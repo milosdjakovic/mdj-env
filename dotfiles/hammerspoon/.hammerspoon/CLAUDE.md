@@ -656,14 +656,19 @@ paste with no read when the clipboard manager is absent, the same graceful fallb
 emoji insert takes. The decision trail and internals live in `Spoons/TextCase.spoon/CLAUDE.md`.
 
 **Processes.** Finds the development servers you left running and stops them, opened from
-the launcher only with no dedicated key. It follows the Capture layout, an engine over
+the launcher only with no dedicated key. Its launcher row reads Local Servers rather than
+Processes, because the list is local port holders, containers and portless watchers and
+never the whole process table, and the old label promised a system monitor this is not.
+The spoon keeps its own name, since that one is an internal identifier nobody reads. The
+words the title dropped live on the row's hidden `keywords`, so typing process still finds
+it. It follows the Capture layout, an engine over
 interchangeable discovery sources, and the DisplayProfiles shape of a spoon whose surface is
 its own `chooser.lua` beside the engine, so it is configured twice like DisplayProfiles is.
 The spoon's own root reads the pure data in `config/processes.lua` and hands each source the
 slice it needs, staying the one place that names both the concrete sources and their order,
 and the main root injects only the view deps every chooser receives. It follows the picker
 checklist, its `processes` context giving it the shared j, k, i navigation with x to close
-plus two actions only it answers, a force stop and a rescan, routed through `routeNav` so
+plus three actions only it answers, a force stop, a rescan and a sort by load, routed through `routeNav` so
 they are no ops on any other surface rather than naming this one directly the way the
 clipboard-only append and delete do. It overrides the shared fuzzy matcher to `words`, the
 same choice the clipboard makes, because a query here is a real fragment you remember, a

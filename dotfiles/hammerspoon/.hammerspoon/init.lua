@@ -1246,7 +1246,7 @@ spoon.Processes.chooser.configure({
   chooser = spoon.Chooser,
   theme = settings.chooserTheme,
   matcher = spoon.Chooser.matchers.words,
-  placeholder = "Search by project, port, or runtime",
+  placeholder = "Search project, port, runtime",
   onPositioned = processesPanel.onPositioned,
   onActivity = processesPanel.onActivity,
   onClose = processesPanel.onClose,

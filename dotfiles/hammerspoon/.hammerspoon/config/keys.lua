@@ -437,7 +437,12 @@ return {
   -- process. Opened from the launcher only, so it has no dedicated key and no modifiers. It
   -- has its own hyperContext above, so while open it takes the shared j/k/i navigation plus
   -- its own force stop and rescan, and x closes it. `description` labels its launcher row.
-  processes = { description = "Processes" },
+  --
+  -- Named for what it lists rather than for the spoon behind it. It shows local port
+  -- holders, containers, and portless watchers, never the whole process table, and
+  -- calling the row Processes promised a system monitor it deliberately is not. The
+  -- spoon keeps its own name, since that one is an internal identifier and nobody reads it.
+  processes = { description = "Local Servers" },
 
   -- Feature toggles
   toggleDock = { modifiers = CTRL_ALT, key = "D" },

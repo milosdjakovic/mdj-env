@@ -534,7 +534,7 @@ function M.start()
 
   chooser = cfg.chooser.new({
     theme = cfg.theme,
-    placeholder = cfg.placeholder or "Search by project, port, or runtime",
+    placeholder = cfg.placeholder or "Search project, port, runtime",
     fieldMode = "filter",
     -- The word matcher rather than the shared fuzzy default, the same choice the
     -- clipboard makes and for the same reason. A query here is a real fragment you

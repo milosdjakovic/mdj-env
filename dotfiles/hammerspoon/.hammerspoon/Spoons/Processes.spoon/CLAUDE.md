@@ -11,6 +11,12 @@ is identified by the port it holds and the project directory it runs in, and
 selecting it takes down the whole process group or the whole container rather than
 one leaf process. Reached from the launcher only, no dedicated key.
 
+The launcher row reads Local Servers, not Processes. The list is local port holders,
+containers and portless watchers, never the whole process table, and a row called
+Processes promised a system monitor this deliberately is not. The spoon keeps the name
+Processes because that one is an internal identifier and nobody reads it, so the two
+names differing is intentional rather than drift.
+
 ## Why the port and the working directory are the identity
 
 These are the two fields a process list normally throws away and the two you
