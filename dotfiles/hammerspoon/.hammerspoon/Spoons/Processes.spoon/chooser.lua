@@ -32,6 +32,7 @@ local chooserPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local util = loadfile(chooserPath .. "util.lua")()
 local metrics = loadfile(chooserPath .. "metrics.lua")()
 local preview = loadfile(chooserPath .. "preview.lua")()
+local icons = loadfile(chooserPath .. "icons.lua")()
 
 local cfg = {}         -- injected, api from the spoon root, view deps from the main root
 local chooser = nil    -- the one native Chooser instance
@@ -45,34 +46,10 @@ local misses = 0       -- consecutive samples that found no window, see onSample
 -- Row icons
 --------------------------------------------------------------------------------
 
--- Render an emoji to a small image once and cache it, since the supplier runs on
--- every keystroke. The same helper the other choosers use.
-local glyphCache = {}
-local function emojiImage(str)
-  local hit = glyphCache[str]
-  if hit ~= nil then return hit or nil end
-  local size = 28
-  local cv = hs.canvas.new({ x = 0, y = 0, w = size, h = size })
-  cv[1] = { type = "text", text = str, textSize = 21, textAlignment = "center",
-            frame = { x = 0, y = 0, w = size, h = size } }
-  local img = cv:imageFromCanvas()
-  cv:delete()
-  glyphCache[str] = img or false
-  return img
-end
-
--- Keyed by the runtime the source reported, falling back to a generic glyph, so an
--- unfamiliar runtime still gets a row rather than an empty icon slot.
-local ICON = {
-  docker = "🐳",
-  node = "🟩", deno = "🦕", bun = "🥟",
-  python = "🐍", python2 = "🐍", python3 = "🐍",
-  ruby = "💎", puma = "💎", rails = "💎",
-  java = "☕", kotlin = "☕", scala = "☕",
-  php = "🐘", perl = "🐫", dotnet = "🟪",
-  caddy = "🌐", nginx = "🌐",
-}
-local ICON_FALLBACK = "⚙️"
+-- The technology glyphs and the framework naming both live in icons.lua, which is the
+-- one place that decides what a row is called and what is drawn for it. Only the three
+-- fixed affordances stay here, because the empty state and the two confirmation answers
+-- are not technologies and never want a brand mark.
 local ICON_EMPTY = "🚫"
 local ICON_KEEP = "↩️"
 local ICON_STOP = "🛑"
@@ -83,10 +60,6 @@ local ICON_STOP = "🛑"
 -- about it. A root that wants a different one passes previewWidth. The Chooser atom
 -- caps a companion at its paneMaxW, so a larger value needs that raised with it.
 local PREVIEW_WIDTH = 480
-
-local function iconFor(runtime)
-  return emojiImage(ICON[(runtime or ""):lower()] or ICON_FALLBACK)
-end
 
 --------------------------------------------------------------------------------
 -- Row text
@@ -112,9 +85,15 @@ end
 -- and a longer line. Everything else stays as it was, because the line already earns
 -- its width, and the room for the live figures came out of that removal rather than
 -- out of the end of the line.
-local function staticSubtitle(row)
+--
+-- The leading word is the framework when one was recognised and the runtime otherwise,
+-- and it replaces rather than joins. Three rows reading node tell you nothing, and next
+-- next node would be the same fact twice on a line that is already full. The runtime it
+-- displaced is not lost, it stays in the search haystack below, so a query of node still
+-- finds every one of them.
+local function staticSubtitle(row, label)
   local bits = {}
-  bits[#bits + 1] = row.runtime
+  bits[#bits + 1] = label or row.runtime
   if row.pid then bits[#bits + 1] = "pid " .. row.pid end
   if row.status and row.status ~= "" then bits[#bits + 1] = row.status:lower() end
   if row.command and row.command ~= "" and row.command ~= row.title then
@@ -194,16 +173,20 @@ local function listRows()
   if #rows == 0 then
     return { { title = "Nothing running", enabled = false,
                subTitle = "No development servers or containers found",
-               image = emojiImage(ICON_EMPTY) } }
+               image = icons.emoji(ICON_EMPTY) } }
   end
   local out = {}
   for _, row in ipairs(rows) do
     local title = titleFor(row)
-    local static = staticSubtitle(row)
+    -- Classified once and read twice. The picture and the word come from the same
+    -- decision, so asking for them separately would run the rules over every row on
+    -- every keystroke a second time for no new answer.
+    local image, label = icons.badge(row)
+    local static = staticSubtitle(row, label)
     out[#out + 1] = {
       title = title,
       subTitle = subtitleFor(row, static),
-      image = iconFor(row.runtime),
+      image = image,
       filterText = filterTextFor(row, title, static),
       -- Serializable only. hs.chooser drops a function off a row, which is why
       -- every list tool here carries a descriptor and looks the real thing up on
@@ -218,10 +201,10 @@ end
 -- both leave the thing running.
 local function confirmRows()
   return {
-    { title = "Keep it running", subTitle = "", image = emojiImage(ICON_KEEP),
+    { title = "Keep it running", subTitle = "", image = icons.emoji(ICON_KEEP),
       item = { confirm = false } },
     { title = "Stop anyway", subTitle = pending.message or "",
-      image = emojiImage(ICON_STOP), item = { confirm = true } },
+      image = icons.emoji(ICON_STOP), item = { confirm = true } },
   }
 end
 
@@ -417,6 +400,9 @@ end
 function M.show()
   if scanning then return end
   pending = nil
+  -- The glyph tints depend on whether the chooser will draw light or dark, and an open
+  -- is the only moment that can have changed since anyone last asked.
+  icons.refresh()
   scanning = true
   cfg.api.scan(function(result)
     scanning = false

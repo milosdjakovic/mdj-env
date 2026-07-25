@@ -361,11 +361,71 @@ shows a labelled space with nothing under it. The one heading that changes wordi
 the command, which reads as the image on a row carrying a container id, and that tests
 a field the row carries rather than the name of the source that produced it.
 
-One gap is worth naming. The pane is meant to show the command line in full and cannot,
-because the sources elide it to 120 characters before it reaches the row. Fixing it
-means the sources carrying the untruncated string alongside the elided one, and until
-they do, a very long java or python invocation is cut in the pane exactly as it is cut
-on the row.
+The pane shows the command line in full. The sources carry both forms, `command` elided
+to 120 characters for the one line row subtitle and `commandFull` untruncated for the
+pane to wrap, because the two readers want different things and neither should have to
+compromise for the other. The tree labels stay elided only, since each of those is one
+line anyway and a second copy would pay for nothing.
+
+## The icon and the name are one decision
+
+Two rows both reading node tell you nothing. One reading Next and one reading Vite tell
+you which window to go close. So `icons.lua` answers both questions in a single lookup,
+handing back a picture and a word, and the surface asks once per row rather than twice.
+
+This is display policy and it lives away from the sources deliberately. A source reports
+what the kernel says, which is that the process is `node`, and that stays true and stays
+in the search haystack. Only the surface decides to call it Next. Pushing the guess down
+into discovery would have a source inventing a fact it cannot see, and the merge in the
+engine reasons about ports and pids and never about labels.
+
+Detection is a chain of ordered rules, first match wins, and every needle is a plain
+substring rather than a Lua pattern so a dash or a dot in a tool name cannot quietly
+become a wildcard. It costs nothing, which is why it is worth doing. The full argv and
+the working directory are already on the row from the scan, so this is string work over
+data in hand with no extra shellout and no second pass over the process table. The
+needles are chosen to be things a tool prints about itself rather than things that merely
+sit near it, which is why Next is found by `next-server` and Puma by `puma`, both of
+which are the tool rewriting its own process title. Where the only signal is a path the
+needle carries enough of the path to be unambiguous, so Vite looks for `/vite` and a
+project directory named invite is not suddenly a dev server.
+
+A rule may name a label and no icon, and that is the normal case rather than a gap to
+fill later. Astro and Gunicorn and Sidekiq have no mark in the font, so they correct the
+word and leave the runtime's picture alone. Approximating an icon for them would be
+worse than the honest fallback.
+
+Containers never run through the rules. A container's command field holds an image name,
+so one built from nginx would classify as a web server and lose the whale, and the whale
+is the one thing that says at a glance which rows are containers.
+
+## Icons are font glyphs, and only mark glyphs
+
+An icon here is a codepoint plus a colour, which is one table row, so a new technology
+costs a line rather than an asset. Nothing binary is committed and nothing new is
+installed, because `font-meslo-lg-nerd-font` is already in the Brewfile for the terminal,
+the prompt and the editor. Vector glyphs also stay sharp at any size and take their tint
+from us, which matters more than it sounds.
+
+Only mark glyphs, never wordmarks. Several devicon codepoints are whole words drawn into
+one character cell, nginx and django and the php text logo among them, and at the 21
+point size a row draws they are illegible smears. Every glyph in the table was rendered
+and looked at before it was added. A technology whose only glyph is a wordmark gets its
+runtime icon instead.
+
+Tints are ours rather than the official brand hex, and there are two sets. Brand palettes
+are tuned for white documentation pages, so several go muddy on a dark row and were
+lifted. The native chooser then follows the system appearance, which means half the time
+the same glyph lands on near white instead. Only the tints that actually fail on light
+carry an override, Next being the clearest case since a near white triangle on a near
+white row is an empty slot. Colours that survive both are deliberately in one table only,
+because duplicating a working value would mean two places to keep in step for no gain.
+The appearance is read when the picker opens rather than per row per keystroke, and the
+drawn images are cached on the resolved tint, so switching back and forth redraws nothing.
+
+If no Nerd Font is present the whole set degrades to emoji at once, not per key, because
+a row of crisp glyphs with one stray emoji in it looks worse than a consistent set of
+emoji.
 
 ## What it deliberately does not do
 
