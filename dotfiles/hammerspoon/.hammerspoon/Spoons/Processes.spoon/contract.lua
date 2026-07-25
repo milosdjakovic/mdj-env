@@ -47,17 +47,35 @@
 ---   ports      list of port numbers it listens on, possibly empty
 ---   cwd        working directory, absent on a container row
 ---   command    the command line, elided by the source if very long
+---   commandFull the same command line untruncated, optional. The list surface puts
+---              the elided form on one subtitle line while the preview pane wraps
+---              this one, so a source holding the full text carries both rather
+---              than making either reader compromise
 ---   status     short human readable state, "up 19h"
 ---   startedAt  epoch seconds, used for the recency sort, 0 when unknown
----   tier       display tier, lower sorts first, so local processes sit above
----              containers regardless of the claim priority below
----   tree       list of { pid, ppid, label } a stop would take, may be empty
+---   tier       display tier, lower sorts first, regardless of the claim priority
+---              below. 0 is a local process holding a port, 1 is a container, 2 is
+---              a local process holding none, since a thing holding a port is what
+---              you are usually hunting
+---   tree       list of { pid, ppid, depth, label } a stop would take, may be empty.
+---              depth is the nesting level from the root of the group, which is what
+---              lets the preview pane draw the shape rather than a flat list, so a
+---              source filling in tree must order it parent before child and set it
 ---
 --- Claim priority is separate from display tier and comes from the registration
---- order in the composition root. A row is dropped when every port it holds is
---- already claimed by an earlier source, which is how eleven docker proxy
+--- order in the composition root. A row is dropped when everything that identifies
+--- it is already claimed by an earlier source, which is how eleven docker proxy
 --- listeners collapse into named containers without the engine knowing the word
 --- docker.
+---
+--- Two details of that matter to a source author. A kept row claims every port AND
+--- every pid it carries, `tree` included, so a source that publishes a whole
+--- process tree accounts for each member of it and a later source cannot resurface
+--- one of them on its own. But a row is TESTED on the strongest kind of token it
+--- carries, its ports when it holds any and its pids otherwise, so holding a port
+--- still settles ownership. The practical consequence is that a portless row must
+--- carry accurate pids, and any row standing for a tree must fill in `tree`, or the
+--- merge has nothing to work with.
 
 local M = {}
 

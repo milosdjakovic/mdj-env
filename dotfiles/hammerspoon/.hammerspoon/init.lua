@@ -1250,6 +1250,17 @@ spoon.Processes.chooser.configure({
   onPositioned = processesPanel.onPositioned,
   onActivity = processesPanel.onActivity,
   onClose = processesPanel.onClose,
+  -- The detail pane paints its background and border through the shared surface, so
+  -- it matches the docked hint panel and rounds the same way. Like the clipboard it
+  -- draws its own canvas docked into the rect the atom reserves rather than being a
+  -- CanvasPanel instance, because the pane has to land exactly on that rect. The rect
+  -- is what the click watcher counts as part of the picker, so a pane sitting a few
+  -- points outside it would turn a click on itself into a dismissal. So it takes the
+  -- surface as elements to prepend rather than taking the panel.
+  --
+  -- Omitting this stands the pane down entirely, no companion width is reserved and
+  -- no highlight poll runs, which is the seam that keeps the pane optional.
+  surface = spoon.CanvasPanel.surfaceElements,
 })
 spoon.Processes.chooser.start()
 
@@ -1339,6 +1350,11 @@ local contextActions = {
   -- and delete do.
   stopForced = routeNav("stopForced"),
   refreshList = routeNav("refresh"),
+  -- Re-sorting by load routes the same way. It is one shot rather than a mode, so
+  -- the list is reordered against the numbers showing at the moment it is pressed
+  -- and then left alone. A live sort would reshuffle rows under the cursor on every
+  -- sample, which is how you stop the wrong thing.
+  sortByLoad = routeNav("sortByLoad"),
 }
 -- Nav actions that auto-repeat while the key is held, so holding Hyper+j/k in any
 -- chooser scrolls like a held arrow key. The initial delay and repeat rate are the

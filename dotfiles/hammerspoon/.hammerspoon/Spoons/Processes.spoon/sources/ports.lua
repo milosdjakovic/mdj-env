@@ -235,6 +235,13 @@ function M.scan(cb)
           ports = entry.ports,
           cwd = cwd,
           command = util.elide(proc.args, COMMAND_MAX),
+          -- Both forms, because the two readers want different things. The row
+          -- subtitle is one line and needs the elided form, while the preview pane
+          -- wraps and is the place you go to read the whole invocation, which is
+          -- often the flags rather than the binary. The tree labels are deliberately
+          -- elided only, since every one of those is truncated to a single line
+          -- anyway and a second copy would pay for nothing.
+          commandFull = proc.args,
           status = "up " .. util.humanDuration(proc.uptime),
           startedAt = now - proc.uptime,
           rss = proc.rss,

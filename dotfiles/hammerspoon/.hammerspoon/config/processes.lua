@@ -85,4 +85,23 @@ return {
   -- with the daemon up but hangs indefinitely while the daemon is starting, and a
   -- scan that never returns would leave the picker empty with no explanation.
   scanTimeoutSeconds = 5,
+
+  -- Live sampling, which happens only while the picker is on screen and stops with
+  -- it. So intervalSeconds is a redraw cadence rather than a background poll, and
+  -- none of this costs anything with the picker closed.
+  --
+  -- The two weights decide the single number the load ordering sorts on. They can
+  -- only mean anything because each side is normalised to its own unit first, one
+  -- fully saturated core counts as 1.0 and memReferenceMb of resident memory counts
+  -- as 1.0. Without that step the weights would be comparing a percentage against a
+  -- byte count and memory would win every time. Putting cpuWeight above memWeight
+  -- means a small busy process outranks a large idle one, which is the one you
+  -- opened the picker to find.
+  metrics = {
+    intervalSeconds = 1.5,
+    historySamples = 60,
+    cpuWeight = 0.7,
+    memWeight = 0.3,
+    memReferenceMb = 1024,
+  },
 }

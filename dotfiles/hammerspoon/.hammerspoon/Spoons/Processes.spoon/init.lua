@@ -12,6 +12,7 @@
 ---   contract.lua    the interface every source must implement
 ---   util.lua        stateless shellout and formatting helpers
 ---   chooser.lua     the list surface, pure policy over the engine's api
+---   metrics.lua     the live CPU and memory sampler, owned by the surface
 ---   sources/*.lua   the concrete backends, one self contained file each
 ---
 --- The split keeps each piece ignorant of the others. The engine never names a
@@ -26,6 +27,14 @@
 --- claiming first, docker republishes those ports as named containers and the ports
 --- source's view of them is dropped, which is how the collapse happens without the
 --- engine knowing what a container is.
+---
+--- Runtimes is registered last, and that one is not a preference either. It reports
+--- development processes holding no socket, so its rows are identified by the
+--- processes they name rather than by a port. A portless row can never claim a port
+--- away from a row that holds one, so putting it earlier would not invert the order
+--- the way swapping docker and ports does, it would simply publish a tree first and
+--- leave the port holding view of the same tree to appear beside it as a duplicate.
+--- The order here is strongest identity first, and a port is the strongest.
 ---
 --- Adding a backend is a new file in sources/ plus two lines below, the registration
 --- and its policy slice, with no edit to the engine.
@@ -44,13 +53,14 @@ local obj = load("engine.lua")
 -- Inject the contract the engine validates the source list against.
 obj._contract = load("contract.lua")
 
--- Register the concrete sources. Docker claims ports ahead of the raw listener
--- scan, see the note above.
+-- Register the concrete sources, in claim order. Docker ahead of the raw listener
+-- scan, and the portless runtimes scan last of all, see the note above.
 obj.sources = {
   docker = load("sources/docker.lua"),
   ports = load("sources/ports.lua"),
+  runtimes = load("sources/runtimes.lua"),
 }
-obj._defaultSources = { obj.sources.docker, obj.sources.ports }
+obj._defaultSources = { obj.sources.docker, obj.sources.ports, obj.sources.runtimes }
 
 -- The list surface. It reaches the engine only through the api built in configure
 -- below, so it never learns that sources exist.
@@ -80,6 +90,19 @@ function obj:configure(opts)
     timeoutSeconds = policy.scanTimeoutSeconds,
   })
 
+  -- The same slice the ports source reads, because the two apply the same policy to
+  -- different evidence. Ports treats a runtime or a dev root as enough on its own,
+  -- since holding a socket is already strong evidence, while runtimes needs both,
+  -- see its own header for why either half alone is far too loose without a port.
+  obj.sources.runtimes.configure({
+    runtimes = policy.runtimes,
+    ignoreCommands = policy.ignoreCommands,
+    devRoots = policy.devRoots,
+    graceSeconds = stop.graceSeconds,
+    confirmAbove = stop.confirmAbove,
+    timeoutSeconds = policy.scanTimeoutSeconds,
+  })
+
   obj.sources.docker.configure({
     graceSeconds = stop.graceSeconds,
     timeoutSeconds = policy.scanTimeoutSeconds,
@@ -98,6 +121,13 @@ function obj:configure(opts)
       scan = function(cb) obj:scan(cb) end,
       stop = function(row, stopOpts, cb) obj:stop(row, stopOpts, cb) end,
     },
+    -- The live sampler's slice, handed to the surface rather than configured beside
+    -- the sources, because sampling runs only while the picker is open and the
+    -- surface is the piece that owns that window. The surface loads the sampler
+    -- itself and forwards this, since each loadfile returns a fresh table and
+    -- loading it here as well would leave two independent modules, one configured
+    -- and one sampling.
+    metrics = policy.metrics,
   })
 
   return self

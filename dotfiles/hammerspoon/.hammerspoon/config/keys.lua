@@ -291,11 +291,12 @@ return {
     },
     -- The processes picker (launcher-only). A flat list, so i stops the highlighted
     -- server or container the same as Return, j and k navigate vim style, and x closes it.
-    -- Two extra actions are its own. f stops with no grace period and no size check, for
-    -- something already wedged, and r rescans in place so the list can be refreshed without
-    -- closing and reopening. Both are answered only by this surface, so they are no ops
-    -- anywhere else. Plain typing filters by project, port, or runtime while Hyper is
-    -- released.
+    -- Three extra actions are its own. f stops with no grace period and no size check,
+    -- for something already wedged, r rescans in place so the list can be refreshed
+    -- without closing and reopening, and s reorders by live load so whatever is burning
+    -- a core comes to the top. All three are answered only by this surface, so they are
+    -- no ops anywhere else. Plain typing filters by project, port, or runtime while
+    -- Hyper is released.
     {
       name = "processes",
       when = "processesOpen",
@@ -304,6 +305,7 @@ return {
         { key = "i", action = "insertSelected", description = "Stop" },
         { key = "j", action = "selectNext",     description = "Move down" },
         { key = "k", action = "selectPrev",     description = "Move up" },
+        { key = "s", action = "sortByLoad",     description = "Sort by load" },
         { key = "f", action = "stopForced",     description = "Force stop" },
         { key = "r", action = "refreshList",    description = "Rescan" },
         { key = "x", action = "closeChooser",   description = "Close" },

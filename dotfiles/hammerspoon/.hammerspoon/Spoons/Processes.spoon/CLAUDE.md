@@ -57,13 +57,15 @@ group and stopping a container are two implementations of one method instead of 
 branch the engine has to grow.
 
 The merge rule is worth understanding because it does more than it appears to.
-Sources are an ordered list and a row is dropped when every port it holds has
-already been claimed by an earlier source. That single rule, which mentions nothing
-concrete, is what collapses a dozen identical docker proxy listeners into named
-containers. Registering docker first is the whole mechanism. Reversing the order was
-tested and does exactly the inverse, the proxy survives as one row holding ten ports
-and the published containers get suppressed instead, which is the proof that the
-claim really is decided by registration order and not by a special case somewhere.
+Sources are an ordered list and a row is dropped when everything that identifies it
+has already been claimed by an earlier source. That single rule, which mentions
+nothing concrete, is what collapses a dozen identical docker proxy listeners into
+named containers. Registering docker first is the whole mechanism. Reversing the
+order was tested and does exactly the inverse, the proxy survives as one row holding
+ten ports and the published containers get suppressed instead, which is the proof
+that the claim really is decided by registration order and not by a special case
+somewhere. What identifies a row is spelled out under the claim section below, since
+a row holding no port has to be identified by something else.
 
 Docker is not a nicety. Every published container port is held by one long lived
 proxy process, so without this source a port scan shows the same daemon a dozen
@@ -84,7 +86,80 @@ stay quiet. The small ignore list that does exist is a safety net rather than th
 filter, and `com.docker.backend` is on it so the raw proxy can never surface even
 when the daemon is unreachable and its claim never arrives.
 
-## Two shellout facts that will bite anyone who touches this
+## Without a port the same two rules have to be ANDed
+
+A port is strong evidence on its own, which is why the listener source is happy to
+qualify a row on either half of the policy. `sources/runtimes.lua` looks for the
+development processes that hold no port at all, a watch build, a test runner, a
+wedged compiler, an orphaned worker, and there the evidence a port was carrying is
+simply gone. Each half of the rule alone turns out to be far too weak to replace it.
+
+The working directory half collapses first, and the numbers on this machine are
+blunt. Nine biome language servers, a sourcekit-lsp, and four uv and python MCP
+servers all run with a working directory inside a project, because an editor and an
+agent inherit the cwd of whatever opened them. Every one of them would become a row
+and nine identical language server rows would bury the one watcher you opened the
+picker to find. The runtime half alone is no better, it would offer you every helper
+your toolchain happens to have spawned.
+
+So a portless process qualifies only when both halves hold, a kernel process name on
+the allowlist AND a working directory under a dev root. The same two config keys,
+read the stricter way the missing port forces. What that costs is the free catch of
+an unfamiliar toolchain, which is real, and the fix is to name it in `runtimes`,
+which the config already documents as the one place you edit.
+
+The conjunction also decides the shellout order, though it is not the reason for it.
+Reading a working directory is per pid and it is the expensive part. Measured here,
+lsof over all 597 of my processes costs 142ms against a whole scan budget of about
+72ms, while over the handful the allowlist leaves it costs 23ms. So the cheap half
+runs first over a process table already in hand and the expensive half runs only
+over what survives, and a full portless scan lands at 49ms. The kernel name comes
+from a second small `ps` rather than from the big one, because that column is padded
+to a fixed width and can contain a space, so putting it beside the command line
+would leave two free form fields on a line with nothing to split them on. That
+second query is restricted to your own uid, which means one call answers both what a
+process is called and whether it is yours.
+
+Rows are one per process group rather than one per process, since a watch build is a
+tree exactly like a dev server is, and the shallowest qualifying member represents
+it so the row still reads as the thing you started rather than as a hashed build
+worker underneath it.
+
+## The claim covers pids as well as ports, and ports outrank pids
+
+A portless row holds no ports, so the original merge test could never drop one and
+this source would have re-emitted every dev server the listener source already
+found. The claim was generalized rather than special cased, and it now has two
+halves that are deliberately not symmetric.
+
+A kept row CLAIMS every token it carries in both namespaces, its ports and every pid
+in its `tree`, not only its own pid. Claiming the whole tree is the part that
+matters, because a listener row already stands for a whole process group, so without
+it the portless source would resurface a child of a tree that was already reported
+whole. But a row is TESTED against only the strongest kind of token it carries, its
+ports when it holds any and its pids otherwise.
+
+Testing both namespaces at once would look more symmetric and would be wrong. A
+container row knows its published ports and cannot possibly know which host process
+is proxying them, so a listener row for that proxy carries an unclaimed pid, would
+pass a combined test, and would survive as exactly the nameless duplicate the
+collapse exists to remove. Two listeners inside one process group are the same trap
+from the other side, the second one must survive on its own port even though the
+first already claimed both their pids. Ports outrank pids because exactly one row
+should own a port, while an unclaimed pid is only ever the absence of evidence.
+
+One consequence is worth knowing. Between docker and ports, reversing the
+registration order inverts the collapse. Between ports and runtimes it does not, it
+produces duplicates instead, because a portless row can never claim a port away from
+a row that holds one. So runtimes goes last, and that is not a preference.
+
+The old and new merges were run side by side over every shape the docker and ports
+pair can produce, the typical collapse, a partial port overlap that must survive, a
+container publishing nothing, a reversed registration, and two listeners in one
+group. They agree on all of them, which is the guarantee that generalizing the rule
+changed nothing that was already working.
+
+## Three shellout facts that will bite anyone who touches this
 
 **hs.task deadlocks on large output unless you stream it.** A task built with only a
 completion callback silently never calls back once the child writes more than a pipe
@@ -100,7 +175,197 @@ accumulates chunks. Do not simplify it back.
 which is tens of thousands of rows and seconds of work. With `-a` the same scan
 costs around sixty milliseconds. This was a real bug, not a tuning detail.
 
-A full scan is three shellouts, two of them concurrent, and costs about 72ms.
+**The exit callback is not the end of the output.** The stream callback keeps firing
+after the completion callback has already run, so reading the accumulated chunks at
+exit can hand back output that is truncated, or empty when every chunk is still in
+flight. The completion callback's own stdout argument does not cover the gap, it was
+measured at zero bytes every single time, so there is nowhere else to look for the
+missing data.
+
+This is worse than a crash because it is silent and intermittent. A source returns
+zero rows with no error and the picker simply reports that nothing is running, which
+looks like an idle machine rather than a bug. Measured across a concurrent burst, a
+command that exits almost immediately lost its output at the exit callback sixteen
+times out of twenty, and both `ps` and `lsof` lost theirs once three sources were
+scanning at once. Running the same commands one at a time never reproduced it, which
+is why it stayed hidden until a third source existed. It had been seen once before
+that and wrongly written off as a reload race.
+
+So `util.run` treats the exit as one more event rather than the finish line, and
+hands the result over only once the output has stopped growing for a short grace
+period with the task already exited. Late chunks were measured landing within one
+millisecond of the exit callback, so the fifteen millisecond grace is well over an
+order of magnitude of headroom, and it is paid once per call rather than per chunk.
+Do not remove it, and do not shorten it to buy back the milliseconds.
+
+A full scan is four shellouts, run across three concurrent sources, and costs about
+75ms with a worst case near 105ms.
+
+## The live sampler runs only while the window is up
+
+`metrics.lua` samples CPU and memory for the rows on screen, for exactly as long as
+they are on screen. That is the shape of the module rather than a detail of it. This
+config is always loaded, so a background poller would cost battery every minute of
+every day to have numbers ready for the few seconds the picker is open. Start and stop
+are the public lifecycle, `chooser.lua` owns them because it is the piece that knows
+when the window opens and shuts, and the stop hangs off the Chooser atom's single
+idempotent teardown, which fires once for a selection, an escape, a click away, or a
+programmatic close alike. A tick is a chained `doAfter` rather than a `doEvery`, so the
+next one is armed only once the last has landed and no dismissal can leave a timer
+behind, and so an asynchronous sample can never overlap the one before it and take its
+delta against a baseline that has already moved.
+
+The CPU figure is a difference, never the `%cpu` column. That column is lifetime CPU
+time over lifetime elapsed time, so a server that pinned a core during a build six
+hours ago still reads comfortably and one thrashing right now barely moves it, which is
+the opposite of the question being asked. Two snapshots of cumulative CPU time are
+taken and the delta is divided by the monotonic clock between them, which is why the
+first reading needs a second sample and why the second one is taken quickly rather than
+a full interval later. The clock is monotonic because the elapsed time is the
+denominator of every figure and an NTP correction landing between two snapshots could
+make it negative.
+
+Readings are aggregated over the process GROUP for the same reason a stop signals the
+group. The work rarely happens in the leaf holding the socket, the build worker beside
+it is what pins a core, so a per pid figure reads as idle for a tree busy compiling.
+The group is also exactly the set a stop would take down, so the numbers answer what
+you would reclaim. Summing resident memory across a group double counts the pages its
+members share, which overstates by roughly one runtime binary, and that is the cheaper
+error than reporting one process out of five. The CPU sum is taken as per pid deltas
+rather than as the difference of two group totals, which is not cosmetic. A member that
+exits takes its accumulated time out of the current total, so differencing totals would
+report a large negative spike every time a build worker finished.
+
+Containers carry no live figures. Asking the docker daemon for stats is a second
+shellout costing more than the whole scan, for rows that are already named and already
+the thing you would stop.
+
+The score that heat ordering sorts on blends the two, weighted in favour of CPU, and
+the weights are config rather than code. They can only mean something because each side
+is normalised to its own unit first, one fully saturated core counts as one and
+`memReferenceMb` of resident memory counts as one. Without that step the weights would
+be comparing a percentage against a byte count and memory would always win.
+
+History is a bounded list per row key rather than per pid, since the pid is the
+unstable thing, and it is kept oldest first as a plain list because that is the order a
+sparkline draws in. It is dropped on close along with the readings, because sampling
+only happens while the picker is open, so a trail kept across a close would have a hole
+in the middle that nothing can draw honestly.
+
+## The numbers move, the rows do not
+
+The tick redraws every row in place and never reorders. Reordering is a separate,
+explicit act, `chooser.sortByLoad()`, which sorts the rows in hand by the latest score
+once and resets the highlight to the top, since every row has moved and seeing the top
+is the point of asking. Asking again re-sorts against whatever the numbers say by then,
+and a rescan puts the engine's own order back, so heat order is a one shot rather than
+a mode and there is no state to remember you are in.
+
+The live figures are kept out of the search haystack. A query of "3" is asking about
+port 3000, never about a row that happens to be at three percent this second, and
+folding a moving number into the haystack would mean the set of matching rows changed
+on its own every tick with nobody having typed anything.
+
+The subtitle gained the two live figures at the front and lost the resident memory the
+scan reported, which is a straight trade rather than a longer line. The live figure
+supersedes it and says more, covering the whole group rather than the one listener, so
+keeping both would have been the same fact twice. The live pair leads the line because
+a number that changes under the eye has to sit in one fixed place, otherwise reading
+down the column becomes a hunt. Until the first sample lands the memory falls back to
+the listener's own reading, so the line is never briefly missing a number it is about
+to have.
+
+## The pane exists for the tree
+
+A row is one line and the two things that decide whether you press stop do not fit on
+it. What the process actually is, which the subtitle can only elide, and how far the
+stop reaches, which the row cannot say at all. So the picker reserves a pane beside the
+list and the highlighted row is described in it, the full working directory, every
+port, the command line, the live trend, and the process tree.
+
+The tree is the reason the pane was built and the rest is what fits around it. Stopping
+signals the group, and the group routinely reaches further than the thing you think you
+are stopping, so the number of processes and their parent and child shape is the fact
+that makes the key safe to press. It is drawn as a real tree rather than a flat list
+because the shape is the information, a keepalive shell over a package manager over a
+runtime over a server reads as one chain you recognise, while the same five lines
+stacked flat read as five unrelated processes.
+
+The source hands over a pre order walk with a depth per member, which is enough to
+rebuild the shape, and every prefix unit is exactly three columns wide so the
+indentation is arithmetic rather than a byte count over a string of box characters.
+Whether a member is the last of its siblings is not on the member and is read from the
+walk instead, the next member at the same depth before any shallower one, and that one
+lookahead decides both the corner it draws and whether its children carry a bar past
+it. A root never carries a bar past it even when another root follows, because a root
+draws no connector for a bar to descend from.
+
+The tree also goes last and takes whatever vertical room the sections above it left,
+since it is the one section that can be any length. Past that room it is cut with a
+count of what was cut, and where there is no room for even one member the section is
+dropped whole. The picker has no scroll bindings and this is why it needs none.
+
+## The pane is one canvas docked into a rect it did not choose
+
+It draws through the shared surface, the same routine behind the docked shortcut panel
+and the cheat sheets, so the three read as one component. It is not a CanvasPanel
+instance though, and the reason is placement rather than looks. A CanvasPanel computes
+its own position from an anchor and its own size from its content, while this pane has
+to land exactly on the companion rect the Chooser atom already reserved and reported
+through `onPositioned`. That rect is also the one the atom's click watcher treats as
+part of the picker, so a pane drawn a few points outside it would turn a click on
+itself into a dismissal. Docking into the reported rect is what makes a click on the
+pane harmless, and `clickActivating` is off on top of that so typing never leaves the
+search field.
+
+Everything the pane composes with is wrapped rather than replaced. `onPositioned`
+docks the pane and then hands the shortcut panel an anchor spanning both panes, so the
+hints sit under the pair rather than stopping short under the list, and `onClose`
+destroys the pane on the same idempotent teardown path the sampler stops on. Destroyed
+rather than hidden, because nothing may outlive a dismissal, and rebuilding one canvas
+on the next open costs nothing.
+
+Two redraws exist for two callers and the split is the reason the pane is cheap. The
+static half, everything the row itself says, is built once per row and cached, because
+the highlight fires from a poll and a command line does not change under it. The live
+half is rebuilt on every paint, which is all a sampler tick costs. Its HEIGHT is fixed
+by whether the row can be sampled at all rather than by whether a sample has landed, so
+the static half never shifts when the first reading arrives and the cache survives the
+whole open. There is no timer in the pane and there must not be, the sampler already
+ticks and the surface calls the pane from that tick, so a sparkline can never disagree
+with the figure printed above it.
+
+The poll compares the highlighted ROW NUMBER, not the row, so a rescan or a heat sort
+changes everything under a stationary highlight and fires nothing. Both of those
+re-render the pane explicitly, otherwise it would keep describing whatever used to be
+in that position.
+
+The two sparklines are scaled differently and that is deliberate. CPU is an absolute
+question, is this busy, so it runs from zero to the window's peak with a floor under it,
+which keeps a server idling at a fraction of a percent along the bottom instead of
+having its noise blown up into a mountain range. Memory is a relative one, is this
+growing, so it runs across the window's own range, where a leak climbs and a steady
+server sits flat down the middle. The figures beside each heading carry the absolute
+anchor either way, and a peak is printed only when it is above the current reading,
+since a peak that is the current reading is the same number twice.
+
+## Rows differ, so a section is dropped rather than emptied
+
+A container has no working directory and no tree, a portless watcher has no ports, and
+a container carries no live figures at all because asking the daemon for stats costs
+more than the whole scan. Rather than a branch per shape, the pane is a list of
+sections each with a heading and a builder, and a builder that returns nothing drops
+its whole section including the heading. So a container shows its ports, its image and
+its short id, a portless watcher shows its directory, command and tree, and neither
+shows a labelled space with nothing under it. The one heading that changes wording is
+the command, which reads as the image on a row carrying a container id, and that tests
+a field the row carries rather than the name of the source that produced it.
+
+One gap is worth naming. The pane is meant to show the command line in full and cannot,
+because the sources elide it to 120 characters before it reaches the row. Fixing it
+means the sources carrying the untruncated string alongside the elided one, and until
+they do, a very long java or python invocation is cut in the pane exactly as it is cut
+on the row.
 
 ## What it deliberately does not do
 

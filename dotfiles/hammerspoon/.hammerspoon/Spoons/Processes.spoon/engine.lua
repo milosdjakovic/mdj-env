@@ -6,11 +6,13 @@
 --- init.lua, the composition root, which is what keeps this file reusable.
 ---
 --- The merge is the one rule worth understanding. Sources are an ordered list and a
---- row is dropped when every port it holds has already been claimed by an earlier
---- source. That single generic rule is what collapses a dozen identical container
---- proxy listeners into named containers, without the engine knowing what a
---- container is. Reordering the list in the root changes who wins, and a source
---- that finds nothing simply claims nothing and changes no other source's output.
+--- row is dropped when everything that identifies it has already been claimed by an
+--- earlier source. That single generic rule is what collapses a dozen identical
+--- container proxy listeners into named containers, and what keeps a portless view
+--- of a process tree from re-listing a tree an earlier source already reported,
+--- without the engine knowing what a container or a runtime is. Reordering the list
+--- in the root changes who wins, and a source that finds nothing simply claims
+--- nothing and changes no other source's output.
 ---
 --- Availability is checked LIVE on every scan and every stop rather than cached at
 --- load, for the same reason Capture does it. A daemon can quit long after
@@ -133,28 +135,87 @@ function obj:_label(row)
   return row.runtime or ("pid " .. tostring(row.pid))
 end
 
--- Drop any row whose ports are all claimed by an earlier source, then label and
--- order what survives. A row holding no ports is never suppressed, since it can
--- collide with nothing.
+-- The claim tokens a row carries, one list per namespace. Ports are the resource a
+-- row occupies. Pids are the processes it stands for, and a row that stands for a
+-- whole tree carries every member of it, not just its own pid, because a source
+-- that reported the tree has already accounted for each process in it.
+local function tokensOf(row)
+  local ports, pids = {}, {}
+  for _, port in ipairs(row.ports or {}) do ports[#ports + 1] = port end
+  if row.pid then pids[#pids + 1] = row.pid end
+  for _, member in ipairs(row.tree or {}) do
+    if member.pid then pids[#pids + 1] = member.pid end
+  end
+  return ports, pids
+end
+
+-- Drop any row an earlier source has already accounted for, then label and order
+-- what survives.
+--
+-- Two things happen here and keeping them apart is the whole trick. A kept row
+-- CLAIMS every token it carries, in both namespaces. A row is TESTED against only
+-- the strongest kind of token it carries, its ports when it holds any and its pids
+-- otherwise. So a port stays the identity of anything that holds one, which is what
+-- makes the container collapse work, while a row holding no port falls back to the
+-- processes it names, which is what stops a portless view of a tree from re-listing
+-- a tree that an earlier source already published whole.
+--
+-- Testing on both namespaces at once would look more symmetric and would be wrong.
+-- A container row knows its published ports and cannot know which host process is
+-- proxying them, so a listener row for that proxy would carry an unclaimed pid,
+-- pass a combined test, and survive as the nameless duplicate the collapse exists
+-- to remove. Ports outrank pids because exactly one row should own a port, while an
+-- unclaimed pid is only ever the absence of evidence.
+--
+-- The two namespaces also need opposite quantifiers, which is the part that reads
+-- as an inconsistency until you look at what each token means.
+--
+-- A port is an exclusive resource, so a row is only suppressed when EVERY port it
+-- holds is spoken for. A listener holding one claimed port and one free one is
+-- still the only thing reporting the free one, and dropping it would lose that
+-- port from the list entirely.
+--
+-- A pid is an identity rather than a resource, so ANY overlap is enough. A pid
+-- belongs to exactly one process group and a tree is a group, so two genuinely
+-- different trees can never share a member. An overlap therefore always means this
+-- is the same tree an earlier source already published, and there is nothing to
+-- lose by dropping it. Requiring every member to be claimed would be fragile as
+-- well as wrong, because two sources read the process table in separate concurrent
+-- shellouts, so one worker spawned between them leaves a single unclaimed member
+-- and the whole duplicate row survives. That is a race a rebuild hits routinely.
+--
+-- A row carrying no tokens at all is never suppressed, since it can collide with
+-- nothing. That is also why each test starts from the token count rather than from
+-- true.
 function obj:_merge(perSource)
-  local claimed, kept = {}, {}
+  local claimedPorts, claimedPids, kept = {}, {}, {}
   for _, rows in ipairs(perSource) do
     for _, row in ipairs(rows) do
-      local ports = row.ports or {}
-      local allClaimed = #ports > 0
-      for _, port in ipairs(ports) do
-        if not claimed[port] then allClaimed = false end
+      local ports, pids = tokensOf(row)
+      local suppressed
+      if #ports > 0 then
+        suppressed = true
+        for _, port in ipairs(ports) do
+          if not claimedPorts[port] then suppressed = false end
+        end
+      else
+        suppressed = false
+        for _, pid in ipairs(pids) do
+          if claimedPids[pid] then suppressed = true end
+        end
       end
-      if not allClaimed then
-        for _, port in ipairs(ports) do claimed[port] = true end
+      if not suppressed then
+        for _, port in ipairs(ports) do claimedPorts[port] = true end
+        for _, pid in ipairs(pids) do claimedPids[pid] = true end
         row.title = self:_label(row)
         kept[#kept + 1] = row
       end
     end
   end
-  -- Local processes above containers, newest first inside a tier, and the title
-  -- breaking the remaining ties so the order is stable between scans rather than
-  -- dependent on whatever order the shellouts happened to return in.
+  -- Tier order first, so the things holding a port sit above the containers and
+  -- both sit above whatever holds neither. Then newest first inside a tier, with
+  -- the title breaking the remaining ties so the order is stable between scans
+  -- rather than dependent on whatever order the shellouts happened to return in.
   table.sort(kept, function(a, b)
     if (a.tier or 0) ~= (b.tier or 0) then return (a.tier or 0) < (b.tier or 0) end
     if (a.startedAt or 0) ~= (b.startedAt or 0) then return (a.startedAt or 0) > (b.startedAt or 0) end
