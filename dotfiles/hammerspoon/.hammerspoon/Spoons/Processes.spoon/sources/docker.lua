@@ -19,25 +19,28 @@ local util = loadfile(sourcePath .. "../util.lua")()
 local M = {}
 M.name = "docker"
 
--- hs.task takes a full path and does not consult PATH, and the docker CLI lands in
--- a different place depending on whether it came from Docker Desktop or Homebrew,
--- so the candidates are tried in order and the first that exists wins.
-local CANDIDATES = {
-  "/opt/homebrew/bin/docker",
-  "/usr/local/bin/docker",
-  (os.getenv("HOME") or "") .. "/.docker/bin/docker",
-  "/Applications/Docker.app/Contents/Resources/bin/docker",
-}
+-- The name this CLI is declared under, in docker.dependencies beside this file. The
+-- layer above looks the path up by it, so the declaration and this source agree on one
+-- spelling.
+M.tool = "docker"
 
 local FORMAT = "{{.ID}}|{{.Names}}|{{.Image}}|{{.Ports}}|{{.Status}}"
 
 M._timeout = 5
 M._grace = 3
 
+-- The resolved absolute path, handed in through configure. hs.task takes a full path and
+-- does not consult PATH, so this source needs one, but it does not go looking for it. The
+-- shared dependency door probes once for the whole config and the spoon root passes the
+-- answer down, which is why no install location appears anywhere in this file. Nil means
+-- the CLI is absent, which every function below already treats as unavailable.
+local cli = nil
+
 function M.configure(opts)
   opts = opts or {}
   M._timeout = opts.timeoutSeconds or M._timeout
   M._grace = opts.graceSeconds or M._grace
+  cli = opts.path or cli
   return M
 end
 
@@ -50,8 +53,7 @@ end
 --- handles a wedged daemon, and an empty result from a stopped daemon is the
 --- correct answer anyway, since a stopped daemon has no containers.
 function M.available()
-  local bin = util.firstExisting(CANDIDATES)
-  if not bin then return false, "docker cli not found" end
+  if not cli then return false, "docker cli not found" end
   return true
 end
 
@@ -76,10 +78,9 @@ end
 
 --- scan(cb)
 function M.scan(cb)
-  local bin = util.firstExisting(CANDIDATES)
-  if not bin then cb({}, "docker cli not found") return end
+  if not cli then cb({}, "docker cli not found") return end
 
-  util.run(bin, { "ps", "--format", FORMAT }, M._timeout, function(out, err)
+  util.run(cli, { "ps", "--format", FORMAT }, M._timeout, function(out, err)
     if not out then cb({}, err) return end
     local rows = {}
     for line in util.lines(out) do
@@ -119,8 +120,7 @@ end
 --- escalation has room to finish before the runner gives up on it.
 function M.stop(row, opts, cb)
   opts = opts or {}
-  local bin = util.firstExisting(CANDIDATES)
-  if not bin then cb(false, "docker cli not found") return end
+  if not cli then cb(false, "docker cli not found") return end
   local id = row.containerId
   if not id then cb(false, "refusing, no container on this row") return end
 
@@ -129,7 +129,7 @@ function M.stop(row, opts, cb)
     or { "stop", "--time", tostring(M._grace), id }
   local budget = (opts.force and M._timeout or M._grace + M._timeout)
 
-  util.run(bin, args, budget, function(out, err)
+  util.run(cli, args, budget, function(out, err)
     if err then
       cb(false, (opts.force and "kill failed, " or "stop failed, ") .. err)
     else

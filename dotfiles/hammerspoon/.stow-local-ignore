@@ -1,0 +1,9 @@
+# Repo only files at this package root, kept out of the home directory. The generated
+# manifest, the module level declaration, and the collector are the module's contract with
+# the layer above, so they belong to the repository rather than to the running config. The
+# declarations inside .hammerspoon are deliberately not listed, since the running config
+# reads them, both the per spoon ones and the per file ones such as
+# providers/mullvad.dependencies.
+DEPENDENCIES
+dependencies-module
+dependencies-collect

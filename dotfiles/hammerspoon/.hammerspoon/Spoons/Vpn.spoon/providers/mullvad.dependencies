@@ -1,0 +1,6 @@
+# What mullvad.lua needs from outside Hammerspoon, declared beside the only file that
+# knows this tool exists. Format is name | kind | locator | policy | reason.
+# See Dependencies.spoon for the kinds and for how these files are found.
+# Optional, because the spoon already answers an absent backend with a row that explains
+# itself, so the picker still opens and says what is wrong.
+mullvad | path | mullvad | optional | the relay CLI behind every VPN control and location

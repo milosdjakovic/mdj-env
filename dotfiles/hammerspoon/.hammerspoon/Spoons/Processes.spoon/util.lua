@@ -125,17 +125,6 @@ function M.run(binary, args, timeoutSeconds, cb)
   task:start()
 end
 
---- util.firstExisting(paths) -> path or nil
---- The first path that exists on disk. Used to resolve a CLI that lives in a
---- different place depending on how it was installed, since hs.task takes a full
---- path and does not consult PATH.
-function M.firstExisting(paths)
-  for _, p in ipairs(paths or {}) do
-    if p and hs.fs.attributes(p) then return p end
-  end
-  return nil
-end
-
 --- util.etimeSeconds(s) -> number
 --- Parse the elapsed time ps prints into seconds. BSD ps has no etimes keyword, so
 --- the three width dependent forms it does print have to be parsed by hand. They

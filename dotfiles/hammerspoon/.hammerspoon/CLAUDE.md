@@ -13,6 +13,90 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
   added, renamed, or removed. Each spoon that carries a non-obvious decision has its own
   `CLAUDE.md` beside its `init.lua`.
 
+**External tools, and the one door to them.** A spoon that needs something from
+outside Hammerspoon declares it in a plain declaration file, five fields per line,
+name, kind, locator, policy, and what breaks without it. `Dependencies.spoon` reads
+every such file at load with nothing listed in the root, probes them in one pass, and
+hands each spoon a per consumer adapter through `scope(name)`. That adapter is the only
+way a spoon may obtain an external tool, and it answers only for what that spoon
+declared, so an undeclared ask returns nothing and names the spoon in the console.
+Adding a declaration is one file and no wiring. The internals, the four kinds, the two
+policies, and where the line is drawn on what is worth declaring, are in
+`Spoons/Dependencies.spoon/CLAUDE.md`.
+
+**A declaration sits beside whatever knows the tool.** Two names are recognised
+anywhere under a spoon. A file called `dependencies` declares needs of the spoon as a
+whole, so it belongs at the spoon root, which is right when the spoon's own `init.lua`
+runs the tool, as in `Convert` and `Eyedropper`. A file called `<base>.dependencies`
+declares needs of its sibling `<base>.lua`, which is right whenever one inner file is
+the only one that knows the tool exists. So `providers/mullvad.dependencies` is that
+provider's own contract, `providers/macshot.dependencies` is that backend's, and
+`manager/preview.dependencies` and `engine.dependencies` follow the same rule for the
+files that actually shell out. Adding a backend is then a new file plus its own
+declaration, with nothing shared to edit, which is the same reason providers are
+separate files in the first place.
+
+The adapter is still scoped to the spoon rather than to the file, because the spoon root
+is what the composition root injects into and what wires its own providers. Placement
+decides which file owns a line, the spoon still decides who may ask for it, and the
+owner label rides along so a missing tool reads `Capture/macshot` instead of `Capture`.
+Both readers, the runtime resolver and `dependencies-collect`, apply one rule, since a
+file only one of them found would be either invisible at runtime or absent from the
+manifest.
+
+**A spoon names a tool and never names how to install one.** This is the layering
+rule that makes the rest work, and the direction is strict. A declaration says it
+needs a binary called `displayplacer`. It does not know Homebrew exists, does not
+know a Brewfile exists, and does not know it lives in this repository. The
+declarations travel upward, collected by `dotfiles/hammerspoon/dependencies-collect`
+into one generated `DEPENDENCIES` manifest at the package root, and that manifest is
+this module's whole contract with the layer above, which maps each name to a formula,
+a cask, a tap, or a manual step. So the layer above never looks inside a spoon and
+nothing under this directory ever mentions a package manager. Four places used to break
+this rule and all of them are gone, a set of hardcoded Homebrew prefixes, two console
+lines advising a `brew` command, a chooser row offering to copy a `brew install` line to
+the clipboard, and a generator script telling you to run one. The last two survived
+longest because they were help text rather than code, which is exactly why the
+reconciler now greps every file type under `dotfiles` for an install verb. Data flowing
+the other way is fine, an upper layer injecting something downward is just
+configuration, which is what the whole root already is.
+
+The most useful thing that removal taught is why help text is not exempt. The install
+line in the VPN row was a second copy of an answer the repository already held once, in
+`DEPENDENCIES.map`, so the two could drift apart with nothing to catch it. What replaced
+it is a disabled row and a console line that name the gap and stop, and the repository
+answers where the tool comes from.
+
+A need that belongs to the whole module rather than to any spoon goes in
+`dotfiles/hammerspoon/dependencies-module`, which the collector folds in first and
+stamps with the module name. Today that is the Hammerspoon application itself, which
+has no runtime consumer because nothing here would be running without it, so the
+resolver never sees it and only the layer above acts on it. That file is deliberately
+not called `dependencies`, because this filesystem is case insensitive and a file with
+that name beside the generated `DEPENDENCIES` is literally the same file. That mistake
+was made once and it silently re-stamped every consumer column on each run rather than
+failing, so the collector now refuses to read its own output.
+
+The consumer column of the manifest is stamped from where the declaration sits rather
+than written by hand, so a file cannot mislabel itself and a rename cannot leave a stale
+owner behind. A leaf declaration is therefore five fields and the generated manifest is
+six. Regenerate after editing a declaration, and the reconciler one layer up regenerates
+too so a stale manifest cannot be committed.
+
+**What happens when a tool is missing is a declared policy, not a habit.**
+`optional` means the feature, or one backend of it, is quietly excluded from every
+list and overlay, with one console line naming what was dropped and why, which is how
+a missing `ffmpeg` already left video previews out. `required` means the root refuses
+to wire the spoon at all, so no key, no launcher row, and nothing that would fail when
+chosen. Required is reserved for a spoon that is only a front end onto its tool, where
+a dead surface would be worse than no surface, and `Convert` is the one example. The
+choice is about what the user sees rather than how badly the spoon wants the tool, so
+`Eyedropper` is optional even though its sampler cannot be built without a compiler,
+because it already answers a failed build with an alert and its key stays worth
+finding. Every reload logs one summary line, how many tools were declared, how many
+resolved, and what each absent one disables, so a feature that quietly vanished always
+has a stated reason.
+
 **Leader keys (META < SUPER < HYPER).** Three physical keys can be remapped to
 unused function keys, named for the classic X11/Emacs modifier hierarchy,
 ascending with the Fn number. Hammerspoon owns the remap now, not a login
@@ -787,6 +871,19 @@ offscreen and a position in a list. The message goes out through an injected `on
 root draws it on the shared `CanvasPanel`, following the transient feedback surface rule above.
 
 **Launcher.** Hyper+Space opens a filterable app switcher and command runner, the built-in one, built over the Chooser atom. It is a coordinator spoon that owns the app scan caches and an `hs.application.watcher`, orders open apps by recency the way Command+Tab does, and follows the picker checklist above. Its decision trail and internals live in `Spoons/Launcher.spoon/CLAUDE.md`.
+
+Besides its catalog of apps and commands it also shows rows *computed* from what is
+typed, supplied by injected query row sources the root composes in order. A source is
+any table answering `rows(query)`, so the launcher learns nothing about what any of
+them computes, the same shape as its leaf action dispatch but for producing rows
+rather than running them. Two ship, `Arithmetic` and `Convert`, and they are two
+spoons rather than one calculator precisely because they fail differently, which makes
+them the worked example of the dependency policies above. Arithmetic is native Lua and
+can never be unavailable. Convert declares its calculator tool required, so when that
+tool is absent the root leaves it out of the source list and no conversion row exists
+at all, while arithmetic is untouched. Choosing a computed row hands its value to an
+injected `copy` action, so the launcher still never learns what a clipboard is. Neither
+source is a bound shortcut, so both are exempt from the two discoverability mandates.
 
 **Emoji.** Hyper+J opens an emoji picker. Emoji is a facade over interchangeable backends, the same shape as Chooser, so the root names which one the key opens in a priority ordered list by reference and the first available wins. Three backends ship, the built in picker over the Chooser atom, the macos Character Viewer triggered by Ctrl Cmd Space, and a custom backend that runs an injected callback so an external picker reached by a URL scheme or a trigger becomes a backend with no file of its own. The default is the built in picker, which owns one vendored dataset fetched once by its `regenerate.sh` and committed as `data.json`, merging the GitHub gemoji set with a safe slice of native Unicode symbols from the official Character Database, currency and arrows and math and the Mac modifier keys and more, so a query by name, shortcode, tag, or category finds a glyph without its exact Unicode name. Every matching emoji ranks above every matching symbol, so a query lists the emoji first and the plainer glyphs below. A pick is inserted into the focused field through an injected `onInsert`, so the backend never learns the effect, and it follows the picker checklist above. The root wires `onInsert` to the clipboard manager's `pasteText`, which pastes the glyph rather than typing it, because a synthesized keystroke mangles an astral glyph like an emoji in a terminal and in some native apps while a paste carries the real bytes everywhere, and `pasteText` snapshots the clipboard and restores it after so the paste stays invisible. It degrades to typing when the clipboard manager is absent. The provider strategy, the decision trail and internals, the safe symbol selection, the render based tofu filter, and the icon memory behavior, live in `Spoons/Emoji.spoon/CLAUDE.md`.
 

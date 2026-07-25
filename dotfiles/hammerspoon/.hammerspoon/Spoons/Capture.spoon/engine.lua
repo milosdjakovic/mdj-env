@@ -48,6 +48,7 @@ obj._defaultProviders = nil  -- chain used when configure is given no providers
 obj._providers = nil     -- active chain, in priority order, contract-checked
 obj._hyperKey = nil
 obj._lastReason = nil    -- name -> last failing reason, for deduped live logging
+obj._deps = nil          -- injected per consumer dependency adapter, handed to each available()
 
 --- Capture:init()
 --- Method
@@ -63,9 +64,16 @@ end
 ---                  defaults to the chain wired up in init.lua
 --- opts.hyperKey  - optional HyperKey spoon; when present, bindHotkeys binds
 ---                  into its modal and dispatch waits for its release
+--- opts.deps      - the per consumer dependency adapter, injected by the composition root
+---                  and handed to each provider's available(). A provider backed by an
+---                  external tool asks it rather than probing, so the probing happens once
+---                  for the whole config and no provider names an install method. Absent
+---                  only when the root did not wire it, which such a provider reports as
+---                  its own reason for standing aside.
 function obj:configure(opts)
   opts = opts or {}
   self._hyperKey = opts.hyperKey
+  self._deps = opts.deps
   self._providers = self:_validate(opts.providers or self._defaultProviders or {})
   self:_logAvailability()
   return self
@@ -106,7 +114,7 @@ function obj:_logAvailability()
   local anyFailed = false
   for _, provider in ipairs(self._providers or {}) do
     local name = provider.name or "?"
-    local ok, reason = provider:available()
+    local ok, reason = provider:available(self._deps)
     if ok then
       table.insert(active, name)
     else
@@ -139,7 +147,7 @@ function obj:capture(action)
     for _, provider in ipairs(self._providers or {}) do
       if provider:supports(action) then
         local name = provider.name or "?"
-        local ok, reason = provider:available()
+        local ok, reason = provider:available(self._deps)
         if ok then
           if self._lastReason[name] then
             log.i(name .. " available")

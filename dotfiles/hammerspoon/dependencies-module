@@ -1,0 +1,13 @@
+# What this module needs that no single spoon owns.
+#
+# Format is name | kind | locator | policy | reason, the same five fields a spoon uses. The
+# collector stamps the consumer column with this module's name, since the need belongs to the
+# module as a whole rather than to anything inside it.
+#
+# Nothing here is read by the running config. The resolver inside .hammerspoon serves spoons and
+# probes only what a spoon declared, so a need like the application itself, which has no runtime
+# consumer because nothing would be running without it, is declared here instead.
+#
+# Named dependencies-module rather than dependencies because this directory already holds the
+# generated DEPENDENCIES, and on a case insensitive filesystem those two names are one file.
+hammerspoon | app | org.hammerspoon.Hammerspoon | required | the application this entire module configures

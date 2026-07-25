@@ -22,6 +22,7 @@ local log = hs.logger.new("hs.config", "info")
 -- Load Spoons
 --------------------------------------------------------------------------------
 
+hs.loadSpoon("Dependencies")
 hs.loadSpoon("KeyRemap")
 hs.loadSpoon("ChordKey")
 hs.loadSpoon("CheatSheet")
@@ -51,10 +52,30 @@ hs.loadSpoon("Emoji")
 hs.loadSpoon("TextCase")
 hs.loadSpoon("BrowserTabs")
 hs.loadSpoon("Processes")
+hs.loadSpoon("Arithmetic")
+hs.loadSpoon("Convert")
 
 --------------------------------------------------------------------------------
 -- Initialize Spoons
 --------------------------------------------------------------------------------
+
+-- Dependencies first, because it is the one door to every external tool and the
+-- spoons below are handed their resolved paths through it. A need is declared beside
+-- whatever knows the tool, so a provider carries its own, and this reads the whole set
+-- off disk with nothing listed here, probes it in one pass, and logs a single summary
+-- line naming anything missing and what that disables. A spoon asking for a tool it did
+-- not declare gets nothing and is named in the console, which is what makes an
+-- undeclared dependency fail on the machine of whoever added it.
+--
+-- Nothing in this config, including this root, knows how a tool is installed. The
+-- declarations travel upward through the collected manifest at the package root, and
+-- the layer above maps each name to a formula, a cask, a tap, or a manual step. So a
+-- new dependency is a line in a spoon's own file plus one mapping one layer up, and
+-- never a Homebrew mention anywhere under this directory.
+spoon.Dependencies:init()
+spoon.Dependencies:configure({})
+spoon.Dependencies:start()
+local function depsFor(name) return spoon.Dependencies:scope(name) end
 
 -- Leader key remap. The catalog in config/keys.lua lists which physical key maps
 -- to which unused function key; KeyRemap applies that at the HID level. A leader
@@ -943,6 +964,45 @@ end
 -- predicate above, both where the shared registries live. The leaf action closures
 -- are only called at runtime, so the domain spoons they name need only be configured
 -- by the time a row is chosen, not now.
+-- Query row sources for the launcher. Each is a small spoon answering rows(query), and the
+-- launcher prepends whatever they return above its own list, so typing an expression shows
+-- its result and typing anything else costs a couple of cheap misses. They are two spoons
+-- rather than one calculator because they fail differently. Arithmetic is native Lua and
+-- can never be unavailable, so it is always in the list. Conversion is a front end onto a
+-- tool from outside Hammerspoon, declared required, so when that tool is absent it is left
+-- out of this list entirely and the launcher simply never offers a conversion row, while
+-- arithmetic keeps working. That is the rule this whole dependency layer exists to serve,
+-- an absent tool removes its feature from the interface and explains itself in the console
+-- rather than leaving a row that fails when chosen.
+--
+-- Neither source is a bound shortcut, so neither appears in a cheat sheet or as a static
+-- launcher row, which is why the two discoverability mandates do not apply to them. They
+-- are found by typing, which is the only way a computed row could be found at all.
+--
+-- The order here is the order the rows appear. Arithmetic leads because its answer is
+-- instant while a conversion has to wait for a process, and because the two never both
+-- match, an arithmetic expression carries no target word and a conversion carries letters.
+spoon.Arithmetic:init()
+spoon.Arithmetic:configure({ glyph = "🧮", category = "Arithmetic" })
+
+local queryProviders = { spoon.Arithmetic }
+local convertDeps = depsFor("Convert")
+if convertDeps.satisfied() then
+  spoon.Convert:init()
+  spoon.Convert:configure({
+    path = convertDeps.path(spoon.Convert.tool),
+    glyph = "📐",
+    category = "Convert",
+    -- The answer arrives after the row was built, so the spoon says so and the launcher
+    -- rebuilds. The spoon is handed a callback rather than the launcher, so it stays a row
+    -- source that knows nothing about what shows its rows.
+    onResult = function() spoon.Launcher:refresh() end,
+  })
+  queryProviders[#queryProviders + 1] = spoon.Convert
+else
+  log.i("Convert is not wired, unit and currency conversion will not appear in the launcher")
+end
+
 spoon.SystemSettings:configure({ panes = settingsPanes })
 spoon.Launcher:init()
 spoon.Launcher:configure({
@@ -957,7 +1017,12 @@ spoon.Launcher:configure({
   settingsPanes = spoon.SystemSettings:rows(),
   predicates = predicates,
   shortcutPanel = shortcutPanelFor("launcher"),
+  queryProviders = queryProviders,
   actions = {
+    -- Where a computed result goes. A plain pasteboard write on purpose, so the result
+    -- lands in clipboard history like any other copy and can be pasted again later,
+    -- unlike the hidden writes the emoji and text case paths use to leave history alone.
+    copy = function(value) hs.pasteboard.setContents(value) end,
     app = function(bundleID, url)
       if url then
         spoon.AppToggler:toggleURL(bundleID, url)
@@ -1158,6 +1223,7 @@ local vpnPanel = shortcutPanelFor("vpn")
 spoon.Vpn.configure({
   theme = settings.chooserTheme,
   chooser = spoon.Chooser,
+  deps = depsFor("Vpn"),
   onPositioned = vpnPanel.onPositioned,
   onActivity = vpnPanel.onActivity,
   onClose = vpnPanel.onClose,
@@ -1308,7 +1374,7 @@ spoon.HyperKey:bind(keys.browserTabs.key, function() spoon.BrowserTabs:show() en
 -- registry below.
 local processesPanel = shortcutPanelFor("processes")
 spoon.Processes:init()
-spoon.Processes:configure({ policy = processes })
+spoon.Processes:configure({ policy = processes, deps = depsFor("Processes") })
 spoon.Processes.chooser.configure({
   chooser = spoon.Chooser,
   theme = settings.chooserTheme,
@@ -1377,6 +1443,7 @@ local clipMessageToast = spoon.CanvasPanel.new({
 })
 local clipMessageTimer
 
+local clipDeps = depsFor("ClipboardHistory")
 spoon.ClipboardHistory.manager.configure({
   onMessage = function(text)
     clipMessage.text = text
@@ -1388,6 +1455,11 @@ spoon.ClipboardHistory.manager.configure({
   end,
   theme = settings.chooserTheme,
   chooser = spoon.Chooser,
+  -- The two video preview tools, resolved once by the shared door and passed down to the
+  -- preview chain, which now looks for nothing itself. Nil for either simply leaves video
+  -- previews out, which the shared summary line already explained by name.
+  ffmpeg = clipDeps.path("ffmpeg"),
+  ffprobe = clipDeps.path("ffprobe"),
   -- The clipboard parses a type prefix off its query ("img ...") so it owns filtering and
   -- opts out of the atom's matcher at its own new(). For the free-text part it uses the word
   -- matcher, not fuzzy. Clipboard entries are prose and code searched from the inside, where
@@ -1509,6 +1581,10 @@ end)
 spoon.Capture:init()
 spoon.Capture:configure({
   hyperKey = spoon.HyperKey,
+  -- The dependency adapter reaches each provider through the engine, so a provider
+  -- backed by an external tool asks for it by the name Capture declared instead of
+  -- probing, and it stands aside with a plain reason when the tool is absent.
+  deps = depsFor("Capture"),
   providers = {
     spoon.Capture.providers.macshot,
     spoon.Capture.providers.native,
@@ -1569,6 +1645,9 @@ local colorToast = spoon.CanvasPanel.new({
 local colorToastTimer
 spoon.Eyedropper:init()
 spoon.Eyedropper:configure({
+  -- The Swift compiler that builds the native sampler, resolved once by the shared
+  -- door rather than by the spoon, so the spoon hardcodes no path.
+  compiler = depsFor("Eyedropper").path("swiftc"),
   onPick = function(hex)
     pickState.hex = hex
     pickState.color = hexToColor(hex)
@@ -1721,6 +1800,9 @@ spoon.DisplayProfiles:configure({
   settleDelay = displays.settleDelay,
   host = host,
   storePath = hs.configdir .. "/config/display-profiles.json",
+  -- The arrangement tool, resolved once by the shared door. Nil means it is absent, and
+  -- the engine then manages nothing and says so, rather than probing for it itself.
+  binary = depsFor("DisplayProfiles").path("displayplacer"),
 })
 spoon.DisplayProfiles:start()
 -- The inspect and manage chooser. Its api comes from the spoon, injected in configure above,

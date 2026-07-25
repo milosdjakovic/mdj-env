@@ -120,6 +120,25 @@ offers that, and only while the browser is running, since a permission for a clo
 resolve. `denied` cannot be re-prompted at all, so the only honest offer is the Automation
 pane in System Settings. `notRunning` means there is nothing to ask about yet.
 
+## Both outside tools are declared, and neither is injected
+
+This spoon runs two binaries, `osascript` from `jxa.lua` and `swiftc` from
+`permissions.lua`, and each is declared in a `.dependencies` file beside the file that
+names it. Both are the system kind, binaries at fixed absolute paths that cannot move
+between machines, so the declaration records the path and the Lua file keeps the same
+literal. Nothing is resolved at load and nothing is handed in through `configure`. The
+declarations exist so the repository's manifest records what this spoon actually runs,
+which is the whole point of declaring rather than probing.
+
+`swiftc` is declared here and also by `Eyedropper`, which compiles its own native helper.
+Both declarations are kept. A declaration belongs beside whatever knows the tool, and
+neither spoon should have to learn that the other exists. The manifest carries a line per
+owner, the repository joins them by name, and one map entry answers both.
+
+Both are optional rather than required, because required means the root should refuse to
+wire the spoon, and the root wires this one unconditionally. A missing compiler is already
+answered in this spoon's own words through the permission rows.
+
 ## A row appears only when it asks something of you
 
 The browser level showed its state as read only rows at first, installed, open, and the

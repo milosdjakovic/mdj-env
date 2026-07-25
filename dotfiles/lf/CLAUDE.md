@@ -33,3 +33,14 @@ fzf has a hardcoded ~100ms delay on Escape to distinguish it from escape sequenc
 ## Previous directory tracking
 
 lf has no built-in previous directory feature. The `on-cd` hook saves the current directory to a temp file. The `-` binding navigates to the previous directory. Temp files use lf's instance id to avoid conflicts between multiple instances.
+
+## Declared dependencies
+
+This module needs tools on the machine and installs none of them. `DEPENDENCIES` at
+the package root is the whole contract upward, and the repository root `CLAUDE.md`
+explains the format and who acts on it.
+
+Worth noting that tmux is a required dependency here, not an optional one. Every
+preview, confirmation, and picker in `lfrc` opens as a `tmux display-popup`, so this
+module does not work standalone in a bare terminal. That is a deliberate consequence
+of the popup approach documented above, not an oversight.

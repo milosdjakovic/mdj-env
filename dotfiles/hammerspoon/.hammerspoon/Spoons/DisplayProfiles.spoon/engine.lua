@@ -29,7 +29,7 @@ local log = hs.logger.new("DisplayProfiles", "info")
 
 -- Configured state
 E._profiles = nil     -- active list for this machine, each with precomputed ids and count
-E._binary = nil       -- displayplacer invocation used for the list query
+E._binary = nil       -- injected resolved displayplacer path, nil when it is not installed
 E._settleDelay = nil  -- seconds to coalesce a burst of screen events
 E._watcher = nil      -- hs.screen.watcher instance
 E._debounce = nil     -- delayed timer that fires one reconcile per settled burst
@@ -66,14 +66,16 @@ E.signatureOf = signatureOf
 ---                  defaults to empty, which just means nothing is applied automatically.
 --- opts.settleDelay seconds to wait for displays to settle after a change before applying,
 ---                  defaults to 1.5.
---- opts.binary      the displayplacer command used to query attached displays, defaults to
----                  "displayplacer", found on PATH in a login shell.
+--- opts.binary      the resolved absolute path of the displayplacer command, injected by the
+---                  composition root from the shared dependency resolver. This engine probes
+---                  for nothing itself and names no way to install anything, so a nil here
+---                  simply means the tool is absent and no arrangement is managed.
 --- opts.onChange    optional, called after each settled screen change so a live view can
 ---                  redraw against the new arrangement.
 --- Safe to call again after a store edit to swap the profile list in place.
 function E:configure(opts)
   opts = opts or {}
-  self._binary = opts.binary or "displayplacer"
+  self._binary = opts.binary
   self._settleDelay = opts.settleDelay or 1.5
   if opts.onChange ~= nil then self._onChange = opts.onChange end
   self._profiles = {}
@@ -94,6 +96,14 @@ function E:configure(opts)
   return self
 end
 
+-- The raw output of the tool's list query, or an empty string when no tool was injected.
+-- One place guards the absent case, so every reader below stays a plain parse and a caller
+-- that runs before start, like a console capture, cannot fault on a missing tool.
+function E:_list()
+  if not self._binary then return "" end
+  return hs.execute('"' .. self._binary .. '" list', true) or ""
+end
+
 -- Read the displays attached right now, cached until the next screen change. Returns the
 -- union of persistent and serial ids as a set, plus the screen count. Both id types go in
 -- the set so a profile written with either kind matches.
@@ -101,7 +111,7 @@ function E:_attached()
   if self._attachedCache then
     return self._attachedCache.ids, self._attachedCache.count
   end
-  local out = hs.execute(self._binary .. " list", true) or ""
+  local out = self:_list()
   local ids, count = {}, 0
   for id in out:gmatch("Persistent screen id: (%S+)") do
     ids[id] = true
@@ -186,8 +196,7 @@ end
 --- profile, or nil when displayplacer prints none. This is the read half of the old capture
 --- helper, now returning the string so the command policy decides what to do with it.
 function E:currentCommand()
-  local out = hs.execute(self._binary .. " list", true) or ""
-  return out:match("\n(displayplacer [^\n]+)%s*$")
+  return self:_list():match("\n(displayplacer [^\n]+)%s*$")
 end
 
 --- E:capture(toClipboard)
@@ -235,20 +244,18 @@ end
 --- Apply the matching profile once, then watch for screen changes and reapply on each
 --- settled change. Screen events arrive in bursts, so they arm a delayed timer and one
 --- reconcile runs once the burst stops. Each settled change clears the attached cache first,
---- since the set may have changed, then reconciles and notifies the injected onChange. If
---- displayplacer is missing, log an error and do nothing, since nothing here works without
---- it.
+--- since the set may have changed, then reconciles and notifies the injected onChange. With
+--- no tool injected there is nothing this engine can read or apply, so it starts nothing and
+--- says so, leaving the arrangement to macOS.
 function E:start()
-  -- Resolve the one dependency and log the result at init, so the console shows plainly
-  -- whether displayplacer was found and how many profiles are being managed, rather than
-  -- leaving a missing tool to look like nothing ever matched.
-  local path, ok = hs.execute("command -v " .. self._binary, true)
-  if ok ~= true then
-    log.w("dependency displayplacer NOT found on PATH, displays will not be managed; run brew bundle to install it")
+  -- The tool is resolved outside this engine and handed in, so there is no probe here. A nil
+  -- means absent, which the shared summary line already reported by name, so this only states
+  -- the consequence for displays. How to install anything is not this engine's business.
+  if not self._binary then
+    log.w("displayplacer is not available, display arrangements will not be managed")
     return self
   end
-  log.i(string.format("dependency displayplacer found at %s, managing %d profile(s)",
-    (path or "?"):gsub("%s+$", ""), #self._profiles))
+  log.i(string.format("managing %d display profile(s)", #self._profiles))
   self:reconcile()
   self._debounce = hs.timer.delayed.new(self._settleDelay, function()
     self._attachedCache = nil

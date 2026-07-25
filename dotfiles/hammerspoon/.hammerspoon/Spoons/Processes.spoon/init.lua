@@ -70,6 +70,8 @@ obj.chooser = load("chooser.lua")
 --- Method
 --- opts.policy   the pure data from config/processes.lua
 --- opts.sources  an ordered source list, overriding the default order above
+--- opts.deps     the per consumer dependency adapter from the root, the only way a
+---               source here learns where its CLI lives
 ---
 --- Wraps the engine's own configure so this file stays the only place that knows
 --- both which sources exist and which part of the policy each one reads. The engine
@@ -103,9 +105,15 @@ function obj:configure(opts)
     timeoutSeconds = policy.scanTimeoutSeconds,
   })
 
+  -- Docker is the one source here whose tool is not a fixed system path, so it is the one
+  -- that gets handed a resolved location. It is looked up by the name the source itself
+  -- declares, the same way the Vpn spoon hands its provider a path, so this file names a
+  -- source but never a location. Without a docker CLI the lookup yields nil, the source
+  -- reports itself unavailable, and the picker simply shows no containers.
   obj.sources.docker.configure({
     graceSeconds = stop.graceSeconds,
     timeoutSeconds = policy.scanTimeoutSeconds,
+    path = opts.deps and opts.deps.path(obj.sources.docker.tool) or nil,
   })
 
   configureEngine(self, {

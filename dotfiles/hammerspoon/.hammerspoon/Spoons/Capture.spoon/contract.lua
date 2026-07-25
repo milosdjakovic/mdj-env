@@ -8,11 +8,15 @@
 --- that does not conform.
 ---
 --- A provider is a plain table with an optional `name` and these methods.
----   available(self) -> boolean[, reason]
+---   available(self, deps) -> boolean[, reason]
 ---       Is this backend usable right now. Checked LIVE on every dispatch, since
 ---       an app can be quit or reconfigured after load. Return false plus a short
 ---       reason string on failure, which the engine logs so you can see why it
----       stepped aside.
+---       stepped aside. `deps` is the per consumer dependency adapter the engine was
+---       given, so a provider backed by an external tool asks it by the name this
+---       spoon declared rather than probing, and a provider that needs nothing
+---       outside Hammerspoon ignores the argument. A reason names what is wrong and
+---       never how to install anything, since a provider knows no installer.
 ---   supports(self, action) -> boolean
 ---       Does this backend implement this action.
 ---   trigger(self, action) -> boolean

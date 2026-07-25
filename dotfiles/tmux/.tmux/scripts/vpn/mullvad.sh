@@ -15,7 +15,10 @@
 #   vpn_locations     prints DISPLAY<TAB>ID per line
 #   vpn_set_location  selects the server for an ID and connects
 
-MULLVAD="${MULLVAD:-/usr/local/bin/mullvad}"
+# Named rather than pathed, so this module stays ignorant of where anything is installed and
+# works the same on either architecture. Still overridable, which is how the contract above can
+# be exercised against a stub.
+MULLVAD="${MULLVAD:-mullvad}"
 
 vpn_name() { printf 'Mullvad\n'; }
 

@@ -1,39 +1,44 @@
 --- Capture provider, macOCR CLI.
 ---
---- Backed by schappim's macOCR (the `ocr` binary, brew install schappim/ocr/ocr).
---- Run with no arguments it lets you drag a screen region, OCRs it, and copies
---- the recognized text to the clipboard, so it is the text counterpart to the
---- screenshot providers. It draws its own region selection, so unlike native it
---- synthesizes no keystrokes. The engine already waits for the Hyper key to be
---- released before dispatch, which is all the selection overlay needs to own
---- Escape and Enter.
+--- Backed by an OCR command line tool that, run with no arguments, lets you drag a
+--- screen region, OCRs it, and copies the recognized text to the clipboard, so it is
+--- the text counterpart to the screenshot providers. It draws its own region
+--- selection, so unlike native it synthesizes no keystrokes. The engine already
+--- waits for the Hyper key to be released before dispatch, which is all the
+--- selection overlay needs to own Escape and Enter.
 ---
---- All macOCR knowledge lives here, its binary name and the one action it serves.
---- It supports only ocrArea, so the screenshot actions fall through to the other
---- providers and ocrArea falls through to it. available() resolves the binary on
---- the user's login PATH, so it works on both Apple Silicon (/opt/homebrew/bin)
---- and Intel (/usr/local/bin) with no path hardcoded, and steps aside cleanly on
---- a machine where it is not installed.
+--- All knowledge of that tool lives here, the name it is declared under and the one
+--- action it serves. It supports only ocrArea, so the screenshot actions fall
+--- through to the other providers and ocrArea falls through to it.
+---
+--- It resolves nothing itself. The engine hands it the dependency adapter and it
+--- asks for the tool by the name this spoon declared, so the probing happens once
+--- for the whole config, no path or Homebrew prefix is hardcoded, and this file
+--- names no way to install anything. It steps aside cleanly when the tool is absent.
 
 return {
   name = "macocr",
-  binary = "ocr",
+  -- The name this tool is declared under in the spoon's dependencies file. Both the
+  -- declaration and this lookup use it, so a rename is caught by the adapter rather
+  -- than failing silently.
+  tool = "ocr",
   actions = { ocrArea = true },
 
-  -- Absolute path resolved by available() and consumed by trigger(). Dispatch
+  -- Absolute path handed over by available() and consumed by trigger(). Dispatch
   -- always calls available() immediately before trigger(), so this field is the
   -- one seam between them, the liveness check and the launch share the exact
   -- path it found rather than resolving twice or hardcoding a location.
   _resolved = nil,
 
-  available = function(self)
-    -- Resolve on the user's login PATH so both Homebrew prefixes work without
-    -- hardcoding either. Trim the trailing newline command -v prints.
-    local path = hs.execute("command -v " .. self.binary, true) or ""
-    path = path:gsub("%s+$", "")
-    if path == "" then
+  available = function(self, deps)
+    if not deps then
       self._resolved = nil
-      return false, "not installed (brew install schappim/ocr/ocr)"
+      return false, "no dependency adapter injected"
+    end
+    local path = deps.path(self.tool)
+    if not path then
+      self._resolved = nil
+      return false, "not installed"
     end
     self._resolved = path
     return true

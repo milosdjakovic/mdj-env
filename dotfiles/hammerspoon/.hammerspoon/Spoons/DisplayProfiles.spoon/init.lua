@@ -84,7 +84,7 @@ end
 -- so a capture, rename, or delete takes effect in the running config without a reload. The
 -- settle delay is passed again since configure defaults it when omitted.
 function obj:_rebuild()
-  engine:configure({ profiles = self:_merged(), settleDelay = self._settleDelay })
+  engine:configure({ profiles = self:_merged(), settleDelay = self._settleDelay, binary = self._binary })
   engine:reconcile(true)
 end
 
@@ -142,6 +142,9 @@ end
 ---                  store is disabled and the tool shows only the curated profiles.
 --- opts.storePath   absolute path to the captured profiles JSON, resolved by the main root
 ---                  from the live config directory. Without it the store is disabled.
+--- opts.binary      the resolved absolute path of the display arrangement tool, injected by
+---                  the main root from the shared dependency resolver and passed straight to
+---                  the engine. Nothing here probes for it or names how it is installed.
 --- Builds the store, merges curated and captured, injects the merged list into the engine,
 --- and hands the chooser its api. The chooser's view deps (theme, factory, panel callbacks)
 --- come separately from the main root, so this is safe to call before or after that.
@@ -149,12 +152,14 @@ function obj:configure(opts)
   opts = opts or {}
   self._curated = opts.profiles or {}
   self._settleDelay = opts.settleDelay
+  self._binary = opts.binary
   if opts.host and opts.storePath then
     self._store = store.new({ path = opts.storePath, host = opts.host })
   end
   engine:configure({
     profiles = self:_merged(),
     settleDelay = opts.settleDelay,
+    binary = opts.binary,
     onChange = function() self.chooser.refresh() end,
   })
   self.chooser.configure({ api = self:_buildApi() })

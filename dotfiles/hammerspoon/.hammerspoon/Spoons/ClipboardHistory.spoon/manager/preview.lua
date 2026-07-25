@@ -23,28 +23,9 @@
 
 local P = {}
 
-local log = hs.logger.new("ClipPreview", "info")
-
 local util = nil
-local ffmpeg = nil -- resolved absolute path, or nil when ffmpeg is not installed
+local ffmpeg = nil -- injected absolute path, or nil when ffmpeg is not installed
 local ffprobe = nil
-
--- Resolve a Homebrew binary: the two standard prefixes first (Apple Silicon then
--- Intel), then the login shell's PATH as a fallback. hs.task needs an absolute
--- path, it does not search PATH. Returns an absolute path or nil.
-local function resolveBin(name)
-  for _, p in ipairs({ "/opt/homebrew/bin/" .. name, "/usr/local/bin/" .. name }) do
-    if hs.fs.attributes(p) then
-      return p
-    end
-  end
-  local out = hs.execute("command -v " .. name, true) -- true: user's login PATH
-  out = out and out:gsub("%s+$", "") or ""
-  if #out > 0 and hs.fs.attributes(out) then
-    return out
-  end
-  return nil
-end
 
 local function wrote(dest)
   return hs.fs.attributes(dest) ~= nil
@@ -178,16 +159,16 @@ function P.generate(spec, cb)
 end
 
 --- P.configure(opts)
---- Inject util and resolve the external tools once. A missing ffmpeg is logged to
---- the Hammerspoon console (brew install ffmpeg), so video previews explain their
---- absence instead of failing silently; sips and hs.image need nothing installed.
+--- Inject util and the tool paths. This module resolves nothing itself, the paths come
+--- from the outside already resolved, so it names no binary location and no installer,
+--- and the shared resolver above it does the probing once for every consumer. A nil
+--- ffmpeg simply leaves the video generator unable to handle anything, which the chain
+--- treats as any other non handler, and the shared summary line already reports the
+--- absence, so nothing is logged twice here. sips and hs.image need nothing installed.
 function P.configure(opts)
   util = opts.util
-  ffmpeg = opts.ffmpeg or resolveBin("ffmpeg")
-  ffprobe = opts.ffprobe or resolveBin("ffprobe")
-  if not ffmpeg then
-    log.w("ffmpeg not found (brew install ffmpeg); video clipboard previews are disabled")
-  end
+  ffmpeg = opts.ffmpeg
+  ffprobe = opts.ffprobe
   return P
 end
 

@@ -165,6 +165,35 @@ container publishing nothing, a reversed registration, and two listeners in one
 group. They agree on all of them, which is the guarantee that generalizing the rule
 changed nothing that was already working.
 
+## Where the four tools come from, and why only one is injected
+
+This spoon shells out to `ps`, `kill`, `lsof` and `docker`, and it probes for none of them.
+Each is declared in a `.dependencies` file beside the source that names it, so
+`sources/ports.dependencies` covers `ports.lua` and `metrics.dependencies` covers
+`metrics.lua`. The shared resolver in `Dependencies.spoon` reads every declaration once at
+load and the root hands this spoon a scope through `configure`.
+
+The four split into two shapes, and the split decides how much moves. `ps`, `kill` and
+`lsof` are the system kind, binaries at fixed absolute paths that cannot move between
+machines, so the declaration records the path and the source file keeps the same literal at
+the top. Nothing is injected and nothing should be. `docker` is the path kind, found on the
+login PATH, so its resolved absolute path is handed to `sources/docker.lua` through its
+`configure` and no install location appears in this spoon at all. That matters because
+`hs.task` takes a full path and never consults PATH, which is the reason a docker source is
+tempted to go looking on its own. An earlier version did exactly that, carrying a list of
+Homebrew and Docker.app candidates, and it was removed.
+
+Without a docker CLI the lookup yields nil, `available()` reports the reason, the merge
+gains no container rows, and the other two sources are unaffected. Every declaration here is
+optional rather than required, because required means the root should refuse to wire the
+spoon and the root wires this one unconditionally. Claiming otherwise would be a promise the
+config does not keep.
+
+`ps`, `kill` and `lsof` are declared by both `ports.lua` and `runtimes.lua`, once each,
+because a declaration belongs beside whatever knows the tool and neither source should learn
+that the other exists. The manifest carries a line per owner and the repository joins them by
+name, so the repeat costs nothing.
+
 ## Three shellout facts that will bite anyone who touches this
 
 **hs.task deadlocks on large output unless you stream it.** A task built with only a

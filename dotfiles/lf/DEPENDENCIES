@@ -1,0 +1,12 @@
+# What this module needs on the machine, name | kind | locator | policy | consumer | reason.
+# The format and the kinds are documented in the repository root CLAUDE.md. This file names
+# tools and never how to install one, since that mapping is DEPENDENCIES.map one layer up.
+# Written by hand, because this module has no sub units to fold declarations from.
+lf    | path | lf   | required | lf         | the file manager this entire module configures
+tmux  | path | tmux | required | lfrc       | every preview, confirm, and picker here opens as a tmux popup
+fzf   | path | fzf  | required | fzf-find.sh | the find and tag pickers
+fd    | path | fd   | required | fzf-find.sh | listing candidates for the find picker
+bat   | path | bat  | optional | lfrc       | the paged file preview bound to i
+nvim  | path | nvim | optional | lfrc       | the edit popup bound to o
+trash | path | trash | optional | lfrc      | moving selections to the trash rather than deleting them
+git   | path | git  | optional | lfrc       | repository aware actions

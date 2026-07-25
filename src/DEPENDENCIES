@@ -1,0 +1,12 @@
+# What this layer needs on the machine for its own setup scripts to run, in the same six
+# fields a module uses, name | kind | locator | policy | consumer | reason.
+#
+# This layer is a declarer like any other. It owns DEPENDENCIES.map and the Brewfile, but the
+# tools its own scripts call are not exempt from being declared, otherwise they are the one
+# category nothing checks. Read by src/check-dependencies.sh alongside every module manifest.
+brew  | path   | brew           | required | install-homebrew-packages.sh | every package install in this repository runs through it
+stow  | path   | stow           | required | setup-stow-dotfiles.sh       | symlinking every module into the home directory
+git   | path   | git            | required | install-ohmyzsh-plugins.sh   | cloning the framework and its plugins
+duti  | path   | duti           | required | set-dev-defaults.sh          | setting the default application for development file types
+jq    | path   | jq             | required | setup-claude-settings.sh     | merging the status line key into the Claude settings without losing the others
+curl  | system | /usr/bin/curl  | required | install-ohmyzsh.sh           | fetching the upstream installer

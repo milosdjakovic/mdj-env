@@ -1,0 +1,16 @@
+# What this module needs on the machine, name | kind | locator | policy | consumer | reason.
+# The format and the kinds are documented in the repository root CLAUDE.md. This file names
+# tools and never how to install one, since that mapping is DEPENDENCIES.map one layer up.
+# Written by hand, because this module has no sub units to fold declarations from.
+oh-my-zsh                | manual  | ~/.oh-my-zsh                                    | required | .zshrc.custom | the framework this config sources, everything below is loaded through it
+powerlevel10k            | package | share/powerlevel10k/powerlevel10k.zsh-theme     | required | .p10k.zsh     | the prompt theme the whole p10k config configures
+fzf                      | path    | fzf                                             | required | .zshrc.custom | the fzf-tab plugin and the key bindings this sources
+zsh-autosuggestions      | manual  | ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions | optional | .zshrc.custom | inline command suggestions
+fast-syntax-highlighting | manual  | ~/.oh-my-zsh/custom/plugins/fast-syntax-highlighting | optional | .zshrc.custom | command line syntax highlighting
+fzf-tab                  | manual  | ~/.oh-my-zsh/custom/plugins/fzf-tab             | optional | .zshrc.custom | fzf driven tab completion
+zoxide                   | path    | zoxide                                          | required | .zshrc.custom | the cd alias is zoxide, so plain cd stops working without it
+atuin                    | path    | atuin                                           | required | .zshrc.custom | shell history, initialised on every shell start
+eza                      | path    | eza                                             | required | .zshrc.custom | the ls alias
+bat                      | path    | bat                                             | required | .zshrc.custom | the cat alias
+nvim                     | path    | nvim                                            | required | .zshrc.custom | the EDITOR every tool opens
+git                      | path    | git                                             | required | .zshrc.custom | the git plugin and its aliases
