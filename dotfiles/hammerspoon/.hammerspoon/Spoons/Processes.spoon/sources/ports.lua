@@ -71,6 +71,14 @@ end
 function M.available()
   if not hs.fs.attributes(LSOF) then return false, "lsof not found" end
   if not hs.fs.attributes(PS) then return false, "ps not found" end
+  -- Unconfigured means no runtimes and no dev roots, so the positive rule below can
+  -- match nothing and every scan would quietly return an empty list that looks like
+  -- a machine with no servers on it. Reporting it makes a scan that races the config
+  -- coming up fail visibly rather than lie, the same reason an unknown window
+  -- predicate is treated as active rather than silently disabling its binding.
+  if not next(M._runtimes) and #M._devRoots == 0 then
+    return false, "not configured, no runtimes or dev roots"
+  end
   return true
 end
 

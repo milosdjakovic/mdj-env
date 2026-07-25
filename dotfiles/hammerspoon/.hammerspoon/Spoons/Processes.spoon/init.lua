@@ -11,6 +11,7 @@
 ---   engine.lua      the Context, owns the merge, the labelling and the dispatch
 ---   contract.lua    the interface every source must implement
 ---   util.lua        stateless shellout and formatting helpers
+---   chooser.lua     the list surface, pure policy over the engine's api
 ---   sources/*.lua   the concrete backends, one self contained file each
 ---
 --- The split keeps each piece ignorant of the others. The engine never names a
@@ -51,6 +52,10 @@ obj.sources = {
 }
 obj._defaultSources = { obj.sources.docker, obj.sources.ports }
 
+-- The list surface. It reaches the engine only through the api built in configure
+-- below, so it never learns that sources exist.
+obj.chooser = load("chooser.lua")
+
 --- Processes:configure(opts)
 --- Method
 --- opts.policy   the pure data from config/processes.lua
@@ -80,10 +85,22 @@ function obj:configure(opts)
     timeoutSeconds = policy.scanTimeoutSeconds,
   })
 
-  return configureEngine(self, {
+  configureEngine(self, {
     sources = opts.sources or obj._defaultSources,
     genericDirs = policy.genericDirs,
   })
+
+  -- The api the list surface talks through. Two verbs and nothing else, so the
+  -- surface cannot reach a source, cannot reorder the merge, and cannot learn what
+  -- a container is. This is also the seam a second surface would reuse unchanged.
+  obj.chooser.configure({
+    api = {
+      scan = function(cb) obj:scan(cb) end,
+      stop = function(row, stopOpts, cb) obj:stop(row, stopOpts, cb) end,
+    },
+  })
+
+  return self
 end
 
 return obj

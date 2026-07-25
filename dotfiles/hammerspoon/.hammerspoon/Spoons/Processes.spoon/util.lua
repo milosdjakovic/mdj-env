@@ -28,9 +28,12 @@ local log = hs.logger.new("Processes", "info")
 --- completed in 52 milliseconds. So the drain callback accumulates chunks and the
 --- completion callback joins them, and the runner is safe at any output size.
 ---
---- A non zero exit is not automatically a failure, some of these tools exit non
---- zero while still producing usable output, so stdout is passed through whenever
---- there is any and the exit code only decides the failure reason when it is empty.
+--- Success is the exit code, not the presence of output. A clean exit that printed
+--- nothing is a success, which matters because kill is silent when it works and an
+--- output based test reported every successful stop as a failure. A non zero exit
+--- that still printed something is also passed through, since some of these tools
+--- exit non zero while producing usable output, and only a non zero exit with
+--- nothing to show for it is reported as an error.
 function M.run(binary, args, timeoutSeconds, cb)
   local done = false
   local timer
@@ -47,7 +50,7 @@ function M.run(binary, args, timeoutSeconds, cb)
   task = hs.task.new(binary,
     function(code)
       local out = table.concat(outChunks)
-      if out ~= "" then
+      if code == 0 or out ~= "" then
         finish(out, nil)
       else
         local stderr = table.concat(errChunks):gsub("%s+$", "")

@@ -244,6 +244,10 @@ function obj:_buildActionRows()
   if keys.textCase then
     add(keys.textCase.description, "Text · recase the selection in place", { kind = "special", name = "textCase" }, "🔠")
   end
+  -- Processes has no dedicated chord either, so its subtitle names what it does.
+  if keys.processes then
+    add(keys.processes.description, "System · find and stop development servers", { kind = "special", name = "processes" }, "🛑")
+  end
   add(keys.lock.description, "System · " .. self:_chordLabel("Hyper", keys.lock.key), { kind = "special", name = "lock" }, "🔒")
   add(keys.sleep.description, "System · " .. self:_chordLabel("Hyper", keys.sleep.key), { kind = "special", name = "sleep" }, "🌙")
   for _, b in ipairs(keys.windowManagement) do

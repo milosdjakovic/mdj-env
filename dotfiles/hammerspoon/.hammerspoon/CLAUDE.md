@@ -655,6 +655,24 @@ to the source app, so the selection is intact when the read runs. It degrades to
 paste with no read when the clipboard manager is absent, the same graceful fallback the
 emoji insert takes. The decision trail and internals live in `Spoons/TextCase.spoon/CLAUDE.md`.
 
+**Processes.** Finds the development servers you left running and stops them, opened from
+the launcher only with no dedicated key. It follows the Capture layout, an engine over
+interchangeable discovery sources, and the DisplayProfiles shape of a spoon whose surface is
+its own `chooser.lua` beside the engine, so it is configured twice like DisplayProfiles is.
+The spoon's own root reads the pure data in `config/processes.lua` and hands each source the
+slice it needs, staying the one place that names both the concrete sources and their order,
+and the main root injects only the view deps every chooser receives. It follows the picker
+checklist, its `processes` context giving it the shared j, k, i navigation with x to close
+plus two actions only it answers, a force stop and a rescan, routed through `routeNav` so
+they are no ops on any other surface rather than naming this one directly the way the
+clipboard-only append and delete do. It overrides the shared fuzzy matcher to `words`, the
+same choice the clipboard makes, because a query here is a real fragment you remember, a
+port number or a project name, not an abbreviation of a short known label. Adding it needed
+a restow, since `~/.hammerspoon/Spoons` holds one symlink per spoon. The source contract,
+the port claim rule that collapses the docker proxy listeners into named containers, the
+group signalling and its guards, and two hs.task and lsof facts that will bite anyone who
+touches the shellouts, live in `Spoons/Processes.spoon/CLAUDE.md`.
+
 **Eyedropper.** A screen colour sampler on Hyper+2, on the native macOS
 eyedropper. It is deliberately not a chooser, so the picker checklist above does
 not apply. It is a lone mechanism like lock and sleep, wired as a base HyperKey

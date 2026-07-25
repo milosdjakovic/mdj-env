@@ -10,6 +10,7 @@ local keys = require("config.keys")
 local settings = require("config.settings")
 local displays = require("config.displays")
 local settingsPanes = require("config.settingsPanes")
+local processes = require("config.processes")
 
 -- Load workspace configurations
 local devWorkspace = require("config.workspaces.dev")
@@ -48,6 +49,7 @@ hs.loadSpoon("DisplayProfiles")
 hs.loadSpoon("SystemSettings")
 hs.loadSpoon("Emoji")
 hs.loadSpoon("TextCase")
+hs.loadSpoon("Processes")
 
 --------------------------------------------------------------------------------
 -- Initialize Spoons
@@ -236,6 +238,11 @@ local predicates = {
   -- shared j, k, i, and x navigation while it is up.
   textCaseOpen = function()
     return spoon.TextCase:isShowing()
+  end,
+  -- The processes picker is open. Gates the processes Hyper context, so it takes the
+  -- shared j, k, and x navigation plus its own stop, force and refresh keys.
+  processesOpen = function()
+    return spoon.Processes ~= nil and spoon.Processes.chooser.isShowing()
   end,
 }
 -- The window bindings carry no leader (see config/keys.lua). Stamp the resolved
@@ -956,6 +963,7 @@ spoon.Launcher:configure({
       overlayDisplay = function() showOverlayDisplayPicker() end,
       displayProfiles = function() spoon.DisplayProfiles.chooser.show() end,
       textCase = function() spoon.TextCase:show() end,
+      processes = function() spoon.Processes.chooser.show() end,
     },
   },
 })
@@ -1222,6 +1230,29 @@ spoon.TextCase:configure({
   end,
 })
 
+-- Processes: find and stop the development servers you left running, opened from the
+-- launcher only. Two configures, matching DisplayProfiles. The spoon's own root takes the
+-- pure policy from config/processes.lua and hands each discovery source its slice, and this
+-- root injects the view deps every chooser receives, the factory, the shared theme, and the
+-- deferred shortcut panel. It overrides the matcher to words rather than the shared fuzzy
+-- default, the same choice the clipboard makes, because a query here is a real fragment you
+-- remember, a port number or a project name, rather than an abbreviation of a short label.
+-- Its processes Hyper context (config/keys.lua) drives the shortcuts through the choosers
+-- registry below.
+local processesPanel = shortcutPanelFor("processes")
+spoon.Processes:init()
+spoon.Processes:configure({ policy = processes })
+spoon.Processes.chooser.configure({
+  chooser = spoon.Chooser,
+  theme = settings.chooserTheme,
+  matcher = spoon.Chooser.matchers.words,
+  placeholder = "Search by project, port, or runtime",
+  onPositioned = processesPanel.onPositioned,
+  onActivity = processesPanel.onActivity,
+  onClose = processesPanel.onClose,
+})
+spoon.Processes.chooser.start()
+
 -- Clipboard manager UI: the native chooser with its canvas preview docked in the
 -- companion pane and the same deferred shortcut panel the other choosers use. The
 -- panel spells the shortcuts out below the list. The manager owns onPositioned to place its preview, so the
@@ -1270,7 +1301,7 @@ spoon.ClipboardHistory.manager.start()
 -- glance at the sheet plus any key clears it.
 spoon.HyperKey:configure({ predicates = predicates })
 local clipManager = spoon.ClipboardHistory.manager
-local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, spoon.Launcher:surface(), menuSearchSurface, spoon.DisplayProfiles.chooser, spoon.Emoji:surface(), overlayDisplaySurface, spoon.TextCase:surface() }
+local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, spoon.Launcher:surface(), menuSearchSurface, spoon.DisplayProfiles.chooser, spoon.Emoji:surface(), overlayDisplaySurface, spoon.TextCase:surface(), spoon.Processes.chooser }
 local function activeChooser()
   for _, c in ipairs(choosers) do
     if c.isShowing() then return c end
@@ -1302,6 +1333,12 @@ local contextActions = {
   -- makes it a no op.
   scrollPreviewDown = routeNav("scrollPreviewDown"),
   scrollPreviewUp = routeNav("scrollPreviewUp"),
+  -- Force stop and rescan are answered only by the processes surface, so they route
+  -- like the nav actions and the method guard makes them a no op everywhere else,
+  -- rather than naming that one surface directly the way the clipboard-only append
+  -- and delete do.
+  stopForced = routeNav("stopForced"),
+  refreshList = routeNav("refresh"),
 }
 -- Nav actions that auto-repeat while the key is held, so holding Hyper+j/k in any
 -- chooser scrolls like a held arrow key. The initial delay and repeat rate are the
