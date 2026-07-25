@@ -36,6 +36,25 @@ log and the chooser follow with no edit here. `contract.validate` does not requi
 metadata, since it is optional, a provider without it still gets a titled row and a
 generic log.
 
+## Cities are ordered most recently used, the action row stays pinned
+
+The cities under the action row are shown most recently used first, so the last place you
+connected to leads them and the ones before it follow, with everything never chosen keeping
+the provider's own order below. Choosing a city lifts it to the front, so it sits right below
+the action row on the next open. This is command policy, so it lives in `init.lua`, the policy
+file, not the engine or the provider, which stay ignorant of ordering. The order is a plain
+list of location ids, newest first, persisted under one `hs.settings` key so it survives a
+reload or a reboot, the same persistence idea `DisplayMemory` uses. It is kept an inline
+closure rather than its own module because it is a single consumer with a little state, so a
+wrapper would be ceremony without a second caller.
+
+The action row is deliberately outside this. It is added ahead of the list on the empty query
+and always leads, so only the cities reorder and the connect or disconnect control never moves.
+The reorder happens once when the relay list lands on open, not per keystroke, and a typed
+filter reranks by match score anyway, so recency only decides the resting order of the
+unfiltered list. An id that no longer names a relay simply never matches, so a stale entry is
+inert rather than an error.
+
 ## Missing CLI degrades to a self explaining panel, not a dead key
 
 When `provider.available()` is false at start the spoon still builds the chooser but

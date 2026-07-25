@@ -4,7 +4,9 @@
 --- location search into one flat list. The first row is the action that fits the live
 --- state, its title naming the place, Disconnect from where the tunnel is when it is up
 --- and Connect to the selected relay when it is down, with the live state word and the
---- provider in its subtitle. Every city the provider offers follows below it. Typing
+--- provider in its subtitle. Every city the provider offers follows below it, ordered most
+--- recently used first so the last place you connected to leads and the action row stays
+--- pinned above them all. Typing
 --- filters the cities, and once a filter is present the action row drops out so selecting
 --- the top row connects to the top matching city rather than toggling the tunnel. Choosing
 --- a city sets the relay and connects. It never names the keys that open or drive it, those
@@ -63,6 +65,45 @@ local available = false -- whether the provider's CLI was found at start
 local cache = {}      -- the last fetched location list, filtered by the supplier
 local current = { state = "unavailable" } -- status snapshot, refreshed on open and change
 local target = nil    -- the selected relay to connect to, { countryCode, cityCode }
+
+--------------------------------------------------------------------------------
+-- Location recency (command policy)
+--------------------------------------------------------------------------------
+
+-- The cities are shown most recently used first, so the last place you connected to sits
+-- right below the action row and the ones before it follow. The order is a list of
+-- location ids, newest first, persisted under one settings key so it survives a reload or
+-- a reboot. The action row is never in here, it is added ahead of the list and always
+-- leads, so only the cities reorder.
+local RECENCY_KEY = "Vpn.recentLocations"
+local recency = hs.settings.get(RECENCY_KEY) or {}
+
+-- Lift a location id to the front of the recency list and persist. Any earlier entry for
+-- the same id is dropped first, so an id appears once and its newest use wins.
+local function touchLocation(id)
+  if not id then return end
+  local out = { id }
+  for _, prev in ipairs(recency) do
+    if prev ~= id then out[#out + 1] = prev end
+  end
+  recency = out
+  hs.settings.set(RECENCY_KEY, recency)
+end
+
+-- Order a location list by recency, the remembered cities first in recency order, then the
+-- rest in the provider's own order. A city never chosen keeps its original place below the
+-- remembered ones.
+local function orderByRecency(list)
+  local rank = {}
+  for i, id in ipairs(recency) do rank[id] = i end
+  local chosen, rest = {}, {}
+  for _, loc in ipairs(list) do
+    if rank[loc.id] then chosen[#chosen + 1] = loc else rest[#rest + 1] = loc end
+  end
+  table.sort(chosen, function(a, b) return rank[a.id] < rank[b.id] end)
+  for _, loc in ipairs(rest) do chosen[#chosen + 1] = loc end
+  return chosen
+end
 
 --------------------------------------------------------------------------------
 -- Status wording and location labels (command policy)
@@ -241,6 +282,9 @@ local function onSelect(sel)
   elseif sel.id == "disconnect" then
     engine.disconnect()
   else
+    -- A city was chosen, so lift it to the front of the recency order before connecting,
+    -- so it leads the cities on the next open.
+    touchLocation(sel.id)
     engine.setLocation(sel.countryCode, sel.cityCode)
   end
 end
@@ -261,7 +305,7 @@ function M.show()
     current = engine.status()
     target = engine.selectedLocation()
     engine.listLocations(function(list)
-      cache = list or {}
+      cache = orderByRecency(list or {})
       if chooser then chooser:refresh() end
     end)
   end
