@@ -34,31 +34,75 @@ local log = hs.logger.new("Processes", "info")
 --- that still printed something is also passed through, since some of these tools
 --- exit non zero while producing usable output, and only a non zero exit with
 --- nothing to show for it is reported as an error.
+---
+--- THE EXIT CALLBACK IS NOT THE END OF THE OUTPUT, and this is the subtle one. The
+--- stream callback keeps firing after the completion callback has already run, so
+--- reading the accumulated chunks the moment the task reports its exit can hand back
+--- output that is truncated, or empty when every chunk is still in flight. The
+--- completion callback's own stdout argument does not make up the difference, it was
+--- measured at zero bytes in every single case, so there is nowhere else to look.
+---
+--- It shows up as an intermittent empty result rather than an error, which is what
+--- makes it dangerous. A scan simply reports that nothing is running. Measured here
+--- across a concurrent burst, a command that exits almost immediately lost its output
+--- at the exit callback sixteen times out of twenty, and even ps and lsof lost theirs
+--- once the picker had several sources scanning at once, which is exactly the normal
+--- case. Running the same commands one at a time never reproduced it, which is why
+--- this hid until a third source was added.
+---
+--- So the exit is treated as one more event rather than the finish line, and the
+--- result is handed over only once the output has gone quiet for DRAIN_GRACE with the
+--- task already exited. The late chunks were measured arriving within one millisecond
+--- of the exit callback, so the grace is more than an order of magnitude above the
+--- worst observed case, and it costs that much once per call rather than per chunk.
+--- The overall timeout still bounds the whole thing, so a task that somehow never
+--- goes quiet is abandoned rather than waited on forever.
+local DRAIN_GRACE = 0.015
+
 function M.run(binary, args, timeoutSeconds, cb)
   local done = false
   local timer
   local task
   local outChunks, errChunks = {}, {}
+  local bytes, exitCode, drainTimer = 0, nil, nil
 
   local function finish(out, err)
     if done then return end
     done = true
     if timer then timer:stop() end
+    if drainTimer then drainTimer:stop() end
     cb(out, err)
+  end
+
+  -- Wait for the output to stop growing before deciding anything. Re-arms itself
+  -- whenever another chunk landed during the window, so a slow trickle is waited out
+  -- rather than cut off, and settles after one grace period in the common case where
+  -- everything had already arrived.
+  local function settle()
+    local seen = bytes
+    drainTimer = hs.timer.doAfter(DRAIN_GRACE, function()
+      if done then return end
+      if bytes ~= seen then settle() return end
+      local out = table.concat(outChunks)
+      if exitCode == 0 or out ~= "" then
+        finish(out, nil)
+      else
+        local stderr = table.concat(errChunks):gsub("%s+$", "")
+        finish(nil, "exit " .. tostring(exitCode) .. (stderr ~= "" and (" " .. stderr) or ""))
+      end
+    end)
   end
 
   task = hs.task.new(binary,
     function(code)
-      local out = table.concat(outChunks)
-      if code == 0 or out ~= "" then
-        finish(out, nil)
-      else
-        local stderr = table.concat(errChunks):gsub("%s+$", "")
-        finish(nil, "exit " .. tostring(code) .. (stderr ~= "" and (" " .. stderr) or ""))
-      end
+      exitCode = code
+      settle()
     end,
     function(_, stdout, stderr)
-      if stdout and stdout ~= "" then outChunks[#outChunks + 1] = stdout end
+      if stdout and stdout ~= "" then
+        outChunks[#outChunks + 1] = stdout
+        bytes = bytes + #stdout
+      end
       if stderr and stderr ~= "" then errChunks[#errChunks + 1] = stderr end
       return true
     end,
