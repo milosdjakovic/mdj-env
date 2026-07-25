@@ -18,6 +18,24 @@ local vicertWorkspace = require("config.workspaces.vicert")
 
 local log = hs.logger.new("hs.config", "info")
 
+-- Deferred calls made from this root, and why they are held rather than fired and
+-- forgotten. A Hammerspoon timer is userdata whose finalizer stops it, so a pending timer
+-- nothing refers to can be collected before it ever fires. The delayed call then simply
+-- never happens, with no error and nothing in the console, and the odds rise with whatever
+-- else is allocating during the wait. Holding the timer until it fires is what makes a
+-- delay reliable. Every call gets its own key, so several can be outstanding at once and
+-- each releases only its own entry, which matters here because these sites are unrelated
+-- and one must never cancel another. This table is reachable from the live handlers that
+-- call after, so it stays rooted for as long as they do.
+local pendingCalls = {}
+local function after(delay, fn)
+  local slot = {}
+  pendingCalls[slot] = hs.timer.doAfter(delay, function()
+    pendingCalls[slot] = nil
+    fn()
+  end)
+end
+
 --------------------------------------------------------------------------------
 -- Load Spoons
 --------------------------------------------------------------------------------
@@ -883,7 +901,7 @@ do
   end
 
   local function reopen()
-    hs.timer.doAfter(0.04, function() picker:show() end)
+    after(0.04, function() picker:show() end)
   end
 
   local function onSelect(item)
@@ -1157,7 +1175,7 @@ local menuSearch = spoon.Chooser.new({
   onSelect = function(item)
     if item and item.path and menuTargetApp then
       local app = menuTargetApp
-      hs.timer.doAfter(0.1, function() app:selectMenuItem(item.path) end)
+      after(0.1, function() app:selectMenuItem(item.path) end)
     end
   end,
   onPositioned = menuPanel.onPositioned,
@@ -1283,7 +1301,7 @@ spoon.Emoji:configure({
     if mgr and mgr.pasteText then
       mgr.pasteText(glyph)
     else
-      hs.timer.doAfter(0.1, function() hs.eventtap.keyStrokes(glyph) end)
+      after(0.1, function() hs.eventtap.keyStrokes(glyph) end)
     end
   end,
 })
@@ -1314,7 +1332,7 @@ spoon.TextCase:configure({
     if textCaseMgr and textCaseMgr.pasteText then
       textCaseMgr.pasteText(text)
     else
-      hs.timer.doAfter(0.1, function() hs.eventtap.keyStrokes(text) end)
+      after(0.1, function() hs.eventtap.keyStrokes(text) end)
     end
   end,
 })

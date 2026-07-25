@@ -164,7 +164,12 @@ function obj:configure(opts)
         -- Promote now, on the true "user chose this row" moment, so the order
         -- persists at once even though the run is deferred below. Any kind counts.
         self:_promote(recencyKey(item))
-        hs.timer.doAfter(0.1, function() self:_runItem(item) end)
+        -- The run waits a beat for focus to return to the app the launcher covered, and the
+        -- timer is held in a field for the length of that wait. A Hammerspoon timer is
+        -- userdata whose finalizer stops it, so one nothing refers to can be collected
+        -- before it fires, and the chosen row would then do nothing at all. Only one is
+        -- ever pending, because choosing a row closes the chooser.
+        self._runTimer = hs.timer.doAfter(0.1, function() self:_runItem(item) end)
       end
     end,
     onPositioned = sp.onPositioned,

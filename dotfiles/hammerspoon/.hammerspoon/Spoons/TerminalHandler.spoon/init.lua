@@ -107,12 +107,20 @@ end
 --- TerminalHandler:_setupWindowManagement(bundleID)
 --- Method
 --- Set up async window management after toggle
+---
+--- Both stages are held in fields on the spoon. A Hammerspoon timer is userdata whose
+--- finalizer stops it, so a pending one nothing refers to can be collected before it fires,
+--- and the window would then never be placed with nothing said about it. The two stages are
+--- strictly sequential so one field each is enough, and a fresh toggle stops whichever stage
+--- is outstanding, since it is waiting on a window the newer toggle has superseded.
 function obj:_setupWindowManagement(bundleID)
   local timing = self._timing
   local self_ref = self
 
-  hs.timer.doAfter(timing.initialDelay, function()
-    hs.timer.waitUntil(
+  if self._setupDelay then self._setupDelay:stop() end
+  if self._readyWait then self._readyWait:stop() end
+  self._setupDelay = hs.timer.doAfter(timing.initialDelay, function()
+    self_ref._readyWait = hs.timer.waitUntil(
       function() return self_ref:_isAppReady(bundleID) end,
       function()
         local app = hs.application.get(bundleID)

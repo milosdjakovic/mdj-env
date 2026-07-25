@@ -66,6 +66,25 @@ local pollInterval = 0.5
 local pasteDelay = 0.1
 
 local timer = nil
+
+-- Every delayed step below runs through this, and holding the timer is the whole point. A
+-- Hammerspoon timer is userdata whose finalizer stops it, so a pending timer nothing refers
+-- to can be collected before it fires, and the step then never happens with no error
+-- anywhere. Here that would mean a paste that writes the pasteboard and never sends the
+-- keystroke, or worse a snapshot that is never put back, leaving our own text sitting on the
+-- user's clipboard. Each call takes its own key and releases only that key, because these
+-- are sequences where every step must run and a later one must never cancel an earlier one.
+-- That is not hypothetical in here, a paste walk has several pasteOp windows overlapping,
+-- and a single shared slot would drop the earlier one's restore on the floor.
+local pendingSteps = {}
+local function after(delay, fn)
+  local slot = {}
+  pendingSteps[slot] = hs.timer.doAfter(delay, function()
+    pendingSteps[slot] = nil
+    fn()
+  end)
+end
+
 local lastChange = -1 -- last changeCount we have accounted for; the guard's state
 -- True while copySelection owns the pasteboard for a read. It writes twice (the Cmd+C
 -- copy, then the restore), so rather than sign each write it suppresses the poll outright
@@ -352,7 +371,7 @@ local function pasteOp(op, opts, done)
   lastChange = hs.pasteboard.changeCount()
   log.df("%.3f wrote %s, count=%d, app=%s", clock(), tostring(op.kind), lastChange, frontID())
 
-  hs.timer.doAfter(pasteDelay, function()
+  after(pasteDelay, function()
     local held = stroke({ "cmd" }, "v")
     log.df(
       "%.3f cmd+v sent, app=%s, held=%s",
@@ -363,7 +382,7 @@ local function pasteOp(op, opts, done)
     -- Only arm the settle timer when something is waiting on it, so a plain single paste
     -- still costs exactly one timer as it always did.
     if snapshot or done then
-      hs.timer.doAfter(settleDelay, function()
+      after(settleDelay, function()
         if snapshot and not quiet then
           restorePasteboard(snapshot)
           log.df("%.3f clipboard restored, count=%d", clock(), lastChange)
@@ -636,7 +655,7 @@ function M.copySelection(cb)
       cb(text)
     elseif waited < copyTimeout then
       waited = waited + copyStep
-      hs.timer.doAfter(copyStep, check)
+      after(copyStep, check)
     else
       -- The pasteboard never moved, so either nothing was selected or the app never acted on
       -- our Cmd+C. Those look identical from here and only the second is a bug, so log what
@@ -653,9 +672,9 @@ function M.copySelection(cb)
     end
   end
 
-  hs.timer.doAfter(copyDelay, function()
+  after(copyDelay, function()
     held = stroke({ "cmd" }, "c")
-    hs.timer.doAfter(copyStep, check)
+    after(copyStep, check)
   end)
 end
 

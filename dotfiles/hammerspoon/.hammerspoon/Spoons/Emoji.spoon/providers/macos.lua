@@ -48,8 +48,15 @@ end
 --- the posted combo and the system would not read it as Ctrl Cmd Space. keyStroke posts to
 --- the frontmost app, which is the field the user was in before Hyper, so the panel opens
 --- against it.
+---
+--- The timer is held in a field, since a Hammerspoon timer is userdata whose finalizer
+--- stops it and one nothing refers to can be collected before it fires, which would leave
+--- the shortcut unposted and the panel simply never opening. A second show inside that
+--- moment replaces the first, because posting the same shortcut twice would toggle the
+--- panel back shut.
 function obj:show()
-  hs.timer.doAfter(0.05, function()
+  if self._showTimer then self._showTimer:stop() end
+  self._showTimer = hs.timer.doAfter(0.05, function()
     hs.eventtap.keyStroke({ "ctrl", "cmd" }, "space", 0)
   end)
 end

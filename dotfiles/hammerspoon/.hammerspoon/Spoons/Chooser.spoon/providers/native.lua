@@ -203,6 +203,10 @@ function Chooser:_teardown()
     self.pollTimer:stop()
     self.pollTimer = nil
   end
+  if self.settleTimer then
+    self.settleTimer:stop()
+    self.settleTimer = nil
+  end
   if self.clickWatcher then
     self.clickWatcher:stop()
     self.clickWatcher = nil
@@ -255,8 +259,14 @@ end
 -- companion rect beside it and report both. Forcing the position rather than adapting
 -- to wherever hs.chooser dropped it is what keeps the chooser on the policy's display,
 -- even when the widget came up shorter than requested or on another screen.
+-- The timer is held in a field, because a Hammerspoon timer is userdata whose finalizer
+-- stops it, so one nothing refers to can be collected before it fires. Losing this settle
+-- leaves the chooser wherever hs.chooser dropped it, which looks like a placement bug and
+-- is not one. A re-show stops the previous settle first, since it is measuring a frame that
+-- no longer exists and the newer one supersedes it.
 function Chooser:_settleFrames()
-  hs.timer.doAfter(0.03, function()
+  if self.settleTimer then self.settleTimer:stop() end
+  self.settleTimer = hs.timer.doAfter(0.03, function()
     if not self.active then return end
     local app = hs.application.get("Hammerspoon")
     if not app then return end

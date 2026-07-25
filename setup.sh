@@ -47,6 +47,13 @@ echo ""
 # here is a warning. Run it alone any time with src/check-dependencies.sh.
 "$SRC_DIR/check-dependencies.sh"
 
+# A module may also own checks that only make sense inside it, kept beside the module rather
+# than here because the rest of the repository has no use for the rule. They report on the
+# repository rather than on this machine, so a failure is the same everywhere and fails setup.
+echo ""
+echo "==> Module checks"
+"$SCRIPT_DIR/dotfiles/hammerspoon/check-timers"
+
 echo ""
 echo "==> Setup complete!"
 echo "    Restart your terminal to apply all changes."

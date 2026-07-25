@@ -178,8 +178,14 @@ function obj:open()
   end
 
   if defer and self._hyperKey and self._hyperKey:isActive() then
-    -- Wait for release so HyperKey's tap stops swallowing synthetic keystrokes
-    hs.timer.waitUntil(function()
+    -- Wait for release so HyperKey's tap stops swallowing synthetic keystrokes.
+    --
+    -- Held in a field, since a Hammerspoon timer is userdata whose finalizer stops it and
+    -- one nothing refers to can be collected before it fires, which here would mean the
+    -- picker never opens and nothing explains why. A second open while the leader is still
+    -- down replaces this one, because opening the same picker twice is meaningless.
+    if self._releaseWait then self._releaseWait:stop() end
+    self._releaseWait = hs.timer.waitUntil(function()
       return not self._hyperKey:isActive()
     end, fire, 0.02)
   else

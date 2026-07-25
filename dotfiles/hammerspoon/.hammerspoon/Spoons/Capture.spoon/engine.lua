@@ -171,7 +171,14 @@ function obj:capture(action)
   if self._hyperKey and self._hyperKey:isActive() then
     -- Wait for release so the shared tap stops swallowing keys; otherwise the
     -- native provider's synthetic chord is eaten and overlays ignore Escape.
-    hs.timer.waitUntil(function()
+    --
+    -- The waiter is held in a field, because a Hammerspoon timer is userdata whose
+    -- finalizer stops it and one nothing refers to can be collected before it fires, which
+    -- here would lose the capture entirely with nothing said. A second capture requested
+    -- while the leader is still down replaces this one rather than queueing behind it,
+    -- since two capture overlays arriving together on release is not a usable outcome.
+    if self._releaseWait then self._releaseWait:stop() end
+    self._releaseWait = hs.timer.waitUntil(function()
       return not self._hyperKey:isActive()
     end, dispatch, 0.02)
   else

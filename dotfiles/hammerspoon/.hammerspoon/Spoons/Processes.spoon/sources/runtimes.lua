@@ -327,7 +327,7 @@ function M.stop(row, opts, cb)
 
     signal("TERM", function(err)
       if err then cb(false, "stop failed, " .. err) return end
-      hs.timer.doAfter(M._grace, function()
+      util.after(M._grace, function()
         util.run(PS, { "-Ao", "pid=,pgid=" }, M._timeout, function(out2)
           local survivors = 0
           for line in util.lines(out2 or "") do

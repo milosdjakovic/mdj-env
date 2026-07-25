@@ -40,6 +40,7 @@ obj.license = "MIT"
 
 obj._tap = nil
 obj._keys = nil        -- keyCode -> entry (config + runtime state)
+obj._deferred = nil    -- pending handler timers, held until they fire, see _defer
 
 -- Real hardware key events carry this event-source state id
 -- (kCGEventSourceStateHIDSystemState). Keystrokes Hammerspoon posts itself, like
@@ -79,6 +80,7 @@ obj._passthrough = false
 --- Initialize the spoon
 function obj:init()
   self._keys = {}
+  self._deferred = {}
   return self
 end
 
@@ -151,6 +153,27 @@ function obj:_cancelHold(k)
     k.holdTimer:stop()
     k.holdTimer = nil
   end
+end
+
+--- ChordKey:_defer(delay, fn)
+--- Method
+--- Run a consumer's handler on a later tick, holding the timer until it fires.
+---
+--- Both callers hand control back to the tap immediately and let the handler run after,
+--- a tap so the key-up is fully processed first and a chord so an overlay teardown can
+--- settle. Holding the timer is not optional. A Hammerspoon timer is userdata whose
+--- finalizer stops it, so one nothing refers to can be collected inside the wait and the
+--- handler then never runs at all, which reads as a keypress the machine ignored.
+---
+--- Each handler takes its own key and releases only that key, deliberately. A fast
+--- sequence under one held leader queues two handlers within the settle window, and a
+--- single slot would let the second silently discard the first.
+function obj:_defer(delay, fn)
+  local slot = {}
+  self._deferred[slot] = hs.timer.doAfter(delay, function()
+    self._deferred[slot] = nil
+    fn()
+  end)
 end
 
 --- ChordKey:_passDown(k)
@@ -231,7 +254,7 @@ function obj:start()
         local wasUsed = k.used
         k.active = false
         if k.onTap and not wasUsed and heldFor < k.tapThreshold then
-          hs.timer.doAfter(0, k.onTap)
+          self:_defer(0, k.onTap)
         end
         if k.passthrough then self:_endPassthrough(k) end
       end
@@ -263,7 +286,7 @@ function obj:start()
           end
           local fn = held.onKey and held.onKey(code, e:getFlags())
           if fn then
-            hs.timer.doAfter(wasShown and self._overlaySettle or 0, fn)
+            self:_defer(wasShown and self._overlaySettle or 0, fn)
             return true, {} -- bound: run the handler and swallow the key
           end
           -- Unbound. With passthrough on, leak the combo downstream so another

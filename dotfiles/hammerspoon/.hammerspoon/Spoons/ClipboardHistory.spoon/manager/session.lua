@@ -93,6 +93,21 @@ local maxPending = 8
 local walkTimeout = 2.0
 local watchdog = nil
 
+-- The queued next step of a walk, held until it fires. A Hammerspoon timer is userdata whose
+-- finalizer stops it, so a pending timer nothing refers to can be collected before it runs,
+-- and here that would strand the walk mid run with a queue that never drains. Keyed rather
+-- than a single slot, because the drain is a sequence and a later step must never cancel an
+-- earlier one. Distinct from pendingSteps above, which counts presses rather than holding
+-- timers.
+local pendingDrains = {}
+local function afterDrain(delay, fn)
+  local slot = {}
+  pendingDrains[slot] = hs.timer.doAfter(delay, function()
+    pendingDrains[slot] = nil
+    fn()
+  end)
+end
+
 --------------------------------------------------------------------------------
 -- Append
 --------------------------------------------------------------------------------
@@ -278,7 +293,7 @@ local function releaseWalk()
   log.df("%.3f settled, %d queued", clock(), pendingSteps)
   if pendingSteps > 0 then
     pendingSteps = pendingSteps - 1
-    hs.timer.doAfter(drainDelay, function()
+    afterDrain(drainDelay, function()
       M.pasteNext()
     end)
   end

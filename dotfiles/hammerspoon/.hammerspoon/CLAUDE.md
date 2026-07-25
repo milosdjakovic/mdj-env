@@ -520,6 +520,33 @@ When two adapters need the same behavior, share it rather than duplicating.
 HyperKey and WindowLeader use one resolver that matches optional modifiers, so
 Hyper plus Shift plus a key can differ from Hyper plus that key.
 
+**Never start a timer without keeping its handle.** A Hammerspoon timer is
+userdata whose finalizer stops it, so a pending timer nothing refers to can be
+collected before it ever fires. The delayed call then simply never happens, with
+no error, nothing in the console, and nothing to grep for, and the odds rise with
+whatever else is allocating during the wait. That last part is what makes it so
+misleading, since the same line works in isolation and fails under a busy list,
+which reads as an intermittent macOS problem rather than a defect here. It cost a
+long session to find once, in a conversion row stuck on `Converting` forever
+because rebuilding the launcher's rows on every keystroke allocated enough to
+collect the debounce inside its quarter second.
+
+So the handle lives in a field on the object that owns the wait, and re arming
+stops the previous one when the newer call supersedes it, as `Convert` does for
+its debounce and `Chooser` for its frame settle. When several can be outstanding
+and a later one must not cancel an earlier one, hold them in a table keyed per
+call that each entry clears as it fires, as `ChordKey:_defer` does so a fast
+chord sequence never discards its own first handler, and as the clipboard monitor
+does so no step of a paste sequence can cancel the snapshot restore behind it.
+That holder is written out per file rather than shared across spoons, because a
+spoon reaches only its own siblings and a five line workaround for a platform
+behaviour does not earn becoming a spoon and being injected into ten places. The
+one place it is shared is within a single spoon that already has a helper module
+its siblings load, which is why `Processes` carries `util.after` instead of the
+same lines twice, its own `util.lua` setting the bar at a second consumer.
+Reaching across a spoon boundary for it is still wrong. `check-timers` beside
+this module enforces the rule, and `setup.sh` runs it.
+
 Adding a whole new spoon requires stowing again, because `~/.hammerspoon/Spoons`
 holds one symlink per spoon. Adding files inside an already symlinked spoon does
 not, they resolve through the existing symlink.

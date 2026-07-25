@@ -42,6 +42,12 @@ local reopen = false   -- ask onClose to re-show rather than end, for the confir
 local scanning = false -- guards against overlapping scans from a fast refresh
 local misses = 0       -- consecutive samples that found no window, see onSample
 
+-- The pending re-show, held until it fires. A Hammerspoon timer is userdata whose finalizer
+-- stops it, so one nothing refers to can be collected before it runs, and the confirmation
+-- would then never appear, leaving a stop the user asked for silently abandoned. Only one
+-- re-show is ever pending, since it is armed on the single selection that needs confirming.
+local reopenTimer = nil
+
 --------------------------------------------------------------------------------
 -- Row icons
 --------------------------------------------------------------------------------
@@ -364,7 +370,7 @@ local function runStop(row, opts)
       -- frame is shown on the next tick once it has finished hiding. Shown raw
       -- rather than through showChooser, since the confirmation carries no rows
       -- and there is nothing for a sampler to feed while it is up.
-      hs.timer.doAfter(0, function()
+      reopenTimer = hs.timer.doAfter(0, function()
         if chooser then chooser:show() end
       end)
       return
