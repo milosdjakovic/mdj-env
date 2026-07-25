@@ -317,9 +317,10 @@ DisplayMemory needed a restow, since `~/.hammerspoon/Spoons` holds one symlink p
 spoon.
 
 **Overlay display policy.** One place decides which display every transient
-overlay appears on, the eight choosers (clipboard, VPN, menu search, launcher,
-keep awake, display profiles, emoji, overlay display) with their docked shortcut panels, both cheat
-sheets, and the colour toast. This is Strategy wired through injection, the same shape as
+overlay appears on, every chooser with its docked shortcut panel, both cheat
+sheets, and the colour toast. The list is not enumerated here on purpose, a hand kept
+roster drifts the moment a picker is added, and the `choosers` registry in `init.lua` is
+the authority. This is Strategy wired through injection, the same shape as
 TerminalHandler's `targetScreen`. A small registry in `init.lua` maps a mode name
 to a resolver returning an `hs.screen`, `config/settings.lua` picks the mode in
 the pure-data `overlayDisplay` block, and the chosen resolver is injected into the
@@ -685,6 +686,29 @@ else, why recency has to be observed rather than read, why tab identity is the b
 the URL, why the permission probe is a Swift helper, why Arc reports no active tab, and why
 Firefox is absent, lives in `Spoons/BrowserTabs.spoon/CLAUDE.md`. Adding it needed a restow,
 since `~/.hammerspoon/Spoons` holds one symlink per spoon.
+
+**Processes.** Finds the development servers you left running and stops them, opened from
+the launcher only with no dedicated key. Its launcher row reads Local Servers rather than
+Processes, because the list is local port holders, containers and portless watchers and
+never the whole process table, and the old label promised a system monitor this is not.
+The spoon keeps its own name, since that one is an internal identifier nobody reads. The
+words the title dropped live on the row's hidden `keywords`, so typing process still finds
+it. It follows the Capture layout, an engine over
+interchangeable discovery sources, and the DisplayProfiles shape of a spoon whose surface is
+its own `chooser.lua` beside the engine, so it is configured twice like DisplayProfiles is.
+The spoon's own root reads the pure data in `config/processes.lua` and hands each source the
+slice it needs, staying the one place that names both the concrete sources and their order,
+and the main root injects only the view deps every chooser receives. It follows the picker
+checklist, its `processes` context giving it the shared j, k, i navigation with x to close
+plus three actions only it answers, a force stop, a rescan and a sort by load, routed through `routeNav` so
+they are no ops on any other surface rather than naming this one directly the way the
+clipboard-only append and delete do. It overrides the shared fuzzy matcher to `words`, the
+same choice the clipboard makes, because a query here is a real fragment you remember, a
+port number or a project name, not an abbreviation of a short known label. Adding it needed
+a restow, since `~/.hammerspoon/Spoons` holds one symlink per spoon. The source contract,
+the port claim rule that collapses the docker proxy listeners into named containers, the
+group signalling and its guards, and three hs.task and lsof facts that will bite anyone who
+touches the shellouts, live in `Spoons/Processes.spoon/CLAUDE.md`.
 
 **Eyedropper.** A screen colour sampler on Hyper+2, on the native macOS
 eyedropper. It is deliberately not a chooser, so the picker checklist above does

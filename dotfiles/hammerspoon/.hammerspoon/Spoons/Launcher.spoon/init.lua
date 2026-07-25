@@ -215,8 +215,13 @@ end
 function obj:_buildActionRows()
   local keys = self._keys
   local rows = {}
-  local function add(title, subTitle, item, glyph, when)
-    rows[#rows + 1] = { title = title, subTitle = subTitle, image = self:_glyphIcon(glyph), item = item, when = when }
+  -- keywords is hidden text the matcher sees and the row does not show, the same field
+  -- the injected rows already carry. It exists so a row can answer to a word its title
+  -- and subtitle have no room for, rather than that word being padded into the visible
+  -- subtitle where it would cost a reader something to buy a searcher something.
+  local function add(title, subTitle, item, glyph, when, keywords)
+    rows[#rows + 1] = { title = title, subTitle = subTitle, image = self:_glyphIcon(glyph),
+                        item = item, when = when, keywords = keywords }
   end
   -- Window actions share one glyph, the chord in the subtitle tells them apart;
   -- capture and the system actions get a per-action one.
@@ -246,6 +251,14 @@ function obj:_buildActionRows()
   -- it does rather than a shortcut.
   if keys.textCase then
     add(keys.textCase.description, "Text · recase the selection in place", { kind = "special", name = "textCase" }, "🔠")
+  end
+  -- Processes has no dedicated chord either, so its subtitle names what it does, and it
+  -- names all three tiers rather than just servers because that is what the list holds.
+  -- The keywords carry the words the title used to and no longer does, so the habit of
+  -- typing process or port still lands on it.
+  if keys.processes then
+    add(keys.processes.description, "System · stop a dev server, container, or watcher",
+      { kind = "special", name = "processes" }, "🔌", nil, "processes port node docker")
   end
   add(keys.lock.description, "System · " .. self:_chordLabel("Hyper", keys.lock.key), { kind = "special", name = "lock" }, "🔒")
   add(keys.sleep.description, "System · " .. self:_chordLabel("Hyper", keys.sleep.key), { kind = "special", name = "sleep" }, "🌙")

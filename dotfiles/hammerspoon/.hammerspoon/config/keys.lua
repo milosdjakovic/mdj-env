@@ -306,6 +306,28 @@ return {
         { key = "x", action = "closeChooser", description = "Close" },
       },
     },
+    -- The processes picker (launcher-only). A flat list, so i stops the highlighted
+    -- server or container the same as Return, j and k navigate vim style, and x closes it.
+    -- Three extra actions are its own. f stops with no grace period and no size check,
+    -- for something already wedged, r rescans in place so the list can be refreshed
+    -- without closing and reopening, and s reorders by live load so whatever is burning
+    -- a core comes to the top. All three are answered only by this surface, so they are
+    -- no ops anywhere else. Plain typing filters by project, port, or runtime while
+    -- Hyper is released.
+    {
+      name = "processes",
+      when = "processesOpen",
+      priority = 100,
+      bindings = {
+        { key = "i", action = "insertSelected", description = "Stop" },
+        { key = "j", action = "selectNext",     description = "Move down" },
+        { key = "k", action = "selectPrev",     description = "Move up" },
+        { key = "s", action = "sortByLoad",     description = "Sort by load" },
+        { key = "f", action = "stopForced",     description = "Force stop" },
+        { key = "r", action = "refreshList",    description = "Rescan" },
+        { key = "x", action = "closeChooser",   description = "Close" },
+      },
+    },
   },
 
   -- System actions bound onto the Hyper key in init.lua. Hyper+Esc sleeps the
@@ -434,6 +456,20 @@ return {
   -- hyperContext above, so while open it takes the shared j, k, i, and x navigation. W reads
   -- as web, since B is already the Books toggle and T the Stickies one.
   browserTabs = { modifiers = HYPER, key = "W", description = "Browser tabs" },
+
+  -- Processes (for Processes.spoon, wired in init.lua). Finds the development servers you
+  -- left running, identified by the port they hold and the project they run in, and stops
+  -- them by taking the whole process group or the whole container rather than one leaf
+  -- process. Opened from the launcher only, so it has no dedicated key and no modifiers. It
+  -- has its own hyperContext above, so while open it takes the shared j/k/i navigation plus
+  -- its own force stop, rescan and sort by load, and x closes it. `description` labels its
+  -- launcher row.
+  --
+  -- Named for what it lists rather than for the spoon behind it. It shows local port
+  -- holders, containers, and portless watchers, never the whole process table, and
+  -- calling the row Processes promised a system monitor it deliberately is not. The
+  -- spoon keeps its own name, since that one is an internal identifier and nobody reads it.
+  processes = { description = "Local Servers" },
 
   -- Feature toggles
   toggleDock = { modifiers = CTRL_ALT, key = "D" },
