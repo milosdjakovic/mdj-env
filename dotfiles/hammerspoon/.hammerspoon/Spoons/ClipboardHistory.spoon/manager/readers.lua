@@ -12,6 +12,11 @@
 ---   matches(ctx) -> bool  ctx = { set = <contentTypes as a set>, avail = <typesAvailable> }
 ---   read(ctx) -> entry    a raw entry for store.add, or nil if nothing usable
 --- Adding a type is a new reader here plus one line in the composition root.
+---
+--- M.textEntry is exported beside the chain, because how a text entry is labelled must
+--- have one owner. The append accumulator grows an entry's text after capture and has to
+--- relabel it exactly the way a fresh copy would be labelled, so it calls this rather
+--- than recomputing the title and the character count on its own and drifting.
 
 local M = {}
 
@@ -93,6 +98,25 @@ local function urlLike(s)
   return nil
 end
 
+--- M.textEntry(util, s) -> entry
+--- Build a raw text entry from a string, the one place a text entry's label, character
+--- count, and size are decided. It does no url promotion, that stays in the text reader
+--- above the call, so anything routed through here is text and stays text.
+function M.textEntry(util, s)
+  -- Character count, not byte count, so a multibyte string reads honestly.
+  -- utf8.len returns nil on invalid data, so fall back to the byte length.
+  local chars = #s
+  if utf8 and utf8.len then
+    local n = utf8.len(s)
+    if n then chars = n end
+  end
+  return {
+    kind = "text", text = s, ts = os.time(),
+    title = util.oneLine(s, 100), preview = string.format("%d chars", chars),
+    size = #s, chars = chars,
+  }
+end
+
 function M.build(util)
   local fileReader = {
     kind = "file",
@@ -162,18 +186,7 @@ function M.build(util)
       if u then
         return { kind = "url", text = u, ts = os.time(), title = util.oneLine(u, 100), preview = "URL", size = #u }
       end
-      -- Character count, not byte count, so a multibyte string reads honestly.
-      -- utf8.len returns nil on invalid data, so fall back to the byte length.
-      local chars = #s
-      if utf8 and utf8.len then
-        local n = utf8.len(s)
-        if n then chars = n end
-      end
-      return {
-        kind = "text", text = s, ts = os.time(),
-        title = util.oneLine(s, 100), preview = string.format("%d chars", chars),
-        size = #s, chars = chars,
-      }
+      return M.textEntry(util, s)
     end,
   }
 

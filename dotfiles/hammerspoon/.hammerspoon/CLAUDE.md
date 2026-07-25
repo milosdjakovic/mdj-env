@@ -363,6 +363,26 @@ That parse is cached and cleared on an `hs.screen.watcher` change, the same even
 DisplayProfiles reacts to, so fixed mode costs nothing per open after the first
 resolve on an arrangement.
 
+**Transient feedback surface.** Routine feedback a feature produces while it is
+working is drawn on the shared `CanvasPanel`, never on `hs.alert`, so the UI stays
+one surface and the message lands on whatever display the policy above chose.
+`hs.alert` is the reason this needs saying, it draws itself with no knowledge of
+that policy, so a stray alert shows up somewhere no other overlay ever does. The
+colour toast in `init.lua` is the worked example, a content function returning
+`preferredSize` and `draw` fed into a single panel that is reused across messages
+and hidden by a timer, with a mutable state table so a burst replaces the message
+rather than stacking a column of panels. A spoon does not name the surface. It
+takes an injected callback, the way Eyedropper hands its confirmation out through
+`onPick`, and the root decides how the message is drawn, the same seam as the
+overlay display screen.
+
+`hs.alert` stays right for one case, a failure that stopped the feature running at
+all. "Terminal not configured" in TerminalHandler, "No focused window!" in
+WindowManager, and the "Color picker unavailable" fallback in Eyedropper are all
+that shape, and they stay as they are. The rule governs the working path, not the
+broken one. One place does not follow it yet, the copy confirmation in Vpn, which
+is routine feedback sitting on an alert because it predates the convention.
+
 **Spoon lifecycle contract.** Every spoon is created and wired the same way, so
 `init.lua` can treat them uniformly. This is a convention, not a base class,
 because a Lua contract is structural, a documented set of methods plus validation,
@@ -635,6 +655,136 @@ decoupled from the UI: `manager/store.lua` owns the media lifecycle and
 PNGs off the main thread (sips for rasters, ffmpeg for video, `hs.image` for
 pdf/icns), knowing nothing about the UI. `ui.lua` only consumes the resulting
 `e.prev`/`e.thumb` paths, so swapping the webview for the canvas touched neither.
+
+**Clipboard append and sequential paste.** Two clipboard actions need no list, so they are the
+only clipboard keys not on Hyper. They are global Ctrl and Option combos, on C and V, because
+they extend the plain copy and paste keys and are pressed mid edit rather than reached through a
+leader, the same reasoning that leaves the terminal toggle on a plain combo. Ctrl and Option is
+the free corner of the keyboard, since Apple keeps Cmd in every menu shortcut, so a Ctrl and
+Option letter is almost never an app command. Cmd and Option was the first choice and is not
+usable, Finder puts copy as pathname and move item here there and the design tools put copy and
+paste properties there, and an app by app pass through list was rejected as more confusing than
+the feature is worth. Being global they sit in no leader's cheat sheet, so their launcher rows
+are their only listing, which is why both carry a `description`.
+
+Both live in `manager/session.lua`, the transient session state over the persistent history. They
+share a file because they end on the same signal, a genuine copy, and splitting them would
+duplicate that wiring. The module owns no watcher and nothing in it is driven by a clock, so it has
+no `start` or `stop`, because every condition that ends a run is observable when the next key is
+pressed and is read there. The two timers it does hold drive nothing, one spaces out a queued press
+and one releases a claim whose release never arrived. Four decisions are worth knowing.
+
+The append glues onto row 1 only when row 1 is text that arrived by a real copy, and otherwise
+starts a new row, so the first press always behaves like a plain copy and only the presses after
+it accumulate. A plain copy is what ends an accumulation, so there is no key for that. The real
+copy test cannot be replaced by an age test, which is the trap here, because floating an entry to
+the front refreshes its recency, so an old snippet just pasted out of the picker looks brand new
+and an append would silently rewrite it. Only the capture side can still tell, which is why the
+monitor grew one hook, `onCapture`, fired after a genuine copy and nowhere else.
+
+An append is the one thing that changes an entry's content after capture, which two places had
+assumed could never happen. `store.replaceText` is the only way it happens, so the dedupe key
+recompute that keeps identity honest lives there alone, and `ui.entryChanged` drops that entry's
+cached searchable text, without which a search would keep missing the words just appended.
+
+The walk does not paste text at all, it hands it straight to the focused field through
+`monitor.insertText`, which sets `AXSelectedText` on the focused accessibility element. That lands
+three to fourteen milliseconds after the press, measured, and involves neither the pasteboard nor
+the keyboard, so there is nothing to serialise on, nothing to put back, and nothing to wait out,
+and taps land as fast as they come. A paste can never be that, and not because of anything on our
+side. The unavoidable cost in a paste is the receiving app reading the pasteboard, its work on its
+own clock, and until it has nothing may write there again. Anything that is not text, and any field
+that refuses `AXSelectedText`, falls back to a real paste and pays that cost, because there is no
+other way in for those.
+
+The fallback paste passes `reorder = false`, so it reads the list without rewriting the order it is
+reading, and puts the clipboard back once the burst is over, so however far it has gone a plain
+paste still means the newest entry. It restores to one snapshot taken when the walk began rather
+than one per step, since a per step snapshot would capture the previous step's own content. Steps
+also serialise on a settle callback, because two overlapping pastes would have the first one's
+restore land on top of the second one's content.
+
+Every paste path in the manager now funnels through one primitive in `monitor.lua`, with
+reordering, restoring, and the settle callback passed in as options rather than baked in, which is
+what let the walk reuse the proven path instead of growing a second one. `pasteText` became a
+synthetic op through that same primitive.
+
+Both keys post their synthetic stroke while the chord that asked for it is still physically held,
+which is a hazard none of the earlier keystroke paths faced, since every one of them fires either
+after a chooser closed or from Hyper, and Hyper is Caps Lock through ChordKey so it holds nothing
+down. The append failed on every press with nothing selected, while the identical read through
+TextCase, on Hyper, worked every time, which made the held modifiers look certain. They were not,
+and the wrong turn cost more than the fix, so the measurements are recorded here.
+
+A posted stroke does not carry the held modifiers. An event tap sees exactly the modifiers asked
+for, held keys and all, and a real app copies and pastes happily with a chord asserted, and a probe
+that pasted through three delivery mechanisms during a genuine physical hold had all three arrive,
+including the plain `keyStroke`. So nothing waits for a release, and neither key needs one.
+
+That does not make a synthetic stroke against a held chord reliable, and it is not. The walk sent
+one Cmd+V per step into Antinote, with the log showing every write, every stroke and `held=alt+ctrl`
+each time, and not one of them pasted anything. The stroke goes out and the app simply does not act
+on it. No delay fixes that, because the app is not being asked too early, it is refusing. It arrived
+once in a probe and never in real use, so the conclusion is that it cannot be relied on and not that
+it never works, and rather than chase which apps behave which way, text now avoids the keyboard
+entirely. What remains behind a synthetic stroke is an image or a file, where there is no
+alternative, and that is worth knowing when one of those does not land during a hold.
+
+What does interfere is posting the stroke in the same instant the key that asked for it is still
+being delivered, and that alone was the bug. The paste path always waited `pasteDelay` before its
+Cmd+V and never showed the fault, the read path posted its Cmd+C immediately and always did.
+`copyDelay` in `monitor.lua` is that missing beat. The failure is invisible from inside, the
+pasteboard write succeeds and only the app's response is missing, so a read that times out logs
+the frontmost app and the modifiers held, because nothing selected and the app ignored us are
+otherwise the same event.
+
+Two other attempted fixes were removed and are worth not repeating. Clearing the held modifiers by
+posting key events on their keycodes does nothing at all, since the modifier state is derived from
+`flagsChanged` events alone. Clearing it properly with a hand built `flagsChanged` event does move
+the state but cannot be timed, because the app processes the stroke well after the restore has
+already run.
+
+Presses that land inside an unsettled paste are queued rather than dropped, capped at a handful. A
+paste takes about a quarter of a second to settle and tapping faster than that is ordinary, so
+dropping was what made a fast burst look like it pasted only part of what was asked for. They
+still never overlap, since two pastes in flight would have the first one's restore land on top of
+the second one's content, and a walk that ends discards whatever was queued for it.
+
+Queueing them exposed the constraint the drops had been hiding, and it is the receiving app's
+clock, not ours. The gap between our Cmd+V and the next write of any kind is all the time that app
+has to read what we pasted, and an app slower than that reads whatever replaced it, so it pastes
+the wrong entry or nothing. Draining a queued press the instant a paste settled left only the
+settle delay, and a burst went back to delivering part of itself, which is the same symptom the
+drops caused and a different cause. `sequenceDrainDelay` is the gap, one number, and the restore at
+the end of a burst waits a hair longer than it so a step already queued wins the tie and cancels
+it, which is also what leaves a burst with one restore instead of one between every pair. Both
+sides of that pair come from the one number, in `session.lua`, because the caller is what knows the
+cadence, and `monitor.lua` takes the delay as an option rather than choosing one.
+
+All of that now applies only to an image or a file, since text no longer goes through the
+pasteboard. It stays because those still do, and because it is the general shape of the problem.
+Half a second an entry is what a paste costs and it reads as sluggish, which is the other half of
+why text does not use one.
+
+None of this is visible from inside, the write always succeeds and only the app's response is
+missing, so `manager.setLogLevel("debug")` makes both modules print one timeline with millisecond
+stamps, the press, the queue depth, each write, each Cmd+V, each settle and the restore. Every
+theory about these two keys that was argued rather than measured turned out wrong, so measure. The
+same switch shows a paste of ours mistaken for a copy, which would end a walk for no visible
+reason, since `noteCapture` logs every capture it is told about.
+
+Two hazards from probing this live are worth not repeating. A synchronous AppleScript from
+Hammerspoon to an app that is launching or activating can deadlock, TextEdit waiting on the main
+thread we are blocking, which freezes every hotkey in the config until the AppleEvent times out,
+and killing the app only makes the pending event relaunch it into the same deadlock. Drive a paste
+into an `hs.chooser` query field instead, a real focused text field inside our own process whose
+contents can be read back. And check the screen is unlocked before measuring delivery, since a
+locked screen leaves `loginwindow` frontmost and every paste goes there, which looks exactly like a
+paste that did not land.
+
+Both actions report what they did, since each changes something invisible, an entry growing
+offscreen and a position in a list. The message goes out through an injected `onMessage` and the
+root draws it on the shared `CanvasPanel`, following the transient feedback surface rule above.
 
 **Launcher.** Hyper+Space opens a filterable app switcher and command runner, the built-in one, built over the Chooser atom. It is a coordinator spoon that owns the app scan caches and an `hs.application.watcher`, orders open apps by recency the way Command+Tab does, and follows the picker checklist above. Its decision trail and internals live in `Spoons/Launcher.spoon/CLAUDE.md`.
 

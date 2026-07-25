@@ -72,7 +72,8 @@ end
 
 --- ClipboardHistory.manager
 --- The Hammerspoon clipboard mechanism, exposing configure/start/show/isShowing/
---- clear. The composition root starts it once; see manager/init.lua.
+--- clear, plus appendCopy and pasteNext, which act on the history with no picker
+--- involved. The composition root starts it once; see manager/init.lua.
 obj.manager = load("manager/init.lua")
 
 obj.providers = {
@@ -188,21 +189,52 @@ end
 
 --- ClipboardHistory:bindHotkeys(mapping)
 --- Method
---- mapping.open - { modifiers = ..., key = ... }. Binds into the Hyper key when
----                one is wired, otherwise the literal modifier combo.
+--- mapping.open       - { modifiers = ..., key = ... }. Binds into the Hyper key when
+---                      one is wired, otherwise the literal modifier combo.
+--- mapping.appendCopy - { modifiers = ..., key = ... }, optional. Copy the selection onto
+---                      the newest entry rather than pushing a new one.
+--- mapping.pasteNext  - { modifiers = ..., key = ... }, optional. Paste the next entry in a
+---                      walk through history.
+---
+--- The last two are always the literal combo and never go into the Hyper modal, because they
+--- extend the ordinary copy and paste keys and are pressed mid edit rather than reached
+--- through a leader. They also bypass the provider chain and speak to the manager directly,
+--- since an external clipboard manager has no history of ours to append to, so these are
+--- capabilities of the built-in backend rather than of whichever backend shows a list. Being
+--- literal combos they fire with their own modifiers still held, which the synthetic copy and
+--- paste both survive, so neither waits for a release and both can be tapped against a held
+--- chord. The one thing that does not survive is posting the stroke in the same instant, which
+--- monitor.lua handles with a short delay before each.
 function obj:bindHotkeys(mapping)
-  local binding = mapping and mapping.open
-  if not binding then
-    return self
+  mapping = mapping or {}
+
+  if mapping.open then
+    local binding = mapping.open
+    local action = function()
+      self:open()
+    end
+    if self._hyperKey then
+      self._hyperKey:bind(binding.key, action)
+    else
+      hs.hotkey.bind(binding.modifiers, binding.key, action)
+    end
   end
-  local action = function()
-    self:open()
+
+  local managerActions = {
+    appendCopy = function()
+      self.manager.appendCopy()
+    end,
+    pasteNext = function()
+      self.manager.pasteNext()
+    end,
+  }
+  for name, action in pairs(managerActions) do
+    local binding = mapping[name]
+    if binding then
+      hs.hotkey.bind(binding.modifiers, binding.key, action)
+    end
   end
-  if self._hyperKey then
-    self._hyperKey:bind(binding.key, action)
-  else
-    hs.hotkey.bind(binding.modifiers, binding.key, action)
-  end
+
   return self
 end
 

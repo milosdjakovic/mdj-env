@@ -235,6 +235,17 @@ function obj:_buildActionRows()
   add(keys.caffeinate.description, "System · " .. self:_chordLabel("Hyper", keys.caffeinate.key), { kind = "special", name = "caffeinate" }, "☕")
   add(keys.vpn.description, "Network · " .. self:_chordLabel("Hyper", keys.vpn.key), { kind = "special", name = "vpn" }, "🌐")
   add(keys.clipboardHistory.description, "Clipboard · " .. self:_chordLabel("Hyper", keys.clipboardHistory.key), { kind = "special", name = "clipboard" }, "📋")
+  -- The two clipboard actions that are global combos rather than Hyper bindings, so their
+  -- subtitle carries the whole chord and names no leader. They are listed here because a
+  -- global binding appears in no leader's cheat sheet, leaving this their only listing.
+  if keys.appendCopy then
+    add(keys.appendCopy.description, "Clipboard · " .. self._glyphFor(keys.appendCopy.key, keys.appendCopy.modifiers),
+      { kind = "special", name = "appendCopy" }, "➕", nil, "append copy add selection accumulate")
+  end
+  if keys.pasteNext then
+    add(keys.pasteNext.description, "Clipboard · " .. self._glyphFor(keys.pasteNext.key, keys.pasteNext.modifiers),
+      { kind = "special", name = "pasteNext" }, "⏩", nil, "paste next sequential walk history")
+  end
   if keys.browserTabs then
     add(keys.browserTabs.description, "Tools · " .. self:_chordLabel("Hyper", keys.browserTabs.key), { kind = "special", name = "browserTabs" }, "📑")
   end

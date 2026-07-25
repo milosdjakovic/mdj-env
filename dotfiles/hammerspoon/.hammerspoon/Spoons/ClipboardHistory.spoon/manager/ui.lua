@@ -22,6 +22,9 @@
 local UI = {}
 
 local store, monitor, util = nil, nil, nil
+-- Asked per row while building the list, so a growing entry can be marked. Defaults to
+-- answering no, so the rows render the same when no accumulator is wired in at all.
+local isAccumulator = function() return false end
 local cfg = nil -- layout and size config, see configure
 local Chooser = nil -- the injected Chooser.spoon factory
 local picker = nil -- our Chooser instance, built once in UI.build
@@ -45,9 +48,10 @@ local thumbCache = {} -- path -> hs.image (or false), for row thumbnails
 local imageCache = {} -- preview png path -> hs.image (or false), so a re-highlight re-decodes nothing
 local iconCache = {} -- bundle id -> hs.image (or false), for row source-app icons
 local existCache = {} -- linked-file path -> bool, so the badge does not restat per keystroke
--- entry -> its lowercased searchable text, built once. Weak keyed, so an entry that
--- leaves the store falls out on its own and nothing needs to invalidate it, since an
--- entry's content never changes after capture.
+-- entry -> its lowercased searchable text, built once. Weak keyed, so an entry that leaves
+-- the store falls out on its own. One thing does change an entry's content after capture,
+-- the append accumulator growing it, and that is the single case this has to be told about,
+-- through UI.entryChanged.
 local hayCache = setmetatable({}, { __mode = "k" })
 
 -- Append batch. The Hyper a binding collects the highlighted entry here, in the
@@ -159,6 +163,14 @@ end
 
 local function subTextFor(e)
   local parts = { KIND_LABEL[e.kind] or e.kind, util.relTime(e.ts) }
+  -- The live accumulator says how many pieces it holds, since an entry that grew offscreen
+  -- otherwise looks like any other row and its title only shows the first hundred characters
+  -- collapsed onto one line. The count goes here rather than in the icon slot, which the kind
+  -- glyph and the batch position keycap already contend for.
+  local accumulating, pieces = isAccumulator(e)
+  if accumulating then
+    parts[#parts + 1] = pieces .. " pieces"
+  end
   -- The file location belongs only in the preview, so the picker shows just the
   -- count when several files were copied and nothing extra for a single one. The
   -- Linked/Deleted badge rides along so dead copies are visible without opening
@@ -1110,6 +1122,19 @@ function UI.mediaReady()
   end
 end
 
+--- UI.entryChanged(entry) - one entry's content was rewritten in place, which only the append
+--- accumulator does. Drop its cached searchable text, or a search would keep missing the words
+--- just appended, and repaint if the chooser happens to be open so the row and the preview show
+--- the grown content. Nothing else has to be invalidated, since the row is built from the entry
+--- itself and the media caches are keyed by path.
+function UI.entryChanged(entry)
+  hayCache[entry] = nil
+  if picker and picker:isShowing() then
+    picker:refresh()
+    renderPreview(picker:selectedItem())
+  end
+end
+
 function UI.selectNext()
   if picker then picker:selectNext() end
 end
@@ -1222,6 +1247,7 @@ function UI.configure(opts)
   monitor = opts.monitor
   util = opts.util
   Chooser = opts.chooser
+  isAccumulator = opts.isAccumulator or isAccumulator
   cfg = opts
   return UI
 end
