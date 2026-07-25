@@ -147,58 +147,6 @@ local function parseCwds(out)
   return byPid
 end
 
--- One full process table, keyed by pid, plus a pgid index. Fields are fixed width
--- numerics first and the command line last, so the split is five leading fields and
--- then the remainder, which is the only shape that survives a command line
--- containing arbitrary spaces.
-local function parseProcs(out)
-  local byPid, byPgid = {}, {}
-  for line in util.lines(out) do
-    local pid, ppid, pgid, rss, etime, args =
-      line:match("^%s*(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%S+)%s*(.*)$")
-    if pid then
-      local p = {
-        pid = tonumber(pid), ppid = tonumber(ppid), pgid = tonumber(pgid),
-        rss = tonumber(rss), uptime = util.etimeSeconds(etime), args = args,
-      }
-      byPid[p.pid] = p
-      byPgid[p.pgid] = byPgid[p.pgid] or {}
-      table.insert(byPgid[p.pgid], p)
-    end
-  end
-  return byPid, byPgid
-end
-
--- Order a process group the way it was built, roots first then children beneath
--- them, carrying a depth so the preview pane can indent it. Sorting by pid would be
--- wrong, pids wrap around, and in a real dev server tree the leaf server routinely
--- holds a lower pid than the shell that started it.
-local function orderGroup(members)
-  local inGroup, children, roots = {}, {}, {}
-  for _, p in ipairs(members) do inGroup[p.pid] = p end
-  for _, p in ipairs(members) do
-    if inGroup[p.ppid] then
-      children[p.ppid] = children[p.ppid] or {}
-      table.insert(children[p.ppid], p)
-    else
-      table.insert(roots, p)
-    end
-  end
-  table.sort(roots, function(a, b) return a.pid < b.pid end)
-  local ordered = {}
-  local function walk(p, depth)
-    ordered[#ordered + 1] = {
-      pid = p.pid, ppid = p.ppid, depth = depth,
-      label = util.elide(p.args, COMMAND_MAX) or "?",
-    }
-    local kids = children[p.pid] or {}
-    table.sort(kids, function(a, b) return a.pid < b.pid end)
-    for _, kid in ipairs(kids) do walk(kid, depth + 1) end
-  end
-  for _, root in ipairs(roots) do walk(root, 0) end
-  return ordered
-end
-
 --- scan(cb) - three shellouts, two of them concurrent.
 ---
 --- The listener scan and the process table do not depend on each other so they run
@@ -246,7 +194,7 @@ function M.scan(cb)
           startedAt = now - proc.uptime,
           rss = proc.rss,
           tier = 0,
-          tree = orderGroup(members),
+          tree = util.orderGroup(members, COMMAND_MAX),
         }
       end
     end
@@ -287,7 +235,7 @@ function M.scan(cb)
     join()
   end)
   util.run(PS, { "-Ao", "pid=,ppid=,pgid=,rss=,etime=,args=" }, M._timeout, function(out)
-    procsByPid, procsByPgid = parseProcs(out or "")
+    procsByPid, procsByPgid = util.parseProcs(out or "")
     join()
   end)
 end
@@ -308,7 +256,7 @@ function M.stop(row, opts, cb)
   end
 
   util.run(PS, { "-Ao", "pid=,ppid=,pgid=,rss=,etime=,args=" }, M._timeout, function(out)
-    local byPid, byPgid = parseProcs(out or "")
+    local byPid, byPgid = util.parseProcs(out or "")
     local members = row.pgid and byPgid[row.pgid] or (byPid[row.pid] and { byPid[row.pid] })
     if not members or #members == 0 then
       cb(true, "already gone")

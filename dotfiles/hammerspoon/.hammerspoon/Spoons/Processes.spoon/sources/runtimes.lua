@@ -117,28 +117,6 @@ local function underDevRoot(cwd)
   return false
 end
 
--- One full process table, keyed by pid, plus a pgid index. Fields are fixed width
--- numerics first and the command line last, so the split is five leading fields and
--- then the remainder, which is the only shape that survives a command line
--- containing arbitrary spaces.
-local function parseProcs(out)
-  local byPid, byPgid = {}, {}
-  for line in util.lines(out) do
-    local pid, ppid, pgid, rss, etime, args =
-      line:match("^%s*(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%S+)%s*(.*)$")
-    if pid then
-      local p = {
-        pid = tonumber(pid), ppid = tonumber(ppid), pgid = tonumber(pgid),
-        rss = tonumber(rss), uptime = util.etimeSeconds(etime), args = args,
-      }
-      byPid[p.pid] = p
-      byPgid[p.pgid] = byPgid[p.pgid] or {}
-      table.insert(byPgid[p.pgid], p)
-    end
-  end
-  return byPid, byPgid
-end
-
 -- The kernel accounting name per pid, which is what the allowlist is written
 -- against. It cannot come from the table above, because ps pads this column to a
 -- fixed width and the name itself may contain a space, so putting it beside the
@@ -166,38 +144,6 @@ local function parseCwds(out)
     end
   end
   return byPid
-end
-
--- Order a process group the way it was built, roots first then children beneath
--- them, carrying a depth so the preview pane can indent it. Sorting by pid would be
--- wrong, pids wrap around, and in a real watch tree the leaf worker routinely holds
--- a lower pid than the shell that started it. Walking this order is also how the
--- representative is picked, since the first qualifying entry in it is by
--- construction the shallowest one.
-local function orderGroup(members)
-  local inGroup, children, roots = {}, {}, {}
-  for _, p in ipairs(members) do inGroup[p.pid] = p end
-  for _, p in ipairs(members) do
-    if inGroup[p.ppid] then
-      children[p.ppid] = children[p.ppid] or {}
-      table.insert(children[p.ppid], p)
-    else
-      table.insert(roots, p)
-    end
-  end
-  table.sort(roots, function(a, b) return a.pid < b.pid end)
-  local ordered = {}
-  local function walk(p, depth)
-    ordered[#ordered + 1] = {
-      pid = p.pid, ppid = p.ppid, depth = depth,
-      label = util.elide(p.args, COMMAND_MAX) or "?",
-    }
-    local kids = children[p.pid] or {}
-    table.sort(kids, function(a, b) return a.pid < b.pid end)
-    for _, kid in ipairs(kids) do walk(kid, depth + 1) end
-  end
-  for _, root in ipairs(roots) do walk(root, 0) end
-  return ordered
 end
 
 --- scan(cb) - three shellouts, two of them concurrent.
@@ -229,7 +175,12 @@ function M.scan(cb)
 
     local rows = {}
     for pgid in pairs(groups) do
-      local ordered = orderGroup(procsByPgid[pgid] or {})
+      -- Ordered parent before child, which this source relies on for more than the
+      -- pane's indentation. Walking that order is also how the representative below is
+      -- picked, since the first qualifying entry in it is by construction the
+      -- shallowest one, so a change to the ordering would quietly change which process
+      -- names the row.
+      local ordered = util.orderGroup(procsByPgid[pgid] or {}, COMMAND_MAX)
       -- The second half of the rule, applied here because this is the first point
       -- the working directory exists. The shallowest qualifying member represents
       -- the group, so the row reads as the thing you started rather than as some
@@ -291,7 +242,7 @@ function M.scan(cb)
   end
 
   util.run(PS, { "-Ao", "pid=,ppid=,pgid=,rss=,etime=,args=" }, M._timeout, function(out)
-    procsByPid, procsByPgid = parseProcs(out or "")
+    procsByPid, procsByPgid = util.parseProcs(out or "")
     join()
   end)
 
@@ -331,7 +282,7 @@ function M.stop(row, opts, cb)
   end
 
   util.run(PS, { "-Ao", "pid=,ppid=,pgid=,rss=,etime=,args=" }, M._timeout, function(out)
-    local byPid, byPgid = parseProcs(out or "")
+    local byPid, byPgid = util.parseProcs(out or "")
     local members = row.pgid and byPgid[row.pgid] or (byPid[row.pid] and { byPid[row.pid] })
     if not members or #members == 0 then
       cb(true, "already gone")

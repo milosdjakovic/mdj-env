@@ -198,4 +198,76 @@ function M.lines(s)
   return (s or ""):gmatch("[^\r\n]+")
 end
 
+--- util.parseProcs(out) -> byPid, byPgid
+--- One full process table keyed by pid, plus a pgid index.
+---
+--- Expects the five fixed width numerics first and the command line last, which is the
+--- only ps layout that survives a command line containing arbitrary spaces. The pattern
+--- takes five leading fields and then the whole remainder, so a Java invocation with
+--- twenty space separated flags parses the same as `nginx`. A source asking for a
+--- different set of columns cannot use this, and should say so rather than reordering
+--- the ps call to fit.
+---
+--- Both sources that read the process table want exactly this, which is what moved it
+--- here. Two byte identical copies is the case the second consumer rule is about.
+function M.parseProcs(out)
+  local byPid, byPgid = {}, {}
+  for line in M.lines(out) do
+    local pid, ppid, pgid, rss, etime, args =
+      line:match("^%s*(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%S+)%s*(.*)$")
+    if pid then
+      local p = {
+        pid = tonumber(pid), ppid = tonumber(ppid), pgid = tonumber(pgid),
+        rss = tonumber(rss), uptime = M.etimeSeconds(etime), args = args,
+      }
+      byPid[p.pid] = p
+      byPgid[p.pgid] = byPgid[p.pgid] or {}
+      table.insert(byPgid[p.pgid], p)
+    end
+  end
+  return byPid, byPgid
+end
+
+--- util.orderGroup(members, commandMax) -> list of { pid, ppid, depth, label }
+--- Order a process group the way it was built, roots first then children beneath them,
+--- carrying a depth so the preview pane can indent it rather than print a flat list.
+---
+--- Sorting by pid would be wrong. Pids wrap around, and in a real dev server tree the
+--- leaf server routinely holds a lower pid than the shell that started it, so pid order
+--- prints the tree upside down often enough to notice. Parentage is the only ordering
+--- that is always right.
+---
+--- A member whose parent is outside the group is a root, which is what makes this
+--- correct for a group whose leader has already exited. There is no single root to find
+--- and looking for one would return nothing.
+---
+--- commandMax is the caller's, not ours. How wide a label may be is a display decision
+--- belonging to the source that will show it, and baking one number in here would make
+--- this mechanism carry a policy it has no business knowing.
+function M.orderGroup(members, commandMax)
+  local inGroup, children, roots = {}, {}, {}
+  for _, p in ipairs(members) do inGroup[p.pid] = p end
+  for _, p in ipairs(members) do
+    if inGroup[p.ppid] then
+      children[p.ppid] = children[p.ppid] or {}
+      table.insert(children[p.ppid], p)
+    else
+      table.insert(roots, p)
+    end
+  end
+  table.sort(roots, function(a, b) return a.pid < b.pid end)
+  local ordered = {}
+  local function walk(p, depth)
+    ordered[#ordered + 1] = {
+      pid = p.pid, ppid = p.ppid, depth = depth,
+      label = M.elide(p.args, commandMax) or "?",
+    }
+    local kids = children[p.pid] or {}
+    table.sort(kids, function(a, b) return a.pid < b.pid end)
+    for _, kid in ipairs(kids) do walk(kid, depth + 1) end
+  end
+  for _, root in ipairs(roots) do walk(root, 0) end
+  return ordered
+end
+
 return M
