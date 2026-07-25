@@ -87,6 +87,27 @@ return {
   -- `description` labels its Hyper cheat sheet and launcher rows.
   clipboardHistory = { modifiers = HYPER, key = "X", description = "Clipboard history" },
 
+  -- Append copy and sequential paste, the two clipboard actions that need no list. Append
+  -- copy glues the selection onto the newest entry instead of pushing a new one, so several
+  -- selections gather into one item. Paste next walks the history, the first press pasting
+  -- the newest entry exactly as a plain paste would and each press after it stepping one
+  -- older, without reordering history or leaving the clipboard changed.
+  --
+  -- Both are global combos rather than Hyper bindings, the only clipboard keys that are.
+  -- They extend the ordinary copy and paste keys and are pressed mid edit, so they should sit
+  -- under the same hand shape rather than behind a leader, the same reasoning that puts the
+  -- terminal toggle on a plain combo. Ctrl and Option is the free corner of the keyboard,
+  -- because Apple keeps Cmd in every menu shortcut, so a Ctrl and Option letter is almost
+  -- never an app command. Cmd and Option was the obvious first choice and is not usable,
+  -- Finder puts copy as pathname and move item here there and design tools put copy and
+  -- paste properties there. The one real collision left is VoiceOver, whose whole command
+  -- set uses Ctrl and Option as its modifier.
+  --
+  -- Being global, neither appears in a leader's cheat sheet, so both carry a `description`
+  -- for their launcher rows, which is where they are discoverable.
+  appendCopy = { modifiers = CTRL_ALT, key = "C", description = "Append copy" },
+  pasteNext = { modifiers = CTRL_ALT, key = "V", description = "Paste next" },
+
   -- External clipboard shortcut, for ClipboardHistory's generic `shortcut`
   -- provider. Hammerspoon fires this combo and whatever clipboard manager you bind
   -- the SAME combo to (Raycast, Alfred, or any other) reveals its history. It is

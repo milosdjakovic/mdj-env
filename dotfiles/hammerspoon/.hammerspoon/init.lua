@@ -429,7 +429,16 @@ spoon.ClipboardHistory:configure({
     spoon.ClipboardHistory.providers.spotlightTahoe,
   }),
 })
-spoon.ClipboardHistory:bindHotkeys({ open = keys.clipboardHistory })
+-- Append copy and paste next go to the native manager directly rather than through the
+-- provider chain above, since an external backend has no history of ours to append to or walk.
+-- They are global combos, the only clipboard keys not on Hyper, because they extend the plain
+-- copy and paste keys; see the reasoning in config/keys.lua. Both are also launcher rows, which
+-- is where they are discoverable, since a global binding sits in no leader's cheat sheet.
+spoon.ClipboardHistory:bindHotkeys({
+  open = keys.clipboardHistory,
+  appendCopy = keys.appendCopy,
+  pasteNext = keys.pasteNext,
+})
 
 -- Caffeinate is wired further down, alongside menu search and VPN, since all three are
 -- native choosers that dock the same deferred shortcut hint panel and share its factory,
@@ -960,6 +969,12 @@ spoon.Launcher:configure({
     settingsPane = function(url) spoon.SystemSettings:open(url) end,
     special = {
       clipboard = function() spoon.ClipboardHistory:open() end,
+      -- Both act on the app that was frontmost before the launcher opened, append copy by
+      -- reading its selection. Every launcher row already runs deferred until focus has gone
+      -- back there, which is what keeps the selection intact, the same mechanism the text case
+      -- picker depends on.
+      appendCopy = function() spoon.ClipboardHistory.manager.appendCopy() end,
+      pasteNext = function() spoon.ClipboardHistory.manager.pasteNext() end,
       caffeinate = function() spoon.Caffeinate.show() end,
       vpn = function() spoon.Vpn.show() end,
       colorPicker = function() spoon.Eyedropper:pick() end,
@@ -1327,7 +1342,50 @@ spoon.Processes.chooser.start()
 -- above. The clipboard Hyper context (config/keys.lua) drives its shortcuts through
 -- the choosers registry below.
 local clipPanel = shortcutPanelFor("clipboard")
+
+-- The append and the walk each change something the user cannot see, an entry growing offscreen
+-- and a position in a list, so every press has to say what it did. That message is the root's
+-- concern, handed to the manager through onMessage, and it is drawn on the shared CanvasPanel
+-- exactly like the colour toast above, so it lands on the display the overlay policy chose and
+-- reads as one UI instead of a stray hs.alert. Both keys are pressed in bursts, so the state is
+-- mutable and the timer is restarted, which replaces the message on one reused panel rather than
+-- stacking a column of them. Omitting onMessage leaves both actions silent and working.
+local function messageToastContent(theme, state)
+  local font, size = "Menlo", 18
+  return {
+    preferredSize = function()
+      local measured =
+        hs.drawing.getTextDrawingSize(hs.styledtext.new(state.text, { font = { name = font, size = size } }))
+      return { w = math.ceil((measured and measured.w) or 0), h = size + 4 }
+    end,
+    draw = function(w, h)
+      local dark = hs.host.interfaceStyle() == "Dark"
+      local side = (dark and theme.dark) or theme.light or theme.dark or {}
+      local fg = side.titleColor or { white = dark and 0.92 or 0.15 }
+      return {
+        { type = "text", text = state.text, textFont = font, textSize = size,
+          textColor = fg, textAlignment = "center",
+          frame = { x = 0, y = (h - size) / 2 - 1, w = w, h = size + 6 } },
+      }
+    end,
+  }
+end
+local clipMessage = { text = "" }
+local clipMessageToast = spoon.CanvasPanel.new({
+  placement = "center",
+  content = messageToastContent(settings.chooserTheme, clipMessage),
+})
+local clipMessageTimer
+
 spoon.ClipboardHistory.manager.configure({
+  onMessage = function(text)
+    clipMessage.text = text
+    clipMessageToast:show()
+    if clipMessageTimer then clipMessageTimer:stop() end
+    clipMessageTimer = hs.timer.doAfter(1.2, function()
+      clipMessageToast:hide()
+    end)
+  end,
   theme = settings.chooserTheme,
   chooser = spoon.Chooser,
   -- The clipboard parses a type prefix off its query ("img ...") so it owns filtering and

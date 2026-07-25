@@ -10,15 +10,58 @@
 --- new value immediately or the next poll would re-ingest our own paste. A content
 --- signature backs that up for apps that rewrite the pasteboard when they receive
 --- our paste, a second bump the count guard alone cannot tell from a real copy.
+---
+--- Every paste funnels through one primitive, pasteOp, and the callers differ only in the
+--- options they hand it, whether to put the previous pasteboard back afterwards and what to run
+--- once the paste has settled. Reordering history is the caller's policy rather than something
+--- baked into the paste, which is what lets a walk through history paste from it without
+--- rewriting the order it is walking. writeClipboard is the same write with no keystroke, for a
+--- caller that wants the clipboard loaded but nothing pasted.
+---
+--- A paste is not the only way in, only the universal one. insertText hands text straight to the
+--- focused field, involving neither the pasteboard nor the keyboard. The two are not
+--- interchangeable and neither replaces the other. A paste carries any kind of content into
+--- anything and costs a round trip through another app's clock. Direct insertion is instant and
+--- costs nothing, but carries only text, and only into a field that accepts it. So the caller
+--- picks, and a caller that can use the fast one falls back to the paste when the field refuses.
+---
+--- Every synthetic keystroke, the Cmd+C that reads a selection and the Cmd+V that pastes, goes out
+--- through one helper that reports which modifiers the caller was holding, since a stroke sent
+--- against a held chord can be quietly ignored by the app and that is invisible from in here.
+--- Measured, not theorised, in one app it is ignored every time, which is what direct insertion
+--- exists to get past.
+---
+--- The capture side exposes one hook, onCapture, fired only after a genuine copy has been
+--- stored. Nothing else here can tell a real copy from our own paste, and a consumer that
+--- needs that distinction cannot recover it from the store, since a paste refreshes an
+--- entry's recency and so looks brand new. So the distinction is published from the one
+--- place that still has it.
 
 local M = {}
 
+--- M.log - this module's logger, exposed so the mechanism's log level can be raised from one
+--- place. A paste is a write, a keystroke and a restore spread across two timers, and whether it
+--- landed is only visible in the receiving app, so the debug lines below record that sequence with
+--- millisecond timing. They are silent by default.
 local log = hs.logger.new("ClipboardNative", "info")
+M.log = log
+
+-- Seconds inside a hundred second window, shared with the session layer's trace so the two sides
+-- of one press can be read as a single timeline.
+local function clock()
+  return hs.timer.secondsSinceEpoch() % 100
+end
+
+local function frontID()
+  local front = hs.application.frontmostApplication()
+  return (front and front:bundleID()) or "unknown"
+end
 
 local readers = nil -- injected ordered reader chain
 local store = nil
 local util = nil
 local skipTypes = nil
+local onCapture = nil -- optional observer, called with each genuinely copied entry
 local pollInterval = 0.5
 local pasteDelay = 0.1
 
@@ -100,10 +143,18 @@ local function capture()
           -- Our own recent paste echoed back (the receiving app rewrote the
           -- pasteboard). The item is already at the top from the paste, so ignore
           -- this copy entirely rather than record it again.
+          log.df("%.3f ignored our own paste echoing back from %s", clock(), tostring(sourceApp))
           return
         end
         entry.sourceApp = sourceApp
-        store.add(entry)
+        -- add returns the live element, the new one or the existing one a duplicate
+        -- collapsed onto, and nil when this store refuses the kind. The observer is handed
+        -- that live reference, so a consumer can compare it against the list by identity.
+        local stored = store.add(entry)
+        log.df("%.3f captured %s from %s, count=%d", clock(), tostring(entry.kind), tostring(sourceApp), lastChange)
+        if stored and onCapture then
+          onCapture(stored)
+        end
       end
       return
     end
@@ -120,6 +171,44 @@ local function poll()
   end
   lastChange = c
   capture()
+end
+
+--------------------------------------------------------------------------------
+-- Synthetic keystrokes
+--------------------------------------------------------------------------------
+
+-- Both synthetic strokes here, the Cmd+C that reads a selection and the Cmd+V that pastes, are
+-- reported by the modifiers a caller was holding when it asked, which is the one thing that tells
+-- a silent failure apart from an empty selection. Nothing is done about those modifiers here.
+--
+-- Two attempts to fix them from inside this module were measured and both removed. The stroke's
+-- own flags never leak, an event tap sees exactly the modifiers asked for even mid chord. And
+-- clearing the modifier state around the stroke, which does take a hand built flagsChanged event
+-- since a key event on a modifier keycode changes nothing, cannot be timed correctly, because the
+-- app processes the stroke long after the restore has already run. A real app copied happily with
+-- the state asserted anyway. So the interference, if any, is the physically held keys rather than
+-- the state, and a physically held key cannot be lifted from here. Whoever binds the key waits for
+-- the release instead, which is where that decision belongs, since a caller with nothing held must
+-- not wait at all.
+local clearableMods = { "cmd", "alt", "ctrl", "shift" }
+
+local function heldModifiers()
+  local flags = hs.eventtap.checkKeyboardModifiers()
+  local held = {}
+  for _, name in ipairs(clearableMods) do
+    if flags[name] then
+      held[#held + 1] = name
+    end
+  end
+  return held
+end
+
+-- Every synthetic stroke in this module goes out through here, returning what was held so a
+-- caller can report it when the stroke visibly did not land.
+local function stroke(mods, key)
+  local held = heldModifiers()
+  hs.eventtap.keyStroke(mods, key, 0)
+  return held
 end
 
 --------------------------------------------------------------------------------
@@ -195,24 +284,227 @@ local function writeEntry(entry)
   return true
 end
 
---- M.paste(entry) - put the entry on the pasteboard and paste it into the
---- frontmost app, then float it to the top of history.
-function M.paste(entry)
-  if not entry then
-    return
-  end
-  if not writeEntry(entry) then
-    return
-  end
+-- How long after the Cmd+V the paste is considered settled, which is both when the previous
+-- pasteboard may be put back and when a following op may write its own content. Long enough
+-- that the receiving app has read ours, short enough that a user copy in between is
+-- unlikely. Acting sooner risks the app reading the next content and pasting that instead.
+local settleDelay = 0.15
 
+-- A restore that has been asked to wait, held here rather than per paste because only the most
+-- recent paste's restore can still be wanted. Whatever a superseded one would put back is about
+-- to be replaced anyway, and letting it fire would drop the old clipboard on top of content the
+-- next paste has just written, which the receiving app would then paste instead.
+local pendingRestore = nil
+
+local function cancelPendingRestore()
+  if pendingRestore then
+    pendingRestore:stop()
+    pendingRestore = nil
+  end
+end
+
+-- Put a snapshot from readAllData back, or clear the pasteboard when there was nothing to
+-- snapshot, and hide that write from the poll. A restore is never pasted anywhere, so the
+-- changeCount guard alone covers it and no signature is needed.
+local function restorePasteboard(snapshot)
+  if snapshot and next(snapshot) then
+    hs.pasteboard.writeAllData(snapshot)
+  else
+    hs.pasteboard.clearContents()
+  end
+  lastChange = hs.pasteboard.changeCount()
+end
+
+-- One paste, the primitive every paste path here is built from. It writes the op, hides the
+-- write from the poll, lets focus return to the app the picker covered, and sends Cmd+V.
+--
+-- opts.restore snapshots the pasteboard across all its types beforehand and puts it back once
+-- the paste has settled, so an image or file clipboard survives too and the paste leaves the
+-- clipboard as it found it. opts.restoreTo does the same with a snapshot the caller already
+-- holds, which is what a run of pastes wants, since snapshotting per paste would capture the
+-- previous paste's own content rather than the clipboard the run started from. `done` runs at
+-- that same settled moment, which is what lets a batch start its next op without racing the
+-- pasteboard.
+--
+-- opts.restoreWhenQuiet, in seconds, holds the restore back that much longer, and any later
+-- paste cancels it. Settling and restoring are the same moment for a single paste, but they
+-- answer to different clocks. Settling is ours, how long before we may touch the pasteboard
+-- again. The restore is the receiving app's, and the gap between our Cmd+V and the next write of
+-- any kind is all the time it has to read what we pasted. A caller pasting a run of entries in
+-- quick succession therefore wants the same gap ahead of a restore as it leaves between entries,
+-- and it is the caller that knows that number, so it passes it rather than finding one here.
+--
+-- Returns false, having done nothing, when the op's media is gone, so a caller pasting a
+-- sequence can skip it and continue.
+local function pasteOp(op, opts, done)
+  opts = opts or {}
+  local snapshot = opts.restoreTo or (opts.restore and hs.pasteboard.readAllData()) or nil
+  local quiet = opts.restoreWhenQuiet
+
+  -- This paste supersedes any restore still waiting, and its snapshot is about to be written
+  -- over regardless, so drop it before touching the pasteboard rather than racing it.
+  cancelPendingRestore()
+
+  if not writeEntry(op) then
+    return false
+  end
   -- Self-capture guard, recorded before the Cmd+V so the poll ignores our write.
   lastChange = hs.pasteboard.changeCount()
-  store.moveToFront(entry)
+  log.df("%.3f wrote %s, count=%d, app=%s", clock(), tostring(op.kind), lastChange, frontID())
 
-  -- A short delay lets focus return to the app the chooser covered.
   hs.timer.doAfter(pasteDelay, function()
-    hs.eventtap.keyStroke({ "cmd" }, "v", 0)
+    local held = stroke({ "cmd" }, "v")
+    log.df(
+      "%.3f cmd+v sent, app=%s, held=%s",
+      clock(),
+      frontID(),
+      (next(held) and table.concat(held, "+")) or "none"
+    )
+    -- Only arm the settle timer when something is waiting on it, so a plain single paste
+    -- still costs exactly one timer as it always did.
+    if snapshot or done then
+      hs.timer.doAfter(settleDelay, function()
+        if snapshot and not quiet then
+          restorePasteboard(snapshot)
+          log.df("%.3f clipboard restored, count=%d", clock(), lastChange)
+        elseif snapshot then
+          -- Armed before `done`, since done may start the next paste, and that paste cancelling
+          -- this is exactly how a run of them ends with one restore instead of one per entry.
+          pendingRestore = hs.timer.doAfter(quiet, function()
+            pendingRestore = nil
+            restorePasteboard(snapshot)
+            log.df("%.3f clipboard restored after %.2fs quiet, count=%d", clock(), quiet, lastChange)
+          end)
+        end
+        if done then
+          done()
+        end
+      end)
+    end
   end)
+  return true
+end
+
+--- M.paste(entry, opts) -> bool
+--- Put the entry on the pasteboard and paste it into the frontmost app. Returns whether the
+--- paste started, false when the entry's media is gone and there was nothing to write.
+---
+--- opts.reorder, default true, floats the entry to the top of history afterwards, the
+--- normal treatment for an entry picked out of the list. A caller stepping through history
+--- passes false, so walking the list does not rewrite the order being walked.
+---
+--- opts.restore, default false, puts the previous pasteboard back once the paste has settled,
+--- and opts.restoreTo does the same with a snapshot the caller already holds. A walk uses the
+--- latter, so however far it has gone the clipboard still holds what it held when the walk
+--- began, and a plain paste keeps meaning the newest entry.
+---
+--- opts.restoreWhenQuiet, in seconds, delays that restore and lets a later paste cancel it, so a
+--- run of pastes leaves the receiving app the same reading window on its last entry as it had on
+--- the ones before it. See pasteOp for why the restore answers to the app's clock.
+---
+--- opts.onSettled runs once the paste has settled and any restore has happened. A caller
+--- pressing repeatedly uses it to serialise, since starting a second paste inside the first
+--- one's window would have that first restore land on top of the second one's content.
+function M.paste(entry, opts)
+  if not entry then
+    return false
+  end
+  opts = opts or {}
+  local reorder = opts.reorder
+  if reorder == nil then
+    reorder = true
+  end
+
+  local started = pasteOp(entry, {
+    restore = opts.restore,
+    restoreTo = opts.restoreTo,
+    restoreWhenQuiet = opts.restoreWhenQuiet,
+  }, opts.onSettled)
+  if not started then
+    return false
+  end
+  if reorder then
+    store.moveToFront(entry)
+  end
+  return true
+end
+
+--------------------------------------------------------------------------------
+-- Direct insertion
+--------------------------------------------------------------------------------
+
+--- M.insertText(text) -> bool
+--- Hand text straight to the focused element, returning whether it went in.
+---
+--- This is the fast way in, and the only one that is instant. It touches neither the pasteboard
+--- nor the keyboard, so it needs no beat before it, no settle after it, and no clipboard to put
+--- back, and a caller can do it again in the same instant the next key is pressed. A paste can
+--- never be that, and not because of anything on our side. The unavoidable delay in a paste is the
+--- receiving app reading the pasteboard, which is its work on its own clock, and until it has done
+--- so nothing may write there again.
+---
+--- The cost is that not every field accepts it, so this asks first and reports what happened, and
+--- a caller falls back to a real paste when the answer is no. Only text can go this way at all, an
+--- image or a file has no equivalent, so those always go through the pasteboard.
+function M.insertText(text)
+  if not text or text == "" then
+    return false
+  end
+  local focused = hs.axuielement.systemWideElement():attributeValue("AXFocusedUIElement")
+  if not focused then
+    log.df("%.3f nothing focused in %s, cannot insert directly", clock(), frontID())
+    return false
+  end
+  if not focused:isAttributeSettable("AXSelectedText") then
+    log.df("%.3f the focused field in %s refuses direct text", clock(), frontID())
+    return false
+  end
+  local ok = focused:setAttributeValue("AXSelectedText", text) ~= nil
+  log.df("%.3f inserted %d chars directly into %s, ok=%s", clock(), #text, frontID(), tostring(ok))
+  return ok
+end
+
+--- M.readSelection() -> string or nil
+--- The current selection straight from the focused element, the read side mirror of insertText and
+--- instant for the same reason, no keystroke and no pasteboard. Returns nil when nothing is
+--- focused, when the element exposes no selection, or when the selection is empty, and a caller
+--- falls back to copySelection, which works anywhere but costs a round trip through Cmd+C.
+---
+--- Empty and unsupported are deliberately the same answer. They are not the same thing, but a
+--- caller does the same either way, and telling them apart here would mean trusting an app that
+--- reports an empty selection while showing one, which some do.
+function M.readSelection()
+  local focused = hs.axuielement.systemWideElement():attributeValue("AXFocusedUIElement")
+  if not focused then
+    return nil
+  end
+  local text = focused:attributeValue("AXSelectedText")
+  if type(text) ~= "string" or text == "" then
+    log.df("%.3f no direct selection from %s", clock(), frontID())
+    return nil
+  end
+  log.df("%.3f read %d chars of selection directly from %s", clock(), #text, frontID())
+  return text
+end
+
+--- M.snapshotClipboard() - the current pasteboard across every type, for a caller that will
+--- hand it back to paste as restoreTo. Every pasteboard read and write goes through this
+--- module, so the snapshot is taken here too rather than reached for directly.
+function M.snapshotClipboard()
+  return hs.pasteboard.readAllData()
+end
+
+--- M.writeClipboard(entry) - load the pasteboard from an entry without pasting anywhere,
+--- hidden from the poll and from its own echo exactly as a paste is. The append accumulator
+--- writes through this, so the growing text is always what a plain paste would deliver while
+--- none of those writes come back as new history entries. Returns false when the entry's
+--- media is gone.
+function M.writeClipboard(entry)
+  if not entry or not writeEntry(entry) then
+    return false
+  end
+  lastChange = hs.pasteboard.changeCount()
+  return true
 end
 
 -- Turn a collected batch into an ordered list of paste ops. Consecutive text and
@@ -252,9 +544,8 @@ function M.pasteBatch(entries)
     store.moveToFront(e)
   end
 
-  -- Each op writes the pasteboard, refreshes the guard so the poll ignores our
-  -- write, waits for the paste to settle, then sends Cmd+V. The next op starts
-  -- only after that settle, so a multi item paste does not race the pasteboard.
+  -- Each op pastes in turn, and the next one starts only once the previous has settled, so
+  -- a multi item paste never races the pasteboard.
   local ops = batchOps(entries)
   local i = 0
   local function step()
@@ -263,62 +554,28 @@ function M.pasteBatch(entries)
     if not op then
       return
     end
-    if writeEntry(op) then
-      lastChange = hs.pasteboard.changeCount()
-      hs.timer.doAfter(pasteDelay, function()
-        hs.eventtap.keyStroke({ "cmd" }, "v", 0)
-        hs.timer.doAfter(pasteDelay + 0.05, step)
-      end)
-    else
+    if not pasteOp(op, nil, step) then
       step() -- an op whose media vanished is skipped, the rest still paste
     end
   end
   step()
 end
 
--- How long after the Cmd+V to put the original pasteboard back. Long enough that the
--- receiving app has read our text, short enough that a user copy in between is unlikely.
--- Restoring sooner risks the app reading the restored content and pasting that instead.
-local restoreDelay = 0.15
-
 --- M.pasteText(text) - insert arbitrary text into the frontmost app by pasting it.
 --- This is the reliable path for glyphs a synthesized keystroke mangles, an emoji or
 --- any character outside the basic multilingual plane, which terminals and some native
 --- apps drop or render as replacement boxes because they read the key event rather than
 --- reassembling the surrogate pair. A real paste delivers the bytes intact everywhere.
---- The pasteboard is snapshotted across all its types, the text is written and pasted,
---- and the snapshot is put back after, so the clipboard is left untouched. Both writes
---- are hidden from the poll through the same guard M.paste uses, so nothing lands in
---- history. It reuses this module because the self-capture guard lives here and belongs
---- in one place.
+--- The pasteboard is snapshotted across all its types and put back after, so the clipboard
+--- is left untouched, and every write is hidden from the poll, so nothing lands in history.
+--- It reuses this module because the self-capture guard lives here and belongs in one place.
+--- The text is a synthetic op, the same shape a coalesced batch run already produces, so it
+--- rides the shared primitive rather than repeating the write, guard, paste, restore dance.
 function M.pasteText(text)
   if not text or text == "" then
     return
   end
-
-  -- Snapshot every type so an image or file clipboard is restored too, not just text.
-  local snapshot = hs.pasteboard.readAllData()
-  hs.pasteboard.setContents(text)
-
-  -- Suppress our write from the poll and its echo, exactly as writeEntry does.
-  lastChange = hs.pasteboard.changeCount()
-  selfSigs[contentSig("text", text, nil)] = hs.timer.secondsSinceEpoch() + selfWindow
-
-  -- A short delay lets focus return to the app the picker covered, then paste.
-  hs.timer.doAfter(pasteDelay, function()
-    hs.eventtap.keyStroke({ "cmd" }, "v", 0)
-    -- Put the original clipboard back once the paste has read ours, and keep that
-    -- restore out of history as well. The restore is not pasted anywhere, so the
-    -- changeCount guard alone covers it, no signature is needed.
-    hs.timer.doAfter(restoreDelay, function()
-      if snapshot and next(snapshot) then
-        hs.pasteboard.writeAllData(snapshot)
-      else
-        hs.pasteboard.clearContents()
-      end
-      lastChange = hs.pasteboard.changeCount()
-    end)
-  end)
+  pasteOp({ kind = "text", text = text }, { restore = true })
 end
 
 -- How long to wait for a copy to land on the pasteboard before giving up, and the poll
@@ -326,6 +583,21 @@ end
 -- nothing on Cmd+C and the count never moves, which we report as no selection.
 local copyTimeout = 0.4
 local copyStep = 0.03
+
+-- A beat before the synthetic Cmd+C, so the keypress that asked for the read has finished being
+-- delivered first. Without it the Cmd+C is posted in the same instant the app is still handling
+-- that keypress and some apps drop it, which is indistinguishable from an empty selection and was
+-- exactly the fault a Ctrl and Option triggered append showed while a Hyper triggered one, going
+-- through the same code, never did. The paste side always waited this beat and never showed the
+-- fault, which is what pointed at the delay rather than at the modifiers.
+local copyDelay = 0.1
+
+--- M.isReading() - is a selection read in flight. A caller whose key can be held down asks
+--- before starting one, so it can stay silent instead of reporting an empty selection, since
+--- a refused read is not an empty one.
+function M.isReading()
+  return reading
+end
 
 --- M.copySelection(cb) - read the current selection without disturbing the clipboard.
 --- The read-side mirror of pasteText, kept here so the snapshot/restore and the
@@ -337,19 +609,24 @@ local copyStep = 0.03
 --- cb(nil) when nothing was copied within the window (no selection) or the selection is not
 --- text. Callable only after configure/start, since it depends on this module's guard state.
 function M.copySelection(cb)
+  -- One read at a time. A second read starting inside the window of the first would
+  -- snapshot the pasteboard the first one is holding and then restore that instead of the
+  -- real clipboard, losing it. The guard lives here rather than in each caller because
+  -- `reading` is this module's state and a held key can fire a caller faster than a read
+  -- completes.
+  if reading then
+    cb(nil)
+    return
+  end
+
   local snapshot = hs.pasteboard.readAllData()
   local before = hs.pasteboard.changeCount()
   reading = true
-  hs.eventtap.keyStroke({ "cmd" }, "c", 0)
 
+  local held = {}
   local waited = 0
   local function restore()
-    if snapshot and next(snapshot) then
-      hs.pasteboard.writeAllData(snapshot)
-    else
-      hs.pasteboard.clearContents()
-    end
-    lastChange = hs.pasteboard.changeCount()
+    restorePasteboard(snapshot)
     reading = false
   end
   local function check()
@@ -361,11 +638,25 @@ function M.copySelection(cb)
       waited = waited + copyStep
       hs.timer.doAfter(copyStep, check)
     else
+      -- The pasteboard never moved, so either nothing was selected or the app never acted on
+      -- our Cmd+C. Those look identical from here and only the second is a bug, so log what
+      -- would tell them apart, which app was asked and what the user was holding at the time.
+      local front = hs.application.frontmostApplication()
+      log.i(string.format(
+        "selection read timed out after %.2fs, app=%s, modifiers held=%s",
+        copyTimeout,
+        (front and front:bundleID()) or "unknown",
+        (next(held) and table.concat(held, "+")) or "none"
+      ))
       restore()
       cb(nil)
     end
   end
-  hs.timer.doAfter(copyStep, check)
+
+  hs.timer.doAfter(copyDelay, function()
+    held = stroke({ "cmd" }, "c")
+    hs.timer.doAfter(copyStep, check)
+  end)
 end
 
 --------------------------------------------------------------------------------
@@ -379,12 +670,14 @@ function M.start()
   return M
 end
 
---- M.configure(opts) - inject the reader chain, store, util, and timing.
+--- M.configure(opts) - inject the reader chain, store, util, timing, and the optional
+--- onCapture observer, called with the stored entry after every genuine copy.
 function M.configure(opts)
   readers = opts.readers
   store = opts.store
   util = opts.util
   skipTypes = opts.skipTypes
+  onCapture = opts.onCapture
   pollInterval = opts.pollInterval or pollInterval
   pasteDelay = opts.pasteDelay or pasteDelay
   return M

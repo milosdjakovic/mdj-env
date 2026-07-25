@@ -6,7 +6,8 @@
 --- the chosen item back into the frontmost app.
 ---
 --- This is the mechanism only. It knows nothing about being a provider; it just
---- exposes an API, configure, start, show, isShowing, and clear. The contract
+--- exposes an API, configure, start, show, isShowing, clear, and the actions that need no
+--- picker at all, appendCopy and pasteNext. The contract
 --- face that plugs it into the ClipboardHistory chain lives outside it, in
 --- providers/hammerspoon.lua, which delegates to this API. This file is the only
 --- one that names the concrete internal pieces. It loads the siblings by absolute
@@ -22,6 +23,7 @@
 ---   retention.lua the eviction policies (count, age, bytes), combined as an or
 ---   readers.lua   per-type capture readers, a Chain of Responsibility
 ---   monitor.lua   the poll engine and paste-back, owns the self-capture guard
+---   session.lua   the transient session state, the append accumulator and the paste walk
 ---   ui.lua        the chooser and the live preview pane
 
 -- Load siblings by absolute path, the loadfile pattern the spoons use.
@@ -41,6 +43,7 @@ local media = load("media.lua")
 local retention = load("retention.lua")
 local readers = load("readers.lua")
 local monitor = load("monitor.lua")
+local session = load("session.lua")
 local ui = load("ui.lua")
 
 local HOME = os.getenv("HOME")
@@ -78,6 +81,21 @@ local config = {
   pollInterval = 0.5, -- changeCount poll
   pasteDelay = 0.1, -- focus settle before Cmd+V
   previewPoll = 0.08, -- follow-selection poll
+
+  -- What an appended piece is joined onto the entry with. A newline, matching what a
+  -- collected batch pastes with, so gathering on the copy side and gathering on the paste
+  -- side produce the same shape.
+  appendSeparator = "\n",
+  -- How long a gap between presses still counts as the same walk through history. A walk is
+  -- a burst while filling one form, so a longer pause means the next press is a fresh intent
+  -- and should start from the newest entry again.
+  sequenceIdleReset = 10,
+  -- How long the pasteboard is left alone after each step of a walk, which is all the time the
+  -- receiving app has to read what was pasted before the next step overwrites it or the clipboard
+  -- is put back. Tapping the key faster than this does not paste faster, it only queues, because
+  -- the limit is the app's own paste handling rather than the key. Too short and a burst pastes
+  -- only some of what was asked for, in an app that services a paste slowly.
+  sequenceDrainDelay = 0.25,
 
   chooserWidthPct = 32, -- list width, percent of screen, capped by paneMaxW below
   paneMaxW = 480, -- cap for each pane's width, in points
@@ -161,6 +179,25 @@ function M.deleteSelected()
   ui.deleteSelected()
 end
 
+--- M.appendCopy() - copy the selection and glue it onto the newest entry instead of pushing a
+--- new one, so several selections gather into one clipboard item that a plain paste delivers
+--- whole. The first press behaves like a plain copy, see session.lua for when.
+function M.appendCopy()
+  session.appendCopy()
+end
+
+--- M.pasteNext() - paste the next entry in a walk through history, starting at the newest.
+--- The walk leaves both the order of history and the clipboard as it found them.
+function M.pasteNext()
+  session.pasteNext()
+end
+
+--- M.resetSequence() - end a walk, so the next M.pasteNext starts from the newest entry.
+--- Walks already end on their own, so this is for a caller that wants to force it.
+function M.resetSequence()
+  session.resetSequence()
+end
+
 --- M.pasteText(text) - insert arbitrary text into the frontmost app by pasting it,
 --- the reliable way to land an emoji or other astral glyph that a synthesized keystroke
 --- mangles in terminals and some native apps. The pasteboard is snapshotted and put back
@@ -179,6 +216,16 @@ end
 --- to it in the composition root.
 function M.copySelection(cb)
   monitor.copySelection(cb)
+end
+
+--- M.setLogLevel(level) - raise or lower the log level of every module in the mechanism at once,
+--- taking any level hs.logger accepts. The append and the walk both work by writing the
+--- pasteboard, sending a keystroke and waiting, so when one misbehaves the only evidence is a
+--- timeline across both modules, and at "debug" they print one. Handy from the console:
+--- hs -c 'spoon.ClipboardHistory.manager.setLogLevel("debug")'
+function M.setLogLevel(level)
+  monitor.log.setLogLevel(level)
+  session.log.setLogLevel(level)
 end
 
 --- M.clear() - wipe history and media. Handy from the console:
@@ -243,6 +290,29 @@ function M.start()
     util = util,
   }))
 
+  -- The transient session layer, the append accumulator and the paste walk. It is policy over
+  -- the store and the monitor and holds no persistent state of its own, so it is configured
+  -- here and never started. It gets the readers module rather than a built chain, since what it
+  -- needs is textEntry, the one place a text entry's label is decided.
+  session.configure({
+    store = store,
+    monitor = monitor,
+    readers = readers,
+    util = util,
+    appendSeparator = config.appendSeparator,
+    sequenceIdleReset = config.sequenceIdleReset,
+    sequenceDrainDelay = config.sequenceDrainDelay,
+    onEntryChanged = function(entry)
+      ui.entryChanged(entry)
+    end,
+    -- Passed straight through, so the surface the message is drawn on stays the root's choice
+    -- and neither this module nor the session layer names one.
+    onMessage = config.onMessage,
+  })
+
+  -- onCapture is what tells the session layer a pasteboard change was a real copy rather than
+  -- one of our own pastes. Only the monitor still knows, which is why it is published from
+  -- there rather than inferred from the store.
   monitor.configure({
     readers = readers.build(util),
     store = store,
@@ -250,8 +320,14 @@ function M.start()
     skipTypes = config.skipTypes,
     pollInterval = config.pollInterval,
     pasteDelay = config.pasteDelay,
+    onCapture = session.noteCapture,
   })
-  ui.configure(merged({ store = store, monitor = monitor, util = util }))
+  ui.configure(merged({
+    store = store,
+    monitor = monitor,
+    util = util,
+    isAccumulator = session.isAccumulator,
+  }))
 
   store.load()
   ui.build()

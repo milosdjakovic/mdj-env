@@ -9,9 +9,10 @@
 --- media layer and count plus bytes.
 ---
 --- Public API, unchanged from before the split so the monitor and the ui do not care
---- that the internals moved: configure, load, all, add, moveToFront, removeEntry, clear,
---- and save. save is public because the media layer re-persists after an async preview
---- render resolves.
+--- that the internals moved: configure, load, all, add, moveToFront, replaceText,
+--- removeEntry, clear, and save. save is public because the media layer re-persists after
+--- an async preview render resolves. replaceText is the one way an entry's content changes
+--- after capture, so the key recompute that keeps dedupe honest lives in a single place.
 
 local S = {}
 
@@ -162,6 +163,48 @@ function S.moveToFront(entry)
   h.ts = os.time() -- refresh recency, mirroring the dedupe branch of add
   table.insert(history, 1, h)
   S.save()
+end
+
+--- S.replaceText(entry, fresh) -> entry or nil
+--- Swap an entry's content in place, leaving its position in the list alone. This is the
+--- seam the append accumulator grows an entry through, so nothing else has to know that an
+--- entry's content can change after capture.
+---
+--- `fresh` is a freshly built text entry, see readers.textEntry, and only its content
+--- fields cross over, so how text is labelled stays owned by the readers and this function
+--- decides only identity and persistence. The kind crosses too, so appending onto a url
+--- entry correctly demotes it to text. Everything else on the live entry is left alone, the
+--- source app above all, since the row icon marks where the content first came from.
+---
+--- The dedupe key is recomputed from the new content rather than left stale, which matters
+--- because every other path here trusts _key. Growing an entry into an exact copy of an
+--- older row would otherwise leave two rows sharing one identity, so any other row that now
+--- collides is dropped and the edited one kept. No media is released, because a text key can
+--- only ever collide with another text row and those carry none.
+function S.replaceText(entry, fresh)
+  local i = indexOf(entry)
+  if not i then return nil end
+
+  local h = history[i]
+  h.kind = fresh.kind
+  h.text = fresh.text
+  h.ts = fresh.ts
+  h.title = fresh.title
+  h.preview = fresh.preview
+  h.size = fresh.size
+  h.chars = fresh.chars
+  h._key = rawKey(h)
+
+  -- Compare by reference rather than by the index taken above, since removing a row below
+  -- it shifts every later index.
+  for j = #history, 1, -1 do
+    if history[j] ~= h and h._key and history[j]._key == h._key then
+      table.remove(history, j)
+    end
+  end
+
+  S.save()
+  return h
 end
 
 --- S.removeEntry(entry) - delete one entry and its media.
