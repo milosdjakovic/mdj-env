@@ -290,6 +290,8 @@ end
 function obj:_publish(rows, parsed, status)
   local retainCap = self.limits.retainCap
   self._truncated = #rows >= retainCap
+  -- Only a real search result may be narrowed against. See the flag's note in rowsFor.
+  self._narrowable = true
   rows = self:_denoise(rows, parsed)
   local retained = rows
   if #retained > retainCap then
@@ -409,6 +411,7 @@ function obj:reset()
   self._retained = {}
   self._display = {}
   self._truncated = false
+  self._narrowable = false
   self._status = nil
   self:_fetchRecents()
   return self
@@ -437,6 +440,10 @@ function obj:_fetchRecents()
       self._retained = self._recents
       self._parsedShape = parsed
       self._truncated = false
+      -- The recent list is the other place the retained set is filled without going through
+      -- _publish, so it has to clear this too or a search that published earlier would leave
+      -- the flag on and the next typed query would narrow against recents.
+      self._narrowable = false
       self:_redraw(self._parsed or parsed, nil)
     end
   end)
@@ -472,7 +479,12 @@ function obj:rowsFor(raw)
     self._retained = self._recents or {}
     self._parsedShape = query.parse("", self.types)
     self._truncated = false
-    self:_redraw(parsed, self._recents and nil or "loading")
+    self._narrowable = false
+    -- Spelled out, for the same reason as the one in _dispatch. This one read as loading
+    -- forever, even with the recent list drawn on screen.
+    local recentStatus = nil
+    if not self._recents then recentStatus = "loading" end
+    self:_redraw(parsed, recentStatus)
     return self._display, self._status
   end
 
@@ -484,12 +496,22 @@ function obj:rowsFor(raw)
     self._retained = self._recents or {}
     self._parsedShape = query.parse("", self.types)
     self._truncated = false
+    self._narrowable = false
     self:_redraw(parsed, "keep typing")
     return self._display, self._status
   end
 
   -- The narrowing path. No process, no query, no debounce.
-  if prev and self._parsedShape and query.narrows(self._parsedShape, parsed) and not self._truncated then
+  --
+  -- _narrowable is the condition that is easy to miss and was missed. The other three ask
+  -- whether the text merely grew over an identical population, and they are all satisfied by
+  -- the RECENT list too, since its shape is the empty query and any typed text grows from
+  -- that. But a recent list is files touched in the last few days, not a superset of anything,
+  -- so narrowing against it silently answers every search from that small set and a real
+  -- search never runs. That is exactly how a live run came back with zero rows for a file the
+  -- headless run had found. So only a published search result is ever narrowed against.
+  if prev and self._narrowable and self._parsedShape
+    and query.narrows(self._parsedShape, parsed) and not self._truncated then
     if self._debounce then self._debounce.cancel() end
     self._debounce = nil
     self:_redraw(parsed, nil)

@@ -18,12 +18,21 @@ spoon is the hidden index, and that exists because there is no index behind it a
 rather than as an optimisation, which is the distinction that decides whether a cache is
 worth its staleness.
 
-The narrowing guard has three conditions and all three are load bearing. The population
-must be identical, the text must have grown rather than changed, and the held set must not
-have been truncated by its cap, because a subset of a truncated set is not a subset of the
-truth. The first two live in `query.lua` where they can be tested, the third only the
-engine knows. Retaining well above what is displayed is what keeps the third condition
-true in practice.
+The narrowing guard has four conditions and all four are load bearing. The population must
+be identical, the text must have grown rather than changed, the held set must not have been
+truncated by its cap, and the held set must be a real search result. The first two live in
+`query.lua` where they can be tested, the last two only the engine knows. Retaining well
+above what is displayed is what keeps the truncation condition true in practice.
+
+The fourth condition is the one that is easy to miss, and it was missed. The picker opens
+showing recent files, whose parse shape is the empty query, and any typed text grows from
+the empty string over an identical population, so the first three conditions are all
+satisfied by the recent list. The result was that every search silently answered from the
+forty most recently modified files and no search ever ran. It looked like Spotlight
+returning nothing, and the headless run had found the same file moments earlier, which is
+what made it worth chasing. So `_narrowable` is set only by `_publish`, and every other
+path that fills the retained set clears it. There are two such paths and both had to be
+found by hand, the recent branch in `rowsFor` and the recents callback itself.
 
 ## Three sources, and why the order is the design
 
