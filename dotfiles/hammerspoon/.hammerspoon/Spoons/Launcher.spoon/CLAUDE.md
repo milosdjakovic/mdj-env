@@ -44,6 +44,42 @@ is the Command pattern with the command encoded as data, and the launcher still
 never learns what a row does. Adding a row is a new entry in the build, never a
 change to the presenter.
 
+## Query row sources, the composable half of the list
+
+Most rows are a fixed catalog, apps and commands, filtered by what is typed. Some
+rows are instead *computed* from what is typed, an arithmetic result or a unit
+conversion, and those come from injected query row sources. A source is any table
+answering `rows(query)`, the root supplies an ordered list of them, and their rows
+lead the list ahead of everything else. The launcher composes them and learns
+nothing about what any of them computes, which is the same shape as the leaf action
+dispatch, only for producing rows rather than running them.
+
+Two sources ship, `Arithmetic` and `Convert`, and they are two spoons rather than
+one calculator because they fail differently. Arithmetic is native Lua and can
+never be unavailable. Conversion needs a tool from outside Hammerspoon, declares it
+required, and is therefore left out of this list entirely when that tool is absent,
+so no conversion row ever appears while arithmetic keeps working. Unplugging the
+whole feature is passing no sources, and adding a third is a new spoon plus one line
+in the root, with no change here.
+
+Four details make it work. A source returns a glyph rather than an image and the
+launcher renders it through the same cache the action rows use, so a source draws
+nothing and there is one glyph cache rather than one per source. A computed row sets
+`filterText` to the raw query, so the shared matcher scores it against what was
+typed rather than against the answer it produced, which is what keeps a result at
+the top instead of being dropped for not resembling its own expression. A source
+that raises is dropped for that keystroke with a log line, so a bad source cannot
+empty the list. And `refresh()` exists for a source whose answer arrives late, which
+the root wires to that source's own result callback, so the row lands without the
+user typing again.
+
+A computed row is deliberately kept out of the recency timeline. It exists only for
+the query that produced it, so `recencyKey` returns nil for it. Without that every
+result would share one key and float to the top of an empty launcher, which is the
+last thing a fresh open should show. It is also exempt from the two discoverability
+mandates, since it is not a bound shortcut and typing is the only way a computed row
+could be found at all.
+
 ## App enumeration and caching
 
 The installed app list is scanned once, lazily on first open, from the standard

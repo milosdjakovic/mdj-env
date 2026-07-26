@@ -41,6 +41,12 @@ local listErrors = {}   -- per bundle id reasons a browser did not answer
 local loading = false   -- whether a listing is in flight
 local permState = {}    -- per bundle id permission state, filled asynchronously
 
+-- The pending re-show, held until it fires. A Hammerspoon timer is userdata whose finalizer
+-- stops it, so one nothing refers to can be collected before it runs, and the menu would then
+-- close on a click that was meant to step into it. Only one re-show is ever pending, because
+-- the reopen flag above is cleared before this is armed.
+local reopenTimer = nil
+
 --------------------------------------------------------------------------------
 -- Row icons
 --------------------------------------------------------------------------------
@@ -638,7 +644,7 @@ function M.start()
       if cfg.onClose then cfg.onClose() end
       if reopen then
         reopen = false
-        hs.timer.doAfter(0, present)
+        reopenTimer = hs.timer.doAfter(0, present)
       else
         stack = { { kind = "tabs" } }
       end

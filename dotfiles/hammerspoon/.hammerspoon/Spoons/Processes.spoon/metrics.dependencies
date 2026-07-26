@@ -1,0 +1,5 @@
+# What metrics.lua needs from outside Hammerspoon, declared beside the file that names
+# the tool. Format is name | kind | locator | policy | reason.
+# See Dependencies.spoon for the kinds and for how these files are found.
+# Optional for the same reason as the ports source, see sources/ports.dependencies.
+ps | system | /bin/ps | optional | samples cpu and memory for the rows the picker is showing

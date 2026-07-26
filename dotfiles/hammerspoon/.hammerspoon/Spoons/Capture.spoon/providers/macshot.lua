@@ -11,6 +11,9 @@
 --- the scheme unregistered, or simply when macshot is closed. A URL fired at an
 --- app that is not running would just relaunch it, which is not the fallback we
 --- want. Each failure returns its own reason so the log says which one it was.
+--- Whether it is installed comes from the injected dependency adapter, since that
+--- is a declared dependency probed once for the whole config, while the scheme and
+--- the running check stay live here because both change while Hammerspoon runs.
 --- Honest limit, the scheme check sees Launch Services REGISTRATION only, so a
 --- scheme switched off inside macshot may still read as available if macshot
 --- leaves a statically declared handler in place.
@@ -24,8 +27,11 @@ return {
     captureAreaClipboard = "macshot://quick-capture",
     recordArea = "macshot://record",
   },
-  available = function(self)
-    if not hs.application.pathForBundleID(self.bundleID) then
+  available = function(self, deps)
+    if not deps then
+      return false, "no dependency adapter injected"
+    end
+    if not deps.have(self.name) then
       return false, "not installed"
     end
     local handler = hs.urlevent.getDefaultHandler(self.scheme)

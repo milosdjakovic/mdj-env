@@ -36,6 +36,11 @@ local chooser = nil   -- the one native Chooser instance
 local stack = nil     -- the menu stack, stack[#stack] is the current frame
 local reopen = false  -- set by a click selection so onClose re-shows instead of ending
 local returnTap = nil -- swallows Return while open so a menu step stays in place, no re-show
+-- The pending re-show, held until it fires. A Hammerspoon timer is userdata whose finalizer
+-- stops it, so one nothing refers to can be collected before it runs, and the menu would
+-- then close on a click that was meant to step into it. Only one re-show is ever pending,
+-- because the reopen flag above is cleared before this is armed.
+local reopenTimer = nil
 
 --------------------------------------------------------------------------------
 -- Row icons
@@ -435,7 +440,7 @@ function M.start()
       if cfg.onClose then cfg.onClose() end
       if reopen then
         reopen = false
-        hs.timer.doAfter(0, present)
+        reopenTimer = hs.timer.doAfter(0, present)
       else
         stack = { { kind = "top" } }
       end

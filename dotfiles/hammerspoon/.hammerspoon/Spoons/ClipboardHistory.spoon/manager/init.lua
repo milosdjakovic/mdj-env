@@ -252,7 +252,9 @@ function M.start()
   math.randomseed(os.time())
   config.util = util
 
-  -- Resolve the preview tools, logging a missing ffmpeg.
+  -- Hand the preview chain its tool paths. Both are resolved outside this spoon by the
+  -- shared dependency door and injected through configure, so nothing here probes and a
+  -- missing one just leaves the video generator unable to handle anything.
   preview.configure({ util = util, ffmpeg = config.ffmpeg, ffprobe = config.ffprobe })
 
   -- The media layer, images and files, injected into the store. It gets the dirs and

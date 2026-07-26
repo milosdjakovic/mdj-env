@@ -1,0 +1,85 @@
+# How a declared tool is obtained on this machine.
+#
+# This is the answer key for every dependency the modules declare, and the only place in
+# the repository that knows about package managers. A module names a tool and says what
+# breaks without it. This file says where that tool comes from. Keeping the two apart is
+# what lets a module stay ignorant of Homebrew, and lets this file stay ignorant of spoons
+# and scripts.
+#
+# One line per tool, name | origin | detail. The name matches the name column of a module's
+# generated manifest exactly, since that is how the two are joined.
+#
+# Origins in use here.
+#   brew       a Homebrew formula, detail is the formula name
+#   cask       a Homebrew cask, detail is the cask name. Used when a GUI application ships
+#              the command line tool we actually depend on
+#   tap        a formula from a third party tap, detail is the full tap qualified name
+#   xcode-clt  ships with the Xcode command line tools, detail is how to install those
+#   macos      ships with the operating system, detail says so and there is nothing to install
+#   manual     installed by hand, detail says how, for anything no package manager covers
+#
+# A tool macOS already ships may still be mapped to a formula rather than to macos, when the
+# version that ships is too old or too new to rely on. That is why trash is a formula even
+# though this machine has an Apple one, the same reasoning the root CLAUDE.md records for jq.
+#
+# Two tools may share one origin line's detail, as ffmpeg and ffprobe do, because one
+# formula provides both. The reconciler expects a Brewfile line for every distinct brew,
+# cask, and tap detail here, and nothing else needs a Brewfile line.
+#
+# When a module declares a new tool, add its line here and, for the package manager
+# origins, the matching Brewfile entry. src/check-dependencies.sh reports either half if
+# it is missing, so this cannot quietly drift.
+
+# Applications a module configures, which are dependencies like any other. A module cannot
+# work without the program it configures, so it declares it and this is where it comes from.
+hammerspoon   | cask      | hammerspoon
+ghostty       | cask      | ghostty
+tmux          | brew      | tmux
+nvim          | brew      | neovim
+lf            | brew      | lf
+lazygit       | brew      | lazygit
+
+# Command line tools the configurations call.
+fzf           | brew      | fzf
+fd            | brew      | fd
+ripgrep       | brew      | ripgrep
+git           | brew      | git
+bat           | brew      | bat
+eza           | brew      | eza
+chafa         | brew      | chafa
+zoxide        | brew      | zoxide
+atuin         | brew      | atuin
+trash         | brew      | trash
+jq            | brew      | jq
+stow          | brew      | stow
+duti          | brew      | duti
+ffmpeg        | brew      | ffmpeg
+ffprobe       | brew      | ffmpeg
+displayplacer | brew      | displayplacer
+qalc          | brew      | libqalculate
+ocr           | tap       | schappim/ocr/ocr
+mullvad       | cask      | mullvad-vpn
+docker        | cask      | docker-desktop
+
+# Packages that ship files rather than a command, loaded by path from a configuration.
+tpm                      | brew | tpm
+powerlevel10k            | brew | powerlevel10k
+font-meslo-lg-nerd-font  | cask | font-meslo-lg-nerd-font
+
+# Things no package manager here covers.
+oh-my-zsh                | manual    | installed by src/install-ohmyzsh.sh from the upstream installer
+zsh-autosuggestions      | manual    | installed by src/install-ohmyzsh-plugins.sh
+fast-syntax-highlighting | manual    | installed by src/install-ohmyzsh-plugins.sh
+fzf-tab                  | manual    | installed by src/install-ohmyzsh-plugins.sh
+brew                     | manual    | installed by src/install-homebrew.sh from the upstream installer
+macshot                  | manual    | install the macshot app, then enable its URL scheme in its settings
+swiftc                   | xcode-clt | xcode-select --install
+cc                       | xcode-clt | xcode-select --install
+caffeinate               | macos     | ships with macOS
+curl                     | macos     | ships with macOS
+perl                     | macos     | ships with macOS
+osascript                | macos     | ships with macOS
+ps                       | macos     | ships with macOS
+kill                     | macos     | ships with macOS
+lsof                     | macos     | ships with macOS
+hs                       | manual    | the Hammerspoon cask ships the CLI inside the app, run hs.ipc.cliInstall() once from the Hammerspoon console to symlink it onto the PATH

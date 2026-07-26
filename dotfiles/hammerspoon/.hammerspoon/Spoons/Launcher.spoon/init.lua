@@ -40,6 +40,7 @@ obj._settingsPanes = nil    -- raw settings pane descriptors, injected by the ro
 obj._predicates = nil       -- shared predicate registry, for `when` gating
 obj._shortcutPanel = nil    -- { onPositioned, onActivity, onClose }
 obj._actions = nil          -- leaf dispatch: app, capture, settingsPane, special
+obj._queryProviders = nil   -- ordered query row sources, each answering rows(query)
 
 -- Owned state
 obj._instance = nil         -- the built Chooser instance
@@ -81,6 +82,11 @@ local SELF_BUNDLE = hs.processInfo and hs.processInfo.bundleID
 -- and a command never collide. Returns nil for a missing item, which sorts as unused.
 local function recencyKey(item)
   if not item then return nil end
+  -- A computed row is a different thing from a command. It exists only for the query that
+  -- produced it, so it has no identity to remember and returning nil keeps it out of the
+  -- timeline entirely. Without this every result would share one key and float to the top
+  -- of an empty launcher, which is the last thing a fresh open should show.
+  if item.kind == "calc" then return nil end
   if item.kind == "app" then return "app:" .. tostring(item.bundleID) end
   if item.kind == "settingsPane" then return "settingsPane:" .. tostring(item.url) end
   return item.kind .. ":" .. tostring(item.name)
@@ -130,6 +136,11 @@ function obj:configure(opts)
   self._predicates = opts.predicates or {}
   self._shortcutPanel = opts.shortcutPanel or {}
   self._actions = opts.actions or {}
+  -- Query row sources, in the order their rows should appear. Each is any table
+  -- answering rows(query), so the launcher composes them without knowing what any of
+  -- them computes, and the root decides which exist. An empty list is the whole
+  -- feature switched off, which is how a source whose tool is missing disappears.
+  self._queryProviders = opts.queryProviders or {}
 
   self._glyphIconCache = {}
 
@@ -153,7 +164,12 @@ function obj:configure(opts)
         -- Promote now, on the true "user chose this row" moment, so the order
         -- persists at once even though the run is deferred below. Any kind counts.
         self:_promote(recencyKey(item))
-        hs.timer.doAfter(0.1, function() self:_runItem(item) end)
+        -- The run waits a beat for focus to return to the app the launcher covered, and the
+        -- timer is held in a field for the length of that wait. A Hammerspoon timer is
+        -- userdata whose finalizer stops it, so one nothing refers to can be collected
+        -- before it fires, and the chosen row would then do nothing at all. Only one is
+        -- ever pending, because choosing a row closes the chooser.
+        self._runTimer = hs.timer.doAfter(0.1, function() self:_runItem(item) end)
       end
     end,
     onPositioned = sp.onPositioned,
@@ -436,16 +452,56 @@ function obj:_orderedRows()
   return rows
 end
 
---- Launcher:_commandRows()
+--- Launcher:_queryRows(query)
 --- Method
---- The row supplier. Returns the full recency-ordered list and lets the atom's shared
---- matcher filter and rank it, exposing the visible text plus any hidden keywords as
---- filterText so a settings pane is still found by a synonym its name lacks. On the
---- empty query the atom keeps the recency order untouched, and when the user types, match
---- quality leads with recency breaking ties. Gated rows drop out live through the shared
---- predicate registry the window bindings use.
-function obj:_commandRows(_)
+--- The rows the injected query sources compute from what was typed, in source order and
+--- ahead of everything else. A source answers rows(query) and returns an empty list when
+--- the query means nothing to it, which is the usual case, so this costs a handful of
+--- cheap calls per keystroke and no work at all on an empty field.
+---
+--- A source returns a glyph rather than an image, and this renders it through the same
+--- cache the action rows use, so a source never draws anything and there is one glyph
+--- cache rather than one per source. A source is fully trusted for its own rows but not
+--- for the launcher's stability, so a source that raises is dropped for that keystroke
+--- with a log line rather than emptying the whole list.
+function obj:_queryRows(query)
+  if not query or query == "" then return {} end
   local out = {}
+  for _, provider in ipairs(self._queryProviders) do
+    local ok, rows = pcall(function() return provider:rows(query) end)
+    if not ok then
+      hs.printf("Launcher: a query source failed, %s", tostring(rows))
+    else
+      for _, r in ipairs(rows or {}) do
+        out[#out + 1] = {
+          title = r.title,
+          subTitle = r.subTitle,
+          image = r.image or self:_glyphIcon(r.glyph),
+          enabled = r.enabled,
+          item = r.item,
+          filterText = r.filterText or query,
+        }
+      end
+    end
+  end
+  return out
+end
+
+--- Launcher:_commandRows(query)
+--- Method
+--- The row supplier. Any rows the query sources computed lead, then the full
+--- recency-ordered list, and the atom's shared matcher filters and ranks what follows,
+--- exposing the visible text plus any hidden keywords as filterText so a settings pane is
+--- still found by a synonym its name lacks. On the empty query the atom keeps the recency
+--- order untouched, and when the user types, match quality leads with recency breaking
+--- ties. Gated rows drop out live through the shared predicate registry the window
+--- bindings use.
+---
+--- A computed row sets filterText to the raw query, so the matcher scores it against what
+--- was typed rather than against the answer it produced, which is what keeps a result at
+--- the top of the list instead of being dropped for not resembling its own expression.
+function obj:_commandRows(query)
+  local out = self:_queryRows(query)
   local preds = self._predicates
   for _, row in ipairs(self:_orderedRows()) do
     if not (row.when and not (preds[row.when] and preds[row.when]())) then
@@ -456,6 +512,17 @@ function obj:_commandRows(_)
     end
   end
   return out
+end
+
+--- Launcher:refresh()
+--- Method
+--- Rebuild the list for the current query, keeping the highlight. A query source whose
+--- answer arrives late calls this through the callback the root injects into it, so the
+--- row appears without the user typing again. A no op while the launcher is closed.
+function obj:refresh()
+  if self._instance and self._instance:isShowing() then
+    self._instance:refresh()
+  end
 end
 
 --- Launcher:_runItem(it)
@@ -478,6 +545,11 @@ function obj:_runItem(it)
     if fn then fn() end
   elseif it.kind == "settingsPane" then
     if a.settingsPane then a.settingsPane(it.url) end
+  elseif it.kind == "calc" then
+    -- A computed result is put somewhere useful by an injected action, so the launcher
+    -- does not learn what a clipboard is, exactly as it does not learn what an app or a
+    -- capture is. A pending row carries no value and is disabled, so it never arrives.
+    if it.value and a.copy then a.copy(it.value) end
   end
 end
 

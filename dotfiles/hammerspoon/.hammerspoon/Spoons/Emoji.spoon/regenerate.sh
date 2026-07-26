@@ -47,9 +47,14 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUT="$DIR/data.json"
 FILTER="$DIR/filter-glyphs.lua"
 
-command -v jq >/dev/null 2>&1 || { echo "jq is required, install it with brew install jq" >&2; exit 1; }
-command -v perl >/dev/null 2>&1 || { echo "perl is required, it ships with macOS" >&2; exit 1; }
-command -v hs >/dev/null 2>&1 || { echo "hs is required and Hammerspoon must be running, the render filter uses it" >&2; exit 1; }
+# All three are declared in regenerate.dependencies beside this script. This is a plain shell
+# script run by hand from the repository, so it cannot reach the shared resolver and checks for
+# them itself. It names each tool and stops there. Where a tool comes from is the repository's
+# answer, which src/check-dependencies.sh gives, and never this file's.
+need() { echo "$1 is required to regenerate the dataset, $2" >&2; exit 1; }
+command -v jq >/dev/null 2>&1 || need jq "run src/check-dependencies.sh in the repository to see where it comes from"
+command -v perl >/dev/null 2>&1 || need perl "it ships with macOS, so an absent one means the PATH is wrong"
+command -v hs >/dev/null 2>&1 || need hs "the render filter drives Hammerspoon through it, and Hammerspoon must also be running"
 
 TMP_EMOJI="$(mktemp)"
 TMP_SYM="$(mktemp)"

@@ -14,27 +14,34 @@ result. Update it whenever the provider contract or the unavailable behaviour ch
 ## The backend dependency
 
 The Mullvad provider shells out to the `mullvad` command line tool, which the Mullvad VPN
-app installs. On macOS that is `brew install --cask mullvad-vpn`, and the CLI lands at
-`/opt/homebrew/bin/mullvad` on Apple Silicon or `/usr/local/bin/mullvad` on Intel, the
-two paths the provider probes before falling back to a login shell PATH lookup.
+app installs. The provider probes for nothing. `providers/mullvad.dependencies` declares
+the tool, the shared resolver in `Dependencies.spoon` finds it once for the whole config,
+and `init.lua` hands the resolved absolute path to the provider through `configure`. So no
+install prefix appears anywhere in this spoon and the same files work on either
+architecture.
 
-The cask is deliberately not in the repo Brewfile. VPN is a per machine, optional thing,
-so a fresh machine boots without it and the tool degrades rather than every machine being
-forced to install Mullvad. If you want VPN controls working out of the box on a new
-machine, add `cask "mullvad-vpn"` to the Brewfile. Otherwise install it by hand when you
-want it, and the running config picks it up on the next reload.
+The declaration sits beside `providers/mullvad.lua` rather than at the spoon root, because
+that provider is the only file that knows the tool exists. Adding a second backend is a new
+provider file plus its own declaration, with nothing shared to edit.
 
-## Install knowledge lives in the provider, not the root
+## What the provider knows, and what it must not
 
-How to get the backend is provider knowledge, the same as its human name, so both are
-metadata the provider carries. `providers/mullvad.lua` exposes `M.name` and an optional
-`M.install` of `{ note, command }`. The composition root and the panel read those and
-never name Mullvad or brew themselves. This keeps the inversion honest, the earlier code
-hardcoded the brew line in the root's log message, which leaked the concrete backend and
-the platform into the spoon. A future provider supplies its own install line and both the
-log and the chooser follow with no edit here. `contract.validate` does not require this
-metadata, since it is optional, a provider without it still gets a titled row and a
-generic log.
+How to get the backend is not provider knowledge. `providers/mullvad.lua` exposes `M.name`
+and an optional `M.install` carrying only a `note`, a plain sentence naming the application
+that ships the CLI. That is a fact about the backend. Which package manager delivers that
+application is a fact about the machine, and it lives one layer up, in `DEPENDENCIES.map`
+at the repository root, joined to the declaration by the tool name.
+
+An earlier version carried an install command here and let the unavailable row copy it to
+the clipboard. It was removed. The command duplicated an answer the repository already held
+exactly once, so the two could drift apart silently, and it put package manager knowledge in
+the one layer whose whole rule is to declare a need and never answer it. What is left is the
+honest division. The panel and the console line say Mullvad is missing, and
+`src/check-dependencies.sh` in the repository says it comes from the `mullvad-vpn` cask, is
+optional, and costs the VPN controls.
+
+`contract.validate` does not require the install metadata, since it is optional. A provider
+without it still gets a titled row and a generic log.
 
 ## Cities are ordered most recently used, the action row stays pinned
 
@@ -59,11 +66,11 @@ inert rather than an error.
 
 When `provider.available()` is false at start the spoon still builds the chooser but
 leaves the engine unstarted. `M.show()` then skips the live status and relay reads and
-opens the chooser on a single row that names the missing backend and shows its install
-command as plain data. Selecting the row copies the command to the clipboard. The row
-carries no text about which key does that, since how a row is driven is the root's
-concern and shows through the shared shortcut panel, the spoon only supplies the row and
-the action. The reason is logged too, so the gap shows both in the UI and in the console.
+opens the chooser on a single row that names the missing backend and, as its subtitle, the
+application that provides it. The row is built with `enabled = false`, so the chooser dims
+it and never dispatches it. It is a label, not an action, because the only useful action
+would be to install something and this layer may not know how. The reason is logged too, so
+the gap shows both in the UI and in the console, and the repository answers the rest.
 
 This replaced the old behaviour where a missing CLI logged once and made the open key do
 nothing, which gave the user no on screen signal at all. The trade is that the tool is

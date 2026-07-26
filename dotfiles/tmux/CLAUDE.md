@@ -171,3 +171,22 @@ Copy mode state is tracked via a global `@copy_mode` variable propagated through
 Managed through TPM. Resurrect and continuum handle session persistence. tmux-fzf provides additional management via `m`.
 
 Plugin bindings are re-bound after TPM initialization with `-N` descriptions so they appear in the `?` cheat sheet. This is necessary because TPM sets up bindings without descriptions.
+
+## Declared dependencies
+
+This module needs a long list of tools on the machine and installs none of them.
+`DEPENDENCIES` at the package root is the whole contract upward, and the repository
+root `CLAUDE.md` explains the format and who acts on it. Adding a tool to a script
+means adding a line there, and nothing in this module ever mentions Homebrew.
+
+Two entries are worth knowing about. `tpm` is declared with the `package` kind rather
+than `path` because it ships no command, only a script inside its package, which is
+why `.tmux.conf` loads it through `brew --prefix tpm`. That call is the one place this
+module names a package manager, and it stays because there is no portable way to find
+a file inside a package without asking the package manager where the package is. The
+preview tools, `bat`, `eza`, and `chafa`, are optional because a missing one only
+breaks the preview pane of a picker that otherwise works, so the pane shows a shell
+error rather than the picker refusing to open.
+
+The mullvad adapter names the CLI rather than pathing to it, and keeps the `MULLVAD`
+environment override so the adapter contract can be exercised against a stub.

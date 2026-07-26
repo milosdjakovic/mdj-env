@@ -17,10 +17,11 @@
 --- one Chooser instance pinned to the native hs.chooser backend. It turns a chosen row
 --- into an engine call. When the CLI is not
 --- installed it logs the reason and still builds the chooser, which then opens to a single
---- row naming the missing backend and its install command, both read from the provider's
---- own install metadata so the panel never learns the concrete tool. The engine is left
+--- row naming the missing backend and what provides it, both read from the provider's own
+--- install metadata so the panel never learns the concrete tool. The engine is left
 --- unstarted in that state, so a machine without Mullvad degrades to a self explaining
---- panel rather than a dead key. Selecting the row copies the install command.
+--- panel rather than a dead key. That row is a label and not an action, since how to obtain
+--- a tool is the concern of the layer above this config and no file here may answer it.
 ---
 --- One flat list, not a drill down. The controls and the locations live in the same list,
 --- so there is no mode to switch and no second level to re-show. The location list is
@@ -219,20 +220,24 @@ local function actionRow()
 end
 
 -- The single row shown when the provider's CLI was not found at start. It names the
--- missing backend and its install command, both read from the provider's install
--- metadata, so the panel explains the gap instead of opening empty and never names the
--- concrete tool or the platform. Title and subtitle are plain data, the command as the
--- subtitle, with no hint about which key operates the row, since how the row is driven is
--- the root's concern and shows through the shared shortcut panel. A provider that carries
--- no install metadata still gets a titled row, just without a command.
+-- missing backend and what provides it, both read from the provider's install metadata,
+-- so the panel explains the gap instead of opening empty and never names the concrete
+-- tool or the platform.
+--
+-- Disabled on purpose, so it reads as a label rather than an action. It deliberately does
+-- not offer to install anything, because how a tool is obtained belongs to the layer above
+-- this config, and a row here that copied an install command would put that answer in the
+-- one layer that must not hold it. Naming the gap is this panel's whole job, and
+-- src/check-dependencies.sh in the repository answers where the tool comes from.
 local function unavailableRow()
   local info = provider.install or {}
   local name = provider.name or "VPN"
   return {
     title = name .. " CLI not found",
-    subTitle = info.command or info.note or "The provider CLI is not installed",
+    subTitle = info.note or "The provider CLI is not installed",
     image = emojiImage("⚠️"),
-    item = { id = "install", command = info.command },
+    enabled = false,
+    item = { id = "unavailable" },
   }
 end
 
@@ -268,15 +273,10 @@ end
 -- way.
 local function onSelect(sel)
   if not sel then return end
-  if sel.id == "install" then
-    -- The unavailable row. Copy the install command to the clipboard so the fix is one
-    -- paste away, and confirm with a short alert. No command means nothing to copy.
-    if sel.command then
-      hs.pasteboard.setContents(sel.command)
-      hs.alert.show("Copied: " .. sel.command)
-    end
-    return
-  end
+  -- The unavailable row is built disabled, so the chooser never dispatches it and there is
+  -- no branch for it here. Guarded anyway, since a row arriving without a live engine would
+  -- otherwise reach an engine call.
+  if sel.id == "unavailable" then return end
   if sel.id == "connect" then
     engine.connect()
   elseif sel.id == "disconnect" then
@@ -349,6 +349,10 @@ end
 --- deferred shortcut hint panel. The spoon forwards those straight to its chooser without
 --- learning what they drive, so the panel stays the root's concern. Kept as the single
 --- wiring seam so the main root stays the one place the atoms are handed in.
+---
+--- opts.deps is the per consumer dependency adapter, also from the root. start passes the
+--- path it holds to the provider, which is why nothing under this spoon probes for a CLI
+--- or names a location.
 function M.configure(opts)
   cfg = opts or {}
   return M
@@ -357,8 +361,13 @@ end
 --- M.start() - resolve availability, wire the engine when the CLI is present, and build
 --- the one native chooser either way. When the CLI is missing it logs the reason, read
 --- from the provider's install metadata, and leaves the engine unstarted, so the chooser
---- opens to the self explaining install row instead of the tool being a dead key.
+--- opens to the self explaining unavailable row instead of the tool being a dead key. The
+--- log line names what is missing and stops there, since the repository is what knows how
+--- to obtain it.
 function M.start()
+  -- Hand the provider the path the shared resolver found, by the name the provider itself
+  -- declares, so this spoon learns neither the tool's location nor how it is obtained.
+  provider.configure({ path = cfg.deps and cfg.deps.path(provider.tool) or nil })
   available = provider.available()
   if available then
     engine.configure({ provider = provider, onChange = onChange })
@@ -368,7 +377,6 @@ function M.start()
     local name = provider.name or "VPN"
     local parts = { name .. " CLI not found, VPN controls disabled" }
     if info.note then parts[#parts + 1] = info.note end
-    if info.command then parts[#parts + 1] = "install with: " .. info.command end
     log.w(table.concat(parts, ". "))
   end
   chooser = cfg.chooser.new({

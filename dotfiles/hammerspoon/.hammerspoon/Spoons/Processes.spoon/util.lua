@@ -125,15 +125,27 @@ function M.run(binary, args, timeoutSeconds, cb)
   task:start()
 end
 
---- util.firstExisting(paths) -> path or nil
---- The first path that exists on disk. Used to resolve a CLI that lives in a
---- different place depending on how it was installed, since hs.task takes a full
---- path and does not consult PATH.
-function M.firstExisting(paths)
-  for _, p in ipairs(paths or {}) do
-    if p and hs.fs.attributes(p) then return p end
-  end
-  return nil
+-- Pending delayed steps, keyed so each releases only itself.
+local pendingSteps = {}
+
+--- util.after(delay, fn)
+--- Run fn after delay, holding the timer until it fires.
+---
+--- Holding it is the whole point. A Hammerspoon timer is userdata whose finalizer stops
+--- it, so a pending timer nothing refers to can be collected before it fires, and the
+--- step then never happens with no error anywhere. Both sources use this for the pause
+--- between signalling a process group and checking what survived, so losing one means a
+--- stop that reports neither success nor failure and a row that never settles.
+---
+--- Keyed rather than a single slot, because stopping two processes in quick succession
+--- leaves two checks outstanding and a later one must never cancel an earlier one.
+--- Second consumer, so it is here rather than copied into both sources.
+function M.after(delay, fn)
+  local slot = {}
+  pendingSteps[slot] = hs.timer.doAfter(delay, function()
+    pendingSteps[slot] = nil
+    fn()
+  end)
 end
 
 --- util.etimeSeconds(s) -> number

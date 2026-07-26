@@ -1,7 +1,9 @@
 --- The Mullvad provider, the only file that knows the mullvad CLI. It implements the
---- VPN contract by shelling out. Availability is resolved once at load, the CLI path
---- found on PATH or in the common Homebrew locations, and when it is missing every
---- method degrades safely and available returns false so the root can log the reason.
+--- VPN contract by shelling out. It resolves nothing itself, the CLI path is handed in
+--- through configure by the layer above, which reads it from the shared dependency
+--- resolver, so no Homebrew location is hardcoded here and the probing happens once for
+--- the whole config. Until a path is handed in every method degrades safely and
+--- available returns false, so the root can log the reason and the picker still opens.
 --- Fast reads, status, run synchronously. Slow actions, connect and the relay list,
 --- run through hs.task off the main thread so the UI never stalls, and their callback
 --- lands back on the main thread.
@@ -13,34 +15,34 @@ local M = {}
 -- beside the contract methods, the provider being the one place that knows it.
 M.name = "Mullvad"
 
--- How to get this backend when its CLI is absent, so the control panel can explain
+-- What provides this backend when its CLI is absent, so the control panel can explain
 -- itself instead of opening empty, and the root can log the reason, without either one
--- learning the concrete tool or the platform. This is the same idea as name, metadata
--- the provider owns because it is the one place that knows both the CLI and how it is
--- installed. note is a plain sentence, command is the macOS install line, the Mullvad
--- app ships the mullvad CLI at one of the CANDIDATES paths above.
+-- learning the concrete tool. This is the same idea as name, metadata the provider owns
+-- because it is the one place that knows which application ships the CLI.
+--
+-- It deliberately stops there and carries no install command. How a tool is obtained is
+-- the concern of the layer above this config, which reads the collected manifest and maps
+-- each declared name to a concrete install, so a command here would be that answer
+-- written a second time in the one layer that must not know it. The console line and this
+-- row say what is missing, and src/check-dependencies.sh says where it comes from.
 M.install = {
   note = "The Mullvad VPN app provides the mullvad CLI.",
-  command = "brew install --cask mullvad-vpn",
 }
 
-local CANDIDATES = { "/opt/homebrew/bin/mullvad", "/usr/local/bin/mullvad" }
+-- The name this CLI is declared under, in mullvad.dependencies beside this file. The layer
+-- above looks the path up by it, so the declaration and this provider agree on one spelling.
+M.tool = "mullvad"
 
--- Resolve the CLI once. Prefer the known Homebrew paths, then fall back to a PATH
--- lookup through a login shell, since Hammerspoon's own PATH is minimal.
-local function resolveCli()
-  for _, p in ipairs(CANDIDATES) do
-    if hs.fs.attributes(p) then return p end
-  end
-  local out, ok = hs.execute("command -v mullvad", true)
-  if ok and out then
-    local path = out:gsub("%s+$", "")
-    if path ~= "" then return path end
-  end
-  return nil
+-- The resolved absolute path, handed in through configure. Nil means the CLI is absent,
+-- which every method below already treats as unavailable.
+local cli = nil
+
+--- M.configure(opts) - accept the resolved CLI path. Called by the spoon's own start with
+--- whatever the shared resolver found, so this file performs no lookup of its own.
+function M.configure(opts)
+  cli = (opts or {}).path
+  return M
 end
-
-local cli = resolveCli()
 
 function M.available()
   return cli ~= nil

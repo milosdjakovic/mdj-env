@@ -46,6 +46,7 @@ local BINARY = CACHE_DIR .. "/sampler"
 
 -- Injected policy and live state.
 obj._onPick = nil    -- optional callback(hex) handed the sampled result
+obj._compiler = nil  -- injected resolved Swift compiler path, the one external tool here
 obj._task = nil      -- the running sampler task, if any
 obj._active = false
 
@@ -63,15 +64,22 @@ local function binaryFresh()
 end
 
 -- Ensure the binary exists and is current, then call done(ok). Reuses a fresh
--- binary at once, otherwise compiles the source with swiftc into the cache dir and
--- calls done once that finishes. Compilation runs off the main thread through
--- hs.task, so the first pick after an edit does not block Hammerspoon.
-local function ensureBinary(done)
+-- binary at once, otherwise compiles the source into the cache dir and calls done
+-- once that finishes. Compilation runs off the main thread through hs.task, so the
+-- first pick after an edit does not block Hammerspoon. The compiler path is injected
+-- rather than hardcoded, so this spoon probes for nothing, and with none injected a
+-- stale or absent binary simply cannot be built.
+local function ensureBinary(compiler, done)
   if binaryFresh() then done(true) return end
+  if not compiler then
+    log.e("no Swift compiler available, the colour sampler cannot be built")
+    done(false)
+    return
+  end
   hs.fs.mkdir(CACHE_DIR)
-  local build = hs.task.new("/usr/bin/swiftc", function(code, _, err)
+  local build = hs.task.new(compiler, function(code, _, err)
     if code ~= 0 then
-      log.e("swiftc failed (" .. tostring(code) .. "): " .. tostring(err))
+      log.e("compiling the sampler failed (" .. tostring(code) .. "), " .. tostring(err))
     end
     done(code == 0)
   end, { "-O", SOURCE, "-o", BINARY })
@@ -97,7 +105,7 @@ end
 function obj:pick()
   if self._active then return end
   self._active = true
-  ensureBinary(function(ok)
+  ensureBinary(self._compiler, function(ok)
     if not ok then
       self._active = false
       hs.alert.show("Color picker unavailable")
@@ -118,15 +126,19 @@ end
 --- Eyedropper:configure(opts)
 --- Method
 --- Inject optional policy. onPick is a callback(hex) handed each sampled result on
---- top of the clipboard copy, for a consumer that wants the value.
+--- top of the clipboard copy, for a consumer that wants the value. compiler is the
+--- resolved path of the Swift compiler, injected from the shared dependency resolver,
+--- since building the native sampler is the one thing here that needs a tool from
+--- outside Hammerspoon. This spoon looks for nothing itself and names no installer.
 function obj:configure(opts)
   opts = opts or {}
   self._onPick = opts.onPick
+  self._compiler = opts.compiler
   -- Warm the native sampler build in the background so the first pick stays instant.
   -- This is the one wiring point, so the compile happens here rather than in init,
   -- which stays a pure return per the lifecycle contract. It never blocks and is a no
   -- op when the cached binary is already current.
-  ensureBinary(function() end)
+  ensureBinary(self._compiler, function() end)
   return self
 end
 

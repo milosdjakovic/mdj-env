@@ -1,0 +1,63 @@
+#!/bin/bash
+set -euo pipefail
+
+# Refuse a timer this config starts and then drops on the floor.
+#
+# A Hammerspoon timer is userdata whose finalizer stops it, so a pending timer nothing
+# refers to can be collected before it ever fires. The delayed call then simply never
+# happens. There is no error, nothing in the console, and nothing to grep for, and the odds
+# rise with whatever else is allocating during the wait, which makes it look like an
+# intermittent macOS problem rather than a defect here. It cost a long session to find once,
+# in a conversion row that sat on Converting forever because the row list being rebuilt on
+# every keystroke was enough allocation to collect the debounce inside its quarter second.
+#
+# So every timer started under this module keeps its handle for as long as it is pending,
+# either in a field on the object that owns it or in a table of pending calls when several
+# can be outstanding and a later one must not cancel an earlier one. This check enforces
+# exactly that, that the constructor's result is assigned somewhere, which is the one
+# textual property that distinguishes a held timer from a lost one.
+#
+# It deliberately does not care where the result is assigned. Judging whether a given holder
+# actually outlives the wait is beyond a grep, and the interesting mistake is the value being
+# thrown away entirely rather than being held in a slightly wrong place.
+#
+# This lives beside the module it checks rather than in src, because the rule is a property of
+# the Hammerspoon runtime and means nothing to the rest of the repository. It is a sibling of
+# dependencies-collect for the same reason. Run it alone any time, and setup.sh runs it with
+# the other checks at the end.
+
+MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_DIR="$MODULE_DIR/.hammerspoon"
+
+# Every hs.timer constructor that returns a timer the caller is expected to keep. Repeating
+# ones are here as well, even though they are usually stored so they can be stopped, because
+# an unstored one dies the same way.
+CONSTRUCTORS='doAfter|doEvery|waitUntil|doUntil|delayed\.new'
+
+errors=0
+
+while IFS= read -r hit; do
+    [[ -z "$hit" ]] && continue
+    path="${hit%%:*}"
+    rest="${hit#*:}"
+    line="${rest%%:*}"
+    code="${rest#*:}"
+    # An assignment immediately before the call is the whole test, so a field, a local, or a
+    # table slot all pass and a bare statement does not.
+    printf '%s' "$code" | grep -qE '=[[:space:]]*hs\.timer\.' && continue
+    printf '  %s:%s starts a timer without keeping it\n' "${path#"$MODULE_DIR"/}" "$line" >&2
+    printf '    %s\n' "$(printf '%s' "$code" | sed 's/^[[:space:]]*//')" >&2
+    errors=$((errors + 1))
+done < <(grep -rnE "hs\.timer\.($CONSTRUCTORS)\(" "$CONFIG_DIR" --include='*.lua' 2>/dev/null || true)
+
+if [[ $errors -gt 0 ]]; then
+    echo "" >&2
+    echo "  A pending timer nothing refers to can be collected before it fires, and the" >&2
+    echo "  delayed call is then lost with no error anywhere. Assign it to a field on the" >&2
+    echo "  owning object, or to a table of pending calls when several can overlap." >&2
+    echo "" >&2
+    echo "$errors timer(s) not held" >&2
+    exit 1
+fi
+
+echo "  every timer is held until it fires"

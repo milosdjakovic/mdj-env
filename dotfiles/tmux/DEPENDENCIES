@@ -1,0 +1,17 @@
+# What this module needs on the machine, name | kind | locator | policy | consumer | reason.
+# The format and the kinds are documented in the repository root CLAUDE.md. This file names
+# tools and never how to install one, since that mapping is DEPENDENCIES.map one layer up.
+# Written by hand, because this module has no sub units to fold declarations from.
+tmux       | path    | tmux                  | required | tmux            | the multiplexer this entire module configures
+tpm        | package | share/tpm/tpm         | required | .tmux.conf      | the plugin manager every @plugin line is loaded through
+fzf        | path    | fzf                   | required | scripts         | every picker in this module is an fzf popup
+fd         | path    | fd                    | required | fzf-files.sh    | listing files, and finding repositories by their .git directory
+git        | path    | git                   | required | fzf-repos.sh    | reading the branch or short sha shown beside a repository
+caffeinate | system  | /usr/bin/caffeinate   | required | fzf-caffeinate.sh | holding the machine awake, the whole point of that picker
+bat        | path    | bat                   | optional | fzf-files.sh    | syntax highlighted file previews, the pane shows an error without it
+eza        | path    | eza                   | optional | fzf-files.sh    | tree previews of a directory, the pane shows an error without it
+chafa      | path    | chafa                 | optional | fzf-files.sh    | image previews in the terminal, the pane shows an error without it
+nvim       | path    | nvim                  | optional | fzf-files.sh    | opening a chosen file, the copy action still works without it
+lf         | path    | lf                    | optional | .tmux.conf      | the file explorer popup binding
+lazygit    | path    | lazygit               | optional | .tmux.conf      | the lazygit popup binding, and its state file feeds the recent repos picker
+mullvad    | path    | mullvad               | optional | vpn/mullvad.sh  | the relay CLI behind the VPN picker

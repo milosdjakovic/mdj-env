@@ -1,0 +1,4 @@
+# Repo only files at this package root, kept out of the home directory. The manifest is this
+# module's contract with the layer above, so it belongs to the repository rather than to the
+# running configuration.
+DEPENDENCIES

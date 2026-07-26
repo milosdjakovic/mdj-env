@@ -40,8 +40,76 @@ stow -D -t ~ <package>        # Unlink a package
 
 - `setup.sh` - Main orchestrator that runs all scripts in sequence
 - `Brewfile` - Homebrew packages and casks
+- `DEPENDENCIES.map` - where each tool a module declares comes from
 - `src/` - Modular setup scripts (all idempotent, support Apple Silicon and Intel)
 - `dotfiles/` - Stow-managed configurations, each subdirectory is a stow package
+
+### Dependencies, and which layer knows what
+
+**A module declares what it needs on the machine and installs nothing.** That is the
+whole rule. A module names a tool and says what breaks without it. It never knows
+whether that tool arrives by Homebrew, by a cask, or by hand, and it never tells
+anyone to install anything. This layer is the only place that knows about package
+managers, and it is the layer responsible for making every declared thing actually
+present and actually configured.
+
+A module exposes its needs in one `DEPENDENCIES` manifest at its own package root,
+six fields per line, name, kind, locator, policy, consumer, and reason. That file is
+its entire contract upward. How the module produces it is the module's own business.
+Every module writes it by hand, except hammerspoon, which generates it from small
+declarations placed beside whatever actually knows each tool, so a spoon and even a
+single provider stays self contained. The manifest is repo only, so each package's
+`.stow-local-ignore` keeps it out of the home directory.
+
+The program a module configures is a dependency like any other, so the tmux module
+declares tmux and the hammerspoon module declares the Hammerspoon application. A
+configuration cannot work without the thing it configures, and declaring it is what
+lets this layer guarantee it.
+
+`kind` is how presence is proven. `path` for a command on PATH, `system` for a fixed
+absolute path, `app` for a macOS bundle id, `manual` for a marker path, and `package`
+for something that ships files rather than a command, where presence is proven by
+asking the package manager instead of by probing a path, because the prefix differs
+between machines and no module may know it. `policy` is `required` when the module is
+broken without it and `optional` when only part of it degrades.
+
+This layer's own setup scripts declare too, in `src/DEPENDENCIES`, because tools like
+stow and duti would otherwise be the one category nothing checks.
+
+`DEPENDENCIES.map` joins a tool name to where it comes from, a Homebrew formula, a
+cask, a third party tap, the Xcode command line tools, the operating system itself, or
+a manual step whose detail says exactly what to do. The Brewfile carries the actual
+install lines. So when a module declares something new, the work happens here and
+nowhere else. Add the line to `DEPENDENCIES.map`, add the matching Brewfile entry for
+a package manager origin, and for a manual origin make sure the detail says both how
+to install it and how to configure it, since an installed tool that is unconfigured is
+still a broken dependency. Never answer a missing tool by editing the module to
+mention Homebrew, which is the leak this split exists to prevent.
+
+`src/check-dependencies.sh` reconciles all of it, and runs at the end of `setup.sh` or
+alone at any time. It regenerates every generated manifest so a stale one cannot be
+committed, then reports a declared tool with no mapping, a mapping nothing declares any
+more, a mapped formula missing from the Brewfile, any module that hardcodes an install
+prefix or probes for a tool itself instead of naming it, and any module that names an
+install command at all. That last one matches every file type under `dotfiles`, not only
+the scripted ones, because the two real leaks it was written for were both help text, a
+chooser row offering to copy a `brew install` line and a generator script telling you to
+run one. Help text is not exempt, since it duplicates an answer the map already holds and
+the two then drift apart with nothing watching. Those are errors, because they are
+repository defects and identical on every machine. Two things are only
+warnings. A declared tool not installed here, since an optional one may legitimately
+not be wanted on this machine, and a Brewfile entry nothing declares, since the
+Brewfile is also a personal package list and an unclaimed entry is a question rather
+than a defect. The warning names the entry so the question is answerable.
+
+The script is module agnostic by construction, reading manifests and knowing no module
+by name, so a future config joins in by writing a manifest, with no change to the
+script.
+
+Deciding whether something is genuinely a dependency, which origin it has, and whether
+it is required or optional is judgment rather than pattern matching, so it belongs to a
+person or to Claude reading the code. The reconciler only makes the result impossible
+to drift unnoticed.
 
 ### Stow Packages
 

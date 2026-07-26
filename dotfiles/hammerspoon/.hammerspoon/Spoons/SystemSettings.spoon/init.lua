@@ -112,6 +112,14 @@ end
 --- polls the Accessibility tree for a short while rather than assuming it is ready.
 --- If the field never appears the app is at least open and focused, which is the
 --- graceful fallback, open plus one manual click rather than nothing.
+---
+--- Each step of the poll is held in a field on the spoon, and that is what keeps the poll
+--- alive. A Hammerspoon timer is userdata whose finalizer stops it, so a pending step
+--- nothing refers to can be collected and the chain simply stops partway with the window
+--- open and the cursor nowhere. A field on the spoon outlives this method, where a local
+--- would be reachable only from the timer that holds the closure, which is a cycle the
+--- collector is free to take. One step is pending at a time, so one field is enough, and a
+--- second call supersedes an earlier poll rather than racing it.
 function obj:focusSearch()
   hs.application.launchOrFocusByBundleID(SETTINGS_BUNDLE)
   local attempts = 0
@@ -126,9 +134,10 @@ function obj:focusSearch()
         return
       end
     end
-    if attempts < 25 then hs.timer.doAfter(0.15, try) end
+    if attempts < 25 then self._searchRetry = hs.timer.doAfter(0.15, try) end
   end
-  hs.timer.doAfter(0.25, try)
+  if self._searchRetry then self._searchRetry:stop() end
+  self._searchRetry = hs.timer.doAfter(0.25, try)
 end
 
 return obj
