@@ -205,6 +205,30 @@ list is noise.
 Menu steps are in place, using the same Return interceptor `DisplayProfiles` uses, so stepping
 into settings and back never closes and re-shows. Opening a tab is the one terminal action.
 
+## Handing the tabs to another list, without the settings level
+
+`tabRows`, `explain`, `activate`, `prepare` and `ready` are the tabs offered to a surface other
+than this chooser, which is what the launcher's `t` scope is. They are the tab level only, and
+the settings level deliberately does not come along, since it is a step into a second list and a
+scope shows one. So the guidance rows take the phrase naming where the browser switches are,
+rather than saying "in settings below" where there is no row below.
+
+The ranking is shared rather than copied. `matchedTabs` was pulled out of the frame supplier and
+both callers go through it, so a scoped list and this chooser cannot disagree about which tabs a
+query matches or in what order. What differs between them is only which extra rows get appended,
+which is exactly the part that is per surface.
+
+`prepare` is the one listing path and `reload` is now a call to it. A second ask while one is in
+flight joins that flight and every waiter is called when it lands, so two surfaces asking at once
+cost one read of the browsers and neither is dropped. `Vpn` took the same shape for the same
+reason. Without that, a scope asking on entry while this chooser was already listing would script
+every browser twice.
+
+`ready` is what lets a caller tell an unread list from an empty one, which matters because they
+look identical and mean opposite things. `explain` exists so the caller does not have to guess
+which it is, this file knows whether it is still reading, whether nothing is switched on, or
+whether a browser refused.
+
 ## Degradation
 
 No provider validates, the list is empty and says so. A browser switched off, closed, or

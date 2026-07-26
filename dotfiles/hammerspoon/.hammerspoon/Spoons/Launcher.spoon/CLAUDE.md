@@ -80,6 +80,52 @@ last thing a fresh open should show. It is also exempt from the two discoverabil
 mandates, since it is not a bound shortcut and typing is the only way a computed row
 could be found at all.
 
+## A source may claim the query, which is the whole of scoping
+
+A source can return a second value saying its rows are the entire list, and the
+catalog is then not shown at all. That one bit is how a typed word hands the list to
+one tool, and it is deliberately the only thing the launcher knows about it. It never
+learns what made a source claim a query, what the rows now belong to, or that aliases
+exist. `QueryScope.spoon` is the source that claims, and its own `CLAUDE.md` holds
+the grammar and the reasoning.
+
+Three consequences live here rather than there. A claim discards whatever earlier
+sources contributed and stops the loop, so a claimed query means one thing however
+the root ordered its sources, which is why ordering the claiming source first is
+clarity rather than correctness. A claimed row carries a descriptor naming whoever
+made it plus that thing's own opaque payload, and one injected action hands both
+back, so the dispatcher routes it without learning what the payload means, exactly as
+a computed result reaches an injected `copy`. And a claimed row is kept out of the
+recency timeline for the same reason a computed one is, it belongs to the query that
+produced it, so remembering it would float a stale answer to the top of the next
+fresh open.
+
+The alias hint on a tool's own row is the launcher's side of discoverability.
+`_aliasHint` reads the `aliases` field on the same `config/keys.lua` entry the
+scopes are built from, so the words a row advertises and the words the resolver
+answers are one piece of data and cannot drift, the same reason the chord label is
+derived rather than written. A tool with no aliases gains nothing, so the hint appears
+only where scoping is real. A scope over a group of rows has no single row to carry a
+hint, which is the gap the alias editor closes.
+
+## A scope may narrow this catalog instead of reaching a tool, through two public methods
+
+`rowsOfKind` hands out the built rows of one kind, predicate gated and recency ordered exactly
+as the full list is, and `runItem` is the public door onto the dispatcher. Together they let a
+scope be a narrowing of this catalog rather than a route out of it, which is what the window and
+settings scopes are.
+
+The alternative was for the composition root to rebuild those rows from the same data it injects
+here, and it is worth saying why that is worse. The rows would then be built twice, so a narrowed
+list could disagree with the whole list about a title, about the hidden keywords a row answers
+to, about which rows a predicate has gated out, and about what choosing one does. None of those
+would fail loudly. Reusing the rows costs two small methods and makes the disagreement
+impossible.
+
+This is the one place a scope reaches back in here, and it stays honest because what comes back
+out is a descriptor of this launcher's own making. `runItem` never sees a foreign payload, so the
+dispatcher gains no case and learns nothing new.
+
 ## App enumeration and caching
 
 The installed app list is scanned once, lazily on first open, from the standard

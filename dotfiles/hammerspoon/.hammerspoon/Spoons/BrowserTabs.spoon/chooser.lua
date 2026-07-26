@@ -39,6 +39,7 @@ local returnTap = nil   -- swallows Return while open so a menu step stays in pl
 local tabs = nil        -- the last listing, so a reopen paints before the refresh lands
 local listErrors = {}   -- per bundle id reasons a browser did not answer
 local loading = false   -- whether a listing is in flight
+local waiting = {}      -- callbacks due when that listing lands, so none of them is dropped
 local permState = {}    -- per bundle id permission state, filled asynchronously
 
 -- The pending re-show, held until it fires. A Hammerspoon timer is userdata whose finalizer
@@ -164,7 +165,12 @@ end
 -- leaving the list empty, the same self explaining shape Vpn's missing CLI row takes. The
 -- reasons are checked most actionable first. A browser refused permission is the one worth
 -- naming per browser, since the fix differs per browser and lives in its settings row.
-local function emptyRows()
+--
+-- `where` names where the settings door is, because two of these rows tell you to go there and
+-- the door is only ever a row below when this list is our own chooser. Scoped into another
+-- surface there is no row below, so the caller says what to point at instead.
+local function emptyRows(where)
+  where = where or "in settings below"
   local out = {}
   if loading then
     out[#out + 1] = glyphRow("Reading tabs", "Asking the browsers that are open", ICON.reading,
@@ -180,7 +186,7 @@ local function emptyRows()
   end
   if #refused > 0 then
     out[#out + 1] = glyphRow("Hammerspoon may not read " .. table.concat(refused, ", "),
-      "Allow it in settings below", ICON.locked, { noop = true }, false)
+      "Allow it " .. where, ICON.locked, { noop = true }, false)
     return out
   end
 
@@ -192,7 +198,7 @@ local function emptyRows()
     end
   end
   if not anyEnabled then
-    out[#out + 1] = glyphRow("No browser is switched on", "Switch one on in settings below",
+    out[#out + 1] = glyphRow("No browser is switched on", "Switch one on " .. where,
       ICON.none, { noop = true }, false)
   elseif not anyRunning then
     out[#out + 1] = glyphRow("No browser is open", "Nothing to list until one is running",
@@ -240,21 +246,15 @@ local function wantsSettings(query)
   return false
 end
 
--- The tab list. The atom does not filter for this tool, so the query is scored here, which is
--- what lets the settings row stay pinned outside the ranking. On an empty query the recency
--- order stands and the settings row trails it.
-local function tabRows(query)
+-- The matching tabs alone, no guidance row and no settings door, so this is the part worth
+-- reusing. The atom does not filter for this tool, so the query is scored here, which is what
+-- lets the settings row stay pinned outside the ranking wherever it is added. On an empty query
+-- the recency order stands.
+local function matchedTabs(query)
   local list = tabs or {}
-  if #list == 0 then
-    local out = emptyRows()
-    out[#out + 1] = settingsRow()
-    return out
-  end
-
   if query == "" then
     local out = {}
     for _, t in ipairs(list) do out[#out + 1] = tabRow(t) end
-    out[#out + 1] = settingsRow()
     return out
   end
 
@@ -269,22 +269,35 @@ local function tabRows(query)
     for _, b in ipairs(built) do
       if b.r.filterText:lower():find(q, 1, true) then out[#out + 1] = b.r end
     end
-  else
-    local ranked = {}
-    for _, b in ipairs(built) do
-      local score = matcher(query, b.r.filterText)
-      if score ~= nil then
-        ranked[#ranked + 1] = { r = b.r, score = score, idx = b.idx }
-      end
-    end
-    table.sort(ranked, function(a, b)
-      if a.score ~= b.score then return a.score > b.score end
-      return a.idx < b.idx
-    end)
-    for _, e in ipairs(ranked) do out[#out + 1] = e.r end
+    return out
   end
 
-  if wantsSettings(query) then out[#out + 1] = settingsRow() end
+  local ranked = {}
+  for _, b in ipairs(built) do
+    local score = matcher(query, b.r.filterText)
+    if score ~= nil then
+      ranked[#ranked + 1] = { r = b.r, score = score, idx = b.idx }
+    end
+  end
+  table.sort(ranked, function(a, b)
+    if a.score ~= b.score then return a.score > b.score end
+    return a.idx < b.idx
+  end)
+  for _, e in ipairs(ranked) do out[#out + 1] = e.r end
+  return out
+end
+
+-- The tab list as our own chooser shows it, the matching tabs plus the settings door. The door
+-- trails an empty query, where it was asked to be, and comes back on a query that reaches for
+-- it, still last.
+local function tabRows(query)
+  if #(tabs or {}) == 0 then
+    local out = emptyRows()
+    out[#out + 1] = settingsRow()
+    return out
+  end
+  local out = matchedTabs(query)
+  if query == "" or wantsSettings(query) then out[#out + 1] = settingsRow() end
   return out
 end
 
@@ -553,13 +566,53 @@ end
 --- screen meanwhile, so a reopen paints instantly and only updates once the fresh answer
 --- arrives, the same shape Vpn's relay list takes.
 function M.reload()
+  M.prepare(nil)
+end
+
+--- M.prepare(onReady) - the one listing path, for a surface that shows these tabs and needs to
+--- know when they have landed. A second ask while one is in flight joins that flight rather than
+--- starting another, and every waiter is called, so two surfaces asking at once cost one read of
+--- the browsers and neither is dropped. Our own chooser goes through this too, which is what
+--- keeps there being one in flight guard rather than one per caller.
+function M.prepare(onReady)
+  if onReady then waiting[#waiting + 1] = onReady end
+  if loading then return end
   loading = true
   cfg.api.listTabs(function(list, errors)
     tabs = list or {}
     listErrors = errors or {}
     loading = false
     M.refresh()
+    local due = waiting
+    waiting = {}
+    for _, cb in ipairs(due) do cb() end
   end)
+end
+
+--- M.ready() - whether a listing has landed, so a caller can tell an empty list from an
+--- unread one and say which it is.
+function M.ready()
+  return tabs ~= nil
+end
+
+--- M.tabRows(query) - the matching tabs alone, for a surface other than our own chooser. No
+--- settings door and no guidance row, since both are ours: the door is a step into a second
+--- level only this chooser can show, and what to say about an empty list is the caller's to
+--- decide. Nothing here is remembered, so this is safe to call on every keystroke.
+function M.tabRows(query)
+  return matchedTabs(query or "")
+end
+
+--- M.explain(where) - why the list is empty, as rows, with `where` naming where the browser
+--- switches are since this list has no settings row of its own to point at.
+function M.explain(where)
+  return emptyRows(where)
+end
+
+--- M.activate(item) - open the tab a row from M.tabRows carries. A row of any other kind is
+--- ignored, so a caller may hand back whatever it was given.
+function M.activate(item)
+  if item and item.kind == "tab" then cfg.api.activate(item.tab) end
 end
 
 --- M.show() - open on the tab list and start a fresh listing.

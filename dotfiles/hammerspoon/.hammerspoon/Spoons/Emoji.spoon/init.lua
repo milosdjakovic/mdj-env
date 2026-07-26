@@ -121,6 +121,35 @@ function obj:isShowing()
   return self._active ~= nil and self._active:isShowing()
 end
 
+--- Emoji:lists()
+--- Method
+--- Whether the selected backend can hand its rows to another surface, which is an optional
+--- part of the contract. Only a backend that owns its own list can, so a system picker or an
+--- external one cannot, and the caller asks before assuming. This keeps the answer with the
+--- facade rather than making every caller reason about which backend won.
+function obj:lists()
+  local p = self._active
+  return p ~= nil and type(p.rows) == "function" and type(p.insert) == "function"
+end
+
+--- Emoji:rows(query) -> rows
+--- Method
+--- The selected backend's rows for a query, or an empty list when it cannot list. Forwarded
+--- rather than interpreted, so the facade stays a facade.
+function obj:rows(query)
+  if not self:lists() then return {} end
+  return self._active:rows(query)
+end
+
+--- Emoji:insert(glyph)
+--- Method
+--- Insert a glyph the caller picked from rows above, through the same path a pick in the
+--- backend's own chooser takes, so a pick made elsewhere is remembered too.
+function obj:insert(glyph)
+  if not self:lists() then return end
+  self._active:insert(glyph)
+end
+
 --- Emoji:surface()
 --- Method
 --- The navigation adapter of the selected backend for the shared choosers registry, or a no
