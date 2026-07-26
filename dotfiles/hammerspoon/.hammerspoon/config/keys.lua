@@ -66,8 +66,10 @@ return {
     { app = "Claude",           modifiers = HYPER, key = "A" },
     -- Default terminal: plain focus/cycle. (alt+` summons it placed via TerminalHandler)
     { app = "Ghostty",          modifiers = HYPER, key = "`" },
-    -- Activity Monitor
-    { app = "ActivityMonitor",  modifiers = HYPER, key = "/" },
+    -- Activity Monitor. On backslash rather than slash, because slash now opens file search,
+    -- and the two read as a pair on adjacent keys, one for what the machine is doing and one
+    -- for what is on it.
+    { app = "ActivityMonitor",  modifiers = HYPER, key = "\\" },
     -- System Settings, opened straight to the General pane. The url field makes
     -- AppToggler open (and navigate) to that pane instead of a plain focus.
     { app = "SystemSettings",   modifiers = HYPER, key = ",", url = "x-apple.systempreferences:com.apple.systempreferences.GeneralSettings" },
@@ -349,6 +351,28 @@ return {
         { key = "x", action = "closeChooser",   description = "Close" },
       },
     },
+    -- The file search chooser. i opens the highlighted file with its default application, j
+    -- and k navigate vim style, and x closes it. Four actions are its own. b walks into the
+    -- highlighted folder rather than opening it, by rewriting the query as that folder's
+    -- scope, so one picker searches and then browses down into what it found. r reveals the
+    -- row in Finder, o opens the folder holding it, and y copies its path. All four are
+    -- answered only by this surface, so they are no ops anywhere else. Plain typing filters
+    -- while Hyper is released, and typing a question mark shows the query grammar.
+    {
+      name = "fileSearch",
+      when = "fileSearchOpen",
+      priority = 100,
+      bindings = {
+        { key = "i", action = "insertSelected", description = "Open" },
+        { key = "j", action = "selectNext",     description = "Move down" },
+        { key = "k", action = "selectPrev",     description = "Move up" },
+        { key = "b", action = "browseInto",     description = "Browse into folder" },
+        { key = "r", action = "revealInFinder", description = "Reveal in Finder" },
+        { key = "o", action = "openFolder",     description = "Open folder" },
+        { key = "y", action = "copyPath",       description = "Copy path" },
+        { key = "x", action = "closeChooser",   description = "Close" },
+      },
+    },
   },
 
   -- System actions bound onto the Hyper key in init.lua. Hyper+Esc sleeps the
@@ -477,6 +501,17 @@ return {
   -- hyperContext above, so while open it takes the shared j, k, i, and x navigation. W reads
   -- as web, since B is already the Books toggle and T the Stickies one.
   browserTabs = { modifiers = HYPER, key = "W", description = "Browser tabs" },
+
+  -- File search (for FileSearch.spoon, wired in init.lua). Hyper+/ searches the filesystem by
+  -- name, optionally filtered by type, scoped to a folder, and optionally reaching the files
+  -- macOS does not index at all. Same shape as the other pickers, a base HyperKey binding
+  -- suppressed while a modal context owns Hyper, with the HYPER field as the fallback combo. It
+  -- has its own hyperContext above, so while open it takes the shared j/k/i navigation plus its
+  -- own browse, reveal, open folder and copy path actions, and x closes it.
+  --
+  -- Slash reads as search, the way it does in vim and in every browser find, and Activity
+  -- Monitor moved one key over to backslash to free it.
+  fileSearch = { modifiers = HYPER, key = "/", description = "File search" },
 
   -- Processes (for Processes.spoon, wired in init.lua). Finds the development servers you
   -- left running, identified by the port they hold and the project they run in, and stops

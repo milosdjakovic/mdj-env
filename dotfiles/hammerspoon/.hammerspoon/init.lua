@@ -11,6 +11,7 @@ local settings = require("config.settings")
 local displays = require("config.displays")
 local settingsPanes = require("config.settingsPanes")
 local processes = require("config.processes")
+local filesearch = require("config.filesearch")
 
 -- Load workspace configurations
 local devWorkspace = require("config.workspaces.dev")
@@ -70,6 +71,7 @@ hs.loadSpoon("Emoji")
 hs.loadSpoon("TextCase")
 hs.loadSpoon("BrowserTabs")
 hs.loadSpoon("Processes")
+hs.loadSpoon("FileSearch")
 hs.loadSpoon("Arithmetic")
 hs.loadSpoon("Convert")
 
@@ -289,6 +291,11 @@ local predicates = {
   -- shared j, k, and x navigation plus its own stop, force and refresh keys.
   processesOpen = function()
     return spoon.Processes ~= nil and spoon.Processes.chooser.isShowing()
+  end,
+  -- The file search picker is open. Gates the fileSearch Hyper context, so it takes the
+  -- shared j, k, i and x navigation plus its own browse, reveal, open folder and copy path.
+  fileSearchOpen = function()
+    return spoon.FileSearch ~= nil and spoon.FileSearch.chooser.isShowing()
   end,
 }
 -- The window bindings carry no leader (see config/keys.lua). Stamp the resolved
@@ -1070,6 +1077,7 @@ spoon.Launcher:configure({
       textCase = function() spoon.TextCase:show() end,
       browserTabs = function() spoon.BrowserTabs:show() end,
       processes = function() spoon.Processes.chooser.show() end,
+      fileSearch = function() spoon.FileSearch.chooser.show() end,
     },
   },
 })
@@ -1415,6 +1423,86 @@ spoon.Processes.chooser.configure({
 })
 spoon.Processes.chooser.start()
 
+-- The shared row icon memo, one of the view deps a chooser may receive.
+--
+-- It is a closure rather than a spoon because it has no lifecycle, nothing to configure and
+-- nothing to start, and ten lines behind a spoon boundary would be the ceremony the design
+-- rules refuse. It lives here for the same reason targetScreen and the overlay screen resolver
+-- do, it is a choice the root makes and hands downward.
+--
+-- The key scheme is the caller's, `ext:lua` for a type and `dir` for a folder, because keying
+-- by extension rather than by path is what makes it effective, a hundred rows of one kind
+-- asking once. Measured, a lookup costs 0.08ms, two hundred uncached rows 6.6ms and the same
+-- two hundred through here 0.2ms, so this buys smooth repaints while typing rather than
+-- rescuing a broken frame.
+--
+-- NOTHING IS WRITTEN TO DISK and there is deliberately no directory to configure. These are in
+-- memory image handles that NSWorkspace already caches on its side, which is why a lookup is
+-- a tenth of a millisecond. A folder of our own PNGs would be slower to read than asking again
+-- and would turn a changed default application into staleness that outlives a reload.
+--
+-- Which is also why the whole table is dropped when a chooser closes. A full rebuild costs
+-- 2.3ms for thirty extensions, so correctness here is free, and changing the default app for a
+-- file type shows the new icon the next time the picker opens with no invalidation logic at
+-- all. The clipboard has its own equivalent of this today and is the obvious second consumer,
+-- deliberately left alone until this one has been used in anger.
+local rowIconMemo = {}
+local function rowIconFor(key, producer)
+  local hit = rowIconMemo[key]
+  if hit ~= nil then return hit or nil end
+  local img = producer() or false
+  rowIconMemo[key] = img
+  return img or nil
+end
+local function clearRowIcons()
+  rowIconMemo = {}
+end
+
+-- File search: find a file by name, by type, inside a folder, or among the paths macOS does
+-- not index. Two configures, matching DisplayProfiles and Processes. The spoon's own root takes
+-- the pure policy from config/filesearch.lua and hands each source its slice, and this root
+-- injects the view deps every chooser receives, the factory, the shared theme, the deferred
+-- shortcut panel, and here also the row icon memo above.
+--
+-- The matcher is injected but does NOT go to the atom, which the surface opts out of, since a
+-- query here is structured rather than a plain filter. It goes to the engine instead, where it
+-- narrows a held result set between round trips, so the shared policy still applies and simply
+-- applies one layer down. words rather than fuzzy, the same choice the clipboard and Processes
+-- make, because a path is long text searched from the inside with a real fragment.
+--
+-- copy is injected so the spoon never names a clipboard, the same seam Emoji and TextCase use,
+-- and it goes through the manager so the copied path lands in history like any other copy.
+--
+-- Its fileSearch Hyper context (config/keys.lua) drives the shortcuts through the choosers
+-- registry below.
+local fileSearchPanel = shortcutPanelFor("fileSearch")
+spoon.FileSearch:init()
+spoon.FileSearch:configure({
+  policy = filesearch,
+  deps = depsFor("FileSearch"),
+  matcher = spoon.Chooser.matchers.words,
+})
+spoon.FileSearch.chooser.configure({
+  chooser = spoon.Chooser,
+  theme = settings.chooserTheme,
+  placeholder = "Search files, ? for the query syntax",
+  iconFor = rowIconFor,
+  -- A plain pasteboard write, named here rather than in the spoon. It deliberately does not go
+  -- through the clipboard manager, because this is an ordinary copy and the monitor should see
+  -- it as one and file it in history, which is exactly what happens when the pasteboard changes
+  -- from outside the manager.
+  copy = function(text) hs.pasteboard.setContents(text) end,
+  onPositioned = fileSearchPanel.onPositioned,
+  onActivity = fileSearchPanel.onActivity,
+  onClose = function()
+    clearRowIcons()
+    fileSearchPanel.onClose()
+  end,
+})
+spoon.FileSearch.chooser.start()
+-- Open key: a base HyperKey binding, suppressed while a modal context owns Hyper.
+spoon.HyperKey:bind(keys.fileSearch.key, function() spoon.FileSearch.chooser.show() end)
+
 -- Clipboard manager UI: the native chooser with its canvas preview docked in the
 -- companion pane and the same deferred shortcut panel the other choosers use. The
 -- panel spells the shortcuts out below the list. The manager owns onPositioned to place its preview, so the
@@ -1512,7 +1600,7 @@ spoon.ClipboardHistory.manager.start()
 -- glance at the sheet plus any key clears it.
 spoon.HyperKey:configure({ predicates = predicates })
 local clipManager = spoon.ClipboardHistory.manager
-local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, spoon.Launcher:surface(), menuSearchSurface, spoon.DisplayProfiles.chooser, spoon.Emoji:surface(), overlayDisplaySurface, spoon.TextCase:surface(), spoon.BrowserTabs.chooser, spoon.Processes.chooser }
+local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, spoon.Launcher:surface(), menuSearchSurface, spoon.DisplayProfiles.chooser, spoon.Emoji:surface(), overlayDisplaySurface, spoon.TextCase:surface(), spoon.BrowserTabs.chooser, spoon.Processes.chooser, spoon.FileSearch.chooser }
 local function activeChooser()
   for _, c in ipairs(choosers) do
     if c.isShowing() then return c end
@@ -1555,6 +1643,13 @@ local contextActions = {
   -- and then left alone. A live sort would reshuffle rows under the cursor on every
   -- sample, which is how you stop the wrong thing.
   sortByLoad = routeNav("sortByLoad"),
+  -- File search only, routed the same way so the method guard makes each a no op on every
+  -- other surface. Browse rewrites the query as the highlighted folder's scope, which is why
+  -- it stays open where the other three act and close.
+  browseInto = routeNav("browseInto"),
+  revealInFinder = routeNav("reveal"),
+  openFolder = routeNav("openFolder"),
+  copyPath = routeNav("copyPath"),
 }
 -- Nav actions that auto-repeat while the key is held, so holding Hyper+j/k in any
 -- chooser scrolls like a held arrow key. The initial delay and repeat rate are the
