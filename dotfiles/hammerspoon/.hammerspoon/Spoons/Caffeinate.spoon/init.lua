@@ -291,6 +291,18 @@ function M.show()
   if chooser then chooser:show() end
 end
 
+--- M.rows(query) -> list. The morphing row for a query, the same data this spoon's own
+--- chooser is built from, exposed so another surface can present it instead. Handing out the
+--- data rather than a second copy of the parse is what keeps the two from disagreeing about
+--- what a value means. It says nothing about where it is shown, so it stays a list of rows
+--- and this spoon still never learns which surfaces exist.
+M.rows = rows
+
+--- M.select(item) - apply one of those rows, taking the descriptor its own rows produced.
+--- Paired with M.rows on purpose, since rows without a way to apply one would only invite a
+--- caller to reimplement the dispatch and drift from it.
+M.select = onSelect
+
 function M.isShowing()
   return chooser ~= nil and chooser:isShowing()
 end

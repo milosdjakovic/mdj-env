@@ -72,6 +72,7 @@ hs.loadSpoon("BrowserTabs")
 hs.loadSpoon("Processes")
 hs.loadSpoon("Arithmetic")
 hs.loadSpoon("Convert")
+hs.loadSpoon("QueryScope")
 
 --------------------------------------------------------------------------------
 -- Initialize Spoons
@@ -1003,7 +1004,23 @@ end
 spoon.Arithmetic:init()
 spoon.Arithmetic:configure({ glyph = "🧮", category = "Arithmetic" })
 
-local queryProviders = { spoon.Arithmetic }
+-- Query scopes. A word plus a space hands the launcher's whole list to one tool, so `k 2h`
+-- reaches the keep awake picker without leaving the launcher and deleting the space hands the
+-- list back. This is the one place the concrete scopes are named. The spoon names none, so
+-- adding one is an entry in the list below plus the aliases on that tool's config/keys.lua
+-- entry, with no change to the spoon or to the launcher.
+--
+-- Each scope is a thin adapter over a tool that already answers a rows and a select, which is
+-- what keeps the tool ignorant of being scoped. A scope leads the source list so a claimed
+-- query never also runs the calculators, though the launcher discards their rows on a claim
+-- anyway, so the order here is clarity rather than correctness.
+--
+-- It is initialized here so it is a safe member of the source list below, and the scopes
+-- themselves are named further down, once every tool they adapt has been wired. Until then it
+-- claims nothing, which is exactly what an unconfigured source should do.
+spoon.QueryScope:init()
+
+local queryProviders = { spoon.QueryScope, spoon.Arithmetic }
 local convertDeps = depsFor("Convert")
 if convertDeps.satisfied() then
   spoon.Convert:init()
@@ -1041,6 +1058,10 @@ spoon.Launcher:configure({
     -- lands in clipboard history like any other copy and can be pasted again later,
     -- unlike the hidden writes the emoji and text case paths use to leave history alone.
     copy = function(value) hs.pasteboard.setContents(value) end,
+    -- A row from a source that claimed the query. The launcher hands back the whole
+    -- descriptor and the scope resolver routes it to whichever tool made it, so the launcher
+    -- never learns that the tools behind a scope exist.
+    scope = function(item) spoon.QueryScope:run(item) end,
     app = function(bundleID, url)
       if url then
         spoon.AppToggler:toggleURL(bundleID, url)
@@ -1147,20 +1168,26 @@ local menuAppKey      -- a stable icon key so that icon is encoded once, not per
 -- Rows supplier. Returns every menu item and lets the atom's shared matcher filter and
 -- rank, so typing a parent menu name (File, Format) narrows too since the path rides in
 -- filterText. The shortcut glyph rides in the subtitle after the path.
-local function menuSearchRows(_)
+-- The row shape, shared by this chooser and the launcher's menu scope below, so the two
+-- present a menu item identically and cannot drift. Every item belongs to the one captured
+-- app, so each row shows that app's icon, and the stable key memoizes the encoded icon once
+-- rather than per row.
+local function buildMenuRows(list, icon, iconKey)
   local out = {}
-  for _, r in ipairs(menuRows) do
+  for _, r in ipairs(list or {}) do
     local subtitle = r.parents
     if r.shortcut then
       subtitle = (subtitle ~= "" and (subtitle .. "   ") or "") .. r.shortcut
     end
-    -- Every item belongs to the one captured app, so each row shows that app's
-    -- icon. The stable key memoizes the encoded icon once rather than per row.
-    out[#out + 1] = { title = r.title, subTitle = subtitle, image = menuAppIcon,
-                      iconKey = menuAppKey, item = { path = r.path },
+    out[#out + 1] = { title = r.title, subTitle = subtitle, image = icon,
+                      iconKey = iconKey, item = { path = r.path },
                       filterText = r.title .. " " .. r.parents }
   end
   return out
+end
+
+local function menuSearchRows(_)
+  return buildMenuRows(menuRows, menuAppIcon, menuAppKey)
 end
 
 -- The chosen item runs deferred, after the chooser tears down and macOS restores
@@ -1226,6 +1253,61 @@ end
 -- Open key. Bound to the built-in chooser: fast, direct, shows the app icon. Swap to
 -- fireMenuSearchCombo (uncomment above) to hand off to an external tool instead.
 spoon.HyperKey:bind(keys.menuSearch.key, openBuiltinMenuSearch)
+
+-- The launcher's menu scope. It lists the menus of the app the launcher covered rather than
+-- the frontmost one, since once the chooser is up the frontmost app is this one, which is why
+-- the launcher hands over both that app and an id for the open. The tree is read once per open.
+-- Re-reading it on every keystroke would be unusable, since the accessibility walk is the slow
+-- part of menu search, and caching it across opens would go stale as an app enables and
+-- disables its items. A read in flight shows as one disabled row, so the list says what it is
+-- doing rather than briefly claiming nothing matched, and that row carries the typed text as
+-- its filter text so the matcher cannot rank it away while it is the only thing to show.
+local scopeMenu = { app = nil, openId = nil, list = nil, icon = nil, key = nil, reading = false }
+
+local function scopeMenuRows(rest)
+  local app, openId = spoon.Launcher:coveredApp()
+  if not app then return {} end
+  if app ~= scopeMenu.app or openId ~= scopeMenu.openId then
+    local bundleID = app:bundleID()
+    scopeMenu = {
+      app = app, openId = openId, list = nil, reading = false,
+      icon = bundleID and hs.image.imageFromAppBundle(bundleID) or nil,
+      key = bundleID and ("menuapp:" .. bundleID) or nil,
+    }
+  end
+  if not scopeMenu.list and not scopeMenu.reading then
+    scopeMenu.reading = true
+    local forApp, forOpen = app, openId
+    app:getMenuItems(function(menus)
+      -- The answer can arrive after another open has moved on, so it is kept only for the
+      -- read that asked for it and dropped otherwise.
+      if scopeMenu.app ~= forApp or scopeMenu.openId ~= forOpen then return end
+      scopeMenu.reading = false
+      local flat = {}
+      if menus then flattenMenus(menus, {}, flat) end
+      scopeMenu.list = flat
+      spoon.Launcher:refresh()
+    end)
+  end
+  if not scopeMenu.list then
+    return { {
+      title = "Reading the menus",
+      subTitle = (app:name() or "this app") .. ", one moment",
+      glyph = "⏳",
+      enabled = false,
+      filterText = rest,
+    } }
+  end
+  return buildMenuRows(scopeMenu.list, scopeMenu.icon, scopeMenu.key)
+end
+
+-- Acts on the app the read was for, not on whatever is frontmost when the row runs, so a menu
+-- item can never be sent to the wrong app. selectMenuItem addresses that app directly, so this
+-- does not depend on focus having returned, though the launcher defers it anyway.
+local function scopeMenuRun(payload)
+  local app = scopeMenu.app
+  if app and payload and payload.path then app:selectMenuItem(payload.path) end
+end
 
 -- VPN controls: a native chooser on Hyper+P that merges the controls and the locations
 -- into one flat list, Connect or Disconnect on top and every city below. It is pinned to
@@ -1414,6 +1496,144 @@ spoon.Processes.chooser.configure({
   surface = spoon.CanvasPanel.surfaceElements,
 })
 spoon.Processes.chooser.start()
+
+-- Query scopes. A word plus a space hands the launcher's whole list to one tool, so `k 2h`
+-- reaches the keep awake picker without leaving the launcher and deleting the space hands the
+-- list back. This is the one place the concrete scopes are named. The spoon names none, so
+-- adding a scope is an entry below plus the `aliases` field on that tool's `config/keys.lua`
+-- entry, with no change to the spoon and none to the launcher.
+--
+-- It sits this late because every tool it adapts has to be wired first. Not for the closures,
+-- which run at keystroke time, but because the emoji scope asks its facade a question now, and
+-- a facade that has not chosen a backend yet would answer no.
+--
+-- Each scope is a thin adapter over something that already answers a rows and a select, which
+-- is what keeps the thing behind it ignorant of being scoped. Most are a spoon exporting that
+-- pair and nothing more. Menu search is root policy rather than a spoon, so its pair is the one
+-- defined above. The last two are narrowings of the launcher's own catalog and so reach back
+-- into the launcher rather than out to a tool.
+--
+-- The matcher is the one every list chooser uses, so a list shaped scope filters exactly like
+-- the rest of them. A scope opts out when it owns its query, either because the field is a value
+-- being typed rather than a filter, or because the tool matches over a hidden haystack the
+-- shared matcher cannot see. Both reasons are the tool's own, and in each case its own chooser
+-- opts out for the same one.
+
+-- The two scopes that narrow the launcher's own catalog rather than reaching a tool. Both read
+-- the launcher's built rows of one kind and hand a chosen row straight back to it, so a narrowed
+-- list can never disagree with the whole list about what a row says or what choosing it does.
+-- They have no chooser and open nothing, which is why their `config/keys.lua` entries carry an
+-- alias and a description and no key.
+local function launcherCatalogScope(name, glyph, kind)
+  return {
+    name = name,
+    title = keys[name].description,
+    glyph = glyph,
+    aliases = keys[name].aliases,
+    rows = function() return spoon.Launcher:rowsOfKind(kind) end,
+    run = function(payload) spoon.Launcher:runItem(payload) end,
+  }
+end
+
+local queryScopes = {
+  {
+    name = "keepAwake",
+    title = keys.caffeinate.description,
+    glyph = "☕",
+    aliases = keys.caffeinate.aliases,
+    matcher = false,
+    rows = function(rest) return spoon.Caffeinate.rows(rest) end,
+    run = function(payload) spoon.Caffeinate.select(payload) end,
+  },
+  {
+    name = "vpn",
+    title = keys.vpn.description,
+    glyph = "🌐",
+    aliases = keys.vpn.aliases,
+    -- The relay list arrives from a process, so entering the scope asks for a fresh one and
+    -- the launcher redraws when it lands, the same shape the conversion source uses for its
+    -- late answer. The ask is repeated only on entry, where the rest of the query is still
+    -- empty, or while nothing has landed at all, so typing does not spawn a process per
+    -- keystroke and a scope entered by pasting a whole query still fills itself in.
+    rows = function(rest)
+      if rest == "" or not spoon.Vpn.ready() then
+        spoon.Vpn.prepare(function() spoon.Launcher:refresh() end)
+      end
+      local out = spoon.Vpn.rows(rest)
+      -- Nothing has landed yet, which is every first ask after a reload, so say that rather
+      -- than letting an empty list read as no such location. Every scope waiting on an answer
+      -- says the same thing for the same reason, and the typed text rides along as the filter
+      -- text so the matcher cannot rank away the only row there is.
+      if #out == 0 and not spoon.Vpn.ready() then
+        return { { title = "Reading the locations", subTitle = "one moment",
+                   glyph = "⏳", enabled = false, filterText = rest } }
+      end
+      return out
+    end,
+    run = function(payload) spoon.Vpn.select(payload) end,
+  },
+  {
+    name = "menuSearch",
+    title = keys.menuSearch.description,
+    glyph = "📋",
+    aliases = keys.menuSearch.aliases,
+    rows = scopeMenuRows,
+    run = scopeMenuRun,
+  },
+  {
+    name = "browserTabs",
+    title = keys.browserTabs.description,
+    glyph = "📑",
+    aliases = keys.browserTabs.aliases,
+    -- The tool scores its own tab rows, so the shared matcher is stood down here exactly as it
+    -- is in the tool's own chooser.
+    matcher = false,
+    -- The tabs are read from the browsers themselves, so this has the same shape as the VPN
+    -- scope above, ask on entry or while nothing has landed and redraw when it does. What to say
+    -- about an empty list is asked of the tool rather than guessed at, since it knows whether it
+    -- is still reading, whether no browser is switched on, or whether one refused permission.
+    -- The settings level is not offered, being a step into a second list a scope cannot show, so
+    -- the guidance points at the tool instead of at a row below.
+    rows = function(rest)
+      local tabsUi = spoon.BrowserTabs.chooser
+      if rest == "" or not tabsUi.ready() then
+        tabsUi.prepare(function() spoon.Launcher:refresh() end)
+      end
+      local out = tabsUi.tabRows(rest)
+      if #out == 0 and (rest == "" or not tabsUi.ready()) then
+        return tabsUi.explain("in " .. keys.browserTabs.description .. " settings")
+      end
+      return out
+    end,
+    run = function(payload) spoon.BrowserTabs.chooser.activate(payload) end,
+  },
+  launcherCatalogScope("apps", "🚀", "app"),
+  launcherCatalogScope("windowActions", "🪟", "window"),
+  launcherCatalogScope("settingsPanes", "⚙️", "settingsPane"),
+}
+
+-- Emoji scopes only when the backend that won owns its own list. The system Character Viewer
+-- has no rows to hand over, so with that one fronted the alias resolves to nothing and an
+-- ordinary search is unaffected, which is better than a scope that opens onto an empty list.
+if spoon.Emoji:lists() then
+  queryScopes[#queryScopes + 1] = {
+    name = "emoji",
+    title = keys.emoji.description,
+    glyph = "😀",
+    aliases = keys.emoji.aliases,
+    -- The backend matches over a hidden haystack of names, shortcodes, tags and categories and
+    -- caps what it returns, so the shared matcher is stood down for the reason its own chooser
+    -- stands it down, it would drop a glyph matched only by a tag.
+    matcher = false,
+    rows = function(rest) return spoon.Emoji:rows(rest) end,
+    run = function(glyph) spoon.Emoji:insert(glyph) end,
+  }
+end
+
+spoon.QueryScope:configure({
+  matcher = spoon.Chooser.matchers.fuzzy,
+  scopes = queryScopes,
+})
 
 -- Clipboard manager UI: the native chooser with its canvas preview docked in the
 -- companion pane and the same deferred shortcut panel the other choosers use. The

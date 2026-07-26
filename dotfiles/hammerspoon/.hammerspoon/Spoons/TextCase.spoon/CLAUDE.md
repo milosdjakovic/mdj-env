@@ -70,6 +70,26 @@ picker is shown only once the selection is in hand. With nothing selected the co
 lands and the picker opens to a single non-actionable guidance row, the same shape Vpn's
 unavailable row uses, plain data naming no key.
 
+## Why this tool cannot be a launcher scope, which was built and then removed
+
+A query scope was wired for this tool and taken out again, which is worth recording so it is not
+rebuilt on the same reasoning.
+
+The round trip above is the obstacle, read from the other end. Reading the selection needs the
+keyboard in the source app, and a launcher scope is a list inside a surface that is holding the
+keyboard itself, so it cannot have the text. Reading before listing would mean a copy on the way
+into a list nobody may pick from. So a scope can only list the cases with the preview replaced by
+a fixed sample phrase, moving the real read to the moment of the pick.
+
+That version worked. It was still removed, because the preview of your own text is most of the
+reason to open this tool at all. Reading each case done to your actual selection is the answer to
+"which one did I mean", and a list of case names without it is a menu you have to guess at. A
+scope that has to drop the one thing a tool is for is not a faster route to that tool, it is a
+lesser copy of it, and two ways in that do different things is worse than one way in that works.
+
+The general rule this settled, and it is recorded in `Spoons/QueryScope.spoon/CLAUDE.md` too, is
+that a scope may be smaller than its tool but not smaller than the reason for the tool.
+
 ## The preview is display only
 
 Each row subtitle collapses whitespace and elides a long selection so a multi-line or long
