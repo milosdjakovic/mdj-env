@@ -298,14 +298,31 @@ function M.search(parsed, ctx, cb)
     if n > scanLimit then n = scanLimit end
     for i = 1, n do
       if #rows >= cap then break end
-      local ok, path = pcall(function() return q[i]:valueForAttribute("kMDItemPath") end)
-      if ok and path and not (seen and seen[path]) and not (dropNoise and isNoisy(path)) then
+      -- Reach the row ONCE and keep it, because q[i] is not a table lookup. It is
+      -- resultAtIndex across the bridge, which checks its arguments, reads the result count,
+      -- gates the query's updates around the access and builds a fresh item object every
+      -- time. So reading three attributes through three q[i] calls did all of that three
+      -- times for one row. Measured over 692 rows with the order alternated so neither form
+      -- got a warm run for free, three calls cost 20.2 and 19.9 milliseconds against 14.9
+      -- twice for one, meaning a quarter of the harvest was the indexing rather than the
+      -- reading. The saving scales with attributes per row, so it helps the recent list most
+      -- and is worth nothing on the rows of a type token scan that fail the noise filter
+      -- after the path alone, which is most of them.
+      --
+      -- The item and the path come out of one pcall rather than two on purpose. Splitting
+      -- them would add a closure per row and those rejected rows pay it without ever
+      -- reaching a second read, which is the one shape that could have been made worse.
+      local ok, item, path = pcall(function()
+        local it = q[i]
+        return it, it:valueForAttribute("kMDItemPath")
+      end)
+      if ok and item and path and not (seen and seen[path]) and not (dropNoise and isNoisy(path)) then
         local isDir = false
-        local okT, ctype = pcall(function() return q[i]:valueForAttribute("kMDItemContentType") end)
+        local okT, ctype = pcall(function() return item:valueForAttribute("kMDItemContentType") end)
         if okT and ctype == "public.folder" then isDir = true end
         local modified = nil
         if wantDate then
-          local okD, d = pcall(function() return q[i]:valueForAttribute("kMDItemContentModificationDate") end)
+          local okD, d = pcall(function() return item:valueForAttribute("kMDItemContentModificationDate") end)
           if okD and type(d) == "number" then modified = d end
         end
         rows[#rows + 1] = util.row(path, { isDir = isDir, modified = modified, source = M.name })
