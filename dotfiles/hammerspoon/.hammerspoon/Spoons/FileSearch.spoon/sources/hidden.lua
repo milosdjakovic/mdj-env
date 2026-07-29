@@ -172,7 +172,9 @@ local function filter(parsed, ctx, cb)
   -- fzf matches a subsequence, so the words are joined with spaces which is its own AND
   -- syntax for separate terms, meaning every term must match somewhere in the line.
   local needle = table.concat(parsed.words, " ")
-  local cmd = string.format("%s --filter=%s < %s | head -n %d",
+  -- -i forces case insensitivity, since the matcher is smart case by default and one capital
+  -- letter would otherwise make the whole query case sensitive. Same reasoning as the walker.
+  local cmd = string.format("%s -i --filter=%s < %s | head -n %d",
     util.shellQuote(cfg.fzfPath),
     util.shellQuote(needle),
     util.shellQuote(path),

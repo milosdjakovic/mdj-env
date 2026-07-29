@@ -68,6 +68,31 @@ end
 -- Rows
 --------------------------------------------------------------------------------
 
+-- Render an emoji to a small image so a row that has no file behind it can still carry an icon.
+-- An offscreen canvas drawn once and cached by the string, since the supplier runs on every
+-- keystroke, and a false marks a string that will not render so it is attempted only once. This
+-- Hammerspoon has no SF Symbol api, so it is how the launcher, the clipboard, Processes and three
+-- others do the same thing. Cached permanently rather than through the injected memo, because a
+-- glyph cannot go stale the way a file type icon can when its default application changes.
+local glyphCache = {}
+local function glyph(str)
+  local hit = glyphCache[str]
+  if hit ~= nil then return hit or nil end
+  local size = 28
+  local cv = hs.canvas.new({ x = 0, y = 0, w = size, h = size })
+  cv[1] = {
+    type = "text",
+    text = str,
+    textSize = 21,
+    textAlignment = "center",
+    frame = { x = 0, y = 0, w = size, h = size },
+  }
+  local img = cv:imageFromCanvas()
+  cv:delete()
+  glyphCache[str] = img or false
+  return img
+end
+
 -- The icon for a row. Types are keyed by extension rather than by path, which is what makes
 -- the memo effective, since a hundred rows of one kind ask once. Folders share one key.
 -- Without an injected memo this still works and simply asks every time, measured at 6.6ms for
@@ -108,35 +133,95 @@ local function fileRows(rows)
   return out
 end
 
--- A single inert row explaining why the list is empty, so the picker never looks broken. The
--- engine's status is already short human readable text, which is why it can be shown as is.
+-- The back row, first in the list while browsing a directory, so going up is something you can
+-- see rather than only a key you have to remember.
+--
+-- It is an ORDINARY DIRECTORY ROW for the parent, not a special kind of entry, which is what
+-- keeps it from needing special cases. Reveal, copy path and open folder all mean the obvious
+-- thing on it because it really is that directory, and browsing into it really does go back.
+-- The one flag it carries is read by insertSelected, so the primary key goes up rather than
+-- opening the parent in Finder, which is what a row named two dots should do.
+local function upRow()
+  if not cfg.api.upQuery then return nil end
+  local q = cfg.api.upQuery()
+  if not q then return nil end
+  local path = q:gsub("/+$", "")
+  if path == "" then path = "/" end
+  local row = {
+    path = path,
+    lower = path:lower(),
+    name = "..",
+    dir = util.dirname(path),
+    isDir = true,
+    ext = "",
+    up = true,
+  }
+  return { title = "..", subTitle = "up to " .. shortDir(path), image = iconFor(row), item = row }
+end
+
+-- How each empty state looks. A row that is not a file still gets an icon, a headline naming what
+-- the state IS, and a detail saying what to do about it, so an empty list never reads as a broken
+-- picker and never puts a bare fragment of internal wording on screen.
+--
+-- Keyed on the status text the engine and the sources produce, which is a seam worth being honest
+-- about. Those strings are free text rather than identifiers, so a producer rewording one drops it
+-- out of this table. That is why the fallback carries the raw status as its detail. An unmapped
+-- state loses its tailored headline and stays perfectly readable, which is a fair price for not
+-- making every source declare a presentation key it has no interest in.
+local STATUS = {
+  ["searching"]           = { icon = "🔍", title = "Searching",       detail = "asking the index" },
+  ["loading"]             = { icon = "⏳", title = "Recent files",    detail = "gathering what you touched lately" },
+  ["keep typing"]         = { icon = "⌨️",  title = "Keep typing",     detail = "three characters, or name a folder to search inside" },
+  ["nothing to search for"] = { icon = "⌨️", title = "Keep typing",   detail = "add something to search for" },
+  ["nothing found"]       = { icon = "🤷", title = "No matches",      detail = "try fewer words, or a bang to include pruned folders" },
+  ["empty folder"]        = { icon = "📭", title = "Empty folder",    detail = "there is nothing in this one" },
+  ["no such directory"]   = { icon = "📁", title = "No such folder",  detail = "check the path, or give a full one like ~/Documents" },
+  ["no directory"]        = { icon = "📁", title = "No such folder",  detail = "check the path, or give a full one like ~/Documents" },
+  ["no source available"] = { icon = "🚫", title = "Nothing can answer that", detail = "a tool it needs is missing, the console names which" },
+  ["type something to search hidden files"] = { icon = "👻", title = "Search hidden files", detail = "type something to search hidden files" },
+  ["timed out"]           = { icon = "⌛", title = "Timed out",       detail = "that took too long, try narrowing it" },
+  ["listing failed"]      = { icon = "⚠️",  title = "Could not list that folder", detail = "check its permissions" },
+  ["walk failed"]         = { icon = "⚠️",  title = "Search failed",   detail = "the walker returned an error" },
+}
+local STATUS_FALLBACK = { icon = "⚠️", title = "Nothing to show" }
+
+-- A single inert row explaining why the list is empty, so the picker never looks broken.
 local function statusRow(status)
+  local look = STATUS[status] or STATUS_FALLBACK
   return { {
-    title = status,
-    subTitle = "",
+    title = look.title,
+    subTitle = look.detail or status,
+    image = glyph(look.icon),
     enabled = false,
     item = { status = true },
   } }
 end
 
--- The grammar, on a screen of its own. Every row is inert, so there is nothing to select by
+-- The grammar, on a screen of its own, an icon for what each line demonstrates, the syntax as the
+-- headline and what it does underneath. Every row is inert, so there is nothing to select by
 -- mistake and Escape or clearing the field returns to searching.
 local HELP = {
-  { "hammerspoon",       "plain text searches names everywhere" },
-  { ".js hello",         "a dot attached to a token is a type" },
-  { ". zshrc",           "a dot alone includes hidden files" },
-  { ".zshrc",            "a dotted name is hidden too, with no sigil" },
-  { "downloads/",        "a trailing slash browses that folder, newest first" },
-  { "downloads/hs",      "with text it searches inside it" },
-  { ".js src/api",       "a type, a scope and text combine in that order" },
-  { "! ts node_modules/", "a bang includes what is normally pruned" },
-  { "~/Development/mdj", "an absolute or tilde path scopes directly" },
+  { "🔍", "hammerspoon",        "plain text searches names everywhere" },
+  { "🏷️",  ".js hello",          "a dot attached to a token is a type" },
+  { "👻", ". js",               "a dot alone includes hidden files" },
+  { "👻", ".zshrc",             "a dotted name is hidden too, with no sigil" },
+  { "📂", "downloads/",         "a trailing slash browses that folder, newest first" },
+  { "🔎", "downloads/hs",       "with text it searches inside it" },
+  { "🧩", ".js src/api",        "a type, a scope and text combine in that order" },
+  { "❗", "! ts node_modules/", "a bang includes what is normally pruned" },
+  { "🏠", "~/Development/mdj",  "an absolute or tilde path scopes directly" },
 }
 
 local function helpRows()
   local out = {}
   for _, h in ipairs(HELP) do
-    out[#out + 1] = { title = h[1], subTitle = h[2], enabled = false, item = { help = true } }
+    out[#out + 1] = {
+      title = h[2],
+      subTitle = h[3],
+      image = glyph(h[1]),
+      enabled = false,
+      item = { help = true },
+    }
   end
   return out
 end
@@ -147,10 +232,21 @@ local function supplier(q)
   q = q or ""
   if q == "?" then return helpRows() end
   local rows, status = cfg.api.rowsFor(q)
+  local out
   if (not rows or #rows == 0) and status then
-    return statusRow(status)
+    out = statusRow(status)
+  else
+    out = fileRows(rows or {})
   end
-  return fileRows(rows or {})
+  -- Only while browsing, which is a scope with nothing typed. Once text is typed the list is
+  -- search results and a back row sitting above them would be competing with the answer. The key
+  -- still works there, it is only the row that is browse specific.
+  local parsed = cfg.api.parsed and cfg.api.parsed()
+  if parsed and parsed.kind == "browse" then
+    local up = upRow()
+    if up then table.insert(out, 1, up) end
+  end
+  return out
 end
 
 --------------------------------------------------------------------------------
@@ -248,8 +344,30 @@ function M.selectPrev()
   if picker then picker:selectPrev() end
 end
 
+--- chooser.insertSelected() - the primary key, choosing the highlighted row.
+---
+--- The back row is intercepted BEFORE delegating, and it has to be. Choosing a row goes through
+--- the atom's completion, which tears the picker down straight after, and there is no way to veto
+--- that from a consumer. So going up through the completion path would close the picker on the
+--- way. Checked here instead, the primary key on the back row simply moves up a level and the
+--- picker stays where it is.
 function M.insertSelected()
-  if picker then picker:insertSelected() end
+  if not picker then return end
+  local item = picker:selectedItem()
+  if item and item.up then
+    M.browseUp()
+    return
+  end
+  picker:insertSelected()
+end
+
+-- Put a query in the field and rebuild. Setting the field may or may not fire the change
+-- callback depending on the widget, so the rebuild is asked for explicitly, and asking twice is
+-- harmless because the engine answers an unchanged query from what it already holds.
+local function goTo(q)
+  if not q or not picker then return end
+  picker:setQuery(q)
+  picker:refresh(true)
 end
 
 --- chooser.browseInto() - walk into the highlighted directory rather than opening it.
@@ -258,13 +376,16 @@ end
 function M.browseInto()
   local row = selectedRow()
   if not row then return end
-  local q = cfg.api.browseQueryFor(row)
-  if not q then return end
-  picker:setQuery(q)
-  -- Setting the field may or may not fire the change callback depending on the widget, so the
-  -- rebuild is asked for explicitly. Asking twice is harmless, the engine answers an unchanged
-  -- query from what it already holds.
-  picker:refresh(true)
+  goTo(cfg.api.browseQueryFor(row))
+end
+
+--- chooser.browseUp() - leave the directory being browsed for the one above it.
+--- The mirror of browseInto and expressed the same way, as a scope rather than as a move, so
+--- there is no history to keep and nothing to get out of step with the field. It does nothing
+--- when the query carries no scope, since there is nowhere above a search of everywhere.
+function M.browseUp()
+  if not picker or not cfg.api.upQuery then return end
+  goTo(cfg.api.upQuery())
 end
 
 --- chooser.reveal() - show the highlighted row in Finder instead of opening it.

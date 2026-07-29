@@ -207,18 +207,24 @@ end
 
 -- Filter held rows down to a longer text. Uses the injected matcher so the narrow agrees
 -- with the policy every chooser applies, falling back to an all words test.
+--
+-- The haystack is the row's FOLDED path, never the raw one. The shared words matcher folds
+-- only the query and compares the haystack verbatim, by design, since it is built for long
+-- clipboard bodies that must not be refolded per keystroke. Handing it a raw path made every
+-- uppercase query match nothing, and it looked like a broken search rather than a broken
+-- filter, because typing the same text in one go dispatched instead and found the file.
 function obj:_filter(rows, parsed)
   if parsed.text == "" then return rows end
   local matcher = self.matcher
   local out = {}
   for i = 1, #rows do
     local r = rows[i]
-    local hay = r.path or ""
+    local hay = r.lower or (r.path or ""):lower()
     local keep
     if type(matcher) == "function" then
       keep = matcher(parsed.text, hay) ~= nil
     else
-      keep = allWordsIn(hay:lower(), parsed.words)
+      keep = allWordsIn(hay, parsed.words)
     end
     if keep then out[#out + 1] = r end
   end
@@ -554,6 +560,24 @@ function obj:browseQueryFor(row)
   if not row or not row.path then return nil end
   if not row.isDir then return nil end
   return row.path:gsub("/+$", "") .. "/"
+end
+
+--- engine:upQuery() -> a query browsing the parent of the current scope, or nil
+--- The counterpart of browseQueryFor, and the same idea. Going back up is expressed as a
+--- scope the user could have typed, so nothing needs a history stack or a notion of where
+--- the picker has been. It is nil with no scope, since there is nowhere above a search of
+--- everywhere, and nil at the root.
+---
+--- It resolves the scope on demand rather than reading a field the dispatch filled in, so it
+--- is right even when the key is pressed before the listing has come back.
+function obj:upQuery()
+  local parsed = self._parsed
+  if not parsed or not parsed.scope then return nil end
+  local here = self:_resolveScope(parsed.scope)
+  if not here or here == "/" then return nil end
+  local parent = here:match("^(.*)/[^/]+$")
+  if not parent or parent == "" then return "/" end
+  return parent .. "/"
 end
 
 --- engine:cancel() - abandon everything in flight, called when the surface closes.

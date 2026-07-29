@@ -1485,7 +1485,7 @@ spoon.FileSearch:configure({
 spoon.FileSearch.chooser.configure({
   chooser = spoon.Chooser,
   theme = settings.chooserTheme,
-  placeholder = "Search files, ? for the query syntax",
+  placeholder = "Find files, ? for syntax",
   iconFor = rowIconFor,
   -- A plain pasteboard write, named here rather than in the spoon. It deliberately does not go
   -- through the clipboard manager, because this is an ordinary copy and the monitor should see
@@ -1644,9 +1644,11 @@ local contextActions = {
   -- sample, which is how you stop the wrong thing.
   sortByLoad = routeNav("sortByLoad"),
   -- File search only, routed the same way so the method guard makes each a no op on every
-  -- other surface. Browse rewrites the query as the highlighted folder's scope, which is why
-  -- it stays open where the other three act and close.
+  -- other surface. The two browse verbs rewrite the query as a folder scope, one going down into
+  -- the highlighted folder and one back up out of the current one, which is why they stay open
+  -- where the other three act and close.
   browseInto = routeNav("browseInto"),
+  browseUp = routeNav("browseUp"),
   revealInFinder = routeNav("reveal"),
   openFolder = routeNav("openFolder"),
   copyPath = routeNav("copyPath"),

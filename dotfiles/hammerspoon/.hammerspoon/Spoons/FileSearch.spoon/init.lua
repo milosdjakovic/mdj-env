@@ -127,11 +127,18 @@ function obj:configure(opts)
     onResults = function() obj.chooser.refresh() end,
   })
 
-  -- The api the list surface talks through. Four verbs and nothing else, so the surface cannot
-  -- reach a source, cannot reorder the sources, and cannot learn what an index is.
+  -- The api the list surface talks through. A handful of verbs and nothing else, so the surface
+  -- cannot reach a source, cannot reorder the sources, and cannot learn what an index is.
   obj.chooser.configure({
     api = {
       rowsFor = function(q) return obj:rowsFor(q) end,
+      -- Walking a directory tree is two verbs, one down and one up, and both answer with a query
+      -- string rather than performing a move. So the surface only ever sets the field, and there
+      -- is no second notion of where the picker is that could disagree with what is typed.
+      upQuery = function() return obj:upQuery() end,
+      -- Read only, so the surface can tell a browse from a search without parsing the query a
+      -- second time. It is what decides whether the back row is drawn.
+      parsed = function() return obj:parsed() end,
       reset = function()
         obj:reset()
         -- Warming the hidden index belongs here rather than in the engine, because it names one

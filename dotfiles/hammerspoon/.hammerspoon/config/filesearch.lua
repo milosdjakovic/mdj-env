@@ -142,12 +142,20 @@ return {
     -- they may reach. This is the state the picker opens in, so it is answering what
     -- you touched lately rather than listing a directory.
     --
-    -- The window is short for a measured reason. Three days matched 3,136 files and the
-    -- query answered in 207ms, while fourteen days matched 108,569 and took 4.2 seconds,
-    -- because the cost tracks how many results are gathered rather than how far back the
-    -- bound reaches. Widening this is the one setting here that can make opening the
-    -- picker feel slow.
+    -- The window used to be three days, on a measurement of 3,136 files in 207ms that was
+    -- taken BEFORE the search scopes were narrowed to exclude ~/Library. Almost all of
+    -- those were logs and caches, so once the noise was gone the same three days matched
+    -- only 22 real files and the list was nearly empty. Seven days matches about 38
+    -- thousand and gathers in under a tenth of a second, because only a page is ever read
+    -- out of the result set and the gather itself is cheap. So this is no longer the
+    -- setting that can make opening the picker slow, and it should be wide enough to be
+    -- useful rather than as narrow as possible.
+    --
+    -- The count of files in a window is lumpy rather than smooth, since one checkout or
+    -- install writes tens of thousands at once. On this machine six days matched 494 and
+    -- seven matched 38,172. Nothing here depends on which side of such a step the window
+    -- lands, which is the point of not tuning to it.
     recentCount = 40,
-    recentDays = 3,
+    recentDays = 7,
   },
 }

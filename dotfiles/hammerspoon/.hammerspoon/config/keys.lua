@@ -352,12 +352,14 @@ return {
       },
     },
     -- The file search chooser. i opens the highlighted file with its default application, j
-    -- and k navigate vim style, and x closes it. Four actions are its own. b walks into the
-    -- highlighted folder rather than opening it, by rewriting the query as that folder's
-    -- scope, so one picker searches and then browses down into what it found. r reveals the
-    -- row in Finder, o opens the folder holding it, and y copies its path. All four are
-    -- answered only by this surface, so they are no ops anywhere else. Plain typing filters
-    -- while Hyper is released, and typing a question mark shows the query grammar.
+    -- and k navigate vim style, and x closes it. Five actions are its own. Walking a directory
+    -- tree is l to go in and r to come back, both of which work by rewriting the query as a
+    -- folder scope, so one picker searches and then browses through what it found and there is
+    -- no second idea of where it is. l sits beside j and k so all three movements are one hand,
+    -- which is why reveal moved off r and onto f for Finder. o opens the folder holding the row
+    -- and y copies its path. All five are answered only by this surface, so they are no ops
+    -- anywhere else. Plain typing filters while Hyper is released, and typing a question mark
+    -- shows the query grammar.
     {
       name = "fileSearch",
       when = "fileSearchOpen",
@@ -366,8 +368,9 @@ return {
         { key = "i", action = "insertSelected", description = "Open" },
         { key = "j", action = "selectNext",     description = "Move down" },
         { key = "k", action = "selectPrev",     description = "Move up" },
-        { key = "b", action = "browseInto",     description = "Browse into folder" },
-        { key = "r", action = "revealInFinder", description = "Reveal in Finder" },
+        { key = "l", action = "browseInto",     description = "Into folder" },
+        { key = "r", action = "browseUp",       description = "Up a level" },
+        { key = "f", action = "revealInFinder", description = "Reveal in Finder" },
         { key = "o", action = "openFolder",     description = "Open folder" },
         { key = "y", action = "copyPath",       description = "Copy path" },
         { key = "x", action = "closeChooser",   description = "Close" },

@@ -46,6 +46,10 @@
 --- A ROW is plain serializable data with no functions on it, because hs.chooser
 --- serialises each row and silently drops a function. The fields:
 ---   path      absolute path, the identity of the row
+---   lower     the same path case folded, which is what the local narrow matches against.
+---             Derived rather than declared, so a source builds it by going through util.row
+---             and never sets it itself. It exists because the shared words matcher folds
+---             only the query, so a verbatim haystack makes an uppercase query match nothing
 ---   name      basename, what the row shows as its title
 ---   dir       parent directory, what the row shows as its subtitle
 ---   isDir     true for a directory, which is what makes a row browsable

@@ -53,6 +53,88 @@ right there.
 Spotlight is last because it is the only source with no precondition. Anything after it
 would never be reached.
 
+## Case is folded in four places and three of them were wrong
+
+The first hands-on report was that typing `Downloads` matched nothing while `Download` matched.
+That reads like a broken search and was a broken FILTER, which is why it is worth recording.
+
+The shared words matcher folds only the query and compares the haystack verbatim, deliberately,
+because it is built for long clipboard bodies that must not be refolded per keystroke. The engine
+was handing it a raw path. So a query with a capital letter narrowed to nothing, and typing the
+same text quickly worked because the debounce meant one dispatch and no narrow at all, where
+`LIKE[cd]` had folded case for us. That is exactly the pattern to distrust, the same text
+behaving differently depending on how fast it was typed means the narrow and the search disagree.
+The fold now happens once in `util.row`, half a millisecond for two thousand rows.
+
+Both tools are SMART CASE, which is the right default for a shell and the wrong one for a
+picker. One capital letter anywhere silently made a scoped or hidden search case sensitive, so
+the walker takes `--ignore-case` and the filter takes `-i` explicitly.
+
+## The scope roots were invisible to the source that searches them
+
+Found while checking the case fix. Every top level folder in home is a Spotlight search scope, so
+a query searches INSIDE each one and the folders themselves are never results. Typing `Downloads`
+found everything called downloads except `~/Downloads`, and those are the shortest, most obvious
+names anyone types first.
+
+They are about ten entries, so `sources/spotlight.lua` matches them in plain Lua and adds them to
+what the index returned. It lives there rather than in the engine for the same reason the hidden
+source exists at all, a blind spot is owned by the source that has it. The engine knows nothing
+about scopes and must not start.
+
+## A bare type token is a third query shape, and treating it as the second broke it
+
+`.py` found nothing, reliably. It parses as kind recent, because nothing was typed, so the predicate
+ANDed the type filter with the recent date bound and asked for python files modified in the last few
+days. Worse, the date bound made it slower rather than cheaper, **4839ms to return zero** against
+**475ms** for the same name pattern with no bound at all. A date bound sitting next to a name pattern
+costs on both counts, so the fix is simply not to add one when a type filter is already the bound.
+
+Ordering it then needs two separate mechanisms and both are load bearing. The sort descriptor decides
+which rows the query holds at the top, and therefore which ones a capped harvest reads at all. A Lua
+sort decides the order of what came back. They come apart the moment a gather stops early, because a
+query that has not finished gathering has not sorted anything.
+
+That is also why the early stop is now off for anything ordered by date. Waiting is affordable
+because the gather is the cheap half, sixty thousand results in about **60ms** and the entire js
+extension, 204 thousand files, in **385**, while reading rows out is the expensive half and only a
+page is ever read. A cold index is the exception, where the same gather measured **6.3 seconds**, and
+the timeout covers it.
+
+## Filtering noise has to happen while harvesting, not after
+
+The engine can only filter what a source handed it, so a source that returns a capped sample first
+has the filter throw most of the sample away. That is why `.js` came back with **eleven** rows.
+
+It cannot be fixed by reading deeper either. Only **0.12 percent** of the 204,496 js files here live
+outside a pruned directory, so filling two hundred rows means reading **161,334** of them and five
+seconds. So the scan is bounded, and because the list is date sorted the budget is spent on the
+newest candidates, which makes a very common extension return FEWER rows rather than take longer.
+That is the right way round, and the eleven rows it returns are the newest javascript actually
+written here rather than eleven arbitrary ones. `py` fills a page by row 204 and `png` by row 799,
+so neither comes near the bound.
+
+Pushing the prune into the predicate was tried first and does **nothing**. Excluding
+`*/node_modules/*` through `kMDItemPath` left the count at 204,496 unchanged, three different ways,
+so that attribute is not queryable like that whatever the syntax suggests.
+
+Cost of the whole shape, measured as the largest gap between fires of a 20ms repeating timer, which
+is the only metric that catches a stall wherever it lands. A bare type token blocks **114 to 145ms**
+once per dispatch, an ordinary search **26ms**, and the recent list does not register above the
+idle floor. Use that method rather than timing a single delayed callback, which misses any block
+that does not overlap the moment the callback is due, and gave three misleading readings here.
+
+## Two files dated 2050
+
+The recent list was led, and later tailed, by MIDI files carrying a modification date of
+`2524579200`. A single file with corrupt metadata would otherwise squat at the top of the default
+view permanently, so a date beyond tomorrow is treated as unknown and sorts last. They still occupy
+a slot, since a 2050 date does satisfy "modified since last week" and excluding them would mean a
+second rule for one fact.
+
+Worth knowing when verifying an ordering, because a checker that does not apply the same rule reports
+the deliberate demotion as a sorting bug, which is exactly what happened here.
+
 ## What Spotlight cannot see, measured
 
 It holds **no path containing a dot segment**. Not the dot entry and not anything beneath
@@ -65,10 +147,21 @@ The blind spot is about **245 thousand paths and 33MB**, walked in roughly a sec
 slow per keystroke and too much to hold in Lua, so it is written to a file and filtered by
 a tool.
 
-## Four predicate facts, each one learned the hard way
+## Five query facts, each one learned the hard way
 
 Every one of these cost a wrong first attempt, so they are recorded rather than left to be
 rediscovered.
+
+An attribute is cheap to read only if the query was told about it. This was the second hands-on
+report, severe lag part way through a word, and it was one line. An undeclared
+`kMDItemContentType` is fetched per row on demand at **0.284ms**, so harvesting two thousand rows
+blocked the main thread for **567ms**. Named through `valueListAttributes` the same read costs
+**0.008ms**. Measured by alternating the declaration over six fresh terms, since running the same
+term twice measures a warm index rather than the change, mean harvest **300ms against 21** with
+the gather unchanged at 128 against 110. So nothing is traded, the cost is simply removed, and
+the live figure went from about 465ms of blocked main thread to **1ms**. `kMDItemPath` is already
+cheap undeclared at 0.011 and the modification date needs no declaration either, because the
+recent query already names it as its sort key.
 
 The mdfind wildcard form is rejected. `kMDItemFSName == "*x*"c` works on the command line
 and `hs.spotlight` refuses it outright as an unparseable format string. The working form is
@@ -116,6 +209,48 @@ is arbitrary typed text. Every other shellout here runs a binary with an argumen
 no quoting question arises, and the browse deliberately calls `/bin/ls` by absolute path
 because `ls` is commonly shadowed in a user's shell.
 
+## Every empty state is a real row
+
+An icon, a headline naming what the state is, and a detail saying what to do about it. So the hidden
+prompt reads "Search hidden files" over "type something to search hidden files" rather than putting
+the second line on its own with nothing beside it. The icon is an emoji rendered through an
+offscreen canvas and cached by the string, which is how the launcher, the clipboard, Processes and
+three others do it, since this Hammerspoon has no SF Symbol api. Cached permanently rather than
+through the injected memo, because a glyph cannot go stale the way a file type icon can when its
+default application changes.
+
+The table is keyed on the status text the engine and the sources produce, and that seam is worth
+being honest about. Those strings are free text rather than identifiers, so a producer rewording one
+drops it out of the table. That is exactly why the fallback carries the raw status as its detail. An
+unmapped state loses its tailored headline and stays perfectly readable, which is a fair price for
+not making every source declare a presentation key it has no interest in.
+
+One wording moved DOWN a layer rather than up. An empty directory used to report as no matches
+found, which is a different thing and reads as a failed search. Only the walk source knows it listed
+a directory cleanly and got nothing, so it says so, and the surface has a row for it.
+
+Nothing here names a key, including the details. A rebind is a config edit and no wording in the
+spoon may be able to disagree with it, so "there is nothing in this one" replaced a first draft that
+helpfully told you which key goes back up.
+
+## Walking the tree is two verbs and no history
+
+Down is `browseInto` and up is `upQuery`, and both answer with a QUERY STRING rather than
+performing a move. So there is no history stack, no notion of where the picker has been, and
+nothing that can disagree with what is in the field. Going anywhere is typing something the user
+could have typed themselves, which is also why browsing into a search result needed no new
+concept.
+
+The back row while browsing is an ORDINARY DIRECTORY ROW for the parent, titled with two dots, not
+a special kind of entry. That is what keeps it from needing special cases, reveal and copy path and
+open folder all mean the obvious thing on it because it really is that directory, and browsing into
+it really does go back.
+
+It carries one flag, read by `insertSelected`, and that one has to be there. Choosing a row goes
+through the atom's completion, which tears the picker down immediately after and cannot be vetoed
+by a consumer, so going up through the completion path would close the picker on the way. Checking
+before delegating is what lets the primary key on the back row move up and leave the picker open.
+
 ## Two mode split on a scope, and why browse is one level
 
 With no text a scope is a browse, so it lists one level sorted newest first. Type anything
@@ -124,12 +259,21 @@ and it is the only form that can be ordered by date with no recursion and no sta
 because `ls` does the sort itself in C. Ordering by date any other way means stat'ing every
 entry.
 
-## Why the recent window is three days
+## Why the recent window is seven days, and why it used to be three
 
-Three days matched 3,136 files and answered in **207ms**. Fourteen days matched **108,569**
-and took **4.2 seconds**, because the cost tracks how many results are gathered rather than
-how far back the bound reaches. Widening `recentDays` is the single setting here that can
-make opening the picker feel slow.
+It was three, on a measurement of 3,136 files in 207ms taken BEFORE the search scopes were narrowed
+to exclude `~/Library`. Almost all of those were logs and caches, so once the noise was gone the
+same three days matched **22 real files** and the list was nearly empty while looking perfectly
+healthy. That is the hazard in tuning a number against a measurement, the measurement can go stale
+when something else changes and nothing points at it.
+
+Seven days matches about **38 thousand** and gathers in under a tenth of a second, because only a
+page is read out of the result set. So this is no longer the setting that can make opening the picker
+slow, and it should be wide enough to be useful rather than as narrow as possible.
+
+Counts per window are lumpy rather than smooth, since one checkout writes tens of thousands of files
+at once. Here six days matched 494 and seven matched 38,172. Nothing depends on which side of such a
+step the window lands, which is the point of not tuning to it.
 
 ## Why the grammar is pure, and where it is not
 

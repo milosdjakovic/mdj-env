@@ -183,6 +183,11 @@ function M.row(path, opts)
   opts = opts or {}
   return {
     path = path,
+    -- The case folded path, built here rather than at match time because the shared words
+    -- matcher folds only the query and compares the haystack verbatim. Handing it a raw path
+    -- is what made an uppercase query match nothing at all, so the one place rows are built
+    -- is the one place that fold belongs. Half a millisecond for two thousand rows.
+    lower = (path or ""):lower(),
     name = M.basename(path),
     dir = M.dirname(path),
     isDir = opts.isDir or false,

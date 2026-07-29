@@ -88,7 +88,14 @@ local function browse(parsed, ctx, cb)
         if #rows >= cap then break end
       end
     end
-    cb(rows, nil)
+    -- A directory that listed cleanly and holds nothing is a fact only this source knows, and
+    -- saying so here is what stops the picker reporting an empty folder as no matches found, which
+    -- is a different thing and reads as a failed search. Spelled out rather than folded into an
+    -- and or expression, since `cond and value or nil` is the shape that has already caused two
+    -- bugs in this spoon.
+    local reason = nil
+    if #rows == 0 then reason = "empty folder" end
+    cb(rows, reason)
   end)
 end
 
@@ -127,6 +134,11 @@ local function search(parsed, ctx, cb)
 
   args[#args + 1] = "--max-results"
   args[#args + 1] = tostring(cap)
+  -- Case insensitive explicitly, because the walker is smart case by default, so a single
+  -- capital letter anywhere in the query silently turns the whole search case sensitive. That
+  -- is a sensible default for a shell and the wrong one for a picker, where the same typed text
+  -- must mean the same thing however it was capitalised.
+  args[#args + 1] = "--ignore-case"
   args[#args + 1] = "--fixed-strings"
   args[#args + 1] = parsed.words[1] or ""
   args[#args + 1] = dir
