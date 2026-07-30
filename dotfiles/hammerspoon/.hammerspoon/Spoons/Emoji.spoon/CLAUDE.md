@@ -178,20 +178,28 @@ canvas rather than making one per glyph, since at this scale a canvas per glyph 
 whole cost. A glyph is rendered at most once ever, and the cap above keeps any one
 open from rendering more than a bounded batch.
 
-Render once and keep forever is deliberate, not lazy. Measuring showed each rendered
-icon holds its memory until a config reload, since the canvas render is not reclaimed by
-the garbage collector, a property of the render rather than something a cache policy can
-undo. The one real lever is the render size, the cost scales with the icon's pixel
-dimensions, so the canvas is drawn only about as large as the chooser row shows the icon
-times the retina scale, `ICON_SIZE`, which is why a glyph costs about 30KB at 44 points
-rather than the roughly 143KB it cost at the old 72. A bounded cache that cleared old
-icons would be worse, not better, since a re render only allocates fresh memory that also
-never comes back, so clearing then redrawing grows the total without bound. Keeping each
-glyph exactly once is therefore the leanest option, and `MAX_RESULTS` is what paces the
-count, since it bounds how many distinct glyphs a session can ever reach. A normal session
-that views a few hundred glyphs costs a few MB at this size, and the ceiling, only reached
-if every glyph in the set is deliberately surfaced, is well under a hundred MB, which a
-reload resets.
+Render once and keep forever is deliberate, not lazy. Each rendered icon holds its memory
+until a config reload, since the canvas render is not reclaimed by the garbage collector,
+a property of the render rather than something a cache policy can undo. Dropping every
+reference to a batch of four hundred and collecting three times returns nothing at all,
+which is what closes the question. So a bounded cache that cleared old icons would be
+worse, not better, since a re render only allocates fresh memory that also never comes
+back, and clearing then redrawing grows the total without bound. Keeping each glyph
+exactly once is therefore the leanest option, and `MAX_RESULTS` is what paces the count,
+since it bounds how many distinct glyphs a session can ever reach.
+
+What that costs was measured wrong once and the corrected figures matter, because the
+wrong ones are what chose `ICON_SIZE`. Resident memory over batches of four hundred
+glyphs, sampled around a collection, is 78 to 112KB per glyph at 44 points and about
+92KB at 72. The earlier note claimed 30KB against 143KB, which is the raw pixel buffer
+at each size, 88 by 88 at four bytes being almost exactly that 30KB, so what it measured
+was the bitmap and not what the process retains. The consequence is that render size is
+barely a lever at all, a fifteen percent difference rather than a fivefold one, and
+dropping from 72 to 44 bought far less than it appeared to. So `ICON_SIZE` should be
+chosen on how a row looks and nothing else. The honest totals are 30 to 44MB for four
+hundred glyphs, and a ceiling near 440MB if every glyph in the set were deliberately
+surfaced, which a reload resets. The way to cut it is to stop rendering at runtime, since
+the same icons loaded from prerendered files cost about 17KB each, roughly a fifth.
 
 Even one reused canvas is too slow to render the whole set at once, so the empty state
 icons are warmed in the background right after configure, in small batches on a self
