@@ -358,13 +358,18 @@ return {
     },
     -- The file search chooser. i opens the highlighted file with its default application, j
     -- and k navigate vim style, and x closes it. Five actions are its own. Walking a directory
-    -- tree is l to go in and r to come back, both of which work by rewriting the query as a
+    -- tree is l to go in and h to come back, both of which work by rewriting the query as a
     -- folder scope, so one picker searches and then browses through what it found and there is
-    -- no second idea of where it is. l sits beside j and k so all three movements are one hand,
-    -- which is why reveal moved off r and onto f for Finder. o opens the folder holding the row
-    -- and y copies its path. All five are answered only by this surface, so they are no ops
-    -- anywhere else. Plain typing filters while Hyper is released, and typing a question mark
-    -- shows the query grammar.
+    -- no second idea of where it is. h j k l are the whole movement set on one hand, which is
+    -- why reveal is f for Finder rather than sitting on one of them. Coming back was on r first
+    -- and moved here, because h is where the hand already expects it and two keys for one action
+    -- would put the same row on the helper panel twice. o opens the folder holding the row and y
+    -- copies its path. All five are answered only by this surface, so they are no ops anywhere
+    -- else. Plain typing filters while Hyper is released, and typing a question mark shows the
+    -- query grammar.
+    --
+    -- Going up does nothing when the query carries no folder, since there is nowhere above a
+    -- search of everywhere, so h is inert until you are actually inside a directory.
     {
       name = "fileSearch",
       when = "fileSearchOpen",
@@ -374,7 +379,7 @@ return {
         { key = "j", action = "selectNext",     description = "Move down" },
         { key = "k", action = "selectPrev",     description = "Move up" },
         { key = "l", action = "browseInto",     description = "Into folder" },
-        { key = "r", action = "browseUp",       description = "Up a level" },
+        { key = "h", action = "browseUp",       description = "Up a level" },
         { key = "f", action = "revealInFinder", description = "Reveal in Finder" },
         { key = "o", action = "openFolder",     description = "Open folder" },
         { key = "y", action = "copyPath",       description = "Copy path" },
