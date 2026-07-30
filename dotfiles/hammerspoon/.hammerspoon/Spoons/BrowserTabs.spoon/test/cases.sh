@@ -56,9 +56,10 @@ bt_case_reps() {
 }
 
 # There is deliberately no per case choice of how a round is driven. One was built, on the reasoning
-# that a case about a minimized window is not a case about typing, and it had to be thrown away
-# because the keyboard turned out to be a precondition of the behaviour rather than a cost. The
-# measurement and the reason are recorded above `round` in run.sh.
+# that a case about a minimized window is not a case about typing, and it was withdrawn because its
+# effect could not be separated from the machine's own drift. It is not established that the
+# keyboard is a precondition, only that it has not been shown to be safe to remove. The measurement
+# and the reason are recorded above `round` in run.sh.
 
 #-------------------------------------------------------------------------------
 # Helpers the cases share

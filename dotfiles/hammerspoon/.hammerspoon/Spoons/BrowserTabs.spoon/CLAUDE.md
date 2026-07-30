@@ -196,8 +196,11 @@ What is still not guaranteed is the raise itself. macOS honours a cross applicat
 by an application that is not frontmost at its own discretion, and it was seen ignored twice while
 Hammerspoon had never held the front, the tab correctly selected and the browser left behind. From
 the real path, where the chooser held the front a moment earlier, it held every time it was tried.
-So there is no retry, because a second raise is only worth adding against a failure that can be
-reproduced and this one could not be.
+There was no retry for a long time, because a second raise is only worth adding against a failure
+that can be reproduced, and that one could not be.
+
+A failure of this family can be reproduced now, on Safari, and the section below records exactly
+what it looks like. It is the open defect in this spoon and the next thing to work on.
 
 Two things this tool cannot answer at all. A tab in a window on another Space costs whatever the
 Space switch costs, which is macOS animating rather than anything to tune here. And while a
@@ -231,6 +234,49 @@ A state that cannot be created reports itself as not covered rather than passing
 keeps that apart from what passed. A pinned Chrome tab, a Safari tab group, and a discarded tab are
 all in that category some of the time, and a suite that quietly counted them as passes would be
 claiming coverage it never had.
+
+What the suite has actually said so far is in its README, both the case by case record and the
+harness defects it caught in itself, every one of which had been producing false passes. That
+record is the reason to trust a green run at all, so it is kept rather than left in a results file
+the next run deletes.
+
+## The one open defect, a Safari restore that Safari says happened and nobody can see
+
+The suite reproduces this on demand through the ordinary path, which is what the raise paragraph
+above had been waiting for. The case is `minimized on safari`. Chrome has never once failed it.
+
+The witnesses disagree in a specific way. Safari's own dictionary says the window is not minimized,
+that it sits at index one, that it holds a document, and that the fixture tab is the selected one.
+The window server says Safari has no windows at all, and three readers agree about that
+independently, System Events from another process, `hs.window`, and `hs.spaces.windowSpaces`.
+Safari is nonetheless the frontmost application. The state does not resolve, it holds for the whole
+four and a half second settle the suite allows.
+
+So the restore is acknowledged and never completes on screen. That matters more here than it would
+anywhere else, because this tool reads back through the browser and the browser is the layer that is
+wrong. Every check inside this spoon would call that round a success. From the person's side the
+keystroke did nothing, which is the original complaint this spoon was rewritten to fix.
+
+What was ruled out, each by measurement rather than argument. Not a locked screen, checked before
+every round. Not the window still being minimized, the browser is asked directly and says
+otherwise. Not a window on another Space, both windows sit on the focused Space at rest. Not the
+harness driver, since it fails through real synthesised keys. Not one particular window, since the
+same window both passed and failed across two runs. Not the first round of a run, since it has
+failed the first two rounds and passed the third. And not state accumulated over a long suite,
+since it returns within a handful of rounds of a freshly restarted Safari, though a restart does
+delay it.
+
+What it does correlate with is minimizing and restoring the same Safari window repeatedly in quick
+succession, which is what the case does and what nobody does by hand. That is worth saying plainly,
+because it means this may be Safari failing under abuse rather than a fault in this spoon. It is
+still this spoon's problem, since the tool cannot tell the difference and currently reports success
+either way.
+
+The fix this argues for, not yet written, is to confirm through the accessibility layer that a
+window really arrived after the restore and the raise, and to say so in the console when it did
+not, with a second attempt if that proves to help. Reading back through the layer the tool does not
+write to is the same principle the suite is built on, and it is the only thing that would have
+caught this without a person watching the screen.
 
 ## Permission is readable without asking, which is the whole reason for the Swift helper
 

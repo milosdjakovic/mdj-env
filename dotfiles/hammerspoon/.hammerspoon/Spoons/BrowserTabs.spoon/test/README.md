@@ -66,8 +66,8 @@ from a real Return changes who is asking, and that is the one thing this suite i
 notice going wrong. Cheapening a round by removing the keyboard has to be treated as changing the
 experiment until somebody proves otherwise against a baseline that is holding still.
 
-The failure it uncovered is real and unexplained and it outlived the driver that found it. It is
-the first thing to look at on the next pass, from a browser that has just been restarted.
+The failure it uncovered is real and it outlived the driver that found it. It has since been
+narrowed down and it is recorded below and in the spoon's own notes as the one open defect.
 
 ## How a round is judged
 
@@ -174,6 +174,47 @@ page, closing it emptied the window, and the browser closed the window with it. 
 refused to close windows was never going to catch that. Closing a tab now requires proof, the caller
 passes a fragment that must appear in the tab's address and the adapter refuses anything else, so
 the rule holds even when a caller is wrong.
+
+## What the runs so far said
+
+Kept here on purpose. `results/` is gitignored and the next run overwrites it, so without this a
+green run would be a claim with nothing behind it, and the one case that is still failing would be
+rediscovered from scratch by whoever comes next.
+
+The last full run was seventy rounds. Sixty seven passed, one failed, two reported themselves not
+covered. Every case below passed on both browsers named unless it says otherwise, and the six that
+run three times are the ones that were genuinely seen failing during the original investigation.
+
+`frontmost`, `background_window`, `other_app_front`, `hidden_app`, `already_selected`,
+`far_from_selected`, `long_title`, `blank_title`, `duplicate_in_window`, `duplicate_two_windows`,
+`retitles_on_load`, `drift_tab_inserted`, `drift_tab_closed`, `drift_window_reordered`,
+`drift_window_closed`, `slow_press`, `existing_user_tab`, all passed on Chrome and Safari.
+`drift_tab_moved`, `back_to_back`, `switched_off`, `escape_raises_nothing`, `fullscreen` passed on
+Chrome, `pinned` and `phantom_not_listed` passed on Safari, and `not_running` passed against Arc.
+
+`no_query on safari` failed once in that run and has not failed since. Both witnesses said the tool
+had done its job and the terminal running the suite held the front instead. That was almost
+certainly the harness disturbing its own measurement, since every command still reached the agent
+by opening a URL at the time, which goes through Launch Services and takes focus. The channel is
+files now and activates nothing, so a repeat of that reading would mean something real.
+
+`discarded on chrome` cannot be created on this machine, since Chrome here has internal debugging
+pages disabled by policy and there is no other way to force a tab out of memory. That is final
+rather than a gap to close, and the hazard a discarded tab carries, a page reloading and renaming
+itself as it is selected, is covered deterministically by `retitles_on_load`.
+
+`tab_group on safari` finds its window by looking for one whose accessibility name differs from its
+selected tab's title, and it only searches the front window, so whether it can run at all depends
+on what happens to be forward. It has both passed and reported not covered. Making it search every
+window is a small change worth doing.
+
+`minimized on safari` is the open defect and the reason this file is worth reading. Two later runs
+of three rounds each, on both browsers, went as follows. Chrome passed six of six. Safari failed
+the first round of the first run, then the first two rounds of the second, so three of its six
+rounds failed and the failures were not in the same place twice. The full witness trail and
+everything ruled out is in the spoon's own `CLAUDE.md`, under the open defect. Safari
+reports the window restored and the right tab selected while the window server reports Safari
+having no windows at all, and it holds that way for the whole settle.
 
 ## What is deliberately not covered
 
