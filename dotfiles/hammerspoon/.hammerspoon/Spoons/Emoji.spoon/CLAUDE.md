@@ -82,6 +82,19 @@ Character Database, a slice of the standard blocks the Character Viewer shows.
 Rerun `regenerate.sh` to refresh the set, for example when new Unicode glyphs land,
 and commit the new `data.lua`.
 
+A refresh reports what it changed, which is the only reason to run one. The generated
+file is thousands of lines and a line diff of it says nothing the moment upstream
+reorders anything, so the generator answers the question while it still holds both the
+new set and the committed one, listing what arrived, what left, and for each arrival the
+words that reach it beyond the ones already in its own name. An arrival with none of
+those is reachable only by its official Unicode name, which is fine for a rightwards
+arrow and useless for a place of interest sign, so the report states the fact and leaves
+the call. Acting on it means adding a line to the synonym table in the generator, which
+stays hand written for exactly that reason. A departure is a glyph this Mac's fonts
+stopped drawing, the other thing worth knowing and otherwise silent. An unchanged
+refresh says so and writes a byte identical file, so a rerun that changes nothing leaves
+no diff to review.
+
 Each entry is reduced to the same shape whichever source it came from, so the spoon
 loads one file and never learns which source a row is. `e` is the glyph, `n` is the
 display name, `a` is the shortcode aliases or a synonym line shown as the row

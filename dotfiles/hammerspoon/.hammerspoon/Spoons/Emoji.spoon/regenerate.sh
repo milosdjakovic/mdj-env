@@ -45,6 +45,14 @@
 # filter-glyphs.lua renders every candidate through Hammerspoon and rejects the boxes.
 # That is why this needs Hammerspoon running, and why the output depends on the
 # machine's fonts as well as the upstream revision.
+#
+# That same stage prints what the refresh changed, since the only reason to run this is to
+# find out what landed, and a line diff of two generated files cannot tell you. Read the
+# added list. Each arrival shows the words that reach it beyond its own name, and one
+# showing none is reachable only through its official Unicode name, which is fine for a
+# rightwards arrow and useless for a place of interest sign. Deciding which is which, and
+# adding a synonym to the table above when it is the second, is the judgment this pipeline
+# leaves to a person.
 
 set -euo pipefail
 
