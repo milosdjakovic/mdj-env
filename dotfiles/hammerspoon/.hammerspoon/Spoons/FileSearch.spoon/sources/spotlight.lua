@@ -57,12 +57,16 @@ local cfg = {
   limits = {},
 }
 
--- The live query, parked in a field. Holding it is not optional. An hs.spotlight object is
--- userdata whose finalizer stops the query, so one nothing refers to can be collected mid
--- flight and the callback then simply never arrives, which is the same hazard this config
--- documents for timers and reads exactly like a search that found nothing.
-local active = nil
-local activeGen = 0
+-- There is deliberately no module level slot for the live query. This source answers two
+-- independent callers, a typed search and the background recent files fetch, and one slot
+-- cannot tell them apart, so starting either one killed the other. Each search now owns its
+-- own query and hands back the only way to abandon it, and the caller is what holds both.
+--
+-- Holding the query is not optional. An hs.spotlight object is userdata whose finalizer stops
+-- the query, so one nothing refers to can be collected mid flight and the callback then simply
+-- never arrives, which is the same hazard this config documents for timers and reads exactly
+-- like a search that found nothing. The returned handle closes over its query, so holding the
+-- handle is what holds the query, and the caller keeping one per channel is the whole contract.
 
 --- spotlight.configure(opts)
 --- opts.prune   directory names never worth searching, used to build the scope list
@@ -242,31 +246,19 @@ local function predicateFor(parsed)
   return table.concat(clauses, " && ")
 end
 
---- spotlight.cancel() - abandon the live query.
-function M.cancel()
-  activeGen = activeGen + 1
-  if active then
-    pcall(function() active:stop() end)
-    active = nil
-  end
-end
-
---- spotlight.search(parsed, ctx, cb)
+--- spotlight.search(parsed, ctx, cb) -> handle
 function M.search(parsed, ctx, cb)
   local pred = predicateFor(parsed)
   if not pred then
     cb({}, "nothing to search for")
-    return
+    return nil
   end
 
-  M.cancel()
-  activeGen = activeGen + 1
-  local gen = activeGen
   local cap = ctx.cap or 200
   local delivered = false
+  local cancelled = false
 
   local q = hs.spotlight.new()
-  active = q
 
   -- Read the capped rows out into plain data. Reading an attribute crosses into
   -- Objective C per call, so only what a row actually needs is read, and the modification
@@ -333,11 +325,10 @@ function M.search(parsed, ctx, cb)
   end
 
   local function deliver(reason)
-    if delivered or gen ~= activeGen then return end
+    if delivered or cancelled then return end
     delivered = true
     local rows = harvest()
     pcall(function() q:stop() end)
-    if active == q then active = nil end
     cb(rows, reason)
   end
 
@@ -395,20 +386,28 @@ function M.search(parsed, ctx, cb)
 
   local ok, err = pcall(function() q:queryString(pred) end)
   if not ok then
-    active = nil
     cb({}, "bad predicate, " .. tostring(err))
-    return
+    return nil
   end
 
-  -- The timeout is the backstop for a query that never reports finishing. Held in a local
-  -- the closure keeps alive, for the same collection reason as the query itself.
-  local timeout
-  timeout = util.after(ctx.timeoutSeconds or 5, function()
+  -- The timeout is the backstop for a query that never reports finishing.
+  local timeout = util.after(ctx.timeoutSeconds or 5, function()
     if not delivered then deliver("timed out") end
   end)
-  local _ = timeout
 
   q:start()
+
+  -- The handle is also what keeps the query and its timeout reachable, see the header. Its
+  -- cancel is silent on purpose, an abandoned search must not deliver rows the caller has
+  -- already moved past, and the caller learning nothing is the point of abandoning it.
+  return {
+    cancel = function()
+      if cancelled then return end
+      cancelled = true
+      timeout.cancel()
+      pcall(function() q:stop() end)
+    end,
+  }
 end
 
 return M

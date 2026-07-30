@@ -30,6 +30,10 @@ local cfg = {
   api = nil,          -- the engine verbs, the only way this file reaches the engine
   iconFor = nil,      -- shared icon memo from the root, optional
   copy = nil,         -- injected clipboard write, so this file never names a clipboard
+  onUse = nil,        -- injected, told which path an action was performed on. This file does not
+                      -- learn what is done with that, the same seam as copy above
+  usedAt = nil,       -- injected, asks when a path was last used. The read side of onUse, on the
+                      -- same seam, so what records a use and what reports one stay together
   onPositioned = nil,
   onActivity = nil,
   onClose = nil,
@@ -112,9 +116,28 @@ local function iconFor(row)
   return hs.image.iconForFileType("public.data")
 end
 
+-- What a row says about itself. The directory leads, because which of the four files called
+-- init.lua this one is, is the only thing anybody actually chooses by.
+--
+-- The ages are LABELLED, and that is a fix rather than decoration. A bare age is read as
+-- something you did, so a file a build wrote four days ago looked like a file you touched four
+-- days ago, and on a row floated to the top by a path you copied a second ago that reading is
+-- flatly wrong. Naming the two ages apart is what makes the row honest.
+--
+-- When you last reached for it comes first of the two, since on the list you land on before
+-- typing anything it is the field that explains why the row is there at all.
+--
+-- Asked here as the row is drawn rather than stamped onto it upstream. Rows are retained and
+-- redrawn for the local narrow between round trips, so a stamp would still be reporting the old
+-- answer on the one row you just acted on, which is the row being asked about.
 local function subtitleFor(row)
   local parts = { shortDir(row.dir) }
-  if row.modified then parts[#parts + 1] = humanAge(row.modified) end
+  local usedAt = cfg.usedAt and row.path and cfg.usedAt(row.path)
+  if usedAt then parts[#parts + 1] = "used " .. humanAge(usedAt) end
+  -- One word for files and folders both. A folder's own date moves when something is added,
+  -- removed or renamed inside it, which is a change but not an edit, and a field that means two
+  -- different things by row type is worse than a plainer word that is true of every row.
+  if row.modified then parts[#parts + 1] = "changed " .. humanAge(row.modified) end
   if row.size then parts[#parts + 1] = humanBytes(row.size) end
   return table.concat(parts, "  ")
 end
@@ -270,10 +293,21 @@ local function selectedRow()
   return item
 end
 
+-- Every action says which row it acted on, and they all say it the same way. Doing anything at
+-- all to a row is the signal, since a distinction between opening one and copying its path would
+-- be a claim about intent that cannot be backed, and copying a path is often the strongest signal
+-- there is. The back row is excluded, because it is the parent directory rather than something
+-- chosen, and counting it would float whatever you happen to be browsing through.
+local function noteUse(row)
+  if not row or row.up then return end
+  if cfg.onUse and row.path then cfg.onUse(row.path) end
+end
+
 --- Open the highlighted row with whatever the system considers its default. A directory opens
 --- in Finder, which is the same verb, so no special case is needed.
 local function onSelect(item)
   if not item or item.status or item.help then return end
+  noteUse(item)
   openPath(item.path, false)
 end
 
@@ -376,6 +410,7 @@ end
 function M.browseInto()
   local row = selectedRow()
   if not row then return end
+  noteUse(row)
   goTo(cfg.api.browseQueryFor(row))
 end
 
@@ -392,6 +427,7 @@ end
 function M.reveal()
   local row = selectedRow()
   if not row then return end
+  noteUse(row)
   openPath(row.path, true)
   M.hide()
 end
@@ -400,6 +436,7 @@ end
 function M.openFolder()
   local row = selectedRow()
   if not row then return end
+  noteUse(row)
   openPath(row.isDir and row.path or row.dir, false)
   M.hide()
 end
@@ -410,6 +447,7 @@ end
 function M.copyPath()
   local row = selectedRow()
   if not row then return end
+  noteUse(row)
   if cfg.copy then cfg.copy(row.path) end
   M.hide()
 end

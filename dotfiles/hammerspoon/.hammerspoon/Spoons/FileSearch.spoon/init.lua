@@ -11,6 +11,7 @@
 ---   engine.lua      the Context, owns debounce, narrowing, ordering and dispatch
 ---   contract.lua    the interface every source must implement
 ---   util.lua        the shellout runner, the held timer, and row building
+---   frecency.lua    what you actually use, the one ordering that is not a date or a text score
 ---   chooser.lua     the list surface, pure policy over the engine's api
 ---   sources/*.lua   the concrete backends, one self contained file each
 ---
@@ -63,6 +64,10 @@ obj.sources = {
 }
 obj._defaultSources = { obj.sources.walk, obj.sources.hidden, obj.sources.spotlight }
 
+-- What you actually use. Exposed so it can be inspected or cleared from the console, since it is
+-- the one part of this spoon that accumulates state about the person using it.
+obj.frecency = load("frecency.lua")
+
 -- The list surface. It reaches the engine only through the api built in configure below, so it
 -- never learns that sources exist.
 obj.chooser = load("chooser.lua")
@@ -114,6 +119,16 @@ function obj:configure(opts)
     limits = limits,
   })
 
+  -- The settings key is named HERE rather than inside frecency.lua, so the one piece of global
+  -- state this spoon owns is visible from the root like every other concretion. The store lives
+  -- in the user defaults deliberately, since it is written on every action and anything inside
+  -- ~/.hammerspoon would reload the whole config each time a file was opened.
+  obj.frecency.configure({
+    key = "fileSearchFrecency",
+    halfLifeDays = limits.frecencyHalfLifeDays,
+    maxEntries = limits.frecencyMaxEntries,
+  })
+
   configureEngine(self, {
     types = policy.types,
     roots = policy.roots,
@@ -122,6 +137,13 @@ function obj:configure(opts)
     sources = opts.sources or obj._defaultSources,
     contract = obj._contract,
     matcher = opts.matcher,
+    -- The engine ranks and does not care where a preference came from, so it takes the two verbs
+    -- it needs and never learns that a store exists. Drop this line and every ordering goes back
+    -- to being a file date or a text score, which is what it was before.
+    ranker = {
+      score = function(path) return obj.frecency.score(path) end,
+      top = function(n) return obj.frecency.top(n) end,
+    },
     -- The engine never touches a picker. It reports that rows changed and the surface decides
     -- what to do about it, which is what lets a second surface reuse the engine unchanged.
     onResults = function() obj.chooser.refresh() end,
@@ -150,6 +172,12 @@ function obj:configure(opts)
       cancel = function() obj:cancel() end,
       browseQueryFor = function(row) return obj:browseQueryFor(row) end,
     },
+    -- Doing anything to a row is what teaches the ranking. The surface reports the path and
+    -- learns nothing about what happens to it, the same seam as the injected clipboard write.
+    onUse = function(path) obj.frecency.note(path) end,
+    -- The other half of that seam, so a row can report the use it just recorded. Still no
+    -- concrete name on the surface, only a question it is allowed to ask.
+    usedAt = function(path) return obj.frecency.usedAt(path) end,
   })
 
   return self

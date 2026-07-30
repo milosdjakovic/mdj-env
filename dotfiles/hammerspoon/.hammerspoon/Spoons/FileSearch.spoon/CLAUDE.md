@@ -53,6 +53,103 @@ right there.
 Spotlight is last because it is the only source with no precondition. Anything after it
 would never be reached.
 
+## Two searches run at once, and one cancel slot could not tell them apart
+
+This is the fault that made the picker useless, and the shape of it is worth more than the fix.
+The reported symptom was that opening the picker showed the recent files row saying it was
+gathering, with nothing under it, every single time.
+
+There are two independent searches in flight here, a typed query and the background recent files
+fetch, and both go through the Spotlight source because that is the only source with no
+precondition. Each source kept ONE in flight slot and exposed a module level cancel, so starting
+either search abandoned the other. Cancelling is silent by design, an abandoned search must never
+paint rows the user has moved past, so nothing called back and nothing complained.
+
+That silence is what turned a race into a permanent break. The fetch was guarded by a boolean set
+before it started and cleared only by its callback, so an abandoned fetch left the flag set with
+nothing behind it, every later open returned from that guard immediately, and the recent list
+stayed empty for the life of the process. A reload was the only cure. Two everyday actions
+triggered it, typing within the fetch window and closing the picker within the fetch window, since
+closing cancels what is in flight.
+
+So cancelling is per search rather than per source. A search hands back a handle carrying its own
+cancel, the engine holds one per channel, and neither can reach the other. Two things follow that
+are easy to undo by accident. The handle IS the in flight flag, because a separate boolean saying
+the same thing is what wedged, and a state that can only be set by starting and cleared by
+finishing will outlive any path that does neither. And closing the picker cancels the typed search
+only, deliberately leaving the fetch to land, since it answers what you touched lately rather than
+what you asked for, so nothing a query does can invalidate it and letting it finish is what makes
+the next open instant.
+
+The general lesson, since this is the second bug in this spoon of exactly this kind after the
+narrowing guard, is that a flag meaning something is happening must be owned by the thing that is
+happening. Here that is the handle, so there is nothing left to get out of step.
+
+## What you use is the fourth ordering, and it is applied two different ways
+
+Every other ordering here is a file date or a text score, so the list you land on before typing
+was really answering which files CHANGED rather than which files you reach for. Those are
+different questions, and on this machine the date ordered top of the list was a generated
+manifest, a spec file and source files touched by a build, not one of which anyone chose.
+
+macOS looks like it already answers this and does not. `kMDItemLastUsedDate` is its own record of
+when a file was last opened by any application, which would beat anything we can record because it
+sees every app. Measured over the same scopes and window it returned **16** files against **342**
+for the modification date, far too sparse to rank anything, so the store has to be ours.
+
+The mechanism is deliberately dull, one number per path, decayed by a half life and incremented on
+use, so a file opened ten times last year sinks below one opened twice this week with no list of
+timestamps to keep. Every action counts the same, since weighting opening above copying a path
+would be a claim about intent that cannot be backed, and copying a path is often the strongest
+signal there is.
+
+**The two applications are the part worth understanding, and they are not the same.** With a query
+typed, the score only REORDERS, and its weight is smaller than the gaps in the search ranking, so
+it separates files that matched the query equally well and can never lift one that matched it
+worse. Without a query it CHOOSES rows outright, and it has to, because that list is a date bound
+capped at a few dozen rows, so a file you open daily but have not modified in a month is not in
+the candidate set at all and no amount of sorting could surface it. That is the one place in the
+spoon where a row appears that no source returned.
+
+It is bounded there on purpose, a few rows and then the dates. Letting it fill the page would make
+the default view the same handful of files forever, which is the opposite of what landing on it is
+for, since right after a download or a build is exactly when this gets opened and a file that did
+not exist a minute ago has no history to rank. The same argument the header makes for refusing a
+result cache protects the date half of that list.
+
+Two smaller decisions. A floated path the date list already returned is MOVED rather than rebuilt,
+so it keeps the modification date Spotlight gave for free, and only a genuinely absent row is built
+and stat'd, which is why the floated rows read the same as their neighbours instead of being the
+ones with no age beside them. And dead paths are pruned at read time among only the handful about
+to be shown, so a deleted file cannot squat at the top and the long tail nobody is looking at
+costs nothing.
+
+The store sits in `hs.settings` rather than anywhere under `~/.hammerspoon`, and that is not a
+preference. It is written on every action, and that tree is watched, so a store living in it would
+reload the whole config every time you opened a file.
+
+**A row reports both ages, and it names them.** The first report on the finished feature was that a
+folder floated to the top by a path copied a second earlier read `4d ago` underneath, which is the
+folder's own date and was read as something the user did four days ago. A bare age invites that,
+because the one thing on a row that is about the person is indistinguishable from the one thing
+about the file. So the line labels them, `used 34m ago` for the last time you reached for it and
+`changed 4d ago` for the file system, with the use first, since on the list you land on before
+typing it is the field explaining why the row is there at all. One word covers both files and
+folders on the second one, because a folder's date moves when something inside it is added, removed
+or renamed, which is a change and not an edit.
+
+The surface asks for that as the row is drawn, through `usedAt` on the same injected seam as
+`onUse`, so the write and the read of a use sit together and neither one names the store. Asking at
+draw time rather than stamping the row upstream is the point. Rows are retained and redrawn for the
+local narrow between round trips, so a stamp would still be reporting the previous answer on the
+one row that was just acted on, which is exactly the row being asked about.
+
+Worth knowing when reading a row, an age is not on every row and that is a cost decision one layer
+down. The modification date is read from Spotlight only for the recent list, because it is a per
+row attribute read and the note in the harvest measures what asking for it costs, and no source
+reads a size at all. So the only rows carrying a size are the ones `_float` stats itself, and a
+browse or a search shows the directory alone.
+
 ## Case is folded in four places and three of them were wrong
 
 The first hands-on report was that typing `Downloads` matched nothing while `Download` matched.
@@ -358,7 +455,8 @@ Letting the atom filter. The surface passes `matcher = false` because the query 
 structured. Turning the shared matcher back on would re rank the engine's ordering and hide
 the status row.
 
-Losing a held handle. The Spotlight query object and every timer are held in fields for the
-same reason, an unreferenced one is collected and its callback silently never arrives, which
-looks exactly like a search that found nothing. `check-timers` enforces half of this and
-nothing enforces the query object, so that one is on the reader.
+Losing a held handle. Every timer and every in flight search are held in fields for the same
+reason, an unreferenced one is collected and its callback silently never arrives, which looks
+exactly like a search that found nothing. A search handle now carries its query, so holding the
+handle is what holds the query and there is one rule instead of two. `check-timers` enforces the
+timer half and nothing enforces the handles, so that one is on the reader.

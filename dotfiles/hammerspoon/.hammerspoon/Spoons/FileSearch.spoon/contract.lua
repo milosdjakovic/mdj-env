@@ -21,24 +21,40 @@
 ---       ordering is how conflicts are settled and no source needs to know the others
 ---       exist. A source answers on the shape of the parse, never on the text.
 ---
----   search(parsed, ctx, cb)
+---   search(parsed, ctx, cb) -> handle or nil
 ---       Produce rows. ASYNCHRONOUS, it must call cb(rows[, reason]) exactly once with a
 ---       list, or cb({}, reason) on failure, and must never block the main thread. Every
 ---       shellout goes through hs.task, never hs.execute or io.popen, because the picker
 ---       redraws from the main thread and a blocking search would freeze every hotkey in
 ---       the config, not just this one.
 ---
+---       Returns a handle carrying one method, cancel(), which abandons THIS search and
+---       nothing else. Cancelling is silent, the callback simply never arrives, since an
+---       abandoned search must not paint rows the caller has already moved past.
+---
+---       Per call rather than per source, because a source answers more than one caller at
+---       a time and cannot tell them apart. The engine runs a typed search and a background
+---       recent files fetch concurrently, and while cancelling was a module level method
+---       here, starting either one silently killed the other. The recent list then never
+---       arrived and never retried, and the picker opened on a loading row with nothing
+---       under it. So a source keeps no in flight slot of its own and the caller holds one
+---       handle per concurrent search it started.
+---
+---       Holding the handle is also what keeps the search alive, since it closes over the
+---       task or the query object, and an unreferenced one is collected mid flight with its
+---       callback silently never arriving. So the handle goes in a field, the same rule this
+---       config states for timers.
+---
+---       Returning nil is allowed and means this search cannot be abandoned, which is
+---       honest for one that has not started yet, such as a first query waiting on an index
+---       build. The caller falls back to its own generation guard and drops the late answer
+---       instead.
+---
 ---       ctx carries what the engine resolved so the source does not repeat the work:
 ---         scopePath        the scope token resolved to a real directory, or nil
 ---         cap              how many rows to return at most
 ---         timeoutSeconds   abandon after this
 ---         limits           the pure limits table from config, for a source needing more
----
----   cancel()
----       Optional. Abandon whatever is in flight. The engine calls it before dispatching
----       a newer query. A source with nothing cancellable may omit it, and one that
----       shells out should terminate its task here, since a stale answer arriving late is
----       the classic way a picker paints the wrong list.
 ---
 --- An optional configure(opts) is called by the composition root and never by the
 --- engine, so the root stays the one place that knows each source's config shape.

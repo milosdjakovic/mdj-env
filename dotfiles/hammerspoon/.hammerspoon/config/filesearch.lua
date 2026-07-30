@@ -157,5 +157,35 @@ return {
     -- lands, which is the point of not tuning to it.
     recentCount = 40,
     recentDays = 7,
+
+    -- How many of the files you actually use are floated to the top of that opening list,
+    -- ahead of the ones ordered by date.
+    --
+    -- This is bounded rather than generous on purpose. Modification date answers what
+    -- changed and your own history answers what you reach for, and both belong in that
+    -- list, because right after a download or a build is exactly when this picker gets
+    -- opened and a file that did not exist a minute ago has no history at all. Let the
+    -- history fill the page and the view becomes the same handful of files forever, which
+    -- is the opposite of what landing on it is for. So a few rows, then the dates.
+    recentFloat = 8,
+
+    -- How much your history is worth when you HAVE typed something.
+    --
+    -- Deliberately smaller than the gaps in the search ranking, which awards 1000 for the
+    -- typed text appearing whole in a filename and 500 for every word appearing in it. So
+    -- this reorders files that matched the query equally well and can never lift one that
+    -- matched it worse. When there is a query the query is the strong signal, and only in
+    -- the opening list, where there is no query, does history choose the rows outright.
+    frecencyWeight = 300,
+
+    -- How long a use takes to count half as much. Two weeks means the project you are on
+    -- this month outranks the one you finished last month without ever forgetting it,
+    -- and it is the only number that changes the character of the ranking.
+    frecencyHalfLifeDays = 14,
+
+    -- How many paths to remember before the weakest are dropped. The store is one small
+    -- number per path, so this is about keeping the list meaningful rather than about
+    -- space, and a few hundred is far more than the set of files anyone actually returns to.
+    frecencyMaxEntries = 500,
   },
 }

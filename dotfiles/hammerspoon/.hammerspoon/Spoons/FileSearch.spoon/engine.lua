@@ -80,6 +80,14 @@ function obj:init()
   -- reads it back when building the engine's options, so clearing it in init left the
   -- validation silently switched off, with three sources registered and none of them checked.
   -- Same family of bug as the sources collision above, and just as quiet.
+  --
+  -- THREE INSTANCES OF THE SAME HAZARD NOW, so it is worth stating as a rule rather than as
+  -- three notes. The composition root and this engine are literally the same table, so a public
+  -- field here can silently overwrite something the root hung on itself, and the other way
+  -- around. The third was a ranker injected as `frecency`, which wiped the root's own frecency
+  -- module the moment configure ran and left it looking like the module had no methods. Anything
+  -- injected into the engine therefore lands on an underscored field, and anything the root
+  -- exposes to the outside keeps the plain name.
   self.matcher = nil
   self.onResults = nil
 
@@ -90,9 +98,12 @@ function obj:init()
   self._status = nil
   self._gen = 0
   self._debounce = nil
-  self._activeSource = nil
+  -- Two channels, so two handles. A typed search and the background recent files fetch run
+  -- concurrently by design, and one shared slot is what made starting either one abandon the
+  -- other. Holding each handle is also what keeps its search reachable, see the source contract.
+  self._activeHandle = nil
+  self._recentsHandle = nil
   self._recents = nil
-  self._recentsPending = false
   return self
 end
 
@@ -110,6 +121,12 @@ end
 --- opts.matcher    match(query, hay) -> score or nil, used for the local narrow so the
 ---                 filter that runs between round trips agrees with the one the chooser
 ---                 applies to what it draws. Omit it and a plain all words test is used
+--- opts.ranker     a preference over paths, answering score(path) and top(n). Optional, and
+---                 without it every ordering here is exactly what it was before, which is a
+---                 file date or a text score. Called a ranker rather than named for what
+---                 backs it, because the engine does not care where a preference came from,
+---                 and kept on a private field because the composition root that injects it
+---                 IS this same table, so a public name here would overwrite the root's own
 --- opts.onResults  called with no arguments whenever rows changed underneath the caller,
 ---                 so the surface can redraw. The engine never touches a chooser itself
 function obj:configure(opts)
@@ -118,6 +135,7 @@ function obj:configure(opts)
   self.roots = opts.roots or {}
   self.prune = opts.prune or {}
   self.matcher = opts.matcher
+  self._ranker = opts.ranker
   self.onResults = opts.onResults
   self._contract = opts.contract
 
@@ -241,9 +259,17 @@ end
 --- hold the whole text, does it hold every word, and failing both, is the path shorter.
 --- Shorter wins because a match near the top of a tree is nearly always the one meant, and
 --- it is what keeps a vendored copy buried twelve levels down from outranking the real file.
+---
+--- What you use adds a fourth question, and it is deliberately the WEAKEST of the four. The
+--- bump saturates below the gap between the name match tiers, so a file you open daily is
+--- floated above others that matched the query just as well, and never above one that matched
+--- it better. That asymmetry is the whole point. Here the query is the strong signal and your
+--- habits break the ties, while in the list you see before typing there is no query at all, so
+--- there your habits are the only signal and they choose the rows outright.
 function obj:_order(rows, parsed)
   if parsed.kind ~= "search" or parsed.text == "" then return rows end
   local text = parsed.text:lower()
+  local weight = self._ranker and (self.limits.frecencyWeight or 0) or 0
   local scored = {}
   for i = 1, #rows do
     local r = rows[i]
@@ -253,6 +279,12 @@ function obj:_order(rows, parsed)
     if allWordsIn(name, parsed.words) then s = s + 500 end
     if r.isDir then s = s + 50 end
     s = s - math.min(#(r.path or ""), 500) / 25
+    if weight > 0 then
+      -- Saturating rather than linear, so one heavily used file cannot run away with the
+      -- ranking however many times it has been opened. Two uses is already most of the bump.
+      local used = self._ranker.score(r.path)
+      if used > 0 then s = s + weight * (used / (used + 2)) end
+    end
     scored[#scored + 1] = { row = r, score = s, idx = i }
   end
   table.sort(scored, function(a, b)
@@ -283,6 +315,56 @@ function obj:_denoise(rows, parsed)
       if path:find("/" .. name .. "/", 1, true) then noisy = true break end
     end
     if not noisy then out[#out + 1] = rows[i] end
+  end
+  return out
+end
+
+-- Float what you use to the top of the list you land on before typing anything.
+--
+-- REORDERING WOULD NOT BE ENOUGH HERE, which is the thing worth understanding. That list is a
+-- date bound capped at a few dozen rows, so a file you open every day but have not modified in
+-- a month is not in the candidate set at all and no amount of sorting will surface it. So this
+-- merges rather than sorts, and it is the one place in the spoon where a row appears that no
+-- source returned.
+--
+-- It is BOUNDED on purpose, a few rows and then the dates. Letting it fill the page would turn
+-- the default view into the same ten things forever, which is the opposite of what that view is
+-- for, since right after a download or a build is exactly when this picker gets opened and a
+-- file that did not exist a minute ago has no history to rank. So the two answers share the
+-- list, habits first and then what just changed.
+--
+-- A path that the date list already returned is MOVED rather than rebuilt, so it keeps the size
+-- and the modification date Spotlight handed over for free. Only a row that would otherwise be
+-- absent is built here, and that one is stat'd so it reads the same as its neighbours rather
+-- than being the one row with no age beside it. At a few rows per open that cost is nothing.
+function obj:_float(rows)
+  local n = self.limits.recentFloat or 0
+  if n <= 0 or not self._ranker then return rows end
+  local top = self._ranker.top(n)
+  if #top == 0 then return rows end
+
+  local byPath = {}
+  for _, r in ipairs(rows) do byPath[r.path] = r end
+
+  local out, seen = {}, {}
+  for _, path in ipairs(top) do
+    if not seen[path] then
+      seen[path] = true
+      local row = byPath[path]
+      if not row then
+        local attrs = hs.fs.attributes(path) or {}
+        row = util.row(path, {
+          isDir = attrs.mode == "directory",
+          size = attrs.size,
+          modified = attrs.modification,
+          source = "frecency",
+        })
+      end
+      out[#out + 1] = row
+    end
+  end
+  for _, r in ipairs(rows) do
+    if not seen[r.path] then out[#out + 1] = r end
   end
   return out
 end
@@ -345,11 +427,17 @@ function obj:_sourceFor(parsed)
   return nil
 end
 
+-- Abandons the TYPED search only, and the recent files fetch is deliberately left running.
+-- It answers a different question, what you touched lately rather than what you asked for, so
+-- nothing a query does can invalidate it, and letting it land means the next open has the list
+-- already. It used to be cancelled here, and since a cancelled search never calls back, the
+-- pending flag stayed set and no later open ever fetched again, so the picker showed a loading
+-- row and nothing else for the rest of the process.
 function obj:_cancelInflight()
-  if self._activeSource and self._activeSource.cancel then
-    pcall(function() self._activeSource.cancel() end)
+  if self._activeHandle then
+    pcall(function() self._activeHandle.cancel() end)
   end
-  self._activeSource = nil
+  self._activeHandle = nil
 end
 
 -- Fire the search. Every callback carries the generation it was issued under, so an
@@ -375,7 +463,6 @@ function obj:_dispatch(parsed)
     return
   end
 
-  self._activeSource = src
   self:_redraw(parsed, "searching")
 
   local ctx = {
@@ -385,9 +472,9 @@ function obj:_dispatch(parsed)
     limits = self.limits,
   }
 
-  src.search(parsed, ctx, function(rows, reason)
+  self._activeHandle = src.search(parsed, ctx, function(rows, reason)
     if gen ~= self._gen then return end
-    self._activeSource = nil
+    self._activeHandle = nil
     if reason then log.i("search via " .. tostring(src.name or "?") .. ", " .. tostring(reason)) end
     -- Spelled out rather than folded into an and/or expression. `cond and nil or fallback`
     -- always yields the fallback in Lua, since `and nil` is falsy, which is exactly how every
@@ -424,22 +511,32 @@ function obj:reset()
 end
 
 -- Recent files, the state the picker opens in. Held for the session rather than per query,
--- since what you touched lately does not change while a picker is open.
+-- since what you touched lately does not change while a picker is open. Refetched on each open
+-- while the previous list stays on screen, so only the very first open of a session ever shows
+-- a loading row.
+--
+-- The handle IS the in flight flag, one field rather than a separate boolean saying the same
+-- thing, and that matters because the boolean it replaced could wedge. It was set before the
+-- fetch and cleared only by the callback, so anything that abandoned the fetch left it set
+-- forever with no handle behind it, and every later open returned here immediately and fetched
+-- nothing. Holding the handle is also what keeps the fetch reachable, so a second open cannot
+-- overwrite a live one and let it be collected mid flight.
 function obj:_fetchRecents()
-  if self._recentsPending then return end
+  if self._recentsHandle then return end
   local parsed = query.parse("", self.types)
   local src = self:_sourceFor(parsed)
   if not src then return end
-  self._recentsPending = true
   local ctx = {
     scopePath = nil,
     cap = self.limits.recentCount,
     timeoutSeconds = self.limits.timeoutSeconds,
     limits = self.limits,
   }
-  src.search(parsed, ctx, function(rows)
-    self._recentsPending = false
-    self._recents = rows or {}
+  self._recentsHandle = src.search(parsed, ctx, function(rows)
+    self._recentsHandle = nil
+    -- Merged once here rather than on every redraw, so the list cannot reorder itself under
+    -- someone who is reading it, and the stat calls happen once per open.
+    self._recents = self:_float(rows or {})
     -- Only paint them if nothing has been typed since, otherwise a slow recents fetch
     -- would overwrite a real search the user already started.
     if not self._parsed or self._parsed.kind == "recent" then
@@ -570,6 +667,11 @@ end
 ---
 --- It resolves the scope on demand rather than reading a field the dispatch filled in, so it
 --- is right even when the key is pressed before the listing has come back.
+---
+--- Home is collapsed back to a tilde because this lands in the query field where it is read,
+--- and climbing a few levels otherwise fills the field with the same twenty characters of home
+--- prefix on every step. The resolver expands a tilde before anything else, so what goes out is
+--- exactly what can come back in, and nothing else has to know.
 function obj:upQuery()
   local parsed = self._parsed
   if not parsed or not parsed.scope then return nil end
@@ -577,6 +679,10 @@ function obj:upQuery()
   if not here or here == "/" then return nil end
   local parent = here:match("^(.*)/[^/]+$")
   if not parent or parent == "" then return "/" end
+  local home = os.getenv("HOME") or ""
+  if home ~= "" and parent:sub(1, #home) == home then
+    parent = "~" .. parent:sub(#home + 1)
+  end
   return parent .. "/"
 end
 

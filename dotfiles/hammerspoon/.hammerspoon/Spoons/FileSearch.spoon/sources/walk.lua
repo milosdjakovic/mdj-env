@@ -34,8 +34,6 @@ local cfg = {
   prune = {},
 }
 
-local inflight = nil
-
 --- walk.configure(opts)
 --- opts.path   resolved location of the walker, injected by the composition root, which is
 ---             the only way this file learns where the tool lives
@@ -58,21 +56,12 @@ function M.supports(parsed)
   return parsed.scope ~= nil
 end
 
-function M.cancel()
-  if inflight then
-    pcall(function() inflight.cancel() end)
-    inflight = nil
-  end
-end
-
 -- One level, newest first. ls marks directories with a trailing slash under -p, lists
 -- dotfiles under -A without the two dot entries, and sorts by modification time under -t.
 local function browse(parsed, ctx, cb)
   local dir = ctx.scopePath
   local args = { "-1", "-A", "-p", "-t", dir }
-  M.cancel()
-  inflight = util.run("/bin/ls", args, ctx.timeoutSeconds, function(out, err)
-    inflight = nil
+  return util.run("/bin/ls", args, ctx.timeoutSeconds, function(out, err)
     if not out then
       cb({}, err or "listing failed")
       return
@@ -143,9 +132,7 @@ local function search(parsed, ctx, cb)
   args[#args + 1] = parsed.words[1] or ""
   args[#args + 1] = dir
 
-  M.cancel()
-  inflight = util.run(cfg.path, args, ctx.timeoutSeconds, function(out, err)
-    inflight = nil
+  return util.run(cfg.path, args, ctx.timeoutSeconds, function(out, err)
     if not out then
       cb({}, err or "walk failed")
       return
@@ -171,17 +158,18 @@ local function search(parsed, ctx, cb)
   end)
 end
 
---- walk.search(parsed, ctx, cb)
+--- walk.search(parsed, ctx, cb) -> handle
+--- The handle is whatever util.run hands back, which already suppresses the callback of a
+--- cancelled task, so there is nothing to add here and nothing kept at module level.
 function M.search(parsed, ctx, cb)
   if not ctx.scopePath then
     cb({}, "no directory")
-    return
+    return nil
   end
   if parsed.text == "" then
-    browse(parsed, ctx, cb)
-  else
-    search(parsed, ctx, cb)
+    return browse(parsed, ctx, cb)
   end
+  return search(parsed, ctx, cb)
 end
 
 return M

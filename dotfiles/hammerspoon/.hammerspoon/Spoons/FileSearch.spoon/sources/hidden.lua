@@ -49,7 +49,6 @@ local cfg = {
   maxAgeSeconds = 300,
 }
 
-local inflight = nil
 local building = false
 local pendingAfterBuild = {}
 
@@ -84,13 +83,6 @@ end
 function M.supports(parsed)
   if parsed.scope then return false end
   return parsed.hidden == true
-end
-
-function M.cancel()
-  if inflight then
-    pcall(function() inflight.cancel() end)
-    inflight = nil
-  end
 end
 
 local function indexAgeSeconds()
@@ -180,9 +172,7 @@ local function filter(parsed, ctx, cb)
     util.shellQuote(path),
     cap)
 
-  M.cancel()
-  inflight = util.run("/bin/sh", { "-c", cmd }, ctx.timeoutSeconds, function(out, err)
-    inflight = nil
+  return util.run("/bin/sh", { "-c", cmd }, ctx.timeoutSeconds, function(out, err)
     if not out then
       -- fzf exits non zero when nothing matched, which is not a failure worth reporting.
       cb({}, nil)
@@ -209,25 +199,30 @@ local function filter(parsed, ctx, cb)
   end)
 end
 
---- hidden.search(parsed, ctx, cb)
+--- hidden.search(parsed, ctx, cb) -> handle
 --- With nothing typed there is nothing to filter, since the index holds a quarter of a
 --- million paths and no useful order, so an empty hidden query returns nothing rather than an
 --- arbitrary slice.
+---
+--- One path answers with no handle, the one that waits on an index build, because the filter it
+--- will eventually run does not exist yet. So that first hidden search on a cold index is not
+--- cancellable and its answer is dropped by the caller's own generation guard instead. That was
+--- already true of the module level cancel this replaced, since there was nothing in flight for
+--- it to reach either, and it is only ever the very first hidden query.
 function M.search(parsed, ctx, cb)
   if #parsed.words == 0 then
     cb({}, "type something to search hidden files")
-    return
+    return nil
   end
   local age = indexAgeSeconds()
   if not age then
-    -- No index at all, so the first hidden search waits for one to be built.
     rebuild(function() filter(parsed, ctx, cb) end)
-    return
+    return nil
   end
   -- Stale is answered from what exists while a fresh index is built behind it, so a search
   -- never waits on a rebuild it did not have to.
   if age > cfg.maxAgeSeconds then rebuild(nil) end
-  filter(parsed, ctx, cb)
+  return filter(parsed, ctx, cb)
 end
 
 return M

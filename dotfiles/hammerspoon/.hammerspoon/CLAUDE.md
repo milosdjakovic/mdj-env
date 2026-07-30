@@ -1043,7 +1043,18 @@ filter, and the root's `words` matcher is injected into the *engine* instead, wh
 narrows a held result set between round trips. So the shared matching policy still applies,
 one layer further down than anywhere else. And it is the first consumer of the shared row
 icon memo, a closure in the root beside the other view deps, keyed by extension rather than
-by path and dropped when the chooser closes. That memo is a closure and not a spoon because
+by path and dropped when the chooser closes.
+
+It is also the one tool here that accumulates state about the person using it, a decayed
+count of the paths you act on, which floats what you use to the top of the list you land on
+and breaks ties between equally good matches when you have typed something. That store is
+per machine behaviour rather than configuration, so it lives in `hs.settings` like the
+overlay display choice and the browser toggles rather than in a git tracked file like the
+display profiles, and it is named in the spoon's own root. It must stay out of
+`~/.hammerspoon` whatever else changes, since it is written on every action and that tree is
+watched, so a store inside it would reload the config every time you opened a file. Why the
+score is applied two different ways, and why macOS's own last used date could not be used
+instead, are in the spoon's `CLAUDE.md`. That memo is a closure and not a spoon because
 it has no lifecycle, and it holds in memory handles rather than files because NSWorkspace
 already caches them, so there is deliberately no cache directory to configure. The
 clipboard has its own equivalent today and is the obvious second consumer, left alone until
