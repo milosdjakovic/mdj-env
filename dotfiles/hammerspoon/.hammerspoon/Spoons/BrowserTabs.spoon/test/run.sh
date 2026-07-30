@@ -30,6 +30,10 @@ HS_REPLY_DIR=${TMPDIR:-/tmp}/browsertabs-test.$$
 export HS_REPLY_DIR
 mkdir -p "$HS_REPLY_DIR"
 
+# Anything a killed run left in the channel goes now, since a stale request would be picked up and
+# answered into a reply file nobody is waiting for any more.
+rm -f "$BT_CHANNEL"/req.*
+
 RESULT_DIR=$BT_TEST_DIR/results
 mkdir -p "$RESULT_DIR"
 RUN_LOG=$RESULT_DIR/last-run.log
@@ -121,6 +125,42 @@ judge() {
   local ax own frontBundle gotWindow gotURL reasons=""
 
   ax=$(bt_ax "$bundle")
+
+  # Where a window is expected, the accessibility layer is read until it stops changing rather than
+  # once after a guessed pause. Restoring a minimized window is animated, and while that animation
+  # runs the layer reports either no window at all or a frame still in flight, both of which read
+  # exactly like the tool having raised the wrong thing.
+  #
+  # This wait was not needed while every command in this harness went out through Launch Services,
+  # because a fifth of a second per command made every read late enough by accident. Making the
+  # channel fast took the accident away, and this case failed the first two times it ran, once with
+  # no window reported and once with the window that had been in front all along.
+  #
+  # Settled is deliberately not the same as correct. The condition is that two consecutive readings
+  # agree, which the wrong window satisfies just as easily as the right one, so nothing here can
+  # turn a failure into a pass by waiting. What it rules out is judging a layer mid animation.
+  if [ "$mode" = "full" ] || [ "$mode" = "tab" ]; then
+    local settle=0 sig="" prev=""
+    while [ "$settle" -lt 30 ]; do
+      sig=$(jq -rc 'if .window and .window.position then [.window.position, .window.size, .window.name] else empty end' <<<"$ax")
+      [ -n "$sig" ] && [ "$sig" = "$prev" ] && break
+      prev=$sig
+      sleep 0.15
+      settle=$(( settle + 1 ))
+      ax=$(bt_ax "$bundle")
+    done
+    # A layer that never reported a window at all is worth one extra question, since the browser's
+    # own view of that window says which of two very different things happened. A window still down
+    # in the Dock means the restore did not take, which is a fault in the tool. A window the browser
+    # calls restored while the layer sees nothing is the phantom this spoon already knows about.
+    if [ -z "$sig" ]; then
+      note "    dock $(bt "$bundle" list | jq -c --arg w "$wantWindow" '[.windows[] | select(.id == $w) | {id, minimized, index, document}]' 2>/dev/null)"
+      note "    seen $(jq -c '[.windows[] | {index, subrole, name, position}]' <<<"$ax" 2>/dev/null)"
+      note "    hs   $(hs_cmd focused | jq -c '.window' 2>/dev/null)"
+      note "    spc  $(hs_cmd spaces "bundleID=$bundle" | jq -c '{focused, windows}' 2>/dev/null)"
+    fi
+  fi
+
   own=$(bt "$bundle" front)
   note "    ax   $(jq -c '{front, window: {name: .window.name, position: .window.position, size: .window.size}}' <<<"$ax" 2>/dev/null)"
   note "    own  $(jq -c '{id: .window.id, active: .window.activeTabIndex, url: .window.tabs[(.window.activeTabIndex - 1)].url}' <<<"$own" 2>/dev/null)"
@@ -190,6 +230,12 @@ screen_locked() {
   [ "$(ioreg -n Root -d1 -a 2>/dev/null | grep -c CGSSessionScreenIsLocked)" -gt 0 ]
 }
 
+# A round is always the whole path. A second driver that skipped the chord and the typing and
+# committed through the chooser's own public activate was built and withdrawn, and the reasoning is
+# in the README under why every round still uses the keyboard. The short version is that macOS
+# grants a cross application raise to an application acting on user input, so committing from a
+# timer changes who is asking, and that is exactly the kind of difference this suite is least able
+# to notice.
 round() {
   local target=$1 disturb=$2
 
@@ -270,7 +316,10 @@ round() {
   fi
 
   hs_cmd key "name=return" > /dev/null
-  sleep 1.2
+
+  # A floor rather than the whole wait. What the round actually waits on is the settle inside judge,
+  # which watches the layer instead of the clock.
+  sleep 0.5
 
   judge "$bundle" "$windowID" "$url" "$mode"
 }
@@ -387,7 +436,8 @@ say "  awake, and held awake until this finishes"
 
 say "checking the harness is live"
 if [ "$(hs_cmd ping | jq -r '.ok')" != "true" ]; then
-  say "the harness agent is not answering, is the marker in place and Hammerspoon pointed here"
+  say "the harness agent is not answering on $BT_CHANNEL"
+  say "is the marker in place, and is Hammerspoon pointed at this checkout"
   exit 1
 fi
 say "  config $(hs_cmd ping | jq -r '.config')"
@@ -402,7 +452,7 @@ hs_cmd key "name=escape" > /dev/null
 sleep 0.5
 
 bt_snapshot
-trap 'bt_restore; rm -rf "$HS_REPLY_DIR"' EXIT
+trap 'bt_restore; rm -rf "$HS_REPLY_DIR"; rm -f "$BT_CHANNEL"/req.*' EXIT
 
 say ""
 for entry in "${CASES[@]}"; do

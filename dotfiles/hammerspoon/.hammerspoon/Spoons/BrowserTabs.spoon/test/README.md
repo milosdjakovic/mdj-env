@@ -12,13 +12,15 @@ period the tool was broken, which is worse than having no suite at all, because 
 so out loud.
 
 So every round here drives the real thing. The real leader chord posted as hardware events, the
-real chooser, a real query typed into it, and a real Return. Nothing on the path is stood in for.
+real chooser, a real query typed into it, and a real Return. Nothing on the path is stood in for,
+and the section below on why the keyboard cannot be skipped is the evidence that this is not
+excessive.
 
 ## Running it
 
 ```bash
-Spoons/BrowserTabs.spoon/test/suite.sh              # everything, about seventy rounds
-Spoons/BrowserTabs.spoon/test/suite.sh --quick      # one pass of each, about a third as long
+Spoons/BrowserTabs.spoon/test/suite.sh              # everything
+Spoons/BrowserTabs.spoon/test/suite.sh --quick      # one pass of each, no repeats
 Spoons/BrowserTabs.spoon/test/suite.sh --only drift # one group
 Spoons/BrowserTabs.spoon/test/suite.sh --list       # what there is
 ```
@@ -35,6 +37,37 @@ exactly those.
 
 `run.sh` is the same thing without the lock and the marker, for when Hammerspoon is already pointed
 here and the harness is already loaded, which is what you want while iterating on a single case.
+
+## Why every round still uses the keyboard, though it was tried the other way
+
+This is the most useful thing measured here, so it is worth reading before trying to make the suite
+faster the obvious way.
+
+Most cases look like they are not about the keyboard. A minimized window, a stale window reference,
+a hidden application, none of that lives anywhere near the typing. So a second driver was built that
+skipped the chord and the query and committed through the chooser's own public activate, the same
+seam the launcher's tab scope already uses. Everything below that seam, the ranking, the providers,
+the window search and the raise, was still the real code.
+
+It was withdrawn, and the honest reason is that its effect could not be separated from the
+machine's own drift. What was seen, in order. Every Chrome round passed throughout. Safari's
+minimized round failed on the short path in five runs out of five, three different ways, once with
+the accessibility layer reporting no window for Safari at all, once with Safari showing another of
+its windows, once with a real page of the user's in front. The same case on the full path passed
+six out of six in between, which looked conclusive. Then, after the short path was removed, the
+full path failed the same case too, first once and then three times out of three, with the same
+signatures.
+
+So the comparison was run against a baseline that was moving, and no causal claim survives it. What
+does survive is the reason not to assume the two paths are equivalent, and it is already in this
+spoon's notes. macOS grants a cross application raise at the system's discretion, and what it
+grants it to is an application acting on user input. A driver that commits from a timer instead of
+from a real Return changes who is asking, and that is the one thing this suite is least able to
+notice going wrong. Cheapening a round by removing the keyboard has to be treated as changing the
+experiment until somebody proves otherwise against a baseline that is holding still.
+
+The failure it uncovered is real and unexplained and it outlived the driver that found it. It is
+the first thing to look at on the next pass, from a browser that has just been restarted.
 
 ## How a round is judged
 
@@ -64,10 +97,14 @@ itself uses, so every Chromium comes through one file and the bundle id is a par
 the outside witness. `agent.lua` is the half that lives inside Hammerspoon, loaded only when the
 `ENABLED` marker is present beside it, which the runner writes at the start and removes at the end.
 
-Commands reach the agent as URLs and answers come back in files. That looks roundabout and is
-deliberate. The Hammerspoon command line tool blocks while the config has asynchronous work in
-flight, this tool nearly always does, and a call killed while blocked leaves the channel dead for
-the rest of the session.
+Commands reach the agent as files dropped in a directory it polls, and answers come back as files
+too. Both halves of that are the result of ruling something out. The Hammerspoon command line tool
+blocks while the config has asynchronous work in flight, this tool nearly always does, and a call
+killed while blocked leaves the channel dead for the rest of the session. A URL does not block and
+was what this used first, but opening one goes through Launch Services and takes focus, and focus
+is the thing most of these rounds measure. So the channel is files, it activates nothing, and the
+directory sits under the caches directory rather than in the config tree, since a file written
+there would trigger a reload on every command.
 
 The harness travels with the spoon into the home directory, because stow symlinks a spoon as a
 whole directory and there is no way to leave one subdirectory behind without unpicking that. It is
@@ -78,12 +115,19 @@ inert there, since nothing loads without the marker and the marker is not commit
 Worth reading before changing anything here, because every one of them made the suite report
 success while testing nothing, which is the only failure mode of a test suite that really matters.
 
-Typed characters have to be posted at Hammerspoon by name rather than at whatever holds focus.
-Every command here arrives by opening a URL, and opening one while the list is up takes key focus
-off it, so the characters landed in the application underneath and the list stayed unfiltered.
-Return kept working throughout, because the chooser catches Return with an event tap rather than
-through focus, so rounds still opened a tab and still passed. They were passing on the top row of
-an unfiltered list.
+Typed characters have to be posted at Hammerspoon by name rather than at whatever holds focus. This
+was found when every command still arrived by opening a URL, which took key focus off the list, so
+the characters landed in the application underneath and the list stayed unfiltered. Return kept
+working throughout, because the chooser catches Return with an event tap rather than through focus,
+so rounds still opened a tab and still passed. They were passing on the top row of an unfiltered
+list. The URL is gone now and the targeting stays, because posting at whatever holds focus was
+never right, it only stopped being obviously wrong.
+
+That URL channel is worth one more line, because it disturbed the very thing it was measuring for
+as long as it existed. It is the likeliest explanation for the single failure of the last full run
+before it was replaced, where both witnesses agreed the tool had done its job and the terminal held
+the front. Nothing in the channel activates anything now, so a repeat of that reading means
+something real.
 
 An arrange runs inside a command substitution, so it is a subshell and nothing it assigns survives.
 Disturbances that read a variable an arrange had set were disturbing nothing, and four drift cases

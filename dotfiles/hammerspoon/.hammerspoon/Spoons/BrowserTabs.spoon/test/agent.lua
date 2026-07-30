@@ -2,24 +2,39 @@
 ---
 --- The inside half of the integration harness. It exists so a shell runner can drive the real
 --- tool the way a person does, through the real leader chord, the real chooser and a real
---- Return, rather than by calling the engine directly. Calling the engine directly was tried
---- first and it hides the faults that matter, because three of the four defects this suite
---- exists to guard against lived between the chooser and the window server rather than inside
---- the engine at all.
+--- Return. Calling the engine directly was tried first and it hides the faults that matter,
+--- because three of the four defects this suite exists to guard against lived between the
+--- chooser and the window server rather than inside the engine at all. Skipping only the
+--- keyboard, and still going through the chooser's own activate, was tried later and turned out
+--- to change the result rather than shorten the path, which is recorded above `round` in run.sh.
 ---
 --- It loads only when the marker file beside it is present, which the runner writes at the
 --- start of a suite and removes at the end, so a normal machine never has this in its config.
 --- Nothing in the spoon depends on it and it depends on nothing but the chooser's public
 --- surface.
 ---
---- Commands arrive as a URL rather than through hs.ipc. The reason is measured. The CLI stalls
---- while asynchronous work is in flight, which this tool always has, and killing a stalled call
---- leaves the channel unusable for the rest of the session. A URL is one way and cannot stall,
---- so every answer comes back through a reply file instead.
+--- Commands arrive as files rather than through hs.ipc or a URL, and both exclusions are
+--- measured. The CLI stalls while asynchronous work is in flight, which this tool always has,
+--- and killing a stalled call leaves the channel unusable for the rest of the session. A URL
+--- does not stall but it goes through Launch Services, which takes focus, and focus is what
+--- most of these rounds are measuring. So the runner drops a request file and the agent polls
+--- for it, and nothing in the channel activates anything.
 
 local M = {}
 
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
+
+-- Where requests arrive. Derived from HOME rather than passed in, because this file is loaded by
+-- Hammerspoon and there is nobody to pass it anything. It sits under the caches directory on
+-- purpose, since a file written inside the watched config tree would trigger a reload on every
+-- command.
+local CHANNEL = (os.getenv("HOME") or "") .. "/Library/Caches/browsertabs-test/channel"
+
+-- The poll interval. A directory that is nearly always empty is cheap to read, so this is chosen
+-- to be shorter than anything the runner can perceive rather than to save work. A path watcher
+-- would do the same job with a coalescing latency that would have to be measured, and the whole
+-- point of this channel is to stop paying delays nobody can see.
+local POLL = 0.02
 
 -- Every pending timer is held here until it fires. A Hammerspoon timer is userdata whose
 -- finalizer stops it, so one that nothing refers to can be collected before it runs, which for
@@ -160,6 +175,22 @@ function commands.rows(p, done)
   done({ ok = true, rows = topRows(p.query, tonumber(p.n)) })
 end
 
+-- Which Space is current, and which Space each of a browser's windows is on. Both accessibility
+-- readers can only ever see the current Space, while a browser's own dictionary answers about every
+-- window wherever it is. So a window on another Space reads as no window at all, which is the same
+-- reading a raise that never happened produces, and nothing else in this harness can tell the two
+-- apart.
+function commands.spaces(p, done)
+  local out = { ok = true, focused = hs.spaces.focusedSpace(), windows = {} }
+  local app = hs.application.get(p.bundleID or "")
+  if app then
+    for _, w in ipairs(app:allWindows()) do
+      out.windows[#out.windows + 1] = { id = w:id(), spaces = hs.spaces.windowSpaces(w) }
+    end
+  end
+  done(out)
+end
+
 function commands.showing(_, done)
   local ui = spoon.BrowserTabs and spoon.BrowserTabs.chooser
   done({ ok = true, showing = ui ~= nil and ui.isShowing() })
@@ -273,23 +304,65 @@ function commands.focused(_, done)
   } })
 end
 
---- M.start() - bind the command handler. Called by the spoon only when the marker is present.
-function M.start()
-  hs.urlevent.bind("bttest", function(_, params)
-    params = params or {}
-    local fn = commands[params.cmd or ""]
-    if not fn then
-      reply(params.reply, { ok = false, err = "unknown command " .. tostring(params.cmd) })
-      return
-    end
-    local ok, err = pcall(fn, params, function(value)
-      reply(params.reply, value)
-    end)
-    if not ok then
-      reply(params.reply, { ok = false, err = tostring(err) })
-    end
+--------------------------------------------------------------------------------
+-- The channel
+--------------------------------------------------------------------------------
+
+local function ensureChannel()
+  local acc = ""
+  for seg in CHANNEL:gmatch("[^/]+") do
+    acc = acc .. "/" .. seg
+    if not hs.fs.attributes(acc) then hs.fs.mkdir(acc) end
+  end
+end
+
+local function dispatch(params)
+  local fn = commands[params.cmd or ""]
+  if not fn then
+    reply(params.reply, { ok = false, err = "unknown command " .. tostring(params.cmd) })
+    return
+  end
+  local ok, err = pcall(fn, params, function(value)
+    reply(params.reply, value)
   end)
-  hs.printf("BrowserTabs test agent listening, loaded from %s", spoonPath)
+  if not ok then
+    reply(params.reply, { ok = false, err = tostring(err) })
+  end
+end
+
+-- Every request waiting in the channel, taken in one pass. The names are collected before any of
+-- them is removed, since removing entries from a directory while iterating it is not something to
+-- rely on. A request is removed before it is dispatched rather than after, so a command that throws
+-- cannot be picked up and run a second time on the next tick.
+--
+-- Only a fully renamed request is matched. The runner writes under a .part name first, so a name
+-- ending in .json is one that arrived whole.
+local function drain()
+  if not hs.fs.attributes(CHANNEL) then return end
+  local names = {}
+  for name in hs.fs.dir(CHANNEL) do
+    if name:match("^req%..*%.json$") then names[#names + 1] = name end
+  end
+  table.sort(names)
+  for _, name in ipairs(names) do
+    local path = CHANNEL .. "/" .. name
+    local f = io.open(path, "r")
+    local body = f and f:read("*a")
+    if f then f:close() end
+    os.remove(path)
+    local ok, params = pcall(hs.json.decode, body or "")
+    if ok and type(params) == "table" then dispatch(params) end
+  end
+end
+
+--- M.start() - begin reading the channel. Called by the spoon only when the marker is present.
+--- The timer is held on the module, since a Hammerspoon timer nothing refers to is collected and
+--- stops, which here would look like the agent having gone deaf halfway through a suite.
+function M.start()
+  ensureChannel()
+  M.reader = hs.timer.new(POLL, drain)
+  M.reader:start()
+  hs.printf("BrowserTabs test agent listening on %s, loaded from %s", CHANNEL, spoonPath)
   return M
 end
 
