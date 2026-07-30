@@ -42,6 +42,11 @@ while [ $# -gt 0 ]; do
   case $1 in
     --only) ONLY=$2; shift 2 ;;
     --reps) REPS_OVERRIDE=$2; shift 2 ;;
+    # One pass of everything, dropping the repeats and the two cases that spend most of their time
+    # waiting on animation or on a state this machine cannot reach anyway. Roughly a third of the
+    # full run. Use it while working on a change and the full one before merging, since the repeats
+    # exist for the cases that were genuinely flaky and one pass proves least about exactly those.
+    --quick) REPS_OVERRIDE=1; QUICK=1; shift ;;
     --list) LIST_ONLY=1; shift ;;
     *) printf 'unknown argument %s\n' "$1" >&2; exit 2 ;;
   esac
@@ -142,7 +147,21 @@ judge() {
     return 0
   fi
 
-  [ "$frontBundle" = "$bundle" ] || reasons+="the frontmost application was $frontBundle. "
+  # The frontmost application is read twice when the first read is wrong, because the two ways it
+  # can be wrong are not the same finding. A browser that never came forward is the tool failing.
+  # A browser that came forward and then lost the front a second later is something else on the
+  # machine taking it back, which was seen during the original investigation and never reproduced
+  # deliberately. Saying which happened is the whole point of looking twice.
+  if [ "$frontBundle" != "$bundle" ]; then
+    sleep 1
+    local later
+    later=$(jq -r '.front.bundleID // ""' <<<"$(bt_ax "$bundle")")
+    if [ "$later" = "$bundle" ]; then
+      reasons+="the browser reached the front late, $frontBundle held it for a moment first. "
+    else
+      reasons+="the frontmost application was $frontBundle. "
+    fi
+  fi
   [ "$gotURL" = "$wantURL" ] || reasons+="the selected tab is $gotURL. "
 
   if [ "$mode" = "full" ]; then
@@ -160,8 +179,28 @@ judge() {
 
 # Everything between arranging the browser and judging the result. The case supplies a target and
 # optionally a disturbance, and this drives the tool the way a person would.
+# Whether the screen is locked, asked of the window server. The accessibility layer cannot be asked
+# this, since it goes on answering questions about processes while returning no windows for any of
+# them, which is indistinguishable from the tool having put nothing in front.
+#
+# Counted rather than matched quietly, because a quiet grep stops reading as soon as it finds the
+# thing, the process feeding it dies of the broken pipe, and with pipefail the pipeline then reports
+# failure exactly when the answer was yes.
+screen_locked() {
+  [ "$(ioreg -n Root -d1 -a 2>/dev/null | grep -c CGSSessionScreenIsLocked)" -gt 0 ]
+}
+
 round() {
   local target=$1 disturb=$2
+
+  # Checked every round rather than once at the start. A run is long, the machine locks on its own
+  # timer, and synthesised events do not count as somebody being there. Two rounds of a full run
+  # were reported as the tool putting the wrong window in front when what had actually happened was
+  # that the screen locked underneath them.
+  if screen_locked; then
+    printf 'the screen locked during this run, so nothing could be measured'
+    return 1
+  fi
   local bundle windowID tabIndex url query mode hold
   bundle=$(jq -r '.bundleID' <<<"$target")
   windowID=$(jq -r '.windowID' <<<"$target")
@@ -334,19 +373,17 @@ run_case() {
 # Asked of the window server rather than of the accessibility layer, since the accessibility layer
 # is the thing that stops answering and cannot be trusted to report its own blindness. It goes on
 # answering questions about processes quite happily while returning no windows for any of them.
-#
-# Counted rather than matched with a quiet grep. A quiet grep stops reading as soon as it finds the
-# thing, the process feeding it is then killed by the broken pipe, and with pipefail set the whole
-# pipeline reports failure precisely when the answer was yes. The check said the screen was awake
-# because it was locked.
 say "checking the screen is awake"
-LOCKED=$(ioreg -n Root -d1 -a 2>/dev/null | grep -c "CGSSessionScreenIsLocked")
-if [ "${LOCKED:-0}" -gt 0 ]; then
+if screen_locked; then
   say "the screen is locked, so the accessibility layer can see nothing and no round could mean anything"
   exit 1
 fi
-caffeinate -d -i -w $$ &
-say "  awake, and the display is held awake until this finishes"
+
+# Idle sleep, display sleep, and a standing assertion that somebody is here, which is the one that
+# actually holds off the lock. Holding the display awake alone was not enough, since the lock runs
+# off the idle timer and synthesised keystrokes do not reset it.
+caffeinate -d -i -u -w $$ &
+say "  awake, and held awake until this finishes"
 
 say "checking the harness is live"
 if [ "$(hs_cmd ping | jq -r '.ok')" != "true" ]; then
@@ -370,6 +407,9 @@ trap 'bt_restore; rm -rf "$HS_REPLY_DIR"' EXIT
 say ""
 for entry in "${CASES[@]}"; do
   if [ -n "$ONLY" ] && [[ $entry != *$ONLY* ]]; then continue; fi
+  if [ -n "${QUICK:-}" ]; then
+    case $entry in fullscreen*|discarded*) continue ;; esac
+  fi
   BT_BROWSER=${entry##* }
   BT_BUNDLE=$(bt_bundle_for "$BT_BROWSER")
   # A case that brings its own check decides for itself what state it needs, and one of them exists

@@ -17,15 +17,21 @@ real chooser, a real query typed into it, and a real Return. Nothing on the path
 ## Running it
 
 ```bash
-Spoons/BrowserTabs.spoon/test/suite.sh              # everything
+Spoons/BrowserTabs.spoon/test/suite.sh              # everything, about seventy rounds
+Spoons/BrowserTabs.spoon/test/suite.sh --quick      # one pass of each, about a third as long
 Spoons/BrowserTabs.spoon/test/suite.sh --only drift # one group
 Spoons/BrowserTabs.spoon/test/suite.sh --list       # what there is
 ```
 
 `suite.sh` takes the machine-wide test lock so this checkout becomes the live Hammerspoon config,
 switches the harness on, runs the cases, and then puts the lock, the config, and the browsers back
-whether it passed, failed, or was interrupted. It steals focus continuously for about twenty
-minutes, so the machine is not usable while it runs.
+whether it passed, failed, or was interrupted. It steals focus continuously for the whole run, so the
+machine is not usable while it runs.
+
+Use `--quick` while working on a change. It runs one pass of every case and drops the two that
+spend their time waiting on animation, which is most of the length. Use the full run before merging,
+because the repeats exist for the cases that were genuinely flaky and one pass proves least about
+exactly those.
 
 `run.sh` is the same thing without the lock and the marker, for when Hammerspoon is already pointed
 here and the harness is already loaded, which is what you want while iterating on a single case.
@@ -96,11 +102,34 @@ The chooser keeps the previous listing on screen while a new one is in flight, w
 person and a trap here, since rows read just after opening do not contain what the case arranged.
 Rounds wait for the intended tab to actually reach the top rather than sleeping a guessed interval.
 
-And one that was not a false pass but was worse. A window is created by asking the browser to make
-one, and what that returns is a positional reference, so writing a URL through it too early
-navigates whichever window was in front. This suite did that to a real window and then closed it as
-one of its own. New windows are now found by which id is new, and the cleanup refuses to close any
-window that existed when the run started.
+A locked screen produces failures that look exactly like the fault this suite is for. The
+accessibility layer keeps answering questions about processes while returning no windows for any of
+them, so the browser's own answers stay correct and the outside witness reports nothing in front. A
+full run was lost to that once and two rounds of another were wrongly blamed on the tool. The screen
+is checked before every round now, and the machine is held awake with an assertion that somebody is
+present, because holding only the display awake was not enough. The lock runs off the idle timer and
+synthesised keystrokes do not reset it.
+
+## Two ways this suite destroyed somebody's work
+
+Both are fixed and both are worth stating plainly, because a harness that runs against a real
+browser full of a person's real tabs has to be held to a different standard than one that cannot
+lose anything.
+
+A window is created by asking the browser to make one, and what that returns is a positional
+reference. Writing a URL through it too early navigates whichever window happened to be in front
+instead, so a real window was sent to a fixture page and then cleaned up as one of the suite's own.
+New windows are now found by which id is new, every window the suite opens is written down at the
+moment it is created rather than recognised later by its contents, and the cleanup refuses to close
+any window that existed when the run started. Recognising by contents cannot work, since Safari
+opens a new window on the person's own homepage.
+
+A disturbance closed a tab by position, on the assumption the position still held the filler it had
+put there. The insert before it had failed without anybody checking, so the position held a real
+page, closing it emptied the window, and the browser closed the window with it. A guard that only
+refused to close windows was never going to catch that. Closing a tab now requires proof, the caller
+passes a fragment that must appear in the tab's address and the adapter refuses anything else, so
+the rule holds even when a caller is wrong.
 
 ## What is deliberately not covered
 

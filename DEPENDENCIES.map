@@ -82,4 +82,6 @@ osascript                | macos     | ships with macOS
 ps                       | macos     | ships with macOS
 kill                     | macos     | ships with macOS
 lsof                     | macos     | ships with macOS
+ioreg                    | macos     | ships with macOS
+open                     | macos     | ships with macOS
 hs                       | manual    | the Hammerspoon cask ships the CLI inside the app, run hs.ipc.cliInstall() once from the Hammerspoon console to symlink it onto the PATH

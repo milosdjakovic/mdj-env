@@ -161,10 +161,26 @@ function run(argv) {
     return { ok: true, id: id };
   };
 
+  // Closing a tab requires proof that it is one of ours. The caller passes a fragment that must
+  // appear in the tab's address, and a tab that does not carry it is left alone.
+  //
+  // This is here rather than in the caller because a caller got it wrong and it cost somebody a
+  // window. A disturbance closed a tab by position, on the assumption that the position still held
+  // what it had put there, and when the insert before it had quietly failed the position held a
+  // real page instead. Closing it emptied the window and the browser closed the window with it, so
+  // a guard that only refused to close windows was never going to be enough.
   ops.close = function () {
     const win = windowById(args[0]);
     if (!win) return { ok: false, err: "no such window" };
-    win.tabs[parseInt(args[1], 10) - 1].close();
+    const tab = win.tabs[parseInt(args[1], 10) - 1];
+    if (!tab) return { ok: false, err: "no such tab" };
+    const must = args[2] || "";
+    let url = "";
+    try { url = String(tab.url() || ""); } catch (e) {}
+    if (!must || url.indexOf(must) < 0) {
+      return { ok: false, err: "refusing to close a tab this suite did not open, " + url };
+    }
+    tab.close();
     return { ok: true };
   };
 

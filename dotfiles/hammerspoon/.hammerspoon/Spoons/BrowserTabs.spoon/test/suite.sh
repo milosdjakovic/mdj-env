@@ -37,16 +37,19 @@ finish() {
   exit $code
 }
 
+# The marker goes down before the lock is taken, since acquiring is what relaunches Hammerspoon and
+# the harness has to already be there for that load to pick it up. Doing it the other way round
+# meant a second relaunch for no reason.
+printf 'switching the harness on\n'
+touch "$MARKER"
+
+# Held until an explicit release rather than on the short timeout, because a full suite runs for
+# something like twenty minutes and a lock that expires underneath it would hand the machine's
+# config to somebody else mid round.
 printf 'taking the test lock, this makes this checkout the live Hammerspoon config\n'
-( cd "$REPO" && ./bin/hs-devlock acquire ) || { printf 'the lock is held elsewhere\n'; exit 1; }
+( cd "$REPO" && ./bin/hs-devlock acquire --manual ) || { printf 'the lock is held elsewhere\n'; exit 1; }
 trap finish EXIT INT TERM
 
-printf 'switching the harness on and reloading\n'
-touch "$MARKER"
-( cd "$REPO" && ./bin/hs-devlock acquire ) > /dev/null 2>&1
-osascript -e 'tell application "Hammerspoon" to quit' > /dev/null 2>&1
-sleep 2
-open -g -a Hammerspoon
 wait_for_agent || { printf 'the harness never came up\n'; exit 1; }
 
 "$TEST_DIR/run.sh" "$@"

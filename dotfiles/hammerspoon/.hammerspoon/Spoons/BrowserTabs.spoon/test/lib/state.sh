@@ -15,6 +15,21 @@
 # The marker every page this suite opens carries in its address.
 BT_MARK="bttest=1"
 
+# bt_open_window <bundle> <url> - open a window and remember that it was ours, answering with its id.
+#
+# Every window the suite opens has to go through here. Recognising one afterwards by its contents
+# does not work, because what a new window contains is not the suite's to decide. Safari opens one
+# on the person's own homepage, so a window this suite created is indistinguishable by its tabs from
+# one of theirs, and the marker test that cleans up tabs quietly left eight of these behind across a
+# few runs. An id written down at the moment of creation cannot be mistaken for anything else.
+bt_open_window() {
+  local b=$1 url=$2 id
+  id=$(bt "$b" openwin "$url" | jq -r '.id // ""')
+  [ -n "$id" ] || return 1
+  printf '%s\n' "$id" >> "$HS_REPLY_DIR/created.$b"
+  printf '%s' "$id"
+}
+
 BT_SNAP_DIR=""
 BT_SNAP_FRONT=""
 
@@ -45,24 +60,31 @@ bt_snapshot() {
 # is somebody's window and the cost of the guard is that a window the suite opened during a run that
 # died halfway lives until the next one.
 bt_drop_ours() {
-  local b=$1 list wid snap
+  local b=$1 list wid snap created
   list=$(bt "$b" list)
   snap=$BT_SNAP_DIR/$b.json
+  created=$HS_REPLY_DIR/created.$b
 
-  for wid in $(jq -r --arg m "$BT_MARK" '.windows[] | select((.tabs | length) > 0) | select(([.tabs[] | select((.url // "") | contains($m))] | length) == (.tabs | length)) | .id' <<<"$list"); do
+  # Windows this suite opened, by the ids it wrote down, plus any window left holding nothing but
+  # our own pages. The written down ids are the reliable half and the tab test only catches what
+  # slipped past them.
+  for wid in $( { [ -f "$created" ] && cat "$created"
+                  jq -r --arg m "$BT_MARK" '.windows[] | select((.tabs | length) > 0) | select(([.tabs[] | select((.url // "") | contains($m))] | length) == (.tabs | length)) | .id' <<<"$list"
+                } | sort -u ); do
     if [ -f "$snap" ] && [ "$(jq -r --arg w "$wid" '[.windows[] | select(.id == $w)] | length' "$snap")" != "0" ]; then
       say "  leaving window $wid alone, it was open before this run started"
       continue
     fi
     bt "$b" closewin "$wid" > /dev/null
   done
+  [ -f "$created" ] && : > "$created"
 
   # Re-read, since closing windows moved everything, and take the tabs highest index first so
   # closing one cannot shift the next one out from under us.
   list=$(bt "$b" list)
   local pair
   for pair in $(jq -r --arg m "$BT_MARK" '.windows[] as $w | $w.tabs[] | select((.url // "") | contains($m)) | "\($w.id):\(.index)"' <<<"$list" | sort -t: -k2 -rn); do
-    bt "$b" close "${pair%%:*}" "${pair##*:}" > /dev/null
+    bt "$b" close "${pair%%:*}" "${pair##*:}" "$BT_MARK" > /dev/null
   done
 }
 

@@ -421,7 +421,7 @@ BT_DISCARD_REASON=""
 bt_force_discard() {
   local bundle=$1 win pressed blocked
   BT_DISCARD_REASON="Chrome would not discard the tab"
-  win=$(bt "$bundle" openwin "chrome://discards/" | jq -r '.id // ""')
+  win=$(bt_open_window "$bundle" "chrome://discards/")
   [ -n "$win" ] || { BT_DISCARD_REASON="a window for the discard page could not be opened"; return 1; }
   sleep 2
   osascript -e "tell application id \"$bundle\" to activate" > /dev/null 2>&1
@@ -534,8 +534,22 @@ case_drift_tab_closed_arrange() {
   bt_target "$BT_BUNDLE" "$win" "$idx" "$url" "$name"
 }
 
+# The tab to close is looked up by the marker rather than assumed to still be at the position the
+# arrange put it. It was assumed once, the insert that was meant to put it there had failed without
+# anybody checking, and the position held a real page of the person's instead. Closing it emptied
+# the window and the browser closed the window with it.
 case_drift_tab_closed_disturb() {
-  bt "$BT_BUNDLE" close "$(bt_target_field windowID)" 1
+  local win want idx
+  win=$(bt_target_field windowID)
+  want=$(bt_target_field url)
+  # Ours, in the target's window, before the target, and not the target itself. Closing it is what
+  # moves every position after it, which is the whole point of the case.
+  idx=$(bt "$BT_BUNDLE" list | jq -r --arg w "$win" --arg m "$BT_MARK" --arg u "$want" \
+    '.windows[] | select(.id == $w) | . as $win
+     | ([$win.tabs[] | select(.url == $u) | .index] | first) as $t
+     | $win.tabs[] | select((.url // "") | contains($m)) | select(.url != $u)
+     | select($t == null or .index < $t) | .index' | head -1)
+  [ -n "$idx" ] && bt "$BT_BUNDLE" close "$win" "$idx" "$BT_MARK"
   sleep 0.8
 }
 
@@ -586,7 +600,7 @@ case_drift_tab_moved_disturb() {
 case_drift_window_closed_arrange() {
   local name win row idx url
   name=$(bt_uniq)
-  win=$(bt "$BT_BUNDLE" openwin "$(bt_fx page.html "$name")" | jq -r '.id // ""')
+  win=$(bt_open_window "$BT_BUNDLE" "$(bt_fx page.html "$name")")
   [ -n "$win" ] || { bt_skip "a window could not be opened for this case"; return; }
   sleep 1.5
   row=$(bt "$BT_BUNDLE" list | jq -r --arg w "$win" --arg n "$name" \
