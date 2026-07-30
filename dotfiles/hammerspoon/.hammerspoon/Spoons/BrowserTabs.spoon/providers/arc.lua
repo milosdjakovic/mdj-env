@@ -25,6 +25,7 @@ local function loadShared(name)
 end
 
 local jxa = loadShared("jxa.lua")
+local apps = loadShared("apps.lua")
 
 local BUNDLE_ID = "company.thebrowser.Browser"
 
@@ -54,26 +55,42 @@ function run(argv) {
 }
 ]==]
 
--- Select a tab and raise its window. The tab is told to select itself, Arc's own command,
--- and the window is found by id since indexes shift as windows are reordered. Raising the
--- application is the caller's job.
+-- Select a tab and bring its window forward. The tab is told to select itself, Arc's own command.
+-- The window is addressed by id through the shared `windowById`, never by its position, for the
+-- reason recorded in jxa.lua. Raising the application is the caller's job.
+--
+-- A minimized window is restored, since raising the application leaves it in the Dock and the
+-- whole thing then looks like it did nothing at all. Arc keeps the Chromium spelling, `minimized`,
+-- and declares its window id under the same code the other two do, both read from its own sdef
+-- rather than guessed at, which is as far as this can be taken without Arc running.
 local ACTIVATE = [==[
 function run(argv) {
   const app = Application(argv[0]);
   if (!app.running()) return JSON.stringify({ ok: false });
-  const wid = argv[1], idx = parseInt(argv[2], 10);
-  const wins = app.windows, n = wins.length;
-  for (let w = 0; w < n; w++) {
-    const win = wins[w];
-    let id = null;
-    try { id = String(win.id()); } catch (e) { continue; }
-    if (id === wid) {
-      try { win.tabs[idx - 1].select(); } catch (e) { return JSON.stringify({ ok: false }); }
-      try { win.index = 1; } catch (e) {}
-      return JSON.stringify({ ok: true });
+  let idx = parseInt(argv[2], 10);
+  const win = windowById(app, argv[1]);
+  if (!win) return JSON.stringify({ ok: false });
+  // The tab numbers move whenever a tab is opened or closed after the list was built, so the
+  // position is checked against the URL and only trusted when the two still agree. The position
+  // wins when they do, since a window often holds the same address more than once.
+  try {
+    const urls = win.tabs.url();
+    const want = argv[3] || "";
+    if (want && urls[idx - 1] !== want) {
+      const found = urls.indexOf(want);
+      if (found >= 0) idx = found + 1;
     }
-  }
-  return JSON.stringify({ ok: false });
+  } catch (e) {}
+  try { win.tabs[idx - 1].select(); } catch (e) { return JSON.stringify({ ok: false }); }
+  try { if (win.minimized()) win.minimized = false; } catch (e) {}
+  try { win.index = 1; } catch (e) {}
+  const r = { ok: true };
+  // The window's own name, which the caller needs to find this window at the accessibility layer.
+  // Arc names a window after its space rather than after the selected tab, so this one is expected
+  // to be the weakest of the three, and it is still better than the tab title, which for Arc names
+  // nothing the window ever shows.
+  try { r.name = win.name(); } catch (e) {}
+  return JSON.stringify(r);
 }
 ]==]
 
@@ -85,7 +102,7 @@ function P.available()
 end
 
 function P.running()
-  return #hs.application.applicationsForBundleID(BUNDLE_ID) > 0
+  return apps.isRunning(BUNDLE_ID)
 end
 
 function P.listTabs(cb)
@@ -101,9 +118,10 @@ function P.activeTab(cb)
 end
 
 function P.activate(tab, cb)
-  jxa.run(ACTIVATE, { BUNDLE_ID, tostring(tab.windowID), tostring(tab.tabIndex) }, function(data, err)
+  local argv = { BUNDLE_ID, tostring(tab.windowID), tostring(tab.tabIndex), tostring(tab.url or "") }
+  jxa.run(ACTIVATE, argv, function(data, err)
     if err then cb(false, err) return end
-    cb(type(data) == "table" and data.ok == true, nil)
+    cb(type(data) == "table" and data.ok == true, nil, type(data) == "table" and data or nil)
   end)
 end
 

@@ -18,8 +18,43 @@
 --- of it the interpreter launch, and hs.osascript blocks the main thread for all of it.
 --- Through hs.task the providers run concurrently and the whole fan out costs about as
 --- long as the slowest single browser.
+---
+--- Every script this runs is given the shared prelude below, so a provider writes only its own
+--- browser's language and inherits the one piece of addressing all three need to get right.
 
 local M = {}
+
+-- The shared JXA prelude, prepended to every script. `windowById` is here rather than in each
+-- provider because all three need it and getting it wrong is silent.
+--
+-- A window reached as `app.windows[i]` is a specifier bound to the slot and not to the window.
+-- Two of the three things an activation does reorder that list, setting `index` and restoring a
+-- minimized window, which comes back to the front of the order on its own. So after either one,
+-- the same variable addresses whatever slid into the slot, and further reads and writes land on
+-- another window with no error anywhere. Measured on Chrome and on Safari, where a specifier
+-- taken at position two reported a different window's id a moment later. Addressing by id is
+-- immune, because the id is resolved afresh on each access. All three dictionaries declare the
+-- window id under the same code, so `byId` works everywhere, and the resolution is checked
+-- rather than trusted. An id is a number in some dictionaries and text in others, hence both
+-- attempts. Nothing is returned when the window is genuinely gone, which a caller reports as a
+-- failure rather than papering over.
+M.prelude = [==[
+function windowById(app, wid) {
+  const want = String(wid);
+  const asNumber = Number(want);
+  if (!isNaN(asNumber)) {
+    try {
+      const w = app.windows.byId(asNumber);
+      if (String(w.id()) === want) return w;
+    } catch (e) {}
+  }
+  try {
+    const w = app.windows.byId(want);
+    if (String(w.id()) === want) return w;
+  } catch (e) {}
+  return null;
+}
+]==]
 
 --- The one failure worth naming. macOS refuses an Apple Event to an app the calling
 --- application has no Automation permission for, reporting errAEEventNotPermitted. The
@@ -54,9 +89,10 @@ end
 --- call cb(value, err) on the main thread. The source is expected to define run(argv) and
 --- return a JSON string, which is decoded before the callback, so a provider deals in Lua
 --- tables and never in text. A non zero exit, an unparseable body, or a spawn failure all
---- arrive as err with value nil, so a caller has one thing to check.
+--- arrive as err with value nil, so a caller has one thing to check. The prelude is prepended
+--- here rather than by each caller, so a provider cannot forget it.
 function M.run(source, args, cb)
-  local argv = { "-l", "JavaScript", "-e", source }
+  local argv = { "-l", "JavaScript", "-e", M.prelude .. "\n" .. source }
   for _, a in ipairs(args or {}) do argv[#argv + 1] = a end
 
   local task
