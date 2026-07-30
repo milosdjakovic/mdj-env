@@ -206,6 +206,32 @@ from seeing keys, so the leader that opens this list never fires and nothing rea
 the pressed letter going into the field instead. Neither is a defect here and neither has a fix
 here.
 
+## The suite that guards all of this, and why it can only be an integration one
+
+Everything above was found by hand and would have been lost the same way, so `test/` now holds a
+harness that drives the real thing. Its own README carries the detail, but the reasoning behind its
+shape belongs here, beside the faults it exists for.
+
+None of the four faults could have been caught by a test with a fake browser in it. Every one lived
+in Apple Events, in the accessibility layer, or in real browser state, so a suite built on fakes
+would have passed cleanly through the whole period this tool was broken, which is worse than having
+none for being reassuring. That is the entire argument for the cost, and the cost is real. It takes
+the machine-wide test lock, it steals focus for about twenty minutes, and it cannot run anywhere but
+on a machine with these browsers open.
+
+A round is judged by two witnesses that share no implementation, because this tool writes to two
+layers and reads back through only one of them, so it agreeing with itself proves nothing. The
+browser's own dictionary says which window is in front and which tab it shows, and System Events,
+from outside this process, says the same about the accessibility layer. They are tied together by
+the window frame rather than by the title, since a frame is a number belonging to one window while a
+title is decorated differently by each browser and changes under you as a page loads. Where two
+windows share a frame, which happens constantly, the title breaks the tie.
+
+A state that cannot be created reports itself as not covered rather than passing, and the summary
+keeps that apart from what passed. A pinned Chrome tab, a Safari tab group, and a discarded tab are
+all in that category some of the time, and a suite that quietly counted them as passes would be
+claiming coverage it never had.
+
 ## Permission is readable without asking, which is the whole reason for the Swift helper
 
 macOS gates Apple Events per pair of applications, so scripting a browser needs an Automation
