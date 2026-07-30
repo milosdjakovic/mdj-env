@@ -66,6 +66,8 @@ local available = false -- whether the provider's CLI was found at start
 local cache = {}      -- the last fetched location list, filtered by the supplier
 local current = { state = "unavailable" } -- status snapshot, refreshed on open and change
 local target = nil    -- the selected relay to connect to, { countryCode, cityCode }
+local fetching = false -- a location fetch is in flight, so a second ask does not start one
+local pending = {}    -- callbacks waiting on that fetch, so none of them is dropped
 
 --------------------------------------------------------------------------------
 -- Location recency (command policy)
@@ -299,17 +301,58 @@ end
 --- resolves the selected relay's codes to its human label in the title.
 function M.show()
   if not chooser then return end
-  -- When the provider is unavailable the engine was never started, so skip the live
-  -- reads and just open the chooser on its single install row.
-  if available then
-    current = engine.status()
-    target = engine.selectedLocation()
-    engine.listLocations(function(list)
-      cache = orderByRecency(list or {})
-      if chooser then chooser:refresh() end
-    end)
-  end
+  -- The reads and the fetch are prepare's job, so both paths into these rows share one fetch
+  -- and one in flight guard. When the provider is unavailable prepare calls straight back and
+  -- the chooser opens on its single install row.
+  M.prepare(function()
+    if chooser then chooser:refresh() end
+  end)
   chooser:show()
+end
+
+--- M.rows(query) -> list. The merged control and location rows, the same data this spoon's
+--- own chooser is built from, exposed so another surface can present them instead. Handing out
+--- the data rather than a second copy is what keeps the two from disagreeing, and it says
+--- nothing about where the rows are shown.
+M.rows = rows
+
+--- M.select(item) - apply one of those rows, taking the descriptor its own rows produced.
+M.select = onSelect
+
+--- M.ready() -> boolean. Whether any locations have landed. They arrive from a process, so a
+--- surface presenting these rows needs to tell no locations yet from no locations at all.
+function M.ready()
+  return #cache > 0
+end
+
+--- M.prepare(onReady) - make the rows current without opening anything, reading the live state
+--- and fetching the locations, then calling back once they land. This is what show does either
+--- side of revealing its own chooser, factored out so a surface that is already open gets the
+--- same fresh data and redraws itself. A fetch already in flight is not started again, since
+--- the first one's callback redraws anyway, which is what keeps a keystroke from spawning a
+--- process. Unavailable calls back at once, so a caller never waits on a fetch that cannot
+--- happen and the single self explaining row is what gets shown.
+---
+--- Every caller waiting on the same fetch is called back, rather than the second one being
+--- dropped along with the fetch it did not need to start. Dropping it would mean a surface
+--- opening while another one's fetch was in flight never learned the list had landed.
+function M.prepare(onReady)
+  if not available then
+    if onReady then onReady() end
+    return
+  end
+  current = engine.status()
+  target = engine.selectedLocation()
+  if onReady then pending[#pending + 1] = onReady end
+  if fetching then return end
+  fetching = true
+  engine.listLocations(function(list)
+    fetching = false
+    cache = orderByRecency(list or {})
+    local waiting = pending
+    pending = {}
+    for _, cb in ipairs(waiting) do cb() end
+  end)
 end
 
 function M.isShowing()

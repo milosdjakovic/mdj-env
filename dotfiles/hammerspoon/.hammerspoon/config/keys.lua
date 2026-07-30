@@ -123,12 +123,17 @@ return {
   -- Keep awake (for Caffeinate.spoon). Same shape as appToggles. Hyper+K
   -- opens the keep awake panel, a typed field, not a list. It is a base binding,
   -- suppressed while a modal context owns Hyper.
-  caffeinate = { modifiers = HYPER, key = "K", description = "Keep awake" },
+  -- `aliases` are the words that scope the launcher to this tool, so typing one of them and
+  -- a space turns the launcher list into this picker and deleting the space returns. They
+  -- live here, beside the key, because the row that advertises them and the resolver that
+  -- answers them both read this one entry, the same reason the key itself is data rather
+  -- than something each surface knows. An entry with no aliases is simply not scopable.
+  caffeinate = { modifiers = HYPER, key = "K", description = "Keep awake", aliases = { "k", "awake" } },
 
   -- VPN controls (for Vpn.spoon). Same shape again. Hyper+P opens the VPN control
   -- panel, a short list of actions with the live connection state at the top. It is
   -- a base binding, suppressed while a modal context owns Hyper.
-  vpn = { modifiers = HYPER, key = "P", description = "VPN" },
+  vpn = { modifiers = HYPER, key = "P", description = "VPN", aliases = { "v", "vpn" } },
 
   -- Colour picker (for Eyedropper.spoon). Hyper+2 turns the pointer into a screen
   -- eyedropper with a magnifier loupe, a click copies the pixel hex. It is not a
@@ -464,7 +469,9 @@ return {
   -- It also has its own hyperContext above, so while open it takes the shared
   -- j/k/i navigation and Space closes it. There is no HYPER fallback combo, since
   -- it has no meaning without HyperKey wired up (the menu tree is fetched live).
-  menuSearch = { modifiers = HYPER, key = "e", description = "Menu search" },
+  -- Menu search is a discovery opener, so it is the one scopable tool with no launcher row
+  -- of its own, which leaves its aliases advertised nowhere until the alias editor exists.
+  menuSearch = { modifiers = HYPER, key = "e", description = "Menu search", aliases = { "m", "menu" } },
 
   -- Emoji picker (for Emoji.spoon, wired in init.lua). Hyper+J opens a filterable
   -- list of every emoji, matched by name, shortcode, tag, or category, so a keyword
@@ -473,7 +480,7 @@ return {
   -- field as the fallback combo. It has its own hyperContext above, so while open it
   -- takes the shared j and k navigation and i inserts, and x closes it the way menu
   -- search does, since the open key j is itself the move down key inside.
-  emoji = { modifiers = HYPER, key = "j", description = "Emoji picker" },
+  emoji = { modifiers = HYPER, key = "j", description = "Emoji picker", aliases = { "e", "emoji" } },
 
   -- External menu search combo. When Hyper+E is set to hand off (see init.lua) it
   -- fires this combo, and whatever tool you bind the SAME combo to anywhere opens.
@@ -494,6 +501,11 @@ return {
   -- reads the selection, lists every case with the selection previewed in each, and pastes
   -- the chosen one over the selection. It has its own hyperContext above, so while open it
   -- takes the shared j/k/i navigation and x closes it. `description` labels its launcher row.
+  --
+  -- Deliberately not scopable. A scope cannot read the selection, since that needs the keyboard
+  -- in the app the launcher is covering, so a scoped version could list the cases but never
+  -- preview your own text in them. The preview is most of what makes the picker worth opening,
+  -- so the alias was tried and removed rather than kept as a lesser copy of the tool.
   textCase = { description = "Text Case" },
 
   -- Browser tabs (for BrowserTabs.spoon, wired in init.lua). Hyper+W lists every open tab
@@ -503,7 +515,10 @@ return {
   -- context owns Hyper, with the HYPER field as the fallback combo. It has its own
   -- hyperContext above, so while open it takes the shared j, k, i, and x navigation. W reads
   -- as web, since B is already the Books toggle and T the Stickies one.
-  browserTabs = { modifiers = HYPER, key = "W", description = "Browser tabs" },
+  --
+  -- Scoped, it lists the tabs alone. The settings row is a step into a second level, which a
+  -- scope has no way to show, so reaching the browser switches means opening the tool itself.
+  browserTabs = { modifiers = HYPER, key = "W", description = "Browser tabs", aliases = { "t", "tabs" } },
 
   -- File search (for FileSearch.spoon, wired in init.lua). Hyper+/ searches the filesystem by
   -- name, optionally filtered by type, scoped to a folder, and optionally reaching the files
@@ -529,6 +544,16 @@ return {
   -- calling the row Processes promised a system monitor it deliberately is not. The
   -- spoon keeps its own name, since that one is an internal identifier and nobody reads it.
   processes = { description = "Local Servers" },
+
+  -- The scopes over the launcher's own catalog rather than over a tool. Each narrows the list to
+  -- one kind of row the launcher already holds, so they open nothing and have no key and no
+  -- chooser. They exist here only because this is where an alias lives, and their description
+  -- names what the scoped list is rather than a tool. Each is a group of rows rather than one
+  -- row, so like menu search they have nowhere to advertise their aliases until the alias
+  -- editor exists.
+  apps = { description = "Applications", aliases = { "a", "app" } },
+  windowActions = { description = "Window actions", aliases = { "w", "window" } },
+  settingsPanes = { description = "System Settings", aliases = { "s", "system" } },
 
   -- Feature toggles
   toggleDock = { modifiers = CTRL_ALT, key = "D" },

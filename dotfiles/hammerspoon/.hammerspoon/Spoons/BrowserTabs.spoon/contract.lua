@@ -38,8 +38,13 @@
 ---                      whose browser cannot answer implements it and calls cb(nil),
 ---                      which costs that browser live recency and nothing else.
 ---   activate(tab, cb)  bring that tab to the front, selecting it in its window and
----                      raising the window, then cb(ok, err). Raising the application
----                      itself is the caller's job, so this stays about the tab.
+---                      raising the window, then cb(ok, err, info). Raising the
+---                      application itself is the caller's job, so this stays about the
+---                      tab. info carries what only the browser could tell the caller,
+---                      currently info.name, the window's own name read after the tab
+---                      switch. The caller needs it to find the same window at the
+---                      accessibility layer, where a browser's window id may mean
+---                      nothing, and only the provider can read it.
 
 local M = {}
 

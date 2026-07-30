@@ -274,6 +274,26 @@ function obj:_rows(query)
   return out
 end
 
+--- Emoji.hammerspoon:rows(query) -> rows
+--- Method
+--- The rows for a query, for a surface other than our own chooser to present. Public because
+--- this backend's list is worth showing elsewhere, unlike a system picker's, which is why the
+--- facade asks whether its chosen backend answers this at all.
+function obj:rows(query)
+  return self:_rows(query)
+end
+
+--- Emoji.hammerspoon:insert(glyph)
+--- Method
+--- The effect of choosing a glyph, remembering the pick and inserting it. Paired with rows so
+--- another surface can list and pick without knowing what a pick costs, and used by our own
+--- chooser too, so both routes remember a pick identically.
+function obj:insert(glyph)
+  if not glyph then return end
+  self:_promote(glyph)
+  self._onInsert(glyph)
+end
+
 --- Emoji.hammerspoon:configure(opts)
 --- Method
 --- Wire the injected collaborators and build the chooser. opts carries the Chooser
@@ -310,7 +330,7 @@ function obj:configure(opts)
     matcher = false,
     rows = function(query) return self:_rows(query) end,
     onSelect = function(glyph)
-      if glyph then self:_promote(glyph); self._onInsert(glyph) end
+      self:insert(glyph)
     end,
     onPositioned = sp.onPositioned,
     onActivity = sp.onActivity,

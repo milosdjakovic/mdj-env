@@ -86,7 +86,10 @@ local function recencyKey(item)
   -- produced it, so it has no identity to remember and returning nil keeps it out of the
   -- timeline entirely. Without this every result would share one key and float to the top
   -- of an empty launcher, which is the last thing a fresh open should show.
-  if item.kind == "calc" then return nil end
+  -- A scoped row is the same case for the same reason. It belongs to the tool the query
+  -- named and exists only for that query, so remembering it would float a stale answer to
+  -- the top of the next fresh open.
+  if item.kind == "calc" or item.kind == "scope" then return nil end
   if item.kind == "app" then return "app:" .. tostring(item.bundleID) end
   if item.kind == "settingsPane" then return "settingsPane:" .. tostring(item.url) end
   return item.kind .. ":" .. tostring(item.name)
@@ -217,6 +220,19 @@ function obj:_chordLabel(leader, key, mods)
   return leader .. " " .. self._glyphFor(key, mods)
 end
 
+--- Launcher:_aliasHint(binding)
+--- Method
+--- A binding's scope aliases as a subtitle fragment, so the row that opens a tool also
+--- states the words that hand this list to it. It reads the same pure data the scopes are
+--- built from, so the hint and the behaviour cannot drift, which is the same reason the
+--- chord label is derived rather than written. Empty for a tool with no aliases, so a row
+--- gains nothing until its aliases exist.
+function obj:_aliasHint(binding)
+  local aliases = binding and binding.aliases
+  if type(aliases) ~= "table" or #aliases == 0 then return "" end
+  return " · type " .. table.concat(aliases, " or ") .. " then space"
+end
+
 -- camelCase action name -> "Title Case" label, applied when a binding sets no
 -- explicit description.
 local function humanize(name)
@@ -243,13 +259,13 @@ function obj:_buildActionRows()
   -- capture and the system actions get a per-action one.
   local captureGlyphs = { ocrArea = "🔤", captureArea = "📸", captureAreaClipboard = "📸", recordArea = "🎥" }
   add(keys.colorPicker.description, "Tools · " .. self:_chordLabel("Hyper", keys.colorPicker.key), { kind = "special", name = "colorPicker" }, "🎨")
-  add(keys.emoji.description, "Tools · " .. self:_chordLabel("Hyper", keys.emoji.key), { kind = "special", name = "emoji" }, "😀")
+  add(keys.emoji.description, "Tools · " .. self:_chordLabel("Hyper", keys.emoji.key) .. self:_aliasHint(keys.emoji), { kind = "special", name = "emoji" }, "😀")
   for _, c in ipairs(keys.capture) do
     add(c.description or humanize(c.action), "Capture · " .. self:_chordLabel("Hyper", c.key, c.mods),
       { kind = "capture", name = c.action }, captureGlyphs[c.action] or "📸")
   end
-  add(keys.caffeinate.description, "System · " .. self:_chordLabel("Hyper", keys.caffeinate.key), { kind = "special", name = "caffeinate" }, "☕")
-  add(keys.vpn.description, "Network · " .. self:_chordLabel("Hyper", keys.vpn.key), { kind = "special", name = "vpn" }, "🌐")
+  add(keys.caffeinate.description, "System · " .. self:_chordLabel("Hyper", keys.caffeinate.key) .. self:_aliasHint(keys.caffeinate), { kind = "special", name = "caffeinate" }, "☕")
+  add(keys.vpn.description, "Network · " .. self:_chordLabel("Hyper", keys.vpn.key) .. self:_aliasHint(keys.vpn), { kind = "special", name = "vpn" }, "🌐")
   add(keys.clipboardHistory.description, "Clipboard · " .. self:_chordLabel("Hyper", keys.clipboardHistory.key), { kind = "special", name = "clipboard" }, "📋")
   -- The two clipboard actions that are global combos rather than Hyper bindings, so their
   -- subtitle carries the whole chord and names no leader. They are listed here because a
@@ -263,7 +279,7 @@ function obj:_buildActionRows()
       { kind = "special", name = "pasteNext" }, "⏩", nil, "paste next sequential walk history")
   end
   if keys.browserTabs then
-    add(keys.browserTabs.description, "Tools · " .. self:_chordLabel("Hyper", keys.browserTabs.key), { kind = "special", name = "browserTabs" }, "📑")
+    add(keys.browserTabs.description, "Tools · " .. self:_chordLabel("Hyper", keys.browserTabs.key) .. self:_aliasHint(keys.browserTabs), { kind = "special", name = "browserTabs" }, "📑")
   end
   -- Display profiles has no dedicated chord, it opens from here only, so its subtitle names
   -- what it does rather than a shortcut. The two display commands sit under a Displays
@@ -471,14 +487,22 @@ end
 --- cache rather than one per source. A source is fully trusted for its own rows but not
 --- for the launcher's stability, so a source that raises is dropped for that keystroke
 --- with a log line rather than emptying the whole list.
+---
+--- A source may also claim the query, returning true as a second value, which means these
+--- rows are the whole list and the launcher's own catalog is not shown at all. That is how a
+--- typed word can hand the list to one tool. A claim discards whatever earlier sources
+--- contributed and stops the loop, so a claimed query means exactly one thing however the
+--- root ordered the sources. The launcher learns nothing beyond the claim itself, neither
+--- what made the source claim it nor what the rows now belong to.
 function obj:_queryRows(query)
-  if not query or query == "" then return {} end
+  if not query or query == "" then return {}, false end
   local out = {}
   for _, provider in ipairs(self._queryProviders) do
-    local ok, rows = pcall(function() return provider:rows(query) end)
+    local ok, rows, exclusive = pcall(function() return provider:rows(query) end)
     if not ok then
       hs.printf("Launcher: a query source failed, %s", tostring(rows))
     else
+      if exclusive then out = {} end
       for _, r in ipairs(rows or {}) do
         out[#out + 1] = {
           title = r.title,
@@ -489,9 +513,10 @@ function obj:_queryRows(query)
           filterText = r.filterText or query,
         }
       end
+      if exclusive then return out, true end
     end
   end
-  return out
+  return out, false
 end
 
 --- Launcher:_commandRows(query)
@@ -508,7 +533,10 @@ end
 --- was typed rather than against the answer it produced, which is what keeps a result at
 --- the top of the list instead of being dropped for not resembling its own expression.
 function obj:_commandRows(query)
-  local out = self:_queryRows(query)
+  local out, exclusive = self:_queryRows(query)
+  -- A source claimed the query, so its rows are the entire list and the catalog below is
+  -- skipped. This one line is the whole of what the launcher knows about being scoped.
+  if exclusive then return out end
   local preds = self._predicates
   for _, row in ipairs(self:_orderedRows()) do
     if not (row.when and not (preds[row.when] and preds[row.when]())) then
@@ -519,6 +547,38 @@ function obj:_commandRows(query)
     end
   end
   return out
+end
+
+--- Launcher:rowsOfKind(kind) -> rows
+--- Method
+--- The launcher's own rows of one kind, filtered by the shared predicates exactly as the full
+--- list is, in the same recency order. Exposed for a scope that narrows this catalog rather
+--- than reaching a tool, which is what the window and settings scopes are. Reusing the built
+--- rows rather than rebuilding them in the composition root keeps one row builder, so a
+--- narrowed list can never show a row the whole list does not, or vice versa.
+function obj:rowsOfKind(kind)
+  local preds = self._predicates
+  local out = {}
+  for _, row in ipairs(self:_orderedRows()) do
+    local it = row.item
+    if it and it.kind == kind
+      and not (row.when and not (preds[row.when] and preds[row.when]())) then
+      local filterText = row.title .. " " .. row.subTitle
+      if row.keywords then filterText = filterText .. " " .. row.keywords end
+      out[#out + 1] = { title = row.title, subTitle = row.subTitle, image = row.image,
+                        item = it, filterText = filterText }
+    end
+  end
+  return out
+end
+
+--- Launcher:runItem(item)
+--- Method
+--- Run one of this launcher's own row descriptors. The public door onto the dispatcher, for a
+--- scope handing back a row that came from rowsOfKind, so such a scope needs no dispatch of
+--- its own and the leaf calls stay in the one place that knows them.
+function obj:runItem(item)
+  self:_runItem(item)
 end
 
 --- Launcher:refresh()
@@ -557,6 +617,12 @@ function obj:_runItem(it)
     -- does not learn what a clipboard is, exactly as it does not learn what an app or a
     -- capture is. A pending row carries no value and is disabled, so it never arrives.
     if it.value and a.copy then a.copy(it.value) end
+  elseif it.kind == "scope" then
+    -- A row that came from a source claiming the query. It carries the name of whatever
+    -- made it plus that thing's own descriptor, and an injected action hands both back, so
+    -- the launcher routes the row without learning which tool it belongs to or what the
+    -- payload inside it means, exactly as it does for a computed result.
+    if a.scope then a.scope(it) end
   end
 end
 
@@ -603,9 +669,23 @@ end
 
 --- Launcher:show()
 --- Method
---- Open the launcher.
+--- Open the launcher. The app that was frontmost is captured first, before the chooser takes
+--- focus, along with a counter marking this open. Both are the launcher's own business, since
+--- it covers an app and its deferred dispatch already depends on focus going back there, and
+--- a source that acts on that app cannot read it for itself once the chooser is up, where the
+--- frontmost app is this one. The counter is what lets such a source cache per open, since a
+--- second open of the same app is still a fresh read.
 function obj:show()
+  self._openId = (self._openId or 0) + 1
+  self._coveredApp = hs.application.frontmostApplication()
   if self._instance then self._instance:show() end
+end
+
+--- Launcher:coveredApp() -> hs.application, number
+--- Method
+--- The app the launcher opened over and the id of this open. Nil before the first open.
+function obj:coveredApp()
+  return self._coveredApp, self._openId
 end
 
 --- Launcher:isShowing()

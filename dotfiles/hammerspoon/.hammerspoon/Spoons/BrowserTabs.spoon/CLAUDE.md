@@ -95,6 +95,117 @@ when it is opened through this tool, never from switching tabs inside Arc by han
 implements `activeTab` and answers nothing, rather than omitting the method, so the contract
 stays uniform and the one browser that cannot answer says so in exactly one place.
 
+## Opening a tab is three separate acts, and one of them was missing
+
+Choosing a row looks like one action and is really three, select the tab, make its window a real
+window again, and put the browser in front. Only the first was ever in doubt and it turned out to
+be the reliable one. Setting the tab works with the browser in the background, the choice survives
+the browser coming to the front afterwards, and Safari and the Chromium family behave the same, so
+a chosen tab that never appears is never about the tab.
+
+The missing act was the minimized window, and it is the one that reads as the tool doing nothing at
+all. Raising an application does not restore a window from the Dock, verified, the browser becomes
+frontmost while the window stays down, so the tab is selected in a window nobody can see and the
+honest description is that a keystroke did nothing. Choosing the same row again does nothing twice.
+So each provider restores its own window before selecting the tab, and that sits in the providers
+rather than in the engine only because the dictionaries disagree on the name, `minimized` in the
+Chromium family and in Arc, `miniaturized` in Safari, which is the Standard Suite spelling. Arc's
+was read out of its own sdef rather than assumed from its Chromium heritage, since an sdef can be
+read without launching the browser and a wrong guess here would fail silently inside a `try`.
+
+The order of the restore against the window reorder inside the provider is not something to
+theorise about. It was written one way, then written the other way after a measurement that turned
+out to have been taken through a drifting specifier and so was reading a different window than it
+believed. Measured again with the window addressed by its id, both orderings end with the window
+restored, at index one, and frontmost, on both browsers. So neither is better and no rule about it
+belongs here.
+
+The order of the two outer acts is measured rather than chosen. Raising the browser before the
+provider answers looks like the obvious way to save a tenth of a second, and it loses the front
+every time, because a chooser hands focus back to the application it was opened over when it hides,
+so the raise lands and that restore immediately undoes it. Sent after the answer it is past the
+restore and it holds. That is why the raise sits in a callback that otherwise looks like it could
+be flattened.
+
+## Why choosing a tab used to do nothing, four separate faults with one symptom
+
+Every one of these ends as the browser not switching, which is why it read as one intermittent
+fault for so long, and why fixing any one of them left it still failing sometimes. All four were
+found by instrumenting the shipped path and driving it with synthesised keystrokes through the real
+shortcut, the real chooser and a real Return, and each fix was confirmed on both browsers with a
+window that was minimized, a window in the background, and a window already in front.
+
+A positional window specifier drifts under the very writes this code makes. `app.windows[i]` binds
+to the slot rather than to the window, so any reorder silently redirects it, and both setting
+`window.index` and restoring a minimized window reorder the list. Proved directly, a reference
+holding Safari window 9536 reported window 206 after a reorder, with Chrome behaving the same. So
+the minimize restore was reading and writing a different window whenever the target was not already
+first. Every provider now addresses its window through `windowById` in the shared prelude, which
+resolves the id afresh on each access, and the prelude lives in `jxa.lua` rather than in each
+provider so a new provider cannot forget it.
+
+Raising an application is not the same as raising a window. macOS restores whichever window that
+application last had focused, which is very often not the one the tab lives in, so the browser
+arrives showing something else and the switch looks like it failed. Measured against a second
+window three times out of three, and focusing the window directly won three out of three under the
+same conditions. So the engine finds the tab's own window and focuses that, and only falls back to
+raising the application when it cannot.
+
+Finding that window is the hard part, and the reason the engine tries three things in order. A
+browser numbers its windows in its own dictionary and the window server numbers them in another.
+Safari's are the window server's own and match exactly, Chrome's are a private counter around 1.2
+billion that matches nothing, so the id is tried first and never assumed, over this application's
+own windows so a number meant for one namespace can never match a window in the other. Failing
+that, the window's own name, which the provider reads after the tab switch. Failing that, the tab's
+title. Both of the last two are needed because each covers the other's measured failure. Chrome
+elides a long window name in the middle with an ellipsis, which appears in no accessibility title,
+and the tab title goes stale when a page retitles itself after the list was read, which was caught
+happening to an ordinary shopping page mid run. The test is containment rather than equality or a
+prefix, because the two browsers decorate the accessibility title at opposite ends, Chrome
+appending its own name, any tab group and the profile, Safari prefixing the tab group. A prefix
+test was the first attempt and it failed every time on Safari.
+
+`hs.application.applicationsForBundleID` returns an empty list on the first call after the browser
+has been disturbed, even though the browser is running, is in `runningApplications`, and answers
+`hs.application.get` by name, and twenty further calls in the same instant all succeed. The engine
+answered that by silently raising nothing, and the same call decides whether a browser is listed at
+all, so it could equally have dropped a browser's tabs from the list. `apps.lua` exists for this one
+fact and asks a second way when the first comes back empty. It is a workaround for a library
+behaviour, which is why it sits in its own file with the measurement written down rather than being
+inlined at the four call sites that need it.
+
+Safari lists a window that is not on screen at all, a leftover carrying a single Start Page tab,
+invisible to the accessibility layer, so the row offered for it can be chosen and nothing happens.
+The provider now skips a window with no document. The test is the document rather than the
+`visible` flag, because a minimized window is not visible either, and neither is any window of an
+application hidden with Command H, so filtering on that would throw away real tabs. A window
+genuinely showing the Start Page still has a document. All three cases were measured.
+
+## A tab position is not a tab identity
+
+The tab numbers in a listing move whenever a tab is opened or closed afterwards, and they do,
+within minutes of ordinary browsing. Activating purely by position therefore lands on a neighbour,
+which reads as the tool switching to the wrong page or opening something unasked for. So each
+provider checks the position against the URL that came with the tab and only trusts it when the two
+still agree, otherwise it looks the URL up. The position is preferred rather than the URL because a
+window very often holds the same address more than once, and when nothing has drifted the position
+is the only thing that says which of them was meant. Verified in both directions on both browsers,
+and verified not to move when a window holds three tabs on one URL.
+
+What is still not guaranteed is the raise itself. macOS honours a cross application raise asked for
+by an application that is not frontmost at its own discretion, and it was seen ignored twice while
+Hammerspoon had never held the front, the tab correctly selected and the browser left behind. From
+the real path, where the chooser held the front a moment earlier, it held every time it was tried.
+So there is no retry, because a second raise is only worth adding against a failure that can be
+reproduced and this one could not be.
+
+Two things this tool cannot answer at all. A tab in a window on another Space costs whatever the
+Space switch costs, which is macOS animating rather than anything to tune here. And while a
+password field holds focus macOS turns on secure input, which stops every event tap on the machine
+from seeing keys, so the leader that opens this list never fires and nothing reaches this spoon,
+the pressed letter going into the field instead. Neither is a defect here and neither has a fix
+here.
+
 ## Permission is readable without asking, which is the whole reason for the Swift helper
 
 macOS gates Apple Events per pair of applications, so scripting a browser needs an Automation
@@ -204,6 +315,30 @@ list is noise.
 
 Menu steps are in place, using the same Return interceptor `DisplayProfiles` uses, so stepping
 into settings and back never closes and re-shows. Opening a tab is the one terminal action.
+
+## Handing the tabs to another list, without the settings level
+
+`tabRows`, `explain`, `activate`, `prepare` and `ready` are the tabs offered to a surface other
+than this chooser, which is what the launcher's `t` scope is. They are the tab level only, and
+the settings level deliberately does not come along, since it is a step into a second list and a
+scope shows one. So the guidance rows take the phrase naming where the browser switches are,
+rather than saying "in settings below" where there is no row below.
+
+The ranking is shared rather than copied. `matchedTabs` was pulled out of the frame supplier and
+both callers go through it, so a scoped list and this chooser cannot disagree about which tabs a
+query matches or in what order. What differs between them is only which extra rows get appended,
+which is exactly the part that is per surface.
+
+`prepare` is the one listing path and `reload` is now a call to it. A second ask while one is in
+flight joins that flight and every waiter is called when it lands, so two surfaces asking at once
+cost one read of the browsers and neither is dropped. `Vpn` took the same shape for the same
+reason. Without that, a scope asking on entry while this chooser was already listing would script
+every browser twice.
+
+`ready` is what lets a caller tell an unread list from an empty one, which matters because they
+look identical and mean opposite things. `explain` exists so the caller does not have to guess
+which it is, this file knows whether it is still reading, whether nothing is switched on, or
+whether a browser refused.
 
 ## Degradation
 

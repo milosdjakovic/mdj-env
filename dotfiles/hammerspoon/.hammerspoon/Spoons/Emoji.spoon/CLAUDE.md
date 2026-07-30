@@ -45,6 +45,19 @@ winner. Only the hammerspoon backend returns a real navigation surface, the maco
 custom backends return a no op surface so they stay out of the shared j, k, i navigation
 registry, which is correct since a system or external picker drives its own keys.
 
+`rows` and `insert` are an optional part of that contract, the list offered to a surface other
+than the backend's own, which is what the launcher's `e` scope is. Optional because only a
+backend that owns its list can hand it over, and the system Character Viewer and an external app
+own nothing we can read. So the facade answers `lists` and the caller asks before assuming,
+rather than every caller reasoning about which backend won. With a non listing backend fronted
+the scope is simply not registered and its alias resolves to nothing, which leaves an ordinary
+search unaffected and is better than a scope opening onto an empty list.
+
+`insert` is also what the backend's own chooser now selects through, rather than the two calls it
+used to make inline. A pick has a cost, remembering it, and one door onto that cost means a pick
+made from anywhere is remembered identically. Two doors is how a recency memory quietly starts
+depending on which surface you happened to use.
+
 The rest of this file describes the hammerspoon backend, since it is the one with a
 dataset, a match, icons, and a pick memory to explain.
 

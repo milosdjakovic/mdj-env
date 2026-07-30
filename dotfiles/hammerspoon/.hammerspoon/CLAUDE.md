@@ -912,6 +912,48 @@ at all, while arithmetic is untouched. Choosing a computed row hands its value t
 injected `copy` action, so the launcher still never learns what a clipboard is. Neither
 source is a bound shortcut, so both are exempt from the two discoverability mandates.
 
+A source may also *claim* the query, meaning its rows are the whole list and the catalog is
+not shown at all, which is how a typed word hands the launcher over to one tool. An alias
+plus a space scopes the list, so `k 2h` reaches the keep awake picker without leaving the
+launcher and deleting the space hands the list back. `QueryScope.spoon` is the source that
+claims, and it names no tool. This root names the concrete scopes, each a thin adapter over
+a tool that already answers a rows and a select, so a tool never learns it can be scoped
+and adding one is an entry here plus the `aliases` field on that tool's `config/keys.lua`
+entry. The aliases live in that pure data so the row advertising them and the resolver
+answering them read one thing and cannot drift, the same reason a key is data rather than
+something each surface knows. Exposing the pair is the one change a scoped tool takes,
+`Caffeinate` exports the `rows` and `select` its own chooser was already built from, which
+hands out the data rather than inviting a second copy of the parse, so two surfaces cannot
+disagree about what a typed value means. Nothing here is a bound shortcut, so the mandates do
+not apply, and discoverability is the alias hint on the tool's existing launcher row. The
+grammar, why no scope is remembered between keystrokes, and why a claim holds even when nothing
+matched, live in `Spoons/QueryScope.spoon/CLAUDE.md`. Adding the spoon needed a restow, since
+`~/.hammerspoon/Spoons` holds one symlink per spoon.
+
+Eight scopes exist and they come in three shapes, which is the useful thing to know before
+adding one. Some are the plain shape above, a tool exporting its rows and its select, which is
+keep awake, VPN, emoji, and browser tabs. Menu search is root policy rather than a spoon, so the
+root is both the adapter and the thing adapted. Apps, window actions, and System Settings panes
+are neither, they narrow the launcher's own catalog, so they read `Launcher:rowsOfKind(kind)` and
+hand a chosen row back through `Launcher:runItem`, which keeps one row builder and one dispatcher
+however a row is reached. Those three scope a group of rows rather than one row, so like menu
+search they have nowhere to advertise an alias until the alias editor exists, and their
+`config/keys.lua` entries carry a description and an alias and no key because they open nothing.
+
+A scope may be narrower than the tool it reaches, and browser tabs is the case that works.
+Its settings level is a step into a second list, which a scope cannot show, so the scope lists
+tabs and the tool stays the way to the switches. Nothing the scope was for is missing. Text case
+is the case that failed the same test and was removed after being built, because a scope cannot
+read your selection and so cannot preview it, which is the reason to open that tool at all. The
+rule is that a scope may be smaller than its tool but not smaller than the reason for the tool,
+and an alias reaching a diminished copy of a tool is worse than there being one way in.
+
+A tool that owns a canvas companion pane cannot be scoped in place at all, which rules out the
+clipboard and Processes. The launcher's chooser reserves no companion pane and the width is
+fixed when a chooser is built, so those two would lose their preview, which is most of what
+they are. Scoping them would mean teaching the launcher a preview pane a scope can claim, and
+that is a real change to the atom rather than another entry in the scope list.
+
 **Emoji.** Hyper+J opens an emoji picker. Emoji is a facade over interchangeable backends, the same shape as Chooser, so the root names which one the key opens in a priority ordered list by reference and the first available wins. Three backends ship, the built in picker over the Chooser atom, the macos Character Viewer triggered by Ctrl Cmd Space, and a custom backend that runs an injected callback so an external picker reached by a URL scheme or a trigger becomes a backend with no file of its own. The default is the built in picker, which owns one vendored dataset fetched once by its `regenerate.sh` and committed as `data.json`, merging the GitHub gemoji set with a safe slice of native Unicode symbols from the official Character Database, currency and arrows and math and the Mac modifier keys and more, so a query by name, shortcode, tag, or category finds a glyph without its exact Unicode name. Every matching emoji ranks above every matching symbol, so a query lists the emoji first and the plainer glyphs below. A pick is inserted into the focused field through an injected `onInsert`, so the backend never learns the effect, and it follows the picker checklist above. The root wires `onInsert` to the clipboard manager's `pasteText`, which pastes the glyph rather than typing it, because a synthesized keystroke mangles an astral glyph like an emoji in a terminal and in some native apps while a paste carries the real bytes everywhere, and `pasteText` snapshots the clipboard and restores it after so the paste stays invisible. It degrades to typing when the clipboard manager is absent. The provider strategy, the decision trail and internals, the safe symbol selection, the render based tofu filter, and the icon memory behavior, live in `Spoons/Emoji.spoon/CLAUDE.md`.
 
 **TextCase.** Recases the current selection in place, opened from the launcher only with no

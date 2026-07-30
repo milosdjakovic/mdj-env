@@ -21,6 +21,7 @@ local function loadShared(name)
 end
 
 local jxa = loadShared("jxa.lua")
+local apps = loadShared("apps.lua")
 
 -- Every tab of every window, titles and URLs fetched in bulk so the cost is one Apple
 -- Event per property per window rather than per tab. The running guard is belt and braces
@@ -64,26 +65,51 @@ function run(argv) {
 }
 ]==]
 
--- Select a tab and raise its window. The window is found by id rather than by index,
--- because the indexes shift as windows are reordered and the list may be a moment old.
--- Raising the application is the caller's job, so this does not activate.
+-- Select a tab and bring its window forward. The window is addressed by id through the shared
+-- `windowById`, never by its position, for the reason recorded in jxa.lua, that both of the
+-- writes below reorder the window list and a positional specifier would then be pointing at
+-- another window. Raising the application is the caller's job, so this does not activate.
+--
+-- A minimized window is restored, since raising the application leaves it in the Dock and the
+-- whole thing then looks like it did nothing at all. The Chromium dictionary calls that state
+-- `minimized`, which is why restoring it belongs in each provider rather than in the engine,
+-- Safari naming the same state something else. Ordering between the restore and the reorder was
+-- measured both ways and neither is better once the window is addressed by id, so the reorder
+-- goes last simply because the window order is the thing the raise then honours.
+--
+-- The window's own name is read back afterwards and returned, since the caller has to find this
+-- same window at the accessibility layer and a Chromium window id means nothing there. It is read
+-- after the tab switch so it names the tab that was asked for. Chrome elides a long one in the
+-- middle with an ellipsis, which no accessibility title ever carries, so the caller cannot rely on
+-- this alone and does not. That is measured, not assumed.
 local ACTIVATE = [==[
 function run(argv) {
   const app = Application(argv[0]);
   if (!app.running()) return JSON.stringify({ ok: false });
-  const wid = argv[1], idx = parseInt(argv[2], 10);
-  const wins = app.windows, n = wins.length;
-  for (let w = 0; w < n; w++) {
-    const win = wins[w];
-    let id = null;
-    try { id = String(win.id()); } catch (e) { continue; }
-    if (id === wid) {
-      try { win.activeTabIndex = idx; } catch (e) { return JSON.stringify({ ok: false }); }
-      try { win.index = 1; } catch (e) {}
-      return JSON.stringify({ ok: true });
+  const win = windowById(app, argv[1]);
+  if (!win) return JSON.stringify({ ok: false });
+
+  // The tab was numbered when the list was built and the numbers move whenever a tab is opened or
+  // closed in the meantime, so the position is checked against the URL that came with it and only
+  // trusted when the two still agree. The position is preferred rather than the URL because a
+  // window very often holds the same address more than once, and when nothing has drifted the
+  // position is the one that says which of them was meant.
+  let idx = parseInt(argv[2], 10);
+  try {
+    const urls = win.tabs.url();
+    const want = argv[3] || "";
+    if (want && urls[idx - 1] !== want) {
+      const found = urls.indexOf(want);
+      if (found >= 0) idx = found + 1;
     }
-  }
-  return JSON.stringify({ ok: false });
+  } catch (e) {}
+
+  try { win.activeTabIndex = idx; } catch (e) { return JSON.stringify({ ok: false }); }
+  try { if (win.minimized()) win.minimized = false; } catch (e) {}
+  try { win.index = 1; } catch (e) {}
+  const r = { ok: true };
+  try { r.name = win.name(); } catch (e) {}
+  return JSON.stringify(r);
 }
 ]==]
 
@@ -108,7 +134,7 @@ return function(opts)
   end
 
   function P.running()
-    return #hs.application.applicationsForBundleID(bundleID) > 0
+    return apps.isRunning(bundleID)
   end
 
   function P.listTabs(cb)
@@ -124,9 +150,10 @@ return function(opts)
   end
 
   function P.activate(tab, cb)
-    jxa.run(ACTIVATE, { bundleID, tostring(tab.windowID), tostring(tab.tabIndex) }, function(data, err)
+    local argv = { bundleID, tostring(tab.windowID), tostring(tab.tabIndex), tostring(tab.url or "") }
+    jxa.run(ACTIVATE, argv, function(data, err)
       if err then cb(false, err) return end
-      cb(type(data) == "table" and data.ok == true, nil)
+      cb(type(data) == "table" and data.ok == true, nil, type(data) == "table" and data or nil)
     end)
   end
 
