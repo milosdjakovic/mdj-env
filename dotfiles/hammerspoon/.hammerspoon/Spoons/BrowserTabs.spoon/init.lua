@@ -224,6 +224,25 @@ end
 function obj:start()
   self.recency.start()
   permissions.warm()
+
+  -- The integration harness, loaded only while a suite is actually running. The runner writes
+  -- the marker beside the harness before it starts and removes it afterwards, so a normal
+  -- machine never carries any of this. The gate lives here rather than in the main root because
+  -- the harness belongs to this spoon, and nothing else in the spoon knows it exists.
+  if hs.fs.attributes(spoonPath .. "test/ENABLED") then
+    local chunk = loadfile(spoonPath .. "test/agent.lua")
+    if chunk then
+      -- Kept on the spoon rather than dropped, because the harness now reads its command channel
+      -- on a timer and a timer lives only as long as something refers to it. Discarding the module
+      -- here collected that timer within seconds, so the agent went deaf with nothing logged and
+      -- every command sat unread in the channel. That is the trap the module CLAUDE.md records,
+      -- and it is no less silent for happening inside a test harness.
+      self._testAgent = chunk().start()
+    else
+      log.w("the test marker is present but the harness would not load")
+    end
+  end
+
   return self
 end
 
