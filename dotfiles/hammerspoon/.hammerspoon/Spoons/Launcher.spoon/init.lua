@@ -303,6 +303,13 @@ function obj:_buildActionRows()
     add(keys.processes.description, "System · stop a dev server, container, or watcher",
       { kind = "special", name = "processes" }, "🔌", nil, "processes port node docker")
   end
+  -- File search does have a chord, so its subtitle names it like the other keyed tools. The
+  -- keywords carry the words a habit reaches for, since the title says file search and the
+  -- thing people type is find.
+  if keys.fileSearch then
+    add(keys.fileSearch.description, "Tools · " .. self:_chordLabel("Hyper", keys.fileSearch.key),
+      { kind = "special", name = "fileSearch" }, "🗂️", nil, "find files folders spotlight locate")
+  end
   add(keys.lock.description, "System · " .. self:_chordLabel("Hyper", keys.lock.key), { kind = "special", name = "lock" }, "🔒")
   add(keys.sleep.description, "System · " .. self:_chordLabel("Hyper", keys.sleep.key), { kind = "special", name = "sleep" }, "🌙")
   for _, b in ipairs(keys.windowManagement) do

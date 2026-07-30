@@ -1026,6 +1026,37 @@ the port claim rule that collapses the docker proxy listeners into named contain
 group signalling and its guards, and three hs.task and lsof facts that will bite anyone who
 touches the shellouts, live in `Spoons/Processes.spoon/CLAUDE.md`.
 
+**FileSearch.** Hyper+/ finds a file by name and does something with it, opening,
+revealing, browsing into, or copying the path of whatever is highlighted. Activity
+Monitor moved to Hyper+\ to free the key, the two reading as a pair, one for what the
+machine is doing and one for what is on it. It follows the Capture layout, an engine over
+interchangeable search sources, and the DisplayProfiles shape of a spoon whose surface is
+its own `chooser.lua` beside the engine, so it is configured twice. It follows the picker
+checklist, its `fileSearch` context giving it the shared j, k, i navigation with x to close
+plus four actions only it answers, browse into a folder, reveal in Finder, open the
+containing folder, and copy the path, routed through `routeNav` so they are no ops on any
+other surface.
+
+Two wiring choices are the ones worth knowing here. It opts the atom out of matching
+entirely with `matcher = false`, because its query is structured rather than a plain
+filter, and the root's `words` matcher is injected into the *engine* instead, where it
+narrows a held result set between round trips. So the shared matching policy still applies,
+one layer further down than anywhere else. And it is the first consumer of the shared row
+icon memo, a closure in the root beside the other view deps, keyed by extension rather than
+by path and dropped when the chooser closes. That memo is a closure and not a spoon because
+it has no lifecycle, and it holds in memory handles rather than files because NSWorkspace
+already caches them, so there is deliberately no cache directory to configure. The
+clipboard has its own equivalent today and is the obvious second consumer, left alone until
+this one has been used in anger.
+
+Its own `config/filesearch.lua` holds the pure data, the type registry that decides what a
+dot attached token means, the directory aliases, the prune list, and the caps and timings.
+The grammar, the source ordering and the two measurements behind it, why one round trip per
+search rather than per keystroke is the whole performance story, why there is deliberately
+no result cache, and four Spotlight predicate facts that will bite anyone who touches the
+queries, all live in `Spoons/FileSearch.spoon/CLAUDE.md`. Adding it needed a restow, since
+`~/.hammerspoon/Spoons` holds one symlink per spoon.
+
 **Eyedropper.** A screen colour sampler on Hyper+2, on the native macOS
 eyedropper. It is deliberately not a chooser, so the picker checklist above does
 not apply. It is a lone mechanism like lock and sleep, wired as a base HyperKey
