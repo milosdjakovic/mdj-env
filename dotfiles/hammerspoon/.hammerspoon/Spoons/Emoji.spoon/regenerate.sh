@@ -3,10 +3,17 @@
 # Regenerate the vendored picker dataset from two upstream sources.
 #
 # The picker searches offline, so the data is fetched once here and committed as
-# data.json beside this script, rather than pulled at runtime. Rerun this only to
+# data.lua beside this script, rather than pulled at runtime. Rerun this only to
 # refresh the set, for example when new Unicode emoji or symbols land. The output is
 # deterministic for a given upstream revision and this machine's fonts, so a rerun
 # with no change produces no diff.
+#
+# The artifact is a Lua table rather than json because hs.json.decode is quadratic in the
+# number of objects it decodes, three seconds for this set against six milliseconds for the
+# same rows as a Lua literal, and the picker pays that on every config reload. Json is still
+# the shape both sources are reshaped through here, since jq is what does the reshaping, and
+# only the final write differs. filter-glyphs.lua does that write, because it already holds
+# the finished list and Lua escapes its own strings safely.
 #
 # Two sources feed one flat list, both reduced to the same shape so the spoon loads
 # one file and never learns which source a row came from. e is the glyph, n is the
@@ -44,7 +51,7 @@ set -euo pipefail
 EMOJI_SOURCE="https://raw.githubusercontent.com/github/gemoji/master/db/emoji.json"
 UCD_SOURCE="https://www.unicode.org/Public/UCD/latest/ucd/UnicodeData.txt"
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OUT="$DIR/data.json"
+OUT="$DIR/data.lua"
 FILTER="$DIR/filter-glyphs.lua"
 
 # All three are declared in regenerate.dependencies beside this script. This is a plain shell
@@ -210,10 +217,10 @@ curl -fsSL "$UCD_SOURCE" | REFS_OUT="$TMP_REFS" perl -ne '
 ' > "$TMP_SYM"
 
 # Emoji first, then symbol candidates, into one list, then the render filter drops the
-# boxes and writes the final data.json. Each row is tagged with its source, t is e for an
+# boxes and writes the final data.lua. Each row is tagged with its source, t is e for an
 # emoji and s for a symbol, so the row stays self describing and the picker can rank every
 # emoji above every symbol without guessing the kind at runtime. The filter carries whole
-# rows through, so the tag survives into data.json.
+# rows through, so the tag survives into data.lua.
 #
 # A codepoint can live in both sources at once, an emoji default glyph like the check mark
 # or a zodiac sign also sits in a symbol block, which would list the same glyph twice. So
@@ -233,5 +240,6 @@ hs -t 120 -c "CANDIDATES='$TMP_CAND'; REFS='$TMP_REFS'; OUT='$OUT'; dofile('$FIL
 
 EMOJI_COUNT="$(jq 'length' "$TMP_EMOJI")"
 SYM_COUNT="$(jq 'length' "$TMP_SYM")"
-TOTAL="$(jq 'length' "$OUT")"
-echo "Wrote $TOTAL rows to $OUT, from $EMOJI_COUNT emoji and $SYM_COUNT symbol candidates"
+# The kept count is the filter's own line above, since it is what did the keeping and the
+# output is no longer json for jq to count. Reporting it twice would only let the two drift.
+echo "Wrote $OUT, from $EMOJI_COUNT emoji and $SYM_COUNT symbol candidates"

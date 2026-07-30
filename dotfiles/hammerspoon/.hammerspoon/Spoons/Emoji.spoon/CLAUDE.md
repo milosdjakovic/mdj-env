@@ -73,14 +73,14 @@ eventtap, so it has no start or stop, matching the lifecycle contract.
 ## The data is vendored, not fetched at runtime
 
 The picker searches offline and opens instantly, so the set is fetched once by
-`regenerate.sh` and committed as `data.json` beside the spoon. Runtime never touches
+`regenerate.sh` and committed as `data.lua` beside the spoon. Runtime never touches
 the network. Two sources feed one flat list. Emoji come from the GitHub gemoji
 project, chosen because one well maintained file already carries, per emoji, the
 glyph, a human name, the shortcode aliases, freeform tags, and a category, which is
 exactly the material a keyword match needs. Symbols come from the official Unicode
 Character Database, a slice of the standard blocks the Character Viewer shows.
 Rerun `regenerate.sh` to refresh the set, for example when new Unicode glyphs land,
-and commit the new `data.json`.
+and commit the new `data.lua`.
 
 Each entry is reduced to the same shape whichever source it came from, so the spoon
 loads one file and never learns which source a row is. `e` is the glyph, `n` is the
@@ -92,6 +92,37 @@ symbols. Folding the category into `k` is deliberate, it is what lets a group wo
 surface a whole group, food or animal or flag or arrow, without an exact name. The
 reduction and the lowercasing happen once in the generator, so the runtime match is a
 plain substring scan with no per keystroke normalization.
+
+### Why the artifact is a Lua table and not json
+
+The load is a `loadfile` of a committed Lua table, for one measured reason.
+`hs.json.decode` is quadratic in the number of objects in an array, not in the size of
+the file. The same rows cost 118 ms at a thousand entries, 620 ms at 2500, and 3063 ms
+at the full 5648, while a flat array of the same content as plain strings decodes in
+20 ms. As json this set cost three seconds and as a Lua literal it costs six
+milliseconds, and the whole `_load`, the parse plus the glyph index plus the settings
+read, is under ten. That is worth having because `_load` runs in `configure`, so every
+config reload paid it, which while working on this config means every file save.
+
+Json was chosen first for a real reason, that a generator writing Lua would have to
+escape names into Lua strings by hand and get it wrong on an apostrophe or a backslash.
+The answer is where the write happens rather than what it writes.
+`filter-glyphs.lua` already holds the finished list and already runs inside Hammerspoon,
+so `string.format` with `%q` escapes exactly what Lua reads back and leaves utf8 bytes
+untouched, and no hand written escaping exists to be wrong. It was verified once by
+comparing every field of all 5648 entries against the json it replaced, with no
+differences, the names carrying curly apostrophes included. Control characters are
+flattened to a space first, since `%q` escapes a newline as a real line break, which is
+also what keeps the promise of one row per line and a readable diff.
+
+Json still shapes both upstream sources, since jq is what reshapes them, and only the
+final write differs. Precompiled bytecode was measured too, 1.3 ms, and rejected,
+because it saves under five milliseconds and costs a committed binary tied to a Lua
+version. An absent, unreadable, or malformed file degrades to an empty list with one
+console line, so a bad dataset costs the picker its rows and never the config's load.
+The one structural limit is that the file is a single chunk holding one table
+constructor, comfortable at this size and worth splitting into appended blocks only if
+the set ever grew by an order of magnitude.
 
 ### How the symbol slice stays safe and clean
 
@@ -169,10 +200,6 @@ open before the warm finishes, or a typed query that reaches glyphs outside the 
 slice, renders those on demand and caches them, so correctness never depends on the
 warm having completed, only the smoothness of the first open does.
 
-Loading uses `hs.json.read` on the committed file rather than a Lua table literal, so
-the generator never has to escape names into Lua strings, and a broken or missing
-file degrades to an empty list rather than a load error.
-
 ## Rows are data, never functions
 
 Each row carries only the glyph string as its item, which the Chooser serialises and
@@ -244,7 +271,7 @@ the leading slice follows in upstream order with those recents removed so none a
 still bounded by `MAX_RESULTS`. A typed query is unchanged, the name and keyword ranking
 stays in charge, so search stays predictable and the memory only shapes the browse view, the
 same split between an empty timeline view and a typed rerank. A remembered
-glyph that a regenerated `data.json` no longer carries is skipped when the recents are built,
+glyph that a regenerated `data.lua` no longer carries is skipped when the recents are built,
 so the list is always renderable and the memory never has to be migrated. The recents glyphs
 are warmed into the icon cache alongside the leading slice, since a favorite may sit outside
 that slice, and there are at most `RECENTS_MAX` of them so the extra render is trivial.
