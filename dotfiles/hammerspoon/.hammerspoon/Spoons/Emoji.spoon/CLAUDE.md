@@ -211,8 +211,30 @@ barely a lever at all, a fifteen percent difference rather than a fivefold one, 
 dropping from 72 to 44 bought far less than it appeared to. So `ICON_SIZE` should be
 chosen on how a row looks and nothing else. The honest totals are 30 to 44MB for four
 hundred glyphs, and a ceiling near 440MB if every glyph in the set were deliberately
-surfaced, which a reload resets. The way to cut it is to stop rendering at runtime, since
-the same icons loaded from prerendered files cost about 17KB each, roughly a fifth.
+surfaced, which a reload resets.
+
+Prerendered files would cut that, by less than it first looked, and how that number was got
+wrong twice is the useful part. Loading four hundred saved PNGs appeared to cost 17KB each
+against the render, a fivefold saving, and that figure was an artifact. An `hs.image` from a
+file decodes lazily, so what was measured was an undecoded handle, while a canvas render
+materialises immediately. Forcing the pixels with `colorAt` and comparing the same four
+hundred glyphs down both paths in the same process gives 20KB undecoded and 53KB decoded
+from disk, against 60KB fresh and 92KB once touched from the canvas, with the disk path at
+0.38ms an icon against 0.74ms. So it is roughly 40 percent less memory for an icon that gets
+drawn and 66 percent less for one that never does, and about twice as fast, rather than the
+fivefold anything.
+
+Both mistakes came from measuring one side of a comparison, first the bitmap instead of the
+retained cost, then an undecoded handle against a materialised one, and the second was found
+only by asking whether a lazily decoded image was being compared honestly. That is worth
+repeating before trusting any figure here. Compare the same glyphs, in the same process, in
+the same state, since colour emoji and monochrome symbols do not weigh the same either.
+
+The remaining structural difference is the one that survives correction. A canvas render
+costs most of its memory the moment it exists, whether or not the row is ever drawn, and the
+picker supplies a hundred rows while showing about ten. A file backed icon stays at the
+undecoded price until something draws it, and it outlives a reload rather than being
+rebuilt.
 
 Even one reused canvas is too slow to render the whole set at once, so the empty state
 icons are warmed in the background right after configure, in small batches on a self
