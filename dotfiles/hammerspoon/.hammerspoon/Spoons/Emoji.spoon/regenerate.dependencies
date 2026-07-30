@@ -2,7 +2,7 @@
 # uses these tools. Format is name | kind | locator | policy | reason.
 # See Dependencies.spoon for the kinds and for how these files are found.
 #
-# All optional, because the picker searches a committed data.json and works whether or not
+# All optional, because the picker searches a committed data.lua and works whether or not
 # these are present. Only the refresh path fails without them, which is a maintenance task
 # rather than a feature, so a missing one must not cost the spoon.
 #
@@ -12,4 +12,4 @@
 # door to use. It names the tools and stops there, the same rule every other file follows.
 jq   | path | jq   | optional | reshaping both upstream sources into the vendored dataset
 perl | path | perl | optional | parsing the Unicode Character Database into candidate rows
-hs   | path | hs   | optional | rendering every candidate glyph so the ones that draw as a box are dropped
+hs   | path | hs   | optional | rendering every candidate glyph to drop the ones that draw as a box, and writing the dataset

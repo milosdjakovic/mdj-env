@@ -43,12 +43,15 @@ obj._byGlyph = nil           -- glyph string -> entry, maps a remembered pick ba
 obj._recency = nil           -- persisted pick memory, { n = tick, g = { [glyph] = { v, k } } }
 
 -- Load the vendored dataset by absolute path, the loadfile pattern the spoons use, since a spoon
--- directory is not on package.path. hs.json.read parses it natively, so there is no
--- Lua escaping to get wrong, and regenerate.sh is the one place that produces it. This
--- backend lives one level below the spoon root under providers/, so the data file sits
--- one directory up beside the facade.
+-- directory is not on package.path. The dataset is a Lua table for one measured reason,
+-- hs.json.decode is quadratic in the number of objects in an array, so the same rows cost
+-- three seconds as json against six milliseconds through loadfile, and this load runs on
+-- every config reload. regenerate.sh is the one place that produces the file, and it writes
+-- it from inside Hammerspoon so Lua escapes its own strings. This backend lives one level
+-- below the spoon root under providers/, so the data file sits one directory up beside the
+-- facade.
 local providerPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
-local dataPath = providerPath .. "../data.json"
+local dataPath = providerPath .. "../data.lua"
 
 -- The most rows a query returns. The match runs over the whole set, so any glyph is
 -- still findable by typing, this only bounds the visible list. It matters more than
@@ -129,12 +132,27 @@ end
 --- Method
 --- Load the vendored dataset and the pick memory. Folded out of a lifecycle init so the
 --- facade only pays it on the backend it actually selects. No side effects beyond reading
---- the file and the settings, and an absent or unreadable file degrades to an empty list
---- rather than an error. A stored glyph the current dataset no longer carries is skipped
---- when the recents are built, so a regenerated data.json never breaks the list and the
---- memory never has to be migrated.
+--- the file and the settings, and an absent, unreadable, or malformed file degrades to an
+--- empty list with one console line rather than an error, so a bad dataset costs the picker
+--- its rows and never the config's load. A stored glyph the current dataset no longer
+--- carries is skipped when the recents are built, so a regenerated data.lua never breaks
+--- the list and the memory never has to be migrated.
 function obj:_load()
-  self._data = hs.json.read(dataPath) or {}
+  self._data = nil
+  local chunk, loadErr = loadfile(dataPath)
+  if not chunk then
+    print("Emoji: the dataset failed to load, " .. tostring(loadErr))
+  else
+    local ok, loaded = pcall(chunk)
+    if not ok then
+      print("Emoji: the dataset failed to run, " .. tostring(loaded))
+    elseif type(loaded) ~= "table" then
+      print("Emoji: the dataset did not return a table, the picker will be empty")
+    else
+      self._data = loaded
+    end
+  end
+  self._data = self._data or {}
   self._byGlyph = {}
   for _, e in ipairs(self._data) do self._byGlyph[e.e] = e end
   local r = hs.settings.get(RECENCY_KEY)

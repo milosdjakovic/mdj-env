@@ -21,7 +21,7 @@ qalc | path | qalc | required | Convert | evaluating unit and currency conversio
 displayplacer | path | displayplacer | optional | DisplayProfiles/engine | reading and applying display arrangements
 jq | path | jq | optional | Emoji/regenerate | reshaping both upstream sources into the vendored dataset
 perl | path | perl | optional | Emoji/regenerate | parsing the Unicode Character Database into candidate rows
-hs | path | hs | optional | Emoji/regenerate | rendering every candidate glyph so the ones that draw as a box are dropped
+hs | path | hs | optional | Emoji/regenerate | rendering every candidate glyph to drop the ones that draw as a box, and writing the dataset
 swiftc | system | /usr/bin/swiftc | optional | Eyedropper | compiles the native colour sampler helper
 fd | path | fd | optional | FileSearch/hidden | building the index of paths Spotlight cannot see
 fzf | path | fzf | optional | FileSearch/hidden | ranking that index, the one thing a substring tool cannot do over 42 thousand matches
