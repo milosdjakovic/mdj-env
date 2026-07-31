@@ -323,3 +323,15 @@ that slice, and there are at most `RECENTS_MAX` of them so the extra render is t
 
 It inserts one glyph per name, it does not offer skin tone variants, since the gemoji base
 set is one glyph per name.
+
+It does not cache its icons on disk, and that was decided with the figures above in hand
+rather than by not thinking about it. Saving each glyph as a PNG under a cache directory
+would cut icon memory by roughly 40 percent for an icon that is drawn and 60 percent across
+a realistic session, halve the per icon cost, and let icons outlive a reload. What it would
+cost is a cache directory keyed on the OS build so a font update invalidates it, a sweep for
+stale keys, a fallback for when the directory cannot be written, and about 10KB of disk for
+every glyph ever browsed. The saving is tens of megabytes that a reload already resets, so
+the machinery is more than the problem, which is the same call `FileSearch` made for its
+file type icons and the same rule about indirection that has not earned its keep. Worth
+revisiting only if the picker ever holds icons across something other than a reload, since
+that is the one part of the argument that is structural rather than a number.
