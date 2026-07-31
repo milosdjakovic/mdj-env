@@ -1563,6 +1563,13 @@ spoon.FileSearch:configure({
   policy = filesearch,
   deps = depsFor("FileSearch"),
   matcher = spoon.Chooser.matchers.words,
+  -- The launcher shows this list too, under its own alias below, and a search answers after the
+  -- keystroke that asked for it. So the launcher is told when rows land, exactly as the spoon's
+  -- own picker is. Composed inside the spoon rather than replacing its redraw, and each redraw
+  -- does nothing while its own surface is closed, so the one that is not on screen costs a call.
+  onResults = function()
+    if spoon.Launcher then spoon.Launcher:refresh() end
+  end,
 })
 spoon.FileSearch.chooser.configure({
   chooser = spoon.Chooser,
@@ -1694,6 +1701,31 @@ local queryScopes = {
       return out
     end,
     run = function(payload) spoon.BrowserTabs.chooser.activate(payload) end,
+  },
+  {
+    name = "fileSearch",
+    title = keys.fileSearch.description,
+    glyph = "🔍",
+    aliases = keys.fileSearch.aliases,
+    -- The engine owns both the ordering and the query grammar, so the shared matcher is stood
+    -- down for the reason the tool's own chooser stands it down. Sigils, a type token and a
+    -- scope are not a filter over a list, and a second pass would fight the ranking and hide the
+    -- status row.
+    matcher = false,
+    -- Entering the scope begins a session, the same as opening the picker, which is what makes an
+    -- empty query answer with the recent list rather than a loading row that never resolves. The
+    -- rows arrive late, so the answer here is whatever is held right now and the redraw is wired
+    -- through the spoon's onResults above, the same shape the VPN and browser tab scopes use.
+    -- Nothing needs saying about an empty list, because the tool already returns a row explaining
+    -- itself for every state it can be in.
+    rows = function(rest)
+      if rest == "" then spoon.FileSearch.chooser.beginSession() end
+      return spoon.FileSearch.chooser.rowsForQuery(rest)
+    end,
+    -- Choosing goes through the tool's own definition of choosing, so a file opens the same way
+    -- and the use is recorded once. The keys that go beyond choosing, reveal, copy path and
+    -- moving up a level, stay in the real picker where that Hyper context lives.
+    run = function(payload) spoon.FileSearch.chooser.choose(payload) end,
   },
   launcherCatalogScope("apps", "🚀", "app"),
   launcherCatalogScope("windowActions", "🪟", "window"),

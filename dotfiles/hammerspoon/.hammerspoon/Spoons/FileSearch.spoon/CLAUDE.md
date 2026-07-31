@@ -179,6 +179,49 @@ what the index returned. It lives there rather than in the engine for the same r
 source exists at all, a blind spot is owned by the source that has it. The engine knows nothing
 about scopes and must not start.
 
+## Where an unscoped search starts, half derived and half declared
+
+The starting points are the top level of home minus the pruned names, and that derivation is not
+laziness. Spotlight cannot be told to leave a subtree out, so naming the siblings of `~/Library` is
+the only way to exclude it, and the list has to keep up as folders come and go. Anyone tempted to
+collapse it to one scope should know that, since it looks like a pointless fan of sixteen paths.
+
+It could only be that, which meant nothing outside home was reachable. Applications live in
+`/Applications`, so they were unfindable and the `app` type token was decoration. `searchAlso` in
+config names extra starting points and is ADDED to the derived list rather than replacing it, so
+the adaptive half keeps working and nothing has to be maintained by hand. An entry may be absolute,
+relative to home, or written with a tilde, and one that is not a directory here is skipped, so one
+list travels between machines. The folders themselves become findable for free, since the source
+already matches its own scope names as results.
+
+**Breadth is close to free, and that is worth knowing before tuning it.** Three terms measured
+against the derived list, the whole of home and the whole volume all answered in the same 120 to
+175 millisecond band once the index was warm, and reading a page of two hundred rows cost 3.5ms
+whether the result held 3,781 rows or 52,246. Spotlight is reading an index, not walking a tree.
+The first query on a fresh term costs several times any of that, which is the index warming and is
+the number that misleads, since a first measurement blamed the scope list for a cost that simply
+fell on whichever list ran first. So the reason to keep the declared list short is RELEVANCE.
+Adding `/` would cost nothing measurable and would still be a bad trade.
+
+A scoped search is the opposite case. That one goes to the walk source and really does traverse,
+measured at 13ms on a small tree against 353ms on one holding 196 thousand entries, so there
+naming a narrower folder genuinely is faster.
+
+## The recent list was the one result set the noise filter never saw
+
+Everything else reaches the noise filter through `_publish`. The recent list fills itself in
+straight from its own fetch, so it never did, and the view everyone lands on could open on a
+`__pycache__` directory with two `.pyc` files under it, all three named in the prune list that
+exists to remove exactly those. It is filtered before it is merged now, and the order is the
+decision worth keeping. Filtering first and floating second lets your own history override the
+filter, so a pruned path you deliberately used still comes back by name while the date half of the
+list stays clean.
+
+The same fix exposed a second half of it. Matching only an inner path segment left a pruned
+DIRECTORY standing while its contents were removed from under it, which reads as a filter that
+half works. A name in that list is a name nobody searches for in either position, so the directory
+itself counts too.
+
 ## A bare type token is a third query shape, and treating it as the second broke it
 
 `.py` found nothing, reliably. It parses as kind recent, because nothing was typed, so the predicate
@@ -460,3 +503,11 @@ reason, an unreferenced one is collected and its callback silently never arrives
 exactly like a search that found nothing. A search handle now carries its query, so holding the
 handle is what holds the query and there is one rule instead of two. `check-timers` enforces the
 timer half and nothing enforces the handles, so that one is on the reader.
+
+Two surfaces reading the engine at once. There is one engine instance, and the query it is
+answering is state, so two lists driven at the same time would each be changing what the other
+asked about. The launcher scope and the picker are never both on screen, and the failure would be a
+confused list rather than a broken one, so this is a note and not a mechanism. It is also the trap
+that ate two probes. Driving the row supplier by hand while the picker was open had the picker's own
+refresh cycle answer with the recent list branch, which cancels the dispatch, so both dumps were
+the recent list wearing a browse header.

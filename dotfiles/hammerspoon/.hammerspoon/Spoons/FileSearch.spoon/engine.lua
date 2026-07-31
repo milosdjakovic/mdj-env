@@ -201,7 +201,16 @@ function obj:_resolveScope(token)
   if first then
     local mapped = self.roots[first:lower()]
     if mapped ~= nil then
-      local base = (mapped == "") and home or (home .. "/" .. mapped)
+      -- An alias value may be relative to home, absolute, or written with a tilde. Joining
+      -- every value under home was a defect rather than a limitation, since the config has
+      -- always documented the absolute form. A value of `/Applications` became
+      -- `~//Applications`, which fails on most machines and, on one that happens to hold a home
+      -- Applications folder, resolves and quietly answers with the wrong directory.
+      local base = home
+      if mapped ~= "" then
+        base = util.expandHome(mapped)
+        if base:sub(1, 1) ~= "/" then base = home .. "/" .. base end
+      end
       local full = (rest ~= "") and (base .. "/" .. rest) or base
       if isDir(full) then return full end
     end
@@ -304,6 +313,11 @@ end
 --- explicit statement about where to look, so scoping into `node_modules/` must not then have
 --- every row filtered out for being inside node_modules. The walk source already applies the
 --- same list as walk excludes, so a scoped search is filtered at the tree rather than here.
+---
+--- The directory ITSELF counts as noise, not only what lives in it. Matching only an inner
+--- segment left the folder standing while everything under it went, so a __pycache__ row sat in
+--- the recent list with its own contents filtered out from under it, which reads as a filter that
+--- half works. A name in that list is a name nobody searches for, in either position.
 function obj:_denoise(rows, parsed)
   if parsed.ignored or parsed.scope then return rows end
   if #self.prune == 0 then return rows end
@@ -312,7 +326,10 @@ function obj:_denoise(rows, parsed)
     local path = rows[i].path or ""
     local noisy = false
     for _, name in ipairs(self.prune) do
-      if path:find("/" .. name .. "/", 1, true) then noisy = true break end
+      if path:find("/" .. name .. "/", 1, true) or path:sub(-#name - 1) == "/" .. name then
+        noisy = true
+        break
+      end
     end
     if not noisy then out[#out + 1] = rows[i] end
   end
@@ -534,9 +551,19 @@ function obj:_fetchRecents()
   }
   self._recentsHandle = src.search(parsed, ctx, function(rows)
     self._recentsHandle = nil
+    -- Filtered before it is merged, and in that order for a reason. This list fills itself in
+    -- without going through _publish, so it was the one result set the noise filter never saw,
+    -- and the view everyone lands on could open on a __pycache__ directory and two .pyc files
+    -- inside it, all three named by the prune list. Nothing else in the spoon had that hole,
+    -- because everything else publishes.
+    --
+    -- Filtering first and floating second is what lets your own history override the filter. A
+    -- pruned path you deliberately used still comes back, since it is added by name rather than
+    -- surviving the filter, and the date half of the list stays clean.
+    rows = self:_denoise(rows or {}, parsed)
     -- Merged once here rather than on every redraw, so the list cannot reorder itself under
     -- someone who is reading it, and the stat calls happen once per open.
-    self._recents = self:_float(rows or {})
+    self._recents = self:_float(rows)
     -- Only paint them if nothing has been typed since, otherwise a slow recents fetch
     -- would overwrite a real search the user already started.
     if not self._parsed or self._parsed.kind == "recent" then

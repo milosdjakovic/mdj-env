@@ -79,6 +79,8 @@ obj.chooser = load("chooser.lua")
 --- opts.deps     the per consumer dependency adapter from the root, the only way a source
 ---               here learns where its CLI lives
 --- opts.matcher  the shared matching strategy, used for the local narrow between round trips
+--- opts.onResults  optional, told when the rows changed, for a surface other than this spoon's
+---                 own picker. Composed with the picker's redraw rather than replacing it
 ---
 --- Wraps the engine's own configure so this file stays the only place that knows both which
 --- sources exist and which part of the policy each one reads. The engine is handed only what it
@@ -117,6 +119,9 @@ function obj:configure(opts)
   obj.sources.spotlight.configure({
     prune = prune,
     limits = limits,
+    -- Where an unscoped search starts from. This is the one source that answers a query naming
+    -- no folder, so it is the only one the list means anything to.
+    searchAlso = policy.searchAlso,
   })
 
   -- The settings key is named HERE rather than inside frecency.lua, so the one piece of global
@@ -146,7 +151,15 @@ function obj:configure(opts)
     },
     -- The engine never touches a picker. It reports that rows changed and the surface decides
     -- what to do about it, which is what lets a second surface reuse the engine unchanged.
-    onResults = function() obj.chooser.refresh() end,
+    --
+    -- A second surface says so through opts.onResults and is COMPOSED here rather than replacing
+    -- this, because the spoon's own picker must keep painting whoever else is listening. Each
+    -- surface's redraw already does nothing when it is not on screen, so both being told costs
+    -- one dead call.
+    onResults = function()
+      obj.chooser.refresh()
+      if opts.onResults then opts.onResults() end
+    end,
   })
 
   -- The api the list surface talks through. A handful of verbs and nothing else, so the surface
