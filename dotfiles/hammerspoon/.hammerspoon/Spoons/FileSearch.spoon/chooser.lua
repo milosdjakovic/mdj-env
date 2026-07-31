@@ -4,6 +4,12 @@
 --- selection into an action, and it knows nothing about where a row came from, which source
 --- answered, or that sources exist at all.
 ---
+--- It also owns the pane beside the list, since it is the only piece that knows when the
+--- highlight moved and when the window went away. The pane and the thumbnail chain behind it
+--- are loaded here for that reason, and both are handed their policy rather than reading any.
+--- Whether there is a pane at all is decided by the main root injecting the shared canvas
+--- surface, and with nothing injected this file behaves exactly as it did before one existed.
+---
 --- It opts OUT of the shared matcher, passing matcher false, and that is deliberate rather
 --- than a shortcut. A query here is structured, it carries sigils, a type token and a scope,
 --- so it is not a plain filter over a list and the atom re ranking what came back would fight
@@ -20,6 +26,11 @@
 
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local util = loadfile(spoonPath .. "util.lua")()
+-- The pane beside the list and the pictures it draws. Loaded here rather than by the spoon
+-- root because both belong to this surface and to nothing else, and this is the only file
+-- that knows when a highlight moved or when the window went away.
+local preview = loadfile(spoonPath .. "preview.lua")()
+local thumbs = loadfile(spoonPath .. "thumbs.lua")()
 
 local M = {}
 
@@ -34,6 +45,9 @@ local cfg = {
                       -- learn what is done with that, the same seam as copy above
   usedAt = nil,       -- injected, asks when a path was last used. The read side of onUse, on the
                       -- same seam, so what records a use and what reports one stay together
+  surface = nil,      -- the shared canvas surface, injected by the main root. Absent means no
+                      -- pane at all and the picker opens exactly as it did before there was one
+  preview = nil,      -- the preview block from config, split below between the pane and thumbs
   onPositioned = nil,
   onActivity = nil,
   onClose = nil,
@@ -41,32 +55,9 @@ local cfg = {
 
 local picker = nil
 
--- The home prefix, collapsed in a subtitle so a row reads as ~/Development rather than
--- repeating the same twenty characters on every line.
-local HOME = os.getenv("HOME") or ""
-local function shortDir(dir)
-  if not dir or dir == "" then return "" end
-  if HOME ~= "" and dir:sub(1, #HOME) == HOME then
-    return "~" .. dir:sub(#HOME + 1)
-  end
-  return dir
-end
-
-local function humanBytes(n)
-  n = tonumber(n) or 0
-  if n < 1024 then return string.format("%d B", n) end
-  if n < 1024 * 1024 then return string.format("%d KB", math.floor(n / 1024 + 0.5)) end
-  if n < 1024 * 1024 * 1024 then return string.format("%.1f MB", n / 1024 / 1024) end
-  return string.format("%.1f GB", n / 1024 / 1024 / 1024)
-end
-
-local function humanAge(epoch)
-  local secs = os.time() - (tonumber(epoch) or 0)
-  if secs < 60 then return "just now" end
-  if secs < 3600 then return math.floor(secs / 60) .. "m ago" end
-  if secs < 86400 then return math.floor(secs / 3600) .. "h ago" end
-  return math.floor(secs / 86400) .. "d ago"
-end
+-- How a fact is worded lives in util, because the pane beside this list states the same
+-- ones and a size or an age must not come out phrased two ways.
+local shortDir, humanAge = util.shortDir, util.humanAge
 
 --------------------------------------------------------------------------------
 -- Rows
@@ -138,7 +129,10 @@ local function subtitleFor(row)
   -- removed or renamed inside it, which is a change but not an edit, and a field that means two
   -- different things by row type is worse than a plainer word that is true of every row.
   if row.modified then parts[#parts + 1] = "changed " .. humanAge(row.modified) end
-  if row.size then parts[#parts + 1] = humanBytes(row.size) end
+  -- No size here, deliberately. Only the recent list carries a date at all and nothing carries
+  -- a size, because reading either costs a call per row and a page is two hundred rows. The pane
+  -- beside the list describes ONE row, so it stats that row and reports both for one call, which
+  -- is where a size can be shown without the list paying for two hundred it will never draw.
   return table.concat(parts, "  ")
 end
 
@@ -312,6 +306,46 @@ local function onSelect(item)
 end
 
 --------------------------------------------------------------------------------
+-- The pane, following the highlight
+--------------------------------------------------------------------------------
+
+-- The atom's onHighlight target, fired from a poll. A row with nothing to describe, a status
+-- row or a help row, clears the pane rather than leaving a stale one beside the list.
+local function onHighlight(item)
+  if item and item.path and not (item.status or item.help) then
+    preview.show(item)
+  else
+    preview.clear()
+  end
+end
+
+-- Compose with the root's own onPositioned rather than replacing it. The atom reports both
+-- frames, the pane docks into the companion rect it reserved, and the root's shortcut panel
+-- still gets its anchor, so neither knows about the other.
+--
+-- The anchor handed on spans the pair rather than the list alone, the same as the clipboard
+-- and Processes, so the hints sit full width beneath both panes instead of stopping short
+-- under the list. With no pane there is no companion rect and the anchor is the plain chooser
+-- frame, exactly as it was before the pane existed.
+local function onPositioned(chooserFrame, companionFrame)
+  if companionFrame then
+    preview.dock(companionFrame)
+    -- The atom seeds the highlight before it positions anything, so the first onHighlight
+    -- lands with nowhere to draw. This is what fills the pane on open.
+    if picker then onHighlight(picker:selectedItem()) end
+  end
+  if not cfg.onPositioned then return end
+  local anchor = chooserFrame
+  if companionFrame then
+    anchor = {
+      x = chooserFrame.x, y = chooserFrame.y, h = chooserFrame.h,
+      w = (companionFrame.x + companionFrame.w) - chooserFrame.x,
+    }
+  end
+  cfg.onPositioned(anchor)
+end
+
+--------------------------------------------------------------------------------
 -- Public surface
 --------------------------------------------------------------------------------
 
@@ -323,8 +357,33 @@ function M.configure(opts)
 end
 
 --- chooser.start() - build the picker instance once and reuse it across shows.
+---
+--- The pane is configured FIRST, because whether there is one at all decides whether the atom
+--- reserves room beside the list, and that is fixed when the instance is built. With no surface
+--- injected the pane stands down and the picker comes up exactly as it did before it existed,
+--- rather than half wired.
 function M.start()
   if picker or not cfg.chooser then return M end
+
+  local policy = cfg.preview or {}
+  thumbs.configure({
+    -- Written with a tilde in config, since nothing there names an absolute location.
+    cacheDir = policy.cacheDir and util.expandHome(policy.cacheDir) or nil,
+    cacheFiles = policy.cacheFiles,
+    nativeMaxBytes = policy.nativeMaxBytes,
+  })
+  preview.configure({
+    surface = cfg.surface,
+    -- Read through the instance rather than captured, so the pane picks up the palette the atom
+    -- selected for THIS open and follows the light and dark switch with it.
+    palette = function() return picker and picker:activeTheme().preview end,
+    limits = policy,
+    -- The same seam the row subtitle reads, so the pane and the row cannot disagree about when
+    -- a path was last acted on.
+    usedAt = cfg.usedAt,
+    thumbs = thumbs,
+  })
+
   picker = cfg.chooser.new({
     theme = cfg.theme,
     rows = supplier,
@@ -332,14 +391,28 @@ function M.start()
     matcher = false,
     placeholder = cfg.placeholder,
     onSelect = onSelect,
-    onPositioned = cfg.onPositioned,
+    -- Setting this is what starts the atom's highlight poll, so the pane costs a timer only
+    -- when there is a pane to feed.
+    onHighlight = preview.isEnabled() and onHighlight or nil,
+    onPositioned = onPositioned,
     onActivity = cfg.onActivity,
+    -- A trackpad or a wheel over the pane, which a canvas cannot report for itself. The same
+    -- verb the two keys go through, so there is one notion of where the pane is scrolled to.
+    onScroll = preview.isEnabled() and preview.scrollBy or nil,
     onClose = function()
       -- Abandon anything in flight, so a search for a picker nobody is looking at is not
       -- still running, and the root's overlay teardown runs through the injected handler.
       if cfg.api then cfg.api.cancel() end
+      -- Destroyed rather than hidden, on the atom's one idempotent teardown path, so no
+      -- dismissal leaves a canvas behind and a reopen builds a fresh one.
+      preview.destroy()
       if cfg.onClose then cfg.onClose() end
     end,
+    layout = {
+      -- Room beside the list for the pane, and zero when there is no pane to put there, which
+      -- is what makes the whole feature degrade to the picker as it was rather than to a gap.
+      companionWidth = preview.isEnabled() and (policy.width or 420) or 0,
+    },
   })
   return M
 end
@@ -389,9 +462,14 @@ end
 --- the engine's onResults, so an answer arriving after the keystroke that asked for it paints
 --- itself. The highlight is preserved, since a list filling in under the cursor should not move
 --- what the user was about to choose.
+---
+--- The pane is re rendered explicitly, and it has to be. The atom's poll compares the highlighted
+--- ROW NUMBER, so a result set landing under a stationary highlight is the same number and fires
+--- nothing, which would leave the pane describing whatever used to be in that position.
 function M.refresh()
   if picker and picker:isShowing() then
     picker:refresh(false)
+    onHighlight(picker:selectedItem())
   end
 end
 
@@ -409,6 +487,22 @@ end
 
 function M.selectPrev()
   if picker then picker:selectPrev() end
+end
+
+-- How far one key press moves the pane, roughly a wheel notch, the same distance the clipboard
+-- moves per press so the gesture means the same amount in both.
+local PANE_SCROLL_STEP = 120
+
+--- chooser.scrollPreviewDown() / chooser.scrollPreviewUp() - move the pane's body, for the
+--- shared Hyper+Cmd+j and Hyper+Cmd+k actions, so a long file head or a big folder can be read
+--- without reaching for the trackpad. Both go through the pane's one scroll verb, which is also
+--- what the atom's trackpad callback goes through.
+function M.scrollPreviewDown()
+  preview.scrollBy(PANE_SCROLL_STEP)
+end
+
+function M.scrollPreviewUp()
+  preview.scrollBy(-PANE_SCROLL_STEP)
 end
 
 --- chooser.insertSelected() - the primary key, choosing the highlighted row.

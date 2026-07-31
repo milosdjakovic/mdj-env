@@ -2,10 +2,11 @@
 -- Pure data, no logic. The spoon's own root reads this and hands each piece to
 -- whichever part needs it, so nothing below knows a source or a chooser exists.
 --
--- Four things live here and they answer four different questions. `types` decides
+-- Five things live here and they answer five different questions. `types` decides
 -- what a dot attached token in a query means. `roots` decides what a bare directory
 -- name resolves to. `searchAlso` decides where a search with no folder named starts
--- from, beyond home. `prune` decides what the hidden index refuses to walk.
+-- from, beyond home. `prune` decides what the hidden index refuses to walk. `preview`
+-- decides how much of a file the pane beside the list reads before drawing it.
 
 return {
   -- Type tokens. A query token written with a leading dot is a type filter when its
@@ -119,6 +120,48 @@ return {
     ".npm", ".pnpm-store", ".yarn", ".bun", ".cargo", ".rustup", ".nvm", ".gem",
     ".venv", "venv", "__pycache__", ".gradle", ".m2", ".cocoapods",
     "node_modules", ".next", ".turbo", "target", ".terraform",
+  },
+
+  -- The pane beside the list, which describes the highlighted row. Every number here
+  -- bounds work that happens once per highlighted row rather than once per row on
+  -- screen, which is why reading a file at all is affordable here and is not in a list.
+  preview = {
+    -- How wide the pane is. The chooser itself is 480, so this is deliberately narrower,
+    -- since the list is what you are steering and the pane is what you glance at. The
+    -- Chooser atom caps a companion at 480 regardless.
+    width = 420,
+
+    -- How much of a file is read to show its head. Two hundred lines of source is around
+    -- eight kilobytes, so this is generous enough that the cut is never what you are
+    -- looking at, and small enough that the read stays imperceptible on a local disk.
+    readCap = 64 * 1024,
+
+    -- How many lines of that are kept. The pane scrolls, so this is how far it can be
+    -- scrolled rather than how much is visible, and past a few hundred lines you want
+    -- the file open in an editor rather than in a pane.
+    headLines = 400,
+
+    -- How many entries of a folder are listed, newest first. The count over the heading
+    -- is the real total, so a bigger folder still reports its size honestly.
+    folderEntries = 100,
+
+    -- The larger edge of a rendered picture, in pixels. Above the pane's own width so it
+    -- stays sharp on a retina display, which draws it at twice the point size.
+    imageEdge = 600,
+
+    -- Past this, an image is not decoded in process. A decode happens on the main thread
+    -- and Hammerspoon owns every leader key in this config, so a stall here is a stalled
+    -- keyboard, and a photo library holds files well over this.
+    nativeMaxBytes = 20 * 1024 * 1024,
+
+    -- Where rendered pictures are kept between opens, so a pdf costs a Quick Look render
+    -- once rather than on every open. Outside the git tracked config, beside the other
+    -- caches, and written with a tilde since nothing here names an absolute location.
+    cacheDir = "~/.cache/hammerspoon/filesearch-previews",
+
+    -- How many renders are kept before the oldest are dropped. Each is a small PNG, so
+    -- this is about not growing without bound over months rather than about space.
+    cacheFiles = 400,
   },
 
   -- Cloud mirrors and media libraries, pruned from the hidden walk for the same

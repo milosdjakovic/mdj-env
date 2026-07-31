@@ -1581,6 +1581,13 @@ spoon.FileSearch.chooser.configure({
   -- it as one and file it in history, which is exactly what happens when the pasteboard changes
   -- from outside the manager.
   copy = function(text) hs.pasteboard.setContents(text) end,
+  -- The pane beside the list paints its background and border through the shared surface, so it
+  -- matches the docked hint panel and rounds the same way. Like the clipboard and Local Servers
+  -- it draws its own canvas docked into the rect the atom reserves rather than being a
+  -- CanvasPanel instance, because it has to land exactly on that rect, which is the one the
+  -- click watcher counts as part of the picker. Injecting this is also what decides the pane
+  -- exists at all, so removing this line gives back the picker with no pane and no reserved room.
+  surface = spoon.CanvasPanel.surfaceElements,
   onPositioned = fileSearchPanel.onPositioned,
   onActivity = fileSearchPanel.onActivity,
   onClose = function()
@@ -1879,9 +1886,10 @@ local contextActions = {
   -- Delete is clipboard only, like append, so it calls the manager directly rather
   -- than routing to whatever chooser is active.
   deleteSelected = function() hideShortcuts() clipManager.deleteSelected() end,
-  -- Preview scroll routes like the other nav actions; only the clipboard surface
-  -- answers scrollPreview, so on any other active chooser the routeNav method guard
-  -- makes it a no op.
+  -- Preview scroll routes like the other nav actions. The clipboard and file search both
+  -- answer it, each moving its own pane, and on any other active chooser the routeNav
+  -- method guard makes it a no op. Two consumers is exactly why it is routed rather than
+  -- named at one surface the way the clipboard-only append and delete are.
   scrollPreviewDown = routeNav("scrollPreviewDown"),
   scrollPreviewUp = routeNav("scrollPreviewUp"),
   -- Force stop and rescan are answered only by the processes surface, so they route

@@ -219,4 +219,44 @@ function M.expandHome(path)
   return path
 end
 
+--------------------------------------------------------------------------------
+-- Reading
+--------------------------------------------------------------------------------
+-- How a fact is worded for a person. Here rather than in one surface because both the
+-- row and the pane state the same three facts, and the same size or the same age must
+-- not come out phrased two ways depending on which one you happen to be looking at.
+
+local HOME = os.getenv("HOME") or ""
+
+--- util.shortDir(dir) -> the directory with home collapsed to a tilde
+--- The first thirty characters of nearly every path here are identical, and they cost
+--- width the part that identifies the file needs.
+function M.shortDir(dir)
+  if not dir or dir == "" then return "" end
+  if HOME ~= "" and dir:sub(1, #HOME) == HOME then
+    return "~" .. dir:sub(#HOME + 1)
+  end
+  return dir
+end
+
+--- util.humanBytes(n) -> a byte count in the largest unit that keeps it short
+function M.humanBytes(n)
+  n = tonumber(n) or 0
+  if n < 1024 then return string.format("%d B", n) end
+  if n < 1024 * 1024 then return string.format("%d KB", math.floor(n / 1024 + 0.5)) end
+  if n < 1024 * 1024 * 1024 then return string.format("%.1f MB", n / 1024 / 1024) end
+  return string.format("%.1f GB", n / 1024 / 1024 / 1024)
+end
+
+--- util.humanAge(epoch) -> how long ago that was, in one coarse unit
+--- Coarse on purpose. Nothing here is decided by the difference between two hours and
+--- two hours twenty, and a precise figure would only be harder to read at a glance.
+function M.humanAge(epoch)
+  local secs = os.time() - (tonumber(epoch) or 0)
+  if secs < 60 then return "just now" end
+  if secs < 3600 then return math.floor(secs / 60) .. "m ago" end
+  if secs < 86400 then return math.floor(secs / 3600) .. "h ago" end
+  return math.floor(secs / 86400) .. "d ago"
+end
+
 return M

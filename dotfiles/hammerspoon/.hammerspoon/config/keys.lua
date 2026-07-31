@@ -378,6 +378,11 @@ return {
         { key = "i", action = "insertSelected", description = "Open" },
         { key = "j", action = "selectNext",     description = "Move down" },
         { key = "k", action = "selectPrev",     description = "Move up" },
+        -- Cmd is the sub-modifier within Hyper, the same pair the clipboard uses for the
+        -- same job, so scrolling the pane is one gesture across both tools. A trackpad or
+        -- a wheel over the pane does it too, which the Chooser atom reports.
+        { key = "j", mods = { "cmd" }, action = "scrollPreviewDown", description = "Scroll preview down" },
+        { key = "k", mods = { "cmd" }, action = "scrollPreviewUp",   description = "Scroll preview up" },
         { key = "l", action = "browseInto",     description = "Into folder" },
         { key = "h", action = "browseUp",       description = "Up a level" },
         { key = "f", action = "revealInFinder", description = "Reveal in Finder" },

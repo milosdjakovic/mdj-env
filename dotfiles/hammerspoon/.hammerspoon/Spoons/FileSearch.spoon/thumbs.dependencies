@@ -1,0 +1,16 @@
+# What thumbs.lua needs from outside Hammerspoon, declared beside the only file in this
+# spoon that renders a picture of a file.
+# Format is name | kind | locator | policy | reason.
+# See Dependencies.spoon for the kinds and for how these files are found.
+# Name a tool only, never how to install it. That belongs to the layer above.
+#
+# The system kind, a binary at a fixed absolute path rather than something found on PATH,
+# so the locator here is the path and thumbs.lua is allowed to hold that same literal.
+# Nothing is injected because nothing can move it, and the declaration exists so the
+# manifest records what this spoon actually runs.
+#
+# Optional, because without it the preview pane loses one describer and nothing else. A
+# raster still draws through the in process generator, a text file still shows its head,
+# a folder still lists itself, and every other row is described by its facts exactly as
+# before. Only the pdf, the video and the office document lose their picture.
+qlmanage | system | /usr/bin/qlmanage | optional | drawing a preview of a pdf, a video, or anything else only Quick Look can render
