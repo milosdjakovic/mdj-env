@@ -344,12 +344,45 @@ function M.start()
   return M
 end
 
+--- chooser.beginSession() - start a fresh session without showing anything.
+---
+--- Split out of show because a second surface needs the same beginning. It clears what the last
+--- session held, asks for the recent list, and warms whatever the root warms, and every one of
+--- those is what makes an empty query answer with something. Calling it repeatedly is harmless,
+--- since the recent fetch holds its own handle and refuses to start twice.
+function M.beginSession()
+  if cfg.api then cfg.api.reset() end
+  return M
+end
+
 --- chooser.show() - open on a fresh session.
 function M.show()
   M.start()
   if not picker then return end
-  cfg.api.reset()
+  M.beginSession()
   picker:show()
+end
+
+--- chooser.rowsForQuery(q) -> the rows a query draws, for a surface other than this picker.
+---
+--- The row supplier itself, exposed rather than reimplemented, so a second surface shows the
+--- same titles, the same subtitles, the same icons, the same status rows and the same help
+--- screen. Anything else would be a second presentation of one list, free to disagree with this
+--- one about what a row says.
+---
+--- The engine behind it is one instance, so two surfaces reading it at once would each be
+--- changing the query the other is asking about. In practice only one list is on screen at a
+--- time, and the failure would be a confused list rather than a broken one, so this is a note
+--- and not a mechanism.
+function M.rowsForQuery(q)
+  return supplier(q)
+end
+
+--- chooser.choose(row) - do to a row what the primary key does, for a surface with no picker.
+--- The same function this picker's own selection runs through, so choosing is defined once and
+--- records the use once. A status row or a help row is ignored here exactly as it is there.
+function M.choose(row)
+  onSelect(row)
 end
 
 --- chooser.refresh() - redraw from what the engine now holds, without re dispatching. Wired as

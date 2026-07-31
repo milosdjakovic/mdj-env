@@ -69,12 +69,14 @@ local cfg = {
 -- handle is what holds the query, and the caller keeping one per channel is the whole contract.
 
 --- spotlight.configure(opts)
---- opts.prune   directory names never worth searching, used to build the scope list
---- opts.limits  the pure limits table, read for the recent window
+--- opts.prune       directory names never worth searching, used to build the scope list
+--- opts.limits      the pure limits table, read for the recent window
+--- opts.searchAlso  declared starting points, added to the derived home ones
 function M.configure(opts)
   opts = opts or {}
   cfg.prune = opts.prune or {}
   cfg.limits = opts.limits or {}
+  cfg.searchAlso = opts.searchAlso or {}
   cfg.scopes = nil -- rebuilt lazily, so a configure after a reload picks up new folders
   return M
 end
@@ -93,8 +95,20 @@ function M.supports(parsed)
   return true
 end
 
--- The directories worth searching, the top level of home minus the pruned names. Computed
--- once and reused, since a new top level folder is rare and a reload rebuilds it.
+-- The directories worth searching. The top level of home minus the pruned names, derived rather
+-- than declared so it looks after itself as folders come and go, plus whatever the policy names
+-- outright. Computed once and reused, since neither half changes often and a reload rebuilds it.
+--
+-- The derivation exists because Spotlight cannot be told to leave a subtree out, so the way to
+-- exclude ~/Library is to name its siblings instead of naming home. That is worth knowing before
+-- anyone simplifies this to one scope.
+--
+-- The declared half ADDS rather than replaces, so nothing has to be maintained by hand for the
+-- derived half to keep working. Each entry is expanded, joined under home when it is relative,
+-- and dropped when it is not a directory here, so one list travels between machines. Breadth is
+-- close to free, measured at 120 to 175 milliseconds across the derived list, the whole of home
+-- and the whole volume alike once the index is warm, because this is an index lookup and not a
+-- walk. So the reason to keep the declared list short is relevance, not speed.
 local function searchScopes()
   if cfg.scopes then return cfg.scopes end
   local home = os.getenv("HOME") or ""
@@ -113,6 +127,18 @@ local function searchScopes()
     end
   end)
   if not ok or #scopes == 0 then scopes = { home } end
+
+  local seen = {}
+  for _, path in ipairs(scopes) do seen[path] = true end
+  for _, entry in ipairs(cfg.searchAlso or {}) do
+    local path = util.expandHome(tostring(entry)):gsub("/+$", "")
+    if path ~= "" and path:sub(1, 1) ~= "/" then path = home .. "/" .. path end
+    if path ~= "" and not seen[path] and hs.fs.attributes(path, "mode") == "directory" then
+      seen[path] = true
+      scopes[#scopes + 1] = path
+    end
+  end
+
   cfg.scopes = scopes
   return scopes
 end

@@ -930,15 +930,28 @@ grammar, why no scope is remembered between keystrokes, and why a claim holds ev
 matched, live in `Spoons/QueryScope.spoon/CLAUDE.md`. Adding the spoon needed a restow, since
 `~/.hammerspoon/Spoons` holds one symlink per spoon.
 
-Eight scopes exist and they come in three shapes, which is the useful thing to know before
+Nine scopes exist and they come in three shapes, which is the useful thing to know before
 adding one. Some are the plain shape above, a tool exporting its rows and its select, which is
-keep awake, VPN, emoji, and browser tabs. Menu search is root policy rather than a spoon, so the
-root is both the adapter and the thing adapted. Apps, window actions, and System Settings panes
+keep awake, VPN, emoji, browser tabs, and file search. Menu search is root policy rather than a
+spoon, so the root is both the adapter and the thing adapted. Apps, window actions and System Settings panes
 are neither, they narrow the launcher's own catalog, so they read `Launcher:rowsOfKind(kind)` and
 hand a chosen row back through `Launcher:runItem`, which keeps one row builder and one dispatcher
 however a row is reached. Those three scope a group of rows rather than one row, so like menu
 search they have nowhere to advertise an alias until the alias editor exists, and their
 `config/keys.lua` entries carry a description and an alias and no key because they open nothing.
+
+File search is the first scope whose alias is punctuation, `/` then a space, which the grammar
+already allowed since its only rule is one word with no whitespace. It matches that tool's Hyper
+key, so there is one thing to remember rather than two, and a slash reads as a path everywhere
+else. It is also the first scope over an ASYNCHRONOUS list that is not merely slow to arrive but
+stateful, so two things had to be added rather than adapted. Entering the scope begins a session,
+which is what the picker's `show` does and what makes an empty query answer with the recent list
+instead of a loading row nothing ever resolves. And the tool's `onResults` is composed rather than
+replaced, so both surfaces are told when rows land and each one's redraw does nothing while it is
+off screen. Its rows come from the tool's own row supplier and its choosing from the tool's own
+select, so a row cannot say one thing in the picker and another in the launcher, and a use is
+recorded once wherever it happens. What stays behind in the picker is everything past choosing,
+reveal, copy path and moving up a level, since those are that tool's Hyper context.
 
 A scope may be narrower than the tool it reaches, and browser tabs is the case that works.
 Its settings level is a step into a second list, which a scope cannot show, so the scope lists

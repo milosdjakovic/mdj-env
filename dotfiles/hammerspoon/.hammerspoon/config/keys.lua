@@ -534,7 +534,10 @@ return {
   --
   -- Slash reads as search, the way it does in vim and in every browser find, and Activity
   -- Monitor moved one key over to backslash to free it.
-  fileSearch = { modifiers = HYPER, key = "/", description = "File search" },
+  -- The alias is the same character as the key, which is the point. One thing to remember, and
+  -- a slash reads as a path everywhere else too. Only one word, since `file` would claim every
+  -- launcher query beginning with that word and a space.
+  fileSearch = { modifiers = HYPER, key = "/", description = "File search", aliases = { "/" } },
 
   -- Processes (for Processes.spoon, wired in init.lua). Finds the development servers you
   -- left running, identified by the port they hold and the project they run in, and stops

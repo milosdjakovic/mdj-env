@@ -2,9 +2,10 @@
 -- Pure data, no logic. The spoon's own root reads this and hands each piece to
 -- whichever part needs it, so nothing below knows a source or a chooser exists.
 --
--- Three things live here and they answer three different questions. `types` decides
+-- Four things live here and they answer four different questions. `types` decides
 -- what a dot attached token in a query means. `roots` decides what a bare directory
--- name resolves to. `prune` decides what the hidden index refuses to walk.
+-- name resolves to. `searchAlso` decides where a search with no folder named starts
+-- from, beyond home. `prune` decides what the hidden index refuses to walk.
 
 return {
   -- Type tokens. A query token written with a leading dot is a type filter when its
@@ -75,7 +76,32 @@ return {
     personal  = "Development/personal",
     config    = ".config",
     hs        = ".hammerspoon",
+    -- Outside home, which is what the absolute form is for. Typing `/` on its own already
+    -- browses the volume root with no alias at all, so `root` is only a shorter way to say it.
+    apps      = "/Applications",
+    root      = "/",
   },
+
+  -- Extra starting points for a search with NO folder named, added to the ones derived from
+  -- home. A search that names a folder is unaffected, since that one is answered by walking the
+  -- tree you named.
+  --
+  -- The derived half is the top level of home minus the pruned names, and it is derived rather
+  -- than written out because Spotlight cannot be told to leave a subtree out. Naming the siblings
+  -- of ~/Library is the only way to exclude it, and that list has to keep up as folders come and
+  -- go. So this one adds to it rather than replacing it.
+  --
+  -- An entry may be absolute, relative to home, or written with a tilde, and one that is not a
+  -- directory on this machine is skipped, so the same list works everywhere.
+  --
+  -- Applications are the case this exists for. They live outside home, so they were unfindable,
+  -- which also made the `app` type token above useless. Keep the list short for RELEVANCE and
+  -- not for speed, because breadth here is close to free. Measured over three terms, the derived
+  -- list, the whole of home and the whole volume all answered in the same 120 to 175 millisecond
+  -- band once the index was warm, and reading a page of two hundred rows cost 3.5ms whether the
+  -- result held 3,781 rows or 52,246. Adding "/" would therefore cost no time at all and would
+  -- still be a bad trade, since every query would then compete with the system.
+  searchAlso = { "/Applications", "/System/Applications" },
 
   -- What the hidden index refuses to walk. Spotlight indexes no path containing a
   -- dot segment, not the dot entry itself and not anything beneath it, so the hidden
