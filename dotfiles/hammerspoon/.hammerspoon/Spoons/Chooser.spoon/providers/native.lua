@@ -42,6 +42,12 @@
 ---   onActivity   function() fired on every key press while the chooser is open, via a
 ---                passive eventtap (never consuming the key). A caller uses it as an
 ---                idle signal, e.g. to defer a docked hint panel until the user pauses.
+---   onScroll     function(points) fired when a trackpad or a wheel scrolls over the
+---                COMPANION rect, handing over how far to move the content in points,
+---                positive being further down it, so a consumer never sees an event and
+---                never has an opinion about direction. Omit it and no tap runs. A
+---                companion is an hs.canvas, which has no scroll callback of its own, so
+---                this is the only way a pane can be scrolled by hand.
 ---   onPositioned function(chooserFrame, companionFrame) fired after layout, both
 ---                a seed frame at show and a corrected frame once the real window
 ---                settles. A consumer docks its companion into companionFrame.
@@ -215,6 +221,10 @@ function Chooser:_teardown()
     self.activityWatcher:stop()
     self.activityWatcher = nil
   end
+  if self.scrollWatcher then
+    self.scrollWatcher:stop()
+    self.scrollWatcher = nil
+  end
   if self.config.onClose then
     self.config.onClose()
   end
@@ -363,6 +373,7 @@ function Chooser:_positionAndShow()
   self:_startPollLoop()
   self:_startClickWatcher()
   self:_startActivityWatcher()
+  self:_startScrollWatcher()
 end
 
 --------------------------------------------------------------------------------
@@ -449,6 +460,59 @@ function Chooser:_startClickWatcher()
 end
 
 --------------------------------------------------------------------------------
+-- Scroll over the companion (only when a consumer listens)
+--------------------------------------------------------------------------------
+
+-- What one wheel notch is worth in points. A wheel reports whole notches while a
+-- trackpad reports pixels, so a notch has to be given a size, and this is the same
+-- distance the clipboard already moves per key press, which keeps a notch and a press
+-- feeling like the same amount of movement.
+local WHEEL_NOTCH_POINTS = 120
+
+-- Watch scrolls while the chooser is up, and answer only for the companion rect.
+--
+-- A companion is an hs.canvas and a canvas has no scroll callback, so without this a
+-- trackpad over a preview pane does nothing at all and the pane can only be moved by
+-- the keys bound to it. This lives in the atom rather than in a pane because the atom
+-- is the piece that already owns the rects and already runs taps, so one watcher here
+-- gives every companion the same gesture instead of each pane growing its own.
+--
+-- Outside the rect it returns false untouched, which matters twice. A scroll over the
+-- list is hs.chooser's own and must reach it, and a scroll anywhere else on screen
+-- belongs to whatever is under the pointer.
+--
+-- The delta is normalised HERE in both senses, so a consumer is handed a distance to
+-- move its content by and never an event.
+--
+-- The unit first. A trackpad sends continuous events measuring in pixels while a wheel
+-- sends discrete notches, and telling them apart is what keeps one press of a wheel from
+-- moving a pane by a single point.
+--
+-- Then the direction. The event measures the FINGERS and a pane measures its CONTENT, so
+-- the two run opposite ways and the sign is flipped once here. Doing it in the atom
+-- rather than in each pane is the difference between one negation and one per consumer,
+-- all of which would have to agree. Natural scrolling stays the system's preference,
+-- since it flips the event before this ever sees it.
+function Chooser:_startScrollWatcher()
+  if not self.config.onScroll then return end
+  if self.scrollWatcher then self.scrollWatcher:stop() end
+  local props = hs.eventtap.event.properties
+  self.scrollWatcher = hs.eventtap.new({ hs.eventtap.event.types.scrollWheel }, function(e)
+    local fr = self.paneFrames or {}
+    if not pointInFrame(e:location(), fr.companion) then return false end
+    local points
+    if e:getProperty(props.scrollWheelEventIsContinuous) ~= 0 then
+      points = e:getProperty(props.scrollWheelEventPointDeltaAxis1)
+    else
+      points = e:getProperty(props.scrollWheelEventDeltaAxis1) * WHEEL_NOTCH_POINTS
+    end
+    if points and points ~= 0 then self.config.onScroll(-points) end
+    return true
+  end)
+  self.scrollWatcher:start()
+end
+
+--------------------------------------------------------------------------------
 -- Completion (Return, click, escape)
 --------------------------------------------------------------------------------
 
@@ -529,6 +593,11 @@ function Chooser:refresh(resetRow)
   elseif row then
     self.chooser:selectedRow(row)
   end
+  -- The list was just rebuilt, so whatever the highlight is sitting on is a different row
+  -- than it was, even when the NUMBER has not moved. The poll compares that number, so
+  -- without this a companion pane keeps describing the row that used to be in that
+  -- position. The same clearing the query callback already does, for the same reason.
+  self.lastRow = nil
 end
 
 --- Chooser:setQuery(text) - set the field text, clearing it with "". A consumer that changes
