@@ -469,11 +469,138 @@ application into staleness that outlives a reload. Because the whole table rebui
 2.3ms, it is simply dropped when the chooser closes, so a changed default app is correct on
 the next open with no invalidation logic at all.
 
-## What it deliberately does not do
+## The pane answers the question the row cannot afford to
 
-No preview pane. The companion pane and the Chain of Responsibility for generated
-thumbnails are a second feature, and that is where a configured cache directory would
-genuinely belong.
+A row is one line, and one line cannot say whether this is the file you had in mind. The
+subtitle already carries the directory and the two labelled ages, which is as far as a line
+honestly goes, so the pane beside the list shows what is actually inside.
+
+It also owns the facts a list cannot pay for. No source reads a size and only the recent list
+reads a date, because either one costs a call per row and a page is two hundred rows. The
+pane describes exactly one row, so it stats that row and reports the size, both dates and the
+kind for the cost of a single call. That is why the row subtitle deliberately has no size
+field. It used to have one, filled by nothing, which is the defect this replaced.
+
+The header draws for every row and is not part of the chain below, because a name, a location
+and a handful of dates are true of everything, and a pane that sometimes had no header would
+be answering a different question depending on which row you were on. Both ages stay labelled
+there for the same reason they are labelled on the row, and the last used line is drawn in the
+accent tone because it is the one fact on the pane that is about you rather than about the
+file.
+
+## What the body shows is a Chain of Responsibility, and declining is half of it
+
+`BODIES` in `preview.lua` is an ordered list of describers, each offered the row and free to
+answer or to pass. The first answer wins and nothing else is consulted. Adding a kind of file
+the pane can show is a new describer plus one line in that list.
+
+Declining is a real part of the mechanism rather than an error path, and three cases need it.
+A text file that cannot be opened, an image type with no generator behind it because
+`qlmanage` is missing, and a binary that no describer claims at all. Each one falls through to
+the row being described by its header alone, which reads as a file the pane has nothing to add
+about rather than as a heading over an empty box.
+
+The order is not a preference. A folder is claimed first, since a directory can never be
+anything else. A picture is claimed second and gated on the EXTENSION rather than on sniffed
+content, which is what makes an svg draw as a picture rather than having its markup printed at
+you. Text is claimed last and gated on looking rather than on a table, a NUL byte in the first
+block being what says a file is not text, so a source file, a json, a markdown and a config
+with no extension at all are all covered without any of them being listed anywhere.
+
+The text head is read synchronously with `io.open`, bounded by the configured cap. That is a
+deliberate exception to this spoon's rule that nothing blocks, and it is affordable because
+the read is a few tens of kilobytes off a local disk and going asynchronous would mean a task
+per highlight fire. The case it would cost is a file on a slow network mount.
+
+## Pictures are a second chain, and only one member of it caches
+
+`thumbs.lua` is the same shape as the clipboard's generator chain, and the contract is
+deliberately AN IMAGE RATHER THAN A FILE. That is what keeps the pane ignorant of whether
+anything was written to disk, so the cache is a private detail of the one generator that needs
+it instead of a concept the whole feature carries.
+
+Two generators. A raster or an icon set is decoded in process, immediately, so the pane draws
+it on the first paint with no repaint at all, guarded by a size cap because a decode happens
+on the main thread and Hammerspoon owns every leader key in this config. Everything else goes
+to Quick Look, which is a process launch and a few hundred milliseconds, and which is also the
+reason a file type this config has never heard of still draws correctly as long as something
+on the machine knows how.
+
+Only the Quick Look generator caches, and it has to. Writing a raster out would cost more than
+decoding it again. A render is keyed on what the file WAS, its size and its modification time,
+so an edited file renders again and an unchanged one is free on every later open, and the
+directory is bounded by a file count swept once per session rather than checked per write.
+`qlmanage` writes into a scratch directory per render rather than to a named output file,
+because it appends `.png` to the source name rather than substituting it, so the result is
+found rather than guessed at.
+
+A render is asynchronous, which the pane has to survive. The generation counter is what makes
+a late answer honest. Moving the highlight bumps it, so a render finishing after you have left
+the row is kept for next time and paints nothing.
+
+## The pane is one canvas docked into a rect it did not choose
+
+The same arrangement the clipboard preview and the Local Servers pane use. It draws through
+the shared surface so the three read as one component, and it is not a `CanvasPanel` instance
+because that atom computes its own placement from an anchor while this has to land exactly on
+the companion rect the Chooser atom already reserved and reported. That rect is also the one
+the click watcher counts as part of the picker, so a pane drawn a few points outside it would
+turn a click on itself into a dismissal.
+
+`onPositioned` is composed rather than replaced, docking the pane and then handing the
+shortcut panel an anchor spanning both panes, so the hints sit under the pair. The pane is
+destroyed rather than hidden on the atom's one idempotent teardown, so nothing outlives a
+dismissal.
+
+Two things must be re rendered explicitly. The atom compares the highlighted ROW NUMBER, so a
+result set landing under a stationary highlight fires nothing, which is why `refresh` re
+renders. And the atom seeds the highlight before it positions anything, so the first
+`onHighlight` lands with nowhere to draw, which is why `onPositioned` renders once it has
+docked.
+
+The same reasoning found a defect one layer down, in the atom rather than here. `Chooser:refresh`
+rebuilt the list without clearing `lastRow`, so browsing into a folder while the FIRST row was
+highlighted left the pane describing the old first row, since the number had not moved. The
+query callback already cleared it for typing, with a comment saying exactly why, so refresh was
+simply missing the same line. Fixing it there rather than here means every companion pane gets
+it, and the explicit re render above stays only because it repaints at once rather than on the
+next poll tick.
+
+## hs.fs.dir raises, it does not return nil
+
+Worth its own note, because the guard everyone writes for it does nothing. `hs.fs.dir` on a
+directory it cannot open RAISES, so `local iter = hs.fs.dir(path); if not iter then return end`
+never runs its second half, and the iterator can raise part way through a walk as well. The
+folder describer runs inside the highlight poll, where an unhandled error is exactly that, and a
+row naming a folder that no longer exists is ordinary rather than unlikely, since the index goes
+stale and the recent list outlives what it lists. So every directory read here is wrapped, and
+failing to read one means declining, which leaves the row described by its header.
+
+Checked against the cases that produce it, a folder that does not exist, a folder macOS
+protects, a file that does not exist, a file macOS protects, an empty folder, and a binary
+claimed by nothing. All six draw a header and no body rather than raising.
+
+## Scrolling the pane belongs to the atom, not to the pane
+
+A canvas has no scroll callback, so a trackpad over a pane could not be noticed at all. The
+watcher for it lives in the Chooser atom beside the click watcher that already owns these
+rects, gated on a consumer passing `onScroll`, and it answers only for the companion rect so a
+scroll over the list still reaches the list. The atom normalises both the unit, since a
+trackpad reports pixels and a wheel reports notches, and the direction, since the event
+measures fingers while a pane measures content. One negation there rather than one per
+consumer, all of which would have to agree.
+
+That is why this arrived as a fix to the clipboard as much as a feature here. The clipboard
+pane could only be moved by its two keys before, and it now takes the same gesture through the
+same seam. Both surfaces route their keys through their own one scroll verb, which is also
+what the atom calls, so there is one notion of where a pane is scrolled to.
+
+The offset is clamped in paint rather than where it is changed, which is what lets a key
+press, a trackpad gesture and a rebuild at a new height all be written without any of them
+knowing how tall the content turned out. It resets whenever the row changes, since an offset
+carried over would open the next file part way down for no reason a reader can see.
+
+## What it deliberately does not do
 
 No content search. Spotlight's text index answers it in about 135ms and ripgrep is the
 gitignore aware fallback, so the shape is known, it is simply not built.
@@ -487,6 +614,15 @@ Every tool is optional. Without the walker, scoped search stops and Spotlight st
 everything unscoped. Without fzf, unscoped hidden search stops and a scoped hidden search
 still works through the walk. Each source reports itself unavailable with one console line
 naming why, and the key stays worth pressing in every case.
+
+Without `qlmanage` the pane loses one describer. A raster still draws through the in process
+generator, a text file still shows its head, a folder still lists itself, and every other row
+is described by its header exactly as before. Only the pdf, the video and the office document
+lose their picture, and the describer declines rather than promising one.
+
+Without the shared canvas surface injected, there is no pane at all. The atom reserves no room
+beside the list, no highlight poll runs, and the picker is exactly what it was before the pane
+existed. That is one line in the main root, which is what makes the whole feature removable.
 
 ## What would break if the shape changed
 

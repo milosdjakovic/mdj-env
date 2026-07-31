@@ -632,10 +632,11 @@ step mirroring what the clipboard already does.
    pass `onPositioned`, `onActivity`, and `onClose` into the chooser. `onPositioned`
    arms the panel at the chooser frame, `onActivity` pokes its idle timer on each
    keypress, and `onClose` hides it and clears any peeked overlay. A consumer that
-   already owns `onPositioned` (the clipboard, to place its canvas preview) composes
-   the panel's inside its own and forwards the chooser frame out. `contextOverlays`
-   stays as an empty seam, so a context that wants a real hold overlay again can
-   register a model builder there without touching the reveal logic.
+   already owns `onPositioned` (the clipboard, Local Servers and file search, each to
+   place its canvas preview) composes the panel's inside its own and forwards an anchor
+   spanning both panes out. `contextOverlays` stays as an empty seam, so a context that
+   wants a real hold overlay again can register a model builder there without touching
+   the reveal logic.
 6. Inject the panel's `onClose` (which also runs the root's overlay teardown) as the
    surface's `onClose`, wire `onPositioned`/`onActivity`, and bind the open key as a
    base HyperKey binding.
@@ -643,6 +644,14 @@ step mirroring what the clipboard already does.
 A tool with two surfaces, like the VPN control panel and its location picker,
 wires each surface as its own participant, its own context block, predicate,
 registry entry, and overlay.
+
+**A rebuilt list tells the highlight poll.** `Chooser:refresh` clears `lastRow` after setting
+choices, because the poll that drives `onHighlight` compares the row NUMBER and the row under a
+given number changes when the list is rebuilt. Without it a companion pane keeps describing
+whatever used to sit there, which showed up as browsing into a folder from the first row leaving
+the file search pane on the old first row. Typing already did this in the query callback, so
+refresh was missing the same one line. Any consumer that swaps its list wholesale, a menu
+drilling into a level or a rescan, gets the correction for free.
 
 **A green circle marks the active row, never a checkmark.** When a chooser marks
 one row as the live choice, the active display profile, the chosen overlay
@@ -758,7 +767,12 @@ text. Detection is strict, the whole trimmed string must be the colour, so prose
 that merely mentions `#fff` stays ordinary text, and a translucent colour is drawn
 over a checkerboard so its alpha reads. This lives entirely in the per-kind builder
 in `ui.lua`, one consumer, so it is inline there with no new module or injection. Content taller than the pane scrolls with
-Hyper+Cmd+j/k, clamped to the overflow and clipped to the inner box. The canvas
+Hyper+Cmd+j/k or with a trackpad over the pane, both through one `scrollPreviewBy`,
+clamped to the overflow and clipped to the inner box. The trackpad half is not the
+clipboard's own, a canvas cannot report a scroll, so the atom watches for one over the
+companion rect and calls `onScroll` with a distance in points, normalising a wheel
+notch against a trackpad's pixels and flipping the sign once so a pane never has an
+opinion about direction. See the file search pane, which was where that gap was found. The canvas
 pane and the docked shortcut panel share the palette's `preview.bg`/`preview.border`
 so they read as one surface. Crucially the file storage and the preview sizing are
 decoupled from the UI: `manager/store.lua` owns the media lifecycle and
@@ -961,11 +975,20 @@ read your selection and so cannot preview it, which is the reason to open that t
 rule is that a scope may be smaller than its tool but not smaller than the reason for the tool,
 and an alias reaching a diminished copy of a tool is worse than there being one way in.
 
-A tool that owns a canvas companion pane cannot be scoped in place at all, which rules out the
-clipboard and Processes. The launcher's chooser reserves no companion pane and the width is
-fixed when a chooser is built, so those two would lose their preview, which is most of what
-they are. Scoping them would mean teaching the launcher a preview pane a scope can claim, and
-that is a real change to the atom rather than another entry in the scope list.
+A tool whose companion pane IS the reason for the tool cannot be scoped in place, which rules
+out the clipboard and Local Servers. The launcher's chooser reserves no companion pane and the
+width is fixed when a chooser is built, so a scope always shows the rows without the pane. For
+the clipboard that means losing the preview, which is most of what it is, and for Local Servers
+the process tree, which is what makes pressing stop safe. Scoping either would mean teaching
+the launcher a preview pane a scope can claim, and that is a real change to the atom rather
+than another entry in the scope list.
+
+File search has both a pane and a scope, and it is the case that shows the rule is about the
+pane's WEIGHT rather than about panes. Its reason is finding a file by name and acting on it,
+which the scope does in full, and the pane only helps you decide between two rows that already
+matched. So `/ ` lists rows with no pane, exactly as it did before the pane existed, and
+nothing the alias was for is missing. The same test the text case scope failed and the browser
+tabs scope passed, applied to a pane instead of to a second level.
 
 **Emoji.** Hyper+J opens an emoji picker. Emoji is a facade over interchangeable backends, the same shape as Chooser, so the root names which one the key opens in a priority ordered list by reference and the first available wins. Three backends ship, the built in picker over the Chooser atom, the macos Character Viewer triggered by Ctrl Cmd Space, and a custom backend that runs an injected callback so an external picker reached by a URL scheme or a trigger becomes a backend with no file of its own. The default is the built in picker, which owns one vendored dataset fetched once by its `regenerate.sh` and committed as `data.lua`, merging the GitHub gemoji set with a safe slice of native Unicode symbols from the official Character Database, currency and arrows and math and the Mac modifier keys and more, so a query by name, shortcode, tag, or category finds a glyph without its exact Unicode name. That artifact is a Lua table rather than json because `hs.json.decode` is quadratic in the number of objects in an array, three seconds for that set against six milliseconds through `loadfile`, and a spoon that loads a dataset in `configure` pays it on every reload rather than once. It is worth knowing beyond this spoon, since any file holding thousands of objects meets the same cliff, and `ClipboardHistory` still spends about 176 ms of every reload decoding its history for exactly this reason. Every matching emoji ranks above every matching symbol, so a query lists the emoji first and the plainer glyphs below. A pick is inserted into the focused field through an injected `onInsert`, so the backend never learns the effect, and it follows the picker checklist above. The root wires `onInsert` to the clipboard manager's `pasteText`, which pastes the glyph rather than typing it, because a synthesized keystroke mangles an astral glyph like an emoji in a terminal and in some native apps while a paste carries the real bytes everywhere, and `pasteText` snapshots the clipboard and restores it after so the paste stays invisible. It degrades to typing when the clipboard manager is absent. The provider strategy, the decision trail and internals, the safe symbol selection, the render based tofu filter, and the icon memory behavior, live in `Spoons/Emoji.spoon/CLAUDE.md`.
 
@@ -1048,7 +1071,18 @@ its own `chooser.lua` beside the engine, so it is configured twice. It follows t
 checklist, its `fileSearch` context giving it the shared j, k, i navigation with x to close
 plus four actions only it answers, browse into a folder, reveal in Finder, open the
 containing folder, and copy the path, routed through `routeNav` so they are no ops on any
-other surface.
+other surface. It also answers the two `scrollPreview` actions the clipboard already used,
+which is what made them worth routing rather than naming at one surface.
+
+It reserves a companion pane and describes the highlighted row in it, the name, the location,
+the kind, the size, both dates and when you last reached for it, then a folder's newest
+entries, a file's head, or a rendered picture of anything Quick Look can draw. The row
+subtitle deliberately carries no size, because reading one costs a call per row and a page is
+two hundred rows, while the pane describes one row and gets every fact from a single stat. What
+the pane shows is a Chain of Responsibility over describers where declining passes the row
+along, and the pictures behind it are a second chain of generators where only Quick Look
+caches. The pane exists only because the root injects `CanvasPanel.surfaceElements`, and
+without that line there is no pane, no reserved room and no highlight poll.
 
 Two wiring choices are the ones worth knowing here. It opts the atom out of matching
 entirely with `matcher = false`, because its query is structured rather than a plain
@@ -1074,7 +1108,8 @@ clipboard has its own equivalent today and is the obvious second consumer, left 
 this one has been used in anger.
 
 Its own `config/filesearch.lua` holds the pure data, the type registry that decides what a
-dot attached token means, the directory aliases, the prune list, and the caps and timings.
+dot attached token means, the directory aliases, the prune list, the pane's read caps and
+cache location, and the caps and timings.
 The grammar, the source ordering and the two measurements behind it, why one round trip per
 search rather than per keystroke is the whole performance story, why there is deliberately
 no result cache, and four Spotlight predicate facts that will bite anyone who touches the

@@ -13,6 +13,8 @@
 ---   util.lua        the shellout runner, the held timer, and row building
 ---   frecency.lua    what you actually use, the one ordering that is not a date or a text score
 ---   chooser.lua     the list surface, pure policy over the engine's api
+---   preview.lua     the pane beside the list, loaded by the surface that owns it
+---   thumbs.lua      pictures of files, a chain of generators behind that pane
 ---   sources/*.lua   the concrete backends, one self contained file each
 ---
 --- THE SOURCE ORDER IS THE WHOLE CONFLICT RESOLUTION and it is not a preference. Each source
@@ -191,6 +193,10 @@ function obj:configure(opts)
     -- The other half of that seam, so a row can report the use it just recorded. Still no
     -- concrete name on the surface, only a question it is allowed to ask.
     usedAt = function(path) return obj.frecency.usedAt(path) end,
+    -- The pane's slice of the policy, forwarded whole rather than picked apart here. The surface
+    -- owns the pane and the thumbnail chain, so it is the layer that knows which of these numbers
+    -- belongs to which, and this root stays the only place that reads the config.
+    preview = policy.preview,
   })
 
   return self

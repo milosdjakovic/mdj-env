@@ -1151,20 +1151,26 @@ end
 -- notch, enough to read a long entry in a few presses without overshooting.
 local PREVIEW_SCROLL_STEP = 120
 
---- UI.scrollPreviewDown() / UI.scrollPreviewUp() - scroll the canvas preview pane,
---- for the Hyper+Cmd+j / Hyper+Cmd+k bindings, so a clipboard entry taller than the
---- pane can be read. The offset is clamped to the content overflow by paint, and
---- repaint redraws the last content at the new offset without rebuilding it.
-function UI.scrollPreviewDown()
+--- UI.scrollPreviewBy(points) - move the preview by a distance in points, positive being
+--- further down the content. The one place the offset changes, so the keys and the
+--- trackpad cannot drift apart, and the clamp to the content overflow stays where it
+--- already was, in paint. Repaint redraws the last content at the new offset without
+--- rebuilding it.
+function UI.scrollPreviewBy(points)
   if not (preview and picker and picker:isShowing()) then return end
-  scrollOffset = scrollOffset + PREVIEW_SCROLL_STEP
+  scrollOffset = scrollOffset + (tonumber(points) or 0)
   repaint()
 end
 
+--- UI.scrollPreviewDown() / UI.scrollPreviewUp() - one step of the above, for the
+--- Hyper+Cmd+j / Hyper+Cmd+k bindings, so a clipboard entry taller than the pane can be
+--- read without reaching for the trackpad.
+function UI.scrollPreviewDown()
+  UI.scrollPreviewBy(PREVIEW_SCROLL_STEP)
+end
+
 function UI.scrollPreviewUp()
-  if not (preview and picker and picker:isShowing()) then return end
-  scrollOffset = scrollOffset - PREVIEW_SCROLL_STEP
-  repaint()
+  UI.scrollPreviewBy(-PREVIEW_SCROLL_STEP)
 end
 
 --- UI.appendSelected() - toggle the highlighted row in the append batch, for the
@@ -1222,6 +1228,11 @@ function UI.build()
     onClose = onClose,
     onPositioned = onPositioned,
     onActivity = cfg.onActivity,
+    -- A trackpad or a wheel over the preview pane, which a canvas cannot report for
+    -- itself, so the atom watches for it and hands over a distance in points. The same
+    -- verb the two keys go through, so there is one notion of where the pane is scrolled
+    -- to and no second one to keep in step.
+    onScroll = UI.scrollPreviewBy,
     onRightClick = onRightClick,
     layout = {
       widthPct = cfg.chooserWidthPct,
