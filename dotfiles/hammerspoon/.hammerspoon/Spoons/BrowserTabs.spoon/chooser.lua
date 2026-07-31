@@ -37,6 +37,7 @@ local stack = nil       -- the menu stack, stack[#stack] is the current frame
 local reopen = false    -- set by a click selection so onClose re-shows instead of ending
 local returnTap = nil   -- swallows Return while open so a menu step stays in place, no re-show
 local tabs = nil        -- the last listing, so a reopen paints before the refresh lands
+local listSig = nil     -- what that listing is made of, so an answer saying the same is not redrawn
 local listErrors = {}   -- per bundle id reasons a browser did not answer
 local loading = false   -- whether a listing is in flight
 local waiting = {}      -- callbacks due when that listing lands, so none of them is dropped
@@ -663,20 +664,54 @@ function M.reload()
   M.prepare(nil)
 end
 
+-- Everything about a listing that a row is drawn from, as one string. Identity, what the row is
+-- titled, and Arc's sidebar group, which is the one part of a subtitle not derived from the first
+-- two. Order is in it too, since the rows are ordered by it, so this changes whenever what a
+-- reader would see changes and not otherwise.
+local function signatureOf(list)
+  local parts = {}
+  for _, t in ipairs(list or {}) do
+    parts[#parts + 1] = table.concat({
+      t.bundleID or "", t.url or "", t.title or "", t.group or "",
+    }, "\0")
+  end
+  return table.concat(parts, "\1")
+end
+
+-- The listing and what it is made of move together, so the comparison below can never be made
+-- against a signature belonging to some earlier list.
+local function setTabs(list)
+  tabs = list or {}
+  listSig = signatureOf(tabs)
+end
+
 --- M.prepare(onReady) - the one listing path, for a surface that shows these tabs and needs to
 --- know when they have landed. A second ask while one is in flight joins that flight rather than
 --- starting another, and every waiter is called, so two surfaces asking at once cost one read of
 --- the browsers and neither is dropped. Our own chooser goes through this too, which is what
 --- keeps there being one in flight guard rather than one per caller.
+---
+--- What is already held is repainted at once and corrected when the answer lands, which is the
+--- right trade and used to read as the list rearranging itself under you. The full read is 0.368
+--- seconds on this machine, measured, and the cached order it paints over is stale by at least
+--- one move every time, since opening a tab is what closed this list last and that is exactly
+--- what changes the order. So the remembered order is applied again before anything paints, and
+--- the answer that lands a third of a second later then usually has nothing left to say.
 function M.prepare(onReady)
   if onReady then waiting[#waiting + 1] = onReady end
   if loading then return end
+  if tabs then setTabs(cfg.api.reorder(tabs)) end
   loading = true
   cfg.api.listTabs(function(list, errors)
-    tabs = list or {}
+    local before = listSig
+    setTabs(list)
     listErrors = errors or {}
     loading = false
-    M.refresh()
+    -- A redraw that changes nothing is not free, it rebuilds every row under a highlight that
+    -- keeps only its number, so the row a reader was on becomes a different row. Skipped when the
+    -- answer matches what is drawn. An empty list is always redrawn, since what is on screen then
+    -- is the reading row and that has to come down whatever the answer was.
+    if #tabs == 0 or listSig ~= before then M.refresh() end
     local due = waiting
     waiting = {}
     for _, cb in ipairs(due) do cb() end

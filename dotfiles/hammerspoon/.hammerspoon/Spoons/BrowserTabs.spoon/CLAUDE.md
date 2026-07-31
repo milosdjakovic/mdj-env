@@ -450,6 +450,51 @@ A tab nobody has looked at earns nothing and takes no position, rather than bein
 infinitely old. That is the same honesty the resting order keeps, and it is why the surface asks
 for a rank that may be nil rather than for a number.
 
+## Why the list used to rearrange itself a moment after it opened
+
+Opening this list paints what was held from last time and then corrects it when the browsers
+answer. That trade is right and is not the thing to change, since the alternative is an empty
+window for as long as the read takes. What was wrong is that the correction almost always had
+something to say, so the visible behaviour was a list that settled itself under the reader
+rather than one that was simply there.
+
+The window it settles in is measured, not guessed. A full read is 0.368 seconds across two
+browsers holding 93 tabs, Safari answering in 0.288 and Chrome in 0.429, concurrently, so the
+whole cost is the slower of the two. Third of a second is far too long to be reading a list
+that is still moving.
+
+The cache is stale in exactly one way and it is the same way every time. Opening a tab is what
+closed this list last, and opening a tab is precisely what changes the remembered order, so the
+order held is always at least one move behind. Switching tabs by hand between two opens does the
+same through the title watcher. Membership changes far less often, only when a tab is actually
+opened or closed.
+
+So the remembered order is applied again to what is held, before anything paints. That costs two
+ten thousandths of a second over 93 tabs and it makes the first paint agree with the answer that
+is still coming.
+
+Only the recency half of the ordering is reapplied, which is why the root hands the surface a
+`reorder` that is not the same as what `listTabs` does. Settling the tabs nobody has looked at
+into front to back depth means walking every window on screen, measured between 34 and 59
+milliseconds, and that walk would land directly in front of the window appearing, which is the
+very thing being fixed. Depth is not what went stale, and it only ever decides the tail below
+everything observed, so the tail keeps whatever the last full read gave it.
+
+The second half is that the correction is now skipped when it would correct nothing. A redraw
+is not free even when every row comes back identical, because rebuilding the list keeps the
+highlight's number and not the row it was sitting on, so a reader who had already arrowed down
+lands somewhere else. The listing is kept alongside a signature of what it is made of, identity,
+title and Arc's group, in order, and an answer matching it does not redraw. An empty list always
+redraws, since what is on screen then is the reading row and it has to come down whatever the
+answer was.
+
+None of this makes the first open of a session instant. There is nothing held then, so the
+reading row shows for the length of a full read, and that is honest. Warming the listing at
+startup would fix it and is deliberately not done, because reading a browser's tabs is what
+raises the macOS automation prompt, and raising that at login rather than when someone first
+asks for their tabs is the wrong trade. The permission probe is warmed instead, which never
+prompts.
+
 ## Handing the tabs to another list, without the settings level
 
 `tabRows`, `explain`, `activate`, `prepare` and `ready` are the tabs offered to a surface other

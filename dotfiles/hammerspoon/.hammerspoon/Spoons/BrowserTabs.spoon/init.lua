@@ -209,6 +209,19 @@ function obj:configure(opts)
       -- than trusting these numbers, which run over every address ever seen and not over what is
       -- still open.
       recencyRank = function(tab) return this.recency.rankOf(tab.bundleID, tab.url) end,
+      -- The remembered order applied again to a listing the surface is already holding. What goes
+      -- stale between one open and the next is the recency and almost nothing else, since opening
+      -- a tab and switching to one by hand both change it, and this file already knows the new
+      -- answer while the cache does not. Applying it costs two ten thousandths of a second, which
+      -- buys the surface a first paint that the full read a third of a second later then agrees
+      -- with.
+      --
+      -- Only the recency half, deliberately. Settling the unseen tabs into front to back depth
+      -- means walking every window on screen, measured between thirty four and fifty nine
+      -- milliseconds, and that walk would sit directly in front of the list appearing. Depth was
+      -- not what went stale, and it only ever decides the tail below everything observed, so the
+      -- tail is left where the last full read put it.
+      reorder = function(list) return this.recency.order(list or {}) end,
       -- Opening a tab is also the strongest signal that it is now the current one, so it is
       -- recorded here rather than waiting for the observer to notice the focus change.
       activate = function(tab)
