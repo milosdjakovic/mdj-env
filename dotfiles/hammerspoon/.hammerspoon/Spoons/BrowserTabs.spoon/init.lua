@@ -201,6 +201,14 @@ function obj:configure(opts)
           cb(this.recency.order(byDepth(tabs or {})), errors)
         end)
       end,
+      -- Where a tab sits in the remembered order, or nil for one nobody has looked at. Recency
+      -- decides two things and the untyped order above is only the first, the second being a
+      -- small reordering among tabs that matched a typed query alike, which the surface can only
+      -- do a tab at a time. What it reads here is mostly the nil, since a tab that was never
+      -- observed must earn nothing, and it counts positions among the tabs it was given rather
+      -- than trusting these numbers, which run over every address ever seen and not over what is
+      -- still open.
+      recencyRank = function(tab) return this.recency.rankOf(tab.bundleID, tab.url) end,
       -- Opening a tab is also the strongest signal that it is now the current one, so it is
       -- recorded here rather than waiting for the observer to notice the focus change.
       activate = function(tab)

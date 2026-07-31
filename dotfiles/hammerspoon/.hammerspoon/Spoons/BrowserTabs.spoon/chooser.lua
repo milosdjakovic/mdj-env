@@ -140,24 +140,33 @@ local PERMISSION_TEXT = {
 -- The tab list
 --------------------------------------------------------------------------------
 
+-- What a tab is called, the page's own title with the address standing in when it has none.
+-- One definition, because the row shows it and the query is scored against it, and two copies
+-- would let the list rank on something other than what it displays.
+local function titleOf(t)
+  local title = t.title
+  if title == nil or title == "" then title = t.url or "Untitled" end
+  return title
+end
+
 -- One tab. The title is the page, the subtitle names the browser, Arc's sidebar group when it
--- has one, and the host. The icon is the browser's, so the tab's origin reads visually. The
--- searchable text folds in the URL and the browser name, so typing part of an address or a
--- browser narrows the list even though neither is the title.
+-- has one, and the host. The icon is the browser's, so the tab's origin reads visually.
+--
+-- There is deliberately no `filterText`. That field is how a row tells the Chooser atom what to
+-- search, and the atom does not filter for this tool, it is stood down both here and in the
+-- launcher scope, so a row carrying one would be stating a searchable text nothing reads. What
+-- a query is actually scored against is decided in `matchedTabs` below, field by field.
 local function tabRow(t)
   local parts = { t.browser }
   local group = t.group and GROUP_LABEL[t.group]
   if group then parts[#parts + 1] = group end
   local host = hostOf(t.url)
   if host ~= "" then parts[#parts + 1] = host end
-  local title = t.title
-  if title == nil or title == "" then title = t.url or "Untitled" end
   return {
-    title = title,
+    title = titleOf(t),
     subTitle = table.concat(parts, " · "),
     image = appIcon(t.bundleID),
     item = { kind = "tab", tab = t },
-    filterText = title .. " " .. (t.url or "") .. " " .. (t.browser or ""),
   }
 end
 
@@ -246,10 +255,80 @@ local function wantsSettings(query)
   return false
 end
 
+-- Whether a query is naming a browser rather than a page. A plain prefix test, deliberately not
+-- the injected matcher, for the same reason the settings door uses one. A fuzzy test against a
+-- short fixed name is lenient enough to fire on queries that never meant it, and here that would
+-- pull a whole browser's worth of tabs into a list about something else. Two letters minimum,
+-- since one letter names nothing yet.
+local function namesBrowser(query, browser)
+  if #query < 2 or browser == nil then return false end
+  local q = query:lower()
+  return browser:lower():sub(1, #q) == q
+end
+
+-- The three things a query is scored against, each on its own. Scoring them separately and
+-- keeping the best is the whole point, because gluing them into one string lets a subsequence
+-- matcher satisfy a query by taking a letter from the page title, a letter from the address and
+-- a letter from whatever follows, which is a match no reader would call one. The host is scored
+-- apart from the full address even though it sits inside it, since against the host alone a
+-- query lands at the very start of a short string and earns what it is due, while against a
+-- long address the same letters are buried and read as a weaker match.
+--
+-- The browser name is a fourth field, but only once the query is really naming it, which is
+-- what `namesBrowser` gates. Scoring it unconditionally is what the old single string did and it
+-- is the bug, since a subsequence matcher charges almost nothing for a gap at the end of a
+-- string, so `far` reads as a contiguous run inside `Safari` and quietly lifted every Safari tab
+-- in the list. Once the gate has passed, the name is scored by the same matcher as every other
+-- field rather than given a made up weight, so typing a browser's name gathers its tabs and a
+-- page that genuinely matches that word can still outrank them.
+local function searchFields(t, query)
+  local fields = { titleOf(t), hostOf(t.url), t.url or "" }
+  if namesBrowser(query, t.browser) then fields[#fields + 1] = t.browser end
+  return fields
+end
+
+local function bestFieldScore(matcher, query, t)
+  local best = nil
+  for _, field in ipairs(searchFields(t, query)) do
+    if field ~= "" then
+      local score = matcher(query, field)
+      if score ~= nil and (best == nil or score > best) then best = score end
+    end
+  end
+  return best
+end
+
+-- What recency is worth once something has been typed. It reorders and never overturns, the
+-- same rule FileSearch's frecency follows, and the weight is set against the matcher's own
+-- scale. A single better placed character is worth six points or more there, so no bonus here
+-- can lift a tab above one that genuinely matched better, while two tabs matching the same
+-- shape at different depths in their text differ by fractions of a point, which is exactly what
+-- this settles. Beyond the span it is worth nothing, so the long tail is ranked on the query
+-- alone.
+--
+-- The position counted is among the tabs in this listing, not the place in the remembered order,
+-- and the difference is not a detail. The remembered order holds every address ever looked at,
+-- including each step of a redirect chain and everything since closed, so on this machine the
+-- twelve most recent stored keys contained three tabs that are actually open and the rest were
+-- gone. Counting stored ranks made the bonus inert almost every time it was asked for. Counted
+-- among the tabs on offer it means what it says, the tenth most recently used tab you still
+-- have open.
+--
+-- A tab nobody has looked at earns nothing and takes no position, rather than being treated as
+-- infinitely old. That is the same honesty the resting order keeps, recency is only ever claimed
+-- for what was actually observed.
+local RECENCY_WEIGHT = 3
+local RECENCY_SPAN = 10
+local function recencyBonus(position)
+  if position == nil or position > RECENCY_SPAN then return 0 end
+  return RECENCY_WEIGHT * (RECENCY_SPAN - position + 1) / RECENCY_SPAN
+end
+
 -- The matching tabs alone, no guidance row and no settings door, so this is the part worth
 -- reusing. The atom does not filter for this tool, so the query is scored here, which is what
 -- lets the settings row stay pinned outside the ranking wherever it is added. On an empty query
--- the recency order stands.
+-- the recency order stands, already applied to the listing before it arrived.
+--
 local function matchedTabs(query)
   local list = tabs or {}
   if query == "" then
@@ -259,31 +338,46 @@ local function matchedTabs(query)
   end
 
   local matcher = cfg.matcher
-  local built = {}
-  for i, t in ipairs(list) do built[#built + 1] = { r = tabRow(t), idx = i } end
   local out = {}
   if type(matcher) ~= "function" then
     -- No matcher injected, so fall back to a plain case insensitive substring test over the
-    -- same text a matcher would have searched. The tool still filters, just without ranking.
+    -- same fields a matcher would have scored. The tool still filters, just without ranking.
     local q = query:lower()
-    for _, b in ipairs(built) do
-      if b.r.filterText:lower():find(q, 1, true) then out[#out + 1] = b.r end
+    for _, t in ipairs(list) do
+      for _, field in ipairs(searchFields(t, query)) do
+        if field:lower():find(q, 1, true) then
+          out[#out + 1] = tabRow(t)
+          break
+        end
+      end
     end
     return out
   end
 
+  -- The listing arrives with every observed tab ahead of every unobserved one and in recency
+  -- order, so walking it and counting only the observed gives each of them its place among the
+  -- tabs on offer. That is what the bonus is scaled against, and it is why the count is taken
+  -- over the whole list rather than over the tabs that matched, since a tab's recency is a fact
+  -- about the tab and must not change with what was typed.
   local ranked = {}
-  for _, b in ipairs(built) do
-    local score = matcher(query, b.r.filterText)
+  local position = 0
+  for i, t in ipairs(list) do
+    local observed = cfg.api.recencyRank(t) ~= nil
+    if observed then position = position + 1 end
+    local score = bestFieldScore(matcher, query, t)
     if score ~= nil then
-      ranked[#ranked + 1] = { r = b.r, score = score, idx = b.idx }
+      ranked[#ranked + 1] = {
+        tab = t,
+        score = score + recencyBonus(observed and position or nil),
+        idx = i,
+      }
     end
   end
   table.sort(ranked, function(a, b)
     if a.score ~= b.score then return a.score > b.score end
     return a.idx < b.idx
   end)
-  for _, e in ipairs(ranked) do out[#out + 1] = e.r end
+  for _, e in ipairs(ranked) do out[#out + 1] = tabRow(e.tab) end
   return out
 end
 
