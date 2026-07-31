@@ -28,6 +28,7 @@ local M = {}
 
 local cfg = {}          -- injected: engine, settingsKey, limit, settleDelay
 local order = nil       -- list of keys, newest first, loaded on start
+local ranks = nil       -- key to position in order, built on demand, dropped when order changes
 local appWatcher = nil
 local titleFilter = nil
 local settleTimers = {} -- one coalescing timer per bundle id
@@ -67,7 +68,26 @@ function M.touch(bundleID, url)
     if prev ~= key and #out < limit then out[#out + 1] = prev end
   end
   order = out
+  ranks = nil
   hs.settings.set(opt("settingsKey"), order)
+end
+
+--- M.rankOf(bundleID, url) - where this tab sits in the remembered order, one being the most
+--- recently looked at, or nil for a tab never observed. Nil is the honest answer rather than a
+--- large number, because a tab nobody has looked at has no recency at all and a caller must be
+--- able to tell that apart from a tab looked at long ago.
+---
+--- The position map is built once and dropped whenever the order changes, since this is asked
+--- for every tab on every keystroke while the stored order runs to a couple of thousand keys,
+--- and walking that list per tab per keystroke would be the only expensive thing in the search.
+function M.rankOf(bundleID, url)
+  if ranks == nil then
+    ranks = {}
+    for i, key in ipairs(order or {}) do
+      if ranks[key] == nil then ranks[key] = i end
+    end
+  end
+  return ranks[M.keyFor(bundleID, url)]
 end
 
 --- M.order(tabs) - the given tabs, most recently looked at first. Remembered tabs lead in
@@ -75,13 +95,9 @@ end
 --- caller decides what the resting order of unseen tabs is and this file only knows recency.
 --- Two tabs sharing a key both sort to that key's place, keeping their relative order.
 function M.order(tabs)
-  local rank = {}
-  for i, key in ipairs(order or {}) do
-    if rank[key] == nil then rank[key] = i end
-  end
   local seen, rest = {}, {}
   for _, t in ipairs(tabs or {}) do
-    if rank[M.keyFor(t.bundleID, t.url)] then
+    if M.rankOf(t.bundleID, t.url) then
       seen[#seen + 1] = t
     else
       rest[#rest + 1] = t
@@ -92,7 +108,7 @@ function M.order(tabs)
   local arrival = {}
   for i, t in ipairs(seen) do arrival[t] = i end
   table.sort(seen, function(a, b)
-    local ra, rb = rank[M.keyFor(a.bundleID, a.url)], rank[M.keyFor(b.bundleID, b.url)]
+    local ra, rb = M.rankOf(a.bundleID, a.url), M.rankOf(b.bundleID, b.url)
     if ra ~= rb then return ra < rb end
     return arrival[a] < arrival[b]
   end)
@@ -148,6 +164,7 @@ end
 --- M.start() - load the remembered order and begin watching. Idempotent.
 function M.start()
   order = hs.settings.get(opt("settingsKey")) or {}
+  ranks = nil
   if appWatcher then return M end
 
   -- A browser came to the front, so whatever tab it is showing is now the current one.

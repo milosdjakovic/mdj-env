@@ -388,6 +388,68 @@ list is noise.
 Menu steps are in place, using the same Return interceptor `DisplayProfiles` uses, so stepping
 into settings and back never closes and re-shows. Opening a tab is the one terminal action.
 
+## What a query is scored against, which is three fields and never one string
+
+The first build glued the title, the address and the browser name into one searchable string and
+handed that to the matcher. That is wrong in a way worth recording, because it looks harmless and
+reads as generosity. The shared matcher is a subsequence scorer, so one string lets a query be
+satisfied by taking a letter from the title, a letter from the address and a letter from whatever
+follows, which is a match no reader would call one.
+
+The browser name at the end was the worst of it, and it was measured rather than reasoned about.
+A trailing gap costs almost nothing in that matcher, so `far` reads as a contiguous run inside
+`Safari` and lifted every Safari tab in the list, thirty four rows on this machine, not one of
+which contained the word. Scoring the fields apart cut the same query to twenty five rows and
+every one of them was a real hit.
+
+So the title, the host, and the full address are each scored on their own and the best of them
+wins. The host is scored apart from the address it sits inside, because against the host alone a
+query lands at the start of a short string and earns what it is due, while buried in a long
+address the same letters read as a weaker match, and a tab on `github.com` should answer to `git`
+whatever its page is called.
+
+The browser name is still a field, gated behind a plain prefix test rather than scored freely.
+The gate is the fix, not the removal, and the difference showed up as a regression when the name
+was merely admitted at a fixed low score instead, which let a Safari page that fuzzily resembled
+`chrome` sit above sixty six actual Chrome tabs. Once the gate has passed, the name goes through
+the same matcher as everything else, so typing a browser gathers its tabs and a page genuinely
+named after that browser can still outrank them. This is the same reasoning as the settings
+keyword test above, and for the same reason, a fuzzy match against a short fixed name fires on
+queries that never meant it.
+
+A row therefore carries no `filterText`. That field is how a row tells the atom what to search,
+and the atom is stood down here and in the launcher scope alike, so a row carrying one would be
+stating a searchable text nothing reads, which is the kind of second source of truth that drifts.
+
+## Recency reorders a typed query, and the unit it is measured in is the point
+
+Before this, recency decided the whole list until the moment you typed, and then stopped counting
+entirely, surviving only as a tie break between two scores that happened to be exactly equal.
+Typing one letter threw away the ordering the tool is built around. So a bonus scaled by recency
+is now added to the score of every tab that matched.
+
+It reorders and never overturns, which is the rule `FileSearch` already set for its frecency and
+is the only rule that keeps this honest. The weight is set against the matcher's own scale. A
+single better placed character is worth six points or more there, while two tabs matching the same
+shape at different depths in their text differ by fractions of a point, so a bonus of three
+separates the second pair and cannot touch the first. Measured on a real listing, a tab used
+eighth most recently and scoring 62.00 moved above three rows scoring 62.34 to 62.44, and did not
+pass the row above them at 65.78.
+
+The unit is the part that was got wrong first and is worth knowing. Scaling the bonus by a tab's
+place in the remembered order sounds right and is nearly inert, because that order holds every
+address ever looked at, every step of a redirect chain and everything since closed, so on this
+machine the twelve most recent stored keys contained three tabs that were still open. The bonus
+is scaled by position among the tabs actually being listed instead, which the listing already
+supplies since it arrives recency ordered, and then the tenth position means the tenth most
+recently used tab you still have open. That count is taken over the whole listing rather than
+over the tabs that matched, because a tab's recency is a fact about the tab and must not change
+with what was typed.
+
+A tab nobody has looked at earns nothing and takes no position, rather than being treated as
+infinitely old. That is the same honesty the resting order keeps, and it is why the surface asks
+for a rank that may be nil rather than for a number.
+
 ## Handing the tabs to another list, without the settings level
 
 `tabRows`, `explain`, `activate`, `prepare` and `ready` are the tabs offered to a surface other
