@@ -69,6 +69,27 @@ its window after the active tab, so a window filter on title changes is the only
 available. Both are coalesced, since a page load fires title changes in a burst and each
 sample costs an Apple Event.
 
+Both ends of a burst are sampled and neither alone would do. The end of it is what settles a page
+that renames itself while it loads, and it is the only reason the delay exists at all. But
+waiting for it also made a plain tab switch, which fires one title change and never a burst, take
+the whole delay before anything was recorded. Measured, a switch reached the remembered order
+1.448 seconds later, in three roughly equal parts, half a second for the title event to arrive,
+the 0.45 second delay, and the Apple Event that reads the tab. So the start of a burst is sampled
+too. A burst keeps a timer pending throughout, which is exactly the test for whether one is
+already running, so the leading sample fires once when a quiet browser first stirs and not again
+until it has gone quiet. That took the same measurement to 0.821 seconds. The cost is two Apple
+Events per burst rather than one, and at worst a doubling under sustained title churn, which is
+bounded by the delay because the leading edge cannot fire while a timer is pending.
+
+Why that number matters rather than being a curiosity. The list paints what it holds and corrects
+itself when the browsers answer, and the section further down on that describes how the paint is
+made to agree with the answer. It can only agree as far as the remembered order is current, so
+anyone switching a tab and reaching straight for the list was inside the lag and watched the list
+rearrange itself. Measured through the surface, at a one second pause the switched tab was still
+at rank two when the list painted and rows moved when the read landed. After the leading edge it
+is at rank one by then and nothing moves. What is left is under about eight tenths of a second,
+which needs the list opened at very nearly the same moment as the switch.
+
 The honest limitation is that only tabs actually visited while Hammerspoon runs earn recency.
 Everything else falls back to the resting order below, which is front to back depth on screen
 and not recency at all. Presenting that fallback as recency would be a lie, so it only ever

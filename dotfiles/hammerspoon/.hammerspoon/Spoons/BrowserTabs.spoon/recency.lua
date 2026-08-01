@@ -134,11 +134,26 @@ local function sample(bundleID)
   end)
 end
 
--- Coalesce a burst of events for one browser into a single sample, so a page load firing
--- title changes repeatedly costs one Apple Event rather than one per redraw.
+-- Coalesce a burst of events for one browser, so a page load firing title changes repeatedly does
+-- not cost an Apple Event per redraw. Both ends of the burst are sampled and neither one alone
+-- would do.
+--
+-- The end of it is what settles a page that renames itself while it loads, which is the only
+-- reason the delay exists. But waiting for it was also making a plain tab switch, which fires one
+-- title change and never a burst, take the full delay before anything was recorded. Measured, a
+-- switch reached the remembered order 1.45 seconds later, made of roughly half a second for the
+-- event to arrive, the delay below, and the Apple Event that reads the tab. Anyone who switches a
+-- tab and reaches straight for the list is inside that, and sees it rearrange itself as the read
+-- lands with an order the paint did not have.
+--
+-- So the start of a burst is sampled too. A burst keeps a timer pending throughout, which is
+-- exactly the test for whether one is already running, so this fires once when a quiet browser
+-- first stirs and not again until it has gone quiet. The cost is two Apple Events per burst rather
+-- than one, and it halves the lag.
 local function scheduleSample(bundleID)
   if not bundleID then return end
   local t = settleTimers[bundleID]
+  if not t then sample(bundleID) end
   if t then t:stop() end
   settleTimers[bundleID] = hs.timer.doAfter(opt("settleDelay"), function()
     settleTimers[bundleID] = nil
