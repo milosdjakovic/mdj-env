@@ -90,10 +90,13 @@ Two things came with it and both are load bearing. The resting order lost its de
 the same reason, since depth is also the browser's business and also moved. And the tab you are
 sitting on stops leading the list, which is the next section.
 
-What is given up, stated plainly. A tab switched to by hand earns nothing, so right after a
-Hammerspoon restart, or for someone who mostly switches by hand, the list is the browser's own tab
-order rather than a recency order. That is the trade and it was made deliberately, because a
-stable list that can be learned beats a truthful one that moves. It also makes every browser
+What is given up, stated plainly. A tab switched to by hand earns nothing, so a tab this tool has
+never opened has no place of its own and keeps its resting one however much you use it in the
+browser. For someone who mostly switches by hand the list is therefore the browser's own tab order
+rather than a recency order. What is not given up is anything across a restart, since the
+remembered order is kept in `hs.settings` and survives a reload, a restart and a reboot, so the
+list is only ever cold on a machine where this tool has not been used yet. That is the trade and it
+was made deliberately, because a stable list that can be learned beats a truthful one that moves. It also makes every browser
 behave alike, where before Arc was the odd one out, since Arc reports no active tab and could
 never be observed at all.
 
