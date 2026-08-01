@@ -381,8 +381,18 @@ return {
         -- Cmd is the sub-modifier within Hyper, the same pair the clipboard uses for the
         -- same job, so scrolling the pane is one gesture across both tools. A trackpad or
         -- a wheel over the pane does it too, which the Chooser atom reports.
-        { key = "j", mods = { "cmd" }, action = "scrollPreviewDown", description = "Scroll preview down" },
-        { key = "k", mods = { "cmd" }, action = "scrollPreviewUp",   description = "Scroll preview up" },
+        --
+        -- These two and the peek below each declare what they NEED from the preview provider the
+        -- root chose, since one provider draws a pane this config scrolls for you and the other
+        -- opens a window that scrolls itself and has to be asked for. The root answers the
+        -- requirement once and drops the bindings that do not apply, so a key is never listed in
+        -- the shortcut panel while doing nothing.
+        { key = "j", mods = { "cmd" }, action = "scrollPreviewDown",
+          needs = "scrollablePreview", description = "Scroll preview down" },
+        { key = "k", mods = { "cmd" }, action = "scrollPreviewUp",
+          needs = "scrollablePreview", description = "Scroll preview up" },
+        { key = "space", action = "peekPreview",
+          needs = "askedPreview", description = "Quick Look" },
         { key = "l", action = "browseInto",     description = "Into folder" },
         { key = "h", action = "browseUp",       description = "Up a level" },
         { key = "f", action = "revealInFinder", description = "Reveal in Finder" },

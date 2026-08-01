@@ -13,8 +13,21 @@
 --- A generator:
 ---   name
 ---   handles(ext) -> bool                does this backend cover the extension
+---   accepts(spec) -> bool               optional, will it take THIS file, see below
 ---   image(spec, cb)                     cb(hs.image or nil), on the main thread
---- spec = { path = <source file>, ext = <lower ext>, edge = <max px, larger dimension> }
+--- spec = { path = <source file>, ext = <lower ext>, edge = <max px>, size = <bytes> }
+---
+--- DECLINING PASSES THE FILE ALONG, which is the same rule the pane's describer chain runs on
+--- and it was missing here. `handles` answers about the TYPE, which is the question the pane
+--- asks before claiming a row at all, while `accepts` answers about the FILE, so a backend can
+--- step aside on this one and let the next take it. Without that, the in process generator
+--- claimed every raster by extension and then refused the large ones on size, and the row ended
+--- there with a heading reading no preview. Quick Look, sitting right behind it and perfectly
+--- able to draw a 35MB png off the main thread, was never asked. Measured on exactly that file,
+--- the chain answered nil while qlmanage rendered it to a 768KB thumbnail and exited clean.
+---
+--- So there is no maximum size this pane can show. A size only decides which backend does the
+--- work, and the one that costs nothing on the main thread has no reason to have a limit.
 ---
 --- THE CONTRACT IS AN IMAGE, NEVER A FILE. That is what keeps the pane ignorant of whether
 --- anything was written to disk, so the cache is a private detail of the one generator that
@@ -128,17 +141,24 @@ end
 --------------------------------------------------------------------------------
 
 -- In process and immediate, so the pane draws on the first paint with no repaint at all.
--- Guarded by a size cap, since decoding a very large image happens on the main thread and
--- Hammerspoon owns every leader key in this config, so a stall here is a stalled keyboard.
+--
+-- The size cap is a cap on THIS BACKEND rather than on the feature. Decoding happens on the
+-- main thread and Hammerspoon owns every leader key here, so a big decode is a stalled
+-- keyboard. Expressed as accepts rather than as a refusal inside image, so a file over the cap
+-- goes to Quick Look, which is a different process and does not care how big it is.
 local nativeGen = {
   name = "hsimage",
   handles = function(ext) return NATIVE_EXT[ext] == true end,
-  image = function(spec, cb)
-    local attrs = hs.fs.attributes(spec.path)
-    if attrs and attrs.size and attrs.size > (cfg.nativeMaxBytes or 20 * 1024 * 1024) then
-      cb(nil)
-      return
+  accepts = function(spec)
+    local size = spec.size
+    if not size then
+      local attrs = hs.fs.attributes(spec.path)
+      size = attrs and attrs.size
     end
+    if not size then return true end
+    return size <= (cfg.nativeMaxBytes or 20 * 1024 * 1024)
+  end,
+  image = function(spec, cb)
     cb(hs.image.imageFromPath(spec.path))
   end,
 }
@@ -160,7 +180,10 @@ local nativeGen = {
 local inflight = {}
 local qlGen = {
   name = "quicklook",
-  handles = function(ext) return QL_EXT[ext] == true end,
+  -- Claims the raster types too, as the backstop behind the in process generator rather than
+  -- as a competitor to it. Order still means the cheap one wins every ordinary photo, and this
+  -- is what a raster the cheap one stepped aside from falls through to.
+  handles = function(ext) return QL_EXT[ext] == true or NATIVE_EXT[ext] == true end,
   image = function(spec, cb)
     local dir = ensureCacheDir()
     if not dir then
@@ -250,12 +273,13 @@ function M.handles(ext)
 end
 
 --- thumbs.image(spec, cb)
---- Run the first matching generator. spec = { path, ext, edge }. cb receives an hs.image or
---- nil, always on the main thread, and always exactly once. No match calls cb(nil).
+--- Run the first generator that covers the type AND will take this file. cb receives an
+--- hs.image or nil, always on the main thread, and always exactly once. Nothing willing to
+--- take it calls cb(nil), which is the pane's signal to describe the row by its header.
 function M.image(spec, cb)
   cb = cb or function() end
   for _, g in ipairs(chain) do
-    if g.handles(spec.ext) then
+    if g.handles(spec.ext) and (not g.accepts or g.accepts(spec)) then
       g.image(spec, cb)
       return
     end

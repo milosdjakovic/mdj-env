@@ -26,10 +26,9 @@
 
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local util = loadfile(spoonPath .. "util.lua")()
--- The pane beside the list and the pictures it draws. Loaded here rather than by the spoon
--- root because both belong to this surface and to nothing else, and this is the only file
--- that knows when a highlight moved or when the window went away.
-local preview = loadfile(spoonPath .. "preview.lua")()
+-- The pictures a viewer may want. Loaded here rather than by the spoon root because it is
+-- driven from this surface and from nothing else. The VIEWER itself is not loaded here, it is
+-- injected, since which one is in use is a choice and this file must not know the answer.
 local thumbs = loadfile(spoonPath .. "thumbs.lua")()
 
 local M = {}
@@ -47,13 +46,38 @@ local cfg = {
                       -- same seam, so what records a use and what reports one stay together
   surface = nil,      -- the shared canvas surface, injected by the main root. Absent means no
                       -- pane at all and the picker opens exactly as it did before there was one
-  preview = nil,      -- the preview block from config, split below between the pane and thumbs
+  preview = nil,      -- the preview block from config, split below between the viewer and thumbs
+  -- The preview providers, in priority order, injected by the spoon root, which is the only
+  -- place that names a concrete one. The first that reports itself available wins, the same
+  -- shape the emoji backends use, so an unavailable first choice degrades to the next rather
+  -- than to no preview. This file calls the contract and never asks which it got, except for
+  -- the one question the contract exists to answer, whether it follows the highlight.
+  viewers = nil,
   onPositioned = nil,
   onActivity = nil,
   onClose = nil,
 }
 
 local picker = nil
+
+-- The provider in use for this picker, resolved once in start, see resolveViewer.
+--
+-- A Null Object rather than nil, so every call site is one line instead of a guard, and so a
+-- root that wires no provider at all gets a picker that behaves exactly as it did before there
+-- was any preview rather than one that errors on the first highlight.
+local NO_VIEWER = {
+  name = "none",
+  followsHighlight = false,
+  available = function() return false, "no provider was wired" end,
+  companionWidth = function() return 0 end,
+  configure = function() end,
+  dock = function() end,
+  show = function() end,
+  scrollBy = function() end,
+  clear = function() end,
+  close = function() end,
+}
+local viewer = NO_VIEWER
 
 -- How a fact is worded lives in util, because the pane beside this list states the same
 -- ones and a size or an age must not come out phrased two ways.
@@ -162,7 +186,15 @@ local function upRow()
   if not cfg.api.upQuery then return nil end
   local q = cfg.api.upQuery()
   if not q then return nil end
-  local path = q:gsub("/+$", "")
+  -- Expanded, because that query is written for the FIELD and home is collapsed to a tilde
+  -- there so climbing a few levels does not fill the box with the same twenty characters. A row
+  -- is not a field. Its path is handed to Finder, to open, and to whatever the preview provider
+  -- shells out to, and none of those expand a tilde.
+  --
+  -- The trap that hid this is that hs.fs.attributes DOES expand one, so every guard of the shape
+  -- does this path exist passed happily and only the external process failed. It showed up as a
+  -- Quick Look panel stuck on a file called ~, launched and never able to render.
+  local path = util.expandHome(q):gsub("/+$", "")
   if path == "" then path = "/" end
   local row = {
     path = path,
@@ -313,9 +345,9 @@ end
 -- row or a help row, clears the pane rather than leaving a stale one beside the list.
 local function onHighlight(item)
   if item and item.path and not (item.status or item.help) then
-    preview.show(item)
+    viewer.show(item)
   else
-    preview.clear()
+    viewer.clear()
   end
 end
 
@@ -329,10 +361,15 @@ end
 -- frame, exactly as it was before the pane existed.
 local function onPositioned(chooserFrame, companionFrame)
   if companionFrame then
-    preview.dock(companionFrame)
-    -- The atom seeds the highlight before it positions anything, so the first onHighlight
-    -- lands with nowhere to draw. This is what fills the pane on open.
-    if picker then onHighlight(picker:selectedItem()) end
+    viewer.dock(companionFrame)
+    -- The atom seeds the highlight before it positions anything, so the first onHighlight lands
+    -- with nowhere to draw. This is what fills the pane on open.
+    --
+    -- Gated on the same question the poll is, and it has to be. This call is a direct one rather
+    -- than one the atom makes, so without the gate it reached a provider that is supposed to be
+    -- asked rather than followed. Under Quick Look that meant merely opening the picker threw a
+    -- panel onto the screen for whatever row happened to be first, which is the back row.
+    if picker and viewer.followsHighlight then onHighlight(picker:selectedItem()) end
   end
   if not cfg.onPositioned then return end
   local anchor = chooserFrame
@@ -358,10 +395,11 @@ end
 
 --- chooser.start() - build the picker instance once and reuse it across shows.
 ---
---- The pane is configured FIRST, because whether there is one at all decides whether the atom
---- reserves room beside the list, and that is fixed when the instance is built. With no surface
---- injected the pane stands down and the picker comes up exactly as it did before it existed,
---- rather than half wired.
+--- The provider is resolved and configured FIRST, because how much room it wants decides the
+--- shape of the picker and that is fixed when the instance is built. A provider that reports
+--- itself unavailable is passed over with one console line naming why, which is the same
+--- degradation every optional tool here gets, and with none left the picker comes up exactly as
+--- it did before there was any preview rather than half wired.
 function M.start()
   if picker or not cfg.chooser then return M end
 
@@ -372,17 +410,31 @@ function M.start()
     cacheFiles = policy.cacheFiles,
     nativeMaxBytes = policy.nativeMaxBytes,
   })
-  preview.configure({
+
+  -- Everything a provider might want, offered to whichever one is in use. Each takes what it
+  -- knows about and ignores the rest, which is what lets one call configure both of them.
+  local deps = {
     surface = cfg.surface,
-    -- Read through the instance rather than captured, so the pane picks up the palette the atom
-    -- selected for THIS open and follows the light and dark switch with it.
+    -- Read through the instance rather than captured, so a provider picks up the palette the
+    -- atom selected for THIS open and follows the light and dark switch with it.
     palette = function() return picker and picker:activeTheme().preview end,
     limits = policy,
-    -- The same seam the row subtitle reads, so the pane and the row cannot disagree about when
+    -- The same seam the row subtitle reads, so a preview and the row cannot disagree about when
     -- a path was last acted on.
     usedAt = cfg.usedAt,
     thumbs = thumbs,
-  })
+    log = util.log,
+  }
+  viewer = NO_VIEWER
+  for _, candidate in ipairs(cfg.viewers or {}) do
+    candidate.configure(deps)
+    local ok, why = candidate.available()
+    if ok then
+      viewer = candidate
+      break
+    end
+    util.log.i("preview provider " .. tostring(candidate.name) .. " stepped aside, " .. tostring(why))
+  end
 
   picker = cfg.chooser.new({
     theme = cfg.theme,
@@ -391,27 +443,28 @@ function M.start()
     matcher = false,
     placeholder = cfg.placeholder,
     onSelect = onSelect,
-    -- Setting this is what starts the atom's highlight poll, so the pane costs a timer only
-    -- when there is a pane to feed.
-    onHighlight = preview.isEnabled() and onHighlight or nil,
+    -- Setting this is what starts the atom's highlight poll, so a provider that is asked for
+    -- rather than followed costs no timer at all.
+    onHighlight = viewer.followsHighlight and onHighlight or nil,
     onPositioned = onPositioned,
     onActivity = cfg.onActivity,
-    -- A trackpad or a wheel over the pane, which a canvas cannot report for itself. The same
-    -- verb the two keys go through, so there is one notion of where the pane is scrolled to.
-    onScroll = preview.isEnabled() and preview.scrollBy or nil,
+    -- A trackpad or a wheel over the companion rect, which a canvas cannot report for itself.
+    -- The same verb the two keys go through, so there is one notion of where a pane is scrolled
+    -- to, and nothing to wire when the provider reserved no rect.
+    onScroll = viewer.followsHighlight and viewer.scrollBy or nil,
     onClose = function()
       -- Abandon anything in flight, so a search for a picker nobody is looking at is not
       -- still running, and the root's overlay teardown runs through the injected handler.
       if cfg.api then cfg.api.cancel() end
-      -- Destroyed rather than hidden, on the atom's one idempotent teardown path, so no
-      -- dismissal leaves a canvas behind and a reopen builds a fresh one.
-      preview.destroy()
+      -- Closed on the atom's one idempotent teardown path, so no dismissal leaves a canvas or
+      -- a Quick Look window behind, and a reopen builds a fresh one.
+      viewer.close()
       if cfg.onClose then cfg.onClose() end
     end,
     layout = {
-      -- Room beside the list for the pane, and zero when there is no pane to put there, which
-      -- is what makes the whole feature degrade to the picker as it was rather than to a gap.
-      companionWidth = preview.isEnabled() and (policy.width or 420) or 0,
+      -- The provider says how much room it needs, so the one that draws beside the list gets it
+      -- and the one that opens its own window leaves the picker as a plain list.
+      companionWidth = viewer.companionWidth(policy),
     },
   })
   return M
@@ -466,10 +519,12 @@ end
 --- The pane is re rendered explicitly, and it has to be. The atom's poll compares the highlighted
 --- ROW NUMBER, so a result set landing under a stationary highlight is the same number and fires
 --- nothing, which would leave the pane describing whatever used to be in that position.
+--- Gated for the same reason the seed in onPositioned is. Rows landing under the cursor must not
+--- throw a window onto the screen for a provider nobody asked yet.
 function M.refresh()
   if picker and picker:isShowing() then
     picker:refresh(false)
-    onHighlight(picker:selectedItem())
+    if viewer.followsHighlight then onHighlight(picker:selectedItem()) end
   end
 end
 
@@ -498,11 +553,31 @@ local PANE_SCROLL_STEP = 120
 --- without reaching for the trackpad. Both go through the pane's one scroll verb, which is also
 --- what the atom's trackpad callback goes through.
 function M.scrollPreviewDown()
-  preview.scrollBy(PANE_SCROLL_STEP)
+  viewer.scrollBy(PANE_SCROLL_STEP)
 end
 
 function M.scrollPreviewUp()
-  preview.scrollBy(-PANE_SCROLL_STEP)
+  viewer.scrollBy(-PANE_SCROLL_STEP)
+end
+
+--- chooser.peekPreview() - show the highlighted row in the provider, for a provider that is
+--- asked rather than followed.
+---
+--- Inert under a provider that follows the highlight, because there it would mean show me the
+--- thing already in front of you. The binding is gated on the same question through a predicate,
+--- so the key drops out of the shortcut panel too rather than being listed and doing nothing.
+function M.peekPreview()
+  if viewer.followsHighlight then return end
+  -- Refused once the list is gone, and this one is about LIFETIME rather than about the row. Every
+  -- other verb here is a one shot, so acting on a stale highlight would at worst reveal the wrong
+  -- file. This one opens a window whose only teardown is the picker closing, so a peek that lands
+  -- after that teardown has already run leaves a panel on screen that nothing owns and nothing
+  -- will ever take down. Cheap to ask, and the alternative is unrecoverable without a kill.
+  if not M.isShowing() then return end
+  local row = selectedRow()
+  if not row then return end
+  noteUse(row)
+  viewer.show(row)
 end
 
 --- chooser.insertSelected() - the primary key, choosing the highlighted row.

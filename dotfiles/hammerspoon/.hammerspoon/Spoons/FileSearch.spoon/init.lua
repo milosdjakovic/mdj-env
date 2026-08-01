@@ -13,9 +13,9 @@
 ---   util.lua        the shellout runner, the held timer, and row building
 ---   frecency.lua    what you actually use, the one ordering that is not a date or a text score
 ---   chooser.lua     the list surface, pure policy over the engine's api
----   preview.lua     the pane beside the list, loaded by the surface that owns it
----   thumbs.lua      pictures of files, a chain of generators behind that pane
----   sources/*.lua   the concrete backends, one self contained file each
+---   thumbs.lua      pictures of files, a chain of generators behind the docked pane
+---   sources/*.lua   the concrete search backends, one self contained file each
+---   viewers/*.lua   the concrete preview providers, one self contained file each
 ---
 --- THE SOURCE ORDER IS THE WHOLE CONFLICT RESOLUTION and it is not a preference. Each source
 --- answers whether it supports a query shape and the first one that says yes owns it, so the
@@ -66,6 +66,33 @@ obj.sources = {
 }
 obj._defaultSources = { obj.sources.walk, obj.sources.hidden, obj.sources.spotlight }
 
+--- FileSearch.PreviewProvider
+--- Constant
+--- How the highlighted file is shown. Two implementations of one contract, so which one is in
+--- use is a choice the composition root makes and nothing else in the spoon knows the answer.
+---
+--- `SidePanel` docks a canvas beside the list and follows the highlight, a permanent summary in
+--- the corner of your eye. `QuickLook` opens the native panel over the picker when a key asks
+--- for it, a full size preview of anything the system can render, and reserves no room at all.
+--- The difference is not only how they draw but WHEN, which is why the contract carries
+--- `followsHighlight` and why they cannot simply be swapped without the surface noticing.
+---
+--- The members are the modules themselves rather than names, so a caller writes
+--- `PreviewProvider.SidePanel` and no string for a provider appears at any call site. A mistyped
+--- member raises here instead of silently reading as nil and leaving the picker with no preview
+--- and no explanation, which is as close to an enum as a structural language gets.
+obj.PreviewProvider = setmetatable({
+  SidePanel = load("viewers/sidepanel.lua"),
+  QuickLook = load("viewers/quicklook.lua"),
+}, {
+  __index = function(_, key)
+    error("FileSearch.PreviewProvider has no member " .. tostring(key), 2)
+  end,
+  __newindex = function()
+    error("FileSearch.PreviewProvider is a constant", 2)
+  end,
+})
+
 -- What you actually use. Exposed so it can be inspected or cleared from the console, since it is
 -- the one part of this spoon that accumulates state about the person using it.
 obj.frecency = load("frecency.lua")
@@ -83,10 +110,21 @@ obj.chooser = load("chooser.lua")
 --- opts.matcher  the shared matching strategy, used for the local narrow between round trips
 --- opts.onResults  optional, told when the rows changed, for a surface other than this spoon's
 ---                 own picker. Composed with the picker's redraw rather than replacing it
+--- opts.previewProvider  a member of FileSearch.PreviewProvider, defaulting to SidePanel. The
+---                 root names it by reference rather than by string, see the enum above
 ---
 --- Wraps the engine's own configure so this file stays the only place that knows both which
 --- sources exist and which part of the policy each one reads. The engine is handed only what it
 --- uses itself and never forwards opaque config it cannot read.
+-- The chosen provider first and the side panel behind it, deduplicated, since a chain of one is
+-- what asking for the side panel means. Named here because this is the spoon's composition root
+-- and the surface must not learn that a second provider exists.
+local function previewChain(chosen)
+  local first = chosen or obj.PreviewProvider.SidePanel
+  if first == obj.PreviewProvider.SidePanel then return { first } end
+  return { first, obj.PreviewProvider.SidePanel }
+end
+
 local configureEngine = obj.configure
 function obj:configure(opts)
   opts = opts or {}
@@ -193,10 +231,15 @@ function obj:configure(opts)
     -- The other half of that seam, so a row can report the use it just recorded. Still no
     -- concrete name on the surface, only a question it is allowed to ask.
     usedAt = function(path) return obj.frecency.usedAt(path) end,
-    -- The pane's slice of the policy, forwarded whole rather than picked apart here. The surface
-    -- owns the pane and the thumbnail chain, so it is the layer that knows which of these numbers
-    -- belongs to which, and this root stays the only place that reads the config.
+    -- The preview slice of the policy, forwarded whole rather than picked apart here. The
+    -- surface owns the provider and the thumbnail chain, so it is the layer that knows which of
+    -- these numbers belongs to which, and this root stays the only place that reads the config.
     preview = policy.preview,
+    -- The provider, and the side panel behind it as the fallback, which is what turns an
+    -- unavailable first choice into a working picker with a console line rather than into no
+    -- preview at all. This is the only place in the spoon that names a concrete one, and it
+    -- names them by reference so no provider string exists anywhere.
+    viewers = previewChain(opts.previewProvider),
   })
 
   return self

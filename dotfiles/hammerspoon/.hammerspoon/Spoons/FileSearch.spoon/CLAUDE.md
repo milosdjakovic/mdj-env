@@ -469,6 +469,213 @@ application into staleness that outlives a reload. Because the whole table rebui
 2.3ms, it is simply dropped when the chooser closes, so a changed default app is correct on
 the next open with no invalidation logic at all.
 
+## Two preview providers, and the contract carries WHEN as well as how
+
+How the highlighted file is shown is a Strategy with two implementations, `PreviewProvider.SidePanel`
+and `PreviewProvider.QuickLook`, and the main root names one by reference. The surface calls the
+contract and never learns which it got.
+
+The members of that enum are the modules themselves rather than names, so a caller writes
+`PreviewProvider.SidePanel` and no provider string exists at any call site. A mistyped member
+raises, because the table's `__index` says so, which is as close to an enum as a structural
+language gets and is worth the four lines. Reading a nil there would otherwise leave the picker
+with no preview and nothing to explain it.
+
+**The contract carries `followsHighlight`, and that field is the design rather than a detail.** A
+canvas already on screen redraws for nothing, so it can track the highlight poll and be a
+permanent summary in the corner of your eye. A window cannot. Tracking would mean killing one
+process and launching another on every arrow key, and a large window reopening over the list
+every time you paused would be worse than no preview. So the providers differ in WHEN they show,
+not only in how, and the surface reads that one field to decide whether to run a poll at all and
+whether the scroll keys mean anything. Pretending they were interchangeable would have produced a
+Quick Look mode that flashed a window over the list as you moved.
+
+Two things follow from it that are easy to miss. Room beside the list is asked of the provider
+rather than read from config by the surface, since the panel wants 420 and the window wants none,
+and that number is fixed when the picker is built. And the keys follow the provider, because a
+binding may declare what it `needs` and the root answers it once, so the two scroll keys exist
+only under the panel and the peek key only under Quick Look. The shortcut panel is filtered by the
+same answer, so a key is never listed while doing nothing, which is the discoverability rule
+holding rather than a nicety.
+
+**That filter is applied to the DATA once rather than evaluated per press, and the reason is the
+shortcut panel.** A binding gated on live state stays bound and simply does nothing when its
+predicate is false, which is right for something that changes while you use the tool, like whether
+there is a level above the one you are browsing. A provider is chosen at wiring time and cannot
+change, and the panel is built from a static hint list, so a runtime predicate would have hidden
+the key while still printing it in the hints. Answering it once, before either the key wiring or
+the panel reads the bindings, is what keeps the two from disagreeing. The requirement is named in
+the pure data and answered in the root, so neither layer learns the other's business, and an
+unknown requirement keeps its binding and says so, since a typo should cost a stray key rather
+than a silently missing one.
+
+The chain is the chosen provider with the side panel behind it, the same first available wins
+shape the emoji backends use, so an unavailable first choice degrades to a working picker with one
+console line instead of to no preview.
+
+**The panel is built by a Swift helper because the command line tool is a dead end, and that was
+measured rather than assumed.** `qlmanage -p` starts, registers as a running application and spawns
+the system's preview generation extension, and owns ZERO windows. Activating it shows nothing.
+Checked both as a child of Hammerspoon and straight from a shell, screenshotted both times. The
+tool is present on every Mac and the panel never appears, which is the one failure a provider whose
+whole point is a window cannot work around. Hammerspoon has no binding for Quick Look either, so
+the only route left to a real panel is AppKit.
+
+So `quicklook.swift` sits beside the viewer, on the Eyedropper precedent. A single file compiled
+once with `swiftc` into a cache under HOME, run per preview, the same shape as `sampler.swift`.
+The cache is outside the watched config tree on purpose, since Hammerspoon reloads on a change
+under that tree and a compile landing in it would reload the config every time the helper is
+built. The build is warmed in `configure` rather than on the first press, so the first preview of
+the session is instant, and it is a no op on every run after the first because the binary is
+compared against the source by modification time. `available` now answers true when the binary is
+current or the compiler that builds it is present, which is the check the earlier note said it
+would become. Only the mechanism behind `show` changed. The enum, the contract, the reserved
+width, the keys and the teardown are exactly as they were designed.
+
+**Two lines in that helper are about the picker rather than about Quick Look, and they matter more
+than they look.** The panel is a `nonactivatingPanel` ordered front with `orderFrontRegardless`
+rather than made key, because the thing it covers is a Hammerspoon chooser that hides the moment
+it stops being key. Showing the preview the ordinary way would dismiss the very list the preview
+exists to describe. Verified by screenshot, the panel over a full screen terminal with the
+terminal still holding focus in the menu bar, and the picker reporting itself still open behind
+it. And the window sits ONE STEP ABOVE the pop up menu level rather than at it. Matching it was
+the first attempt and it was not enough, because the picker's docked shortcut hints are a canvas
+at exactly that level and drew straight over the preview. A window that covers the list should
+cover what the list draws around itself too.
+
+**The chrome is trimmed to what Finder's panel has, which is a filename and one grey close disc,
+and the header is drawn here rather than being the system titlebar.** A plain titled panel arrives
+with the full set of traffic lights, and a red light belongs to a document window you are editing
+while this is a thing you glance at and dismiss. Getting from there to Finder's header took three
+attempts and every one of them failed for a reason worth keeping, since each looks like the
+obvious answer.
+
+Restyling the close light is impossible. It is drawn by a private cell that ignores an image set
+on the button, so the only way past it is to hide it and supply another. Hiding all three and
+adding a leading titlebar accessory puts the replacement a third of the way across the bar, because
+a hidden traffic light still reserves its slot and a leading accessory begins where the lights end.
+Hiding the close light and adding a sibling at its exact frame lands the disc correctly and moves
+the TITLE to the left edge, since laying out one unexpected child is enough to make the bar treat
+itself as having an accessory. So the system bar is made transparent and empty and the strip is
+ours, which is also the only version where the disc's inset from the left is guaranteed to equal
+its inset from the top and from the content below, because all three come from one number.
+
+The disc is drawn rather than assembled from a button and a symbol image, for that same reason. A
+symbol renders at whatever intrinsic size it has for a given point size, so it sits a little
+smaller than the box holding it and the gap it leaves is not the gap that was asked for. Filling
+the view's own bounds makes the margins true by construction. The cross is knocked out of the disc
+rather than painted over it, so the titlebar material shows through the way the system's own
+button does, which a painted cross cannot do without naming a colour that has to match a
+translucent background. And it answers the first click explicitly, because a control on a window
+that is not key normally spends the first click on becoming key, and this panel never becomes key
+at all.
+
+The strip sits ABOVE the content rather than floating on it, which was the correction to the first
+attempt. Floating is what the real panel does, but it puts the first inch of the document under the
+title, so the filename reads against whatever that document happens to be and the top of the
+content has to be scrolled back into view. A preview whose header you have to scroll away from is
+worse than one that costs a strip of height.
+
+**Any mouse click on the panel closes the picker, and therefore the panel.** Not a defect and not
+fixable from here, it is the same focus rule the whole provider is built around. The chooser hides
+when it stops being key, a click on the panel is enough to take key away from it, and the picker
+closing tears the panel down on its way out. So the close button and a click anywhere on the
+preview do the same thing, everything goes away, and the panel is a keyboard surface in practice.
+Escape is the way to put only the preview back.
+
+**Escape closes the preview and leaves the list, and that costs an event tap because of the very
+thing that makes this provider work.** The panel is deliberately never the key window, which is
+what keeps the picker alive underneath it, and the price is that it cannot receive a key press of
+its own. So the press is caught outside and consumed, since Escape reaching the list behind would
+close the list too and putting a preview away should leave you where you were. Pressing it again
+closes the list, which is what it always did. The tap exists only while a panel does, so nothing
+here touches Escape the rest of the time, and it is torn down on the panel's own exit as well as
+on ours. That last part is not symmetry for its own sake. The helper can end without this side
+asking, since it is a process and a window that both have their own ways of going, so a teardown
+that only ran on our own paths would leave a tap eating Escape for a window that is not there, and
+Escape would quietly stop closing the list.
+The teardown itself is deferred by one turn of the loop, because stopping a tap from inside that
+tap's own handler drops the last reference to it mid call.
+
+**Asking for the file already on screen means close, and asking for a different one means
+replace.** That makes the key a toggle the way the space bar is one in Finder, without making it a
+toggle in the case where a toggle is useless. Closing on a row you have moved off would mean
+pressing the key twice to walk a preview down a list, and a preview that follows what you asked
+for is the entire point of asking. The comparison is made after the tilde is expanded, since the
+same file arrives as a short path from the back row and as a full one from a search, and those are
+the same file to everyone but a string compare.
+
+The helper is a child process, and that is what makes closing it clean. It lives exactly as long
+as its window, so terminating the task takes the panel with it and closing the panel by hand ends
+the process. The task handle is held for that reason and holding it also keeps the task from being
+collected mid flight. Both directions are covered, `close` on the picker closing and the callback
+clearing the handle when the panel goes first, since a stale handle would make the next preview
+terminate something already gone.
+
+One consequence for the manifest. The viewer declares `swiftc` and no longer declares `qlmanage`,
+because it no longer runs it. `thumbs.lua` still does and still declares it for itself, which is
+the declaration rule working, a need sitting beside whatever actually knows the tool rather than
+in a list at the package root.
+
+**Two bugs came out of driving it live, and both are about a preview being a PROCESS rather than a
+drawing.** Neither could exist for the side panel, which is why neither was predicted.
+
+The first was the exit callback clearing the task handle unconditionally. Replacing a panel
+terminates the old helper and starts a new one in the same breath, but the old one's exit arrives
+later, so by the time its callback ran it wiped the handle to the panel that was actually on
+screen. Closing the picker then terminated nothing and left a window floating over a list that no
+longer existed. The fix is an identity check, a captured handle the callback compares against
+before clearing, which is the same token shape the async thumbnail render already uses for the
+same reason, a late answer must not act on behalf of a request that has been superseded.
+
+The second is that `peekPreview` now refuses once the picker is not showing, and that guard is
+about lifetime rather than about the row. Every other verb here is a one shot, so acting on a
+stale highlight would at worst reveal the wrong file. This one opens a window whose only teardown
+is the picker closing, so a peek that lands after that teardown has already run leaves a panel
+nothing owns and nothing will ever take down. It cost one orphaned window during testing that only
+a kill would clear.
+
+What the live pass confirmed, on a repeated cycle, is that the picker opens as a plain list with no
+reserved room, the panel renders a pdf over it while the picker stays open behind, asking again on
+another row replaces the panel rather than stacking one, the process id changes when it does, and
+closing the picker leaves nothing running and no timer held.
+
+Two bugs came out of building it and both were about the difference between a canvas and a window.
+`onPositioned` seeds the first highlight with a direct call rather than through the atom's poll,
+and `refresh` does the same after a rebuild, so both bypassed the `followsHighlight` gate and
+merely opening the picker threw a panel on screen for whatever row was first. And the back row
+carried `~` as its path, because going up collapses home for the query FIELD and the row was built
+from that string. A row is not a field, its path goes to Finder, to open, and to whatever a
+provider shells out to, and none of those expand a tilde. What hid it is that `hs.fs.attributes`
+DOES expand one, so every guard of the shape does this path exist passed happily and only the
+external process failed.
+
+## Three smaller decisions in the provider split, each one asked about at least once
+
+**Why the providers live in a directory.** The pane used to be `preview.lua` at the spoon root. A
+second implementation of the same contract makes it a backend rather than a component, so it moved
+to `viewers/`, beside `sources/` and for the same reason. Having one backend at the root and one
+in a folder would say the two are different kinds of thing when the whole point is that they are
+not. It was a rename rather than a rewrite, so the history follows it.
+
+`thumbs.lua` deliberately did NOT move. It is only used by the side panel today, which is an
+argument for putting it in there, but what it does is produce a picture of a file, which is a
+capability rather than a viewer's private machinery. Leaving it at the root also leaves its
+declaration where it was, and moving a declaration relabels the consumer column in the generated
+manifest for no gain anyone can point at.
+
+**Why the surface holds a Null Object rather than nil.** With no provider available the surface
+would otherwise guard six call sites, every one of them on a path that runs per highlight or per
+keystroke. A table of empty functions is fewer lines than the guards, and it means the no preview
+case is exercised by the same code as the working one instead of by a branch nobody takes.
+
+**Why a provider is configured before it is asked whether it is available.** The side panel's
+answer depends on whether the shared surface was injected, and it learns that in `configure`. So
+the resolution loop configures each candidate and then asks, rather than asking first, and the
+cost of configuring one that then steps aside is storing a table. Asking first would have made
+the side panel permanently unavailable, which is the kind of ordering bug that looks like the
+feature was never wired.
+
 ## The pane answers the question the row cannot afford to
 
 A row is one line, and one line cannot say whether this is the file you had in mind. The
@@ -490,7 +697,7 @@ file.
 
 ## What the body shows is a Chain of Responsibility, and declining is half of it
 
-`BODIES` in `preview.lua` is an ordered list of describers, each offered the row and free to
+`BODIES` in `viewers/sidepanel.lua` is an ordered list of describers, each offered the row and free to
 answer or to pass. The first answer wins and nothing else is consulted. Adding a kind of file
 the pane can show is a new describer plus one line in that list.
 
@@ -512,6 +719,66 @@ deliberate exception to this spoon's rule that nothing blocks, and it is afforda
 the read is a few tens of kilobytes off a local disk and going asynchronous would mean a task
 per highlight fire. The case it would cost is a file on a slow network mount.
 
+## A budget in source lines bounds nothing, and a clip does not bound layout
+
+Two separate costs, both found from one report that scrolling over a `tsconfig.tsbuildinfo`
+lagged.
+
+The head budget was four hundred LINES, and that file is one line of a hundred and thirty
+thousand characters, so the budget bounded nothing at all and the sixty four kilobyte read
+wrapped to about eleven hundred display lines. It is counted in DRAWN lines now, applied
+where the wrapping happens rather than before it, so it holds whatever shape the file turns
+out to have. A minified file is not an unlikely case either, since every build writes one.
+
+The second cost sat underneath that one and applies to every long text file rather than only
+to minified ones. A clip bounds what is VISIBLE and not what is laid out, so handing the
+canvas one text run of the whole body made every paint cost the whole body, and a paint
+happens on every scroll event. Only the visible slice is drawn now, rebuilt per paint, which
+is affordable precisely because it is a slice.
+
+Measured as the largest gap between fires of a sixteen millisecond timer, the same method
+the type token measurement used and the only one that catches a stall wherever it lands.
+That file stalled the main thread for **383ms** on show and **355ms** per paint while
+scrolling, with nine of a hundred beats firing, so the thread was busy almost the whole
+time. The budget fix alone took that to **81 and 102**. Windowing took every case, a small
+source file, a long prose file and that one, to between **23 and 45** with essentially no
+dropped frames, against an idle floor of **17**. An ordinary four hundred line file cost
+**50 to 60ms** per paint before windowing, which is why this was never only about minified
+files.
+
+Since Hammerspoon owns every leader key in this config, a stalled paint is a stalled
+keyboard rather than a slow pane, and that is what makes both mechanisms worth having rather
+than one.
+
+## The budget has a slack zone, because a hard edge is a bad trade near it
+
+A file four lines over the budget would lose those four lines and gain a notice about them,
+which is a worse thing to read than the four lines were. So the budget is where the trim
+lands and the slack is how far past it a file is shown whole anyway. Four hundred and fifteen
+lines is complete and says nothing, four hundred and twenty one is trimmed to four hundred
+and says so. Both numbers are config, and the slack exists so the second case is always worth
+the interruption.
+
+When it does trim, the last line of the body is an ellipsis and a line under it says what is
+missing. The ellipsis sits in the body tone as a line of the text, because it means the text
+stopping, while the count sits in the meta tone because it is the pane talking about the file
+rather than more of the file.
+
+**The count is only in units that are known.** Characters always, from the stat, so it covers
+the whole file rather than the part that was read. Lines only when the file really has lines
+AND the read reached the end, since a minified bundle is one line and telling you seven
+hundred more lines would be describing the wrapping rather than the file. That condition is
+also why the source line cap was removed. It used to stop at four hundred source lines, which
+bounded nothing on a minified file and, worse, meant nothing downstream could know how much
+had never been looked at, so any count would have been a guess. The read cap is the bound now
+and everything read is wrapped, which costs a few thousand iterations at worst and buys an
+exact number.
+
+One off by one came out of this and is worth not repeating. Appending a newline to a blob that
+already ends with one yields a phantom empty last line. It was an invisible blank while
+nothing counted the lines, and became a wrong number the moment something did, reporting five
+hundred and one left where five hundred were. The terminator is added only when missing.
+
 ## Pictures are a second chain, and only one member of it caches
 
 `thumbs.lua` is the same shape as the clipboard's generator chain, and the contract is
@@ -525,6 +792,21 @@ on the main thread and Hammerspoon owns every leader key in this config. Everyth
 to Quick Look, which is a process launch and a few hundred milliseconds, and which is also the
 reason a file type this config has never heard of still draws correctly as long as something
 on the machine knows how.
+
+**A size decides which backend does the work, and never whether the pane can show the file.**
+There is no maximum size here, and the code once behaved as though there were. The in process
+generator claimed every raster by extension and then refused the large ones on size, and
+because the chain gave the whole file to the first backend that claimed the type, the row ended
+there with a heading reading no preview. Quick Look was sitting directly behind it, in another
+process, perfectly able to draw the thing. Measured on a 35MB png, the chain answered nil while
+`qlmanage` rendered the same file to a 768KB thumbnail and exited clean.
+
+So `handles` answers about the TYPE and a new optional `accepts` answers about the FILE, and
+declining passes it along, which is the rule the describer chain upstairs already ran on and
+the only one this chain was missing. The in process generator steps aside past its cap, Quick
+Look claims the raster types as the backstop behind it, and order still means every ordinary
+photo takes the cheap path. The cap protects the main thread, which is the only thing it was
+ever for, and the backend that is not on the main thread has no reason to have one.
 
 Only the Quick Look generator caches, and it has to. Writing a raster out would cost more than
 decoding it again. A render is keyed on what the file WAS, its size and its modification time,
@@ -557,6 +839,15 @@ result set landing under a stationary highlight fires nothing, which is why `ref
 renders. And the atom seeds the highlight before it positions anything, so the first
 `onHighlight` lands with nowhere to draw, which is why `onPositioned` renders once it has
 docked.
+
+**Both of those are DIRECT calls rather than calls the atom makes, and that is exactly why they
+each need the `followsHighlight` gate.** The atom's own poll is wired only for a provider that
+follows the highlight, so it can never reach one that does not. These two bypass the poll, so
+without the gate they reach any provider at all, and under Quick Look that meant merely opening
+the picker threw a panel onto the screen for whatever row happened to be first, and a result set
+landing threw another. It reads as a shortcut worth removing until you know what it is for, so it
+is written down here rather than left as two conditions that look redundant beside a poll that is
+already gated.
 
 The same reasoning found a defect one layer down, in the atom rather than here. `Chooser:refresh`
 rebuilt the list without clearing `lastRow`, so browsing into a folder while the FIRST row was
@@ -600,6 +891,12 @@ press, a trackpad gesture and a rebuild at a new height all be written without a
 knowing how tall the content turned out. It resets whenever the row changes, since an offset
 carried over would open the next file part way down for no reason a reader can see.
 
+All of this is the side panel's, not the feature's. A window scrolls itself and its keys are the
+system's, so the other provider answers nothing to the scroll verb and the two keys are not bound
+under it at all. That is why the verb is on the contract as optional rather than required, and
+why the trackpad watcher is wired only for a provider that reserved a rect for one to happen
+over.
+
 ## What it deliberately does not do
 
 No content search. Spotlight's text index answers it in about 135ms and ripgrep is the
@@ -618,11 +915,20 @@ naming why, and the key stays worth pressing in every case.
 Without `qlmanage` the pane loses one describer. A raster still draws through the in process
 generator, a text file still shows its head, a folder still lists itself, and every other row
 is described by its header exactly as before. Only the pdf, the video and the office document
-lose their picture, and the describer declines rather than promising one.
+lose their picture, and the describer declines rather than promising one. A raster too large for
+the in process generator loses its picture too, since that one steps aside on size and Quick Look
+is what it steps aside TO.
 
-Without the shared canvas surface injected, there is no pane at all. The atom reserves no room
-beside the list, no highlight poll runs, and the picker is exactly what it was before the pane
-existed. That is one line in the main root, which is what makes the whole feature removable.
+Without the shared canvas surface injected, the side panel reports itself unavailable. That is
+one line in the main root, and it is the same path a provider takes for any other reason, so the
+chain moves to the next one and lands on nothing if there is no next one. With no provider left
+the picker reserves no room, runs no highlight poll and binds neither the scroll keys nor the
+peek key, which is exactly what it was before any preview existed.
+
+A provider that steps aside says why, once, in the console. That matters more here than for a
+source, because a missing preview is silent by nature. Nothing is drawn either way, so without
+the line there is no difference between a provider that was never chosen and one that could not
+run.
 
 ## What would break if the shape changed
 

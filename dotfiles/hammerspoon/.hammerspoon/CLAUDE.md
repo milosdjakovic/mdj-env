@@ -645,6 +645,20 @@ A tool with two surfaces, like the VPN control panel and its location picker,
 wires each surface as its own participant, its own context block, predicate,
 registry entry, and overlay.
 
+**A binding may declare what it `needs`, which is different from `when`, and the difference is
+the shortcut panel.** `when` gates a binding on LIVE state, resolved by name on every press, so
+the key stays bound and does nothing while its predicate is false. That is right for something
+that changes while you use the tool. `needs` gates a binding on a CHOICE this root made at wiring
+time, and it is answered once against the `bindingNeeds` registry before either the key wiring or
+`footerFor` reads the bindings, so the binding is removed from both together. The distinction
+exists because a shortcut panel is built from a static hint list, so a wiring time fact expressed
+as a runtime predicate would unbind the key and still print it in the hints, which is exactly the
+disagreement the two discoverability mandates are there to prevent. File search is the first
+consumer, where the preview provider decides whether the two scroll keys or the peek key are the
+ones that mean anything. Config names the requirement and the root answers it, so neither learns
+the other's business, and an unknown requirement keeps its binding and logs, since a typo should
+cost a stray key rather than a silently missing one.
+
 **A rebuilt list tells the highlight poll.** `Chooser:refresh` clears `lastRow` after setting
 choices, because the poll that drives `onHighlight` compares the row NUMBER and the row under a
 given number changes when the list is rebuilt. Without it a companion pane keeps describing
@@ -1074,15 +1088,29 @@ containing folder, and copy the path, routed through `routeNav` so they are no o
 other surface. It also answers the two `scrollPreview` actions the clipboard already used,
 which is what made them worth routing rather than naming at one surface.
 
-It reserves a companion pane and describes the highlighted row in it, the name, the location,
-the kind, the size, both dates and when you last reached for it, then a folder's newest
-entries, a file's head, or a rendered picture of anything Quick Look can draw. The row
-subtitle deliberately carries no size, because reading one costs a call per row and a page is
-two hundred rows, while the pane describes one row and gets every fact from a single stat. What
-the pane shows is a Chain of Responsibility over describers where declining passes the row
-along, and the pictures behind it are a second chain of generators where only Quick Look
-caches. The pane exists only because the root injects `CanvasPanel.surfaceElements`, and
-without that line there is no pane, no reserved room and no highlight poll.
+How it shows the highlighted file is a Strategy this root chooses, `PreviewProvider.SidePanel` or
+`PreviewProvider.QuickLook`, named by reference so no provider string appears at any call site.
+The chosen one leads a chain with the side panel behind it, first available wins, the same shape
+the emoji backends use. The contract carries WHEN as well as how, because a canvas already on
+screen can follow the highlight for nothing while a window would have to relaunch on every arrow
+key, so the providers differ in their trigger and the surface reads one field to decide whether to
+run a highlight poll and which keys mean anything. That is also why the choice is made near the
+top of this file rather than at the configure call, since the bindings depend on it. Quick Look
+opens a real native panel, built by a small Swift helper beside the viewer on the Eyedropper
+precedent, because `qlmanage -p` opens no window on this macOS and Hammerspoon binds nothing for
+it. The panel is nonactivating and sits at the pop up menu level so the chooser under it keeps
+focus and stays visible, which is the whole reason it can be a preview of a list rather than a
+replacement for it.
+
+The side panel reserves a companion pane and describes the row in it, the name, the location, the
+kind, the size, both dates and when you last reached for it, then a folder's newest entries, a
+file's head, or a rendered picture of anything Quick Look can draw. The row subtitle deliberately
+carries no size, because reading one costs a call per row and a page is two hundred rows, while
+the pane describes one row and gets every fact from a single stat. What the pane shows is a Chain
+of Responsibility over describers where declining passes the row along, and the pictures behind it
+are a second chain of generators where only Quick Look caches. It exists only because the root
+injects `CanvasPanel.surfaceElements`, and without that line it reports itself unavailable and the
+chain moves on.
 
 Two wiring choices are the ones worth knowing here. It opts the atom out of matching
 entirely with `matcher = false`, because its query is structured rather than a plain

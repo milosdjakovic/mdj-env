@@ -1,4 +1,4 @@
---- File search preview pane.
+--- The docked side panel, one of the two preview providers.
 ---
 --- The companion pane docked beside the picker, describing the highlighted row. A row is
 --- one line and one line cannot answer the two questions asked before pressing Return.
@@ -34,14 +34,27 @@
 --- The header is not part of the chain. It draws for every row, because a name, a location
 --- and a handful of dates are true of everything, and a pane that sometimes had no header
 --- would be answering a different question per row.
+---
+--- IT FOLLOWS THE HIGHLIGHT, which is the property that separates it from the other provider
+--- rather than an incidental detail. A canvas already on screen redraws for nothing, so it can
+--- track the poll and cost only a timer, and that is what makes a permanent summary in the
+--- corner of your eye affordable at all. See viewers/quicklook.lua for the opposite case.
 
-local previewPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
-local util = loadfile(previewPath .. "util.lua")()
+-- A viewer sits one directory below the spoon root, so its siblings are one level up.
+local viewerPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
+local util = loadfile(viewerPath .. "../util.lua")()
 
 local M = {}
 
+--- viewer.name - for the console line when a provider steps aside.
+M.name = "sidepanel"
+
+--- viewer.followsHighlight - true, see the header. The surface reads this to decide whether to
+--- run a highlight poll and to wire the scroll keys.
+M.followsHighlight = true
+
 -- Injected, see M.configure. Empty until then, and with no surface injected the pane
--- stays down entirely, which is the whole degradation path, see M.isEnabled.
+-- stays down entirely, which is the whole degradation path, see M.available.
 local cfg = {}
 
 local canvas = nil       -- the docked canvas, built lazily and deleted on every close
@@ -124,6 +137,7 @@ end
 -- breaking a token longer than the whole line, which is what a long path with no spaces
 -- in it needs. Tabs are expanded first, since a tab drawn in a monospace run is one cell
 -- wide and would collapse the indentation this pane exists to show.
+--
 local function wrapMono(str, cols)
   str = tostring(str):gsub("\t", "  ")
   local lines, pos, n = {}, 1, #str
@@ -145,6 +159,44 @@ local function wrapMono(str, cols)
     end
   end
   return lines
+end
+
+-- Wrap a block of source lines to a column budget.
+--
+-- Everything read is wrapped, deliberately, and the trim happens after. The input is already
+-- bounded by the read cap, so this is a few thousand iterations at worst, and wrapping all of
+-- it is what makes the count of what is being left out an exact number rather than an estimate.
+-- What is NOT affordable is drawing all of it, which is a different layer and is handled in
+-- paint.
+local function wrapBlock(lines, cols)
+  local out = {}
+  for _, line in ipairs(lines) do
+    for _, part in ipairs(wrapMono(line, cols)) do out[#out + 1] = part end
+  end
+  return out
+end
+
+-- What is being left out, said in the units that are actually known.
+--
+-- A COUNT OF LINES IS ONLY HONEST WHEN THE FILE HAS LINES. A minified bundle is one line of a
+-- hundred thousand characters, so telling you seven hundred more lines would be describing the
+-- wrapping rather than the file. Characters is true whatever the shape, and it comes from the
+-- stat, so it counts the whole file rather than only the part that was read.
+--
+-- The character figure is measured against the bytes drawn, so it is off by a line ending here
+-- and an expanded tab there, well under a percent on any real file. It says roughly how much
+-- more there is, which is the question, and pretending to an exact figure would cost a second
+-- pass for nothing.
+local function remainderNote(lines, overLines, shownBytes, total, hasLines)
+  local parts = {}
+  if hasLines and overLines > 0 then
+    parts[#parts + 1] = string.format("%d lines", overLines)
+  end
+  if total and total > shownBytes then
+    parts[#parts + 1] = string.format("%d characters", total - shownBytes)
+  end
+  if #parts == 0 then return nil end
+  return table.concat(parts, ", ") .. " more"
 end
 
 -- A block of text as one canvas element rather than one per line. The pinned line height
@@ -303,15 +355,40 @@ local function textBody(row, attrs, ctx)
   if not blob or blob == "" then return nil end
   if blob:find("\0", 1, true) then return nil end
 
+  -- Every line the read got, with no cap of its own. The read cap is the bound, and it is the
+  -- only one that can be, because a cap counted in source lines would stop a hundred thousand
+  -- character single line file after one line and stop a normal file before the end of what was
+  -- already paid for. Bounding here also used to make the count of what is left out a guess,
+  -- since nothing downstream could know how much was never looked at.
+  --
+  -- The terminator is added only when it is missing, which matters more than it looks. Adding
+  -- one unconditionally gives a file that already ends in a newline a phantom empty last line,
+  -- an invisible blank while nothing counted the lines and an off by one the moment something
+  -- did, reporting five hundred and one lines left where five hundred were. A file genuinely
+  -- ending in a blank line still keeps it, since only the terminator is supplied.
+  local text = blob
+  if text:sub(-1) ~= "\n" then text = text .. "\n" end
   local lines = {}
-  for line in (blob .. "\n"):gmatch("([^\n]*)\n") do
+  for line in text:gmatch("([^\n]*)\n") do
     lines[#lines + 1] = (line:gsub("\r$", ""))
-    if #lines >= ctx.headLines then break end
   end
-  -- A last line cut mid way through by the read cap is dropped rather than shown, since
-  -- half a line of source reads as a file that ends strangely.
-  if #blob >= ctx.readCap and #lines > 1 then table.remove(lines) end
-  return { label = "HEAD", lines = lines, wrap = true }
+  -- A last line cut mid way through by the read cap is dropped rather than shown, since half a
+  -- line of source reads as a file that ends strangely. Only when there is a whole line to fall
+  -- back on, and a minified file is exactly the case where there is not, since the read cap
+  -- lands in the middle of its only line.
+  local capped = #blob >= ctx.readCap
+  if capped and #lines > 1 then table.remove(lines) end
+  -- The budget is handed over rather than applied here, because it has to be counted in DRAWN
+  -- lines and only the layout knows how a source line wraps.
+  return {
+    label = "HEAD", lines = lines, wrap = true,
+    budget = ctx.headLines, slack = ctx.headSlack,
+    total = attrs and attrs.size,
+    -- Whether a count of lines would mean anything. It takes both, a file that really has
+    -- lines, and a read that reached the end so the count is of the file rather than of the
+    -- window we happened to read.
+    hasLines = (#lines > 1) and not capped,
+  }
 end
 
 -- In order. The first one to answer owns the body, and one that declines passes the row
@@ -367,8 +444,8 @@ end
 -- can offset them by the scroll without the builder knowing anything about it.
 local function bodyElements(body, w)
   local els, y = {}, 0
-  y = appendHeading(els, body.label, body.facts, y, w)
   if body.image then
+    y = appendHeading(els, body.label, body.facts, y, w)
     local size = body.image:size()
     -- Scaled to the width and never past its own size, so a small icon is drawn at the
     -- size it really is rather than blown up into a blur.
@@ -378,17 +455,50 @@ local function bodyElements(body, w)
       imageAlignment = "topLeft", frame = { x = 0, y = y, w = drawW, h = drawH } }
     return els, y + drawH
   end
+  -- Wrapped before the heading is written, so the heading can say what was left out. The
+  -- describer cannot say it, because whether a budget counted in drawn lines is reached
+  -- depends on how wide the pane turned out.
   local lines = body.lines or {}
-  if body.wrap then
-    local cols = columns(w, BODY_SIZE)
-    local wrapped = {}
-    for _, line in ipairs(lines) do
-      for _, part in ipairs(wrapMono(line, cols)) do wrapped[#wrapped + 1] = part end
+  if body.wrap then lines = wrapBlock(lines, columns(w, BODY_SIZE)) end
+
+  -- THE SLACK IS THE POINT OF THIS BLOCK. A budget with a hard edge means a file four lines
+  -- over it loses those four lines and gains a notice about them, which is a worse thing to
+  -- read than the four lines were. So the budget is where the trim lands and the slack is how
+  -- far past it a file is simply shown whole. Anything up to budget plus slack is complete and
+  -- says nothing, and only past that is it worth trimming and worth mentioning.
+  local budget, slack = body.budget, body.slack or 0
+  local note, shown = nil, #lines
+  if budget and #lines > budget + slack then
+    local kept, bytes = {}, 0
+    for i = 1, budget do
+      kept[i] = lines[i]
+      bytes = bytes + #lines[i] + 1
     end
-    lines = wrapped
+    local over = #lines - budget
+    shown = budget
+    -- The ellipsis is a line of the body rather than part of the note, so it sits in the body
+    -- tone at the end of the text and reads as the text stopping, which is what it means.
+    kept[#kept + 1] = "..."
+    lines = kept
+    note = remainderNote(lines, over, bytes, body.total, body.hasLines)
   end
-  y = appendLines(els, lines, y, w, colors.fg, BODY_SIZE)
-  return els, y
+
+  local facts = body.facts
+  if note and not facts then facts = string.format("first %d lines", shown) end
+  y = appendHeading(els, body.label, facts, y, w)
+
+  -- The text block is DESCRIBED rather than built, so the paint can draw only the lines
+  -- that are actually on screen. Everything above is a fixed handful of elements and is
+  -- built here as before. See the note on paint for why the difference matters.
+  local run = nil
+  if #lines > 0 then
+    run = { lines = lines, y = y, size = BODY_SIZE, color = colors.fg,
+            lineH = lineHeight(BODY_SIZE), note = note }
+    y = y + #lines * run.lineH
+    -- Room for the note under the last line, so scrolling to the bottom reaches it.
+    if note then y = y + run.lineH end
+  end
+  return els, y, run
 end
 
 -- Everything for one row, built once and cached, since the highlight poll fires often and
@@ -397,11 +507,12 @@ end
 local function buildModel(row, w, h)
   local attrs = statOf(row)
   local headEls, bodyY = headerElements(row, attrs, w)
-  local body, bodyEls, bodyH = nil, {}, 0
+  local body, bodyEls, bodyH, bodyRun = nil, {}, 0, nil
   local limits = cfg.limits or {}
   local ctx = {
     readCap = limits.readCap or 64 * 1024,
     headLines = limits.headLines or 400,
+    headSlack = limits.headSlack or 20,
     folderEntries = limits.folderEntries or 100,
     image = function(r, a) return M._image(r, a) end,
   }
@@ -409,10 +520,10 @@ local function buildModel(row, w, h)
     body = describe(row, attrs, ctx)
     if body then break end
   end
-  if body then bodyEls, bodyH = bodyElements(body, w) end
+  if body then bodyEls, bodyH, bodyRun = bodyElements(body, w) end
   return {
     row = row, path = row.path, w = w, h = h, attrs = attrs,
-    headEls = headEls, bodyY = bodyY, bodyEls = bodyEls, bodyH = bodyH,
+    headEls = headEls, bodyY = bodyY, bodyEls = bodyEls, bodyH = bodyH, bodyRun = bodyRun,
   }
 end
 
@@ -448,6 +559,15 @@ end
 -- which is clamped HERE rather than where it is changed. That is what lets a key press, a
 -- trackpad gesture and a rebuild at a new height all be written without any of them
 -- knowing how tall the content turned out.
+--
+-- ONLY THE LINES ON SCREEN ARE DRAWN, and that is not an optimisation to be simplified
+-- away. A clip bounds what is VISIBLE and not what is laid out, so handing the canvas the
+-- whole block made every paint cost the whole file, and a paint happens on every scroll
+-- event. Measured with a heartbeat timer, a four hundred line body stalled the main thread
+-- for fifty to a hundred milliseconds per paint and dropped half the frames of a scroll,
+-- while the same body windowed to the thirty visible lines costs nothing above the idle
+-- floor whatever the file is. The run is rebuilt per paint rather than cached, which is
+-- affordable exactly because it is only ever the visible slice.
 local function paint()
   if not (model and frame and cfg.surface) then return end
   ensureCanvas()
@@ -465,13 +585,39 @@ local function paint()
     frame = { x = PAD_X, y = PAD_Y, w = innerW, h = innerH } }
   for _, el in ipairs(model.headEls) do els[#els + 1] = shifted(el, PAD_X, PAD_Y) end
 
-  if bodyRoom > 0 and #model.bodyEls > 0 then
+  if bodyRoom > 0 and (#model.bodyEls > 0 or model.bodyRun) then
     -- A second clip, so a body scrolled up stops at the header rather than being drawn
     -- over it, and one scrolled down stops at the padding rather than at the border.
     els[#els + 1] = { type = "rectangle", action = "clip",
       frame = { x = PAD_X, y = PAD_Y + model.bodyY, w = innerW, h = bodyRoom } }
-    for _, el in ipairs(model.bodyEls) do
-      els[#els + 1] = shifted(el, PAD_X, PAD_Y + model.bodyY - scrollOffset)
+    local dy = PAD_Y + model.bodyY - scrollOffset
+    for _, el in ipairs(model.bodyEls) do els[#els + 1] = shifted(el, PAD_X, dy) end
+
+    local run = model.bodyRun
+    if run then
+      -- One line of margin at each end, so a partly scrolled line is still drawn rather
+      -- than appearing only once its top edge crosses into the box.
+      local first = math.max(1, math.floor((scrollOffset - run.y) / run.lineH))
+      local last = math.min(#run.lines, first + math.ceil(bodyRoom / run.lineH) + 1)
+      if last >= first then
+        local slice = {}
+        for i = first, last do slice[#slice + 1] = run.lines[i] end
+        els[#els + 1] = { type = "text",
+          text = styled(table.concat(slice, "\n"), run.color, run.size),
+          -- The slice is placed where its FIRST line belongs rather than at the top of the
+          -- block, which is what keeps the text still while the window moves over it.
+          frame = { x = PAD_X, y = dy + run.y + (first - 1) * run.lineH,
+                    w = innerW, h = (#slice + 1) * run.lineH } }
+      end
+      -- What was left out, under the ellipsis at the very end. In the meta tone, because it is
+      -- the pane talking about the file rather than more of the file. Always emitted, since it
+      -- is one line and the clip drops it while you are anywhere above the bottom.
+      if run.note then
+        els[#els + 1] = { type = "text",
+          text = styled(run.note, colors.meta, LABEL_SIZE),
+          frame = { x = PAD_X, y = dy + run.y + #run.lines * run.lineH,
+                    w = innerW, h = 2 * run.lineH } }
+      end
     end
     els[#els + 1] = { type = "resetClip" }
   end
@@ -522,7 +668,10 @@ function M._image(row, attrs)
   local generation = pending
   local edge = (cfg.limits and cfg.limits.imageEdge) or 600
   local settled, landed = false, nil
-  cfg.thumbs.image({ path = row.path, ext = row.ext or "", edge = edge }, function(img)
+  -- The size travels with the ask, because a backend deciding whether it will take this file
+  -- would otherwise stat a file the header already stat'd.
+  cfg.thumbs.image({ path = row.path, ext = row.ext or "", edge = edge,
+                     size = attrs and attrs.size }, function(img)
     images[key] = img or false
     if not settled then
       landed = img
@@ -547,7 +696,7 @@ end
 
 --- preview.configure(opts) - injected by the surface that owns the picker.
 --- opts.surface   function(w, h) -> canvas elements, the shared CanvasPanel surface.
----                Absent means no pane at all, see isEnabled.
+---                Absent means no pane at all, see available.
 --- opts.palette   function() -> the theme's preview colour set, resolved per open so the
 ---                pane follows the live light and dark appearance.
 --- opts.limits    the preview block from config, the read cap, the head line count, the
@@ -562,13 +711,27 @@ function M.configure(opts)
   return M
 end
 
---- preview.isEnabled() -> boolean
---- Whether a pane can be drawn at all, which is to say whether the composition root
---- injected the shared surface. The picker asks before reserving a companion rect, so a
---- root that wires nothing gets the picker exactly as it was rather than a pane of
---- unreadable text floating over the desktop with no background behind it.
-function M.isEnabled()
-  return cfg.surface ~= nil
+--- viewer.available() -> bool, reason
+--- Whether a pane can be drawn at all, which is to say whether the composition root injected
+--- the shared surface. The picker asks before reserving a companion rect, so a root that wires
+--- nothing gets the picker exactly as it was rather than a pane of unreadable text floating
+--- over the desktop with no background behind it.
+function M.available()
+  if cfg.surface == nil then return false, "no canvas surface was injected" end
+  return true
+end
+
+--- viewer.companionWidth(policy) -> the room this provider needs beside the list.
+--- Answered by the provider rather than read from config by the surface, because how much room
+--- a preview needs is the provider's own business and the other one needs none.
+function M.companionWidth(policy)
+  if not M.available() then return 0 end
+  return (policy and policy.width) or 420
+end
+
+--- viewer.close() - the contract's teardown name, over this provider's own.
+function M.close()
+  return M.destroy()
 end
 
 --- preview.dock(companionFrame) - take the rect the Chooser atom reported.
@@ -576,7 +739,7 @@ end
 --- expected. The palette is resolved here rather than per highlight, since it can only
 --- change between opens.
 function M.dock(companionFrame)
-  if not (M.isEnabled() and companionFrame) then return end
+  if not (M.available() and companionFrame) then return end
   frame = companionFrame
   local p = (cfg.palette and cfg.palette()) or {}
   colors = {
@@ -598,7 +761,7 @@ end
 --- The scroll goes back to the top whenever the row changes, because an offset carried
 --- over would open the next file part way down for no reason the reader can see.
 function M.show(row)
-  if not (M.isEnabled() and frame and colors) then return end
+  if not (M.available() and frame and colors) then return end
   if not (row and row.path) then
     M.clear()
     return

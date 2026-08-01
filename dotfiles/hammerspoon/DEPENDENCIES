@@ -27,6 +27,7 @@ fd | path | fd | optional | FileSearch/hidden | building the index of paths Spot
 fzf | path | fzf | optional | FileSearch/hidden | ranking that index, the one thing a substring tool cannot do over 42 thousand matches
 fd | path | fd | optional | FileSearch/walk | walking a named directory, which is faster than the index once a scope is given and is the only way to see dotfiles
 qlmanage | system | /usr/bin/qlmanage | optional | FileSearch/thumbs | drawing a preview of a pdf, a video, or anything else only Quick Look can render
+swiftc | system | /usr/bin/swiftc | optional | FileSearch/quicklook | compiling the helper that opens the native Quick Look panel
 ps | system | /bin/ps | optional | Processes/metrics | samples cpu and memory for the rows the picker is showing
 docker | path | docker | optional | Processes/docker | lists running containers and stops one by name
 lsof | system | /usr/sbin/lsof | optional | Processes/ports | finds which process holds a listening port

@@ -77,6 +77,46 @@ hs.loadSpoon("Convert")
 hs.loadSpoon("QueryScope")
 
 --------------------------------------------------------------------------------
+-- Choices this root makes, named early because the key wiring reads them
+--------------------------------------------------------------------------------
+
+-- How file search shows the highlighted file. Two implementations of one contract, named by
+-- reference so no provider string appears anywhere, and switching is this one line.
+--
+-- SidePanel docks a canvas beside the list and follows the highlight, a permanent summary in the
+-- corner of your eye that this config scrolls for you. QuickLook opens the native panel over the
+-- picker when a key asks for it, a full size preview of anything the system can render, and
+-- reserves no room, so the picker becomes a plain list.
+--
+-- It is decided HERE rather than at the configure call below, because the bindings depend on it.
+-- One provider earns the two scroll keys and the other earns the peek key, and the shortcut panel
+-- is built from the same data, so the choice has to be known before either is read.
+local filePreviewProvider = spoon.FileSearch.PreviewProvider.QuickLook
+
+-- What a binding may declare it NEEDS from a choice above, answered once here. A binding naming
+-- something absent is dropped from the key wiring and from the shortcut panel together, which is
+-- what keeps a listed key from being one that does nothing. An unknown requirement keeps the
+-- binding and says so, so a typo fails visibly rather than silently removing a key.
+local bindingNeeds = {
+  -- A preview you have to ask for, which is the Quick Look window. A pane already showing the
+  -- row makes a peek key mean show me what is in front of you.
+  askedPreview = function() return filePreviewProvider.followsHighlight == false end,
+  -- A preview this config scrolls on your behalf, which is the docked pane. A window scrolls
+  -- itself and its own keys are the system's.
+  scrollablePreview = function() return filePreviewProvider.followsHighlight == true end,
+}
+
+local function bindingApplies(b)
+  if not b.needs then return true end
+  local test = bindingNeeds[b.needs]
+  if not test then
+    hs.printf("keys: binding %s needs unknown '%s', keeping it", tostring(b.action), tostring(b.needs))
+    return true
+  end
+  return test()
+end
+
+--------------------------------------------------------------------------------
 -- Initialize Spoons
 --------------------------------------------------------------------------------
 
@@ -374,6 +414,7 @@ local function footerFor(name)
   for _, ctx in ipairs(keys.hyperContexts or {}) do
     if ctx.name == name then
       for _, b in ipairs(ctx.bindings) do
+        if bindingApplies(b) then
         local chord = "Hyper+" .. spoon.CheatSheet.glyphFor(b.key, b.mods)
         local badges = { chord }
         if b.action == "insertSelected" or b.action == "enter" then
@@ -386,6 +427,7 @@ local function footerFor(name)
           badges = { chord, spoon.CheatSheet.glyphFor("up") }
         end
         hints[#hints + 1] = { badges = badges, label = b.description or b.action, action = b.action }
+        end
       end
     end
   end
@@ -1567,6 +1609,8 @@ spoon.FileSearch:configure({
   -- keystroke that asked for it. So the launcher is told when rows land, exactly as the spoon's
   -- own picker is. Composed inside the spoon rather than replacing its redraw, and each redraw
   -- does nothing while its own surface is closed, so the one that is not on screen costs a call.
+  -- Chosen at the top of this file, because the bindings depend on which one it is.
+  previewProvider = filePreviewProvider,
   onResults = function()
     if spoon.Launcher then spoon.Launcher:refresh() end
   end,
@@ -1892,6 +1936,10 @@ local contextActions = {
   -- named at one surface the way the clipboard-only append and delete are.
   scrollPreviewDown = routeNav("scrollPreviewDown"),
   scrollPreviewUp = routeNav("scrollPreviewUp"),
+  -- Show the highlighted row in a preview provider that has to be asked, which today is file
+  -- search under Quick Look. Routed like the rest, so the method guard makes it a no op on any
+  -- other surface, and the binding itself only exists when a provider wants it.
+  peekPreview = routeNav("peekPreview"),
   -- Force stop and rescan are answered only by the processes surface, so they route
   -- like the nav actions and the method guard makes them a no op everywhere else,
   -- rather than naming that one surface directly the way the clipboard-only append
@@ -1926,7 +1974,10 @@ local repeatableActions = {
 for _, ctx in ipairs(keys.hyperContexts or {}) do
   for _, b in ipairs(ctx.bindings) do
     local fn = contextActions[b.action]
-    if fn then
+    -- The same filter the shortcut panel applies, so a binding dropped for not fitting a choice
+    -- this root made disappears from the key and from its listing together.
+    if not bindingApplies(b) then -- luacheck: ignore
+    elseif fn then
       spoon.HyperKey:bind(b.key, fn, b.mods, {
         when = ctx.when,
         priority = ctx.priority,

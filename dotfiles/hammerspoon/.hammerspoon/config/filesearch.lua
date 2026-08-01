@@ -141,6 +141,12 @@ return {
     -- the file open in an editor rather than in a pane.
     headLines = 400,
 
+    -- How far past that a file is shown whole anyway. A hard edge would trade the last few
+    -- lines of a file that only just exceeds the budget for a notice about those same lines,
+    -- which is a worse thing to be given. So a file of four hundred and fifteen lines is
+    -- complete and silent, and only past four hundred and twenty is it trimmed and reported.
+    headSlack = 20,
+
     -- How many entries of a folder are listed, newest first. The count over the heading
     -- is the real total, so a bigger folder still reports its size honestly.
     folderEntries = 100,
@@ -152,6 +158,10 @@ return {
     -- Past this, an image is not decoded in process. A decode happens on the main thread
     -- and Hammerspoon owns every leader key in this config, so a stall here is a stalled
     -- keyboard, and a photo library holds files well over this.
+    --
+    -- It routes rather than refuses. A file over it goes to Quick Look, which is another
+    -- process and does not care how big the file is, so this is not a maximum size the pane
+    -- can show. There is no such maximum.
     nativeMaxBytes = 20 * 1024 * 1024,
 
     -- Where rendered pictures are kept between opens, so a pdf costs a Quick Look render
