@@ -4,10 +4,10 @@
 --- uses, with three levels. The tab list, the settings list of browsers, and one browser's
 --- own actions.
 ---
---- The tab list is the tool. Every open tab across every switched on browser, most recently
---- looked at first, each row carrying its browser's icon so which browser a tab belongs to
---- reads at a glance rather than from the text. Choosing one selects that tab in its window,
---- raises the window, and brings the browser to the front.
+--- The tab list is the tool. Every open tab across every switched on browser, the ones this tool
+--- has opened leading in the order it opened them, each row carrying its browser's icon so which
+--- browser a tab belongs to reads at a glance rather than from the text. Choosing one selects that
+--- tab in its window, raises the window, and brings the browser to the front.
 ---
 --- Settings is the last row, and the only row that is not a tab. It is pinned rather than
 --- ordered, so it never drifts up into the recency order, and a typed filter targets the tabs
@@ -308,16 +308,15 @@ end
 -- alone.
 --
 -- The position counted is among the tabs in this listing, not the place in the remembered order,
--- and the difference is not a detail. The remembered order holds every address ever looked at,
--- including each step of a redirect chain and everything since closed, so on this machine the
--- twelve most recent stored keys contained three tabs that are actually open and the rest were
--- gone. Counting stored ranks made the bonus inert almost every time it was asked for. Counted
--- among the tabs on offer it means what it says, the tenth most recently used tab you still
--- have open.
+-- and the difference is not a detail. The remembered order holds every address this tool has ever
+-- opened, including each step of a redirect chain and everything since closed, so its most recent
+-- stored keys are mostly tabs that are gone. Counting stored ranks made the bonus inert almost
+-- every time it was asked for. Counted among the tabs on offer it means what it says, the tenth
+-- most recently opened tab you still have open.
 --
--- A tab nobody has looked at earns nothing and takes no position, rather than being treated as
--- infinitely old. That is the same honesty the resting order keeps, recency is only ever claimed
--- for what was actually observed.
+-- A tab this tool has never opened earns nothing and takes no position, rather than being treated
+-- as infinitely old. That is the same honesty the resting order keeps, recency is only ever
+-- claimed for what this tool actually did.
 local RECENCY_WEIGHT = 3
 local RECENCY_SPAN = 10
 local function recencyBonus(position)
@@ -695,12 +694,13 @@ end
 --- right trade and used to read as the list rearranging itself under you. The full read is 0.368
 --- seconds on this machine, measured, and the cached order it paints over is stale by at least
 --- one move every time, since opening a tab is what closed this list last and that is exactly
---- what changes the order. So the remembered order is applied again before anything paints, and
---- the answer that lands a third of a second later then usually has nothing left to say.
+--- what changes the order. So the order is applied again before anything paints, and the answer
+--- that lands a third of a second later then has nothing left to say unless a tab was genuinely
+--- opened or closed in the browser meanwhile.
 function M.prepare(onReady)
   if onReady then waiting[#waiting + 1] = onReady end
   if loading then return end
-  if tabs then setTabs(cfg.api.reorder(tabs)) end
+  if tabs then setTabs(cfg.api.order(tabs)) end
   loading = true
   cfg.api.listTabs(function(list, errors)
     local before = listSig

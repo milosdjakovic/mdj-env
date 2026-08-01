@@ -7,11 +7,15 @@ would drift the moment the contract changed.
 
 ## What it is
 
-Every open tab across every switched on browser in one list, ordered most recently looked at
-first, each row carrying its browser's application icon so a tab's origin reads visually
-rather than from its text. Choosing a tab selects it in its window, raises the window, and
-brings the browser to the front. The last row opens a settings level where each browser is
-switched on or off and shows whether it is installed, open, and allowed to be scripted.
+Every open tab across every switched on browser in one list, the ones you have opened through this
+tool leading in the order it opened them and everything else resting in its browser's own tab
+order, each row carrying its browser's application icon so a tab's origin reads visually rather
+than from its text. Choosing a tab selects it in its window, raises the window, and brings the
+browser to the front. The last row opens a settings level where each browser is switched on or off
+and shows whether it is installed, open, and allowed to be scripted.
+
+The order never changes on its own. Nothing here watches the browsers, so the list is the same
+every time until you open a tab through it, which is the one thing that moves anything.
 
 ## The shape, and why the root names the browsers
 
@@ -19,7 +23,7 @@ Strategy wired through injection, the same layout `Capture` and `Vpn` use. `engi
 mechanism, it fans a listing out across the browsers and merges the answers, talking only
 through `contract.lua` and naming no browser. `providers/` holds one file per browser.
 `init.lua` is the spoon composition root and the ordering policy. `recency.lua` is the
-observed order, `permissions.lua` the Apple Events grant, `chooser.lua` the surface.
+remembered order, `permissions.lua` the Apple Events grant, `chooser.lua` the surface.
 
 The concrete browsers are named in the main `init.lua`, not here, which is why this spoon
 exposes its backends as `BrowserTabs.providers` for the root to pick from. That follows the
@@ -54,46 +58,63 @@ waits forever, and it is timing dependent so it appears intermittently. `jxa.lua
 `permissions.lua` each hold their tasks in a table until the callback has fired. This bit
 during development and the fix is easy to undo by accident, so it is commented at both sites.
 
-## Recency is observed, because no browser reports it
+## The order changes only when you open a tab here, and nothing is observed
 
-Not one browser exposes a per tab last access time. Chrome and Arc give a tab an id, a title,
-a URL and a loading flag, Safari does not even give an id, and none of the three carries a
-timestamp. So the recency the tool is built around cannot be read and has to be watched, which
-is what `recency.lua` does. It is the Observer half of the pair `DisplayMemory` forms with
-`TerminalHandler`, a watcher that records what it sees and a persisted order read back later.
+Not one browser exposes a per tab last access time. Chrome and Arc give a tab an id, a title, a
+URL and a loading flag, Safari does not even give an id, and none of the three carries a
+timestamp. So recency in the sense of what you last looked at cannot be read, and for a long time
+this tool watched for it instead. `recency.lua` was an Observer, the same shape `DisplayMemory`
+forms with `TerminalHandler`, running an application watcher for a browser coming to the front and
+a window filter on title changes for a tab switch inside one already in front, since each of these
+browsers titles its window after its active tab and that is the only signal there is.
 
-Two events mean a tab became current. A browser coming to the front, seen through an
-application watcher. And a tab switch inside a browser that is already frontmost, which fires
-no event of its own but does change the window title, because each of these browsers titles
-its window after the active tab, so a window filter on title changes is the only signal
-available. Both are coalesced, since a page load fires title changes in a burst and each
-sample costs an Apple Event.
+That is gone. What is remembered now is what this tool has opened, written by the activation the
+surface performs and by nothing else. It is the same shape `FileSearch`'s frecency takes, a record
+of what you chose through the tool rather than a claim about the world.
 
-Both ends of a burst are sampled and neither alone would do. The end of it is what settles a page
-that renames itself while it loads, and it is the only reason the delay exists at all. But
-waiting for it also made a plain tab switch, which fires one title change and never a burst, take
-the whole delay before anything was recorded. Measured, a switch reached the remembered order
-1.448 seconds later, in three roughly equal parts, half a second for the title event to arrive,
-the 0.45 second delay, and the Apple Event that reads the tab. So the start of a burst is sampled
-too. A burst keeps a timer pending throughout, which is exactly the test for whether one is
-already running, so the leading sample fires once when a quiet browser first stirs and not again
-until it has gone quiet. That took the same measurement to 0.821 seconds. The cost is two Apple
-Events per burst rather than one, and at worst a doubling under sustained title churn, which is
-bounded by the delay because the leading edge cannot fire while a timer is pending.
+The measurements that decided it. Watching cost an application watcher, a window filter over every
+browser window, and an Apple Event per switch. It arrived late by construction, 1.448 seconds from
+a switch to the order knowing about it, in three roughly equal parts, half a second for the title
+event to arrive, a 0.45 second delay coalescing the burst a page load fires, and the Apple Event
+that reads the tab. Sampling the start of a burst as well as the end took that to 0.821 seconds
+and no further, because what remains is Safari updating its own title and the accessibility layer
+delivering the event, neither of which is ours. Against that, what the tool opens is exact, free,
+and known the instant it happens.
 
-Why that number matters rather than being a curiosity. The list paints what it holds and corrects
-itself when the browsers answer, and the section further down on that describes how the paint is
-made to agree with the answer. It can only agree as far as the remembered order is current, so
-anyone switching a tab and reaching straight for the list was inside the lag and watched the list
-rearrange itself. Measured through the surface, at a one second pause the switched tab was still
-at rank two when the list painted and rows moved when the read landed. After the leading edge it
-is at rank one by then and nothing moves. What is left is under about eight tenths of a second,
-which needs the list opened at very nearly the same moment as the switch.
+Lateness was only the visible half. The deeper objection is that an observed order moves for
+things you did in the browser, so the list rearranged itself for reasons you did not ask this tool
+for, and a list you cannot predict is one you cannot learn. Every term of the order is now
+something you did here.
 
-The honest limitation is that only tabs actually visited while Hammerspoon runs earn recency.
-Everything else falls back to the resting order below, which is front to back depth on screen
-and not recency at all. Presenting that fallback as recency would be a lie, so it only ever
-decides the tail of the list, below everything observed.
+Two things came with it and both are load bearing. The resting order lost its depth on screen, for
+the same reason, since depth is also the browser's business and also moved. And the tab you are
+sitting on stops leading the list, which is the next section.
+
+What is given up, stated plainly. A tab switched to by hand earns nothing, so right after a
+Hammerspoon restart, or for someone who mostly switches by hand, the list is the browser's own tab
+order rather than a recency order. That is the trade and it was made deliberately, because a
+stable list that can be learned beats a truthful one that moves. It also makes every browser
+behave alike, where before Arc was the odd one out, since Arc reports no active tab and could
+never be observed at all.
+
+## The tab you are on does not lead the list
+
+Recency's top row used to be the tab you were already looking at, which is the one row you will
+never choose. A switcher spending its best position on where you already are is wasting it. So the
+top two swap, and the tool now behaves the way alt tab does, the thing you came from leading and
+the thing you are on sitting directly beneath it, one keystroke away rather than banished to the
+end.
+
+What decides which tab that is, is the remembered order and deliberately not the browser's own
+report of which tab is showing, even though every listing carries that flag per window. Using the
+flag was the first plan and it is wrong, because the flag is only learned when the browsers
+answer. Leaning on it would put the list straight back to rearranging itself a third of a second
+after opening, every time a tab had been switched by hand, which is the exact fault this design
+exists to remove. The remembered order is known synchronously and changes only when you act here.
+
+It only swaps when both leading tabs are ones this tool has opened. With fewer than that the
+second row is a tab with no recency at all, and leading the list with something arbitrary is worse
+than leading with where you already are.
 
 ## Identity is the bundle id plus the URL
 
@@ -111,10 +132,15 @@ while it was frontmost, and an Arc window's `name` is the space name rather than
 tab title, so there is no route to it at all. That is a limitation of Arc's dictionary and not
 a gap in `providers/arc.lua`.
 
-Two consequences. No Arc row is marked as the active tab. And an Arc tab earns recency only
-when it is opened through this tool, never from switching tabs inside Arc by hand. Arc still
-implements `activeTab` and answers nothing, rather than omitting the method, so the contract
-stays uniform and the one browser that cannot answer says so in exactly one place.
+One consequence, that no Arc row is marked as the active tab. Arc still implements `activeTab` and
+answers nothing, rather than omitting the method, so the contract stays uniform and the one
+browser that cannot answer says so in exactly one place.
+
+There used to be a second consequence, that an Arc tab earned recency only when opened through
+this tool and never from switching inside Arc by hand. That is now true of every browser by
+design, so Arc stopped being the odd one out without anything changing in `providers/arc.lua`.
+Worth noting because it is the shape of a good argument. Arc had been living with the behaviour
+the whole tool now has, and it was never the browser anyone complained about.
 
 ## Opening a tab is three separate acts, and one of them was missing
 
@@ -371,8 +397,8 @@ a control that would do nothing.
 
 The toggle means not queried, not queried and hidden. A switched off browser costs no Apple
 Events and never raises a permission prompt, which is the point of having the toggle for a
-browser you would rather Hammerspoon left alone. The recency observer honours the same rule,
-so switching a browser off silences the watching too.
+browser you would rather Hammerspoon left alone. Nothing watches a browser either way, so there
+is no second place where a switched off one could still be reached.
 
 Closed is checked at dispatch rather than resolved once at load, for a reason beyond freshness:
 addressing a specifier on a quit application launches it, and being asked for its tabs must
@@ -459,16 +485,15 @@ pass the row above them at 65.78.
 
 The unit is the part that was got wrong first and is worth knowing. Scaling the bonus by a tab's
 place in the remembered order sounds right and is nearly inert, because that order holds every
-address ever looked at, every step of a redirect chain and everything since closed, so on this
-machine the twelve most recent stored keys contained three tabs that were still open. The bonus
-is scaled by position among the tabs actually being listed instead, which the listing already
-supplies since it arrives recency ordered, and then the tenth position means the tenth most
-recently used tab you still have open. That count is taken over the whole listing rather than
+address this tool has ever opened, every step of a redirect chain and everything since closed, so
+its most recent stored keys are mostly tabs that are gone. The bonus is scaled by position among
+the tabs actually being listed instead, which the listing already supplies since it arrives in
+order, and then the tenth position means the tenth most recently opened tab you still have open. That count is taken over the whole listing rather than
 over the tabs that matched, because a tab's recency is a fact about the tab and must not change
 with what was typed.
 
-A tab nobody has looked at earns nothing and takes no position, rather than being treated as
-infinitely old. That is the same honesty the resting order keeps, and it is why the surface asks
+A tab this tool has never opened earns nothing and takes no position, rather than being treated
+as infinitely old. That is the same honesty the resting order keeps, and it is why the surface asks
 for a rank that may be nil rather than for a number.
 
 ## Why the list used to rearrange itself a moment after it opened
@@ -486,20 +511,27 @@ that is still moving.
 
 The cache is stale in exactly one way and it is the same way every time. Opening a tab is what
 closed this list last, and opening a tab is precisely what changes the remembered order, so the
-order held is always at least one move behind. Switching tabs by hand between two opens does the
-same through the title watcher. Membership changes far less often, only when a tab is actually
-opened or closed.
+order held is always at least one move behind. Membership changes far less often, only when a tab
+is actually opened or closed in the browser.
 
-So the remembered order is applied again to what is held, before anything paints. That costs two
-ten thousandths of a second over 93 tabs and it makes the first paint agree with the answer that
-is still coming.
+So the order is applied again to what is held, before anything paints. That costs two ten
+thousandths of a second over 93 tabs and it makes the first paint agree with the answer that is
+still coming.
 
-Only the recency half of the ordering is reapplied, which is why the root hands the surface a
-`reorder` that is not the same as what `listTabs` does. Settling the tabs nobody has looked at
-into front to back depth means walking every window on screen, measured between 34 and 59
-milliseconds, and that walk would land directly in front of the window appearing, which is the
-very thing being fixed. Depth is not what went stale, and it only ever decides the tail below
-everything observed, so the tail keeps whatever the last full read gave it.
+The root hands the surface the very same function `listTabs` applies, not a cheaper approximation
+of it, which is what makes the early paint and the answer agree rather than merely resemble each
+other. That is only possible because no term of the ordering reads the world any more. While the
+resting order was depth on screen it could not be reapplied cheaply, since depth meant walking
+every window on screen, measured between 34 and 59 milliseconds, landing directly in front of the
+window appearing. For a while the surface was handed a `reorder` that did the recency half alone
+and left the tail where the last read put it, which was an approximation and was documented as
+one. Dropping depth removed the reason for the split, and the two are one function again.
+
+It is also exact now rather than approximately right. The order can only change when this tool
+opens a tab, and that is recorded before the surface is ever asked, so there is nothing left for
+the read to correct except a tab genuinely opened or closed. While the order was observed, a tab
+switched by hand within the last second was a change the paint could not know about and the read
+could, which is what the reordering complaint turned out to be.
 
 The second half is that the correction is now skipped when it would correct nothing. A redraw
 is not free even when every row comes back identical, because rebuilding the list keeps the
@@ -547,14 +579,36 @@ refused each produce their own explanatory row rather than a short list with no 
 same self explaining shape `Vpn` gives a missing CLI. Without the Swift toolchain the probe
 cannot build and every permission reads `unknown`, which costs the ask and the status wording
 and nothing else, the tab list still works. Dropping the surface wiring in the main root leaves
-the engine and the observer working, they just have nothing to draw.
+the engine working, it just has nothing to draw.
+
+## Pinned tabs, wanted and not built
+
+The order answers one question, what you used recently. It cannot answer the other one, which is
+that a handful of tabs should always be in the same place whether or not you touched them lately.
+Recency is the opposite of that promise by construction, so no amount of tuning it will do, and
+pinning is the only mechanism that can. It was asked for during the redesign above and
+deliberately left out of it, so that the ordering could be settled on its own.
+
+The shape it should take, so far as it is decided. A small pinned block above everything else,
+outside the ranking the way the settings door is outside it, since a pin that a query can rank
+away is not a pin. Its own storage, and the choice between `hs.settings` and a git tracked file is
+the same one `DisplayProfiles` faced, per machine preference against something worth carrying
+between machines. Identity has to be the bundle id plus the URL, matching `recency.keyFor`, which
+means a pinned tab that is closed and reopened at the same address is still pinned and one that
+navigates elsewhere is not, and that is the right behaviour but it is worth knowing rather than
+discovering.
+
+Two questions genuinely open. Whether a pinned tab that is not currently open should show at all,
+as a row that opens the address rather than switching to a tab, which would make this a bookmark
+list and is probably a different tool. And how pinning is performed, since this chooser has no
+gesture for acting on a row without opening it, and a Return that pins rather than switches would
+have to live somewhere the menu stack can reach.
 
 ## What it does not do
 
 It does not close, move, or reorder tabs, only find and open them. It does not read tab history
-or search page content. It does not group rows by browser, since one recency ordered list
-across all of them is the point, and the browser icon plus the subtitle already say where a tab
-lives.
+or search page content. It does not group rows by browser, since one list across all of them is
+the point, and the browser icon plus the subtitle already say where a tab lives.
 
 Firefox is deliberately absent. It has no AppleScript tab support at all, so it cannot use this
 shape, and would need a provider that parses `sessionstore-backups/recovery.jsonlz4`, which is

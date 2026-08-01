@@ -740,17 +740,28 @@ case_escape_raises_nothing_check() {
   return 0
 }
 
-# No query at all, the top row taken straight off the recency order with a bare Return. This is the
-# path that skips the matcher entirely.
+# No query at all, the top row taken with a bare Return. This is the path that skips the matcher
+# entirely.
+#
+# Getting a known tab onto the top row is the whole arrangement, and it used to be done by
+# selecting the tab and activating the browser, because the order was observed and that is what it
+# followed. Nothing done inside a browser moves the order now, so the arrangement asks for what it
+# wants directly. Two tabs are recorded rather than one, because the tab you are on sits below the
+# one you came from, so the top row is the second most recently opened and not the most recent.
 case_no_query_arrange() {
   local s; s=$(bt_simple_target "$BT_BUNDLE") || { printf '%s' "$s"; return; }
   IFS=$'\t' read -r win idx url name <<<"$s"
-  # Opening the tab is not enough to make it the top row, so it is selected and its window raised,
-  # which is what the recency order actually follows.
-  bt "$BT_BUNDLE" select "$win" "$idx" > /dev/null
-  bt "$BT_BUNDLE" raise "$win" > /dev/null
-  osascript -e "tell application id \"$BT_BUNDLE\" to activate" > /dev/null 2>&1
-  sleep 1.2
+
+  # Any other tab of this browser, standing as the one opened after the fixture and so taking the
+  # row below it. Its own row is never chosen, it only has to exist.
+  local other
+  other=$(bt "$BT_BUNDLE" list | jq -r --arg u "$url" \
+    '[.windows[].tabs[] | select(.url != $u) | .url] | .[0] // ""')
+  [ -n "$other" ] || { bt_skip "this browser holds only the fixture tab, so there is no second one to record"; return; }
+
+  hs_cmd touch "bundleID=$BT_BUNDLE" "url=$url" > /dev/null
+  hs_cmd touch "bundleID=$BT_BUNDLE" "url=$other" > /dev/null
+
   osascript -e 'tell application "Finder" to activate' > /dev/null 2>&1
   sleep 0.8
   bt_target "$BT_BUNDLE" "$win" "$idx" "$url" ""
