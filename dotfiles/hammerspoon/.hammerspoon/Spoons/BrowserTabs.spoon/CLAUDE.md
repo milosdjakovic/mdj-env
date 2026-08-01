@@ -97,6 +97,30 @@ stable list that can be learned beats a truthful one that moves. It also makes e
 behave alike, where before Arc was the odd one out, since Arc reports no active tab and could
 never be observed at all.
 
+## A window index is depth too, which is how depth got back in
+
+The first resting order placed each browser's windows by the `windowIndex` every provider reports,
+and that was still depth, only wearing a name that reads like an identity. The field is the
+window's place in the browser's own window list, and both Safari and Chromium keep that list in
+front to back order. Raising a single Safari window was measured moving all three windows to a new
+index, with nothing opened and nothing closed, so the list still rearranged itself whenever a
+browser window was clicked, one whole browser block at a time. It shipped that way and was caught
+in use rather than by the checks written for it, because every check compared two listings taken
+with nothing touched in between, and nothing touched is exactly the condition under which depth
+holds still.
+
+Windows are placed by `windowID` now. The id is fixed for the life of a window, which is already
+why activation addresses windows by it and never by position, so the same fact was written down in
+`jxa.lua` the whole time and simply not carried across to the ordering. Which window leads is then
+creation order, since both browsers hand out ascending ids, and that is as good a resting place as
+any given no browser offers a window order a person would recognise. `windowIndex` stays in the
+listing because the test harness reads it, and the contract now says what it is so nothing builds
+on it again.
+
+The general lesson, and it is the second time this spoon has paid for it. Anything the browser
+reports as a position is a position in a list the browser reorders, and only an id is an identity.
+The other time was tab numbers, in the section further down.
+
 ## The tab you are on does not lead the list
 
 Recency's top row used to be the tab you were already looking at, which is the one row you will

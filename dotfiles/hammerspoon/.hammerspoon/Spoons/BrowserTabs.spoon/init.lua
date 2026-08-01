@@ -100,9 +100,9 @@ end
 --------------------------------------------------------------------------------
 
 -- Where a tab rests when this tool has never opened it. Each browser in the order the main root
--- named them, then that browser's own windows and its own tabs within them, which is the order
--- you already see along your tab bar. It never moves on its own, and that is the whole point of
--- it.
+-- named them, then that browser's windows oldest first, then each window's own tabs, which is the
+-- order you already see along its tab bar. Every term in it is fixed until a window or a tab is
+-- opened, closed or dragged, so it never moves on its own, and that is the whole point of it.
 --
 -- It used to be depth on screen, the browser furthest forward first, its windows front to back,
 -- and each window's showing tab lifted above the rest. That reads as sensible and behaves badly.
@@ -110,6 +110,23 @@ end
 -- for, so switching a tab or clicking a window rearranged the list, and the rearranging is what
 -- made the tool feel unpredictable. It also cost a walk of every window on screen, measured
 -- between 34 and 59 milliseconds, on the one path where the list is waiting to appear.
+--
+-- A window is placed by its id and never by its position in the listing. `windowIndex` reads like
+-- an identity and is not one, it is the window's place in the browser's own window list, which
+-- both Safari and Chromium keep in front to back order. Raising one Safari window was measured
+-- changing the index of all three, with nothing opened and nothing closed, so ordering on it was
+-- depth wearing another name and moved the list for the same reason the old order did. The id is
+-- fixed for the life of a window, which is already why activation addresses windows by it, so
+-- ordering on it gives each browser's windows a place that only a window opening or closing can
+-- change. Which window then leads is its creation order, since both browsers hand out ascending
+-- ids, and that is as good a resting place as any given no browser offers a window order of its
+-- own that a person would recognise.
+local function windowBefore(a, b)
+  local na, nb = tonumber(a), tonumber(b)
+  if na and nb then return na < nb end
+  return a < b
+end
+
 local function restingOrder(tabs, browserRank)
   local arrival = {}
   for i, t in ipairs(tabs) do arrival[t] = i end
@@ -118,9 +135,8 @@ local function restingOrder(tabs, browserRank)
     local ra = browserRank[a.bundleID] or math.huge
     local rb = browserRank[b.bundleID] or math.huge
     if ra ~= rb then return ra < rb end
-    if (a.windowIndex or 0) ~= (b.windowIndex or 0) then
-      return (a.windowIndex or 0) < (b.windowIndex or 0)
-    end
+    local wa, wb = a.windowID or "", b.windowID or ""
+    if wa ~= wb then return windowBefore(wa, wb) end
     if (a.tabIndex or 0) ~= (b.tabIndex or 0) then
       return (a.tabIndex or 0) < (b.tabIndex or 0)
     end

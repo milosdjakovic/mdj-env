@@ -25,9 +25,13 @@
 ---                      and never launched by being asked.
 ---   listTabs(cb)       fetch every open tab and call cb(list, err) on the main thread.
 ---                      Each entry is { title, url, windowID, windowIndex, tabIndex,
----                      active, group }. active marks the selected tab of its window,
----                      and may be false on every row when the browser does not report
----                      one. group is an optional label the browser gives the tab, nil
+---                      active, group }. windowID is the window's identity and is fixed
+---                      for its life, windowIndex is only its place in the browser's own
+---                      window list, which every browser here keeps in front to back
+---                      order, so it changes when a window is merely clicked and nothing
+---                      may be ordered or addressed by it. active marks the selected tab
+---                      of its window, and may be false on every row when the browser
+---                      does not report one. group is an optional label the tab has, nil
 ---                      when it has no such notion. err is nil on success, the string
 ---                      "notPermitted" when macOS refused the Apple Event, or another
 ---                      message.
