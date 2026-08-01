@@ -156,9 +156,7 @@ while it was frontmost, and an Arc window's `name` is the space name rather than
 tab title, so there is no route to it at all. That is a limitation of Arc's dictionary and not
 a gap in `providers/arc.lua`.
 
-One consequence, that no Arc row is marked as the active tab. Arc still implements `activeTab` and
-answers nothing, rather than omitting the method, so the contract stays uniform and the one
-browser that cannot answer says so in exactly one place.
+One consequence, that no Arc row is marked as the active tab.
 
 There used to be a second consequence, that an Arc tab earned recency only when opened through
 this tool and never from switching inside Arc by hand. That is now true of every browser by

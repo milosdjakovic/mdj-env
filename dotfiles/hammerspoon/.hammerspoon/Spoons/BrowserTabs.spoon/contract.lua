@@ -35,12 +35,6 @@
 ---                      when it has no such notion. err is nil on success, the string
 ---                      "notPermitted" when macOS refused the Apple Event, or another
 ---                      message.
----   activeTab(cb)      the selected tab of the frontmost window as { title, url }, or
----                      nil when the browser does not report one. Called by the recency
----                      observer on every browser focus and tab switch, so it must stay
----                      cheap, one Apple Event rather than a full listing. A provider
----                      whose browser cannot answer implements it and calls cb(nil),
----                      which costs that browser live recency and nothing else.
 ---   activate(tab, cb)  bring that tab to the front, selecting it in its window and
 ---                      raising the window, then cb(ok, err, info). Raising the
 ---                      application itself is the caller's job, so this stays about the
@@ -53,7 +47,7 @@
 local M = {}
 
 M.requiredFields = { "name", "bundleID" }
-M.requiredMethods = { "available", "running", "listTabs", "activeTab", "activate" }
+M.requiredMethods = { "available", "running", "listTabs", "activate" }
 
 --- contract.validate(provider) -> ok, missing
 --- Return true when the provider is a table carrying every required field and method, or
