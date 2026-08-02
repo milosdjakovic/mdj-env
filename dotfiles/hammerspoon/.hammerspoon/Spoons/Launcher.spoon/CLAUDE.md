@@ -142,16 +142,28 @@ anything else does, as a row and as a query scope.
 no meaning to the text, so this is not a way to open one tool, and whether that text happens
 to name a scope is between whoever passed it and the resolver.
 
-It exists because choosing a row closes a native chooser whatever produced the row, so a row
-whose whole purpose is to put a word in this field cannot do it to a list that is still open.
-Reopening is the mechanism rather than a workaround for one, and the alias directory is the
-consumer.
+It exists for the two ways a word can arrive with no list left to type it into, the Aliases row
+in this catalog and a mouse click on a directory row. Both are completions, so the chooser is
+already gone when they run and reopening is all that is left.
+
+It used to be the only way, including from the keyboard, and that is the flicker it was reported
+for. A list closing and another opening to deliver two characters is a poor way to say the field
+changed. The keyboard path is a `redirect` now, answered before the row is allowed to close, so
+the field changes under the list that is already there. `_redirectQuery` is this spoon's side of
+it, one more routed question beside running a claimed row and peeking at one, gated to a claimed
+row for the same reason peeking is, since a row that is a thing to run has no second meaning. The
+atom does the rest and the main `CLAUDE.md` has why that takes a key away from the widget.
 
 Three things about it are load bearing and each one was a way to get it wrong. The query is
 set after the show, because showing clears the field. A refresh follows, because setting a
 chooser's query fires no callback, so without it the field would read one thing and the list
 would show another, which is the same trap recorded in the resolver's own notes. And the
 refresh resets the highlight, which is right for a list the user has not seen yet.
+
+A fourth was found the same way and fixed a layer down. A seeded field arrived with its text
+selected, so the first character typed deleted the word that had just been handed over and you
+were back in the unscoped launcher wondering what happened. That belongs to the atom, since
+setting a field's text is its job and it had two callers with the same bug.
 
 No timer is needed here. Every row already runs deferred until the chooser has torn down, which
 is the same wait a reopen needs, so a reopen asked for by a row is late enough by the time it

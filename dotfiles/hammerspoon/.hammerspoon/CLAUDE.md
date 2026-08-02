@@ -710,6 +710,34 @@ the file search pane on the old first row. Typing already did this in the query 
 refresh was missing the same one line. Any consumer that swaps its list wholesale, a menu
 drilling into a level or a rescan, gets the correction for free.
 
+**A row may be a signpost rather than a destination, and saying so takes a key away from the
+widget.** `Chooser`'s optional `redirect` is asked for the highlighted row before that row is
+allowed to close the list, and a query string in reply means the field becomes that text, the
+list rebuilds, and the chooser stays open. The alias directory is the case it was built for,
+where a row's whole purpose is to hand you the word for something else, so closing and reopening
+to deliver it was both a flicker and a lie about what happened.
+
+There is no polite way to do it. `hs.chooser` hardwires Return to complete and offers nothing
+before that, so a consumer is told a row was chosen only after the window is gone, and handing
+new text to a closed chooser is what produced the reopen. So the atom's key watcher, which
+existed to observe for the idle hint panel, now also consumes Return when the highlighted row
+answers with a query. That was verified rather than assumed, an eventtap returning true on
+Return leaves the chooser open with nothing chosen where the same press let through closes it
+and selects the row. `insertSelected` asks the same question through the same helper, because
+that key is ours and Return is the widget's and the two agree only by asking one thing. A mouse
+click is the one path that cannot ask, since a click reaches the widget's completion directly,
+so a consumer with a redirect should keep answering `run` too and accept a reopen for the mouse.
+
+**Seeded text leaves the caret after it, never selected.** `hs.chooser:query` leaves everything
+it just wrote selected, so text handed to a field on the user's behalf turned the next character
+typed into a deletion of the whole thing. Seeding `t ` and typing silently dropped the scope and
+searched for the letter, which reads as the seeding never having worked. `Chooser:setQuery`
+collapses it, reaching the field through the accessibility tree because `hs.chooser` exposes no
+field object and no caret api, the same route the row text inset was measured by and the same
+one-visible-chooser-window assumption the frame settle already makes. It takes effect at once, so
+no timer is involved. Doing it in the atom rather than at the caller fixed the file search folder
+browse at the same time, which had the identical bug for the identical reason.
+
 **A green circle marks the active row, never a checkmark.** When a chooser marks
 one row as the live choice, the active display profile, the chosen overlay
 display mode, the pinned display, it shows a green circle in the row's icon slot.
@@ -1051,10 +1079,15 @@ which is why it needs no context block, no predicate, no `choosers` entry, and n
 of its own. It is this root's policy over `QueryScope:catalog()` rather than something that spoon
 offers about itself, so the resolver still names no scope at all including its own, and its
 alias sits in `config/keys.lua` like every other rather than as a constant inside a spoon. And
-one function, `enterScope`, is the only way anything hands the launcher a word, used by the
-directory choosing a row and by the row that opens the directory, so what entering a scope means
-is decided once. It asks `QueryScope:queryFor(name)` for the text, so which alias is canonical
-and the separator after it stay with the grammar that owns them.
+whichever way the word arrives, it is asked of `QueryScope:queryFor(name)`, so which alias is
+canonical and the separator after it stay with the grammar that owns them.
+
+There are two ways it can arrive, and the difference is only whether the list is still open to
+be typed into. Choosing a directory row from the keyboard is a `redirect`, so the field changes
+under the list that is already there and nothing closes. The Aliases launcher row and a mouse
+click on a directory row both arrive after the chooser has gone, so those go through
+`enterScope`, which reopens with the word seeded. The keyboard path was the reopen too at first,
+and it worked while looking broken, a list closing and another opening to deliver two characters.
 
 How the aliases read is one closure here, `aliasHint` and `aliasLabel`, because both surfaces
 state them, the tool's launcher row and the directory's own rows, and phrasing it twice is how
@@ -1088,6 +1121,11 @@ whole reason for the tool. The launcher gates that key on live state, since only
 from a scope offering a peek has anything to show, and asks the same question before printing it
 in the hints. What stays behind in the picker is reveal, copy path and moving up a level, since
 those are that tool's Hyper context.
+
+The directory then earned the third, `redirect`, for the opposite reason. Peek exists because a
+row cannot say enough about itself, redirect because a row does not want to be taken at all, it
+wants to put a word in the field. Both are optional, both route home the same way, and a scope
+offering neither is unaffected by either.
 
 A scope may be narrower than the tool it reaches, and browser tabs is the case that works.
 Its settings level is a step into a second list, which a scope cannot show, so the scope lists

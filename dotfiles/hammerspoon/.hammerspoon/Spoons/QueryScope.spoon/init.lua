@@ -74,6 +74,9 @@ local function admissible(s)
   if s.peek ~= nil and type(s.peek) ~= "function" then
     return reject(label .. " has a peek that is not a function")
   end
+  if s.redirect ~= nil and type(s.redirect) ~= "function" then
+    return reject(label .. " has a redirect that is not a function")
+  end
   if type(s.aliases) ~= "table" or #s.aliases == 0 then return reject(label .. " has no aliases") end
   return true
 end
@@ -81,7 +84,7 @@ end
 --- QueryScope:configure(opts)
 --- Method
 --- opts.scopes  the ordered scope list, each a table answering name, title, aliases, rows,
----              and run, plus an optional glyph and an optional matcher.
+---              and run, plus an optional glyph, matcher, peek, and redirect.
 --- opts.matcher the shared filter strategy a scope inherits, the same one the presenter
 ---              uses, so a list shaped scope filters exactly like every other list. A scope
 ---              setting matcher false owns its own filtering, which is right when its field
@@ -332,6 +335,32 @@ function obj:peek(item)
   if not ok then
     hs.printf("QueryScope: the %s scope failed to peek a row, %s", scope.name, tostring(err))
   end
+end
+
+--- QueryScope:redirectFor(item) -> query or nil
+--- Method
+--- The query this row means instead of the action taking it would run, or nil when taking it
+--- means what it says. Routed home exactly as running and peeking are.
+---
+--- THE THIRD VERB EXISTS BECAUSE SOME ROWS ARE SIGNPOSTS RATHER THAN DESTINATIONS. A row in the
+--- alias directory does not do anything, it tells you the word for something else, and the useful
+--- outcome is that word in the field with the list still open. Expressed as a run, the only thing
+--- such a row could do was close the list and reopen it with the word typed, which works and looks
+--- broken. Asking first is what lets the same row be answered without the list ever going away.
+---
+--- Optional like peek, so a scope with no signpost rows says nothing and every surface above asks
+--- rather than assumes. An empty or non string answer is read as no redirect, so a scope that
+--- cannot name the query right now falls back to being taken normally rather than doing nothing.
+function obj:redirectFor(item)
+  local scope = self:_scopeOf(item)
+  if not scope or type(scope.redirect) ~= "function" then return nil end
+  local ok, query = pcall(scope.redirect, item.payload)
+  if not ok then
+    hs.printf("QueryScope: the %s scope failed to answer a redirect, %s", scope.name, tostring(query))
+    return nil
+  end
+  if type(query) ~= "string" or query == "" then return nil end
+  return query
 end
 
 --- QueryScope:canPeek(item) -> bool

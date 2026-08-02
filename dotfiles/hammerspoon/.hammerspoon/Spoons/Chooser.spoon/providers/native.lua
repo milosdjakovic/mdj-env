@@ -35,6 +35,13 @@
 ---                the subtitle. A row sets it to fold in hidden keywords or synonyms.
 ---   onSelect     function(item) fired when a row is chosen (Return or the insert
 ---                key). Not fired for a disabled row or an empty dismissal.
+---   redirect     function(item) -> query string, or nil. Asked BEFORE a row is allowed to
+---                complete the chooser, so a row can mean "retype the field" rather than
+---                "act and close". A returned query becomes the field text, the list
+---                rebuilds against it, and the chooser stays open, which is what makes a
+---                list you drill through stop flickering. nil is the usual answer and the
+---                row completes as always. Filter mode only, since a field whose Return
+---                commits a typed value cannot also mean navigate.
 ---   onHighlight  function(item) fired when the highlight moves. Drives a
 ---                companion like the clipboard preview. Omit it and no poll runs.
 ---   onClose      function() fired once when the chooser tears down for any
@@ -239,9 +246,9 @@ function Chooser:_teardown()
     self.clickWatcher:stop()
     self.clickWatcher = nil
   end
-  if self.activityWatcher then
-    self.activityWatcher:stop()
-    self.activityWatcher = nil
+  if self.keyWatcher then
+    self.keyWatcher:stop()
+    self.keyWatcher = nil
   end
   if self.scrollWatcher then
     self.scrollWatcher:stop()
@@ -394,25 +401,59 @@ function Chooser:_positionAndShow()
   self:_settleFrames()
   self:_startPollLoop()
   self:_startClickWatcher()
-  self:_startActivityWatcher()
+  self:_startKeyWatcher()
   self:_startScrollWatcher()
 end
 
 --------------------------------------------------------------------------------
--- Activity watcher (only when a consumer listens)
+-- Key watcher (only when a consumer listens)
 --------------------------------------------------------------------------------
 
--- Fire onActivity on every key press while the chooser is up, so a consumer can use it
--- as an idle signal (a deferred hint panel resets its countdown on each key). The tap
--- only observes, returning false so the key still reaches the chooser's field.
-function Chooser:_startActivityWatcher()
-  if not self.config.onActivity then return end
-  if self.activityWatcher then self.activityWatcher:stop() end
-  self.activityWatcher = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, function()
-    if self.active then self.config.onActivity() end
+-- Return and the keypad's Enter, the two keys hs.chooser treats as "take this row".
+local SUBMIT_KEYCODES = { [36] = true, [76] = true }
+
+-- One tap over every key press while the chooser is up, serving two consumers.
+--
+-- onActivity is an idle signal (a deferred hint panel resets its countdown on each key),
+-- and it only observes.
+--
+-- redirect is the one thing here that consumes a key, and it has to. hs.chooser hardwires
+-- Return to complete and offers no hook before that happens, so by the time a consumer is
+-- told a row was chosen the window is already gone and handing it new text is handing it to
+-- something that closed. Taking Return away from the widget is the only place a row can
+-- still say it meant to rewrite the query instead. Verified rather than assumed: an eventtap
+-- returning true on Return leaves the chooser open with nothing selected, where the same
+-- press let through closes it and chooses the row.
+--
+-- Every other key falls straight through, and so does Return whenever the highlighted row
+-- has no redirect to offer, which is almost always.
+function Chooser:_startKeyWatcher()
+  if not (self.config.onActivity or self.config.redirect) then return end
+  if self.keyWatcher then self.keyWatcher:stop() end
+  self.keyWatcher = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, function(e)
+    if not self.active then return false end
+    if self.config.onActivity then self.config.onActivity() end
+    if SUBMIT_KEYCODES[e:getKeyCode()] and self:_redirect(self:selectedItem()) then
+      return true
+    end
     return false
   end)
-  self.activityWatcher:start()
+  self.keyWatcher:start()
+end
+
+-- Ask the consumer whether the highlighted row rewrites the query rather than completing,
+-- and do it if so. Answering here rather than at each caller is what makes Return and the
+-- insert key agree, since one of them is the widget's and the other is ours.
+function Chooser:_redirect(item)
+  local ask = self.config.redirect
+  if not ask or not item or self.fieldMode ~= "filter" then return false end
+  local query = ask(item)
+  if type(query) ~= "string" or query == "" then return false end
+  self:setQuery(query)
+  -- The list now means something else, so the highlight goes back to the top rather than
+  -- staying on whatever row number the previous level left it on.
+  self:refresh(true)
+  return true
 end
 
 --------------------------------------------------------------------------------
@@ -625,11 +666,64 @@ function Chooser:refresh(resetRow)
   self.lastRow = nil
 end
 
+-- The first text field under an element, depth limited so a malformed tree cannot spin. The
+-- chooser's search field is a couple of levels into its window and has no identifier to ask
+-- for, so it is found by role, and a chooser window holds exactly one.
+local function findTextField(element, depth)
+  if depth > 6 then return nil end
+  for _, kid in ipairs(element:attributeValue("AXChildren") or {}) do
+    local role = kid:attributeValue("AXRole")
+    if role == "AXTextField" or role == "AXComboBox" then return kid end
+    local found = findTextField(kid, depth + 1)
+    if found then return found end
+  end
+  return nil
+end
+
 --- Chooser:setQuery(text) - set the field text, clearing it with "". A consumer that changes
 --- what the list means, like a menu drilling in, clears the filter so the new level is not
 --- narrowed by what was typed at the previous one.
+---
+--- The caret lands after the text, which takes a second step because hs.chooser:query leaves
+--- everything it just wrote SELECTED. Text handed to a field on the user's behalf is the start
+--- of what they are about to type, so a selection turns the next character into a deletion of
+--- the whole thing. Seeding `t ` and typing would silently drop the scope and search for the
+--- letter instead, which reads as the seeding never having worked.
 function Chooser:setQuery(text)
-  if self.chooser then self.chooser:query(text or "") end
+  if not self.chooser then return end
+  text = text or ""
+  self.chooser:query(text)
+  if text ~= "" then self:_caretToEnd() end
+end
+
+-- Put the caret after everything in the search field, replacing the selection hs.chooser
+-- made. There is no field object and no caret API on hs.chooser, so the field is reached
+-- through the accessibility tree of the visible Chooser window, the same way the row inset
+-- was measured and the same single-visible-window assumption the frame settle makes. It
+-- takes effect at once, so this needs no timer and no second attempt.
+--
+-- The length is asked of the field rather than counted here, since a range is in the units
+-- AppKit stores and Lua counts bytes. Counting UTF8 characters is the fallback, which is
+-- exact for anything but an astral character and lands the caret slightly early rather than
+-- selecting anything if one appears.
+function Chooser:_caretToEnd()
+  local app = hs.application.get("Hammerspoon")
+  local axApp = app and hs.axuielement.applicationElement(app)
+  if not axApp then return end
+  for _, w in ipairs(axApp:attributeValue("AXWindows") or {}) do
+    if (w:attributeValue("AXTitle") or "") == "Chooser" then
+      local field = findTextField(w, 0)
+      if field then
+        local n = field:attributeValue("AXNumberOfCharacters")
+        if type(n) ~= "number" then
+          local value = field:attributeValue("AXValue") or ""
+          n = utf8.len(value) or #value
+        end
+        field:setAttributeValue("AXSelectedTextRange", { location = n, length = 0 })
+        return
+      end
+    end
+  end
 end
 
 -- Move the highlight by delta through the chooser's own selectedRow so it scrolls
@@ -649,8 +743,13 @@ function Chooser:selectPrev() self:_move(-1) end
 
 --- Chooser:insertSelected() - choose the highlighted row, exactly as Return does.
 --- chooser:select fires the completion callback, so the onSelect path runs.
+---
+--- Including the redirect question, which is what "exactly as Return does" has to mean. This
+--- key is ours and Return is the widget's, so the two reach the same answer only by asking
+--- the same thing, and the shared check lives in _redirect for that reason.
 function Chooser:insertSelected()
   if not self:isShowing() then return end
+  if self:_redirect(self:selectedItem()) then return end
   local r = self.chooser:selectedRow()
   if r and r >= 1 then self.chooser:select(r) end
 end

@@ -177,6 +177,10 @@ function obj:configure(opts)
         self._runTimer = hs.timer.doAfter(0.1, function() self:_runItem(item) end)
       end
     end,
+    -- What a row becomes instead of being taken, asked by the atom before it lets a row
+    -- close the list. The launcher only routes the question, exactly as it routes running a
+    -- row and peeking at one, so it still learns nothing about what a scope or an alias is.
+    redirect = function(item) return self:_redirectQuery(item) end,
     onPositioned = sp.onPositioned,
     onActivity = sp.onActivity,
     onClose = sp.onClose,
@@ -640,6 +644,21 @@ function obj:canPeekSelected()
   if not it or it.kind ~= "scope" then return false end
   local ask = self._actions.scopeCanPeek
   return ask ~= nil and ask(it) == true
+end
+
+--- Launcher:_redirectQuery(it) -> query or nil
+--- Method
+--- The query a row means instead of the action it would otherwise run, or nil when it means
+--- exactly what it says. Asked by the atom for the highlighted row before that row is allowed
+--- to close the list, so a row can hand the field new text and leave the list open.
+---
+--- Only a row from a source that claimed the query has anywhere to send the question, the same
+--- gate peeking uses and for the same reason. An app or a command is a thing to run and has no
+--- second meaning, so there is deliberately nothing to ask about one.
+function obj:_redirectQuery(it)
+  if not it or it.kind ~= "scope" then return nil end
+  local ask = self._actions.scopeRedirect
+  return ask and ask(it) or nil
 end
 
 --- Launcher:refresh()
