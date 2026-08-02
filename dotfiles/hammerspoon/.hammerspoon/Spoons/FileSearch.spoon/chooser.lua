@@ -80,8 +80,9 @@ local NO_VIEWER = {
 local viewer = NO_VIEWER
 
 -- How a fact is worded lives in util, because the pane beside this list states the same
--- ones and a size or an age must not come out phrased two ways.
-local shortDir, humanAge = util.shortDir, util.humanAge
+-- ones and a size or an age must not come out phrased two ways. Only the path is worded here
+-- now, since the row gave its ages back to the path and the pane is where they are read.
+local shortDir = util.shortDir
 
 --------------------------------------------------------------------------------
 -- Rows
@@ -131,33 +132,12 @@ local function iconFor(row)
   return hs.image.iconForFileType("public.data")
 end
 
--- What a row says about itself. The directory leads, because which of the four files called
--- init.lua this one is, is the only thing anybody actually chooses by.
---
--- The ages are LABELLED, and that is a fix rather than decoration. A bare age is read as
--- something you did, so a file a build wrote four days ago looked like a file you touched four
--- days ago, and on a row floated to the top by a path you copied a second ago that reading is
--- flatly wrong. Naming the two ages apart is what makes the row honest.
---
--- When you last reached for it comes first of the two, since on the list you land on before
--- typing anything it is the field that explains why the row is there at all.
---
--- Asked here as the row is drawn rather than stamped onto it upstream. Rows are retained and
--- redrawn for the local narrow between round trips, so a stamp would still be reporting the old
--- answer on the one row you just acted on, which is the row being asked about.
 -- Elided directories for this open, keyed by the path and the room it had. A page of search
--- results is many files across few folders, so the same directory is asked about over and
--- over, and the ages cluster into a handful of phrasings so the budgets cluster too. Cleared
--- when the picker closes, since the next open may land on a display of another width.
+-- results is many files across few folders, so the same directory is asked about over and over.
+-- Cleared when the picker closes, since the next open may land on a display of another width.
 local dirFits = {}
 
--- The directory, shortened to whatever the ages left it.
---
--- The ages are reserved FIRST and the directory takes the remainder, which is the whole point
--- rather than an implementation detail. Before this the subtitle was one string cut from the
--- right, so a deep path did not merely lose its own tail, it pushed the ages clean off the row.
--- The fixed part is short and the elastic part is the path, so the fixed part is measured and
--- subtracted and the path is fitted into what is left. Now nothing is ever silently dropped.
+-- The directory, shortened to the room the row actually has.
 --
 -- With no picker yet, or a picker too old to answer, the full directory comes back and the
 -- widget cuts it as it always did. Nothing here depends on the measurement being available.
@@ -184,23 +164,26 @@ local function fitDir(dir, reserved)
   return fitted
 end
 
+-- What a row says about itself, which is the directory and nothing else.
+--
+-- It once also carried two labelled ages, when you last reached for the file and when the file
+-- last changed, and they were dropped after measuring what they cost. THE TWO OF THEM TOOK 57
+-- PERCENT OF THE LINE, and the line's whole job is telling four files called init.lua apart,
+-- which is a thing only the path does. Every point they held was a point the path did not have,
+-- and the paths that lost most were the deep ones, exactly the rows where knowing the folder
+-- matters. So `~/…/impeccable/public` is now `~/.claude/plugins/marketplaces/impeccable/public`.
+--
+-- Neither age was carrying its weight for the price. When a file last changed almost never
+-- decides which one you open, and when you last used it was only ever an explanation for the
+-- ordering of the list you land on, which is a thing the ordering itself already shows. Both are
+-- still one keystroke away in the pane, on the row you are actually asking about, which is the
+-- same argument this file already makes for keeping a size off the row.
+--
+-- Worth knowing that a searched row never carried an age anyway. Only the recent list reads a
+-- date, and frecency rarely holds a record for a path you just searched for, so on the list you
+-- spend most of your time in this changed nothing at all.
 local function subtitleFor(row)
-  local meta = {}
-  local usedAt = cfg.usedAt and row.path and cfg.usedAt(row.path)
-  if usedAt then meta[#meta + 1] = "used " .. humanAge(usedAt) end
-  -- One word for files and folders both. A folder's own date moves when something is added,
-  -- removed or renamed inside it, which is a change but not an edit, and a field that means two
-  -- different things by row type is worse than a plainer word that is true of every row.
-  if row.modified then meta[#meta + 1] = "changed " .. humanAge(row.modified) end
-  -- No size here, deliberately. Only the recent list carries a date at all and nothing carries
-  -- a size, because reading either costs a call per row and a page is two hundred rows. The pane
-  -- beside the list describes ONE row, so it stats that row and reports both for one call, which
-  -- is where a size can be shown without the list paying for two hundred it will never draw.
-  local tail = table.concat(meta, "  ")
-  local sep = (tail ~= "") and "  " or ""
-  local dir = fitDir(shortDir(row.dir), sep .. tail)
-  if dir == "" then return tail end
-  return dir .. sep .. tail
+  return fitDir(shortDir(row.dir), "")
 end
 
 local function fileRows(rows)

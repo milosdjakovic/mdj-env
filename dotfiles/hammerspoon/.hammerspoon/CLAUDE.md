@@ -1144,12 +1144,14 @@ other surface. It also answers the two `scrollPreview` actions the clipboard alr
 which is what made them worth routing rather than naming at one surface.
 
 Its subtitle is fitted to the row rather than left to be cut, and it is the first consumer of the
-atom's `textBudget` and `textWidth` above. The two ages are measured and reserved first and the
-directory takes the remainder, which fixes something worse than a cut path, since the ages sit at
-the end of that string and a deep directory used to push them clean off the row. What is left over
-is elided at component boundaries, keeping the head and as much of the tail as fits, so a long path
-reads `~/…/dotfiles/hammerspoon/.hammerspoon/Spoons`. Why whole components rather than squeezing
-each to a letter, and why the free `truncateMiddle` was wrong here, are in the spoon's own file.
+atom's `textBudget` and `textWidth` above. It is elided at component boundaries, keeping the head
+and as much of the tail as fits, so a long path reads
+`~/…/dotfiles/hammerspoon/.hammerspoon/Spoons`. The row carried two labelled ages until measuring
+put a number on them, 57 percent of the line, at which point both were dropped and the room went to
+the path, which is the only field that tells four files of one name apart. Both are still in the
+pane for the row under the cursor. Why whole components rather than squeezing each to a letter, why
+the free `truncateMiddle` was wrong here, and the longer version of the ages decision, are in the
+spoon's own file.
 
 How it shows the highlighted file is a Strategy this root chooses, `PreviewProvider.SidePanel` or
 `PreviewProvider.QuickLook`, named by reference so no provider string appears at any call site.
