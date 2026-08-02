@@ -538,10 +538,30 @@ that, `textBudget` and `textWidth`, for the reasons in the hammerspoon `CLAUDE.m
 only decides what to do with the answer.
 
 **Whole components are dropped from the middle, not letters from the end.** `util.elideDir` keeps
-the leading component and as many trailing ones as fit, so a long path reads
-`~/…/dotfiles/hammerspoon/.hammerspoon/Spoons`. The tail is protected because the leaf directory,
-and the one above it, are what tell four files called `init.lua` apart, and the head survives
-because a tilde or a leading `/usr` says which world the path lives in for almost no width.
+the leading components and as many trailing ones as fit, so a long path reads
+`~/Development/…/.hammerspoon/Spoons`. The tail is protected because the leaf directory, and the
+one above it, are what tell four files called `init.lua` apart, and the head survives because it
+says which world the path lives in.
+
+**The head is two components, which is a correction to the first version.** It kept one, and one
+component is nearly always a bare `~`, or an `/opt` or a `/usr`, a glyph or two of pure structure
+telling you what you already knew, so nearly every shortened row read `~/…/something/else`. The
+component under it is the opposite. `Downloads` and `Development` and `Library` say what kind of
+thing a file is more than any middle component does, and they say it for very few pixels. Over
+thirty six real directories at the 354 point budget, seventeen shortened and every one of them
+gained its domain. The trade is that ten of those seventeen paid a tail component for it, so
+`~/…/file-history/2d24d8ee` became `~/.claude/…/2d24d8ee`, and that is accepted rather than
+overlooked. The leaf is never what gets paid, since the leaf is what tells two candidates apart
+while the head is only context, so the wide head stands down whenever it cannot keep the last
+component inside the budget, and a path of three components keeps the narrow head because
+`a/b/…/c` is the same path spelled longer. It costs no measurable time, because the extra head
+component is one more width to add and one fewer tail component to walk, and a cold page of two
+hundred came out at the same 7.9 ms either way.
+
+The variant that takes the wide head only when it is free, so the tail never shrinks, was built
+and measured against the same corpus and rejected. It left ten of the seventeen still reading
+`~/…`, which is the whole complaint, in exchange for keeping a generic `extensions` or a
+`file-history` that the row above and below it also carry.
 
 The alternative considered and rejected was squeezing middle components to their first letter, the
 shell prompt idiom, giving `~/D/p/m/dotfiles/hammerspoon/Spoons`. It fills the budget better, and it

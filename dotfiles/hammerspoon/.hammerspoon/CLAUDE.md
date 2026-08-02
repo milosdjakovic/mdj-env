@@ -1204,9 +1204,11 @@ other surface. It also answers the two `scrollPreview` actions the clipboard alr
 which is what made them worth routing rather than naming at one surface.
 
 Its subtitle is fitted to the row rather than left to be cut, and it is the first consumer of the
-atom's `textBudget` and `textWidth` above. It is elided at component boundaries, keeping the head
-and as much of the tail as fits, so a long path reads
-`~/…/dotfiles/hammerspoon/.hammerspoon/Spoons`. The row carried two labelled ages until measuring
+atom's `textBudget` and `textWidth` above. It is elided at component boundaries, keeping two head
+components and as much of the tail as fits, so a long path reads
+`~/Development/…/.hammerspoon/Spoons`. The head is two rather than one because one is nearly always
+a bare tilde, which spends a separator to say what you already knew, while the folder under it
+names the domain. The row carried two labelled ages until measuring
 put a number on them, 57 percent of the line, at which point both were dropped and the room went to
 the path, which is the only field that tells four files of one name apart. Both are still in the
 pane for the row under the cursor. Why whole components rather than squeezing each to a letter, why
