@@ -101,6 +101,20 @@ local DEFAULT_LAYOUT = {
   subSize = 12,
 }
 
+-- The horizontal room a row loses to everything on it that is not text, so what is left
+-- is what a title or a subtitle actually has. MEASURED rather than derived, by walking a
+-- live chooser through the accessibility API, because hs.chooser exposes no geometry at
+-- all and its window comes from a compiled nib with nothing readable in it.
+--
+-- 61 points lead, the left pad plus the icon column, and 65 trail, the right pad plus the
+-- command number badge the widget draws on a row. Four things were checked before trusting
+-- one number for all of it. It held at 360, 480 and 640 point windows, so it is a constant
+-- to subtract and not a fraction to scale. It was identical on a row carrying an icon and a
+-- row carrying none, since the icon column is reserved either way. It did not change past
+-- the ninth row where the badge stops being drawn. And the title and the subtitle reported
+-- the same column to the point, which is why one budget answers for both.
+local ROW_TEXT_INSET = 126
+
 --------------------------------------------------------------------------------
 -- Instance
 --------------------------------------------------------------------------------
@@ -550,6 +564,9 @@ function Chooser:show()
   self:_selectTheme()
   self.chooser:bgDark(self.theme.bgDark)
   self.active = true
+  -- Dropped before the first build asks for it, so an open on a narrower display gets
+  -- that display's budget rather than the one the last open happened to land on.
+  self._textBudget = nil
   self.chooser:query("")
   self.chooser:choices(self:_build(""))
   -- Always open at the top. hs.chooser reuses one instance across shows and would
@@ -659,6 +676,84 @@ function Chooser:query()
 end
 
 --------------------------------------------------------------------------------
+-- How much a row can say, which only the atom can answer
+--------------------------------------------------------------------------------
+
+-- Why this lives here at all. A consumer writing a subtitle wants to know whether it
+-- will be cut, and answering that needs the chooser's pixel width, the row font, the row
+-- font size and the inset above. The atom is the only layer holding all four, so it
+-- answers the question and every consumer decides for itself what to do with the answer.
+-- Handing back a shortened string instead would put policy in the widget, and how to
+-- shorten a path is a file tool's business rather than a list widget's.
+
+--- Chooser:textBudget() -> the pixel room a row's text has, title and subtitle alike.
+---
+--- Resolved lazily and cached for the open, since show builds its rows BEFORE it places
+--- the window, so there is no width to read at the moment the first supplier runs. The
+--- screen it resolves against is the same one the placement will pick, so the number is
+--- right on the first build rather than right from the second keystroke onward.
+function Chooser:textBudget()
+  if not self._textBudget then
+    local sf = (self._targetScreen or self:_resolveScreen() or hs.screen.mainScreen()):frame()
+    self._textBudget = math.max(0, self:_desiredWidthPx(sf) - ROW_TEXT_INSET)
+  end
+  return self._textBudget
+end
+
+--- Chooser:textWidth(str, which) -> how wide that string renders in a row, in pixels.
+--- `which` is "title" or "sub" and picks the font size the row will actually use.
+---
+--- SUMMED FROM A PER CHARACTER TABLE rather than measured whole, which is the trade the
+--- whole feature rests on. Measuring a whole subtitle costs 0.11 ms, so a page of two
+--- hundred rows would spend 22 ms per keystroke. Measuring each distinct character once
+--- and adding costs 0.003 ms a string, thirty six times less, and a page disappears into
+--- the noise. The characters in a row are drawn from a tiny alphabet that repeats across
+--- every row, so the table fills in the first few rows and never grows again.
+---
+--- The price is kerning, which the sum cannot see. Measured against true whole string
+--- widths it runs 0.7 percent high on real paths, under two pixels on a 254 pixel string.
+--- HIGH is the direction that matters. Over counting shortens marginally early, which
+--- looks like nothing, where under counting would let a string through that then gets
+--- cut, which is the exact failure this exists to prevent. So there is no fudge factor,
+--- the error already leans the safe way.
+---
+--- Stepped by UTF8 sequence and not by byte, because a path can hold anything and the
+--- ellipsis this feeds is itself three bytes. Measuring those bytes one at a time returns
+--- nothing for each and would undercount a shortened string to zero.
+function Chooser:textWidth(str, which)
+  if not str or str == "" then return 0 end
+  local L = self.layout
+  local size = (which == "title") and L.titleSize or L.subSize
+  local memo = self._charWidths[size]
+  if not memo then
+    memo = {}
+    self._charWidths[size] = memo
+  end
+  local style = { font = L.font, size = size }
+  local total, i, n = 0, 1, #str
+  while i <= n do
+    -- A plain byte is its own character, so the common path skips utf8.offset entirely.
+    -- Paths and ages are almost all ASCII and this runs on every row of every keystroke.
+    local ch, nxt
+    if str:byte(i) < 0x80 then
+      ch, nxt = str:sub(i, i), i + 1
+    else
+      nxt = utf8.offset(str, 2, i) or (n + 1)
+      ch = str:sub(i, nxt - 1)
+    end
+    local w = memo[ch]
+    if not w then
+      local sz = hs.drawing.getTextDrawingSize(ch, style)
+      w = (sz and sz.w) or 0
+      memo[ch] = w
+    end
+    total = total + w
+    i = nxt
+  end
+  return total
+end
+
+--------------------------------------------------------------------------------
 -- Factory
 --------------------------------------------------------------------------------
 
@@ -682,6 +777,10 @@ function obj.new(config)
     currentChoices = {},
     active = false,
     theme = FALLBACK.dark,
+    -- Character widths per font size, kept for the life of the instance rather than the
+    -- open, since a character in a fixed font at a fixed size renders the same forever
+    -- and both are settled here at construction.
+    _charWidths = {},
   }, Chooser)
 
   self:_selectTheme()

@@ -469,6 +469,64 @@ application into staleness that outlives a reload. Because the whole table rebui
 2.3ms, it is simply dropped when the chooser closes, so a changed default app is correct on
 the next open with no invalidation logic at all.
 
+## The subtitle is fitted to the row, and the ages are what it was really losing
+
+A row's subtitle used to be the directory and the two ages concatenated and handed over, so the
+widget cut whatever ran past the edge. The complaint that started this was truncation, but the real
+damage was worse than a cut path. The ages sit at the END of that string, so a deep directory did
+not merely lose its own tail, it pushed both ages clean off the row. The one field that explains why
+a row is on the list at all was the first thing to go, and it went silently.
+
+So the fixed part is measured and reserved and the elastic part takes the remainder. The ages are
+short and there are at most two of them, the path is the only thing that can grow without limit, so
+the ages are laid down first and the directory is fitted into what is left. Nothing is silently
+dropped now, and the measurements say the fit is tight rather than timid, a page of two hundred
+search results coming back with a worst row of 353.4 points against a budget of 354 and no overruns.
+
+**Counting characters was never going to work, which the numbers settle.** At the row's 12 point
+system font ten `i` render at 29.6 points and ten `m` at 104.4. A character budget is wrong by a
+factor of three and a half depending on what you happen to write. So nothing counts characters at
+any point, the room is pixels and every candidate is measured. The atom answers both halves of
+that, `textBudget` and `textWidth`, for the reasons in the hammerspoon `CLAUDE.md`, and this file
+only decides what to do with the answer.
+
+**Whole components are dropped from the middle, not letters from the end.** `util.elideDir` keeps
+the leading component and as many trailing ones as fit, so a long path reads
+`~/…/dotfiles/hammerspoon/.hammerspoon/Spoons`. The tail is protected because the leaf directory,
+and the one above it, are what tell four files called `init.lua` apart, and the head survives
+because a tilde or a leading `/usr` says which world the path lives in for almost no width.
+
+The alternative considered and rejected was squeezing middle components to their first letter, the
+shell prompt idiom, giving `~/D/p/m/dotfiles/hammerspoon/Spoons`. It fills the budget better, and it
+preserves depth so two candidates differing only in a middle component stay apart. It lost on three
+counts. Every character the elide shows is a real one, where `~/L/A/Google` leaves you guessing
+whether that `A` was Applications, Application Support or Audio. It degrades honestly at a tight
+budget, where the squeeze collapses to `~/D/p/m/d/h/./Spoons` with a lone dot standing in for
+`.hammerspoon`. And it is the macOS idiom, what the Finder path bar and `NSPathControl` do. The
+depth argument is real but rarely bites here, because the difference between two candidates is
+almost always near the leaf and the leaf survives. The signal that it has started to bite is two
+visible rows shortening to the same string, and that is the moment to revisit rather than now.
+
+The elide's one genuine cost is undershoot. It drops a whole component at a time, so it can leave a
+stripe of unused room where the squeeze would have filled it. That is a cosmetic loss on a subtitle
+and a fair price for a line that reads without decoding.
+
+**A third option was free and still wrong.** Setting the subtitle's `lineBreak` to `truncateMiddle`
+makes AppKit keep both ends for zero cost and no measurement at all. It is exactly wrong here,
+because the two ends of this string are the tilde and the ages, so it would eat the leaf directory,
+the one thing you actually choose by. Worth recording because it is one word and looks like the
+obvious answer.
+
+**Fitting is a single pass, and it is exact.** The first version rebuilt a candidate and remeasured
+it for every component it dropped, which is quadratic and cost 13.3 ms on a cold page of two
+hundred long paths. It now measures each component once and adds, growing the tail until the next
+one would not fit, which is 6.9 ms for identical output. That decomposition is exact rather than an
+approximation, because the injected width is itself a sum over characters, so the width of a joined
+string really is the sum of its pieces. Above that sits a cache of fitted directories keyed by the
+path and the room it had, since a page of results is many files across few folders and the ages
+cluster into a handful of phrasings, so the budgets cluster too. It is dropped when the picker
+closes, because the next open may land on a display of another width.
+
 ## Two preview providers, and the contract carries WHEN as well as how
 
 How the highlighted file is shown is a Strategy with two implementations, `PreviewProvider.SidePanel`

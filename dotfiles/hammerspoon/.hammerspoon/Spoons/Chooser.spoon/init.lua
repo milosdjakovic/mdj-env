@@ -4,7 +4,7 @@
 --- Every consumer calls the same Chooser.new(config) and gets an instance that
 --- honors the picker contract, show, hide, isShowing, refresh, selectNext,
 --- selectPrev, insertSelected, selectedItem, query, setFieldMode, setPlaceholder,
---- activeTheme.
+--- activeTheme, textBudget, textWidth.
 ---
 --- This was once a provider registry with a second, webview backend built on a
 --- Surface spoon, kept behind this facade so a consumer could swap backends with
