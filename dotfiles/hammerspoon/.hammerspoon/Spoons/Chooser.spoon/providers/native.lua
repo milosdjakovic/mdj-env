@@ -99,6 +99,14 @@ local DEFAULT_LAYOUT = {
   font = ".AppleSystemUIFont",
   titleSize = 16,
   subSize = 12,
+  -- Where a title too long for its row loses characters. The tail is right for almost
+  -- everything, since a name is read left to right and the front is what identifies it.
+  -- A consumer whose titles are FILENAMES wants "truncateMiddle" instead, because the last
+  -- few characters of a filename are its extension and losing that is losing the one thing
+  -- a tail cut could have kept. It is a per consumer choice rather than a global because it
+  -- genuinely differs, the clipboard's titles being snippets where the front is everything.
+  -- Subtitles are always cut at the tail, since nothing has asked otherwise.
+  titleLineBreak = "truncateTail",
 }
 
 -- The horizontal room a row loses to everything on it that is not text, so what is left
@@ -126,11 +134,11 @@ Chooser.__index = Chooser
 -- accept an hs.styledtext, so the font and color are set per row from the active
 -- palette. A disabled row dims its title so it reads as inert. One line per row,
 -- cut with an ellipsis rather than wrapping.
-local function styledText(str, size, color, font)
+local function styledText(str, size, color, font, lineBreak)
   return hs.styledtext.new(str or "", {
     font = { name = font, size = size },
     color = color,
-    paragraphStyle = { lineBreak = "truncateTail" },
+    paragraphStyle = { lineBreak = lineBreak or "truncateTail" },
   })
 end
 
@@ -160,7 +168,7 @@ function Chooser:_toChoice(it)
   local enabled = it.enabled ~= false
   local titleColor = enabled and self.theme.titleColor or dim(self.theme.titleColor)
   return {
-    text = styledText(it.title, L.titleSize, titleColor, L.font),
+    text = styledText(it.title, L.titleSize, titleColor, L.font, L.titleLineBreak),
     subText = styledText(it.subTitle, L.subSize, self.theme.subColor, L.font),
     image = it.image,
     _item = it.item,

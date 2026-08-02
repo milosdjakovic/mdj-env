@@ -280,6 +280,26 @@ once per dispatch, an ordinary search **26ms**, and the recent list does not reg
 idle floor. Use that method rather than timing a single delayed callback, which misses any block
 that does not overlap the moment the callback is due, and gave three misleading readings here.
 
+## One entry in the prune list is a file, and it is the only artifact that ever showed
+
+`Icon\r` is the macOS custom folder icon, and the trailing carriage return is genuinely part of its
+name. Every other artifact of that family is dot prefixed, `.DS_Store` and the AppleDouble `._`
+files, so an ordinary search never reaches them. This one is not, which is exactly why it is the
+only one that turned up in a list.
+
+It is a file rather than a directory, which the list is otherwise made of, and that is fine because
+`_denoise` matches a terminal path segment as well as an inner one, and the rule the list states is
+a name nobody searches for in either position. A filename satisfies that as well as a directory
+does.
+
+Worth recording how it was nearly fixed wrongly. The row that exposed it was inside
+`Chrome Apps.localized`, and the obvious move was to prune that folder, which would have taken the
+icon with it. The frecency store said otherwise. That folder is the THIRD highest scoring path on
+this machine, above four real files, so it is something reached for deliberately and pruning it
+would have removed a real answer to kill an artifact one level down. Check the store before
+concluding that a folder near the top of the recent list is noise, since being there is evidence of
+the opposite.
+
 ## Two files dated 2050
 
 The recent list was led, and later tailed, by MIDI files carrying a modification date of
@@ -499,6 +519,16 @@ Reserving is still how the fit works and is still exercised, because the browse 
 verbatim, its separator included, and a caller states what shares the row rather than the fitter
 having to know where each caller puts it. That is what keeps the mechanism honest for the next
 field that earns a place, rather than it being quietly special cased to one layout.
+
+**The title is cut in the middle, and that one needs no measuring.** Every title here is a filename,
+and the last few characters of a filename are its extension, so a tail cut spends the one field
+saying what KIND of thing the row is before it spends anything else.
+`1Password Emergency Kit A3-B4NHF6-canvasmedi` became
+`1Password Emergency…NHF6-canvasmedical.pdf`, which keeps both the extension and the part that
+tells it from its sibling. This is `layout.titleLineBreak` on the atom, defaulting to the tail
+everywhere else, and AppKit does the work from the paragraph style so nothing is measured. It is a
+knob with one caller, which the repo normally pushes back on, and it earns itself because there is
+no other way to say a per consumer text policy and the default leaves every other picker alone.
 
 **Counting characters was never going to work, which the numbers settle.** At the row's 12 point
 system font ten `i` render at 29.6 points and ten `m` at 104.4. A character budget is wrong by a

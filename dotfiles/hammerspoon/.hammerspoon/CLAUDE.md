@@ -664,6 +664,13 @@ reserved either way. It did not change past the ninth row where the badge stops 
 title and the subtitle reported the same column, which is why one budget answers for both. At the
 uniform 480 width that leaves 354 points.
 
+Where a title too long for its row loses characters is a per consumer choice, `layout.titleLineBreak`,
+defaulting to `truncateTail`. It differs genuinely rather than by taste. A consumer whose titles are
+FILENAMES wants `truncateMiddle`, because the last few characters of a filename are its extension
+and a tail cut spends them first, while the clipboard's titles are snippets where the front is
+everything. Only file search sets it. Subtitles are always cut at the tail, since nothing has asked
+otherwise, and this costs no measurement at all since AppKit does it from the paragraph style.
+
 `textWidth` sums memoised per character widths rather than measuring whole strings, which is what
 makes it usable on every row of every keystroke. A whole measure is 0.11 ms, so a page of two
 hundred would cost 22 ms; the sum is 0.003 ms a string. The price is kerning, and measured against

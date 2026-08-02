@@ -500,6 +500,12 @@ function M.start()
       -- The provider says how much room it needs, so the one that draws beside the list gets it
       -- and the one that opens its own window leaves the picker as a plain list.
       companionWidth = viewer.companionWidth(policy),
+      -- Every title here is a filename, and the last few characters of a filename are its
+      -- extension. A tail cut spends them first, so a long name arrives as
+      -- `mahamba_gastric-pain-evaluation-protocol_5b…` with the one field that says what KIND
+      -- of thing it is gone. Cutting the middle keeps both ends and costs nothing, since
+      -- AppKit does it from the paragraph style with no measuring involved.
+      titleLineBreak = "truncateMiddle",
     },
   })
   return M

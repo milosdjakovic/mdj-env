@@ -120,6 +120,13 @@ return {
     ".npm", ".pnpm-store", ".yarn", ".bun", ".cargo", ".rustup", ".nvm", ".gem",
     ".venv", "venv", "__pycache__", ".gradle", ".m2", ".cocoapods",
     "node_modules", ".next", ".turbo", "target", ".terraform",
+    -- The macOS custom folder icon, a file rather than a directory, and the trailing
+    -- carriage return is part of its real name. Every other artifact of its kind is dot
+    -- prefixed and therefore already out of an ordinary search, which is exactly why this
+    -- one is the only one that ever showed up in a list. The filter matches a terminal
+    -- path segment as well as an inner one, so naming a file here works, and the doc above
+    -- already frames an entry as a name nobody searches for in either position.
+    "Icon\r",
   },
 
   -- The pane beside the list, which describes the highlighted row. Every number here
