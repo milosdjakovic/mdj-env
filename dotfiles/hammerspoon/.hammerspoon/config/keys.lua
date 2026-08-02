@@ -230,6 +230,14 @@ return {
         { key = "i",     action = "insertSelected", description = "Run" },
         { key = "j",     action = "selectNext",     description = "Move down" },
         { key = "k",     action = "selectPrev",     description = "Move up" },
+        -- Only inside a query scope over a list whose rows have more to show than their own
+        -- line, which today is the file search alias. The predicate is live rather than a
+        -- wiring time answer, since it depends on the row under the cursor, so the key is
+        -- inert and unlisted the moment the highlight lands on an app or a command. Same key
+        -- and same word as in that tool's own picker, so it is one thing to remember, and it
+        -- also needs a preview provider that is asked rather than one that follows.
+        { key = "q",     action = "peekPreview",    when = "launcherRowPeekable",
+          needs = "askedPreview", description = "Quick Look" },
         { key = "space", action = "closeChooser",   description = "Close" },
       },
     },
@@ -391,7 +399,12 @@ return {
           needs = "scrollablePreview", description = "Scroll preview down" },
         { key = "k", mods = { "cmd" }, action = "scrollPreviewUp",
           needs = "scrollablePreview", description = "Scroll preview up" },
-        { key = "space", action = "peekPreview",
+        -- Not on the space bar, which is the obvious choice and the one that cannot be had. The
+        -- launcher's own open and close key is Hyper plus space, and the same preview is wanted
+        -- there while the list is scoped to this tool, so the two would have collided in the one
+        -- place the feature had to reach. One key meaning Quick Look wherever a file is listed is
+        -- worth more than matching Finder's bar in only half of them.
+        { key = "q", action = "peekPreview",
           needs = "askedPreview", description = "Quick Look" },
         { key = "l", action = "browseInto",     description = "Into folder" },
         { key = "h", action = "browseUp",       description = "Up a level" },

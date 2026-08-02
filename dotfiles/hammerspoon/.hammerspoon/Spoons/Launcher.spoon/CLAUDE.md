@@ -100,6 +100,15 @@ recency timeline for the same reason a computed one is, it belongs to the query 
 produced it, so remembering it would float a stale answer to the top of the next
 fresh open.
 
+A claimed row can also be asked about rather than taken. `peekSelected` hands the highlighted
+descriptor back out through an injected action, the same shape as running one, so this learns no
+more about a peek than it does about a run. Only a claimed row has anywhere to send the question,
+since an app or a command is already fully described by its own row, and `canPeekSelected` asks
+the same injected side whether there is anything to show so the binding can be gated on live state
+and stay out of the hints while the highlight sits on a row with nothing behind it. Whatever a
+peek opens can outlive the keystroke, so the launcher's close is where it is put away, composed in
+the root rather than known here.
+
 The alias hint on a tool's own row is the launcher's side of discoverability.
 `_aliasHint` reads the `aliases` field on the same `config/keys.lua` entry the
 scopes are built from, so the words a row advertises and the words the resolver

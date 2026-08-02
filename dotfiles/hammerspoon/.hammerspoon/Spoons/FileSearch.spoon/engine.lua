@@ -527,6 +527,25 @@ function obj:reset()
   return self
 end
 
+--- engine:ensureSession()
+--- Make sure a session exists, without disturbing one that already does.
+---
+--- THE DIFFERENCE FROM reset IS AN OPEN, and a surface either has one or it does not. A picker
+--- opens, so it resets, and refetching the recent list each time is exactly right there. A query
+--- scope inside another list never opens. It is asked for rows on every keystroke and again on
+--- every redraw, so answering that with a reset means the session restarts perpetually.
+---
+--- That is not merely wasteful, it breaks the list. reset clears the parsed query, which is what
+--- rowsFor compares against to recognise a repeat and return what it already drew, so with it
+--- cleared every ask does the full work again and fires onResults at the end. A surface that
+--- redraws when told rows changed then asks again, resets again, and fetches again, which is a
+--- loop with a round trip in it that only ends when the query changes. Costing nothing when a
+--- session is already live is what closes it.
+function obj:ensureSession()
+  if self._recents or self._recentsHandle then return self end
+  return self:reset()
+end
+
 -- Recent files, the state the picker opens in. Held for the session rather than per query,
 -- since what you touched lately does not change while a picker is open. Refetched on each open
 -- while the previous list stays on screen, so only the very first open of a session ever shows

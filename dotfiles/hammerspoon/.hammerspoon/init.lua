@@ -287,6 +287,14 @@ local predicates = {
   launcherOpen = function()
     return spoon.Launcher:isShowing()
   end,
+  -- The launcher is open on a row that has more to show than its own line. True only inside a
+  -- query scope whose tool offers a peek, so the key means something exactly where it can, and
+  -- LIVE rather than a wiring time answer, since the row under the cursor changes as you move.
+  -- That is what keeps the hint honest, the binding leaves the shortcut panel the moment the
+  -- highlight lands on an app or a command.
+  launcherRowPeekable = function()
+    return spoon.Launcher:isShowing() and spoon.Launcher:canPeekSelected()
+  end,
   -- The menu search chooser is open. Gates the menuSearch Hyper context.
   menuSearchOpen = function()
     return menuSearchSurface ~= nil and menuSearchSurface.isShowing()
@@ -409,12 +417,31 @@ local shortcutsShown = false
 -- persistently under the surface rather than peeked in a separate window on a
 -- Hyper hold, so no second window competes for the frosted backdrop. Returned as a
 -- list of { badges = {...}, label = ... }, the shape List:_footerHtml consumes.
+-- Whether a binding's LIVE gate is open right now, the other half of bindingApplies above. That
+-- one answers a wiring time choice once, this one answers a runtime question every time it is
+-- asked. The hints have to ask it, because a key gated on live state and printed anyway is exactly
+-- the disagreement the two discoverability mandates exist to prevent, and the dispatch side
+-- already refuses the key through this same registry. An unknown name keeps the binding and says
+-- so, the same forgiving failure an unknown requirement gets.
+local function bindingActive(b)
+  if not b.when then return true end
+  local test = predicates[b.when]
+  if not test then
+    hs.printf("keys: binding %s names unknown predicate '%s', keeping it",
+      tostring(b.action), tostring(b.when))
+    return true
+  end
+  return test() and true or false
+end
+
+--- The hints for one context, ANSWERED FRESH EACH TIME rather than built once, since one of the
+--- two gates above changes while the list is open.
 local function footerFor(name)
   local hints = {}
   for _, ctx in ipairs(keys.hyperContexts or {}) do
     if ctx.name == name then
       for _, b in ipairs(ctx.bindings) do
-        if bindingApplies(b) then
+        if bindingApplies(b) and bindingActive(b) then
         local chord = "Hyper+" .. spoon.CheatSheet.glyphFor(b.key, b.mods)
         local badges = { chord }
         if b.action == "insertSelected" or b.action == "enter" then
@@ -748,10 +775,17 @@ local function shortcutsContent(theme, hints)
     for _, b in ipairs(h.badges or {}) do w = w + textW(b, badgeSize) + 2 * badgePadX end
     return w + hintGap * #(h.badges or {})
   end
+  -- The hint list may be a function rather than a list, resolved on every draw, which is what
+  -- lets a binding gated on live state appear and disappear with the state instead of being
+  -- printed once at wiring and never revisited.
+  local function current()
+    if type(hints) == "function" then return hints() or {} end
+    return hints or {}
+  end
   -- Wrap chips into rows that fit width w, recording each chip's x within its row.
-  local function wrap(w)
+  local function wrap(w, list)
     local rows, cur, curW = {}, {}, 0
-    for _, h in ipairs(hints) do
+    for _, h in ipairs(list) do
       local cw = chipW(h)
       if #cur > 0 and curW + chipGapX + cw > w then rows[#rows + 1] = cur; cur, curW = {}, 0 end
       local startX = (#cur == 0) and 0 or (curW + chipGapX)
@@ -768,7 +802,7 @@ local function shortcutsContent(theme, hints)
   return {
     preferredSize = function(availW)
       local w = availW or 320
-      return { w = w, h = rowsHeight(wrap(w)) }
+      return { w = w, h = rowsHeight(wrap(w, current())) }
     end,
     draw = function(w)
       local dark = hs.host.interfaceStyle() == "Dark"
@@ -776,7 +810,7 @@ local function shortcutsContent(theme, hints)
       local fg = side.titleColor or { white = dark and 0.92 or 0.15 }
       local meta = side.subColor or { white = dark and 0.55 or 0.42 }
       local badgeBg = { white = dark and 1 or 0, alpha = dark and 0.12 or 0.06 }
-      local els, rows = {}, wrap(w)
+      local els, rows = {}, wrap(w, current())
       for ri, row in ipairs(rows) do
         local rowTop = (ri - 1) * (badgeH + rowGapY)
         for _, chip in ipairs(row) do
@@ -817,7 +851,9 @@ local function shortcutPanelFor(context)
     gap = 8,
     padX = 14, padY = 10,
     delay = settings.shortcutsPanel and settings.shortcutsPanel.delayMs,
-    content = shortcutsContent(settings.chooserTheme, footerFor(context)),
+    -- Handed as a question rather than as an answer, so a binding whose predicate turns while the
+    -- list is open is listed only while it means something.
+    content = shortcutsContent(settings.chooserTheme, function() return footerFor(context) end),
   })
   return {
     onPositioned = function(frame) panel:arm(frame) end,
@@ -1088,6 +1124,23 @@ else
 end
 
 spoon.SystemSettings:configure({ panes = settingsPanes })
+
+-- The launcher's docked hints, with one thing composed onto the close. A row peeked from inside a
+-- query scope opens a window that belongs to the tool behind the scope, and the only thing that
+-- knows the list is gone is this list. The tool's own picker takes the same duty on its own close,
+-- so whichever surface asked for a preview is the one that puts it away, and neither learns about
+-- the other. Reaching a spoon configured further down is resolved when this runs rather than now,
+-- the same forward reference the overlay display resolvers already make.
+local launcherShortcuts = shortcutPanelFor("launcher")
+local launcherPanel = {
+  onPositioned = launcherShortcuts.onPositioned,
+  onActivity = launcherShortcuts.onActivity,
+  onClose = function()
+    if spoon.FileSearch then spoon.FileSearch.chooser.closePreview() end
+    launcherShortcuts.onClose()
+  end,
+}
+
 spoon.Launcher:init()
 spoon.Launcher:configure({
   chooser = spoon.Chooser,
@@ -1100,7 +1153,7 @@ spoon.Launcher:configure({
   glyphFor = spoon.CheatSheet.glyphFor,
   settingsPanes = spoon.SystemSettings:rows(),
   predicates = predicates,
-  shortcutPanel = shortcutPanelFor("launcher"),
+  shortcutPanel = launcherPanel,
   queryProviders = queryProviders,
   actions = {
     -- Where a computed result goes. A plain pasteboard write on purpose, so the result
@@ -1111,6 +1164,11 @@ spoon.Launcher:configure({
     -- descriptor and the scope resolver routes it to whichever tool made it, so the launcher
     -- never learns that the tools behind a scope exist.
     scope = function(item) spoon.QueryScope:run(item) end,
+    -- The other half of that, showing more about a claimed row without taking it. Routed the
+    -- same way and for the same reason, so the launcher still names no tool, and asked before
+    -- it is offered so a scope with nothing to show never advertises a key.
+    scopePeek = function(item) spoon.QueryScope:peek(item) end,
+    scopeCanPeek = function(item) return spoon.QueryScope:canPeek(item) end,
     app = function(bundleID, url)
       if url then
         spoon.AppToggler:toggleURL(bundleID, url)
@@ -1763,20 +1821,29 @@ local queryScopes = {
     -- scope are not a filter over a list, and a second pass would fight the ranking and hide the
     -- status row.
     matcher = false,
-    -- Entering the scope begins a session, the same as opening the picker, which is what makes an
-    -- empty query answer with the recent list rather than a loading row that never resolves. The
-    -- rows arrive late, so the answer here is whatever is held right now and the redraw is wired
-    -- through the spoon's onResults above, the same shape the VPN and browser tab scopes use.
-    -- Nothing needs saying about an empty list, because the tool already returns a row explaining
-    -- itself for every state it can be in.
+    -- Entering the scope needs a session, the same one opening the picker needs, which is what
+    -- makes an empty query answer with the recent list rather than a loading row that never
+    -- resolves. The rows arrive late, so the answer here is whatever is held right now and the
+    -- redraw is wired through the spoon's onResults above, the same shape the VPN and browser tab
+    -- scopes use. Nothing needs saying about an empty list, because the tool already returns a row
+    -- explaining itself for every state it can be in.
+    --
+    -- JOINED RATHER THAN STARTED, and the distinction is the whole reason the tool exposes two
+    -- verbs. A scope is asked for rows on every keystroke and again every time it is told the rows
+    -- changed, and it has no open of its own to hang a fresh start on, so starting one here
+    -- restarts it forever. The engine's note on ensureSession has the loop that produced.
     rows = function(rest)
-      if rest == "" then spoon.FileSearch.chooser.beginSession() end
+      if rest == "" then spoon.FileSearch.chooser.ensureSession() end
       return spoon.FileSearch.chooser.rowsForQuery(rest)
     end,
     -- Choosing goes through the tool's own definition of choosing, so a file opens the same way
     -- and the use is recorded once. The keys that go beyond choosing, reveal, copy path and
     -- moving up a level, stay in the real picker where that Hyper context lives.
     run = function(payload) spoon.FileSearch.chooser.choose(payload) end,
+    -- Deciding between two rows that both matched is the one question a file list cannot answer
+    -- from a line of text, so the preview comes along rather than being a reason to leave for the
+    -- real picker. The tool's own verb again, so a file is previewed here exactly as it is there.
+    peek = function(payload) spoon.FileSearch.chooser.peekRow(payload) end,
   },
   launcherCatalogScope("apps", "🚀", "app"),
   launcherCatalogScope("windowActions", "🪟", "window"),

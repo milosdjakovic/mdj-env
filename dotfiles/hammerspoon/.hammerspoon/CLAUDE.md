@@ -646,18 +646,27 @@ wires each surface as its own participant, its own context block, predicate,
 registry entry, and overlay.
 
 **A binding may declare what it `needs`, which is different from `when`, and the difference is
-the shortcut panel.** `when` gates a binding on LIVE state, resolved by name on every press, so
-the key stays bound and does nothing while its predicate is false. That is right for something
-that changes while you use the tool. `needs` gates a binding on a CHOICE this root made at wiring
-time, and it is answered once against the `bindingNeeds` registry before either the key wiring or
-`footerFor` reads the bindings, so the binding is removed from both together. The distinction
-exists because a shortcut panel is built from a static hint list, so a wiring time fact expressed
-as a runtime predicate would unbind the key and still print it in the hints, which is exactly the
-disagreement the two discoverability mandates are there to prevent. File search is the first
-consumer, where the preview provider decides whether the two scroll keys or the peek key are the
-ones that mean anything. Config names the requirement and the root answers it, so neither learns
-the other's business, and an unknown requirement keeps its binding and logs, since a typo should
-cost a stray key rather than a silently missing one.
+when the question is asked.** `when` gates a binding on LIVE state, resolved by name on every
+press, so the key stays bound and does nothing while its predicate is false. That is right for
+something that changes while you use the tool, and the launcher's peek key is the example, since
+whether there is anything to preview depends on the row under the cursor. `needs` gates a binding
+on a CHOICE this root made at wiring time, and it is answered once against the `bindingNeeds`
+registry before either the key wiring or `footerFor` reads the bindings, so the binding is removed
+from both together and stays removed for the session. File search is that consumer, where the
+preview provider decides whether the two scroll keys or the peek key are the ones that mean
+anything. Config names the requirement and the root answers it, so neither learns the other's
+business, and an unknown name, a requirement or a predicate, keeps its binding and logs, since a
+typo should cost a stray key rather than a silently missing one.
+
+Both gates are honoured by the hints as well as by the keys, and the second half of that was
+added later than the first. A docked shortcut panel used to bake its hint list once when the panel
+was built, so a binding gated on live state would be unbound at the press and printed in the hints
+anyway, which is precisely the disagreement the two discoverability mandates exist to prevent. The
+panel now takes its hints as a QUESTION rather than as a list and asks it on every reveal, and
+`footerFor` drops a binding whose predicate is currently false as well as one whose requirement
+was not met. So a key appears in the hints exactly while it does something, and `when` is a real
+option for a chooser binding rather than a trap. The cost is rebuilding a small list each time the
+panel is revealed, which happens once per pause rather than per keystroke.
 
 **A rebuilt list tells the highlight poll.** `Chooser:refresh` clears `lastRow` after setting
 choices, because the poll that drives `onHighlight` compares the row NUMBER and the row under a
@@ -972,14 +981,26 @@ File search is the first scope whose alias is punctuation, `/` then a space, whi
 already allowed since its only rule is one word with no whitespace. It matches that tool's Hyper
 key, so there is one thing to remember rather than two, and a slash reads as a path everywhere
 else. It is also the first scope over an ASYNCHRONOUS list that is not merely slow to arrive but
-stateful, so two things had to be added rather than adapted. Entering the scope begins a session,
-which is what the picker's `show` does and what makes an empty query answer with the recent list
-instead of a loading row nothing ever resolves. And the tool's `onResults` is composed rather than
-replaced, so both surfaces are told when rows land and each one's redraw does nothing while it is
-off screen. Its rows come from the tool's own row supplier and its choosing from the tool's own
-select, so a row cannot say one thing in the picker and another in the launcher, and a use is
-recorded once wherever it happens. What stays behind in the picker is everything past choosing,
-reveal, copy path and moving up a level, since those are that tool's Hyper context.
+stateful, so two things had to be added rather than adapted. Entering the scope needs a session,
+which is what makes an empty query answer with the recent list instead of a loading row nothing
+ever resolves, and it JOINS one rather than beginning one. Beginning it was the first version and
+it was a loop, since a scope is asked for rows on every keystroke and again on every redraw, so a
+reset each time cleared the very state the tool uses to recognise a repeat, and each answer
+announced a change that caused another ask. The tool's own `CLAUDE.md` has the full trail, and the
+general lesson is that a scope has no open, so anything a picker does on open has to be expressed
+as make sure this exists rather than as start this. And the tool's `onResults` is composed rather
+than replaced, so both surfaces are told when rows land and each one's redraw does nothing while
+it is off screen. Its rows come from the tool's own row supplier and its choosing from the tool's
+own select, so a row cannot say one thing in the picker and another in the launcher, and a use is
+recorded once wherever it happens.
+
+It is also the scope that earned `QueryScope` a second verb. Choosing was the only thing a scope
+could do to a row, and a file list is the case where a line of text cannot settle which of two
+matches you meant, so the preview comes along through an optional `peek` and the alias reaches the
+whole reason for the tool. The launcher gates that key on live state, since only a claimed row
+from a scope offering a peek has anything to show, and asks the same question before printing it
+in the hints. What stays behind in the picker is reveal, copy path and moving up a level, since
+those are that tool's Hyper context.
 
 A scope may be narrower than the tool it reaches, and browser tabs is the case that works.
 Its settings level is a step into a second list, which a scope cannot show, so the scope lists

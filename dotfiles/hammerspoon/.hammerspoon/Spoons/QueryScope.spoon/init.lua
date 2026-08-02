@@ -62,6 +62,11 @@ local function admissible(s)
   if type(s.title) ~= "string" or s.title == "" then return reject(label .. " has no title") end
   if type(s.rows) ~= "function" then return reject(label .. " has no rows function") end
   if type(s.run) ~= "function" then return reject(label .. " has no run function") end
+  -- Optional, so absence is fine and a wrong type is not. A scope that meant to offer a peek and
+  -- handed over something uncallable would otherwise fail at the keystroke rather than at load.
+  if s.peek ~= nil and type(s.peek) ~= "function" then
+    return reject(label .. " has a peek that is not a function")
+  end
   if type(s.aliases) ~= "table" or #s.aliases == 0 then return reject(label .. " has no aliases") end
   return true
 end
@@ -237,23 +242,61 @@ function obj:rows(query)
   return self:_present(scope, query, kept), true
 end
 
---- QueryScope:run(item)
---- Method
---- Route a chosen row back to the scope that made it, handing over the descriptor the scope's
---- own rows put there. A row with no payload is one of the disabled rows above, which cannot be
---- chosen, so it is a no op rather than a case a scope has to handle.
-function obj:run(item)
-  if type(item) ~= "table" or not item.payload then return end
-  local payload = item.payload
+-- The scope a row descriptor came from, or nil with the reason stated. A row with no payload is
+-- one of the disabled rows above, which cannot be acted on, so it is a no op rather than a case
+-- any scope has to handle.
+function obj:_scopeOf(item)
+  if type(item) ~= "table" or not item.payload then return nil end
   local scope = self._byName[item.scope]
   if not scope then
     hs.printf("QueryScope: a row named the unknown scope %s", tostring(item.scope))
-    return
+    return nil
   end
-  local ok, err = pcall(scope.run, payload)
+  return scope
+end
+
+--- QueryScope:run(item)
+--- Method
+--- Route a chosen row back to the scope that made it, handing over the descriptor the scope's
+--- own rows put there.
+function obj:run(item)
+  local scope = self:_scopeOf(item)
+  if not scope then return end
+  local ok, err = pcall(scope.run, item.payload)
   if not ok then
     hs.printf("QueryScope: the %s scope failed to run a row, %s", scope.name, tostring(err))
   end
+end
+
+--- QueryScope:peek(item)
+--- Method
+--- Show more about a row without choosing it, routed home exactly as running one is.
+---
+--- THE SECOND VERB EXISTS BECAUSE CHOOSING IS NOT THE ONLY THING A LIST IS FOR, and a scope was
+--- previously able to say only what a row is and what happens when you take it. A file row wants
+--- one more question answered before you commit, which is what am I actually looking at, and the
+--- tool behind the scope already answers it. Without a route the alias reaches a diminished copy
+--- of the tool, which is the thing the scope rules here are written to prevent.
+---
+--- It is optional, so a scope with nothing to show simply does not offer it and every surface
+--- above can ask whether there is anything to show rather than assuming.
+function obj:peek(item)
+  local scope = self:_scopeOf(item)
+  if not scope or type(scope.peek) ~= "function" then return end
+  local ok, err = pcall(scope.peek, item.payload)
+  if not ok then
+    hs.printf("QueryScope: the %s scope failed to peek a row, %s", scope.name, tostring(err))
+  end
+end
+
+--- QueryScope:canPeek(item) -> bool
+--- Method
+--- Whether this row has anything to peek at. Asked by a surface deciding whether a key means
+--- anything right now, so a binding that would do nothing can be gated and left out of the
+--- shortcut hints rather than listed and inert.
+function obj:canPeek(item)
+  local scope = self:_scopeOf(item)
+  return scope ~= nil and type(scope.peek) == "function"
 end
 
 return obj

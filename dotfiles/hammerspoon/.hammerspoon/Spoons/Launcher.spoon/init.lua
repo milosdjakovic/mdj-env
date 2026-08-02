@@ -188,6 +188,9 @@ function obj:configure(opts)
     selectNext = function() instance:selectNext() end,
     selectPrev = function() instance:selectPrev() end,
     insertSelected = function() instance:insertSelected() end,
+    -- The same verb name the tools' own pickers answer, so one routed action reaches whichever
+    -- list is open and this one needs no case of its own in the root.
+    peekPreview = function() self:peekSelected() end,
     hide = function() instance:hide() end,
   }
 
@@ -579,6 +582,33 @@ end
 --- its own and the leaf calls stay in the one place that knows them.
 function obj:runItem(item)
   self:_runItem(item)
+end
+
+--- Launcher:peekSelected()
+--- Method
+--- Show more about the highlighted row without running it, for a row that came from a source
+--- claiming the query. The descriptor goes back out through an injected action exactly as a
+--- chosen one does, so this learns no more about a peek than it does about a run, which is
+--- nothing beyond the row belonging to somebody else.
+---
+--- Only a claimed row has anywhere to send the question. An app or a command is already fully
+--- described by its own row, so there is deliberately no second thing to show for one.
+function obj:peekSelected()
+  local it = self._instance and self._instance:selectedItem()
+  if not it or it.kind ~= "scope" then return end
+  if self._actions.scopePeek then self._actions.scopePeek(it) end
+end
+
+--- Launcher:canPeekSelected() -> bool
+--- Method
+--- Whether peeking the highlighted row would do anything, asked by the predicate that gates the
+--- binding. A key that is bound and inert is the disagreement the shortcut hints exist to avoid,
+--- so the question is answered live rather than assumed from the list being open.
+function obj:canPeekSelected()
+  local it = self._instance and self._instance:selectedItem()
+  if not it or it.kind ~= "scope" then return false end
+  local ask = self._actions.scopeCanPeek
+  return ask ~= nil and ask(it) == true
 end
 
 --- Launcher:refresh()

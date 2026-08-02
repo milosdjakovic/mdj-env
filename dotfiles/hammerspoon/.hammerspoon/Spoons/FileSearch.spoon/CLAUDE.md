@@ -897,6 +897,33 @@ under it at all. That is why the verb is on the contract as optional rather than
 why the trackpad watcher is wired only for a provider that reserved a rect for one to happen
 over.
 
+## A second surface joins a session, it does not begin one, and the difference was a loop
+
+The engine has an open, and the picker has one, so opening resets the session and refetches the
+recent list. The launcher's alias has no open at all. It is asked for rows on every keystroke and
+again every time it is told the rows changed, and it began a session on each of those asks, which
+looked harmless and was not.
+
+`reset` clears the parsed query, and the parsed query is what `rowsFor` compares against to
+recognise a repeat and hand back what it already drew. Cleared, every ask did the full work again
+and ended by announcing that the rows had changed. The launcher answers that announcement by
+asking again, which reset again, which fetched again. A loop with a Spotlight round trip in it,
+running for as long as the alias sat there with nothing typed after it, and the list it left on
+screen was whatever that churn happened to produce rather than the recent files.
+
+So there are two verbs. `beginSession` is what an open calls and it still resets. `ensureSession`
+starts one only when there is neither a list held nor a fetch on the way, and costs nothing
+otherwise, which is what a surface with no open of its own must call. Naming them separately is
+what makes the choice visible at the call site, since both are one line and only one of them is
+right for a caller that will make it a thousand times.
+
+The same split runs through the preview. `peekPreview` acts on this picker's own highlight and
+refuses once this picker has gone, because the window it opens is torn down when this picker
+closes. `peekRow` takes a row it was handed and makes no such refusal, since the caller is a
+different owner with a different close, and it takes on the matching duty instead, calling
+`closePreview` when its own list goes. Two callers, one preview, and whoever asked is whoever
+puts it away.
+
 ## What it deliberately does not do
 
 No content search. Spotlight's text index answers it in about 135ms and ripgrep is the

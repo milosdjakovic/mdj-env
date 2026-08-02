@@ -104,6 +104,29 @@ the presenter's rows instead means a narrowed list cannot disagree with the whol
 what a row says, what hidden words it answers to, or what choosing it does, and the predicate
 gating comes along for free.
 
+## Choosing is not the only thing a list is for, so there is a second, optional verb
+
+A scope could once say only what a row is and what happens when you take it. `peek` is the third
+answer, show me more about this row without choosing it, routed home exactly as running one is and
+optional in exactly the way `run` is not.
+
+It exists because a file row is the case where a line of text cannot settle the question. Two rows
+matched, both plausible, and the thing that decides between them is the contents. The tool behind
+the scope already answers that, so without a route the alias reaches a version of the tool that
+can find a file but not tell you which one it is, and the rule below is precisely that a scope may
+be smaller than its tool but not smaller than the reason for it.
+
+Optional is what keeps it honest for every other scope. A surface asks `canPeek` before it offers
+anything, so a scope with nothing to show never advertises a key, and a scope written before this
+verb existed is unaffected rather than newly incomplete. A `peek` that is present but not callable
+is rejected at load with the scope named, since the alternative is a keystroke that fails later
+with nothing pointing at the cause.
+
+The teardown belongs to whoever asked. A peek can open something that outlives the keystroke, a
+window rather than a row, and the scope has no idea which list is showing its rows. So the surface
+that asked is the surface that puts it away when its own list closes, which is one line in the
+composition root and no knowledge on either side of the other.
+
 ## A scope may be smaller than its tool, but not smaller than the reason for the tool
 
 Browser tabs is the good case. It cannot offer its settings level, since that is a step into a

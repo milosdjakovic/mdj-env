@@ -222,6 +222,13 @@ function obj:configure(opts)
         -- 6 warm, and rebuilds it instead when it is missing or stale.
         obj.sources.hidden.warm()
       end,
+      -- For a surface with no open of its own, which must not restart a session it is only
+      -- joining. The warm goes with it, since it is the same beginning either way and doing it
+      -- twice is free.
+      ensureSession = function()
+        obj:ensureSession()
+        obj.sources.hidden.warm()
+      end,
       cancel = function() obj:cancel() end,
       browseQueryFor = function(row) return obj:browseQueryFor(row) end,
     },

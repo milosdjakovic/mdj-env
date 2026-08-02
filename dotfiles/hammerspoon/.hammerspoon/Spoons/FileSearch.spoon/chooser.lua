@@ -481,6 +481,17 @@ function M.beginSession()
   return M
 end
 
+--- chooser.ensureSession() - join a session, starting one only if there is none.
+---
+--- What a surface with no open of its own calls instead of beginSession. The launcher's scope is
+--- asked for rows on every keystroke and again every time it is told the rows changed, and it has
+--- no moment it could call a fresh start, so beginning a session there restarts one perpetually.
+--- The engine's note on ensureSession has why that is a loop rather than only waste.
+function M.ensureSession()
+  if cfg.api and cfg.api.ensureSession then cfg.api.ensureSession() end
+  return M
+end
+
 --- chooser.show() - open on a fresh session.
 function M.show()
   M.start()
@@ -576,8 +587,30 @@ function M.peekPreview()
   if not M.isShowing() then return end
   local row = selectedRow()
   if not row then return end
+  M.peekRow(row)
+end
+
+--- chooser.peekRow(row) - show a row this picker was HANDED rather than one it highlighted, for
+--- another surface listing the same rows.
+---
+--- Split out of peekPreview rather than reached by pretending to be it, because the two differ in
+--- exactly one thing, who owns the row, and that decides the lifetime guard. peekPreview refuses
+--- once this picker has gone, since the panel it opens is torn down when this picker closes. A
+--- caller holding its own list is a different owner with a different close, so it must not be
+--- held to this picker's, and it takes on the same duty instead, which is to call closePreview
+--- when its own list goes.
+function M.peekRow(row)
+  if viewer.followsHighlight then return end
+  if not (row and row.path) or row.status or row.help then return end
   noteUse(row)
   viewer.show(row)
+end
+
+--- chooser.closePreview() - put away whatever the provider has open. The other half of peekRow,
+--- for the surface that asked, since a preview outliving the list it describes is the one failure
+--- this provider can leave on screen.
+function M.closePreview()
+  viewer.close()
 end
 
 --- chooser.insertSelected() - the primary key, choosing the highlighted row.
