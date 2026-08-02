@@ -36,7 +36,14 @@ obj._byName = nil     -- scope name to scope, so a chosen row finds its way home
 -- deliberately not configurable. It is this spoon's own grammar rather than a binding, and
 -- it is the one character whose removal must mean leave the scope, so making it a choice
 -- would only create a way for two consumers to disagree about what leaving looks like.
-local SEPARATOR = "^(%S+)%s+(.*)$"
+--
+-- Two forms of one decision. The pattern accepts any run of whitespace, since a query
+-- arrives from a person typing and being strict there would only reject something that
+-- plainly meant to enter a scope. SEPARATOR is the canonical text, which is what a caller
+-- asking for the query that enters a scope is handed, so nobody outside this file ever
+-- concatenates a space and decides for itself what entering looks like.
+local SEPARATOR = " "
+local SEPARATOR_PATTERN = "^(%S+)%s+(.*)$"
 
 --- QueryScope:init()
 --- Method
@@ -129,6 +136,44 @@ function obj:aliasesOf(name)
   return out
 end
 
+--- QueryScope:catalog() -> list
+--- Method
+--- Every scope that can actually be entered right now, each as a plain table of name, title,
+--- glyph, and live aliases, in registration order. A scope whose aliases were all refused is
+--- left out, since nothing could reach it and a row for it would do nothing.
+---
+--- It exists so a surface can list the aliases without asking any tool anything and without
+--- reading the config the root built the scopes from, which is the only way such a list can
+--- state what resolves rather than what was requested. It hands back data and no wording, so
+--- how a list of aliases is phrased stays with whoever shows it.
+function obj:catalog()
+  local out = {}
+  for _, s in ipairs(self._scopes) do
+    local aliases = self:aliasesOf(s.name)
+    if #aliases > 0 then
+      out[#out + 1] = { name = s.name, title = s.title, glyph = s.glyph, aliases = aliases }
+    end
+  end
+  return out
+end
+
+--- QueryScope:queryFor(name) -> string or nil
+--- Method
+--- The query text that enters a named scope, so `browserTabs` answers `"t "`. Nil when the
+--- scope is unknown or holds no live alias, which a caller reads as nothing to do rather
+--- than seeding a query that would claim nothing.
+---
+--- The first alias is the one used, and first means the order the aliases were written in,
+--- filtered to those that survived. So the short one written first is the canonical one, and
+--- that judgement lives here rather than at each caller. The separator comes along, since it
+--- is this spoon's grammar and a caller appending its own space would be a second opinion
+--- about what entering a scope looks like.
+function obj:queryFor(name)
+  local aliases = self:aliasesOf(name)
+  if #aliases == 0 then return nil end
+  return aliases[1] .. SEPARATOR
+end
+
 --- QueryScope:resolve(query) -> scope, rest
 --- Method
 --- The whole grammar, exposed on its own so it can be checked from the console. The first
@@ -136,7 +181,7 @@ end
 --- which may be empty. Returns nil when the first word claims nothing, which is the usual
 --- case and the reason an ordinary search is unaffected.
 function obj:resolve(query)
-  local token, rest = tostring(query or ""):match(SEPARATOR)
+  local token, rest = tostring(query or ""):match(SEPARATOR_PATTERN)
   if not token then return nil end
   local scope = self._byAlias[token:lower()]
   if not scope then return nil end

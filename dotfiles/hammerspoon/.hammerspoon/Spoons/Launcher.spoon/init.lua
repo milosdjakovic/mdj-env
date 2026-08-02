@@ -41,6 +41,7 @@ obj._predicates = nil       -- shared predicate registry, for `when` gating
 obj._shortcutPanel = nil    -- { onPositioned, onActivity, onClose }
 obj._actions = nil          -- leaf dispatch: app, capture, settingsPane, special
 obj._queryProviders = nil   -- ordered query row sources, each answering rows(query)
+obj._aliasHint = nil        -- function(name) -> subtitle fragment, "" when there is none
 
 -- Owned state
 obj._instance = nil         -- the built Chooser instance
@@ -144,13 +145,14 @@ function obj:configure(opts)
   -- them computes, and the root decides which exist. An empty list is the whole
   -- feature switched off, which is how a source whose tool is missing disappears.
   self._queryProviders = opts.queryProviders or {}
+  -- What a row says about being reachable by a typed word. One question asked per row while
+  -- the rows are built, so this file states no alias anywhere and a tool that gains one needs
+  -- no edit here. The default answers nothing, which is the whole feature absent rather than
+  -- broken. See _buildActionRows for why it is asked there and not at each call site.
+  self._aliasHint = opts.aliasHint or function() return "" end
 
   self._glyphIconCache = {}
 
-  -- Static rows, built once now that the deps are in. Apps are built live per open
-  -- (their running state changes), so they are not here.
-  self._actionRows = self:_buildActionRows()
-  self._settingsPaneRows = self:_buildSettingsPaneRows()
   self._configuredApps = self:_buildConfiguredApps()
 
   -- The Chooser instance, wired with the docked shortcut panel callbacks. The row
@@ -223,24 +225,30 @@ function obj:_chordLabel(leader, key, mods)
   return leader .. " " .. self._glyphFor(key, mods)
 end
 
---- Launcher:_aliasHint(binding)
---- Method
---- A binding's scope aliases as a subtitle fragment, so the row that opens a tool also
---- states the words that hand this list to it. It reads the same pure data the scopes are
---- built from, so the hint and the behaviour cannot drift, which is the same reason the
---- chord label is derived rather than written. Empty for a tool with no aliases, so a row
---- gains nothing until its aliases exist.
-function obj:_aliasHint(binding)
-  local aliases = binding and binding.aliases
-  if type(aliases) ~= "table" or #aliases == 0 then return "" end
-  return " · type " .. table.concat(aliases, " or ") .. " then space"
-end
-
 -- camelCase action name -> "Title Case" label, applied when a binding sets no
 -- explicit description.
 local function humanize(name)
   local s = tostring(name):gsub("(%l)(%u)", "%1 %2")
   return s:sub(1, 1):upper() .. s:sub(2)
+end
+
+--- Launcher:_ensureStaticRows()
+--- Method
+--- Build the rows that do not change between opens, once, on first use rather than at
+--- configure. The app rows are already lazy because their running state changes, and these are
+--- lazy for a different reason, they ask questions of collaborators the root may not have
+--- finished wiring when this spoon is configured. The alias hint is exactly that case, the
+--- resolver behind it is configured after this spoon because it adapts tools wired later, so a
+--- row built at configure time would ask too early and print nothing forever.
+---
+--- Waiting until the first open also means the answers are current rather than as of load,
+--- which is what a hint has to be once the words behind it can change while Hammerspoon runs.
+--- The cost lands on the first open, next to the app scan that is already lazy there and far
+--- larger, and every open after it is served from the cache.
+function obj:_ensureStaticRows()
+  if self._actionRows then return end
+  self._actionRows = self:_buildActionRows()
+  self._settingsPaneRows = self:_buildSettingsPaneRows()
 end
 
 --- Launcher:_buildActionRows()
@@ -255,6 +263,19 @@ function obj:_buildActionRows()
   -- and subtitle have no room for, rather than that word being padded into the visible
   -- subtitle where it would cost a reader something to buy a searcher something.
   local function add(title, subTitle, item, glyph, when, keywords)
+    -- A tool reachable by typing a word says so on its own row, and it says it here rather
+    -- than at each call site. That is the difference between a hint a row can be forgotten
+    -- from, which is how file search ended up advertising nothing, and one that cannot be,
+    -- so giving a tool an alias now takes no edit in this file at all.
+    --
+    -- The row is asked about by its own descriptor name, which is that tool's key in the pure
+    -- data, so there is one identity behind the row, the scope, and the hint instead of three
+    -- strings that have to agree. Only a special row can be a tool, so nothing else is asked,
+    -- which also means an action sharing a name with a scope cannot pick up a hint that was
+    -- never about it. The usual answer is empty.
+    if item and item.kind == "special" then
+      subTitle = (subTitle or "") .. self._aliasHint(item.name)
+    end
     rows[#rows + 1] = { title = title, subTitle = subTitle, image = self:_glyphIcon(glyph),
                         item = item, when = when, keywords = keywords }
   end
@@ -262,13 +283,13 @@ function obj:_buildActionRows()
   -- capture and the system actions get a per-action one.
   local captureGlyphs = { ocrArea = "🔤", captureArea = "📸", captureAreaClipboard = "📸", recordArea = "🎥" }
   add(keys.colorPicker.description, "Tools · " .. self:_chordLabel("Hyper", keys.colorPicker.key), { kind = "special", name = "colorPicker" }, "🎨")
-  add(keys.emoji.description, "Tools · " .. self:_chordLabel("Hyper", keys.emoji.key) .. self:_aliasHint(keys.emoji), { kind = "special", name = "emoji" }, "😀")
+  add(keys.emoji.description, "Tools · " .. self:_chordLabel("Hyper", keys.emoji.key), { kind = "special", name = "emoji" }, keys.emoji.glyph)
   for _, c in ipairs(keys.capture) do
     add(c.description or humanize(c.action), "Capture · " .. self:_chordLabel("Hyper", c.key, c.mods),
       { kind = "capture", name = c.action }, captureGlyphs[c.action] or "📸")
   end
-  add(keys.caffeinate.description, "System · " .. self:_chordLabel("Hyper", keys.caffeinate.key) .. self:_aliasHint(keys.caffeinate), { kind = "special", name = "caffeinate" }, "☕")
-  add(keys.vpn.description, "Network · " .. self:_chordLabel("Hyper", keys.vpn.key) .. self:_aliasHint(keys.vpn), { kind = "special", name = "vpn" }, "🌐")
+  add(keys.caffeinate.description, "System · " .. self:_chordLabel("Hyper", keys.caffeinate.key), { kind = "special", name = "caffeinate" }, keys.caffeinate.glyph)
+  add(keys.vpn.description, "Network · " .. self:_chordLabel("Hyper", keys.vpn.key), { kind = "special", name = "vpn" }, keys.vpn.glyph)
   add(keys.clipboardHistory.description, "Clipboard · " .. self:_chordLabel("Hyper", keys.clipboardHistory.key), { kind = "special", name = "clipboard" }, "📋")
   -- The two clipboard actions that are global combos rather than Hyper bindings, so their
   -- subtitle carries the whole chord and names no leader. They are listed here because a
@@ -282,7 +303,7 @@ function obj:_buildActionRows()
       { kind = "special", name = "pasteNext" }, "⏩", nil, "paste next sequential walk history")
   end
   if keys.browserTabs then
-    add(keys.browserTabs.description, "Tools · " .. self:_chordLabel("Hyper", keys.browserTabs.key) .. self:_aliasHint(keys.browserTabs), { kind = "special", name = "browserTabs" }, "📑")
+    add(keys.browserTabs.description, "Tools · " .. self:_chordLabel("Hyper", keys.browserTabs.key), { kind = "special", name = "browserTabs" }, keys.browserTabs.glyph)
   end
   -- Display profiles has no dedicated chord, it opens from here only, so its subtitle names
   -- what it does rather than a shortcut. The two display commands sit under a Displays
@@ -311,7 +332,16 @@ function obj:_buildActionRows()
   -- thing people type is find.
   if keys.fileSearch then
     add(keys.fileSearch.description, "Tools · " .. self:_chordLabel("Hyper", keys.fileSearch.key),
-      { kind = "special", name = "fileSearch" }, "🗂️", nil, "find files folders spotlight locate")
+      { kind = "special", name = "fileSearch" }, keys.fileSearch.glyph, nil, "find files folders spotlight locate")
+  end
+  -- The alias directory, which has no chord because it opens from here, and is also reached by
+  -- its own alias like the tools it lists. Its subtitle says what it holds rather than naming
+  -- the word that reaches it, since that word is appended by the same hint every other row
+  -- gets, so the row reads as one thing and the alias is stated once.
+  if keys.aliasDirectory then
+    add(keys.aliasDirectory.description, "Tools · every word that scopes this list",
+      { kind = "special", name = "aliasDirectory" }, keys.aliasDirectory.glyph, nil,
+      "alias aliases scope scopes shortcut words prefix")
   end
   add(keys.lock.description, "System · " .. self:_chordLabel("Hyper", keys.lock.key), { kind = "special", name = "lock" }, "🔒")
   add(keys.sleep.description, "System · " .. self:_chordLabel("Hyper", keys.sleep.key), { kind = "special", name = "sleep" }, "🌙")
@@ -456,6 +486,7 @@ end
 --- (a selection or an app activation) or a running-set change.
 function obj:_orderedRows()
   if self._orderedRowsCache then return self._orderedRowsCache end
+  self:_ensureStaticRows()
   local rank = {}
   for i, k in ipairs(self._mru or {}) do rank[k] = i end
   local rows = {}
@@ -697,7 +728,7 @@ function obj:stop()
   return self
 end
 
---- Launcher:show()
+--- Launcher:show(query)
 --- Method
 --- Open the launcher. The app that was frontmost is captured first, before the chooser takes
 --- focus, along with a counter marking this open. Both are the launcher's own business, since
@@ -705,10 +736,36 @@ end
 --- a source that acts on that app cannot read it for itself once the chooser is up, where the
 --- frontmost app is this one. The counter is what lets such a source cache per open, since a
 --- second open of the same app is still a fresh read.
-function obj:show()
+---
+--- An optional query opens the launcher with the field already filled, which is how something
+--- outside hands the list back with a word in it. It is plain text and the launcher attaches no
+--- meaning to it, so this is not a way to open one tool, it is the same open with typing already
+--- done. Three details are load bearing. It is set after the show, because showing clears the
+--- field. It is followed by a refresh, because setting a chooser's query does not fire the
+--- callback that rebuilds the rows, so without it the field would read one thing and the list
+--- would show another. And the refresh resets the highlight to the top, which is right for a
+--- list the user has not seen yet.
+function obj:show(query)
   self._openId = (self._openId or 0) + 1
-  self._coveredApp = hs.application.frontmostApplication()
-  if self._instance then self._instance:show() end
+  -- The app this launcher covers, which can never be this app. macOS answers with ourselves
+  -- when our own chooser already holds focus, which is what happens when one open follows
+  -- another closely enough that focus has not gone back yet, and the alias directory handing
+  -- the list back is exactly that case. Keeping the previous answer is then correct rather
+  -- than merely safe, because the app underneath never changed, while recording ourselves
+  -- would quietly hand a source that acts on the covered app the wrong app, which is how
+  -- menu search would come back listing Hammerspoon's own menus. This is the same self
+  -- exclusion _promote makes, for the same reason, and it hardens any two opens in quick
+  -- succession rather than only this one.
+  local front = hs.application.frontmostApplication()
+  if not (SELF_BUNDLE and front and front:bundleID() == SELF_BUNDLE) then
+    self._coveredApp = front
+  end
+  if not self._instance then return end
+  self._instance:show()
+  if query and query ~= "" then
+    self._instance:setQuery(query)
+    self._instance:refresh(true)
+  end
 end
 
 --- Launcher:coveredApp() -> hs.application, number

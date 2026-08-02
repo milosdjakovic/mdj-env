@@ -109,13 +109,83 @@ and stay out of the hints while the highlight sits on a row with nothing behind 
 peek opens can outlive the keystroke, so the launcher's close is where it is put away, composed in
 the root rather than known here.
 
-The alias hint on a tool's own row is the launcher's side of discoverability.
-`_aliasHint` reads the `aliases` field on the same `config/keys.lua` entry the
-scopes are built from, so the words a row advertises and the words the resolver
-answers are one piece of data and cannot drift, the same reason the chord label is
-derived rather than written. A tool with no aliases gains nothing, so the hint appears
-only where scoping is real. A scope over a group of rows has no single row to carry a
-hint, which is the gap the alias editor closes.
+The alias hint on a tool's own row is the launcher's side of discoverability, and it is
+one injected question rather than anything this spoon knows. `add` asks `aliasHint` about
+every command row it builds, passing the row's own descriptor name, and appends whatever
+comes back. So no call site here mentions aliases, giving a tool one takes no edit in this
+file, and the usual answer is empty. A tool with no aliases gains nothing, so the hint
+appears only where scoping is real.
+
+Asking per row rather than at each site is the whole point, because the version that was
+written out by hand had been forgotten on file search, which had an alias and advertised
+nothing. A hint a row can be left out of is a hint that will be.
+
+The question is asked by name, and the name is the tool's key in `config/keys.lua`, which
+is also what the row's descriptor carries and what the scope is registered under. One
+identity behind the row, the scope, and the hint, so there is nothing for three strings to
+disagree about. Only a `special` row is asked, since only a command row can be a tool, which
+also means a window action or a capture sharing a name with a scope cannot inherit a hint
+that was never about it.
+
+What the answer says is not decided here either. The launcher gets a fragment and appends
+it, so the wording lives in the composition root beside the other human text, and the
+resolver behind it hands out lists and knows nothing about how they read.
+
+A scope over a group of rows has no single row to carry a hint, which is what the alias
+directory answers. Applications, window actions, System Settings panes, and menu search are
+found there rather than on a row, and the directory reaches this launcher the same way
+anything else does, as a row and as a query scope.
+
+## An open may arrive with the field already filled
+
+`show` takes an optional query, which is the same open with typing already done. It attaches
+no meaning to the text, so this is not a way to open one tool, and whether that text happens
+to name a scope is between whoever passed it and the resolver.
+
+It exists because choosing a row closes a native chooser whatever produced the row, so a row
+whose whole purpose is to put a word in this field cannot do it to a list that is still open.
+Reopening is the mechanism rather than a workaround for one, and the alias directory is the
+consumer.
+
+Three things about it are load bearing and each one was a way to get it wrong. The query is
+set after the show, because showing clears the field. A refresh follows, because setting a
+chooser's query fires no callback, so without it the field would read one thing and the list
+would show another, which is the same trap recorded in the resolver's own notes. And the
+refresh resets the highlight, which is right for a list the user has not seen yet.
+
+No timer is needed here. Every row already runs deferred until the chooser has torn down, which
+is the same wait a reopen needs, so a reopen asked for by a row is late enough by the time it
+happens.
+
+What that wait does not guarantee is focus, and this is where the reopen had a real defect.
+An open records the app it covers by asking which app is frontmost, and after a round trip
+that answer came back as Hammerspoon, because our own chooser still held focus a tenth of a
+second after the previous one closed. Nothing looked wrong. The list was right, the field was
+right, and the only visible symptom would have been menu search reached through the directory
+listing Hammerspoon's own menus instead of the menus of the app you were in.
+
+So the covered app is never recorded as this app. When macOS answers with ourselves it is
+because our own window has focus, which means the previous answer is still the true one, since
+the app underneath did not change while we were in front of it. Keeping it is correct rather
+than merely safe. This is the same self exclusion the recency timeline already makes, for the
+same reason, and it hardens any two opens in quick succession rather than only this one.
+Verified live, reaching menu search through the directory lists the covered app's menus.
+
+## Static rows are built on first use, not at configure
+
+The command rows and the settings pane rows used to be built in `configure`, and they are now
+built on the first open and cached, joining the app scan that was already lazy there.
+
+The reason is not performance, it is that they ask questions of collaborators. The alias hint
+is answered by a resolver the root configures after this spoon, because that resolver adapts
+tools wired later, so a row built at configure time asks too early and prints nothing forever.
+Waiting also means a row states what is true now rather than what was true at load, which is
+what a hint has to be once the words behind it can change while Hammerspoon runs.
+
+The cost lands on the first open beside the app directory scan, which is far larger, and every
+open after it is served from the cache. So the rule for anything added to these rows is that it
+may ask a live question, and the rule for the root is that nothing needs reordering to make it
+answerable.
 
 ## A scope may narrow this catalog instead of reaching a tool, through two public methods
 

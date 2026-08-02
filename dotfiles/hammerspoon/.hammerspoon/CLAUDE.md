@@ -723,14 +723,25 @@ every list.
 **Back is the first row in a chooser menu.** For a menu style chooser with levels,
 like DisplayProfiles, the Back row is always the first row, not the last, so
 stepping out is the predictable default and the fresh highlight lands on it, and it
-is never hunted for at the bottom. Two related cases follow the same spirit rather
-than the letter. A confirm screen leads with the safe cancel, DisplayProfiles'
-delete leads with Keep, so the default and a stray Return do the harmless thing. A
+is never hunted for at the bottom. It reads Back and it carries the ⬅️ glyph, one
+label and one glyph across every menu here, so stepping out looks the same wherever
+it is met rather than each menu inventing its own way out. Two related cases follow
+the same spirit rather than the letter. A confirm screen leads with the safe cancel,
+DisplayProfiles' delete leads with Keep, so the default and a stray Return do the
+harmless thing. A
 single input screen, where the field is a text entry and Return must commit the
 typed value, leads with the confirm row instead, DisplayProfiles' rename and
 capture lead with Save so Return saves, with Back trailing. So the rule is Back
 first on a navigable menu, and the safe or committing action first where selecting
 the first row on entry is what the user means.
+
+A nested list that is a query scope rather than a level of a menu has no Back row at
+all, and that is not an exception to the rule but the case the rule is not needed for.
+Deleting the space that entered the scope is what steps out, so back is ordinary text
+editing with nothing to bind, nothing to draw, and nothing that can disagree with the
+field about where you are. The alias directory is that shape. When a nested thing can be
+entered by typing, prefer it, because a row is only worth adding where there is no text
+to delete.
 
 **One matching policy for every chooser.** How a query filters a list is a single
 policy, decided once at the root and shared by every chooser, the same Strategy
@@ -988,11 +999,26 @@ not shown at all, which is how a typed word hands the launcher over to one tool.
 plus a space scopes the list, so `k 2h` reaches the keep awake picker without leaving the
 launcher and deleting the space hands the list back. `QueryScope.spoon` is the source that
 claims, and it names no tool. This root names the concrete scopes, each a thin adapter over
-a tool that already answers a rows and a select, so a tool never learns it can be scoped
-and adding one is an entry here plus the `aliases` field on that tool's `config/keys.lua`
-entry. The aliases live in that pure data so the row advertising them and the resolver
+a tool that already answers a rows and a select, so a tool never learns it can be scoped.
+
+Adding one is two edits and there is no third. The `aliases` and `glyph` fields go on that
+tool's existing `config/keys.lua` entry, and one `scope(name, policy)` line goes in the list
+here, where the policy is only where the rows come from, what choosing one does, what
+previewing one does, and whether the shared matcher applies. Everything a scope says about
+itself is read from that one entry by that helper, and one identity ties it together, the
+tool's key in the pure data, which is also what its launcher row descriptor carries and what
+the scope is registered under. So the hint on its row, its place in the alias directory, and
+the text that enters it all follow from the two edits, and there is nowhere left to state a
+title, a glyph, or an alias a second time and have the two copies disagree. That identity is
+also why the keep awake scope is named `caffeinate` rather than `keepAwake`, since a scope
+this root cannot find by the tool's own name is a scope every derived surface has to be told
+about separately.
+
+The aliases live in that pure data so the row advertising them and the resolver
 answering them read one thing and cannot drift, the same reason a key is data rather than
-something each surface knows. Exposing the pair is the one change a scoped tool takes,
+something each surface knows. The `glyph` is there for the same reason and only where it
+earns it, a scoped tool being drawn both on its launcher row and on the rows its scope
+produces, while a row that appears in one list only keeps its glyph at that call site. Exposing the pair is the one change a scoped tool takes,
 `Caffeinate` exports the `rows` and `select` its own chooser was already built from, which
 hands out the data rather than inviting a second copy of the parse, so two surfaces cannot
 disagree about what a typed value means. Nothing here is a bound shortcut, so the mandates do
@@ -1001,15 +1027,42 @@ grammar, why no scope is remembered between keystrokes, and why a claim holds ev
 matched, live in `Spoons/QueryScope.spoon/CLAUDE.md`. Adding the spoon needed a restow, since
 `~/.hammerspoon/Spoons` holds one symlink per spoon.
 
-Nine scopes exist and they come in three shapes, which is the useful thing to know before
-adding one. Some are the plain shape above, a tool exporting its rows and its select, which is
-keep awake, VPN, emoji, browser tabs, and file search. Menu search is root policy rather than a
-spoon, so the root is both the adapter and the thing adapted. Apps, window actions and System Settings panes
+The scopes come in three shapes, which is the useful thing to know before adding one. Some are
+the plain shape above, a tool exporting its rows and its select, which is keep awake, VPN,
+emoji, browser tabs, and file search. Menu search and the alias directory are root policy
+rather than a spoon, so the root is both the adapter and the thing adapted. Apps, window
+actions and System Settings panes
 are neither, they narrow the launcher's own catalog, so they read `Launcher:rowsOfKind(kind)` and
 hand a chosen row back through `Launcher:runItem`, which keeps one row builder and one dispatcher
 however a row is reached. Those three scope a group of rows rather than one row, so like menu
-search they have nowhere to advertise an alias until the alias editor exists, and their
-`config/keys.lua` entries carry a description and an alias and no key because they open nothing.
+search they have no row of their own to advertise an alias on, and their `config/keys.lua`
+entries carry a description and an alias and no key because they open nothing. The alias
+directory is where they are found instead.
+
+**The alias directory, and the one door back into the launcher.** Every alias that scopes the
+launcher is listed in one place, reached by the Aliases launcher row and by `?` and a space, and
+choosing a row hands the launcher back with that tool's own word already typed. So a scope with
+no row of its own is still discoverable, and a word is learned by being handed it rather than by
+being told it.
+
+Three wiring facts about it are worth knowing here. It is a scope like the tools it lists rather
+than a second chooser, which is what makes Back ordinary text editing, deleting the space, and
+which is why it needs no context block, no predicate, no `choosers` entry, and no shortcut panel
+of its own. It is this root's policy over `QueryScope:catalog()` rather than something that spoon
+offers about itself, so the resolver still names no scope at all including its own, and its
+alias sits in `config/keys.lua` like every other rather than as a constant inside a spoon. And
+one function, `enterScope`, is the only way anything hands the launcher a word, used by the
+directory choosing a row and by the row that opens the directory, so what entering a scope means
+is decided once. It asks `QueryScope:queryFor(name)` for the text, so which alias is canonical
+and the separator after it stay with the grammar that owns them.
+
+How the aliases read is one closure here, `aliasHint` and `aliasLabel`, because both surfaces
+state them, the tool's launcher row and the directory's own rows, and phrasing it twice is how
+the same tool ends up reading two ways depending on where you met it. The launcher takes the
+question rather than the answer, asking per row as it builds, which is what made the hint
+impossible to forget on a row after it had already been forgotten on file search. Both are asked
+live, so they state the aliases that resolved rather than the ones config requested, which a
+collision can make different.
 
 File search is the first scope whose alias is punctuation, `/` then a space, which the grammar
 already allowed since its only rule is one word with no whitespace. It matches that tool's Hyper

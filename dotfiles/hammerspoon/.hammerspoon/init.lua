@@ -280,6 +280,16 @@ local menuSearchSurface
 -- below and the choosers registry can name it before it is built with the other
 -- native-panel choosers further down.
 local overlayDisplaySurface
+-- Hands the launcher back with a scope's own word already typed, forward-declared because the
+-- launcher's action dispatch names it well before the scopes it reads are assembled. It is the
+-- one door back into the launcher and both callers go through it, the alias directory choosing a
+-- row and the launcher row that opens the directory, so what entering a scope means is decided
+-- once. See its definition beside the scopes for why it is spelled the way it is.
+local enterScope
+-- The alias directory's own scope name, which is also its key in config/keys.lua and the name its
+-- launcher row carries, since that one identity is what ties a scope to its row to its hint. Named
+-- here because this root refers to it in both of those places and nowhere else should.
+local ALIAS_DIRECTORY = "aliasDirectory"
 local predicates = {
   multipleDisplays = function() return #hs.screen.allScreens() > 1 end,
   -- The launcher chooser is open. Gates the launcher Hyper context,
@@ -1141,6 +1151,26 @@ local launcherPanel = {
   end,
 }
 
+-- How a scope's aliases are worded, in one place, for both surfaces that state them. The
+-- launcher appends the hint to a tool's row and the alias directory shows the label as a row
+-- subtitle, so phrasing it once is what stops the same tool reading two ways depending on where
+-- you met it, and changing the wording everywhere is one edit here.
+--
+-- It lives in the root rather than in the spoon that holds the aliases, because human wording
+-- belongs to the composition root and to config by the rule the whole configuration follows.
+-- QueryScope answers with lists and knows nothing about parentheses. It is asked live rather
+-- than baked, so it states the aliases that actually resolved rather than the ones that were
+-- requested, which a collision can make different.
+local function aliasLabel(aliases)
+  if not aliases or #aliases == 0 then return "" end
+  return "(" .. table.concat(aliases, ", ") .. ")"
+end
+local function aliasHint(name)
+  local label = aliasLabel(spoon.QueryScope:aliasesOf(name))
+  if label == "" then return "" end
+  return " " .. label
+end
+
 spoon.Launcher:init()
 spoon.Launcher:configure({
   chooser = spoon.Chooser,
@@ -1155,6 +1185,7 @@ spoon.Launcher:configure({
   predicates = predicates,
   shortcutPanel = launcherPanel,
   queryProviders = queryProviders,
+  aliasHint = aliasHint,
   actions = {
     -- Where a computed result goes. A plain pasteboard write on purpose, so the result
     -- lands in clipboard history like any other copy and can be pasted again later,
@@ -1199,6 +1230,10 @@ spoon.Launcher:configure({
       browserTabs = function() spoon.BrowserTabs:show() end,
       processes = function() spoon.Processes.chooser.show() end,
       fileSearch = function() spoon.FileSearch.chooser.show() end,
+      -- The directory is a scope like the tools it lists, so opening it from a row means
+      -- entering that scope rather than showing anything of its own. One mechanism, so the row
+      -- and the word `?` land in the same place and neither can drift from the other.
+      [ALIAS_DIRECTORY] = function() enterScope(ALIAS_DIRECTORY) end,
     },
   },
 })
@@ -1704,8 +1739,10 @@ spoon.HyperKey:bind(keys.fileSearch.key, function() spoon.FileSearch.chooser.sho
 -- Query scopes. A word plus a space hands the launcher's whole list to one tool, so `k 2h`
 -- reaches the keep awake picker without leaving the launcher and deleting the space hands the
 -- list back. This is the one place the concrete scopes are named. The spoon names none, so
--- adding a scope is an entry below plus the `aliases` field on that tool's `config/keys.lua`
--- entry, with no change to the spoon and none to the launcher.
+-- adding a scope is two things and no more, the `aliases` and `glyph` fields on that tool's
+-- existing `config/keys.lua` entry, and one `scope(...)` line below. The hint on the tool's
+-- launcher row, its place in the alias directory, and the text that enters it all follow from
+-- those, with no change to the spoon, none to the launcher, and none to any other surface.
 --
 -- It sits this late because every tool it adapts has to be wired first. Not for the closures,
 -- which run at keystroke time, but because the emoji scope asks its facade a question now, and
@@ -1713,9 +1750,9 @@ spoon.HyperKey:bind(keys.fileSearch.key, function() spoon.FileSearch.chooser.sho
 --
 -- Each scope is a thin adapter over something that already answers a rows and a select, which
 -- is what keeps the thing behind it ignorant of being scoped. Most are a spoon exporting that
--- pair and nothing more. Menu search is root policy rather than a spoon, so its pair is the one
--- defined above. The last two are narrowings of the launcher's own catalog and so reach back
--- into the launcher rather than out to a tool.
+-- pair and nothing more. Menu search and the alias directory are root policy rather than a
+-- spoon, so their pair is defined here. Three of them are narrowings of the launcher's own
+-- catalog and so reach back into the launcher rather than out to a tool.
 --
 -- The matcher is the one every list chooser uses, so a list shaped scope filters exactly like
 -- the rest of them. A scope opts out when it owns its query, either because the field is a value
@@ -1723,37 +1760,52 @@ spoon.HyperKey:bind(keys.fileSearch.key, function() spoon.FileSearch.chooser.sho
 -- shared matcher cannot see. Both reasons are the tool's own, and in each case its own chooser
 -- opts out for the same one.
 
--- The two scopes that narrow the launcher's own catalog rather than reaching a tool. Both read
--- the launcher's built rows of one kind and hand a chosen row straight back to it, so a narrowed
--- list can never disagree with the whole list about what a row says or what choosing it does.
--- They have no chooser and open nothing, which is why their `config/keys.lua` entries carry an
--- alias and a description and no key.
-local function launcherCatalogScope(name, glyph, kind)
+-- One descriptor per scope, built from one identity. The name is the tool's own key in
+-- `config/keys.lua`, which is also the name its launcher row carries, so a scope, that row, and
+-- the hint on it are one thing rather than three strings that have to be kept in agreement.
+-- Everything a scope says about itself, its title, its glyph, and its aliases, is read from that
+-- entry, and what is passed here is only what is genuinely this root's to decide, where the rows
+-- come from, what choosing one does, what previewing one does, and whether the shared matcher
+-- applies.
+--
+-- So a scope is a name plus its policy, and describing a scoped tool twice, once in config and
+-- once here, is no longer possible. Renaming the keep awake scope from `keepAwake` to
+-- `caffeinate` is what completed that, since it was the only scope whose name did not match its
+-- entry and therefore the only one this could not have found by name. A scope name only ever
+-- travels inside a live row descriptor and nothing persists it, so the rename cost nothing.
+local function scope(name, opts)
+  local binding = keys[name] or {}
   return {
     name = name,
-    title = keys[name].description,
-    glyph = glyph,
-    aliases = keys[name].aliases,
-    rows = function() return spoon.Launcher:rowsOfKind(kind) end,
-    run = function(payload) spoon.Launcher:runItem(payload) end,
+    title = binding.description,
+    glyph = binding.glyph,
+    aliases = binding.aliases,
+    matcher = opts.matcher,
+    rows = opts.rows,
+    run = opts.run,
+    peek = opts.peek,
   }
 end
 
+-- The scopes that narrow the launcher's own catalog rather than reaching a tool. Each reads the
+-- launcher's built rows of one kind and hands a chosen row straight back to it, so a narrowed
+-- list can never disagree with the whole list about what a row says or what choosing it does.
+-- They have no chooser and open nothing, which is why their `config/keys.lua` entries carry an
+-- alias and a description and no key.
+local function launcherCatalogScope(name, kind)
+  return scope(name, {
+    rows = function() return spoon.Launcher:rowsOfKind(kind) end,
+    run = function(payload) spoon.Launcher:runItem(payload) end,
+  })
+end
+
 local queryScopes = {
-  {
-    name = "keepAwake",
-    title = keys.caffeinate.description,
-    glyph = "☕",
-    aliases = keys.caffeinate.aliases,
+  scope("caffeinate", {
     matcher = false,
     rows = function(rest) return spoon.Caffeinate.rows(rest) end,
     run = function(payload) spoon.Caffeinate.select(payload) end,
-  },
-  {
-    name = "vpn",
-    title = keys.vpn.description,
-    glyph = "🌐",
-    aliases = keys.vpn.aliases,
+  }),
+  scope("vpn", {
     -- The relay list arrives from a process, so entering the scope asks for a fresh one and
     -- the launcher redraws when it lands, the same shape the conversion source uses for its
     -- late answer. The ask is repeated only on entry, where the rest of the query is still
@@ -1775,20 +1827,12 @@ local queryScopes = {
       return out
     end,
     run = function(payload) spoon.Vpn.select(payload) end,
-  },
-  {
-    name = "menuSearch",
-    title = keys.menuSearch.description,
-    glyph = "📋",
-    aliases = keys.menuSearch.aliases,
+  }),
+  scope("menuSearch", {
     rows = scopeMenuRows,
     run = scopeMenuRun,
-  },
-  {
-    name = "browserTabs",
-    title = keys.browserTabs.description,
-    glyph = "📑",
-    aliases = keys.browserTabs.aliases,
+  }),
+  scope("browserTabs", {
     -- The tool scores its own tab rows, so the shared matcher is stood down here exactly as it
     -- is in the tool's own chooser.
     matcher = false,
@@ -1810,12 +1854,8 @@ local queryScopes = {
       return out
     end,
     run = function(payload) spoon.BrowserTabs.chooser.activate(payload) end,
-  },
-  {
-    name = "fileSearch",
-    title = keys.fileSearch.description,
-    glyph = "🔍",
-    aliases = keys.fileSearch.aliases,
+  }),
+  scope("fileSearch", {
     -- The engine owns both the ordering and the query grammar, so the shared matcher is stood
     -- down for the reason the tool's own chooser stands it down. Sigils, a type token and a
     -- scope are not a filter over a list, and a second pass would fight the ranking and hide the
@@ -1844,28 +1884,83 @@ local queryScopes = {
     -- from a line of text, so the preview comes along rather than being a reason to leave for the
     -- real picker. The tool's own verb again, so a file is previewed here exactly as it is there.
     peek = function(payload) spoon.FileSearch.chooser.peekRow(payload) end,
-  },
-  launcherCatalogScope("apps", "🚀", "app"),
-  launcherCatalogScope("windowActions", "🪟", "window"),
-  launcherCatalogScope("settingsPanes", "⚙️", "settingsPane"),
+  }),
+  launcherCatalogScope("apps", "app"),
+  launcherCatalogScope("windowActions", "window"),
+  launcherCatalogScope("settingsPanes", "settingsPane"),
 }
 
 -- Emoji scopes only when the backend that won owns its own list. The system Character Viewer
 -- has no rows to hand over, so with that one fronted the alias resolves to nothing and an
 -- ordinary search is unaffected, which is better than a scope that opens onto an empty list.
 if spoon.Emoji:lists() then
-  queryScopes[#queryScopes + 1] = {
-    name = "emoji",
-    title = keys.emoji.description,
-    glyph = "😀",
-    aliases = keys.emoji.aliases,
+  queryScopes[#queryScopes + 1] = scope("emoji", {
     -- The backend matches over a hidden haystack of names, shortcodes, tags and categories and
     -- caps what it returns, so the shared matcher is stood down for the reason its own chooser
     -- stands it down, it would drop a glyph matched only by a tag.
     matcher = false,
     rows = function(rest) return spoon.Emoji:rows(rest) end,
     run = function(glyph) spoon.Emoji:insert(glyph) end,
-  }
+  })
+end
+
+-- The alias directory, the scope that lists the other scopes. It is this root's own policy over
+-- the resolver's catalog rather than something the spoon offers about itself, which is the same
+-- shape menu search already has, a scope with no spoon behind it, and it is what keeps the
+-- resolver naming no scope at all including its own.
+--
+-- It answers what a list of aliases is otherwise bad at, being remembered. A tool with a launcher
+-- row states its own words on that row, but a scope over a group of rows has no row to state them
+-- on, so applications, window actions, System Settings panes, and menu search were reachable and
+-- advertised nowhere. They are all here.
+--
+-- Rows come from the catalog, which reports only what actually resolves, so a refused alias is
+-- absent rather than listed and dead. Alphabetical by title because this is a reference list
+-- being scanned rather than a list of work in some natural order, and the shared matcher takes
+-- over the moment anything is typed. It leaves itself out, since a row telling you about `?`
+-- while you are looking at what `?` opened is the one row here that teaches nothing.
+--
+-- Choosing a row does not run a tool, it types for you. That is the whole point, the word goes
+-- into the field so the next thing you type is the tool's own query, and you have learned the
+-- word by using it rather than by reading it.
+queryScopes[#queryScopes + 1] = scope(ALIAS_DIRECTORY, {
+  rows = function()
+    local out = {}
+    for _, entry in ipairs(spoon.QueryScope:catalog()) do
+      if entry.name ~= ALIAS_DIRECTORY then
+        out[#out + 1] = {
+          title = entry.title,
+          subTitle = aliasLabel(entry.aliases),
+          glyph = entry.glyph,
+          item = entry.name,
+        }
+      end
+    end
+    table.sort(out, function(a, b) return a.title < b.title end)
+    return out
+  end,
+  run = function(name) enterScope(name) end,
+})
+
+-- Hand the launcher back with a scope's word already in the field. Choosing a row closes a native
+-- chooser whatever produced the row, so there is no handing text to a list that is still open, and
+-- reopening is the mechanism rather than a workaround for one.
+--
+-- Which word is not decided here. The resolver is asked for the query that enters this scope, so
+-- the canonical alias and the space after it are its business, and this stays true when an alias
+-- changes without anything here being touched. No answer means the scope has nothing live to enter
+-- by, which is a defect worth a line rather than a seeded query that would claim nothing.
+--
+-- It needs no timer of its own. Every launcher row already runs deferred until the chooser has
+-- torn down and focus has gone back to the app underneath, which is the same wait a reopen needs,
+-- so this runs late enough by the time it runs at all.
+enterScope = function(name)
+  local query = spoon.QueryScope:queryFor(name)
+  if not query then
+    log.i("no live alias for the " .. tostring(name) .. " scope, so there is nothing to enter")
+    return
+  end
+  spoon.Launcher:show(query)
 end
 
 spoon.QueryScope:configure({

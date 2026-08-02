@@ -167,6 +167,45 @@ defaults with the stored overrides and hands a resolved alias map to an engine t
 knows nothing about where a map came from. Splitting before that would be a file with
 one caller.
 
+## Three questions about the live map, and no state behind any of them
+
+`aliasesOf` reports one scope's live aliases, `catalog` reports every scope that can be
+entered at all, and `queryFor` reports the text that enters one. All three are derivations
+over the map `configure` already built, so none of them adds state, a file, or a lifecycle.
+
+They exist because a surface that lists the aliases has to state what resolves rather than
+what was asked for, and this is the only layer that knows the difference. Reading the config
+the root built the scopes from would advertise an alias a collision refused, which is the
+drift the derived hint was written to prevent, one layer further along.
+
+`queryFor` also keeps the separator in here. It answers `"t "` and not `"t"`, so no caller
+appends its own space and forms a second opinion about what entering a scope looks like. And
+it decides that the first alias is the canonical one, first meaning the order they were
+written in filtered to the ones that survived, so the short word written first is the one a
+caller gets and that judgement is not made at each call site.
+
+All three hand back data and no wording. How a list of aliases reads is the business of
+whoever shows it, per the rule that human text lives in config and in the composition root,
+so there is no formatter here and there should not be one.
+
+## The directory is not a scope this spoon names
+
+The list of every alias is a scope like any other, built in the composition root from
+`catalog`, and it is deliberately not something this spoon offers about itself.
+
+The tempting version was a built in reflexive scope, since the spoon holds the data and a
+directory of its own grammar is arguably its own business, the way the separator is. It was
+not taken, because the sentence above about naming no scope is worth more than the convenience.
+Naming none at all is a rule with no judgement in it. Naming exactly one, itself, is a rule
+that has to be argued each time something else looks reflexive enough to qualify.
+
+Root policy costs nothing to reach that way. The contract asks for two functions and never
+asks where they came from, which is already how menu search works with no spoon behind it, so
+a directory built from a public method is the same shape. Its alias then lives in
+`config/keys.lua` beside every other alias rather than as a constant in here, so it is changed
+the same way and a tool that ever wants `?` collides with it loudly instead of quietly losing
+to a built in.
+
 ## Where the aliases live, and why not here
 
 In `config/keys.lua`, on the same entry that already holds the tool's key and
@@ -175,9 +214,12 @@ one piece of data, so the hint and the behaviour cannot drift, which is the same
 reason the chord label on a row is derived rather than written. A tool with no
 `aliases` field is simply not scopable, so nothing is switched on by accident.
 
-When the editor arrives the stored choice takes precedence and the config entry
-becomes the fresh machine seed, which is how the overlay display policy already
-works.
+The directory reads them and does not write them, so config is still the only source.
+When editing arrives the stored choice takes precedence and the config entry becomes
+the fresh machine seed, which is how the overlay display policy already works, and
+that is also the change that earns this spoon the file split described below. Reading
+first was deliberate. Seeing the words and being handed one is most of the value, and
+it needs no store at all.
 
 ## Validation is loud, and order decides a collision
 
@@ -206,7 +248,9 @@ conclusion, so they are written down rather than rediscovered.
 so a seeded query leaves the rows as they were until something refreshes. A seeded
 query therefore looks like a claim that did nothing. This one matters beyond testing,
 because a handoff scope that opens a tool seeded with the rest of the query has to
-refresh after seeding or the tool opens on an unfiltered list.
+refresh after seeding or the tool opens on an unfiltered list. That prediction came
+true, in the launcher's seeded open, which is what `queryFor` feeds and which refreshes
+for exactly this reason.
 
 Calling the launcher's `show` bumps the open id, which is exactly what invalidates a
 scope's per open cache. So a test that shows, seeds, and selects in one breath selects

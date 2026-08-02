@@ -128,12 +128,18 @@ return {
   -- live here, beside the key, because the row that advertises them and the resolver that
   -- answers them both read this one entry, the same reason the key itself is data rather
   -- than something each surface knows. An entry with no aliases is simply not scopable.
-  caffeinate = { modifiers = HYPER, key = "K", description = "Keep awake", aliases = { "k", "awake" } },
+  --
+  -- `glyph` is here for the same reason and only where it earns it. A tool that is scoped is
+  -- drawn twice, once on its launcher row and once on the rows its scope produces, so the
+  -- glyph is stated here where both read it rather than written out in each place and left to
+  -- drift. A row that only ever appears in one list keeps its glyph at that one call site,
+  -- since moving it here would relocate it without removing a copy.
+  caffeinate = { modifiers = HYPER, key = "K", description = "Keep awake", glyph = "☕", aliases = { "k", "awake" } },
 
   -- VPN controls (for Vpn.spoon). Same shape again. Hyper+P opens the VPN control
   -- panel, a short list of actions with the live connection state at the top. It is
   -- a base binding, suppressed while a modal context owns Hyper.
-  vpn = { modifiers = HYPER, key = "P", description = "VPN", aliases = { "v", "vpn" } },
+  vpn = { modifiers = HYPER, key = "P", description = "VPN", glyph = "🌐", aliases = { "v", "vpn" } },
 
   -- Colour picker (for Eyedropper.spoon). Hyper+2 turns the pointer into a screen
   -- eyedropper with a magnifier loupe, a click copies the pixel hex. It is not a
@@ -502,9 +508,9 @@ return {
   -- It also has its own hyperContext above, so while open it takes the shared
   -- j/k/i navigation and Space closes it. There is no HYPER fallback combo, since
   -- it has no meaning without HyperKey wired up (the menu tree is fetched live).
-  -- Menu search is a discovery opener, so it is the one scopable tool with no launcher row
-  -- of its own, which leaves its aliases advertised nowhere until the alias editor exists.
-  menuSearch = { modifiers = HYPER, key = "e", description = "Menu search", aliases = { "m", "menu" } },
+  -- Menu search is a discovery opener, so it is the one scopable tool with no launcher row of
+  -- its own, and its aliases are advertised in the alias directory rather than on a row.
+  menuSearch = { modifiers = HYPER, key = "e", description = "Menu search", glyph = "📋", aliases = { "m", "menu" } },
 
   -- Emoji picker (for Emoji.spoon, wired in init.lua). Hyper+J opens a filterable
   -- list of every emoji, matched by name, shortcode, tag, or category, so a keyword
@@ -513,7 +519,7 @@ return {
   -- field as the fallback combo. It has its own hyperContext above, so while open it
   -- takes the shared j and k navigation and i inserts, and x closes it the way menu
   -- search does, since the open key j is itself the move down key inside.
-  emoji = { modifiers = HYPER, key = "j", description = "Emoji picker", aliases = { "e", "emoji" } },
+  emoji = { modifiers = HYPER, key = "j", description = "Emoji picker", glyph = "😀", aliases = { "e", "emoji" } },
 
   -- External menu search combo. When Hyper+E is set to hand off (see init.lua) it
   -- fires this combo, and whatever tool you bind the SAME combo to anywhere opens.
@@ -551,7 +557,7 @@ return {
   --
   -- Scoped, it lists the tabs alone. The settings row is a step into a second level, which a
   -- scope has no way to show, so reaching the browser switches means opening the tool itself.
-  browserTabs = { modifiers = HYPER, key = "W", description = "Browser tabs", aliases = { "t", "tabs" } },
+  browserTabs = { modifiers = HYPER, key = "W", description = "Browser tabs", glyph = "📑", aliases = { "t", "tabs" } },
 
   -- File search (for FileSearch.spoon, wired in init.lua). Hyper+/ searches the filesystem by
   -- name, optionally filtered by type, scoped to a folder, and optionally reaching the files
@@ -565,7 +571,7 @@ return {
   -- The alias is the same character as the key, which is the point. One thing to remember, and
   -- a slash reads as a path everywhere else too. Only one word, since `file` would claim every
   -- launcher query beginning with that word and a space.
-  fileSearch = { modifiers = HYPER, key = "/", description = "File search", aliases = { "/" } },
+  fileSearch = { modifiers = HYPER, key = "/", description = "File search", glyph = "🗂️", aliases = { "/" } },
 
   -- Processes (for Processes.spoon, wired in init.lua). Finds the development servers you
   -- left running, identified by the port they hold and the project they run in, and stops
@@ -585,11 +591,26 @@ return {
   -- one kind of row the launcher already holds, so they open nothing and have no key and no
   -- chooser. They exist here only because this is where an alias lives, and their description
   -- names what the scoped list is rather than a tool. Each is a group of rows rather than one
-  -- row, so like menu search they have nowhere to advertise their aliases until the alias
-  -- editor exists.
-  apps = { description = "Applications", aliases = { "a", "app" } },
-  windowActions = { description = "Window actions", aliases = { "w", "window" } },
-  settingsPanes = { description = "System Settings", aliases = { "s", "system" } },
+  -- row, so like menu search they have no row of their own to advertise on and are found in the
+  -- alias directory instead.
+  apps = { description = "Applications", glyph = "🚀", aliases = { "a", "app" } },
+  windowActions = { description = "Window actions", glyph = "🪟", aliases = { "w", "window" } },
+  settingsPanes = { description = "System Settings", glyph = "⚙️", aliases = { "s", "system" } },
+
+  -- The alias directory, which lists every alias that scopes the launcher and hands the list
+  -- to whichever one is chosen. It is the answer to a scoped tool having nowhere to advertise
+  -- itself, so the three entries above and menu search are found here, and it is how the words
+  -- are remembered rather than memorised.
+  --
+  -- It is reached both ways on purpose. The launcher row is how it is found without knowing any
+  -- alias, which is the state anyone is in the first time, and `?` is how it is reached once the
+  -- habit exists. A question mark reads as help everywhere and claims no query on its own, since
+  -- an alias only means anything with a space after it.
+  --
+  -- Its alias sits here like every other rather than being a constant inside the spoon, so it
+  -- is changed the same way, and a tool that ever wants `?` collides with it loudly in the
+  -- console instead of quietly losing to it.
+  aliasDirectory = { description = "Aliases", glyph = "🏷️", aliases = { "?" } },
 
   -- Feature toggles
   toggleDock = { modifiers = CTRL_ALT, key = "D" },
