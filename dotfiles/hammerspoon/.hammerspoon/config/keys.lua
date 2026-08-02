@@ -233,6 +233,9 @@ return {
       when = "launcherOpen",
       priority = 100,
       bindings = {
+        -- The composition root relabels this to "Type the word" while the highlight sits on a row
+        -- that retypes the field instead of running something, which is any row of the alias
+        -- directory. Run is what it is called on every other row, which is nearly all of them.
         { key = "i",     action = "insertSelected", description = "Run" },
         { key = "j",     action = "selectNext",     description = "Move down" },
         { key = "k",     action = "selectPrev",     description = "Move up" },

@@ -661,6 +661,16 @@ function obj:_redirectQuery(it)
   return ask and ask(it) or nil
 end
 
+--- Launcher:canRedirectSelected() -> bool
+--- Method
+--- Whether the highlighted row would retype the field rather than run something. Asked by whoever
+--- prints what the primary key does, so the word shown matches what pressing it will do, which is
+--- the same live question `canPeekSelected` answers about a key existing at all.
+function obj:canRedirectSelected()
+  local it = self._instance and self._instance:selectedItem()
+  return self:_redirectQuery(it) ~= nil
+end
+
 --- Launcher:refresh()
 --- Method
 --- Rebuild the list for the current query, keeping the highlight. A query source whose
