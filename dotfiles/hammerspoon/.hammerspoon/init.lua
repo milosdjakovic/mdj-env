@@ -444,8 +444,23 @@ local function bindingActive(b)
   return test() and true or false
 end
 
+-- A hint whose WORD depends on what the highlight is sitting on, keyed by action and asked live.
+-- The gates above decide whether a key is listed, and this decides what it is called, which is the
+-- other way a printed key can disagree with itself. The launcher's primary key runs a row almost
+-- always and retypes the field on a row that is a signpost, the alias directory being the case, so
+-- reading Run while it types a word is exactly the drift the two discoverability mandates forbid.
+-- Returning nil means the binding's own description stands, which is the usual answer.
+local liveHintLabels = {
+  insertSelected = function(context)
+    if context == "launcher" and spoon.Launcher:canRedirectSelected() then
+      return "Type the word"
+    end
+    return nil
+  end,
+}
+
 --- The hints for one context, ANSWERED FRESH EACH TIME rather than built once, since one of the
---- two gates above changes while the list is open.
+--- two gates above changes while the list is open, and so does the word on the primary key.
 local function footerFor(name)
   local hints = {}
   for _, ctx in ipairs(keys.hyperContexts or {}) do
@@ -463,7 +478,9 @@ local function footerFor(name)
         elseif b.action == "selectPrev" then
           badges = { chord, spoon.CheatSheet.glyphFor("up") }
         end
-        hints[#hints + 1] = { badges = badges, label = b.description or b.action, action = b.action }
+        local live = liveHintLabels[b.action]
+        local label = (live and live(name)) or b.description or b.action
+        hints[#hints + 1] = { badges = badges, label = label, action = b.action }
         end
       end
     end
