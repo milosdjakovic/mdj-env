@@ -58,21 +58,6 @@ function run(argv) {
 }
 ]==]
 
--- The selected tab of the frontmost window, for the recency observer. One tab, not a
--- listing, since it runs on every focus change and tab switch.
-local ACTIVE = [==[
-function run(argv) {
-  const app = Application(argv[0]);
-  if (!app.running()) return "{}";
-  const wins = app.windows;
-  if (wins.length === 0) return "{}";
-  try {
-    const t = wins[0].currentTab();
-    return JSON.stringify({ title: t.name(), url: t.url() });
-  } catch (e) { return "{}"; }
-}
-]==]
-
 -- Select a tab and bring its window forward. The window is addressed by id through the shared
 -- `windowById`, never by its position, for the reason recorded in jxa.lua, that both of the
 -- writes below reorder the window list and a positional specifier would then be pointing at
@@ -132,14 +117,6 @@ end
 
 function P.listTabs(cb)
   jxa.run(LIST, { BUNDLE_ID }, cb)
-end
-
-function P.activeTab(cb)
-  jxa.run(ACTIVE, { BUNDLE_ID }, function(data, err)
-    if err then cb(nil, err) return end
-    if type(data) ~= "table" or not data.url then cb(nil) return end
-    cb({ title = data.title, url = data.url })
-  end)
 end
 
 function P.activate(tab, cb)

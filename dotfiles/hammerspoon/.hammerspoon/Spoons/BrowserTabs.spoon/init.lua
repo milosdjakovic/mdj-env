@@ -1,15 +1,15 @@
 --- === BrowserTabs ===
 ---
---- Every open tab across every browser in one list, most recently looked at first, each row
---- carrying its browser's icon. Choosing a tab selects it in its window and brings that
---- browser to the front. The last row opens settings, where each browser is switched on or
+--- Every open tab across every browser in one list, the ones you have opened through this tool
+--- first, each row carrying its browser's icon. Choosing a tab selects it in its window and brings
+--- that browser to the front. The last row opens settings, where each browser is switched on or
 --- off and shows whether it is installed, open, and allowed to be scripted.
 ---
 --- This file is the spoon composition root and the ordering policy, nothing else. It loads
 --- the pieces, exposes the providers so the main root can name the concrete browsers, owns
 --- which browsers are switched on, and assembles the one api the surface talks through.
 --- `engine.lua` is the mechanism, `contract.lua` is the provider spec, `recency.lua` is the
---- observed order, `permissions.lua` reads and asks for the Apple Events grant, `chooser.lua`
+--- remembered order, `permissions.lua` reads and asks for the Apple Events grant, `chooser.lua`
 --- is the surface, and `providers/` holds one file per browser.
 ---
 --- It names no browser itself. The main root picks which providers exist and which are on by
@@ -17,9 +17,12 @@
 --- provider is a factory rather than a module because Chrome, Brave, Edge, Vivaldi and Opera
 --- share one dictionary, so which application is a parameter the root supplies.
 ---
---- Ordering lives here because it is policy, not mechanism. The engine merges and knows
---- nothing about order, and `recency.lua` knows only what was looked at. What is left is the
---- resting order of tabs never seen, decided below.
+--- Ordering lives here because it is policy, not mechanism. The engine merges and knows nothing
+--- about order, and `recency.lua` knows only what this tool has opened. What is left is where
+--- everything else rests and where the tab you are on belongs, both decided below. Not one term
+--- of it reads the world, so the order is the same at any moment and changes only when you open
+--- a tab through the tool. That is deliberate and the reasoning is in the CLAUDE.md beside this
+--- file.
 
 local obj = {}
 obj.__index = obj
@@ -93,43 +96,47 @@ function obj:setEnabled(bundleID, on)
 end
 
 --------------------------------------------------------------------------------
--- Resting order for tabs never seen
+-- The order the tabs are shown in
 --------------------------------------------------------------------------------
 
--- A tab nobody has looked at since Hammerspoon started has no recorded recency, so it needs
--- a sensible resting place. The closest honest proxy is depth on screen: the browser whose
--- window is furthest forward first, then that browser's windows front to back, then the
--- selected tab of each window ahead of the rest, then left to right. It is front to back
--- order and not recency, which is why it only ever decides the tail of the list, below
--- everything actually observed.
-local function frontToBackRank()
-  local rank, next_ = {}, 1
-  for _, win in ipairs(hs.window.orderedWindows()) do
-    local app = win:application()
-    local id = app and app:bundleID()
-    if id and rank[id] == nil then
-      rank[id] = next_
-      next_ = next_ + 1
-    end
-  end
-  return rank
+-- Where a tab rests when this tool has never opened it. Each browser in the order the main root
+-- named them, then that browser's windows oldest first, then each window's own tabs, which is the
+-- order you already see along its tab bar. Every term in it is fixed until a window or a tab is
+-- opened, closed or dragged, so it never moves on its own, and that is the whole point of it.
+--
+-- It used to be depth on screen, the browser furthest forward first, its windows front to back,
+-- and each window's showing tab lifted above the rest. That reads as sensible and behaves badly.
+-- Every term in it is something the browser decides rather than something you asked this tool
+-- for, so switching a tab or clicking a window rearranged the list, and the rearranging is what
+-- made the tool feel unpredictable. It also cost a walk of every window on screen, measured
+-- between 34 and 59 milliseconds, on the one path where the list is waiting to appear.
+--
+-- A window is placed by its id and never by its position in the listing. `windowIndex` reads like
+-- an identity and is not one, it is the window's place in the browser's own window list, which
+-- both Safari and Chromium keep in front to back order. Raising one Safari window was measured
+-- changing the index of all three, with nothing opened and nothing closed, so ordering on it was
+-- depth wearing another name and moved the list for the same reason the old order did. The id is
+-- fixed for the life of a window, which is already why activation addresses windows by it, so
+-- ordering on it gives each browser's windows a place that only a window opening or closing can
+-- change. Which window then leads is its creation order, since both browsers hand out ascending
+-- ids, and that is as good a resting place as any given no browser offers a window order of its
+-- own that a person would recognise.
+local function windowBefore(a, b)
+  local na, nb = tonumber(a), tonumber(b)
+  if na and nb then return na < nb end
+  return a < b
 end
 
-local function byDepth(tabs)
-  local rank = frontToBackRank()
+local function restingOrder(tabs, browserRank)
   local arrival = {}
   for i, t in ipairs(tabs) do arrival[t] = i end
-  local function key(t)
-    -- A browser with no window on screen sorts after every browser that has one.
-    return rank[t.bundleID] or math.huge
-  end
   table.sort(tabs, function(a, b)
-    local ka, kb = key(a), key(b)
-    if ka ~= kb then return ka < kb end
-    if (a.windowIndex or 0) ~= (b.windowIndex or 0) then
-      return (a.windowIndex or 0) < (b.windowIndex or 0)
-    end
-    if (a.active == true) ~= (b.active == true) then return a.active == true end
+    -- A browser the root never named sorts after every one it did.
+    local ra = browserRank[a.bundleID] or math.huge
+    local rb = browserRank[b.bundleID] or math.huge
+    if ra ~= rb then return ra < rb end
+    local wa, wb = a.windowID or "", b.windowID or ""
+    if wa ~= wb then return windowBefore(wa, wb) end
     if (a.tabIndex or 0) ~= (b.tabIndex or 0) then
       return (a.tabIndex or 0) < (b.tabIndex or 0)
     end
@@ -184,7 +191,21 @@ function obj:configure(opts)
     -- where that choice is kept.
     enabled = function(p) return this:isEnabled(p.bundleID) end,
   })
-  self.recency.configure({ engine = self.engine, settingsKey = opts.recencyKey })
+  self.recency.configure({ settingsKey = opts.recencyKey })
+
+  -- Where each browser sits relative to the others, taken once from the order the main root named
+  -- them in, since that is fixed for the life of the config and asking per listing would only be
+  -- rebuilding the same table.
+  local browserRank = {}
+  for i, p in ipairs(ok) do browserRank[p.bundleID] = i end
+
+  -- The whole ordering policy, in one place. The tab this tool opened last leads and pushes the
+  -- rest down, then the ones before it in the order it opened them, then everything else in its
+  -- resting place. Nothing in it reads the world, so it gives the same answer at any moment and
+  -- costs nothing to apply.
+  local function ordered(list)
+    return this.recency.order(restingOrder(list or {}, browserRank))
+  end
 
   -- The one api the surface talks through, so the chooser reaches the engine, the recency
   -- memory and the permission probe while naming none of them. This is the seam that keeps
@@ -194,23 +215,28 @@ function obj:configure(opts)
       status = function() return this.engine.status() end,
       isEnabled = function(bundleID) return this:isEnabled(bundleID) end,
       setEnabled = function(bundleID, on) this:setEnabled(bundleID, on) end,
-      -- The full read: merge across the live browsers, settle the tabs nobody has looked at
-      -- into front to back order, then lift everything observed above them in recency order.
+      -- The full read, merged across the live browsers and put in order.
       listTabs = function(cb)
-        this.engine.listTabs(function(tabs, errors)
-          cb(this.recency.order(byDepth(tabs or {})), errors)
-        end)
+        this.engine.listTabs(function(tabs, errors) cb(ordered(tabs), errors) end)
       end,
-      -- Where a tab sits in the remembered order, or nil for one nobody has looked at. Recency
-      -- decides two things and the untyped order above is only the first, the second being a
-      -- small reordering among tabs that matched a typed query alike, which the surface can only
-      -- do a tab at a time. What it reads here is mostly the nil, since a tab that was never
-      -- observed must earn nothing, and it counts positions among the tabs it was given rather
-      -- than trusting these numbers, which run over every address ever seen and not over what is
-      -- still open.
+      -- The same order applied again to a listing the surface is already holding, so it can paint
+      -- the right list at once instead of painting a stale one and correcting it a third of a
+      -- second later when the browsers answer. It is the same function the full read uses, which
+      -- is what makes the early paint and the answer agree rather than merely resemble each other.
+      --
+      -- This is exact now, where it used to be an approximation. The order can only change when
+      -- this tool opens a tab, and that is recorded before this is ever called, so there is nothing
+      -- left for the read to correct except a tab genuinely opened or closed in the browser.
+      order = ordered,
+      -- Where a tab sits in the remembered order, or nil for one this tool has never opened. The
+      -- untyped order above is only one of the two things that reads it, the second being a small
+      -- reordering among tabs that matched a typed query alike, which the surface can only do a tab
+      -- at a time. What it reads here is mostly the nil, since a tab this tool never opened must
+      -- earn nothing, and it counts positions among the tabs it was given rather than trusting
+      -- these numbers, which run over every address ever opened and not over what is still open.
       recencyRank = function(tab) return this.recency.rankOf(tab.bundleID, tab.url) end,
-      -- Opening a tab is also the strongest signal that it is now the current one, so it is
-      -- recorded here rather than waiting for the observer to notice the focus change.
+      -- Opening a tab is the only thing that writes the remembered order, so this is where it is
+      -- written. Nothing watches the browsers any more, which is what makes the order predictable.
       activate = function(tab)
         this.recency.touch(tab.bundleID, tab.url)
         this.engine.activate(tab)
@@ -226,11 +252,11 @@ end
 
 --- BrowserTabs:start()
 --- Method
---- Begin observing which tab is current and warm the permission probe so the first settings
---- open is instant. The surface itself is built by the main root once it has injected the
---- Chooser factory, the theme, and the shortcut panel.
+--- Warm the permission probe so the first settings open is instant. There is nothing else to
+--- start, since the remembered order reads itself on first use and nothing watches the browsers.
+--- The surface itself is built by the main root once it has injected the Chooser factory, the
+--- theme, and the shortcut panel.
 function obj:start()
-  self.recency.start()
   permissions.warm()
 
   -- The integration harness, loaded only while a suite is actually running. The runner writes
@@ -256,9 +282,9 @@ end
 
 --- BrowserTabs:stop()
 --- Method
---- Stop observing. The chooser keeps working, it just stops learning.
+--- Nothing runs in the background, so there is nothing to stop. Kept because a spoon that can be
+--- started should answer to being stopped, and because the main root pairs the two.
 function obj:stop()
-  self.recency.stop()
   return self
 end
 
@@ -275,6 +301,37 @@ end
 --- Whether the list is open. Read by the browserTabsOpen predicate in the main root.
 function obj:isShowing()
   return self.chooser.isShowing()
+end
+
+--- BrowserTabs:explainOrder(n, cb)
+--- Method
+--- The top n rows exactly as the list would show them, each with the rank the memory gave it and
+--- the window and position it came from, handed to cb as one block of text. Reads the browsers, so
+--- it answers asynchronously like everything else here.
+---
+--- This exists because the ordering has twice been argued about from the code rather than from the
+--- machine, and both times the code read correctly and the machine disagreed. A rank of nil means
+--- this tool has never opened that tab, so it is sitting in its resting place, and a row that is
+--- not in ascending rank order is the ordering being overridden by something.
+---
+---   hs -c 'spoon.BrowserTabs:explainOrder(10, function(s) print(s) end)'
+function obj:explainOrder(n, cb)
+  local this = self
+  self.chooser.prepare(function()
+    local lines = {}
+    local rows = this.chooser.tabRows("")
+    for i = 1, math.min(n or 10, #rows) do
+      local t = rows[i].item and rows[i].item.tab
+      if t then
+        lines[#lines + 1] = string.format("%3d  rank %-6s  %-18s win %-12s tab %-4s %s",
+          i, tostring(this.recency.rankOf(t.bundleID, t.url)), tostring(t.browser),
+          tostring(t.windowID), tostring(t.tabIndex), tostring(t.title))
+      end
+    end
+    lines[#lines + 1] = #rows .. " rows in all"
+    cb(table.concat(lines, "\n"))
+  end)
+  return self
 end
 
 return obj

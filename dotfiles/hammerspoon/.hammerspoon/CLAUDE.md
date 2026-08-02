@@ -1063,16 +1063,23 @@ one browser and raises one Automation prompt and the rest are switched on delibe
 choices persist in `hs.settings` rather than a git tracked file, since they are per machine
 preference, matching the overlay display policy rather than the DisplayProfiles store.
 
-Two cross-cutting facts worth knowing here. A browser that is switched off or not running is
-never scripted at all, so it costs no Apple Events and raises no permission prompt, and the
-recency observer honours the same rule. And the tool opts out of the atom's shared matcher and
-scores its tab rows itself with the matcher the root injects, because it is a stack of frames
-with pinned rows and uniform filtering would rank away the Back row and pull the Settings row
-into the tab ranking, so the matcher is passed in explicitly rather than inherited. Everything
-else, why recency has to be observed rather than read, why tab identity is the bundle id plus
-the URL, why the permission probe is a Swift helper, why Arc reports no active tab, and why
-Firefox is absent, lives in `Spoons/BrowserTabs.spoon/CLAUDE.md`. Adding it needed a restow,
-since `~/.hammerspoon/Spoons` holds one symlink per spoon.
+Three cross-cutting facts worth knowing here. A browser that is switched off or not running is
+never scripted at all, so it costs no Apple Events and raises no permission prompt. Nothing
+watches the browsers, so the list is ordered by what you have opened through the tool and by
+nothing that happens in a browser, which is what stops it rearranging itself between one open and
+the next. And the tool opts out of the atom's shared matcher and scores its tab rows itself with
+the matcher the root injects, because it is a stack of frames with pinned rows and uniform
+filtering would rank away the Back row and pull the Settings row into the tab ranking, so the
+matcher is passed in explicitly rather than inherited. Everything else, why the order stopped
+being observed and what that cost, why the last tab you opened leads and what was tried on top of
+that before it was taken back out, why a window is placed by its id and never by its index, why tab
+identity is the bundle id plus the URL and what that costs when a page navigates, why the
+permission probe is a Swift helper, why Arc reports no active tab, and why Firefox is absent, lives
+in `Spoons/BrowserTabs.spoon/CLAUDE.md`. Adding it needed a restow, since `~/.hammerspoon/Spoons`
+holds one symlink per spoon.
+
+`BrowserTabs:explainOrder(n, cb)` prints the top rows with the rank the memory gave each one, for
+settling an argument about the order against the machine rather than against the code.
 
 **Processes.** Finds the development servers you left running and stops them, opened from
 the launcher only with no dedicated key. Its launcher row reads Local Servers rather than

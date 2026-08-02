@@ -11,9 +11,9 @@
 ---
 --- And Arc reports no active tab. A window's `active tab` returns null, verified both while
 --- Arc was in the background and while it was frontmost, and a window's `name` is the space
---- name rather than the active tab title, so there is no route to it. So `activeTab` answers
---- nothing and the `active` flag is false on every row. That is a real limitation of Arc's
---- dictionary rather than a gap here, and what it costs is recorded in the spoon's CLAUDE.md.
+--- name rather than the active tab title, so there is no route to it. So the `active` flag is
+--- false on every row. That is a real limitation of Arc's dictionary rather than a gap here,
+--- and what it costs is recorded in the spoon's CLAUDE.md.
 
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local function loadShared(name)
@@ -107,14 +107,6 @@ end
 
 function P.listTabs(cb)
   jxa.run(LIST, { BUNDLE_ID }, cb)
-end
-
---- Arc reports no active tab, so this answers nothing rather than pretending. It is
---- implemented, not omitted, so the contract stays uniform and the one browser that cannot
---- answer says so in one place. The cost is that an Arc tab earns recency only when it is
---- opened through this tool, never from switching tabs inside Arc by hand.
-function P.activeTab(cb)
-  cb(nil)
 end
 
 function P.activate(tab, cb)

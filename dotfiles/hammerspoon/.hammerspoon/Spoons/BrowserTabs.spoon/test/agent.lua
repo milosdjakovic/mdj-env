@@ -227,6 +227,21 @@ function commands.enabled(p, done)
   done({ ok = true, enabled = bt:isEnabled(p.bundleID) })
 end
 
+-- Record a tab as opened through the tool, which is the only thing that writes the remembered
+-- order now that nothing watches the browsers. A case needing a known tab in a known row arranges
+-- it here rather than through the browser, because nothing done in the browser affects the order
+-- any more, which is the entire point of the current design.
+--
+-- Arranging a precondition through the same call the tool makes is fair for the one case that
+-- needs it, since what that case checks is that a bare Return opens the row on top, not how the
+-- row got there. Anything asserting about the order itself must not use this.
+function commands.touch(p, done)
+  local bt = spoon.BrowserTabs
+  if not bt then done({ ok = false, err = "no spoon" }) return end
+  bt.recency.touch(p.bundleID, p.url)
+  done({ ok = true })
+end
+
 -- Press a control inside an application by its accessibility name, used for the few states that
 -- exist only behind a page or a panel with nothing scriptable behind it.
 --
