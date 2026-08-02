@@ -146,27 +146,6 @@ local function restingOrder(tabs, browserRank)
   return tabs
 end
 
--- The tab you are sitting on is the one row you will never choose, so it does not lead the list.
--- Ordinary alt tab behaviour, where the thing you came from leads and the thing you are on sits
--- directly beneath it, one keystroke away rather than banished to the end.
---
--- What decides which tab that is, is the remembered order and deliberately not the browser's own
--- report of which tab is showing, even though every listing carries that flag. The flag is only
--- learned when the browsers answer, so leaning on it would put the list straight back to
--- rearranging itself a third of a second after it opened, every time a tab had been switched by
--- hand, which is the fault this whole change exists to remove. The remembered order is known the
--- instant it is asked for and changes only when you act here, so this never moves.
---
--- Only when both leading tabs are ones this tool has opened. With fewer than that, the second row
--- is a tab with no recency at all and swapping would lead the list with something arbitrary, which
--- is worse than leading with where you already are.
-local function currentBelowPrevious(tabs, isRemembered)
-  if #tabs > 1 and isRemembered(tabs[1]) and isRemembered(tabs[2]) then
-    tabs[1], tabs[2] = tabs[2], tabs[1]
-  end
-  return tabs
-end
-
 --------------------------------------------------------------------------------
 -- Lifecycle
 --------------------------------------------------------------------------------
@@ -220,14 +199,12 @@ function obj:configure(opts)
   local browserRank = {}
   for i, p in ipairs(ok) do browserRank[p.bundleID] = i end
 
-  -- The whole ordering policy, in one place. Tabs this tool has opened lead in the order it opened
-  -- them, everything else keeps its resting place, and the tab you are on steps below the one you
-  -- came from. Nothing in it reads the world, so it gives the same answer at any moment and costs
-  -- nothing to apply.
+  -- The whole ordering policy, in one place. The tab this tool opened last leads and pushes the
+  -- rest down, then the ones before it in the order it opened them, then everything else in its
+  -- resting place. Nothing in it reads the world, so it gives the same answer at any moment and
+  -- costs nothing to apply.
   local function ordered(list)
-    local remembered = function(t) return this.recency.rankOf(t.bundleID, t.url) ~= nil end
-    return currentBelowPrevious(
-      this.recency.order(restingOrder(list or {}, browserRank)), remembered)
+    return this.recency.order(restingOrder(list or {}, browserRank))
   end
 
   -- The one api the surface talks through, so the chooser reaches the engine, the recency
@@ -324,6 +301,37 @@ end
 --- Whether the list is open. Read by the browserTabsOpen predicate in the main root.
 function obj:isShowing()
   return self.chooser.isShowing()
+end
+
+--- BrowserTabs:explainOrder(n, cb)
+--- Method
+--- The top n rows exactly as the list would show them, each with the rank the memory gave it and
+--- the window and position it came from, handed to cb as one block of text. Reads the browsers, so
+--- it answers asynchronously like everything else here.
+---
+--- This exists because the ordering has twice been argued about from the code rather than from the
+--- machine, and both times the code read correctly and the machine disagreed. A rank of nil means
+--- this tool has never opened that tab, so it is sitting in its resting place, and a row that is
+--- not in ascending rank order is the ordering being overridden by something.
+---
+---   hs -c 'spoon.BrowserTabs:explainOrder(10, function(s) print(s) end)'
+function obj:explainOrder(n, cb)
+  local this = self
+  self.chooser.prepare(function()
+    local lines = {}
+    local rows = this.chooser.tabRows("")
+    for i = 1, math.min(n or 10, #rows) do
+      local t = rows[i].item and rows[i].item.tab
+      if t then
+        lines[#lines + 1] = string.format("%3d  rank %-6s  %-18s win %-12s tab %-4s %s",
+          i, tostring(this.recency.rankOf(t.bundleID, t.url)), tostring(t.browser),
+          tostring(t.windowID), tostring(t.tabIndex), tostring(t.title))
+      end
+    end
+    lines[#lines + 1] = #rows .. " rows in all"
+    cb(table.concat(lines, "\n"))
+  end)
+  return self
 end
 
 return obj

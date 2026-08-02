@@ -124,24 +124,29 @@ The general lesson, and it is the second time this spoon has paid for it. Anythi
 reports as a position is a position in a list the browser reorders, and only an id is an identity.
 The other time was tab numbers, in the section further down.
 
-## The tab you are on does not lead the list
+## The last tab you opened leads, and the demotion that briefly sat on top of it
 
-Recency's top row used to be the tab you were already looking at, which is the one row you will
-never choose. A switcher spending its best position on where you already are is wasting it. So the
-top two swap, and the tool now behaves the way alt tab does, the thing you came from leading and
-the thing you are on sitting directly beneath it, one keystroke away rather than banished to the
-end.
+The tab this tool opened last is row one and pushes everything else down. That is the whole rule
+and there is nothing on top of it.
 
-What decides which tab that is, is the remembered order and deliberately not the browser's own
-report of which tab is showing, even though every listing carries that flag per window. Using the
-flag was the first plan and it is wrong, because the flag is only learned when the browsers
-answer. Leaning on it would put the list straight back to rearranging itself a third of a second
-after opening, every time a tab had been switched by hand, which is the exact fault this design
-exists to remove. The remembered order is known synchronously and changes only when you act here.
+There was, for a while. The argument was that the top row is the tab you are already looking at,
+which is the one row you will never choose, so a switcher spending its best position on it is
+wasting it, and the top two should swap the way alt tab does. It reads well and it was wrong in
+use, reported as the list simply not putting the tab you opened first. Two things were wrong with
+it. The obvious one is that it contradicts the only rule the tool has, so nothing you learn about
+the order predicts the top of it. The deeper one is that it assumed the most recently opened tab is
+the tab you are sitting on, and that assumption stopped being safe the moment the browsers stopped
+being watched, because a tab switched to by hand is invisible now. Switch by hand after opening
+something here and the swap demoted a tab you were not on, in favour of one further back.
 
-It only swaps when both leading tabs are ones this tool has opened. With fewer than that the
-second row is a tab with no recency at all, and leading the list with something arbitrary is worse
-than leading with where you already are.
+Using the browser's own `active` flag instead was considered twice and rejected twice, and the
+reason is worth keeping. The flag is only learned when the browsers answer, so leaning on it puts
+the list back to rearranging itself a third of a second after it opened, which is the fault the
+whole design exists to remove. There is no cheap synchronous way to know which tab you are on, so
+the honest move is not to claim to know.
+
+What is given up is small. Opening the list right after opening a tab puts you on that same tab, so
+Return there is a no op rather than a way back. The tab you came from is one row down.
 
 ## Identity is the bundle id plus the URL
 
@@ -151,6 +156,33 @@ key costs two things. Two tabs on the same page in the same browser share one re
 and a set of fresh blank tabs collapse together. Both were accepted deliberately. If tab
 identity ever needs to be exact, this is the decision to revisit, and it lives in one place,
 `recency.keyFor`.
+
+There is a third cost, found by testing rather than by reasoning. A tab that navigates loses its
+place, because the address it was remembered under is no longer the address it reports. Watched
+live, a GitHub tab remembered at `/tree/main` reported `/edit/main/README.md` a moment later and
+dropped out of the order entirely. Two other tabs tried the same way kept their address across
+being opened, one loaded and one in a window behind, so this is navigation and not the act of
+opening. It matters more than it sounds because the tab you open here is exactly the tab you then
+use, so the entry most likely to go stale is the newest one. Living with it for now, since the
+repair needs a tab identity that survives navigation and Safari gives nothing to build one from
+except the window and the position, both of which move for their own reasons.
+
+## Asking the machine what the order is
+
+`BrowserTabs:explainOrder(n, cb)` gives the top n rows exactly as the list would show them, each
+with the rank the memory gave it and the window and position it came from.
+
+    hs -c 'spoon.BrowserTabs:explainOrder(10, function(s) print(s) end)'
+
+It exists because the order has twice been argued about from the code, and both times the code read
+correctly while the machine disagreed, once because a window index turned out to be depth and once
+because what was live was not what had been written. A rank of nil means this tool has never opened
+that tab, so it is in its resting place. Ranks that do not ascend down the list mean something is
+reordering on top of the memory. Ranks that skip numbers are normal, since a remembered address
+that is no longer open simply never matches.
+
+Before trusting any of it, check `bin/hs-devlock status` says the live config is the worktree you
+think you are testing.
 
 ## Arc reports no active tab
 

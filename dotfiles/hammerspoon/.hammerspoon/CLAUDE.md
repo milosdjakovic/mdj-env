@@ -1036,10 +1036,15 @@ the next. And the tool opts out of the atom's shared matcher and scores its tab 
 the matcher the root injects, because it is a stack of frames with pinned rows and uniform
 filtering would rank away the Back row and pull the Settings row into the tab ranking, so the
 matcher is passed in explicitly rather than inherited. Everything else, why the order stopped
-being observed and what that cost, why the tab you are on does not lead the list, why tab identity
-is the bundle id plus the URL, why the permission probe is a Swift helper, why Arc reports no
-active tab, and why Firefox is absent, lives in `Spoons/BrowserTabs.spoon/CLAUDE.md`. Adding it
-needed a restow, since `~/.hammerspoon/Spoons` holds one symlink per spoon.
+being observed and what that cost, why the last tab you opened leads and what was tried on top of
+that before it was taken back out, why a window is placed by its id and never by its index, why tab
+identity is the bundle id plus the URL and what that costs when a page navigates, why the
+permission probe is a Swift helper, why Arc reports no active tab, and why Firefox is absent, lives
+in `Spoons/BrowserTabs.spoon/CLAUDE.md`. Adding it needed a restow, since `~/.hammerspoon/Spoons`
+holds one symlink per spoon.
+
+`BrowserTabs:explainOrder(n, cb)` prints the top rows with the rank the memory gave each one, for
+settling an argument about the order against the machine rather than against the code.
 
 **Processes.** Finds the development servers you left running and stops them, opened from
 the launcher only with no dedicated key. Its launcher row reads Local Servers rather than
