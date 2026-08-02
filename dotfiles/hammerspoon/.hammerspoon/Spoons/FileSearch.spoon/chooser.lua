@@ -80,8 +80,9 @@ local NO_VIEWER = {
 local viewer = NO_VIEWER
 
 -- How a fact is worded lives in util, because the pane beside this list states the same
--- ones and a size or an age must not come out phrased two ways.
-local shortDir, humanAge = util.shortDir, util.humanAge
+-- ones and a size or an age must not come out phrased two ways. Only the path is worded here
+-- now, since the row gave its ages back to the path and the pane is where they are read.
+local shortDir = util.shortDir
 
 --------------------------------------------------------------------------------
 -- Rows
@@ -131,33 +132,58 @@ local function iconFor(row)
   return hs.image.iconForFileType("public.data")
 end
 
--- What a row says about itself. The directory leads, because which of the four files called
--- init.lua this one is, is the only thing anybody actually chooses by.
+-- Elided directories for this open, keyed by the path and the room it had. A page of search
+-- results is many files across few folders, so the same directory is asked about over and over.
+-- Cleared when the picker closes, since the next open may land on a display of another width.
+local dirFits = {}
+
+-- The directory, shortened to the room the row actually has.
 --
--- The ages are LABELLED, and that is a fix rather than decoration. A bare age is read as
--- something you did, so a file a build wrote four days ago looked like a file you touched four
--- days ago, and on a row floated to the top by a path you copied a second ago that reading is
--- flatly wrong. Naming the two ages apart is what makes the row honest.
+-- With no picker yet, or a picker too old to answer, the full directory comes back and the
+-- widget cuts it as it always did. Nothing here depends on the measurement being available.
 --
--- When you last reached for it comes first of the two, since on the list you land on before
--- typing anything it is the field that explains why the row is there at all.
+-- ONE COUPLING WORTH KNOWING. These rows are also handed to the launcher's alias, and they
+-- are fitted here against THIS picker's room rather than the one that will draw them, since
+-- a query scope is deliberately never told which surface is asking. It is right today
+-- because both come from the atom's one uniform width, so both answer 354, and it is a
+-- coincidence held in place by that default rather than by anything here. A picker that
+-- pinned its own width and then scoped to this tool would shorten against the wrong number.
+-- The fix at that point is for a surface to state its room, which means a parameter on the
+-- scope contract, and that is not worth adding for a case nothing has yet.
+local function fitDir(dir, reserved)
+  if dir == "" then return dir end
+  if not (picker and picker.textBudget) then return dir end
+  -- `reserved` is the rest of the line verbatim, its own separator included, so a caller
+  -- states what shares the row rather than this having to know where each caller puts it.
+  local budget = picker:textBudget() - picker:textWidth(reserved, "sub")
+  local key = dir .. "\0" .. math.floor(budget)
+  local hit = dirFits[key]
+  if hit then return hit end
+  local fitted = util.elideDir(dir, budget, function(s) return picker:textWidth(s, "sub") end)
+  dirFits[key] = fitted
+  return fitted
+end
+
+-- What a row says about itself, which is the directory and nothing else.
 --
--- Asked here as the row is drawn rather than stamped onto it upstream. Rows are retained and
--- redrawn for the local narrow between round trips, so a stamp would still be reporting the old
--- answer on the one row you just acted on, which is the row being asked about.
+-- It once also carried two labelled ages, when you last reached for the file and when the file
+-- last changed, and they were dropped after measuring what they cost. THE TWO OF THEM TOOK 57
+-- PERCENT OF THE LINE, and the line's whole job is telling four files called init.lua apart,
+-- which is a thing only the path does. Every point they held was a point the path did not have,
+-- and the paths that lost most were the deep ones, exactly the rows where knowing the folder
+-- matters. So `~/…/impeccable/public` is now `~/.claude/plugins/marketplaces/impeccable/public`.
+--
+-- Neither age was carrying its weight for the price. When a file last changed almost never
+-- decides which one you open, and when you last used it was only ever an explanation for the
+-- ordering of the list you land on, which is a thing the ordering itself already shows. Both are
+-- still one keystroke away in the pane, on the row you are actually asking about, which is the
+-- same argument this file already makes for keeping a size off the row.
+--
+-- Worth knowing that a searched row never carried an age anyway. Only the recent list reads a
+-- date, and frecency rarely holds a record for a path you just searched for, so on the list you
+-- spend most of your time in this changed nothing at all.
 local function subtitleFor(row)
-  local parts = { shortDir(row.dir) }
-  local usedAt = cfg.usedAt and row.path and cfg.usedAt(row.path)
-  if usedAt then parts[#parts + 1] = "used " .. humanAge(usedAt) end
-  -- One word for files and folders both. A folder's own date moves when something is added,
-  -- removed or renamed inside it, which is a change but not an edit, and a field that means two
-  -- different things by row type is worse than a plainer word that is true of every row.
-  if row.modified then parts[#parts + 1] = "changed " .. humanAge(row.modified) end
-  -- No size here, deliberately. Only the recent list carries a date at all and nothing carries
-  -- a size, because reading either costs a call per row and a page is two hundred rows. The pane
-  -- beside the list describes ONE row, so it stats that row and reports both for one call, which
-  -- is where a size can be shown without the list paying for two hundred it will never draw.
-  return table.concat(parts, "  ")
+  return fitDir(shortDir(row.dir), "")
 end
 
 local function fileRows(rows)
@@ -205,7 +231,13 @@ local function upRow()
     ext = "",
     up = true,
   }
-  return { title = "..", subTitle = "up to " .. shortDir(path), image = iconFor(row), item = row }
+  local lead = "up to "
+  return {
+    title = "..",
+    subTitle = lead .. fitDir(shortDir(path), lead),
+    image = iconFor(row),
+    item = row,
+  }
 end
 
 -- How each empty state looks. A row that is not a file still gets an icon, a headline naming what
@@ -459,6 +491,9 @@ function M.start()
       -- Closed on the atom's one idempotent teardown path, so no dismissal leaves a canvas or
       -- a Quick Look window behind, and a reopen builds a fresh one.
       viewer.close()
+      -- The next open may land on a display of another width, so what fitted here is not
+      -- what fits there. Dropped on the same one path everything else is.
+      dirFits = {}
       if cfg.onClose then cfg.onClose() end
     end,
     layout = {

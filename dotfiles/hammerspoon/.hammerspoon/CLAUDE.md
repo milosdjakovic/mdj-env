@@ -645,6 +645,33 @@ A tool with two surfaces, like the VPN control panel and its location picker,
 wires each surface as its own participant, its own context block, predicate,
 registry entry, and overlay.
 
+**How much a row can say is a question only the atom can answer, so it answers it and decides
+nothing.** `Chooser:textBudget()` gives the pixel room a row's text has and `Chooser:textWidth(str,
+which)` gives what a string renders as in the row font, `which` being `"title"` or `"sub"`. Both
+live in the atom because answering needs the chooser's pixel width, the row font, the row font size
+and the row inset, and the atom is the only layer holding all four. It stops there on purpose. A
+consumer gets two numbers and decides for itself what to do about them, since handing back a
+shortened string would put policy in the widget and how to shorten a path is a file tool's business.
+File search is the first consumer, fitting a directory into what the ages left it.
+
+The inset from the chooser's own width down to the text column was MEASURED, not derived, by
+walking a live chooser through the accessibility API, since `hs.chooser` exposes no geometry and its
+window comes from a compiled nib. It is 126 points, 61 leading for the pad and the icon column and
+65 trailing for the pad and the row's command number badge. Four things were checked before trusting
+one number. It held at 360, 480 and 640 point windows, so it is a constant to subtract and not a
+fraction to scale. It was the same on a row with an icon and a row without, since the column is
+reserved either way. It did not change past the ninth row where the badge stops being drawn. And the
+title and the subtitle reported the same column, which is why one budget answers for both. At the
+uniform 480 width that leaves 354 points.
+
+`textWidth` sums memoised per character widths rather than measuring whole strings, which is what
+makes it usable on every row of every keystroke. A whole measure is 0.11 ms, so a page of two
+hundred would cost 22 ms; the sum is 0.003 ms a string. The price is kerning, and measured against
+true widths the sum runs 0.7 percent high on real paths, under two pixels on a 254 pixel string.
+High is the direction that matters, since over counting shortens marginally early where under
+counting would let a string through that then gets cut, so there is no fudge factor and none is
+wanted.
+
 **A binding may declare what it `needs`, which is different from `when`, and the difference is
 when the question is asked.** `when` gates a binding on LIVE state, resolved by name on every
 press, so the key stays bound and does nothing while its predicate is false. That is right for
@@ -1115,6 +1142,16 @@ plus four actions only it answers, browse into a folder, reveal in Finder, open 
 containing folder, and copy the path, routed through `routeNav` so they are no ops on any
 other surface. It also answers the two `scrollPreview` actions the clipboard already used,
 which is what made them worth routing rather than naming at one surface.
+
+Its subtitle is fitted to the row rather than left to be cut, and it is the first consumer of the
+atom's `textBudget` and `textWidth` above. It is elided at component boundaries, keeping the head
+and as much of the tail as fits, so a long path reads
+`~/…/dotfiles/hammerspoon/.hammerspoon/Spoons`. The row carried two labelled ages until measuring
+put a number on them, 57 percent of the line, at which point both were dropped and the room went to
+the path, which is the only field that tells four files of one name apart. Both are still in the
+pane for the row under the cursor. Why whole components rather than squeezing each to a letter, why
+the free `truncateMiddle` was wrong here, and the longer version of the ages decision, are in the
+spoon's own file.
 
 How it shows the highlighted file is a Strategy this root chooses, `PreviewProvider.SidePanel` or
 `PreviewProvider.QuickLook`, named by reference so no provider string appears at any call site.

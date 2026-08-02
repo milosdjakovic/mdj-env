@@ -128,21 +128,37 @@ The store sits in `hs.settings` rather than anywhere under `~/.hammerspoon`, and
 preference. It is written on every action, and that tree is watched, so a store living in it would
 reload the whole config every time you opened a file.
 
-**A row reports both ages, and it names them.** The first report on the finished feature was that a
-folder floated to the top by a path copied a second earlier read `4d ago` underneath, which is the
-folder's own date and was read as something the user did four days ago. A bare age invites that,
-because the one thing on a row that is about the person is indistinguishable from the one thing
-about the file. So the line labels them, `used 34m ago` for the last time you reached for it and
-`changed 4d ago` for the file system, with the use first, since on the list you land on before
-typing it is the field explaining why the row is there at all. One word covers both files and
-folders on the second one, because a folder's date moves when something inside it is added, removed
-or renamed, which is a change and not an edit.
+**A row reported both ages, it named them, and then it gave the room back to the path.** The two
+fields are worth recording because both the reason for having them and the reason for dropping them
+are still live, and the second reason only became visible once the row could measure itself.
 
-The surface asks for that as the row is drawn, through `usedAt` on the same injected seam as
-`onUse`, so the write and the read of a use sit together and neither one names the store. Asking at
-draw time rather than stamping the row upstream is the point. Rows are retained and redrawn for the
-local narrow between round trips, so a stamp would still be reporting the previous answer on the
-one row that was just acted on, which is exactly the row being asked about.
+They were labelled rather than bare, and that was a real fix. The first report on the finished
+feature was that a folder floated to the top by a path copied a second earlier read `4d ago`
+underneath, which is the folder's own date and was read as something the user had done four days
+ago. A bare age invites exactly that, because the one thing on a row that is about the person is
+indistinguishable from the one thing about the file. So the line said `used 34m ago` and `changed
+4d ago`, with the use first, since on the list you land on it was the field explaining why the row
+was there at all.
+
+The measurement is what ended them. THE TWO OF THEM TOOK 57 PERCENT OF THE SUBTITLE, and the
+subtitle's whole job is telling four files called `init.lua` apart, which is a thing only the path
+does. Every point they held was a point the path did not have, and the paths that lost most were
+the deep ones, which are exactly the rows where knowing the folder decides anything. Dropping both
+turned `~/…/impeccable/public` into `~/.claude/plugins/marketplaces/impeccable/public`.
+
+Neither was earning that price. When a file last changed almost never decides which one you open.
+When you last used it was only ever an explanation for the ordering of the list you land on, and
+the ordering already shows that by putting the row near the top. Both are still one keystroke away
+in the pane, on the row you are actually asking about, which is the same argument this file already
+makes for keeping a size off the row. A searched row never carried an age anyway, since only the
+recent list reads a date and frecency rarely holds a record for a path you just searched for, so on
+the list you spend most of your time in this changed nothing.
+
+`usedAt` stays, on the same injected seam as `onUse`, so the write and the read of a use sit
+together and neither names the store. The pane is its only reader now. It is still asked as the row
+is drawn rather than stamped upstream, and that is the point. Rows are retained and redrawn for the
+local narrow between round trips, so a stamp would report the previous answer on the one row that
+was just acted on, which is exactly the row being asked about.
 
 Worth knowing when reading a row, an age is not on every row and that is a cost decision one layer
 down. The modification date is read from Spotlight only for the recent list, because it is a per
@@ -469,6 +485,65 @@ application into staleness that outlives a reload. Because the whole table rebui
 2.3ms, it is simply dropped when the chooser closes, so a changed default app is correct on
 the next open with no invalidation logic at all.
 
+## The subtitle is fitted to the row, and measuring it is what ended the ages
+
+A row's subtitle used to be the directory and the two ages concatenated and handed over, so the
+widget cut whatever ran past the edge. The complaint that started this was truncation, and the first
+fix was to measure the ages, reserve them, and fit the directory into the remainder, so that a deep
+path could no longer push them off the row. That worked. It also put a number on them for the first
+time, 57 percent of the line, and once that number existed the fields did not survive it. The
+section above has why. The row is now the directory alone, fitted to the full width.
+
+Reserving is still how the fit works and is still exercised, because the browse row leads with
+`up to ` and has to fit the rest of the line around it. So `fitDir` takes the rest of the line
+verbatim, its separator included, and a caller states what shares the row rather than the fitter
+having to know where each caller puts it. That is what keeps the mechanism honest for the next
+field that earns a place, rather than it being quietly special cased to one layout.
+
+**Counting characters was never going to work, which the numbers settle.** At the row's 12 point
+system font ten `i` render at 29.6 points and ten `m` at 104.4. A character budget is wrong by a
+factor of three and a half depending on what you happen to write. So nothing counts characters at
+any point, the room is pixels and every candidate is measured. The atom answers both halves of
+that, `textBudget` and `textWidth`, for the reasons in the hammerspoon `CLAUDE.md`, and this file
+only decides what to do with the answer.
+
+**Whole components are dropped from the middle, not letters from the end.** `util.elideDir` keeps
+the leading component and as many trailing ones as fit, so a long path reads
+`~/…/dotfiles/hammerspoon/.hammerspoon/Spoons`. The tail is protected because the leaf directory,
+and the one above it, are what tell four files called `init.lua` apart, and the head survives
+because a tilde or a leading `/usr` says which world the path lives in for almost no width.
+
+The alternative considered and rejected was squeezing middle components to their first letter, the
+shell prompt idiom, giving `~/D/p/m/dotfiles/hammerspoon/Spoons`. It fills the budget better, and it
+preserves depth so two candidates differing only in a middle component stay apart. It lost on three
+counts. Every character the elide shows is a real one, where `~/L/A/Google` leaves you guessing
+whether that `A` was Applications, Application Support or Audio. It degrades honestly at a tight
+budget, where the squeeze collapses to `~/D/p/m/d/h/./Spoons` with a lone dot standing in for
+`.hammerspoon`. And it is the macOS idiom, what the Finder path bar and `NSPathControl` do. The
+depth argument is real but rarely bites here, because the difference between two candidates is
+almost always near the leaf and the leaf survives. The signal that it has started to bite is two
+visible rows shortening to the same string, and that is the moment to revisit rather than now.
+
+The elide's one genuine cost is undershoot. It drops a whole component at a time, so it can leave a
+stripe of unused room where the squeeze would have filled it. That is a cosmetic loss on a subtitle
+and a fair price for a line that reads without decoding.
+
+**A third option was free and still wrong.** Setting the subtitle's `lineBreak` to `truncateMiddle`
+makes AppKit keep both ends for zero cost and no measurement at all. It is exactly wrong here,
+because the two ends of this string are the tilde and the ages, so it would eat the leaf directory,
+the one thing you actually choose by. Worth recording because it is one word and looks like the
+obvious answer.
+
+**Fitting is a single pass, and it is exact.** The first version rebuilt a candidate and remeasured
+it for every component it dropped, which is quadratic and cost 13.3 ms on a cold page of two
+hundred long paths. It now measures each component once and adds, growing the tail until the next
+one would not fit, which is 6.9 ms for identical output. That decomposition is exact rather than an
+approximation, because the injected width is itself a sum over characters, so the width of a joined
+string really is the sum of its pieces. Above that sits a cache of fitted directories keyed by the
+path and the room it had, since a page of results is many files across few folders and the ages
+cluster into a handful of phrasings, so the budgets cluster too. It is dropped when the picker
+closes, because the next open may land on a display of another width.
+
 ## Two preview providers, and the contract carries WHEN as well as how
 
 How the highlighted file is shown is a Strategy with two implementations, `PreviewProvider.SidePanel`
@@ -678,20 +753,23 @@ feature was never wired.
 
 ## The pane answers the question the row cannot afford to
 
-A row is one line, and one line cannot say whether this is the file you had in mind. The
-subtitle already carries the directory and the two labelled ages, which is as far as a line
-honestly goes, so the pane beside the list shows what is actually inside.
+A row is one line, and one line cannot say whether this is the file you had in mind. The subtitle
+spends everything it has on the directory, which is as far as a line honestly goes, so the pane
+beside the list shows what is actually inside.
 
-It also owns the facts a list cannot pay for. No source reads a size and only the recent list
-reads a date, because either one costs a call per row and a page is two hundred rows. The
-pane describes exactly one row, so it stats that row and reports the size, both dates and the
-kind for the cost of a single call. That is why the row subtitle deliberately has no size
-field. It used to have one, filled by nothing, which is the defect this replaced.
+It also owns the facts a list cannot pay for, and it owns more of them since the row gave up its
+ages. No source reads a size and only the recent list reads a date, because either one costs a call
+per row and a page is two hundred rows. The pane describes exactly one row, so it stats that row
+and reports the size, both dates and the kind for the cost of a single call. That is why the row
+subtitle carries no size, and now no age either. The size field used to exist filled by nothing,
+which is the defect this replaced, and the ages were removed once measurement showed they were
+taking more than half the line from the one field that identifies the row.
 
 The header draws for every row and is not part of the chain below, because a name, a location
 and a handful of dates are true of everything, and a pane that sometimes had no header would
 be answering a different question depending on which row you were on. Both ages stay labelled
-there for the same reason they are labelled on the row, and the last used line is drawn in the
+there, for the reason they were labelled on the row before it dropped them, since a bare age
+cannot be told apart from something you did. The last used line is drawn in the
 accent tone because it is the one fact on the pane that is about you rather than about the
 file.
 
