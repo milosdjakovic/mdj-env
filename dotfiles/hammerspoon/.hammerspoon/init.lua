@@ -1200,6 +1200,10 @@ spoon.Launcher:configure({
     -- it is offered so a scope with nothing to show never advertises a key.
     scopePeek = function(item) spoon.QueryScope:peek(item) end,
     scopeCanPeek = function(item) return spoon.QueryScope:canPeek(item) end,
+    -- And the third, what a row means instead of what taking it would do. Asked before the
+    -- list is allowed to close, so a row that is a signpost rather than a destination answers
+    -- with the query to put in the field and the launcher stays where it is.
+    scopeRedirect = function(item) return spoon.QueryScope:redirectFor(item) end,
     app = function(bundleID, url)
       if url then
         spoon.AppToggler:toggleURL(bundleID, url)
@@ -1784,6 +1788,7 @@ local function scope(name, opts)
     rows = opts.rows,
     run = opts.run,
     peek = opts.peek,
+    redirect = opts.redirect,
   }
 end
 
@@ -1923,6 +1928,12 @@ end
 -- Choosing a row does not run a tool, it types for you. That is the whole point, the word goes
 -- into the field so the next thing you type is the tool's own query, and you have learned the
 -- word by using it rather than by reading it.
+--
+-- Which is why every row here is a redirect, the verb for a row that names a query rather than an
+-- action, and the list stays open while the field changes underneath it. Run is still answered, and
+-- is what a mouse click takes, since a click reaches the widget's own completion where no question
+-- can be asked first. So the same row means the same thing either way, and only the mouse pays for
+-- it with a reopen.
 queryScopes[#queryScopes + 1] = scope(ALIAS_DIRECTORY, {
   rows = function()
     local out = {}
@@ -1939,17 +1950,19 @@ queryScopes[#queryScopes + 1] = scope(ALIAS_DIRECTORY, {
     table.sort(out, function(a, b) return a.title < b.title end)
     return out
   end,
+  -- The word to type, asked of the resolver rather than decided here, so the canonical alias and
+  -- the space after it stay its business and an alias can change without this being touched.
+  redirect = function(name) return spoon.QueryScope:queryFor(name) end,
   run = function(name) enterScope(name) end,
 })
 
--- Hand the launcher back with a scope's word already in the field. Choosing a row closes a native
--- chooser whatever produced the row, so there is no handing text to a list that is still open, and
--- reopening is the mechanism rather than a workaround for one.
+-- Hand the launcher back with a scope's word already in the field, for the two ways in that cannot
+-- change the field in place, the Aliases row in the launcher's own catalog and a mouse click on a
+-- directory row. Both arrive after the chooser has closed, so reopening is what is left.
 --
--- Which word is not decided here. The resolver is asked for the query that enters this scope, so
--- the canonical alias and the space after it are its business, and this stays true when an alias
--- changes without anything here being touched. No answer means the scope has nothing live to enter
--- by, which is a defect worth a line rather than a seeded query that would claim nothing.
+-- Which word is not decided here either, for the same reason as above. No answer means the scope
+-- has nothing live to enter by, which is a defect worth a line rather than a seeded query that
+-- would claim nothing.
 --
 -- It needs no timer of its own. Every launcher row already runs deferred until the chooser has
 -- torn down and focus has gone back to the app underneath, which is the same wait a reopen needs,

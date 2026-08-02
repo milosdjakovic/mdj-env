@@ -427,6 +427,17 @@ through the atom's completion, which tears the picker down immediately after and
 by a consumer, so going up through the completion path would close the picker on the way. Checking
 before delegating is what lets the primary key on the back row move up and leave the picker open.
 
+The atom has since grown a general form of exactly that, `redirect`, asked for the highlighted row
+before it may complete and answering with a query the field should hold. Answering it here would
+make Return on the back row browse up too, instead of only the insert key, which is the one place
+the two keys currently disagree. It is left alone deliberately, since it is a behaviour change to
+a working tool rather than a fix, and it is recorded because the special case above now has a
+sanctioned way to stop being special.
+
+The browse did take one fix from that work for free. `setQuery` used to leave the text it wrote
+selected, so typing straight after browsing into a folder deleted the scope rather than searching
+inside it. The atom collapses the caret now, and the main `CLAUDE.md` has the detail.
+
 ## Two mode split on a scope, and why browse is one level
 
 With no text a scope is a browse, so it lists one level sorted newest first. Type anything

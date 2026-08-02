@@ -127,6 +127,32 @@ window rather than a row, and the scope has no idea which list is showing its ro
 that asked is the surface that puts it away when its own list closes, which is one line in the
 composition root and no knowledge on either side of the other.
 
+## Some rows are signposts, so there is a third, optional verb
+
+`redirect` asks what a row MEANS instead of what taking it would do, answering with a query the
+field should hold. A query in reply and the surface changes the field, rebuilds, and stays open. It
+is the mirror image of the verb above rather than more of it. Peek exists because a row cannot say
+enough about itself, redirect because a row does not want to be taken at all.
+
+The alias directory is what earned it, and it is the clearest case there is. A row there does not
+do anything, it tells you the word for something else, and the useful outcome is that word in the
+field with the list still up. Expressed as a run, which was the first version, the only thing such
+a row could do was close the list and have something reopen it with the word typed. That worked and
+looked broken, a whole list dismissed and rebuilt to deliver two characters, and the field it
+handed back arrived with its text selected so the next keystroke deleted it.
+
+Asking BEFORE the row is taken is the whole mechanism, because after is too late by construction.
+A native chooser tears down on select and tells the consumer afterwards, so the surface has to take
+the key away from the widget to keep the list alive. That is the atom's business and the main
+`CLAUDE.md` has how it does it. What matters here is that this verb is a question rather than a
+command, which is why a scope answering nothing is unaffected and why a surface that cannot ask in
+time, a mouse click being the one, falls back to `run` and a reopen.
+
+So a scope with signpost rows answers both, the same row meaning the same thing either way and only
+the mouse paying for it. Validation matches `peek`, present but not callable is rejected at load
+with the scope named, and an empty or non string answer reads as no redirect rather than as an
+error, so a scope that cannot name the query right now is simply taken normally.
+
 ## A scope may be smaller than its tool, but not smaller than the reason for the tool
 
 Browser tabs is the good case. It cannot offer its settings level, since that is a step into a
