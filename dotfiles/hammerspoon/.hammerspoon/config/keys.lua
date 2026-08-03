@@ -233,10 +233,10 @@ return {
       when = "launcherOpen",
       priority = 100,
       bindings = {
-        -- The composition root relabels this to "Open in place" while the highlight sits on a row
-        -- that replaces this list rather than running something, which is any row of the alias
-        -- directory plus the row of a tool whose whole list can arrive without this one closing.
-        -- Run is what it is called on every other row, which is nearly all of them.
+        -- The composition root relabels this to "Open" while the highlight sits on an application,
+        -- since an app is opened rather than run and one word cannot suit both. Run is what it is
+        -- called on everything else, a command, a window action, a settings pane, or a row that
+        -- hands this list over to a tool.
         { key = "i",     action = "insertSelected", description = "Run" },
         { key = "j",     action = "selectNext",     description = "Move down" },
         { key = "k",     action = "selectPrev",     description = "Move up" },

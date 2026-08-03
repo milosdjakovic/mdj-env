@@ -797,12 +797,12 @@ true on Return leaves the chooser open with nothing chosen where the same press 
 it and selects the row. `insertSelected` asks the same question through the same helper, because
 that key is ours and Return is the widget's and the two agree only by asking one thing.
 
-THE QUESTION HAS TWO CALLERS AND ONLY ONE WANTS ANYTHING TO HAPPEN, which the launcher's side
-learned the hard way. The shortcut hint asks on every highlight move purely to decide what to
-call the primary key, so an answer that acted while answering hosted the tool under the cursor
-the moment the panel looked at it. `Launcher:_replacementFor` therefore hands back the work as a
-callable rather than a yes, and only the take calls it. Asking is then free by construction and
-not by anyone remembering to keep it that way.
+ASKING WHAT A ROW WOULD DO MUST NOT DO IT, which the launcher's side learned the hard way. A
+shortcut hint used to ask on every highlight move purely to decide what to call the primary key, and
+an answer that acted while answering hosted the tool under the cursor the moment the panel looked at
+it. So `Launcher:_replacementFor` hands back the work as a callable rather than a yes and only the
+take calls it. That hint no longer asks, so there is one caller now, and the shape is kept because
+collapsing it would put the effect back inside the answer for whoever asks next.
 
 A CLICK IS ANSWERED THE SAME WAY, and getting there is the one part that needed something new.
 A click carries no row number the widget will admit to, and it cannot be asked for one while the

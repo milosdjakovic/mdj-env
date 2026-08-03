@@ -676,15 +676,15 @@ end
 --- Launcher:_replacementFor(it) -> function or nil
 --- Method
 --- How taking this row would replace the list, as a callable, or nil when the row is a thing to
---- run. Asked by the atom before a row is allowed to close, and asked again by whoever prints what
---- the primary key does.
+--- run. Asked by the atom before a row is allowed to close.
 ---
---- THE ANSWER IS A CALLABLE AND NOT A YES, because the same question has two callers and only one
---- of them wants anything to happen. The shortcut hint asks on every highlight move purely to
---- decide what to call the key, so an answer that acted while answering would replace the list by
---- looking at it, which is exactly what it did before this was split. Handing back the work
---- instead makes asking free of effects by construction rather than by anyone remembering to keep
---- it that way. It is the same Command shape a row descriptor already has, one step further along.
+--- THE ANSWER IS A CALLABLE AND NOT A YES, which is what keeps asking a question rather than an
+--- act. It was written that way because a second caller existed, a shortcut hint that asked on
+--- every highlight move only to decide what to call the primary key, and the first version replaced
+--- the list by being looked at. That hint has since stopped asking, so there is one caller today,
+--- and the shape stays anyway. Collapsing it would put the effect back inside the answer and re-arm
+--- exactly that defect for whoever next wants to know what a row would do. It is also the same
+--- Command shape a row descriptor already has, one step further along.
 ---
 --- EVERY KIND OF ROW IS ASKED, not only a row a source computed. Whether a row replaces the list
 --- is not a property of where it came from, it is a decision about what that row is for, and the
@@ -700,15 +700,19 @@ function obj:_replacementFor(it)
   return type(replace) == "function" and replace or nil
 end
 
---- Launcher:canRedirectSelected() -> bool
+--- Launcher:selectedKind() -> string or nil
 --- Method
---- Whether the primary key would replace this list rather than run something. Asked by whoever
---- prints what that key does, so the word shown matches what pressing it will do, which is the
---- same live question `canPeekSelected` answers about a key existing at all. Nothing happens by
---- asking, see above.
-function obj:canRedirectSelected()
+--- The kind of the highlighted row, or nil when nothing is highlighted. For whoever prints what the
+--- primary key does, since what that key is called depends on what sort of thing it would take, and
+--- an application is opened where a command is run.
+---
+--- The kind is this spoon's own vocabulary, the same word its dispatcher switches on and the same
+--- word the root already reads when it decides which rows replace the list, so answering with it
+--- exposes nothing new. What any kind should be CALLED stays outside, since a word shown to a person
+--- belongs to the root and to config by the rule the whole configuration follows.
+function obj:selectedKind()
   local it = self._instance and self._instance:selectedItem()
-  return self:_replacementFor(it) ~= nil
+  return it and it.kind or nil
 end
 
 --- Launcher:seedQuery(text) -> bool

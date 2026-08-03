@@ -181,11 +181,20 @@ it points at. So the gate that used to sit here, a claimed row only, moved out t
 answers for a scope row and for the tool rows it lists as hosted. Peeking keeps its gate, because
 that question really is about a row belonging to somebody else.
 
-`_replacementFor` answers with a CALLABLE and not a yes, and that is not decoration. The atom asks
-it when a row is taken, and the shortcut hint asks it on every highlight move purely to decide
-what to call the primary key. The first version acted while answering, so the hint panel hosted
-whatever tool the cursor was on the moment it looked, which the probe caught as a query of `vpn`
-turning into the alias directory. Handing back the work instead makes asking free by construction.
+`_replacementFor` answers with a CALLABLE and not a yes, and that is not decoration. It was written
+that way because two things asked it, the atom when a row is taken and a shortcut hint on every
+highlight move to decide what to call the primary key. The first version acted while answering, so
+the hint panel hosted whatever tool the cursor was on the moment it looked, which the probe caught
+as a query of `vpn` turning into the alias directory. The hint has since stopped asking, because the
+word it printed described the mechanism rather than anything the user wanted, so there is one caller
+today. The shape stays regardless. Collapsing it would put the effect back inside the answer and
+re-arm that defect for whoever next wants to know what a row would do, which is a worse trade than
+one line of indirection.
+
+What the hint asks instead is `selectedKind`, since what the primary key should be called depends on
+the sort of thing under it and nothing more. An application is opened where a command is run. The
+kind is this spoon's own vocabulary, the word its dispatcher already switches on, so answering with
+it exposes nothing, while what any kind is CALLED stays in the root where human wording belongs.
 
 Promoting into the recency order happens in the closure `configure` passes the atom, for the same
 reason and not by coincidence. Taking a row that replaces the list is still using the thing it

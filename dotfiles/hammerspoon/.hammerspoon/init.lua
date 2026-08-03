@@ -486,21 +486,21 @@ end
 
 -- A hint whose WORD depends on what the highlight is sitting on, keyed by action and asked live.
 -- The gates above decide whether a key is listed, and this decides what it is called, which is the
--- other way a printed key can disagree with itself. The launcher's primary key runs a row almost
--- always and rewrites the field on a row that is a signpost, so reading Run while the list is
--- about to become a different list is exactly the drift the two discoverability mandates forbid.
--- Returning nil means the binding's own description stands, which is the usual answer.
+-- other way a printed key can disagree with itself. Returning nil means the binding's own
+-- description stands, which is the usual answer.
 --
--- One word covers both signpost cases, a directory row naming another scope and a tool row whose
--- list arrives without this one closing, because what happens is the same either way. The list
--- under the cursor is replaced and nothing goes away, which is what "in place" says and what
--- naming the mechanism instead, the word going into the field, said only for the directory.
+-- One row kind earns its own word. An application is opened, not run, and Run reads as though
+-- something is about to execute when the thing you are looking at is Safari. A command genuinely is
+-- run and keeps the binding's word, so the two do not have to share one that suits neither.
+--
+-- A row that replaces the list rather than taking you anywhere is deliberately NOT relabelled. It
+-- was, and the word said what the mechanism did rather than what the user wanted, which is noise on
+-- a key nobody was confused about.
+local primaryKeyLabels = { app = "Open" }
 local liveHintLabels = {
   insertSelected = function(context)
-    if context == "launcher" and spoon.Launcher:canRedirectSelected() then
-      return "Open in place"
-    end
-    return nil
+    if context ~= "launcher" then return nil end
+    return primaryKeyLabels[spoon.Launcher:selectedKind()]
   end,
 }
 
@@ -1290,10 +1290,11 @@ spoon.Launcher:configure({
     -- needs both the row and the thing behind it, which only this layer names. Two kinds of row
     -- do, and they replace the list in the two different ways the launcher offers.
     --
-    -- Answering with a callable is what keeps asking free, since the shortcut hint asks the same
-    -- question on every highlight move only to decide what to call the primary key. Answering by
-    -- doing it hosted the tool under the cursor the moment the panel looked, which is the defect
-    -- this shape exists to make impossible rather than merely discouraged.
+    -- Answering with a callable is what keeps this a question rather than an act. It was written
+    -- that way for a second caller, a shortcut hint asking on every highlight move, and answering
+    -- by doing it hosted the tool under the cursor the moment the panel looked. That hint no longer
+    -- asks, and the shape stays, because putting the effect back inside the answer re-arms the same
+    -- defect for whoever next wants to know what a row would do.
     rowIntercept = function(item)
       -- A row a scope computed, which is the alias directory listing the other scopes. It names a
       -- word rather than a list, and handing over the word is the entire point of that list, so
