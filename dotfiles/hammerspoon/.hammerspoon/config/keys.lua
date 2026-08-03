@@ -417,8 +417,12 @@ return {
           needs = "askedPreview", description = "Quick Look" },
         { key = "l", action = "browseInto",     description = "Into folder" },
         { key = "h", action = "browseUp",       description = "Up a level" },
-        { key = "f", action = "revealInFinder", description = "Reveal in Finder" },
-        { key = "o", action = "openFolder",     description = "Open folder" },
+        -- Two verbs for a row and no third. The primary key opens it with whatever the system
+        -- considers its default, a folder in Finder, and this one shows it in Finder instead of
+        -- opening it. There used to be a third that opened the ENCLOSING folder without selecting
+        -- anything, which is a worse version of showing it, so it was dropped rather than kept for
+        -- symmetry. This lives on o, the key that reads as open to whoever is pressing it.
+        { key = "o", action = "revealInFinder", description = "Reveal in Finder" },
         { key = "y", action = "copyPath",       description = "Copy path" },
         { key = "x", action = "closeChooser",   description = "Close" },
       },

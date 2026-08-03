@@ -142,17 +142,18 @@ anything else does, as a row and as a query scope.
 no meaning to the text, so this is not a way to open one tool, and whether that text happens
 to name a scope is between whoever passed it and the resolver.
 
-It exists for the two ways a word can arrive with no list left to type it into, the Aliases row
-in this catalog and a mouse click on a directory row. Both are completions, so the chooser is
-already gone when they run and reopening is all that is left.
+It exists for the one way a word can arrive with no list left to type it into, the Aliases row in
+this catalog. That is a completion, so the chooser is already gone by the time it runs and
+reopening is all that is left.
 
-It used to be the only way, including from the keyboard, and that is the flicker it was reported
-for. A list closing and another opening to deliver two characters is a poor way to say the field
-changed. The keyboard path is a `redirect` now, answered before the row is allowed to close, so
-the field changes under the list that is already there. `_redirectQuery` is this spoon's side of
-it, one more routed question beside running a claimed row and peeking at one, gated to a claimed
-row for the same reason peeking is, since a row that is a thing to run has no second meaning. The
-atom does the rest and the main `CLAUDE.md` has why that takes a key away from the widget.
+It used to be the only way, including from inside the directory itself, and that is the flicker
+it was reported for. A list closing and another opening to deliver two characters is a poor way
+to say the field changed. Choosing a directory row is a `redirect` now, answered before the row is
+allowed to close, so the field changes under the list that is already there, and that holds for
+the mouse as well as for both keys. `_redirectQuery` is this spoon's side of it, one more routed
+question beside running a claimed row and peeking at one, gated to a claimed row for the same
+reason peeking is, since a row that is a thing to run has no second meaning. The atom does the
+rest and the main `CLAUDE.md` has why that takes a key, and a click, away from the widget.
 
 Three things about it are load bearing and each one was a way to get it wrong. The query is
 set after the show, because showing clears the field. A refresh follows, because setting a

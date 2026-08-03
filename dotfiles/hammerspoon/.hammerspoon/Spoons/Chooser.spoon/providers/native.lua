@@ -441,9 +441,9 @@ function Chooser:_startKeyWatcher()
   self.keyWatcher:start()
 end
 
--- Ask the consumer whether the highlighted row rewrites the query rather than completing,
--- and do it if so. Answering here rather than at each caller is what makes Return and the
--- insert key agree, since one of them is the widget's and the other is ours.
+-- Ask the consumer whether a row rewrites the query rather than completing, and do it if so.
+-- Answering here rather than at each caller is what makes Return, the insert key and a click
+-- agree, since one of them is the widget's and the other two are ours.
 function Chooser:_redirect(item)
   local ask = self.config.redirect
   if not ask or not item or self.fieldMode ~= "filter" then return false end
@@ -479,12 +479,47 @@ function Chooser:_startPollLoop()
 end
 
 --------------------------------------------------------------------------------
--- Click away dismissal
+-- Reaching the widget's own parts, which it exposes no other way
 --------------------------------------------------------------------------------
+
+-- hs.chooser hands out no field, no rows and no hit testing, so two features here have to read
+-- the window macOS drew. The accessibility tree carries all of it with exact frames, which is the
+-- same route the row text inset was measured by. Nothing else in this file goes near it.
 
 local function pointInFrame(p, fr)
   return fr and p.x >= fr.x and p.x <= fr.x + fr.w and p.y >= fr.y and p.y <= fr.y + fr.h
 end
+
+-- The first descendant holding one of these roles, depth limited so a malformed tree cannot spin.
+-- The chooser's parts carry no identifier to ask for, so they are found by role.
+local FIELD_ROLES = { AXTextField = true, AXComboBox = true }
+local TABLE_ROLES = { AXTable = true, AXOutline = true }
+
+local function findByRole(element, roles, depth)
+  if depth > 6 then return nil end
+  for _, kid in ipairs(element:attributeValue("AXChildren") or {}) do
+    if roles[kid:attributeValue("AXRole")] then return kid end
+    local found = findByRole(kid, roles, depth + 1)
+    if found then return found end
+  end
+  return nil
+end
+
+-- The visible chooser window. Only one is ever visible however many instances exist, which is
+-- the same assumption the frame settle above already makes.
+local function chooserWindowElement()
+  local app = hs.application.get("Hammerspoon")
+  local axApp = app and hs.axuielement.applicationElement(app)
+  if not axApp then return nil end
+  for _, w in ipairs(axApp:attributeValue("AXWindows") or {}) do
+    if (w:attributeValue("AXTitle") or "") == "Chooser" then return w end
+  end
+  return nil
+end
+
+--------------------------------------------------------------------------------
+-- Click away dismissal
+--------------------------------------------------------------------------------
 
 -- The topmost standard window under a screen point, front to back.
 local function windowUnderPoint(p)
@@ -496,17 +531,66 @@ local function windowUnderPoint(p)
   return nil
 end
 
--- Watch mouse-downs while the chooser is up. A click inside the chooser or its
--- companion is a real interaction, passed straight through. A click outside both
--- is a dismissal: tear down, capture the clicked window, hide the chooser so its
--- focus restore is queued first, then focus that window so it wins, and consume
--- the click so nothing re-activates after. This ordering is flicker free.
+--- Chooser:_rowAtPoint(p) -> row number or nil
+--- The row under a screen point. Read from the accessibility tree, where every row carries its
+--- own frame, rather than computed from the layout numbers. That is not fastidiousness. The
+--- widget renders rows at its own height and settles to a more compact one after the first show,
+--- so a row number worked out from `rowH` would be right on some opens and off by one on others,
+--- and being off by one here means acting on the wrong row.
+---
+--- Rows come back in display order, so counting them gives the same index the choices list uses.
+--- The table's last child is a column rather than a row, which is why only rows are counted.
+function Chooser:_rowAtPoint(p)
+  local window = chooserWindowElement()
+  local table_ = window and findByRole(window, TABLE_ROLES, 0)
+  if not table_ then return nil end
+  local n = 0
+  for _, kid in ipairs(table_:attributeValue("AXChildren") or {}) do
+    if kid:attributeValue("AXRole") == "AXRow" then
+      n = n + 1
+      if pointInFrame(p, kid:attributeValue("AXFrame")) then return n end
+    end
+  end
+  return nil
+end
+
+-- Watch the mouse while the chooser is up, for three cases.
+--
+-- A click on a row that redirects is answered here and goes no further, because the widget's
+-- only answer to a click is to complete, and completing is the thing a redirect exists to
+-- avoid. So a click means what the keyboard means on the same row, which is what a click
+-- should mean. It costs an accessibility read to learn which row was hit, since the widget
+-- moves its highlight on the RELEASE and so cannot be asked while the button is still down,
+-- measured rather than assumed. The release is then swallowed too, so the widget never sees
+-- half a click it might act on once the list under the pointer has changed.
+--
+-- Any other click inside the chooser or its companion is a real interaction, passed straight
+-- through.
+--
+-- A click outside both is a dismissal: tear down, capture the clicked window, hide the chooser
+-- so its focus restore is queued first, then focus that window so it wins, and consume the
+-- click so nothing re-activates after. This ordering is flicker free.
 function Chooser:_startClickWatcher()
   if self.clickWatcher then self.clickWatcher:stop() end
-  self.clickWatcher = hs.eventtap.new({ hs.eventtap.event.types.leftMouseDown }, function(e)
+  local types = hs.eventtap.event.types
+  self.clickWatcher = hs.eventtap.new({ types.leftMouseDown, types.leftMouseUp }, function(e)
     local p = e:location()
     local fr = self.paneFrames or {}
+    if e:getType() == types.leftMouseUp then
+      -- Only ever true for the release of a press this watcher already answered.
+      local swallow = self._swallowMouseUp
+      self._swallowMouseUp = false
+      return swallow == true
+    end
     if pointInFrame(p, fr.chooser) or pointInFrame(p, fr.companion) then
+      if self.config.redirect then
+        local row = self:_rowAtPoint(p)
+        local choice = row and self.currentChoices[row]
+        if choice and choice._enabled ~= false and self:_redirect(choice._item) then
+          self._swallowMouseUp = true
+          return true
+        end
+      end
       return false
     end
     local target = windowUnderPoint(p)
@@ -666,20 +750,6 @@ function Chooser:refresh(resetRow)
   self.lastRow = nil
 end
 
--- The first text field under an element, depth limited so a malformed tree cannot spin. The
--- chooser's search field is a couple of levels into its window and has no identifier to ask
--- for, so it is found by role, and a chooser window holds exactly one.
-local function findTextField(element, depth)
-  if depth > 6 then return nil end
-  for _, kid in ipairs(element:attributeValue("AXChildren") or {}) do
-    local role = kid:attributeValue("AXRole")
-    if role == "AXTextField" or role == "AXComboBox" then return kid end
-    local found = findTextField(kid, depth + 1)
-    if found then return found end
-  end
-  return nil
-end
-
 --- Chooser:setQuery(text) - set the field text, clearing it with "". A consumer that changes
 --- what the list means, like a menu drilling in, clears the filter so the new level is not
 --- narrowed by what was typed at the previous one.
@@ -696,34 +766,24 @@ function Chooser:setQuery(text)
   if text ~= "" then self:_caretToEnd() end
 end
 
--- Put the caret after everything in the search field, replacing the selection hs.chooser
--- made. There is no field object and no caret API on hs.chooser, so the field is reached
--- through the accessibility tree of the visible Chooser window, the same way the row inset
--- was measured and the same single-visible-window assumption the frame settle makes. It
--- takes effect at once, so this needs no timer and no second attempt.
+-- Put the caret after everything in the search field, replacing the selection hs.chooser made.
+-- There is no field object and no caret api, so the field is reached through the accessibility
+-- helpers above. It takes effect at once, so this needs no timer and no second attempt.
 --
 -- The length is asked of the field rather than counted here, since a range is in the units
 -- AppKit stores and Lua counts bytes. Counting UTF8 characters is the fallback, which is
 -- exact for anything but an astral character and lands the caret slightly early rather than
 -- selecting anything if one appears.
 function Chooser:_caretToEnd()
-  local app = hs.application.get("Hammerspoon")
-  local axApp = app and hs.axuielement.applicationElement(app)
-  if not axApp then return end
-  for _, w in ipairs(axApp:attributeValue("AXWindows") or {}) do
-    if (w:attributeValue("AXTitle") or "") == "Chooser" then
-      local field = findTextField(w, 0)
-      if field then
-        local n = field:attributeValue("AXNumberOfCharacters")
-        if type(n) ~= "number" then
-          local value = field:attributeValue("AXValue") or ""
-          n = utf8.len(value) or #value
-        end
-        field:setAttributeValue("AXSelectedTextRange", { location = n, length = 0 })
-        return
-      end
-    end
+  local window = chooserWindowElement()
+  local field = window and findByRole(window, FIELD_ROLES, 0)
+  if not field then return end
+  local n = field:attributeValue("AXNumberOfCharacters")
+  if type(n) ~= "number" then
+    local value = field:attributeValue("AXValue") or ""
+    n = utf8.len(value) or #value
   end
+  field:setAttributeValue("AXSelectedTextRange", { location = n, length = 0 })
 end
 
 -- Move the highlight by delta through the chooser's own selectedRow so it scrolls

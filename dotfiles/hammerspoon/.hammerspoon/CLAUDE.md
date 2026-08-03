@@ -724,9 +724,19 @@ existed to observe for the idle hint panel, now also consumes Return when the hi
 answers with a query. That was verified rather than assumed, an eventtap returning true on
 Return leaves the chooser open with nothing chosen where the same press let through closes it
 and selects the row. `insertSelected` asks the same question through the same helper, because
-that key is ours and Return is the widget's and the two agree only by asking one thing. A mouse
-click is the one path that cannot ask, since a click reaches the widget's completion directly,
-so a consumer with a redirect should keep answering `run` too and accept a reopen for the mouse.
+that key is ours and Return is the widget's and the two agree only by asking one thing.
+
+A CLICK IS ANSWERED THE SAME WAY, and getting there is the one part that needed something new.
+A click carries no row number the widget will admit to, and it cannot be asked for one while the
+button is down, because it moves its highlight on the RELEASE. Measured, not assumed, the
+selected row was still 1 after holding the button on the fourth row for 120ms. So the row comes
+from the accessibility tree, where each row carries its own frame and a point can simply be
+tested against them. That is also why it is not computed from `rowH`, since the widget renders
+rows at its own height and settles to a more compact one after the first show, so arithmetic
+would be right on some opens and off by one on others. The press is consumed once a row answers,
+and the release with it, so the widget never sees half a click it might act on after the list
+under the pointer has changed. A consumer should still answer `run`, which is what a click whose
+row could not be resolved falls back to.
 
 **Seeded text leaves the caret after it, never selected.** `hs.chooser:query` leaves everything
 it just wrote selected, so text handed to a field on the user's behalf turned the next character
@@ -1082,12 +1092,11 @@ alias sits in `config/keys.lua` like every other rather than as a constant insid
 whichever way the word arrives, it is asked of `QueryScope:queryFor(name)`, so which alias is
 canonical and the separator after it stay with the grammar that owns them.
 
-There are two ways it can arrive, and the difference is only whether the list is still open to
-be typed into. Choosing a directory row from the keyboard is a `redirect`, so the field changes
-under the list that is already there and nothing closes. The Aliases launcher row and a mouse
-click on a directory row both arrive after the chooser has gone, so those go through
-`enterScope`, which reopens with the word seeded. The keyboard path was the reopen too at first,
+Choosing a directory row is a `redirect`, by Return, by the insert key or by the mouse, so the
+field changes under the list that is already there and nothing closes. It was a reopen at first,
 and it worked while looking broken, a list closing and another opening to deliver two characters.
+`enterScope` is what remains for the one way in that has no list to type into, the Aliases row in
+the launcher's own catalog, which arrives after the chooser has already gone.
 
 How the aliases read is one closure here, `aliasHint` and `aliasLabel`, because both surfaces
 state them, the tool's launcher row and the directory's own rows, and phrasing it twice is how

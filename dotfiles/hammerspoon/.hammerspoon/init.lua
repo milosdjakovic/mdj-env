@@ -1947,10 +1947,10 @@ end
 -- word by using it rather than by reading it.
 --
 -- Which is why every row here is a redirect, the verb for a row that names a query rather than an
--- action, and the list stays open while the field changes underneath it. Run is still answered, and
--- is what a mouse click takes, since a click reaches the widget's own completion where no question
--- can be asked first. So the same row means the same thing either way, and only the mouse pays for
--- it with a reopen.
+-- action, and the list stays open while the field changes underneath it. Return, the insert key and
+-- a click all go through it, so the same row means the same thing however you take it. Run is still
+-- answered because a click whose row could not be resolved falls back to it, which is the one case
+-- the question cannot be asked in time, and it reopens with the word seeded exactly as it used to.
 queryScopes[#queryScopes + 1] = scope(ALIAS_DIRECTORY, {
   rows = function()
     local out = {}
@@ -2150,7 +2150,6 @@ local contextActions = {
   browseInto = routeNav("browseInto"),
   browseUp = routeNav("browseUp"),
   revealInFinder = routeNav("reveal"),
-  openFolder = routeNav("openFolder"),
   copyPath = routeNav("copyPath"),
 }
 -- Nav actions that auto-repeat while the key is held, so holding Hyper+j/k in any

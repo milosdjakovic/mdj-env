@@ -427,16 +427,28 @@ through the atom's completion, which tears the picker down immediately after and
 by a consumer, so going up through the completion path would close the picker on the way. Checking
 before delegating is what lets the primary key on the back row move up and leave the picker open.
 
-The atom has since grown a general form of exactly that, `redirect`, asked for the highlighted row
-before it may complete and answering with a query the field should hold. Answering it here would
-make Return on the back row browse up too, instead of only the insert key, which is the one place
-the two keys currently disagree. It is left alone deliberately, since it is a behaviour change to
-a working tool rather than a fix, and it is recorded because the special case above now has a
-sanctioned way to stop being special.
+That flag is now answered through the atom's `redirect` instead, which asks any row whether it
+names a query before letting it complete. The paragraph above describes what this used to do, and
+the reason it changed is that intercepting one key only ever fixed one key. Return on the back row
+opened the parent folder and the insert key went up a level, two keys and one row disagreeing, and
+a click did a third thing. All three go up now, and the interception moved out of
+`insertSelected` into the injected answer, so there is nothing special left in the primary key.
 
-The browse did take one fix from that work for free. `setQuery` used to leave the text it wrote
-selected, so typing straight after browsing into a folder deleted the scope rather than searching
-inside it. The atom collapses the caret now, and the main `CLAUDE.md` has the detail.
+The browse took a second fix from that work. `setQuery` used to leave the text it wrote selected,
+so typing straight after browsing into a folder deleted the scope rather than searching inside it.
+The atom collapses the caret now, and the main `CLAUDE.md` has both details.
+
+## Two verbs for a row, after a third was removed
+
+The primary key opens a row with whatever the system considers its default, and a folder opens in
+Finder, which is the same verb rather than a special case. Hyper+O shows it in Finder instead of
+opening it. That is all of it.
+
+There used to be a third, opening the ENCLOSING folder without selecting anything, on its own key
+while reveal sat on Hyper+F. It was removed because it is a worse version of showing the row, it
+tells you less and costs a key, and reveal moved onto Hyper+O since that is the key that reads as
+open to whoever is pressing it. Hyper+F is now unbound and drops off the hint strip with it, so
+one action does not answer to two keys.
 
 ## Two mode split on a scope, and why browse is one level
 

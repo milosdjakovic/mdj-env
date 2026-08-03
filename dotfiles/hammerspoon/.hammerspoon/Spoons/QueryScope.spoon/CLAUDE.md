@@ -144,14 +144,15 @@ handed back arrived with its text selected so the next keystroke deleted it.
 Asking BEFORE the row is taken is the whole mechanism, because after is too late by construction.
 A native chooser tears down on select and tells the consumer afterwards, so the surface has to take
 the key away from the widget to keep the list alive. That is the atom's business and the main
-`CLAUDE.md` has how it does it. What matters here is that this verb is a question rather than a
-command, which is why a scope answering nothing is unaffected and why a surface that cannot ask in
-time, a mouse click being the one, falls back to `run` and a reopen.
+`CLAUDE.md` has how it does it, including the mouse, which needed a way to learn which row was
+clicked before letting the click through. What matters here is that this verb is a question rather
+than a command, which is why a scope answering nothing at all is unaffected by its existence.
 
-So a scope with signpost rows answers both, the same row meaning the same thing either way and only
-the mouse paying for it. Validation matches `peek`, present but not callable is rejected at load
-with the scope named, and an empty or non string answer reads as no redirect rather than as an
-error, so a scope that cannot name the query right now is simply taken normally.
+A scope with signpost rows should still answer `run`, and the reason is worth stating because it
+looks like dead code. It is the fallback for a click whose row could not be resolved, which is the
+one case the question cannot be asked in time. Validation matches `peek`, present but not callable
+is rejected at load with the scope named, and an empty or non string answer reads as no redirect
+rather than as an error, so a scope that cannot name the query right now is simply taken normally.
 
 ## A scope may be smaller than its tool, but not smaller than the reason for the tool
 
