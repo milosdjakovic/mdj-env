@@ -337,6 +337,14 @@ local predicates = {
   launcherRowPeekable = function()
     return spoon.Launcher:isShowing() and spoon.Launcher:canPeekSelected()
   end,
+  -- The launcher is showing somebody else's list rather than its own catalog, so there is a level
+  -- to step out of. Gates the Backspace listing and nothing else, which is what makes the way back
+  -- appear exactly where it exists. It is deliberately false for a tool opened by its own chord,
+  -- since that picker has no launcher underneath it, and false for a scope the user typed, since
+  -- deleting the word that scoped the list is already the way out of that and needs no telling.
+  launcherHostingList = function()
+    return spoon.Launcher:isShowing() and spoon.Launcher:isHostingList()
+  end,
   -- The menu search chooser is open. Gates the menuSearch Hyper context.
   menuSearchOpen = function()
     return menuSearchSurface ~= nil and menuSearchSurface.isShowing()
@@ -504,8 +512,17 @@ local function footerFor(name)
     if ctx.name == name then
       for _, b in ipairs(ctx.bindings) do
         if bindingApplies(b) and bindingActive(b) then
+        local badges
+        if b.chord == false then
+          -- A key this root never binds, owned by the chooser atom instead, so there is no chord
+          -- to print in front of it and the bare key is the whole badge. Listing it is the only
+          -- reason it appears in a context at all, since a key nobody can see is a key nobody
+          -- presses, and the alternative was a sentence in the placeholder doing the same job
+          -- worse. The listing is still gated, so it shows exactly while the key does something.
+          badges = { spoon.CheatSheet.glyphFor(b.key, b.mods) }
+        else
         local chord = "Hyper+" .. spoon.CheatSheet.glyphFor(b.key, b.mods)
-        local badges = { chord }
+        badges = { chord }
         if b.action == "insertSelected" or b.action == "enter" then
           badges = { chord, spoon.CheatSheet.glyphFor("return") }
         elseif b.action == "closeChooser" then
@@ -514,6 +531,7 @@ local function footerFor(name)
           badges = { chord, spoon.CheatSheet.glyphFor("down") }
         elseif b.action == "selectPrev" then
           badges = { chord, spoon.CheatSheet.glyphFor("up") }
+        end
         end
         local live = liveHintLabels[b.action]
         local label = (live and live(name)) or b.description or b.action
@@ -2237,6 +2255,11 @@ for _, ctx in ipairs(keys.hyperContexts or {}) do
     -- The same filter the shortcut panel applies, so a binding dropped for not fitting a choice
     -- this root made disappears from the key and from its listing together.
     if not bindingApplies(b) then -- luacheck: ignore
+    -- A listing rather than a binding. The key belongs to the chooser atom, which reads it
+    -- directly, so binding it here as a Hyper chord would invent a second way to press it that
+    -- nobody asked for and that the hint would then be lying about. It appears in the panel and
+    -- nowhere else, which is exactly what it is for.
+    elseif b.chord == false then -- luacheck: ignore
     elseif fn then
       spoon.HyperKey:bind(b.key, fn, b.mods, {
         when = ctx.when,

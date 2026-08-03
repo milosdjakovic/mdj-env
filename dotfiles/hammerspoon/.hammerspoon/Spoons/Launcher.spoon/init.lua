@@ -742,14 +742,23 @@ end
 ---
 --- The prefix is opaque. What it says, which tool it reaches, and whether one exists at all are
 --- decided by whoever passes it, exactly as with the text seedQuery takes. The title is what the
---- field says while there is nothing typed in it, which is the only thing telling you where you
---- are once the word is no longer visible, so it names the list and the way out of it.
+--- field says while nothing is typed in it, which is what tells you where you are once no word is
+--- visible. The way out is not said here. It is a listed key in the shortcut panel like every other
+--- key, gated on a page existing, since a sentence in a placeholder was doing a panel's job worse.
 function obj:enterPage(prefix, title)
   if not self._instance or type(prefix) ~= "string" or prefix == "" then return false end
   self._page = prefix
   self._instance:setQuery("")
-  self._instance:setPlaceholder((title or "This list") .. " · backspace to go back")
+  self._instance:setPlaceholder(title or "This list")
   return true
+end
+
+--- Launcher:isHostingList() -> bool
+--- Method
+--- Whether somebody else's list is showing rather than this catalog. Asked by whoever decides
+--- whether to print the way back, so the way back is listed exactly while there is one.
+function obj:isHostingList()
+  return self._page ~= nil
 end
 
 --- Launcher:leavePage() -> bool

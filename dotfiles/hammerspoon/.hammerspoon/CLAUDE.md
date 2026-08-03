@@ -706,6 +706,18 @@ was not met. So a key appears in the hints exactly while it does something, and 
 option for a chooser binding rather than a trap. The cost is rebuilding a small list each time the
 panel is revealed, which happens once per pause rather than per keystroke.
 
+**A binding may be a LISTING rather than a binding, which `chord = false` says.** Some keys belong
+to the Chooser atom and are read there directly, Backspace on an empty field being the one, so
+there is nothing for this root to bind. Such an entry still sits in its context's bindings, because
+the panel is where a key becomes visible and a plain key nobody can see is a key nobody presses.
+The wiring loop skips it and `footerFor` prints the bare key with no `Hyper+` in front, since
+binding it as a chord would invent a second way to press it that the hint would then be wrong
+about. It is gated like anything else, so the way out of a hosted list appears exactly while there
+is a list to leave, and is absent in a tool's own picker and absent when a typed word did the
+scoping, where deleting that word is already the way out and says so by itself. The alternative
+tried first was a sentence in the placeholder, which did a hint panel's job worse and put wording
+somewhere nothing else keeps it.
+
 **A rebuilt list tells the highlight poll.** `Chooser:refresh` clears `lastRow` after setting
 choices, because the poll that drives `onHighlight` compares the row NUMBER and the row under a
 given number changes when the list is rebuilt. Without it a companion pane keeps describing
@@ -740,9 +752,10 @@ typed before asking the query sources, so the field holds only the typing and th
 tool's own. There is no second row mechanism, no second matcher, and no second definition of
 what choosing a row does. A tool is hostable exactly when it is already reachable by a typed
 word, `hostedInPlace` in the composition root names the rows that are, and a name whose alias
-does not resolve falls back to opening the picker on its own. Backspace on an empty field leaves
-a hosted list, which is the atom's `back` hook and the same press that steps out of a typed
-scope, and the placeholder names the list and that way out, since the word is no longer visible.
+does not resolve falls back to opening the picker on its own. The placeholder names the list, since
+the word that reached it is no longer visible. Backspace on an empty field leaves it, which is the
+atom's `back` hook and the same press that steps out of a typed scope, and it is listed in the hint
+panel as a key with no chord, gated on there being a list to leave, see `chord = false` above.
 
 What a hosted list does not carry is the keys that are the tool's own rather than the shared j,
 k, i and x, so reveal, copy path and browsing a folder in file search, and the settings level in

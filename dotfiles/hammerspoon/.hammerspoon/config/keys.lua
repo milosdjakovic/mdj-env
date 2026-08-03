@@ -246,8 +246,18 @@ return {
         -- inert and unlisted the moment the highlight lands on an app or a command. Same key
         -- and same word as in that tool's own picker, so it is one thing to remember, and it
         -- also needs a preview provider that is asked rather than one that follows.
-        { key = "q",     action = "peekPreview",    when = "launcherRowPeekable",
-          needs = "askedPreview", description = "Quick Look" },
+        -- The way out of a tool's list being shown here, listed rather than bound, which is what
+        -- `chord = false` says. The Chooser atom reads Backspace on an empty field for itself, so
+        -- binding it as a Hyper chord here would invent a second way to press it that the hint
+        -- would then be wrong about. It is in this list purely so the key is visible, since a
+        -- plain key nobody can see is a key nobody presses.
+        --
+        -- The gate is what makes it honest. It shows only while a tool's list is actually being
+        -- shown here, so it is absent from that tool's own picker opened by its chord, where there
+        -- is no launcher underneath to go back to, and absent when the list was scoped by a word
+        -- the user typed, where deleting that word is already the way out and says so by itself.
+        { key = "delete", action = "leavePage", when = "launcherHostingList", chord = false,
+          description = "Go back" },
         { key = "space", action = "closeChooser",   description = "Close" },
       },
     },
