@@ -706,6 +706,19 @@ was not met. So a key appears in the hints exactly while it does something, and 
 option for a chooser binding rather than a trap. The cost is rebuilding a small list each time the
 panel is revealed, which happens once per pause rather than per keystroke.
 
+ASKING ON REVEAL IS NOT ENOUGH, and that took a second report to see. The panel latches visible,
+so the reveal shows the truth and then nothing redraws while the state carries on changing
+underneath. Entering a tool's list after the panel was already up left the way out unlisted, and
+stepping back out of one left it listed, and the same staleness was quietly true of every other
+gated key, the preview one included, since moving the highlight changes whether it means anything.
+So `CanvasPanel` polls while it is visible. Content may offer `state()`, one comparable string
+saying what is currently being said, and the panel compares it four times a second and redraws
+only when it differs. A poll rather than every consumer telling the panel after every event that
+might matter, because that is a list nobody keeps complete and the entry already missing from it is
+the reason this exists. Content without `state` runs no timer, and a steady panel costs a string
+comparison and nothing else. The guard is the canvas being up rather than the reveal flag, since
+that flag tracks only the delayed reveal and stays false for a panel configured with no delay.
+
 **A binding may be a LISTING rather than a binding, which `chord = false` says.** Some keys belong
 to the Chooser atom and are read there directly, Backspace on an empty field being the one, so
 there is nothing for this root to bind. Such an entry still sits in its context's bindings, because

@@ -78,6 +78,11 @@
 ---                  draw into a w x h box with its origin at (0, 0); the panel
 ---                  offsets the elements by its padding and draws the surface behind
 ---                  them.
+---                state() -> string, OPTIONAL. What is being said right now, as one
+---                  comparable value. Content that can go stale while the panel sits
+---                  there offers it, and the panel then polls while visible and redraws
+---                  when the value changes, so what is on screen keeps being true. Omit
+---                  it for fixed content and no timer runs at all.
 
 local obj = {}
 obj.__index = obj
@@ -263,7 +268,57 @@ function Panel:_startTimer()
     self.timer = nil
     self.shown = true
     if self.anchor then self:show(self.anchor) end
+    self:_startWatch()
   end)
+end
+
+-- How often a visible panel checks whether what it is showing is still true.
+local WATCH_INTERVAL = 0.25
+
+-- Keep a revealed panel honest, for content that can go stale while nobody touches it.
+--
+-- THE PANEL LATCHES VISIBLE, which is what made this necessary. Content is asked for on every
+-- draw, so the reveal shows the truth, but after that nothing redraws and the answer drifts. For
+-- shortcut hints that means a key gated on live state stays printed after it stops working and
+-- stays missing after it starts, which is exactly the disagreement the reveal-time question was
+-- introduced to prevent. It was reported for the way out of a hosted list, listed only if the list
+-- was entered BEFORE the panel appeared and still listed after stepping back out of it, and the
+-- same staleness was already true of every other gated key including the preview one.
+--
+-- A poll rather than a set of notifications, deliberately. The alternative is every consumer
+-- telling the panel after every event that might matter, which is a list nobody can keep complete,
+-- and the one already missing from it is the reason this exists. Polling covers every gate there is
+-- and every gate added later, with no consumer knowing a panel is watching.
+--
+-- Only for content that offers `state`, so a panel showing something fixed runs no timer at all,
+-- and only while visible, which is while the user has paused. A redraw happens only when the
+-- reported state changes, so a steady panel is a string comparison four times a second and nothing
+-- else, never a flicker.
+function Panel:_startWatch()
+  local state = self.config.content.state
+  if type(state) ~= "function" then return end
+  if self.watchTimer then self.watchTimer:stop() end
+  self.lastState = state()
+  -- Guarded on the canvas rather than on `shown`, which only tracks the DELAYED reveal and stays
+  -- false for a panel configured with no delay, where the canvas is up all the same. Reading the
+  -- canvas is true on both paths, and it leaves a centered panel's nil anchor alone, since show
+  -- already accepts that.
+  self.watchTimer = hs.timer.doEvery(WATCH_INTERVAL, function()
+    if not self:isShowing() then return end
+    local now = state()
+    if now ~= self.lastState then
+      self.lastState = now
+      self:show(self.anchor)
+    end
+  end)
+end
+
+function Panel:_stopWatch()
+  if self.watchTimer then
+    self.watchTimer:stop()
+    self.watchTimer = nil
+  end
+  self.lastState = nil
 end
 
 --- CanvasPanel:arm(anchorFrame) - the reveal-timing entry point. With no delay it draws
@@ -276,6 +331,7 @@ function Panel:arm(anchor)
   local delay = self.config.delay
   if not delay or delay <= 0 then
     self:show(anchor)
+    self:_startWatch()
     return
   end
   if self.shown then
@@ -304,6 +360,7 @@ function Panel:hide()
     self.timer:stop()
     self.timer = nil
   end
+  self:_stopWatch()
   self.shown = false
   self.anchor = nil
   if self.canvas then self.canvas:hide() end
@@ -317,7 +374,8 @@ end
 --- CanvasPanel.new(config) -> instance.
 function obj.new(config)
   assert(config and config.content, "CanvasPanel.new: config.content is required")
-  return setmetatable({ config = config, canvas = nil, timer = nil, shown = false, anchor = nil }, Panel)
+  return setmetatable({ config = config, canvas = nil, timer = nil, shown = false, anchor = nil,
+                        watchTimer = nil, lastState = nil }, Panel)
 end
 
 return obj

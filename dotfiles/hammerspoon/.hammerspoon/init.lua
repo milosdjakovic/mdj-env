@@ -882,6 +882,19 @@ local function shortcutsContent(theme, hints)
   end
 
   return {
+    -- What is currently being said, as one comparable string, so a visible panel can notice that
+    -- the answer changed and redraw. Asking on every draw is only enough for the draw that
+    -- happens, and a panel latches visible, so without this a key gated on live state stayed
+    -- printed after it stopped working. The badges and the label are both in the signature
+    -- because either can change without the other, a key appearing or disappearing being the
+    -- first and the primary key's word changing with the row being the second.
+    state = function()
+      local parts = {}
+      for _, h in ipairs(current()) do
+        parts[#parts + 1] = table.concat(h.badges or {}, "+") .. " " .. tostring(h.label)
+      end
+      return table.concat(parts, " | ")
+    end,
     preferredSize = function(availW)
       local w = availW or 320
       return { w = w, h = rowsHeight(wrap(w, current())) }
