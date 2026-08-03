@@ -282,14 +282,44 @@ local menuSearchSurface
 local overlayDisplaySurface
 -- Hands the launcher back with a scope's own word already typed, forward-declared because the
 -- launcher's action dispatch names it well before the scopes it reads are assembled. It is the
--- one door back into the launcher and both callers go through it, the alias directory choosing a
--- row and the launcher row that opens the directory, so what entering a scope means is decided
--- once. See its definition beside the scopes for why it is spelled the way it is.
+-- one door back into the launcher, taken only when a row could not rewrite the field of the list
+-- it was already in. See its definition beside the scopes for why it is spelled the way it is.
 local enterScope
 -- The alias directory's own scope name, which is also its key in config/keys.lua and the name its
 -- launcher row carries, since that one identity is what ties a scope to its row to its hint. Named
 -- here because this root refers to it in both of those places and nowhere else should.
 local ALIAS_DIRECTORY = "aliasDirectory"
+
+-- The tools whose launcher row hands the list to their own scope instead of opening a second
+-- chooser over the first. Choosing one then costs no close and no reopen, the field fills with
+-- that tool's word and the rows underneath become its rows, which is the same thing typing the
+-- word does and is what every list here should do when one list becomes another.
+--
+-- THE ENTRY CRITERION IS PARITY, and it is the whole reason this is a named list rather than
+-- every tool with an alias. A row swaps in place only when its scope reaches everything its own
+-- picker reaches, the same rows, the same choosing, and the same keys. Keep awake, the VPN and
+-- the emoji picker each qualify, their scope being the picker's rows and select with the
+-- launcher's own j, k and i doing the rest. File search and browser tabs do not, and quietly
+-- sending their rows into a scope would take away reveal, copy path, browsing a folder and the
+-- tab settings level while their subtitle still advertised the chord that gives all of it, which
+-- is the disagreement between a printed key and its behaviour that the discoverability rules
+-- here exist to forbid. Both become candidates the day a scope can carry a tool's extra verbs,
+-- and until then the honest answer is that their row opens their picker.
+--
+-- The alias directory is here for a different reason. It is not a tool with a picker at all, it
+-- IS a scope, so its row has nothing to open and entering it in place is the only correct
+-- reading of choosing it.
+--
+-- A name with no live alias answers nil on its own, so nothing has to be removed from here when
+-- a scope stops resolving. The emoji scope is exactly that case, being registered only when the
+-- backend that won owns a list, and with the Character Viewer fronted its row opens the picker.
+local swapsInPlace = {
+  [ALIAS_DIRECTORY] = true,
+  caffeinate = true,
+  vpn = true,
+  emoji = true,
+}
+
 local predicates = {
   multipleDisplays = function() return #hs.screen.allScreens() > 1 end,
   -- The launcher chooser is open. Gates the launcher Hyper context,
@@ -447,13 +477,18 @@ end
 -- A hint whose WORD depends on what the highlight is sitting on, keyed by action and asked live.
 -- The gates above decide whether a key is listed, and this decides what it is called, which is the
 -- other way a printed key can disagree with itself. The launcher's primary key runs a row almost
--- always and retypes the field on a row that is a signpost, the alias directory being the case, so
--- reading Run while it types a word is exactly the drift the two discoverability mandates forbid.
+-- always and rewrites the field on a row that is a signpost, so reading Run while the list is
+-- about to become a different list is exactly the drift the two discoverability mandates forbid.
 -- Returning nil means the binding's own description stands, which is the usual answer.
+--
+-- One word covers both signpost cases, a directory row naming another scope and a tool row whose
+-- list arrives without this one closing, because what happens is the same either way. The list
+-- under the cursor is replaced and nothing goes away, which is what "in place" says and what
+-- naming the mechanism instead, the word going into the field, said only for the directory.
 local liveHintLabels = {
   insertSelected = function(context)
     if context == "launcher" and spoon.Launcher:canRedirectSelected() then
-      return "Type the word"
+      return "Open in place"
     end
     return nil
   end,
@@ -1217,10 +1252,20 @@ spoon.Launcher:configure({
     -- it is offered so a scope with nothing to show never advertises a key.
     scopePeek = function(item) spoon.QueryScope:peek(item) end,
     scopeCanPeek = function(item) return spoon.QueryScope:canPeek(item) end,
-    -- And the third, what a row means instead of what taking it would do. Asked before the
-    -- list is allowed to close, so a row that is a signpost rather than a destination answers
-    -- with the query to put in the field and the launcher stays where it is.
-    scopeRedirect = function(item) return spoon.QueryScope:redirectFor(item) end,
+    -- What a row means instead of what taking it would do. Asked of EVERY row before the list
+    -- is allowed to close, so a row that is a signpost rather than a destination answers with
+    -- the query to put in the field and the launcher stays where it is. Two kinds of row are,
+    -- and both answers are this root's own policy, so the launcher asks about all of them and
+    -- learns which are signposts from here rather than from a rule of its own.
+    rowRedirect = function(item)
+      -- A row a scope computed, which is the alias directory listing the other scopes.
+      if item.kind == "scope" then return spoon.QueryScope:redirectFor(item) end
+      -- A curated row for a tool that swaps in place, answered with that tool's own word.
+      if item.kind == "special" and swapsInPlace[item.name] then
+        return spoon.QueryScope:queryFor(item.name)
+      end
+      return nil
+    end,
     app = function(bundleID, url)
       if url then
         spoon.AppToggler:toggleURL(bundleID, url)
@@ -1238,6 +1283,11 @@ spoon.Launcher:configure({
       -- picker depends on.
       appendCopy = function() spoon.ClipboardHistory.manager.appendCopy() end,
       pasteNext = function() spoon.ClipboardHistory.manager.pasteNext() end,
+      -- These three and the directory below are named in swapsInPlace, so their row normally
+      -- never reaches here at all, it fills the field with the tool's word and the list becomes
+      -- the tool's list. Opening the picker stays the answer for the one case the swap cannot
+      -- happen, a scope holding no live alias, and it is also what the tool's own chord does, so
+      -- nothing is lost when the word is gone.
       caffeinate = function() spoon.Caffeinate.show() end,
       vpn = function() spoon.Vpn.show() end,
       colorPicker = function() spoon.Eyedropper:pick() end,
@@ -1253,7 +1303,8 @@ spoon.Launcher:configure({
       fileSearch = function() spoon.FileSearch.chooser.show() end,
       -- The directory is a scope like the tools it lists, so opening it from a row means
       -- entering that scope rather than showing anything of its own. One mechanism, so the row
-      -- and the word `?` land in the same place and neither can drift from the other.
+      -- and the word `?` land in the same place and neither can drift from the other. Reached
+      -- only when the row could not swap the list in place, since the directory swaps too.
       [ALIAS_DIRECTORY] = function() enterScope(ALIAS_DIRECTORY) end,
     },
   },
@@ -1973,9 +2024,10 @@ queryScopes[#queryScopes + 1] = scope(ALIAS_DIRECTORY, {
   run = function(name) enterScope(name) end,
 })
 
--- Hand the launcher back with a scope's word already in the field, for the two ways in that cannot
--- change the field in place, the Aliases row in the launcher's own catalog and a mouse click on a
--- directory row. Both arrive after the chooser has closed, so reopening is what is left.
+-- Hand the launcher back with a scope's word already in the field. THE LAST RESORT rather than a
+-- route anything takes normally, since every way into a scope now rewrites the field of the list
+-- already open. What is left is a mouse click whose row could not be resolved from the
+-- accessibility tree, which arrives after the chooser has closed, so reopening is all there is.
 --
 -- Which word is not decided here either, for the same reason as above. No answer means the scope
 -- has nothing live to enter by, which is a defect worth a line rather than a seeded query that

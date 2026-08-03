@@ -640,6 +640,10 @@ step mirroring what the clipboard already does.
 6. Inject the panel's `onClose` (which also runs the root's overlay teardown) as the
    surface's `onClose`, wire `onPositioned`/`onActivity`, and bind the open key as a
    base HyperKey binding.
+7. Decide how this list is entered from another one. If a launcher row, an alias, or any other
+   list can lead here, that entry must replace the rows of the chooser already open rather than
+   opening this one over it, which means a query scope and a `redirect` and not a `show`. The
+   rule and what qualifies are below under one list becoming another in place.
 
 A tool with two surfaces, like the VPN control panel and its location picker,
 wires each surface as its own participant, its own context block, predicate,
@@ -709,6 +713,28 @@ whatever used to sit there, which showed up as browsing into a folder from the f
 the file search pane on the old first row. Typing already did this in the query callback, so
 refresh was missing the same one line. Any consumer that swaps its list wholesale, a menu
 drilling into a level or a rescan, gets the correction for free.
+
+**One list becomes another in place. A chooser never closes so that a second one can open.**
+This is the rule the two paragraphs below serve, and it holds however far apart the two lists
+are, a level of a menu, a folder a search stepped into, or a whole separate tool that owns its
+own rows. Whatever the user is about to look at goes into the chooser that is already up.
+
+Closing and reopening is wrong for two reasons and both were seen for real. It rebuilds a window
+in the same screen position, which reads as a flicker and as something having gone wrong, and the
+reopen has to reconstruct the field, the highlight and the focus that the first one already held,
+so each of those is a place the state comes back slightly different. The alias directory blinked
+on every drill and the query it seeded came back fully selected, and those were the same defect
+counted twice.
+
+So a new list tool is asked one question before it is given a chooser of its own, which is
+whether anything ever reaches it from another list. If something does, that entry is a
+`redirect` and the rows arrive through a query scope, and a chooser is opened only by the paths
+that have no live field to rewrite, the tool's own chord and a click whose row could not be
+resolved. `swapsInPlace` in the composition root names the launcher rows that take this route
+today, and the criterion for joining it is parity, a row swaps in place only when its scope
+reaches everything its own picker reaches. File search and browser tabs fail that on their extra
+keys, so their rows still open a picker. That is a gap to close by letting a scope carry a tool's
+extra verbs, not a second opinion about how a list should change.
 
 **A row may be a signpost rather than a destination, and saying so takes a key away from the
 widget.** `Chooser`'s optional `redirect` is asked for the highlighted row before that row is
@@ -1095,8 +1121,14 @@ canonical and the separator after it stay with the grammar that owns them.
 Choosing a directory row is a `redirect`, by Return, by the insert key or by the mouse, so the
 field changes under the list that is already there and nothing closes. It was a reopen at first,
 and it worked while looking broken, a list closing and another opening to deliver two characters.
-`enterScope` is what remains for the one way in that has no list to type into, the Aliases row in
-the launcher's own catalog, which arrives after the chooser has already gone.
+The Aliases row itself is a `redirect` too, so opening the directory costs no reopen either, and
+`enterScope` is what remains for the one way in with no list to type into, a click whose row the
+accessibility tree could not resolve, which arrives after the chooser has already gone.
+
+The same route carries a tool's own launcher row where the tool qualifies, which is what
+`swapsInPlace` in the root names and what its entry criterion of parity decides. Keep awake, the
+VPN and the emoji picker each reach their whole list without this one closing, and the rule and
+the two tools that do not qualify are under one list becoming another in place, above.
 
 How the aliases read is one closure here, `aliasHint` and `aliasLabel`, because both surfaces
 state them, the tool's launcher row and the directory's own rows, and phrasing it twice is how

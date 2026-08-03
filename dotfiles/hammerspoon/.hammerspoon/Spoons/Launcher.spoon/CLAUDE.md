@@ -142,18 +142,34 @@ anything else does, as a row and as a query scope.
 no meaning to the text, so this is not a way to open one tool, and whether that text happens
 to name a scope is between whoever passed it and the resolver.
 
-It exists for the one way a word can arrive with no list left to type it into, the Aliases row in
-this catalog. That is a completion, so the chooser is already gone by the time it runs and
-reopening is all that is left.
+It exists for the one way a word can arrive with no list left to type it into, a mouse click whose
+row the accessibility tree could not resolve. That is a completion, so the chooser is already gone
+by the time it runs and reopening is all that is left.
 
 It used to be the only way, including from inside the directory itself, and that is the flicker
 it was reported for. A list closing and another opening to deliver two characters is a poor way
-to say the field changed. Choosing a directory row is a `redirect` now, answered before the row is
+to say the field changed. Choosing such a row is a `redirect` now, answered before the row is
 allowed to close, so the field changes under the list that is already there, and that holds for
 the mouse as well as for both keys. `_redirectQuery` is this spoon's side of it, one more routed
-question beside running a claimed row and peeking at one, gated to a claimed row for the same
-reason peeking is, since a row that is a thing to run has no second meaning. The atom does the
-rest and the main `CLAUDE.md` has why that takes a key, and a click, away from the widget.
+question beside running a claimed row and peeking at one. The atom does the rest and the main
+`CLAUDE.md` has why that takes a key, and a click, away from the widget.
+
+EVERY ROW IS ASKED, not only a row a source computed, and that is a deliberate widening. Whether a
+row is a signpost is not a property of where it came from, it is a decision about what the row is
+for, and the only layer holding that decision is the one that named both the row and the thing it
+points at. The case that proved it is a curated command row for a tool that already answers a
+typed word, where closing this chooser to open a second one over the same screen position is
+strictly worse than handing this one the word. So the gate that used to sit here, a claimed row
+only, moved out to the root, which answers for a scope row and for the handful of tool rows it
+lists as swapping in place. Peeking keeps its gate, because that question really is about a row
+belonging to somebody else.
+
+Promoting into the recency order happens in the closure `configure` passes the atom and not in
+`_redirectQuery`, and the two are not interchangeable. The atom calls the closure only when a row
+is actually taken, while the shortcut hint asks `_redirectQuery` on every highlight move to decide
+what to call the primary key, so promoting inside the question would reorder the list by looking
+at it. Taking a signpost row is still using the thing it points at, and it lands under the key
+running it produced, so the order is what it was before any of this.
 
 Three things about it are load bearing and each one was a way to get it wrong. The query is
 set after the show, because showing clears the field. A refresh follows, because setting a

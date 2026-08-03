@@ -39,7 +39,7 @@ obj._glyphFor = nil         -- function(key, mods) -> chord glyph string
 obj._settingsPanes = nil    -- raw settings pane descriptors, injected by the root
 obj._predicates = nil       -- shared predicate registry, for `when` gating
 obj._shortcutPanel = nil    -- { onPositioned, onActivity, onClose }
-obj._actions = nil          -- leaf dispatch: app, capture, settingsPane, special
+obj._actions = nil          -- leaf dispatch: app, capture, settingsPane, special, rowRedirect
 obj._queryProviders = nil   -- ordered query row sources, each answering rows(query)
 obj._aliasHint = nil        -- function(name) -> subtitle fragment, "" when there is none
 
@@ -180,7 +180,19 @@ function obj:configure(opts)
     -- What a row becomes instead of being taken, asked by the atom before it lets a row
     -- close the list. The launcher only routes the question, exactly as it routes running a
     -- row and peeking at one, so it still learns nothing about what a scope or an alias is.
-    redirect = function(item) return self:_redirectQuery(item) end,
+    --
+    -- Promoting happens HERE and not in _redirectQuery, because the atom calls this closure only
+    -- when a row is actually being taken while the shortcut hint asks _redirectQuery on every
+    -- highlight move to decide what to call the key. Taking a row that rewrites the field is
+    -- still using the thing it points at, so it belongs in the shared recency order exactly as
+    -- running it did, and it lands under the same key running it produced. A row with no
+    -- identity to remember, which is every row a scope computed, answers nil to recencyKey and
+    -- so stays out of the timeline as it always has.
+    redirect = function(item)
+      local query = self:_redirectQuery(item)
+      if query then self:_promote(recencyKey(item)) end
+      return query
+    end,
     onPositioned = sp.onPositioned,
     onActivity = sp.onActivity,
     onClose = sp.onClose,
@@ -652,12 +664,16 @@ end
 --- exactly what it says. Asked by the atom for the highlighted row before that row is allowed
 --- to close the list, so a row can hand the field new text and leave the list open.
 ---
---- Only a row from a source that claimed the query has anywhere to send the question, the same
---- gate peeking uses and for the same reason. An app or a command is a thing to run and has no
---- second meaning, so there is deliberately nothing to ask about one.
+--- EVERY KIND OF ROW IS ASKED, not only a row a source computed. Whether a row is a signpost
+--- is not a property of where it came from, it is a decision about what that row is for, and
+--- the only layer holding that decision is the one that named both the row and the thing it
+--- points at. A curated command row is the case that proved it: a row for a tool that already
+--- answers a typed word is better off handing the list that word than closing this chooser to
+--- open a second one over the same screen position. The launcher cannot tell which rows those
+--- are and does not try, it asks about all of them and the usual answer is nil.
 function obj:_redirectQuery(it)
-  if not it or it.kind ~= "scope" then return nil end
-  local ask = self._actions.scopeRedirect
+  if not it then return nil end
+  local ask = self._actions.rowRedirect
   return ask and ask(it) or nil
 end
 
