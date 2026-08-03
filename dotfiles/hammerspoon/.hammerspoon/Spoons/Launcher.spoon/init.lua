@@ -39,7 +39,7 @@ obj._glyphFor = nil         -- function(key, mods) -> chord glyph string
 obj._settingsPanes = nil    -- raw settings pane descriptors, injected by the root
 obj._predicates = nil       -- shared predicate registry, for `when` gating
 obj._shortcutPanel = nil    -- { onPositioned, onActivity, onClose }
-obj._actions = nil          -- leaf dispatch: app, capture, settingsPane, special, rowRedirect
+obj._actions = nil          -- leaf dispatch: app, capture, settingsPane, special, rowIntercept
 obj._queryProviders = nil   -- ordered query row sources, each answering rows(query)
 obj._aliasHint = nil        -- function(name) -> subtitle fragment, "" when there is none
 
@@ -56,6 +56,7 @@ obj._orderedRowsCache = nil      -- all rows, recency-sorted, invalidated on any
 obj._appRowsWatcher = nil
 obj._mru = nil              -- most-recently-used item keys, front is most recent
 obj._selfKey = nil          -- our own app key, never promoted
+obj._page = nil             -- an opaque query prefix while somebody else's list is hosted
 
 -- App enumeration roots and the depth guard against a symlink-looped tree.
 local APP_DIRS = {
@@ -177,22 +178,29 @@ function obj:configure(opts)
         self._runTimer = hs.timer.doAfter(0.1, function() self:_runItem(item) end)
       end
     end,
-    -- What a row becomes instead of being taken, asked by the atom before it lets a row
-    -- close the list. The launcher only routes the question, exactly as it routes running a
-    -- row and peeking at one, so it still learns nothing about what a scope or an alias is.
+    -- Whether a row means this list becomes another list rather than being taken, asked by the
+    -- atom before it lets a row close. The launcher only routes the question, exactly as it
+    -- routes running a row and peeking at one, so it still learns nothing about what a scope or
+    -- a tool is. Whoever answers acts through the two public doors below, seedQuery and
+    -- enterPage.
     --
-    -- Promoting happens HERE and not in _redirectQuery, because the atom calls this closure only
-    -- when a row is actually being taken while the shortcut hint asks _redirectQuery on every
-    -- highlight move to decide what to call the key. Taking a row that rewrites the field is
+    -- Promoting happens HERE and not in _replacementFor, because the atom calls this closure only
+    -- when a row is actually being taken while the shortcut hint asks _replacementFor on every
+    -- highlight move to decide what to call the key. Taking a row that replaces the list is
     -- still using the thing it points at, so it belongs in the shared recency order exactly as
     -- running it did, and it lands under the same key running it produced. A row with no
     -- identity to remember, which is every row a scope computed, answers nil to recencyKey and
     -- so stays out of the timeline as it always has.
-    redirect = function(item)
-      local query = self:_redirectQuery(item)
-      if query then self:_promote(recencyKey(item)) end
-      return query
+    intercept = function(item)
+      local replace = self:_replacementFor(item)
+      if not replace then return false end
+      replace()
+      self:_promote(recencyKey(item))
+      return true
     end,
+    -- Backspace on an empty field, which is how you leave a hosted list. The atom asks only
+    -- when there is nothing to delete, so this never competes with ordinary editing.
+    back = function() return self:leavePage() end,
     onPositioned = sp.onPositioned,
     onActivity = sp.onActivity,
     onClose = sp.onClose,
@@ -583,6 +591,13 @@ end
 --- was typed rather than against the answer it produced, which is what keeps a result at
 --- the top of the list instead of being dropped for not resembling its own expression.
 function obj:_commandRows(query)
+  -- A hosted list. The field holds only what the user typed, so the page's own prefix goes in
+  -- front of it before the sources are asked, and their answer is the whole list. One line,
+  -- because hosting reuses the mechanism a typed word already goes through rather than adding a
+  -- second one, and this spoon still cannot tell what it is hosting.
+  if self._page then
+    return (self:_queryRows(self._page .. query))
+  end
   local out, exclusive = self:_queryRows(query)
   -- A source claimed the query, so its rows are the entire list and the catalog below is
   -- skipped. This one line is the whole of what the launcher knows about being scoped.
@@ -658,33 +673,97 @@ function obj:canPeekSelected()
   return ask ~= nil and ask(it) == true
 end
 
---- Launcher:_redirectQuery(it) -> query or nil
+--- Launcher:_replacementFor(it) -> function or nil
 --- Method
---- The query a row means instead of the action it would otherwise run, or nil when it means
---- exactly what it says. Asked by the atom for the highlighted row before that row is allowed
---- to close the list, so a row can hand the field new text and leave the list open.
+--- How taking this row would replace the list, as a callable, or nil when the row is a thing to
+--- run. Asked by the atom before a row is allowed to close, and asked again by whoever prints what
+--- the primary key does.
 ---
---- EVERY KIND OF ROW IS ASKED, not only a row a source computed. Whether a row is a signpost
---- is not a property of where it came from, it is a decision about what that row is for, and
---- the only layer holding that decision is the one that named both the row and the thing it
---- points at. A curated command row is the case that proved it: a row for a tool that already
---- answers a typed word is better off handing the list that word than closing this chooser to
---- open a second one over the same screen position. The launcher cannot tell which rows those
---- are and does not try, it asks about all of them and the usual answer is nil.
-function obj:_redirectQuery(it)
+--- THE ANSWER IS A CALLABLE AND NOT A YES, because the same question has two callers and only one
+--- of them wants anything to happen. The shortcut hint asks on every highlight move purely to
+--- decide what to call the key, so an answer that acted while answering would replace the list by
+--- looking at it, which is exactly what it did before this was split. Handing back the work
+--- instead makes asking free of effects by construction rather than by anyone remembering to keep
+--- it that way. It is the same Command shape a row descriptor already has, one step further along.
+---
+--- EVERY KIND OF ROW IS ASKED, not only a row a source computed. Whether a row replaces the list
+--- is not a property of where it came from, it is a decision about what that row is for, and the
+--- only layer holding that decision is the one that named both the row and the thing it points at.
+--- A curated command row is the case that proved it. A row for a tool with a list of its own is
+--- better off putting that list here than closing this chooser to open a second one over the same
+--- screen position. The launcher cannot tell which rows those are and does not try, it asks about
+--- all of them and the usual answer is nil.
+function obj:_replacementFor(it)
   if not it then return nil end
-  local ask = self._actions.rowRedirect
-  return ask and ask(it) or nil
+  local ask = self._actions.rowIntercept
+  local replace = ask and ask(it) or nil
+  return type(replace) == "function" and replace or nil
 end
 
 --- Launcher:canRedirectSelected() -> bool
 --- Method
---- Whether the highlighted row would retype the field rather than run something. Asked by whoever
---- prints what the primary key does, so the word shown matches what pressing it will do, which is
---- the same live question `canPeekSelected` answers about a key existing at all.
+--- Whether the primary key would replace this list rather than run something. Asked by whoever
+--- prints what that key does, so the word shown matches what pressing it will do, which is the
+--- same live question `canPeekSelected` answers about a key existing at all. Nothing happens by
+--- asking, see above.
 function obj:canRedirectSelected()
   local it = self._instance and self._instance:selectedItem()
-  return self:_redirectQuery(it) ~= nil
+  return self:_replacementFor(it) ~= nil
+end
+
+--- Launcher:seedQuery(text) -> bool
+--- Method
+--- Put text in the field of the open launcher, answering whether it went in. One of the two things
+--- a row that replaces this list can mean, the other being enterPage below. For a row that names a
+--- query rather than an action, which is what an alias directory row is, so the word arrives in
+--- the field and the next thing typed is that tool's own query. Plain text, and the launcher
+--- attaches no meaning to it.
+--- Seeding is about the launcher's OWN field, so any hosted list is left first. Without that the
+--- page's invisible prefix would still be in front of the seeded text and the two would compose
+--- into a query neither of them meant, which is what choosing an alias inside the hosted directory
+--- did before, asking for the directory's own rows filtered by the word it had just handed over.
+function obj:seedQuery(text)
+  if not self._instance or type(text) ~= "string" or text == "" then return false end
+  self:leavePage()
+  self._instance:setQuery(text)
+  return true
+end
+
+--- Launcher:enterPage(prefix, title)
+--- Method
+--- Host somebody else's list in the chooser that is already open. The other thing a row that
+--- replaces this list can mean, and the one that needs no word in the field.
+---
+--- A PAGE IS A PREFIX THIS SPOON NEVER SHOWS. The query sources already answer a whole list for a
+--- query that names a tool, so hosting one is just asking them with that text in front of whatever
+--- the user typed, while the field itself holds only the typing. So this needs no second row
+--- mechanism, no second matcher and no second definition of what choosing a row does, and a tool
+--- reachable by a typed word is hostable with no work of its own.
+---
+--- The prefix is opaque. What it says, which tool it reaches, and whether one exists at all are
+--- decided by whoever passes it, exactly as with the text seedQuery takes. The title is what the
+--- field says while there is nothing typed in it, which is the only thing telling you where you
+--- are once the word is no longer visible, so it names the list and the way out of it.
+function obj:enterPage(prefix, title)
+  if not self._instance or type(prefix) ~= "string" or prefix == "" then return false end
+  self._page = prefix
+  self._instance:setQuery("")
+  self._instance:setPlaceholder((title or "This list") .. " · backspace to go back")
+  return true
+end
+
+--- Launcher:leavePage() -> bool
+--- Method
+--- Give the launcher its own list back, answering whether there was a page to leave. False is how
+--- Backspace on an empty field stays an ordinary press when nothing is hosted.
+function obj:leavePage()
+  if not self._page then return false end
+  self._page = nil
+  if self._instance then
+    self._instance:setQuery("")
+    self._instance:setPlaceholder(self._placeholder)
+  end
+  return true
 end
 
 --- Launcher:refresh()
@@ -806,6 +885,9 @@ function obj:show(query)
     self._coveredApp = front
   end
   if not self._instance then return end
+  -- Every open starts on this catalog with this placeholder, whatever list the previous open was
+  -- left hosting when it closed. Done before the show, since showing builds the first rows.
+  self:leavePage()
   self._instance:show()
   if query and query ~= "" then
     self._instance:setQuery(query)

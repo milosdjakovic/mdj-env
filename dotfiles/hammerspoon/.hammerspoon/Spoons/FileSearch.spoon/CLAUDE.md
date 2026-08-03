@@ -427,8 +427,10 @@ through the atom's completion, which tears the picker down immediately after and
 by a consumer, so going up through the completion path would close the picker on the way. Checking
 before delegating is what lets the primary key on the back row move up and leave the picker open.
 
-That flag is now answered through the atom's `redirect` instead, which asks any row whether it
-names a query before letting it complete. The paragraph above describes what this used to do, and
+That flag is now answered through the atom's `intercept` instead, which asks any row whether taking
+it means the list becomes another list rather than a completion. The reply is only that yes or no,
+so the query for the level above is put in the field here, by the consumer that knows what going up
+means. The paragraph above describes what this used to do, and
 the reason it changed is that intercepting one key only ever fixed one key. Return on the back row
 opened the parent folder and the insert key went up a level, two keys and one row disagreeing, and
 a click did a third thing. All three go up now, and the interception moved out of

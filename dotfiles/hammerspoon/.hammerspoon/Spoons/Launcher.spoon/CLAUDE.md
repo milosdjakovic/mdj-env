@@ -148,28 +148,49 @@ by the time it runs and reopening is all that is left.
 
 It used to be the only way, including from inside the directory itself, and that is the flicker
 it was reported for. A list closing and another opening to deliver two characters is a poor way
-to say the field changed. Choosing such a row is a `redirect` now, answered before the row is
-allowed to close, so the field changes under the list that is already there, and that holds for
-the mouse as well as for both keys. `_redirectQuery` is this spoon's side of it, one more routed
-question beside running a claimed row and peeking at one. The atom does the rest and the main
-`CLAUDE.md` has why that takes a key, and a click, away from the widget.
+to say the field changed. A row that means this list becomes another list is answered before it is
+allowed to close now, through the atom's `intercept`, and that holds for the mouse as well as for
+both keys. The main `CLAUDE.md` has why answering takes a key, and a click, away from the widget.
+
+## Two ways to replace this list, and they are not the same thing
+
+`seedQuery(text)` puts a word in the field. `enterPage(prefix, title)` hosts somebody else's list.
+Both leave the chooser exactly where it was and both are reached through the one routed question,
+but they answer different rows and confusing them was a reported defect rather than a nuance. A
+row that names a WORD should seed, which is an alias directory row and nothing else, since being
+handed the word is the entire purpose of that list. A row that names a LIST should host, so the
+rows change and nothing else does. Typing `v ` into the field when the VPN row was chosen was the
+first attempt at this and it was wrong, because choosing a tool should hand you the tool.
+
+A PAGE IS A PREFIX THIS SPOON NEVER SHOWS. `_commandRows` puts the held prefix in front of
+whatever the user typed before asking the query sources, and their answer is the whole list, so
+the field holds only the typing. That is one line, and it is why hosting needed no second row
+mechanism, no second matcher, no second definition of what choosing a row does, and nothing at all
+from the tool being hosted. Which prefix, and whether one exists, are decided by whoever passes
+it, exactly as with the text `seedQuery` takes, so this spoon still names no tool. The title is
+what the field says while empty, which is the only thing telling you where you are once no word is
+visible, so it names the list and the way out of it. `leavePage` is that way out, wired to the
+atom's `back`, which asks only when there is nothing left to delete, so Backspace stays ordinary
+editing every other time. Seeding leaves a page first, because seeding is about this spoon's own
+field, and without that the page's prefix and the seeded text composed into a query neither meant.
 
 EVERY ROW IS ASKED, not only a row a source computed, and that is a deliberate widening. Whether a
-row is a signpost is not a property of where it came from, it is a decision about what the row is
-for, and the only layer holding that decision is the one that named both the row and the thing it
-points at. The case that proved it is a curated command row for a tool that already answers a
-typed word, where closing this chooser to open a second one over the same screen position is
-strictly worse than handing this one the word. So the gate that used to sit here, a claimed row
-only, moved out to the root, which answers for a scope row and for the handful of tool rows it
-lists as swapping in place. Peeking keeps its gate, because that question really is about a row
-belonging to somebody else.
+row replaces the list is not a property of where it came from, it is a decision about what the row
+is for, and the only layer holding that decision is the one that named both the row and the thing
+it points at. So the gate that used to sit here, a claimed row only, moved out to the root, which
+answers for a scope row and for the tool rows it lists as hosted. Peeking keeps its gate, because
+that question really is about a row belonging to somebody else.
 
-Promoting into the recency order happens in the closure `configure` passes the atom and not in
-`_redirectQuery`, and the two are not interchangeable. The atom calls the closure only when a row
-is actually taken, while the shortcut hint asks `_redirectQuery` on every highlight move to decide
-what to call the primary key, so promoting inside the question would reorder the list by looking
-at it. Taking a signpost row is still using the thing it points at, and it lands under the key
-running it produced, so the order is what it was before any of this.
+`_replacementFor` answers with a CALLABLE and not a yes, and that is not decoration. The atom asks
+it when a row is taken, and the shortcut hint asks it on every highlight move purely to decide
+what to call the primary key. The first version acted while answering, so the hint panel hosted
+whatever tool the cursor was on the moment it looked, which the probe caught as a query of `vpn`
+turning into the alias directory. Handing back the work instead makes asking free by construction.
+
+Promoting into the recency order happens in the closure `configure` passes the atom, for the same
+reason and not by coincidence. Taking a row that replaces the list is still using the thing it
+points at, and it lands under the key running it produced, so the order is what it was before any
+of this, while promoting inside the question would have reordered the list by looking at it.
 
 Three things about it are load bearing and each one was a way to get it wrong. The query is
 set after the show, because showing clears the field. A refresh follows, because setting a

@@ -475,14 +475,21 @@ function M.start()
     matcher = false,
     placeholder = cfg.placeholder,
     onSelect = onSelect,
-    -- The parent row is a step rather than a destination, so it answers with the query for the
-    -- level above and the picker stays where it is. Asked before a row may complete, which is
+    -- The parent row is a step rather than a destination, so it puts the query for the level above
+    -- in the field and the picker stays where it is. Asked before a row may complete, which is
     -- what makes Return, the insert key and a click all go up, where before only the insert key
-    -- did and the other two opened the parent folder instead. Every other row answers nothing
-    -- and is opened exactly as it always was.
-    redirect = function(item)
-      if item and item.up and cfg.api and cfg.api.upQuery then return cfg.api.upQuery() end
-      return nil
+    -- did and the other two opened the parent folder instead. Every other row answers false and
+    -- is opened exactly as it always was.
+    --
+    -- The field is set here rather than answered with, because the atom's hook says only whether
+    -- the row was a completion and leaves what it meant to whoever knows. So the query goes in
+    -- through the picker itself, which is also what a level change already does elsewhere here.
+    intercept = function(item)
+      if not (item and item.up and cfg.api and cfg.api.upQuery) then return false end
+      local query = cfg.api.upQuery()
+      if type(query) ~= "string" or query == "" then return false end
+      picker:setQuery(query)
+      return true
     end,
     -- Setting this is what starts the atom's highlight poll, so a provider that is asked for
     -- rather than followed costs no timer at all.
@@ -667,7 +674,7 @@ end
 ---
 --- It used to intercept the back row here and browse up instead of delegating, because choosing a
 --- row goes through the atom's completion which tears the picker down straight after. That is the
---- injected `redirect` above now, asked by the atom before a row may complete, so the interception
+--- injected `intercept` above now, asked by the atom before a row may complete, so the interception
 --- covers Return and a mouse click as well rather than this one key. Nothing is left to check here.
 function M.insertSelected()
   if not picker then return end

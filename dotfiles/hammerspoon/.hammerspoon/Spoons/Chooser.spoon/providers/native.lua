@@ -35,13 +35,21 @@
 ---                the subtitle. A row sets it to fold in hidden keywords or synonyms.
 ---   onSelect     function(item) fired when a row is chosen (Return or the insert
 ---                key). Not fired for a disabled row or an empty dismissal.
----   redirect     function(item) -> query string, or nil. Asked BEFORE a row is allowed to
----                complete the chooser, so a row can mean "retype the field" rather than
----                "act and close". A returned query becomes the field text, the list
----                rebuilds against it, and the chooser stays open, which is what makes a
----                list you drill through stop flickering. nil is the usual answer and the
----                row completes as always. Filter mode only, since a field whose Return
----                commits a typed value cannot also mean navigate.
+---   intercept    function(item) -> true to keep the chooser open. Asked BEFORE a row is
+---                allowed to complete, so a row can mean "this list becomes another list"
+---                rather than "act and close". The consumer does whatever the row meant,
+---                rewriting the field or swapping its whole row supplier, and answers true,
+---                and the atom then rebuilds the list from the top and stays open. That is
+---                what makes a list you drill through stop flickering. false or nil is the
+---                usual answer and the row completes as always. The atom deliberately does
+---                not learn what the row meant, only that it was not a completion. Filter
+---                mode only, since a field whose Return commits a typed value cannot also
+---                mean navigate.
+---   back         function() -> true when it went back. Asked on Backspace while the field
+---                is EMPTY, which is the one press that otherwise does nothing at all, so a
+---                consumer that swapped its list can step out of it the way deleting a
+---                typed scope steps out of that. Answering true consumes the key and
+---                rebuilds the list; anything else lets it through untouched.
 ---   onHighlight  function(item) fired when the highlight moves. Drives a
 ---                companion like the clipboard preview. Omit it and no poll runs.
 ---   onClose      function() fired once when the chooser tears down for any
@@ -409,31 +417,42 @@ end
 -- Key watcher (only when a consumer listens)
 --------------------------------------------------------------------------------
 
--- Return and the keypad's Enter, the two keys hs.chooser treats as "take this row".
+-- Return and the keypad's Enter, the two keys hs.chooser treats as "take this row", plus
+-- Backspace, which it treats as nothing once the field is empty.
 local SUBMIT_KEYCODES = { [36] = true, [76] = true }
+local BACKSPACE_KEYCODE = 51
 
--- One tap over every key press while the chooser is up, serving two consumers.
+-- One tap over every key press while the chooser is up, serving three consumers.
 --
 -- onActivity is an idle signal (a deferred hint panel resets its countdown on each key),
 -- and it only observes.
 --
--- redirect is the one thing here that consumes a key, and it has to. hs.chooser hardwires
--- Return to complete and offers no hook before that happens, so by the time a consumer is
--- told a row was chosen the window is already gone and handing it new text is handing it to
--- something that closed. Taking Return away from the widget is the only place a row can
--- still say it meant to rewrite the query instead. Verified rather than assumed: an eventtap
+-- intercept is the one thing here that has to consume a key. hs.chooser hardwires Return to
+-- complete and offers no hook before that happens, so by the time a consumer is told a row
+-- was chosen the window is already gone, and a row whose whole meaning is that this list
+-- becomes another list has nothing left to change. Taking Return away from the widget is the
+-- only place such a row can still be answered. Verified rather than assumed: an eventtap
 -- returning true on Return leaves the chooser open with nothing selected, where the same
 -- press let through closes it and chooses the row.
 --
--- Every other key falls straight through, and so does Return whenever the highlighted row
--- has no redirect to offer, which is almost always.
+-- back is the way out of that. A consumer that swapped its list needs a press meaning step
+-- out again, and Backspace on an empty field is the honest one, since it already means delete
+-- the last thing I typed and there is nothing left to delete. It is also the same press that
+-- steps out of a typed scope, where deleting the space hands the list back, so one habit
+-- covers both.
+--
+-- Every other key falls straight through, and so does Return on a row that answers no.
 function Chooser:_startKeyWatcher()
-  if not (self.config.onActivity or self.config.redirect) then return end
+  if not (self.config.onActivity or self.config.intercept or self.config.back) then return end
   if self.keyWatcher then self.keyWatcher:stop() end
   self.keyWatcher = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, function(e)
     if not self.active then return false end
     if self.config.onActivity then self.config.onActivity() end
-    if SUBMIT_KEYCODES[e:getKeyCode()] and self:_redirect(self:selectedItem()) then
+    local code = e:getKeyCode()
+    if SUBMIT_KEYCODES[code] and self:_intercept(self:selectedItem()) then
+      return true
+    end
+    if code == BACKSPACE_KEYCODE and self:_back() then
       return true
     end
     return false
@@ -441,17 +460,29 @@ function Chooser:_startKeyWatcher()
   self.keyWatcher:start()
 end
 
--- Ask the consumer whether a row rewrites the query rather than completing, and do it if so.
--- Answering here rather than at each caller is what makes Return, the insert key and a click
--- agree, since one of them is the widget's and the other two are ours.
-function Chooser:_redirect(item)
-  local ask = self.config.redirect
+-- Ask the consumer whether a row means something other than completing, and rebuild if it
+-- did. Asking here rather than at each caller is what makes Return, the insert key and a
+-- click agree, since one of them is the widget's and the other two are ours.
+--
+-- The consumer is the one that acts, because what a row meant is its business and the atom
+-- would only be guessing at it. All the atom does is rebuild from the top afterwards, since
+-- the list now means something else and the highlight should not stay on whatever row number
+-- the previous level left it on.
+function Chooser:_intercept(item)
+  local ask = self.config.intercept
   if not ask or not item or self.fieldMode ~= "filter" then return false end
-  local query = ask(item)
-  if type(query) ~= "string" or query == "" then return false end
-  self:setQuery(query)
-  -- The list now means something else, so the highlight goes back to the top rather than
-  -- staying on whatever row number the previous level left it on.
+  if ask(item) ~= true then return false end
+  self:refresh(true)
+  return true
+end
+
+-- Step out of a swapped list, but only from an empty field, so Backspace stays ordinary
+-- editing for every press that has a character to delete.
+function Chooser:_back()
+  local ask = self.config.back
+  if not ask or self.fieldMode ~= "filter" then return false end
+  if (self.chooser and self.chooser:query() or "") ~= "" then return false end
+  if ask() ~= true then return false end
   self:refresh(true)
   return true
 end
@@ -556,10 +587,10 @@ end
 
 -- Watch the mouse while the chooser is up, for three cases.
 --
--- A click on a row that redirects is answered here and goes no further, because the widget's
--- only answer to a click is to complete, and completing is the thing a redirect exists to
--- avoid. So a click means what the keyboard means on the same row, which is what a click
--- should mean. It costs an accessibility read to learn which row was hit, since the widget
+-- A click on a row the consumer intercepts is answered here and goes no further, because the
+-- widget's only answer to a click is to complete, and completing is the thing an intercept
+-- exists to avoid. So a click means what the keyboard means on the same row, which is what a
+-- click should mean. It costs an accessibility read to learn which row was hit, since the widget
 -- moves its highlight on the RELEASE and so cannot be asked while the button is still down,
 -- measured rather than assumed. The release is then swallowed too, so the widget never sees
 -- half a click it might act on once the list under the pointer has changed.
@@ -583,10 +614,10 @@ function Chooser:_startClickWatcher()
       return swallow == true
     end
     if pointInFrame(p, fr.chooser) or pointInFrame(p, fr.companion) then
-      if self.config.redirect then
+      if self.config.intercept then
         local row = self:_rowAtPoint(p)
         local choice = row and self.currentChoices[row]
-        if choice and choice._enabled ~= false and self:_redirect(choice._item) then
+        if choice and choice._enabled ~= false and self:_intercept(choice._item) then
           self._swallowMouseUp = true
           return true
         end
@@ -804,12 +835,12 @@ function Chooser:selectPrev() self:_move(-1) end
 --- Chooser:insertSelected() - choose the highlighted row, exactly as Return does.
 --- chooser:select fires the completion callback, so the onSelect path runs.
 ---
---- Including the redirect question, which is what "exactly as Return does" has to mean. This
+--- Including the intercept question, which is what "exactly as Return does" has to mean. This
 --- key is ours and Return is the widget's, so the two reach the same answer only by asking
---- the same thing, and the shared check lives in _redirect for that reason.
+--- the same thing, and the shared check lives in _intercept for that reason.
 function Chooser:insertSelected()
   if not self:isShowing() then return end
-  if self:_redirect(self:selectedItem()) then return end
+  if self:_intercept(self:selectedItem()) then return end
   local r = self.chooser:selectedRow()
   if r and r >= 1 then self.chooser:select(r) end
 end

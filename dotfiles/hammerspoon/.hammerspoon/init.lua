@@ -290,34 +290,36 @@ local enterScope
 -- here because this root refers to it in both of those places and nowhere else should.
 local ALIAS_DIRECTORY = "aliasDirectory"
 
--- The tools whose launcher row hands the list to their own scope instead of opening a second
--- chooser over the first. Choosing one then costs no close and no reopen, the field fills with
--- that tool's word and the rows underneath become its rows, which is the same thing typing the
--- word does and is what every list here should do when one list becomes another.
+-- The tools whose launcher row puts their list INTO the launcher rather than opening a second
+-- chooser over the first. Choosing one costs no close and no reopen, the rows underneath simply
+-- become that tool's rows, and that is all that visibly happens. The field stays empty and ready
+-- for that tool's own query, and nothing is typed into it on the user's behalf, because a row
+-- meaning give me this tool and a row meaning here is the word for this tool are two different
+-- rows and only the alias directory is the second kind.
 --
--- THE ENTRY CRITERION IS PARITY, and it is the whole reason this is a named list rather than
--- every tool with an alias. A row swaps in place only when its scope reaches everything its own
--- picker reaches, the same rows, the same choosing, and the same keys. Keep awake, the VPN and
--- the emoji picker each qualify, their scope being the picker's rows and select with the
--- launcher's own j, k and i doing the rest. File search and browser tabs do not, and quietly
--- sending their rows into a scope would take away reveal, copy path, browsing a folder and the
--- tab settings level while their subtitle still advertised the chord that gives all of it, which
--- is the disagreement between a printed key and its behaviour that the discoverability rules
--- here exist to forbid. Both become candidates the day a scope can carry a tool's extra verbs,
--- and until then the honest answer is that their row opens their picker.
+-- Hosting reuses the alias as an invisible prefix, so a tool joins this list by already being
+-- reachable by a typed word and needs nothing of its own. A name with no live alias answers nil
+-- and its row opens its picker, so nothing has to be removed from here when a scope stops
+-- resolving. The emoji scope is exactly that case, registered only when the backend that won owns
+-- a list, so with the Character Viewer fronted that row opens the picker.
 --
--- The alias directory is here for a different reason. It is not a tool with a picker at all, it
--- IS a scope, so its row has nothing to open and entering it in place is the only correct
--- reading of choosing it.
+-- WHAT A HOSTED LIST DOES NOT CARRY is the keys that are the tool's own rather than the shared
+-- j, k, i and x, which today means reveal, copy path and browsing a folder in file search, and
+-- the settings level in browser tabs. Those keys live in the Hyper context that goes with the
+-- tool's own picker and a hosted list is under the launcher's context, so they are still a chord
+-- away and are not here. The gap closes when a scope can carry a tool's extra verbs, which is
+-- worth doing and is not this.
 --
--- A name with no live alias answers nil on its own, so nothing has to be removed from here when
--- a scope stops resolving. The emoji scope is exactly that case, being registered only when the
--- backend that won owns a list, and with the Character Viewer fronted its row opens the picker.
-local swapsInPlace = {
+-- The alias directory is here for a different reason. It is not a tool with a picker at all, it IS
+-- a scope, so its row has nothing to open and hosting it is the only correct reading of choosing
+-- it. Its own rows are then the one place a word is handed over rather than a list.
+local hostedInPlace = {
   [ALIAS_DIRECTORY] = true,
   caffeinate = true,
   vpn = true,
   emoji = true,
+  fileSearch = true,
+  browserTabs = true,
 }
 
 local predicates = {
@@ -1252,17 +1254,33 @@ spoon.Launcher:configure({
     -- it is offered so a scope with nothing to show never advertises a key.
     scopePeek = function(item) spoon.QueryScope:peek(item) end,
     scopeCanPeek = function(item) return spoon.QueryScope:canPeek(item) end,
-    -- What a row means instead of what taking it would do. Asked of EVERY row before the list
-    -- is allowed to close, so a row that is a signpost rather than a destination answers with
-    -- the query to put in the field and the launcher stays where it is. Two kinds of row are,
-    -- and both answers are this root's own policy, so the launcher asks about all of them and
-    -- learns which are signposts from here rather than from a rule of its own.
-    rowRedirect = function(item)
-      -- A row a scope computed, which is the alias directory listing the other scopes.
-      if item.kind == "scope" then return spoon.QueryScope:redirectFor(item) end
-      -- A curated row for a tool that swaps in place, answered with that tool's own word.
-      if item.kind == "special" and swapsInPlace[item.name] then
-        return spoon.QueryScope:queryFor(item.name)
+    -- HOW a row would replace the list rather than be taken, handed back as work to do and not
+    -- as a yes, or nil when the row is a thing to run. This root answers because deciding it
+    -- needs both the row and the thing behind it, which only this layer names. Two kinds of row
+    -- do, and they replace the list in the two different ways the launcher offers.
+    --
+    -- Answering with a callable is what keeps asking free, since the shortcut hint asks the same
+    -- question on every highlight move only to decide what to call the primary key. Answering by
+    -- doing it hosted the tool under the cursor the moment the panel looked, which is the defect
+    -- this shape exists to make impossible rather than merely discouraged.
+    rowIntercept = function(item)
+      -- A row a scope computed, which is the alias directory listing the other scopes. It names a
+      -- word rather than a list, and handing over the word is the entire point of that list, so
+      -- the field is seeded and you have learned the word by being given it.
+      if item.kind == "scope" then
+        local query = spoon.QueryScope:redirectFor(item)
+        if not query then return nil end
+        return function() spoon.Launcher:seedQuery(query) end
+      end
+      -- A curated row for a tool with a list of its own. Its list is HOSTED, so the rows change
+      -- and nothing else does, no second window and no word appearing in a field nobody typed in.
+      -- The prefix that reaches it is the tool's own alias, which is the launcher's existing way
+      -- to ask for one tool's rows and is why hosting needed nothing new from the tool.
+      if item.kind == "special" and hostedInPlace[item.name] then
+        local prefix = spoon.QueryScope:queryFor(item.name)
+        if not prefix then return nil end
+        local title = (keys[item.name] or {}).description
+        return function() spoon.Launcher:enterPage(prefix, title) end
       end
       return nil
     end,
@@ -1283,11 +1301,10 @@ spoon.Launcher:configure({
       -- picker depends on.
       appendCopy = function() spoon.ClipboardHistory.manager.appendCopy() end,
       pasteNext = function() spoon.ClipboardHistory.manager.pasteNext() end,
-      -- These three and the directory below are named in swapsInPlace, so their row normally
-      -- never reaches here at all, it fills the field with the tool's word and the list becomes
-      -- the tool's list. Opening the picker stays the answer for the one case the swap cannot
-      -- happen, a scope holding no live alias, and it is also what the tool's own chord does, so
-      -- nothing is lost when the word is gone.
+      -- Several of these are named in hostedInPlace, so their row normally never reaches here at
+      -- all, the launcher hosts the tool's list instead. Opening the picker stays the answer for
+      -- the one case hosting cannot happen, a scope holding no live alias, and it is also what the
+      -- tool's own chord does, so nothing is lost when the word is gone.
       caffeinate = function() spoon.Caffeinate.show() end,
       vpn = function() spoon.Vpn.show() end,
       colorPicker = function() spoon.Eyedropper:pick() end,
@@ -1304,7 +1321,7 @@ spoon.Launcher:configure({
       -- The directory is a scope like the tools it lists, so opening it from a row means
       -- entering that scope rather than showing anything of its own. One mechanism, so the row
       -- and the word `?` land in the same place and neither can drift from the other. Reached
-      -- only when the row could not swap the list in place, since the directory swaps too.
+      -- only when the row could not be hosted, since the directory is hosted like the rest.
       [ALIAS_DIRECTORY] = function() enterScope(ALIAS_DIRECTORY) end,
     },
   },

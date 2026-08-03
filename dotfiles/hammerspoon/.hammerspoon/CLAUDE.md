@@ -642,8 +642,8 @@ step mirroring what the clipboard already does.
    base HyperKey binding.
 7. Decide how this list is entered from another one. If a launcher row, an alias, or any other
    list can lead here, that entry must replace the rows of the chooser already open rather than
-   opening this one over it, which means a query scope and a `redirect` and not a `show`. The
-   rule and what qualifies are below under one list becoming another in place.
+   opening this one over it, which means a query scope that the launcher hosts and not a `show`.
+   The rule and the two ways to replace a list are below under one list becoming another in place.
 
 A tool with two surfaces, like the VPN control panel and its location picker,
 wires each surface as its own participant, its own context block, predicate,
@@ -726,31 +726,57 @@ so each of those is a place the state comes back slightly different. The alias d
 on every drill and the query it seeded came back fully selected, and those were the same defect
 counted twice.
 
+There are two ways a list is replaced and they are not interchangeable. A row that names a WORD
+seeds the field with it, which is the alias directory and nothing else, since handing over the
+word is the whole purpose of that list. A row that names a LIST is hosted, meaning the rows
+change and nothing else does, no second window and no text appearing in a field nobody typed in.
+Getting that backwards is what the first attempt here did, typing `v ` into the launcher when
+the VPN row was chosen, and being told so is what produced the split. Choosing a tool should
+hand you the tool.
+
+Hosting costs nothing per tool because it reuses the alias as an invisible prefix.
+`Launcher:enterPage(prefix, title)` keeps that prefix and puts it in front of whatever the user
+typed before asking the query sources, so the field holds only the typing and the rows are the
+tool's own. There is no second row mechanism, no second matcher, and no second definition of
+what choosing a row does. A tool is hostable exactly when it is already reachable by a typed
+word, `hostedInPlace` in the composition root names the rows that are, and a name whose alias
+does not resolve falls back to opening the picker on its own. Backspace on an empty field leaves
+a hosted list, which is the atom's `back` hook and the same press that steps out of a typed
+scope, and the placeholder names the list and that way out, since the word is no longer visible.
+
+What a hosted list does not carry is the keys that are the tool's own rather than the shared j,
+k, i and x, so reveal, copy path and browsing a folder in file search, and the settings level in
+browser tabs, are still a chord away. Closing that means letting a scope carry a tool's extra
+verbs, which is worth doing and has not been done.
+
 So a new list tool is asked one question before it is given a chooser of its own, which is
-whether anything ever reaches it from another list. If something does, that entry is a
-`redirect` and the rows arrive through a query scope, and a chooser is opened only by the paths
-that have no live field to rewrite, the tool's own chord and a click whose row could not be
-resolved. `swapsInPlace` in the composition root names the launcher rows that take this route
-today, and the criterion for joining it is parity, a row swaps in place only when its scope
-reaches everything its own picker reaches. File search and browser tabs fail that on their extra
-keys, so their rows still open a picker. That is a gap to close by letting a scope carry a tool's
-extra verbs, not a second opinion about how a list should change.
+whether anything ever reaches it from another list. If something does, that entry hosts or seeds
+rather than showing, and a chooser is opened only by the paths that have no live list to replace,
+the tool's own chord and a click whose row could not be resolved.
 
-**A row may be a signpost rather than a destination, and saying so takes a key away from the
-widget.** `Chooser`'s optional `redirect` is asked for the highlighted row before that row is
-allowed to close the list, and a query string in reply means the field becomes that text, the
-list rebuilds, and the chooser stays open. The alias directory is the case it was built for,
-where a row's whole purpose is to hand you the word for something else, so closing and reopening
-to deliver it was both a flicker and a lie about what happened.
+**A row may mean this list becomes another list, and saying so takes a key away from the
+widget.** `Chooser`'s optional `intercept` is asked for the highlighted row before that row is
+allowed to close, and true in reply means the consumer has already done whatever the row meant,
+so the atom rebuilds the list from the top and stays open. The atom deliberately does not learn
+what the row meant, only that it was not a completion, which is why one hook covers both seeding
+a word and hosting a whole tool. `back` is the pair to it, asked on Backspace while the field is
+empty, the one press that otherwise does nothing at all.
 
-There is no polite way to do it. `hs.chooser` hardwires Return to complete and offers nothing
-before that, so a consumer is told a row was chosen only after the window is gone, and handing
-new text to a closed chooser is what produced the reopen. So the atom's key watcher, which
-existed to observe for the idle hint panel, now also consumes Return when the highlighted row
-answers with a query. That was verified rather than assumed, an eventtap returning true on
-Return leaves the chooser open with nothing chosen where the same press let through closes it
-and selects the row. `insertSelected` asks the same question through the same helper, because
+There is no polite way to do the first part. `hs.chooser` hardwires Return to complete and offers
+nothing before that, so a consumer is told a row was chosen only after the window is gone, and a
+row whose whole meaning is that this list becomes another has nothing left to change by then. So
+the atom's key watcher, which existed to observe for the idle hint panel, now also consumes Return
+when the highlighted row answers. That was verified rather than assumed, an eventtap returning
+true on Return leaves the chooser open with nothing chosen where the same press let through closes
+it and selects the row. `insertSelected` asks the same question through the same helper, because
 that key is ours and Return is the widget's and the two agree only by asking one thing.
+
+THE QUESTION HAS TWO CALLERS AND ONLY ONE WANTS ANYTHING TO HAPPEN, which the launcher's side
+learned the hard way. The shortcut hint asks on every highlight move purely to decide what to
+call the primary key, so an answer that acted while answering hosted the tool under the cursor
+the moment the panel looked at it. `Launcher:_replacementFor` therefore hands back the work as a
+callable rather than a yes, and only the take calls it. Asking is then free by construction and
+not by anyone remembering to keep it that way.
 
 A CLICK IS ANSWERED THE SAME WAY, and getting there is the one part that needed something new.
 A click carries no row number the widget will admit to, and it cannot be asked for one while the
@@ -1118,17 +1144,17 @@ alias sits in `config/keys.lua` like every other rather than as a constant insid
 whichever way the word arrives, it is asked of `QueryScope:queryFor(name)`, so which alias is
 canonical and the separator after it stay with the grammar that owns them.
 
-Choosing a directory row is a `redirect`, by Return, by the insert key or by the mouse, so the
-field changes under the list that is already there and nothing closes. It was a reopen at first,
+Choosing a directory row seeds the field, by Return, by the insert key or by the mouse, so the
+word arrives under the list that is already there and nothing closes. It was a reopen at first,
 and it worked while looking broken, a list closing and another opening to deliver two characters.
-The Aliases row itself is a `redirect` too, so opening the directory costs no reopen either, and
-`enterScope` is what remains for the one way in with no list to type into, a click whose row the
+The Aliases row itself is hosted, so opening the directory costs no reopen either, and
+`enterScope` is what remains for the one way in with no list to replace, a click whose row the
 accessibility tree could not resolve, which arrives after the chooser has already gone.
 
-The same route carries a tool's own launcher row where the tool qualifies, which is what
-`swapsInPlace` in the root names and what its entry criterion of parity decides. Keep awake, the
-VPN and the emoji picker each reach their whole list without this one closing, and the rule and
-the two tools that do not qualify are under one list becoming another in place, above.
+This is the one list here whose rows hand over a WORD rather than a list, which is the whole point
+of it, so it is also the one place seeding is right. Every tool row is hosted instead. Both are
+under one list becoming another in place, above, along with why confusing them is a defect and not
+a preference.
 
 How the aliases read is one closure here, `aliasHint` and `aliasLabel`, because both surfaces
 state them, the tool's launcher row and the directory's own rows, and phrasing it twice is how

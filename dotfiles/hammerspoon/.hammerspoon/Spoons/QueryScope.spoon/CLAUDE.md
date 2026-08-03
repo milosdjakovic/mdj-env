@@ -154,6 +154,18 @@ one case the question cannot be asked in time. Validation matches `peek`, presen
 is rejected at load with the scope named, and an empty or non string answer reads as no redirect
 rather than as an error, so a scope that cannot name the query right now is simply taken normally.
 
+## A scope is also what a launcher row hosts, and that came for free
+
+A scope answers a whole list for a query that names it, which turned out to be exactly what was
+needed to put a tool's list inside the launcher when its row is chosen, with no second window. The
+launcher keeps the alias as a prefix it never shows and asks with it in front of whatever was
+typed, so hosting is this same mechanism with the word hidden. Nothing was added here for it, no
+scope knows it can be hosted, and a tool becomes hostable by being reachable by a word.
+
+Which makes `queryFor` load bearing in a second place. It answers what text enters a scope, and the
+launcher holds that text rather than a name, so which alias is canonical stays with the grammar
+that owns it while the surface above stays ignorant of aliases entirely.
+
 ## A scope may be smaller than its tool, but not smaller than the reason for the tool
 
 Browser tabs is the good case. It cannot offer its settings level, since that is a step into a
