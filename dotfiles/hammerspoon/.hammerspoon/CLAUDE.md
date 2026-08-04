@@ -1014,6 +1014,28 @@ paste properties there, and an app by app pass through list was rejected as more
 the feature is worth. Being global they sit in no leader's cheat sheet, so their launcher rows
 are their only listing, which is why both carry a `description`.
 
+Every step of a walk says what it handed over and not only where it is. A step whose entry the
+receiving field refuses is otherwise indistinguishable from a key that did nothing, which is not
+hypothetical, a screenshot at position two of history walked into a plain text notes app read
+exactly like a dead key and was reported as one. The refusal cannot be detected from here,
+because the pasteboard write succeeds and only the app's response is missing, so the message names
+the kind instead. A field that stays empty under a message reading `2 of 4, file Screenshot.png`
+explains itself.
+
+A step landing on a multi file entry says so as well when part of it has since been deleted, the
+same report a user asked for after a file step looked like it silently did nothing. The chooser
+already carries this fact as a row badge, Deleted or Linked, from `media.fileBadge`, and the walk
+draws on that same rule rather than keeping its own copy of it, so the two can never disagree
+about one entry's state. What differs is how each asks. The chooser memoizes the check because
+filtering rebuilds every row on every keystroke, while the walk asks fresh at the moment of the
+press, since the whole point is the file's state right then rather than a stale answer, so
+`fileBadge` takes the existence check as a parameter and knows nothing about either caller's
+cache. It only ever has something to add once a step's paste already succeeded. A single vanished
+link leaves nothing for the write to put on the pasteboard at all, which the existing `is gone`
+failure message already reports, so the gap this closes is the one that message cannot see, a
+multi file entry where some elements survive and paste while one has been deleted, which used to
+read as an ordinary paste that quietly dropped part of what it carried.
+
 Both live in `manager/session.lua`, the transient session state over the persistent history. They
 share a file because they end on the same signal, a genuine copy, and splitting them would
 duplicate that wiring. The module still owns no watcher and no timer of its own, and still has no

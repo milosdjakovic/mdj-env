@@ -42,6 +42,7 @@ local store = nil
 local monitor = nil
 local readers = nil
 local util = nil
+local media = nil -- the image and file lifecycle module, for the shared file state rule
 local onEntryChanged = nil -- optional, told when an entry's content was rewritten in place
 local onMessage = nil -- optional, shows a short message to the user
 local separator = "\n"
@@ -69,6 +70,55 @@ local function notify(text)
   if onMessage then
     onMessage(text)
   end
+end
+
+-- What a step just handed over, for its message. A step that lands nothing is indistinguishable
+-- from a key that did nothing, and that happens for real, an image or a file going into a field
+-- that will not take one. We cannot detect the refusal, because the pasteboard write succeeds
+-- either way and only the app's response is missing, so the message names what was handed over
+-- rather than only where the walk has got to. Then a plain text field that stays empty after a
+-- step reading "file Screenshot.png" explains itself.
+local function describe(entry)
+  if entry.kind == "text" or entry.kind == "url" then
+    return string.format("%d chars", entry.chars or #(entry.text or ""))
+  end
+  if entry.kind == "image" then
+    return entry.title or "image"
+  end
+  -- A file entry holds its paths under files once stored and _paths before, and the walk sees
+  -- both, since the pieces it builds never reach the store.
+  local files = entry.files or entry._paths or {}
+  if #files > 1 then
+    return string.format("%d files", #files)
+  end
+  return "file " .. util.oneLine(entry.title or "", 40)
+end
+
+-- A fresh stat, not memoized, unlike the chooser's own probe. The chooser rebuilds every
+-- row on every keystroke and needs the memo to keep that cheap, but a step only asks once
+-- per press, and the whole reason to ask at all is to say the file's state at this instant,
+-- not whatever it was the last time anyone checked.
+local function freshExists(p)
+  return hs.fs.attributes(p) ~= nil
+end
+
+-- What a step adds to its message when a file entry pasted but part of it did not. A single
+-- vanished link leaves nothing for writeEntry to put on the pasteboard, so pasteNext's
+-- failure branch already reports that entry as gone in its own words, and this would only
+-- repeat it. The gap that branch cannot see is a multi file entry where some elements
+-- survive and some do not, since the surviving ones still write and paste fine, and a step
+-- that only names the file count would then read like an ordinary paste that quietly
+-- dropped the rest. So this only ever has something to say once a step already reached the
+-- success branch, checking the same Deleted state the chooser badge shows, freshly rather
+-- than from its memo.
+local function fileNote(entry)
+  if entry.kind ~= "file" then
+    return ""
+  end
+  if media.fileBadge(entry, freshExists) == "Deleted" then
+    return ", some missing"
+  end
+  return ""
 end
 
 local function frontmostID()
@@ -327,6 +377,13 @@ end
 --- monitor's own event tap, and both call resetSequence directly, so by the time this function
 --- runs again the walk they ended is already gone.
 ---
+--- Every step says what it handed over as well as where it is, because a step whose entry the
+--- receiving field refuses is otherwise indistinguishable from a key that did nothing. A file
+--- entry adds one more word when part of it has been deleted since it was copied, since a step
+--- that only named the file count would otherwise look like an ordinary paste that quietly
+--- dropped the missing piece, see fileNote above for why that check runs fresh rather than off
+--- the chooser's own memoized one and why it only ever adds anything once the pasteboard write
+--- already succeeded.
 function M.pasteNext()
   log.df(
     "%.3f press, walking=%s queued=%d at=%s app=%s",
@@ -398,8 +455,9 @@ function M.pasteNext()
   --
   -- Everything else, an image, a file, or a field that will not take text this way, goes through
   -- the pasteboard below and pays for it, because there is no other way in for those.
+  local what = describe(entry)
   if (entry.kind == "text" or entry.kind == "url") and monitor.insertText(entry.text) then
-    notify(string.format("%d of %d", run.index, total))
+    notify(string.format("%d of %d, %s", run.index, total, what))
     return
   end
 
@@ -428,13 +486,16 @@ function M.pasteNext()
   })
 
   if started then
-    notify(string.format("%d of %d", run.index, total))
+    -- fileNote only ever adds anything for a file entry, and only when part of it is
+    -- missing while the rest still pasted, the one case the failure branch below cannot
+    -- speak to, since it only runs when nothing at all could be written.
+    notify(string.format("%d of %d, %s%s", run.index, total, what, fileNote(entry)))
   else
     -- Nothing was written, so no settle is coming and the claim has to be released here. The
     -- position still advanced, so say what happened rather than looking like a silent no op.
     -- Only a vanished image or file reaches this, and releasing here rather than just clearing
     -- the flag means a queued press still steps past it instead of stalling on it.
-    notify(string.format("%d of %d, nothing to paste", run.index, total))
+    notify(string.format("%d of %d, %s is gone", run.index, total, what))
     releaseWalk()
   end
 end
@@ -462,14 +523,16 @@ end
 -- Lifecycle
 --------------------------------------------------------------------------------
 
---- M.configure(opts) - inject the store, the monitor, the readers, util, the optional
---- onEntryChanged and onMessage observers, the separator appended pieces are joined with, the
---- idle window that ends a walk, and how long each step of a walk leaves the pasteboard alone.
+--- M.configure(opts) - inject the store, the monitor, the readers, util, media (for the
+--- shared file state rule a walk's toast draws on), the optional onEntryChanged and
+--- onMessage observers, the separator appended pieces are joined with, the idle window
+--- that ends a walk, and how long each step of a walk leaves the pasteboard alone.
 function M.configure(opts)
   store = opts.store
   monitor = opts.monitor
   readers = opts.readers
   util = opts.util
+  media = opts.media
   onEntryChanged = opts.onEntryChanged
   onMessage = opts.onMessage
   separator = opts.appendSeparator or separator

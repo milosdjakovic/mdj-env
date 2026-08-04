@@ -61,7 +61,13 @@
 ---
 --- Contract the store calls: ingest turns a raw image or file entry into its stored
 --- form and stamps its size, release deletes an entry's media, enforceBudget demotes
---- the oldest frozen bytes to stay under a cap.
+--- the oldest frozen bytes to stay under a cap. A second, smaller contract is for
+--- anyone describing a file entry rather than storing one, fileBadge, which answers
+--- whether a file entry is fine, merely linked, or missing its original, so the chooser
+--- row and the sequential paste walk read the same rule instead of each keeping their
+--- own copy of it. A third contract, resolveForPaste, is for the paste side alone and
+--- touches none of the above, it only ever creates new files under the staging root and
+--- never mutates a stored entry or anything ingest or release already know about.
 
 local M = {}
 
@@ -251,6 +257,42 @@ local function entryStoredBytes(e)
     return n
   end
   return 0
+end
+
+--------------------------------------------------------------------------------
+-- Media state
+--------------------------------------------------------------------------------
+
+--- M.fileBadge(entry, exists) -> "Deleted" or "Linked" or nil
+--- The three state model's badge for a file entry, the one fact both the chooser row and
+--- the sequential paste walk need to say about a file, so it is decided once here rather
+--- than by each caller working it out from the elements itself. A frozen element carries a
+--- stored copy and needs no check, only a link, a file with no stored copy, or a folder,
+--- which is never frozen, is worth asking about. Returns Deleted when any linked element's
+--- original is gone, Linked when at least one element is a link but every one still exists,
+--- or nil when every element is a frozen copy and nothing needs saying.
+---
+--- exists is an injected probe, a function from a path to a boolean, rather than something
+--- this module calls directly, because the two callers want different things from it. The
+--- chooser rebuilds every row on each keystroke, so it wants a memoized answer cleared on
+--- close, which is a UI concern this module has no business owning. The paste walk wants the
+--- opposite, a fresh stat at the moment of the press, since the whole point is to report the
+--- file's state right then rather than an answer left over from whenever it was last asked.
+--- So the rule stays pure and probing is a parameter, and each caller supplies the shape it
+--- needs without the other ever finding out.
+function M.fileBadge(entry, exists)
+  local anyLink, anyMissing = false, false
+  for _, el in ipairs(entry.files or {}) do
+    if not el.stored then
+      anyLink = true
+      if not exists(el.path) then
+        anyMissing = true
+      end
+    end
+  end
+  if anyMissing then return "Deleted" end
+  if anyLink then return "Linked" end
+  return nil
 end
 
 --------------------------------------------------------------------------------

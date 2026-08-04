@@ -316,6 +316,7 @@ function M.start()
     monitor = monitor,
     readers = readers,
     util = util,
+    media = media,
     appendSeparator = config.appendSeparator,
     sequenceIdleReset = config.sequenceIdleReset,
     sequenceDrainDelay = config.sequenceDrainDelay,
@@ -361,6 +362,7 @@ function M.start()
     store = store,
     monitor = monitor,
     util = util,
+    media = media,
     isAccumulator = session.isAccumulator,
   }))
 
