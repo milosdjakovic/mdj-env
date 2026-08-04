@@ -1071,6 +1071,35 @@ reordering, restoring, and the settle callback passed in as options rather than 
 what let the walk reuse the proven path instead of growing a second one. `pasteText` became a
 synthetic op through that same primitive.
 
+Every restore in this file, the one right after a plain paste, the one that waits out a quiet
+window, and the one wrapped around a selection read by Cmd+C, now answers to one guard,
+`pasteboardStillOurs`, rather than to changeCount alone. An unmoved count still means nothing has
+touched the pasteboard since the write, and the restore is plainly safe on that alone, exactly as
+it always was. A moved count used to be read as proof on its own that a real copy had claimed the
+pasteboard, and that reading is naive, because the very case `selfSigs` already exists for, a
+receiving app rewriting the pasteboard with the same content when it takes our paste, moves the
+count a second time while carrying nothing new. So a moved count now falls through to content
+instead of ending the question there, asking whether what sits on the pasteboard right now still
+is the thing the recorded signature describes, rather than only whether the count changed. That
+signature now travels out of `writeEntry` alongside the boolean that says whether anything was
+written, since the restore that fires later is what needs it, and a value returned only for the
+caller that asks for it costs nothing to every caller that already ignored it. Getting the
+question wrong in one direction abandons a restore that was never actually at risk and leaves our
+own pasted text sitting on the user's clipboard, which is the very thing the restore exists to
+prevent. Getting it wrong the other way is worse, since writing the old clipboard over a genuine
+copy does not merely misfile it, it destroys it outright, and the user loses something they just
+copied with nothing left to recover. That asymmetry is why the ambiguous case is resolved by
+content rather than by a guess. A write with no signature, an image, has no second opinion
+available and still answers to the count alone exactly as it always did. When a restore is
+abandoned the recorded count is deliberately left alone, so the next poll tick sees the new
+content as a change and captures it as the fresh entry it really is, rather than the restore
+hiding it the way a successful restore hides its own write. The signature is read back narrowly,
+the same way it was written, rather than through the full capture reader chain, since the only
+question a restore ever asks is whether this one write, or its echo, is still there, never what
+kind of thing arrived instead. The same guard covers all three restores named above, and the
+quiet window one waits the longest, so it is the likeliest place a genuine copy actually lands
+before a restore would otherwise overwrite it.
+
 Both keys post their synthetic stroke while the chord that asked for it is still physically held,
 which is a hazard none of the earlier keystroke paths faced, since every one of them fires either
 after a chooser closed or from Hyper, and Hyper is Caps Lock through ChordKey so it holds nothing
