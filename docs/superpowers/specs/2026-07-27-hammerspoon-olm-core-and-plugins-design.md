@@ -2,10 +2,15 @@
 
 ## Status
 
-Nothing is built. Revised 2026-08-04 against `6bd5b8d`. The sections written in this revision, the
-action panel, the interaction grammar, the README rule, and the reworked order of work, were
-verified against that commit. Everything older was last verified at `c195ba1`, and eight commits of
-clipboard work landed between the two, so an older citation needs a check before it is trusted.
+Nothing is built. Fully reverified 2026-08-04 against the tree at `6bd5b8d`, every line citation in
+the document checked in one sweep, the phase 0 rescan from the build plan. Of the forty eight
+citation instances, about a third held and the rest had drifted, all now corrected. Three findings
+from that sweep were material rather than numeric. The paste block in `monitor.lua` roughly doubled
+to about 610 lines and is no longer a clean tail, since the Cmd+V walk watcher now sits after it
+and stays with the clipboard, recorded in the paste section. The chooser atom grew to 1274 lines
+and the core total to about thirty seven hundred. And the clipboard documentation blocks scheduled
+to move grew to about 280 lines of the module file's 1531. The next commits to land will drift the
+numbers again, so the rule stands, check a citation before trusting it.
 
 The first open decision is settled. The user chose one visible home directory for everything
 durable, collapsing three storage roots to two, recorded in the storage section with `~/Olm` as the
@@ -78,11 +83,11 @@ bearing, and undeclared, which is exactly the drift that contract exists to prev
 **Nothing owns where files go.** Five conventions are in use and three are named inside the
 spoon that writes them.
 
-- `~/.cache/hs-clipboard`, hardcoded at `Spoons/ClipboardHistory.spoon/manager/init.lua:50`
+- `~/.cache/hs-clipboard`, hardcoded at `Spoons/ClipboardHistory.spoon/manager/init.lua:54`
 - `~/Library/Caches/Hammerspoon-Eyedropper`, hardcoded at `Spoons/Eyedropper.spoon/init.lua:44`
 - `~/Library/Caches/Hammerspoon-BrowserTabs`, hardcoded at `Spoons/BrowserTabs.spoon/permissions.lua:29`
-- `hs.configdir .. "/config/display-profiles.json"`, injected from the root at `init.lua:2177`
-- `~/.cache/hammerspoon/filesearch-previews`, declared as data in `config/filesearch.lua:160`
+- `hs.configdir .. "/config/display-profiles.json"`, injected from the root at `init.lua:2525`
+- `~/.cache/hammerspoon/filesearch-previews`, declared as data in `config/filesearch.lua:177`
 
 The last two follow the composition root rule the rest of this module lives by, and the fifth
 arrived after this document proposed the convention. It is worth reading, because it is not a
@@ -103,14 +108,14 @@ gigabytes of frozen file snapshots. Anything that clears a cache silently destro
 history and every snapshot of a file that has since moved or been deleted.
 
 **Remembered ordering is implemented five times.** `BrowserTabs.spoon/recency.lua`,
-`Vpn.spoon/init.lua:81`, `Launcher.spoon/init.lua:75`,
+`Vpn.spoon/init.lua:81`, `Launcher.spoon/init.lua:69`,
 `Emoji.spoon/providers/hammerspoon.lua:194`, and `DisplayMemory.spoon/init.lua:78`. BrowserTabs
 already pulled its copy into a file of its own, which is the strongest available signal that
 something wants to be shared.
 
 **A tool joins the launcher three different ways.** A closure in `actions.special` at
-`init.lua:1081`, of which there are about twenty. A query row source in `queryProviders` at
-`init.lua:1030`. Or a scope through `QueryScope`. Three contracts for one idea.
+`init.lua:1328`, of which there are about twenty. A query row source in `queryProviders` at
+`init.lua:1203`. Or a scope through `QueryScope`. Three contracts for one idea.
 
 **There is no snippet store.** A snippet is a clipboard entry that was authored rather than
 captured, the Alfred model. Same data shape, same paste path, and the only real differences are
@@ -125,8 +130,8 @@ who wrote it, that it never expires, and that it has a name.
 Three findings, because each one removes work rather than adding it.
 
 `Chooser.spoon` already owns the docked side panel. It reserves the companion rect
-(`providers/native.lua:261`), reports it through `onPositioned`, and fires `onHighlight`. Three
-tools use it, the clipboard at `manager/ui.lua:1247`, Processes at `chooser.lua:586`, and FileSearch
+(`providers/native.lua:298`), reports it through `onPositioned`, and fires `onHighlight`. Three
+tools use it, the clipboard at `manager/ui.lua:1051`, Processes at `chooser.lua:586`, and FileSearch
 at `chooser.lua:414`. Each draws its own content while sharing `CanvasPanel.surfaceElements`, which
 `Processes/preview.lua` explains in its header. So the list with a docked pane is already an
 atom, split correctly, and there is nothing to extract.
@@ -154,17 +159,17 @@ Nine things, six that exist as spoons, two that do not exist at all, and one to 
 
 | Module | Lines today | Why it qualifies |
 |---|---|---|
-| `chooser` | 908 | Every picker is built on it. Already owns the companion pane and the highlight |
-| `panel` | 323 | One drawing surface behind preview panes, docked shortcut panels, and both cheat sheets |
+| `chooser` | 1274 | Every picker is built on it. Already owns the companion pane and the highlight |
+| `panel` | 381 | One drawing surface behind preview panes, docked shortcut panels, and both cheat sheets |
 | `cheatsheet` | 422 | The shared overlay mechanism, two consumers |
 | `chordkey` | 353 | The shared hold and tap engine under every leader |
 | `hyperkey` | 238 | The leader modal every context binds into |
 | `deps` | 388 | The manifest reader, and what would enforce the new layering |
 | `storage` | new | Where files go. No owner today |
 | `recency` | new | Remembered ordering, five separate implementations today |
-| `paste` | about 280 | Text into the frontmost app. Three consumers today, four with snippets |
+| `paste` | about 610 | Text into the frontmost app. Three consumers today, four with snippets |
 
-That totals about twenty nine hundred lines, which makes `Olm.spoon` about the size of
+That totals about thirty seven hundred lines, which makes `Olm.spoon` about the size of
 `BrowserTabs` counting only the core. Worth recording, because the usual failure of a core is that
 it becomes a monster, and this one does not. Note that the plugins bundled beside it are far larger
 in total, which is fine, since bundling is about distribution and the core boundary is about
@@ -292,7 +297,7 @@ calculator, `Convert` the converter, `ClipboardHistory`, `Caffeinate` the keep a
 `BrowserTabs` the tab search, `Emoji`, `FileSearch`, `Processes` which the docs now
 call Local Servers, `TextCase`, `Eyedropper`, `Capture`, `DisplayProfiles`, and `SystemSettings`. The three new ones are `apps`, extracted from
 the launcher, `snippets`, and menu search, which is the odd one out because it has no spoon at all
-and lives in the root today as `menuSearchSurface` in the `choosers` registry at `init.lua:1862`.
+and lives in the root today as `menuSearchSurface` in the `choosers` registry at `init.lua:2199`.
 Under one plugin contract it stops being a root resident and becomes a plugin like the others.
 
 **Plugins that are pure behaviour with no surface, eleven spoons.** `AppToggler`, `DockAutoHide`,
@@ -317,7 +322,7 @@ mechanism pulls domain knowledge into the core and the core stops being reusable
 that matters, that it names nothing above it.
 
 The one caller rule settles the two examples anyway. `SystemSettings` is reached only from the
-root, at `init.lua:1048`, `1059`, `1080`, and `1095`, all of it launcher wiring. `WorkspaceEngine`
+root, at `init.lua:1221`, `1269`, `1327`, and `1346`, all of it launcher wiring. `WorkspaceEngine`
 is the same, only the root uses it and it depends on `AppToggler` and `WindowManager`, so it is a
 coordinator rather than a mechanism. Reusable and shared are not the same claim, and the second one
 needs a second consumer that is not the composition root.
@@ -439,7 +444,7 @@ Reloading gets nearly all of it for almost nothing. The activation list is data,
 `hs.settings`, read once at load. A toggle writes the setting and reloads. Discarding the whole
 Lua state is the only teardown guaranteed to be complete, so no spoon grows a `stop` it does not
 otherwise need. A reload is already the normal rhythm here since the pathwatcher at
-`init.lua:2210` fires on every file save, and it has to be scheduled on a short timer rather than
+`init.lua:2558` fires on every file save, and it has to be scheduled on a short timer rather than
 called inline, the same deferred pattern the launcher already uses to run a chosen row after its
 chooser tears down.
 
@@ -504,7 +509,7 @@ compiled interface.
 ## Named values, and who owns the set
 
 The first rule above is already followed in one place and nowhere else, so it needs finishing
-rather than inventing. `init.lua:671` wires `matcher = spoon.Chooser.matchers.fuzzy`, a reference
+rather than inventing. `init.lua:822` wires `matcher = spoon.Chooser.matchers.fuzzy`, a reference
 handed out by the module that defines the behaviour, exposed from `match.lua` at
 `Spoons/Chooser.spoon/init.lua:41`. Everything that selects from a closed set should look like
 that.
@@ -514,8 +519,8 @@ The matchers stay under the chooser rather than becoming a core module of their 
 config, including the two that override the shared default, the clipboard and `Processes`. No
 consumer outside a chooser exists, so a tenth module would be a rename with no second caller.
 
-The live counterexample is placement. The root writes `placement = "below"` at `init.lua:774` and
-`placement = "center"` at `init.lua:1806` and `init.lua:2017`, and `CanvasPanel.spoon/init.lua`
+The live counterexample is placement. The root writes `placement = "below"` at `init.lua:945` and
+`placement = "center"` at `init.lua:2143` and `init.lua:2365`, and `CanvasPanel.spoon/init.lua`
 compares that string against literals in six places, at 180, 181, 218, 221, 224, 238, and 274.
 The accepted set is five values, documented in a comment at line 55. Write `"bellow"` and nothing
 errors, every comparison falls through, and the panel lands wherever the final arm puts it. That
@@ -567,16 +572,22 @@ are hand rolled remembered state and at least one may shrink to almost nothing.
 
 ## Paste, the same split one layer over
 
-`ClipboardHistory.spoon/manager/monitor.lua` is 705 lines and splits the same way recency does. The
-pasteboard watcher and the history capture, everything up to about line 420, are what the clipboard
-is and stay in the clipboard plugin. From `M.paste` at 427 onward are the insertion primitives,
-`insertText` at 468, the selection read at 487, `pasteBatch` at 558, `pasteText` at 583, and the read
-side mirror at 622, roughly 280 lines that are about putting text into whatever app is in front and
-know nothing about history.
+`ClipboardHistory.spoon/manager/monitor.lua` is 918 lines and splits the same way recency does,
+though the split is no longer a clean tail. The pasteboard watcher and the history capture,
+everything up to about line 243, are what the clipboard is and stay in the clipboard plugin. From
+the insertion helpers at about 244 through the exports, `M.paste` at 584, `insertText` at 625, the
+selection read at 652, `pasteBatch` at 715, `pasteText` at 750, and the read side mirror at 790,
+runs roughly 610 lines about putting content into whatever app is in front. The file then ends with
+the Cmd+V walk watcher from 858, which exists to end a clipboard paste walk and stays with the
+clipboard, which is why to the end stopped being the boundary. The block roughly doubled since this
+was first measured, the paste under original name and restore work of `6bd5b8d` landed inside it,
+and some of the growth is entry aware, `writeEntry` and the restore machinery know the shape of a
+clipboard entry, so drawing the exact line between primitive and entry knowledge is now a real
+piece of the extraction rather than a formality.
 
 Three features already use that half, and none of them is the clipboard. `Emoji` takes `pasteText`
-through the root at `init.lua:1391`, `TextCase` takes both `pasteText` and the selection read at
-`init.lua:1422`, and snippets would be the fourth. So this is a delicate mechanism with three
+through the root at `init.lua:1648`, `TextCase` takes both `pasteText` and the selection read at
+`init.lua:1679`, and snippets would be the fourth. So this is a delicate mechanism with three
 consumers that currently lives inside one feature, which every other consumer reaches through by
 injection from the root. That is the definition of something that wants to be core, and it is a
 stronger case than recency because the sharing is already happening rather than being predicted.
@@ -586,7 +597,7 @@ in, only the universal one. That sentence is a core module's documentation sitti
 
 Two cautions. This is the most carefully measured code in the config, the `insertText` versus paste
 findings, `sequenceDrainDelay`, and the held chord behaviour, and the measurement trail is currently
-recorded in the module level `CLAUDE.md` at lines 784 to 913. That trail must travel with the code
+recorded in the module level `CLAUDE.md` at lines 1006 to 1201. That trail must travel with the code
 and not be split from it, which changes the documentation plan below. And the clipboard snapshot and
 restore that hides a paste from history is part of the insertion side, so olm ends up owning a small
 amount of knowledge about not polluting a history it does not own. Keep that as one commented seam
@@ -648,7 +659,7 @@ clipboard is wiring only. `Eyedropper` and `BrowserTabs` bake theirs as file loc
 needs one config field. `DisplayProfiles` is already correct and is the model.
 
 `FileSearch` is the second one already correct and is the closer model, since it is a cache rather
-than tracked content. Its path is data in `config/filesearch.lua:160`, tilde relative, expanded by
+than tracked content. Its path is data in `config/filesearch.lua:177`, tilde relative, expanded by
 `util.expandHome`, and already under `~/.cache/hammerspoon`. Two things change for it and both are
 small. The name becomes `filesearch` rather than `filesearch-previews`, since the root supplies the
 prefix and a spoon does not need to repeat what kind of thing it is, and the tilde expansion moves
@@ -675,7 +686,7 @@ starting clean is the likely answer, but it stays an open decision.
 Seal keys dispatch by plugin. A row carries the name of the plugin that produced it and Seal
 does the equivalent of `plugins[row.plugin].completionCallback(row)`. Adopt that and
 `actions.special` disappears, and adding a tool becomes one registration instead of edits in
-`config/keys.lua`, the actions table, the `choosers` registry at `init.lua:1862`, and
+`config/keys.lua`, the actions table, the `choosers` registry at `init.lua:2199`, and
 `hyperContexts`.
 
 ## Two things not to take
@@ -809,7 +820,7 @@ because it needs the paste engine in `manager/monitor.lua` and that engine is th
 carefully measured code in the config.
 
 That is weaker than stated. `pasteText` is already public on the manager at
-`manager/init.lua:207`, and the root already injects it into `Emoji.spoon`, a spoon of its own
+`manager/init.lua:221`, and the root already injects it into `Emoji.spoon`, a spoon of its own
 reusing the paste engine that way. Snippets need only that, not `monitor.paste`, because a
 snippet paste must never touch clipboard history and its ordering lives in settings anyway.
 
@@ -885,7 +896,7 @@ dance to edit a body in a real editor, and makes editing from outside Hammerspoo
 
 ## Where the directory goes
 
-Not `~/.hammerspoon`. The pathwatcher at `init.lua:2210` reloads on any change under that tree,
+Not `~/.hammerspoon`. The pathwatcher at `init.lua:2558` reloads on any change under that tree,
 which is survivable since a directory could be excluded as the display profiles JSON already
 is. Stow is the real objection. That path is a stow target whose contents are symlinks into
 `dotfiles/hammerspoon/.hammerspoon/`, so a snippets directory there is either inside the stow
@@ -972,8 +983,8 @@ longer exists in that form. The rule said a tool owning a canvas companion pane 
 place, naming the clipboard and Processes as the exclusions, and snippets was excluded by having the
 same shape.
 
-`8674f78` and `5fdae8d` rewrote it. `CLAUDE.md:978` now says a tool whose companion pane IS the
-reason for the tool cannot be scoped in place, and `CLAUDE.md:986` adds the case that forced the
+`8674f78` and `5fdae8d` rewrote it. `CLAUDE.md:1335` now says a tool whose companion pane IS the
+reason for the tool cannot be scoped in place, and `CLAUDE.md:1344` adds the case that forced the
 change. File search has both a pane and a scope, and the paragraph states the point directly, that
 the rule is about the pane's weight rather than about panes. Its reason is finding a file by name and
 acting on it, the scope does that in full, and the pane only helps you decide between two rows that
@@ -1012,14 +1023,14 @@ megabytes read once and a name search over a thousand short strings. No tags, no
 # Documentation
 
 `ClipboardHistory.spoon` has no `CLAUDE.md` of its own, so its decisions sit in the module level
-file. Three blocks move out of `dotfiles/hammerspoon/.hammerspoon/CLAUDE.md`, about 165 of its
-1141 lines.
+file. Three blocks move out of `dotfiles/hammerspoon/.hammerspoon/CLAUDE.md`, about 280 of its
+1531 lines.
 
 | Lines | Block | Where it goes |
 |---|---|---|
-| 757 to 783 | Clipboard preview | The clipboard plugin. Entirely internal to `manager/ui.lua` and `manager/preview.lua` |
-| 784 to 913 | Clipboard append and sequential paste | Split. The measurement trail follows the code into `lib/paste.lua`, the append and sequence behaviour stays with the clipboard |
-| 739 to 755 | Why the clipboard uses the `words` matcher | The clipboard plugin. Leave one line in the shared matcher section pointing at it |
+| 941 to 1005 | Clipboard preview | The clipboard plugin. Entirely internal to `manager/ui.lua` and `manager/preview.lua` |
+| 1006 to 1201 | Clipboard append and sequential paste | Split. The measurement trail follows the code into `lib/paste.lua`, the append and sequence behaviour stays with the clipboard |
+| 923 to 940 | Why the clipboard uses the `words` matcher | The clipboard plugin. Leave one line in the shared matcher section pointing at it |
 
 The middle row changed once `paste` became core, and it is the one to get right. The `insertText`
 versus paste finding, `sequenceDrainDelay`, and the held chord behaviour are properties of the
@@ -1092,7 +1103,7 @@ mode, so the narrowness is the point rather than a shortcoming.
 
 The harness shape already exists and should not be invented twice.
 `Spoons/BrowserTabs.spoon/test/suite.sh` solves the awkward parts already, dropping an `ENABLED`
-marker that `Spoons/BrowserTabs.spoon/init.lua:240` checks so a harness is never part of a normal
+marker that `Spoons/BrowserTabs.spoon/init.lua:266` checks so a harness is never part of a normal
 config, taking the lock with `--manual` because a suite outlives the short timeout, and putting both
 the marker and the lock back on any exit including an interrupt. Two harness styles in one tree is
 worse than either of them.
@@ -1234,7 +1245,7 @@ a list of things to explain away.
   `match.lua` and gaining a file per core module as each is extracted.
 - New `.hammerspoon/test/inventory.sh` plus a committed `inventory.golden`, reading this config's
   registries rather than Hammerspoon's, so `spoon`, `ChordKey._keys`, the chooser registry at
-  `init.lua:1862`, the query scope prefixes and aliases, and the cheat sheet entries.
+  `init.lua:2199`, the query scope prefixes and aliases, and the cheat sheet entries.
 - Both borrow the lock discipline and the exit trap from `Spoons/BrowserTabs.spoon/test/suite.sh`,
   and only the inventory script needs the lock at all.
 - Inside `.hammerspoon` rather than at the package root, so nothing is added to
@@ -1250,8 +1261,8 @@ a list of things to explain away.
 - Edit `init.lua`, resolve the roots and inject finished paths.
 - Edit `Spoons/Eyedropper.spoon/init.lua` and `Spoons/BrowserTabs.spoon/permissions.lua`, take
   the directory as config.
-- Edit `config/filesearch.lua:160`, shorten the cache name and let the root own the prefix and the
-  tilde expansion, and drop the per spoon `util.expandHome` call at `Spoons/FileSearch.spoon/chooser.lua:371`.
+- Edit `config/filesearch.lua:177`, shorten the cache name and let the root own the prefix and the
+  tilde expansion, and drop the per spoon `util.expandHome` call at `Spoons/FileSearch.spoon/chooser.lua:441`.
 - Edit `Spoons/ClipboardHistory.spoon/manager/init.lua`, split cache from data and drop the
   hardcoded defaults.
 - Edit the five recency callers.
@@ -1259,12 +1270,14 @@ a list of things to explain away.
 
 **Paste into core**
 
-- New `Spoons/Olm.spoon/lib/paste.lua`, from `monitor.lua:427` to the end.
+- New `Spoons/Olm.spoon/lib/paste.lua`, the insertion helpers and exports from about
+  `monitor.lua:244` through the read side mirror near 857. Not to the end, the Cmd+V walk watcher
+  from 858 is clipboard behaviour and stays.
 - Edit `Spoons/ClipboardHistory.spoon/manager/monitor.lua`, keeping the watcher and the history
   capture, and take the primitives by injection like every other consumer.
 - Edit `init.lua` at 1391 and 1422, point `Emoji` and `TextCase` at the core module instead of
   reaching through the clipboard manager.
-- Move the measurement trail from the module `CLAUDE.md` lines 784 to 913, splitting it by the rule
+- Move the measurement trail from the module `CLAUDE.md` lines 1006 to 1201, splitting it by the rule
   in the documentation section.
 
 **Packaging and activation**
@@ -1277,7 +1290,7 @@ a list of things to explain away.
 - Edit `init.lua`, one `hs.loadSpoon` in place of thirty four, activate from the list, and rewrite
   every `spoon.Something` reference. This is the bulk of the mechanical work.
 - Edit `Spoons/CanvasPanel.spoon/init.lua`, expose the five placements as a named set, and edit
-  the three call sites at `init.lua:774`, `1806`, and `2017`.
+  the three call sites at `init.lua:945`, `2143`, and `2365`.
 - Edit `dotfiles/hammerspoon/dependencies-collect`, specifically `owner_of` at lines 80 to 95. See
   the section below, this one is a real break rather than a rename.
 - Nothing changes in `dotfiles/hammerspoon/.stow-local-ignore`. It sits at the package root and lists
@@ -1331,7 +1344,7 @@ the whole of the runtime guard.
 
 - Whether to migrate the existing clipboard history and file snapshots or start clean once.
   Migrating is the likely answer given history never expires, but it is not yet ordered.
-- Whether to remove the config pathwatcher at `init.lua:2210` entirely. There is a case for it
+- Whether to remove the config pathwatcher at `init.lua:2558` entirely. There is a case for it
   on its own merits, since the documented workflow already says never rely on it, and
   `Spoons/Caffeinate.spoon/engine.lua:10` records a real casualty. Separate decision, should not
   be bundled in. Note that the activation list now depends on a reload being available, though not

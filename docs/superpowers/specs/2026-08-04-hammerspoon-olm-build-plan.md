@@ -104,8 +104,10 @@ block it are ticked.
 - [ ] Scaffold, `inventory.sh` plus the committed `inventory.golden`, reading this config's own
       registries and not Hammerspoon's. Needs the lock, borrows the discipline from the
       BrowserTabs suite.
-- [ ] Full rescan of the design's older citations, everything before the action panel sections was
-      last verified at `c195ba1` and HEAD has moved since.
+- [x] Full rescan of the design's older citations. Done 2026-08-04 against `6bd5b8d`, about two
+      thirds had drifted and all were corrected. The material finding is the paste block, roughly
+      doubled to about 610 lines and no longer a clean tail of `monitor.lua`, so the phase 3
+      packet must draw the primitive versus entry knowledge line rather than cut at a line number.
 
 ## Phase 1, storage into core
 
