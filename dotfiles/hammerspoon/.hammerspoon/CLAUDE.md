@@ -982,6 +982,27 @@ the configured `filesDir` rather than from the stored path's own parent, so an o
 is never mistaken for owning a directory and eviction can never be pointed at removing
 `filesDir` itself.
 
+A paste out of history always lands under the name the user copied, because `writtenFilePaths`
+in `monitor.lua` pairs each file's bytes with the basename of the entry's own path and hands
+that pair to `manager/media.lua`'s `resolveForPaste`, the one function that turns it into the
+path actually written to the pasteboard, and the cache copy is never consulted for a name, only
+for bytes. That holds for every layout and every app. Pasting into a Finder window that already
+holds a file of that name gets one thing more, Finder's own same folder numbering, `report
+2.txt` then `report 3.txt`, in place of its cross folder prompt, Keep Both, Stop and Replace, a
+prompt easy to miss and one that dies unanswered after a few seconds, quietly losing the paste.
+That extra step alone needs the destination, so it runs only when `manager/finder-target.lua`,
+the one file in the feature that knows Finder or AppleScript exist at all, answers a folder by
+asking Finder's own insertion location, while every other app hands `resolveForPaste` no folder
+and gets the corrected name with no numbering. Either way a changed name is made real on disk by
+staging, a hard link when possible since that costs no space whatever the file's size, and a
+copy only for a file within `maxFileSnapshot`, written fresh into its own directory beneath a
+staging root kept separate from every frozen copy and every original. A folder is never staged,
+since a folder cannot be hard linked and copying one is not worth it, and a file that cannot be
+staged any other way is passed through unchanged too, so both fall back to meeting Finder's own
+prompt exactly as before rather than something worse. `manager/init.lua` is the only file that
+names this concrete adapter, injecting it as an overridable config key so the numbering can be
+swapped or turned off without either of the other two files learning that Finder exists.
+
 **Clipboard append and sequential paste.** Two clipboard actions need no list, so they are the
 only clipboard keys not on Hyper. They are global Ctrl and Option combos, on C and V, because
 they extend the plain copy and paste keys and are pressed mid edit rather than reached through a

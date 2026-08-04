@@ -19,7 +19,10 @@
 ---   preview.lua   async preview-image generation, a Chain of Responsibility
 ---   store.lua     the store core, the ordered deduped persisted list plus the accept
 ---                 gate, decides nothing about media or eviction on its own
----   media.lua     the image and file lifecycle, an optional layer of the store
+---   media.lua     the image and file lifecycle, an optional layer of the store, and the
+---                 staging that keeps a same folder file paste out of Finder's way
+---   finder-target.lua the one file that knows Finder or AppleScript, answering only
+---                 where a paste would land right now
 ---   retention.lua the eviction policies (count, age, bytes), combined as an or
 ---   readers.lua   per-type capture readers, a Chain of Responsibility
 ---   monitor.lua   the poll engine and paste-back, owns the self-capture guard
@@ -40,6 +43,7 @@ local util = load("util.lua")
 local preview = load("preview.lua")
 local store = load("store.lua")
 local media = load("media.lua")
+local finderTargetAdapter = load("finder-target.lua")
 local retention = load("retention.lua")
 local readers = load("readers.lua")
 local monitor = load("monitor.lua")
@@ -69,7 +73,15 @@ local config = {
   dataDir = DATA_DIR,
   thumbDir = DATA_DIR .. "/thumbs",
   filesDir = DATA_DIR .. "/files",
+  stageDir = DATA_DIR .. "/stage", -- files staged under a free name for a paste into a folder that already holds that name
   storePath = DATA_DIR .. "/history.json",
+
+  -- The one adapter that knows Finder or AppleScript, answering only where a paste
+  -- would land. A paste presents the right name regardless of this setting, that part is
+  -- app agnostic and always runs. Set to false or nil to turn off only Finder's own
+  -- collision numbering, or to a different table answering the same folder() contract to
+  -- swap it for another target.
+  finderTarget = finderTargetAdapter,
 
   maxEntries = 1000, -- history cap, trimmed on insert
   maxFileSnapshot = 10 * 1024 * 1024, -- freeze a real copy only up to this size; bigger files are linked
@@ -266,6 +278,7 @@ function M.start()
     dataDir = config.dataDir,
     thumbDir = config.thumbDir,
     filesDir = config.filesDir,
+    stageDir = config.stageDir,
     maxFileSnapshot = config.maxFileSnapshot,
     thumbEdge = config.thumbEdge,
     previewEdge = config.previewEdge,
@@ -323,6 +336,20 @@ function M.start()
     pollInterval = config.pollInterval,
     pasteDelay = config.pasteDelay,
     onCapture = session.noteCapture,
+    -- The one place this feature is wired together, and the only reason monitor.lua
+    -- ever learns of media at all. Presenting the right name is app agnostic and always
+    -- matters, so this closure always calls into media, with or without Finder. Only the
+    -- collision numbering needs to know the destination, which is why folder is the one
+    -- thing conditional here, config.finderTarget names the adapter that knows where a
+    -- paste would land, and only this closure, sitting in the composition root, knows
+    -- that the answer to "where" is handed straight to media's numbering. Absent or
+    -- unanswered, folder is nil and media already treats that as skip the numbering
+    -- question entirely rather than as skip the whole call. Neither monitor.lua nor
+    -- media.lua learns of the other because of this.
+    resolveFilePaths = function(items)
+      local folder = config.finderTarget and config.finderTarget.folder()
+      return media.resolveForPaste(items, folder)
+    end,
   })
   ui.configure(merged({
     store = store,

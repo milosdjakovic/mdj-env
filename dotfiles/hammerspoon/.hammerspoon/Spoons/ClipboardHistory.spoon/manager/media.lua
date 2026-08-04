@@ -28,6 +28,32 @@
 --- follows whatever path is stored rather than assuming a shape, and release and
 --- enforceBudget below both tell the two shapes apart before removing anything.
 ---
+--- A third state sits beside frozen and linked and belongs to neither, staged, and it is
+--- decided nowhere near capture. resolveForPaste is asked once per paste, over every file
+--- element together, and it answers two separate concerns rather than one. The first
+--- always applies and needs nothing about the destination: a paste presents each file
+--- under the basename of its entry's own path, never under whatever this module happened
+--- to call its cache copy, since that name is the one thing every read site can trust
+--- regardless of layout or whether the file was frozen or linked. The second only matters
+--- for a paste already headed into a folder that turns out to hold a file of the same
+--- name, a fact only the paste side can know and hands in as an optional folder, nil for
+--- every app that is not Finder, and it is what decides whether a name needs Finder style
+--- numbering at all. Staging itself only happens when the name a paste must present differs
+--- from the name its content path already carries on disk, whether because the cache copy
+--- carries an old generated name or because the numbering just gave it one, and it answers
+--- with a hard link, costing no space whatever the original's size, and falls back to a copy
+--- only when linking fails and the file is within maxFileSnapshot. Every call gets its own
+--- fresh directory under a dedicated staging root, named the same way a frozen copy's own
+--- directory is, so a number chosen on one call can never collide with the same number
+--- chosen on another call, while two files needing the same number within one call are kept
+--- apart by the numbering itself counting past names it has already handed out that same
+--- call rather than by a second directory. Staged files never share a directory with a
+--- frozen copy or an original and are never written under filesDir, and the whole staging
+--- root is bounded by keeping only the most recent handful of these per call directories
+--- rather than being cleared after every paste, since a paste that leaves the clipboard
+--- loaded, which a paste from the picker does, leaves the clipboard pointing at whatever was
+--- just staged, and clearing it eagerly would leave that clipboard pointing at nothing.
+---
 --- The small preview and thumbnail images are produced by the injected preview module
 --- off the main thread, so a large image or video never stalls Hammerspoon. Generation
 --- is async, so the entry is saved at once with the deterministic preview path and the
@@ -57,7 +83,7 @@ end
 --------------------------------------------------------------------------------
 
 local function ensureDirs()
-  for _, d in ipairs({ cfg.cacheParent, cfg.dataDir, cfg.thumbDir, cfg.filesDir }) do
+  for _, d in ipairs({ cfg.cacheParent, cfg.dataDir, cfg.thumbDir, cfg.filesDir, cfg.stageDir }) do
     if d and not hs.fs.attributes(d) then
       hs.fs.mkdir(d)
     end
@@ -228,6 +254,211 @@ local function entryStoredBytes(e)
 end
 
 --------------------------------------------------------------------------------
+-- Staging for a paste
+--------------------------------------------------------------------------------
+
+-- How many per call staging directories are kept before the oldest are swept away, a
+-- cap on the staging root rather than on any one entry. Sized well past an ordinary
+-- burst of pastes, since the cost of keeping one is small and the cost of sweeping one
+-- still holding the clipboard's own content would be real.
+local STAGE_SLOTS = 20
+
+-- The basenames already sitting in folder, read once per call so every path this call
+-- considers is measured against the same live listing rather than rereading the folder
+-- once per path. hs.fs.dir raises rather than answering nil when a directory cannot be
+-- opened, so the listing is guarded, and a folder we cannot read is treated as though it
+-- held nothing, which only ever means a path is treated as free when it might not be,
+-- the same outcome as never staging at all.
+local function existingNames(folder)
+  local names = {}
+  pcall(function()
+    local iter, dirObj = hs.fs.dir(folder)
+    for name in iter, dirObj do
+      names[name] = true
+    end
+  end)
+  return names
+end
+
+-- A basename split into its stem and its extension, the extension being whatever
+-- follows the last dot. A name with no dot, or one that is nothing but a dot prefix
+-- like .gitignore, keeps the whole name as its stem and answers no extension, since
+-- splitting there would spend Finder's number in front of a dot that is not really
+-- separating a stem from a kind.
+local function splitStem(base)
+  local stem, ext = base:match("^(.*)%.([^%.]+)$")
+  if not stem or stem == "" then
+    return base, nil
+  end
+  return stem, ext
+end
+
+-- The next name Finder itself would offer for base once base is already taken, stem, a
+-- space, the number, then the extension, starting at 2 since the original already holds
+-- no number of its own. existing is the destination folder's own listing and usedHere is
+-- every name this same call has already handed out, and a candidate has to clear both
+-- before it is free, which is what keeps two colliding files staged together from ever
+-- being asked to share one name.
+local function freeName(base, existing, usedHere)
+  local stem, ext = splitStem(base)
+  local n = 2
+  while true do
+    local candidate = ext and string.format("%s %d.%s", stem, n, ext) or string.format("%s %d", stem, n)
+    if not existing[candidate] and not usedHere[candidate] then
+      return candidate
+    end
+    n = n + 1
+  end
+end
+
+-- Take down a directory this module made, one that holds only files with nothing
+-- nested inside, which is all a frozen copy's or a staged call's own directory ever is.
+-- os.remove will not take a directory down while anything still sits inside it, so its
+-- files go first and the directory comes down once they are gone. Guarded the same way
+-- the listing above is, since the same hs.fs.dir call is behind it.
+local function removeDirRecursive(dir)
+  local ok = pcall(function()
+    local iter, dirObj = hs.fs.dir(dir)
+    for name in iter, dirObj do
+      if name ~= "." and name ~= ".." then
+        os.remove(dir .. "/" .. name)
+      end
+    end
+  end)
+  if ok then
+    hs.fs.rmdir(dir)
+  end
+end
+
+-- Keep the staging root down to the most recent STAGE_SLOTS call directories, oldest
+-- first by modification time, a plain bounded sweep over one directory listing. This is
+-- deliberately not a clear after every paste. A paste that leaves
+-- the clipboard loaded, which is what a paste out of the picker does, leaves the user's
+-- clipboard pointing at whatever was just staged, so removing that the moment the paste
+-- settles would leave the clipboard pointing at nothing rather than at what it just
+-- pasted. So the root only ever grows by one slot per call and this walks it back down
+-- afterward, and the whole root is wiped just once, in configure, so a slot from a
+-- previous session can never be the one a still open clipboard is depending on.
+local function evictOldSlots()
+  local dir = cfg.stageDir
+  if not dir then return end
+  local slots = {}
+  local ok = pcall(function()
+    local iter, dirObj = hs.fs.dir(dir)
+    for name in iter, dirObj do
+      if name ~= "." and name ~= ".." then
+        local full = dir .. "/" .. name
+        local attr = hs.fs.attributes(full)
+        if attr and attr.mode == "directory" then
+          slots[#slots + 1] = { path = full, at = attr.modification or 0 }
+        end
+      end
+    end
+  end)
+  if not ok then return end
+  local excess = #slots - STAGE_SLOTS
+  if excess <= 0 then return end
+  table.sort(slots, function(a, b) return a.at < b.at end)
+  for i = 1, excess do
+    removeDirRecursive(slots[i].path)
+  end
+end
+
+-- Empty the staging root once, at configure, so a slot left over from a previous
+-- Hammerspoon session never lingers into a fresh one. Only the slot directories inside
+-- come down, the root itself is left standing for the next call to write into.
+local function wipeStageDir()
+  local dir = cfg.stageDir
+  if not dir or not hs.fs.attributes(dir) then return end
+  pcall(function()
+    local iter, dirObj = hs.fs.dir(dir)
+    for name in iter, dirObj do
+      if name ~= "." and name ~= ".." then
+        removeDirRecursive(dir .. "/" .. name)
+      end
+    end
+  end)
+end
+
+--- M.resolveForPaste(items, folder) -> list of paths
+--- Resolves a whole paste in one pass. items is an ordered list of { content, name },
+--- content the path whose bytes get pasted and name the basename the paste must present,
+--- and folder is the destination folder or nil when the destination is unknown, which is
+--- every app that is not Finder. Returns a plain list of paths to write to the pasteboard,
+--- one per item, in the same order.
+---
+--- Two separate concerns live here and only one of them needs folder at all. The name
+--- always comes from the record, never from the cache path, so an item's desired name
+--- starts as its own name field, and two items in one paste never end up sharing that
+--- name, with or without a folder, since usedHere disqualifies a repeat on its own. Only
+--- the Finder style renumbering needs folder, a desired name already taken in that
+--- destination's own listing becomes the next free Finder style name instead, reusing
+--- freeName and splitStem, since only Finder's own numbering needs to know where the
+--- paste is headed.
+---
+--- Staging is what makes a changed name actually true on disk. Once a desired name is
+--- settled, it is compared against the basename its content path already carries, and a
+--- match passes the content path through untouched, no staging, no slot, no cost, which is
+--- the common case for a current layout file with no collision. A mismatch, whether because
+--- the cache copy still carries an old generated name or because the numbering just gave it
+--- one, is staged, a hard link when possible since that costs no space whatever the
+--- original's size, and a copy only when linking fails and the file is within
+--- maxFileSnapshot. A directory is never staged, since a folder cannot be hard linked and
+--- copying one wholesale is not worth what it would cost, and a file that cannot be staged
+--- any other way is passed through unchanged too, so the worst this ever does is exactly
+--- today's paste, never worse. The staging directory itself is made lazily, once, and only
+--- when some item actually needs it, so a paste that needs no rename leaves no directory
+--- behind.
+function M.resolveForPaste(items, folder)
+  if not items or #items == 0 then
+    return {}
+  end
+
+  -- Guarded so the destination is only asked about, and only listed, when there is one.
+  local existing = folder and existingNames(folder) or nil
+  local usedHere = {}
+  local desired = {}
+  for i, item in ipairs(items) do
+    local name = item.name
+    if usedHere[name] or (existing and existing[name]) then
+      name = freeName(name, existing or {}, usedHere)
+    end
+    usedHere[name] = true
+    desired[i] = name
+  end
+
+  local slotDir = nil -- created lazily, once, only if some item below actually needs it
+  local result = {}
+  for i, item in ipairs(items) do
+    local contentBase = item.content:match("([^/]+)$")
+    if desired[i] == contentBase then
+      result[i] = item.content
+    else
+      if slotDir == nil then
+        evictOldSlots()
+        local dir = cfg.stageDir .. "/" .. newId()
+        slotDir = ensureDir(dir) and dir or false
+      end
+      local staged = nil
+      if slotDir then
+        local attr = hs.fs.attributes(item.content)
+        if attr and attr.mode ~= "directory" then
+          local dest = slotDir .. "/" .. desired[i]
+          if
+            hs.fs.link(item.content, dest, false)
+            or ((not attr.size or attr.size <= cfg.maxFileSnapshot) and copyFile(item.content, dest))
+          then
+            staged = dest
+          end
+        end
+      end
+      result[i] = staged or item.content
+    end
+  end
+  return result
+end
+
+--------------------------------------------------------------------------------
 -- Contract, called by the store core
 --------------------------------------------------------------------------------
 
@@ -309,15 +540,17 @@ function M.enforceBudget(history, cap)
   end
 end
 
---- M.configure(opts) - inject the dirs, sizes, util, the preview module, the store's
---- save (so a late async render can re-persist), and the mediaReady hook. Creates the
---- media dirs.
+--- M.configure(opts) injects the dirs, sizes, util, the preview module, the store's save
+--- (so a late async render can re-persist), and the mediaReady hook. Creates the media
+--- dirs, including the staging root, and wipes any staging directories left over from a
+--- previous session, so staging never grows across a reload or a relaunch.
 function M.configure(opts)
   cfg = opts
   util = opts.util
   preview = opts.preview
   save = opts.save
   ensureDirs()
+  wipeStageDir()
   return M
 end
 

@@ -62,6 +62,7 @@ local store = nil
 local util = nil
 local skipTypes = nil
 local onCapture = nil -- optional observer, called with each genuinely copied entry
+local resolveFilePaths = nil -- optional injected transform over the { content, name } items writtenFilePaths builds
 local pollInterval = 0.5
 local pasteDelay = 0.1
 
@@ -241,19 +242,46 @@ local function encodePath(p)
   end))
 end
 
--- The filesystem paths we will actually paste, always preferring our snapshot so the
--- entry pastes our own copy, never the possibly-gone original. Falls back to the
--- original path only when there is no snapshot (a folder or an oversized file) and it
--- still exists. Order is preserved so the urls and the signature agree.
+-- Content and name are two independent things, never one. The bytes we paste always
+-- prefer our snapshot so the entry pastes our own copy, never the possibly-gone original,
+-- falling back to the original path only when there is no snapshot (a folder or an
+-- oversized file) and it still exists. The name we present is always the basename of
+-- el.path, since that field is authoritative, present for every entry regardless of
+-- layout or whether the file was frozen or linked, and never rewritten. The cache path is
+-- only ever a source of bytes and must never be trusted as a source of a name, since a
+-- copy frozen under an older flat layout carries a generated basename of its own rather
+-- than the one the user actually copied. An element contributes nothing when neither
+-- stored nor path exists on disk. Order is preserved so the urls and the signature agree.
+--
+-- An optional injected transform, resolveFilePaths, gets the last look at this list of
+-- { content, name } items before anything leaves this function, and the plain list of
+-- paths it hands back is what is actually written to the pasteboard and what the
+-- signature below is computed from, since the signature exists to describe what we truly
+-- wrote rather than what we started with. This is the one seam where something outside
+-- this module can turn a content path and its name into a different path to write, which
+-- is how a destination aware renaming and staging policy is wired in without this module
+-- ever learning what that destination is or what asked about it. Absent, or answering
+-- nil, this just takes each item's content path straight through, so behaviour without
+-- the adapter is exactly what it always was.
 local function writtenFilePaths(entry)
-  local paths = {}
+  local items = {}
   for _, el in ipairs(entry.files or {}) do
-    local p = (el.stored and hs.fs.attributes(el.stored) and el.stored)
+    local content = (el.stored and hs.fs.attributes(el.stored) and el.stored)
       or (hs.fs.attributes(el.path) and el.path)
       or nil
-    if p then
-      paths[#paths + 1] = p
+    if content then
+      items[#items + 1] = { content = content, name = el.path:match("([^/]+)$") or el.path }
     end
+  end
+  if resolveFilePaths then
+    local resolved = resolveFilePaths(items)
+    if resolved then
+      return resolved
+    end
+  end
+  local paths = {}
+  for _, it in ipairs(items) do
+    paths[#paths + 1] = it.content
   end
   return paths
 end
@@ -697,6 +725,7 @@ function M.configure(opts)
   util = opts.util
   skipTypes = opts.skipTypes
   onCapture = opts.onCapture
+  resolveFilePaths = opts.resolveFilePaths
   pollInterval = opts.pollInterval or pollInterval
   pasteDelay = opts.pasteDelay or pasteDelay
   return M
