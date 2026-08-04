@@ -21,7 +21,7 @@
 
 local UI = {}
 
-local store, monitor, util = nil, nil, nil
+local store, monitor, util, media = nil, nil, nil, nil
 -- Asked per row while building the list, so a growing entry can be marked. Defaults to
 -- answering no, so the rows render the same when no accumulator is wired in at all.
 local isAccumulator = function() return false end
@@ -141,24 +141,12 @@ local function pathExists(p)
   return ok
 end
 
--- The file state badge, from the three-state model. A frozen element carries a
--- stored copy and needs no check; only links (a file with no stored copy, and
--- folders, which are never frozen) are stat'd. Returns "Deleted" if any linked
--- original is gone, "Linked" if any element is a link but all still exist, or nil
--- when every element is a frozen copy and nothing needs saying.
+-- The file state badge, the shared rule in media.lua, fed this pane's memoized
+-- existence check rather than a fresh stat, since filtering rebuilds every row on
+-- every keystroke and a fresh stat per row per keystroke is the cost that memo
+-- exists to avoid. See media.fileBadge for what the three answers mean.
 local function fileBadge(e)
-  local anyLink, anyMissing = false, false
-  for _, el in ipairs(e.files or {}) do
-    if not el.stored then
-      anyLink = true
-      if not pathExists(el.path) then
-        anyMissing = true
-      end
-    end
-  end
-  if anyMissing then return "Deleted" end
-  if anyLink then return "Linked" end
-  return nil
+  return media.fileBadge(e, pathExists)
 end
 
 local function subTextFor(e)
@@ -1250,13 +1238,15 @@ function UI.build()
   return UI
 end
 
---- UI.configure(opts) - inject store, monitor, util, the Chooser factory, the
---- theme, the shared surface routine (opts.surface, drawing the preview pane's
---- background and border), and the layout config.
+--- UI.configure(opts) - inject store, monitor, util, media (for the shared file
+--- state rule fileBadge draws on), the Chooser factory, the theme, the shared
+--- surface routine (opts.surface, drawing the preview pane's background and
+--- border), and the layout config.
 function UI.configure(opts)
   store = opts.store
   monitor = opts.monitor
   util = opts.util
+  media = opts.media
   Chooser = opts.chooser
   isAccumulator = opts.isAccumulator or isAccumulator
   cfg = opts

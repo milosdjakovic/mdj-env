@@ -6,11 +6,18 @@
 --- signal, a genuine copy. That shared reset is what earns them one file instead of two. A
 --- third behaviour would be the point to split them.
 ---
---- Nothing here is driven by a timer or a watcher, so it needs no start and no stop. Every
---- condition that ends a run is observable at the moment the next key is pressed, so it is
---- checked then rather than driven by a clock. The one timer it does own drives nothing, it
---- only releases a claim whose release never arrived, so a lost callback cannot leave both
---- behaviours dead for the rest of the session. The one thing it cannot see for itself is
+--- This module still owns no timer that drives behaviour and no watcher of its own, so it still
+--- needs no start and no stop. Most of what ends a run is observable at the moment the next key
+--- is pressed, so it is checked then rather than driven by a clock, the frontmost app and the
+--- idle gap in the walk below. A plain Cmd+V is the one ending this module cannot read at a
+--- press, since it changes nothing on the pasteboard, so the monitor watches for it with an
+--- event tap of its own and calls straight into resetSequence the moment it sees one, the same
+--- way a genuine copy already calls into noteCapture. This module is told rather than checking
+--- for itself, so the no watcher rule still holds for what lives in this file, only one of its
+--- four endings now arrives from outside rather than being read at the press. The one timer it
+--- does own drives nothing, it only releases a claim whose release never arrived, so a lost
+--- callback cannot leave both behaviours dead for the rest of the session. The one thing it
+--- cannot see for itself is
 --- whether a pasteboard change was a real copy or one of our own pastes, because a paste
 --- refreshes an entry's recency and so leaves it looking brand new. The monitor still has
 --- that distinction at capture time and publishes it through onCapture, which this module
@@ -35,6 +42,7 @@ local store = nil
 local monitor = nil
 local readers = nil
 local util = nil
+local media = nil -- the image and file lifecycle module, for the shared file state rule
 local onEntryChanged = nil -- optional, told when an entry's content was rewritten in place
 local onMessage = nil -- optional, shows a short message to the user
 local separator = "\n"
@@ -62,6 +70,55 @@ local function notify(text)
   if onMessage then
     onMessage(text)
   end
+end
+
+-- What a step just handed over, for its message. A step that lands nothing is indistinguishable
+-- from a key that did nothing, and that happens for real, an image or a file going into a field
+-- that will not take one. We cannot detect the refusal, because the pasteboard write succeeds
+-- either way and only the app's response is missing, so the message names what was handed over
+-- rather than only where the walk has got to. Then a plain text field that stays empty after a
+-- step reading "file Screenshot.png" explains itself.
+local function describe(entry)
+  if entry.kind == "text" or entry.kind == "url" then
+    return string.format("%d chars", entry.chars or #(entry.text or ""))
+  end
+  if entry.kind == "image" then
+    return entry.title or "image"
+  end
+  -- A file entry holds its paths under files once stored and _paths before, and the walk sees
+  -- both, since the pieces it builds never reach the store.
+  local files = entry.files or entry._paths or {}
+  if #files > 1 then
+    return string.format("%d files", #files)
+  end
+  return "file " .. util.oneLine(entry.title or "", 40)
+end
+
+-- A fresh stat, not memoized, unlike the chooser's own probe. The chooser rebuilds every
+-- row on every keystroke and needs the memo to keep that cheap, but a step only asks once
+-- per press, and the whole reason to ask at all is to say the file's state at this instant,
+-- not whatever it was the last time anyone checked.
+local function freshExists(p)
+  return hs.fs.attributes(p) ~= nil
+end
+
+-- What a step adds to its message when a file entry pasted but part of it did not. A single
+-- vanished link leaves nothing for writeEntry to put on the pasteboard, so pasteNext's
+-- failure branch already reports that entry as gone in its own words, and this would only
+-- repeat it. The gap that branch cannot see is a multi file entry where some elements
+-- survive and some do not, since the surviving ones still write and paste fine, and a step
+-- that only names the file count would then read like an ordinary paste that quietly
+-- dropped the rest. So this only ever has something to say once a step already reached the
+-- success branch, checking the same Deleted state the chooser badge shows, freshly rather
+-- than from its memo.
+local function fileNote(entry)
+  if entry.kind ~= "file" then
+    return ""
+  end
+  if media.fileBadge(entry, freshExists) == "Deleted" then
+    return ", some missing"
+  end
+  return ""
 end
 
 local function frontmostID()
@@ -251,8 +308,10 @@ local run = nil
 -- Whether the walk in progress still applies. It does not once the frontmost app has
 -- changed, since a walk belongs to the form being filled, and not once the gap since the
 -- last press has grown past the idle window, since a walk is a burst and a long pause means
--- the next press is a fresh intent. Both are read here, at the press, rather than watched,
--- which is why this module carries no watcher and no timer.
+-- the next press is a fresh intent. Both are read here, at the press, rather than watched.
+-- A plain Cmd+V ends a run too, but that check never happens here, since the monitor's paste
+-- watcher calls resetSequence directly the moment it sees one, so run is already nil by the
+-- time the next press asks.
 local function runStillApplies()
   if not run then
     return false
@@ -271,7 +330,9 @@ local function runStillApplies()
 end
 
 --- M.resetSequence() - end any walk in progress, so the next press starts from the top again.
---- Queued presses belong to the walk that is ending, so they go with it.
+--- Queued presses belong to the walk that is ending, so they go with it. Called from three
+--- places, a fresh append above, noteCapture below on a genuine copy, and the monitor's paste
+--- watcher directly on a plain Cmd+V, so every ending reaches the same place.
 function M.resetSequence()
   if run then
     log.df("%.3f walk reset at %d of %d, %d queued dropped", clock(), run.index, #run.list, pendingSteps)
@@ -308,6 +369,21 @@ end
 --- without rewriting the order it is reading, and a plain paste keeps meaning the newest
 --- entry however far the walk has gone. At the end of the list it stops rather than wrapping,
 --- since wrapping would quietly paste the wrong thing.
+---
+--- A walk ends and the next press starts over from the newest entry on any of four things, the
+--- frontmost app changing, the idle window passing, a genuine copy, or a plain Cmd+V. The first
+--- two are checked here, at the press, in runStillApplies below. The last two are not, a genuine
+--- copy is reported by the monitor through noteCapture and a plain Cmd+V is reported by the
+--- monitor's own event tap, and both call resetSequence directly, so by the time this function
+--- runs again the walk they ended is already gone.
+---
+--- Every step says what it handed over as well as where it is, because a step whose entry the
+--- receiving field refuses is otherwise indistinguishable from a key that did nothing. A file
+--- entry adds one more word when part of it has been deleted since it was copied, since a step
+--- that only named the file count would otherwise look like an ordinary paste that quietly
+--- dropped the missing piece, see fileNote above for why that check runs fresh rather than off
+--- the chooser's own memoized one and why it only ever adds anything once the pasteboard write
+--- already succeeded.
 function M.pasteNext()
   log.df(
     "%.3f press, walking=%s queued=%d at=%s app=%s",
@@ -379,8 +455,9 @@ function M.pasteNext()
   --
   -- Everything else, an image, a file, or a field that will not take text this way, goes through
   -- the pasteboard below and pays for it, because there is no other way in for those.
+  local what = describe(entry)
   if (entry.kind == "text" or entry.kind == "url") and monitor.insertText(entry.text) then
-    notify(string.format("%d of %d", run.index, total))
+    notify(string.format("%d of %d, %s", run.index, total, what))
     return
   end
 
@@ -409,13 +486,16 @@ function M.pasteNext()
   })
 
   if started then
-    notify(string.format("%d of %d", run.index, total))
+    -- fileNote only ever adds anything for a file entry, and only when part of it is
+    -- missing while the rest still pasted, the one case the failure branch below cannot
+    -- speak to, since it only runs when nothing at all could be written.
+    notify(string.format("%d of %d, %s%s", run.index, total, what, fileNote(entry)))
   else
     -- Nothing was written, so no settle is coming and the claim has to be released here. The
     -- position still advanced, so say what happened rather than looking like a silent no op.
     -- Only a vanished image or file reaches this, and releasing here rather than just clearing
     -- the flag means a queued press still steps past it instead of stalling on it.
-    notify(string.format("%d of %d, nothing to paste", run.index, total))
+    notify(string.format("%d of %d, %s is gone", run.index, total, what))
     releaseWalk()
   end
 end
@@ -443,14 +523,16 @@ end
 -- Lifecycle
 --------------------------------------------------------------------------------
 
---- M.configure(opts) - inject the store, the monitor, the readers, util, the optional
---- onEntryChanged and onMessage observers, the separator appended pieces are joined with, the
---- idle window that ends a walk, and how long each step of a walk leaves the pasteboard alone.
+--- M.configure(opts) - inject the store, the monitor, the readers, util, media (for the
+--- shared file state rule a walk's toast draws on), the optional onEntryChanged and
+--- onMessage observers, the separator appended pieces are joined with, the idle window
+--- that ends a walk, and how long each step of a walk leaves the pasteboard alone.
 function M.configure(opts)
   store = opts.store
   monitor = opts.monitor
   readers = opts.readers
   util = opts.util
+  media = opts.media
   onEntryChanged = opts.onEntryChanged
   onMessage = opts.onMessage
   separator = opts.appendSeparator or separator

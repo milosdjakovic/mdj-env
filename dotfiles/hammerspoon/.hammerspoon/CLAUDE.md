@@ -965,6 +965,44 @@ PNGs off the main thread (sips for rasters, ffmpeg for video, `hs.image` for
 pdf/icns), knowing nothing about the UI. `ui.lua` only consumes the resulting
 `e.prev`/`e.thumb` paths, so swapping the webview for the canvas touched neither.
 
+A frozen file, one small enough to copy rather than only link, lives in its own directory
+named for a freshly drawn id, with its original basename kept inside, `filesDir/id/basename`
+rather than one flat directory of generated names. The directory is what stops two frozen
+copies of the same name from colliding, which is what a flat generated name used to be for,
+so moving the id onto the directory frees the basename to stay exactly what was copied. A
+current layout copy's basename happens to be exactly what a receiving app names the pasted
+file after, but only because `writtenFilePaths` in `monitor.lua` names it from the entry's
+own path rather than from this copy, since trusting the copy's own basename was the real
+defect an older version of this code carried, a file pasted back out of history losing its
+name to a flat layout copy's generated basename, `file-1785616767-83059.jpg` in place of the
+screenshot it actually was. An entry frozen before this layout still has its old flat path and
+still works forever, every read site follows whatever path is stored rather than assuming a
+shape, and `media.release` and `media.enforceBudget` both derive the directory to remove from
+the configured `filesDir` rather than from the stored path's own parent, so an old flat entry
+is never mistaken for owning a directory and eviction can never be pointed at removing
+`filesDir` itself.
+
+A paste out of history always lands under the name the user copied, because `writtenFilePaths`
+in `monitor.lua` pairs each file's bytes with the basename of the entry's own path and hands
+that pair to `manager/media.lua`'s `resolveForPaste`, the one function that turns it into the
+path actually written to the pasteboard, and the cache copy is never consulted for a name, only
+for bytes. That holds for every layout and every app. Pasting into a Finder window that already
+holds a file of that name gets one thing more, Finder's own same folder numbering, `report
+2.txt` then `report 3.txt`, in place of its cross folder prompt, Keep Both, Stop and Replace, a
+prompt easy to miss and one that dies unanswered after a few seconds, quietly losing the paste.
+That extra step alone needs the destination, so it runs only when `manager/finder-target.lua`,
+the one file in the feature that knows Finder or AppleScript exist at all, answers a folder by
+asking Finder's own insertion location, while every other app hands `resolveForPaste` no folder
+and gets the corrected name with no numbering. Either way a changed name is made real on disk by
+staging, a hard link when possible since that costs no space whatever the file's size, and a
+copy only for a file within `maxFileSnapshot`, written fresh into its own directory beneath a
+staging root kept separate from every frozen copy and every original. A folder is never staged,
+since a folder cannot be hard linked and copying one is not worth it, and a file that cannot be
+staged any other way is passed through unchanged too, so both fall back to meeting Finder's own
+prompt exactly as before rather than something worse. `manager/init.lua` is the only file that
+names this concrete adapter, injecting it as an overridable config key so the numbering can be
+swapped or turned off without either of the other two files learning that Finder exists.
+
 **Clipboard append and sequential paste.** Two clipboard actions need no list, so they are the
 only clipboard keys not on Hyper. They are global Ctrl and Option combos, on C and V, because
 they extend the plain copy and paste keys and are pressed mid edit rather than reached through a
@@ -976,12 +1014,49 @@ paste properties there, and an app by app pass through list was rejected as more
 the feature is worth. Being global they sit in no leader's cheat sheet, so their launcher rows
 are their only listing, which is why both carry a `description`.
 
+Every step of a walk says what it handed over and not only where it is. A step whose entry the
+receiving field refuses is otherwise indistinguishable from a key that did nothing, which is not
+hypothetical, a screenshot at position two of history walked into a plain text notes app read
+exactly like a dead key and was reported as one. The refusal cannot be detected from here,
+because the pasteboard write succeeds and only the app's response is missing, so the message names
+the kind instead. A field that stays empty under a message reading `2 of 4, file Screenshot.png`
+explains itself.
+
+A step landing on a multi file entry says so as well when part of it has since been deleted, the
+same report a user asked for after a file step looked like it silently did nothing. The chooser
+already carries this fact as a row badge, Deleted or Linked, from `media.fileBadge`, and the walk
+draws on that same rule rather than keeping its own copy of it, so the two can never disagree
+about one entry's state. What differs is how each asks. The chooser memoizes the check because
+filtering rebuilds every row on every keystroke, while the walk asks fresh at the moment of the
+press, since the whole point is the file's state right then rather than a stale answer, so
+`fileBadge` takes the existence check as a parameter and knows nothing about either caller's
+cache. It only ever has something to add once a step's paste already succeeded. A single vanished
+link leaves nothing for the write to put on the pasteboard at all, which the existing `is gone`
+failure message already reports, so the gap this closes is the one that message cannot see, a
+multi file entry where some elements survive and paste while one has been deleted, which used to
+read as an ordinary paste that quietly dropped part of what it carried.
+
 Both live in `manager/session.lua`, the transient session state over the persistent history. They
 share a file because they end on the same signal, a genuine copy, and splitting them would
-duplicate that wiring. The module owns no watcher and nothing in it is driven by a clock, so it has
-no `start` or `stop`, because every condition that ends a run is observable when the next key is
-pressed and is read there. The two timers it does hold drive nothing, one spaces out a queued press
-and one releases a claim whose release never arrived. Four decisions are worth knowing.
+duplicate that wiring. The module still owns no watcher and no timer of its own, and still has no
+`start` or `stop`, because most of what ends a run is observable when the next key is pressed and
+is read there, the frontmost app and the idle window. One ending is not, a plain Cmd+V, which
+changes nothing on the pasteboard and so cannot be read at a press the way the other two are.
+`manager/monitor.lua` watches for that one with an event tap, since a tap is the only way to see a
+key that writes nothing, and calls `resetSequence` the moment it sees a real one, the same seam a
+genuine copy already uses through `onCapture`. That tap is a real cost this module did not carry
+before, a global listener sitting in the path of a very common keystroke, so it is built to only
+ever observe, reading the event and returning it unchanged, never swallowing, delaying, or
+rewriting it. The walk pastes by posting a synthetic Cmd+V of its own through `pasteOp`, and the
+tap would otherwise see that keystroke too and mistake it for a user press, resetting every walk
+mid burst. `pasteOp` already reasons about exactly that keystroke for its self capture guard, so it
+counts itself in and back out across that same window, and the tap stays quiet while the count is
+above zero rather than guessing from a timestamp or a suppression delay. The tap lives in
+`monitor.lua` rather than in `session.lua` because the monitor already owns every pasteboard and
+keyboard concern in this folder, including the guard state the count above reuses, while
+`session.lua` would have needed a start and a stop it does not otherwise carry just to host a tap
+of its own. The two timers `session.lua` itself still holds drive nothing, one spaces out a queued
+press and one releases a claim whose release never arrived. Four decisions are worth knowing.
 
 The append glues onto row 1 only when row 1 is text that arrived by a real copy, and otherwise
 starts a new row, so the first press always behaves like a plain copy and only the presses after
@@ -1017,6 +1092,35 @@ Every paste path in the manager now funnels through one primitive in `monitor.lu
 reordering, restoring, and the settle callback passed in as options rather than baked in, which is
 what let the walk reuse the proven path instead of growing a second one. `pasteText` became a
 synthetic op through that same primitive.
+
+Every restore in this file, the one right after a plain paste, the one that waits out a quiet
+window, and the one wrapped around a selection read by Cmd+C, now answers to one guard,
+`pasteboardStillOurs`, rather than to changeCount alone. An unmoved count still means nothing has
+touched the pasteboard since the write, and the restore is plainly safe on that alone, exactly as
+it always was. A moved count used to be read as proof on its own that a real copy had claimed the
+pasteboard, and that reading is naive, because the very case `selfSigs` already exists for, a
+receiving app rewriting the pasteboard with the same content when it takes our paste, moves the
+count a second time while carrying nothing new. So a moved count now falls through to content
+instead of ending the question there, asking whether what sits on the pasteboard right now still
+is the thing the recorded signature describes, rather than only whether the count changed. That
+signature now travels out of `writeEntry` alongside the boolean that says whether anything was
+written, since the restore that fires later is what needs it, and a value returned only for the
+caller that asks for it costs nothing to every caller that already ignored it. Getting the
+question wrong in one direction abandons a restore that was never actually at risk and leaves our
+own pasted text sitting on the user's clipboard, which is the very thing the restore exists to
+prevent. Getting it wrong the other way is worse, since writing the old clipboard over a genuine
+copy does not merely misfile it, it destroys it outright, and the user loses something they just
+copied with nothing left to recover. That asymmetry is why the ambiguous case is resolved by
+content rather than by a guess. A write with no signature, an image, has no second opinion
+available and still answers to the count alone exactly as it always did. When a restore is
+abandoned the recorded count is deliberately left alone, so the next poll tick sees the new
+content as a change and captures it as the fresh entry it really is, rather than the restore
+hiding it the way a successful restore hides its own write. The signature is read back narrowly,
+the same way it was written, rather than through the full capture reader chain, since the only
+question a restore ever asks is whether this one write, or its echo, is still there, never what
+kind of thing arrived instead. The same guard covers all three restores named above, and the
+quiet window one waits the longest, so it is the likeliest place a genuine copy actually lands
+before a restore would otherwise overwrite it.
 
 Both keys post their synthetic stroke while the chord that asked for it is still physically held,
 which is a hazard none of the earlier keystroke paths faced, since every one of them fires either

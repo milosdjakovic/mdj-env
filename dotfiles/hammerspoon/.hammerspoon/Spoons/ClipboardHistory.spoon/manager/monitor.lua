@@ -10,6 +10,10 @@
 --- new value immediately or the next poll would re-ingest our own paste. A content
 --- signature backs that up for apps that rewrite the pasteboard when they receive
 --- our paste, a second bump the count guard alone cannot tell from a real copy.
+--- A delayed restore trusts that same signature before it writes anything back,
+--- since the moved count that ends its quiet window is exactly as ambiguous as the
+--- one on the capture side, and mistaking a genuine copy for our own echo would not
+--- just mis-file it, it would destroy it outright by writing the old clipboard over it.
 ---
 --- Every paste funnels through one primitive, pasteOp, and the callers differ only in the
 --- options they hand it, whether to put the previous pasteboard back afterwards and what to run
@@ -36,6 +40,19 @@
 --- needs that distinction cannot recover it from the store, since a paste refreshes an
 --- entry's recency and so looks brand new. So the distinction is published from the one
 --- place that still has it.
+---
+--- One more thing is watched rather than polled. A plain Cmd+V changes nothing on the
+--- pasteboard, so the poll above never sees it, and the session layer's paste walk needs to know
+--- one happened so it can end a walk on it. An event tap is the only way to see a key that writes
+--- nothing, and that is a real cost this module did not carry before, a global listener sitting in
+--- the path of a very common keystroke. It is built to only ever observe, it reads the event and
+--- returns false, never swallowing, delaying, or rewriting it, since breaking a plain paste
+--- everywhere would cost far more than this feature is worth. The walk pastes by posting its own
+--- synthetic Cmd+V through pasteOp below, and the tap would see that one too, so pasteOp counts
+--- how many of its own pastes are between being written and their settle window closing, reusing
+--- exactly the window the self capture guard already reasons about, and the tap stays quiet while
+--- that count is above zero. onUserPaste is the optional observer told about a Cmd+V the count
+--- says was not ours, published the same way onCapture already is.
 
 local M = {}
 
@@ -62,10 +79,13 @@ local store = nil
 local util = nil
 local skipTypes = nil
 local onCapture = nil -- optional observer, called with each genuinely copied entry
+local onUserPaste = nil -- optional observer, called when a plain Cmd+V lands that was not ours
+local resolveFilePaths = nil -- optional injected transform over the { content, name } items writtenFilePaths builds
 local pollInterval = 0.5
 local pasteDelay = 0.1
 
 local timer = nil
+local pasteTap = nil
 
 -- Every delayed step below runs through this, and holding the timer is the whole point. A
 -- Hammerspoon timer is userdata whose finalizer stops it, so a pending timer nothing refers
@@ -90,6 +110,16 @@ local lastChange = -1 -- last changeCount we have accounted for; the guard's sta
 -- copy, then the restore), so rather than sign each write it suppresses the poll outright
 -- for the read window, which cannot race the 0.5s poll tick. Always cleared in the restore.
 local reading = false
+
+-- How many of this module's own synthetic Cmd+V pastes are between being written and their
+-- settle window closing. The paste watcher near the end of this file would otherwise mistake
+-- one of these for a user press and end a walk that never should have ended, so pasteOp counts
+-- itself in and back out across exactly the window it already reasons about for the self capture
+-- guard below, and the watcher stays quiet while the count is above zero. A count rather than a
+-- flag, since the walk, a batch paste, and pasteText can each have one outstanding, and a later
+-- one clearing a boundary an earlier one still owns would let a real keystroke straight through
+-- mid overlap.
+local ownPasteCount = 0
 
 -- Content-signature backstop to the changeCount guard. The count guard stops the
 -- poll re-ingesting our own paste's write, but only that one change. An app that
@@ -241,19 +271,46 @@ local function encodePath(p)
   end))
 end
 
--- The filesystem paths we will actually paste, always preferring our snapshot so the
--- entry pastes our own copy, never the possibly-gone original. Falls back to the
--- original path only when there is no snapshot (a folder or an oversized file) and it
--- still exists. Order is preserved so the urls and the signature agree.
+-- Content and name are two independent things, never one. The bytes we paste always
+-- prefer our snapshot so the entry pastes our own copy, never the possibly-gone original,
+-- falling back to the original path only when there is no snapshot (a folder or an
+-- oversized file) and it still exists. The name we present is always the basename of
+-- el.path, since that field is authoritative, present for every entry regardless of
+-- layout or whether the file was frozen or linked, and never rewritten. The cache path is
+-- only ever a source of bytes and must never be trusted as a source of a name, since a
+-- copy frozen under an older flat layout carries a generated basename of its own rather
+-- than the one the user actually copied. An element contributes nothing when neither
+-- stored nor path exists on disk. Order is preserved so the urls and the signature agree.
+--
+-- An optional injected transform, resolveFilePaths, gets the last look at this list of
+-- { content, name } items before anything leaves this function, and the plain list of
+-- paths it hands back is what is actually written to the pasteboard and what the
+-- signature below is computed from, since the signature exists to describe what we truly
+-- wrote rather than what we started with. This is the one seam where something outside
+-- this module can turn a content path and its name into a different path to write, which
+-- is how a destination aware renaming and staging policy is wired in without this module
+-- ever learning what that destination is or what asked about it. Absent, or answering
+-- nil, this just takes each item's content path straight through, so behaviour without
+-- the adapter is exactly what it always was.
 local function writtenFilePaths(entry)
-  local paths = {}
+  local items = {}
   for _, el in ipairs(entry.files or {}) do
-    local p = (el.stored and hs.fs.attributes(el.stored) and el.stored)
+    local content = (el.stored and hs.fs.attributes(el.stored) and el.stored)
       or (hs.fs.attributes(el.path) and el.path)
       or nil
-    if p then
-      paths[#paths + 1] = p
+    if content then
+      items[#items + 1] = { content = content, name = el.path:match("([^/]+)$") or el.path }
     end
+  end
+  if resolveFilePaths then
+    local resolved = resolveFilePaths(items)
+    if resolved then
+      return resolved
+    end
+  end
+  local paths = {}
+  for _, it in ipairs(items) do
+    paths[#paths + 1] = it.content
   end
   return paths
 end
@@ -273,6 +330,8 @@ end
 -- Put one entry (or a synthetic text op, a table with kind "text" and a joined
 -- text field) on the pasteboard. Returns true when something was written, false
 -- when the media is gone, so a caller pasting a sequence can skip and continue.
+-- Also returns the signature it recorded, or nil for an image, so a caller that
+-- means to restore later can ask the same guard the capture side already trusts.
 local function writeEntry(entry)
   local sig
   if entry.kind == "image" then
@@ -300,7 +359,7 @@ local function writeEntry(entry)
   if sig then
     selfSigs[sig] = hs.timer.secondsSinceEpoch() + selfWindow
   end
-  return true
+  return true, sig
 end
 
 -- How long after the Cmd+V the paste is considered settled, which is both when the previous
@@ -320,6 +379,69 @@ local function cancelPendingRestore()
     pendingRestore:stop()
     pendingRestore = nil
   end
+end
+
+-- The signature of whatever is on the pasteboard right now, read the same narrow way
+-- writeEntry read it rather than through the full capture reader chain, since the only
+-- question a restore ever asks is whether this one write, or the receiving app's echo of
+-- it, is still there, never what kind of thing arrived if it is not. The prefix a sig
+-- carries already says which reading to do, "f" for the file reader's current paths, and
+-- anything else for plain text, so no second kind has to travel alongside the signature.
+local function currentSig(prefix)
+  if prefix == "f" then
+    for _, reader in ipairs(readers or {}) do
+      if reader.kind == "file" then
+        local entry = reader.read({})
+        return entry and contentSig("file", nil, entry._paths) or nil
+      end
+    end
+    return nil
+  end
+  return contentSig("text", hs.pasteboard.getContents(), nil)
+end
+
+-- What kind of thing is on the pasteboard right now, worded for the log line a
+-- restore prints when it gives up, so it says what it found rather than only that it
+-- gave up. Same file over image over url over text priority the reader chain uses, since
+-- more than one type can be present and that order says which one actually arrived.
+local function describePasteboard()
+  local set = util.typeSet(hs.pasteboard.contentTypes())
+  local avail = hs.pasteboard.typesAvailable()
+  if set["public.file-url"] then
+    return "a file"
+  elseif avail.image then
+    return "an image"
+  elseif avail.URL then
+    return "a url"
+  elseif avail.string then
+    return "text"
+  end
+  return "nothing recognisable"
+end
+
+-- The one guard behind every restore in this file, the paste-back's immediate restore,
+-- its delayed quiet-window restore, and copySelection's restore around a synthetic
+-- Cmd+C. changeCount answers most of it for free, an unmoved count means nothing has
+-- touched the pasteboard since writtenCount was recorded and the restore is plainly
+-- safe. A moved count is not by itself the verdict though, only the question, because the
+-- very case selfSigs exists for, a receiving app rewriting the pasteboard with the same
+-- content when it takes our paste, moves the count a second time carrying nothing new.
+-- Treating that moved count alone as proof of a third party copy is the naive version of
+-- this guard, and it fails in exactly this file's own documented case, mistaking our own
+-- echo for someone else's copy would abandon a restore that was never actually at risk
+-- and leave our own pasted text sitting on the user's clipboard, which is the very thing
+-- the restore exists to prevent. So a moved count falls through to content, asking not
+-- whether the count changed but whether what is on the pasteboard right now still is the
+-- thing sig describes. A write with no signature, an image, has no second opinion to
+-- fall back on and answers to the count alone, as it always has.
+local function pasteboardStillOurs(writtenCount, sig)
+  if hs.pasteboard.changeCount() == writtenCount then
+    return true
+  end
+  if not sig then
+    return false
+  end
+  return currentSig(sig:sub(1, 1)) == sig
 end
 
 -- Put a snapshot from readAllData back, or clear the pasteboard when there was nothing to
@@ -364,11 +486,26 @@ local function pasteOp(op, opts, done)
   -- over regardless, so drop it before touching the pasteboard rather than racing it.
   cancelPendingRestore()
 
-  if not writeEntry(op) then
+  local wrote, writeSig = writeEntry(op)
+  if not wrote then
     return false
   end
-  -- Self-capture guard, recorded before the Cmd+V so the poll ignores our write.
+  -- Self-capture guard, recorded before the Cmd+V so the poll ignores our write. writeCount
+  -- is the same value handed to pasteboardStillOurs below, the count a later restore checks
+  -- itself against rather than the count at the moment the restore actually fires.
   lastChange = hs.pasteboard.changeCount()
+  local writeCount = lastChange
+
+  -- Counted in now and released on its own timer, tied to the same pasteDelay and settleDelay
+  -- this function already waits out before and after its own Cmd+V, so the release needs no new
+  -- number of its own. It runs on its own timer rather than nested inside the settle callback
+  -- below, so an error later in that chain cannot strand the count above zero and leave the
+  -- watcher silently deaf to every Cmd+V from then on.
+  ownPasteCount = ownPasteCount + 1
+  after(pasteDelay + settleDelay, function()
+    ownPasteCount = ownPasteCount - 1
+  end)
+
   log.df("%.3f wrote %s, count=%d, app=%s", clock(), tostring(op.kind), lastChange, frontID())
 
   after(pasteDelay, function()
@@ -384,15 +521,35 @@ local function pasteOp(op, opts, done)
     if snapshot or done then
       after(settleDelay, function()
         if snapshot and not quiet then
-          restorePasteboard(snapshot)
-          log.df("%.3f clipboard restored, count=%d", clock(), lastChange)
+          -- If a genuine copy has already claimed the pasteboard by the time we would
+          -- otherwise put the old one back, do not touch it. lastChange is deliberately
+          -- left alone here, it still holds writeCount, so the next poll tick sees the
+          -- claim as a change and captures it as the fresh entry it actually is, rather
+          -- than this restore hiding it the way a successful restore hides itself.
+          if pasteboardStillOurs(writeCount, writeSig) then
+            restorePasteboard(snapshot)
+            log.df("%.3f clipboard restored, count=%d", clock(), lastChange)
+          else
+            log.df("%.3f restore abandoned, pasteboard now holds %s", clock(), describePasteboard())
+          end
         elseif snapshot then
           -- Armed before `done`, since done may start the next paste, and that paste cancelling
           -- this is exactly how a run of them ends with one restore instead of one per entry.
           pendingRestore = hs.timer.doAfter(quiet, function()
             pendingRestore = nil
-            restorePasteboard(snapshot)
-            log.df("%.3f clipboard restored after %.2fs quiet, count=%d", clock(), quiet, lastChange)
+            -- Same abandonment as above, checked again here since the quiet window is
+            -- exactly the longer wait a genuine copy is more likely to land inside.
+            if pasteboardStillOurs(writeCount, writeSig) then
+              restorePasteboard(snapshot)
+              log.df("%.3f clipboard restored after %.2fs quiet, count=%d", clock(), quiet, lastChange)
+            else
+              log.df(
+                "%.3f restore abandoned after %.2fs quiet, pasteboard now holds %s",
+                clock(),
+                quiet,
+                describePasteboard()
+              )
+            end
           end)
         end
         if done then
@@ -621,12 +778,15 @@ end
 --- M.copySelection(cb) - read the current selection without disturbing the clipboard.
 --- The read-side mirror of pasteText, kept here so the snapshot/restore and the
 --- self-capture guard live in one place. It snapshots the pasteboard, sends Cmd+C, and
---- polls changeCount until the copy lands, then reads the text, restores the snapshot, and
---- calls cb(text). The whole window runs with the `reading` flag set, so the background
---- poll ingests neither the copy nor the restore into history, and the restore also rides
---- the changeCount guard, so the clipboard and its history are left exactly as they were.
---- cb(nil) when nothing was copied within the window (no selection) or the selection is not
---- text. Callable only after configure/start, since it depends on this module's guard state.
+--- polls changeCount until the copy lands, then reads the text and calls cb(text). The
+--- whole window runs with the `reading` flag set, so the background poll ingests neither
+--- the copy nor the restore into history. Putting the snapshot back answers to the same
+--- content guard a delayed paste-back restore uses, narrower here since the window is
+--- only from the copy landing to the next line running rather than a whole quiet period,
+--- but the same hazard in principle, so a genuine copy that still manages to land in it is
+--- left alone rather than overwritten by the pre-Cmd+C snapshot. cb(nil) when nothing was
+--- copied within the window (no selection) or the selection is not text. Callable only
+--- after configure/start, since it depends on this module's guard state.
 function M.copySelection(cb)
   -- One read at a time. A second read starting inside the window of the first would
   -- snapshot the pasteboard the first one is holding and then restore that instead of the
@@ -644,14 +804,21 @@ function M.copySelection(cb)
 
   local held = {}
   local waited = 0
-  local function restore()
-    restorePasteboard(snapshot)
+  local function restore(recordedCount, sig)
+    if pasteboardStillOurs(recordedCount, sig) then
+      restorePasteboard(snapshot)
+    else
+      log.df("%.3f selection restore abandoned, pasteboard now holds %s", clock(), describePasteboard())
+    end
     reading = false
   end
   local function check()
     if hs.pasteboard.changeCount() ~= before then
       local text = hs.pasteboard.getContents()
-      restore()
+      -- The count as of this read, not `before`, since that is the state a restore now has
+      -- to still find unchanged (or echoed) to be safe, exactly as writeCount is for a paste.
+      local copiedCount = hs.pasteboard.changeCount()
+      restore(copiedCount, contentSig("text", text, nil))
       cb(text)
     elseif waited < copyTimeout then
       waited = waited + copyStep
@@ -667,7 +834,7 @@ function M.copySelection(cb)
         (front and front:bundleID()) or "unknown",
         (next(held) and table.concat(held, "+")) or "none"
       ))
-      restore()
+      restore(before, nil)
       cb(nil)
     end
   end
@@ -679,24 +846,70 @@ function M.copySelection(cb)
 end
 
 --------------------------------------------------------------------------------
+-- Paste watcher
+--------------------------------------------------------------------------------
+
+-- Resolved once rather than on every keystroke.
+local vKeyCode = hs.keycodes.map.v
+
+-- True for a plain Cmd+V with nothing else held. Exact rather than merely cmd down, since
+-- Cmd Shift V and the like are a different command in whatever app receives them and are no
+-- business of a watcher that exists only to end a paste walk.
+local function isPlainCmdV(event)
+  if event:getKeyCode() ~= vKeyCode then
+    return false
+  end
+  local flags = event:getFlags()
+  return flags.cmd and not flags.shift and not flags.alt and not flags.ctrl
+end
+
+-- The tap callback. It reads the event and nothing more, always returning false so the key
+-- keeps going wherever it was headed, since this watcher exists to learn that a Cmd+V happened,
+-- never to change what one does. ownPasteCount above is what tells a real user press apart from
+-- the walk's own synthetic one, which this same tap would otherwise see and wrongly end the walk
+-- it belongs to.
+local function watchPaste(event)
+  if ownPasteCount == 0 and isPlainCmdV(event) and onUserPaste then
+    onUserPaste()
+  end
+  return false
+end
+
+--------------------------------------------------------------------------------
 -- Lifecycle
 --------------------------------------------------------------------------------
 
---- M.start() - begin polling. Ignores whatever is already on the pasteboard.
+--- M.start() - begin polling and watching for a plain Cmd+V. Ignores whatever is already on the
+--- pasteboard. The tap is created fresh on every call rather than trusted to survive from before,
+--- since hs.reload tears down the whole Lua state and any tap from an earlier load goes with it,
+--- so this is the only place one is ever made.
 function M.start()
   lastChange = hs.pasteboard.changeCount()
   timer = hs.timer.doEvery(pollInterval, poll)
+
+  if pasteTap then
+    pasteTap:stop()
+  end
+  pasteTap = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, watchPaste)
+  pasteTap:start()
+
   return M
 end
 
---- M.configure(opts) - inject the reader chain, store, util, timing, and the optional
---- onCapture observer, called with the stored entry after every genuine copy.
+--- M.configure(opts) injects the reader chain, store, util, timing, and the optional
+--- onCapture and onUserPaste observers, onCapture called with the stored entry after every
+--- genuine copy and onUserPaste called with no argument after every plain Cmd+V that was not
+--- one of this module's own. opts.resolveFilePaths is the optional transform writtenFilePaths
+--- applies to the { content, name } items it is about to turn into paths for the pasteboard,
+--- absent by default, so nothing about a file paste changes unless a caller wires one in.
 function M.configure(opts)
   readers = opts.readers
   store = opts.store
   util = opts.util
   skipTypes = opts.skipTypes
   onCapture = opts.onCapture
+  onUserPaste = opts.onUserPaste
+  resolveFilePaths = opts.resolveFilePaths
   pollInterval = opts.pollInterval or pollInterval
   pasteDelay = opts.pasteDelay or pasteDelay
   return M
