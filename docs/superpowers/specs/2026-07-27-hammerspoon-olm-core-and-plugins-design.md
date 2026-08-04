@@ -2,19 +2,33 @@
 
 ## Status
 
-Nothing is built. Revised 2026-07-31 against `c195ba1`. Every line citation was reverified at that
-commit.
+Nothing is built. Revised 2026-08-04 against `6bd5b8d`. The sections written in this revision, the
+action panel, the interaction grammar, the README rule, and the reworked order of work, were
+verified against that commit. Everything older was last verified at `c195ba1`, and eight commits of
+clipboard work landed between the two, so an older citation needs a check before it is trusted.
+
+The first open decision is settled. The user chose one visible home directory for everything
+durable, collapsing three storage roots to two, recorded in the storage section with `~/Olm` as the
+proposed name. The build itself remains closed, and a build plan now exists beside this file at
+`2026-08-04-hammerspoon-olm-build-plan.md`, holding the phases, the gates, and the orchestration
+and model policy.
 
 Nothing is built on purpose rather than by accident. This stays a design until it is deliberately
 opened for work, and spoons are still being changed underneath it, so a rescan comes before any
 revision and no claim here should be repeated without checking it first.
 
+Two standing rules for the eventual build were set on 2026-08-04 and are recorded at the top of the
+order of work. No original spoon is ever destroyed, moved, or edited, new code is built beside the
+old with a comment toggle in `init.lua` so both can be tested against each other. And the roles are
+split, the architect and QA never writes implementation code, Sonnet 5 agents build from precise
+instructions and every result is verified and returned for rework when it falls short.
+
 This file lives in one place, `docs/superpowers/specs/` in this repository, beside the other design
 documents. A second copy sat under `Documents/specs/mdj-env/` in the home folder for a while, because
 this file was accidentally deleted once while untracked and git had nothing to restore from. That copy
 is gone. Two identical files kept in step by hand drift, and a backup nobody remembers to update is
-not one. There is now no redundancy at all until this is committed, so being tracked is the thing that
-protects it.
+not one. It has been tracked since `f04a21c` on 2026-08-01, so git is the protection now, and the only
+exposed material at any moment is whatever revision has not been committed yet.
 
 Two things landed underneath this document while it was being written, the FileSearch scopes and
 alias in `8674f78` and the FileSearch preview pane in `5fdae8d`, and both touch conclusions here. One
@@ -586,25 +600,29 @@ coupling genuinely belongs inside the reusable part.
 Ordered before the rest because everything else assumes it, and because it stands on its own
 even if none of the rest is ever built.
 
-## Three roots, not one
+## Two roots, the decision landed
 
 One folder for everything is what produced the defect above, so the split is by kind of data
-rather than by spoon.
+rather than by spoon. This section proposed three roots, a cache, a hidden XDG data root, and a
+separate content root, and left open whether the durable two should collapse into one visible
+directory in the home folder. The user settled it on 2026-08-04. They collapse.
 
 ```
-CACHE_ROOT = ~/.cache/hammerspoon           regenerable, safe to delete, costs a rebuild
-DATA_ROOT  = ~/.local/share/hammerspoon     durable, deleting it loses something
+CACHE_ROOT = ~/.cache/hammerspoon    regenerable, safe to delete, costs a rebuild
+OLM_ROOT   = ~/Olm                   durable and visible, deleting it loses something
 ```
 
-Content is the third and is deliberately not derived from either, because it is the one a
-person points somewhere and may turn into a git repository. It gets a plain injected path with
-a default.
+Everything durable lives in the visible root, the clipboard history and its frozen files, the
+snippet bodies, the usage state, all of it, and it is the directory a person may turn into a git
+repository. The name `~/Olm` is the architect's pick, capitalised like the other visible home
+directories, and it stays cheap to change until the storage phase lands, since exactly one line
+in the `paths` block knows it.
 
-Both roots match the XDG style already used by the nvim, zsh, and lf configs on this machine.
-Small preferences stay in `hs.settings`, which is already correct.
-
-Whether the content root should instead be one visible directory in the home folder holding
-everything durable, collapsing three roots to two, is still open. See the decisions section.
+The tradeoff is accepted knowingly. Durable machine state such as `history.json` sits visibly
+rather than hidden away XDG style, which buys one obvious answer to where is my stuff and one
+directory to back up, at the price of a folder in the home directory that is not hand curated
+content. The cache stays XDG style like the nvim, zsh, and lf configs on this machine, since
+nobody needs to see a cache. Small preferences stay in `hs.settings`, which is already correct.
 
 ## Per spoon underneath, concatenated by the root
 
@@ -616,8 +634,8 @@ CACHE_ROOT/clipboard      thumbs, preview PNGs
 CACHE_ROOT/eyedropper     the compiled Swift sampler binary
 CACHE_ROOT/browsertabs    the permission probe results
 CACHE_ROOT/filesearch     rendered previews, already here under a longer name
-DATA_ROOT/clipboard       history.json, frozen file snapshots
-DATA_ROOT/snippets        usage order, pins
+OLM_ROOT/clipboard        history.json, frozen file snapshots
+OLM_ROOT/snippets         the snippet files themselves
 ```
 
 The `paths` block is pure data in `config/settings.lua`, with the join done in the root,
@@ -643,9 +661,10 @@ already half happened by itself, which is usually the sign a convention is real 
 
 ## Migration
 
-`history.json` and `files/` move to the data root, `thumbs/` stays in cache. A few lines on
+`history.json` and `files/` move to the visible root, `thumbs/` stays in cache. A few lines on
 load, or accept losing history once and start clean. Either is fine, but decide it rather than
-discover it.
+discover it. Given the standing rule that history is never expired, migrating rather than
+starting clean is the likely answer, but it stays an open decision.
 
 ---
 
@@ -674,6 +693,110 @@ everything a plugin.
 App scanning, an `hs.application.watcher`, and two caches currently live inside
 `Launcher.spoon`. Extracting them is what makes the launcher a pure host. It is last because it
 owns the shared recency timeline and a watcher, so it is the one extraction with real risk.
+
+---
+
+# The action panel, every chooser's verbs as a searchable list
+
+Raycast has this as its actions menu. One chord, the same on every list, swaps the visible rows for
+the actions available on the highlighted item, first row Back, typing filters them, each row shows
+the chord that runs it directly, and selecting one runs it against the item that was highlighted
+when the panel opened. Navigation is excluded, moving up and down and closing need no menu, so the
+panel carries only the verbs, reveal in Finder, copy path, open the folder, open in Preview, the
+things a person forgets the chord for.
+
+## Why this is mostly already built
+
+Verified against the working tree at `6bd5b8d` rather than assumed. Three pieces exist and the panel
+is a fourth consumer of them, not a new subsystem.
+
+The declarations exist. Every chooser's verbs already live in `config/keys.lua` as per context
+binding tables carrying a key, an action name, and a description, reveal in Finder on o, copy path
+on y, into folder on l, up a level on h, and so on. That table is exactly the row list the panel
+needs, title from the description, subtitle from the chord, action name as the descriptor.
+
+The rendering exists. Holding Hyper while a chooser is open already draws those same declarations as
+a read only shortcut overlay, through `shortcutPanelFor` at `init.lua:943`. The panel is the same
+data made selectable.
+
+The in place swap exists. The Chooser atom's `intercept` hook, `providers/native.lua` around line
+430, lets a row mean this list becomes another list, keeps the window open, and rebuilds from the
+top, and the `back` hook makes Backspace on an empty field step out again. The comments there record
+that this was verified against `hs.chooser`'s hardwired Return. The panel swap is one more use of
+machinery that already carries scope hosting.
+
+So one declaration drives three surfaces, the chord itself, the hold overlay, and the searchable
+panel. That is the reason to build it this way and not as a separate action registry, a panel that
+reads the same table the binding is made from can never disagree with the chord it displays.
+
+## The gap it closes was already named
+
+`init.lua:306` records that a list hosted inside the launcher does not carry the tool's own verbs,
+only the shared navigation, and says the gap closes when a scope can carry a tool's extra verbs,
+which is worth doing and is not this. The action panel is that sentence built. Inside a hosted file
+search list the chords for reveal and copy path belong to a context that is not active, but the
+panel can still list and run them, because running a named action does not require the chord that
+would have run it.
+
+## What the panel needs decided
+
+**The chord cannot be Hyper Space.** That is the launcher's own open and close key at
+`config/keys.lua:520`, and Space already means close inside the caffeinate context. The question
+mark is ruled out as taken by intent. Surveying every context, the letters j, k, i, x, y, s, r, o,
+l, h, f, d, a, and q are spoken for somewhere, and k, the Raycast reflex, means move up in all
+eleven contexts. Hyper period is free in every context and at the app layer, where comma is System
+Settings, and period reads as the more of this place key. Recommended, Hyper period, recorded as an
+open decision since a chord this habitual is the user's to pick.
+
+**Navigation is excluded by classification, not by guesswork.** The shared rows, move up, move
+down, insert, close, and the preview scrolls, are stamped by the host where it already copies
+binding tables, so a binding gains a kind from a named set per the named values rule, and the panel
+lists only the verbs. Explicit beats inferring from action names.
+
+**The acted upon item is captured at swap time.** The panel replaces the list, so the highlighted
+row it acts on is the one recorded when the chord was pressed, not whatever the panel's own
+highlight sits on. Getting this wrong turns copy path into copying the path of a menu entry.
+
+**Ways out follow the grammar.** First row Back, Backspace on an empty field also goes back, both
+through the existing hooks, and Escape closes the whole tool rather than stepping back, matching
+every other list here.
+
+**It lives in the host, and the atom stays ignorant.** The panel reads binding declarations, which
+are host material, and the atom already exposes everything the swap needs. No new atom surface,
+which keeps the picker contract at its current size.
+
+---
+
+# The interaction grammar, written down as rules
+
+These patterns exist in the code and are confirmed against the working tree, but they live as
+scattered comments, so nothing stops a future tool from breaking one. They become a section of
+`Olm.spoon`'s `CLAUDE.md` when it exists, since they bind every plugin and the host, and until then
+this list is their home.
+
+A list that becomes another list swaps in place. The window never closes and reopens, the
+`intercept` hook is the mechanism, and the rebuild starts from the top row. Two tools predate this
+machinery and still close and reopen on a timer, menu search and the overlay display picker, whose
+own comment calls it the reopen idiom. They are grandfathered, new work may not copy them, and each
+migrates to the swap whenever it is next touched.
+
+Backspace on an empty field steps out one level. It is the same press that deletes a typed scope
+word, so one habit covers both. A parent step can also be an ordinary row, the way file search
+offers a two dots row, and the two coexist.
+
+Escape always closes the whole tool, never steps back a level.
+
+The shared navigation is uniform and carried by every chooser, Hyper j and k to move, i to insert,
+x to close. A chooser's open chord doubles as its close.
+
+Holding Hyper reveals the active context's shortcuts as a read only overlay. The action panel is
+the selectable form of the same declarations, on one chord that is identical everywhere.
+
+Every row handed to a chooser is a serializable descriptor, never a function, because `hs.chooser`
+drops functions silently.
+
+A list shaped tool chosen from the launcher is hosted in place rather than opened as a second
+window, the `hostedInPlace` table at `init.lua:316`, and stepping out is the Backspace rule above.
 
 ---
 
@@ -921,6 +1044,12 @@ reference from the module that owns the set, and that a plugin is activated from
 than torn down at runtime. The second one is a promise about `stop`, so it belongs beside the
 lifecycle contract it qualifies.
 
+Every plugin also carries its own `README.md`, a short gist for a human rather than a decisions
+record, what the tool is, how it opens, and its keys, in a handful of lines. The split is by
+audience. The `README.md` answers what is this and how do I use it, the `CLAUDE.md` answers why is
+it built this way, and neither repeats the other. The interaction grammar section above goes into
+`Olm.spoon`'s `CLAUDE.md` so every future plugin is written against it.
+
 ---
 
 # Proving a step changed nothing
@@ -986,6 +1115,23 @@ to get wrong late at night.
 
 # Order of work, with a test in it
 
+Two standing rules sit above every step here, set on 2026-08-04, and they change what some steps
+mean.
+
+**No original spoon is destroyed, moved, or edited.** New code is built beside the old, pulled in
+one piece at a time, and `init.lua` carries both wirings with one commented out, so old and new can
+be flipped between and compared live. A step below that says convert a caller means convert the new
+copy that lives under olm, while the original keeps working exactly as it does today. Retiring an
+original is its own explicit step, ordered by the user per tool and never bundled into anything
+else. The inventory gate gets stronger under this rule, since flipping the toggle from old to new
+must produce an identical inventory, which is a before and after on the same machine in the same
+minute.
+
+**The roles are fixed.** The architect and QA never writes the implementation. Sonnet 5 agents do
+the work from precise instructions that include the read only rule above, and every result is
+checked against this design and its gates, with anything short of the mark returned for rework
+rather than patched in review.
+
 **The scaffold, before anything moves.** Two runners and one golden file. The unit runner, driving
 `hs -c` so the interpreter matches, covering `match.lua` on day one because it is the module every
 plugin leans on and the one where a regression stays silent. The inventory script, dumping every
@@ -1019,14 +1165,19 @@ exists.
 About a day. Two ways to reach the chooser is worse than either, so this cannot be half done. Gate,
 an empty inventory diff, which is the first step where that gate carries real weight.
 
-**The bundling pass.** Every remaining spoon moves under `Spoons/Olm.spoon/plugins/`, the root
-switches from thirty four `hs.loadSpoon` calls to one, and every `spoon.Something` reference in the
-root is rewritten. One to two days, almost entirely mechanical, and no behaviour changes at all,
-which is what makes it reviewable at that size. Deliberately before the plugin contract and not
-combined with it, because moving files and changing how they register are two different kinds of
-mistake and mixing them makes a bisect useless. Gate, an empty inventory diff, and this is the step
-the snapshot was built for. Thirty four rewritten references cannot be eyeballed, and the diff finding
-one missing chooser is worth more than a careful review of the whole pass.
+**The bundling pass.** Every remaining spoon is copied under `Spoons/Olm.spoon/plugins/`, the
+originals staying untouched where they are, and `init.lua` gains the second wiring, one
+`hs.loadSpoon` and the rewritten references, commented against the current thirty four. This was
+written as a move before the read only rule landed and is now a copy, which trades disk for the
+ability to flip between the two worlds while testing. One to two days, almost entirely mechanical,
+and no behaviour changes at all, which is what makes it reviewable at that size. Deliberately
+before the plugin contract and not combined with it, because copying files and changing how they
+register are two different kinds of mistake and mixing them makes a bisect useless. Gate, an empty
+inventory diff across the toggle flip, and this is the step the snapshot was built for. Thirty four
+rewritten references cannot be eyeballed, and the diff finding one missing chooser is worth more
+than a careful review of the whole pass. The cost of the copy is honest too, a fix landing in an
+original while the copy exists must be carried across by hand, so the window where both live
+should be kept short per tool.
 
 **One plugin contract for the launcher**, replacing the three join points. One to two days. The
 api version check and the activation list belong here, since this is the step that creates a
@@ -1034,6 +1185,17 @@ registration to gate. Both are small, an integer comparison and a settings read.
 inventory diff again, and one deliberate failure, an activation list naming a plugin that is not
 there and a plugin declaring an api version too old, both of which should be refused with something
 readable rather than a stack trace.
+
+**The action panel.** After the plugin contract, because that is when a tool's verbs become
+registered data the panel can read uniformly, though a prototype against today's `hyperContexts`
+is possible earlier if the chord question gets settled first. A day. Gate, the panel on three
+choosers with different verb sets, file search, the clipboard, and one with no verbs at all, which
+must show only Back rather than an empty list, plus the hosted case, a file search list inside the
+launcher offering reveal and copy path even though their chords are not active there.
+
+**The plugin READMEs, as a sweep.** Once plugins sit in their final home, each gains its short
+gist `README.md` per the documentation rule. Mechanical, an agent pass with review, and the gate is
+only that every plugin has one and none repeats its `CLAUDE.md`.
 
 **Snippets, the first plugin written rather than moved.** About a day and a half, smaller than the
 earlier estimate because the shared surface and its five state questions are gone. It comes after
@@ -1167,10 +1329,8 @@ the whole of the runtime guard.
 
 # Decisions still open
 
-- Whether the content root is a third root or one visible directory in the home folder holding
-  everything durable, which would collapse three roots to two. The second was the later
-  preference and needs a name chosen for the directory.
 - Whether to migrate the existing clipboard history and file snapshots or start clean once.
+  Migrating is the likely answer given history never expires, but it is not yet ordered.
 - Whether to remove the config pathwatcher at `init.lua:2210` entirely. There is a case for it
   on its own merits, since the documented workflow already says never rely on it, and
   `Spoons/Caffeinate.spoon/engine.lua:10` records a real casualty. Separate decision, should not
@@ -1192,3 +1352,11 @@ the whole of the runtime guard.
   together, and by the same test that keeps the clipboard and snippets apart they may be one plugin
   with five files. Deliberately not decided here, because it is a question about the window feature
   and this document is about the core.
+- The action panel's chord. Hyper Space is the launcher and Space already means close in one
+  context, the question mark is ruled out, and k is move up everywhere. Hyper period is the
+  recommendation, free in every context and at the app layer, but a chord this habitual is the
+  user's to pick.
+- Whether a hosted list's action panel also shows the chord column for verbs whose chords are not
+  active in that context, which is honest but could teach a chord that will not work until the
+  tool is opened directly. Showing them greyed or footnoted is the likely answer, decide when it is
+  built.
