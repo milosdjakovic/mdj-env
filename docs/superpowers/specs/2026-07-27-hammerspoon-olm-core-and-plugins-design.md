@@ -14,9 +14,12 @@ numbers again, so the rule stands, check a citation before trusting it.
 
 The first open decision is settled. The user chose one visible home directory for everything
 durable, collapsing three storage roots to two, recorded in the storage section with `~/Olm` as the
-proposed name. The build itself remains closed, and a build plan now exists beside this file at
-`2026-08-04-hammerspoon-olm-build-plan.md`, holding the phases, the gates, and the orchestration
-and model policy.
+proposed name. Later the same day the user settled the three remaining phase 0 decisions, the
+action panel chord is Hyper period, the manifest kind for a core dependency is named `core`, and
+the api version is a single integer starting at one and bumped only on a breaking change, each
+recorded in its own section. The build itself remains closed, and a build plan now exists beside
+this file at `2026-08-04-hammerspoon-olm-build-plan.md`, holding the phases, the gates, and the
+orchestration and model policy.
 
 Nothing is built on purpose rather than by accident. This stays a design until it is deliberately
 opened for work, and spoons are still being changed underneath it, so a rescan comes before any
@@ -413,7 +416,8 @@ nothing for a plugin loaded from the search path, which is the case that will ac
 
 So olm exposes an api version and a plugin declares the one it was built against, and the core
 refuses to register a mismatch with a log line naming the plugin and both numbers. One integer
-and one comparison. Since there is no package manager to hold a version constraint, the runtime
+and one comparison, settled 2026-08-04, starting at one and bumped only on a breaking core
+change. Since there is no package manager to hold a version constraint, the runtime
 is the only place the constraint can live, and this is the same reasoning as the validation step
 in the core API rules below.
 
@@ -471,7 +475,8 @@ defer it until there is something to ship.
 This is the part that makes a core worth assembling rather than a rename.
 
 A plugin declares which core capabilities it needs, in the manifest it already has, through one
-new kind alongside `path`, `system`, `app`, `manual`, and `package`. The root then asks olm for
+new kind named `core`, settled 2026-08-04, alongside `path`, `system`, `app`, `manual`, and
+`package`. The root then asks olm for
 exactly that slice and injects it. So the declaration is not documentation, it decides what the
 plugin receives. And `src/check-dependencies.sh` reconciles declared against used, so a spoon
 reaching for the chooser without declaring it is an error, the same class as one hardcoding an
@@ -756,8 +761,8 @@ would have run it.
 mark is ruled out as taken by intent. Surveying every context, the letters j, k, i, x, y, s, r, o,
 l, h, f, d, a, and q are spoken for somewhere, and k, the Raycast reflex, means move up in all
 eleven contexts. Hyper period is free in every context and at the app layer, where comma is System
-Settings, and period reads as the more of this place key. Recommended, Hyper period, recorded as an
-open decision since a chord this habitual is the user's to pick.
+Settings, and period reads as the more of this place key. Settled 2026-08-04, the user picked
+Hyper period.
 
 **Navigation is excluded by classification, not by guesswork.** The shared rows, move up, move
 down, insert, close, and the preview scrolls, are stamped by the host where it already copies
@@ -1199,7 +1204,7 @@ readable rather than a stack trace.
 
 **The action panel.** After the plugin contract, because that is when a tool's verbs become
 registered data the panel can read uniformly, though a prototype against today's `hyperContexts`
-is possible earlier if the chord question gets settled first. A day. Gate, the panel on three
+is possible earlier now that the chord is settled. A day. Gate, the panel on three
 choosers with different verb sets, file search, the clipboard, and one with no verbs at all, which
 must show only Back rather than an empty list, plus the hosted case, a file search list inside the
 launcher offering reveal and copy path even though their chords are not active there.
@@ -1349,10 +1354,7 @@ the whole of the runtime guard.
   `Spoons/Caffeinate.spoon/engine.lua:10` records a real casualty. Separate decision, should not
   be bundled in. Note that the activation list now depends on a reload being available, though not
   on the watcher, since a toggle schedules its own.
-- The exact name of the new manifest kind for a core dependency.
 - Whether the roster reopens itself after a toggle or accept writes and closes.
-- How the api version is numbered, a single integer bumped on any breaking core change being the
-  cheapest thing that works. Decide before the first plugin loads from the search path, not after.
 - Whether olm is a launcher that happens to bundle behaviour, or a config framework. The roster says
   eleven of the bundled plugins have no surface at all, `AppToggler`, `DockAutoHide`, `KeyRemap`,
   `StageManager`, `TerminalHandler`, `DisplayMemory`, `WindowMemory`, `WindowManager`,
@@ -1365,10 +1367,6 @@ the whole of the runtime guard.
   together, and by the same test that keeps the clipboard and snippets apart they may be one plugin
   with five files. Deliberately not decided here, because it is a question about the window feature
   and this document is about the core.
-- The action panel's chord. Hyper Space is the launcher and Space already means close in one
-  context, the question mark is ruled out, and k is move up everywhere. Hyper period is the
-  recommendation, free in every context and at the app layer, but a chord this habitual is the
-  user's to pick.
 - Whether a hosted list's action panel also shows the chord column for verbs whose chords are not
   active in that context, which is honest but could teach a chord that will not work until the
   tool is opened directly. Showing them greyed or footnoted is the likely answer, decide when it is

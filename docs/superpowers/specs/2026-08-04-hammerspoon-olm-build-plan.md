@@ -95,10 +95,10 @@ block it are ticked.
 - [x] Decide the content root. Settled 2026-08-04, one visible home directory for everything
       durable, two roots not three, `~/Olm` proposed as the name, recorded in the design's storage
       section. This was the decision blocking storage, so phase 1 is now unblocked.
-- [ ] Pick the action panel chord, Hyper period recommended. Blocks the action panel step only.
-- [ ] Name the new manifest kind for a core dependency. Blocks the dependency kind step only.
-- [ ] Decide how the api version is numbered, one integer bumped on breaking change being the
-      cheapest thing that works. Blocks the plugin contract step only.
+- [x] Pick the action panel chord. Settled 2026-08-04, Hyper period.
+- [x] Name the new manifest kind for a core dependency. Settled 2026-08-04, `core`.
+- [x] Decide how the api version is numbered. Settled 2026-08-04, a single integer starting at
+      one, bumped only on a breaking change.
 - [ ] Scaffold, `units.sh` and `cases/` driving `hs -c`, covering `match.lua` first. No lock
       needed, per the design's proving section.
 - [ ] Scaffold, `inventory.sh` plus the committed `inventory.golden`, reading this config's own
