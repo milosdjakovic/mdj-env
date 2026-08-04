@@ -965,6 +965,23 @@ PNGs off the main thread (sips for rasters, ffmpeg for video, `hs.image` for
 pdf/icns), knowing nothing about the UI. `ui.lua` only consumes the resulting
 `e.prev`/`e.thumb` paths, so swapping the webview for the canvas touched neither.
 
+A frozen file, one small enough to copy rather than only link, lives in its own directory
+named for a freshly drawn id, with its original basename kept inside, `filesDir/id/basename`
+rather than one flat directory of generated names. The directory is what stops two frozen
+copies of the same name from colliding, which is what a flat generated name used to be for,
+so moving the id onto the directory frees the basename to stay exactly what was copied. A
+current layout copy's basename happens to be exactly what a receiving app names the pasted
+file after, but only because `writtenFilePaths` in `monitor.lua` names it from the entry's
+own path rather than from this copy, since trusting the copy's own basename was the real
+defect an older version of this code carried, a file pasted back out of history losing its
+name to a flat layout copy's generated basename, `file-1785616767-83059.jpg` in place of the
+screenshot it actually was. An entry frozen before this layout still has its old flat path and
+still works forever, every read site follows whatever path is stored rather than assuming a
+shape, and `media.release` and `media.enforceBudget` both derive the directory to remove from
+the configured `filesDir` rather than from the stored path's own parent, so an old flat entry
+is never mistaken for owning a directory and eviction can never be pointed at removing
+`filesDir` itself.
+
 **Clipboard append and sequential paste.** Two clipboard actions need no list, so they are the
 only clipboard keys not on Hyper. They are global Ctrl and Option combos, on C and V, because
 they extend the plain copy and paste keys and are pressed mid edit rather than reached through a

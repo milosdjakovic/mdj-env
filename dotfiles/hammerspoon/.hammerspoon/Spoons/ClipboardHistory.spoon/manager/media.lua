@@ -14,6 +14,20 @@
 --- its path and preview kept, so it lives on. An image has no original to fall back to,
 --- so its whole entry is removed.
 ---
+--- A frozen copy lives at filesDir/id/basename, its own directory named for a freshly
+--- drawn id with the original basename kept inside, rather than in one flat directory
+--- under a generated name. The directory is what stops two frozen copies of one name
+--- from colliding, so the basename itself is free to stay exactly what was copied. That
+--- basename is not what a paste presents though, a paste always takes its name from the
+--- entry's own path field rather than from this copy, so a current layout copy simply
+--- happens to agree with it while an older flat one, kept under a generated name of its
+--- own, does not, and either way the name a paste shows is correct because it comes
+--- straight from the record rather than from whatever this copy happens to be called. An
+--- entry frozen before this layout still has its old flat path, straight under filesDir
+--- with a generated name of its own, and still works, since every read site only ever
+--- follows whatever path is stored rather than assuming a shape, and release and
+--- enforceBudget below both tell the two shapes apart before removing anything.
+---
 --- The small preview and thumbnail images are produced by the injected preview module
 --- off the main thread, so a large image or video never stalls Hammerspoon. Generation
 --- is async, so the entry is saved at once with the deterministic preview path and the
@@ -52,6 +66,35 @@ end
 
 local function newId()
   return tostring(os.time()) .. "-" .. tostring(math.random(100000))
+end
+
+-- Make sure a directory exists, tolerating one that already does. Shares the shape
+-- of ensureDirs above but answers true or false rather than being a fire and forget
+-- setup step, since the caller below needs to know whether it may now write into it.
+local function ensureDir(d)
+  return hs.fs.attributes(d) ~= nil or hs.fs.mkdir(d)
+end
+
+-- The directory a frozen file's own copy would be removed with, or nil when there is
+-- none to remove. A frozen copy from the current layout sits in its own directory
+-- under filesDir, named for the entry's id, so that directory is what os.remove must
+-- delete once its one file is gone, since os.remove will not take down a directory
+-- that still holds anything. An older entry has no such directory at all, its copy
+-- sits directly in filesDir under a generated name, so this must say nil for that
+-- shape rather than ever naming filesDir itself. Comparing against filesDir first
+-- catches that case, and the prefix check afterward is a second guard against ever
+-- handing back a directory outside our own configured tree, in case a future layout
+-- change ever loosens where a stored path can point.
+local function ownDir(stored)
+  local dir = stored and stored:match("^(.*)/[^/]+$")
+  if not dir or dir == cfg.filesDir then
+    return nil
+  end
+  local prefix = cfg.filesDir .. "/"
+  if dir:sub(1, #prefix) ~= prefix then
+    return nil
+  end
+  return dir
 end
 
 -- Copy a file in bounded chunks, so a big file neither loads whole into memory nor
@@ -119,9 +162,25 @@ local function snapshotFiles(paths)
       -- and read the original for the preview.
       local source = p
       if not attr.size or attr.size <= cfg.maxFileSnapshot then
-        local id = newId()
-        local dest = cfg.filesDir .. "/file-" .. id .. (ext ~= "" and ("." .. ext) or "")
-        if copyFile(p, dest) then
+        -- One directory per frozen copy, named for a fresh id, with the original
+        -- basename kept inside it. The id used to name the file itself, a string like
+        -- file plus the id plus the extension, which kept two copies of hello.txt from
+        -- colliding but only by giving up the real name, so a paste out of history
+        -- landed under our generated one instead of the name the user copied. Moving
+        -- the id onto the directory keeps the same guarantee, two frozen files of one
+        -- name can never collide because they never share a directory, while the
+        -- basename inside is free to stay exactly what it was, so the pasteboard's
+        -- file url basenames it correctly with no rename at paste time and no second
+        -- copy. The id is drawn fresh inside this loop, so two identically named files
+        -- copied together in one entry still get their own directory each, never
+        -- sharing one.
+        local base = p:match("([^/]+)$")
+        if not base or base == "" then
+          base = "file" .. (ext ~= "" and ("." .. ext) or "")
+        end
+        local dir = cfg.filesDir .. "/" .. newId()
+        local dest = dir .. "/" .. base
+        if ensureDir(dir) and copyFile(p, dest) then
           el.stored = dest
           source = dest
         end
@@ -201,7 +260,14 @@ function M.release(e)
     if e.prev then os.remove(e.prev) end
   elseif e.kind == "file" then
     for _, el in ipairs(e.files or {}) do
-      if el.stored then os.remove(el.stored) end
+      if el.stored then
+        -- Removed in this order, since the directory only comes down once the one file
+        -- it holds is gone. ownDir answers nil for an older flat entry, so that shape
+        -- removes only its file exactly as it always did.
+        local dir = ownDir(el.stored)
+        os.remove(el.stored)
+        if dir then os.remove(dir) end
+      end
       if el.prev then os.remove(el.prev) end
     end
   end
@@ -230,7 +296,9 @@ function M.enforceBudget(history, cap)
       else
         for _, el in ipairs(e.files or {}) do
           if el.stored then
+            local dir = ownDir(el.stored)
             os.remove(el.stored)
+            if dir then os.remove(dir) end
             el.stored = nil
           end
         end
