@@ -1016,10 +1016,25 @@ are their only listing, which is why both carry a `description`.
 
 Both live in `manager/session.lua`, the transient session state over the persistent history. They
 share a file because they end on the same signal, a genuine copy, and splitting them would
-duplicate that wiring. The module owns no watcher and nothing in it is driven by a clock, so it has
-no `start` or `stop`, because every condition that ends a run is observable when the next key is
-pressed and is read there. The two timers it does hold drive nothing, one spaces out a queued press
-and one releases a claim whose release never arrived. Four decisions are worth knowing.
+duplicate that wiring. The module still owns no watcher and no timer of its own, and still has no
+`start` or `stop`, because most of what ends a run is observable when the next key is pressed and
+is read there, the frontmost app and the idle window. One ending is not, a plain Cmd+V, which
+changes nothing on the pasteboard and so cannot be read at a press the way the other two are.
+`manager/monitor.lua` watches for that one with an event tap, since a tap is the only way to see a
+key that writes nothing, and calls `resetSequence` the moment it sees a real one, the same seam a
+genuine copy already uses through `onCapture`. That tap is a real cost this module did not carry
+before, a global listener sitting in the path of a very common keystroke, so it is built to only
+ever observe, reading the event and returning it unchanged, never swallowing, delaying, or
+rewriting it. The walk pastes by posting a synthetic Cmd+V of its own through `pasteOp`, and the
+tap would otherwise see that keystroke too and mistake it for a user press, resetting every walk
+mid burst. `pasteOp` already reasons about exactly that keystroke for its self capture guard, so it
+counts itself in and back out across that same window, and the tap stays quiet while the count is
+above zero rather than guessing from a timestamp or a suppression delay. The tap lives in
+`monitor.lua` rather than in `session.lua` because the monitor already owns every pasteboard and
+keyboard concern in this folder, including the guard state the count above reuses, while
+`session.lua` would have needed a start and a stop it does not otherwise carry just to host a tap
+of its own. The two timers `session.lua` itself still holds drive nothing, one spaces out a queued
+press and one releases a claim whose release never arrived. Four decisions are worth knowing.
 
 The append glues onto row 1 only when row 1 is text that arrived by a real copy, and otherwise
 starts a new row, so the first press always behaves like a plain copy and only the presses after

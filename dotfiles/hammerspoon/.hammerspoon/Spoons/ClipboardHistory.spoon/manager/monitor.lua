@@ -36,6 +36,19 @@
 --- needs that distinction cannot recover it from the store, since a paste refreshes an
 --- entry's recency and so looks brand new. So the distinction is published from the one
 --- place that still has it.
+---
+--- One more thing is watched rather than polled. A plain Cmd+V changes nothing on the
+--- pasteboard, so the poll above never sees it, and the session layer's paste walk needs to know
+--- one happened so it can end a walk on it. An event tap is the only way to see a key that writes
+--- nothing, and that is a real cost this module did not carry before, a global listener sitting in
+--- the path of a very common keystroke. It is built to only ever observe, it reads the event and
+--- returns false, never swallowing, delaying, or rewriting it, since breaking a plain paste
+--- everywhere would cost far more than this feature is worth. The walk pastes by posting its own
+--- synthetic Cmd+V through pasteOp below, and the tap would see that one too, so pasteOp counts
+--- how many of its own pastes are between being written and their settle window closing, reusing
+--- exactly the window the self capture guard already reasons about, and the tap stays quiet while
+--- that count is above zero. onUserPaste is the optional observer told about a Cmd+V the count
+--- says was not ours, published the same way onCapture already is.
 
 local M = {}
 
@@ -62,11 +75,13 @@ local store = nil
 local util = nil
 local skipTypes = nil
 local onCapture = nil -- optional observer, called with each genuinely copied entry
+local onUserPaste = nil -- optional observer, called when a plain Cmd+V lands that was not ours
 local resolveFilePaths = nil -- optional injected transform over the { content, name } items writtenFilePaths builds
 local pollInterval = 0.5
 local pasteDelay = 0.1
 
 local timer = nil
+local pasteTap = nil
 
 -- Every delayed step below runs through this, and holding the timer is the whole point. A
 -- Hammerspoon timer is userdata whose finalizer stops it, so a pending timer nothing refers
@@ -91,6 +106,16 @@ local lastChange = -1 -- last changeCount we have accounted for; the guard's sta
 -- copy, then the restore), so rather than sign each write it suppresses the poll outright
 -- for the read window, which cannot race the 0.5s poll tick. Always cleared in the restore.
 local reading = false
+
+-- How many of this module's own synthetic Cmd+V pastes are between being written and their
+-- settle window closing. The paste watcher near the end of this file would otherwise mistake
+-- one of these for a user press and end a walk that never should have ended, so pasteOp counts
+-- itself in and back out across exactly the window it already reasons about for the self capture
+-- guard below, and the watcher stays quiet while the count is above zero. A count rather than a
+-- flag, since the walk, a batch paste, and pasteText can each have one outstanding, and a later
+-- one clearing a boundary an earlier one still owns would let a real keystroke straight through
+-- mid overlap.
+local ownPasteCount = 0
 
 -- Content-signature backstop to the changeCount guard. The count guard stops the
 -- poll re-ingesting our own paste's write, but only that one change. An app that
@@ -397,6 +422,17 @@ local function pasteOp(op, opts, done)
   end
   -- Self-capture guard, recorded before the Cmd+V so the poll ignores our write.
   lastChange = hs.pasteboard.changeCount()
+
+  -- Counted in now and released on its own timer, tied to the same pasteDelay and settleDelay
+  -- this function already waits out before and after its own Cmd+V, so the release needs no new
+  -- number of its own. It runs on its own timer rather than nested inside the settle callback
+  -- below, so an error later in that chain cannot strand the count above zero and leave the
+  -- watcher silently deaf to every Cmd+V from then on.
+  ownPasteCount = ownPasteCount + 1
+  after(pasteDelay + settleDelay, function()
+    ownPasteCount = ownPasteCount - 1
+  end)
+
   log.df("%.3f wrote %s, count=%d, app=%s", clock(), tostring(op.kind), lastChange, frontID())
 
   after(pasteDelay, function()
@@ -707,24 +743,69 @@ function M.copySelection(cb)
 end
 
 --------------------------------------------------------------------------------
+-- Paste watcher
+--------------------------------------------------------------------------------
+
+-- Resolved once rather than on every keystroke.
+local vKeyCode = hs.keycodes.map.v
+
+-- True for a plain Cmd+V with nothing else held. Exact rather than merely cmd down, since
+-- Cmd Shift V and the like are a different command in whatever app receives them and are no
+-- business of a watcher that exists only to end a paste walk.
+local function isPlainCmdV(event)
+  if event:getKeyCode() ~= vKeyCode then
+    return false
+  end
+  local flags = event:getFlags()
+  return flags.cmd and not flags.shift and not flags.alt and not flags.ctrl
+end
+
+-- The tap callback. It reads the event and nothing more, always returning false so the key
+-- keeps going wherever it was headed, since this watcher exists to learn that a Cmd+V happened,
+-- never to change what one does. ownPasteCount above is what tells a real user press apart from
+-- the walk's own synthetic one, which this same tap would otherwise see and wrongly end the walk
+-- it belongs to.
+local function watchPaste(event)
+  if ownPasteCount == 0 and isPlainCmdV(event) and onUserPaste then
+    onUserPaste()
+  end
+  return false
+end
+
+--------------------------------------------------------------------------------
 -- Lifecycle
 --------------------------------------------------------------------------------
 
---- M.start() - begin polling. Ignores whatever is already on the pasteboard.
+--- M.start() - begin polling and watching for a plain Cmd+V. Ignores whatever is already on the
+--- pasteboard. The tap is created fresh on every call rather than trusted to survive from before,
+--- since hs.reload tears down the whole Lua state and any tap from an earlier load goes with it,
+--- so this is the only place one is ever made.
 function M.start()
   lastChange = hs.pasteboard.changeCount()
   timer = hs.timer.doEvery(pollInterval, poll)
+
+  if pasteTap then
+    pasteTap:stop()
+  end
+  pasteTap = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, watchPaste)
+  pasteTap:start()
+
   return M
 end
 
---- M.configure(opts) - inject the reader chain, store, util, timing, and the optional
---- onCapture observer, called with the stored entry after every genuine copy.
+--- M.configure(opts) injects the reader chain, store, util, timing, and the optional
+--- onCapture and onUserPaste observers, onCapture called with the stored entry after every
+--- genuine copy and onUserPaste called with no argument after every plain Cmd+V that was not
+--- one of this module's own. opts.resolveFilePaths is the optional transform writtenFilePaths
+--- applies to the { content, name } items it is about to turn into paths for the pasteboard,
+--- absent by default, so nothing about a file paste changes unless a caller wires one in.
 function M.configure(opts)
   readers = opts.readers
   store = opts.store
   util = opts.util
   skipTypes = opts.skipTypes
   onCapture = opts.onCapture
+  onUserPaste = opts.onUserPaste
   resolveFilePaths = opts.resolveFilePaths
   pollInterval = opts.pollInterval or pollInterval
   pasteDelay = opts.pasteDelay or pasteDelay

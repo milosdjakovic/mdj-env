@@ -6,11 +6,18 @@
 --- signal, a genuine copy. That shared reset is what earns them one file instead of two. A
 --- third behaviour would be the point to split them.
 ---
---- Nothing here is driven by a timer or a watcher, so it needs no start and no stop. Every
---- condition that ends a run is observable at the moment the next key is pressed, so it is
---- checked then rather than driven by a clock. The one timer it does own drives nothing, it
---- only releases a claim whose release never arrived, so a lost callback cannot leave both
---- behaviours dead for the rest of the session. The one thing it cannot see for itself is
+--- This module still owns no timer that drives behaviour and no watcher of its own, so it still
+--- needs no start and no stop. Most of what ends a run is observable at the moment the next key
+--- is pressed, so it is checked then rather than driven by a clock, the frontmost app and the
+--- idle gap in the walk below. A plain Cmd+V is the one ending this module cannot read at a
+--- press, since it changes nothing on the pasteboard, so the monitor watches for it with an
+--- event tap of its own and calls straight into resetSequence the moment it sees one, the same
+--- way a genuine copy already calls into noteCapture. This module is told rather than checking
+--- for itself, so the no watcher rule still holds for what lives in this file, only one of its
+--- four endings now arrives from outside rather than being read at the press. The one timer it
+--- does own drives nothing, it only releases a claim whose release never arrived, so a lost
+--- callback cannot leave both behaviours dead for the rest of the session. The one thing it
+--- cannot see for itself is
 --- whether a pasteboard change was a real copy or one of our own pastes, because a paste
 --- refreshes an entry's recency and so leaves it looking brand new. The monitor still has
 --- that distinction at capture time and publishes it through onCapture, which this module
@@ -251,8 +258,10 @@ local run = nil
 -- Whether the walk in progress still applies. It does not once the frontmost app has
 -- changed, since a walk belongs to the form being filled, and not once the gap since the
 -- last press has grown past the idle window, since a walk is a burst and a long pause means
--- the next press is a fresh intent. Both are read here, at the press, rather than watched,
--- which is why this module carries no watcher and no timer.
+-- the next press is a fresh intent. Both are read here, at the press, rather than watched.
+-- A plain Cmd+V ends a run too, but that check never happens here, since the monitor's paste
+-- watcher calls resetSequence directly the moment it sees one, so run is already nil by the
+-- time the next press asks.
 local function runStillApplies()
   if not run then
     return false
@@ -271,7 +280,9 @@ local function runStillApplies()
 end
 
 --- M.resetSequence() - end any walk in progress, so the next press starts from the top again.
---- Queued presses belong to the walk that is ending, so they go with it.
+--- Queued presses belong to the walk that is ending, so they go with it. Called from three
+--- places, a fresh append above, noteCapture below on a genuine copy, and the monitor's paste
+--- watcher directly on a plain Cmd+V, so every ending reaches the same place.
 function M.resetSequence()
   if run then
     log.df("%.3f walk reset at %d of %d, %d queued dropped", clock(), run.index, #run.list, pendingSteps)
@@ -308,6 +319,14 @@ end
 --- without rewriting the order it is reading, and a plain paste keeps meaning the newest
 --- entry however far the walk has gone. At the end of the list it stops rather than wrapping,
 --- since wrapping would quietly paste the wrong thing.
+---
+--- A walk ends and the next press starts over from the newest entry on any of four things, the
+--- frontmost app changing, the idle window passing, a genuine copy, or a plain Cmd+V. The first
+--- two are checked here, at the press, in runStillApplies below. The last two are not, a genuine
+--- copy is reported by the monitor through noteCapture and a plain Cmd+V is reported by the
+--- monitor's own event tap, and both call resetSequence directly, so by the time this function
+--- runs again the walk they ended is already gone.
+---
 function M.pasteNext()
   log.df(
     "%.3f press, walking=%s queued=%d at=%s app=%s",

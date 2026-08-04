@@ -100,7 +100,9 @@ local config = {
   appendSeparator = "\n",
   -- How long a gap between presses still counts as the same walk through history. A walk is
   -- a burst while filling one form, so a longer pause means the next press is a fresh intent
-  -- and should start from the newest entry again.
+  -- and should start from the newest entry again. A plain Cmd+V ends a walk at once and does
+  -- not wait out this gap at all, since the monitor's paste watcher reports it the instant it
+  -- happens rather than at the next press.
   sequenceIdleReset = 10,
   -- How long the pasteboard is left alone after each step of a walk, which is all the time the
   -- receiving app has to read what was pasted before the next step overwrites it or the clipboard
@@ -327,7 +329,10 @@ function M.start()
 
   -- onCapture is what tells the session layer a pasteboard change was a real copy rather than
   -- one of our own pastes. Only the monitor still knows, which is why it is published from
-  -- there rather than inferred from the store.
+  -- there rather than inferred from the store. onUserPaste is the same shape for a plain
+  -- Cmd+V, which changes nothing on the pasteboard and so needs an event tap rather than the
+  -- poll to see at all, and it is wired straight to resetSequence since a user paste ends a
+  -- walk exactly the way a genuine copy already does.
   monitor.configure({
     readers = readers.build(util),
     store = store,
@@ -336,6 +341,7 @@ function M.start()
     pollInterval = config.pollInterval,
     pasteDelay = config.pasteDelay,
     onCapture = session.noteCapture,
+    onUserPaste = session.resetSequence,
     -- The one place this feature is wired together, and the only reason monitor.lua
     -- ever learns of media at all. Presenting the right name is app agnostic and always
     -- matters, so this closure always calls into media, with or without Finder. Only the
