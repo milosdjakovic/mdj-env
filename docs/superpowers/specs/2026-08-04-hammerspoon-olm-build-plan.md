@@ -8,8 +8,9 @@ through. It is a living document, boxes get ticked as steps land, and nothing he
 design's reasoning, it points at it. When the two disagree the design wins and this file gets
 fixed.
 
-Nothing below starts until the user opens the build. The design stays plan only until then, per the
-standing rule, and this file existing changes nothing about that.
+The user opened the build on 2026-08-05. The first dispatch was the two phase 0 scaffold packets,
+sent to Sonnet agents in parallel worktrees the same day. Until that date this plan was standing
+but closed, per the plan only rule that governed the design phase.
 
 ## The two laws over every step
 
