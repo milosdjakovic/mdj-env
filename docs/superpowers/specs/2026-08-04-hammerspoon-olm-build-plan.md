@@ -147,7 +147,11 @@ a finding, not a failure of the phase.
       `frecency.lua` are a decayed score, a different shape kept out of the service for now.
       DisplayMemory left the set, rewritten into a scope map with no ordering. The design's
       recency sections were corrected the same day.
-- [ ] Packet, `lib/recency.lua` and the five callers converted in their olm side copies.
+- [x] Packet, `lib/recency.lua` and the five callers converted in their olm side copies. Scope
+      resettled by the user on 2026-08-05 after the rescan, the service plus the Vpn copy alone,
+      Launcher and BrowserTabs converting inside their phase 6 copies where their deletions join
+      the same recorded count. Written at
+      `docs/superpowers/packets/2026-08-05-packet-recency-core.md`.
 - [ ] Build, QA, rework.
 - [ ] Gate, unit tests for the ordering, plus a recorded line count before and after.
 - [ ] Decision point, count deleted more than added, continue. Otherwise stop and take the finding
