@@ -158,4 +158,15 @@ return {
     screenRecording = { width = 2400, height = 1350 },
     smallSize = { width = 700, height = 800 },
   },
+
+  -- The two storage roots every plugin's data lives under, pure data with the
+  -- join done elsewhere, in Olm.spoon's storage module. cacheRoot holds
+  -- regenerable data, safe to delete since it only costs a rebuild. olmRoot
+  -- holds durable data, visible in the home directory since deleting it
+  -- loses something. Changing either is one line here, since the root is
+  -- the only place either name is written.
+  paths = {
+    cacheRoot = "~/.cache/hammerspoon",
+    olmRoot = "~/Olm",
+  },
 }
