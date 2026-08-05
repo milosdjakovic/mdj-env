@@ -110,11 +110,18 @@ data, thumbnails and preview PNGs, alongside unregenerable data, `history.json` 
 gigabytes of frozen file snapshots. Anything that clears a cache silently destroys the clipboard
 history and every snapshot of a file that has since moved or been deleted.
 
-**Remembered ordering is implemented five times.** `BrowserTabs.spoon/recency.lua`,
-`Vpn.spoon/init.lua:81`, `Launcher.spoon/init.lua:69`,
-`Emoji.spoon/providers/hammerspoon.lua:194`, and `DisplayMemory.spoon/init.lua:78`. BrowserTabs
-already pulled its copy into a file of its own, which is the strongest available signal that
-something wants to be shared.
+**Remembered ordering is implemented five times, and the phase 2 rescan of 2026-08-05 found the
+set reshaped into two distinct shapes.** Three are the lift to front list, one writer moving a key
+to the front of a persisted order. `BrowserTabs.spoon/recency.lua`, `Vpn.spoon/init.lua:84`, and
+`Launcher.spoon/init.lua:110`. Two are a decayed score, one number per key that each use tops up
+and time sinks, which answers frequency as well as recency. `Emoji.spoon/providers/hammerspoon.lua`
+and `FileSearch.spoon/frecency.lua`, the latter new since this document was written and carrying
+its own recorded rationale. `DisplayMemory` left the set entirely, rewritten in its version two
+into a scope to display map with no ordering in it, which is the shrink this document predicted
+for it. BrowserTabs already pulled its copy into a file of its own, which is the strongest
+available signal that something wants to be shared, and the shared service extracts the lift to
+front shape. The decayed pair is a possible second service, judged with real numbers at the phase
+2 decision point rather than assumed.
 
 **A tool joins the launcher three different ways.** A closure in `actions.special` at
 `init.lua:1328`, of which there are about twenty. A query row source in `queryProviders` at
@@ -572,8 +579,14 @@ grep to be accurate.
 `order` are generic and become the service. The application watcher, the window title filter,
 and the sampler that feed it are browser specific and stay where they are.
 
-The five callers convert. Watch `DisplayMemory` and `WindowMemory` in particular, since both
-are hand rolled remembered state and at least one may shrink to almost nothing.
+The callers convert, and the phase 2 rescan corrected the count. Three carry the lift to front
+shape the service extracts, BrowserTabs itself, Vpn, and Launcher. Emoji and FileSearch carry the
+decayed score instead, a different mechanism with different semantics, so forcing them under the
+lift to front service would be the adapted to fit failure this plan tests for, and they stay out
+unless the decision point argues a second service in. `DisplayMemory` already shrank to almost
+nothing exactly as predicted here, its version two is a scope map with no ordering, so it is no
+longer a caller at all. The key building stays with each caller, BrowserTabs' `keyFor` is browser
+policy, and the service takes finished keys the way storage takes finished names.
 
 ## Paste, the same split one layer over
 
@@ -1159,11 +1172,13 @@ state a gate instead of an intention.
 work. About an hour plus the migration. Gate, the path building goes into the unit runner as it is
 written, since a root that resolves one directory wrong is silent until something is lost.
 
-**Recency into core**, converting all five callers. This is the proof. If extracting recency
-does not delete more code than it adds, the core idea is wrong and the right move is to stop
-there having spent half a day. Given BrowserTabs already keeps it in a file of its own, it
-should delete a fair amount. Gate, unit tests for the ordering, plus a line count before and
-after, since the line count is the stated proof and should be recorded rather than estimated.
+**Recency into core**, converting the lift to front callers, three after the 2026-08-05 rescan,
+BrowserTabs, Vpn, and Launcher. This is the proof. If extracting recency does not delete more
+code than it adds, the core idea is wrong and the right move is to stop there having spent half
+a day. Given BrowserTabs already keeps it in a file of its own, it should delete a fair amount,
+though the honest arithmetic is tighter at three callers than it read at five. Gate, unit tests
+for the ordering, plus a line count before and after, since the line count is the stated proof
+and should be recorded rather than estimated.
 
 **Paste into core**, the second half of `monitor.lua` out and the three existing consumers pointed
 at it. Half a day, and the riskiest of the three extractions despite being the smallest, because the

@@ -142,7 +142,11 @@ The smallest core that does real work. Design section, storage roots.
 If this deletes less than it adds, the core idea is wrong and the plan stops here. That outcome is
 a finding, not a failure of the phase.
 
-- [ ] Rescan the five callers, the set may have changed.
+- [x] Rescan the five callers, the set may have changed. Done 2026-08-05, and it had. Three
+      lift to front callers remain, BrowserTabs, Vpn, and Launcher. Emoji and FileSearch's new
+      `frecency.lua` are a decayed score, a different shape kept out of the service for now.
+      DisplayMemory left the set, rewritten into a scope map with no ordering. The design's
+      recency sections were corrected the same day.
 - [ ] Packet, `lib/recency.lua` and the five callers converted in their olm side copies.
 - [ ] Build, QA, rework.
 - [ ] Gate, unit tests for the ordering, plus a recorded line count before and after.
