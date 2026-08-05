@@ -35,11 +35,14 @@ end
 
 --- Olm.lib
 --- The shared mechanisms every later plugin reaches through this table.
---- Storage is the first one, the path builder that turns the two roots in
---- config/settings.lua into a finished directory for a tool. See
---- lib/storage.lua for the api.
+--- Storage is the path builder that turns the two roots in
+--- config/settings.lua into a finished directory for a tool, see
+--- lib/storage.lua for its api. Recency is the lift to front ordering
+--- service, a factory handing out an independent instance per caller, see
+--- lib/recency.lua for its api.
 obj.lib = {
   storage = load("lib/storage.lua"),
+  recency = load("lib/recency.lua"),
 }
 
 return obj
