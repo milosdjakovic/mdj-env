@@ -118,9 +118,13 @@ block it are ticked.
 
 The smallest core that does real work. Design section, storage roots.
 
-- [ ] Rescan the storage sites named in the design's files list.
-- [ ] Packet, `Olm.spoon/init.lua` plus `lib/storage.lua`, the `paths` block in
-      `config/settings.lua`, roots resolved and injected from the root.
+- [x] Rescan the storage sites named in the design's files list. Done 2026-08-05 against
+      `f72ea93`, all five citations hold at their exact lines, `manager.configure` still accepts
+      every path override, no drift.
+- [x] Packet, `Olm.spoon/init.lua` plus `lib/storage.lua`, the `paths` block in
+      `config/settings.lua`, roots resolved and injected from the root. Written 2026-08-05 at
+      `docs/superpowers/packets/2026-08-05-packet-storage-core.md`, and it also owns the golden
+      regeneration, since loading the new spoon adds exactly one `spoon Olm` line.
 - [ ] Build, QA, rework until the gate holds.
 - [ ] Gate, path building covered in the unit runner as it is written, and the reconciler clean.
 - [ ] Live test through the toggle.
