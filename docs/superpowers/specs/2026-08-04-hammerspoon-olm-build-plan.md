@@ -125,10 +125,17 @@ The smallest core that does real work. Design section, storage roots.
       `config/settings.lua`, roots resolved and injected from the root. Written 2026-08-05 at
       `docs/superpowers/packets/2026-08-05-packet-storage-core.md`, and it also owns the golden
       regeneration, since loading the new spoon adds exactly one `spoon Olm` line.
-- [ ] Build, QA, rework until the gate holds.
-- [ ] Gate, path building covered in the unit runner as it is written, and the reconciler clean.
-- [ ] Live test through the toggle.
-- [ ] Land.
+- [x] Build, QA, rework until the gate holds. Built by a Sonnet agent, one rework round on
+      style, colon separators in two error strings, amended to `1e03ca0`, QA read the full diff
+      and found nothing else.
+- [x] Gate, path building covered in the unit runner as it is written, and the reconciler clean.
+      Rerun by the architect from the worktree and again from main after the merge, units green
+      at 18 assertions, reconciler exit zero, inventory check exit zero against the golden that
+      now records `spoon Olm`.
+- [x] Live test through the toggle. The user delegated the landing call, and the inventory run
+      doubled as the live load proof, the merged config relaunched cleanly with olm loaded and
+      an otherwise identical snapshot. The toggle stays in `init.lua` per the law.
+- [x] Land. Merged 2026-08-05 in `421d616`.
 
 ## Phase 2, recency into core, the proof
 
