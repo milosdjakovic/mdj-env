@@ -100,13 +100,15 @@ block it are ticked.
 - [x] Name the new manifest kind for a core dependency. Settled 2026-08-04, `core`.
 - [x] Decide how the api version is numbered. Settled 2026-08-04, a single integer starting at
       one, bumped only on a breaking change.
-- [ ] Scaffold, `units.sh` and `cases/` driving `hs -c`, covering `match.lua` first. No lock
-      needed, per the design's proving section. Packet written 2026-08-04 at
-      `docs/superpowers/packets/2026-08-04-packet-units-scaffold.md`, awaiting dispatch.
-- [ ] Scaffold, `inventory.sh` plus the committed `inventory.golden`, reading this config's own
-      registries and not Hammerspoon's. Needs the lock, borrows the discipline from the
-      BrowserTabs suite. Packet written 2026-08-04 at
-      `docs/superpowers/packets/2026-08-04-packet-inventory-scaffold.md`, awaiting dispatch.
+- [x] Scaffold, `units.sh` and `cases/` driving `hs -c`, covering `match.lua` first. Landed
+      2026-08-05 in `10d1629`, built by a Sonnet agent from
+      `docs/superpowers/packets/2026-08-04-packet-units-scaffold.md`, one rework round on style,
+      gate rerun by the architect.
+- [x] Scaffold, `inventory.sh` plus the committed `inventory.golden`, reading this config's own
+      registries and not Hammerspoon's. Landed 2026-08-05 in `2047b36`, built by a Sonnet agent
+      from `docs/superpowers/packets/2026-08-04-packet-inventory-scaffold.md`, one rework round on
+      style, gate rerun by the architect. One finding for the record, the design's registry
+      counts were node counts, the golden counts entries, verified equivalent by a live probe.
 - [x] Full rescan of the design's older citations. Done 2026-08-04 against `6bd5b8d`, about two
       thirds had drifted and all were corrected. The material finding is the paste block, roughly
       doubled to about 610 lines and no longer a clean tail of `monitor.lua`, so the phase 3
