@@ -76,6 +76,14 @@ hs.loadSpoon("Arithmetic")
 hs.loadSpoon("Convert")
 hs.loadSpoon("QueryScope")
 
+-- The olm toggle. Loading this spoon and configuring its storage mechanism
+-- with the two roots from config/settings.lua is everything olm does today,
+-- since nothing yet asks it for anything else. Commenting these two lines
+-- out removes olm entirely, and every existing spoon keeps writing exactly
+-- where it writes now, since none of them are wired to it yet.
+hs.loadSpoon("Olm")
+spoon.Olm.lib.storage.configure(settings.paths)
+
 --------------------------------------------------------------------------------
 -- Choices this root makes, named early because the key wiring reads them
 --------------------------------------------------------------------------------
