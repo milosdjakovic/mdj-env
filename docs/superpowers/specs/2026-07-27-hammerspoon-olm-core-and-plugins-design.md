@@ -613,19 +613,31 @@ and some of the growth is entry aware, `writeEntry` and the restore machinery kn
 clipboard entry, so drawing the exact line between primitive and entry knowledge is now a real
 piece of the extraction rather than a formality.
 
-Three features already use that half, and none of them is the clipboard. `Emoji` takes `pasteText`
-through the root at `init.lua:1648`, `TextCase` takes both `pasteText` and the selection read at
-`init.lua:1679`, and snippets would be the fourth. So this is a delicate mechanism with three
-consumers that currently lives inside one feature, which every other consumer reaches through by
-injection from the root. That is the definition of something that wants to be core, and it is a
-stronger case than recency because the sharing is already happening rather than being predicted.
+Rescanned 2026-08-06 for phase 3, and this section is the rare one that held still. The file is
+918 lines exactly, unchanged since the `6bd5b8d` baseline the phase 0 rescan measured against, and
+every landmark above is exact, the insertion boundary at `heldModifiers` on 244, `M.paste` at 584,
+`insertText` at 625, `readSelection` at 652, `pasteBatch` at 715, `pasteText` at 750,
+`copySelection` at 790, and the walk watcher from `isPlainCmdV` at 858. The consumer count needed
+precision though. Two features take the primitives directly through root injection today, `Emoji`
+takes `pasteText` at `init.lua:1666`, and `TextCase` takes `pasteText` and the selection read at
+`init.lua:1693` through 1698, where the read it takes is the read side mirror `copySelection`
+rather than `readSelection`. The launcher's `appendCopy` and `pasteNext` rows at `init.lua:1349`
+consume the append and walk features that stay with the clipboard, features built on the
+primitives rather than the primitives, so it is not a consumer of the extracted half. Snippets
+would be the third direct consumer. The clipboard's own internal callers, `manager/init.lua`,
+`session.lua`, and `ui.lua`, repoint at the extracted lib inside the olm side copy. A delicate
+mechanism reached by injection from the root by everything outside its own spoon is still the
+definition of something that wants to be core, and still a stronger case than recency because the
+sharing already happens rather than being predicted.
 
-The header comment at `monitor.lua:21` already frames it correctly, that a paste is not the only way
-in, only the universal one. That sentence is a core module's documentation sitting in a plugin.
+The header comment now at `monitor.lua:25` already frames it correctly, that a paste is not the
+only way in, only the universal one. That sentence is a core module's documentation sitting in a
+plugin.
 
 Two cautions. This is the most carefully measured code in the config, the `insertText` versus paste
 findings, `sequenceDrainDelay`, and the held chord behaviour, and the measurement trail is currently
-recorded in the module level `CLAUDE.md` at lines 1006 to 1201. That trail must travel with the code
+recorded in the module level `CLAUDE.md`, at lines 1040 to about 1235 as of the 2026-08-06 rescan
+since three testing paragraphs landed above it. That trail must travel with the code
 and not be split from it, which changes the documentation plan below. And the clipboard snapshot and
 restore that hides a paste from history is part of the insertion side, so olm ends up owning a small
 amount of knowledge about not polluting a history it does not own. Keep that as one commented seam
