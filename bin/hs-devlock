@@ -29,6 +29,9 @@
 #   --wait               Poll until the lock frees instead of failing when held.
 #   --manual             Hold until an explicit release, disabling the stale
 #                        reclaim, for a hands on test the user green lights.
+#   --lean               Make the worktree's lean-init.lua live instead of its
+#                        init.lua, so only the tool under test and its direct
+#                        needs load, and nothing else can be the cause.
 #   --timeout=SECONDS    Overall wait budget with --wait. Defaults to 1800.
 #   --poll=SECONDS       Poll interval with --wait. Defaults to 5.
 
@@ -62,7 +65,20 @@ my_worktree() {
     || die "not inside a git worktree; run this from the checkout you want to test"
 }
 my_branch() { git -C "$PWD" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?"; }
-config_for() { echo "$1/dotfiles/hammerspoon/.hammerspoon/init.lua"; }
+
+# The file MJConfigFile points at for this worktree. Plain acquire answers with the
+# full composition root. A lean acquire answers with the worktree's lean-init.lua
+# instead, the minimal surface that loads only the tool under test and its direct
+# needs, so nothing else on the full root can be the cause of what the test sees.
+# This is the only line that changes between the two, everything past this answer,
+# the lock, the stale rules, --manual, --wait, and release, reads the same either way.
+config_for() {
+  if [ "${2:-0}" = "1" ]; then
+    echo "$1/dotfiles/hammerspoon/.hammerspoon/lean-init.lua"
+  else
+    echo "$1/dotfiles/hammerspoon/.hammerspoon/init.lua"
+  fi
+}
 
 # The MJConfigFile value that is live right now. Empty means the key is unset,
 # which is plain main on ~/.hammerspoon.
@@ -132,7 +148,14 @@ pretty_since() {
 cmd_status() {
   local live; live="$(current_mj)"
   local live_label="$live"
-  [ -z "$live" ] && live_label="~/.hammerspoon (main)"
+  if [ -z "$live" ]; then
+    live_label="~/.hammerspoon (main)"
+  elif [[ "$live" == */lean-init.lua ]]; then
+    # Named explicitly, rather than left to read as the full config, since a lean
+    # acquire points MJConfigFile at a different file and status must say which one
+    # is actually live rather than imply it is always the full root.
+    live_label="$live (lean surface, not the full config)"
+  fi
 
   if [ -d "$LOCK_DIR" ] && [ -f "$HOLDER" ]; then
     local mode="short, auto reclaim after ${STALE_SECS}s"
@@ -152,11 +175,12 @@ cmd_status() {
 }
 
 cmd_acquire() {
-  local wait=0 manual=0 deadline
+  local wait=0 manual=0 lean=0 deadline
   for arg in "$@"; do
     case "$arg" in
       --wait) wait=1 ;;
       --manual|--hold) manual=1 ;;
+      --lean) lean=1 ;;
       --timeout=*) WAIT_TIMEOUT="${arg#*=}" ;;
       --poll=*) POLL_INTERVAL="${arg#*=}" ;;
       *) die "unknown flag $arg" ;;
@@ -164,8 +188,14 @@ cmd_acquire() {
   done
 
   local wt br cfg
-  wt="$(my_worktree)"; br="$(my_branch)"; cfg="$(config_for "$wt")"
-  [ -f "$cfg" ] || die "no Hammerspoon config at $cfg"
+  wt="$(my_worktree)"; br="$(my_branch)"; cfg="$(config_for "$wt" "$lean")"
+  if [ ! -f "$cfg" ]; then
+    if [ "$lean" -eq 1 ]; then
+      die "no lean surface at $cfg, add lean-init.lua beside init.lua in this worktree before acquiring --lean"
+    else
+      die "no Hammerspoon config at $cfg"
+    fi
+  fi
   deadline=$(( $(now) + WAIT_TIMEOUT ))
   local announced=0
 
