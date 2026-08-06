@@ -175,7 +175,11 @@ a finding, not a failure of the phase.
 The riskiest extraction, measured timing rather than obvious behaviour. After recency proves the
 pattern, never before.
 
-- [ ] Rescan `monitor.lua`, the clipboard work is the part of the tree moving most.
+- [x] Rescan `monitor.lua`, the clipboard work is the part of the tree moving most. Done
+      2026-08-06, and this time it had not moved, unchanged since the `6bd5b8d` baseline with
+      every landmark exact. The consumer count gained precision, two direct consumers through
+      root injection, Emoji and TextCase, the launcher touches only the append and walk
+      features that stay with the clipboard. Design corrected in `53b81a7`.
 - [ ] Packet, `lib/paste.lua` from the insertion primitives, three consumers pointed at it. Opus
       builds this one.
 - [ ] Adversarial review, an Opus agent packeted to refute the claim that timing and behaviour are
