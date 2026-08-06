@@ -210,14 +210,18 @@ pattern, never before.
 
 ## Phase 5, the remaining atoms into core
 
-- [ ] Rescan the five atoms.
-- [ ] Packet, one pass, copies under `Olm.spoon`, originals untouched, toggle in `init.lua`. Carry
+- [x] Rescan the five atoms. The rescan settled the stale count as six atoms rather than five.
+- [x] Packet, one pass, copies under `Olm.spoon`, originals untouched, toggle in `init.lua`. Carry
       the 2026-08-06 requirement in the design's core table section, the Hyper trigger becomes
       pure data in settings, a single key or a modifier chord, designed at the seam rather than
-      bolted on.
-- [ ] Build, QA, rework.
-- [ ] Gate, an empty inventory diff across the toggle flip.
-- [ ] Live test, land.
+      bolted on. Written at `docs/superpowers/packets/2026-08-06-packet-atoms-into-core.md`.
+- [x] Build, QA, rework. Landed in five commits ending at `c76fd5a`, including a seven item
+      rework answering the adversarial review of the chord strategy.
+- [x] Gate, an empty inventory diff across the toggle flip. Ran the units, the reconciler, and the
+      inventory three times across the toggle flip, all three runs came back empty.
+- [x] Live test, land. The live test is deferred to the final checklist pass the user runs after
+      the whole migration, per the user's word. Landed on main by merge in
+      `436c983c1df6ef820d70d6834f1197ae24636d28`.
 
 ## Phase 6, the bundling pass
 
