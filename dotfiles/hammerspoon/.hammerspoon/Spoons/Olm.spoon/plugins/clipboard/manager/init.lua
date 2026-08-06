@@ -269,7 +269,7 @@ function M.start()
   -- the one function whose absence would prove this is not the engine.
   local paste = config.paste
   if type(paste) ~= "table" or type(paste.paste) ~= "function" then
-    error("clipboard native: configure needs paste, the insertion engine from Olm.spoon/lib")
+    error("the clipboard manager configure requires opts.paste, the shared insertion engine from Olm.spoon lib")
   end
 
   -- The reader chain, built once and used twice. The monitor walks it to capture a copy, and

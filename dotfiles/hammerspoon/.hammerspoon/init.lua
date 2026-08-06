@@ -63,11 +63,13 @@ hs.loadSpoon("AppToggler")
 -- inventory snapshot stays identical across the flip, since both leave spoon.ClipboardHistory
 -- set to a module carrying that one name.
 --
--- Three sites read this one boolean, the load here, the emoji insert, and the two text case
--- seams, and all three flip together. A consumer holding the shared insertion engine while the
--- original watcher is the live one would paste past that watcher's own self capture guard and
--- the paste would land in history as a fresh copy. So one edit here restores the original
--- everywhere, and no site may be flipped on its own.
+-- Four sites read this one boolean, the load here, the emoji insert, the two text case seams,
+-- and the engine injected into the manager's own configure near the bottom of this file, and
+-- all four flip together. A consumer holding the shared insertion engine while the original
+-- watcher is the live one would paste past that watcher's own self capture guard and the paste
+-- would land in history as a fresh copy, and the fourth site is the other half of that, since
+-- the copy's own files have no engine to take a paste through without it. So one edit here
+-- restores the original everywhere, and no site may be flipped on its own.
 local CLIPBOARD_ON_OLM = true
 if CLIPBOARD_ON_OLM then
   spoon.ClipboardHistory = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/clipboard/init.lua")
@@ -1709,8 +1711,8 @@ spoon.HyperKey:bind(keys.emoji.key, function() spoon.Emoji:show() end)
 -- result in place, are injected here and backed by whichever side of the clipboard toggle is
 -- live, since the pasteboard snapshot and restore and the self capture guard sit together
 -- either way, so both leave the clipboard and its history untouched. copySelection is the
--- read-side mirror of pasteText. This is the toggle's third site and flips with the other two,
--- never on its own. If neither side answers, apply degrades to a typed paste and read is
+-- read-side mirror of pasteText. This is the toggle's third site and flips with the other
+-- three, never on its own. If neither side answers, apply degrades to a typed paste and read is
 -- omitted (the tool then only shows its guidance row), the same graceful fallback the emoji
 -- insert takes. Its textCase Hyper context (config/keys.lua) drives the j, k, i, and x
 -- shortcuts through the choosers registry below.
@@ -2206,7 +2208,8 @@ local clipDeps = depsFor("ClipboardHistory")
 spoon.ClipboardHistory.manager.configure({
   -- The shared insertion engine, injected only on the olm side, where the copy's own files
   -- take every paste and every selection read through it. The original spoon carries that half
-  -- inside its own monitor and has no use for this.
+  -- inside its own monitor and has no use for this. This is the toggle's fourth site, listed
+  -- with the other three beside the load at the top of this file.
   paste = CLIPBOARD_ON_OLM and spoon.Olm.lib.paste or nil,
   onMessage = function(text)
     clipMessage.text = text
