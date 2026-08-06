@@ -39,10 +39,13 @@ end
 --- config/settings.lua into a finished directory for a tool, see
 --- lib/storage.lua for its api. Recency is the lift to front ordering
 --- service, a factory handing out an independent instance per caller, see
---- lib/recency.lua for its api.
+--- lib/recency.lua for its api. Paste is the insertion engine, one shared
+--- instance rather than a factory since the machine has one pasteboard, see
+--- lib/paste.lua for its api and for the boundary it draws.
 obj.lib = {
   storage = load("lib/storage.lua"),
   recency = load("lib/recency.lua"),
+  paste = load("lib/paste.lua"),
 }
 
 return obj
