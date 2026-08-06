@@ -180,8 +180,12 @@ pattern, never before.
       every landmark exact. The consumer count gained precision, two direct consumers through
       root injection, Emoji and TextCase, the launcher touches only the append and walk
       features that stay with the clipboard. Design corrected in `53b81a7`.
-- [ ] Packet, `lib/paste.lua` from the insertion primitives, three consumers pointed at it. Opus
-      builds this one.
+- [x] Packet, `lib/paste.lua` from the insertion primitives, three consumers pointed at it. Opus
+      builds this one. Written 2026-08-06 at
+      `docs/superpowers/packets/2026-08-06-packet-paste-core.md`, naming the two guard seams,
+      `selfSigs` and `ownPasteCount`, the primitive versus entry boundary as the builder's
+      recorded decision, and a three site root toggle that flips the load and both consumers
+      as one unit.
 - [ ] Adversarial review, an Opus agent packeted to refute the claim that timing and behaviour are
       unchanged, before the architect's own pass.
 - [ ] Build, QA, rework.
