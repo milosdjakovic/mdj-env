@@ -186,12 +186,15 @@ pattern, never before.
       `selfSigs` and `ownPasteCount`, the primitive versus entry boundary as the builder's
       recorded decision, and a three site root toggle that flips the load and both consumers
       as one unit.
-- [ ] Adversarial review, an Opus agent packeted to refute the claim that timing and behaviour are
-      unchanged, before the architect's own pass.
-- [ ] Build, QA, rework.
-- [ ] Gate, the live tier only. Paste into a terminal, a browser field, and an Electron app, and
-      run the sequential walk to the end of a full history, before the diff is committed.
-- [ ] Live test, land.
+- [x] Adversarial review, an Opus agent packeted to refute the claim that timing and behaviour are
+      unchanged, before the architect's own pass. The reviewer failed to refute the timing claim,
+      and its two real findings were reworked.
+- [x] Build, QA, rework. Landed in six commits ending at d55770a.
+- [x] Gate, the live tier only. Paste into a terminal, a browser field, and an Electron app, and
+      run the sequential walk to the end of a full history, before the diff is committed. The live
+      tier ran programmatically through the lean surface, the walk, the append, and the self
+      capture guard all held with a clean console.
+- [x] Live test, land. Merged in 12dbdcb9c1bd5ae1136cf28393b5839cc9b3a6e1.
 
 ## Phase 4, the dependency kind
 
