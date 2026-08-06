@@ -54,7 +54,26 @@ hs.loadSpoon("WindowManager")
 hs.loadSpoon("WindowLeader")
 hs.loadSpoon("WindowCheatSheet")
 hs.loadSpoon("AppToggler")
-hs.loadSpoon("ClipboardHistory")
+-- The olm side toggle for ClipboardHistory. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/clipboard by an absolute path built from hs.configdir and assigns it
+-- to spoon.ClipboardHistory by hand, since it bypasses hs.loadSpoon and nothing else does that
+-- assignment for it, which is safe because that spoon derives its own path through
+-- debug.getinfo and never leans on hs.loadSpoon. False loads the original spoon instead. Every
+-- existing spoon.ClipboardHistory reference below keeps working unchanged either way, and the
+-- inventory snapshot stays identical across the flip, since both leave spoon.ClipboardHistory
+-- set to a module carrying that one name.
+--
+-- Three sites read this one boolean, the load here, the emoji insert, and the two text case
+-- seams, and all three flip together. A consumer holding the shared insertion engine while the
+-- original watcher is the live one would paste past that watcher's own self capture guard and
+-- the paste would land in history as a fresh copy. So one edit here restores the original
+-- everywhere, and no site may be flipped on its own.
+local CLIPBOARD_ON_OLM = true
+if CLIPBOARD_ON_OLM then
+  spoon.ClipboardHistory = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/clipboard/init.lua")
+else
+  hs.loadSpoon("ClipboardHistory")
+end
 hs.loadSpoon("Caffeinate")
 -- The olm side toggle for Vpn. The olm side copy is active, loaded by an absolute path
 -- built from hs.configdir and assigned to spoon.Vpn by hand, since it bypasses
@@ -83,11 +102,10 @@ hs.loadSpoon("Arithmetic")
 hs.loadSpoon("Convert")
 hs.loadSpoon("QueryScope")
 
--- The olm toggle. Loading this spoon and configuring its storage mechanism
--- with the two roots from config/settings.lua is everything olm does today,
--- since nothing yet asks it for anything else. Commenting these two lines
--- out removes olm entirely, and every existing spoon keeps writing exactly
--- where it writes now, since none of them are wired to it yet.
+-- Olm, the reusable core. Loading it and configuring its storage mechanism with the two
+-- roots from config/settings.lua is all this pair of lines does, but olm is no longer
+-- optional, since the olm side copies above take their recency and their insertion engine
+-- from here. Turning it off means flipping every olm side toggle back first.
 hs.loadSpoon("Olm")
 spoon.Olm.lib.storage.configure(settings.paths)
 
@@ -1648,8 +1666,11 @@ spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
 -- the surrogate pair and show replacement boxes, while a paste delivers the bytes intact
 -- everywhere. pasteText snapshots the clipboard and puts it back after, hidden from history,
 -- so the paste is invisible and the clipboard stays untouched, the promise the old typing
--- path kept. If the clipboard manager is absent this degrades to typing, the same graceful
--- fallback HyperKey and AppToggler take. The emoji Hyper context (see config/keys.lua) drives
+-- path kept. Where that primitive comes from is the clipboard toggle's second site, the shared
+-- insertion engine on the olm side and the manager's own wrapper on the original side, and it
+-- flips with the load rather than on its own. If neither is there this degrades to typing, the
+-- same graceful fallback HyperKey and AppToggler take. The emoji Hyper context (see
+-- config/keys.lua) drives
 -- the j, k, i, and x shortcuts through the choosers registry below, active only when the
 -- hammerspoon backend wins since only it reports a real surface. The open key is a base
 -- HyperKey binding, suppressed while a modal context owns Hyper.
@@ -1662,9 +1683,18 @@ spoon.Emoji:configure({
   placeholder = "Search by name or keyword",
   shortcutPanel = shortcutPanelFor("emoji"),
   onInsert = function(glyph)
-    local mgr = spoon.ClipboardHistory and spoon.ClipboardHistory.manager
-    if mgr and mgr.pasteText then
-      mgr.pasteText(glyph)
+    -- Resolved at the press rather than at load, so the branch reads beside the call it
+    -- decides. Olm side, the primitive comes straight from the core, which is where it lives
+    -- now. Original side, the manager wrapper is still the door to the same code.
+    local pasteText
+    if CLIPBOARD_ON_OLM then
+      pasteText = spoon.Olm and spoon.Olm.lib.paste and spoon.Olm.lib.paste.pasteText
+    else
+      local mgr = spoon.ClipboardHistory and spoon.ClipboardHistory.manager
+      pasteText = mgr and mgr.pasteText
+    end
+    if pasteText then
+      pasteText(glyph)
     else
       after(0.1, function() hs.eventtap.keyStrokes(glyph) end)
     end
@@ -1676,26 +1706,34 @@ spoon.HyperKey:bind(keys.emoji.key, function() spoon.Emoji:show() end)
 -- picker over the Chooser atom that owns its own transform catalog, so it needs the Chooser
 -- factory, the shared theme, and the same deferred shortcut panel the other choosers dock.
 -- It names no clipboard: the two cross-spoon seams, reading the selection and writing the
--- result in place, are injected here and backed by the ClipboardHistory manager, where the
--- pasteboard snapshot/restore and the self-capture guard already live, so both leave the
--- clipboard and its history untouched. copySelection is the read-side mirror of pasteText.
--- If the manager is absent, apply degrades to a typed paste and read is omitted (the tool
--- then only shows its guidance row), the same graceful fallback the emoji insert takes. Its
--- textCase Hyper context (config/keys.lua) drives the j, k, i, and x shortcuts through the
--- choosers registry below.
-local textCaseMgr = spoon.ClipboardHistory and spoon.ClipboardHistory.manager
+-- result in place, are injected here and backed by whichever side of the clipboard toggle is
+-- live, since the pasteboard snapshot and restore and the self capture guard sit together
+-- either way, so both leave the clipboard and its history untouched. copySelection is the
+-- read-side mirror of pasteText. This is the toggle's third site and flips with the other two,
+-- never on its own. If neither side answers, apply degrades to a typed paste and read is
+-- omitted (the tool then only shows its guidance row), the same graceful fallback the emoji
+-- insert takes. Its textCase Hyper context (config/keys.lua) drives the j, k, i, and x
+-- shortcuts through the choosers registry below.
+local textCaseRead, textCasePaste
+if CLIPBOARD_ON_OLM then
+  local olmPaste = spoon.Olm and spoon.Olm.lib.paste
+  textCaseRead = olmPaste and olmPaste.copySelection
+  textCasePaste = olmPaste and olmPaste.pasteText
+else
+  local textCaseMgr = spoon.ClipboardHistory and spoon.ClipboardHistory.manager
+  textCaseRead = textCaseMgr and textCaseMgr.copySelection
+  textCasePaste = textCaseMgr and textCaseMgr.pasteText
+end
 spoon.TextCase:init()
 spoon.TextCase:configure({
   chooser = spoon.Chooser,
   theme = settings.chooserTheme,
   placeholder = "Convert the selection",
   shortcutPanel = shortcutPanelFor("textCase"),
-  read = (textCaseMgr and textCaseMgr.copySelection)
-    and function(cb) textCaseMgr.copySelection(cb) end
-    or nil,
+  read = textCaseRead and function(cb) textCaseRead(cb) end or nil,
   apply = function(text)
-    if textCaseMgr and textCaseMgr.pasteText then
-      textCaseMgr.pasteText(text)
+    if textCasePaste then
+      textCasePaste(text)
     else
       after(0.1, function() hs.eventtap.keyStrokes(text) end)
     end
@@ -2166,6 +2204,10 @@ local clipMessageTimer
 
 local clipDeps = depsFor("ClipboardHistory")
 spoon.ClipboardHistory.manager.configure({
+  -- The shared insertion engine, injected only on the olm side, where the copy's own files
+  -- take every paste and every selection read through it. The original spoon carries that half
+  -- inside its own monitor and has no use for this.
+  paste = CLIPBOARD_ON_OLM and spoon.Olm.lib.paste or nil,
   onMessage = function(text)
     clipMessage.text = text
     clipMessageToast:show()
