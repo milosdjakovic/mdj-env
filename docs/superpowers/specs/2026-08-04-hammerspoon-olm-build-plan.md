@@ -152,11 +152,23 @@ a finding, not a failure of the phase.
       Launcher and BrowserTabs converting inside their phase 6 copies where their deletions join
       the same recorded count. Written at
       `docs/superpowers/packets/2026-08-05-packet-recency-core.md`.
-- [ ] Build, QA, rework.
-- [ ] Gate, unit tests for the ordering, plus a recorded line count before and after.
-- [ ] Decision point, count deleted more than added, continue. Otherwise stop and take the finding
-      back to the design.
-- [ ] Live test, land.
+- [x] Build, QA, rework. Built by a Sonnet agent, one rework round on doc header style and a
+      missing loud guard for `settingsKey`, amended to `d92973a`. The same worktree then grew the
+      lean test surface the user asked for, `lean-init.lua` plus the devlock `--lean` flag, in
+      `7830042` from its own packet at
+      `docs/superpowers/packets/2026-08-06-packet-lean-test-surface.md`.
+- [x] Gate, unit tests for the ordering, plus a recorded line count before and after. Units
+      29 of 29, reconciler clean, inventory clean on both sides of the toggle flip with the
+      golden untouched, console clean under the new console rule. The count, the Vpn copy
+      deleted 36 lines and added 26 against the original, the root took 3 functional lines
+      plus comments, and `lib/recency.lua` is 128 lines of which 56 are code.
+- [x] Decision point, count deleted more than added, continue. Judged 2026-08-06 with the user,
+      continue. The caller shrank by 10 while the one time lib cost lands here, and the lib's
+      code half is already smaller than the donor file alone, so each later conversion deletes
+      against zero further cost.
+- [x] Live test, land. Tested by the user by hand on the lean surface, the chooser works and the
+      remembered order carries across the same settings key. Merged 2026-08-06 in `092b9be`,
+      resting main verified live with a clean console after the land.
 
 ## Phase 3, paste into core
 
