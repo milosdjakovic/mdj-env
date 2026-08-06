@@ -47,7 +47,16 @@ end
 -- its lib files, so nothing observable moved by hoisting it, and its storage configuration
 -- stays where it was, beside the settings block it reads.
 hs.loadSpoon("Olm")
-hs.loadSpoon("KeyRemap")
+-- The olm side toggle for KeyRemap. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/keyremap by an absolute path built from hs.configdir, assigned to
+-- spoon.KeyRemap by hand since it bypasses hs.loadSpoon. False loads the original spoon
+-- instead. Only the load flips here.
+local KEYREMAP_ON_OLM = true
+if KEYREMAP_ON_OLM then
+  spoon.KeyRemap = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/keyremap/init.lua")
+else
+  hs.loadSpoon("KeyRemap")
+end
 -- The olm side toggle for the six atoms the design names as core, Dependencies, ChordKey,
 -- CheatSheet, Chooser, CanvasPanel, and HyperKey. True assigns each spoon global from
 -- spoon.Olm.lib, the olm side copy of that spoon, and skips its hs.loadSpoon entirely. False
@@ -86,11 +95,56 @@ else
   hs.loadSpoon("HyperKey")
 end
 hs.loadSpoon("HyperCheatSheet")
-hs.loadSpoon("StageManager")
-hs.loadSpoon("WindowManager")
-hs.loadSpoon("WindowLeader")
-hs.loadSpoon("WindowCheatSheet")
-hs.loadSpoon("AppToggler")
+-- The olm side toggle for StageManager. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/stagemanager by an absolute path built from hs.configdir, assigned
+-- to spoon.StageManager by hand since it bypasses hs.loadSpoon. False loads the original
+-- spoon instead. Only the load flips here.
+local STAGEMANAGER_ON_OLM = true
+if STAGEMANAGER_ON_OLM then
+  spoon.StageManager = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/stagemanager/init.lua")
+else
+  hs.loadSpoon("StageManager")
+end
+-- The olm side toggle for WindowManager. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/windowmanager by an absolute path built from hs.configdir, assigned
+-- to spoon.WindowManager by hand since it bypasses hs.loadSpoon. False loads the original
+-- spoon instead. Only the load flips here.
+local WINDOWMANAGER_ON_OLM = true
+if WINDOWMANAGER_ON_OLM then
+  spoon.WindowManager = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windowmanager/init.lua")
+else
+  hs.loadSpoon("WindowManager")
+end
+-- The olm side toggle for WindowLeader. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/windowleader by an absolute path built from hs.configdir, assigned
+-- to spoon.WindowLeader by hand since it bypasses hs.loadSpoon. False loads the original
+-- spoon instead. Only the load flips here.
+local WINDOWLEADER_ON_OLM = true
+if WINDOWLEADER_ON_OLM then
+  spoon.WindowLeader = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windowleader/init.lua")
+else
+  hs.loadSpoon("WindowLeader")
+end
+-- The olm side toggle for WindowCheatSheet. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/windowcheatsheet by an absolute path built from hs.configdir,
+-- assigned to spoon.WindowCheatSheet by hand since it bypasses hs.loadSpoon. False loads the
+-- original spoon instead. Only the load flips here.
+local WINDOWCHEATSHEET_ON_OLM = true
+if WINDOWCHEATSHEET_ON_OLM then
+  spoon.WindowCheatSheet = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windowcheatsheet/init.lua")
+else
+  hs.loadSpoon("WindowCheatSheet")
+end
+-- The olm side toggle for AppToggler. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/apptoggler by an absolute path built from hs.configdir, assigned
+-- to spoon.AppToggler by hand since it bypasses hs.loadSpoon. False loads the original spoon
+-- instead. Only the load flips here.
+local APPTOGGLER_ON_OLM = true
+if APPTOGGLER_ON_OLM then
+  spoon.AppToggler = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/apptoggler/init.lua")
+else
+  hs.loadSpoon("AppToggler")
+end
 -- The olm side toggle for ClipboardHistory. True loads the olm side copy at
 -- Spoons/Olm.spoon/plugins/clipboard by an absolute path built from hs.configdir and assigns it
 -- to spoon.ClipboardHistory by hand, since it bypasses hs.loadSpoon and nothing else does that
@@ -113,32 +167,190 @@ if CLIPBOARD_ON_OLM then
 else
   hs.loadSpoon("ClipboardHistory")
 end
-hs.loadSpoon("Caffeinate")
--- The olm side toggle for Vpn. The olm side copy is active, loaded by an absolute path
--- built from hs.configdir and assigned to spoon.Vpn by hand, since it bypasses
--- hs.loadSpoon and nothing else does that assignment for it. Every existing spoon.Vpn
--- reference below keeps working unchanged either way. Flipping which of the two lines
--- runs restores the original spoon, and the inventory snapshot stays identical across the
--- flip, since both leave spoon.Vpn set to a module carrying that one name.
-spoon.Vpn = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/vpn/init.lua")
--- hs.loadSpoon("Vpn")
-hs.loadSpoon("Capture")
-hs.loadSpoon("Eyedropper")
-hs.loadSpoon("WorkspaceEngine")
-hs.loadSpoon("TerminalHandler")
-hs.loadSpoon("DisplayMemory")
-hs.loadSpoon("WindowMemory")
+-- The olm side toggle for Caffeinate. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/caffeinate by an absolute path built from hs.configdir, assigned
+-- to spoon.Caffeinate by hand since it bypasses hs.loadSpoon. False loads the original spoon
+-- instead. Only the load flips here.
+local CAFFEINATE_ON_OLM = true
+if CAFFEINATE_ON_OLM then
+  spoon.Caffeinate = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/caffeinate/init.lua")
+else
+  hs.loadSpoon("Caffeinate")
+end
+-- The olm side toggle for Vpn. True loads the olm side copy at Spoons/Olm.spoon/plugins/vpn
+-- by an absolute path built from hs.configdir, assigned to spoon.Vpn by hand since it
+-- bypasses hs.loadSpoon. False loads the original spoon instead. Every existing spoon.Vpn
+-- reference below keeps working unchanged either way, and the inventory snapshot stays
+-- identical across the flip, since both leave spoon.Vpn set to a module carrying that one
+-- name.
+local VPN_ON_OLM = true
+if VPN_ON_OLM then
+  spoon.Vpn = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/vpn/init.lua")
+else
+  hs.loadSpoon("Vpn")
+end
+-- The olm side toggle for Capture. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/capture by an absolute path built from hs.configdir, assigned to
+-- spoon.Capture by hand since it bypasses hs.loadSpoon. False loads the original spoon
+-- instead. Only the load flips here.
+local CAPTURE_ON_OLM = true
+if CAPTURE_ON_OLM then
+  spoon.Capture = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/capture/init.lua")
+else
+  hs.loadSpoon("Capture")
+end
+-- The olm side toggle for Eyedropper. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/eyedropper by an absolute path built from hs.configdir, assigned
+-- to spoon.Eyedropper by hand since it bypasses hs.loadSpoon. False loads the original spoon
+-- instead. Only the load flips here.
+local EYEDROPPER_ON_OLM = true
+if EYEDROPPER_ON_OLM then
+  spoon.Eyedropper = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/eyedropper/init.lua")
+else
+  hs.loadSpoon("Eyedropper")
+end
+-- The olm side toggle for WorkspaceEngine. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/workspaceengine by an absolute path built from hs.configdir,
+-- assigned to spoon.WorkspaceEngine by hand since it bypasses hs.loadSpoon. False loads the
+-- original spoon instead. Only the load flips here.
+local WORKSPACEENGINE_ON_OLM = true
+if WORKSPACEENGINE_ON_OLM then
+  spoon.WorkspaceEngine = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/workspaceengine/init.lua")
+else
+  hs.loadSpoon("WorkspaceEngine")
+end
+-- The olm side toggle for TerminalHandler. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/terminalhandler by an absolute path built from hs.configdir,
+-- assigned to spoon.TerminalHandler by hand since it bypasses hs.loadSpoon. False loads the
+-- original spoon instead. Only the load flips here.
+local TERMINALHANDLER_ON_OLM = true
+if TERMINALHANDLER_ON_OLM then
+  spoon.TerminalHandler = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/terminalhandler/init.lua")
+else
+  hs.loadSpoon("TerminalHandler")
+end
+-- The olm side toggle for DisplayMemory. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/displaymemory by an absolute path built from hs.configdir,
+-- assigned to spoon.DisplayMemory by hand since it bypasses hs.loadSpoon. False loads the
+-- original spoon instead. Only the load flips here.
+local DISPLAYMEMORY_ON_OLM = true
+if DISPLAYMEMORY_ON_OLM then
+  spoon.DisplayMemory = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/displaymemory/init.lua")
+else
+  hs.loadSpoon("DisplayMemory")
+end
+-- The olm side toggle for WindowMemory. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/windowmemory by an absolute path built from hs.configdir,
+-- assigned to spoon.WindowMemory by hand since it bypasses hs.loadSpoon. False loads the
+-- original spoon instead. Only the load flips here.
+local WINDOWMEMORY_ON_OLM = true
+if WINDOWMEMORY_ON_OLM then
+  spoon.WindowMemory = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windowmemory/init.lua")
+else
+  hs.loadSpoon("WindowMemory")
+end
 hs.loadSpoon("Launcher")
-hs.loadSpoon("DockAutoHide")
-hs.loadSpoon("DisplayProfiles")
-hs.loadSpoon("SystemSettings")
-hs.loadSpoon("Emoji")
-hs.loadSpoon("TextCase")
-hs.loadSpoon("BrowserTabs")
-hs.loadSpoon("Processes")
-hs.loadSpoon("FileSearch")
-hs.loadSpoon("Arithmetic")
-hs.loadSpoon("Convert")
+-- The olm side toggle for DockAutoHide. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/dockautohide by an absolute path built from hs.configdir,
+-- assigned to spoon.DockAutoHide by hand since it bypasses hs.loadSpoon. False loads the
+-- original spoon instead. Only the load flips here.
+local DOCKAUTOHIDE_ON_OLM = true
+if DOCKAUTOHIDE_ON_OLM then
+  spoon.DockAutoHide = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/dockautohide/init.lua")
+else
+  hs.loadSpoon("DockAutoHide")
+end
+-- The olm side toggle for DisplayProfiles. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/displayprofiles by an absolute path built from hs.configdir,
+-- assigned to spoon.DisplayProfiles by hand since it bypasses hs.loadSpoon. False loads the
+-- original spoon instead. Only the load flips here.
+local DISPLAYPROFILES_ON_OLM = true
+if DISPLAYPROFILES_ON_OLM then
+  spoon.DisplayProfiles = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/displayprofiles/init.lua")
+else
+  hs.loadSpoon("DisplayProfiles")
+end
+-- The olm side toggle for SystemSettings. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/systemsettings by an absolute path built from hs.configdir,
+-- assigned to spoon.SystemSettings by hand since it bypasses hs.loadSpoon. False loads the
+-- original spoon instead. Only the load flips here.
+local SYSTEMSETTINGS_ON_OLM = true
+if SYSTEMSETTINGS_ON_OLM then
+  spoon.SystemSettings = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/systemsettings/init.lua")
+else
+  hs.loadSpoon("SystemSettings")
+end
+-- The olm side toggle for Emoji. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/emoji by an absolute path built from hs.configdir, assigned to
+-- spoon.Emoji by hand since it bypasses hs.loadSpoon. False loads the original spoon
+-- instead. Only the load flips here.
+local EMOJI_ON_OLM = true
+if EMOJI_ON_OLM then
+  spoon.Emoji = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/emoji/init.lua")
+else
+  hs.loadSpoon("Emoji")
+end
+-- The olm side toggle for TextCase. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/textcase by an absolute path built from hs.configdir, assigned to
+-- spoon.TextCase by hand since it bypasses hs.loadSpoon. False loads the original spoon
+-- instead. Only the load flips here.
+local TEXTCASE_ON_OLM = true
+if TEXTCASE_ON_OLM then
+  spoon.TextCase = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/textcase/init.lua")
+else
+  hs.loadSpoon("TextCase")
+end
+-- The olm side toggle for BrowserTabs. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/browsertabs by an absolute path built from hs.configdir, assigned
+-- to spoon.BrowserTabs by hand since it bypasses hs.loadSpoon. False loads the original
+-- spoon instead. The configure call further down injects recency on the olm side only, and
+-- that injection flips with this same boolean, never on its own.
+local BROWSERTABS_ON_OLM = true
+if BROWSERTABS_ON_OLM then
+  spoon.BrowserTabs = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/browsertabs/init.lua")
+else
+  hs.loadSpoon("BrowserTabs")
+end
+-- The olm side toggle for Processes. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/processes by an absolute path built from hs.configdir, assigned
+-- to spoon.Processes by hand since it bypasses hs.loadSpoon. False loads the original spoon
+-- instead. Only the load flips here.
+local PROCESSES_ON_OLM = true
+if PROCESSES_ON_OLM then
+  spoon.Processes = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/processes/init.lua")
+else
+  hs.loadSpoon("Processes")
+end
+-- The olm side toggle for FileSearch. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/filesearch by an absolute path built from hs.configdir, assigned
+-- to spoon.FileSearch by hand since it bypasses hs.loadSpoon. False loads the original spoon
+-- instead. Only the load flips here.
+local FILESEARCH_ON_OLM = true
+if FILESEARCH_ON_OLM then
+  spoon.FileSearch = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/filesearch/init.lua")
+else
+  hs.loadSpoon("FileSearch")
+end
+-- The olm side toggle for Arithmetic. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/arithmetic by an absolute path built from hs.configdir, assigned
+-- to spoon.Arithmetic by hand since it bypasses hs.loadSpoon. False loads the original spoon
+-- instead. Only the load flips here.
+local ARITHMETIC_ON_OLM = true
+if ARITHMETIC_ON_OLM then
+  spoon.Arithmetic = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/arithmetic/init.lua")
+else
+  hs.loadSpoon("Arithmetic")
+end
+-- The olm side toggle for Convert. True loads the olm side copy at
+-- Spoons/Olm.spoon/plugins/convert by an absolute path built from hs.configdir, assigned to
+-- spoon.Convert by hand since it bypasses hs.loadSpoon. False loads the original spoon
+-- instead. Only the load flips here.
+local CONVERT_ON_OLM = true
+if CONVERT_ON_OLM then
+  spoon.Convert = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/convert/init.lua")
+else
+  hs.loadSpoon("Convert")
+end
 hs.loadSpoon("QueryScope")
 
 -- Olm's storage mechanism, configured with the two roots from config/settings.lua. The load
