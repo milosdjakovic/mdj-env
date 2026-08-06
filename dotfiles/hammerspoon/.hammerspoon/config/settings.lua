@@ -159,6 +159,32 @@ return {
     smallSize = { width = 700, height = 800 },
   },
 
+  -- What physically means Hyper. Pure data, and the one place a person whose keyboard is not
+  -- this one says so. Two shapes, and they are genuinely different inputs rather than two
+  -- spellings of one, so each is named by a kind and the mechanism behind it is not decided
+  -- here at all.
+  --
+  -- { kind = "leader" } is a single physical key held down, which is what this machine uses.
+  -- The key itself is deliberately not named here, it is the appLeader row of the catalog in
+  -- config/keys.lua, remapped at the HID level, and only the composition root reads that
+  -- catalog. Hold it and press a letter to fire a binding, tap it alone to toggle real Caps
+  -- Lock, hold it alone to reveal the cheat sheet.
+  --
+  -- { kind = "chord", mods = { "shift", "ctrl", "alt", "cmd" } } is a modifier chord held
+  -- together, any subset of those four. Every binding declared against Hyper keeps working,
+  -- bound on the chord plus whatever sub modifiers that binding already declared. There is no
+  -- tap, because a chord has no bare press and release to measure, so real Caps Lock stays
+  -- whatever the system makes of it. Holding the chord alone still reveals the cheat sheet
+  -- after the same delay.
+  --
+  -- The root reads this block and hands the hyperkey lib a finished descriptor, and that lib
+  -- owns one strategy per kind. So a third shape would be a strategy there plus a kind here,
+  -- and nothing in between would move.
+  hyperTrigger = {
+    kind = "leader",
+    -- kind = "chord", mods = { "shift", "ctrl", "alt", "cmd" },
+  },
+
   -- The two storage roots every plugin's data lives under, pure data with the
   -- join done elsewhere, in Olm.spoon's storage module. cacheRoot holds
   -- regenerable data, safe to delete since it only costs a rebuild. olmRoot

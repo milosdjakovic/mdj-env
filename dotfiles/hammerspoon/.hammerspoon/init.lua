@@ -282,16 +282,47 @@ spoon.ChordKey:configure({ holdDelay = 0.6, tapThreshold = 0.2, passthrough = tr
 -- Hold + letter = app toggles; quick tap = toggle real Caps Lock; hold 0.6s
 -- with no key = show the cheat sheet. Registers into the shared ChordKey engine.
 --
+-- That description is the DEFAULT rather than the only shape. What physically means Hyper is
+-- configuration now, settings.hyperTrigger below, and a modifier chord held together is the
+-- other shape it can take. Every binding written against Hyper on this page works either way,
+-- and only the tap has no meaning under a chord. The mechanism for each lives in the hyperkey
+-- atom and nothing on this page chooses between them beyond passing the descriptor along.
+--
 -- The hold reveals the ACTIVE layer's cheat sheet, not always the apps. The base
 -- layer is the app overlay. A live modal context reveals its own shortcuts
 -- instead. These two functions are forward declared here and assigned once the
 -- context overlays and predicates exist below, so the hold wiring stays in one
 -- place.
 local revealHyperLayer, hideHyperLayer
+
+-- What physically means Hyper, read as data and finished here. config/settings.lua names a
+-- shape and nothing else, this resolves whatever that shape still needs, and the hyperkey
+-- atom owns one strategy per shape. The leader shape needs a keycode, and the catalog that
+-- answers for it is this root's to read and nobody else's, so the lookup happens here and the
+-- settings block stays free of any key. This is now the one site in this file that says Hyper
+-- can be a keycode at all, and it says it only for that shape.
+--
+-- The chord shape needs the atom toggle above to be on, since the strategies live in the olm
+-- side copy and the original spoon knows only its one key. Asking for a chord with that toggle
+-- off leaves the original on today's leader key, silently, so the two switches are only
+-- independent in the direction that already worked. That ends when the originals retire.
+local hyperTrigger = {}
+for k, v in pairs(settings.hyperTrigger or {}) do hyperTrigger[k] = v end
+hyperTrigger.kind = hyperTrigger.kind or "leader"
+if hyperTrigger.kind == "leader" then
+  hyperTrigger.keyCode = leaderCode(keys.appLeader) -- resolved from the catalog (HYPER -> F18)
+end
+
 spoon.HyperKey:init()
 spoon.HyperKey:configure({
   chord = spoon.ChordKey,
-  keyCode = leaderCode(keys.appLeader), -- resolved from the catalog (HYPER -> F18)
+  trigger = hyperTrigger,
+  -- The same keycode a second time, for the leader shape only. The olm side copy reads it off
+  -- the descriptor and does not need this, but the original spoon behind the atom toggle above
+  -- knows nothing of a descriptor and would silently fall back to its own hardcoded default,
+  -- so without this line the two sides of that toggle would stop agreeing the moment the
+  -- catalog named a different key. Nil under the chord shape, where no key is involved.
+  keyCode = hyperTrigger.keyCode,
   tapThreshold = 0.2,
   onTap = function()
     hs.hid.capslock.toggle()
