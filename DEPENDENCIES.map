@@ -94,6 +94,13 @@ hs                       | manual    | the Hammerspoon cask ships the CLI inside
 
 # Core capabilities from Olm's own lib. A plugin declares one of these to receive it from
 # the composition root, so the line below only says which file answers for the name, never
-# how to install anything.
-paste   | olm       | lib/paste.lua
-recency | olm       | lib/recency.lua
+# how to install anything. The six atoms below are taken by the composition root itself
+# rather than by a plugin, since it hands each one to the spoon global of the same name.
+paste      | olm       | lib/paste.lua
+recency    | olm       | lib/recency.lua
+panel      | olm       | lib/panel.lua
+cheatsheet | olm       | lib/cheatsheet.lua
+chordkey   | olm       | lib/chordkey.lua
+hyperkey   | olm       | lib/hyperkey.lua
+chooser    | olm       | lib/chooser/init.lua
+deps       | olm       | lib/deps.lua

@@ -6,6 +6,12 @@
 # package management. The consumer column names the file that declared the line,
 # so to change one, edit the declaration beside that file and run this again.
 hammerspoon | app | org.hammerspoon.Hammerspoon | required | hammerspoon | the application this entire module configures
+panel | core | lib/panel.lua | required | hammerspoon | the shared canvas surface behind every preview pane, docked hint bar, and cheat sheet
+cheatsheet | core | lib/cheatsheet.lua | required | hammerspoon | the shared overlay renderer both cheat sheets draw through
+chordkey | core | lib/chordkey.lua | required | hammerspoon | the shared hold and tap engine every leader key registers into
+hyperkey | core | lib/hyperkey.lua | required | hammerspoon | the leader modal every Hyper binding and every Hyper context binds into
+chooser | core | lib/chooser/init.lua | required | hammerspoon | the picker facade every list tool in this config is built on
+deps | core | lib/deps.lua | required | hammerspoon | the declaration reader that hands every other spoon its resolved tools
 osascript | system | /usr/bin/osascript | optional | BrowserTabs/jxa | runs the JXA that asks each browser for its open tabs
 swiftc | system | /usr/bin/swiftc | optional | BrowserTabs/permissions | builds the helper that asks for automation permission per browser
 jq | path | jq | optional | BrowserTabs/harness | reads every answer the harness gets back from the browsers and from the agent
