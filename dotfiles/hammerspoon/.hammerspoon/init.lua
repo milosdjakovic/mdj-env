@@ -56,7 +56,14 @@ hs.loadSpoon("WindowCheatSheet")
 hs.loadSpoon("AppToggler")
 hs.loadSpoon("ClipboardHistory")
 hs.loadSpoon("Caffeinate")
-hs.loadSpoon("Vpn")
+-- The olm side toggle for Vpn. The olm side copy is active, loaded by an absolute path
+-- built from hs.configdir and assigned to spoon.Vpn by hand, since it bypasses
+-- hs.loadSpoon and nothing else does that assignment for it. Every existing spoon.Vpn
+-- reference below keeps working unchanged either way. Flipping which of the two lines
+-- runs restores the original spoon, and the inventory snapshot stays identical across the
+-- flip, since both leave spoon.Vpn set to a module carrying that one name.
+spoon.Vpn = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/vpn/init.lua")
+-- hs.loadSpoon("Vpn")
 hs.loadSpoon("Capture")
 hs.loadSpoon("Eyedropper")
 hs.loadSpoon("WorkspaceEngine")
@@ -1591,11 +1598,15 @@ end
 -- the missing backend and its install command, so this wiring is safe on any machine and
 -- explains itself. The open key is a base HyperKey binding, suppressed while a modal
 -- context owns Hyper.
+-- recency is the shared lift to front service from Olm, one instance built against the
+-- same settings key the hand rolled block used before this conversion, so the remembered
+-- city order a person already has carries across the toggle in both directions.
 local vpnPanel = shortcutPanelFor("vpn")
 spoon.Vpn.configure({
   theme = settings.chooserTheme,
   chooser = spoon.Chooser,
   deps = depsFor("Vpn"),
+  recency = spoon.Olm.lib.recency.new({ settingsKey = "Vpn.recentLocations" }),
   onPositioned = vpnPanel.onPositioned,
   onActivity = vpnPanel.onActivity,
   onClose = vpnPanel.onClose,

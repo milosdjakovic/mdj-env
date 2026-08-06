@@ -296,6 +296,17 @@ main. For ordinary in place work on the already live config, reload with `hs -c
 "hs.reload()"` as above. The worktree lock is only for taking a worktree's own
 copy live in isolation.
 
+The lean test surface isolates one tool so nothing else in the full root can be
+the cause of what a live test shows. `lean-init.lua`, beside `init.lua`, is a
+minimal composition root loading only the tool under test and its direct needs,
+built once against the tool a given phase is testing and swapped for the next
+tool a later phase takes on. `bin/hs-devlock acquire --lean` takes it live in
+place of the full config, the same lock and the same relaunch, so `status`
+reports which of the two is actually live rather than leaving that implied.
+`--manual` composes with it exactly as it does for the full config, for a hands
+on test the user tries by hand rather than one driven automatically. Release is
+unchanged either way and always restores main.
+
 The console is a gate, read it after every load. The unit runner and the
 inventory snapshot only see what they ask about, and a spoon that fails to load
 still leaves both green while the console carries the error. So after every
