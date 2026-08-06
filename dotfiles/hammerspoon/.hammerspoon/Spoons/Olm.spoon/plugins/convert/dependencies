@@ -1,0 +1,6 @@
+# What this spoon needs from outside Hammerspoon.
+# Format is name | kind | locator | policy | reason. See Dependencies.spoon.
+# Required, because this spoon is nothing but a front end onto the calculator tool. With
+# it absent the root leaves the spoon out of the launcher's row sources entirely, so no
+# dead row appears, and arithmetic keeps working because that is a separate spoon.
+qalc | path | qalc | required | evaluating unit and currency conversions
