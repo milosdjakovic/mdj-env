@@ -17,6 +17,11 @@
 #   xcode-clt  ships with the Xcode command line tools, detail is how to install those
 #   macos      ships with the operating system, detail says so and there is nothing to install
 #   manual     installed by hand, detail says how, for anything no package manager covers
+#   olm        a capability from Olm's own lib, detail is the lib file path relative to
+#              Spoons/Olm.spoon. Nothing is installed for this origin, since the name is
+#              already present in the repository, so this line only says which file answers
+#              for it, and the reconciler proves presence by that file existing rather than
+#              by asking a package manager.
 #
 # A tool macOS already ships may still be mapped to a formula rather than to macos, when the
 # version that ships is too old or too new to rely on. That is why trash is a formula even
@@ -86,3 +91,9 @@ ioreg                    | macos     | ships with macOS
 open                     | macos     | ships with macOS
 qlmanage                 | macos     | ships with macOS
 hs                       | manual    | the Hammerspoon cask ships the CLI inside the app, run hs.ipc.cliInstall() once from the Hammerspoon console to symlink it onto the PATH
+
+# Core capabilities from Olm's own lib. A plugin declares one of these to receive it from
+# the composition root, so the line below only says which file answers for the name, never
+# how to install anything.
+paste   | olm       | lib/paste.lua
+recency | olm       | lib/recency.lua
