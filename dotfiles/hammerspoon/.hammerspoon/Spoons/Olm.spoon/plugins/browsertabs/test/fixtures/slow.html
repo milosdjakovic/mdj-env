@@ -1,0 +1,19 @@
+<title>bttest slow</title>
+<style>body{font:14px system-ui;padding:2rem}</style>
+<h1 id="h">loading</h1>
+<script>
+  // A page that renames itself after it has been listed. This reproduces two things at once. A
+  // page that finishes loading and retitles between the listing and the choice, which happened by
+  // accident to an ordinary shopping page during the investigation and made a correct round read
+  // as wrong. And the hazard a discarded tab carries, since a discarded tab reloads when it is
+  // selected and its title is not settled at the moment the window name is read.
+  var q = new URLSearchParams(location.search);
+  var t = q.get("t") || "slow";
+  var wait = parseInt(q.get("wait") || "1500", 10);
+  document.title = t + " loading";
+  document.getElementById("h").textContent = t + " loading";
+  setTimeout(function () {
+    document.title = t + " settled";
+    document.getElementById("h").textContent = t + " settled";
+  }, wait);
+</script>
