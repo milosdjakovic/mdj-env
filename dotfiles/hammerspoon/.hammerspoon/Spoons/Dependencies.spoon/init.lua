@@ -73,7 +73,11 @@ local SPOONS_DIR = selfPath:match("^(.*)/[^/]+/$")
 -- command.
 local SAFE = "^[%w._+/-]+$"
 
-local KINDS = { path = true, system = true, app = true, manual = true }
+-- core is recognised so a line naming it parses cleanly, but it is never probed. It names
+-- a capability the root already resolves at wiring time by injection, so this file has no
+-- business asking whether it is present, and configure below keeps every core entry out of
+-- the declared and order sets that start, missing, satisfied, and report all read from.
+local KINDS = { path = true, system = true, app = true, manual = true, core = true }
 local POLICIES = { optional = true, required = true }
 
 --- Dependencies:init()
@@ -210,9 +214,15 @@ function obj:configure(opts)
     for _, file in ipairs(declarationFiles(dir .. "/" .. entry, 1, {})) do
       local owner = file.base and (consumer .. "/" .. file.base) or consumer
       for _, e in ipairs(readFile(file.path, consumer, owner)) do
-        self._declared[consumer] = self._declared[consumer] or {}
-        self._declared[consumer][e.name] = e
-        self._order[#self._order + 1] = e
+        -- A core entry parsed cleanly above, but it never enters the declared or order
+        -- sets, so it never reaches the probe, the summary count, or a consumer's own
+        -- missing and satisfied. The root hands it out directly at wiring time, and this
+        -- file has no business with it either way.
+        if e.kind ~= "core" then
+          self._declared[consumer] = self._declared[consumer] or {}
+          self._declared[consumer][e.name] = e
+          self._order[#self._order + 1] = e
+        end
       end
     end
   end

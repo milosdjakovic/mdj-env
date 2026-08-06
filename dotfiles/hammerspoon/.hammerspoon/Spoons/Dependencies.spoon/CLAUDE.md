@@ -33,7 +33,10 @@ removes some.
 A `path` tool is a binary on the login PATH. A `system` tool is a binary at a
 fixed absolute path from macOS or the Xcode command line tools. An `app` is a
 macOS application with no binary anywhere, probed by bundle id. A `manual` tool
-is installed by a clone or a script, so it declares a marker path to test.
+is installed by a clone or a script, so it declares a marker path to test. A
+`core` kind is recognised too, and deliberately skipped, since it names a
+capability the root resolves at wiring time, and this file has no cause to
+probe for it.
 
 The set is not speculative. Capture has one provider backed by a binary and
 another backed by an application checked by bundle id, so a binary only model
