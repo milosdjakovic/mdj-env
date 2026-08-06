@@ -398,7 +398,7 @@ TRIGGERS.chord = function(host, spec)
     defer(wasShown and OVERLAY_SETTLE or 0, fn)
   end
 
-  -- The OS autorepeat of a held key. Only a binding that asked for repeat re-fires, matching
+  -- The OS autorepeat of a held key. Only a binding that asked for repeat runs again, matching
   -- the engine, so a toggle fires once however long the key is held while a nav key scrolls.
   local function fireRepeat(code)
     local flags = hs.eventtap.checkKeyboardModifiers() or {}
