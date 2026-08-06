@@ -2042,6 +2042,11 @@ spoon.TextCase:configure({
 --
 -- Its browserTabs Hyper context (config/keys.lua) drives the j, k, i, and x shortcuts through
 -- the choosers registry below.
+-- recency is the shared lift to front service from Olm, one instance built against the same
+-- settings key and the same limit the hand rolled recency.lua module used before this
+-- conversion, so the remembered tab order a person already has carries across the toggle in
+-- both directions. It is built only on the olm side, since the original spoon carries its own
+-- recency.lua and reads opts.recencyKey instead, so nil here leaves that side untouched.
 local browserProviders = spoon.BrowserTabs.providers
 spoon.BrowserTabs:init()
 spoon.BrowserTabs:configure({
@@ -2051,6 +2056,7 @@ spoon.BrowserTabs:configure({
     browserProviders.arc,
   },
   defaultEnabled = { apps.Safari },
+  recency = BROWSERTABS_ON_OLM and spoon.Olm.lib.recency.new({ settingsKey = "BrowserTabs.recentTabs", limit = 2000 }) or nil,
 })
 spoon.BrowserTabs:start()
 -- The surface is wired the way every other native chooser is, the factory, the shared theme,
