@@ -1,0 +1,7 @@
+# The marker that switches the harness on. It must never be committed, because a committed marker
+# would load the harness into every normal config on every machine.
+ENABLED
+
+# Witness records from the last run, which are evidence for the person who ran it and mean nothing
+# to anyone else.
+results/
