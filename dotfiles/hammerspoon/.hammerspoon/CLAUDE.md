@@ -296,6 +296,29 @@ main. For ordinary in place work on the already live config, reload with `hs -c
 "hs.reload()"` as above. The worktree lock is only for taking a worktree's own
 copy live in isolation.
 
+The console is a gate, read it after every load. The unit runner and the
+inventory snapshot only see what they ask about, and a spoon that fails to load
+still leaves both green while the console carries the error. So after every
+reload, every lock switch, and every land that goes live, read the console and
+treat any error line as a failing gate. With the port up, ask
+`hs.console.getConsole()` through a dofile script and grep the text. With the
+port dead, the config almost certainly died before reaching the `hs.ipc` require
+near the end of `init.lua`, which means the dead port is itself the symptom of a
+load error, and the console can still be read from outside through accessibility,
+`osascript` asking System Events for the text area of the Hammerspoon Console
+window. Never relaunch Hammerspoon to recover before capturing the console,
+since a relaunch wipes the scrollback that holds the only copy of the error.
+
+Stow only links what existed the last time it ran. The resting main config at
+`~/.hammerspoon` is a folded stow tree, a real `Spoons` directory holding one
+symlink per spoon, so a spoon directory born after the last stow run is simply
+absent from it, and `hs.loadSpoon` fails on resting main while every worktree
+test passes, because the devlock points Hammerspoon at the checkout directly and
+the checkout always has every file. After landing anything that adds a new top
+level entry to the hammerspoon package, a new spoon or a new file beside
+`init.lua`, rerun stow for the package and then confirm resting main loads with
+a clean console. Landing on main is not done until the stowed view proves it.
+
 **DisplayProfiles.** Keeps display arrangements deterministic on top of what
 macOS remembers, using the `displayplacer` command line tool (in the Brewfile).
 macOS still scrambles the main display, scaling, or window positions when a dock
