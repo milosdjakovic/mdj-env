@@ -198,10 +198,15 @@ pattern, never before.
 
 ## Phase 4, the dependency kind
 
-- [ ] Packet, the new kind in `src/check-dependencies.sh` and the map.
-- [ ] Build, QA, rework.
-- [ ] Gate, the reconciler clean, including one deliberate violation refused readably.
-- [ ] Land.
+- [x] Packet, the new kind in `src/check-dependencies.sh` and the map. Written 2026-08-06 at
+      `docs/superpowers/packets/2026-08-06-packet-core-kind.md`.
+- [x] Build, QA, rework. Landed in five commits ending at `d58b0f1`, the rework teaching the
+      runtime resolver to recognise and skip the core kind.
+- [x] Gate, the reconciler clean, including one deliberate violation refused readably. Ran the
+      reconciler clean plus two deliberate violations refused readably, an undeclared handout and
+      a plugin reaching for `spoon.Olm` on its own.
+- [x] Land. Merged 2026-08-06 in `424d5a3`, resting main verified live with a clean console after
+      the land.
 
 ## Phase 5, the remaining atoms into core
 
