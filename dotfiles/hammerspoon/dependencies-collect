@@ -77,6 +77,11 @@ done < <(find "$SPOONS_DIR" -type f \( -name dependencies -o -name '*.dependenci
 # names the spoon, and a <base>.dependencies file adds its base, so the label reads
 # Capture/macshot. The module level declaration is not under the Spoons directory, so the
 # path is unchanged by the strip and the label falls back to the module directory name.
+#
+# Olm is a host, not an owner, so a declaration under its plugins, host, or lib directory
+# is stripped of that leading segment before the first segment is read. That first segment
+# is then the plugin directory itself, so a declaration under plugins/vpn names vpn rather
+# than Olm, and a declaration under plugins/filesearch names filesearch the same way.
 owner_of() {
     local decl="$1" rel spoon base
     rel="${decl#"$SPOONS_DIR"/}"
@@ -84,6 +89,11 @@ owner_of() {
         basename "$(dirname "$decl")"
         return
     fi
+    case "$rel" in
+        Olm.spoon/plugins/*) rel="${rel#Olm.spoon/plugins/}" ;;
+        Olm.spoon/host/*) rel="${rel#Olm.spoon/host/}" ;;
+        Olm.spoon/lib/*) rel="${rel#Olm.spoon/lib/}" ;;
+    esac
     spoon="${rel%%/*}"
     spoon="${spoon%.spoon}"
     base="$(basename "$decl")"

@@ -34,11 +34,40 @@ fzf | path | fzf | optional | FileSearch/hidden | ranking that index, the one th
 fd | path | fd | optional | FileSearch/walk | walking a named directory, which is faster than the index once a scope is given and is the only way to see dotfiles
 qlmanage | system | /usr/bin/qlmanage | optional | FileSearch/thumbs | drawing a preview of a pdf, a video, or anything else only Quick Look can render
 swiftc | system | /usr/bin/swiftc | optional | FileSearch/quicklook | compiling the helper that opens the native Quick Look panel
-paste | core | lib/paste.lua | required | Olm/manager | the shared insertion engine every paste and every selection read runs through
-ffmpeg | path | ffmpeg | optional | Olm/preview | video clipboard previews
-ffprobe | path | ffprobe | optional | Olm/preview | reading a video duration so a preview frame is picked mid clip
-mullvad | path | mullvad | optional | Olm/mullvad | the relay CLI behind every VPN control and location
-recency | core | lib/recency.lua | optional | Olm/vpn | remembering the last used city, so the list opens already ordered by that
+recency | core | lib/recency.lua | optional | browsertabs/browsertabs | remembering the last opened tab, so the list opens already ordered by that
+osascript | system | /usr/bin/osascript | optional | browsertabs/jxa | runs the JXA that asks each browser for its open tabs
+swiftc | system | /usr/bin/swiftc | optional | browsertabs/permissions | builds the helper that asks for automation permission per browser
+jq | path | jq | optional | browsertabs/harness | reads every answer the harness gets back from the browsers and from the agent
+osascript | system | /usr/bin/osascript | optional | browsertabs/harness | runs the browser adapters and the accessibility witness that judges each round
+open | system | /usr/bin/open | optional | browsertabs/harness | carries each command to the harness agent as a URL, since the Hammerspoon CLI blocks while the tool has work in flight
+ioreg | system | /usr/sbin/ioreg | optional | browsertabs/harness | asks the window server whether the screen is locked, which the accessibility layer cannot be trusted to report about itself
+caffeinate | system | /usr/bin/caffeinate | optional | browsertabs/harness | holds the display awake for a run, since a suite drives the machine with synthesised events and the idle timer does not count those
+ocr | path | ocr | optional | capture/macocr | the OCR backend, the sole handler of text capture
+macshot | app | com.sw33tlie.macshot.macshot | optional | capture/macshot | the preferred screenshot backend, native is the fallback
+paste | core | lib/paste.lua | required | clipboard/manager | the shared insertion engine every paste and every selection read runs through
+ffmpeg | path | ffmpeg | optional | clipboard/preview | video clipboard previews
+ffprobe | path | ffprobe | optional | clipboard/preview | reading a video duration so a preview frame is picked mid clip
+qalc | path | qalc | required | convert | evaluating unit and currency conversions
+displayplacer | path | displayplacer | optional | displayprofiles/engine | reading and applying display arrangements
+jq | path | jq | optional | emoji/regenerate | reshaping both upstream sources into the vendored dataset
+perl | path | perl | optional | emoji/regenerate | parsing the Unicode Character Database into candidate rows
+hs | path | hs | optional | emoji/regenerate | rendering every candidate glyph to drop the ones that draw as a box, and writing the dataset
+swiftc | system | /usr/bin/swiftc | optional | eyedropper | compiles the native colour sampler helper
+fd | path | fd | optional | filesearch/hidden | building the index of paths Spotlight cannot see
+fzf | path | fzf | optional | filesearch/hidden | ranking that index, the one thing a substring tool cannot do over 42 thousand matches
+fd | path | fd | optional | filesearch/walk | walking a named directory, which is faster than the index once a scope is given and is the only way to see dotfiles
+qlmanage | system | /usr/bin/qlmanage | optional | filesearch/thumbs | drawing a preview of a pdf, a video, or anything else only Quick Look can render
+swiftc | system | /usr/bin/swiftc | optional | filesearch/quicklook | compiling the helper that opens the native Quick Look panel
+ps | system | /bin/ps | optional | processes/metrics | samples cpu and memory for the rows the picker is showing
+docker | path | docker | optional | processes/docker | lists running containers and stops one by name
+lsof | system | /usr/sbin/lsof | optional | processes/ports | finds which process holds a listening port
+ps | system | /bin/ps | optional | processes/ports | reads the command, start time, and working directory of a holder
+kill | system | /bin/kill | optional | processes/ports | stops a holder, gracefully first and forcefully on request
+ps | system | /bin/ps | optional | processes/runtimes | finds candidate runtime processes and reads their working directory
+lsof | system | /usr/sbin/lsof | optional | processes/runtimes | checks whether a candidate holds a socket, the evidence that separates a dev server from a stray process
+kill | system | /bin/kill | optional | processes/runtimes | stops a runtime process, gracefully first and forcefully on request
+mullvad | path | mullvad | optional | vpn/mullvad | the relay CLI behind every VPN control and location
+recency | core | lib/recency.lua | optional | vpn/vpn | remembering the last used city, so the list opens already ordered by that
 ps | system | /bin/ps | optional | Processes/metrics | samples cpu and memory for the rows the picker is showing
 docker | path | docker | optional | Processes/docker | lists running containers and stops one by name
 lsof | system | /usr/sbin/lsof | optional | Processes/ports | finds which process holds a listening port
