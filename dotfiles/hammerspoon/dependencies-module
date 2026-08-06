@@ -11,3 +11,21 @@
 # Named dependencies-module rather than dependencies because this directory already holds the
 # generated DEPENDENCIES, and on a case insensitive filesystem those two names are one file.
 hammerspoon | app | org.hammerspoon.Hammerspoon | required | the application this entire module configures
+
+# The six core capabilities the composition root takes for itself in phase five of the olm
+# build plan. Each one is an atom that moved into Olm's lib, and the root assigns it to the
+# spoon global of the same name so every existing call site keeps working while the original
+# spoon sits untouched beside it. They belong here rather than beside a spoon because the
+# taker is init.lua, which is the module as a whole rather than anything inside it, and it is
+# the one file in this config that no spoon owns.
+#
+# Required, all six, because there is no degraded config without them. Nothing here decides
+# whether the copies or the originals are live, that is the one boolean in init.lua. These
+# lines only say that the root is handed these six and that the files answering for them are
+# where they are supposed to be.
+panel | core | lib/panel.lua | required | the shared canvas surface behind every preview pane, docked hint bar, and cheat sheet
+cheatsheet | core | lib/cheatsheet.lua | required | the shared overlay renderer both cheat sheets draw through
+chordkey | core | lib/chordkey.lua | required | the shared hold and tap engine every leader key registers into
+hyperkey | core | lib/hyperkey.lua | required | the leader modal every Hyper binding and every Hyper context binds into
+chooser | core | lib/chooser/init.lua | required | the picker facade every list tool in this config is built on
+deps | core | lib/deps.lua | required | the declaration reader that hands every other spoon its resolved tools
