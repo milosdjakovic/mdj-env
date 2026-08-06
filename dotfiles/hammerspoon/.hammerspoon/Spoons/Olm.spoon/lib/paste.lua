@@ -6,7 +6,9 @@
 --- with the code and lives in this spoon's CLAUDE.md.
 ---
 --- One instance and no factory. The machine has one pasteboard and one guard state, so a
---- second instance would split the guard and each half would hide only its own writes.
+--- second instance would split the guard and each half would hide only its own writes. That
+--- one instance is shared by every caller, which is why configure merges rather than replaces,
+--- see its own comment below.
 ---
 --- Every paste funnels through one primitive, pasteOp, and the callers differ only in the
 --- options they hand it, whether to put the previous pasteboard back afterwards and what to run
@@ -831,6 +833,14 @@ end
 --- M.configure(opts) - the injection door, every field optional, so a caller that only pastes
 --- text needs none of them and this module works straight out of the box.
 ---
+--- This may be called more than once, and a call touches only the fields it names. Everything
+--- it does not name keeps whatever it already held, so a second consumer can wire the one field
+--- it cares about without knowing what an earlier caller set and without having to repeat it.
+--- That follows from there being one shared instance rather than one per caller, which makes
+--- more than one call the expected case rather than a mistake. Nothing can be unset back to nil
+--- through here, and nothing needs to be, since a field is either wired once at start or never
+--- wired at all.
+---
 --- opts.pasteDelay is the beat before the synthetic Cmd+V, defaulting to a tenth of a second.
 --- opts.resolveFilePaths is the transform writtenFilePaths applies to the { content, name }
 --- items it is about to turn into paths for the pasteboard, absent by default, so nothing about
@@ -839,9 +849,9 @@ end
 --- which case a file restore answers to the changeCount alone.
 function M.configure(opts)
   opts = opts or {}
-  pasteDelay = opts.pasteDelay or pasteDelay
-  resolveFilePaths = opts.resolveFilePaths
-  currentFilePaths = opts.currentFilePaths
+  if opts.pasteDelay ~= nil then pasteDelay = opts.pasteDelay end
+  if opts.resolveFilePaths ~= nil then resolveFilePaths = opts.resolveFilePaths end
+  if opts.currentFilePaths ~= nil then currentFilePaths = opts.currentFilePaths end
   return M
 end
 
