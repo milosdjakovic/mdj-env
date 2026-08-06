@@ -67,6 +67,19 @@ line in the VPN row was a second copy of an answer the repository already held o
 it is a disabled row and a console line that name the gap and stop, and the repository
 answers where the tool comes from.
 
+**A core kind is the one exception, and it says so.** A plugin under
+`Spoons/Olm.spoon/plugins/` names a capability handed out by Olm itself, `paste` or
+`recency`, through the same five field line and the same collector, but this line decides
+injection rather than installation. Nothing under this kind gets installed, its whole
+answer already sits inside the repository, at a lib file the map still names, under one
+new origin called `olm`, so the map stays the single place that says where any name comes
+from. The reconciler ties every `spoon.Olm.lib.` reference across the module back to a
+declaration carrying this kind, a capability handed out with no line naming it is an
+error, and a declared one nothing reads is a question rather than a defect. A plugin never
+reaches for `spoon.Olm` on its own either way, it only ever receives its slice through its
+own `configure`, so the door this kind opens is the same one every other kind already
+keeps.
+
 A need that belongs to the whole module rather than to any spoon goes in
 `dotfiles/hammerspoon/dependencies-module`, which the collector folds in first and
 stamps with the module name. Today that is the Hammerspoon application itself, which
