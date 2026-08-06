@@ -15,11 +15,12 @@
 --- under test, and the scaffold above it does not change, other than the one word
 --- naming the tool in the scaffold's own announcement, called out where it sits.
 ---
---- This copy carries Vpn, the phase two live test of the olm side copy at
---- Spoons/Olm.spoon/plugins/vpn, converted to the shared recency service, against
---- the original at Spoons/Vpn.spoon. The two line toggle in the tool section below
---- flips between them, the same shape the full root's own toggle carries, so one
---- comment restores the original.
+--- This copy carries Clipboard, the phase three live test of the olm side copy at
+--- Spoons/Olm.spoon/plugins/clipboard, whose insertion half now lives in the shared
+--- engine at Spoons/Olm.spoon/lib/paste.lua, against the original at
+--- Spoons/ClipboardHistory.spoon. The boolean in the tool section below flips
+--- between them, the same shape the full root's own toggle carries, so one edit
+--- restores the original.
 
 --------------------------------------------------------------------------------
 -- Permanent scaffold. Every future lean test keeps this section as it stands, and
@@ -38,7 +39,7 @@ require("hs.ipc")
 -- carrying is the one piece of this announcement that changes when a later phase
 -- swaps the tool section below for its own tool, everything else in this file's
 -- permanent scaffold does not.
-print("lean-init.lua is live, carrying Vpn")
+print("lean-init.lua is live, carrying Clipboard")
 
 local settings = require("config.settings")
 
@@ -66,33 +67,74 @@ spoon.Olm.lib.storage.configure(settings.paths)
 -- configure fields, the hotkey, and the two console lines, for its own tool.
 --------------------------------------------------------------------------------
 
--- The olm side toggle for Vpn, the same two lines and the same reasoning the full
--- root carries beside its own hs.loadSpoon calls. The olm side copy is active,
--- loaded by dofile off hs.configdir since it bypasses hs.loadSpoon and nothing
--- else does that assignment for it. Comment the line below and uncomment the one
--- under it to load the original instead, and both leave spoon.Vpn set to a module
--- carrying that one name.
-spoon.Vpn = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/vpn/init.lua")
--- hs.loadSpoon("Vpn")
+-- The olm side toggle for Clipboard, one boolean read by the load below, the same
+-- shape and the same reasoning the full root carries beside its own. True loads the
+-- olm side copy by an absolute path built from hs.configdir, since it bypasses
+-- hs.loadSpoon and nothing else does that assignment for it, and false loads the
+-- original spoon instead. Both leave spoon.ClipboardHistory set to a module carrying
+-- that one name, so everything below reads the same either way.
+local CLIPBOARD_ON_OLM = true
+if CLIPBOARD_ON_OLM then
+  spoon.ClipboardHistory = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/clipboard/init.lua")
+else
+  hs.loadSpoon("ClipboardHistory")
+end
 
--- Only the fields the copy actually requires. theme, chooser, and deps are read at
--- start, and recency is required by this copy's own configure, the shared lift to
--- front service built against the same settings key the full root uses, so a
--- remembered city order carries across both this toggle and the one in init.lua.
--- onPositioned, onActivity, and onClose dock the full root's shared shortcut
--- panel, and this surface docks no panel, so they are left out entirely.
-spoon.Vpn.configure({
-  theme = settings.chooserTheme,
+-- The message surface. Both keys below change something the tester cannot otherwise
+-- see, a position in a list and an entry growing offscreen, so every signal they
+-- produce goes through onMessage, a step that pasted and what it was, a file that has
+-- gone, the end of history, an empty history, an append that found nothing selected.
+-- Without this the walk and the append are silent and there is nothing to judge by eye,
+-- which is the whole of the live tier for this phase. The full root draws these on the
+-- shared CanvasPanel, which this surface does not load, so hs.alert is enough here, the
+-- smallest thing that is visible. Each message closes the one before it rather than
+-- stacking, since a burst of walk steps fires one per press and a pile of overlapping
+-- alerts hides exactly the behaviour a burst is being watched for.
+local leanMessage = nil
+local function showLeanMessage(text)
+  if leanMessage then
+    hs.alert.closeSpecific(leanMessage)
+  end
+  leanMessage = hs.alert.show(text, 1.2)
+end
+
+-- Only the fields this surface actually requires. The chooser factory and the theme
+-- because the picker is built from them, the matcher because the list owns its own
+-- filtering and calls it directly, the insertion engine because every paste and every
+-- selection read the copy makes goes through it, and the message surface above.
+-- Everything else the full root passes is presentation or a video preview tool, and
+-- none of it is what a paste test looks at. The engine is injected only on the olm
+-- side, since the original spoon carries that half inside its own monitor.
+spoon.ClipboardHistory.manager.configure({
   chooser = spoon.Chooser,
-  deps = depsFor("Vpn"),
-  recency = spoon.Olm.lib.recency.new({ settingsKey = "Vpn.recentLocations" }),
+  theme = settings.chooserTheme,
+  matcher = spoon.Chooser.matchers.words,
+  paste = CLIPBOARD_ON_OLM and spoon.Olm.lib.paste or nil,
+  onMessage = showLeanMessage,
 })
-spoon.Vpn.start()
+spoon.ClipboardHistory.manager.start()
 
--- One plain hotkey, not routed through HyperKey or ChordKey since neither loads
--- on this surface, so the tester has one obvious way in and never has to guess it.
+-- Three plain hotkeys, not routed through HyperKey or ChordKey since neither loads on
+-- this surface, so the tester has three obvious ways in and never has to guess one.
+-- The list, and then the two keys the measurement trail is about, append copy gathering
+-- a selection onto the newest entry and paste next walking the history one entry per
+-- press, which is the sequence this phase most needs exercised end to end. Those two
+-- are the real combos from the full config rather than lean substitutes, because both
+-- are pressed mid edit against a physically held chord and that hold is itself one of
+-- the things being tested.
 local LEAN_MODS, LEAN_KEY = { "cmd", "alt", "ctrl" }, "V"
 hs.hotkey.bind(LEAN_MODS, LEAN_KEY, function()
-  spoon.Vpn.show()
+  spoon.ClipboardHistory.manager.show()
 end)
-print("press " .. table.concat(LEAN_MODS, "+") .. "+" .. LEAN_KEY .. " to open Vpn")
+local WALK_MODS = { "ctrl", "alt" }
+hs.hotkey.bind(WALK_MODS, "C", function()
+  spoon.ClipboardHistory.manager.appendCopy()
+end)
+hs.hotkey.bind(WALK_MODS, "V", function()
+  spoon.ClipboardHistory.manager.pasteNext()
+end)
+local leanCombo = table.concat(LEAN_MODS, "+") .. "+" .. LEAN_KEY
+local walkCombo = table.concat(WALK_MODS, "+")
+print("press " .. leanCombo .. " to open the clipboard history")
+print("press " .. walkCombo .. "+C to append the selection onto the newest entry")
+print("press " .. walkCombo .. "+V to paste the next entry in a walk")
