@@ -42,10 +42,26 @@ end
 --- lib/recency.lua for its api. Paste is the insertion engine, one shared
 --- instance rather than a factory since the machine has one pasteboard, see
 --- lib/paste.lua for its api and for the boundary it draws.
+---
+--- The six below arrived in phase five, copies of the six atom spoons the design
+--- names as core, each a faithful copy of the spoon it came from so the composition
+--- root can hand it straight to that spoon's global and leave every existing call
+--- site alone. Chooser is the picker facade, a directory rather than a file because
+--- it loads a matcher and a backend of its own. Panel is the shared canvas surface,
+--- cheatsheet the overlay renderer that draws through it, chordkey the hold and tap
+--- engine under every leader, hyperkey the leader modal every context binds into,
+--- and deps the declaration reader. Each is loaded here and named nowhere else in
+--- this file, so the root decides what becomes of it.
 obj.lib = {
   storage = load("lib/storage.lua"),
   recency = load("lib/recency.lua"),
   paste = load("lib/paste.lua"),
+  chooser = load("lib/chooser/init.lua"),
+  panel = load("lib/panel.lua"),
+  cheatsheet = load("lib/cheatsheet.lua"),
+  chordkey = load("lib/chordkey.lua"),
+  hyperkey = load("lib/hyperkey.lua"),
+  deps = load("lib/deps.lua"),
 }
 
 return obj
