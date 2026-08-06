@@ -63,10 +63,11 @@ hs.loadSpoon("KeyRemap")
 -- Chooser docks that same panel, so a half flipped set would have a copy holding a reference
 -- to an original and the seam between them would be live rather than a clean either or.
 --
--- An assignment does not call init the way hs.loadSpoon does, but the root calls init on
--- every one of these by hand further down before it uses them, and each of those inits only
--- resets its own tables, so both sides reach the same state with the same effects in the
--- same order.
+-- An assignment does not call init the way hs.loadSpoon does. Five of the six are given one by
+-- hand further down before anything uses them, and each of those inits only resets its own
+-- tables, so both sides reach the same state. CanvasPanel is the sixth and the root only ever
+-- configures it, so its init is called here instead and the rule holds for all six. It returns
+-- self and touches nothing, which is why calling it this early is safe.
 local ATOMS_ON_OLM = true
 if ATOMS_ON_OLM then
   spoon.Dependencies = spoon.Olm.lib.deps
@@ -74,6 +75,7 @@ if ATOMS_ON_OLM then
   spoon.CheatSheet = spoon.Olm.lib.cheatsheet
   spoon.Chooser = spoon.Olm.lib.chooser
   spoon.CanvasPanel = spoon.Olm.lib.panel
+  spoon.CanvasPanel:init()
   spoon.HyperKey = spoon.Olm.lib.hyperkey
 else
   hs.loadSpoon("Dependencies")
@@ -296,32 +298,36 @@ spoon.ChordKey:configure({ holdDelay = 0.6, tapThreshold = 0.2, passthrough = tr
 local revealHyperLayer, hideHyperLayer
 
 -- What physically means Hyper, read as data and finished here. config/settings.lua names a
--- shape and nothing else, this resolves whatever that shape still needs, and the hyperkey
--- atom owns one strategy per shape. The leader shape needs a keycode, and the catalog that
--- answers for it is this root's to read and nobody else's, so the lookup happens here and the
--- settings block stays free of any key. This is now the one site in this file that says Hyper
--- can be a keycode at all, and it says it only for that shape.
+-- shape and nothing else, this fills in whatever only this root can know, and the hyperkey
+-- atom owns one strategy per shape.
 --
--- The chord shape needs the atom toggle above to be on, since the strategies live in the olm
--- side copy and the original spoon knows only its one key. Asking for a chord with that toggle
--- off leaves the original on today's leader key, silently, so the two switches are only
--- independent in the direction that already worked. That ends when the originals retire.
+-- The catalog keycode is resolved WHATEVER shape was asked for, and that is deliberate. The
+-- catalog is this root's to read and nobody else's, so the lookup can only happen here, and
+-- three separate readers want the answer. The leader shape uses it as its key. The atom's own
+-- fallback uses it when a descriptor cannot be honoured, so a bad chord lands on the real
+-- leader key rather than on some default. And the original spoon behind the atom toggle above
+-- knows nothing of a descriptor at all and reads only the plain keyCode option, so resolving
+-- conditionally would leave it on its own hardcoded default whenever a chord was configured,
+-- agreeing with the catalog by coincidence today and silently disagreeing the day the catalog
+-- names another key. The chord strategy simply ignores it.
+--
+-- The chord shape still needs the atom toggle above to be on, since the strategies live only
+-- in the olm side copy. Asking for a chord with that toggle off leaves the original spoon on
+-- the leader key from the catalog, correctly rather than by luck, but a leader key all the
+-- same. So the two switches are independent in one direction only, and that ends when the
+-- originals retire.
 local hyperTrigger = {}
 for k, v in pairs(settings.hyperTrigger or {}) do hyperTrigger[k] = v end
 hyperTrigger.kind = hyperTrigger.kind or "leader"
-if hyperTrigger.kind == "leader" then
-  hyperTrigger.keyCode = leaderCode(keys.appLeader) -- resolved from the catalog (HYPER -> F18)
-end
+hyperTrigger.keyCode = leaderCode(keys.appLeader) -- resolved from the catalog (HYPER -> F18)
 
 spoon.HyperKey:init()
 spoon.HyperKey:configure({
   chord = spoon.ChordKey,
   trigger = hyperTrigger,
-  -- The same keycode a second time, for the leader shape only. The olm side copy reads it off
-  -- the descriptor and does not need this, but the original spoon behind the atom toggle above
-  -- knows nothing of a descriptor and would silently fall back to its own hardcoded default,
-  -- so without this line the two sides of that toggle would stop agreeing the moment the
-  -- catalog named a different key. Nil under the chord shape, where no key is involved.
+  -- The same keycode a second time, as the plain option, because the original spoon behind the
+  -- atom toggle reads only this one and the copy's leader fallback reads it too. Both sides of
+  -- that toggle then say the same thing about which key Hyper is.
   keyCode = hyperTrigger.keyCode,
   tapThreshold = 0.2,
   onTap = function()

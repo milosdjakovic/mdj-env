@@ -319,8 +319,24 @@ local OVERLAY_SETTLE = 0.05
 --- their when gates exactly as they do under the key shape. And it watches flagsChanged for
 --- the chord held alone, since holding modifiers presses no key and fires no hotkey, which is
 --- the only way the hold reveal can exist at all here.
+---
+--- WHERE IT IS NOT THE KEY SHAPE, and cannot be. A combination nobody claimed runs no code
+--- here at all, so a hold that presses an unbound key neither dispatches nor even notices the
+--- press, where the key shape sees every key through its own tap and can end a hold on any of
+--- them. A combination that IS claimed is claimed machine wide, so it is swallowed even at a
+--- moment when every binding on it is gated shut, where the key shape would leak it downstream
+--- through passthrough. And a sub modifier already inside the chord collapses into the base
+--- combination, which is warned about once at load and cannot be repaired here.
+---
+--- Refuses a descriptor naming no modifiers, since claiming every Hyper key as a bare global
+--- hotkey would take the whole keyboard. See _strategy for what a refusal falls back to.
 TRIGGERS.chord = function(host, spec)
   local chordMods = spec.mods or {}
+  if #chordMods == 0 then
+    return nil, "the chord trigger names no modifiers, which would claim every Hyper key as a bare global hotkey"
+  end
+  local chordSet = {}
+  for _, m in ipairs(chordMods) do chordSet[m] = true end
 
   -- One hs.hotkey per distinct pairing of a key with a resolved modifier set. Held in a table
   -- so a bound combination is never collected, and claimed once so a second binding on the
@@ -359,15 +375,26 @@ TRIGGERS.chord = function(host, spec)
     return out
   end
 
+  -- The modifiers a binding is RESOLVED against, which is what is held minus the chord itself.
+  -- The chord is the trigger and not part of what any binding asked for, exactly as the leader
+  -- key is not part of it under the other shape. Leaving it in the flags makes every binding
+  -- declaring a sub modifier fail its exact match and fall through to the catch all, so the
+  -- second tier of a key silently becomes the first. Subtracting it is what makes a binding on
+  -- Hyper plus Shift plus a key mean the same thing whichever shape is live.
+  local function withoutChord(flags)
+    local out = {}
+    for _, m in ipairs(REAL_MODS) do
+      if flags[m] and not chordSet[m] then out[m] = true end
+    end
+    return out
+  end
+
   -- Whether an event's flags are exactly the chord and nothing else, which is what arms the
   -- reveal. Exactly rather than at least, since a chord plus one more modifier is on its way
   -- to being some other combination and revealing there would be answering the wrong question.
   local function exactly(flags)
-    if #chordMods == 0 then return false end
-    local need = {}
-    for _, m in ipairs(chordMods) do need[m] = true end
     for _, m in ipairs(REAL_MODS) do
-      if (flags[m] or false) ~= (need[m] or false) then return false end
+      if (flags[m] or false) ~= (chordSet[m] or false) then return false end
     end
     return true
   end
@@ -380,14 +407,18 @@ TRIGGERS.chord = function(host, spec)
   end
 
   -- What a claimed hotkey runs. It asks the resolver exactly as the engine's onKey does, with
-  -- the modifiers read from the hardware since hs.hotkey hands its callback nothing. A press
-  -- ends a hold reveal, the same rule the engine follows. Resolving to nothing does nothing,
-  -- and the key is still swallowed, since a combination this claimed is claimed whether or not
-  -- every binding on it happens to be gated shut at that moment.
+  -- the modifiers read from the hardware since hs.hotkey hands its callback nothing, and with
+  -- the chord taken back out of them.
+  --
+  -- The hold is ended FIRST, before the resolver is even asked, which is the engine's own
+  -- order. A press is a press whether or not it turns out to mean anything, so a reveal must
+  -- come down and a pending one must be cancelled on any claimed key, or a chord holding
+  -- through a gated shut key leaves the sheet hanging over whatever opens next.
+  --
+  -- Resolving to nothing then does nothing further, and the key is still swallowed, since a
+  -- combination this claimed is claimed whether or not every binding on it happens to be gated
+  -- shut at that moment. A combination nobody claimed never reaches here at all.
   local function fire(code)
-    local flags = hs.eventtap.checkKeyboardModifiers() or {}
-    local fn = host:_resolve(host._bindings[code], flags)
-    if not fn then return end
     used = true
     cancelHold()
     local wasShown = shown
@@ -395,18 +426,47 @@ TRIGGERS.chord = function(host, spec)
       shown = false
       if host._onHoldEnd then host._onHoldEnd() end
     end
+    local flags = withoutChord(hs.eventtap.checkKeyboardModifiers() or {})
+    local fn = host:_resolve(host._bindings[code], flags)
+    if not fn then return end
     defer(wasShown and OVERLAY_SETTLE or 0, fn)
   end
 
   -- The OS autorepeat of a held key. Only a binding that asked for repeat runs again, matching
   -- the engine, so a toggle fires once however long the key is held while a nav key scrolls.
+  -- The chord comes out of the flags here too, or a nav key declaring a sub modifier would
+  -- resolve to the wrong binding on every repeat as well as on the first press.
   local function fireRepeat(code)
-    local flags = hs.eventtap.checkKeyboardModifiers() or {}
+    local flags = withoutChord(hs.eventtap.checkKeyboardModifiers() or {})
     local fn, repeats = host:_resolve(host._bindings[code], flags)
     if fn and repeats then fn() end
   end
 
+  -- A binding whose own sub modifiers overlap the chord cannot be reached, and this is the one
+  -- place that can see it. The chord is subtracted before resolving, so an overlapping sub
+  -- modifier is already gone by the time the resolver looks, its exact match can never succeed,
+  -- and the plain binding on that key answers the combination instead. The two really are one
+  -- physical combination under this chord, so there is nothing to repair and the only honest
+  -- thing is to say it out loud once at load rather than leave a key quietly doing the other
+  -- thing. Checked per binding rather than per claimed combination, so the second binding to
+  -- collapse onto a combination is named too.
+  local function warnIfUnreachable(code, subMods)
+    if not subMods or #subMods == 0 then return end
+    local overlap = {}
+    for _, m in ipairs(REAL_MODS) do
+      for _, s in ipairs(subMods) do
+        if s == m and chordSet[m] then overlap[#overlap + 1] = m end
+      end
+    end
+    if #overlap == 0 then return end
+    local name = hs.keycodes.map[code] or tostring(code)
+    log.w(string.format(
+      "the %s binding asking for %s cannot be reached under this chord, %s is already part of the chord itself, so the plain %s binding answers that combination and this one never fires",
+      tostring(name), table.concat(subMods, "+"), table.concat(overlap, "+"), tostring(name)))
+  end
+
   local function claim(code, subMods)
+    warnIfUnreachable(code, subMods)
     local combo = comboFor(subMods)
     local id = tostring(code) .. "|" .. table.concat(combo, "+")
     if claimed[id] then return end
@@ -444,7 +504,6 @@ TRIGGERS.chord = function(host, spec)
       if started then claim(code, subMods) end
     end,
     isActive = function()
-      if #chordMods == 0 then return false end
       local live = hs.eventtap.checkKeyboardModifiers() or {}
       for _, m in ipairs(chordMods) do
         if not live[m] then return false end
@@ -468,18 +527,31 @@ end
 --- HyperKey:_strategy()
 --- Method
 --- The live trigger strategy, built once from the descriptor and cached from then on, so a
---- bind arriving long after start reaches the same instance. An unknown kind falls back to
---- the leader shape and says so, since a typo leaving Hyper dead would be worse than a typo
---- leaving Hyper as it was.
+--- bind arriving long after start reaches the same instance.
+---
+--- Two ways a descriptor can fail to produce one, a kind nothing answers to and a strategy
+--- refusing the descriptor it was handed. Both land on the leader shape and both say why,
+--- because a descriptor that cannot be honoured leaving Hyper dead, or worse leaving it
+--- claiming the whole keyboard, is a great deal worse than one leaving Hyper as it was. A
+--- builder refuses by returning nil and a reason, which is the whole of that contract.
+---
+--- The fallback carries no keycode of its own and takes the one configure was given, which is
+--- why the root resolves the catalog keycode whatever shape it asked for.
 function obj:_strategy()
   if not self._trigger then
     local spec = self._triggerSpec or { kind = "leader" }
     local build = TRIGGERS[spec.kind]
-    if not build then
-      log.w("unknown trigger kind '" .. tostring(spec.kind) .. "', using the leader key")
-      build = TRIGGERS.leader
+    local built, refused
+    if build then
+      built, refused = build(self, spec)
+    else
+      refused = "unknown trigger kind '" .. tostring(spec.kind) .. "'"
     end
-    self._trigger = build(self, spec)
+    if not built then
+      log.w(tostring(refused) .. ", using the leader key instead")
+      built = TRIGGERS.leader(self, { kind = "leader" })
+    end
+    self._trigger = built
   end
   return self._trigger
 end
