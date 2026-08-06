@@ -183,7 +183,10 @@ pattern, never before.
 ## Phase 5, the remaining atoms into core
 
 - [ ] Rescan the five atoms.
-- [ ] Packet, one pass, copies under `Olm.spoon`, originals untouched, toggle in `init.lua`.
+- [ ] Packet, one pass, copies under `Olm.spoon`, originals untouched, toggle in `init.lua`. Carry
+      the 2026-08-06 requirement in the design's core table section, the Hyper trigger becomes
+      pure data in settings, a single key or a modifier chord, designed at the seam rather than
+      bolted on.
 - [ ] Build, QA, rework.
 - [ ] Gate, an empty inventory diff across the toggle flip.
 - [ ] Live test, land.

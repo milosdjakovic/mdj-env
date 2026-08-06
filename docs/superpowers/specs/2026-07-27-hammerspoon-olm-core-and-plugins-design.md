@@ -181,7 +181,17 @@ Nine things, six that exist as spoons, two that do not exist at all, and one to 
 
 That totals about thirty seven hundred lines, which makes `Olm.spoon` about the size of
 `BrowserTabs` counting only the core. Worth recording, because the usual failure of a core is that
-it becomes a monster, and this one does not. Note that the plugins bundled beside it are far larger
+it becomes a monster, and this one does not.
+
+Requirement added 2026-08-06, from the user. When `hyperkey` and `chordkey` move in, the trigger
+that means Hyper must be configuration rather than a constant, pure data in `config/settings.lua`
+the same way the storage roots are, so a person who does not have F18 swaps it for another key,
+or for a modifier chord such as shift plus ctrl plus opt plus cmd held together, without touching
+the mechanism. The two shapes are genuinely different inputs, a single key runs through the hold
+and tap engine while a modifier chord is a matter of flags on an event, so the atom's rescan and
+packet must design the seam where the two shapes meet rather than bolting the second onto the
+first. The default stays what this machine uses today, and every binding declared against Hyper
+keeps working unchanged whichever trigger is configured. Note that the plugins bundled beside it are far larger
 in total, which is fine, since bundling is about distribution and the core boundary is about
 dependency direction.
 
