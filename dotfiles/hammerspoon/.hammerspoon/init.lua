@@ -1686,215 +1686,246 @@ spoon.Launcher:start()
 -- Hyper+Space always opens the launcher. Same shape as the clipboard.
 spoon.HyperKey:bind(keys.launcher.key, function() spoon.Launcher:show() end)
 
--- Menu search: Hyper+E lists every enabled menu bar item of the frontmost app and
--- runs the chosen one. Like the launcher this is pure composition-root
--- policy over the same Chooser atom, so it adds no spoon. macOS exposes each app's
--- menus through the Accessibility API, which hs.application:getMenuItems reads; the
--- callback form does the tree walk off the main thread, so a large menu never
--- blocks Hammerspoon. The app frontmost when Hyper+E fires is captured as the
--- target, since showing the chooser takes focus, and the chosen item is dispatched
--- back to that app once focus returns to it.
---
--- Each row carries only a serializable descriptor, its menu path as a list of
--- titles, never a function, the same reason the palette rows do: hs.chooser
--- serialises each row and would silently drop a function. selectMenuItem takes
--- that path. The menu tree is fetched per open (it changes with the app and its
--- state), so the rows supplier reads a module-local list the fetch fills, and the
--- chooser is shown only once the fetch has built the rows.
+-- Declared ahead alongside menuSearchSurface above so the bind below, the launcher's menu
+-- scope registration, and the choosers list further down all read the same names whichever
+-- side of the toggle below assigns them.
+local openBuiltinMenuSearch, scopeMenuRows, scopeMenuRun
 
--- hs decodes AXMenuItemCmdModifiers into a list of modifier names (e.g. { "cmd" }
--- or { "cmd", "shift" }). Turn it plus the command char into a readable glyph for
--- the row subtitle, in the canonical ⌃⌥⇧⌘ order, or nil when the item has no
--- keyboard shortcut. Both alt/option and ctrl/control spellings are accepted.
-local function menuShortcutGlyph(char, mods)
-  if not char or char == "" then return nil end
-  local has = {}
-  for _, m in ipairs(mods or {}) do has[tostring(m):lower()] = true end
-  local g = ""
-  if has.ctrl or has.control then g = g .. "⌃" end
-  if has.alt or has.option then g = g .. "⌥" end
-  if has.shift then g = g .. "⇧" end
-  if has.cmd or has.command then g = g .. "⌘" end
-  return g .. char:upper()
-end
+-- The olm side toggle for menu search. True loads the plugin at
+-- Spoons/Olm.spoon/plugins/menusearch by an absolute path built from hs.configdir, calls
+-- init and configure on it, and assigns the four shared names above from what it hands back.
+-- False keeps today's inline implementation. The toggle sits here rather than in the top load
+-- section, because configure needs shortcutPanelFor and the launcher, and neither exists
+-- until this point in the file. Only the load flips here, and the bind, the launcher's menu
+-- scope registration, and the choosers entry all sit outside this toggle and read whichever
+-- side assigned the shared names.
+local MENUSEARCH_ON_OLM = true
+if MENUSEARCH_ON_OLM then
+  local MenuSearch = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/menusearch/init.lua")
+  MenuSearch:init()
+  MenuSearch:configure({
+    chooser = spoon.Chooser,
+    theme = settings.chooserTheme,
+    panel = shortcutPanelFor("menuSearch"),
+    coveredApp = function() return spoon.Launcher:coveredApp() end,
+    refreshLauncher = function() spoon.Launcher:refresh() end,
+    after = after,
+  })
+  menuSearchSurface = MenuSearch.surface
+  openBuiltinMenuSearch = MenuSearch.open
+  scopeMenuRows = MenuSearch.scopeRows
+  scopeMenuRun = MenuSearch.scopeRun
+else
+  -- Menu search: Hyper+E lists every enabled menu bar item of the frontmost app and
+  -- runs the chosen one. Like the launcher this is pure composition-root
+  -- policy over the same Chooser atom, so it adds no spoon. macOS exposes each app's
+  -- menus through the Accessibility API, which hs.application:getMenuItems reads; the
+  -- callback form does the tree walk off the main thread, so a large menu never
+  -- blocks Hammerspoon. The app frontmost when Hyper+E fires is captured as the
+  -- target, since showing the chooser takes focus, and the chosen item is dispatched
+  -- back to that app once focus returns to it.
+  --
+  -- Each row carries only a serializable descriptor, its menu path as a list of
+  -- titles, never a function, the same reason the palette rows do: hs.chooser
+  -- serialises each row and would silently drop a function. selectMenuItem takes
+  -- that path. The menu tree is fetched per open (it changes with the app and its
+  -- state), so the rows supplier reads a module-local list the fetch fills, and the
+  -- chooser is shown only once the fetch has built the rows.
 
--- Flatten the nested AX menu tree into leaf rows. An entry's submenu is its
--- AXChildren[1] (a list); an entry with one is a container we recurse into, an
--- entry without is a runnable leaf. Blank-title entries (separators) are skipped,
--- and disabled items are dropped so the list stays actionable. Each leaf keeps the
--- full title path for selectMenuItem, plus its parent path and shortcut for display.
-local function flattenMenus(entries, path, out)
-  for _, e in ipairs(entries) do
-    local title = e.AXTitle
-    if title and title ~= "" then
-      local kids = e.AXChildren and e.AXChildren[1]
-      local newPath = {}
-      for i = 1, #path do newPath[i] = path[i] end
-      newPath[#newPath + 1] = title
-      if type(kids) == "table" and #kids > 0 then
-        flattenMenus(kids, newPath, out)
-      elseif e.AXEnabled ~= false then
-        local parents = {}
-        for i = 1, #newPath - 1 do parents[i] = newPath[i] end
-        out[#out + 1] = {
-          title = title,
-          path = newPath,
-          parents = table.concat(parents, " ▸ "),
-          shortcut = menuShortcutGlyph(e.AXMenuItemCmdChar, e.AXMenuItemCmdModifiers),
-        }
+  -- hs decodes AXMenuItemCmdModifiers into a list of modifier names (e.g. { "cmd" }
+  -- or { "cmd", "shift" }). Turn it plus the command char into a readable glyph for
+  -- the row subtitle, in the canonical ⌃⌥⇧⌘ order, or nil when the item has no
+  -- keyboard shortcut. Both alt/option and ctrl/control spellings are accepted.
+  local function menuShortcutGlyph(char, mods)
+    if not char or char == "" then return nil end
+    local has = {}
+    for _, m in ipairs(mods or {}) do has[tostring(m):lower()] = true end
+    local g = ""
+    if has.ctrl or has.control then g = g .. "⌃" end
+    if has.alt or has.option then g = g .. "⌥" end
+    if has.shift then g = g .. "⇧" end
+    if has.cmd or has.command then g = g .. "⌘" end
+    return g .. char:upper()
+  end
+
+  -- Flatten the nested AX menu tree into leaf rows. An entry's submenu is its
+  -- AXChildren[1] (a list); an entry with one is a container we recurse into, an
+  -- entry without is a runnable leaf. Blank-title entries (separators) are skipped,
+  -- and disabled items are dropped so the list stays actionable. Each leaf keeps the
+  -- full title path for selectMenuItem, plus its parent path and shortcut for display.
+  local function flattenMenus(entries, path, out)
+    for _, e in ipairs(entries) do
+      local title = e.AXTitle
+      if title and title ~= "" then
+        local kids = e.AXChildren and e.AXChildren[1]
+        local newPath = {}
+        for i = 1, #path do newPath[i] = path[i] end
+        newPath[#newPath + 1] = title
+        if type(kids) == "table" and #kids > 0 then
+          flattenMenus(kids, newPath, out)
+        elseif e.AXEnabled ~= false then
+          local parents = {}
+          for i = 1, #newPath - 1 do parents[i] = newPath[i] end
+          out[#out + 1] = {
+            title = title,
+            path = newPath,
+            parents = table.concat(parents, " ▸ "),
+            shortcut = menuShortcutGlyph(e.AXMenuItemCmdChar, e.AXMenuItemCmdModifiers),
+          }
+        end
       end
     end
   end
-end
 
-local menuRows = {}   -- filled by the async fetch on each open
-local menuTargetApp   -- the app frontmost when Hyper+E fired, the dispatch target
-local menuAppIcon     -- the target app's icon, shown on every row (one app per open)
-local menuAppKey      -- a stable icon key so that icon is encoded once, not per row
+  local menuRows = {}   -- filled by the async fetch on each open
+  local menuTargetApp   -- the app frontmost when Hyper+E fired, the dispatch target
+  local menuAppIcon     -- the target app's icon, shown on every row (one app per open)
+  local menuAppKey      -- a stable icon key so that icon is encoded once, not per row
 
--- Rows supplier. Returns every menu item and lets the atom's shared matcher filter and
--- rank, so typing a parent menu name (File, Format) narrows too since the path rides in
--- filterText. The shortcut glyph rides in the subtitle after the path.
--- The row shape, shared by this chooser and the launcher's menu scope below, so the two
--- present a menu item identically and cannot drift. Every item belongs to the one captured
--- app, so each row shows that app's icon, and the stable key memoizes the encoded icon once
--- rather than per row.
-local function buildMenuRows(list, icon, iconKey)
-  local out = {}
-  for _, r in ipairs(list or {}) do
-    local subtitle = r.parents
-    if r.shortcut then
-      subtitle = (subtitle ~= "" and (subtitle .. "   ") or "") .. r.shortcut
+  -- Rows supplier. Returns every menu item and lets the atom's shared matcher filter and
+  -- rank, so typing a parent menu name (File, Format) narrows too since the path rides in
+  -- filterText. The shortcut glyph rides in the subtitle after the path.
+  -- The row shape, shared by this chooser and the launcher's menu scope below, so the two
+  -- present a menu item identically and cannot drift. Every item belongs to the one captured
+  -- app, so each row shows that app's icon, and the stable key memoizes the encoded icon once
+  -- rather than per row.
+  local function buildMenuRows(list, icon, iconKey)
+    local out = {}
+    for _, r in ipairs(list or {}) do
+      local subtitle = r.parents
+      if r.shortcut then
+        subtitle = (subtitle ~= "" and (subtitle .. "   ") or "") .. r.shortcut
+      end
+      out[#out + 1] = { title = r.title, subTitle = subtitle, image = icon,
+                        iconKey = iconKey, item = { path = r.path },
+                        filterText = r.title .. " " .. r.parents }
     end
-    out[#out + 1] = { title = r.title, subTitle = subtitle, image = icon,
-                      iconKey = iconKey, item = { path = r.path },
-                      filterText = r.title .. " " .. r.parents }
+    return out
   end
-  return out
-end
 
-local function menuSearchRows(_)
-  return buildMenuRows(menuRows, menuAppIcon, menuAppKey)
-end
+  local function menuSearchRows(_)
+    return buildMenuRows(menuRows, menuAppIcon, menuAppKey)
+  end
 
--- The chosen item runs deferred, after the chooser tears down and macOS restores
--- focus to the captured app, since a menu action acts on that app. The shortcut
--- panel is wired in through onPositioned/onActivity/onClose, so it complements the
--- native chooser without the chooser knowing about it.
-local menuPanel = shortcutPanelFor("menuSearch")
-local menuSearch = spoon.Chooser.new({
-  theme = settings.chooserTheme,
-  placeholder = "Search menu items",
-  rows = menuSearchRows,
-  onSelect = function(item)
-    if item and item.path and menuTargetApp then
-      local app = menuTargetApp
-      after(0.1, function() app:selectMenuItem(item.path) end)
+  -- The chosen item runs deferred, after the chooser tears down and macOS restores
+  -- focus to the captured app, since a menu action acts on that app. The shortcut
+  -- panel is wired in through onPositioned/onActivity/onClose, so it complements the
+  -- native chooser without the chooser knowing about it.
+  local menuPanel = shortcutPanelFor("menuSearch")
+  local menuSearch = spoon.Chooser.new({
+    theme = settings.chooserTheme,
+    placeholder = "Search menu items",
+    rows = menuSearchRows,
+    onSelect = function(item)
+      if item and item.path and menuTargetApp then
+        local app = menuTargetApp
+        after(0.1, function() app:selectMenuItem(item.path) end)
+      end
+    end,
+    onPositioned = menuPanel.onPositioned,
+    onActivity = menuPanel.onActivity,
+    onClose = menuPanel.onClose,
+  })
+  -- Dot-called navigation adapter over the Chooser instance, so the shared
+  -- activeChooser / routeNav registry drives it exactly like the other pickers.
+  menuSearchSurface = {
+    isShowing = function() return menuSearch:isShowing() end,
+    selectNext = function() menuSearch:selectNext() end,
+    selectPrev = function() menuSearch:selectPrev() end,
+    insertSelected = function() menuSearch:insertSelected() end,
+    hide = function() menuSearch:hide() end,
+  }
+
+  -- Open the built-in menu search: capture the frontmost app, fetch its menus
+  -- asynchronously so a large tree never blocks, then show the chooser once the rows
+  -- are built. Does nothing if no app is frontmost, the app exposes no menus, or focus
+  -- moved before the fetch returned (so we never target the wrong app).
+  function openBuiltinMenuSearch()
+    local app = hs.application.frontmostApplication()
+    if not app then return end
+    menuTargetApp = app
+    local bundleID = app:bundleID()
+    menuAppIcon = bundleID and hs.image.imageFromAppBundle(bundleID) or nil
+    menuAppKey = bundleID and ("menuapp:" .. bundleID) or nil
+    app:getMenuItems(function(menus)
+      if not menus then return end
+      if hs.application.frontmostApplication() ~= app then return end
+      menuRows = {}
+      flattenMenus(menus, {}, menuRows)
+      menuSearch:show()
+    end)
+  end
+
+  -- External combo hand-off, kept but disabled. Uncomment this block and bind
+  -- fireMenuSearchCombo below (instead of openBuiltinMenuSearch) to make Hyper+E fire
+  -- menuSearchShortcut (⇧⌃⌥⌘J) so an external tool bound to that same combo anywhere
+  -- opens. Disabled because routing through an Alfred hotkey added noticeable latency
+  -- versus the built-in chooser, which binds directly with no synthesized combo and no
+  -- round-trip. The menuSearchShortcut data stays in config/keys.lua for re-enabling.
+  -- local menuShortcut = keys.menuSearchShortcut
+  -- local function fireMenuSearchCombo()
+  --   hs.eventtap.keyStroke(menuShortcut.mods, menuShortcut.key, 0)
+  -- end
+
+  -- The launcher's menu scope. It lists the menus of the app the launcher covered rather than
+  -- the frontmost one, since once the chooser is up the frontmost app is this one, which is why
+  -- the launcher hands over both that app and an id for the open. The tree is read once per open.
+  -- Re-reading it on every keystroke would be unusable, since the accessibility walk is the slow
+  -- part of menu search, and caching it across opens would go stale as an app enables and
+  -- disables its items. A read in flight shows as one disabled row, so the list says what it is
+  -- doing rather than briefly claiming nothing matched, and that row carries the typed text as
+  -- its filter text so the matcher cannot rank it away while it is the only thing to show.
+  local scopeMenu = { app = nil, openId = nil, list = nil, icon = nil, key = nil, reading = false }
+
+  function scopeMenuRows(rest)
+    local app, openId = spoon.Launcher:coveredApp()
+    if not app then return {} end
+    if app ~= scopeMenu.app or openId ~= scopeMenu.openId then
+      local bundleID = app:bundleID()
+      scopeMenu = {
+        app = app, openId = openId, list = nil, reading = false,
+        icon = bundleID and hs.image.imageFromAppBundle(bundleID) or nil,
+        key = bundleID and ("menuapp:" .. bundleID) or nil,
+      }
     end
-  end,
-  onPositioned = menuPanel.onPositioned,
-  onActivity = menuPanel.onActivity,
-  onClose = menuPanel.onClose,
-})
--- Dot-called navigation adapter over the Chooser instance, so the shared
--- activeChooser / routeNav registry drives it exactly like the other pickers.
-menuSearchSurface = {
-  isShowing = function() return menuSearch:isShowing() end,
-  selectNext = function() menuSearch:selectNext() end,
-  selectPrev = function() menuSearch:selectPrev() end,
-  insertSelected = function() menuSearch:insertSelected() end,
-  hide = function() menuSearch:hide() end,
-}
+    if not scopeMenu.list and not scopeMenu.reading then
+      scopeMenu.reading = true
+      local forApp, forOpen = app, openId
+      app:getMenuItems(function(menus)
+        -- The answer can arrive after another open has moved on, so it is kept only for the
+        -- read that asked for it and dropped otherwise.
+        if scopeMenu.app ~= forApp or scopeMenu.openId ~= forOpen then return end
+        scopeMenu.reading = false
+        local flat = {}
+        if menus then flattenMenus(menus, {}, flat) end
+        scopeMenu.list = flat
+        spoon.Launcher:refresh()
+      end)
+    end
+    if not scopeMenu.list then
+      return { {
+        title = "Reading the menus",
+        subTitle = (app:name() or "this app") .. ", one moment",
+        glyph = "⏳",
+        enabled = false,
+        filterText = rest,
+      } }
+    end
+    return buildMenuRows(scopeMenu.list, scopeMenu.icon, scopeMenu.key)
+  end
 
--- Open the built-in menu search: capture the frontmost app, fetch its menus
--- asynchronously so a large tree never blocks, then show the chooser once the rows
--- are built. Does nothing if no app is frontmost, the app exposes no menus, or focus
--- moved before the fetch returned (so we never target the wrong app).
-local function openBuiltinMenuSearch()
-  local app = hs.application.frontmostApplication()
-  if not app then return end
-  menuTargetApp = app
-  local bundleID = app:bundleID()
-  menuAppIcon = bundleID and hs.image.imageFromAppBundle(bundleID) or nil
-  menuAppKey = bundleID and ("menuapp:" .. bundleID) or nil
-  app:getMenuItems(function(menus)
-    if not menus then return end
-    if hs.application.frontmostApplication() ~= app then return end
-    menuRows = {}
-    flattenMenus(menus, {}, menuRows)
-    menuSearch:show()
-  end)
+  -- Acts on the app the read was for, not on whatever is frontmost when the row runs, so a menu
+  -- item can never be sent to the wrong app. selectMenuItem addresses that app directly, so this
+  -- does not depend on focus having returned, though the launcher defers it anyway.
+  function scopeMenuRun(payload)
+    local app = scopeMenu.app
+    if app and payload and payload.path then app:selectMenuItem(payload.path) end
+  end
 end
-
--- External combo hand-off, kept but disabled. Uncomment this block and bind
--- fireMenuSearchCombo below (instead of openBuiltinMenuSearch) to make Hyper+E fire
--- menuSearchShortcut (⇧⌃⌥⌘J) so an external tool bound to that same combo anywhere
--- opens. Disabled because routing through an Alfred hotkey added noticeable latency
--- versus the built-in chooser, which binds directly with no synthesized combo and no
--- round-trip. The menuSearchShortcut data stays in config/keys.lua for re-enabling.
--- local menuShortcut = keys.menuSearchShortcut
--- local function fireMenuSearchCombo()
---   hs.eventtap.keyStroke(menuShortcut.mods, menuShortcut.key, 0)
--- end
 
 -- Open key. Bound to the built-in chooser: fast, direct, shows the app icon. Swap to
 -- fireMenuSearchCombo (uncomment above) to hand off to an external tool instead.
 spoon.HyperKey:bind(keys.menuSearch.key, openBuiltinMenuSearch)
-
--- The launcher's menu scope. It lists the menus of the app the launcher covered rather than
--- the frontmost one, since once the chooser is up the frontmost app is this one, which is why
--- the launcher hands over both that app and an id for the open. The tree is read once per open.
--- Re-reading it on every keystroke would be unusable, since the accessibility walk is the slow
--- part of menu search, and caching it across opens would go stale as an app enables and
--- disables its items. A read in flight shows as one disabled row, so the list says what it is
--- doing rather than briefly claiming nothing matched, and that row carries the typed text as
--- its filter text so the matcher cannot rank it away while it is the only thing to show.
-local scopeMenu = { app = nil, openId = nil, list = nil, icon = nil, key = nil, reading = false }
-
-local function scopeMenuRows(rest)
-  local app, openId = spoon.Launcher:coveredApp()
-  if not app then return {} end
-  if app ~= scopeMenu.app or openId ~= scopeMenu.openId then
-    local bundleID = app:bundleID()
-    scopeMenu = {
-      app = app, openId = openId, list = nil, reading = false,
-      icon = bundleID and hs.image.imageFromAppBundle(bundleID) or nil,
-      key = bundleID and ("menuapp:" .. bundleID) or nil,
-    }
-  end
-  if not scopeMenu.list and not scopeMenu.reading then
-    scopeMenu.reading = true
-    local forApp, forOpen = app, openId
-    app:getMenuItems(function(menus)
-      -- The answer can arrive after another open has moved on, so it is kept only for the
-      -- read that asked for it and dropped otherwise.
-      if scopeMenu.app ~= forApp or scopeMenu.openId ~= forOpen then return end
-      scopeMenu.reading = false
-      local flat = {}
-      if menus then flattenMenus(menus, {}, flat) end
-      scopeMenu.list = flat
-      spoon.Launcher:refresh()
-    end)
-  end
-  if not scopeMenu.list then
-    return { {
-      title = "Reading the menus",
-      subTitle = (app:name() or "this app") .. ", one moment",
-      glyph = "⏳",
-      enabled = false,
-      filterText = rest,
-    } }
-  end
-  return buildMenuRows(scopeMenu.list, scopeMenu.icon, scopeMenu.key)
-end
-
--- Acts on the app the read was for, not on whatever is frontmost when the row runs, so a menu
--- item can never be sent to the wrong app. selectMenuItem addresses that app directly, so this
--- does not depend on focus having returned, though the launcher defers it anyway.
-local function scopeMenuRun(payload)
-  local app = scopeMenu.app
-  if app and payload and payload.path then app:selectMenuItem(payload.path) end
-end
 
 -- VPN controls: a native chooser on Hyper+P that merges the controls and the locations
 -- into one flat list, Connect or Disconnect on top and every city below. It is pinned to
