@@ -1686,7 +1686,7 @@ spoon.Launcher:start()
 -- Hyper+Space always opens the launcher. Same shape as the clipboard.
 spoon.HyperKey:bind(keys.launcher.key, function() spoon.Launcher:show() end)
 
--- Forward-declared alongside menuSearchSurface above so the bind below, the launcher's menu
+-- Declared ahead alongside menuSearchSurface above so the bind below, the launcher's menu
 -- scope registration, and the choosers list further down all read the same names whichever
 -- side of the toggle below assigns them.
 local openBuiltinMenuSearch, scopeMenuRows, scopeMenuRun

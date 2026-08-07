@@ -34,7 +34,7 @@ obj.version = "1.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
-local cfg = nil        -- injected: chooser atom, theme, panel callbacks, coveredApp, refreshLauncher, after
+local cfg = nil        -- the injected collaborators, chooser atom, theme, panel callbacks, coveredApp, refreshLauncher, after
 local menuSearch = nil -- the one native Chooser instance
 
 -- hs decodes AXMenuItemCmdModifiers into a list of modifier names (e.g. { "cmd" }
