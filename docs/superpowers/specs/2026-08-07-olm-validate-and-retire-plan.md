@@ -40,8 +40,10 @@ after the reload. Tools with declarations today, Vpn, Capture, Eyedropper, Conve
 DisplayProfiles, Clipboard, BrowserTabs with its core recency line, and FileSearch.
 
 Restow. Deleting a spoon directory leaves a dead symlink in the folded
-`~/.hammerspoon/Spoons` tree, so run stow again for the hammerspoon package from the
-dotfiles directory and confirm the dead link is gone and the olm paths still resolve.
+`~/.hammerspoon/Spoons` tree, and a plain stow does not prune it, so run `stow -R -t ~
+hammerspoon` from the dotfiles directory and confirm the dead link is gone and the olm
+paths still resolve. Learned at the WindowManager retirement, where the plain restow left
+the dangling link behind.
 
 Gates and land. `test/units.sh`, `src/check-dependencies.sh` with no new warnings,
 `test/inventory.sh` three times across the shrinking toggle set, then merge to feat/olm with
