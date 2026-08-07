@@ -94,7 +94,16 @@ else
   hs.loadSpoon("CanvasPanel")
   hs.loadSpoon("HyperKey")
 end
-hs.loadSpoon("HyperCheatSheet")
+-- The olm side toggle for HyperCheatSheet. True loads the olm side copy at
+-- Spoons/Olm.spoon/host/hypercheatsheet by an absolute path built from hs.configdir, assigned
+-- to spoon.HyperCheatSheet by hand since it bypasses hs.loadSpoon. False loads the original
+-- spoon instead. Only the load flips here.
+local HYPERCHEATSHEET_ON_OLM = true
+if HYPERCHEATSHEET_ON_OLM then
+  spoon.HyperCheatSheet = dofile(hs.configdir .. "/Spoons/Olm.spoon/host/hypercheatsheet/init.lua")
+else
+  hs.loadSpoon("HyperCheatSheet")
+end
 -- The olm side toggle for StageManager. True loads the olm side copy at
 -- Spoons/Olm.spoon/plugins/stagemanager by an absolute path built from hs.configdir, assigned
 -- to spoon.StageManager by hand since it bypasses hs.loadSpoon. False loads the original
