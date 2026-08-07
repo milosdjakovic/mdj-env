@@ -96,8 +96,10 @@ final class Preview: NSObject, NSWindowDelegate {
     // center of that rect. That is the screen the picker actually opened on, which the pointer
     // is not reliably resting over, so the earlier version of this function picked the wrong
     // screen on any setup where the pointer had drifted off to another display. Falling back to
-    // the pointer only when the four arguments are missing keeps a caller that sends nothing
-    // working exactly as before this argument existed.
+    // the pointer covers two cases rather than one, the four arguments missing entirely, and
+    // the four arguments parsing fine yet matching no screen, which happens when the stored
+    // frame names a display that has since been disconnected. Either way this keeps the helper
+    // working rather than picking nothing at all.
     //
     // THE TWO COORDINATE SYSTEMS DISAGREE AND THAT IS NOT OPTIONAL TO HANDLE. Hammerspoon
     // reports its frame in Quartz display coordinates, the top left of the primary screen at
