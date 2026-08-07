@@ -373,7 +373,16 @@ if CONVERT_ON_OLM then
 else
   hs.loadSpoon("Convert")
 end
-hs.loadSpoon("QueryScope")
+-- The olm side toggle for QueryScope. True loads the olm side copy at
+-- Spoons/Olm.spoon/host/queryscope by an absolute path built from hs.configdir, assigned to
+-- spoon.QueryScope by hand since it bypasses hs.loadSpoon. False loads the original spoon
+-- instead. Only the load flips here.
+local QUERYSCOPE_ON_OLM = true
+if QUERYSCOPE_ON_OLM then
+  spoon.QueryScope = dofile(hs.configdir .. "/Spoons/Olm.spoon/host/queryscope/init.lua")
+else
+  hs.loadSpoon("QueryScope")
+end
 
 -- Olm's storage mechanism, configured with the two roots from config/settings.lua. The load
 -- itself moved to the top of this section, since the atom toggle there needs it, and olm is
