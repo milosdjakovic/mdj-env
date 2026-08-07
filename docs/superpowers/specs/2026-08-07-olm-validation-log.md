@@ -128,9 +128,10 @@ Validation passed on 2026-08-07 with no findings.
 ### TextCase
 
 - [x] validated
-- [ ] retired
+- [x] retired
 
-Validation passed on 2026-08-07 with no findings.
+Validation passed on 2026-08-07 with no findings. The retirement landed at merge commit
+8d6e58282fb9e9f63c12835091f83cd929e282b2.
 
 ### SystemSettings
 
