@@ -126,16 +126,10 @@ spoon.WindowLeader = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windowlea
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.WindowCheatSheet by hand since it bypasses hs.loadSpoon.
 spoon.WindowCheatSheet = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windowcheatsheet/init.lua")
--- The olm side toggle for AppToggler. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/apptoggler by an absolute path built from hs.configdir, assigned
--- to spoon.AppToggler by hand since it bypasses hs.loadSpoon. False loads the original spoon
--- instead. Only the load flips here.
-local APPTOGGLER_ON_OLM = true
-if APPTOGGLER_ON_OLM then
-  spoon.AppToggler = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/apptoggler/init.lua")
-else
-  hs.loadSpoon("AppToggler")
-end
+-- AppToggler now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.AppToggler by hand since it bypasses hs.loadSpoon.
+spoon.AppToggler = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/apptoggler/init.lua")
 -- The olm side toggle for ClipboardHistory. True loads the olm side copy at
 -- Spoons/Olm.spoon/plugins/clipboard by an absolute path built from hs.configdir and assigns it
 -- to spoon.ClipboardHistory by hand, since it bypasses hs.loadSpoon and nothing else does that
