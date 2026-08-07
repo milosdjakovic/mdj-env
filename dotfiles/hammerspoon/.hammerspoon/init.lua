@@ -280,16 +280,10 @@ if EMOJI_ON_OLM then
 else
   hs.loadSpoon("Emoji")
 end
--- The olm side toggle for TextCase. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/textcase by an absolute path built from hs.configdir, assigned to
--- spoon.TextCase by hand since it bypasses hs.loadSpoon. False loads the original spoon
--- instead. Only the load flips here.
-local TEXTCASE_ON_OLM = true
-if TEXTCASE_ON_OLM then
-  spoon.TextCase = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/textcase/init.lua")
-else
-  hs.loadSpoon("TextCase")
-end
+-- TextCase now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.TextCase by hand since it bypasses hs.loadSpoon.
+spoon.TextCase = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/textcase/init.lua")
 -- The olm side toggle for BrowserTabs. True loads the olm side copy at
 -- Spoons/Olm.spoon/plugins/browsertabs by an absolute path built from hs.configdir, assigned
 -- to spoon.BrowserTabs by hand since it bypasses hs.loadSpoon. False loads the original
