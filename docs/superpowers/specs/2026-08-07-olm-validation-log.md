@@ -115,9 +115,12 @@ menu search root policy.
 ### Processes
 
 - [x] validated
-- [ ] retired
+- [x] retired
 
-Validation passed on 2026-08-07 with no findings.
+Validation passed on 2026-08-07 with no findings. The retirement landed at merge commit
+f2d412047a896ad5ec159744c1ed21812a57e49e, and needed both a depsFor repoint to the consumer
+name the resolver actually stamps under Olm and a one level deeper walk in the resolver so
+the copy's nested source declarations stopped going unread.
 
 ### DisplayProfiles
 
