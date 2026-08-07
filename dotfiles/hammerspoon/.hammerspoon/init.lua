@@ -277,6 +277,8 @@ end
 local SYSTEMSETTINGS_ON_OLM = true
 if SYSTEMSETTINGS_ON_OLM then
   spoon.SystemSettings = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/systemsettings/init.lua")
+  -- An assignment does not call init the way hs.loadSpoon always did, and this tool has no other init site, so it is called here for parity.
+  spoon.SystemSettings:init()
 else
   hs.loadSpoon("SystemSettings")
 end
@@ -348,6 +350,8 @@ end
 local CONVERT_ON_OLM = true
 if CONVERT_ON_OLM then
   spoon.Convert = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/convert/init.lua")
+  -- An assignment does not call init the way hs.loadSpoon always did, and this tool's own init site sits behind convertDeps.satisfied() further down, so it is called here for parity.
+  spoon.Convert:init()
 else
   hs.loadSpoon("Convert")
 end
