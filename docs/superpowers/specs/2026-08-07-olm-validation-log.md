@@ -133,9 +133,11 @@ calling it a full pass, and will report anything worth fixing or changing once i
 ### Eyedropper
 
 - [x] validated
-- [ ] retired
+- [x] retired
 
-Validation passed on 2026-08-07 with no findings.
+Validation passed on 2026-08-07 with no findings. The retirement landed at merge commit
+c2a70ed54a06c9ab1f8e9453f75d3024742a3ad7, and needed a depsFor repoint to the consumer name
+the resolver actually stamps under Olm, the same reconciliation Processes needed.
 
 ### TextCase
 
