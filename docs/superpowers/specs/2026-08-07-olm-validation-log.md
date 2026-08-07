@@ -213,10 +213,15 @@ WorkspaceEngine, and DockAutoHide, rather than following the validate and retire
 ### KeyRemap
 
 - [x] validated
-- [ ] retired
+- [x] retired
 
 Validation passed on 2026-08-07 with no findings, and the user noted that every plugin
-above already proved it works, since every one of them depends on it.
+above already proved it works, since every one of them depends on it. The retirement
+landed at merge commit 5f6b8441ec26ca565809db5048a4e430bce39976. Standing follow up,
+the `USAGE` table mapping friendly key names to HID usage codes knows six keys today,
+caps lock, right command, right option, and the three F keys they become, so pointing a
+leader at any other physical key means adding one row to that table in the olm copy,
+noted 2026-08-07 as a follow up the user may ask for later.
 
 ### ClipboardHistory
 
