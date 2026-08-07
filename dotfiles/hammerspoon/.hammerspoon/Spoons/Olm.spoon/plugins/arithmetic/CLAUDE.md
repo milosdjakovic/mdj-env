@@ -55,9 +55,28 @@ in exponent form. Thousands separators were left out so the shown value and the
 copied value are the same string, which matters because the row exists to be
 copied.
 
+## The one unit the percent sign carries
+
+A percent sign is admitted only as Lua's modulo operator, but the calculator reading
+gives it a second meaning, a postfix unit where N% is N divided by one hundred
+wherever it appears, so 2+2% answers 2.02 and 200*10% answers 20. The two readings
+share the same leading character, a number, so they are told apart by what follows the
+percent sign rather than by what precedes it. A digit or a decimal point right after
+the percent means the modulo reading, and 7%3 still answers 1 untouched. An operator,
+a closing parenthesis, or the end of the string right after the percent means the unit
+reading, and the number in front of the percent is rewritten into a parenthesised
+division by one hundred before the load, so more than one percent term in the same
+query all rewrite and 2%+5% answers 0.07. The business calculator reading, where a
+percent binds to the other operand of a plus or minus, was considered and set aside on
+purpose, since it needs a real parser this spoon refuses to become. A percent right
+after a closing parenthesis, as in (2+2)%, has no number in front of it for the
+rewrite to find, so it is out of scope and stays a silent no row like any other
+malformed expression.
+
 ## What it deliberately does not do
 
-No variables, no history, no functions, and no units. Units belong to `Convert`,
-which is a separate spoon because it needs a tool that can be absent. Adding
-functions would mean putting names back in the alphabet and giving up the reason
-evaluation is safe, so it would need a real parser rather than a whitelist.
+No variables, no history, no functions, and no units beyond the one percent carries.
+Every other unit belongs to `Convert`, which is a separate spoon because it needs a
+tool that can be absent. Adding functions would mean putting names back in the
+alphabet and giving up the reason evaluation is safe, so it would need a real parser
+rather than a whitelist.
