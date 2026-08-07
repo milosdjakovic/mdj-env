@@ -169,6 +169,10 @@ migration, rather than following the validate and retire path below. Tracked as 
 piece of work, separate from this loop, alongside WorkspaceEngine, DockAutoHide, and
 StageManager below.
 
+The extraction landed at merge commit 9d5df341b694866ef5afc4bbd0e05e713eab000c, and
+TerminalHandler runs standalone again. The boxes above stay unticked, since this tool left
+the validate and retire loop.
+
 ### Arithmetic
 
 - [ ] validated
@@ -197,6 +201,10 @@ The user decided on 2026-08-07 that this tool stays out of Olm too. It moves bac
 standalone spoon, initialized directly in the root `init.lua` alongside TerminalHandler,
 DockAutoHide, and StageManager, rather than following the validate and retire path below.
 
+The extraction landed at merge commit 9d5df341b694866ef5afc4bbd0e05e713eab000c, and
+WorkspaceEngine runs standalone again. The boxes above stay unticked, since this tool left
+the validate and retire loop.
+
 ### DockAutoHide
 
 - [ ] validated
@@ -205,6 +213,10 @@ DockAutoHide, and StageManager, rather than following the validate and retire pa
 The user decided on 2026-08-07 that this tool stays out of Olm too. It moves back to its own
 standalone spoon, initialized directly in the root `init.lua` alongside TerminalHandler,
 WorkspaceEngine, and StageManager, rather than following the validate and retire path below.
+
+The extraction landed at merge commit 9d5df341b694866ef5afc4bbd0e05e713eab000c, and
+DockAutoHide runs standalone again. The boxes above stay unticked, since this tool left
+the validate and retire loop.
 
 ### DisplayMemory
 
@@ -228,6 +240,10 @@ The retirement landed at merge commit 89a8237b97530dd2705bc7595c17d4f64fc0ebdb.
 The user decided on 2026-08-07 that this tool stays out of Olm too. It moves back to its own
 standalone spoon, initialized directly in the root `init.lua` alongside TerminalHandler,
 WorkspaceEngine, and DockAutoHide, rather than following the validate and retire path below.
+
+The extraction landed at merge commit 9d5df341b694866ef5afc4bbd0e05e713eab000c, and
+StageManager runs standalone again. The boxes above stay unticked, since this tool left
+the validate and retire loop.
 
 ### KeyRemap
 
