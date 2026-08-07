@@ -50,6 +50,14 @@ ce02e7265991816579aecbcc2be7851f3e20168b.
 - [ ] validated
 - [ ] retired
 
+Validation on 2026-08-07 found that Quick Look opened on the display holding the mouse
+pointer rather than on the chooser's own display. The fix carries the chooser frame into
+the Swift helper, which now picks the screen containing that frame instead of guessing from
+the pointer. Alongside the fix, the side panel becomes the docked preview provider, while
+the q key keeps Quick Look available through a new peek viewer seam. This follows the packet
+at `docs/superpowers/packets/2026-08-07-packet-filesearch-preview.md`, landed at merge commit
+93ce40a6846646879739d09c4e0dff0fd3ead894, awaiting the user's revalidation.
+
 ### BrowserTabs
 
 - [x] validated
