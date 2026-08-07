@@ -136,9 +136,10 @@ Validation passed on 2026-08-07 with no findings. The retirement landed at merge
 ### SystemSettings
 
 - [x] validated
-- [ ] retired
+- [x] retired
 
-Validation passed on 2026-08-07 with no findings.
+Validation passed on 2026-08-07 with no findings. The retirement landed at merge commit
+34a71e571ab4eecbd5a0408e598140ecdbbe4b0e.
 
 ### TerminalHandler
 
