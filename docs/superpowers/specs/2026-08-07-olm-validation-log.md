@@ -21,8 +21,11 @@ fef05a9061f5acb5c29375490c2922fc2522a05a.
 
 ### WindowLeader
 
-- [ ] validated
-- [ ] retired
+- [x] validated
+- [x] retired
+
+Validation passed on 2026-08-07 with no findings. The retirement landed at merge commit
+8790554ed0476ddee142d05c80b2b46e617f4d8e.
 
 ### WindowCheatSheet
 

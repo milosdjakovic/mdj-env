@@ -18,7 +18,7 @@ end.
   the display switch on your monitor setup, and one placement with Stage Manager on, the left
   margin should widen by the configured 66 points.
 
-- [ ] WindowLeader, `WINDOWLEADER_ON_OLM` line 122. The META hold itself. Hold META alone
+- [x] WindowLeader, `WINDOWLEADER_ON_OLM` line 122. The META hold itself. Hold META alone
   about half a second and the window cheat sheet reveals, release early and nothing shows. A
   bound key while held fires and is swallowed by the leader, and unbound combos still pass
   through to the app.
