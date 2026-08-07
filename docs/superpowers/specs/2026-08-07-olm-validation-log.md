@@ -37,8 +37,13 @@ Validation passed on 2026-08-07 with no findings. The retirement landed at merge
 
 ### AppToggler
 
-- [ ] validated
-- [ ] retired
+- [x] validated
+- [x] retired
+
+Validation passed on 2026-08-07, and the only finding was stale checklist row text
+describing the old hide behavior, corrected in this commit since the frontmost app cycles
+its windows instead. The retirement landed at merge commit
+ce02e7265991816579aecbcc2be7851f3e20168b.
 
 ### FileSearch
 

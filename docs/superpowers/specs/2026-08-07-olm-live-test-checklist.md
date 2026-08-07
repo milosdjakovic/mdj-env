@@ -27,9 +27,11 @@ end.
   overlay the META hold reveals. Labels and order match the window bindings, the display
   switch row hides on a single monitor, and pressing any bound key dismisses it.
 
-- [ ] AppToggler, `APPTOGGLER_ON_OLM` line 142. Hyper, the held caps lock, plus your app
-  letters. Toggle a frontmost app to hide it, toggle a closed one to launch it, and `HYPER+,`
-  should open System Settings straight to the General pane rather than a plain focus.
+- [x] AppToggler, `APPTOGGLER_ON_OLM` line 142. Hyper, the held caps lock, plus your app
+  letters. Pressing the key for the frontmost app brings it forward and cycles between its
+  windows when it has more than one, hiding is not part of it, pressing the key for a closed
+  app launches it, and `HYPER+,` should open System Settings straight to the General pane
+  rather than a plain focus.
 
 - [ ] FileSearch, `FILESEARCH_ON_OLM` line 330, on `HYPER+/`. Search a file, `q` opens the
   QuickLook preview, `l` and `h` step into and out of a folder, `o` reveals in Finder, `y`
