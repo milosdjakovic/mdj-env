@@ -229,18 +229,30 @@ The hard to reverse step, so it is a branch that lands whole or is thrown away w
 moves, per the read only law, and the design records the honest cost, a fix landing in an original
 while its copy exists is carried across by hand, so this window stays short per tool.
 
-- [ ] Rescan the roster, the spoon count and names may have moved since thirty four.
-- [ ] Packet per batch of plugins, copied under `Spoons/Olm.spoon/plugins/`, each keeping its own
+- [x] Rescan the roster, the spoon count and names may have moved since thirty four.
+- [x] Packet per batch of plugins, copied under `Spoons/Olm.spoon/plugins/`, each keeping its own
       directory, `CLAUDE.md`, and declarations.
-- [ ] Packet, the `dependencies-collect` owner fix, the one real break the design found.
-- [ ] Build, QA, rework, in batches small enough to review honestly, Sonnet per batch in parallel
+- [x] Packet, the `dependencies-collect` owner fix, the one real break the design found.
+- [x] Build, QA, rework, in batches small enough to review honestly, Sonnet per batch in parallel
       worktrees.
-- [ ] Adversarial review, an Opus agent packeted to refute the no behaviour change claim across
-      the whole branch, before the soak.
-- [ ] Gate, an empty inventory diff across the toggle flip, this is the step the snapshot was
+- [x] Adversarial review, an Opus agent packeted to refute the no behaviour change claim across
+      the whole branch, before the soak. The review ran as three agents and turned up four
+      findings, all fixed on the branch before landing, a missing url guard in BrowserTabs, init
+      parity gaps in SystemSettings and Convert, and a single segment edge in the collector.
+- [x] Gate, an empty inventory diff across the toggle flip, this is the step the snapshot was
       built for.
-- [ ] Live test across several days of normal use before landing, this step earns the soak.
-- [ ] Land whole, or discard whole.
+- [x] Live test across several days of normal use before landing, this step earns the soak. The
+      live tier and the soak are deferred to the user's one by one checklist pass after the whole
+      migration, per the standing decision, the same deferral phase 5 already recorded.
+- [x] Land whole, or discard whole. Landed on main by merge in
+      `92f4dc613d2a23b4f24198283618d5f15a148a9d`.
+
+A note on `depsFor`, it resolves the plugin copies against the originals' capitalized manifest
+labels, which works only while the originals still exist, so phase 11 retirement must account for
+this coupling before any original goes.
+
+A note on menu search, it was deliberately left out of phase 6 bundling, it has no phase assigned
+anywhere in this plan, and it awaits the user's word on whether it becomes its own small plugin.
 
 ## Phase 7, the plugin contract
 
