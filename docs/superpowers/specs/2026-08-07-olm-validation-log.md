@@ -242,13 +242,14 @@ noted 2026-08-07 as a follow up the user may ask for later.
 ### ClipboardHistory
 
 - [x] validated
-- [ ] retired
+- [x] retired
 
-Validation passed on 2026-08-07 with no findings. The carried in retirement note below still
-applies.
-
-Retirement note, the module level `CLAUDE.md` paste trail becomes a pointer to
-`Olm.spoon/CLAUDE.md` in the same pass, per the note both files carry.
+Validation passed on 2026-08-07 with no findings. The retirement landed at merge commit
+077b2d10ca2449b2b65237374602fbae809025b5, and needed a depsFor repoint to the consumer name
+the resolver actually stamps under Olm, the same reconciliation Processes, Eyedropper, Convert,
+and Vpn needed. The module level `CLAUDE.md` paste trail collapsed to a pointer at
+`Olm.spoon/CLAUDE.md` in the same pass, per the note both files carried, and the now stale
+paragraph describing that future collapse was removed from `Olm.spoon/CLAUDE.md` itself.
 
 ### Vpn
 
