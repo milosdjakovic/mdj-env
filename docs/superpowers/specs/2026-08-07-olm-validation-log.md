@@ -66,9 +66,10 @@ original.
 ### Caffeinate
 
 - [x] validated
-- [ ] retired
+- [x] retired
 
-Validation passed on 2026-08-07 with no findings.
+Validation passed on 2026-08-07 with no findings. The retirement landed at merge commit
+88ad72c357e7bccd005a8b1a49c52bfe9bb8a2db.
 
 ### Capture
 
