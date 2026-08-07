@@ -289,18 +289,12 @@ if ARITHMETIC_ON_OLM then
 else
   hs.loadSpoon("Arithmetic")
 end
--- The olm side toggle for Convert. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/convert by an absolute path built from hs.configdir, assigned to
--- spoon.Convert by hand since it bypasses hs.loadSpoon. False loads the original spoon
--- instead. Only the load flips here.
-local CONVERT_ON_OLM = true
-if CONVERT_ON_OLM then
-  spoon.Convert = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/convert/init.lua")
-  -- An assignment does not call init the way hs.loadSpoon always did, and this tool's own init site sits behind convertDeps.satisfied() further down, so it is called here for parity.
-  spoon.Convert:init()
-else
-  hs.loadSpoon("Convert")
-end
+-- Convert now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.Convert by hand since it bypasses hs.loadSpoon.
+spoon.Convert = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/convert/init.lua")
+-- An assignment does not call init the way hs.loadSpoon always did, and this tool's own init site sits behind convertDeps.satisfied() further down, so it is called here for parity.
+spoon.Convert:init()
 -- The olm side toggle for QueryScope. True loads the olm side copy at
 -- Spoons/Olm.spoon/host/queryscope by an absolute path built from hs.configdir, assigned to
 -- spoon.QueryScope by hand since it bypasses hs.loadSpoon. False loads the original spoon
@@ -1487,7 +1481,12 @@ spoon.Arithmetic:configure({ glyph = "🧮", category = "Arithmetic" })
 spoon.QueryScope:init()
 
 local queryProviders = { spoon.QueryScope, spoon.Arithmetic }
-local convertDeps = depsFor("Convert")
+-- The resolver stamps every declaration under Olm.spoon with the one consumer name Olm,
+-- since Olm is the single top level spoon and its plugins are internal structure rather
+-- than spoons of their own. depsFor("Convert") stopped resolving anything once the
+-- original spoon was deleted, so this reads depsFor("Olm") instead, which is where the
+-- copy's own declaration already lives.
+local convertDeps = depsFor("Olm")
 if convertDeps.satisfied() then
   spoon.Convert:init()
   spoon.Convert:configure({

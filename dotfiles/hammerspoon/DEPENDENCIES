@@ -23,7 +23,6 @@ ocr | path | ocr | optional | Capture/macocr | the OCR backend, the sole handler
 macshot | app | com.sw33tlie.macshot.macshot | optional | Capture/macshot | the preferred screenshot backend, native is the fallback
 ffmpeg | path | ffmpeg | optional | ClipboardHistory/preview | video clipboard previews
 ffprobe | path | ffprobe | optional | ClipboardHistory/preview | reading a video duration so a preview frame is picked mid clip
-qalc | path | qalc | required | Convert | evaluating unit and currency conversions
 displayplacer | path | displayplacer | optional | DisplayProfiles/engine | reading and applying display arrangements
 fd | path | fd | optional | FileSearch/hidden | building the index of paths Spotlight cannot see
 fzf | path | fzf | optional | FileSearch/hidden | ranking that index, the one thing a substring tool cannot do over 42 thousand matches
