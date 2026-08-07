@@ -258,6 +258,14 @@ The user gave the word on 2026-08-07, and menu search landed as the plugin at
 code rather than a spoon copy, reviewed adversarially with parity confirmed, live test deferred to
 the user's checklist like everything else.
 
+A note on the host spoons, Launcher, QueryScope, and HyperCheatSheet sat outside the bundling
+pass, with their reshape left for phases 7 and 8. On the user's word of 2026-08-07 the three
+landed now as byte faithful copies under `Spoons/Olm.spoon/host/`, behind three toggles,
+`HYPERCHEATSHEET_ON_OLM`, `LAUNCHER_ON_OLM`, and `QUERYSCOPE_ON_OLM`. The copies were reviewed
+adversarially with parity proven, including the init asymmetry between them, and the reshape
+itself still belongs to phases 7 and 8 rather than to this landing. With this landing every tool
+in the config loads from Olm, and the only remaining `hs.loadSpoon` call is Olm's own.
+
 ## Phase 7, the plugin contract
 
 - [ ] Packet, dispatch by plugin name, the registration door, the api version check, the

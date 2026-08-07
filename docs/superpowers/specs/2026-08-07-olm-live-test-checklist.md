@@ -116,6 +116,13 @@ end.
   Hyper, a quick tap still toggles real caps lock, a hold reveals the Hyper cheat sheet, and
   right option drives the window leader, then it works, every row above silently proved it.
 
+- [ ] Host, the three spoons that sat outside the bundling pass, `HYPERCHEATSHEET_ON_OLM` line
+  101, `LAUNCHER_ON_OLM` line 265, and `QUERYSCOPE_ON_OLM` line 380. Hold Hyper for the cheat
+  sheet overlay and check that the app list still splits into open and not running. Open the
+  launcher with `HYPER+Space` and run an app row and a command row. Apps you open often should
+  still lead the list, the `launcherRecency` order persists across the flip. Type an alias like
+  `k` and a space to prove the scope grammar still hands the whole list to one tool.
+
 - [ ] ClipboardHistory, `CLIPBOARD_ON_OLM` line 164, on `HYPER+X` with append copy on
   `Ctrl+Alt+C` and the paste walk on `Ctrl+Alt+V`. Landed in phase 3 with a programmatic live
   pass, so a quick human confirmation of copy, search, paste, and one paste walk closes it.
