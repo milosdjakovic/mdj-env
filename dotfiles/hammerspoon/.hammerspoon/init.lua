@@ -47,16 +47,10 @@ end
 -- its lib files, so nothing observable moved by hoisting it, and its storage configuration
 -- stays where it was, beside the settings block it reads.
 hs.loadSpoon("Olm")
--- The olm side toggle for KeyRemap. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/keyremap by an absolute path built from hs.configdir, assigned to
--- spoon.KeyRemap by hand since it bypasses hs.loadSpoon. False loads the original spoon
--- instead. Only the load flips here.
-local KEYREMAP_ON_OLM = true
-if KEYREMAP_ON_OLM then
-  spoon.KeyRemap = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/keyremap/init.lua")
-else
-  hs.loadSpoon("KeyRemap")
-end
+-- KeyRemap now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.KeyRemap by hand since it bypasses hs.loadSpoon.
+spoon.KeyRemap = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/keyremap/init.lua")
 -- The olm side toggle for the six atoms the design names as core, Dependencies, ChordKey,
 -- CheatSheet, Chooser, CanvasPanel, and HyperKey. True assigns each spoon global from
 -- spoon.Olm.lib, the olm side copy of that spoon, and skips its hs.loadSpoon entirely. False
