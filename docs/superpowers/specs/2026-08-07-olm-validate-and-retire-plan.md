@@ -31,13 +31,16 @@ nothing else in the root changes.
 
 Reconcile dependencies where the tool carried any. The copy's declarations already sit
 beside the copy, so deleting the original halves the doubled rows. Regenerate the manifest
-through the collector and check one known coupling per tool, the root's `depsFor("<Name>")`
-calls resolve against the manifest's consumer labels, which for the copies are the lowercase
-plugin directory names rather than the originals' capitalized spoon names. Any `depsFor`
-still naming the capitalized label must be pointed at the copy's label in the same commit,
-verified by running the reconciler and by the resolver summary line staying at all present
-after the reload. Tools with declarations today, Vpn, Capture, Eyedropper, Convert,
-DisplayProfiles, Clipboard, BrowserTabs with its core recency line, and FileSearch.
+through the collector and repoint the root's `depsFor("<Name>")` call in the same commit.
+Learned at the Processes batch, the runtime resolver stamps every declaration nested under
+Olm.spoon with the single consumer name Olm, only the human facing manifest keeps per plugin
+lowercase labels, so the repoint target is `depsFor("Olm")` and not a plugin specific name.
+Verified by the reconciler and by the resolver summary line staying at all present after the
+reload. Tools with declarations today, Vpn, Capture, Eyedropper, Convert, DisplayProfiles,
+Clipboard, BrowserTabs with its core recency line, and FileSearch. A consequence to repay in
+phase 7, one olm wide scope means a plugin can resolve a tool it never declared, so the
+plugin contract pass should teach the olm resolver per plugin owner labels and then narrow
+every `depsFor("Olm")` call back down.
 
 Restow. Deleting a spoon directory leaves a dead symlink in the folded
 `~/.hammerspoon/Spoons` tree, and a plain stow does not prune it, so run `stow -R -t ~
