@@ -122,16 +122,10 @@ spoon.WindowManager = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windowma
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.WindowLeader by hand since it bypasses hs.loadSpoon.
 spoon.WindowLeader = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windowleader/init.lua")
--- The olm side toggle for WindowCheatSheet. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/windowcheatsheet by an absolute path built from hs.configdir,
--- assigned to spoon.WindowCheatSheet by hand since it bypasses hs.loadSpoon. False loads the
--- original spoon instead. Only the load flips here.
-local WINDOWCHEATSHEET_ON_OLM = true
-if WINDOWCHEATSHEET_ON_OLM then
-  spoon.WindowCheatSheet = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windowcheatsheet/init.lua")
-else
-  hs.loadSpoon("WindowCheatSheet")
-end
+-- WindowCheatSheet now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.WindowCheatSheet by hand since it bypasses hs.loadSpoon.
+spoon.WindowCheatSheet = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windowcheatsheet/init.lua")
 -- The olm side toggle for AppToggler. True loads the olm side copy at
 -- Spoons/Olm.spoon/plugins/apptoggler by an absolute path built from hs.configdir, assigned
 -- to spoon.AppToggler by hand since it bypasses hs.loadSpoon. False loads the original spoon
