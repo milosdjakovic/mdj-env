@@ -278,8 +278,16 @@ function obj:configure(opts)
       -- written. Nothing watches the browsers any more, which is what makes the order predictable.
       -- A missing recency instance leaves the write a no op, the same degradation the read above
       -- takes.
+      --
+      -- This mirrors the guard the original recency.lua kept at its own touch, if not url or url
+      -- equals empty string then return, and it must sit here before the key is built rather than
+      -- inside the shared service, since the service only ever sees a finished key and keyFor
+      -- turns a nil url into an empty string rather than a nil key, so a blank tab would otherwise
+      -- persist under its bundle id alone and lead the picker forever.
       activate = function(tab)
-        if this._recency then this._recency.touch(keyFor(tab.bundleID, tab.url)) end
+        if this._recency and tab.url and tab.url ~= "" then
+          this._recency.touch(keyFor(tab.bundleID, tab.url))
+        end
         this.engine.activate(tab)
       end,
       permissionStatus = permissions.status,
