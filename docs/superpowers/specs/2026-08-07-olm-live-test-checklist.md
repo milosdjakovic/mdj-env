@@ -12,7 +12,7 @@ and every chooser, cheat sheet, and chord below exercises them. `CLIPBOARD_ON_OL
 and `VPN_ON_OLM` at line 186 landed in earlier phases and get short confirmation rows at the
 end.
 
-- [ ] WindowManager, `WINDOWMANAGER_ON_OLM` line 112. Hold META, the right option key, then
+- [x] WindowManager, `WINDOWMANAGER_ON_OLM` line 112. Hold META, the right option key, then
   arrows resize, `W` `A` `S` `D` move, `C` centers, `,` and `.` switch display, `Z` `=` `-`
   are size presets, `H` hides all but the focused window. Exercise a few moves and resizes,
   the display switch on your monitor setup, and one placement with Stage Manager on, the left

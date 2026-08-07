@@ -13,8 +13,11 @@ and what fixed it lives in one place. The procedure behind the boxes is
 
 ### WindowManager
 
-- [ ] validated
-- [ ] retired
+- [x] validated
+- [x] retired
+
+Validation passed on 2026-08-07 with no findings. The retirement landed at merge commit
+fef05a9061f5acb5c29375490c2922fc2522a05a.
 
 ### WindowLeader
 
