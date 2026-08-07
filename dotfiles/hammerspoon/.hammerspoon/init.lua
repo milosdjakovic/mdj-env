@@ -258,16 +258,10 @@ end
 spoon.SystemSettings = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/systemsettings/init.lua")
 -- An assignment does not call init the way hs.loadSpoon always did, and this tool has no other init site, so it is called here for parity.
 spoon.SystemSettings:init()
--- The olm side toggle for Emoji. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/emoji by an absolute path built from hs.configdir, assigned to
--- spoon.Emoji by hand since it bypasses hs.loadSpoon. False loads the original spoon
--- instead. Only the load flips here.
-local EMOJI_ON_OLM = true
-if EMOJI_ON_OLM then
-  spoon.Emoji = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/emoji/init.lua")
-else
-  hs.loadSpoon("Emoji")
-end
+-- Emoji now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.Emoji by hand since it bypasses hs.loadSpoon.
+spoon.Emoji = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/emoji/init.lua")
 -- TextCase now lives only in Olm. The original spoon passed live validation and was
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.TextCase by hand since it bypasses hs.loadSpoon.
