@@ -152,16 +152,10 @@ if CLIPBOARD_ON_OLM then
 else
   hs.loadSpoon("ClipboardHistory")
 end
--- The olm side toggle for Caffeinate. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/caffeinate by an absolute path built from hs.configdir, assigned
--- to spoon.Caffeinate by hand since it bypasses hs.loadSpoon. False loads the original spoon
--- instead. Only the load flips here.
-local CAFFEINATE_ON_OLM = true
-if CAFFEINATE_ON_OLM then
-  spoon.Caffeinate = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/caffeinate/init.lua")
-else
-  hs.loadSpoon("Caffeinate")
-end
+-- Caffeinate now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.Caffeinate by hand since it bypasses hs.loadSpoon.
+spoon.Caffeinate = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/caffeinate/init.lua")
 -- The olm side toggle for Vpn. True loads the olm side copy at Spoons/Olm.spoon/plugins/vpn
 -- by an absolute path built from hs.configdir, assigned to spoon.Vpn by hand since it
 -- bypasses hs.loadSpoon. False loads the original spoon instead. Every existing spoon.Vpn
