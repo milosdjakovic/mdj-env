@@ -124,28 +124,15 @@ spoon.WindowCheatSheet = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windo
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.AppToggler by hand since it bypasses hs.loadSpoon.
 spoon.AppToggler = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/apptoggler/init.lua")
--- The olm side toggle for ClipboardHistory. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/clipboard by an absolute path built from hs.configdir and assigns it
--- to spoon.ClipboardHistory by hand, since it bypasses hs.loadSpoon and nothing else does that
--- assignment for it, which is safe because that spoon derives its own path through
--- debug.getinfo and never leans on hs.loadSpoon. False loads the original spoon instead. Every
--- existing spoon.ClipboardHistory reference below keeps working unchanged either way, and the
--- inventory snapshot stays identical across the flip, since both leave spoon.ClipboardHistory
--- set to a module carrying that one name.
+-- ClipboardHistory now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.ClipboardHistory by hand since it bypasses hs.loadSpoon.
 --
--- Four sites read this one boolean, the load here, the emoji insert, the two text case seams,
--- and the engine injected into the manager's own configure near the bottom of this file, and
--- all four flip together. A consumer holding the shared insertion engine while the original
--- watcher is the live one would paste past that watcher's own self capture guard and the paste
--- would land in history as a fresh copy, and the fourth site is the other half of that, since
--- the copy's own files have no engine to take a paste through without it. So one edit here
--- restores the original everywhere, and no site may be flipped on its own.
-local CLIPBOARD_ON_OLM = true
-if CLIPBOARD_ON_OLM then
-  spoon.ClipboardHistory = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/clipboard/init.lua")
-else
-  hs.loadSpoon("ClipboardHistory")
-end
+-- The insertion engine used to flip with this same boolean at three other sites, the emoji
+-- insert, the text case seams, and the engine injected into the manager's own configure near
+-- the bottom of this file. All three now read spoon.Olm.lib.paste directly, since that is the
+-- only insertion engine left and there is no longer a second side for it to disagree with.
+spoon.ClipboardHistory = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/clipboard/init.lua")
 -- Caffeinate now lives only in Olm. The original spoon passed live validation and was
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.Caffeinate by hand since it bypasses hs.loadSpoon.
@@ -1962,16 +1949,9 @@ spoon.Emoji:configure({
   placeholder = "Search by name or keyword",
   shortcutPanel = shortcutPanelFor("emoji"),
   onInsert = function(glyph)
-    -- Resolved at the press rather than at load, so the branch reads beside the call it
-    -- decides. Olm side, the primitive comes straight from the core, which is where it lives
-    -- now. Original side, the manager wrapper is still the door to the same code.
-    local pasteText
-    if CLIPBOARD_ON_OLM then
-      pasteText = spoon.Olm and spoon.Olm.lib.paste and spoon.Olm.lib.paste.pasteText
-    else
-      local mgr = spoon.ClipboardHistory and spoon.ClipboardHistory.manager
-      pasteText = mgr and mgr.pasteText
-    end
+    -- The insertion primitive now always comes straight from the core, since the original
+    -- spoon that once stood on the other side of this seam is retired.
+    local pasteText = spoon.Olm and spoon.Olm.lib.paste and spoon.Olm.lib.paste.pasteText
     if pasteText then
       pasteText(glyph)
     else
@@ -1985,24 +1965,15 @@ spoon.HyperKey:bind(keys.emoji.key, function() spoon.Emoji:show() end)
 -- picker over the Chooser atom that owns its own transform catalog, so it needs the Chooser
 -- factory, the shared theme, and the same deferred shortcut panel the other choosers dock.
 -- It names no clipboard: the two cross-spoon seams, reading the selection and writing the
--- result in place, are injected here and backed by whichever side of the clipboard toggle is
--- live, since the pasteboard snapshot and restore and the self capture guard sit together
--- either way, so both leave the clipboard and its history untouched. copySelection is the
--- read-side mirror of pasteText. This is the toggle's third site and flips with the other
--- three, never on its own. If neither side answers, apply degrades to a typed paste and read is
--- omitted (the tool then only shows its guidance row), the same graceful fallback the emoji
+-- result in place, are injected here and backed by the core insertion engine, since the
+-- pasteboard snapshot and restore and the self capture guard sit there. copySelection is the
+-- read-side mirror of pasteText. If neither answers, apply degrades to a typed paste and read
+-- is omitted (the tool then only shows its guidance row), the same graceful fallback the emoji
 -- insert takes. Its textCase Hyper context (config/keys.lua) drives the j, k, i, and x
 -- shortcuts through the choosers registry below.
-local textCaseRead, textCasePaste
-if CLIPBOARD_ON_OLM then
-  local olmPaste = spoon.Olm and spoon.Olm.lib.paste
-  textCaseRead = olmPaste and olmPaste.copySelection
-  textCasePaste = olmPaste and olmPaste.pasteText
-else
-  local textCaseMgr = spoon.ClipboardHistory and spoon.ClipboardHistory.manager
-  textCaseRead = textCaseMgr and textCaseMgr.copySelection
-  textCasePaste = textCaseMgr and textCaseMgr.pasteText
-end
+local olmPaste = spoon.Olm and spoon.Olm.lib.paste
+local textCaseRead = olmPaste and olmPaste.copySelection
+local textCasePaste = olmPaste and olmPaste.pasteText
 spoon.TextCase:init()
 spoon.TextCase:configure({
   chooser = spoon.Chooser,
@@ -2495,13 +2466,14 @@ local clipMessageToast = spoon.CanvasPanel.new({
 })
 local clipMessageTimer
 
-local clipDeps = depsFor("ClipboardHistory")
+-- The resolver stamps every declaration under Olm.spoon with the one consumer name Olm, since
+-- Olm is the single top level spoon and its plugins are internal structure rather than spoons
+-- of their own, so this reads depsFor("Olm") rather than the name the deleted original carried.
+local clipDeps = depsFor("Olm")
 spoon.ClipboardHistory.manager.configure({
-  -- The shared insertion engine, injected only on the olm side, where the copy's own files
-  -- take every paste and every selection read through it. The original spoon carries that half
-  -- inside its own monitor and has no use for this. This is the toggle's fourth site, listed
-  -- with the other three beside the load at the top of this file.
-  paste = CLIPBOARD_ON_OLM and spoon.Olm.lib.paste or nil,
+  -- The shared insertion engine. Every paste and every selection read now takes this path
+  -- unconditionally, since the original spoon that carried its own insertion half is retired.
+  paste = spoon.Olm.lib.paste,
   onMessage = function(text)
     clipMessage.text = text
     clipMessageToast:show()
