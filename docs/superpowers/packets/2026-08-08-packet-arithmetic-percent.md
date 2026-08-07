@@ -23,7 +23,9 @@ exercises this plugin at all today. Line numbers drift, rescan.
 
 One, the semantics. Percent is a postfix unit meaning hundredths, N% reads as N divided by
 one hundred wherever it appears, so 2+2% answers 2.02, 200*10% answers 20, 50%*80 answers
-40, and 10%^2 answers 0.0001 by the same rule. The business calculator reading where the
+40, and 10%^2 answers 0.01 by the same rule. The figure originally written here was 0.0001,
+an arithmetic slip the builder caught and refused to bake into a test, the rule as stated
+produces 0.01 and the tests assert that. The business calculator reading where the
 percent binds to the other operand of a plus or minus is explicitly not chosen, it needs a
 real parser the plugin's own doc refuses, and the user can veto the chosen rule at
 revalidation.
