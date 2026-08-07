@@ -258,18 +258,12 @@ if DISPLAYPROFILES_ON_OLM then
 else
   hs.loadSpoon("DisplayProfiles")
 end
--- The olm side toggle for SystemSettings. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/systemsettings by an absolute path built from hs.configdir,
--- assigned to spoon.SystemSettings by hand since it bypasses hs.loadSpoon. False loads the
--- original spoon instead. Only the load flips here.
-local SYSTEMSETTINGS_ON_OLM = true
-if SYSTEMSETTINGS_ON_OLM then
-  spoon.SystemSettings = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/systemsettings/init.lua")
-  -- An assignment does not call init the way hs.loadSpoon always did, and this tool has no other init site, so it is called here for parity.
-  spoon.SystemSettings:init()
-else
-  hs.loadSpoon("SystemSettings")
-end
+-- SystemSettings now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.SystemSettings by hand since it bypasses hs.loadSpoon.
+spoon.SystemSettings = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/systemsettings/init.lua")
+-- An assignment does not call init the way hs.loadSpoon always did, and this tool has no other init site, so it is called here for parity.
+spoon.SystemSettings:init()
 -- The olm side toggle for Emoji. True loads the olm side copy at
 -- Spoons/Olm.spoon/plugins/emoji by an absolute path built from hs.configdir, assigned to
 -- spoon.Emoji by hand since it bypasses hs.loadSpoon. False loads the original spoon
