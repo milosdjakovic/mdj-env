@@ -1,7 +1,0 @@
-# What this spoon needs from outside Hammerspoon.
-# Format is name | kind | locator | policy | reason. See Dependencies.spoon.
-# Optional rather than required, even though the sampler cannot be built without it,
-# because the spoon already answers a failed build with an alert and a console line and
-# the key stays discoverable. Required is reserved for a spoon the root should refuse to
-# wire at all, where a present but dead binding would be the worse outcome.
-swiftc | system | /usr/bin/swiftc | optional | compiles the native colour sampler helper

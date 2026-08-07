@@ -172,16 +172,10 @@ if CAPTURE_ON_OLM then
 else
   hs.loadSpoon("Capture")
 end
--- The olm side toggle for Eyedropper. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/eyedropper by an absolute path built from hs.configdir, assigned
--- to spoon.Eyedropper by hand since it bypasses hs.loadSpoon. False loads the original spoon
--- instead. Only the load flips here.
-local EYEDROPPER_ON_OLM = true
-if EYEDROPPER_ON_OLM then
-  spoon.Eyedropper = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/eyedropper/init.lua")
-else
-  hs.loadSpoon("Eyedropper")
-end
+-- Eyedropper now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.Eyedropper by hand since it bypasses hs.loadSpoon.
+spoon.Eyedropper = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/eyedropper/init.lua")
 -- The olm side toggle for WorkspaceEngine. True loads the olm side copy at
 -- Spoons/Olm.spoon/plugins/workspaceengine by an absolute path built from hs.configdir,
 -- assigned to spoon.WorkspaceEngine by hand since it bypasses hs.loadSpoon. False loads the
@@ -2735,8 +2729,12 @@ local colorToastTimer
 spoon.Eyedropper:init()
 spoon.Eyedropper:configure({
   -- The Swift compiler that builds the native sampler, resolved once by the shared
-  -- door rather than by the spoon, so the spoon hardcodes no path.
-  compiler = depsFor("Eyedropper").path("swiftc"),
+  -- door rather than by the spoon, so the spoon hardcodes no path. The resolver
+  -- stamps every declaration under Olm.spoon with the one consumer name Olm, since
+  -- Olm is the single top level spoon and its plugins are internal structure rather
+  -- than spoons of their own, so this reads depsFor("Olm") rather than the name the
+  -- deleted original carried.
+  compiler = depsFor("Olm").path("swiftc"),
   onPick = function(hex)
     pickState.hex = hex
     pickState.color = hexToColor(hex)
