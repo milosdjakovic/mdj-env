@@ -258,7 +258,16 @@ if WINDOWMEMORY_ON_OLM then
 else
   hs.loadSpoon("WindowMemory")
 end
-hs.loadSpoon("Launcher")
+-- The olm side toggle for Launcher. True loads the olm side copy at
+-- Spoons/Olm.spoon/host/launcher by an absolute path built from hs.configdir, assigned to
+-- spoon.Launcher by hand since it bypasses hs.loadSpoon. False loads the original spoon
+-- instead. Only the load flips here.
+local LAUNCHER_ON_OLM = true
+if LAUNCHER_ON_OLM then
+  spoon.Launcher = dofile(hs.configdir .. "/Spoons/Olm.spoon/host/launcher/init.lua")
+else
+  hs.loadSpoon("Launcher")
+end
 -- The olm side toggle for DockAutoHide. True loads the olm side copy at
 -- Spoons/Olm.spoon/plugins/dockautohide by an absolute path built from hs.configdir,
 -- assigned to spoon.DockAutoHide by hand since it bypasses hs.loadSpoon. False loads the
