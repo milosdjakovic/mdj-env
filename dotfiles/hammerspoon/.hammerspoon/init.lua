@@ -93,16 +93,9 @@ end
 -- absolute path built from hs.configdir, assigned to spoon.HyperCheatSheet by hand since it
 -- bypasses hs.loadSpoon.
 spoon.HyperCheatSheet = dofile(hs.configdir .. "/Spoons/Olm.spoon/host/hypercheatsheet/init.lua")
--- The olm side toggle for StageManager. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/stagemanager by an absolute path built from hs.configdir, assigned
--- to spoon.StageManager by hand since it bypasses hs.loadSpoon. False loads the original
--- spoon instead. Only the load flips here.
-local STAGEMANAGER_ON_OLM = true
-if STAGEMANAGER_ON_OLM then
-  spoon.StageManager = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/stagemanager/init.lua")
-else
-  hs.loadSpoon("StageManager")
-end
+-- The user kept StageManager standalone, outside Olm, on the decision of 2026-08-07, so
+-- this loads the original spoon through hs.loadSpoon.
+hs.loadSpoon("StageManager")
 -- WindowManager now lives only in Olm. The original spoon passed live validation and was
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.WindowManager by hand since it bypasses hs.loadSpoon.
@@ -150,26 +143,12 @@ end
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.Eyedropper by hand since it bypasses hs.loadSpoon.
 spoon.Eyedropper = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/eyedropper/init.lua")
--- The olm side toggle for WorkspaceEngine. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/workspaceengine by an absolute path built from hs.configdir,
--- assigned to spoon.WorkspaceEngine by hand since it bypasses hs.loadSpoon. False loads the
--- original spoon instead. Only the load flips here.
-local WORKSPACEENGINE_ON_OLM = true
-if WORKSPACEENGINE_ON_OLM then
-  spoon.WorkspaceEngine = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/workspaceengine/init.lua")
-else
-  hs.loadSpoon("WorkspaceEngine")
-end
--- The olm side toggle for TerminalHandler. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/terminalhandler by an absolute path built from hs.configdir,
--- assigned to spoon.TerminalHandler by hand since it bypasses hs.loadSpoon. False loads the
--- original spoon instead. Only the load flips here.
-local TERMINALHANDLER_ON_OLM = true
-if TERMINALHANDLER_ON_OLM then
-  spoon.TerminalHandler = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/terminalhandler/init.lua")
-else
-  hs.loadSpoon("TerminalHandler")
-end
+-- The user kept WorkspaceEngine standalone, outside Olm, on the decision of 2026-08-07, so
+-- this loads the original spoon through hs.loadSpoon.
+hs.loadSpoon("WorkspaceEngine")
+-- The user kept TerminalHandler standalone, outside Olm, on the decision of 2026-08-07, so
+-- this loads the original spoon through hs.loadSpoon.
+hs.loadSpoon("TerminalHandler")
 -- DisplayMemory now lives only in Olm. The original spoon passed live validation and was
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.DisplayMemory by hand since it bypasses hs.loadSpoon.
@@ -194,16 +173,9 @@ if LAUNCHER_ON_OLM then
 else
   hs.loadSpoon("Launcher")
 end
--- The olm side toggle for DockAutoHide. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/dockautohide by an absolute path built from hs.configdir,
--- assigned to spoon.DockAutoHide by hand since it bypasses hs.loadSpoon. False loads the
--- original spoon instead. Only the load flips here.
-local DOCKAUTOHIDE_ON_OLM = true
-if DOCKAUTOHIDE_ON_OLM then
-  spoon.DockAutoHide = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/dockautohide/init.lua")
-else
-  hs.loadSpoon("DockAutoHide")
-end
+-- The user kept DockAutoHide standalone, outside Olm, on the decision of 2026-08-07, so
+-- this loads the original spoon through hs.loadSpoon.
+hs.loadSpoon("DockAutoHide")
 -- The olm side toggle for DisplayProfiles. True loads the olm side copy at
 -- Spoons/Olm.spoon/plugins/displayprofiles by an absolute path built from hs.configdir,
 -- assigned to spoon.DisplayProfiles by hand since it bypasses hs.loadSpoon. False loads the
