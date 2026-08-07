@@ -54,6 +54,12 @@ end.
   glyph, it pastes in place without landing in clipboard history. Try it once in a terminal,
   astral glyphs should render since the paste carries them rather than keystrokes.
 
+- [ ] MenuSearch, `MENUSEARCH_ON_OLM` line 1702, on `HYPER+E`, with the launcher aliases `m`
+  and `menu` scoping the covered app's menus inside the launcher. Open it over an app with
+  real menus and run an item, the item fires on that app after focus returns. Type `m` and a
+  space in the launcher, the covered app's menus list in place with a reading row while the
+  tree loads, and the docked shortcut hints appear under the chooser after a pause.
+
 - [ ] Processes, `PROCESSES_ON_OLM` line 320, the launcher row named Local Servers. `s` sorts
   by live load, `r` rescans in place, `f` force stops. Stop a dev server and confirm the
   whole process group dies rather than one leaf process.

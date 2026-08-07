@@ -253,6 +253,10 @@ this coupling before any original goes.
 
 A note on menu search, it was deliberately left out of phase 6 bundling, it has no phase assigned
 anywhere in this plan, and it awaits the user's word on whether it becomes its own small plugin.
+The user gave the word on 2026-08-07, and menu search landed as the plugin at
+`Spoons/Olm.spoon/plugins/menusearch` behind `MENUSEARCH_ON_OLM`, an extraction from inline root
+code rather than a spoon copy, reviewed adversarially with parity confirmed, live test deferred to
+the user's checklist like everything else.
 
 ## Phase 7, the plugin contract
 
