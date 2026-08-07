@@ -63,4 +63,3 @@ lsof | system | /usr/sbin/lsof | optional | processes/runtimes | checks whether 
 kill | system | /bin/kill | optional | processes/runtimes | stops a runtime process, gracefully first and forcefully on request
 mullvad | path | mullvad | optional | vpn/mullvad | the relay CLI behind every VPN control and location
 recency | core | lib/recency.lua | optional | vpn/vpn | remembering the last used city, so the list opens already ordered by that
-mullvad | path | mullvad | optional | Vpn/mullvad | the relay CLI behind every VPN control and location

@@ -150,18 +150,10 @@ end
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.Caffeinate by hand since it bypasses hs.loadSpoon.
 spoon.Caffeinate = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/caffeinate/init.lua")
--- The olm side toggle for Vpn. True loads the olm side copy at Spoons/Olm.spoon/plugins/vpn
--- by an absolute path built from hs.configdir, assigned to spoon.Vpn by hand since it
--- bypasses hs.loadSpoon. False loads the original spoon instead. Every existing spoon.Vpn
--- reference below keeps working unchanged either way, and the inventory snapshot stays
--- identical across the flip, since both leave spoon.Vpn set to a module carrying that one
--- name.
-local VPN_ON_OLM = true
-if VPN_ON_OLM then
-  spoon.Vpn = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/vpn/init.lua")
-else
-  hs.loadSpoon("Vpn")
-end
+-- Vpn now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.Vpn by hand since it bypasses hs.loadSpoon.
+spoon.Vpn = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/vpn/init.lua")
 -- The olm side toggle for Capture. True loads the olm side copy at
 -- Spoons/Olm.spoon/plugins/capture by an absolute path built from hs.configdir, assigned to
 -- spoon.Capture by hand since it bypasses hs.loadSpoon. False loads the original spoon
@@ -1906,7 +1898,11 @@ local vpnPanel = shortcutPanelFor("vpn")
 spoon.Vpn.configure({
   theme = settings.chooserTheme,
   chooser = spoon.Chooser,
-  deps = depsFor("Vpn"),
+  -- The resolver stamps every declaration under Olm.spoon with the one consumer name Olm,
+  -- since Olm is the single top level spoon and its plugins are internal structure rather
+  -- than spoons of their own, so this reads depsFor("Olm") rather than the name the
+  -- deleted original carried.
+  deps = depsFor("Olm"),
   recency = spoon.Olm.lib.recency.new({ settingsKey = "Vpn.recentLocations" }),
   onPositioned = vpnPanel.onPositioned,
   onActivity = vpnPanel.onActivity,
