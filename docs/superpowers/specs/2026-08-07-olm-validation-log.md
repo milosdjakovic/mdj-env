@@ -253,9 +253,12 @@ Retirement note, the module level `CLAUDE.md` paste trail becomes a pointer to
 ### Vpn
 
 - [x] validated
-- [ ] retired
+- [x] retired
 
-Validation passed on 2026-08-07 with no findings.
+Validation passed on 2026-08-07 with no findings. The retirement landed at merge commit
+86bc3602324e2b64cabc6660d7b3425c3681ec0e, and needed a depsFor repoint to the consumer name
+the resolver actually stamps under Olm, the same reconciliation Processes, Eyedropper, and
+Convert needed.
 
 ## Host, after their own row passes
 
