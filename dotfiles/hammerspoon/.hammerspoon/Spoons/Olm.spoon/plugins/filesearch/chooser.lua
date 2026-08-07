@@ -79,6 +79,12 @@ local NO_VIEWER = {
 }
 local viewer = NO_VIEWER
 
+-- The latest chooser frame the atom reported, kept so a later peek can hand it to a provider
+-- that needs to know which screen the picker is actually on. Set every time onPositioned fires
+-- and read only by the peek path, since the docked viewer already gets its own placement
+-- straight from the companion rect and never asks for this.
+local lastChooserFrame = nil
+
 -- How a fact is worded lives in util, because the pane beside this list states the same
 -- ones and a size or an age must not come out phrased two ways. Only the path is worded here
 -- now, since the row gave its ages back to the path and the pane is where they are read.
@@ -392,6 +398,10 @@ end
 -- under the list. With no pane there is no companion rect and the anchor is the plain chooser
 -- frame, exactly as it was before the pane existed.
 local function onPositioned(chooserFrame, companionFrame)
+  -- Kept for the peek path below, which fires later on a key press rather than on this call, so
+  -- it needs its own record of where the picker actually landed rather than the seed it opened
+  -- with.
+  lastChooserFrame = chooserFrame
   if companionFrame then
     viewer.dock(companionFrame)
     -- The atom seeds the highlight before it positions anything, so the first onHighlight lands
@@ -508,8 +518,10 @@ function M.start()
       -- a Quick Look window behind, and a reopen builds a fresh one.
       viewer.close()
       -- The next open may land on a display of another width, so what fitted here is not
-      -- what fits there. Dropped on the same one path everything else is.
+      -- what fits there. Dropped on the same one path everything else is, and the last frame
+      -- goes with it since it describes a picker that is now gone.
       dirFits = {}
+      lastChooserFrame = nil
       if cfg.onClose then cfg.onClose() end
     end,
     layout = {
@@ -656,11 +668,15 @@ end
 --- caller holding its own list is a different owner with a different close, so it must not be
 --- held to this picker's, and it takes on the same duty instead, which is to call closePreview
 --- when its own list goes.
+---
+--- The latest chooser frame goes with the row, so a provider that opens its own window can pick
+--- the same screen the picker is actually on. A provider that does not read a second argument
+--- simply never asks for it.
 function M.peekRow(row)
   if viewer.followsHighlight then return end
   if not (row and row.path) or row.status or row.help then return end
   noteUse(row)
-  viewer.show(row)
+  viewer.show(row, lastChooserFrame)
 end
 
 --- chooser.closePreview() - put away whatever the provider has open. The other half of peekRow,
