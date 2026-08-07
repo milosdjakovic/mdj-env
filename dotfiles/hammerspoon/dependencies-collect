@@ -82,21 +82,34 @@ done < <(find "$SPOONS_DIR" -type f \( -name dependencies -o -name '*.dependenci
 # is stripped of that leading segment before the first segment is read. That first segment
 # is then the plugin directory itself, so a declaration under plugins/vpn names vpn rather
 # than Olm, and a declaration under plugins/filesearch names filesearch the same way.
+#
+# A declaration can also sit flat, directly under plugins, host, or lib with no plugin
+# directory beneath it. The strip above then leaves nothing before a slash, so there is no
+# second segment to read, and the label falls back to the base alone, a flat
+# recency.dependencies there reads recency rather than swallowing the whole filename.
 owner_of() {
-    local decl="$1" rel spoon base
+    local decl="$1" rel spoon base stripped=0
     rel="${decl#"$SPOONS_DIR"/}"
     if [[ "$rel" == "$decl" ]]; then
         basename "$(dirname "$decl")"
         return
     fi
     case "$rel" in
-        Olm.spoon/plugins/*) rel="${rel#Olm.spoon/plugins/}" ;;
-        Olm.spoon/host/*) rel="${rel#Olm.spoon/host/}" ;;
-        Olm.spoon/lib/*) rel="${rel#Olm.spoon/lib/}" ;;
+        Olm.spoon/plugins/*) rel="${rel#Olm.spoon/plugins/}"; stripped=1 ;;
+        Olm.spoon/host/*) rel="${rel#Olm.spoon/host/}"; stripped=1 ;;
+        Olm.spoon/lib/*) rel="${rel#Olm.spoon/lib/}"; stripped=1 ;;
     esac
+    base="$(basename "$decl")"
+    if [[ "$stripped" == 1 && "$rel" != */* ]]; then
+        if [[ "$base" == "dependencies" ]]; then
+            echo "dependencies"
+        else
+            echo "${base%.dependencies}"
+        fi
+        return
+    fi
     spoon="${rel%%/*}"
     spoon="${spoon%.spoon}"
-    base="$(basename "$decl")"
     if [[ "$base" == "dependencies" ]]; then
         echo "$spoon"
     else
