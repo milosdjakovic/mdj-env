@@ -371,27 +371,35 @@ spoon.Olm.lib.storage.configure(settings.paths)
 -- Choices this root makes, named early because the key wiring reads them
 --------------------------------------------------------------------------------
 
--- How file search shows the highlighted file. Two implementations of one contract, named by
--- reference so no provider string appears anywhere, and switching is this one line.
+-- How file search shows the highlighted file. Two seams rather than one provider filling both
+-- jobs, each named by reference so no provider string appears anywhere, and switching either is
+-- one line.
 --
--- SidePanel docks a canvas beside the list and follows the highlight, a permanent summary in the
--- corner of your eye that this config scrolls for you. QuickLook opens the native panel over the
--- picker when a key asks for it, a full size preview of anything the system can render, and
--- reserves no room, so the picker becomes a plain list.
+-- filePreviewProvider docks a canvas beside the list and follows the highlight, a permanent
+-- summary in the corner of your eye that this config scrolls for you. Set to SidePanel here for
+-- live testing of the panel, with filePeekProvider below keeping the native window one key away
+-- regardless.
 --
--- It is decided HERE rather than at the configure call below, because the bindings depend on it.
--- One provider earns the two scroll keys and the other earns the peek key, and the shortcut panel
--- is built from the same data, so the choice has to be known before either is read.
-local filePreviewProvider = spoon.FileSearch.PreviewProvider.QuickLook
+-- filePeekProvider opens on top of the list rather than beside it, only when a key asks for it,
+-- a full size preview of anything the system can render. QuickLook is the one that answers to
+-- this seam, and it reserves no room, so the docked provider still owns the whole companion rect.
+--
+-- Both are decided HERE rather than at the configure call below, because the bindings depend on
+-- them. The docked one earns the two scroll keys and the peek one earns the peek key, and the
+-- shortcut panel is built from the same data, so the choice has to be known before either is
+-- read.
+local filePreviewProvider = spoon.FileSearch.PreviewProvider.SidePanel
+local filePeekProvider = spoon.FileSearch.PreviewProvider.QuickLook
 
 -- What a binding may declare it NEEDS from a choice above, answered once here. A binding naming
 -- something absent is dropped from the key wiring and from the shortcut panel together, which is
 -- what keeps a listed key from being one that does nothing. An unknown requirement keeps the
 -- binding and says so, so a typo fails visibly rather than silently removing a key.
 local bindingNeeds = {
-  -- A preview you have to ask for, which is the Quick Look window. A pane already showing the
-  -- row makes a peek key mean show me what is in front of you.
-  askedPreview = function() return filePreviewProvider.followsHighlight == false end,
+  -- A preview you have to ask for, which is whatever sits in the peek seam above. Answered from
+  -- that seam's own presence, since the docked provider following the highlight no longer says
+  -- anything about whether a key can still ask for something else on top of it.
+  askedPreview = function() return filePeekProvider ~= nil end,
   -- A preview this config scrolls on your behalf, which is the docked pane. A window scrolls
   -- itself and its own keys are the system's.
   scrollablePreview = function() return filePreviewProvider.followsHighlight == true end,
@@ -2212,6 +2220,9 @@ spoon.FileSearch:configure({
   -- does nothing while its own surface is closed, so the one that is not on screen costs a call.
   -- Chosen at the top of this file, because the bindings depend on which one it is.
   previewProvider = filePreviewProvider,
+  -- The other seam, also chosen at the top of this file and also read by the bindings, so the
+  -- q key still opens QuickLook on top of the docked pane rather than losing it to the flip.
+  peekProvider = filePeekProvider,
   onResults = function()
     if spoon.Launcher then spoon.Launcher:refresh() end
   end,
