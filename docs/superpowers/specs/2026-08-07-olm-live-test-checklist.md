@@ -38,12 +38,12 @@ end.
   copies the path. Files you acted on before the migration should still rank near the top,
   the usage recency persisted.
 
-- [ ] BrowserTabs, `BROWSERTABS_ON_OLM` line 310, on `HYPER+W`. The list should lead with the
+- [x] BrowserTabs, `BROWSERTABS_ON_OLM` line 310, on `HYPER+W`. The list should lead with the
   tabs you touched most recently, the remembered order survived the migration since both
   sides share one settings key. Picking a tab raises the right window and tab. Enter on the
   settings row steps into the browser toggles without the chooser closing.
 
-- [ ] Caffeinate, `CAFFEINATE_ON_OLM` line 174, on `HYPER+K`. Type a clock time like `15:55`
+- [x] Caffeinate, `CAFFEINATE_ON_OLM` line 174, on `HYPER+K`. Type a clock time like `15:55`
   or a duration like `1h30m`, confirm with `i`, the machine stays awake for that period, and
   `x` closes the panel.
 
@@ -52,17 +52,17 @@ end.
   `HYPER+Shift+4` to a file, the shift sub modifier splitting two actions on one key is worth
   proving on its own. `HYPER+5` records the screen.
 
-- [ ] Emoji, `EMOJI_ON_OLM` line 289, on `HYPER+J`. Search by name or shortcode, pick a
+- [x] Emoji, `EMOJI_ON_OLM` line 289, on `HYPER+J`. Search by name or shortcode, pick a
   glyph, it pastes in place without landing in clipboard history. Try it once in a terminal,
   astral glyphs should render since the paste carries them rather than keystrokes.
 
-- [ ] MenuSearch, `MENUSEARCH_ON_OLM` line 1702, on `HYPER+E`, with the launcher aliases `m`
+- [x] MenuSearch, `MENUSEARCH_ON_OLM` line 1702, on `HYPER+E`, with the launcher aliases `m`
   and `menu` scoping the covered app's menus inside the launcher. Open it over an app with
   real menus and run an item, the item fires on that app after focus returns. Type `m` and a
   space in the launcher, the covered app's menus list in place with a reading row while the
   tree loads, and the docked shortcut hints appear under the chooser after a pause.
 
-- [ ] Processes, `PROCESSES_ON_OLM` line 320, the launcher row named Local Servers. `s` sorts
+- [x] Processes, `PROCESSES_ON_OLM` line 320, the launcher row named Local Servers. `s` sorts
   by live load, `r` rescans in place, `f` force stops. Stop a dev server and confirm the
   whole process group dies rather than one leaf process.
 
@@ -72,14 +72,14 @@ end.
   curated ones stay read only, and pins write to the git tracked
   `config/display-profiles.json`.
 
-- [ ] Eyedropper, `EYEDROPPER_ON_OLM` line 206, on `HYPER+2`. The loupe appears, a click
+- [x] Eyedropper, `EYEDROPPER_ON_OLM` line 206, on `HYPER+2`. The loupe appears, a click
   copies the sampled hex with the swatch toast, escape cancels cleanly.
 
-- [ ] TextCase, `TEXTCASE_ON_OLM` line 299, the launcher row named Text Case. Select text in
+- [x] TextCase, `TEXTCASE_ON_OLM` line 299, the launcher row named Text Case. Select text in
   another app first, the rows preview your selection recased, and picking one replaces the
   selection in place with clipboard history untouched.
 
-- [ ] SystemSettings, `SYSTEMSETTINGS_ON_OLM` line 277, launcher rows under the `s` or
+- [x] SystemSettings, `SYSTEMSETTINGS_ON_OLM` line 277, launcher rows under the `s` or
   `system` scope. Picking a pane opens System Settings directly to it. This tool had a rework
   fix for its init call, so the full pane list appearing at all is part of the proof.
 
@@ -90,7 +90,7 @@ end.
 - [ ] Arithmetic, `ARITHMETIC_ON_OLM` line 340, no key. Type `2+2` into the open launcher, a
   computed row leads the list, selecting it copies the value.
 
-- [ ] Convert, `CONVERT_ON_OLM` line 350, no key. Type `10 usd to eur` into the launcher, a
+- [x] Convert, `CONVERT_ON_OLM` line 350, no key. Type `10 usd to eur` into the launcher, a
   row appears once the calculator answers, it is asynchronous so give it a beat. This tool
   had the other init rework fix, a row appearing proves it ran.
 
@@ -102,7 +102,7 @@ end.
   auto hide, twice returns to where you started, and it must not collide with the
   `Shift+Alt+D` workspace key.
 
-- [ ] DisplayMemory, `DISPLAYMEMORY_ON_OLM` line 236, background only. Move the terminal to
+- [x] DisplayMemory, `DISPLAYMEMORY_ON_OLM` line 236, background only. Move the terminal to
   another display, hide it, retoggle it with the terminal key, it returns to the display you
   left it on for this monitor arrangement, and that memory survives a reload.
 
@@ -114,7 +114,7 @@ end.
   Manager and watch a WindowManager placement, the left margin grows by the configured amount
   while it is on and drops back when it is off.
 
-- [ ] KeyRemap, `KEYREMAP_ON_OLM` line 54, the ground under everything. If caps lock drives
+- [x] KeyRemap, `KEYREMAP_ON_OLM` line 54, the ground under everything. If caps lock drives
   Hyper, a quick tap still toggles real caps lock, a hold reveals the Hyper cheat sheet, and
   right option drives the window leader, then it works, every row above silently proved it.
 
@@ -125,9 +125,9 @@ end.
   still lead the list, the `launcherRecency` order persists across the flip. Type an alias like
   `k` and a space to prove the scope grammar still hands the whole list to one tool.
 
-- [ ] ClipboardHistory, `CLIPBOARD_ON_OLM` line 164, on `HYPER+X` with append copy on
+- [x] ClipboardHistory, `CLIPBOARD_ON_OLM` line 164, on `HYPER+X` with append copy on
   `Ctrl+Alt+C` and the paste walk on `Ctrl+Alt+V`. Landed in phase 3 with a programmatic live
   pass, so a quick human confirmation of copy, search, paste, and one paste walk closes it.
 
-- [ ] Vpn, `VPN_ON_OLM` line 186, on `HYPER+P` or the `vpn` launcher scope. Landed earlier,
+- [x] Vpn, `VPN_ON_OLM` line 186, on `HYPER+P` or the `vpn` launcher scope. Landed earlier,
   connect and disconnect once.

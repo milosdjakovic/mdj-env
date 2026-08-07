@@ -85,6 +85,12 @@ Emoji. The original carries the vendored `data.lua` and `regenerate.sh`. The cop
 carries both, so the deletion is plain, just confirm the copy's `regenerate.sh` kept its
 executable bit before deleting the original.
 
+TerminalHandler, WorkspaceEngine, DockAutoHide, and StageManager. The user decided on
+2026-08-07 that these four stay out of Olm entirely. Each moves back to its own standalone
+spoon, initialized directly in the root `init.lua` the way it stood before the migration,
+and none of the four follows the validate and retire path in this plan. See their sections
+in `2026-08-07-olm-validation-log.md` for the standing note.
+
 ## After the last retirement
 
 A docs sweep, the module `CLAUDE.md` prose that names original spoon paths gets pointed at
