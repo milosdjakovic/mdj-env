@@ -103,14 +103,17 @@ The retirement landed at merge commit 4983fc104fd54b812ed30373f8aec156731c3a3e.
 ### MenuSearch
 
 - [x] validated
-- [ ] retired
+- [x] retired
 
 Validation passed on 2026-08-07 with no findings. The carried in retirement note below
 still applies.
 
 The original is the inline false branch in the root `init.lua` rather than a spoon.
 Retirement deletes that block and corrects the module `CLAUDE.md` sentence that still calls
-menu search root policy.
+menu search root policy. The retirement landed at merge commit
+9fee4be459c07639c6c678fd2916f4cd602dbd87, and the module `CLAUDE.md` sentence now names menu
+search as an olm plugin configured from the root instead of grouping it with the alias
+directory as root policy.
 
 ### Processes
 
