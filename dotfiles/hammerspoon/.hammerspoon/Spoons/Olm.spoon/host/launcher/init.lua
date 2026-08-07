@@ -69,11 +69,13 @@ local APP_DIRS = {
 }
 local APP_SCAN_MAX_DEPTH = 4
 
--- Unified recency ordering. Every row kind shares one most-recently-used
--- timeline, keyed by a kind-qualified item key (see recencyKey), so the last
--- thing used bubbles to the top whether it was an app or a command. Two observers
--- feed it with equal weight: an app activation (the same signal Command+Tab
--- follows, so open+Enter still lands on the last app) and any launcher selection.
+-- Unified recency ordering. Every row kind shares one most recently used
+-- timeline, keyed by a kind qualified item key, see recencyKey, so the last
+-- thing picked through the launcher bubbles to the top whether it was an app
+-- or a command. The timeline is fed by launcher picks alone, on the user's
+-- decision of 2026-08-07, a chooser selection or a row taken through the
+-- intercept below. The app watcher further down stays only to refresh the
+-- running set, it feeds nothing into this timeline any more.
 -- Persisted under one hs.settings key so it survives a reload (frequent here) and
 -- a reboot, and capped so it stays small. The key is new (was app-only bundle ids
 -- under "launcherAppMRU"), so old data is ignored and the order relearns at once.
@@ -829,22 +831,16 @@ end
 
 --- Launcher:start()
 --- Method
---- Begin owning live state. Load the persisted recency order and seed the current
---- frontmost app so the top row is right before the first switch. The watcher
---- promotes the activated app into the shared timeline and invalidates the cached
---- rows when the running set or the focused app changes, so the order tracks
---- Command+Tab without rescanning on every open. Idempotent.
+--- Begin owning live state. Load the persisted recency order, fed only by
+--- launcher picks. The watcher refreshes the running set on activation,
+--- launch, and termination, and invalidates the cached rows, so app rows
+--- track the machine without rescanning on every open. Idempotent.
 function obj:start()
   if self._appRowsWatcher then return self end
   self._mru = hs.settings.get(MRU_SETTINGS_KEY) or {}
   self._orderedRowsCache = nil
-  local front = hs.application.frontmostApplication()
-  local frontID = front and front:bundleID()
-  if frontID then self:_promote("app:" .. frontID) end
   self._appRowsWatcher = hs.application.watcher.new(function(_, event, app)
     if event == hs.application.watcher.activated then
-      local id = app and app:bundleID()
-      if id then self:_promote("app:" .. id) end -- also clears the ordered cache
       self._appRowsCache = nil
     elseif event == hs.application.watcher.launched or event == hs.application.watcher.terminated then
       self._appRowsCache = nil
