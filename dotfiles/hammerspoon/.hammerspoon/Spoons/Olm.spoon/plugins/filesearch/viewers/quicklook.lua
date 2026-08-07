@@ -187,7 +187,7 @@ function M.dock() end
 --- they need a preview this config scrolls on your behalf.
 function M.scrollBy() end
 
---- viewer.show(row) - put this file in the panel, or take the panel down.
+--- viewer.show(row, chooserFrame), put this file in the panel, or take the panel down.
 ---
 --- ASKING FOR THE FILE ALREADY ON SCREEN MEANS CLOSE, which is what makes the key a toggle the way
 --- the space bar is one in Finder. Asking for a DIFFERENT file replaces what is up rather than
@@ -196,7 +196,12 @@ function M.scrollBy() end
 --- reads as show me this, and, when this is already what you are looking at, as put it away.
 ---
 --- A row with no path is a status row and simply closes what is there.
-function M.show(row)
+---
+--- chooserFrame is the picker's own absolute frame, x, y, w, h, forwarded to the helper as four
+--- extra string arguments so it can pick the screen the picker is actually on rather than the
+--- screen the pointer happens to be resting on. Optional, since a caller with no frame to hand
+--- over still gets a panel, on whatever screen the helper falls back to.
+function M.show(row, chooserFrame)
   if not (row and row.path) then stop() return end
   -- Expanded at the boundary as well as at the source, and that is not belt and braces. This is
   -- the point where a path leaves Hammerspoon for another process, and the reason the bug it
@@ -225,6 +230,19 @@ function M.show(row)
     -- callback that cleared the field unconditionally would erase the handle to the panel that
     -- is actually on screen. Closing the picker then terminated nothing and left a window
     -- floating over nothing, which is exactly what happened before this check existed.
+    --
+    -- The frame rides along as four more strings on the same argument list, since hs.task hands
+    -- a process plain command line arguments and a rect is not one of those on its own. Left off
+    -- entirely when there is no frame to give, rather than sent as empty strings, so the helper
+    -- can tell a caller with nothing to offer apart from one that sent four numbers it failed to
+    -- parse.
+    local args = { path }
+    if chooserFrame then
+      args[#args + 1] = tostring(chooserFrame.x)
+      args[#args + 1] = tostring(chooserFrame.y)
+      args[#args + 1] = tostring(chooserFrame.w)
+      args[#args + 1] = tostring(chooserFrame.h)
+    end
     local handle
     handle = hs.task.new(BINARY, function()
       -- Cleared on the panel's own exit too, since closing it by hand is the ordinary way it
@@ -237,7 +255,7 @@ function M.show(row)
       -- there, and Escape would stop closing the list. With the handle already nil this
       -- terminates nothing and only forgets.
       stop()
-    end, { path })
+    end, args)
     task = handle
     if handle then
       handle:start()

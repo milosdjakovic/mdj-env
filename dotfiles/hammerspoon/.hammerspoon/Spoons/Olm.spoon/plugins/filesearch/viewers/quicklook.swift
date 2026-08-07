@@ -89,12 +89,44 @@ final class CloseDisc: NSView {
 final class Preview: NSObject, NSWindowDelegate {
     let panel: NSPanel
 
-    init?(url: URL) {
-        // The screen the pointer is on, since that is the one the picker opened on.
+    // The screen the caller's frame sits on, or the pointer's screen when no frame arrived.
+    //
+    // The viewer forwards the picker's own absolute frame as four more strings after the path,
+    // x, y, w, h, so this reads them back and finds the NSScreen whose area contains the
+    // center of that rect. That is the screen the picker actually opened on, which the pointer
+    // is not reliably resting over, so the earlier version of this function picked the wrong
+    // screen on any setup where the pointer had drifted off to another display. Falling back to
+    // the pointer covers two cases rather than one, the four arguments missing entirely, and
+    // the four arguments parsing fine yet matching no screen, which happens when the stored
+    // frame names a display that has since been disconnected. Either way this keeps the helper
+    // working rather than picking nothing at all.
+    //
+    // THE TWO COORDINATE SYSTEMS DISAGREE AND THAT IS NOT OPTIONAL TO HANDLE. Hammerspoon
+    // reports its frame in Quartz display coordinates, the top left of the primary screen at
+    // zero with y growing downward. NSScreen reports its own frame in Cocoa coordinates, the
+    // bottom left of the primary screen at zero with y growing upward. So the y side of the
+    // center point is flipped against the primary screen height before it is compared against
+    // any screen's frame, or a rect near the top of one system reads as a rect near the bottom
+    // of the other and lands on the wrong display whenever more than one screen differs in
+    // height or sits above rather than beside the primary one.
+    private static func screenFor(arguments: [String]) -> NSScreen {
+        if arguments.count >= 6,
+           let x = Double(arguments[2]), let y = Double(arguments[3]),
+           let w = Double(arguments[4]), let h = Double(arguments[5]) {
+            let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
+            let center = NSPoint(x: x + w / 2, y: primaryHeight - (y + h / 2))
+            if let match = NSScreen.screens.first(where: { NSMouseInRect(center, $0.frame, false) }) {
+                return match
+            }
+        }
         let pointer = NSEvent.mouseLocation
-        let screen = NSScreen.screens.first { NSMouseInRect(pointer, $0.frame, false) }
+        return NSScreen.screens.first { NSMouseInRect(pointer, $0.frame, false) }
             ?? NSScreen.main
             ?? NSScreen.screens[0]
+    }
+
+    init?(url: URL) {
+        let screen = Preview.screenFor(arguments: CommandLine.arguments)
         let area = screen.visibleFrame
         let width = min(1100, area.width * 0.7)
         let height = min(820, area.height * 0.8)

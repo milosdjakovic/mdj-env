@@ -53,6 +53,12 @@ local cfg = {
   -- than to no preview. This file calls the contract and never asks which it got, except for
   -- the one question the contract exists to answer, whether it follows the highlight.
   viewers = nil,
+  -- The provider asked for rather than followed, injected by the spoon root on its own field
+  -- since it answers a different question than the docked chain above. The docked chain picks
+  -- what sits beside the list, and this picks what the q key opens on top of it, so the two are
+  -- resolved separately and the one that follows the highlight never has to also be the one a
+  -- key can ask for. Nil means there is nothing to ask for, the same as an empty docked chain.
+  peekProvider = nil,
   onPositioned = nil,
   onActivity = nil,
   onClose = nil,
@@ -78,6 +84,19 @@ local NO_VIEWER = {
   close = function() end,
 }
 local viewer = NO_VIEWER
+
+-- The provider the q key opens, resolved once in start alongside the docked one above and kept
+-- as its own variable rather than a second slot in the same one, since the two answer to
+-- different callers and a viewer that follows the highlight must never also be reached by a
+-- key. Defaults to the same Null Object, so a root wiring none of it gets a q key that is asked
+-- to drop from the binding rather than one that opens nothing when pressed.
+local peekViewer = NO_VIEWER
+
+-- The latest chooser frame the atom reported, kept so a later peek can hand it to a provider
+-- that needs to know which screen the picker is actually on. Set every time onPositioned fires
+-- and read only by the peek path, since the docked viewer already gets its own placement
+-- straight from the companion rect and never asks for this.
+local lastChooserFrame = nil
 
 -- How a fact is worded lives in util, because the pane beside this list states the same
 -- ones and a size or an age must not come out phrased two ways. Only the path is worded here
@@ -392,6 +411,10 @@ end
 -- under the list. With no pane there is no companion rect and the anchor is the plain chooser
 -- frame, exactly as it was before the pane existed.
 local function onPositioned(chooserFrame, companionFrame)
+  -- Kept for the peek path below, which fires later on a key press rather than on this call, so
+  -- it needs its own record of where the picker actually landed rather than the seed it opened
+  -- with.
+  lastChooserFrame = chooserFrame
   if companionFrame then
     viewer.dock(companionFrame)
     -- The atom seeds the highlight before it positions anything, so the first onHighlight lands
@@ -468,6 +491,21 @@ function M.start()
     util.log.i("preview provider " .. tostring(candidate.name) .. " stepped aside, " .. tostring(why))
   end
 
+  -- The provider a key can ask for, resolved the same way as the docked one just above but on
+  -- its own field and with no chain behind it, since there is exactly one candidate rather than
+  -- an ordered list to fall through. Stepping aside here means the q key drops from the binding
+  -- rather than opening nothing, the same degradation every optional provider in this file gets.
+  peekViewer = NO_VIEWER
+  if cfg.peekProvider then
+    cfg.peekProvider.configure(deps)
+    local ok, why = cfg.peekProvider.available()
+    if ok then
+      peekViewer = cfg.peekProvider
+    else
+      util.log.i("peek preview provider " .. tostring(cfg.peekProvider.name) .. " stepped aside, " .. tostring(why))
+    end
+  end
+
   picker = cfg.chooser.new({
     theme = cfg.theme,
     rows = supplier,
@@ -505,11 +543,15 @@ function M.start()
       -- still running, and the root's overlay teardown runs through the injected handler.
       if cfg.api then cfg.api.cancel() end
       -- Closed on the atom's one idempotent teardown path, so no dismissal leaves a canvas or
-      -- a Quick Look window behind, and a reopen builds a fresh one.
+      -- a Quick Look window behind, and a reopen builds a fresh one. Both viewers are told,
+      -- since either one, the docked or the one a key asks for, may have something open.
       viewer.close()
+      peekViewer.close()
       -- The next open may land on a display of another width, so what fitted here is not
-      -- what fits there. Dropped on the same one path everything else is.
+      -- what fits there. Dropped on the same one path everything else is, and the last frame
+      -- goes with it since it describes a picker that is now gone.
       dirFits = {}
+      lastChooserFrame = nil
       if cfg.onClose then cfg.onClose() end
     end,
     layout = {
@@ -628,14 +670,14 @@ function M.scrollPreviewUp()
   viewer.scrollBy(-PANE_SCROLL_STEP)
 end
 
---- chooser.peekPreview() - show the highlighted row in the provider, for a provider that is
---- asked rather than followed.
+--- chooser.peekPreview(), show the highlighted row in the peek viewer, the provider that is
+--- asked for rather than followed.
 ---
---- Inert under a provider that follows the highlight, because there it would mean show me the
---- thing already in front of you. The binding is gated on the same question through a predicate,
---- so the key drops out of the shortcut panel too rather than being listed and doing nothing.
+--- Inert with no peek viewer resolved, because then there is nothing to ask for. The binding is
+--- gated on the same question through a predicate, so the key drops out of the shortcut panel
+--- too rather than being listed and doing nothing.
 function M.peekPreview()
-  if viewer.followsHighlight then return end
+  if peekViewer == NO_VIEWER then return end
   -- Refused once the list is gone, and this one is about LIFETIME rather than about the row. Every
   -- other verb here is a one shot, so acting on a stale highlight would at worst reveal the wrong
   -- file. This one opens a window whose only teardown is the picker closing, so a peek that lands
@@ -647,7 +689,7 @@ function M.peekPreview()
   M.peekRow(row)
 end
 
---- chooser.peekRow(row) - show a row this picker was HANDED rather than one it highlighted, for
+--- chooser.peekRow(row), show a row this picker was HANDED rather than one it highlighted, for
 --- another surface listing the same rows.
 ---
 --- Split out of peekPreview rather than reached by pretending to be it, because the two differ in
@@ -656,18 +698,21 @@ end
 --- caller holding its own list is a different owner with a different close, so it must not be
 --- held to this picker's, and it takes on the same duty instead, which is to call closePreview
 --- when its own list goes.
+---
+--- The latest chooser frame goes with the row, so the peek viewer can pick the same screen the
+--- picker is actually on. A viewer that does not read a second argument simply never asks for it.
 function M.peekRow(row)
-  if viewer.followsHighlight then return end
+  if peekViewer == NO_VIEWER then return end
   if not (row and row.path) or row.status or row.help then return end
   noteUse(row)
-  viewer.show(row)
+  peekViewer.show(row, lastChooserFrame)
 end
 
---- chooser.closePreview() - put away whatever the provider has open. The other half of peekRow,
+--- chooser.closePreview(), put away whatever the peek viewer has open. The other half of peekRow,
 --- for the surface that asked, since a preview outliving the list it describes is the one failure
 --- this provider can leave on screen.
 function M.closePreview()
-  viewer.close()
+  peekViewer.close()
 end
 
 --- chooser.insertSelected() - the primary key, choosing the highlighted row.

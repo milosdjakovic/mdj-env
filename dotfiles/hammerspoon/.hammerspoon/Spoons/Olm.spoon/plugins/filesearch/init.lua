@@ -83,6 +83,10 @@ obj._defaultSources = { obj.sources.walk, obj.sources.hidden, obj.sources.spotli
 --- The difference is not only how they draw but WHEN, which is why the contract carries
 --- `followsHighlight` and why they cannot simply be swapped without the surface noticing.
 ---
+--- QuickLook belongs in the peek seat instead, reached through `opts.peekProvider` on configure.
+--- It never follows the highlight, so naming it here as `previewProvider` still wins the docked
+--- seat and yields no preview at all, with no console line saying why.
+---
 --- The members are the modules themselves rather than names, so a caller writes
 --- `PreviewProvider.SidePanel` and no string for a provider appears at any call site. A mistyped
 --- member raises here instead of silently reading as nil and leaving the picker with no preview
@@ -117,7 +121,14 @@ obj.chooser = load("chooser.lua")
 --- opts.onResults  optional, told when the rows changed, for a surface other than this spoon's
 ---                 own picker. Composed with the picker's redraw rather than replacing it
 --- opts.previewProvider  a member of FileSearch.PreviewProvider, defaulting to SidePanel. The
----                 root names it by reference rather than by string, see the enum above
+---                 root names it by reference rather than by string, see the enum above.
+---                 QuickLook here still wins the docked seat and yields no preview at all,
+---                 since it never follows the highlight, so it belongs on opts.peekProvider
+---                 below instead
+--- opts.peekProvider  a member of FileSearch.PreviewProvider, or nil for none, the seam a key
+---                 asks for rather than the one that follows the highlight. Kept apart from
+---                 previewProvider above because the two answer different callers and either
+---                 can be QuickLook, SidePanel, or absent without the other changing
 ---
 --- Wraps the engine's own configure so this file stays the only place that knows both which
 --- sources exist and which part of the policy each one reads. The engine is handed only what it
@@ -253,6 +264,11 @@ function obj:configure(opts)
     -- preview at all. This is the only place in the spoon that names a concrete one, and it
     -- names them by reference so no provider string exists anywhere.
     viewers = previewChain(opts.previewProvider),
+    -- The seam a key asks for, passed straight through with no chain and no fallback behind it,
+    -- since asking for nothing when it steps aside is the right answer and there is no second
+    -- provider here to hand the key to instead. Nil is a valid answer too, meaning the root
+    -- wants no peek seam at all, and the key it would have earned drops out on its own.
+    peekProvider = opts.peekProvider,
   })
 
   return self
