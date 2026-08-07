@@ -838,13 +838,8 @@ function obj:start()
   if self._appRowsWatcher then return self end
   self._mru = hs.settings.get(MRU_SETTINGS_KEY) or {}
   self._orderedRowsCache = nil
-  local front = hs.application.frontmostApplication()
-  local frontID = front and front:bundleID()
-  if frontID then self:_promote("app:" .. frontID) end
   self._appRowsWatcher = hs.application.watcher.new(function(_, event, app)
     if event == hs.application.watcher.activated then
-      local id = app and app:bundleID()
-      if id then self:_promote("app:" .. id) end -- also clears the ordered cache
       self._appRowsCache = nil
     elseif event == hs.application.watcher.launched or event == hs.application.watcher.terminated then
       self._appRowsCache = nil
