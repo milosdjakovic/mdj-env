@@ -158,10 +158,3 @@ query field instead, a real focused text field inside our own process whose cont
 back. And check the screen is unlocked before measuring delivery, since a locked screen leaves
 `loginwindow` frontmost and every paste goes there, which looks exactly like a paste that did not
 land.
-
-**Where this trail also lives.** The module level `CLAUDE.md` still carries this same block,
-because the original `ClipboardHistory.spoon` still embodies it on the other side of the
-composition root's toggle and a reader who lands there needs it to be true. That duplication ends
-when the original is retired, which is also when the module level file keeps a pointer here
-instead of the text, since part of this is general macOS knowledge rather than knowledge about
-this config and the thread should not be lost from the top level.
