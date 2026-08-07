@@ -114,16 +114,10 @@ if STAGEMANAGER_ON_OLM then
 else
   hs.loadSpoon("StageManager")
 end
--- The olm side toggle for WindowManager. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/windowmanager by an absolute path built from hs.configdir, assigned
--- to spoon.WindowManager by hand since it bypasses hs.loadSpoon. False loads the original
--- spoon instead. Only the load flips here.
-local WINDOWMANAGER_ON_OLM = true
-if WINDOWMANAGER_ON_OLM then
-  spoon.WindowManager = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windowmanager/init.lua")
-else
-  hs.loadSpoon("WindowManager")
-end
+-- WindowManager now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.WindowManager by hand since it bypasses hs.loadSpoon.
+spoon.WindowManager = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windowmanager/init.lua")
 -- The olm side toggle for WindowLeader. True loads the olm side copy at
 -- Spoons/Olm.spoon/plugins/windowleader by an absolute path built from hs.configdir, assigned
 -- to spoon.WindowLeader by hand since it bypasses hs.loadSpoon. False loads the original
