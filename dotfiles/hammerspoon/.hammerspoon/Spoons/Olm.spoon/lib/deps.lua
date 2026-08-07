@@ -168,12 +168,18 @@ local SUFFIX = ".dependencies"
 -- belongs to the spoon as a whole and carries no base, a file named `<base>.dependencies`
 -- belongs to its sibling `<base>.lua` and carries that base as its owner label.
 --
--- The walk is depth capped. Three levels reaches a spoon root, a subdirectory such as
--- providers or manager, and one level under that, which is deeper than anything here. A
--- spoon that needed more would be organising itself wrong rather than needing more depth,
--- and an uncapped walk in the resolver that runs before every other spoon is not worth the
--- risk of one stray directory.
-local MAX_DEPTH = 3
+-- The walk is depth capped. Four levels reaches a plugin root under Olm, a subdirectory of
+-- that plugin such as providers, manager, or sources, and one level under that, which is
+-- deeper than anything here. The cap sits one level past what the original Dependencies.spoon
+-- needs, because a plugin hosted under Olm carries the same internal shape a standalone spoon
+-- had, sources beside its own root among them, one level below where that shape used to sit
+-- directly under the Spoons directory. Processes is the tool that first exposed this, its
+-- sources.dependencies files went unread at the old cap of three, quietly dropping docker,
+-- lsof, and kill from every consumer that could have named them. A plugin that needed more
+-- than this would be organising itself wrong rather than needing more depth, and an uncapped
+-- walk in the resolver that runs before every other spoon is not worth the risk of one stray
+-- directory.
+local MAX_DEPTH = 4
 local function declarationFiles(dir, depth, out)
   local ok, iterFn, dirObj = pcall(hs.fs.dir, dir)
   if not ok or not iterFn then return out end

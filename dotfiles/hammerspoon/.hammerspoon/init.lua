@@ -271,16 +271,10 @@ if BROWSERTABS_ON_OLM then
 else
   hs.loadSpoon("BrowserTabs")
 end
--- The olm side toggle for Processes. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/processes by an absolute path built from hs.configdir, assigned
--- to spoon.Processes by hand since it bypasses hs.loadSpoon. False loads the original spoon
--- instead. Only the load flips here.
-local PROCESSES_ON_OLM = true
-if PROCESSES_ON_OLM then
-  spoon.Processes = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/processes/init.lua")
-else
-  hs.loadSpoon("Processes")
-end
+-- Processes now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.Processes by hand since it bypasses hs.loadSpoon.
+spoon.Processes = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/processes/init.lua")
 -- The olm side toggle for FileSearch. True loads the olm side copy at
 -- Spoons/Olm.spoon/plugins/filesearch by an absolute path built from hs.configdir, assigned
 -- to spoon.FileSearch by hand since it bypasses hs.loadSpoon. False loads the original spoon
@@ -2097,7 +2091,12 @@ spoon.HyperKey:bind(keys.browserTabs.key, function() spoon.BrowserTabs:show() en
 -- registry below.
 local processesPanel = shortcutPanelFor("processes")
 spoon.Processes:init()
-spoon.Processes:configure({ policy = processes, deps = depsFor("Processes") })
+-- The resolver stamps every declaration under Olm.spoon with the one consumer name Olm,
+-- since Olm is the single top level spoon and its plugins are internal structure rather
+-- than spoons of their own. depsFor("Processes") stopped resolving anything once the
+-- original spoon was deleted, so this reads depsFor("Olm") instead, which is where the
+-- copy's own declarations already live.
+spoon.Processes:configure({ policy = processes, deps = depsFor("Olm") })
 spoon.Processes.chooser.configure({
   chooser = spoon.Chooser,
   theme = settings.chooserTheme,
