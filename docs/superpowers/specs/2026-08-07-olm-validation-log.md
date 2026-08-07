@@ -293,6 +293,11 @@ through the launcher itself. The fix should make recency reflect launcher driven
 selections alone, so nothing outside the launcher moves the order, and this tool counts as
 a full pass once that lands.
 
+The fix for that finding landed at merge commit f1e883244a5d603455a3b4522fadcdbd89d6e00c
+on feat/olm, removing the ambient promote from the app watcher and from the start seed, so
+the timeline is now fed by launcher picks alone. The boxes above stay unchecked, awaiting
+the user's revalidation.
+
 ### QueryScope
 
 - [x] validated
