@@ -1181,8 +1181,9 @@ matched, live in `Spoons/QueryScope.spoon/CLAUDE.md`. Adding the spoon needed a 
 
 The scopes come in three shapes, which is the useful thing to know before adding one. Some are
 the plain shape above, a tool exporting its rows and its select, which is keep awake, VPN,
-emoji, browser tabs, and file search. Menu search and the alias directory are root policy
-rather than a spoon, so the root is both the adapter and the thing adapted. Apps, window
+emoji, browser tabs, and file search. Menu search is an olm plugin configured from the root
+now. The alias directory alone is root policy rather than a spoon, so the root is both the
+adapter and the thing adapted there. Apps, window
 actions and System Settings panes
 are neither, they narrow the launcher's own catalog, so they read `Launcher:rowsOfKind(kind)` and
 hand a chosen row back through `Launcher:runItem`, which keeps one row builder and one dispatcher
