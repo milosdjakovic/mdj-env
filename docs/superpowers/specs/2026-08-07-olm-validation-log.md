@@ -182,6 +182,12 @@ Validation on 2026-08-07 found the four basic operators plus modulo, exponent, a
 parentheses all work, but a trailing percent as in `2+2%` is not read as a percentage. The
 fix lands before this tool counts as a full pass.
 
+The fix for that finding landed at merge commit 33f8134d361162870ee62ac75319eeea078a2cc5
+on feat/olm, rewriting a number followed by a percent sign into a division by one hundred
+whenever the percent is not followed by a digit or a decimal point, so `2+2%` answers 2.02
+and `7%3` still answers 1 as modulo. The boxes above stay unchecked, awaiting the user's
+revalidation.
+
 ### Convert
 
 - [x] validated
