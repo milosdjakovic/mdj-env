@@ -178,9 +178,12 @@ fix lands before this tool counts as a full pass.
 ### Convert
 
 - [x] validated
-- [ ] retired
+- [x] retired
 
-Validation passed on 2026-08-07 with no findings.
+Validation passed on 2026-08-07 with no findings. The retirement landed at merge commit
+a276c2e46d76bc47ac2bc87f715e508ed375cfc7, and needed a depsFor repoint to the consumer name
+the resolver actually stamps under Olm, the same reconciliation Processes and Eyedropper
+needed, with the parity init call beside the toggle assignment kept unchanged.
 
 ### WorkspaceEngine
 
