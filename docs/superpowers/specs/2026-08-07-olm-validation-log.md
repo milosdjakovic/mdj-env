@@ -289,10 +289,11 @@ commit 23a170932c96e5ce8821b9b774a2f04ccd7716af.
 ### HyperCheatSheet
 
 - [x] validated
-- [ ] retired
+- [x] retired
 
 Validation passed on 2026-08-07 with no findings, exercised together with Launcher and
-QueryScope under the combined Host checklist row.
+QueryScope under the combined Host checklist row. The retirement landed at merge commit
+475e6dd1d84de9f92d1caa6c5b442519f0fb9e6e.
 
 ## Atoms, last and together
 
