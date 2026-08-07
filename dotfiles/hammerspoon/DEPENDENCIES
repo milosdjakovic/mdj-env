@@ -25,7 +25,6 @@ ffmpeg | path | ffmpeg | optional | ClipboardHistory/preview | video clipboard p
 ffprobe | path | ffprobe | optional | ClipboardHistory/preview | reading a video duration so a preview frame is picked mid clip
 qalc | path | qalc | required | Convert | evaluating unit and currency conversions
 displayplacer | path | displayplacer | optional | DisplayProfiles/engine | reading and applying display arrangements
-swiftc | system | /usr/bin/swiftc | optional | Eyedropper | compiles the native colour sampler helper
 fd | path | fd | optional | FileSearch/hidden | building the index of paths Spotlight cannot see
 fzf | path | fzf | optional | FileSearch/hidden | ranking that index, the one thing a substring tool cannot do over 42 thousand matches
 fd | path | fd | optional | FileSearch/walk | walking a named directory, which is faster than the index once a scope is given and is the only way to see dotfiles
