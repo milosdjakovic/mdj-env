@@ -87,6 +87,14 @@ end
 --- The whole grammar and the whole evaluation, exposed on its own so it can be checked
 --- from the console without going through a row. Returns nil for anything that is not a
 --- complete arithmetic expression with a finite numeric value.
+---
+--- A percent sign carries two readings, told apart by what follows it. Followed by a
+--- digit or a decimal point it is Lua's modulo operator and is left untouched, so 7%3
+--- answers 1. Followed by an operator, a closing parenthesis, or the end of the string it
+--- is a postfix unit meaning hundredths, and the number in front of it is rewritten into a
+--- division by one hundred before Lua sees the expression, so 2+2% answers 2.02 and
+--- 200*10% answers 20. A percent right after a closing parenthesis, as in (2+2)%, has no
+--- number in front of it to rewrite and stays a silent no row on purpose.
 function obj:evaluate(query)
   local q = (query or ""):gsub("^%s+", ""):gsub("%s+$", "")
   -- An explicit leading equals is accepted and stripped, so a value that would otherwise
@@ -100,6 +108,28 @@ function obj:evaluate(query)
   -- and the answer would be confidently wrong. A double dot concatenates, which the type
   -- check below would catch, but refusing both here keeps the reason in one place.
   if q:find("--", 1, true) or q:find("..", 1, true) then return nil end
+
+  -- The percent sign is admitted only as Lua's modulo operator, but the chosen calculator
+  -- reading gives it a second meaning, a postfix unit where N% is N divided by one hundred
+  -- wherever it appears, so 2+2% answers 2.02 and 200*10% answers 20. The two readings are
+  -- told apart by what follows the percent sign rather than by what precedes it, since both
+  -- start with a number. A digit or a decimal point right after the percent means the
+  -- modulo reading, and the text is left exactly as typed, so 7%3 still answers 1. An
+  -- operator, a closing parenthesis, or the end of the string right after the percent means
+  -- the unit reading, and the number in front of the percent is rewritten into a
+  -- parenthesised division by one hundred before Lua ever sees the expression, so 10%^2
+  -- becomes (10/100)^2. One pass over the whole query catches every number the percent
+  -- sign follows, so more than one percent term in the same query all rewrite, 2%+5%
+  -- answers 0.07. A percent straight after a closing parenthesis, as in (2+2)%, has no
+  -- number in front of it for this rewrite to find, so it is out of scope on purpose, falls
+  -- through unchanged, and fails to compile below like any other malformed expression, a
+  -- silent no row rather than a wrong answer.
+  q = q:gsub("([%d%.]+)%%(.?)", function(num, after)
+    if after:match("[%d%.]") then
+      return num .. "%" .. after
+    end
+    return "(" .. num .. "/100)" .. after
+  end)
 
   -- Compiled in an empty environment, so even if the whitelist were ever loosened there
   -- is nothing reachable to call.
