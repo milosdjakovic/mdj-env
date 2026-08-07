@@ -280,10 +280,11 @@ a full pass once that lands.
 ### QueryScope
 
 - [x] validated
-- [ ] retired
+- [x] retired
 
 Validation passed on 2026-08-07 with no findings, exercised together with Launcher and
-HyperCheatSheet under the combined Host checklist row.
+HyperCheatSheet under the combined Host checklist row. The retirement landed at merge
+commit 23a170932c96e5ce8821b9b774a2f04ccd7716af.
 
 ### HyperCheatSheet
 
