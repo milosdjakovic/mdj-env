@@ -208,16 +208,10 @@ if TERMINALHANDLER_ON_OLM then
 else
   hs.loadSpoon("TerminalHandler")
 end
--- The olm side toggle for DisplayMemory. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/displaymemory by an absolute path built from hs.configdir,
--- assigned to spoon.DisplayMemory by hand since it bypasses hs.loadSpoon. False loads the
--- original spoon instead. Only the load flips here.
-local DISPLAYMEMORY_ON_OLM = true
-if DISPLAYMEMORY_ON_OLM then
-  spoon.DisplayMemory = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/displaymemory/init.lua")
-else
-  hs.loadSpoon("DisplayMemory")
-end
+-- DisplayMemory now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.DisplayMemory by hand since it bypasses hs.loadSpoon.
+spoon.DisplayMemory = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/displaymemory/init.lua")
 -- The olm side toggle for WindowMemory. True loads the olm side copy at
 -- Spoons/Olm.spoon/plugins/windowmemory by an absolute path built from hs.configdir,
 -- assigned to spoon.WindowMemory by hand since it bypasses hs.loadSpoon. False loads the
