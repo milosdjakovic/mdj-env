@@ -83,13 +83,14 @@ validated once native has been exercised live too.
 ### Emoji
 
 - [x] validated
-- [ ] retired
+- [x] retired
 
 Validation passed on 2026-08-07 with no findings. The carried in retirement note below
 still applies.
 
 Retirement note, confirm the copy's `regenerate.sh` kept its executable bit before the
-original goes.
+original goes. The copy already carried the executable bit, so nothing needed restoring.
+The retirement landed at merge commit 4983fc104fd54b812ed30373f8aec156731c3a3e.
 
 ### MenuSearch
 
