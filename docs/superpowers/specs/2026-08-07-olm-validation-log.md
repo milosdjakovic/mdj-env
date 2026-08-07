@@ -29,8 +29,11 @@ Validation passed on 2026-08-07 with no findings. The retirement landed at merge
 
 ### WindowCheatSheet
 
-- [ ] validated
-- [ ] retired
+- [x] validated
+- [x] retired
+
+Validation passed on 2026-08-07 with no findings. The retirement landed at merge commit
+34b2d3f229a8b8e026101a7ea60cfbaa1c803514.
 
 ### AppToggler
 

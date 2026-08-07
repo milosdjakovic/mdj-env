@@ -23,7 +23,7 @@ end.
   bound key while held fires and is swallowed by the leader, and unbound combos still pass
   through to the app.
 
-- [ ] WindowCheatSheet, `WINDOWCHEATSHEET_ON_OLM` line 132. No key of its own, it is the
+- [x] WindowCheatSheet, `WINDOWCHEATSHEET_ON_OLM` line 132. No key of its own, it is the
   overlay the META hold reveals. Labels and order match the window bindings, the display
   switch row hides on a single monitor, and pressing any bound key dismisses it.
 
