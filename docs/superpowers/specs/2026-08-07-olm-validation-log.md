@@ -189,10 +189,11 @@ WorkspaceEngine, and StageManager, rather than following the validate and retire
 ### DisplayMemory
 
 - [x] validated
-- [ ] retired
+- [x] retired
 
 Validation passed on 2026-08-07 with no findings. It still needs to work smoothly once
 TerminalHandler moves back to its own standalone spoon, worth a recheck once that lands.
+The retirement landed at merge commit 89a8237b97530dd2705bc7595c17d4f64fc0ebdb.
 
 ### WindowMemory
 
