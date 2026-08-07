@@ -118,6 +118,10 @@ obj.chooser = load("chooser.lua")
 ---                 own picker. Composed with the picker's redraw rather than replacing it
 --- opts.previewProvider  a member of FileSearch.PreviewProvider, defaulting to SidePanel. The
 ---                 root names it by reference rather than by string, see the enum above
+--- opts.peekProvider  a member of FileSearch.PreviewProvider, or nil for none, the seam a key
+---                 asks for rather than the one that follows the highlight. Kept apart from
+---                 previewProvider above because the two answer different callers and either
+---                 can be QuickLook, SidePanel, or absent without the other changing
 ---
 --- Wraps the engine's own configure so this file stays the only place that knows both which
 --- sources exist and which part of the policy each one reads. The engine is handed only what it
@@ -253,6 +257,11 @@ function obj:configure(opts)
     -- preview at all. This is the only place in the spoon that names a concrete one, and it
     -- names them by reference so no provider string exists anywhere.
     viewers = previewChain(opts.previewProvider),
+    -- The seam a key asks for, passed straight through with no chain and no fallback behind it,
+    -- since asking for nothing when it steps aside is the right answer and there is no second
+    -- provider here to hand the key to instead. Nil is a valid answer too, meaning the root
+    -- wants no peek seam at all, and the key it would have earned drops out on its own.
+    peekProvider = opts.peekProvider,
   })
 
   return self
