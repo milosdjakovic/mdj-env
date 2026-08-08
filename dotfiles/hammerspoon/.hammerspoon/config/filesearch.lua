@@ -133,11 +133,6 @@ return {
   -- bounds work that happens once per highlighted row rather than once per row on
   -- screen, which is why reading a file at all is affordable here and is not in a list.
   preview = {
-    -- How wide the pane is. The chooser itself is 480, so this is deliberately narrower,
-    -- since the list is what you are steering and the pane is what you glance at. The
-    -- Chooser atom caps a companion at 480 regardless.
-    width = 420,
-
     -- How much of a file is read to show its head. Two hundred lines of source is around
     -- eight kilobytes, so this is generous enough that the cut is never what you are
     -- looking at, and small enough that the read stays imperceptible on a local disk.
