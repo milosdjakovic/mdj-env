@@ -321,7 +321,7 @@ Convert needed.
 ### Launcher
 
 - [x] validated
-- [ ] retired
+- [x] retired
 
 Validation on 2026-08-07 passed for the launcher rows and the alias scope grammar, but
 found that `launcherRecency` picks up any app the user focuses, not only the ones chosen
@@ -333,7 +333,8 @@ The fix for that finding landed at merge commit f1e883244a5d603455a3b4522fadcdbd
 on feat/olm, removing the ambient promote from the app watcher and from the start seed, so
 the timeline is now fed by launcher picks alone.
 
-The user revalidated the recency fix live on 2026-08-08 and accepted it.
+The user revalidated the recency fix live on 2026-08-08 and accepted it. The retirement
+landed at merge commit a2892c72369fae9333f9dd3edff7ac8a1840ba35.
 
 ### QueryScope
 
