@@ -147,16 +147,10 @@ hs.loadSpoon("TerminalHandler")
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.DisplayMemory by hand since it bypasses hs.loadSpoon.
 spoon.DisplayMemory = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/displaymemory/init.lua")
--- The olm side toggle for WindowMemory. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/windowmemory by an absolute path built from hs.configdir,
--- assigned to spoon.WindowMemory by hand since it bypasses hs.loadSpoon. False loads the
--- original spoon instead. Only the load flips here.
-local WINDOWMEMORY_ON_OLM = true
-if WINDOWMEMORY_ON_OLM then
-  spoon.WindowMemory = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windowmemory/init.lua")
-else
-  hs.loadSpoon("WindowMemory")
-end
+-- WindowMemory now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.WindowMemory by hand since it bypasses hs.loadSpoon.
+spoon.WindowMemory = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windowmemory/init.lua")
 -- Launcher now lives only in Olm's host directory. The original spoon passed live
 -- validation and was retired, so this loads the olm side host copy unconditionally by an
 -- absolute path built from hs.configdir, assigned to spoon.Launcher by hand since it
