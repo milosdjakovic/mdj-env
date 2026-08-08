@@ -365,12 +365,20 @@ QueryScope under the combined Host checklist row. The retirement landed at merge
 
 ### Dependencies, ChordKey, CheatSheet, Chooser, CanvasPanel, HyperKey
 
-- [ ] validated, implicitly by everything above passing
-- [ ] retired, six originals in one pass
+- [x] validated, implicitly by everything above passing
+- [x] retired, six originals in one pass
 
 Retirement note, `lean-init.lua` still loads the original Chooser and Dependencies, the
 atoms pass swaps those loads onto the olm libs or deletes the file, ask the user which at
 that point.
+
+The six atoms retired together at merge commit ba2daf67135da5734c34d4dbb68f5c7462f0d5ad,
+the final retirement of the plan. None of the six ever had a checklist row of its own,
+since the ordering rule holds them until last on purpose, every chooser, cheat sheet,
+chord, and injected adapter validated above already ran through the olm copies of these
+six, so their validation is the sum of every other tool already passing. `lean-init.lua`
+is deleted rather than repointed at the olm libs, on the user's decision of 2026-08-08
+that the lean surface had served its purpose.
 
 ## After the last retirement
 
