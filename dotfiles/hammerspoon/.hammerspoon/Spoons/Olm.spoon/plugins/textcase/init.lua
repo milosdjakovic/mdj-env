@@ -25,7 +25,7 @@
 --- chooser lifecycle. This is the same Command as data rule every list tool here follows.
 ---
 --- This is the olm side copy of TextCase, phase six of the olm build plan, and the
---- original this was copied from still lives at Spoons/TextCase.spoon.
+--- original this was copied from lived at Spoons/TextCase.spoon.
 
 local obj = {}
 obj.__index = obj

@@ -27,7 +27,7 @@
 --- only, so the tool never rewrites the hand maintained config/displays.lua.
 ---
 --- This is the olm side copy of DisplayProfiles, phase six of the olm build plan, and the
---- original this was copied from still lives at Spoons/DisplayProfiles.spoon.
+--- original this was copied from lived at Spoons/DisplayProfiles.spoon.
 
 local obj = {}
 obj.__index = obj

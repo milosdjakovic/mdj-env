@@ -13,7 +13,7 @@
 --- (injected via configure); this spoon owns only the glyph/label logic.
 ---
 --- This is the olm side copy of WindowCheatSheet, made in the bundling pass, phase 6 of
---- the olm build plan, and the original this was copied from still lives at
+--- the olm build plan, and the original this was copied from lived at
 --- Spoons/WindowCheatSheet.spoon.
 
 local obj = {}

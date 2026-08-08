@@ -27,7 +27,7 @@
 ---
 --- This is the olm side copy of BrowserTabs, made in the bundling pass, converted to use the
 --- shared recency service at Olm.spoon/lib/recency.lua instead of the hand rolled recency.lua
---- module the original carries, and the original this was copied from still lives at
+--- module the original carries, and the original this was copied from lived at
 --- Spoons/BrowserTabs.spoon. Unlike the vpn copy this conversion took, a missing recency here
 --- is an optional degradation rather than a required guard, since the resting order alone is
 --- still a working list, only ever less than it could be.

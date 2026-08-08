@@ -28,7 +28,7 @@
 --- retried a few times until that display comes up.
 ---
 --- This is the olm side copy of WindowMemory, made in the bundling pass, phase 6 of the
---- olm build plan, and the original this was copied from still lives at
+--- olm build plan, and the original this was copied from lived at
 --- Spoons/WindowMemory.spoon.
 
 local obj = {}

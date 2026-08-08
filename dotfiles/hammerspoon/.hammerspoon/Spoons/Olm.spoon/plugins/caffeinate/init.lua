@@ -33,7 +33,7 @@
 --- menu search.
 ---
 --- This is the olm side copy of Caffeinate, phase six of the olm build plan, and the
---- original this was copied from still lives at Spoons/Caffeinate.spoon.
+--- original this was copied from lived at Spoons/Caffeinate.spoon.
 
 local M = { name = "Caffeinate", version = "3.0", author = "Milos Djakovic", license = "MIT" }
 

@@ -32,7 +32,7 @@
 --- This is the olm side copy of ChordKey, moved into the core as lib/chordkey.lua in phase
 --- five of the build plan. It is a faithful copy, the colon methods and the per key options
 --- are unchanged, so assigning it to the ChordKey spoon global is a drop in. The original
---- this was copied from still lives at Spoons/ChordKey.spoon.
+--- this was copied from lived at Spoons/ChordKey.spoon.
 
 local obj = {}
 obj.__index = obj

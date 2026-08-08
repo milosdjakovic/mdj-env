@@ -17,8 +17,8 @@
 --- This is the olm side copy of Chooser, moved into the core as lib/chooser in phase five of
 --- the build plan, a directory rather than a single file because it loads two siblings. It
 --- is a faithful copy, the module api and the instance contract are unchanged, so assigning
---- it to the Chooser spoon global is a drop in. The original this was copied from still
---- lives at Spoons/Chooser.spoon.
+--- it to the Chooser spoon global is a drop in. The original this was copied from
+--- lived at Spoons/Chooser.spoon.
 
 local obj = {}
 obj.__index = obj

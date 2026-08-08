@@ -3,7 +3,7 @@
 --- Smart application toggle (show/hide)
 ---
 --- This is the olm side copy of AppToggler, made in the bundling pass, phase 6 of the
---- olm build plan, and the original this was copied from still lives at
+--- olm build plan, and the original this was copied from lived at
 --- Spoons/AppToggler.spoon.
 
 local obj = {}

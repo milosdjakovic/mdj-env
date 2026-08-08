@@ -2,7 +2,7 @@
 
 The decision trail for this spoon. Cross cutting material stays in the hammerspoon
 `CLAUDE.md`, which links here, and the launcher side of the contract lives in
-`Spoons/Launcher.spoon/CLAUDE.md`.
+`Spoons/Olm.spoon/host/launcher/CLAUDE.md`.
 
 ## What it is
 

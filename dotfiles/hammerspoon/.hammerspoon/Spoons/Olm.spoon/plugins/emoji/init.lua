@@ -23,7 +23,7 @@
 --- This is the olm side copy of Emoji, copied into the plugins directory in phase six of
 --- the build plan, the bundling pass. Its vendored data.lua travels unchanged as the
 --- committed artifact it is, never regenerated from this side, and the original this was
---- copied from still lives at Spoons/Emoji.spoon.
+--- copied from lived at Spoons/Emoji.spoon.
 
 local obj = {}
 obj.__index = obj

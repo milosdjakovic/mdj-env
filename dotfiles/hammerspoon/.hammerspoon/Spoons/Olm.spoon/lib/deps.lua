@@ -43,7 +43,7 @@
 --- are unchanged, so assigning it to the Dependencies spoon global is a drop in. The one
 --- line that could not be copied as it stood is the walk up to the Spoons directory, since
 --- this file sits two levels below that directory where the original sat one, and the
---- comment there records it. The original this was copied from still lives at
+--- comment there records it. The original this was copied from lived at
 --- Spoons/Dependencies.spoon.
 
 local obj = {}

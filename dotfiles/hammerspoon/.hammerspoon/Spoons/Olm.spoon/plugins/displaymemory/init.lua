@@ -14,7 +14,7 @@
 --- to name a machine for the memory to stay distinct across Macs.
 ---
 --- This is the olm side copy of DisplayMemory, made in the bundling pass, phase 6 of the
---- olm build plan, and the original this was copied from still lives at
+--- olm build plan, and the original this was copied from lived at
 --- Spoons/DisplayMemory.spoon.
 
 local obj = {}

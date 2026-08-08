@@ -4,9 +4,9 @@
 # as this worktree rather than trusting that a reload was asked for, runs the
 # dump described in inventory.lua, and always puts the lock back whether it
 # passed, failed, or was interrupted. The shape follows
-# Spoons/BrowserTabs.spoon/test/suite.sh, since that harness already solved the
-# lock and trap and wait discipline and there is no reason to invent a second
-# version of it.
+# Spoons/Olm.spoon/plugins/browsertabs/test/suite.sh, since that harness already
+# solved the lock and trap and wait discipline and there is no reason to invent
+# a second version of it.
 #
 # This script only reads. It never edits a registry, a spoon, or a config file,
 # so unlike suite.sh it needs no harness marker to switch anything on.

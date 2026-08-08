@@ -21,7 +21,7 @@
 --- :bind contract its consumer depends on.
 ---
 --- This is the olm side copy of WindowLeader, made in the bundling pass, phase 6 of the
---- olm build plan, and the original this was copied from still lives at
+--- olm build plan, and the original this was copied from lived at
 --- Spoons/WindowLeader.spoon.
 
 local obj = {}

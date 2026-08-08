@@ -37,7 +37,7 @@
 --- the UI immediately and tapping again, still holding, toggles it away.
 ---
 --- This is the olm side copy of ClipboardHistory, whose insertion half now lives in the shared
---- engine at Olm.spoon/lib/paste.lua, and the original this was copied from still lives at
+--- engine at Olm.spoon/lib/paste.lua, and the original this was copied from lived at
 --- Spoons/ClipboardHistory.spoon.
 
 local obj = {}

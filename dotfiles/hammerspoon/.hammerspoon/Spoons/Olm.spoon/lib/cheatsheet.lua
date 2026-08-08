@@ -51,7 +51,7 @@
 --- This is the olm side copy of CheatSheet, moved into the core as lib/cheatsheet.lua in
 --- phase five of the build plan. It is a faithful copy, the colon methods and the model
 --- shape are unchanged, so assigning it to the CheatSheet spoon global is a drop in. The
---- original this was copied from still lives at Spoons/CheatSheet.spoon.
+--- original this was copied from lived at Spoons/CheatSheet.spoon.
 
 local obj = {}
 obj.__index = obj
