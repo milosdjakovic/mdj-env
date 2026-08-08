@@ -426,7 +426,7 @@ spoon.WindowLeader:addLeader(leaderCode(keys.windowLeader))
 -- Forward-declared so the predicate registry and the chooser navigation registry
 -- can name menu search's navigation surface before it is built further below (it
 -- needs this predicate table and hideShortcuts, which are defined here). The
--- launcher's surface is not forward-declared, it lives in Launcher.spoon, so its
+-- launcher's surface is not forward-declared, it lives in Olm's Launcher host, so its
 -- predicate reads the spoon directly.
 local menuSearchSurface
 -- The overlay display picker's navigation surface, forward-declared so the predicate
@@ -796,7 +796,7 @@ spoon.ClipboardHistory:bindHotkeys({
 -- which is defined below.
 
 -- Launcher: the app switcher and command runner on Hyper+Space now lives in
--- Launcher.spoon, a coordinator. It is instantiated and wired below, alongside
+-- Olm's Launcher host, a coordinator. It is instantiated and wired below, alongside
 -- menu search and VPN, where the shared shortcut panel factory it uses is defined.
 
 
@@ -1305,7 +1305,7 @@ end
 -- again rather than while the chooser holds focus. Like menu search and VPN it docks
 -- the same deferred shortcut panel through the three chooser callbacks, and its
 -- onClose also clears any peeked overlay, matching the clipboard.
--- Launcher.spoon, the coordinator that owns the app switcher and command runner.
+-- Olm's Launcher host, the coordinator that owns the app switcher and command runner.
 -- The root injects every collaborator, the Chooser factory, the pure keys and apps
 -- data, the window actions, a chord glyph resolver, the System Settings pane
 -- descriptors, the shared predicate registry, the docked shortcut panel, and the
