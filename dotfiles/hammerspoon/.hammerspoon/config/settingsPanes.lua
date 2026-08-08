@@ -1,5 +1,5 @@
 -- System Settings pane catalog. Pure data, the same kind of editable list as
--- apps.lua and keys.lua, consumed by SystemSettings.spoon which is the mechanism.
+-- apps.lua and keys.lua, consumed by Olm's SystemSettings plugin which is the mechanism.
 -- Each row names one pane in the System Settings sidebar.
 --
 --   name      the label shown in the launcher row, matching the sidebar wording.

@@ -1,7 +1,7 @@
 -- Development process discovery policy.
 --
--- Pure data, read by Processes.spoon through the composition root in init.lua. The
--- spoon holds only the mechanism and never names a runtime, a daemon, or a
+-- Pure data, read by Olm's Processes plugin through the composition root in init.lua.
+-- The plugin holds only the mechanism and never names a runtime, a daemon, or a
 -- directory, so changing what counts as a development process is an edit here and
 -- nothing else.
 

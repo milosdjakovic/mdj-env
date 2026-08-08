@@ -38,7 +38,7 @@ return {
   appLeader    = "HYPER",
   windowLeader = "META",
 
-  -- App toggle bindings (for AppToggler.spoon)
+  -- App toggle bindings (for Olm's AppToggler plugin)
   -- Uses app names from config/apps.lua.
   -- These fire by holding the Hyper key (Caps Lock, remapped to F18 and driven
   -- by HyperKey, now Olm's lib/hyperkey.lua) plus the letter. A quick Caps Lock tap toggles real Caps
@@ -81,7 +81,7 @@ return {
     -- { app = "Xcode",          modifiers = HYPER, key = "X" },
   },
 
-  -- Clipboard history (for ClipboardHistory.spoon). Hyper+X opens it; the backend
+  -- Clipboard history (for Olm's ClipboardHistory plugin). Hyper+X opens it; the backend
   -- is the provider chain wired in init.lua, the clipboardShortcut combo by default
   -- (whatever manager you bind it to) and the native manager if you gate the shortcut
   -- on an app that is not running. Same modifiers/key shape as appToggles so the
@@ -120,7 +120,7 @@ return {
   -- and letting the native Hammerspoon clipboard take over otherwise.
   clipboardShortcut = { mods = { "cmd", "alt", "ctrl", "shift" }, key = "c" },
 
-  -- Keep awake (for Caffeinate.spoon). Same shape as appToggles. Hyper+K
+  -- Keep awake (for Olm's Caffeinate plugin). Same shape as appToggles. Hyper+K
   -- opens the keep awake panel, a typed field, not a list. It is a base binding,
   -- suppressed while a modal context owns Hyper.
   -- `aliases` are the words that scope the launcher to this tool, so typing one of them and
@@ -136,12 +136,12 @@ return {
   -- since moving it here would relocate it without removing a copy.
   caffeinate = { modifiers = HYPER, key = "K", description = "Keep awake", glyph = "☕", aliases = { "k", "awake" } },
 
-  -- VPN controls (for Vpn.spoon). Same shape again. Hyper+P opens the VPN control
+  -- VPN controls (for Olm's Vpn plugin). Same shape again. Hyper+P opens the VPN control
   -- panel, a short list of actions with the live connection state at the top. It is
   -- a base binding, suppressed while a modal context owns Hyper.
   vpn = { modifiers = HYPER, key = "P", description = "VPN", glyph = "🌐", aliases = { "v", "vpn" } },
 
-  -- Colour picker (for Eyedropper.spoon). Hyper+2 turns the pointer into a screen
+  -- Colour picker (for Olm's Eyedropper plugin). Hyper+2 turns the pointer into a screen
   -- eyedropper with a magnifier loupe, a click copies the pixel hex. It is not a
   -- chooser, so it has no Hyper context, it is a lone action like lock and sleep,
   -- bound as a base HyperKey binding and surfaced as a launcher row. The HYPER
@@ -447,7 +447,7 @@ return {
   sleep = { modifiers = HYPER, key = "escape", description = "Sleep" },
   lock  = { modifiers = HYPER, key = "§",      description = "Lock" },
 
-  -- Screen capture (for Capture.spoon). Provider-agnostic action names; the
+  -- Screen capture (for Olm's Capture plugin). Provider-agnostic action names; the
   -- active provider maps them to its own commands, so swapping capture apps never
   -- touches this list. Screenshots and recording go through macshot (or native as
   -- fallback); ocrArea goes through the macocr provider (schappim's `ocr` CLI),
@@ -466,7 +466,7 @@ return {
     { action = "recordArea",           modifiers = HYPER, key = "5",                     description = "Record screen" },
   },
 
-  -- Window management bindings (for WindowManager.spoon via WindowLeader.spoon).
+  -- Window management bindings (for Olm's WindowManager plugin via its WindowLeader plugin).
   -- This is an ORDERED list: the sequence here is exactly the cheat-sheet order
   -- (WindowCheatSheet fills row-major, two columns), so reorder these lines to
   -- reorder the overlay. `action` names the WindowManager handler and `key` is a
@@ -530,7 +530,7 @@ return {
   -- its own, and its aliases are advertised in the alias directory rather than on a row.
   menuSearch = { modifiers = HYPER, key = "e", description = "Menu search", glyph = "📋", aliases = { "m", "menu" } },
 
-  -- Emoji picker (for Emoji.spoon, wired in init.lua). Hyper+J opens a filterable
+  -- Emoji picker (for Olm's Emoji plugin, wired in init.lua). Hyper+J opens a filterable
   -- list of every emoji, matched by name, shortcode, tag, or category, so a keyword
   -- finds a glyph without its exact Unicode name. Same shape as the other pickers, a
   -- base HyperKey binding suppressed while a modal context owns Hyper, with the HYPER
@@ -545,7 +545,7 @@ return {
   -- the one place the combo lives, keep it in step with the tool you bind it to.
   menuSearchShortcut = { mods = { "cmd", "alt", "ctrl", "shift" }, key = "j" },
 
-  -- Display profiles (for DisplayProfiles.spoon, wired in init.lua). An inspect and manage
+  -- Display profiles (for Olm's DisplayProfiles plugin, wired in init.lua). An inspect and manage
   -- tool for the saved display arrangements, opened from the launcher only, so it has no
   -- dedicated key and no modifiers. It lists the profiles, marks the active one, and lets you
   -- capture, rename, and delete the captured ones. It has its own hyperContext above, so
@@ -553,7 +553,7 @@ return {
   -- launcher row.
   displayProfiles = { description = "Display Profiles" },
 
-  -- Text case (for TextCase.spoon, wired in init.lua). Recases the current selection in
+  -- Text case (for Olm's TextCase plugin, wired in init.lua). Recases the current selection in
   -- place. Opened from the launcher only, so it has no dedicated key and no modifiers. It
   -- reads the selection, lists every case with the selection previewed in each, and pastes
   -- the chosen one over the selection. It has its own hyperContext above, so while open it
@@ -565,7 +565,7 @@ return {
   -- so the alias was tried and removed rather than kept as a lesser copy of the tool.
   textCase = { description = "Text Case" },
 
-  -- Browser tabs (for BrowserTabs.spoon, wired in init.lua). Hyper+W lists every open tab
+  -- Browser tabs (for Olm's BrowserTabs plugin, wired in init.lua). Hyper+W lists every open tab
   -- across the browsers that are switched on, most recently looked at first, each row showing
   -- its browser's icon, and the last row opens settings where each browser is switched on or
   -- off. Same shape as the other pickers, a base HyperKey binding suppressed while a modal
@@ -577,7 +577,7 @@ return {
   -- scope has no way to show, so reaching the browser switches means opening the tool itself.
   browserTabs = { modifiers = HYPER, key = "W", description = "Browser tabs", glyph = "📑", aliases = { "t", "tabs" } },
 
-  -- File search (for FileSearch.spoon, wired in init.lua). Hyper+/ searches the filesystem by
+  -- File search (for Olm's FileSearch plugin, wired in init.lua). Hyper+/ searches the filesystem by
   -- name, optionally filtered by type, scoped to a folder, and optionally reaching the files
   -- macOS does not index at all. Same shape as the other pickers, a base HyperKey binding
   -- suppressed while a modal context owns Hyper, with the HYPER field as the fallback combo. It
@@ -591,7 +591,7 @@ return {
   -- launcher query beginning with that word and a space.
   fileSearch = { modifiers = HYPER, key = "/", description = "File search", glyph = "🗂️", aliases = { "/" } },
 
-  -- Processes (for Processes.spoon, wired in init.lua). Finds the development servers you
+  -- Processes (for Olm's Processes plugin, wired in init.lua). Finds the development servers you
   -- left running, identified by the port they hold and the project they run in, and stops
   -- them by taking the whole process group or the whole container rather than one leaf
   -- process. Opened from the launcher only, so it has no dedicated key and no modifiers. It
