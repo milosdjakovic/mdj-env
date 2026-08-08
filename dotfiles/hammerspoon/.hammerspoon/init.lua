@@ -170,16 +170,10 @@ end
 -- The user kept DockAutoHide standalone, outside Olm, on the decision of 2026-08-07, so
 -- this loads the original spoon through hs.loadSpoon.
 hs.loadSpoon("DockAutoHide")
--- The olm side toggle for DisplayProfiles. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/displayprofiles by an absolute path built from hs.configdir,
--- assigned to spoon.DisplayProfiles by hand since it bypasses hs.loadSpoon. False loads the
--- original spoon instead. Only the load flips here.
-local DISPLAYPROFILES_ON_OLM = true
-if DISPLAYPROFILES_ON_OLM then
-  spoon.DisplayProfiles = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/displayprofiles/init.lua")
-else
-  hs.loadSpoon("DisplayProfiles")
-end
+-- DisplayProfiles now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.DisplayProfiles by hand since it bypasses hs.loadSpoon.
+spoon.DisplayProfiles = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/displayprofiles/init.lua")
 -- SystemSettings now lives only in Olm. The original spoon passed live validation and was
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.SystemSettings by hand since it bypasses hs.loadSpoon.
@@ -2605,7 +2599,13 @@ spoon.DisplayProfiles:configure({
   storePath = hs.configdir .. "/config/display-profiles.json",
   -- The arrangement tool, resolved once by the shared door. Nil means it is absent, and
   -- the engine then manages nothing and says so, rather than probing for it itself.
-  binary = depsFor("DisplayProfiles").path("displayplacer"),
+  --
+  -- The resolver stamps every declaration under Olm.spoon with the one consumer name Olm,
+  -- since Olm is the single top level spoon and its plugins are internal structure rather
+  -- than spoons of their own. depsFor("DisplayProfiles") stopped resolving anything once the
+  -- original spoon was deleted, so this reads depsFor("Olm") instead, which is where the
+  -- copy's own declaration already lives.
+  binary = depsFor("Olm").path("displayplacer"),
 })
 spoon.DisplayProfiles:start()
 -- The inspect and manage chooser. Its api comes from the spoon, injected in configure above,
