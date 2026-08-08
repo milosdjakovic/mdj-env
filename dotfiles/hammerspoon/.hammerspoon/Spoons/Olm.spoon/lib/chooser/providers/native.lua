@@ -110,9 +110,6 @@ local DEFAULT_LAYOUT = {
   gap = 12,
   topFrac = 0.06,
   minVPad = 60,
-  -- One width serves the chooser and the pane. true inherits the chooser's own
-  -- resolved width for that show. A number overrides it independently, the same as
-  -- today. paneMaxW caps both. Zero, nil, and false all mean no pane.
   companionWidth = 0,
   font = ".AppleSystemUIFont",
   titleSize = 16,
@@ -295,27 +292,11 @@ function Chooser:_topBiasedY(sf, paneH)
   return max(lo, min(sf.y + floor(sf.h * L.topFrac), hi))
 end
 
--- Resolves layout.companionWidth to a pane width in pixels for this show, or 0 for
--- no pane, given chooserW, the chooser's own resolved width for this same show. true
--- means the pane inherits chooserW, capped by paneMaxW exactly as a number is capped.
--- A number is the independent override, also capped. nil, false, and any number at
--- or below zero all mean no pane. This is the one place the boolean is turned into a
--- number, since every comparison downstream is against a number and Lua errors
--- comparing a boolean to one. All three read sites route through this.
-function Chooser:_resolveCompanionWidth(chooserW)
-  local L = self.layout
-  local cw = L.companionWidth
-  if cw == true then cw = chooserW end
-  if not cw or cw <= 0 then return 0 end
-  return math.min(cw, L.paneMaxW)
-end
-
 -- Rect to the right of the chooser for the companion, or nil when none.
 function Chooser:_companionFrame(x, y, chooserW, h)
   local L = self.layout
-  local w = self:_resolveCompanionWidth(chooserW)
-  if w <= 0 then return nil end
-  return { x = x + chooserW + L.gap, y = y, w = w, h = h }
+  if not L.companionWidth or L.companionWidth <= 0 then return nil end
+  return { x = x + chooserW + L.gap, y = y, w = math.min(L.companionWidth, L.paneMaxW), h = h }
 end
 
 -- The chooser clamps its own height to fit the screen, so its rendered height is
@@ -341,7 +322,8 @@ function Chooser:_settleFrames()
         local L = self.layout
         local cf = w:frame()
         local sf = (self._targetScreen or w:screen() or hs.screen.mainScreen()):frame()
-        local companionW = self:_resolveCompanionWidth(cf.w)
+        local companionW = (L.companionWidth and L.companionWidth > 0)
+          and math.min(L.companionWidth, L.paneMaxW) or 0
         local total = cf.w + (companionW > 0 and (L.gap + companionW) or 0)
         local x = sf.x + math.floor((sf.w - total) / 2)
         local y = self:_topBiasedY(sf, cf.h)
@@ -405,7 +387,7 @@ function Chooser:_positionAndShow()
   local paneH = L.baseH + rows * L.rowH
 
   local chooserW = self:_desiredWidthPx(f)
-  local companionW = self:_resolveCompanionWidth(chooserW)
+  local companionW = (L.companionWidth and L.companionWidth > 0) and min(L.companionWidth, L.paneMaxW) or 0
   local total = chooserW + (companionW > 0 and (L.gap + companionW) or 0)
   local x = f.x + floor((f.w - total) / 2)
   local y = self:_topBiasedY(f, paneH)

@@ -723,12 +723,10 @@ end
 
 --- viewer.companionWidth(policy) -> the room this provider needs beside the list.
 --- Answered by the provider rather than read from config by the surface, because how much room
---- a preview needs is the provider's own business and the other one needs none. Absent an
---- explicit policy width, the pane inherits the chooser's own width, the atom's default for
---- every companion.
+--- a preview needs is the provider's own business and the other one needs none.
 function M.companionWidth(policy)
   if not M.available() then return 0 end
-  return (policy and policy.width) or true
+  return (policy and policy.width) or 420
 end
 
 --- viewer.close() - the contract's teardown name, over this provider's own.

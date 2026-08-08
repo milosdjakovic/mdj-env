@@ -60,10 +60,12 @@ local ICON_EMPTY = "🚫"
 local ICON_KEEP = "↩️"
 local ICON_STOP = "🛑"
 
--- The detail pane beside the list inherits the chooser's own width by default, the
--- same place the clipboard's preview does, so this surface has no width of its own to
--- keep. A root that wants a different one still passes previewWidth, and the atom's
--- paneMaxW still caps whichever one wins.
+-- The width reserved beside the list for the detail pane, in points. It sits here
+-- rather than in the main root because it is this surface's own display decision, the
+-- same place the clipboard keeps its preview width, and nothing outside has an opinion
+-- about it. A root that wants a different one passes previewWidth. The Chooser atom
+-- caps a companion at its paneMaxW, so a larger value needs that raised with it.
+local PREVIEW_WIDTH = 480
 
 --------------------------------------------------------------------------------
 -- Row text
@@ -581,7 +583,7 @@ function M.start()
       -- Room beside the list for the detail pane, and zero when there is no pane to
       -- put there, which is what makes the whole feature degrade to the picker as it
       -- was rather than to a gap where something should be.
-      companionWidth = preview.isEnabled() and (cfg.previewWidth or true) or 0,
+      companionWidth = preview.isEnabled() and (cfg.previewWidth or PREVIEW_WIDTH) or 0,
     },
   })
   return M
