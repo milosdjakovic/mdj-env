@@ -196,16 +196,10 @@ spoon.Processes = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/processes/in
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.FileSearch by hand since it bypasses hs.loadSpoon.
 spoon.FileSearch = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/filesearch/init.lua")
--- The olm side toggle for Arithmetic. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/arithmetic by an absolute path built from hs.configdir, assigned
--- to spoon.Arithmetic by hand since it bypasses hs.loadSpoon. False loads the original spoon
--- instead. Only the load flips here.
-local ARITHMETIC_ON_OLM = true
-if ARITHMETIC_ON_OLM then
-  spoon.Arithmetic = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/arithmetic/init.lua")
-else
-  hs.loadSpoon("Arithmetic")
-end
+-- Arithmetic now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.Arithmetic by hand since it bypasses hs.loadSpoon.
+spoon.Arithmetic = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/arithmetic/init.lua")
 -- Convert now lives only in Olm. The original spoon passed live validation and was
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.Convert by hand since it bypasses hs.loadSpoon.
