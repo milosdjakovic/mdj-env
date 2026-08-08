@@ -1,6 +1,6 @@
 # What runtimes.lua needs from outside Hammerspoon, declared beside the file that names
 # these tools. Format is name | kind | locator | policy | reason.
-# See Dependencies.spoon for the kinds and for how these files are found.
+# See Olm's lib/deps.lua for the kinds and for how these files are found.
 #
 # The same three the ports source uses, declared again rather than shared, because a
 # declaration belongs beside whatever knows the tool and this file knows them on its own.

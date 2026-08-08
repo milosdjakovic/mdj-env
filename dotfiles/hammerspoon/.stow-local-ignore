@@ -9,9 +9,3 @@ DEPENDENCIES
 dependencies-module
 dependencies-collect
 check-timers
-
-# lean-init.lua, beside init.lua inside .hammerspoon, is repo only test infrastructure the
-# same way the manifest above is. bin/hs-devlock acquire --lean points MJConfigFile at it
-# directly from the worktree, so resting main never needs it stowed into the home directory,
-# and it stays out for the same reason the manifest does.
-lean-init.lua

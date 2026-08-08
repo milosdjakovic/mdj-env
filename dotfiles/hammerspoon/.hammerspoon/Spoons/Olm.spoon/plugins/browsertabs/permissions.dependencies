@@ -1,6 +1,6 @@
 # What permissions.lua needs from outside Hammerspoon, declared beside the only file in
 # this spoon that knows the tool. Format is name | kind | locator | policy | reason.
-# See Dependencies.spoon for the kinds and for how these files are found.
+# See Olm's lib/deps.lua for the kinds and for how these files are found.
 #
 # Eyedropper declares this same compiler for its own helper. Both are kept, because a
 # declaration belongs beside whatever knows the tool and neither spoon should have to

@@ -1,7 +1,7 @@
 # What the Quick Look preview provider needs from outside Hammerspoon, declared beside the only
 # file in this spoon that opens the native panel.
 # Format is name | kind | locator | policy | reason.
-# See Dependencies.spoon for the kinds and for how these files are found.
+# See Olm's lib/deps.lua for the kinds and for how these files are found.
 # Name a tool only, never how to install it. That belongs to the layer above.
 #
 # The compiler rather than qlmanage, and that swap is the whole story of this provider. The
