@@ -12,13 +12,6 @@ chordkey | core | lib/chordkey.lua | required | hammerspoon | the shared hold an
 hyperkey | core | lib/hyperkey.lua | required | hammerspoon | the leader modal every Hyper binding and every Hyper context binds into
 chooser | core | lib/chooser/init.lua | required | hammerspoon | the picker facade every list tool in this config is built on
 deps | core | lib/deps.lua | required | hammerspoon | the declaration reader that hands every other spoon its resolved tools
-osascript | system | /usr/bin/osascript | optional | BrowserTabs/jxa | runs the JXA that asks each browser for its open tabs
-swiftc | system | /usr/bin/swiftc | optional | BrowserTabs/permissions | builds the helper that asks for automation permission per browser
-jq | path | jq | optional | BrowserTabs/harness | reads every answer the harness gets back from the browsers and from the agent
-osascript | system | /usr/bin/osascript | optional | BrowserTabs/harness | runs the browser adapters and the accessibility witness that judges each round
-open | system | /usr/bin/open | optional | BrowserTabs/harness | carries each command to the harness agent as a URL, since the Hammerspoon CLI blocks while the tool has work in flight
-ioreg | system | /usr/sbin/ioreg | optional | BrowserTabs/harness | asks the window server whether the screen is locked, which the accessibility layer cannot be trusted to report about itself
-caffeinate | system | /usr/bin/caffeinate | optional | BrowserTabs/harness | holds the display awake for a run, since a suite drives the machine with synthesised events and the idle timer does not count those
 recency | core | lib/recency.lua | optional | browsertabs/browsertabs | remembering the last opened tab, so the list opens already ordered by that
 osascript | system | /usr/bin/osascript | optional | browsertabs/jxa | runs the JXA that asks each browser for its open tabs
 swiftc | system | /usr/bin/swiftc | optional | browsertabs/permissions | builds the helper that asks for automation permission per browser
