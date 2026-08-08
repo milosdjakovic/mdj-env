@@ -95,7 +95,7 @@ Validation passed on 2026-08-07 with no findings. The retirement landed at merge
 ### Capture
 
 - [x] validated
-- [ ] retired
+- [x] retired
 
 Validation on 2026-08-07 passed using the macshot backend. The user wants the native
 backend switched on next purely for a test pass, and this tool only counts as fully
@@ -109,7 +109,8 @@ changes. One difference is expected rather than a defect, native's screen record
 opens the macOS capture toolbar instead of starting an area recording in one step,
 since macOS offers no direct shortcut for that.
 
-The user validated this tool live on 2026-08-08 and it passed.
+The user validated this tool live on 2026-08-08 and it passed. The retirement landed at
+merge commit b502824ff173af5cd09cf7269ea2e2808c6a6a6d.
 
 ### Emoji
 
