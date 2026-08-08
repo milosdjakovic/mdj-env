@@ -215,16 +215,10 @@ end
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.Processes by hand since it bypasses hs.loadSpoon.
 spoon.Processes = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/processes/init.lua")
--- The olm side toggle for FileSearch. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/filesearch by an absolute path built from hs.configdir, assigned
--- to spoon.FileSearch by hand since it bypasses hs.loadSpoon. False loads the original spoon
--- instead. Only the load flips here.
-local FILESEARCH_ON_OLM = true
-if FILESEARCH_ON_OLM then
-  spoon.FileSearch = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/filesearch/init.lua")
-else
-  hs.loadSpoon("FileSearch")
-end
+-- FileSearch now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.FileSearch by hand since it bypasses hs.loadSpoon.
+spoon.FileSearch = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/filesearch/init.lua")
 -- The olm side toggle for Arithmetic. True loads the olm side copy at
 -- Spoons/Olm.spoon/plugins/arithmetic by an absolute path built from hs.configdir, assigned
 -- to spoon.Arithmetic by hand since it bypasses hs.loadSpoon. False loads the original spoon
@@ -1881,9 +1875,14 @@ end
 -- registry below.
 local fileSearchPanel = shortcutPanelFor("fileSearch")
 spoon.FileSearch:init()
+-- The resolver stamps every declaration under Olm.spoon with the one consumer name Olm,
+-- since Olm is the single top level spoon and its plugins are internal structure rather
+-- than spoons of their own. depsFor("FileSearch") stopped resolving anything once the
+-- original spoon was deleted, so this reads depsFor("Olm") instead, which is where the
+-- copy's own declarations already live.
 spoon.FileSearch:configure({
   policy = filesearch,
-  deps = depsFor("FileSearch"),
+  deps = depsFor("Olm"),
   matcher = spoon.Chooser.matchers.words,
   -- The launcher shows this list too, under its own alias below, and a search answers after the
   -- keystroke that asked for it. So the launcher is told when rows land, exactly as the spoon's

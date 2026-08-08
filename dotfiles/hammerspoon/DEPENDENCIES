@@ -22,11 +22,6 @@ caffeinate | system | /usr/bin/caffeinate | optional | BrowserTabs/harness | hol
 ocr | path | ocr | optional | Capture/macocr | the OCR backend, the sole handler of text capture
 macshot | app | com.sw33tlie.macshot.macshot | optional | Capture/macshot | the preferred screenshot backend, native is the fallback
 displayplacer | path | displayplacer | optional | DisplayProfiles/engine | reading and applying display arrangements
-fd | path | fd | optional | FileSearch/hidden | building the index of paths Spotlight cannot see
-fzf | path | fzf | optional | FileSearch/hidden | ranking that index, the one thing a substring tool cannot do over 42 thousand matches
-fd | path | fd | optional | FileSearch/walk | walking a named directory, which is faster than the index once a scope is given and is the only way to see dotfiles
-qlmanage | system | /usr/bin/qlmanage | optional | FileSearch/thumbs | drawing a preview of a pdf, a video, or anything else only Quick Look can render
-swiftc | system | /usr/bin/swiftc | optional | FileSearch/quicklook | compiling the helper that opens the native Quick Look panel
 recency | core | lib/recency.lua | optional | browsertabs/browsertabs | remembering the last opened tab, so the list opens already ordered by that
 osascript | system | /usr/bin/osascript | optional | browsertabs/jxa | runs the JXA that asks each browser for its open tabs
 swiftc | system | /usr/bin/swiftc | optional | browsertabs/permissions | builds the helper that asks for automation permission per browser
