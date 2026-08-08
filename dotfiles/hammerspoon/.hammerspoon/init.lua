@@ -93,16 +93,9 @@ end
 -- absolute path built from hs.configdir, assigned to spoon.HyperCheatSheet by hand since it
 -- bypasses hs.loadSpoon.
 spoon.HyperCheatSheet = dofile(hs.configdir .. "/Spoons/Olm.spoon/host/hypercheatsheet/init.lua")
--- The olm side toggle for StageManager. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/stagemanager by an absolute path built from hs.configdir, assigned
--- to spoon.StageManager by hand since it bypasses hs.loadSpoon. False loads the original
--- spoon instead. Only the load flips here.
-local STAGEMANAGER_ON_OLM = true
-if STAGEMANAGER_ON_OLM then
-  spoon.StageManager = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/stagemanager/init.lua")
-else
-  hs.loadSpoon("StageManager")
-end
+-- The user kept StageManager standalone, outside Olm, on the decision of 2026-08-07, so
+-- this loads the original spoon through hs.loadSpoon.
+hs.loadSpoon("StageManager")
 -- WindowManager now lives only in Olm. The original spoon passed live validation and was
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.WindowManager by hand since it bypasses hs.loadSpoon.
@@ -136,84 +129,40 @@ spoon.Caffeinate = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/caffeinate/
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.Vpn by hand since it bypasses hs.loadSpoon.
 spoon.Vpn = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/vpn/init.lua")
--- The olm side toggle for Capture. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/capture by an absolute path built from hs.configdir, assigned to
--- spoon.Capture by hand since it bypasses hs.loadSpoon. False loads the original spoon
--- instead. Only the load flips here.
-local CAPTURE_ON_OLM = true
-if CAPTURE_ON_OLM then
-  spoon.Capture = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/capture/init.lua")
-else
-  hs.loadSpoon("Capture")
-end
+-- Capture now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.Capture by hand since it bypasses hs.loadSpoon.
+spoon.Capture = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/capture/init.lua")
 -- Eyedropper now lives only in Olm. The original spoon passed live validation and was
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.Eyedropper by hand since it bypasses hs.loadSpoon.
 spoon.Eyedropper = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/eyedropper/init.lua")
--- The olm side toggle for WorkspaceEngine. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/workspaceengine by an absolute path built from hs.configdir,
--- assigned to spoon.WorkspaceEngine by hand since it bypasses hs.loadSpoon. False loads the
--- original spoon instead. Only the load flips here.
-local WORKSPACEENGINE_ON_OLM = true
-if WORKSPACEENGINE_ON_OLM then
-  spoon.WorkspaceEngine = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/workspaceengine/init.lua")
-else
-  hs.loadSpoon("WorkspaceEngine")
-end
--- The olm side toggle for TerminalHandler. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/terminalhandler by an absolute path built from hs.configdir,
--- assigned to spoon.TerminalHandler by hand since it bypasses hs.loadSpoon. False loads the
--- original spoon instead. Only the load flips here.
-local TERMINALHANDLER_ON_OLM = true
-if TERMINALHANDLER_ON_OLM then
-  spoon.TerminalHandler = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/terminalhandler/init.lua")
-else
-  hs.loadSpoon("TerminalHandler")
-end
+-- The user kept WorkspaceEngine standalone, outside Olm, on the decision of 2026-08-07, so
+-- this loads the original spoon through hs.loadSpoon.
+hs.loadSpoon("WorkspaceEngine")
+-- The user kept TerminalHandler standalone, outside Olm, on the decision of 2026-08-07, so
+-- this loads the original spoon through hs.loadSpoon.
+hs.loadSpoon("TerminalHandler")
 -- DisplayMemory now lives only in Olm. The original spoon passed live validation and was
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.DisplayMemory by hand since it bypasses hs.loadSpoon.
 spoon.DisplayMemory = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/displaymemory/init.lua")
--- The olm side toggle for WindowMemory. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/windowmemory by an absolute path built from hs.configdir,
--- assigned to spoon.WindowMemory by hand since it bypasses hs.loadSpoon. False loads the
--- original spoon instead. Only the load flips here.
-local WINDOWMEMORY_ON_OLM = true
-if WINDOWMEMORY_ON_OLM then
-  spoon.WindowMemory = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windowmemory/init.lua")
-else
-  hs.loadSpoon("WindowMemory")
-end
--- The olm side toggle for Launcher. True loads the olm side copy at
--- Spoons/Olm.spoon/host/launcher by an absolute path built from hs.configdir, assigned to
--- spoon.Launcher by hand since it bypasses hs.loadSpoon. False loads the original spoon
--- instead. Only the load flips here.
-local LAUNCHER_ON_OLM = true
-if LAUNCHER_ON_OLM then
-  spoon.Launcher = dofile(hs.configdir .. "/Spoons/Olm.spoon/host/launcher/init.lua")
-else
-  hs.loadSpoon("Launcher")
-end
--- The olm side toggle for DockAutoHide. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/dockautohide by an absolute path built from hs.configdir,
--- assigned to spoon.DockAutoHide by hand since it bypasses hs.loadSpoon. False loads the
--- original spoon instead. Only the load flips here.
-local DOCKAUTOHIDE_ON_OLM = true
-if DOCKAUTOHIDE_ON_OLM then
-  spoon.DockAutoHide = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/dockautohide/init.lua")
-else
-  hs.loadSpoon("DockAutoHide")
-end
--- The olm side toggle for DisplayProfiles. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/displayprofiles by an absolute path built from hs.configdir,
--- assigned to spoon.DisplayProfiles by hand since it bypasses hs.loadSpoon. False loads the
--- original spoon instead. Only the load flips here.
-local DISPLAYPROFILES_ON_OLM = true
-if DISPLAYPROFILES_ON_OLM then
-  spoon.DisplayProfiles = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/displayprofiles/init.lua")
-else
-  hs.loadSpoon("DisplayProfiles")
-end
+-- WindowMemory now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.WindowMemory by hand since it bypasses hs.loadSpoon.
+spoon.WindowMemory = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windowmemory/init.lua")
+-- Launcher now lives only in Olm's host directory. The original spoon passed live
+-- validation and was retired, so this loads the olm side host copy unconditionally by an
+-- absolute path built from hs.configdir, assigned to spoon.Launcher by hand since it
+-- bypasses hs.loadSpoon.
+spoon.Launcher = dofile(hs.configdir .. "/Spoons/Olm.spoon/host/launcher/init.lua")
+-- The user kept DockAutoHide standalone, outside Olm, on the decision of 2026-08-07, so
+-- this loads the original spoon through hs.loadSpoon.
+hs.loadSpoon("DockAutoHide")
+-- DisplayProfiles now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.DisplayProfiles by hand since it bypasses hs.loadSpoon.
+spoon.DisplayProfiles = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/displayprofiles/init.lua")
 -- SystemSettings now lives only in Olm. The original spoon passed live validation and was
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.SystemSettings by hand since it bypasses hs.loadSpoon.
@@ -243,26 +192,14 @@ end
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.Processes by hand since it bypasses hs.loadSpoon.
 spoon.Processes = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/processes/init.lua")
--- The olm side toggle for FileSearch. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/filesearch by an absolute path built from hs.configdir, assigned
--- to spoon.FileSearch by hand since it bypasses hs.loadSpoon. False loads the original spoon
--- instead. Only the load flips here.
-local FILESEARCH_ON_OLM = true
-if FILESEARCH_ON_OLM then
-  spoon.FileSearch = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/filesearch/init.lua")
-else
-  hs.loadSpoon("FileSearch")
-end
--- The olm side toggle for Arithmetic. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/arithmetic by an absolute path built from hs.configdir, assigned
--- to spoon.Arithmetic by hand since it bypasses hs.loadSpoon. False loads the original spoon
--- instead. Only the load flips here.
-local ARITHMETIC_ON_OLM = true
-if ARITHMETIC_ON_OLM then
-  spoon.Arithmetic = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/arithmetic/init.lua")
-else
-  hs.loadSpoon("Arithmetic")
-end
+-- FileSearch now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.FileSearch by hand since it bypasses hs.loadSpoon.
+spoon.FileSearch = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/filesearch/init.lua")
+-- Arithmetic now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.Arithmetic by hand since it bypasses hs.loadSpoon.
+spoon.Arithmetic = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/arithmetic/init.lua")
 -- Convert now lives only in Olm. The original spoon passed live validation and was
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.Convert by hand since it bypasses hs.loadSpoon.
@@ -1909,9 +1846,14 @@ end
 -- registry below.
 local fileSearchPanel = shortcutPanelFor("fileSearch")
 spoon.FileSearch:init()
+-- The resolver stamps every declaration under Olm.spoon with the one consumer name Olm,
+-- since Olm is the single top level spoon and its plugins are internal structure rather
+-- than spoons of their own. depsFor("FileSearch") stopped resolving anything once the
+-- original spoon was deleted, so this reads depsFor("Olm") instead, which is where the
+-- copy's own declarations already live.
 spoon.FileSearch:configure({
   policy = filesearch,
-  deps = depsFor("FileSearch"),
+  deps = depsFor("Olm"),
   matcher = spoon.Chooser.matchers.words,
   -- The launcher shows this list too, under its own alias below, and a search answers after the
   -- keystroke that asked for it. So the launcher is told when rows land, exactly as the spoon's
@@ -2403,17 +2345,25 @@ end)
 -- Cmd+Shift+5) are the always-available fallback. macocr (schappim's `ocr` CLI)
 -- is the sole backend for the OCR action, so it just sits last. Reorder this list
 -- to change screenshot priority; drop macshot to use only native (e.g. to
--- sidestep macshot's own capture bugs).
+-- sidestep macshot's own capture bugs). Native leads as of August 8, 2026 for
+-- the user's requested test pass, and macshot is demoted to second rather
+-- than removed, so it stays available once the test pass is done.
 spoon.Capture:init()
 spoon.Capture:configure({
   hyperKey = spoon.HyperKey,
   -- The dependency adapter reaches each provider through the engine, so a provider
   -- backed by an external tool asks for it by the name Capture declared instead of
   -- probing, and it stands aside with a plain reason when the tool is absent.
-  deps = depsFor("Capture"),
+  --
+  -- The resolver stamps every declaration under Olm.spoon with the one consumer name Olm,
+  -- since Olm is the single top level spoon and its plugins are internal structure rather
+  -- than spoons of their own. depsFor("Capture") stopped resolving anything once the
+  -- original spoon was deleted, so this reads depsFor("Olm") instead, which is where the
+  -- copy's own declarations already live.
+  deps = depsFor("Olm"),
   providers = {
-    spoon.Capture.providers.macshot,
     spoon.Capture.providers.native,
+    spoon.Capture.providers.macshot,
     spoon.Capture.providers.macocr,
   },
 })
@@ -2632,7 +2582,13 @@ spoon.DisplayProfiles:configure({
   storePath = hs.configdir .. "/config/display-profiles.json",
   -- The arrangement tool, resolved once by the shared door. Nil means it is absent, and
   -- the engine then manages nothing and says so, rather than probing for it itself.
-  binary = depsFor("DisplayProfiles").path("displayplacer"),
+  --
+  -- The resolver stamps every declaration under Olm.spoon with the one consumer name Olm,
+  -- since Olm is the single top level spoon and its plugins are internal structure rather
+  -- than spoons of their own. depsFor("DisplayProfiles") stopped resolving anything once the
+  -- original spoon was deleted, so this reads depsFor("Olm") instead, which is where the
+  -- copy's own declaration already lives.
+  binary = depsFor("Olm").path("displayplacer"),
 })
 spoon.DisplayProfiles:start()
 -- The inspect and manage chooser. Its api comes from the spoon, injected in configure above,

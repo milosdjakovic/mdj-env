@@ -33,7 +33,7 @@ end.
   app launches it, and `HYPER+,` should open System Settings straight to the General pane
   rather than a plain focus.
 
-- [ ] FileSearch, `FILESEARCH_ON_OLM` line 330, on `HYPER+/`. Search a file, `q` opens the
+- [x] FileSearch, `FILESEARCH_ON_OLM` line 330, on `HYPER+/`. Search a file, `q` opens the
   QuickLook preview, `l` and `h` step into and out of a folder, `o` reveals in Finder, `y`
   copies the path. Files you acted on before the migration should still rank near the top,
   the usage recency persisted.
@@ -47,7 +47,7 @@ end.
   or a duration like `1h30m`, confirm with `i`, the machine stays awake for that period, and
   `x` closes the panel.
 
-- [ ] Capture, `CAPTURE_ON_OLM` line 196. `HYPER+3` drags a region and copies the recognized
+- [x] Capture, `CAPTURE_ON_OLM` line 196. `HYPER+3` drags a region and copies the recognized
   text, paste it somewhere to prove it. `HYPER+4` screenshots to the clipboard and
   `HYPER+Shift+4` to a file, the shift sub modifier splitting two actions on one key is worth
   proving on its own. `HYPER+5` records the screen.
@@ -66,7 +66,7 @@ end.
   by live load, `r` rescans in place, `f` force stops. Stop a dev server and confirm the
   whole process group dies rather than one leaf process.
 
-- [ ] DisplayProfiles, `DISPLAYPROFILES_ON_OLM` line 267, the launcher row named Display
+- [x] DisplayProfiles, `DISPLAYPROFILES_ON_OLM` line 267, the launcher row named Display
   Profiles plus a background screen watcher. Unplug and replug a monitor, the saved
   arrangement reapplies with no key pressed. In the chooser, capture and rename a profile,
   curated ones stay read only, and pins write to the git tracked
@@ -83,42 +83,55 @@ end.
   `system` scope. Picking a pane opens System Settings directly to it. This tool had a rework
   fix for its init call, so the full pane list appearing at all is part of the proof.
 
-- [ ] TerminalHandler, `TERMINALHANDLER_ON_OLM` line 226, on `Option+` backtick. Toggles the
-  terminal, placed on the display last remembered for the current monitor arrangement, and
-  toggling again hides it.
+- TerminalHandler, on `Option+` backtick. Toggles the terminal, placing it on the display
+  last remembered for the current monitor arrangement. The user decided on 2026-08-07 to
+  remove it from the olm plugins, and it is kept as its own standalone spoon under
+  `dotfiles/hammerspoon/.hammerspoon/Spoons/`, initialized by `hs.loadSpoon` in the root
+  `init.lua`, at merge `9d5df34`. It is no longer any part of olm and no longer part of this
+  checklist loop.
 
-- [ ] Arithmetic, `ARITHMETIC_ON_OLM` line 340, no key. Type `2+2` into the open launcher, a
+- [x] Arithmetic, `ARITHMETIC_ON_OLM` line 340, no key. Type `2+2` into the open launcher, a
   computed row leads the list, selecting it copies the value.
 
 - [x] Convert, `CONVERT_ON_OLM` line 350, no key. Type `10 usd to eur` into the launcher, a
   row appears once the calculator answers, it is asynchronous so give it a beat. This tool
   had the other init rework fix, a row appearing proves it ran.
 
-- [ ] WorkspaceEngine, `WORKSPACEENGINE_ON_OLM` line 216. `Shift+Alt+D` fires the dev
-  workspace and `Shift+Alt+V` the vicert one. The app set launches and arranges in the
-  declared order, with apps landing on the right display when a second one is attached.
+- WorkspaceEngine, on `Shift+Alt+D` for the dev workspace and `Shift+Alt+V` for the vicert
+  one. Launches and arranges each app set in the declared order, with apps landing on the
+  right display when a second one is attached. The user decided on 2026-08-07 to remove it
+  from the olm plugins, and it is kept as its own standalone spoon under
+  `dotfiles/hammerspoon/.hammerspoon/Spoons/`, initialized by `hs.loadSpoon` in the root
+  `init.lua`, at merge `9d5df34`. It is no longer any part of olm and no longer part of this
+  checklist loop.
 
-- [ ] DockAutoHide, `DOCKAUTOHIDE_ON_OLM` line 257, on `Ctrl+Alt+D`. Toggles the real Dock
-  auto hide, twice returns to where you started, and it must not collide with the
-  `Shift+Alt+D` workspace key.
+- DockAutoHide, on `Ctrl+Alt+D`. Toggles the real Dock auto hide, and it must not collide
+  with the `Shift+Alt+D` workspace key. The user decided on 2026-08-07 to remove it from the
+  olm plugins, and it is kept as its own standalone spoon under
+  `dotfiles/hammerspoon/.hammerspoon/Spoons/`, initialized by `hs.loadSpoon` in the root
+  `init.lua`, at merge `9d5df34`. It is no longer any part of olm and no longer part of this
+  checklist loop.
 
 - [x] DisplayMemory, `DISPLAYMEMORY_ON_OLM` line 236, background only. Move the terminal to
   another display, hide it, retoggle it with the terminal key, it returns to the display you
   left it on for this monitor arrangement, and that memory survives a reload.
 
-- [ ] WindowMemory, `WINDOWMEMORY_ON_OLM` line 246, background only. Move and resize a
+- [x] WindowMemory, `WINDOWMEMORY_ON_OLM` line 246, background only. Move and resize a
   window, unplug or replug a display, and once things settle the frame restores by itself for
   that arrangement.
 
-- [ ] StageManager, `STAGEMANAGER_ON_OLM` line 102, no surface of its own. Toggle macOS Stage
-  Manager and watch a WindowManager placement, the left margin grows by the configured amount
-  while it is on and drops back when it is off.
+- StageManager, no surface of its own. Watches macOS Stage Manager and widens the
+  WindowManager left margin by the configured amount while it is on, dropping back when it
+  is off. The user decided on 2026-08-07 to remove it from the olm plugins, and it is kept
+  as its own standalone spoon under `dotfiles/hammerspoon/.hammerspoon/Spoons/`, initialized
+  by `hs.loadSpoon` in the root `init.lua`, at merge `9d5df34`. It is no longer any part of
+  olm and no longer part of this checklist loop.
 
 - [x] KeyRemap, `KEYREMAP_ON_OLM` line 54, the ground under everything. If caps lock drives
   Hyper, a quick tap still toggles real caps lock, a hold reveals the Hyper cheat sheet, and
   right option drives the window leader, then it works, every row above silently proved it.
 
-- [ ] Host, the three spoons that sat outside the bundling pass, `HYPERCHEATSHEET_ON_OLM` line
+- [x] Host, the three spoons that sat outside the bundling pass, `HYPERCHEATSHEET_ON_OLM` line
   101, `LAUNCHER_ON_OLM` line 265, and `QUERYSCOPE_ON_OLM` line 380. Hold Hyper for the cheat
   sheet overlay and check that the app list still splits into open and not running. Open the
   launcher with `HYPER+Space` and run an app row and a command row. Apps you open often should

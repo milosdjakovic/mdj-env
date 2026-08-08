@@ -47,8 +47,8 @@ ce02e7265991816579aecbcc2be7851f3e20168b.
 
 ### FileSearch
 
-- [ ] validated
-- [ ] retired
+- [x] validated
+- [x] retired
 
 Validation on 2026-08-07 found that Quick Look opened on the display holding the mouse
 pointer rather than on the chooser's own display. The fix carries the chooser frame into
@@ -57,6 +57,19 @@ the pointer. Alongside the fix, the side panel becomes the docked preview provid
 the q key keeps Quick Look available through a new peek viewer seam. This follows the packet
 at `docs/superpowers/packets/2026-08-07-packet-filesearch-preview.md`, landed at merge commit
 93ce40a6846646879739d09c4e0dff0fd3ead894, awaiting the user's revalidation.
+
+A follow up packet gave the chooser atom's companion pane one shared width, true inherits
+the chooser's own resolved width for that show, a number keeps overriding it independently,
+and the side panel now inherits by default rather than naming its own narrower number. A
+first landing attempt crashed live, since the clipboard's own preview reached that number in
+arithmetic before the atom had positioned anything, and the console gate caught it. The
+clipboard now defers its first paint on an unset frame the same way the side panel already
+does, and the corrected merge landed at commit 0a8f1b6. This widens the preview retest
+surface for this row, the side panel is worth checking with an inherited width as well as
+with an explicit one.
+
+The user validated this tool live on 2026-08-08 and it passed. The retirement landed at
+merge commit 711a8b5711572f3351f30a6deb9370e95ec16406.
 
 ### BrowserTabs
 
@@ -81,12 +94,23 @@ Validation passed on 2026-08-07 with no findings. The retirement landed at merge
 
 ### Capture
 
-- [ ] validated
-- [ ] retired
+- [x] validated
+- [x] retired
 
 Validation on 2026-08-07 passed using the macshot backend. The user wants the native
 backend switched on next purely for a test pass, and this tool only counts as fully
 validated once native has been exercised live too.
+
+As of merge 48a0768, the native backend now leads the Capture provider chain for that
+requested test pass, with macshot demoted to second rather than deleted, so the
+validation above still stands as read and only the live order changed. The tool still
+awaits the user's validation of the native backend before either checkbox above
+changes. One difference is expected rather than a defect, native's screen recording
+opens the macOS capture toolbar instead of starting an area recording in one step,
+since macOS offers no direct shortcut for that.
+
+The user validated this tool live on 2026-08-08 and it passed. The retirement landed at
+merge commit b502824ff173af5cd09cf7269ea2e2808c6a6a6d.
 
 ### Emoji
 
@@ -127,11 +151,14 @@ the copy's nested source declarations stopped going unread.
 
 ### DisplayProfiles
 
-- [ ] validated
-- [ ] retired
+- [x] validated
+- [x] retired
 
 Looked good in the chooser on 2026-08-07. The user wants to watch it over time before
 calling it a full pass, and will report anything worth fixing or changing once it shows up.
+
+The user validated this tool live on 2026-08-08 and it passed. The retirement landed at
+merge commit 16701708b93d8911444bed1cc84478b5bfbfce59.
 
 ### Eyedropper
 
@@ -169,14 +196,26 @@ migration, rather than following the validate and retire path below. Tracked as 
 piece of work, separate from this loop, alongside WorkspaceEngine, DockAutoHide, and
 StageManager below.
 
+The extraction landed at merge commit 9d5df341b694866ef5afc4bbd0e05e713eab000c, and
+TerminalHandler runs standalone again. The boxes above stay unticked, since this tool left
+the validate and retire loop.
+
 ### Arithmetic
 
-- [ ] validated
-- [ ] retired
+- [x] validated
+- [x] retired
 
 Validation on 2026-08-07 found the four basic operators plus modulo, exponent, and
 parentheses all work, but a trailing percent as in `2+2%` is not read as a percentage. The
 fix lands before this tool counts as a full pass.
+
+The fix for that finding landed at merge commit 33f8134d361162870ee62ac75319eeea078a2cc5
+on feat/olm, rewriting a number followed by a percent sign into a division by one hundred
+whenever the percent is not followed by a digit or a decimal point, so `2+2%` answers 2.02
+and `7%3` still answers 1 as modulo.
+
+The user validated this tool live on 2026-08-08 and it passed. The retirement landed at
+merge commit 30fb63dcee2fcfef255b261e723b86e9b3198c1f.
 
 ### Convert
 
@@ -197,6 +236,10 @@ The user decided on 2026-08-07 that this tool stays out of Olm too. It moves bac
 standalone spoon, initialized directly in the root `init.lua` alongside TerminalHandler,
 DockAutoHide, and StageManager, rather than following the validate and retire path below.
 
+The extraction landed at merge commit 9d5df341b694866ef5afc4bbd0e05e713eab000c, and
+WorkspaceEngine runs standalone again. The boxes above stay unticked, since this tool left
+the validate and retire loop.
+
 ### DockAutoHide
 
 - [ ] validated
@@ -205,6 +248,10 @@ DockAutoHide, and StageManager, rather than following the validate and retire pa
 The user decided on 2026-08-07 that this tool stays out of Olm too. It moves back to its own
 standalone spoon, initialized directly in the root `init.lua` alongside TerminalHandler,
 WorkspaceEngine, and StageManager, rather than following the validate and retire path below.
+
+The extraction landed at merge commit 9d5df341b694866ef5afc4bbd0e05e713eab000c, and
+DockAutoHide runs standalone again. The boxes above stay unticked, since this tool left
+the validate and retire loop.
 
 ### DisplayMemory
 
@@ -217,8 +264,11 @@ The retirement landed at merge commit 89a8237b97530dd2705bc7595c17d4f64fc0ebdb.
 
 ### WindowMemory
 
-- [ ] validated
-- [ ] retired
+- [x] validated
+- [x] retired
+
+The user validated this tool live on 2026-08-08 and it passed. The retirement landed at
+merge commit a5794cfa7cb48976812e8a5f69a894941953ad66.
 
 ### StageManager
 
@@ -228,6 +278,10 @@ The retirement landed at merge commit 89a8237b97530dd2705bc7595c17d4f64fc0ebdb.
 The user decided on 2026-08-07 that this tool stays out of Olm too. It moves back to its own
 standalone spoon, initialized directly in the root `init.lua` alongside TerminalHandler,
 WorkspaceEngine, and DockAutoHide, rather than following the validate and retire path below.
+
+The extraction landed at merge commit 9d5df341b694866ef5afc4bbd0e05e713eab000c, and
+StageManager runs standalone again. The boxes above stay unticked, since this tool left
+the validate and retire loop.
 
 ### KeyRemap
 
@@ -268,14 +322,21 @@ Convert needed.
 
 ### Launcher
 
-- [ ] validated
-- [ ] retired
+- [x] validated
+- [x] retired
 
 Validation on 2026-08-07 passed for the launcher rows and the alias scope grammar, but
 found that `launcherRecency` picks up any app the user focuses, not only the ones chosen
 through the launcher itself. The fix should make recency reflect launcher driven
 selections alone, so nothing outside the launcher moves the order, and this tool counts as
 a full pass once that lands.
+
+The fix for that finding landed at merge commit f1e883244a5d603455a3b4522fadcdbd89d6e00c
+on feat/olm, removing the ambient promote from the app watcher and from the start seed, so
+the timeline is now fed by launcher picks alone.
+
+The user revalidated the recency fix live on 2026-08-08 and accepted it. The retirement
+landed at merge commit a2892c72369fae9333f9dd3edff7ac8a1840ba35.
 
 ### QueryScope
 

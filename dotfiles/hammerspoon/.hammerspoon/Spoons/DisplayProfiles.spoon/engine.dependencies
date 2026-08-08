@@ -1,6 +1,0 @@
-# What engine.lua needs from outside Hammerspoon, declared beside the only file that runs
-# this tool. init.lua passes the resolved path in, it never runs it.
-# Format is name | kind | locator | policy | reason.
-# See Dependencies.spoon for the kinds and for how these files are found.
-# Name a tool only, never how to install it. That belongs to the layer above.
-displayplacer | path | displayplacer | optional | reading and applying display arrangements

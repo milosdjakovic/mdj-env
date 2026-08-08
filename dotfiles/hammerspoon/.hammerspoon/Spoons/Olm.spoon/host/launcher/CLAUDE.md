@@ -287,38 +287,41 @@ interleaving is decided once in `_orderedRows`, above the per-kind builders,
 which is why `_appRows` now sorts only naturally and no longer knows about
 recency.
 
-Two observers feed that one timeline with equal weight, both through `_promote`.
-The app watcher's `activated` event promotes the focused app, the same signal
-Command+Tab follows, so open+Enter still lands on the last app and macOS-driven
-switches keep apps fresh at the top. The chooser's `onSelect` promotes whatever
-row was picked, so commands, captures, window actions, and settings panes join
-the timeline the moment they are chosen. macOS exposes no public read of the
-Command+Tab list, so this Observer shape, the same pattern other watchers here
-use, is how the app half is replicated. The equal weight is a deliberate choice, so a command
-sinks below apps as you switch apps after picking it, and it is found by typing
-by then anyway; a stickier tier for launcher picks was considered and left out as
-unearned. The timeline is stored under one `hs.settings` key
-(`launcherRecency`), so it survives a reload (frequent here) and a reboot, capped
-small, and the spoon's own app is never promoted so opening the launcher does not
-float Hammerspoon to the top. On `start` it loads the saved list and seeds the
-current frontmost app, so the top row is right before the first switch, and a
-fresh machine with no history fills in as things are used. The key was renamed
-from the old app-only `launcherAppMRU`, so old bundle-id data is ignored rather
-than migrated and the order relearns within normal use.
+The timeline is fed by launcher picks alone, on the user's decision of
+2026-08-07. The chooser's `onSelect` promotes whatever row was picked, through
+`_promote`, and the `intercept` closure promotes a row taken as a replacement
+for the list the same way, so an app, a command, a capture, a window action,
+and a settings pane all join the timeline the moment they are actually chosen.
+A row a query source computed still answers nil to `recencyKey` and stays out
+of the timeline exactly as before. An app merely becoming frontmost is not a
+pick, whether that happens through Command+Tab or through the app watcher
+below, so neither promotes anything any more. The watcher stays for a
+different job, refreshing the running set. It drops `_appRowsCache` on
+activation, launch, and termination, and drops `_orderedRowsCache` on launch
+and termination too, since only the running set changed there and no pick was
+made. The timeline is stored under one `hs.settings` key, `launcherRecency`,
+so it survives a reload, frequent here, and a reboot, capped small, and the
+spoon's own app is never promoted so opening the launcher does not float
+Hammerspoon to the top. On `start` it only loads the saved list, it no longer
+seeds the frontmost app, since the app open at reload time was never a pick
+either. The list itself is not cleared or migrated for this change, so an
+entry an earlier build wrote from ambient focus decays naturally past the cap
+as real picks accumulate, and a fresh machine with no history fills in the
+same way. The key was renamed once already from the old app only
+`launcherAppMRU`, so that renaming and this one both leave old data to decay
+rather than migrate.
 
-The persist on every activation is cheap, `hs.settings` is `NSUserDefaults`,
-which updates in memory and flushes to disk on its own schedule, so it is not a
-disk write per switch. Two caches keep the open instant: `_appRowsCache` holds
-the app rows and is dropped when the running set changes and on an app activation,
-and `_orderedRowsCache` holds the fully sorted list and is dropped on any promote, so
-a selection re-sorts without rescanning apps and a keystroke only filters.
+The persist on every pick is cheap, `hs.settings` is `NSUserDefaults`, which
+updates in memory and flushes to disk on its own schedule, so it is not a disk
+write per pick. Two caches keep the open instant. `_appRowsCache` holds the
+app rows and is dropped when the running set changes. `_orderedRowsCache`
+holds the fully sorted list and is dropped on any promote, so a pick sorts
+again without rescanning apps and a keystroke only filters.
 Deriving the order at open time from `hs.window.orderedWindows()` was rejected,
-it enumerates windows through the accessibility API, which is slow enough to lag
-the open, the one path this design keeps instant. This is also why unplugging the
-macOS signal would not buy performance, the watcher is nearly free and the only
-costly work is the one-time disk scan; dropping it would only change semantics.
-The one real limitation is correctness, not speed, it cannot know history from
-before Hammerspoon ran, which the persistence and the frontmost seed minimize.
+it enumerates windows through the accessibility API, which is slow enough to
+lag the open, the one path this design keeps instant. The one real limitation
+is correctness, not speed, it cannot know a pick from before Hammerspoon ran,
+which the persistence minimizes.
 
 Window rows carry their live `when` predicate, so the display switch rows drop
 out on a single display, staying consistent with wherever else those bindings
