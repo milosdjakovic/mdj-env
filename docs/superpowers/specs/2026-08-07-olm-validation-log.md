@@ -74,7 +74,7 @@ merge commit 711a8b5711572f3351f30a6deb9370e95ec16406.
 ### BrowserTabs
 
 - [x] validated
-- [ ] retired
+- [x] retired
 
 Validation passed on 2026-08-07 with no findings. The carried in test harness note below
 still applies at retirement time.
@@ -83,6 +83,11 @@ Carried in from the build, the copy's test harness at `plugins/browsertabs/test/
 line 241 still calls `bt.recency.touch`, which the copy no longer has. The retirement pass
 fixes the harness, points the suite at the copy, and runs it once before deleting the
 original.
+
+The retirement landed at merge commit b3ee7b1fb6521839d48e56e0c64a0b0206f8fbbd. The user
+waived the pre deletion suite run on 2026-08-08 after their own live testing, and the
+harness fix pointing the suite at the olm copy landed with this merge, so the suite runs
+against the copy from now on.
 
 ### Caffeinate
 
