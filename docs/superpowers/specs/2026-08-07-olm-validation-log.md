@@ -152,12 +152,13 @@ the copy's nested source declarations stopped going unread.
 ### DisplayProfiles
 
 - [x] validated
-- [ ] retired
+- [x] retired
 
 Looked good in the chooser on 2026-08-07. The user wants to watch it over time before
 calling it a full pass, and will report anything worth fixing or changing once it shows up.
 
-The user validated this tool live on 2026-08-08 and it passed.
+The user validated this tool live on 2026-08-08 and it passed. The retirement landed at
+merge commit 16701708b93d8911444bed1cc84478b5bfbfce59.
 
 ### Eyedropper
 
