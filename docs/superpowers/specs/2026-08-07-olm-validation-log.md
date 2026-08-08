@@ -58,6 +58,16 @@ the q key keeps Quick Look available through a new peek viewer seam. This follow
 at `docs/superpowers/packets/2026-08-07-packet-filesearch-preview.md`, landed at merge commit
 93ce40a6846646879739d09c4e0dff0fd3ead894, awaiting the user's revalidation.
 
+A follow up packet gave the chooser atom's companion pane one shared width, true inherits
+the chooser's own resolved width for that show, a number keeps overriding it independently,
+and the side panel now inherits by default rather than naming its own narrower number. A
+first landing attempt crashed live, since the clipboard's own preview reached that number in
+arithmetic before the atom had positioned anything, and the console gate caught it. The
+clipboard now defers its first paint on an unset frame the same way the side panel already
+does, and the corrected merge landed at commit 0a8f1b6. This widens the preview retest
+surface for this row, the side panel is worth checking with an inherited width as well as
+with an explicit one.
+
 ### BrowserTabs
 
 - [x] validated
