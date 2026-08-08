@@ -422,9 +422,12 @@ local function shiftEl(el, dx, dy)
   return copy
 end
 
+-- Built only from paint(), which never runs before previewFrame holds the atom's
+-- real rect, so the canvas is sized right from its first frame and never sized off
+-- a config number.
 local function ensurePreview()
   if preview then return end
-  preview = hs.canvas.new({ x = 0, y = 0, w = cfg.previewW, h = cfg.previewH })
+  preview = hs.canvas.new({ x = 0, y = 0, w = previewFrame.w, h = previewFrame.h })
   preview:level(hs.canvas.windowLevels.floating)
   preview:clickActivating(false) -- a click on the pane must not pull focus off the field
 end
@@ -563,9 +566,10 @@ end
 -- live scroll. maxScroll comes from the overflow, so a tall entry scrolls under the
 -- padding instead of spilling over the border. Records the model for repaint().
 local function paint(contentEls, contentH)
+  if not previewFrame then return end
   ensurePreview()
   lastEls, lastH = contentEls, contentH
-  local frame = previewFrame or { x = 0, y = 0, w = cfg.previewW, h = cfg.previewH }
+  local frame = previewFrame
   local innerW = frame.w - 2 * PAD_X
   local innerH = frame.h - 2 * PAD_Y
   maxScroll = math.max(0, contentH - innerH)
@@ -594,15 +598,18 @@ local function repaint()
   paint(lastEls, lastH)
 end
 
--- The inner content width, the companion frame minus horizontal padding.
+-- The inner content width, the companion frame minus horizontal padding. Only ever
+-- called while building content for renderPreview, which has already deferred when
+-- there is no frame yet, so previewFrame is always real here.
 local function innerWidth()
-  return (previewFrame and previewFrame.w or cfg.previewW) - 2 * PAD_X
+  return previewFrame.w - 2 * PAD_X
 end
 
 -- The inner content height, the companion frame minus vertical padding. Used to
--- size the colour swatch so it fills the pane without forcing a scroll.
+-- size the colour swatch so it fills the pane without forcing a scroll. Same
+-- guarantee as innerWidth, previewFrame is always real by the time this runs.
 local function innerHeight()
-  return (previewFrame and previewFrame.h or cfg.previewH) - 2 * PAD_Y
+  return previewFrame.h - 2 * PAD_Y
 end
 
 --------------------------------------------------------------------------------
@@ -977,8 +984,14 @@ local function renderFile(e, token)
 end
 
 -- The atom's onHighlight target. Resolve the palette for the current appearance,
--- reset the scroll to the top for the new entry, then paint the model.
+-- reset the scroll to the top for the new entry, then paint the model. The atom
+-- seeds one call before it has positioned anything, so the very first call of a
+-- show can land with no companion rect known yet. Nothing here can size or measure
+-- without one, so it defers entirely rather than guessing a width, the same way the
+-- processes and filesearch panes defer their own first paint. onPositioned calls
+-- this again the moment it has a real rect, well before anything is visible.
 local function renderPreview(e)
+  if not previewFrame then return end
   renderToken = renderToken + 1
   scrollOffset = 0
   -- Only the text colours come from the palette; the pane's background and border are
