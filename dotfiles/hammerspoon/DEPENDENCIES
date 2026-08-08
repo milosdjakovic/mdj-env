@@ -19,7 +19,6 @@ osascript | system | /usr/bin/osascript | optional | BrowserTabs/harness | runs 
 open | system | /usr/bin/open | optional | BrowserTabs/harness | carries each command to the harness agent as a URL, since the Hammerspoon CLI blocks while the tool has work in flight
 ioreg | system | /usr/sbin/ioreg | optional | BrowserTabs/harness | asks the window server whether the screen is locked, which the accessibility layer cannot be trusted to report about itself
 caffeinate | system | /usr/bin/caffeinate | optional | BrowserTabs/harness | holds the display awake for a run, since a suite drives the machine with synthesised events and the idle timer does not count those
-displayplacer | path | displayplacer | optional | DisplayProfiles/engine | reading and applying display arrangements
 recency | core | lib/recency.lua | optional | browsertabs/browsertabs | remembering the last opened tab, so the list opens already ordered by that
 osascript | system | /usr/bin/osascript | optional | browsertabs/jxa | runs the JXA that asks each browser for its open tabs
 swiftc | system | /usr/bin/swiftc | optional | browsertabs/permissions | builds the helper that asks for automation permission per browser
