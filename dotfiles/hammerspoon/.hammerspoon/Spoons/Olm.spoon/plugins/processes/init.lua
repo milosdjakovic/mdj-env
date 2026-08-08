@@ -40,7 +40,7 @@
 --- and its policy slice, with no edit to the engine.
 ---
 --- This is the olm side copy of Processes, phase six of the plugin bundling pass, and
---- the original this was copied from still lives at Spoons/Processes.spoon.
+--- the original this was copied from lived at Spoons/Processes.spoon.
 
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local function load(name)

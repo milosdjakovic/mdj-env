@@ -19,7 +19,7 @@
 --- adding a scope is one entry in that root and no change here.
 ---
 --- This is the olm side copy of QueryScope, made in the host into olm pass on 2026-08-07, and
---- the original this was copied from still lives at Spoons/QueryScope.spoon.
+--- the original this was copied from lived at Spoons/QueryScope.spoon.
 
 local obj = {}
 obj.__index = obj

@@ -33,7 +33,7 @@
 ---
 --- This is the olm side copy of Vpn, converted to use the shared recency service at
 --- Olm.spoon/lib/recency.lua instead of a hand rolled block, and the original this was
---- copied from still lives at Spoons/Vpn.spoon.
+--- copied from lived at Spoons/Vpn.spoon.
 
 local M = { name = "Vpn", version = "3.0", author = "Milos Djakovic", license = "MIT" }
 

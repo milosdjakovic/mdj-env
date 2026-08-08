@@ -19,7 +19,7 @@
 ---
 --- This is the olm side copy of HyperKey, moved into the core as lib/hyperkey.lua in phase
 --- five of the build plan. The colon methods are unchanged, so assigning it to the HyperKey
---- spoon global is a drop in. The original this was copied from still lives at
+--- spoon global is a drop in. The original this was copied from lived at
 --- Spoons/HyperKey.spoon and knows nothing of what follows.
 ---
 --- WHAT IS NEW HERE is that the trigger is no longer a constant. What physically means Hyper

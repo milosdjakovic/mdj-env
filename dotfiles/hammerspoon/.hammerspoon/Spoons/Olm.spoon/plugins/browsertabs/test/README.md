@@ -19,10 +19,10 @@ excessive.
 ## Running it
 
 ```bash
-Spoons/BrowserTabs.spoon/test/suite.sh              # everything
-Spoons/BrowserTabs.spoon/test/suite.sh --quick      # one pass of each, no repeats
-Spoons/BrowserTabs.spoon/test/suite.sh --only drift # one group
-Spoons/BrowserTabs.spoon/test/suite.sh --list       # what there is
+Spoons/Olm.spoon/plugins/browsertabs/test/suite.sh              # everything
+Spoons/Olm.spoon/plugins/browsertabs/test/suite.sh --quick      # one pass of each, no repeats
+Spoons/Olm.spoon/plugins/browsertabs/test/suite.sh --only drift # one group
+Spoons/Olm.spoon/plugins/browsertabs/test/suite.sh --list       # what there is
 ```
 
 `suite.sh` takes the machine-wide test lock so this checkout becomes the live Hammerspoon config,

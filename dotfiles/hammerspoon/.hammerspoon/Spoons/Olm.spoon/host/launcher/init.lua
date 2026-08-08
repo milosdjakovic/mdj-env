@@ -19,7 +19,7 @@
 --- function. runItem turns that descriptor back into the injected call.
 ---
 --- This is the olm side copy of Launcher, made in the host into olm pass on 2026-08-07, and
---- the original this was copied from still lives at Spoons/Launcher.spoon.
+--- the original this was copied from lived at Spoons/Launcher.spoon.
 
 local obj = {}
 obj.__index = obj

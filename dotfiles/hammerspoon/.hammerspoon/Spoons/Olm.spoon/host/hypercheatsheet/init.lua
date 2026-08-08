@@ -13,7 +13,7 @@
 --- delegated to the shared CheatSheet.spoon renderer (injected via configure).
 ---
 --- This is the olm side copy of HyperCheatSheet, made in the host into olm pass on
---- 2026-08-07, and the original this was copied from still lives at
+--- 2026-08-07, and the original this was copied from lived at
 --- Spoons/HyperCheatSheet.spoon.
 
 local obj = {}

@@ -87,7 +87,7 @@ reason to open this tool at all. Reading each case done to your actual selection
 scope that has to drop the one thing a tool is for is not a faster route to that tool, it is a
 lesser copy of it, and two ways in that do different things is worse than one way in that works.
 
-The general rule this settled, and it is recorded in `Spoons/QueryScope.spoon/CLAUDE.md` too, is
+The general rule this settled, and it is recorded in `Spoons/Olm.spoon/host/queryscope/CLAUDE.md` too, is
 that a scope may be smaller than its tool but not smaller than the reason for the tool.
 
 ## The preview is display only

@@ -27,7 +27,7 @@
 --- query the user has already moved past is discarded instead of replacing a newer one.
 ---
 --- This is the olm side copy of Convert, phase six of the olm build plan, and the
---- original this was copied from still lives at Spoons/Convert.spoon.
+--- original this was copied from lived at Spoons/Convert.spoon.
 
 local obj = {}
 obj.__index = obj

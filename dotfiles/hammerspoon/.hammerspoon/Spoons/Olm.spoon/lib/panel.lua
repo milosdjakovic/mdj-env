@@ -87,7 +87,7 @@
 --- This is the olm side copy of CanvasPanel, moved into the core as lib/panel.lua in phase
 --- five of the build plan. It is a faithful copy, the module api and the instance api are
 --- unchanged, so assigning it to the CanvasPanel spoon global is a drop in. The original
---- this was copied from still lives at Spoons/CanvasPanel.spoon.
+--- this was copied from lived at Spoons/CanvasPanel.spoon.
 
 local obj = {}
 obj.__index = obj

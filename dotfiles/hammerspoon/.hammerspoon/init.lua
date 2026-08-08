@@ -1544,8 +1544,7 @@ openBuiltinMenuSearch = MenuSearch.open
 scopeMenuRows = MenuSearch.scopeRows
 scopeMenuRun = MenuSearch.scopeRun
 
--- Open key. Bound to the built-in chooser: fast, direct, shows the app icon. Swap to
--- fireMenuSearchCombo (uncomment above) to hand off to an external tool instead.
+-- Open key. Bound to the built in chooser, which is fast, direct, and shows the app icon.
 spoon.HyperKey:bind(keys.menuSearch.key, openBuiltinMenuSearch)
 
 -- VPN controls: a native chooser on Hyper+P that merges the controls and the locations

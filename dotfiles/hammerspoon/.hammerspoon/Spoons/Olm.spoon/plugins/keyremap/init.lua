@@ -17,7 +17,7 @@
 --- sudo is needed, UserKeyMapping is per user.
 ---
 --- This is the olm side copy of KeyRemap, made in the bundling pass, phase 6 of the
---- olm build plan, and the original this was copied from still lives at
+--- olm build plan, and the original this was copied from lived at
 --- Spoons/KeyRemap.spoon.
 
 local obj = {}

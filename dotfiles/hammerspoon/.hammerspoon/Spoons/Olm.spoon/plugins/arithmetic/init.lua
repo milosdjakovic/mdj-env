@@ -24,7 +24,7 @@
 --- yields a string the type check drops.
 ---
 --- This is the olm side copy of Arithmetic, phase six of the olm build plan, and the
---- original this was copied from still lives at Spoons/Arithmetic.spoon.
+--- original this was copied from lived at Spoons/Arithmetic.spoon.
 
 local obj = {}
 obj.__index = obj

@@ -42,7 +42,7 @@
 --- behind a root toggle. It is a faithful copy, every sibling file unchanged, since every
 --- path in this spoon resolves through debug.getinfo off its own file rather than through
 --- hs.loadSpoon mechanics, so loading this copy by dofile changes nothing it depends on.
---- The original this was copied from still lives at Spoons/FileSearch.spoon.
+--- The original this was copied from lived at Spoons/FileSearch.spoon.
 
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local function load(name)

@@ -26,7 +26,7 @@
 --- callback hands the result out for a consumer that wants more than the clipboard.
 ---
 --- This is the olm side copy of Eyedropper, phase six of the olm build plan, and the
---- original this was copied from still lives at Spoons/Eyedropper.spoon.
+--- original this was copied from lived at Spoons/Eyedropper.spoon.
 
 local obj = {}
 obj.__index = obj

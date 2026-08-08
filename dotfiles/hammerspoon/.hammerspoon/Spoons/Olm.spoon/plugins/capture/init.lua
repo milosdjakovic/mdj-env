@@ -22,7 +22,7 @@
 --- spoon dir is not on package.path).
 ---
 --- This is the olm side copy of Capture, phase six of the olm build plan, and the
---- original this was copied from still lives at Spoons/Capture.spoon.
+--- original this was copied from lived at Spoons/Capture.spoon.
 
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local function load(name)

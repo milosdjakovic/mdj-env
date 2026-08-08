@@ -16,7 +16,7 @@
 --- file and stays reusable. init.lua names config/settingsPanes and passes it in.
 ---
 --- This is the olm side copy of SystemSettings, phase six of the olm build plan, and the
---- original this was copied from still lives at Spoons/SystemSettings.spoon.
+--- original this was copied from lived at Spoons/SystemSettings.spoon.
 
 local obj = {}
 obj.__index = obj
