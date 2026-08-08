@@ -177,17 +177,10 @@ spoon.Emoji = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/emoji/init.lua")
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.TextCase by hand since it bypasses hs.loadSpoon.
 spoon.TextCase = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/textcase/init.lua")
--- The olm side toggle for BrowserTabs. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/browsertabs by an absolute path built from hs.configdir, assigned
--- to spoon.BrowserTabs by hand since it bypasses hs.loadSpoon. False loads the original
--- spoon instead. The configure call further down injects recency on the olm side only, and
--- that injection flips with this same boolean, never on its own.
-local BROWSERTABS_ON_OLM = true
-if BROWSERTABS_ON_OLM then
-  spoon.BrowserTabs = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/browsertabs/init.lua")
-else
-  hs.loadSpoon("BrowserTabs")
-end
+-- BrowserTabs now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.BrowserTabs by hand since it bypasses hs.loadSpoon.
+spoon.BrowserTabs = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/browsertabs/init.lua")
 -- Processes now lives only in Olm. The original spoon passed live validation and was
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.Processes by hand since it bypasses hs.loadSpoon.
@@ -1721,9 +1714,9 @@ spoon.TextCase:configure({
 -- the choosers registry below.
 -- recency is the shared lift to front service from Olm, one instance built against the same
 -- settings key and the same limit the hand rolled recency.lua module used before this
--- conversion, so the remembered tab order a person already has carries across the toggle in
--- both directions. It is built only on the olm side, since the original spoon carries its own
--- recency.lua and reads opts.recencyKey instead, so nil here leaves that side untouched.
+-- conversion, so the remembered tab order a person already has carries across from before.
+-- It is now built unconditionally, since the original spoon and its own recency.lua are
+-- retired and there is no other side left to leave untouched.
 local browserProviders = spoon.BrowserTabs.providers
 spoon.BrowserTabs:init()
 spoon.BrowserTabs:configure({
@@ -1733,7 +1726,7 @@ spoon.BrowserTabs:configure({
     browserProviders.arc,
   },
   defaultEnabled = { apps.Safari },
-  recency = BROWSERTABS_ON_OLM and spoon.Olm.lib.recency.new({ settingsKey = "BrowserTabs.recentTabs", limit = 2000 }) or nil,
+  recency = spoon.Olm.lib.recency.new({ settingsKey = "BrowserTabs.recentTabs", limit = 2000 }),
 })
 spoon.BrowserTabs:start()
 -- The surface is wired the way every other native chooser is, the factory, the shared theme,
