@@ -47,7 +47,7 @@ ce02e7265991816579aecbcc2be7851f3e20168b.
 
 ### FileSearch
 
-- [ ] validated
+- [x] validated
 - [ ] retired
 
 Validation on 2026-08-07 found that Quick Look opened on the display holding the mouse
@@ -67,6 +67,8 @@ clipboard now defers its first paint on an unset frame the same way the side pan
 does, and the corrected merge landed at commit 0a8f1b6. This widens the preview retest
 surface for this row, the side panel is worth checking with an inherited width as well as
 with an explicit one.
+
+The user validated this tool live on 2026-08-08 and it passed.
 
 ### BrowserTabs
 
@@ -91,7 +93,7 @@ Validation passed on 2026-08-07 with no findings. The retirement landed at merge
 
 ### Capture
 
-- [ ] validated
+- [x] validated
 - [ ] retired
 
 Validation on 2026-08-07 passed using the macshot backend. The user wants the native
@@ -105,6 +107,8 @@ awaits the user's validation of the native backend before either checkbox above
 changes. One difference is expected rather than a defect, native's screen recording
 opens the macOS capture toolbar instead of starting an area recording in one step,
 since macOS offers no direct shortcut for that.
+
+The user validated this tool live on 2026-08-08 and it passed.
 
 ### Emoji
 
@@ -145,11 +149,13 @@ the copy's nested source declarations stopped going unread.
 
 ### DisplayProfiles
 
-- [ ] validated
+- [x] validated
 - [ ] retired
 
 Looked good in the chooser on 2026-08-07. The user wants to watch it over time before
 calling it a full pass, and will report anything worth fixing or changing once it shows up.
+
+The user validated this tool live on 2026-08-08 and it passed.
 
 ### Eyedropper
 
@@ -193,7 +199,7 @@ the validate and retire loop.
 
 ### Arithmetic
 
-- [ ] validated
+- [x] validated
 - [ ] retired
 
 Validation on 2026-08-07 found the four basic operators plus modulo, exponent, and
@@ -203,8 +209,9 @@ fix lands before this tool counts as a full pass.
 The fix for that finding landed at merge commit 33f8134d361162870ee62ac75319eeea078a2cc5
 on feat/olm, rewriting a number followed by a percent sign into a division by one hundred
 whenever the percent is not followed by a digit or a decimal point, so `2+2%` answers 2.02
-and `7%3` still answers 1 as modulo. The boxes above stay unchecked, awaiting the user's
-revalidation.
+and `7%3` still answers 1 as modulo.
+
+The user validated this tool live on 2026-08-08 and it passed.
 
 ### Convert
 
@@ -253,8 +260,10 @@ The retirement landed at merge commit 89a8237b97530dd2705bc7595c17d4f64fc0ebdb.
 
 ### WindowMemory
 
-- [ ] validated
+- [x] validated
 - [ ] retired
+
+The user validated this tool live on 2026-08-08 and it passed.
 
 ### StageManager
 
@@ -308,7 +317,7 @@ Convert needed.
 
 ### Launcher
 
-- [ ] validated
+- [x] validated
 - [ ] retired
 
 Validation on 2026-08-07 passed for the launcher rows and the alias scope grammar, but
@@ -319,8 +328,9 @@ a full pass once that lands.
 
 The fix for that finding landed at merge commit f1e883244a5d603455a3b4522fadcdbd89d6e00c
 on feat/olm, removing the ambient promote from the app watcher and from the start seed, so
-the timeline is now fed by launcher picks alone. The boxes above stay unchecked, awaiting
-the user's revalidation.
+the timeline is now fed by launcher picks alone.
+
+The user revalidated the recency fix live on 2026-08-08 and accepted it.
 
 ### QueryScope
 
