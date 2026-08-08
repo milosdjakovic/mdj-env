@@ -2375,7 +2375,9 @@ end)
 -- Cmd+Shift+5) are the always-available fallback. macocr (schappim's `ocr` CLI)
 -- is the sole backend for the OCR action, so it just sits last. Reorder this list
 -- to change screenshot priority; drop macshot to use only native (e.g. to
--- sidestep macshot's own capture bugs).
+-- sidestep macshot's own capture bugs). Native leads as of August 8, 2026 for
+-- the user's requested test pass, and macshot is demoted to second rather
+-- than removed, so it stays available once the test pass is done.
 spoon.Capture:init()
 spoon.Capture:configure({
   hyperKey = spoon.HyperKey,
@@ -2384,8 +2386,8 @@ spoon.Capture:configure({
   -- probing, and it stands aside with a plain reason when the tool is absent.
   deps = depsFor("Capture"),
   providers = {
-    spoon.Capture.providers.macshot,
     spoon.Capture.providers.native,
+    spoon.Capture.providers.macshot,
     spoon.Capture.providers.macocr,
   },
 })
