@@ -42,8 +42,8 @@ end
 --------------------------------------------------------------------------------
 
 -- Olm, the reusable core. It is loaded first now rather than beside its own configuration
--- further down, because the atom toggle below takes six spoon globals straight out of
--- spoon.Olm.lib and needs it to answer before it runs. Loading it costs nothing but reading
+-- further down, because the six atom assignments below take their spoon globals straight out
+-- of spoon.Olm.lib and need it to answer before they run. Loading it costs nothing but reading
 -- its lib files, so nothing observable moved by hoisting it, and its storage configuration
 -- stays where it was, beside the settings block it reads.
 hs.loadSpoon("Olm")
@@ -51,43 +51,17 @@ hs.loadSpoon("Olm")
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.KeyRemap by hand since it bypasses hs.loadSpoon.
 spoon.KeyRemap = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/keyremap/init.lua")
--- The olm side toggle for the six atoms the design names as core, Dependencies, ChordKey,
--- CheatSheet, Chooser, CanvasPanel, and HyperKey. True assigns each spoon global from
--- spoon.Olm.lib, the olm side copy of that spoon, and skips its hs.loadSpoon entirely. False
--- loads the six originals instead and is today's config unchanged. Roughly eighty three
--- existing call sites below say spoon.CanvasPanel or spoon.HyperKey and every one of them
--- keeps working untouched on both sides, since both leave the same six names bound to a
--- module carrying that one name, which is also why the inventory snapshot is identical
--- across the flip.
---
--- The six flip together on this one boolean and no site may flip alone. They are not six
--- independent choices, they are one core. HyperKey registers its key into whichever ChordKey
--- engine it was handed, CheatSheet draws through whichever CanvasPanel it was handed, and
--- Chooser docks that same panel, so a half flipped set would have a copy holding a reference
--- to an original and the seam between them would be live rather than a clean either or.
---
--- An assignment does not call init the way hs.loadSpoon does. Five of the six are given one by
--- hand further down before anything uses them, and each of those inits only resets its own
--- tables, so both sides reach the same state. CanvasPanel is the sixth and the root only ever
--- configures it, so its init is called here instead and the rule holds for all six. It returns
--- self and touches nothing, which is why calling it this early is safe.
-local ATOMS_ON_OLM = true
-if ATOMS_ON_OLM then
-  spoon.Dependencies = spoon.Olm.lib.deps
-  spoon.ChordKey = spoon.Olm.lib.chordkey
-  spoon.CheatSheet = spoon.Olm.lib.cheatsheet
-  spoon.Chooser = spoon.Olm.lib.chooser
-  spoon.CanvasPanel = spoon.Olm.lib.panel
-  spoon.CanvasPanel:init()
-  spoon.HyperKey = spoon.Olm.lib.hyperkey
-else
-  hs.loadSpoon("Dependencies")
-  hs.loadSpoon("ChordKey")
-  hs.loadSpoon("CheatSheet")
-  hs.loadSpoon("Chooser")
-  hs.loadSpoon("CanvasPanel")
-  hs.loadSpoon("HyperKey")
-end
+-- The six atoms, Dependencies, ChordKey, CheatSheet, Chooser, CanvasPanel, and HyperKey, now
+-- live only in Olm's lib. All six originals passed live validation and retired together, so
+-- each spoon global here is assigned straight from spoon.Olm.lib and skips hs.loadSpoon
+-- entirely. CanvasPanel keeps the one direct init call the root has always owned for it.
+spoon.Dependencies = spoon.Olm.lib.deps
+spoon.ChordKey = spoon.Olm.lib.chordkey
+spoon.CheatSheet = spoon.Olm.lib.cheatsheet
+spoon.Chooser = spoon.Olm.lib.chooser
+spoon.CanvasPanel = spoon.Olm.lib.panel
+spoon.CanvasPanel:init()
+spoon.HyperKey = spoon.Olm.lib.hyperkey
 -- HyperCheatSheet now lives only in Olm's host directory. The original spoon passed live
 -- validation and was retired, so this loads the olm side host copy unconditionally by an
 -- absolute path built from hs.configdir, assigned to spoon.HyperCheatSheet by hand since it
