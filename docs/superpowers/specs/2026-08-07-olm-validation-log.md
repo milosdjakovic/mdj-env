@@ -48,7 +48,7 @@ ce02e7265991816579aecbcc2be7851f3e20168b.
 ### FileSearch
 
 - [x] validated
-- [ ] retired
+- [x] retired
 
 Validation on 2026-08-07 found that Quick Look opened on the display holding the mouse
 pointer rather than on the chooser's own display. The fix carries the chooser frame into
@@ -68,7 +68,8 @@ does, and the corrected merge landed at commit 0a8f1b6. This widens the preview 
 surface for this row, the side panel is worth checking with an inherited width as well as
 with an explicit one.
 
-The user validated this tool live on 2026-08-08 and it passed.
+The user validated this tool live on 2026-08-08 and it passed. The retirement landed at
+merge commit 711a8b5711572f3351f30a6deb9370e95ec16406.
 
 ### BrowserTabs
 
