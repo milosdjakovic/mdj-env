@@ -88,6 +88,14 @@ Validation on 2026-08-07 passed using the macshot backend. The user wants the na
 backend switched on next purely for a test pass, and this tool only counts as fully
 validated once native has been exercised live too.
 
+As of merge 48a0768, the native backend now leads the Capture provider chain for that
+requested test pass, with macshot demoted to second rather than deleted, so the
+validation above still stands as read and only the live order changed. The tool still
+awaits the user's validation of the native backend before either checkbox above
+changes. One difference is expected rather than a defect, native's screen recording
+opens the macOS capture toolbar instead of starting an area recording in one step,
+since macOS offers no direct shortcut for that.
+
 ### Emoji
 
 - [x] validated
