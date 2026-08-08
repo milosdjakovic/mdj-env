@@ -129,16 +129,10 @@ spoon.Caffeinate = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/caffeinate/
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.Vpn by hand since it bypasses hs.loadSpoon.
 spoon.Vpn = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/vpn/init.lua")
--- The olm side toggle for Capture. True loads the olm side copy at
--- Spoons/Olm.spoon/plugins/capture by an absolute path built from hs.configdir, assigned to
--- spoon.Capture by hand since it bypasses hs.loadSpoon. False loads the original spoon
--- instead. Only the load flips here.
-local CAPTURE_ON_OLM = true
-if CAPTURE_ON_OLM then
-  spoon.Capture = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/capture/init.lua")
-else
-  hs.loadSpoon("Capture")
-end
+-- Capture now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.Capture by hand since it bypasses hs.loadSpoon.
+spoon.Capture = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/capture/init.lua")
 -- Eyedropper now lives only in Olm. The original spoon passed live validation and was
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.Eyedropper by hand since it bypasses hs.loadSpoon.
@@ -2383,7 +2377,13 @@ spoon.Capture:configure({
   -- The dependency adapter reaches each provider through the engine, so a provider
   -- backed by an external tool asks for it by the name Capture declared instead of
   -- probing, and it stands aside with a plain reason when the tool is absent.
-  deps = depsFor("Capture"),
+  --
+  -- The resolver stamps every declaration under Olm.spoon with the one consumer name Olm,
+  -- since Olm is the single top level spoon and its plugins are internal structure rather
+  -- than spoons of their own. depsFor("Capture") stopped resolving anything once the
+  -- original spoon was deleted, so this reads depsFor("Olm") instead, which is where the
+  -- copy's own declarations already live.
+  deps = depsFor("Olm"),
   providers = {
     spoon.Capture.providers.native,
     spoon.Capture.providers.macshot,
