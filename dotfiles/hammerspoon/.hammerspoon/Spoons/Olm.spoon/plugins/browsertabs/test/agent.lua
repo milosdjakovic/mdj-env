@@ -235,10 +235,14 @@ end
 -- Arranging a precondition through the same call the tool makes is fair for the one case that
 -- needs it, since what that case checks is that a bare Return opens the row on top, not how the
 -- row got there. Anything asserting about the order itself must not use this.
+--
+-- This harness owns the coupling on purpose. The key pairing mirrors keyFor in the plugin's own
+-- init.lua, and the byte joining the two halves is that same function's separator.
 function commands.touch(p, done)
   local bt = spoon.BrowserTabs
   if not bt then done({ ok = false, err = "no spoon" }) return end
-  bt.recency.touch(p.bundleID, p.url)
+  if not bt._recency then done({ ok = false, err = "no recency instance" }) return end
+  bt._recency.touch((p.bundleID or "") .. "\0" .. (p.url or ""))
   done({ ok = true })
 end
 
