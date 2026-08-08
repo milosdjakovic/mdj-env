@@ -384,3 +384,11 @@ that the lean surface had served its purpose.
 
 - [ ] docs sweep, module `CLAUDE.md` prose pointed at the olm tree
 - [ ] feat/olm merged to main, only on the user's explicit word
+
+The docs sweep landed on feat/olm at merge commit
+98a750f31f35c0ee7540350584cf180c25eb1a2e. Every CLAUDE.md and README that still named a
+retired spoon now points at where its code actually lives inside Olm, and the
+provenance sentence in each of Olm's own lib, host, and plugin files now says in past
+tense where the code came from instead of claiming the original still lives at its old
+path. The validate and retire loop is complete, every original spoon is retired, and
+only the merge to main and phase seven remain.
