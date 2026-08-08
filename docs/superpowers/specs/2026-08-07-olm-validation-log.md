@@ -203,7 +203,7 @@ the validate and retire loop.
 ### Arithmetic
 
 - [x] validated
-- [ ] retired
+- [x] retired
 
 Validation on 2026-08-07 found the four basic operators plus modulo, exponent, and
 parentheses all work, but a trailing percent as in `2+2%` is not read as a percentage. The
@@ -214,7 +214,8 @@ on feat/olm, rewriting a number followed by a percent sign into a division by on
 whenever the percent is not followed by a digit or a decimal point, so `2+2%` answers 2.02
 and `7%3` still answers 1 as modulo.
 
-The user validated this tool live on 2026-08-08 and it passed.
+The user validated this tool live on 2026-08-08 and it passed. The retirement landed at
+merge commit 30fb63dcee2fcfef255b261e723b86e9b3198c1f.
 
 ### Convert
 
