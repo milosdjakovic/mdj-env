@@ -264,9 +264,10 @@ The retirement landed at merge commit 89a8237b97530dd2705bc7595c17d4f64fc0ebdb.
 ### WindowMemory
 
 - [x] validated
-- [ ] retired
+- [x] retired
 
-The user validated this tool live on 2026-08-08 and it passed.
+The user validated this tool live on 2026-08-08 and it passed. The retirement landed at
+merge commit a5794cfa7cb48976812e8a5f69a894941953ad66.
 
 ### StageManager
 
