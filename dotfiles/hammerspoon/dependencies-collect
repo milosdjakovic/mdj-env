@@ -11,7 +11,7 @@ set -euo pipefail
 # file cannot mislabel itself and a rename cannot leave a stale owner behind.
 #
 # A declaration sits beside whatever knows the tool, so two names are read anywhere under a
-# spoon, matching what Dependencies.spoon reads at runtime. A file called dependencies
+# spoon, matching what Olm's lib/deps.lua reads at runtime. A file called dependencies
 # declares needs of the whole spoon and is stamped with the spoon name. A file called
 # <base>.dependencies declares needs of its sibling <base>.lua and is stamped Spoon/base, so
 # a missing tool names the provider that wanted it rather than the whole spoon. Keeping the

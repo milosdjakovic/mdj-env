@@ -1,6 +1,6 @@
 # What ports.lua needs from outside Hammerspoon, declared beside the file that names
 # these tools. Format is name | kind | locator | policy | reason.
-# See Dependencies.spoon for the kinds and for how these files are found.
+# See Olm's lib/deps.lua for the kinds and for how these files are found.
 #
 # All three are the system kind, a binary at a fixed absolute path rather than something
 # found on PATH, so the locator here is the path and the file is allowed to hold that same

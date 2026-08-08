@@ -1,5 +1,5 @@
--- Unit case for Chooser.spoon/match.lua, the shared matching policy every chooser in this
--- config injects. The runner reaches this file with a dofile call carrying an absolute
+-- Unit case for Olm.spoon/lib/chooser/match.lua, the shared matching policy every chooser in
+-- this config injects. The runner reaches this file with a dofile call carrying an absolute
 -- path, so this file in turn locates itself the same way, through debug.getinfo, and
 -- derives the module path from there. No absolute path is ever written down here, and the
 -- module under test is only loaded, never edited.
@@ -11,11 +11,11 @@
 local source = debug.getinfo(1, "S").source
 local herePath = source:match("^@(.*)$") or source
 local caseDir = herePath:match("^(.*)/[^/]+$")
-local modulePath = caseDir .. "/../../Spoons/Chooser.spoon/match.lua"
+local modulePath = caseDir .. "/../../Spoons/Olm.spoon/lib/chooser/match.lua"
 
 local moduleChunk, loadErr = loadfile(modulePath)
 if not moduleChunk then
-  print("FAIL load Chooser.spoon/match.lua, " .. tostring(loadErr))
+  print("FAIL load Olm.spoon/lib/chooser/match.lua, " .. tostring(loadErr))
   return
 end
 local M = moduleChunk()

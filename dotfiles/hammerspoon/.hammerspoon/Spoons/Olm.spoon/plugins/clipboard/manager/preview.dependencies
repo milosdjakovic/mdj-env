@@ -1,7 +1,7 @@
 # What preview.lua needs from outside Hammerspoon, declared beside the only file that
 # runs these tools. manager/init.lua passes the resolved paths in, it never runs them.
 # Format is name | kind | locator | policy | reason.
-# See Dependencies.spoon for the kinds and for how these files are found.
+# See Olm's lib/deps.lua for the kinds and for how these files are found.
 #
 # The macOS built ins this file also uses, sips and head, are not declared. They ship with
 # every install, so they are not a credible failure point, and declaring them would be

@@ -1,7 +1,7 @@
 # What thumbs.lua needs from outside Hammerspoon, declared beside the only file in this
 # spoon that renders a picture of a file.
 # Format is name | kind | locator | policy | reason.
-# See Dependencies.spoon for the kinds and for how these files are found.
+# See Olm's lib/deps.lua for the kinds and for how these files are found.
 # Name a tool only, never how to install it. That belongs to the layer above.
 #
 # The system kind, a binary at a fixed absolute path rather than something found on PATH,

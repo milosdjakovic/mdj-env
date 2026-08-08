@@ -1,6 +1,6 @@
 # What the integration harness beside this file needs from the machine, declared here because this
 # is the only part of the spoon that knows these tools exist. Format is name | kind | locator |
-# policy | reason. See Dependencies.spoon for the kinds and for how these files are found.
+# policy | reason. See Olm's lib/deps.lua for the kinds and for how these files are found.
 #
 # Every one is optional, and that is the honest policy rather than a soft one. Nothing in the
 # running configuration touches any of this. The harness loads only when a marker file is present,

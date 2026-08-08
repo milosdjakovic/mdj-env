@@ -1,6 +1,6 @@
 # What plugins/vpn/init.lua needs, declared beside the file that consumes it. Format is
 # name | kind | locator | policy | reason.
-# See Dependencies.spoon for the kinds and for how these files are found.
+# See Olm's lib/deps.lua for the kinds and for how these files are found.
 #
 # core is not a tool to install, it is a capability the composition root hands this file
 # from Olm's own lib, so this line decides injection rather than installation. Optional,

@@ -1,6 +1,6 @@
 # What regenerate.sh needs from outside Hammerspoon, declared beside the only file that
 # uses these tools. Format is name | kind | locator | policy | reason.
-# See Dependencies.spoon for the kinds and for how these files are found.
+# See Olm's lib/deps.lua for the kinds and for how these files are found.
 #
 # All optional, because the picker searches a committed data.lua and works whether or not
 # these are present. Only the refresh path fails without them, which is a maintenance task

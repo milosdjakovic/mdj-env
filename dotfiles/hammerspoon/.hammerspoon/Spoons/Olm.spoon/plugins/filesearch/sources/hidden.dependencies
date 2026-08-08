@@ -1,7 +1,7 @@
 # What sources/hidden.lua needs from outside Hammerspoon, declared beside the only file that
 # builds and filters the hidden index.
 # Format is name | kind | locator | policy | reason.
-# See Dependencies.spoon for the kinds and for how these files are found.
+# See Olm's lib/deps.lua for the kinds and for how these files are found.
 #
 # Two tools rather than one, and they do different jobs. The walker builds the index, which is
 # the complement of what Spotlight holds, and the finder filters it. The walker is declared
