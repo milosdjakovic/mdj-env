@@ -38,12 +38,6 @@ return {
     minPadding = { x = 40, y = 20 },
   },
 
-  -- Workspace timing
-  workspace = {
-    checkInterval = 0.5,      -- How often to poll for app readiness
-    timeout = 30,             -- Max seconds to wait per app
-  },
-
   -- Window layout memory. Records every standard window's frame per display
   -- configuration and restores it automatically on docking, undocking, and waking.
   -- tolerance is the pixel slack for the compare and skip guard, so a one or two pixel
