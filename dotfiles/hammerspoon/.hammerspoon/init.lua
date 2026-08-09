@@ -1502,13 +1502,6 @@ spoon.Launcher:configure({
       -- only when the row could not be hosted, since the directory is hosted like the rest.
       [ALIAS_DIRECTORY] = function() enterScope(ALIAS_DIRECTORY) end,
     },
-    -- Row titles resolved from live state rather than fixed when the row was built, keyed
-    -- the same way actions.special is. The dock row is the only entry today, decision two of
-    -- the dock plugin packet of 2026-08-09, and a second row whose wording changes with live
-    -- state later joins this table rather than needing a new seam on the launcher.
-    titles = {
-      dockAutoHide = function() return spoon.DockAutoHide:rowTitle() end,
-    },
   },
 })
 spoon.Launcher:start()
