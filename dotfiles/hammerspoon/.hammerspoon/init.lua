@@ -120,9 +120,12 @@ spoon.WindowMemory = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windowmem
 -- absolute path built from hs.configdir, assigned to spoon.Launcher by hand since it
 -- bypasses hs.loadSpoon.
 spoon.Launcher = dofile(hs.configdir .. "/Spoons/Olm.spoon/host/launcher/init.lua")
--- The user kept DockAutoHide standalone, outside Olm, on the decision of 2026-08-07, so
--- this loads the original spoon through hs.loadSpoon.
-hs.loadSpoon("DockAutoHide")
+-- DockAutoHide now lives only in Olm, moved in on the dock plugin packet of 2026-08-09 and
+-- the original standalone spoon deleted in the same pass, small enough that the launcher row
+-- is its own proof rather than needing a validation loop. This loads the olm side copy
+-- unconditionally by an absolute path built from hs.configdir, assigned to
+-- spoon.DockAutoHide by hand since it bypasses hs.loadSpoon.
+spoon.DockAutoHide = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/dockautohide/init.lua")
 -- DisplayProfiles now lives only in Olm. The original spoon passed live validation and was
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.DisplayProfiles by hand since it bypasses hs.loadSpoon.
@@ -1485,6 +1488,7 @@ spoon.Launcher:configure({
       emoji = function() spoon.Emoji:show() end,
       lock = function() hs.caffeinate.lockScreen() end,
       sleep = function() hs.caffeinate.systemSleep() end,
+      dockAutoHide = function() spoon.DockAutoHide:toggle() end,
       searchSettings = function() spoon.SystemSettings:focusSearch() end,
       overlayDisplay = function() showOverlayDisplayPicker() end,
       displayProfiles = function() spoon.DisplayProfiles.chooser.show() end,
@@ -1497,6 +1501,13 @@ spoon.Launcher:configure({
       -- and the word `?` land in the same place and neither can drift from the other. Reached
       -- only when the row could not be hosted, since the directory is hosted like the rest.
       [ALIAS_DIRECTORY] = function() enterScope(ALIAS_DIRECTORY) end,
+    },
+    -- Row titles resolved from live state rather than fixed when the row was built, keyed
+    -- the same way actions.special is. The dock row is the only entry today, decision two of
+    -- the dock plugin packet of 2026-08-09, and a second row whose wording changes with live
+    -- state later joins this table rather than needing a new seam on the launcher.
+    titles = {
+      dockAutoHide = function() return spoon.DockAutoHide:rowTitle() end,
     },
   },
 })
@@ -2496,9 +2507,13 @@ spoon.TerminalHandler:configure({
 })
 spoon.TerminalHandler:bindHotkeys({ terminal = keys.terminal })
 
--- DockAutoHide (standalone)
+-- DockAutoHide, turning the Dock's own auto hide setting on or off, reached only through its
+-- launcher row since the dock plugin packet of 2026-08-09 retired its standalone hotkey. The
+-- tools it shells out to, defaults and osascript, are resolved through the shared dependency
+-- door rather than being named here, so this reads depsFor("Olm") for the same reason every
+-- other Olm plugin wiring site in this file does.
 spoon.DockAutoHide:init()
-spoon.DockAutoHide:bindHotkeys({ toggle = keys.toggleDock })
+spoon.DockAutoHide:configure({ deps = depsFor("Olm") })
 
 -- DisplayProfiles: reapply the saved display arrangement that fits whatever
 -- screens are attached, so a dock waking monitors in the wrong order does not
