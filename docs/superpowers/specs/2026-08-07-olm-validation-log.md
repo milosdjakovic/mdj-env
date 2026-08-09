@@ -292,6 +292,10 @@ The extraction landed at merge commit 9d5df341b694866ef5afc4bbd0e05e713eab000c, 
 StageManager runs standalone again. The boxes above stay unticked, since this tool left
 the validate and retire loop.
 
+The user removed the tool entirely on 2026-08-09, since macOS offers no supported way to
+switch Stage Manager on or off and they do not use it. It was deleted at merge commit
+2d6ed5b692f551c42f159a5a9be03dcf57c2eae8, together with the left margin compensation it fed.
+
 ### KeyRemap
 
 - [x] validated
