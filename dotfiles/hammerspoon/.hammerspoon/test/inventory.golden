@@ -1,4 +1,4 @@
-registry spoon count=35
+registry spoon count=34
 spoon AppToggler
 spoon Arithmetic
 spoon BrowserTabs
@@ -33,7 +33,6 @@ spoon WindowCheatSheet
 spoon WindowLeader
 spoon WindowManager
 spoon WindowMemory
-spoon WorkspaceEngine
 registry chordkey count=2
 chordkey key=79 holdDelay=0.6 tapThreshold=0.2 passthrough=true onTap=true onHold=true onHoldEnd=true onKey=true
 chordkey key=106 holdDelay=0.6 tapThreshold=0.2 passthrough=true onTap=false onHold=true onHoldEnd=true onKey=true
