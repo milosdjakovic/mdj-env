@@ -15,14 +15,10 @@ local overlayModes = {
 return {
   overlayModes = overlayModes,
 
-  -- Stage Manager margin (pixels to offset from left when active)
-  stageManagerMargin = 66,
-
   -- Gap around and between managed windows, in pixels. One value drives both the
   -- outer inset (the margins in init.lua) and the gutter between tiled halves, so
   -- the spacing stays uniform. Set to 0 to disable gaps entirely (windows go
-  -- flush to the screen edges and to each other). The Stage Manager margin above
-  -- is respected independently of this.
+  -- flush to the screen edges and to each other).
   gap = 0,
 
   -- Window animation (0 = instant)

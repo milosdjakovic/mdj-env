@@ -63,9 +63,6 @@ spoon.HyperKey = spoon.Olm.lib.hyperkey
 -- absolute path built from hs.configdir, assigned to spoon.HyperCheatSheet by hand since it
 -- bypasses hs.loadSpoon.
 spoon.HyperCheatSheet = dofile(hs.configdir .. "/Spoons/Olm.spoon/host/hypercheatsheet/init.lua")
--- The user kept StageManager standalone, outside Olm, on the decision of 2026-08-07, so
--- this loads the original spoon through hs.loadSpoon.
-hs.loadSpoon("StageManager")
 -- WindowManager now lives only in Olm. The original spoon passed live validation and was
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.WindowManager by hand since it bypasses hs.loadSpoon.
@@ -382,9 +379,6 @@ spoon.HyperKey:configure({
 })
 spoon.HyperKey:start()
 
--- StageManager (no dependencies, reads fresh on each check)
-spoon.StageManager:init()
-
 -- WindowManager (uses margin system for canvas calculation)
 spoon.WindowManager:init()
 spoon.WindowManager:configure({
@@ -392,10 +386,7 @@ spoon.WindowManager:configure({
     top = settings.gap,
     right = settings.gap,
     bottom = settings.gap,
-    left = function()
-      local base = spoon.StageManager:isActive() and settings.stageManagerMargin or 0
-      return base + settings.gap
-    end,
+    left = settings.gap,
   },
   settings = settings,
 })
