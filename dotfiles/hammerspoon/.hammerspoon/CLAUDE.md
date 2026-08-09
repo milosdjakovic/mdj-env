@@ -1354,19 +1354,23 @@ the port claim rule that collapses the docker proxy listeners into named contain
 group signalling and its guards, and three hs.task and lsof facts that will bite anyone who
 touches the shellouts, live in `Spoons/Olm.spoon/plugins/processes/CLAUDE.md`.
 
-**DockAutoHide.** Turns the Dock's own auto hide setting on or off, opened from the
-launcher only with no dedicated key, covering the Dock alone since StageManager, which was
-meant to be its companion, was removed from the config entirely before this plugin was
-written. The launcher row reads Turn Dock Hiding On while hiding is off and Turn Dock Hiding
-Off while hiding is on, so it always names the action the row is about to take rather than
-the state the Dock happens to be in. That wording is computed live by the plugin's own
-`rowTitle`, reached through the launcher's title provider seam described in the Launcher
-`CLAUDE.md`, so the launcher itself never learns what a Dock is. Both tools it shells out
-to, `defaults` and `osascript`, are resolved through the shared dependency door rather than
-being named in this file or probed for. An empirical check found the two calls are not
-redundant, a plain `defaults write` changes the stored preference without the running Dock
-noticing at once, and only the System Events call the plugin also sends makes the change
-visible right away, so both stay. The decision trail and the finding live in
+**DockAutoHide.** A launcher row named Dock that is a doorway rather than a toggle, opened
+from the launcher only with no dedicated key, stepping into a page of two rows, one for the
+Dock's own auto hide setting and one for its show delay, covering the Dock alone since
+StageManager, which was meant to be its companion, was removed from the config entirely
+before this plugin was written. Choosing either row flips it in place, the chooser stays
+open, and the row's own wording changes because it was rebuilt fresh rather than patched, a
+QueryScope page like any other. The hiding row reads Turn Dock Hiding On while hiding is off
+and Turn Dock Hiding Off while hiding is on, and the delay row reads Make the Dock Instant or
+Restore the Default Dock Delay, so both always name the action choosing them is about to
+take rather than the state the Dock happens to be in. Restoring the default deletes the
+delay key rather than writing a number, since an absent key is the genuine default state on
+a machine where it has already been overridden. Hiding is felt at once through a System
+Events push, and a delay change is invisible until the Dock re reads its preferences, so a
+delay change restarts the Dock through `killall` and hiding never does, an empirical
+difference rather than an inconsistency. Every tool it shells out to, `defaults`,
+`osascript`, and `killall`, is resolved through the shared dependency door rather than being
+named in this file or probed for. The decision trail and both findings live in
 `Spoons/Olm.spoon/plugins/dockautohide/CLAUDE.md`.
 
 **FileSearch.** Hyper+/ finds a file by name and does something with it, opening,
