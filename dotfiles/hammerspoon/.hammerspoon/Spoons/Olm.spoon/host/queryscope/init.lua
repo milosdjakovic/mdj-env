@@ -80,6 +80,9 @@ local function admissible(s)
   if s.redirect ~= nil and type(s.redirect) ~= "function" then
     return reject(label .. " has a redirect that is not a function")
   end
+  if s.act ~= nil and type(s.act) ~= "function" then
+    return reject(label .. " has an act that is not a function")
+  end
   if type(s.aliases) ~= "table" or #s.aliases == 0 then return reject(label .. " has no aliases") end
   return true
 end
@@ -87,7 +90,7 @@ end
 --- QueryScope:configure(opts)
 --- Method
 --- opts.scopes  the ordered scope list, each a table answering name, title, aliases, rows,
----              and run, plus an optional glyph, matcher, peek, and redirect.
+---              and run, plus an optional glyph, matcher, peek, redirect, and act.
 --- opts.matcher the shared filter strategy a scope inherits, the same one the presenter
 ---              uses, so a list shaped scope filters exactly like every other list. A scope
 ---              setting matcher false owns its own filtering, which is right when its field
@@ -364,6 +367,36 @@ function obj:redirectFor(item)
   end
   if type(query) ~= "string" or query == "" then return nil end
   return query
+end
+
+--- QueryScope:actFor(item) -> function or nil
+--- Method
+--- A callable that carries out this row in place, or nil when the row is a thing to run or a
+--- signpost to redirect instead. Routed home exactly as running, peeking, and redirecting are.
+---
+--- THE FOURTH VERB EXISTS BECAUSE SOME ROWS ARE NEITHER A DESTINATION NOR A SIGNPOST, THEY ARE A
+--- SWITCH. A row that flips a setting has nowhere useful to go and nothing to point at, the
+--- useful outcome is the flip happening and the row's own wording changing where it stands, with
+--- the list staying open the whole time. Expressed as a run, the only thing such a row could do
+--- was close the list, which throws away the very place the flipped wording was meant to be seen.
+---
+--- The answer is a callable rather than the flip having already happened, mirroring how
+--- `redirectFor` answers a query rather than having already seeded it, so the caller decides
+--- when the effect actually happens rather than it happening merely by being asked about.
+---
+--- Optional like peek and redirect, so a scope with no in place rows says nothing and every
+--- surface above asks rather than assumes. Calling the answer is what runs the scope's own `act`,
+--- wrapped the same way `run` and `peek` are, so a scope that raises costs a console line rather
+--- than a broken chooser.
+function obj:actFor(item)
+  local scope = self:_scopeOf(item)
+  if not scope or type(scope.act) ~= "function" then return nil end
+  return function()
+    local ok, err = pcall(scope.act, item.payload)
+    if not ok then
+      hs.printf("QueryScope: the %s scope failed to act on a row, %s", scope.name, tostring(err))
+    end
+  end
 end
 
 --- QueryScope:canPeek(item) -> bool
