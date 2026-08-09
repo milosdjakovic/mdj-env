@@ -246,6 +246,29 @@ open after it is served from the cache. So the rule for anything added to these 
 may ask a live question, and the rule for the root is that nothing needs reordering to make it
 answerable.
 
+## A row's title may be resolved live, through an injected title provider
+
+A row's title is normally the plain string it was built with, fixed the first time
+`_buildActionRows` ran. Some rows want more, a title that reads differently depending on live
+state rather than only on what was typed, and `actions.titles` is the seam for that. It is
+keyed exactly like `actions.special`, by the row's own descriptor name, each value a function
+answering the string to show right now. `DockAutoHide` is the first user, its row reading Turn
+Dock Hiding On or Turn Dock Hiding Off depending on whether hiding is already on, and wiring it
+teaches the launcher nothing about a Dock, only that a provider may exist for a row's name and
+may be asked.
+
+Reading live state costs something, five milliseconds measured for the Dock preference, and
+every keystroke rebuilds the visible list through `_commandRows`, so asking a provider on every
+keystroke would be felt while typing. The answer is memoized instead, once per launcher open
+rather than once per keystroke, keyed against the same `_openId` counter `show` already
+increments. The first ask of an open pays the cost and every keystroke after it in that same
+open reads the cached string, and a fresh open clears the cache and asks again, so the wording
+is never more than one open stale.
+
+A row with no provider registered for its name falls back to the plain title it was built
+with, which is the whole reason that title still has to read sensibly on its own and not as a
+placeholder, since it is what shows whenever nothing more specific is wired.
+
 ## A scope may narrow this catalog instead of reaching a tool, through two public methods
 
 `rowsOfKind` hands out the built rows of one kind, predicate gated and recency ordered exactly
