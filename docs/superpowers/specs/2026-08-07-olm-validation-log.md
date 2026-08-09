@@ -245,6 +245,10 @@ The extraction landed at merge commit 9d5df341b694866ef5afc4bbd0e05e713eab000c, 
 WorkspaceEngine runs standalone again. The boxes above stay unticked, since this tool left
 the validate and retire loop.
 
+The user removed the tool entirely on 2026-08-09, no longer using it. The spoon, its
+workspace config data, and its init.lua wiring were all deleted together at merge commit
+b4802dd6e89b94dc8ad7efa26a123a76b3152600.
+
 ### DockAutoHide
 
 - [ ] validated
