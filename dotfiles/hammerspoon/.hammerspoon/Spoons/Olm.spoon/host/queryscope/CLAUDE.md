@@ -154,6 +154,29 @@ one case the question cannot be asked in time. Validation matches `peek`, presen
 is rejected at load with the scope named, and an empty or non string answer reads as no redirect
 rather than as an error, so a scope that cannot name the query right now is simply taken normally.
 
+## Some rows are switches, so there is a fourth, optional verb
+
+`act` is what a row means when choosing it should flip something in place rather than run,
+redirect, or open anything. `actFor` asks for it, answering a callable that performs the flip
+when invoked, or nil when the row is one of the other three kinds. The surface calls the
+callable, the list refreshes from the top, and the row's own wording changes because it was
+recomputed rather than patched, the same freshness every hosted page already has since nothing
+here is ever cached.
+
+It exists because a row that turns a setting on or off has nowhere useful to send you and
+nothing to point at, the useful outcome is the flip and staying put to see it took, which `run`
+cannot offer since taking a row closes the list and `redirect` cannot offer since a switch is not
+a signpost to somewhere else.
+
+The shape mirrors `redirect` on purpose. Both are optional, both are asked in the scope branch
+of the root's row interception, and `act` is asked first, since a row can be a switch or a
+signpost but has no reason to be both. Validation matches the other two, present but not
+callable is rejected at load with the scope named. Calling the answer is where `act` differs
+from `redirectFor`, the callable wraps `pcall` over the scope's own function the same way `run`
+and `peek` do, so a scope that raises while flipping costs a console line rather than a broken
+chooser, where `redirectFor` has already run its `pcall` by the time it answers since the query
+it hands back is a value rather than a deferred effect.
+
 ## A scope is also what a launcher row hosts, and that came for free
 
 A scope answers a whole list for a query that names it, which turned out to be exactly what was

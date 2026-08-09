@@ -87,6 +87,7 @@ defaults                 | macos     | ships with macOS
 osascript                | macos     | ships with macOS
 ps                       | macos     | ships with macOS
 kill                     | macos     | ships with macOS
+killall                  | macos     | ships with macOS
 lsof                     | macos     | ships with macOS
 ioreg                    | macos     | ships with macOS
 open                     | macos     | ships with macOS
