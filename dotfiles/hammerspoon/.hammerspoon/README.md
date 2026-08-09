@@ -8,10 +8,7 @@
 ├── config/                       # Configuration (pure data, edit these)
 │   ├── apps.lua                  # App bundle ID registry
 │   ├── keys.lua                  # All keybinding definitions
-│   ├── settings.lua              # Global settings (margins, timing, etc.)
-│   └── workspaces/               # Workspace definitions
-│       ├── dev.lua               # Dev workspace
-│       └── vicert.lua            # Vicert workspace
+│   └── settings.lua              # Global settings (margins, timing, etc.)
 └── Spoons/                       # Hammerspoon Spoons (reusable logic)
 ```
 
@@ -59,41 +56,6 @@ Holding Caps Lock ~0.6s with no key shows `HyperCheatSheet`: an overlay of the
 bindings, split into open vs not-running apps. Uninstalled apps (no resolvable
 bundle path) are filtered out; names/icons are cached at load, only the
 running-state split is recomputed per show.
-
-## Adding New Workspaces
-
-Create `config/workspaces/myworkspace.lua`:
-```lua
-return {
-  name = "myworkspace",
-  hotkey = { modifiers = { "shift", "alt" }, key = "M" },
-  apps = { "App1", "App2", "App3" },
-  secondaryDisplayApps = { "App3" },
-  primaryDisplayApps = {},
-  strategies = {
-    primary = {
-      App1 = { action = "percentage", width = 90, height = 90 },
-      App2 = { action = "fullHeightReasonableWidth" },
-      App3 = { action = "resizeDefault" },
-    },
-    secondary = { ... },
-  },
-}
-```
-
-Add to `init.lua`:
-```lua
-local myWorkspace = require("config.workspaces.myworkspace")
--- ...
-spoon.WorkspaceEngine:registerWorkspace(myWorkspace)
-```
-
-## Strategy Actions
-
-- `percentage` - Resize to percentage of screen (requires `width`, `height`)
-- `fullHeightReasonableWidth` - Full height, capped width
-- `resizeDefault` - Default size (1800x1200)
-- `none` - Just launch, don't resize
 
 ## Useful Commands
 
