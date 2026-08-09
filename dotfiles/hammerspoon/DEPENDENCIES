@@ -27,6 +27,8 @@ ffmpeg | path | ffmpeg | optional | clipboard/preview | video clipboard previews
 ffprobe | path | ffprobe | optional | clipboard/preview | reading a video duration so a preview frame is picked mid clip
 qalc | path | qalc | required | convert | evaluating unit and currency conversions
 displayplacer | path | displayplacer | optional | displayprofiles/engine | reading and applying display arrangements
+defaults | system | /usr/bin/defaults | required | dockautohide | reading and writing the Dock's auto hide preference
+osascript | system | /usr/bin/osascript | required | dockautohide | telling the running Dock to notice the change immediately
 jq | path | jq | optional | emoji/regenerate | reshaping both upstream sources into the vendored dataset
 perl | path | perl | optional | emoji/regenerate | parsing the Unicode Character Database into candidate rows
 hs | path | hs | optional | emoji/regenerate | rendering every candidate glyph to drop the ones that draw as a box, and writing the dataset

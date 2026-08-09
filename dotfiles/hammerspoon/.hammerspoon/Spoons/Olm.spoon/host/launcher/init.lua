@@ -42,7 +42,7 @@ obj._glyphFor = nil         -- function(key, mods) -> chord glyph string
 obj._settingsPanes = nil    -- raw settings pane descriptors, injected by the root
 obj._predicates = nil       -- shared predicate registry, for `when` gating
 obj._shortcutPanel = nil    -- { onPositioned, onActivity, onClose }
-obj._actions = nil          -- leaf dispatch: app, capture, settingsPane, special, rowIntercept
+obj._actions = nil          -- leaf dispatch: app, capture, settingsPane, special, rowIntercept, titles
 obj._queryProviders = nil   -- ordered query row sources, each answering rows(query)
 obj._aliasHint = nil        -- function(name) -> subtitle fragment, "" when there is none
 
@@ -51,6 +51,8 @@ obj._instance = nil         -- the built Chooser instance
 obj._surface = nil          -- dot-called navigation adapter over the instance
 obj._glyphIconCache = nil
 obj._actionRows = nil
+obj._titleCache = nil       -- name -> resolved title string, memoized for the open in _titleCacheOpenId
+obj._titleCacheOpenId = nil -- which _openId the memo above belongs to
 obj._settingsPaneRows = nil
 obj._configuredApps = nil
 obj._installedApps = nil
@@ -158,6 +160,8 @@ function obj:configure(opts)
   self._aliasHint = opts.aliasHint or function() return "" end
 
   self._glyphIconCache = {}
+  self._titleCache = {}
+  self._titleCacheOpenId = nil
 
   self._configuredApps = self:_buildConfiguredApps()
 
@@ -356,6 +360,14 @@ function obj:_buildActionRows()
     add(keys.processes.description, "System · stop a dev server, container, or watcher",
       { kind = "special", name = "processes" }, "🔌", nil, "processes port node docker")
   end
+  -- Dock auto hide has no dedicated chord either, it lost its standalone one when it moved
+  -- into Olm, so its subtitle names what it does. The title shown here is the plain
+  -- fallback, keys.dockAutoHide.description, while the live row reads the action the plugin
+  -- is about to take instead, resolved through the injected title provider in _rowTitle.
+  if keys.dockAutoHide then
+    add(keys.dockAutoHide.description, "System · hides or reveals the Dock",
+      { kind = "special", name = "dockAutoHide" }, "🗄️", nil, "dock hide hiding autohide show")
+  end
   -- File search does have a chord, so its subtitle names it like the other keyed tools. The
   -- keywords carry the words a habit reaches for, since the title says file search and the
   -- thing people type is find.
@@ -381,6 +393,39 @@ function obj:_buildActionRows()
     end
   end
   return rows
+end
+
+--- Launcher:_rowTitle(row) -> string
+--- Method
+--- The title a row actually shows. Most rows answer with the plain string they were built
+--- with, and a row whose name has a registered provider in the injected `actions.titles`
+--- answers with whatever that provider says right now instead. Only a `special` row is
+--- asked, the same restriction `_buildActionRows` already applies to the alias hint, since
+--- only a command row can be a tool a provider speaks for.
+---
+--- The provider's answer is memoized against `_openId`, the counter `show` already bumps
+--- once per open, so a provider that reads live state, the way `DockAutoHide:rowTitle`
+--- reads the Dock's own preference, is asked once per open rather than once per keystroke.
+--- `_commandRows` and `rowsOfKind` rebuild the visible list on every keystroke, and a live
+--- read measured at a handful of milliseconds would be felt while typing if it ran there
+--- unmemoized. A fresh open clears the memo, so the wording is never more than one open
+--- stale.
+function obj:_rowTitle(row)
+  local item = row.item
+  if not (item and item.kind == "special") then return row.title end
+  local titles = self._actions.titles
+  local provider = titles and titles[item.name]
+  if not provider then return row.title end
+  if self._titleCacheOpenId ~= self._openId then
+    self._titleCache = {}
+    self._titleCacheOpenId = self._openId
+  end
+  local cached = self._titleCache[item.name]
+  if cached == nil then
+    cached = provider()
+    self._titleCache[item.name] = cached
+  end
+  return cached
 end
 
 --- Launcher:_buildSettingsPaneRows()
@@ -610,9 +655,10 @@ function obj:_commandRows(query)
   local preds = self._predicates
   for _, row in ipairs(self:_orderedRows()) do
     if not (row.when and not (preds[row.when] and preds[row.when]())) then
-      local filterText = row.title .. " " .. row.subTitle
+      local title = self:_rowTitle(row)
+      local filterText = title .. " " .. row.subTitle
       if row.keywords then filterText = filterText .. " " .. row.keywords end
-      out[#out + 1] = { title = row.title, subTitle = row.subTitle, image = row.image,
+      out[#out + 1] = { title = title, subTitle = row.subTitle, image = row.image,
                         item = row.item, filterText = filterText }
     end
   end
@@ -633,9 +679,10 @@ function obj:rowsOfKind(kind)
     local it = row.item
     if it and it.kind == kind
       and not (row.when and not (preds[row.when] and preds[row.when]())) then
-      local filterText = row.title .. " " .. row.subTitle
+      local title = self:_rowTitle(row)
+      local filterText = title .. " " .. row.subTitle
       if row.keywords then filterText = filterText .. " " .. row.keywords end
-      out[#out + 1] = { title = row.title, subTitle = row.subTitle, image = row.image,
+      out[#out + 1] = { title = title, subTitle = row.subTitle, image = row.image,
                         item = it, filterText = filterText }
     end
   end

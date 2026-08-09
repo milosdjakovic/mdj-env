@@ -605,8 +605,8 @@ the spoon is shaped this way and never narrates the code line by line, since the
 code sits right there. Olm's Launcher host is the worked example, and `ChordKey` and
 `HyperKey` document the hold, tap, chord engine and its adapter.
 
-Create one only when the spoon earns it, a thin mechanism like `DockAutoHide`
-or `KeyRemap` stays covered by its paragraph here, which is the same reject
+Create one only when the spoon earns it, a thin mechanism like `KeyRemap`
+or `Eyedropper` stays covered by its paragraph here, which is the same reject
 ceremony rule the design principles set. Three rules keep the split honest. The
 decision and its doc live together, so a change to a spoon's internals edits that
 spoon's `CLAUDE.md` in the same commit, while a change to how spoons are wired
@@ -1353,6 +1353,21 @@ a restow, since `~/.hammerspoon/Spoons` holds one symlink per spoon. The source 
 the port claim rule that collapses the docker proxy listeners into named containers, the
 group signalling and its guards, and three hs.task and lsof facts that will bite anyone who
 touches the shellouts, live in `Spoons/Olm.spoon/plugins/processes/CLAUDE.md`.
+
+**DockAutoHide.** Turns the Dock's own auto hide setting on or off, opened from the
+launcher only with no dedicated key, covering the Dock alone since StageManager, which was
+meant to be its companion, was removed from the config entirely before this plugin was
+written. The launcher row reads Turn Dock Hiding On while hiding is off and Turn Dock Hiding
+Off while hiding is on, so it always names the action the row is about to take rather than
+the state the Dock happens to be in. That wording is computed live by the plugin's own
+`rowTitle`, reached through the launcher's title provider seam described in the Launcher
+`CLAUDE.md`, so the launcher itself never learns what a Dock is. Both tools it shells out
+to, `defaults` and `osascript`, are resolved through the shared dependency door rather than
+being named in this file or probed for. An empirical check found the two calls are not
+redundant, a plain `defaults write` changes the stored preference without the running Dock
+noticing at once, and only the System Events call the plugin also sends makes the change
+visible right away, so both stay. The decision trail and the finding live in
+`Spoons/Olm.spoon/plugins/dockautohide/CLAUDE.md`.
 
 **FileSearch.** Hyper+/ finds a file by name and does something with it, opening,
 revealing, browsing into, or copying the path of whatever is highlighted. Activity

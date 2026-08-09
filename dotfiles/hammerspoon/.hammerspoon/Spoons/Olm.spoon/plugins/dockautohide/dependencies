@@ -1,0 +1,10 @@
+# What this plugin needs from outside Hammerspoon.
+# Format is name | kind | locator | policy | reason. See Olm's lib/deps.lua.
+# Both required, since this plugin is nothing but a thin front end onto them, with no
+# partial service to offer if either is gone. defaults reads and writes the stored
+# preference. osascript is what an empirical check on 2026-08-09 found actually makes the
+# running Dock notice the change right away, see this plugin's own CLAUDE.md for the
+# finding. Neither is a real risk on any machine this runs on, both ship with every macOS,
+# so required here documents the contract rather than guarding against a practical absence.
+defaults  | system | /usr/bin/defaults  | required | reading and writing the Dock's auto hide preference
+osascript | system | /usr/bin/osascript | required | telling the running Dock to notice the change immediately

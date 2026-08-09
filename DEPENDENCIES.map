@@ -83,6 +83,7 @@ cc                       | xcode-clt | xcode-select --install
 caffeinate               | macos     | ships with macOS
 curl                     | macos     | ships with macOS
 perl                     | macos     | ships with macOS
+defaults                 | macos     | ships with macOS
 osascript                | macos     | ships with macOS
 ps                       | macos     | ships with macOS
 kill                     | macos     | ships with macOS
