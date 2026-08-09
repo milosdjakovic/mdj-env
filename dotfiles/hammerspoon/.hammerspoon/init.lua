@@ -460,6 +460,7 @@ local hostedInPlace = {
   emoji = true,
   fileSearch = true,
   browserTabs = true,
+  dockAutoHide = true,
 }
 
 local predicates = {
@@ -1441,10 +1442,17 @@ spoon.Launcher:configure({
     -- asks, and the shape stays, because putting the effect back inside the answer re-arms the same
     -- defect for whoever next wants to know what a row would do.
     rowIntercept = function(item)
-      -- A row a scope computed, which is the alias directory listing the other scopes. It names a
-      -- word rather than a list, and handing over the word is the entire point of that list, so
-      -- the field is seeded and you have learned the word by being given it.
+      -- A row a scope computed. Two things answer to this, asked in this order because a row
+      -- is a switch or a signpost and never both.
       if item.kind == "scope" then
+        -- A row that flips something in place, which is the two rows the Dock page shows.
+        -- Choosing one acts at once, the chooser stays open, and the rows are rebuilt so the
+        -- wording reads current again.
+        local act = spoon.QueryScope:actFor(item)
+        if act then return act end
+        -- A row that names a word rather than a list, which is the alias directory listing the
+        -- other scopes. Handing over the word is the entire point of that list, so the field is
+        -- seeded and you have learned the word by being given it.
         local query = spoon.QueryScope:redirectFor(item)
         if not query then return nil end
         return function() spoon.Launcher:seedQuery(query) end
@@ -1899,6 +1907,7 @@ local function scope(name, opts)
     run = opts.run,
     peek = opts.peek,
     redirect = opts.redirect,
+    act = opts.act,
   }
 end
 
@@ -1919,6 +1928,17 @@ local queryScopes = {
     matcher = false,
     rows = function(rest) return spoon.Caffeinate.rows(rest) end,
     run = function(payload) spoon.Caffeinate.select(payload) end,
+  }),
+  -- The Dock page, two rows that flip a setting in place rather than open anything, so the
+  -- shared matcher stays on, letting a stray keystroke narrow to one row instead of only ever
+  -- showing both. `act` is what a scope names to say a row applies itself and stays open,
+  -- decision three of the dock page packet of 2026-08-09. `run` answers the same call, the
+  -- fallback for a click whose row could not be resolved before the chooser closed, the one
+  -- case `act` cannot be asked in time, mirroring why the alias directory answers `run` too.
+  scope("dockAutoHide", {
+    rows = function() return spoon.DockAutoHide:rows() end,
+    run = function(payload) spoon.DockAutoHide:act(payload) end,
+    act = function(payload) spoon.DockAutoHide:act(payload) end,
   }),
   scope("vpn", {
     -- The relay list arrives from a process, so entering the scope asks for a fresh one and

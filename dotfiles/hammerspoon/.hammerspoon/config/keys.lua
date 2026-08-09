@@ -605,16 +605,16 @@ return {
   -- spoon keeps its own name, since that one is an internal identifier and nobody reads it.
   processes = { description = "Local Servers" },
 
-  -- Dock auto hide (for Olm's DockAutoHide plugin, wired in init.lua). Turns the Dock's own
-  -- auto hide setting on or off. Opened from the launcher only, so it has no dedicated key
-  -- and no modifiers, and it carries no standalone hotkey any more, the one the original
-  -- spoon had before this tool moved into Olm.
+  -- Dock (for Olm's DockAutoHide plugin, wired in init.lua). Stepping into this row hosts a
+  -- page of two, one for the Dock's own auto hide setting and one for its show delay. Opened
+  -- from the launcher only, so it has no dedicated key and no modifiers, and it carries no
+  -- standalone hotkey any more, the one the original spoon had before this tool moved into
+  -- Olm.
   --
-  -- `description` is the plain fallback title, shown only for whatever calls the row before
-  -- the root's title provider is wired. The row actually shown is written live by the
-  -- plugin, naming the action the row is about to take rather than the state the Dock is in,
-  -- through the launcher's injected title provider seam.
-  dockAutoHide = { description = "Dock Auto Hide" },
+  -- `description` is the plain noun the outer row reads, matching every other hosted tool,
+  -- since choosing it steps into a page rather than doing anything itself. The two inner
+  -- rows are written live by the plugin, each naming the action choosing it takes.
+  dockAutoHide = { description = "Dock", aliases = { "d", "dock" } },
 
   -- The scopes over the launcher's own catalog rather than over a tool. Each narrows the list to
   -- one kind of row the launcher already holds, so they open nothing and have no key and no
