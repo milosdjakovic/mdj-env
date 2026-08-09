@@ -262,6 +262,11 @@ The extraction landed at merge commit 9d5df341b694866ef5afc4bbd0e05e713eab000c, 
 DockAutoHide runs standalone again. The boxes above stay unticked, since this tool left
 the validate and retire loop.
 
+It moved into Olm again on 2026-08-09, this time as a plain plugin rather than through the
+validate and retire loop above, on the user's decision recorded in the dock plugin work
+packet. It no longer runs standalone, and the move landed at merge commit
+5301c98f06d1a14edb35c9f310ea80b66c181eb8.
+
 ### DisplayMemory
 
 - [x] validated
