@@ -13,10 +13,6 @@ local settingsPanes = require("config.settingsPanes")
 local processes = require("config.processes")
 local filesearch = require("config.filesearch")
 
--- Load workspace configurations
-local devWorkspace = require("config.workspaces.dev")
-local vicertWorkspace = require("config.workspaces.vicert")
-
 local log = hs.logger.new("hs.config", "info")
 
 -- Deferred calls made from this root, and why they are held rather than fired and
@@ -111,9 +107,6 @@ spoon.Capture = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/capture/init.l
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.Eyedropper by hand since it bypasses hs.loadSpoon.
 spoon.Eyedropper = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/eyedropper/init.lua")
--- The user kept WorkspaceEngine standalone, outside Olm, on the decision of 2026-08-07, so
--- this loads the original spoon through hs.loadSpoon.
-hs.loadSpoon("WorkspaceEngine")
 -- The user kept TerminalHandler standalone, outside Olm, on the decision of 2026-08-07, so
 -- this loads the original spoon through hs.loadSpoon.
 hs.loadSpoon("TerminalHandler")
@@ -2424,18 +2417,6 @@ end)
 bindHyper(keys.colorPicker, function()
   spoon.Eyedropper:pick()
 end)
-
--- WorkspaceEngine (depends on AppToggler, WindowManager)
-spoon.WorkspaceEngine:init()
-spoon.WorkspaceEngine:configure({
-  appToggler = spoon.AppToggler,
-  windowManager = spoon.WindowManager,
-  apps = apps,
-  settings = settings,
-})
-spoon.WorkspaceEngine:registerWorkspace(devWorkspace)
-spoon.WorkspaceEngine:registerWorkspace(vicertWorkspace)
-spoon.WorkspaceEngine:start()
 
 -- This machine's name, the one place the per host split is decided. Resolved
 -- once here for DisplayProfiles (later); the terminal's per-location memory keys
