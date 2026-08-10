@@ -163,3 +163,67 @@ query field instead, a real focused text field inside our own process whose cont
 back. And check the screen is unlocked before measuring delivery, since a locked screen leaves
 `loginwindow` frontmost and every paste goes there, which looks exactly like a paste that did not
 land.
+
+## Registry, the tool dispatch
+
+`lib/registry.lua`, phase seven of the build plan, packet one of four. A registry keyed by name,
+backing dispatch by name, Strategy with the strategy chosen at runtime by a string. It is a
+factory in the same style as `lib/recency.lua`, `M.new(opts)` handing back an independent
+instance whose functions are dot called, never colon called, since there is no metatable and no
+self. It names no tool, reads no configuration, and imports nothing from the tree beyond
+`hs.logger`, which is what makes it the first part of this config testable in the unit runner
+rather than only live, in `test/cases/registry.lua`.
+
+**The descriptor.** One table per tool, handed to `register`. `name` is the tool's own key in
+`config/keys.lua`, a string, required. `apiVersion` is the integer the tool was built against,
+required. `open` is a function of no arguments, what running this tool's launcher row does,
+optional, because a tool may exist only as a scope in a later packet. `commands` is a map of name
+to function, extra named actions belonging to this tool rather than tools of their own, optional.
+The clipboard is the one tool using this today, owning append copy and paste next, and putting
+them here rather than registering them as tools of their own is what makes deactivating the
+clipboard take both with it.
+
+**Why register refuses rather than raises.** One bad descriptor must not empty the launcher, the
+same reasoning behind a query source that raises being dropped for a keystroke rather than
+crashing the chooser. Every refusal is one log line at warning naming the tool and the reason,
+and `register` answers true when it registered, false when it refused, so a caller can react if
+it ever wants to, though the composition root does not. Four refusals exist, a missing or non
+string name, a second registration under a name already taken since first registration wins, a
+`commands` key colliding with any name already indexed whether a tool name or another tool's
+command since the flat index dispatch reads makes such a collision ambiguity rather than a
+preference, and an `apiVersion` that is missing, not an integer, or unequal to the core's.
+
+**Why the version check is equality.** The core version is injected at construction, passed in as
+`opts.apiVersion` rather than read from `spoon.Olm`, since the registry must not reach for the
+spoon that contains it. Equality rather than a range, because `obj.apiVersion` is bumped only on
+a breaking change, which makes every difference in either direction a mismatch by definition. The
+composition root writes the literal integer on each registration rather than reading
+`spoon.Olm.apiVersion` into it, since a registration copying the core's own number can never
+mismatch and the check would then be theatre, a defect it could catch only by lying about having
+one.
+
+**Why the root registers rather than the plugin.** A plugin here never reaches for `spoon.Olm`
+and only ever receives its slice through its own `configure`, a rule the tree already keeps and
+this file keeps too, so no plugin calls `register` on its own behalf. The composition root calls
+it once for each tool, since the root is the only layer that knows a concrete tool exists at all.
+A third party plugin from the search path would call the same door itself, one door, two callers,
+and the door does not care which one knocked.
+
+**What inactive means today, and what it does not yet mean.** `activate(names)` takes a list of
+tool names and is called once after every registration. A registered tool whose name is in the
+list is active, one not in the list is registered and inactive, and a name in the list that
+nothing registered produces one warning line naming it and is otherwise ignored, since a typo in
+a roster should be visible and harmless rather than fatal. `run(name)` answers false and `get`
+answers nil for an inactive tool, every other read behaves as if it were never asked. That is the
+whole of what inactive means in this packet. It does not yet unbind a chord, remove a launcher
+row, or stop a plugin's own `configure` or `start` from running. Packets three and four are what
+finish that promise, and reading more into it before then is the half kept promise this file
+warns against.
+
+**Why the launcher looks in two places.** `host/launcher/init.lua`'s `_runItem` asks the registry
+first and falls back to the injected `actions.special` table only when the registry did not run
+anything. Two sources is not a leak. A registered name is a tool. What stays in
+`actions.special`, `lock`, `sleep`, and the System Settings search focus, is a bare command with
+no tool behind it, and the design's own rule is to resist making everything a plugin, so one
+lookup for each kind of thing is honest. The order only matters because a name cannot be claimed
+by both, which registration itself already refuses.
