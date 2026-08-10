@@ -726,3 +726,104 @@ do
     out[2].name == "vpn" and out[2].opts.matcher == false and out[2].opts.rows == rows and out[2].opts.run == run
   )
 end
+
+-- A well formed shortcut, leader or global, registers, phase seven's fifth and last packet.
+do
+  local r = freshRegistry(1)
+  local ok = r.register({ name = "vpn", apiVersion = 1, shortcut = "leader", open = function() end })
+  check("a tool whose shortcut is leader and which has an open registers", ok == true)
+
+  local ok2 = r.register({
+    name = "clipboard", apiVersion = 1, open = function() end,
+    commands = { appendCopy = { fn = function() end, shortcut = "global" } },
+  })
+  check("a command whose shortcut is global and which has a callable fn registers", ok2 == true)
+end
+
+-- Refusal, a shortcut that is present and is neither leader nor global, one of the two
+-- shortcut refusals this packet adds.
+do
+  local r, warnings = freshRegistry(1)
+  local ok = r.register({ name = "vpn", apiVersion = 1, shortcut = "modifier", open = function() end })
+  check("a descriptor whose shortcut is neither leader nor global is refused", ok == false)
+  check(
+    "the refusal names the tool and says its shortcut is neither leader nor global",
+    found(warnings, "vpn") and found(warnings, "neither 'leader' nor 'global'"),
+    table.concat(warnings, " | ")
+  )
+end
+
+-- The same refusal on a command's own shortcut, named through the owning tool and the
+-- command together rather than the tool alone.
+do
+  local r, warnings = freshRegistry(1)
+  local ok = r.register({
+    name = "clipboard", apiVersion = 1, open = function() end,
+    commands = { appendCopy = { fn = function() end, shortcut = "modifier" } },
+  })
+  check("a command whose shortcut is neither leader nor global is refused", ok == false)
+  check(
+    "the refusal names the tool, the command, and says its shortcut is neither leader nor global",
+    found(warnings, "clipboard") and found(warnings, "appendCopy") and found(warnings, "neither 'leader' nor 'global'"),
+    table.concat(warnings, " | ")
+  )
+end
+
+-- Refusal, a shortcut that is present and well formed but has nothing to bind, the second
+-- of the two shortcut refusals, since a shortcut bound to nothing is worse than none at all.
+-- A tool declaring shortcut with no open is the only place this is reachable, since a
+-- command with no callable fn is already refused above before its own shortcut is ever
+-- examined.
+do
+  local r, warnings = freshRegistry(1)
+  local ok = r.register({ name = "colorPicker", apiVersion = 1, shortcut = "leader" })
+  check("a descriptor whose shortcut has nothing to bind is refused", ok == false)
+  check(
+    "the refusal names the tool and says its shortcut has nothing to bind",
+    found(warnings, "colorPicker") and found(warnings, "has nothing to bind"),
+    table.concat(warnings, " | ")
+  )
+end
+
+-- shortcuts(), an active tool and its command, each carrying a shortcut, answered in
+-- registration order, an inactive tool contributing neither itself nor its command.
+do
+  local r = freshRegistry(1)
+  local vpnOpen = function() end
+  local appendFn = function() end
+  local emojiOpen = function() end
+  r.register({ name = "vpn", apiVersion = 1, shortcut = "leader", open = vpnOpen })
+  r.register({
+    name = "clipboard", apiVersion = 1, open = function() end,
+    commands = { appendCopy = { fn = appendFn, shortcut = "global" } },
+  })
+  -- Registered after clipboard but never activated, so it must contribute nothing below,
+  -- the same nil-and-false silence every other read already answers for an inactive tool.
+  r.register({ name = "emoji", apiVersion = 1, shortcut = "leader", open = emojiOpen })
+  r.activate({ "vpn", "clipboard" })
+
+  local out = r.shortcuts()
+  check("shortcuts contributes nothing for a registered but inactive tool", #out == 2)
+  check(
+    "shortcuts answers in registration order, the tool before its own command",
+    out[1].name == "vpn" and out[1].kind == "leader" and out[1].fn == vpnOpen
+      and out[2].name == "appendCopy" and out[2].kind == "global" and out[2].fn == appendFn
+  )
+end
+
+-- shortcuts(), registration order preserved across three active tools, none of them
+-- carrying a command, so the order is a plain fact about the tools alone.
+do
+  local r = freshRegistry(1)
+  local openA, openB, openC = function() end, function() end, function() end
+  r.register({ name = "browserTabs", apiVersion = 1, shortcut = "leader", open = openA })
+  r.register({ name = "fileSearch", apiVersion = 1, shortcut = "leader", open = openB })
+  r.register({ name = "colorPicker", apiVersion = 1, shortcut = "leader", open = openC })
+  r.activate({ "browserTabs", "fileSearch", "colorPicker" })
+
+  local out = r.shortcuts()
+  check(
+    "shortcuts preserves registration order across three active tools",
+    #out == 3 and out[1].name == "browserTabs" and out[2].name == "fileSearch" and out[3].name == "colorPicker"
+  )
+end

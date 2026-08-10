@@ -64,10 +64,23 @@
 -- packet, is optional, a plain boolean, true when choosing this tool's launcher row
 -- should host its list in place rather than open its own picker, and nothing more.
 --
+-- shortcut, added in phase seven's fifth and last packet, is optional, one of exactly two
+-- strings. leader means this tool's entry in config/keys.lua names a key that is bound
+-- through the Hyper leader to this tool's open. global means the entry names a whole
+-- modifier combination bound directly, which is what the two clipboard commands are and
+-- the only thing they are. A command inside commands may carry the same field on its own
+-- table, which is how appendCopy and pasteNext each answer global while remaining commands
+-- of the clipboard rather than tools of their own. The key itself is deliberately not on
+-- the descriptor, config/keys.lua holds it and this registry reads no configuration, the
+-- same rule name and row and scope already keep. A shortcut present and not one of the two
+-- strings is refused, naming the tool or the command and what it said. A shortcut present
+-- with nothing to bind, no open on a tool or no callable fn on a command, is refused too,
+-- since a shortcut bound to nothing is worse than no shortcut at all.
+--
 -- register(descriptor) validates, then records, and refuses rather than raises, so one
 -- bad tool cannot empty the launcher. Every refusal is one log line at warning naming
 -- the tool and the reason, and register answers true when it registered and false when
--- it refused. Sixteen refusals exist. A descriptor with no name, or a name that is not a
+-- it refused. Eighteen refusals exist. A descriptor with no name, or a name that is not a
 -- string, is refused, and cannot be named in its own error, so the line says what it
 -- can. A second registration under a name already taken is refused, naming the tool,
 -- since first registration wins. A commands key equal to the tool's own name is
@@ -97,7 +110,13 @@
 -- than a line further along naming only the scope. A scope's matcher, present and neither
 -- false nor a function, is refused naming the tool and the field, and a scope's peek,
 -- redirect, or act, present and not a function, is refused the same way, naming the tool
--- and whichever field was wrong.
+-- and whichever field was wrong. A shortcut, present and neither leader nor global, is
+-- refused naming the tool or the command and what it said, and a shortcut present with
+-- nothing to bind, no open on the tool or no callable fn on the command, is refused too,
+-- naming the same. The second of those two is unreachable for a command in practice,
+-- since a command with no callable fn is already refused above before its shortcut is
+-- ever examined, and it is kept anyway so the one function answering a tool's shortcut
+-- answers a command's exactly the same way rather than two functions drifting apart.
 --
 -- activate(names) takes a list of tool names and is called once after every
 -- registration. A registered tool whose name is in the list is active, one not in the
@@ -134,8 +153,14 @@
 -- since asking a live surface to resolve itself at snapshot time would ask the question
 -- at a different moment than the live code asks it and could disagree with it for
 -- reasons that are not defects. An inactive tool answers nil and false to every read
--- except all(). It still does not unbind a chord, which stays bound regardless of
--- activation until a later packet in this phase folds chords in too.
+-- except all(). An inactive tool's chord is never bound in the first place, since
+-- phase seven's fifth and last packet, rather than bound and then torn down. Nothing in
+-- this config ever unbinds a key, HyperKey has no removal and hs.hotkey is never asked
+-- for one, so inventing teardown here would be the single caller ceremony with a silent
+-- failure mode the design principles reject. The composition root binds only what
+-- shortcuts() below hands it, and that list already answers nil for anything inactive,
+-- so the only thing left to do about an inactive tool's key is never reach the bind call
+-- at all, which costs nothing and fails in no new way.
 --
 -- surfaces(spec), added in phase seven's second packet, takes an ordered list and
 -- answers an ordered list. A string entry names a registered tool, and resolves to that
@@ -174,6 +199,19 @@
 -- place that has always done it, this module reading no configuration at all. Anything
 -- that is not a string passes straight through unexamined, in the position it was given,
 -- the same shape surfaces already reads its own spec in.
+--
+-- shortcuts(), added in phase seven's fifth and last packet, takes no spec, since unlike
+-- surfaces and scopes it names nothing the composition root already holds a competing
+-- object for, and answers in registration order one entry per active tool or active
+-- tool's command that declares a shortcut, each carrying name, kind, and fn, the function
+-- to bind. An inactive tool contributes nothing, itself or its commands, the same
+-- nil-and-false silence every other read already answers for it, which is the whole
+-- mechanism that keeps an inactive tool's key unbound. A tool's own commands are walked
+-- sorted by their own name rather than in whatever order pairs happens to answer for the
+-- literal table a descriptor wrote them in, since Lua promises nothing about that order
+-- and a snapshot needs one it can trust run over run, and the choice between two commands'
+-- own order is otherwise arbitrary, each binding a different key with nothing to disagree
+-- about.
 --
 -- Every function below is a plain field on the returned instance and is meant to be dot
 -- called, matching lib/recency.lua exactly, never colon called, since there is no
@@ -278,19 +316,43 @@ function M.new(opts)
   end
 
   -- A commands entry is a bare function, the shape packet one gave it, or a table
-  -- carrying that function under fn plus its own optional row, the shape this packet
-  -- adds so appendCopy and pasteNext keep their rows while remaining commands of the
-  -- clipboard rather than tools of their own. Anything else, a string, a number, or a
-  -- table whose fn is missing or is not a function, answers a nil function, which
-  -- register below refuses rather than stores. Before row and this shape existed a bad
-  -- value was at least stored as is and would have raised when called, loud. Storing a
-  -- nil function instead would let it register and let run answer false forever with
+  -- carrying that function under fn plus its own optional row and, since phase seven's
+  -- fifth and last packet, its own optional shortcut, the shape this packet adds so
+  -- appendCopy and pasteNext keep their rows and their global shortcuts while remaining
+  -- commands of the clipboard rather than tools of their own. Anything else, a string, a
+  -- number, or a table whose fn is missing or is not a function, answers a nil function,
+  -- which register below refuses rather than stores. Before row and this shape existed a
+  -- bad value was at least stored as is and would have raised when called, loud. Storing
+  -- a nil function instead would let it register and let run answer false forever with
   -- nothing logged anywhere, quieter than the raise it replaces and therefore worse, so
   -- this is caught at registration instead.
   local function commandParts(spec)
-    if type(spec) == "function" then return spec, nil end
-    if type(spec) == "table" and type(spec.fn) == "function" then return spec.fn, spec.row end
-    return nil, nil
+    if type(spec) == "function" then return spec, nil, nil end
+    if type(spec) == "table" and type(spec.fn) == "function" then return spec.fn, spec.row, spec.shortcut end
+    return nil, nil, nil
+  end
+
+  -- A shortcut is optional, and when present it is one of exactly two strings, leader or
+  -- global, checked the way row and scope are, refusing the whole registration rather
+  -- than a partial acceptance. label is already the right words for either a tool or a
+  -- command, since the caller below builds it, so this function stays ignorant of which
+  -- one it is answering for. hasFn is whether the thing the shortcut would bind to, the
+  -- tool's own open or the command's own fn, actually exists, since a shortcut naming
+  -- nothing to bind is worse than no shortcut at all.
+  local function shortcutIsWellFormed(shortcut, hasFn, label)
+    if shortcut == nil then return true end
+    if shortcut ~= "leader" and shortcut ~= "global" then
+      log.w(string.format(
+        "Registry refused '%s', its shortcut is '%s', neither 'leader' nor 'global'",
+        label, tostring(shortcut)))
+      return false
+    end
+    if not hasFn then
+      log.w(string.format(
+        "Registry refused '%s', its shortcut has nothing to bind", label))
+      return false
+    end
+    return true
   end
 
   --- instance.register(descriptor)
@@ -342,8 +404,9 @@ function M.new(opts)
     end
     if not rowIsWellFormed(descriptor.row, name) then return false end
     if not scopeIsWellFormed(descriptor.scope, name) then return false end
+    if not shortcutIsWellFormed(descriptor.shortcut, descriptor.open ~= nil, name) then return false end
     for key, spec in pairs(commands) do
-      local fn, commandRow = commandParts(spec)
+      local fn, commandRow, commandShortcut = commandParts(spec)
       if not fn then
         log.w(string.format(
           "Registry refused '%s', its command '%s' is not a function or a table with a callable fn",
@@ -351,6 +414,7 @@ function M.new(opts)
         return false
       end
       if not rowIsWellFormed(commandRow, name) then return false end
+      if not shortcutIsWellFormed(commandShortcut, fn ~= nil, name .. "'s command '" .. key .. "'") then return false end
     end
 
     toolsByName[name] = descriptor
@@ -534,6 +598,40 @@ function M.new(opts)
           -- not hold this run, so nothing is logged here either.
         else
           out[#out + 1] = { name = entry, opts = descriptor.scope }
+        end
+      end
+    end
+    return out
+  end
+
+  --- instance.shortcuts()
+  --- One entry per active tool or active tool's command that declares a shortcut, in
+  --- registration order, each carrying name, kind (leader or global), and fn, the
+  --- function to bind. An inactive tool contributes nothing, itself or its commands,
+  --- which is what keeps an inactive tool's key from ever being bound at all.
+  function instance.shortcuts()
+    local out = {}
+    for _, name in ipairs(order) do
+      if activeTools[name] then
+        local descriptor = toolsByName[name]
+        if descriptor.shortcut then
+          out[#out + 1] = { name = name, kind = descriptor.shortcut, fn = descriptor.open }
+        end
+        -- Sorted by the command's own name rather than walked in whatever order pairs
+        -- happens to answer for the literal table a descriptor wrote them in, since Lua
+        -- promises nothing about that order and this needs one it can trust run over
+        -- run. Which of two commands' shortcuts binds first is otherwise arbitrary,
+        -- each one claiming a different key with nothing to disagree about.
+        local commandNames = {}
+        for key in pairs(descriptor.commands or {}) do
+          commandNames[#commandNames + 1] = key
+        end
+        table.sort(commandNames)
+        for _, key in ipairs(commandNames) do
+          local fn, _, shortcut = commandParts(descriptor.commands[key])
+          if shortcut then
+            out[#out + 1] = { name = key, kind = shortcut, fn = fn }
+          end
         end
       end
     end
