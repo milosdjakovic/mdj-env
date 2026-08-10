@@ -33,8 +33,12 @@ local log = hs.logger.new("ActionPanel", "info")
 -- The named set of kinds a binding's action may classify as. Two members, closed, named here
 -- so the composition root and this module both write spoon.ActionPanel.kinds.verb or
 -- spoon.ActionPanel.kinds.navigation rather than a bare string either side could misspell with
--- nothing to catch it. verbsIn below checks a kind against these two members directly, so a
--- third member added later needs no second place taught about it.
+-- nothing to catch it. verbsIn below checks a kind against these two members directly rather
+-- than against a bare string, and that is as far as this table reaches. verbsIn has a branch
+-- for verb and a branch for navigation and nothing else, so a third member added only here
+-- would not be handled for free, it would fall into the same else branch an unclassified
+-- action already falls into, dropped and reported as a defect. Growing this set to three
+-- members is a new member here and a new branch in verbsIn together, not one without the other.
 obj.kinds = {
   navigation = "navigation",
   verb = "verb",
@@ -74,11 +78,38 @@ function obj:configure(deps)
   return self
 end
 
+-- Whether this instance has been configured, warning once naming the caller when it has not,
+-- kept in the one place kindOf and verbsIn below both call rather than each carrying its own
+-- copy of the same check. Answering a question before configure ran is a legitimate case
+-- rather than a caller's own mistake, unlike a missing deps.kindOf on configure itself, so this
+-- warns and lets the caller answer nil or an empty list rather than raising out of a key
+-- handler or an inventory run. self._log falls back to this module's own logger, since
+-- configure is exactly the thing that has not happened yet.
+local function ensureConfigured(self, caller)
+  if self._kindOf then return true end
+  (self._log or log).w(string.format(
+    "ActionPanel %s was asked before configure ran, answering as though nothing is classified", caller))
+  return false
+end
+
+--- ActionPanel:kindOf(action) -> a member of obj.kinds or nil
+--- Method
+--- The injected classifier's own answer for one action name, or nil when this instance has
+--- not been configured yet. Exposed as a public method rather than left on a private field so
+--- anyone asking what an action classifies as, test/inventory.lua's own live read among them,
+--- goes through the one door that carries the unconfigured guard rather than reaching past it.
+function obj:kindOf(action)
+  if not ensureConfigured(self, "kindOf") then return nil end
+  return self._kindOf(action)
+end
+
 --- ActionPanel:verbsIn(bindings) -> list
 --- Method
 --- A context's binding list in, a new ordered list holding only the bindings whose action
 --- classifies as a verb, in declaration order, out. The list handed in is never mutated,
---- since the caller may be holding the very table config/keys.lua built.
+--- since the caller may be holding the very table config/keys.lua built. Answers an empty
+--- list, with the one warning ensureConfigured already logs, when this instance has not been
+--- configured yet.
 ---
 --- A binding whose action classifies as navigation is dropped in silence, which is the entire
 --- point of this function, a panel that lists it would break the one promise it makes. A
@@ -90,6 +121,7 @@ end
 --- panel's whole promise where dropping one that turns out to be a verb only goes missing
 --- loudly, and loudly is recoverable.
 function obj:verbsIn(bindings)
+  if not ensureConfigured(self, "verbsIn") then return {} end
   local out = {}
   for _, b in ipairs(bindings or {}) do
     local kind = self._kindOf(b.action)

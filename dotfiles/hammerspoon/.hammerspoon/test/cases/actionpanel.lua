@@ -181,3 +181,48 @@ do
     original[1].action == "browseUp" and original[2].action == "selectNext"
   )
 end
+
+-- kindOf on a configured module answers the injected classifier's own answer for one action
+-- name, the public door test/inventory.lua reads the live wiring through.
+do
+  local ap = freshModule()
+  ap:configure({ kindOf = function(action)
+    if action == "browseInto" then return ap.kinds.verb end
+    return ap.kinds.navigation
+  end })
+  check("kindOf on a configured module answers the injected classifier's own answer", ap:kindOf("browseInto") == ap.kinds.verb)
+  check("kindOf on a configured module answers it for every action, not only a verb", ap:kindOf("selectNext") == ap.kinds.navigation)
+end
+
+-- verbsIn asked before configure has ever run answers an empty list rather than raising the
+-- nil call error self._kindOf() would otherwise produce, and it warns naming itself and the
+-- caller rather than failing in silence. The log is set directly on the fresh module here,
+-- never through configure, since configure is exactly the call this case must not make, and
+-- ap.kinds.verb still resolves fine since obj.kinds is set at module load rather than by it.
+do
+  local ap = freshModule()
+  local warnings = {}
+  ap._log = { w = function(message) warnings[#warnings + 1] = message end }
+  local kept = ap:verbsIn({ { key = "j", action = "selectNext" } })
+  check("verbsIn asked before configure ran answers an empty list rather than raising", #kept == 0)
+  check(
+    "verbsIn asked before configure ran warns naming itself and the module as unconfigured",
+    found(warnings, "verbsIn") and found(warnings, "ActionPanel"),
+    table.concat(warnings, " | ")
+  )
+end
+
+-- kindOf asked before configure has ever run answers nil the same way, sharing the exact same
+-- guard verbsIn above just exercised rather than carrying a second copy of it.
+do
+  local ap = freshModule()
+  local warnings = {}
+  ap._log = { w = function(message) warnings[#warnings + 1] = message end }
+  local kind = ap:kindOf("selectNext")
+  check("kindOf asked before configure ran answers nil rather than raising", kind == nil)
+  check(
+    "kindOf asked before configure ran warns naming itself and the module as unconfigured",
+    found(warnings, "kindOf") and found(warnings, "ActionPanel"),
+    table.concat(warnings, " | ")
+  )
+end

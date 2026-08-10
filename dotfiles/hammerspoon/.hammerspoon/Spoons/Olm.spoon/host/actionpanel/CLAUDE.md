@@ -23,9 +23,13 @@ root and this module is the same named values rule the rest of this configuratio
 follows for a predicate name, an app key, and a shortcut kind. The alternative is every
 caller agreeing by hand that the word is "verb" and not "verbs" or "action", with nothing
 to catch the day one of them drifts. Referencing obj.kinds.verb instead means a
-misspelling is a nil field rather than a string that quietly matches nothing, and a third
-kind added later is one new member here rather than a new literal every caller has to
-learn and spell the same way.
+misspelling is a nil field rather than a string that quietly matches nothing.
+
+That protection stops at spelling. verbsIn carries one branch for verb and one for
+navigation and nothing else, so a third member added only to this table would not be
+handled for free, it would fall into the same branch an unclassified action already falls
+into, dropped and reported as a defect. Growing this set to three members is a new member
+here and a new branch in verbsIn together, never one without the other.
 
 ## Why the classification is the root's, and not config/keys.lua's
 

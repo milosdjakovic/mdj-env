@@ -142,11 +142,14 @@ for _, name in ipairs(contextNames) do
     table.sort(mods)
     local chord = b.chord
     if chord == nil then chord = true end
-    -- kind, phase eight's first packet, asked of the live wiring, spoon.ActionPanel's own
-    -- injected classifier, rather than of a copy kept in this file, so what the golden
-    -- records is what the composition root actually injected, the same reasoning that already
-    -- has this file read ChordKey._keys and HyperKey._bindings rather than a copy of either.
-    local kind = spoon.ActionPanel and spoon.ActionPanel._kindOf and spoon.ActionPanel._kindOf(b.action)
+    -- kind, phase eight's first packet, asked of the live wiring through
+    -- spoon.ActionPanel:kindOf, the public door that carries its own unconfigured guard,
+    -- rather than of a copy kept in this file, so what the golden records is what the
+    -- composition root actually injected. Unlike ChordKey._keys and HyperKey._bindings, which
+    -- have no public form at all, what an action classifies as is an ordinary question this
+    -- module already answers for anyone asking, so it is asked through that door rather than
+    -- through the private field behind it.
+    local kind = spoon.ActionPanel and spoon.ActionPanel:kindOf(b.action)
     bindingLines[#bindingLines + 1] = string.format(
       "hypercontexts.binding context=%s key=%s mods=%s action=%s kind=%s when=%s chord=%s needs=%s description=%s",
       field(name), field(b.key), join(mods), field(b.action), field(kind), field(b.when),
