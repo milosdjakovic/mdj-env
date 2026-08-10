@@ -197,14 +197,14 @@ choosers.entry menuSearchSurface
 choosers.entry overlayDisplaySurface
 choosers.entry spoon.Launcher:surface()
 registry tools count=11
-tools.entry name=browserTabs active=true
-tools.entry name=caffeinate active=true
-tools.entry name=clipboard active=true
-tools.entry name=colorPicker active=true
-tools.entry name=displayProfiles active=true
-tools.entry name=dockAutoHide active=true
-tools.entry name=emoji active=true
-tools.entry name=fileSearch active=true
-tools.entry name=processes active=true
-tools.entry name=textCase active=true
-tools.entry name=vpn active=true
+tools.entry name=browserTabs active=true surface=true hosted=true
+tools.entry name=caffeinate active=true surface=true hosted=true
+tools.entry name=clipboard active=true surface=true hosted=false
+tools.entry name=colorPicker active=true surface=false hosted=false
+tools.entry name=displayProfiles active=true surface=true hosted=false
+tools.entry name=dockAutoHide active=true surface=false hosted=true
+tools.entry name=emoji active=true surface=true hosted=true
+tools.entry name=fileSearch active=true surface=true hosted=true
+tools.entry name=processes active=true surface=true hosted=false
+tools.entry name=textCase active=true surface=true hosted=false
+tools.entry name=vpn active=true surface=true hosted=true

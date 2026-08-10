@@ -196,13 +196,18 @@ end
 
 -- spoon.Olm.registry itself, read live rather than as text, since the composition root
 -- now publishes the instance it built. One line per registered tool with its active
--- flag, a better net than the text match above for the one fault that match cannot see,
--- an accidental deregistration, which is what packets three and four of this phase are
--- most likely to risk.
+-- flag and, since active alone cannot see one going missing, whether it declared a
+-- surface and whether it declared hosted too, the two fields this packet added to the
+-- descriptor and the two later packets in this phase are most likely to keep adding to.
+-- Both are presence rather than a resolved value, matching what all() itself reports,
+-- so this stays a fingerprint of what each descriptor declared rather than a second
+-- opinion on what the live surface answers at the moment of the dump.
 local registryTools = spoon.Olm.registry and spoon.Olm.registry.all() or {}
 local toolLines = {}
 for _, tool in ipairs(registryTools) do
-  toolLines[#toolLines + 1] = string.format("tools.entry name=%s active=%s", field(tool.name), field(tool.active))
+  toolLines[#toolLines + 1] = string.format(
+    "tools.entry name=%s active=%s surface=%s hosted=%s",
+    field(tool.name), field(tool.active), field(tool.surface), field(tool.hosted))
 end
 table.sort(toolLines)
 add("registry tools count=" .. #registryTools)
