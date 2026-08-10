@@ -1928,8 +1928,9 @@ end
 -- spoon.Olm.apiVersion, since a registration copying the core's own number can never
 -- mismatch and the check would then be theatre.
 --
--- The eleven tools below are each keyed by the name their actions.special entry used
--- before this packet, so no row descriptor anywhere changes. The clipboard also owns
+-- The twelve tools below are each keyed by the name their actions.special entry used
+-- before this packet, or, for menu search, the name its own config/keys.lua entry
+-- already carried, so no row descriptor anywhere changes. The clipboard also owns
 -- two commands, append copy and paste next, which are not tools of their own, carrying
 -- the comment that sat beside them before, and registering them here is what makes
 -- deactivating the clipboard take them with it.
@@ -1965,6 +1966,20 @@ end
 -- row. Everything else, detail, glyph, and keywords, is optional presentation data this
 -- registry never reads, meaningful only to the launcher's own addTool on the other end
 -- of rowFor.
+--
+-- Phase seven's fourth packet adds scope to seven of these, caffeinate, dockAutoHide, vpn,
+-- browserTabs, fileSearch, emoji, and menu search, each copied exactly as it stood in the old
+-- queryScopes table below, and it is the reason the whole registration block sits here at all
+-- rather than near the top of this file where it stood through the first three packets. A
+-- scope's rows and run are the very functions this file assigns far below in the tools that
+-- are not registrations, menu search's scopeMenuRows and scopeMenuRun chief among them, and
+-- writing this block above their own local statements would have captured a nil global
+-- forever, silently. Moving down here, immediately above the queryScopes table those
+-- functions used to populate, means every declaration a scope could need already exists,
+-- so no closure discipline is needed for scope the way it was needed for surface two packets
+-- ago. Menu search itself is the twelfth tool below, registered for the first time, since a
+-- registered name it could not reach while its own locals sat unassigned above this point is
+-- exactly what the move fixes.
 registry.register({
   name = "clipboard",
   apiVersion = 1,
@@ -1993,90 +2008,18 @@ registry.register({
   open = function() spoon.Caffeinate.show() end,
   surface = function() return spoon.Caffeinate end,
   row = { category = "System" },
+  scope = {
+    matcher = false,
+    rows = function(rest) return spoon.Caffeinate.rows(rest) end,
+    run = function(payload) spoon.Caffeinate.select(payload) end,
+  },
 })
 registry.register({
   name = "vpn", apiVersion = 1, hosted = true,
   open = function() spoon.Vpn.show() end,
   surface = function() return spoon.Vpn end,
   row = { category = "Network" },
-})
-registry.register({
-  name = "colorPicker", apiVersion = 1, open = function() spoon.Eyedropper:pick() end,
-  row = { category = "Tools", glyph = "🎨" },
-})
-registry.register({
-  name = "emoji", apiVersion = 1, hosted = true,
-  open = function() spoon.Emoji:show() end,
-  surface = function() return spoon.Emoji:surface() end,
-  row = { category = "Tools" },
-})
-registry.register({
-  name = "dockAutoHide", apiVersion = 1, hosted = true, open = function() spoon.DockAutoHide:toggle() end,
-  row = { category = "System", detail = "hides or reveals the Dock", glyph = "🗄️",
-    keywords = "dock hide hiding autohide show" },
-})
-registry.register({
-  name = "displayProfiles", apiVersion = 1, open = function() spoon.DisplayProfiles.chooser.show() end,
-  surface = function() return spoon.DisplayProfiles.chooser end,
-  row = { category = "Displays", detail = "inspect and manage arrangements", glyph = "🖥️" },
-})
-registry.register({
-  name = "textCase", apiVersion = 1,
-  open = function() spoon.TextCase:show() end,
-  surface = function() return spoon.TextCase:surface() end,
-  row = { category = "Text", detail = "recase the selection in place", glyph = "🔠" },
-})
-registry.register({
-  name = "browserTabs", apiVersion = 1, hosted = true,
-  open = function() spoon.BrowserTabs:show() end,
-  surface = function() return spoon.BrowserTabs.chooser end,
-  row = { category = "Tools" },
-})
-registry.register({
-  name = "processes", apiVersion = 1, open = function() spoon.Processes.chooser.show() end,
-  surface = function() return spoon.Processes.chooser end,
-  row = { category = "System", detail = "stop a dev server, container, or watcher", glyph = "🔌",
-    keywords = "processes port node docker" },
-})
-registry.register({
-  name = "fileSearch", apiVersion = 1, hosted = true,
-  open = function() spoon.FileSearch.chooser.show() end,
-  surface = function() return spoon.FileSearch.chooser end,
-  row = { category = "Tools", keywords = "find files folders spotlight locate" },
-})
-
--- The activation list. settings.toolActivation is the default and lists all eleven, so
--- this machine's behaviour is identical to before this packet. The hs.settings key below
--- is the override a future roster writes, and nothing writes it yet.
-local ACTIVATION_SETTINGS_KEY = "registryActivation"
-registry.activate(hs.settings.get(ACTIVATION_SETTINGS_KEY) or settings.toolActivation)
-
--- Published here, both halves worth saying in one place. The composition root is
--- publishing what it built, so the inventory can read this registry live rather than
--- through the choosers pattern match further below, and the rule that a plugin never
--- reaches for spoon.Olm on its own is already enforced by src/check-dependencies.sh,
--- which is what makes opening this door safe rather than a second way for a plugin to
--- reach around its own configure.
-spoon.Olm.registry = registry
-
-local queryScopes = {
-  scope("caffeinate", {
-    matcher = false,
-    rows = function(rest) return spoon.Caffeinate.rows(rest) end,
-    run = function(payload) spoon.Caffeinate.select(payload) end,
-  }),
-  -- The Dock page, two rows that flip a setting in place rather than open anything, so the
-  -- shared matcher stays on, letting a stray keystroke narrow to one row instead of only ever
-  -- showing both. `act` is what a scope names to say a row applies itself and stays open,
-  -- decision three of the dock page packet of 2026-08-09. `run` answers the same call, the
-  -- fallback for a click whose row could not be resolved before the chooser closed, the one
-  -- case `act` cannot be asked in time, mirroring why the alias directory answers `run` too.
-  scope("dockAutoHide", {
-    rows = function() return spoon.DockAutoHide:rows() end,
-    run = function(payload) spoon.DockAutoHide:act(payload) end,
-    act = function(payload) spoon.DockAutoHide:act(payload) end,
-  }),
-  scope("vpn", {
+  scope = {
     -- The relay list arrives from a process, so entering the scope asks for a fresh one and
     -- the launcher redraws when it lands, the same shape the conversion source uses for its
     -- late answer. The ask is repeated only on entry, where the rest of the query is still
@@ -2098,12 +2041,68 @@ local queryScopes = {
       return out
     end,
     run = function(payload) spoon.Vpn.select(payload) end,
-  }),
-  scope("menuSearch", {
-    rows = scopeMenuRows,
-    run = scopeMenuRun,
-  }),
-  scope("browserTabs", {
+  },
+})
+registry.register({
+  name = "colorPicker", apiVersion = 1, open = function() spoon.Eyedropper:pick() end,
+  row = { category = "Tools", glyph = "🎨" },
+})
+local emojiDescriptor = {
+  name = "emoji", apiVersion = 1, hosted = true,
+  open = function() spoon.Emoji:show() end,
+  surface = function() return spoon.Emoji:surface() end,
+  row = { category = "Tools" },
+}
+-- Emoji carries a scope only when the backend that won owns its own list. The system
+-- Character Viewer has no rows to hand over, so with that one fronted the descriptor
+-- below simply carries no scope at all, an ordinary search is unaffected, which is
+-- better than a scope that opens onto an empty list. Asking spoon.Emoji:lists() here
+-- rather than at the old queryScopes table is what the registrations moving down ahead
+-- of this point buys, that facade has already chosen a backend by now.
+if spoon.Emoji:lists() then
+  emojiDescriptor.scope = {
+    -- The backend matches over a hidden haystack of names, shortcodes, tags and categories
+    -- and caps what it returns, so the shared matcher is stood down for the reason its own
+    -- chooser stands it down, it would drop a glyph matched only by a tag.
+    matcher = false,
+    rows = function(rest) return spoon.Emoji:rows(rest) end,
+    run = function(glyph) spoon.Emoji:insert(glyph) end,
+  }
+end
+registry.register(emojiDescriptor)
+registry.register({
+  name = "dockAutoHide", apiVersion = 1, hosted = true, open = function() spoon.DockAutoHide:toggle() end,
+  row = { category = "System", detail = "hides or reveals the Dock", glyph = "🗄️",
+    keywords = "dock hide hiding autohide show" },
+  -- The Dock page, two rows that flip a setting in place rather than open anything, so the
+  -- shared matcher stays on, letting a stray keystroke narrow to one row instead of only ever
+  -- showing both. `act` is what a scope names to say a row applies itself and stays open,
+  -- decision three of the dock page packet of 2026-08-09. `run` answers the same call, the
+  -- fallback for a click whose row could not be resolved before the chooser closed, the one
+  -- case `act` cannot be asked in time, mirroring why the alias directory answers `run` too.
+  scope = {
+    rows = function() return spoon.DockAutoHide:rows() end,
+    run = function(payload) spoon.DockAutoHide:act(payload) end,
+    act = function(payload) spoon.DockAutoHide:act(payload) end,
+  },
+})
+registry.register({
+  name = "displayProfiles", apiVersion = 1, open = function() spoon.DisplayProfiles.chooser.show() end,
+  surface = function() return spoon.DisplayProfiles.chooser end,
+  row = { category = "Displays", detail = "inspect and manage arrangements", glyph = "🖥️" },
+})
+registry.register({
+  name = "textCase", apiVersion = 1,
+  open = function() spoon.TextCase:show() end,
+  surface = function() return spoon.TextCase:surface() end,
+  row = { category = "Text", detail = "recase the selection in place", glyph = "🔠" },
+})
+registry.register({
+  name = "browserTabs", apiVersion = 1, hosted = true,
+  open = function() spoon.BrowserTabs:show() end,
+  surface = function() return spoon.BrowserTabs.chooser end,
+  row = { category = "Tools" },
+  scope = {
     -- The tool scores its own tab rows, so the shared matcher is stood down here exactly as it
     -- is in the tool's own chooser.
     matcher = false,
@@ -2125,8 +2124,20 @@ local queryScopes = {
       return out
     end,
     run = function(payload) spoon.BrowserTabs.chooser.activate(payload) end,
-  }),
-  scope("fileSearch", {
+  },
+})
+registry.register({
+  name = "processes", apiVersion = 1, open = function() spoon.Processes.chooser.show() end,
+  surface = function() return spoon.Processes.chooser end,
+  row = { category = "System", detail = "stop a dev server, container, or watcher", glyph = "🔌",
+    keywords = "processes port node docker" },
+})
+registry.register({
+  name = "fileSearch", apiVersion = 1, hosted = true,
+  open = function() spoon.FileSearch.chooser.show() end,
+  surface = function() return spoon.FileSearch.chooser end,
+  row = { category = "Tools", keywords = "find files folders spotlight locate" },
+  scope = {
     -- The engine owns both the ordering and the query grammar, so the shared matcher is stood
     -- down for the reason the tool's own chooser stands it down. Sigils, a type token and a
     -- scope are not a filter over a list, and a second pass would fight the ranking and hide the
@@ -2155,24 +2166,82 @@ local queryScopes = {
     -- from a line of text, so the preview comes along rather than being a reason to leave for the
     -- real picker. The tool's own verb again, so a file is previewed here exactly as it is there.
     peek = function(payload) spoon.FileSearch.chooser.peekRow(payload) end,
-  }),
+  },
+})
+-- The twelfth tool, and the one this whole packet exists to make registerable. Menu search
+-- has a surface, a scope, an open predicate, and a chord, everything a registered tool has
+-- except a launcher row, and the only reason it could not join sooner was that
+-- openBuiltinMenuSearch, menuSearchSurface, scopeMenuRows, and scopeMenuRun were all still
+-- unassigned locals at the old registration point, hundreds of lines above where they are
+-- actually filled in. The move above puts this block below every one of those assignments,
+-- so each name here is already the real function rather than the nil the forward declared
+-- local would have answered. No row, since it has none today and adding one is a visible
+-- change to the launcher this packet is not making. No hosted, since it is not hosted today.
+registry.register({
+  name = "menuSearch", apiVersion = 1,
+  open = function() openBuiltinMenuSearch() end,
+  surface = function() return menuSearchSurface end,
+  scope = {
+    rows = scopeMenuRows,
+    run = scopeMenuRun,
+  },
+})
+
+-- The activation list. settings.toolActivation is the default and lists all twelve, so
+-- this machine's behaviour is identical to before this packet. The hs.settings key below
+-- is the override a future roster writes, and nothing writes it yet.
+local ACTIVATION_SETTINGS_KEY = "registryActivation"
+registry.activate(hs.settings.get(ACTIVATION_SETTINGS_KEY) or settings.toolActivation)
+
+-- Published here, both halves worth saying in one place. The composition root is
+-- publishing what it built, so the inventory can read this registry live rather than
+-- through the choosers pattern match further below, and the rule that a plugin never
+-- reaches for spoon.Olm on its own is already enforced by src/check-dependencies.sh,
+-- which is what makes opening this door safe rather than a second way for a plugin to
+-- reach around its own configure.
+spoon.Olm.registry = registry
+
+-- Seven of the scopes that used to be built here directly, caffeinate, dockAutoHide, vpn, menu
+-- search, browserTabs, fileSearch, and emoji, moved onto their own tool's descriptor in phase
+-- seven's fourth packet, so this ordered spec names them by string rather than building them.
+-- A string entry resolves through registry.scopeFor, which answers the same matcher, rows, run,
+-- peek, redirect, and act opts a scope(...) call always took, or nil for a tool that is
+-- inactive, unregistered, or, for emoji specifically, simply carrying no scope this run. Any of
+-- those three answers is skipped in silence, the same silence an inactive tool already earns
+-- everywhere else this registry is asked. Passing a resolved opts table through the scope(...)
+-- helper below is what still joins the identity fields, name, title, glyph, and aliases, from
+-- config/keys.lua in exactly the one place that ever did that, unchanged by the fold. Anything
+-- in the spec that is not a string is an object with no tool behind it and passes straight
+-- through unexamined, the same shape registry.surfaces already reads its own spec in.
+--
+-- The order is preserved exactly, entry for entry, against the table this spec replaces, since
+-- QueryScope gives a colliding alias to whichever scope claims it first, so this order decides
+-- who owns a word. The four that stay as objects are the three launcherCatalogScope scopes,
+-- apps, windowActions, and settingsPanes, which narrow the launcher's own catalog rather than
+-- reaching a tool, and the alias directory below, a scope about scopes with no tool behind it.
+local queryScopeSpec = {
+  "caffeinate",
+  "dockAutoHide",
+  "vpn",
+  "menuSearch",
+  "browserTabs",
+  "fileSearch",
   launcherCatalogScope("apps", "app"),
   launcherCatalogScope("windowActions", "window"),
   launcherCatalogScope("settingsPanes", "settingsPane"),
+  "emoji",
 }
 
--- Emoji scopes only when the backend that won owns its own list. The system Character Viewer
--- has no rows to hand over, so with that one fronted the alias resolves to nothing and an
--- ordinary search is unaffected, which is better than a scope that opens onto an empty list.
-if spoon.Emoji:lists() then
-  queryScopes[#queryScopes + 1] = scope("emoji", {
-    -- The backend matches over a hidden haystack of names, shortcodes, tags and categories and
-    -- caps what it returns, so the shared matcher is stood down for the reason its own chooser
-    -- stands it down, it would drop a glyph matched only by a tag.
-    matcher = false,
-    rows = function(rest) return spoon.Emoji:rows(rest) end,
-    run = function(glyph) spoon.Emoji:insert(glyph) end,
-  })
+local queryScopes = {}
+for _, entry in ipairs(queryScopeSpec) do
+  if type(entry) == "string" then
+    local opts = registry.scopeFor(entry)
+    if opts then
+      queryScopes[#queryScopes + 1] = scope(entry, opts)
+    end
+  else
+    queryScopes[#queryScopes + 1] = entry
+  end
 end
 
 -- The alias directory, the scope that lists the other scopes. It is this root's own policy over
@@ -2351,19 +2420,21 @@ spoon.ClipboardHistory.manager.start()
 -- glance at the sheet plus any key clears it.
 spoon.HyperKey:configure({ predicates = predicates })
 local clipManager = spoon.ClipboardHistory.manager
--- The same twelve entries in the same order as before phase seven's second packet, the
--- nine tools the registry now knows named as strings and the three that stay outside
--- handed through as the objects they already are, spoon.Launcher:surface() because the
--- launcher hosts this registry and cannot be a tool inside its own, menuSearchSurface
--- and overlayDisplaySurface because neither has a descriptor of its own yet. The mix is
--- deliberate rather than an inconsistency, a string names something registry.surfaces
--- resolves and anything else is an object it was never told about and passes straight
--- through. The order is not decoration either. activeChooser below answers with the
--- first surface that says it is showing, so the order decides the answer if two are ever
--- up at once, and nothing in this tree proves they cannot be, which is why this list is
--- never reordered to suit the registry and never sorted.
+-- The same twelve entries in the same order as before phase seven's second packet, now ten
+-- tools the registry knows named as strings and two that stay outside handed through as the
+-- objects they already are, spoon.Launcher:surface() because the launcher hosts this
+-- registry and cannot be a tool inside its own, and overlayDisplaySurface because it has no
+-- descriptor of its own yet. menuSearchSurface held this position through packet two and
+-- became the string "menuSearch" in phase seven's fourth packet, once menu search itself
+-- joined the registry, in the exact position it already occupied. The mix is deliberate
+-- rather than an inconsistency, a string names something registry.surfaces resolves and
+-- anything else is an object it was never told about and passes straight through. The order
+-- is not decoration either. activeChooser below answers with the first surface that says it
+-- is showing, so the order decides the answer if two are ever up at once, and nothing in this
+-- tree proves they cannot be, which is why this list is never reordered to suit the registry
+-- and never sorted.
 local choosers = registry.surfaces({
-  "clipboard", "caffeinate", "vpn", spoon.Launcher:surface(), menuSearchSurface,
+  "clipboard", "caffeinate", "vpn", spoon.Launcher:surface(), "menuSearch",
   "displayProfiles", "emoji", overlayDisplaySurface, "textCase", "browserTabs",
   "processes", "fileSearch",
 })

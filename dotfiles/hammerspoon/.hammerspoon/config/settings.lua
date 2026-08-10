@@ -199,10 +199,14 @@ return {
   -- override, activates, so this file is what keeps a fresh machine's behaviour
   -- identical to before the registry existed. The hs.settings key registryActivation
   -- overrides this list when it holds one, and is the door a future roster will write
-  -- through, nothing writes it yet.
+  -- through, nothing writes it yet. menuSearch joined the other eleven in phase seven's
+  -- fourth packet, the twelfth tool the registry knows and the one step easiest to miss
+  -- when folding a new tool in, since a registered tool absent from this list is
+  -- inactive, and an inactive tool answers nil to surfaceFor, rowFor, and scopeFor alike
+  -- with nothing failing loudly.
   toolActivation = {
     "clipboard", "caffeinate", "vpn", "colorPicker", "emoji", "dockAutoHide",
-    "displayProfiles", "textCase", "browserTabs", "processes", "fileSearch",
+    "displayProfiles", "textCase", "browserTabs", "processes", "fileSearch", "menuSearch",
   },
 
   -- The two storage roots every plugin's data lives under, pure data with the
