@@ -254,6 +254,7 @@ panelrows.row context=processes action=sortByLoad title=Sort by load chord=Hyper
 panelrows.row context=processes action=stopForced title=Force stop chord=Hyper+F
 panelrows.row context=textCase action=- title=Back chord=⌫
 panelrows.row context=vpn action=- title=Back chord=⌫
+registry actionpaneldecorated count=12
 registry choosers count=12
 choosers.entry "browserTabs"
 choosers.entry "caffeinate"

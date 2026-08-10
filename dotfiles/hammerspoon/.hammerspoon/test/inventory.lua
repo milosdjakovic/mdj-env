@@ -217,6 +217,16 @@ end
 table.sort(panelRowLines)
 for _, l in ipairs(panelRowLines) do add(l) end
 
+-- How many instances ActionPanel:decorate has actually wrapped, asked of the live module
+-- through the small public door built for exactly this, rather than trusted from the fact
+-- that config/keys.lua and the panelrows section above both look right. Neither of those
+-- proves the decorate seam ever ran on a given chooser, only that it would answer correctly if
+-- it had, and a chooser built before Chooser.configure installed that seam, or one that stopped
+-- going through the Chooser facade at all, would leave the panel silently dead on it with every
+-- other line in this file still reading exactly as if nothing were wrong. This reads twelve
+-- today, one per context, and would read fewer the moment that stopped being true.
+add("registry actionpaneldecorated count=" .. (spoon.ActionPanel and spoon.ActionPanel:decoratedCount() or 0))
+
 -- The choosers registry in init.lua. It is a local table in the composition
 -- root, never handed to anything global, so there is no live handle to read it
 -- through. The honest way to read it is the way it is written, as one literal
