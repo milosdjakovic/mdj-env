@@ -461,3 +461,58 @@ hosted with no scope then reads as `hosted=true scope=false` in a committed file
 legitimate case is visible and stable and any real drift is a diff against the golden rather than
 a log line nobody reads. This was considered and the warning rejected, written down here so nobody
 adds one later thinking it was merely overlooked.
+
+**The descriptor gains a shortcut, phase seven's fifth and last packet, and why never binding
+beats unbinding.** Since the first packet, deactivating a tool has taken away its launcher row,
+its surface, and its scope, while its keyboard shortcut stayed bound and kept firing, a sentence
+this file's own header used to admit outright. Nothing in this config ever unbinds a key,
+`HyperKey` has no removal and `hs.hotkey` is never asked for one, and inventing teardown here
+would be exactly the single caller ceremony with a silent failure mode the design principles
+reject. So the answer is not to unbind an inactive tool's chord, it is to never bind it, and that
+is possible only because the registrations already sit below every declaration a bind could need,
+which is what the fourth packet's move bought for free. `shortcut`, optional, is one of exactly
+two strings. `leader` means this tool's entry in `config/keys.lua` names a key bound through the
+Hyper leader to this tool's `open`. `global` means the entry names a whole modifier combination
+bound directly, which is what `appendCopy` and `pasteNext` are and the only thing they are, each
+carrying the same field on its own table inside `commands`. Refused when present and neither of
+those two strings, naming the tool or the command and what it said. Refused too when present with
+nothing to bind, no `open` on a tool or no callable `fn` on a command, since a shortcut bound to
+nothing is worse than no shortcut at all, which brings the running count of refusals to eighteen.
+
+**Why the key itself is not on the descriptor.** The same rule `row`, `scope`, and the identity
+fields on `scope` already keep. `config/keys.lua` holds the key, the modifiers, and the
+description, and this registry reads no configuration at all, so a field naming the key here
+would be the same fact stated twice with nothing to keep the two in agreement.
+
+**`shortcuts()`, the accessor this packet adds.** It takes no spec, unlike `surfaces` and
+`scopes`, since it names nothing the composition root already holds a competing object for, and
+answers in registration order one entry per active tool or active tool's command that declares a
+shortcut, each carrying `name`, `kind`, and `fn`, the function to bind. An inactive tool
+contributes nothing, itself or its commands, the same nil-and-false silence every other read in
+this file already answers for it, and that one sentence is the whole feature, the composition
+root can only ever reach a bind call for something active. A tool's own commands are walked
+sorted by their own name rather than in whatever order `pairs` happens to answer for the literal
+table a descriptor wrote them in, since Lua promises nothing about that order and a caller needs
+one it can trust run over run, and which of two commands binds first is otherwise arbitrary, each
+one claiming a different key with nothing to disagree about.
+
+**The composition root's one loop, and the collision check that came before it.** Eight direct
+bind calls, seven `spoon.HyperKey:bind` calls beside each tool's own `configure` plus one
+`spoon.ClipboardHistory:bindHotkeys` call binding the clipboard's open and its two commands, are
+gone, replaced by one loop below the activation call that walks `registry.shortcuts()` and binds
+each entry, resolving the keys entry through the row's `keysName` or the entry's own name exactly
+as the launcher's own `addTool` already does. Before any of that moved, every key bound as a base
+binding, the eight tools plus the launcher plus lock and sleep, was listed and checked for a
+collision, since two bindings on the same key never warn and the first registered would silently
+win forever among equal priorities, which would have made order load bearing rather than an
+implementation detail. All eleven were distinct, so the fold changes the route a key reaches its
+function through and changes nothing else, proven by three runs of `test/inventory.sh --check`
+against the baseline the packet's own instrumentation commit laid down, every section, old and
+new, byte identical.
+
+**What activation means in full, now.** A tool's row, its surface, its scope, and its shortcut
+all answer the same nil, false, or nothing for an inactive tool, resolved through the one flat
+index every accessor in this file reads. That is the promise the first packet's header deferred,
+paid across five packets rather than one, each fold choosing the mechanism its own hazard
+demanded, a closure for `surface`, plain data for `row`, a moved registration for `scope`, and
+never binding at all for `shortcut`.
