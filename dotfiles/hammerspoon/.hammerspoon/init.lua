@@ -171,6 +171,15 @@ spoon.Convert:init()
 -- absolute path built from hs.configdir, assigned to spoon.QueryScope by hand since it
 -- bypasses hs.loadSpoon.
 spoon.QueryScope = dofile(hs.configdir .. "/Spoons/Olm.spoon/host/queryscope/init.lua")
+-- ActionPanel is new, phase eight's first packet, the classification of every hyperContexts
+-- action into navigation or verb that a future panel reads rather than computes at draw time.
+-- It lives in Olm's host directory in the shape host/launcher and host/queryscope already use,
+-- so this loads it unconditionally by an absolute path built from hs.configdir, assigned to
+-- spoon.ActionPanel by hand since it bypasses hs.loadSpoon.
+spoon.ActionPanel = dofile(hs.configdir .. "/Spoons/Olm.spoon/host/actionpanel/init.lua")
+-- An assignment does not call init the way hs.loadSpoon always did, and this tool has no other
+-- init site, so it is called here for parity.
+spoon.ActionPanel:init()
 
 -- Olm's storage mechanism, configured with the two roots from config/settings.lua. The load
 -- itself moved to the top of this section, since the atom toggle there needs it, and olm is
@@ -2562,6 +2571,72 @@ local contextActions = {
   revealInFinder = routeNav("reveal"),
   copyPath = routeNav("copyPath"),
 }
+
+-- The kind every action carries, decided here beside contextActions since this is already the
+-- one place that knows what every action name means, phase eight's first packet. Written
+-- against spoon.ActionPanel.kinds rather than against a bare string, the named values rule the
+-- design cites, and it names all eighteen actions that appear anywhere in keys.hyperContexts,
+-- none left to a default, since a default is how a nineteenth action added later would join
+-- the wrong side in silence. leavePage carries an entry here although it carries no entry in
+-- contextActions above, since the chooser atom reads Backspace for itself and this root only
+-- lists the key for it, and it is classified anyway, because the classification is about what
+-- a binding means and not about who runs it.
+local actionKinds = {
+  -- Navigation, eight, the shared rows every context inherits and a panel must never list.
+  selectNext = spoon.ActionPanel.kinds.navigation,
+  selectPrev = spoon.ActionPanel.kinds.navigation,
+  insertSelected = spoon.ActionPanel.kinds.navigation,
+  enter = spoon.ActionPanel.kinds.navigation,
+  closeChooser = spoon.ActionPanel.kinds.navigation,
+  scrollPreviewDown = spoon.ActionPanel.kinds.navigation,
+  scrollPreviewUp = spoon.ActionPanel.kinds.navigation,
+  leavePage = spoon.ActionPanel.kinds.navigation,
+  -- Verb, ten, the things a person forgets the chord for.
+  appendSelected = spoon.ActionPanel.kinds.verb,
+  deleteSelected = spoon.ActionPanel.kinds.verb,
+  sortByLoad = spoon.ActionPanel.kinds.verb,
+  stopForced = spoon.ActionPanel.kinds.verb,
+  refreshList = spoon.ActionPanel.kinds.verb,
+  peekPreview = spoon.ActionPanel.kinds.verb,
+  browseInto = spoon.ActionPanel.kinds.verb,
+  browseUp = spoon.ActionPanel.kinds.verb,
+  revealInFinder = spoon.ActionPanel.kinds.verb,
+  copyPath = spoon.ActionPanel.kinds.verb,
+}
+spoon.ActionPanel:configure({
+  kindOf = function(action) return actionKinds[action] end,
+})
+
+-- The completeness check, once at load and never per panel open, the measurement phase eight's
+-- first packet exists to build. Walk every binding of every context in keys.hyperContexts and
+-- warn naming the action for any whose name has no entry in actionKinds above. Walk
+-- actionKinds and warn naming the entry for any whose action no context uses any more. Both
+-- are one line at warning level, both name what they found, and neither raises, since a
+-- classification gap should be visible and harmless rather than fatal at config load.
+--
+-- This stays out of ActionPanel:verbsIn on purpose. This check is about the whole of
+-- config/keys.lua against the whole of actionKinds, the root's own business asked once, where
+-- verbsIn is about one context's bindings, the engine's own business asked every time a panel
+-- opens.
+do
+  local actionsBound = {}
+  for _, ctx in ipairs(keys.hyperContexts or {}) do
+    for _, b in ipairs(ctx.bindings or {}) do
+      actionsBound[b.action] = true
+      if actionKinds[b.action] == nil then
+        log.w("actionKinds has no entry for '" .. tostring(b.action) ..
+          "', a binding in config/keys.lua names it")
+      end
+    end
+  end
+  for action in pairs(actionKinds) do
+    if not actionsBound[action] then
+      log.w("actionKinds carries '" .. tostring(action) ..
+        "', no context in config/keys.lua uses it any more")
+    end
+  end
+end
+
 -- Nav actions that auto-repeat while the key is held, so holding Hyper+j/k in any
 -- chooser scrolls like a held arrow key. The initial delay and repeat rate are the
 -- OS autorepeat's own timing (System Settings > Keyboard), inherited for free.
