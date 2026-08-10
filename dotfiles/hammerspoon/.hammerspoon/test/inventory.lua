@@ -10,8 +10,10 @@
 -- source of this config's binding surface, the loaded spoon table, the chord
 -- tree in ChordKey._keys, the cheat sheet models in HyperCheatSheet, the
 -- hyperContexts bindings in config/keys.lua, and the choosers registry in
--- init.lua. It never reads hs.hotkey.getHotkeys, which the design records as
--- blind to almost everything this config actually binds.
+-- init.lua, plus the tool registry itself and, since phase seven's fourth
+-- packet, the assembled scope catalog QueryScope actually built from it. It
+-- never reads hs.hotkey.getHotkeys, which the design records as blind to
+-- almost everything this config actually binds.
 --
 -- Every listing below is sorted before it is written, and nothing here is a
 -- timestamp, a memory address, or a table identity, so two runs against the same
@@ -217,6 +219,30 @@ end
 table.sort(toolLines)
 add("registry tools count=" .. #registryTools)
 for _, l in ipairs(toolLines) do add(l) end
+
+-- spoon.QueryScope:catalog(), the assembled scope list actually built, which is not the
+-- same fact tools.entry's scope field records. That field reports whether a tool's own
+-- descriptor declares a scope, and a spec entry that resolves to nothing, a misspelled
+-- name chief among the ways that happens, is skipped in silence by design, so a
+-- descriptor can read scope=true while the scope it describes never made it into the
+-- live list at all. Nothing before this packet measured the assembled list, only what
+-- was declared, and this section is what closes that gap. One line per scope actually
+-- entered, its name and its aliases, sorted by name for a stable snapshot. Aliases
+-- matter as much as the name, since QueryScope gives a contested word to whichever
+-- scope claims it first, so the order the root's spec lists scopes in decides who keeps
+-- a shared alias, and a mistake in that order shows up here as an alias moving from one
+-- scope's line to another's rather than as anything disappearing outright.
+local scopeCatalog = (spoon.QueryScope and spoon.QueryScope:catalog()) or {}
+local scopeLines = {}
+for _, s in ipairs(scopeCatalog) do
+  local aliases = {}
+  for _, a in ipairs(s.aliases or {}) do aliases[#aliases + 1] = a end
+  scopeLines[#scopeLines + 1] = string.format(
+    "scopes.entry name=%s aliases=%s", field(s.name), join(aliases))
+end
+table.sort(scopeLines)
+add("registry scopes count=" .. #scopeCatalog)
+for _, l in ipairs(scopeLines) do add(l) end
 
 -- The launcher's own command rows, read live through spoon.Launcher:rowsOfKind for the
 -- special kind, which is every row a registered tool or one of its commands builds.

@@ -209,6 +209,18 @@ tools.entry name=menuSearch active=true surface=true hosted=false scope=true
 tools.entry name=processes active=true surface=true hosted=false scope=false
 tools.entry name=textCase active=true surface=true hosted=false scope=false
 tools.entry name=vpn active=true surface=true hosted=true scope=true
+registry scopes count=11
+scopes.entry name=aliasDirectory aliases=?
+scopes.entry name=apps aliases=a+app
+scopes.entry name=browserTabs aliases=t+tabs
+scopes.entry name=caffeinate aliases=k+awake
+scopes.entry name=dockAutoHide aliases=d+dock
+scopes.entry name=emoji aliases=e+emoji
+scopes.entry name=fileSearch aliases=/
+scopes.entry name=menuSearch aliases=m+menu
+scopes.entry name=settingsPanes aliases=s+system
+scopes.entry name=vpn aliases=v+vpn
+scopes.entry name=windowActions aliases=w+window
 registry launcherrows count=18
 launcherrows.entry name=aliasDirectory subTitle=Tools · every word that scopes this list (?)
 launcherrows.entry name=appendCopy subTitle=Clipboard · ⌃⌥C
