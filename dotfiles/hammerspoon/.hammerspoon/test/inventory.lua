@@ -213,6 +213,28 @@ table.sort(toolLines)
 add("registry tools count=" .. #registryTools)
 for _, l in ipairs(toolLines) do add(l) end
 
+-- The launcher's own command rows, read live through spoon.Launcher:rowsOfKind for the
+-- special kind, which is every row a registered tool or one of its commands builds.
+-- Phase seven's third packet moves the presentation data behind these rows, the
+-- category, the glyph, the detail, the keywords, and the chord, off the launcher and
+-- onto the registry descriptor, and this section is the instrumentation that packet
+-- commits first, before anything moves, so a row that vanished in the fold or came back
+-- with a changed subtitle fails this snapshot rather than passing every other gate this
+-- config has. The subtitle is recorded whole rather than summarised, since it is the
+-- part most likely to break quietly, carrying the chord label, the category, and the
+-- alias hint together. Sorted by name so the snapshot is stable regardless of the order
+-- the rows were built in.
+local launcherRows = spoon.Launcher and spoon.Launcher:rowsOfKind("special") or {}
+local rowLines = {}
+for _, row in ipairs(launcherRows) do
+  rowLines[#rowLines + 1] = string.format(
+    "launcherrows.entry name=%s subTitle=%s",
+    field(row.item and row.item.name), field(row.subTitle))
+end
+table.sort(rowLines)
+add("registry launcherrows count=" .. #launcherRows)
+for _, l in ipairs(rowLines) do add(l) end
+
 -- Write the whole dump to one fixed file outside the watched config tree, the
 -- same reasoning BrowserTabs' own test channel already follows, since a file
 -- written inside the config directory would trigger a reload on every run. This

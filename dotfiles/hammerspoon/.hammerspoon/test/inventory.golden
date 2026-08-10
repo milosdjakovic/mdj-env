@@ -208,3 +208,22 @@ tools.entry name=fileSearch active=true surface=true hosted=true
 tools.entry name=processes active=true surface=true hosted=false
 tools.entry name=textCase active=true surface=true hosted=false
 tools.entry name=vpn active=true surface=true hosted=true
+registry launcherrows count=18
+launcherrows.entry name=aliasDirectory subTitle=Tools · every word that scopes this list (?)
+launcherrows.entry name=appendCopy subTitle=Clipboard · ⌃⌥C
+launcherrows.entry name=browserTabs subTitle=Tools · Hyper W (t, tabs)
+launcherrows.entry name=caffeinate subTitle=System · Hyper K (k, awake)
+launcherrows.entry name=clipboard subTitle=Clipboard · Hyper X
+launcherrows.entry name=colorPicker subTitle=Tools · Hyper 2
+launcherrows.entry name=displayProfiles subTitle=Displays · inspect and manage arrangements
+launcherrows.entry name=dockAutoHide subTitle=System · hides or reveals the Dock (d, dock)
+launcherrows.entry name=emoji subTitle=Tools · Hyper J (e, emoji)
+launcherrows.entry name=fileSearch subTitle=Tools · Hyper / (/)
+launcherrows.entry name=lock subTitle=System · Hyper §
+launcherrows.entry name=overlayDisplay subTitle=Displays · where panels and choosers appear
+launcherrows.entry name=pasteNext subTitle=Clipboard · ⌃⌥V
+launcherrows.entry name=processes subTitle=System · stop a dev server, container, or watcher
+launcherrows.entry name=searchSettings subTitle=System · opens the System Settings search field
+launcherrows.entry name=sleep subTitle=System · Hyper esc
+launcherrows.entry name=textCase subTitle=Text · recase the selection in place
+launcherrows.entry name=vpn subTitle=Network · Hyper P (v, vpn)
