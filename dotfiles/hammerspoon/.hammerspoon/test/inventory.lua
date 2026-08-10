@@ -197,17 +197,22 @@ end
 -- spoon.Olm.registry itself, read live rather than as text, since the composition root
 -- now publishes the instance it built. One line per registered tool with its active
 -- flag and, since active alone cannot see one going missing, whether it declared a
--- surface and whether it declared hosted too, the two fields this packet added to the
--- descriptor and the two later packets in this phase are most likely to keep adding to.
--- Both are presence rather than a resolved value, matching what all() itself reports,
--- so this stays a fingerprint of what each descriptor declared rather than a second
--- opinion on what the live surface answers at the moment of the dump.
+-- surface, whether it declared hosted, and, since phase seven's fourth packet, whether
+-- it declared a scope, all presence rather than a resolved value, matching what all()
+-- itself reports, so this stays a fingerprint of what each descriptor declared rather
+-- than a second opinion on what the live surface or scope answers at the moment of the
+-- dump. scope beside hosted is the cross check that packet adds, a tool that is hosted
+-- with no scope behind it reads plainly as hosted=true scope=false in this committed
+-- file, which is legitimate for a tool whose scope registers only under a condition,
+-- emoji today, and stable rather than a warning nobody is watching for. See
+-- Spoons/Olm.spoon/CLAUDE.md's Registry section for why a warning was considered and
+-- rejected.
 local registryTools = spoon.Olm.registry and spoon.Olm.registry.all() or {}
 local toolLines = {}
 for _, tool in ipairs(registryTools) do
   toolLines[#toolLines + 1] = string.format(
-    "tools.entry name=%s active=%s surface=%s hosted=%s",
-    field(tool.name), field(tool.active), field(tool.surface), field(tool.hosted))
+    "tools.entry name=%s active=%s surface=%s hosted=%s scope=%s",
+    field(tool.name), field(tool.active), field(tool.surface), field(tool.hosted), field(tool.scope))
 end
 table.sort(toolLines)
 add("registry tools count=" .. #registryTools)
