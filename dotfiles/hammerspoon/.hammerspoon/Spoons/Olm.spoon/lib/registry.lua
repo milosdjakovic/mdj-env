@@ -46,7 +46,13 @@
 -- registration. A registered tool whose name is in the list is active, one not in the
 -- list is registered and inactive. A name in the list that nothing registered produces
 -- one warning line naming it and is otherwise ignored, since a typo in a roster should
--- be visible and harmless rather than fatal.
+-- be visible and harmless rather than fatal. names answers to the same refuse rather
+-- than raise principle register does, since the activation list is meant to come from a
+-- persisted setting a future roster writes, and a value of the wrong shape there is a
+-- question of when rather than whether. Anything that is not a table, nil aside, logs
+-- one warning naming what it got and leaves the active set empty rather than raising
+-- out of config load, which would otherwise take down the whole of Hammerspoon rather
+-- than only the launcher.
 --
 -- The read side. run(name) looks the name up in the flat index of tool names and
 -- command names, and calls it when the owner is active, answering true when it ran
@@ -130,11 +136,19 @@ function M.new(opts)
   end
 
   --- instance.activate(names)
-  --- Replace the active set with the given list of tool names. A name nothing
-  --- registered logs one warning and is otherwise ignored.
+  --- Replace the active set with the given list of tool names. Refuses rather than
+  --- raises, the same principle register answers to. names that is not a table, a
+  --- setting written with the wrong shape being a question of when rather than whether,
+  --- logs one warning naming what it got and leaves the active set empty. A name nothing
+  --- registered logs its own warning and is otherwise ignored.
   function instance.activate(names)
     activeTools = {}
-    for _, name in ipairs(names or {}) do
+    if names == nil then return end
+    if type(names) ~= "table" then
+      log.w(string.format("Registry activate refused %s, a list of tool names is required", tostring(names)))
+      return
+    end
+    for _, name in ipairs(names) do
       if toolsByName[name] then
         activeTools[name] = true
       else

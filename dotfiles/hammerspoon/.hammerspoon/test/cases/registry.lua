@@ -186,6 +186,26 @@ do
   )
 end
 
+-- activate answers to the same refuse rather than raise principle register does. A
+-- setting holding the wrong shape, a string rather than a list, must not raise out of
+-- config load, which would take down the whole of Hammerspoon rather than only the
+-- launcher.
+do
+  local r, warnings = freshRegistry(1)
+  r.register({ name = "vpn", apiVersion = 1, open = function() end })
+  r.activate({ "vpn" })
+  check("vpn is active before the malformed activate call", r.get("vpn") ~= nil)
+
+  local calledOk = pcall(function() r.activate("not-a-list") end)
+  check("activate given a string rather than a table does not raise", calledOk == true)
+  check(
+    "the refusal for a non table activation list is logged, naming what it got",
+    found(warnings, "not-a-list"),
+    table.concat(warnings, " | ")
+  )
+  check("the active set is left empty rather than keeping the previous activation", r.get("vpn") == nil)
+end
+
 -- Inactive answers, a registered tool left out of the activation list.
 do
   local r = freshRegistry(1)
