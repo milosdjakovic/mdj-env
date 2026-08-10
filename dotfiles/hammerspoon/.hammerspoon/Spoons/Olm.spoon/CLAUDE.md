@@ -299,3 +299,58 @@ disables a tool's navigation with no gate anywhere that would catch it, and stac
 top of the ordering hazard `surface` already carries would leave a failure nobody could bisect by
 looking at only one of the two. The predicates stay exactly as written, and the root says so
 beside them.
+
+**The descriptor gains a row, phase seven's third packet.** `row`, optional, is a table
+describing this tool's launcher row, the presentation data the launcher used to hold in thirteen
+hand written calls, its category, its glyph, its detail or its chord, and its keywords. A tool
+with no `row` gets no row on the launcher, which is what a tool reachable only as a scope wants.
+`category` is the one required field once `row` is present at all, the word before the separator
+in the subtitle the launcher renders, `Tools`, `System`, `Network`, `Clipboard`, `Displays`, or
+`Text` today. Everything else inside `row` is opaque to this module and meaningful only to the
+launcher on the other end of `rowFor`.
+
+**Why `keysName` exists, and why only one tool writes it.** `keysName`, optional, names the key in
+`config/keys.lua` a row reads its description and chord from, defaulting to the tool's own name.
+Only `clipboard` writes it, since its row reads `keys.clipboardHistory` while the tool is
+registered under `clipboard`, and every other tool's registered name already is its own key in
+that file, which is the whole reason `name` was chosen to be that key back in the first packet.
+Writing `keysName` anywhere else would paper over a second tool disagreeing with its own key
+rather than fixing the disagreement, so it stays written in exactly the one place that needs it.
+
+**Why `chord` exists for exactly two commands, and must not spread.** `chord`, optional, is either
+absent, which is every tool's row and renders a Hyper chord label, or a string naming a different
+rendering. `appendCopy` and `pasteNext` are the only two rows that carry it, since both are a
+modifier combination rather than a Hyper chord and their subtitle is built from that combination
+directly rather than from the shared chord label helper. A third row reaching for `chord` would be
+a sign that this field grew into a general purpose escape hatch rather than the one narrow
+exception it was written for, and the two rows that have it are named here so that stays checkable.
+
+**A command may carry its own row, the same shape as a tool's.** A `commands` value may be a
+table carrying its function under `fn` plus its own optional `row`, rather than a bare function,
+which is how `appendCopy` and `pasteNext` keep a launcher row while remaining commands of the
+clipboard rather than tools of their own. Both row shapes, a tool's and a command's, are validated
+by the one function inside `register`, and a malformed row anywhere in a descriptor refuses the
+whole registration, naming the owning tool, since a registration commits atomically or not at
+all.
+
+**`rowFor(name)`, the accessor this packet adds.** It answers the row of an active tool or of a
+command of an active tool, or nil, resolved through the same flat index `run` already reads, so a
+command's row is found under the command's own name and an inactive tool answers nil for itself
+and for every command it owns. That last part is what makes an inactive tool's launcher row
+actually disappear, the promise the first packet's header comment deferred, paid here, even
+though nothing is deactivated by default today so there is nothing yet to see disappear.
+
+**Why the launcher's row order was preserved rather than derived.** The thirteen `add` calls
+became thirteen `addTool` calls, each left in the exact position its `add` call held, call for
+call, with nothing regrouped. A used row floats on recency ahead of everything else, so this order
+only governs the untouched rows a fresh install or a fresh reload actually shows, which is
+precisely the list changing it would change. Deriving the order from the registry instead was
+rejected for that reason, not for difficulty, since the registration order the root happens to
+write is not a promise about what a person should see first.
+
+**What this leaves unfinished.** Adding a tool still costs one `addTool` line in the launcher,
+so a row's data left the launcher but the decision of which rows exist and in what order did not,
+this is not yet one registration. Removing that last line would move the whole row order into the
+composition root, which would take the capture loop and the window loop with it since they build
+inside the same function, and that is a decision for a later packet to weigh rather than a thing
+to fold in here without being asked.
