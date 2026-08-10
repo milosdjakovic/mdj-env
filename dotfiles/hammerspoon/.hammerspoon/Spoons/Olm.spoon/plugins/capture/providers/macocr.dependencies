@@ -1,0 +1,6 @@
+# What macocr.lua needs from outside Hammerspoon, declared beside the only file that
+# knows this tool exists. Format is name | kind | locator | policy | reason.
+# See Olm's lib/deps.lua for the kinds and for how these files are found.
+# Optional, because a missing backend costs text capture rather than the spoon, and the
+# provider already gates itself on the tool having resolved.
+ocr | path | ocr | optional | the OCR backend, the sole handler of text capture

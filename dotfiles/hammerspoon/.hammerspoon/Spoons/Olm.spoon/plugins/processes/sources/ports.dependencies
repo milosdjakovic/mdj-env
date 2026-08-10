@@ -1,0 +1,17 @@
+# What ports.lua needs from outside Hammerspoon, declared beside the file that names
+# these tools. Format is name | kind | locator | policy | reason.
+# See Olm's lib/deps.lua for the kinds and for how these files are found.
+#
+# All three are the system kind, a binary at a fixed absolute path rather than something
+# found on PATH, so the locator here is the path and the file is allowed to hold that same
+# literal. Nothing is injected, the declaration exists so the manifest records what this
+# source actually runs.
+#
+# Optional rather than required, even though the source cannot work without any of them.
+# Required means the root should refuse to wire the spoon, and the root wires Processes
+# unconditionally, so required here would claim a refusal that never happens. These ship
+# with macOS and cannot realistically be absent, which is why the weaker honest label
+# costs nothing.
+lsof | system | /usr/sbin/lsof | optional | finds which process holds a listening port
+ps   | system | /bin/ps        | optional | reads the command, start time, and working directory of a holder
+kill | system | /bin/kill      | optional | stops a holder, gracefully first and forcefully on request

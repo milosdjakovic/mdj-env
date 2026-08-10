@@ -1,0 +1,6 @@
+# What macshot.lua needs from outside Hammerspoon, declared beside the only file that
+# knows this tool exists. Format is name | kind | locator | policy | reason.
+# See Olm's lib/deps.lua for the kinds and for how these files are found.
+# Optional, because the native backend always handles screenshots and recording, so a
+# missing one costs the preferred backend rather than the spoon.
+macshot | app | com.sw33tlie.macshot.macshot | optional | the preferred screenshot backend, native is the fallback

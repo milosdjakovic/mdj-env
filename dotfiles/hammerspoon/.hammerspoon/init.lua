@@ -13,10 +13,6 @@ local settingsPanes = require("config.settingsPanes")
 local processes = require("config.processes")
 local filesearch = require("config.filesearch")
 
--- Load workspace configurations
-local devWorkspace = require("config.workspaces.dev")
-local vicertWorkspace = require("config.workspaces.vicert")
-
 local log = hs.logger.new("hs.config", "info")
 
 -- Deferred calls made from this root, and why they are held rather than fired and
@@ -41,66 +37,181 @@ end
 -- Load Spoons
 --------------------------------------------------------------------------------
 
-hs.loadSpoon("Dependencies")
-hs.loadSpoon("KeyRemap")
-hs.loadSpoon("ChordKey")
-hs.loadSpoon("CheatSheet")
-hs.loadSpoon("Chooser")
-hs.loadSpoon("CanvasPanel")
-hs.loadSpoon("HyperKey")
-hs.loadSpoon("HyperCheatSheet")
-hs.loadSpoon("StageManager")
-hs.loadSpoon("WindowManager")
-hs.loadSpoon("WindowLeader")
-hs.loadSpoon("WindowCheatSheet")
-hs.loadSpoon("AppToggler")
-hs.loadSpoon("ClipboardHistory")
-hs.loadSpoon("Caffeinate")
-hs.loadSpoon("Vpn")
-hs.loadSpoon("Capture")
-hs.loadSpoon("Eyedropper")
-hs.loadSpoon("WorkspaceEngine")
+-- Olm, the reusable core. It is loaded first now rather than beside its own configuration
+-- further down, because the six atom assignments below take their spoon globals straight out
+-- of spoon.Olm.lib and need it to answer before they run. Loading it costs nothing but reading
+-- its lib files, so nothing observable moved by hoisting it, and its storage configuration
+-- stays where it was, beside the settings block it reads.
+hs.loadSpoon("Olm")
+-- KeyRemap now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.KeyRemap by hand since it bypasses hs.loadSpoon.
+spoon.KeyRemap = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/keyremap/init.lua")
+-- The six atoms, Dependencies, ChordKey, CheatSheet, Chooser, CanvasPanel, and HyperKey, now
+-- live only in Olm's lib. All six originals passed live validation and retired together, so
+-- each spoon global here is assigned straight from spoon.Olm.lib and skips hs.loadSpoon
+-- entirely. CanvasPanel keeps the one direct init call the root has always owned for it.
+spoon.Dependencies = spoon.Olm.lib.deps
+spoon.ChordKey = spoon.Olm.lib.chordkey
+spoon.CheatSheet = spoon.Olm.lib.cheatsheet
+spoon.Chooser = spoon.Olm.lib.chooser
+spoon.CanvasPanel = spoon.Olm.lib.panel
+spoon.CanvasPanel:init()
+spoon.HyperKey = spoon.Olm.lib.hyperkey
+-- HyperCheatSheet now lives only in Olm's host directory. The original spoon passed live
+-- validation and was retired, so this loads the olm side host copy unconditionally by an
+-- absolute path built from hs.configdir, assigned to spoon.HyperCheatSheet by hand since it
+-- bypasses hs.loadSpoon.
+spoon.HyperCheatSheet = dofile(hs.configdir .. "/Spoons/Olm.spoon/host/hypercheatsheet/init.lua")
+-- WindowManager now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.WindowManager by hand since it bypasses hs.loadSpoon.
+spoon.WindowManager = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windowmanager/init.lua")
+-- WindowLeader now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.WindowLeader by hand since it bypasses hs.loadSpoon.
+spoon.WindowLeader = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windowleader/init.lua")
+-- WindowCheatSheet now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.WindowCheatSheet by hand since it bypasses hs.loadSpoon.
+spoon.WindowCheatSheet = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windowcheatsheet/init.lua")
+-- AppToggler now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.AppToggler by hand since it bypasses hs.loadSpoon.
+spoon.AppToggler = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/apptoggler/init.lua")
+-- ClipboardHistory now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.ClipboardHistory by hand since it bypasses hs.loadSpoon.
+--
+-- The insertion engine used to flip with this same boolean at three other sites, the emoji
+-- insert, the text case seams, and the engine injected into the manager's own configure near
+-- the bottom of this file. All three now read spoon.Olm.lib.paste directly, since that is the
+-- only insertion engine left and there is no longer a second side for it to disagree with.
+spoon.ClipboardHistory = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/clipboard/init.lua")
+-- Caffeinate now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.Caffeinate by hand since it bypasses hs.loadSpoon.
+spoon.Caffeinate = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/caffeinate/init.lua")
+-- Vpn now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.Vpn by hand since it bypasses hs.loadSpoon.
+spoon.Vpn = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/vpn/init.lua")
+-- Capture now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.Capture by hand since it bypasses hs.loadSpoon.
+spoon.Capture = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/capture/init.lua")
+-- Eyedropper now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.Eyedropper by hand since it bypasses hs.loadSpoon.
+spoon.Eyedropper = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/eyedropper/init.lua")
+-- The user kept TerminalHandler standalone, outside Olm, on the decision of 2026-08-07, so
+-- this loads the original spoon through hs.loadSpoon.
 hs.loadSpoon("TerminalHandler")
-hs.loadSpoon("DisplayMemory")
-hs.loadSpoon("WindowMemory")
-hs.loadSpoon("Launcher")
-hs.loadSpoon("DockAutoHide")
-hs.loadSpoon("DisplayProfiles")
-hs.loadSpoon("SystemSettings")
-hs.loadSpoon("Emoji")
-hs.loadSpoon("TextCase")
-hs.loadSpoon("BrowserTabs")
-hs.loadSpoon("Processes")
-hs.loadSpoon("FileSearch")
-hs.loadSpoon("Arithmetic")
-hs.loadSpoon("Convert")
-hs.loadSpoon("QueryScope")
+-- DisplayMemory now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.DisplayMemory by hand since it bypasses hs.loadSpoon.
+spoon.DisplayMemory = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/displaymemory/init.lua")
+-- WindowMemory now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.WindowMemory by hand since it bypasses hs.loadSpoon.
+spoon.WindowMemory = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/windowmemory/init.lua")
+-- Launcher now lives only in Olm's host directory. The original spoon passed live
+-- validation and was retired, so this loads the olm side host copy unconditionally by an
+-- absolute path built from hs.configdir, assigned to spoon.Launcher by hand since it
+-- bypasses hs.loadSpoon.
+spoon.Launcher = dofile(hs.configdir .. "/Spoons/Olm.spoon/host/launcher/init.lua")
+-- DockAutoHide now lives only in Olm, moved in on the dock plugin packet of 2026-08-09 and
+-- the original standalone spoon deleted in the same pass, small enough that the launcher row
+-- is its own proof rather than needing a validation loop. This loads the olm side copy
+-- unconditionally by an absolute path built from hs.configdir, assigned to
+-- spoon.DockAutoHide by hand since it bypasses hs.loadSpoon.
+spoon.DockAutoHide = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/dockautohide/init.lua")
+-- DisplayProfiles now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.DisplayProfiles by hand since it bypasses hs.loadSpoon.
+spoon.DisplayProfiles = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/displayprofiles/init.lua")
+-- SystemSettings now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.SystemSettings by hand since it bypasses hs.loadSpoon.
+spoon.SystemSettings = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/systemsettings/init.lua")
+-- An assignment does not call init the way hs.loadSpoon always did, and this tool has no other init site, so it is called here for parity.
+spoon.SystemSettings:init()
+-- Emoji now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.Emoji by hand since it bypasses hs.loadSpoon.
+spoon.Emoji = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/emoji/init.lua")
+-- TextCase now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.TextCase by hand since it bypasses hs.loadSpoon.
+spoon.TextCase = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/textcase/init.lua")
+-- BrowserTabs now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.BrowserTabs by hand since it bypasses hs.loadSpoon.
+spoon.BrowserTabs = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/browsertabs/init.lua")
+-- Processes now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.Processes by hand since it bypasses hs.loadSpoon.
+spoon.Processes = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/processes/init.lua")
+-- FileSearch now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.FileSearch by hand since it bypasses hs.loadSpoon.
+spoon.FileSearch = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/filesearch/init.lua")
+-- Arithmetic now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.Arithmetic by hand since it bypasses hs.loadSpoon.
+spoon.Arithmetic = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/arithmetic/init.lua")
+-- Convert now lives only in Olm. The original spoon passed live validation and was
+-- retired, so this loads the olm side copy unconditionally by an absolute path built from
+-- hs.configdir, assigned to spoon.Convert by hand since it bypasses hs.loadSpoon.
+spoon.Convert = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/convert/init.lua")
+-- An assignment does not call init the way hs.loadSpoon always did, and this tool's own init site sits behind convertDeps.satisfied() further down, so it is called here for parity.
+spoon.Convert:init()
+-- QueryScope now lives only in Olm's host directory. The original spoon passed live
+-- validation and was retired, so this loads the olm side host copy unconditionally by an
+-- absolute path built from hs.configdir, assigned to spoon.QueryScope by hand since it
+-- bypasses hs.loadSpoon.
+spoon.QueryScope = dofile(hs.configdir .. "/Spoons/Olm.spoon/host/queryscope/init.lua")
+
+-- Olm's storage mechanism, configured with the two roots from config/settings.lua. The load
+-- itself moved to the top of this section, since the atom toggle there needs it, and olm is
+-- no longer optional either way, because the olm side copies above take their recency, their
+-- insertion engine, and now six whole atoms from here. Turning it off means flipping every
+-- olm side toggle back first.
+spoon.Olm.lib.storage.configure(settings.paths)
 
 --------------------------------------------------------------------------------
 -- Choices this root makes, named early because the key wiring reads them
 --------------------------------------------------------------------------------
 
--- How file search shows the highlighted file. Two implementations of one contract, named by
--- reference so no provider string appears anywhere, and switching is this one line.
+-- How file search shows the highlighted file. Two seams rather than one provider filling both
+-- jobs, each named by reference so no provider string appears anywhere, and switching either is
+-- one line.
 --
--- SidePanel docks a canvas beside the list and follows the highlight, a permanent summary in the
--- corner of your eye that this config scrolls for you. QuickLook opens the native panel over the
--- picker when a key asks for it, a full size preview of anything the system can render, and
--- reserves no room, so the picker becomes a plain list.
+-- filePreviewProvider docks a canvas beside the list and follows the highlight, a permanent
+-- summary in the corner of your eye that this config scrolls for you. Set to SidePanel here for
+-- live testing of the panel, with filePeekProvider below keeping the native window one key away
+-- regardless.
 --
--- It is decided HERE rather than at the configure call below, because the bindings depend on it.
--- One provider earns the two scroll keys and the other earns the peek key, and the shortcut panel
--- is built from the same data, so the choice has to be known before either is read.
-local filePreviewProvider = spoon.FileSearch.PreviewProvider.QuickLook
+-- filePeekProvider opens on top of the list rather than beside it, only when a key asks for it,
+-- a full size preview of anything the system can render. QuickLook is the one that answers to
+-- this seam, and it reserves no room, so the docked provider still owns the whole companion rect.
+--
+-- Both are decided HERE rather than at the configure call below, because the bindings depend on
+-- them. The docked one earns the two scroll keys and the peek one earns the peek key, and the
+-- shortcut panel is built from the same data, so the choice has to be known before either is
+-- read.
+local filePreviewProvider = spoon.FileSearch.PreviewProvider.SidePanel
+local filePeekProvider = spoon.FileSearch.PreviewProvider.QuickLook
 
 -- What a binding may declare it NEEDS from a choice above, answered once here. A binding naming
 -- something absent is dropped from the key wiring and from the shortcut panel together, which is
 -- what keeps a listed key from being one that does nothing. An unknown requirement keeps the
 -- binding and says so, so a typo fails visibly rather than silently removing a key.
 local bindingNeeds = {
-  -- A preview you have to ask for, which is the Quick Look window. A pane already showing the
-  -- row makes a peek key mean show me what is in front of you.
-  askedPreview = function() return filePreviewProvider.followsHighlight == false end,
+  -- A preview you have to ask for, which is whatever sits in the peek seam above. Answered from
+  -- that seam's own presence, since the docked provider following the highlight no longer says
+  -- anything about whether a key can still ask for something else on top of it.
+  askedPreview = function() return filePeekProvider ~= nil end,
   -- A preview this config scrolls on your behalf, which is the docked pane. A window scrolls
   -- itself and its own keys are the system's.
   scrollablePreview = function() return filePreviewProvider.followsHighlight == true end,
@@ -212,16 +323,51 @@ spoon.ChordKey:configure({ holdDelay = 0.6, tapThreshold = 0.2, passthrough = tr
 -- Hold + letter = app toggles; quick tap = toggle real Caps Lock; hold 0.6s
 -- with no key = show the cheat sheet. Registers into the shared ChordKey engine.
 --
+-- That description is the DEFAULT rather than the only shape. What physically means Hyper is
+-- configuration now, settings.hyperTrigger below, and a modifier chord held together is the
+-- other shape it can take. Every binding written against Hyper on this page works either way,
+-- and only the tap has no meaning under a chord. The mechanism for each lives in the hyperkey
+-- atom and nothing on this page chooses between them beyond passing the descriptor along.
+--
 -- The hold reveals the ACTIVE layer's cheat sheet, not always the apps. The base
 -- layer is the app overlay. A live modal context reveals its own shortcuts
 -- instead. These two functions are forward declared here and assigned once the
 -- context overlays and predicates exist below, so the hold wiring stays in one
 -- place.
 local revealHyperLayer, hideHyperLayer
+
+-- What physically means Hyper, read as data and finished here. config/settings.lua names a
+-- shape and nothing else, this fills in whatever only this root can know, and the hyperkey
+-- atom owns one strategy per shape.
+--
+-- The catalog keycode is resolved WHATEVER shape was asked for, and that is deliberate. The
+-- catalog is this root's to read and nobody else's, so the lookup can only happen here, and
+-- three separate readers want the answer. The leader shape uses it as its key. The atom's own
+-- fallback uses it when a descriptor cannot be honoured, so a bad chord lands on the real
+-- leader key rather than on some default. And the original spoon behind the atom toggle above
+-- knows nothing of a descriptor at all and reads only the plain keyCode option, so resolving
+-- conditionally would leave it on its own hardcoded default whenever a chord was configured,
+-- agreeing with the catalog by coincidence today and silently disagreeing the day the catalog
+-- names another key. The chord strategy simply ignores it.
+--
+-- The chord shape still needs the atom toggle above to be on, since the strategies live only
+-- in the olm side copy. Asking for a chord with that toggle off leaves the original spoon on
+-- the leader key from the catalog, correctly rather than by luck, but a leader key all the
+-- same. So the two switches are independent in one direction only, and that ends when the
+-- originals retire.
+local hyperTrigger = {}
+for k, v in pairs(settings.hyperTrigger or {}) do hyperTrigger[k] = v end
+hyperTrigger.kind = hyperTrigger.kind or "leader"
+hyperTrigger.keyCode = leaderCode(keys.appLeader) -- resolved from the catalog (HYPER -> F18)
+
 spoon.HyperKey:init()
 spoon.HyperKey:configure({
   chord = spoon.ChordKey,
-  keyCode = leaderCode(keys.appLeader), -- resolved from the catalog (HYPER -> F18)
+  trigger = hyperTrigger,
+  -- The same keycode a second time, as the plain option, because the original spoon behind the
+  -- atom toggle reads only this one and the copy's leader fallback reads it too. Both sides of
+  -- that toggle then say the same thing about which key Hyper is.
+  keyCode = hyperTrigger.keyCode,
   tapThreshold = 0.2,
   onTap = function()
     hs.hid.capslock.toggle()
@@ -236,9 +382,6 @@ spoon.HyperKey:configure({
 })
 spoon.HyperKey:start()
 
--- StageManager (no dependencies, reads fresh on each check)
-spoon.StageManager:init()
-
 -- WindowManager (uses margin system for canvas calculation)
 spoon.WindowManager:init()
 spoon.WindowManager:configure({
@@ -246,10 +389,7 @@ spoon.WindowManager:configure({
     top = settings.gap,
     right = settings.gap,
     bottom = settings.gap,
-    left = function()
-      local base = spoon.StageManager:isActive() and settings.stageManagerMargin or 0
-      return base + settings.gap
-    end,
+    left = settings.gap,
   },
   settings = settings,
 })
@@ -273,7 +413,7 @@ spoon.WindowLeader:addLeader(leaderCode(keys.windowLeader))
 -- Forward-declared so the predicate registry and the chooser navigation registry
 -- can name menu search's navigation surface before it is built further below (it
 -- needs this predicate table and hideShortcuts, which are defined here). The
--- launcher's surface is not forward-declared, it lives in Launcher.spoon, so its
+-- launcher's surface is not forward-declared, it lives in Olm's Launcher host, so its
 -- predicate reads the spoon directly.
 local menuSearchSurface
 -- The overlay display picker's navigation surface, forward-declared so the predicate
@@ -320,6 +460,7 @@ local hostedInPlace = {
   emoji = true,
   fileSearch = true,
   browserTabs = true,
+  dockAutoHide = true,
 }
 
 local predicates = {
@@ -643,7 +784,7 @@ spoon.ClipboardHistory:bindHotkeys({
 -- which is defined below.
 
 -- Launcher: the app switcher and command runner on Hyper+Space now lives in
--- Launcher.spoon, a coordinator. It is instantiated and wired below, alongside
+-- Olm's Launcher host, a coordinator. It is instantiated and wired below, alongside
 -- menu search and VPN, where the shared shortcut panel factory it uses is defined.
 
 
@@ -1152,7 +1293,7 @@ end
 -- again rather than while the chooser holds focus. Like menu search and VPN it docks
 -- the same deferred shortcut panel through the three chooser callbacks, and its
 -- onClose also clears any peeked overlay, matching the clipboard.
--- Launcher.spoon, the coordinator that owns the app switcher and command runner.
+-- Olm's Launcher host, the coordinator that owns the app switcher and command runner.
 -- The root injects every collaborator, the Chooser factory, the pure keys and apps
 -- data, the window actions, a chord glyph resolver, the System Settings pane
 -- descriptors, the shared predicate registry, the docked shortcut panel, and the
@@ -1201,7 +1342,12 @@ spoon.Arithmetic:configure({ glyph = "🧮", category = "Arithmetic" })
 spoon.QueryScope:init()
 
 local queryProviders = { spoon.QueryScope, spoon.Arithmetic }
-local convertDeps = depsFor("Convert")
+-- The resolver stamps every declaration under Olm.spoon with the one consumer name Olm,
+-- since Olm is the single top level spoon and its plugins are internal structure rather
+-- than spoons of their own. depsFor("Convert") stopped resolving anything once the
+-- original spoon was deleted, so this reads depsFor("Olm") instead, which is where the
+-- copy's own declaration already lives.
+local convertDeps = depsFor("Olm")
 if convertDeps.satisfied() then
   spoon.Convert:init()
   spoon.Convert:configure({
@@ -1296,10 +1442,17 @@ spoon.Launcher:configure({
     -- asks, and the shape stays, because putting the effect back inside the answer re-arms the same
     -- defect for whoever next wants to know what a row would do.
     rowIntercept = function(item)
-      -- A row a scope computed, which is the alias directory listing the other scopes. It names a
-      -- word rather than a list, and handing over the word is the entire point of that list, so
-      -- the field is seeded and you have learned the word by being given it.
+      -- A row a scope computed. Two things answer to this, asked in this order because a row
+      -- is a switch or a signpost and never both.
       if item.kind == "scope" then
+        -- A row that flips something in place, which is the two rows the Dock page shows.
+        -- Choosing one acts at once, the chooser stays open, and the rows are rebuilt so the
+        -- wording reads current again.
+        local act = spoon.QueryScope:actFor(item)
+        if act then return act end
+        -- A row that names a word rather than a list, which is the alias directory listing the
+        -- other scopes. Handing over the word is the entire point of that list, so the field is
+        -- seeded and you have learned the word by being given it.
         local query = spoon.QueryScope:redirectFor(item)
         if not query then return nil end
         return function() spoon.Launcher:seedQuery(query) end
@@ -1343,6 +1496,7 @@ spoon.Launcher:configure({
       emoji = function() spoon.Emoji:show() end,
       lock = function() hs.caffeinate.lockScreen() end,
       sleep = function() hs.caffeinate.systemSleep() end,
+      dockAutoHide = function() spoon.DockAutoHide:toggle() end,
       searchSettings = function() spoon.SystemSettings:focusSearch() end,
       overlayDisplay = function() showOverlayDisplayPicker() end,
       displayProfiles = function() spoon.DisplayProfiles.chooser.show() end,
@@ -1363,215 +1517,31 @@ spoon.Launcher:start()
 -- Hyper+Space always opens the launcher. Same shape as the clipboard.
 spoon.HyperKey:bind(keys.launcher.key, function() spoon.Launcher:show() end)
 
--- Menu search: Hyper+E lists every enabled menu bar item of the frontmost app and
--- runs the chosen one. Like the launcher this is pure composition-root
--- policy over the same Chooser atom, so it adds no spoon. macOS exposes each app's
--- menus through the Accessibility API, which hs.application:getMenuItems reads; the
--- callback form does the tree walk off the main thread, so a large menu never
--- blocks Hammerspoon. The app frontmost when Hyper+E fires is captured as the
--- target, since showing the chooser takes focus, and the chosen item is dispatched
--- back to that app once focus returns to it.
---
--- Each row carries only a serializable descriptor, its menu path as a list of
--- titles, never a function, the same reason the palette rows do: hs.chooser
--- serialises each row and would silently drop a function. selectMenuItem takes
--- that path. The menu tree is fetched per open (it changes with the app and its
--- state), so the rows supplier reads a module-local list the fetch fills, and the
--- chooser is shown only once the fetch has built the rows.
+-- Declared ahead alongside menuSearchSurface above so the bind below, the launcher's menu
+-- scope registration, and the choosers list further down all read the same names once
+-- assigned below.
+local openBuiltinMenuSearch, scopeMenuRows, scopeMenuRun
 
--- hs decodes AXMenuItemCmdModifiers into a list of modifier names (e.g. { "cmd" }
--- or { "cmd", "shift" }). Turn it plus the command char into a readable glyph for
--- the row subtitle, in the canonical ⌃⌥⇧⌘ order, or nil when the item has no
--- keyboard shortcut. Both alt/option and ctrl/control spellings are accepted.
-local function menuShortcutGlyph(char, mods)
-  if not char or char == "" then return nil end
-  local has = {}
-  for _, m in ipairs(mods or {}) do has[tostring(m):lower()] = true end
-  local g = ""
-  if has.ctrl or has.control then g = g .. "⌃" end
-  if has.alt or has.option then g = g .. "⌥" end
-  if has.shift then g = g .. "⇧" end
-  if has.cmd or has.command then g = g .. "⌘" end
-  return g .. char:upper()
-end
-
--- Flatten the nested AX menu tree into leaf rows. An entry's submenu is its
--- AXChildren[1] (a list); an entry with one is a container we recurse into, an
--- entry without is a runnable leaf. Blank-title entries (separators) are skipped,
--- and disabled items are dropped so the list stays actionable. Each leaf keeps the
--- full title path for selectMenuItem, plus its parent path and shortcut for display.
-local function flattenMenus(entries, path, out)
-  for _, e in ipairs(entries) do
-    local title = e.AXTitle
-    if title and title ~= "" then
-      local kids = e.AXChildren and e.AXChildren[1]
-      local newPath = {}
-      for i = 1, #path do newPath[i] = path[i] end
-      newPath[#newPath + 1] = title
-      if type(kids) == "table" and #kids > 0 then
-        flattenMenus(kids, newPath, out)
-      elseif e.AXEnabled ~= false then
-        local parents = {}
-        for i = 1, #newPath - 1 do parents[i] = newPath[i] end
-        out[#out + 1] = {
-          title = title,
-          path = newPath,
-          parents = table.concat(parents, " ▸ "),
-          shortcut = menuShortcutGlyph(e.AXMenuItemCmdChar, e.AXMenuItemCmdModifiers),
-        }
-      end
-    end
-  end
-end
-
-local menuRows = {}   -- filled by the async fetch on each open
-local menuTargetApp   -- the app frontmost when Hyper+E fired, the dispatch target
-local menuAppIcon     -- the target app's icon, shown on every row (one app per open)
-local menuAppKey      -- a stable icon key so that icon is encoded once, not per row
-
--- Rows supplier. Returns every menu item and lets the atom's shared matcher filter and
--- rank, so typing a parent menu name (File, Format) narrows too since the path rides in
--- filterText. The shortcut glyph rides in the subtitle after the path.
--- The row shape, shared by this chooser and the launcher's menu scope below, so the two
--- present a menu item identically and cannot drift. Every item belongs to the one captured
--- app, so each row shows that app's icon, and the stable key memoizes the encoded icon once
--- rather than per row.
-local function buildMenuRows(list, icon, iconKey)
-  local out = {}
-  for _, r in ipairs(list or {}) do
-    local subtitle = r.parents
-    if r.shortcut then
-      subtitle = (subtitle ~= "" and (subtitle .. "   ") or "") .. r.shortcut
-    end
-    out[#out + 1] = { title = r.title, subTitle = subtitle, image = icon,
-                      iconKey = iconKey, item = { path = r.path },
-                      filterText = r.title .. " " .. r.parents }
-  end
-  return out
-end
-
-local function menuSearchRows(_)
-  return buildMenuRows(menuRows, menuAppIcon, menuAppKey)
-end
-
--- The chosen item runs deferred, after the chooser tears down and macOS restores
--- focus to the captured app, since a menu action acts on that app. The shortcut
--- panel is wired in through onPositioned/onActivity/onClose, so it complements the
--- native chooser without the chooser knowing about it.
-local menuPanel = shortcutPanelFor("menuSearch")
-local menuSearch = spoon.Chooser.new({
+-- Menu search lives in Olm now, the inline original was removed after its validation pass.
+-- This loads the olm plugin unconditionally and assigns the shared names above from what it
+-- hands back.
+local MenuSearch = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/menusearch/init.lua")
+MenuSearch:init()
+MenuSearch:configure({
+  chooser = spoon.Chooser,
   theme = settings.chooserTheme,
-  placeholder = "Search menu items",
-  rows = menuSearchRows,
-  onSelect = function(item)
-    if item and item.path and menuTargetApp then
-      local app = menuTargetApp
-      after(0.1, function() app:selectMenuItem(item.path) end)
-    end
-  end,
-  onPositioned = menuPanel.onPositioned,
-  onActivity = menuPanel.onActivity,
-  onClose = menuPanel.onClose,
+  panel = shortcutPanelFor("menuSearch"),
+  coveredApp = function() return spoon.Launcher:coveredApp() end,
+  refreshLauncher = function() spoon.Launcher:refresh() end,
+  after = after,
 })
--- Dot-called navigation adapter over the Chooser instance, so the shared
--- activeChooser / routeNav registry drives it exactly like the other pickers.
-menuSearchSurface = {
-  isShowing = function() return menuSearch:isShowing() end,
-  selectNext = function() menuSearch:selectNext() end,
-  selectPrev = function() menuSearch:selectPrev() end,
-  insertSelected = function() menuSearch:insertSelected() end,
-  hide = function() menuSearch:hide() end,
-}
+menuSearchSurface = MenuSearch.surface
+openBuiltinMenuSearch = MenuSearch.open
+scopeMenuRows = MenuSearch.scopeRows
+scopeMenuRun = MenuSearch.scopeRun
 
--- Open the built-in menu search: capture the frontmost app, fetch its menus
--- asynchronously so a large tree never blocks, then show the chooser once the rows
--- are built. Does nothing if no app is frontmost, the app exposes no menus, or focus
--- moved before the fetch returned (so we never target the wrong app).
-local function openBuiltinMenuSearch()
-  local app = hs.application.frontmostApplication()
-  if not app then return end
-  menuTargetApp = app
-  local bundleID = app:bundleID()
-  menuAppIcon = bundleID and hs.image.imageFromAppBundle(bundleID) or nil
-  menuAppKey = bundleID and ("menuapp:" .. bundleID) or nil
-  app:getMenuItems(function(menus)
-    if not menus then return end
-    if hs.application.frontmostApplication() ~= app then return end
-    menuRows = {}
-    flattenMenus(menus, {}, menuRows)
-    menuSearch:show()
-  end)
-end
-
--- External combo hand-off, kept but disabled. Uncomment this block and bind
--- fireMenuSearchCombo below (instead of openBuiltinMenuSearch) to make Hyper+E fire
--- menuSearchShortcut (⇧⌃⌥⌘J) so an external tool bound to that same combo anywhere
--- opens. Disabled because routing through an Alfred hotkey added noticeable latency
--- versus the built-in chooser, which binds directly with no synthesized combo and no
--- round-trip. The menuSearchShortcut data stays in config/keys.lua for re-enabling.
--- local menuShortcut = keys.menuSearchShortcut
--- local function fireMenuSearchCombo()
---   hs.eventtap.keyStroke(menuShortcut.mods, menuShortcut.key, 0)
--- end
-
--- Open key. Bound to the built-in chooser: fast, direct, shows the app icon. Swap to
--- fireMenuSearchCombo (uncomment above) to hand off to an external tool instead.
+-- Open key. Bound to the built in chooser, which is fast, direct, and shows the app icon.
 spoon.HyperKey:bind(keys.menuSearch.key, openBuiltinMenuSearch)
-
--- The launcher's menu scope. It lists the menus of the app the launcher covered rather than
--- the frontmost one, since once the chooser is up the frontmost app is this one, which is why
--- the launcher hands over both that app and an id for the open. The tree is read once per open.
--- Re-reading it on every keystroke would be unusable, since the accessibility walk is the slow
--- part of menu search, and caching it across opens would go stale as an app enables and
--- disables its items. A read in flight shows as one disabled row, so the list says what it is
--- doing rather than briefly claiming nothing matched, and that row carries the typed text as
--- its filter text so the matcher cannot rank it away while it is the only thing to show.
-local scopeMenu = { app = nil, openId = nil, list = nil, icon = nil, key = nil, reading = false }
-
-local function scopeMenuRows(rest)
-  local app, openId = spoon.Launcher:coveredApp()
-  if not app then return {} end
-  if app ~= scopeMenu.app or openId ~= scopeMenu.openId then
-    local bundleID = app:bundleID()
-    scopeMenu = {
-      app = app, openId = openId, list = nil, reading = false,
-      icon = bundleID and hs.image.imageFromAppBundle(bundleID) or nil,
-      key = bundleID and ("menuapp:" .. bundleID) or nil,
-    }
-  end
-  if not scopeMenu.list and not scopeMenu.reading then
-    scopeMenu.reading = true
-    local forApp, forOpen = app, openId
-    app:getMenuItems(function(menus)
-      -- The answer can arrive after another open has moved on, so it is kept only for the
-      -- read that asked for it and dropped otherwise.
-      if scopeMenu.app ~= forApp or scopeMenu.openId ~= forOpen then return end
-      scopeMenu.reading = false
-      local flat = {}
-      if menus then flattenMenus(menus, {}, flat) end
-      scopeMenu.list = flat
-      spoon.Launcher:refresh()
-    end)
-  end
-  if not scopeMenu.list then
-    return { {
-      title = "Reading the menus",
-      subTitle = (app:name() or "this app") .. ", one moment",
-      glyph = "⏳",
-      enabled = false,
-      filterText = rest,
-    } }
-  end
-  return buildMenuRows(scopeMenu.list, scopeMenu.icon, scopeMenu.key)
-end
-
--- Acts on the app the read was for, not on whatever is frontmost when the row runs, so a menu
--- item can never be sent to the wrong app. selectMenuItem addresses that app directly, so this
--- does not depend on focus having returned, though the launcher defers it anyway.
-local function scopeMenuRun(payload)
-  local app = scopeMenu.app
-  if app and payload and payload.path then app:selectMenuItem(payload.path) end
-end
 
 -- VPN controls: a native chooser on Hyper+P that merges the controls and the locations
 -- into one flat list, Connect or Disconnect on top and every city below. It is pinned to
@@ -1583,11 +1553,19 @@ end
 -- the missing backend and its install command, so this wiring is safe on any machine and
 -- explains itself. The open key is a base HyperKey binding, suppressed while a modal
 -- context owns Hyper.
+-- recency is the shared lift to front service from Olm, one instance built against the
+-- same settings key the hand rolled block used before this conversion, so the remembered
+-- city order a person already has carries across the toggle in both directions.
 local vpnPanel = shortcutPanelFor("vpn")
 spoon.Vpn.configure({
   theme = settings.chooserTheme,
   chooser = spoon.Chooser,
-  deps = depsFor("Vpn"),
+  -- The resolver stamps every declaration under Olm.spoon with the one consumer name Olm,
+  -- since Olm is the single top level spoon and its plugins are internal structure rather
+  -- than spoons of their own, so this reads depsFor("Olm") rather than the name the
+  -- deleted original carried.
+  deps = depsFor("Olm"),
+  recency = spoon.Olm.lib.recency.new({ settingsKey = "Vpn.recentLocations" }),
   onPositioned = vpnPanel.onPositioned,
   onActivity = vpnPanel.onActivity,
   onClose = vpnPanel.onClose,
@@ -1629,8 +1607,11 @@ spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
 -- the surrogate pair and show replacement boxes, while a paste delivers the bytes intact
 -- everywhere. pasteText snapshots the clipboard and puts it back after, hidden from history,
 -- so the paste is invisible and the clipboard stays untouched, the promise the old typing
--- path kept. If the clipboard manager is absent this degrades to typing, the same graceful
--- fallback HyperKey and AppToggler take. The emoji Hyper context (see config/keys.lua) drives
+-- path kept. Where that primitive comes from is the clipboard toggle's second site, the shared
+-- insertion engine on the olm side and the manager's own wrapper on the original side, and it
+-- flips with the load rather than on its own. If neither is there this degrades to typing, the
+-- same graceful fallback HyperKey and AppToggler take. The emoji Hyper context (see
+-- config/keys.lua) drives
 -- the j, k, i, and x shortcuts through the choosers registry below, active only when the
 -- hammerspoon backend wins since only it reports a real surface. The open key is a base
 -- HyperKey binding, suppressed while a modal context owns Hyper.
@@ -1643,9 +1624,11 @@ spoon.Emoji:configure({
   placeholder = "Search by name or keyword",
   shortcutPanel = shortcutPanelFor("emoji"),
   onInsert = function(glyph)
-    local mgr = spoon.ClipboardHistory and spoon.ClipboardHistory.manager
-    if mgr and mgr.pasteText then
-      mgr.pasteText(glyph)
+    -- The insertion primitive now always comes straight from the core, since the original
+    -- spoon that once stood on the other side of this seam is retired.
+    local pasteText = spoon.Olm and spoon.Olm.lib.paste and spoon.Olm.lib.paste.pasteText
+    if pasteText then
+      pasteText(glyph)
     else
       after(0.1, function() hs.eventtap.keyStrokes(glyph) end)
     end
@@ -1657,26 +1640,25 @@ spoon.HyperKey:bind(keys.emoji.key, function() spoon.Emoji:show() end)
 -- picker over the Chooser atom that owns its own transform catalog, so it needs the Chooser
 -- factory, the shared theme, and the same deferred shortcut panel the other choosers dock.
 -- It names no clipboard: the two cross-spoon seams, reading the selection and writing the
--- result in place, are injected here and backed by the ClipboardHistory manager, where the
--- pasteboard snapshot/restore and the self-capture guard already live, so both leave the
--- clipboard and its history untouched. copySelection is the read-side mirror of pasteText.
--- If the manager is absent, apply degrades to a typed paste and read is omitted (the tool
--- then only shows its guidance row), the same graceful fallback the emoji insert takes. Its
--- textCase Hyper context (config/keys.lua) drives the j, k, i, and x shortcuts through the
--- choosers registry below.
-local textCaseMgr = spoon.ClipboardHistory and spoon.ClipboardHistory.manager
+-- result in place, are injected here and backed by the core insertion engine, since the
+-- pasteboard snapshot and restore and the self capture guard sit there. copySelection is the
+-- read-side mirror of pasteText. If neither answers, apply degrades to a typed paste and read
+-- is omitted (the tool then only shows its guidance row), the same graceful fallback the emoji
+-- insert takes. Its textCase Hyper context (config/keys.lua) drives the j, k, i, and x
+-- shortcuts through the choosers registry below.
+local olmPaste = spoon.Olm and spoon.Olm.lib.paste
+local textCaseRead = olmPaste and olmPaste.copySelection
+local textCasePaste = olmPaste and olmPaste.pasteText
 spoon.TextCase:init()
 spoon.TextCase:configure({
   chooser = spoon.Chooser,
   theme = settings.chooserTheme,
   placeholder = "Convert the selection",
   shortcutPanel = shortcutPanelFor("textCase"),
-  read = (textCaseMgr and textCaseMgr.copySelection)
-    and function(cb) textCaseMgr.copySelection(cb) end
-    or nil,
+  read = textCaseRead and function(cb) textCaseRead(cb) end or nil,
   apply = function(text)
-    if textCaseMgr and textCaseMgr.pasteText then
-      textCaseMgr.pasteText(text)
+    if textCasePaste then
+      textCasePaste(text)
     else
       after(0.1, function() hs.eventtap.keyStrokes(text) end)
     end
@@ -1699,6 +1681,11 @@ spoon.TextCase:configure({
 --
 -- Its browserTabs Hyper context (config/keys.lua) drives the j, k, i, and x shortcuts through
 -- the choosers registry below.
+-- recency is the shared lift to front service from Olm, one instance built against the same
+-- settings key and the same limit the hand rolled recency.lua module used before this
+-- conversion, so the remembered tab order a person already has carries across from before.
+-- It is now built unconditionally, since the original spoon and its own recency.lua are
+-- retired and there is no other side left to leave untouched.
 local browserProviders = spoon.BrowserTabs.providers
 spoon.BrowserTabs:init()
 spoon.BrowserTabs:configure({
@@ -1708,6 +1695,7 @@ spoon.BrowserTabs:configure({
     browserProviders.arc,
   },
   defaultEnabled = { apps.Safari },
+  recency = spoon.Olm.lib.recency.new({ settingsKey = "BrowserTabs.recentTabs", limit = 2000 }),
 })
 spoon.BrowserTabs:start()
 -- The surface is wired the way every other native chooser is, the factory, the shared theme,
@@ -1738,7 +1726,12 @@ spoon.HyperKey:bind(keys.browserTabs.key, function() spoon.BrowserTabs:show() en
 -- registry below.
 local processesPanel = shortcutPanelFor("processes")
 spoon.Processes:init()
-spoon.Processes:configure({ policy = processes, deps = depsFor("Processes") })
+-- The resolver stamps every declaration under Olm.spoon with the one consumer name Olm,
+-- since Olm is the single top level spoon and its plugins are internal structure rather
+-- than spoons of their own. depsFor("Processes") stopped resolving anything once the
+-- original spoon was deleted, so this reads depsFor("Olm") instead, which is where the
+-- copy's own declarations already live.
+spoon.Processes:configure({ policy = processes, deps = depsFor("Olm") })
 spoon.Processes.chooser.configure({
   chooser = spoon.Chooser,
   theme = settings.chooserTheme,
@@ -1815,9 +1808,14 @@ end
 -- registry below.
 local fileSearchPanel = shortcutPanelFor("fileSearch")
 spoon.FileSearch:init()
+-- The resolver stamps every declaration under Olm.spoon with the one consumer name Olm,
+-- since Olm is the single top level spoon and its plugins are internal structure rather
+-- than spoons of their own. depsFor("FileSearch") stopped resolving anything once the
+-- original spoon was deleted, so this reads depsFor("Olm") instead, which is where the
+-- copy's own declarations already live.
 spoon.FileSearch:configure({
   policy = filesearch,
-  deps = depsFor("FileSearch"),
+  deps = depsFor("Olm"),
   matcher = spoon.Chooser.matchers.words,
   -- The launcher shows this list too, under its own alias below, and a search answers after the
   -- keystroke that asked for it. So the launcher is told when rows land, exactly as the spoon's
@@ -1825,6 +1823,9 @@ spoon.FileSearch:configure({
   -- does nothing while its own surface is closed, so the one that is not on screen costs a call.
   -- Chosen at the top of this file, because the bindings depend on which one it is.
   previewProvider = filePreviewProvider,
+  -- The other seam, also chosen at the top of this file and also read by the bindings, so the
+  -- q key still opens QuickLook on top of the docked pane rather than losing it to the flip.
+  peekProvider = filePeekProvider,
   onResults = function()
     if spoon.Launcher then spoon.Launcher:refresh() end
   end,
@@ -1906,6 +1907,7 @@ local function scope(name, opts)
     run = opts.run,
     peek = opts.peek,
     redirect = opts.redirect,
+    act = opts.act,
   }
 end
 
@@ -1926,6 +1928,17 @@ local queryScopes = {
     matcher = false,
     rows = function(rest) return spoon.Caffeinate.rows(rest) end,
     run = function(payload) spoon.Caffeinate.select(payload) end,
+  }),
+  -- The Dock page, two rows that flip a setting in place rather than open anything, so the
+  -- shared matcher stays on, letting a stray keystroke narrow to one row instead of only ever
+  -- showing both. `act` is what a scope names to say a row applies itself and stays open,
+  -- decision three of the dock page packet of 2026-08-09. `run` answers the same call, the
+  -- fallback for a click whose row could not be resolved before the chooser closed, the one
+  -- case `act` cannot be asked in time, mirroring why the alias directory answers `run` too.
+  scope("dockAutoHide", {
+    rows = function() return spoon.DockAutoHide:rows() end,
+    run = function(payload) spoon.DockAutoHide:act(payload) end,
+    act = function(payload) spoon.DockAutoHide:act(payload) end,
   }),
   scope("vpn", {
     -- The relay list arrives from a process, so entering the scope asks for a fresh one and
@@ -2145,8 +2158,14 @@ local clipMessageToast = spoon.CanvasPanel.new({
 })
 local clipMessageTimer
 
-local clipDeps = depsFor("ClipboardHistory")
+-- The resolver stamps every declaration under Olm.spoon with the one consumer name Olm, since
+-- Olm is the single top level spoon and its plugins are internal structure rather than spoons
+-- of their own, so this reads depsFor("Olm") rather than the name the deleted original carried.
+local clipDeps = depsFor("Olm")
 spoon.ClipboardHistory.manager.configure({
+  -- The shared insertion engine. Every paste and every selection read now takes this path
+  -- unconditionally, since the original spoon that carried its own insertion half is retired.
+  paste = spoon.Olm.lib.paste,
   onMessage = function(text)
     clipMessage.text = text
     clipMessageToast:show()
@@ -2300,17 +2319,25 @@ end)
 -- Cmd+Shift+5) are the always-available fallback. macocr (schappim's `ocr` CLI)
 -- is the sole backend for the OCR action, so it just sits last. Reorder this list
 -- to change screenshot priority; drop macshot to use only native (e.g. to
--- sidestep macshot's own capture bugs).
+-- sidestep macshot's own capture bugs). Native leads as of August 8, 2026 for
+-- the user's requested test pass, and macshot is demoted to second rather
+-- than removed, so it stays available once the test pass is done.
 spoon.Capture:init()
 spoon.Capture:configure({
   hyperKey = spoon.HyperKey,
   -- The dependency adapter reaches each provider through the engine, so a provider
   -- backed by an external tool asks for it by the name Capture declared instead of
   -- probing, and it stands aside with a plain reason when the tool is absent.
-  deps = depsFor("Capture"),
+  --
+  -- The resolver stamps every declaration under Olm.spoon with the one consumer name Olm,
+  -- since Olm is the single top level spoon and its plugins are internal structure rather
+  -- than spoons of their own. depsFor("Capture") stopped resolving anything once the
+  -- original spoon was deleted, so this reads depsFor("Olm") instead, which is where the
+  -- copy's own declarations already live.
+  deps = depsFor("Olm"),
   providers = {
-    spoon.Capture.providers.macshot,
     spoon.Capture.providers.native,
+    spoon.Capture.providers.macshot,
     spoon.Capture.providers.macocr,
   },
 })
@@ -2369,8 +2396,12 @@ local colorToastTimer
 spoon.Eyedropper:init()
 spoon.Eyedropper:configure({
   -- The Swift compiler that builds the native sampler, resolved once by the shared
-  -- door rather than by the spoon, so the spoon hardcodes no path.
-  compiler = depsFor("Eyedropper").path("swiftc"),
+  -- door rather than by the spoon, so the spoon hardcodes no path. The resolver
+  -- stamps every declaration under Olm.spoon with the one consumer name Olm, since
+  -- Olm is the single top level spoon and its plugins are internal structure rather
+  -- than spoons of their own, so this reads depsFor("Olm") rather than the name the
+  -- deleted original carried.
+  compiler = depsFor("Olm").path("swiftc"),
   onPick = function(hex)
     pickState.hex = hex
     pickState.color = hexToColor(hex)
@@ -2401,18 +2432,6 @@ end)
 bindHyper(keys.colorPicker, function()
   spoon.Eyedropper:pick()
 end)
-
--- WorkspaceEngine (depends on AppToggler, WindowManager)
-spoon.WorkspaceEngine:init()
-spoon.WorkspaceEngine:configure({
-  appToggler = spoon.AppToggler,
-  windowManager = spoon.WindowManager,
-  apps = apps,
-  settings = settings,
-})
-spoon.WorkspaceEngine:registerWorkspace(devWorkspace)
-spoon.WorkspaceEngine:registerWorkspace(vicertWorkspace)
-spoon.WorkspaceEngine:start()
 
 -- This machine's name, the one place the per host split is decided. Resolved
 -- once here for DisplayProfiles (later); the terminal's per-location memory keys
@@ -2501,9 +2520,13 @@ spoon.TerminalHandler:configure({
 })
 spoon.TerminalHandler:bindHotkeys({ terminal = keys.terminal })
 
--- DockAutoHide (standalone)
+-- DockAutoHide, turning the Dock's own auto hide setting on or off, reached only through its
+-- launcher row since the dock plugin packet of 2026-08-09 retired its standalone hotkey. The
+-- tools it shells out to, defaults and osascript, are resolved through the shared dependency
+-- door rather than being named here, so this reads depsFor("Olm") for the same reason every
+-- other Olm plugin wiring site in this file does.
 spoon.DockAutoHide:init()
-spoon.DockAutoHide:bindHotkeys({ toggle = keys.toggleDock })
+spoon.DockAutoHide:configure({ deps = depsFor("Olm") })
 
 -- DisplayProfiles: reapply the saved display arrangement that fits whatever
 -- screens are attached, so a dock waking monitors in the wrong order does not
@@ -2525,7 +2548,13 @@ spoon.DisplayProfiles:configure({
   storePath = hs.configdir .. "/config/display-profiles.json",
   -- The arrangement tool, resolved once by the shared door. Nil means it is absent, and
   -- the engine then manages nothing and says so, rather than probing for it itself.
-  binary = depsFor("DisplayProfiles").path("displayplacer"),
+  --
+  -- The resolver stamps every declaration under Olm.spoon with the one consumer name Olm,
+  -- since Olm is the single top level spoon and its plugins are internal structure rather
+  -- than spoons of their own. depsFor("DisplayProfiles") stopped resolving anything once the
+  -- original spoon was deleted, so this reads depsFor("Olm") instead, which is where the
+  -- copy's own declaration already lives.
+  binary = depsFor("Olm").path("displayplacer"),
 })
 spoon.DisplayProfiles:start()
 -- The inspect and manage chooser. Its api comes from the spoon, injected in configure above,

@@ -15,14 +15,10 @@ local overlayModes = {
 return {
   overlayModes = overlayModes,
 
-  -- Stage Manager margin (pixels to offset from left when active)
-  stageManagerMargin = 66,
-
   -- Gap around and between managed windows, in pixels. One value drives both the
   -- outer inset (the margins in init.lua) and the gutter between tiled halves, so
   -- the spacing stays uniform. Set to 0 to disable gaps entirely (windows go
-  -- flush to the screen edges and to each other). The Stage Manager margin above
-  -- is respected independently of this.
+  -- flush to the screen edges and to each other).
   gap = 0,
 
   -- Window animation (0 = instant)
@@ -36,12 +32,6 @@ return {
     preferredTerminal = "Ghostty",  -- App name from config/apps.lua
     size = { width = 2400, height = 1350 },
     minPadding = { x = 40, y = 20 },
-  },
-
-  -- Workspace timing
-  workspace = {
-    checkInterval = 0.5,      -- How often to poll for app readiness
-    timeout = 30,             -- Max seconds to wait per app
   },
 
   -- Window layout memory. Records every standard window's frame per display
@@ -157,5 +147,61 @@ return {
     resizePixels = 50,
     screenRecording = { width = 2400, height = 1350 },
     smallSize = { width = 700, height = 800 },
+  },
+
+  -- What physically means Hyper. Pure data, and the one place a person whose keyboard is not
+  -- this one says so. Two shapes, and they are genuinely different inputs rather than two
+  -- spellings of one, so each is named by a kind and the mechanism behind it is not decided
+  -- here at all.
+  --
+  -- { kind = "leader" } is a single physical key held down, which is what this machine uses.
+  -- The key itself is deliberately not named here, it is the appLeader row of the catalog in
+  -- config/keys.lua, remapped at the HID level, and only the composition root reads that
+  -- catalog. Hold it and press a letter to fire a binding, tap it alone to toggle real Caps
+  -- Lock, hold it alone to reveal the cheat sheet.
+  --
+  -- { kind = "chord", mods = { "shift", "ctrl", "alt", "cmd" } } is a modifier chord held
+  -- together, any subset of those four and at least one of them. Every binding declared
+  -- against Hyper is claimed on the chord plus whatever sub modifiers that binding already
+  -- declared, and holding the chord alone still reveals the cheat sheet after the same delay.
+  --
+  -- FOUR WAYS THE CHORD SHAPE IS NOT THE LEADER SHAPE, worth reading before choosing it, since
+  -- none of them is a defect waiting to be fixed. They all follow from a chord being a flag on
+  -- somebody else's event where a key is an event of its own.
+  --
+  -- A binding declaring sub modifiers does work, because the chord is taken back out of what
+  -- is held before any binding is matched, so a second tier key means the same thing under
+  -- either shape. But a binding whose sub modifiers overlap the chord does not work at all. It
+  -- collapses onto the base combination, the two become one physical thing to press, and the
+  -- plain binding is the one that answers. Nothing can repair that, so it is named in the
+  -- console once at load, and leaving shift out of the chord is how you keep a shift tier.
+  --
+  -- A combination that IS bound is claimed machine wide, so it is swallowed even at a moment
+  -- when every binding on it is gated shut by live state. The leader shape leaks such a combo
+  -- downstream to other apps instead. A combination nothing binds is left alone either way,
+  -- and under the chord shape it also runs no code here at all, so it cannot end a hold.
+  --
+  -- There is no tap, since a chord has no bare press and release to measure, so real Caps Lock
+  -- stays whatever the system makes of it.
+  --
+  -- The root reads this block and hands the hyperkey lib a finished descriptor, and that lib
+  -- owns one strategy per kind. So a third shape would be a strategy there plus a kind here,
+  -- and nothing in between would move. A kind nothing answers to, or a chord naming no
+  -- modifiers at all, falls back to the leader shape and says so in the console rather than
+  -- claiming the whole keyboard.
+  hyperTrigger = {
+    kind = "leader",
+    -- kind = "chord", mods = { "shift", "ctrl", "alt", "cmd" },
+  },
+
+  -- The two storage roots every plugin's data lives under, pure data with the
+  -- join done elsewhere, in Olm.spoon's storage module. cacheRoot holds
+  -- regenerable data, safe to delete since it only costs a rebuild. olmRoot
+  -- holds durable data, visible in the home directory since deleting it
+  -- loses something. Changing either is one line here, since the root is
+  -- the only place either name is written.
+  paths = {
+    cacheRoot = "~/.cache/hammerspoon",
+    olmRoot = "~/Olm",
   },
 }

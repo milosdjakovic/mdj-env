@@ -62,7 +62,11 @@ my_worktree() {
     || die "not inside a git worktree; run this from the checkout you want to test"
 }
 my_branch() { git -C "$PWD" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?"; }
-config_for() { echo "$1/dotfiles/hammerspoon/.hammerspoon/init.lua"; }
+
+# The file MJConfigFile points at for this worktree, the full composition root.
+config_for() {
+  echo "$1/dotfiles/hammerspoon/.hammerspoon/init.lua"
+}
 
 # The MJConfigFile value that is live right now. Empty means the key is unset,
 # which is plain main on ~/.hammerspoon.
@@ -132,7 +136,9 @@ pretty_since() {
 cmd_status() {
   local live; live="$(current_mj)"
   local live_label="$live"
-  [ -z "$live" ] && live_label="~/.hammerspoon (main)"
+  if [ -z "$live" ]; then
+    live_label="~/.hammerspoon (main)"
+  fi
 
   if [ -d "$LOCK_DIR" ] && [ -f "$HOLDER" ]; then
     local mode="short, auto reclaim after ${STALE_SECS}s"
@@ -165,7 +171,9 @@ cmd_acquire() {
 
   local wt br cfg
   wt="$(my_worktree)"; br="$(my_branch)"; cfg="$(config_for "$wt")"
-  [ -f "$cfg" ] || die "no Hammerspoon config at $cfg"
+  if [ ! -f "$cfg" ]; then
+    die "no Hammerspoon config at $cfg"
+  fi
   deadline=$(( $(now) + WAIT_TIMEOUT ))
   local announced=0
 

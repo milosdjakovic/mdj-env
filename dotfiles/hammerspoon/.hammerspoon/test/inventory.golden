@@ -1,0 +1,198 @@
+registry spoon count=33
+spoon AppToggler
+spoon Arithmetic
+spoon BrowserTabs
+spoon Caffeinate
+spoon CanvasPanel
+spoon Capture
+spoon CheatSheet
+spoon Chooser
+spoon ChordKey
+spoon ClipboardHistory
+spoon Convert
+spoon Dependencies
+spoon DisplayMemory
+spoon DisplayProfiles
+spoon DockAutoHide
+spoon Emoji
+spoon Eyedropper
+spoon FileSearch
+spoon HyperCheatSheet
+spoon HyperKey
+spoon KeyRemap
+spoon Launcher
+spoon Olm
+spoon Processes
+spoon QueryScope
+spoon SystemSettings
+spoon TerminalHandler
+spoon TextCase
+spoon Vpn
+spoon WindowCheatSheet
+spoon WindowLeader
+spoon WindowManager
+spoon WindowMemory
+registry chordkey count=2
+chordkey key=79 holdDelay=0.6 tapThreshold=0.2 passthrough=true onTap=true onHold=true onHoldEnd=true onKey=true
+chordkey key=106 holdDelay=0.6 tapThreshold=0.2 passthrough=true onTap=false onHold=true onHoldEnd=true onKey=true
+registry hypercheatsheet.apps count=35
+hypercheatsheet.app name=ActivityMonitor bundleID=com.apple.ActivityMonitor
+hypercheatsheet.app name=Alacritty bundleID=org.alacritty
+hypercheatsheet.app name=AndroidStudio bundleID=com.google.android.studio
+hypercheatsheet.app name=Arc bundleID=company.thebrowser.Browser
+hypercheatsheet.app name=Books bundleID=com.apple.iBooksX
+hypercheatsheet.app name=Bruno bundleID=com.usebruno.app
+hypercheatsheet.app name=ChatGPT bundleID=com.openai.chat
+hypercheatsheet.app name=ChatGPTAtlas bundleID=com.openai.atlas.web
+hypercheatsheet.app name=Claude bundleID=com.anthropic.claudefordesktop
+hypercheatsheet.app name=Cursor bundleID=com.todesktop.230313mzl4w4u92
+hypercheatsheet.app name=Docker bundleID=com.electron.dockerdesktop
+hypercheatsheet.app name=Finder bundleID=com.apple.finder
+hypercheatsheet.app name=Ghostty bundleID=com.mitchellh.ghostty
+hypercheatsheet.app name=GoogleChat bundleID=com.google.Chrome.app.mdpkiolbdkhdjpekfbkbmhigcaggjagi
+hypercheatsheet.app name=GoogleChrome bundleID=com.google.Chrome
+hypercheatsheet.app name=Hammerspoon bundleID=org.hammerspoon.Hammerspoon
+hypercheatsheet.app name=Kitty bundleID=net.kovidgoyal.kitty
+hypercheatsheet.app name=Mail bundleID=com.apple.mail
+hypercheatsheet.app name=Notes bundleID=com.apple.Notes
+hypercheatsheet.app name=Obsidian bundleID=md.obsidian
+hypercheatsheet.app name=Preview bundleID=com.apple.Preview
+hypercheatsheet.app name=PyCharm bundleID=com.jetbrains.pycharm
+hypercheatsheet.app name=Safari bundleID=com.apple.Safari
+hypercheatsheet.app name=Slack bundleID=com.tinyspeck.slackmacgap
+hypercheatsheet.app name=Stickies bundleID=com.apple.Stickies
+hypercheatsheet.app name=SystemSettings bundleID=com.apple.systempreferences
+hypercheatsheet.app name=TablePlus bundleID=com.tinyapp.TablePlus
+hypercheatsheet.app name=Terminal bundleID=com.apple.Terminal
+hypercheatsheet.app name=VisualStudioCode bundleID=com.microsoft.VSCode
+hypercheatsheet.app name=Warp bundleID=dev.warp.Warp-Stable
+hypercheatsheet.app name=WezTerm bundleID=com.github.wez.wezterm
+hypercheatsheet.app name=Xcode bundleID=com.apple.dt.Xcode
+hypercheatsheet.app name=Yomu bundleID=net.cecinestpasparis.yomu
+hypercheatsheet.app name=Zed bundleID=dev.zed.Zed
+hypercheatsheet.app name=iPhoneMirroring bundleID=com.apple.ScreenContinuity
+registry hypercheatsheet.toggles count=18
+hypercheatsheet.toggle app=ActivityMonitor key=\ mods=alt+cmd+ctrl+shift url=-
+hypercheatsheet.toggle app=Books key=B mods=alt+cmd+ctrl+shift url=-
+hypercheatsheet.toggle app=Claude key=A mods=alt+cmd+ctrl+shift url=-
+hypercheatsheet.toggle app=Docker key=D mods=alt+cmd+ctrl+shift url=-
+hypercheatsheet.toggle app=Finder key=F mods=alt+cmd+ctrl+shift url=-
+hypercheatsheet.toggle app=Ghostty key=` mods=alt+cmd+ctrl+shift url=-
+hypercheatsheet.toggle app=GoogleChrome key=C mods=alt+cmd+ctrl+shift url=-
+hypercheatsheet.toggle app=Mail key=M mods=alt+cmd+ctrl+shift url=-
+hypercheatsheet.toggle app=Notes key=N mods=alt+cmd+ctrl+shift url=-
+hypercheatsheet.toggle app=Obsidian key=O mods=alt+cmd+ctrl+shift url=-
+hypercheatsheet.toggle app=Preview key=R mods=alt+cmd+ctrl+shift url=-
+hypercheatsheet.toggle app=Safari key=S mods=alt+cmd+ctrl+shift url=-
+hypercheatsheet.toggle app=Slack key=L mods=alt+cmd+ctrl+shift url=-
+hypercheatsheet.toggle app=Stickies key=T mods=alt+cmd+ctrl+shift url=-
+hypercheatsheet.toggle app=SystemSettings key=, mods=alt+cmd+ctrl+shift url=x-apple.systempreferences:com.apple.systempreferences.GeneralSettings
+hypercheatsheet.toggle app=VisualStudioCode key=V mods=alt+cmd+ctrl+shift url=-
+hypercheatsheet.toggle app=Zed key=Z mods=alt+cmd+ctrl+shift url=-
+hypercheatsheet.toggle app=iPhoneMirroring key=I mods=alt+cmd+ctrl+shift url=-
+registry hypercheatsheet.items count=18
+hypercheatsheet.item key=, name=System Settings bundleID=com.apple.systempreferences
+hypercheatsheet.item key=A name=Claude bundleID=com.anthropic.claudefordesktop
+hypercheatsheet.item key=B name=Books bundleID=com.apple.iBooksX
+hypercheatsheet.item key=C name=Chrome bundleID=com.google.Chrome
+hypercheatsheet.item key=D name=Docker Desktop bundleID=com.electron.dockerdesktop
+hypercheatsheet.item key=F name=Finder bundleID=com.apple.finder
+hypercheatsheet.item key=I name=iPhone Mirroring bundleID=com.apple.ScreenContinuity
+hypercheatsheet.item key=L name=Slack bundleID=com.tinyspeck.slackmacgap
+hypercheatsheet.item key=M name=Mail bundleID=com.apple.mail
+hypercheatsheet.item key=N name=Notes bundleID=com.apple.Notes
+hypercheatsheet.item key=O name=Obsidian bundleID=md.obsidian
+hypercheatsheet.item key=R name=Preview bundleID=com.apple.Preview
+hypercheatsheet.item key=S name=Safari bundleID=com.apple.Safari
+hypercheatsheet.item key=T name=Stickies bundleID=com.apple.Stickies
+hypercheatsheet.item key=V name=Code bundleID=com.microsoft.VSCode
+hypercheatsheet.item key=Z name=Zed bundleID=dev.zed.Zed
+hypercheatsheet.item key=\ name=Activity Monitor bundleID=com.apple.ActivityMonitor
+hypercheatsheet.item key=` name=Ghostty bundleID=com.mitchellh.ghostty
+registry hypercontexts count=12
+hypercontexts.context name=browserTabs when=browserTabsOpen priority=100 bindingCount=4
+hypercontexts.context name=caffeinate when=caffeinateOpen priority=100 bindingCount=2
+hypercontexts.context name=clipboard when=clipboardOpen priority=100 bindingCount=8
+hypercontexts.context name=displayProfiles when=displayProfilesOpen priority=100 bindingCount=4
+hypercontexts.context name=emoji when=emojiOpen priority=100 bindingCount=4
+hypercontexts.context name=fileSearch when=fileSearchOpen priority=100 bindingCount=11
+hypercontexts.context name=launcher when=launcherOpen priority=100 bindingCount=5
+hypercontexts.context name=menuSearch when=menuSearchOpen priority=100 bindingCount=4
+hypercontexts.context name=overlayDisplay when=overlayDisplayOpen priority=100 bindingCount=4
+hypercontexts.context name=processes when=processesOpen priority=100 bindingCount=7
+hypercontexts.context name=textCase when=textCaseOpen priority=100 bindingCount=4
+hypercontexts.context name=vpn when=vpnOpen priority=100 bindingCount=4
+hypercontexts.binding context=browserTabs key=i mods=- action=enter when=- chord=true needs=- description=Select
+hypercontexts.binding context=browserTabs key=j mods=- action=selectNext when=- chord=true needs=- description=Move down
+hypercontexts.binding context=browserTabs key=k mods=- action=selectPrev when=- chord=true needs=- description=Move up
+hypercontexts.binding context=browserTabs key=x mods=- action=closeChooser when=- chord=true needs=- description=Close
+hypercontexts.binding context=caffeinate key=i mods=- action=insertSelected when=- chord=true needs=- description=Confirm
+hypercontexts.binding context=caffeinate key=x mods=- action=closeChooser when=- chord=true needs=- description=Close
+hypercontexts.binding context=clipboard key=a mods=- action=appendSelected when=- chord=true needs=- description=Append to batch
+hypercontexts.binding context=clipboard key=d mods=- action=deleteSelected when=- chord=true needs=- description=Delete
+hypercontexts.binding context=clipboard key=i mods=- action=insertSelected when=- chord=true needs=- description=Paste
+hypercontexts.binding context=clipboard key=j mods=- action=selectNext when=- chord=true needs=- description=Move down
+hypercontexts.binding context=clipboard key=j mods=cmd action=scrollPreviewDown when=- chord=true needs=- description=Scroll preview down
+hypercontexts.binding context=clipboard key=k mods=- action=selectPrev when=- chord=true needs=- description=Move up
+hypercontexts.binding context=clipboard key=k mods=cmd action=scrollPreviewUp when=- chord=true needs=- description=Scroll preview up
+hypercontexts.binding context=clipboard key=x mods=- action=closeChooser when=- chord=true needs=- description=Close
+hypercontexts.binding context=displayProfiles key=i mods=- action=enter when=- chord=true needs=- description=Select
+hypercontexts.binding context=displayProfiles key=j mods=- action=selectNext when=- chord=true needs=- description=Move down
+hypercontexts.binding context=displayProfiles key=k mods=- action=selectPrev when=- chord=true needs=- description=Move up
+hypercontexts.binding context=displayProfiles key=x mods=- action=closeChooser when=- chord=true needs=- description=Close
+hypercontexts.binding context=emoji key=i mods=- action=insertSelected when=- chord=true needs=- description=Insert
+hypercontexts.binding context=emoji key=j mods=- action=selectNext when=- chord=true needs=- description=Move down
+hypercontexts.binding context=emoji key=k mods=- action=selectPrev when=- chord=true needs=- description=Move up
+hypercontexts.binding context=emoji key=x mods=- action=closeChooser when=- chord=true needs=- description=Close
+hypercontexts.binding context=fileSearch key=h mods=- action=browseUp when=- chord=true needs=- description=Up a level
+hypercontexts.binding context=fileSearch key=i mods=- action=insertSelected when=- chord=true needs=- description=Open
+hypercontexts.binding context=fileSearch key=j mods=- action=selectNext when=- chord=true needs=- description=Move down
+hypercontexts.binding context=fileSearch key=j mods=cmd action=scrollPreviewDown when=- chord=true needs=scrollablePreview description=Scroll preview down
+hypercontexts.binding context=fileSearch key=k mods=- action=selectPrev when=- chord=true needs=- description=Move up
+hypercontexts.binding context=fileSearch key=k mods=cmd action=scrollPreviewUp when=- chord=true needs=scrollablePreview description=Scroll preview up
+hypercontexts.binding context=fileSearch key=l mods=- action=browseInto when=- chord=true needs=- description=Into folder
+hypercontexts.binding context=fileSearch key=o mods=- action=revealInFinder when=- chord=true needs=- description=Reveal in Finder
+hypercontexts.binding context=fileSearch key=q mods=- action=peekPreview when=- chord=true needs=askedPreview description=Quick Look
+hypercontexts.binding context=fileSearch key=x mods=- action=closeChooser when=- chord=true needs=- description=Close
+hypercontexts.binding context=fileSearch key=y mods=- action=copyPath when=- chord=true needs=- description=Copy path
+hypercontexts.binding context=launcher key=delete mods=- action=leavePage when=launcherHostingList chord=false needs=- description=Go back
+hypercontexts.binding context=launcher key=i mods=- action=insertSelected when=- chord=true needs=- description=Run
+hypercontexts.binding context=launcher key=j mods=- action=selectNext when=- chord=true needs=- description=Move down
+hypercontexts.binding context=launcher key=k mods=- action=selectPrev when=- chord=true needs=- description=Move up
+hypercontexts.binding context=launcher key=space mods=- action=closeChooser when=- chord=true needs=- description=Close
+hypercontexts.binding context=menuSearch key=i mods=- action=insertSelected when=- chord=true needs=- description=Run
+hypercontexts.binding context=menuSearch key=j mods=- action=selectNext when=- chord=true needs=- description=Move down
+hypercontexts.binding context=menuSearch key=k mods=- action=selectPrev when=- chord=true needs=- description=Move up
+hypercontexts.binding context=menuSearch key=x mods=- action=closeChooser when=- chord=true needs=- description=Close
+hypercontexts.binding context=overlayDisplay key=i mods=- action=insertSelected when=- chord=true needs=- description=Select
+hypercontexts.binding context=overlayDisplay key=j mods=- action=selectNext when=- chord=true needs=- description=Move down
+hypercontexts.binding context=overlayDisplay key=k mods=- action=selectPrev when=- chord=true needs=- description=Move up
+hypercontexts.binding context=overlayDisplay key=x mods=- action=closeChooser when=- chord=true needs=- description=Close
+hypercontexts.binding context=processes key=f mods=- action=stopForced when=- chord=true needs=- description=Force stop
+hypercontexts.binding context=processes key=i mods=- action=insertSelected when=- chord=true needs=- description=Stop
+hypercontexts.binding context=processes key=j mods=- action=selectNext when=- chord=true needs=- description=Move down
+hypercontexts.binding context=processes key=k mods=- action=selectPrev when=- chord=true needs=- description=Move up
+hypercontexts.binding context=processes key=r mods=- action=refreshList when=- chord=true needs=- description=Rescan
+hypercontexts.binding context=processes key=s mods=- action=sortByLoad when=- chord=true needs=- description=Sort by load
+hypercontexts.binding context=processes key=x mods=- action=closeChooser when=- chord=true needs=- description=Close
+hypercontexts.binding context=textCase key=i mods=- action=insertSelected when=- chord=true needs=- description=Apply
+hypercontexts.binding context=textCase key=j mods=- action=selectNext when=- chord=true needs=- description=Move down
+hypercontexts.binding context=textCase key=k mods=- action=selectPrev when=- chord=true needs=- description=Move up
+hypercontexts.binding context=textCase key=x mods=- action=closeChooser when=- chord=true needs=- description=Close
+hypercontexts.binding context=vpn key=i mods=- action=insertSelected when=- chord=true needs=- description=Confirm
+hypercontexts.binding context=vpn key=j mods=- action=selectNext when=- chord=true needs=- description=Move down
+hypercontexts.binding context=vpn key=k mods=- action=selectPrev when=- chord=true needs=- description=Move up
+hypercontexts.binding context=vpn key=x mods=- action=closeChooser when=- chord=true needs=- description=Close
+registry choosers count=12
+choosers.entry clipManager
+choosers.entry menuSearchSurface
+choosers.entry overlayDisplaySurface
+choosers.entry spoon.BrowserTabs.chooser
+choosers.entry spoon.Caffeinate
+choosers.entry spoon.DisplayProfiles.chooser
+choosers.entry spoon.Emoji:surface()
+choosers.entry spoon.FileSearch.chooser
+choosers.entry spoon.Launcher:surface()
+choosers.entry spoon.Processes.chooser
+choosers.entry spoon.TextCase:surface()
+choosers.entry spoon.Vpn

@@ -15,14 +15,15 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
 
 **External tools, and the one door to them.** A spoon that needs something from
 outside Hammerspoon declares it in a plain declaration file, five fields per line,
-name, kind, locator, policy, and what breaks without it. `Dependencies.spoon` reads
-every such file at load with nothing listed in the root, probes them in one pass, and
+name, kind, locator, policy, and what breaks without it. The dependency door, now
+`Spoons/Olm.spoon/lib/deps.lua`, reads every such file at load with nothing listed
+in the root, probes them in one pass, and
 hands each spoon a per consumer adapter through `scope(name)`. That adapter is the only
 way a spoon may obtain an external tool, and it answers only for what that spoon
 declared, so an undeclared ask returns nothing and names the spoon in the console.
 Adding a declaration is one file and no wiring. The internals, the four kinds, the two
-policies, and where the line is drawn on what is worth declaring, are in
-`Spoons/Dependencies.spoon/CLAUDE.md`.
+policies, and where the line is drawn on what is worth declaring, are documented in
+`Spoons/Olm.spoon/lib/deps.lua`.
 
 **A declaration sits beside whatever knows the tool.** Two names are recognised
 anywhere under a spoon. A file called `dependencies` declares needs of the spoon as a
@@ -67,6 +68,19 @@ line in the VPN row was a second copy of an answer the repository already held o
 it is a disabled row and a console line that name the gap and stop, and the repository
 answers where the tool comes from.
 
+**A core kind is the one exception, and it says so.** A plugin under
+`Spoons/Olm.spoon/plugins/` names a capability handed out by Olm itself, `paste` or
+`recency`, through the same five field line and the same collector, but this line decides
+injection rather than installation. Nothing under this kind gets installed, its whole
+answer already sits inside the repository, at a lib file the map still names, under one
+new origin called `olm`, so the map stays the single place that says where any name comes
+from. The reconciler ties every `spoon.Olm.lib.` reference across the module back to a
+declaration carrying this kind, a capability handed out with no line naming it is an
+error, and a declared one nothing reads is a question rather than a defect. A plugin never
+reaches for `spoon.Olm` on its own either way, it only ever receives its slice through its
+own `configure`, so the door this kind opens is the same one every other kind already
+keeps.
+
 A need that belongs to the whole module rather than to any spoon goes in
 `dotfiles/hammerspoon/dependencies-module`, which the collector folds in first and
 stamps with the module name. Today that is the Hammerspoon application itself, which
@@ -101,8 +115,8 @@ has a stated reason.
 unused function keys, named for the classic X11/Emacs modifier hierarchy,
 ascending with the Fn number. Hammerspoon owns the remap now, not a login
 LaunchAgent. `config/keys.lua` holds a pure `leaderKeys` catalog, one row per
-remappable key giving only its physical source and target Fn key, and
-`KeyRemap.spoon` turns the active rows into one `hidutil` `UserKeyMapping` and
+remappable key giving only its physical source and target Fn key, and Olm's
+KeyRemap plugin turns the active rows into one `hidutil` `UserKeyMapping` and
 applies it on load, clearing on quit. A single `--set` replaces the whole table,
 so each apply is idempotent and frees any dropped key.
 
@@ -132,13 +146,13 @@ right (both report `cmd`/`alt`). Remapping each to a plain function key gives
 clean, side-specific events an `hs.eventtap` can measure and swallow. No
 Karabiner or extra daemon.
 
-The hold/tap/chord mechanism is one shared spoon, `ChordKey.spoon`: a single
+The hold/tap/chord mechanism is one shared engine, `Spoons/Olm.spoon/lib/chordkey.lua`, a single
 `hs.eventtap` serves every registered key (each added via `addKey` with
 overridable hold/tap defaults), so N leaders cost one tap, not N. Today that is
 Caps Lock and Right Option; Right Command is defined but not registered. It owns only
 the state machine — swallow other keys while held, fire `onTap` on a quick
 release (Caps Lock's real toggle), fire `onHold(keyCode)` once ~0.6s pass with
-no other key. `HyperKey.spoon` and `WindowLeader.spoon` are thin domain adapters
+no other key. Olm's HyperKey and WindowLeader plugins are thin domain adapters
 over it: they keep their public contracts (`HyperKey:bind`/`isActive` for
 AppToggler/ClipboardHistory, `WindowLeader:bind`/`addLeader` for WindowManager)
 and supply the per-key lookup. Both now share one mods-aware resolver (Hyper and
@@ -169,7 +183,7 @@ reject them; the trade is that the three leaders stay distinct, which one shared
 Hyper modifier combo could not give.
 
 `onHold` reveals a cheat sheet, and both cheat sheets draw through one shared
-grid renderer, `CheatSheet.spoon` (dark panel, key-badge rows filled row-major
+grid renderer, `Spoons/Olm.spoon/lib/cheatsheet.lua` (dark panel, key-badge rows filled row-major
 across columns). `HyperCheatSheet` and `WindowCheatSheet` only build the content
 model, so the drawing never diverges. Its appearance (opacity, background,
 corner radius, font, padding) is global: set once via `CheatSheet:configure`
@@ -296,11 +310,39 @@ main. For ordinary in place work on the already live config, reload with `hs -c
 "hs.reload()"` as above. The worktree lock is only for taking a worktree's own
 copy live in isolation.
 
+The lean test surface, a minimal `lean-init.lua` composition root loading only the
+tool a given build phase was testing, served the olm build plan through its run of
+phases and was retired once the last of them landed. `bin/hs-devlock` no longer
+carries the `--lean` acquire it once used to take that surface live.
+
+The console is a gate, read it after every load. The unit runner and the
+inventory snapshot only see what they ask about, and a spoon that fails to load
+still leaves both green while the console carries the error. So after every
+reload, every lock switch, and every land that goes live, read the console and
+treat any error line as a failing gate. With the port up, ask
+`hs.console.getConsole()` through a dofile script and grep the text. With the
+port dead, the config almost certainly died before reaching the `hs.ipc` require
+near the end of `init.lua`, which means the dead port is itself the symptom of a
+load error, and the console can still be read from outside through accessibility,
+`osascript` asking System Events for the text area of the Hammerspoon Console
+window. Never relaunch Hammerspoon to recover before capturing the console,
+since a relaunch wipes the scrollback that holds the only copy of the error.
+
+Stow only links what existed the last time it ran. The resting main config at
+`~/.hammerspoon` is a folded stow tree, a real `Spoons` directory holding one
+symlink per spoon, so a spoon directory born after the last stow run is simply
+absent from it, and `hs.loadSpoon` fails on resting main while every worktree
+test passes, because the devlock points Hammerspoon at the checkout directly and
+the checkout always has every file. After landing anything that adds a new top
+level entry to the hammerspoon package, a new spoon or a new file beside
+`init.lua`, rerun stow for the package and then confirm resting main loads with
+a clean console. Landing on main is not done until the stowed view proves it.
+
 **DisplayProfiles.** Keeps display arrangements deterministic on top of what
 macOS remembers, using the `displayplacer` command line tool (in the Brewfile).
 macOS still scrambles the main display, scaling, or window positions when a dock
 wakes monitors in a different order, and the Settings UI cannot force a layout
-back. `DisplayProfiles.spoon` watches screen changes with `hs.screen.watcher` and
+back. Olm's DisplayProfiles plugin watches screen changes with `hs.screen.watcher` and
 reapplies the saved arrangement that fits whatever is attached. It is the
 mechanism only, it never names a machine or a layout. `config/displays.lua` holds
 the pure data, a list of profiles per machine keyed by `LocalHostName` (read with
@@ -349,9 +391,9 @@ predicate, the `displayProfiles` Hyper context in `config/keys.lua`, the
 lives inside the watched tree, the pathwatcher callback skips a reload when only
 `display-profiles.json` changed, and the chooser rebuilds the engine in memory
 after a write, so a capture is live with no reload. The internal decisions live
-in `Spoons/DisplayProfiles.spoon/CLAUDE.md`. Adding the original spoon needed a
-restow, but the new sibling files inside it did not, they resolve through the
-existing symlink.
+in `Spoons/Olm.spoon/plugins/displayprofiles/CLAUDE.md`. Adding the original spoon
+needed a restow, but the new sibling files inside it did not, they resolve through
+the existing symlink.
 
 **Terminal placement, and remembering the display.** Option+\` toggles the
 terminal through `TerminalHandler.spoon`, which now is pure mechanism. It no
@@ -361,7 +403,7 @@ composition root in `init.lua` supplies it. This is Strategy wired through
 injection, fed by an Observer, so the engine stays ignorant of both the default
 and the memory.
 
-`DisplayMemory.spoon` is the Observer and the only reusable part of the memory. It
+Olm's DisplayMemory plugin is the Observer and the only reusable part of the memory. It
 watches one app's windows with an `hs.window.filter` on the terminal's bundle id,
 and on every `windowMoved` records the display the window lands on, whether it was
 dragged there or moved by the META leader's prev/next display. Identity is the
@@ -493,13 +535,13 @@ the composition root, that is still top down configuration and a separate entity
 would be single caller ceremony, which is why `TerminalHandler.targetScreen` and
 the overlay screen strategy are just injected closures in `init.lua`. If it has its
 own state or lifecycle it becomes a coordinator, itself a spoon following this same
-contract, instantiated in `init.lua` like any other, which is what `Launcher.spoon`
-is. Most combinations already have a natural owning engine and the glue belongs
-inside it as injected providers, the Capture.spoon layout below, so a standalone
+contract, instantiated in `init.lua` like any other, which is what Olm's Launcher
+host is. Most combinations already have a natural owning engine and the glue belongs
+inside it as injected providers, the Capture plugin's layout below, so a standalone
 coordinator is reserved for glue that has no natural owner and holds state.
 
 **Structuring a spoon with swappable behavior.** When a spoon has a mechanism
-plus interchangeable backends, follow the Capture.spoon layout, which is the
+plus interchangeable backends, follow the Capture plugin's layout, which is the
 concrete form of the design principles in the global config. init.lua is the
 composition root and only that. It loads the pieces, names the concrete
 providers, sets the default order, and returns the assembled spoon. engine.lua
@@ -560,11 +602,11 @@ gets its own `CLAUDE.md` beside its `init.lua`, holding that spoon's internal
 decisions, the tradeoffs it made, and why, what it deliberately does not do, what
 it degrades to, and what would break if the shape changed. That file answers why
 the spoon is shaped this way and never narrates the code line by line, since the
-code sits right there. `Launcher.spoon` is the worked example, and `ChordKey` and
+code sits right there. Olm's Launcher host is the worked example, and `ChordKey` and
 `HyperKey` document the hold, tap, chord engine and its adapter.
 
-Create one only when the spoon earns it, a thin mechanism like `DockAutoHide`
-or `KeyRemap` stays covered by its paragraph here, which is the same reject
+Create one only when the spoon earns it, a thin mechanism like `KeyRemap`
+or `Eyedropper` stays covered by its paragraph here, which is the same reject
 ceremony rule the design principles set. Three rules keep the split honest. The
 decision and its doc live together, so a change to a spoon's internals edits that
 spoon's `CLAUDE.md` in the same commit, while a change to how spoons are wired
@@ -598,7 +640,7 @@ shows the install command as plain subtitle data and copies it on selection, and
 nothing about which key copies it.
 
 **Wiring a list tool into the Hyper contexts.** The picker atom gives only the
-widget. `Chooser.spoon` wraps the native `hs.chooser` and backs every list tool,
+widget. `Spoons/Olm.spoon/lib/chooser` wraps the native `hs.chooser` and backs every list tool,
 the clipboard, the VPN locations, caffeinate, menu search, the launcher, the
 display profiles menu, and the emoji picker. It
 once had a second webview backend built on a `Surface.spoon`, selectable per
@@ -614,8 +656,8 @@ step mirroring what the clipboard already does.
 1. Expose a control surface. The tool, or each of its surfaces, offers dot called
    `isShowing` plus the navigation methods its bindings name, such as
    `selectNext`, `selectPrev`, `insertSelected`, and `hide`. A Chooser instance
-   uses colon methods, so wrap it in a thin dot called adapter, as `Vpn.spoon`
-   does for its location picker.
+   uses colon methods, so wrap it in a thin dot called adapter, as Olm's Vpn
+   plugin does for its location picker.
 2. Add a context block in `config/keys.lua` under `hyperContexts`, with a name, a
    `when` predicate name, a priority, and the bindings by action name. This stays
    pure data.
@@ -862,7 +904,7 @@ to delete.
 **One matching policy for every chooser.** How a query filters a list is a single
 policy, decided once at the root and shared by every chooser, the same Strategy
 through injection shape as the overlay display screen. The matcher lives in one
-file, `Chooser.spoon/match.lua`, a pure `match(query, hay) -> score or nil` where
+file, `Spoons/Olm.spoon/lib/chooser/match.lua`, a pure `match(query, hay) -> score or nil` where
 nil drops a row and a number ranks it, higher first with the original order breaking
 ties. `Chooser.matchers` exposes the strategies, `fuzzy`, `substring` (the pre-fuzzy
 behaviour, a plain substring test where every match scores zero so the list keeps its
@@ -1071,135 +1113,20 @@ assumed could never happen. `store.replaceText` is the only way it happens, so t
 recompute that keeps identity honest lives there alone, and `ui.entryChanged` drops that entry's
 cached searchable text, without which a search would keep missing the words just appended.
 
-The walk does not paste text at all, it hands it straight to the focused field through
-`monitor.insertText`, which sets `AXSelectedText` on the focused accessibility element. That lands
-three to fourteen milliseconds after the press, measured, and involves neither the pasteboard nor
-the keyboard, so there is nothing to serialise on, nothing to put back, and nothing to wait out,
-and taps land as fast as they come. A paste can never be that, and not because of anything on our
-side. The unavoidable cost in a paste is the receiving app reading the pasteboard, its work on its
-own clock, and until it has nothing may write there again. Anything that is not text, and any field
-that refuses `AXSelectedText`, falls back to a real paste and pays that cost, because there is no
-other way in for those.
-
-The fallback paste passes `reorder = false`, so it reads the list without rewriting the order it is
-reading, and puts the clipboard back once the burst is over, so however far it has gone a plain
-paste still means the newest entry. It restores to one snapshot taken when the walk began rather
-than one per step, since a per step snapshot would capture the previous step's own content. Steps
-also serialise on a settle callback, because two overlapping pastes would have the first one's
-restore land on top of the second one's content.
-
-Every paste path in the manager now funnels through one primitive in `monitor.lua`, with
-reordering, restoring, and the settle callback passed in as options rather than baked in, which is
-what let the walk reuse the proven path instead of growing a second one. `pasteText` became a
-synthetic op through that same primitive.
-
-Every restore in this file, the one right after a plain paste, the one that waits out a quiet
-window, and the one wrapped around a selection read by Cmd+C, now answers to one guard,
-`pasteboardStillOurs`, rather than to changeCount alone. An unmoved count still means nothing has
-touched the pasteboard since the write, and the restore is plainly safe on that alone, exactly as
-it always was. A moved count used to be read as proof on its own that a real copy had claimed the
-pasteboard, and that reading is naive, because the very case `selfSigs` already exists for, a
-receiving app rewriting the pasteboard with the same content when it takes our paste, moves the
-count a second time while carrying nothing new. So a moved count now falls through to content
-instead of ending the question there, asking whether what sits on the pasteboard right now still
-is the thing the recorded signature describes, rather than only whether the count changed. That
-signature now travels out of `writeEntry` alongside the boolean that says whether anything was
-written, since the restore that fires later is what needs it, and a value returned only for the
-caller that asks for it costs nothing to every caller that already ignored it. Getting the
-question wrong in one direction abandons a restore that was never actually at risk and leaves our
-own pasted text sitting on the user's clipboard, which is the very thing the restore exists to
-prevent. Getting it wrong the other way is worse, since writing the old clipboard over a genuine
-copy does not merely misfile it, it destroys it outright, and the user loses something they just
-copied with nothing left to recover. That asymmetry is why the ambiguous case is resolved by
-content rather than by a guess. A write with no signature, an image, has no second opinion
-available and still answers to the count alone exactly as it always did. When a restore is
-abandoned the recorded count is deliberately left alone, so the next poll tick sees the new
-content as a change and captures it as the fresh entry it really is, rather than the restore
-hiding it the way a successful restore hides its own write. The signature is read back narrowly,
-the same way it was written, rather than through the full capture reader chain, since the only
-question a restore ever asks is whether this one write, or its echo, is still there, never what
-kind of thing arrived instead. The same guard covers all three restores named above, and the
-quiet window one waits the longest, so it is the likeliest place a genuine copy actually lands
-before a restore would otherwise overwrite it.
-
-Both keys post their synthetic stroke while the chord that asked for it is still physically held,
-which is a hazard none of the earlier keystroke paths faced, since every one of them fires either
-after a chooser closed or from Hyper, and Hyper is Caps Lock through ChordKey so it holds nothing
-down. The append failed on every press with nothing selected, while the identical read through
-TextCase, on Hyper, worked every time, which made the held modifiers look certain. They were not,
-and the wrong turn cost more than the fix, so the measurements are recorded here.
-
-A posted stroke does not carry the held modifiers. An event tap sees exactly the modifiers asked
-for, held keys and all, and a real app copies and pastes happily with a chord asserted, and a probe
-that pasted through three delivery mechanisms during a genuine physical hold had all three arrive,
-including the plain `keyStroke`. So nothing waits for a release, and neither key needs one.
-
-That does not make a synthetic stroke against a held chord reliable, and it is not. The walk sent
-one Cmd+V per step into Antinote, with the log showing every write, every stroke and `held=alt+ctrl`
-each time, and not one of them pasted anything. The stroke goes out and the app simply does not act
-on it. No delay fixes that, because the app is not being asked too early, it is refusing. It arrived
-once in a probe and never in real use, so the conclusion is that it cannot be relied on and not that
-it never works, and rather than chase which apps behave which way, text now avoids the keyboard
-entirely. What remains behind a synthetic stroke is an image or a file, where there is no
-alternative, and that is worth knowing when one of those does not land during a hold.
-
-What does interfere is posting the stroke in the same instant the key that asked for it is still
-being delivered, and that alone was the bug. The paste path always waited `pasteDelay` before its
-Cmd+V and never showed the fault, the read path posted its Cmd+C immediately and always did.
-`copyDelay` in `monitor.lua` is that missing beat. The failure is invisible from inside, the
-pasteboard write succeeds and only the app's response is missing, so a read that times out logs
-the frontmost app and the modifiers held, because nothing selected and the app ignored us are
-otherwise the same event.
-
-Two other attempted fixes were removed and are worth not repeating. Clearing the held modifiers by
-posting key events on their keycodes does nothing at all, since the modifier state is derived from
-`flagsChanged` events alone. Clearing it properly with a hand built `flagsChanged` event does move
-the state but cannot be timed, because the app processes the stroke well after the restore has
-already run.
-
-Presses that land inside an unsettled paste are queued rather than dropped, capped at a handful. A
-paste takes about a quarter of a second to settle and tapping faster than that is ordinary, so
-dropping was what made a fast burst look like it pasted only part of what was asked for. They
-still never overlap, since two pastes in flight would have the first one's restore land on top of
-the second one's content, and a walk that ends discards whatever was queued for it.
-
-Queueing them exposed the constraint the drops had been hiding, and it is the receiving app's
-clock, not ours. The gap between our Cmd+V and the next write of any kind is all the time that app
-has to read what we pasted, and an app slower than that reads whatever replaced it, so it pastes
-the wrong entry or nothing. Draining a queued press the instant a paste settled left only the
-settle delay, and a burst went back to delivering part of itself, which is the same symptom the
-drops caused and a different cause. `sequenceDrainDelay` is the gap, one number, and the restore at
-the end of a burst waits a hair longer than it so a step already queued wins the tie and cancels
-it, which is also what leaves a burst with one restore instead of one between every pair. Both
-sides of that pair come from the one number, in `session.lua`, because the caller is what knows the
-cadence, and `monitor.lua` takes the delay as an option rather than choosing one.
-
-All of that now applies only to an image or a file, since text no longer goes through the
-pasteboard. It stays because those still do, and because it is the general shape of the problem.
-Half a second an entry is what a paste costs and it reads as sluggish, which is the other half of
-why text does not use one.
-
-None of this is visible from inside, the write always succeeds and only the app's response is
-missing, so `manager.setLogLevel("debug")` makes both modules print one timeline with millisecond
-stamps, the press, the queue depth, each write, each Cmd+V, each settle and the restore. Every
-theory about these two keys that was argued rather than measured turned out wrong, so measure. The
-same switch shows a paste of ours mistaken for a copy, which would end a walk for no visible
-reason, since `noteCapture` logs every capture it is told about.
-
-Two hazards from probing this live are worth not repeating. A synchronous AppleScript from
-Hammerspoon to an app that is launching or activating can deadlock, TextEdit waiting on the main
-thread we are blocking, which freezes every hotkey in the config until the AppleEvent times out,
-and killing the app only makes the pending event relaunch it into the same deadlock. Drive a paste
-into an `hs.chooser` query field instead, a real focused text field inside our own process whose
-contents can be read back. And check the screen is unlocked before measuring delivery, since a
-locked screen leaves `loginwindow` frontmost and every paste goes there, which looks exactly like a
-paste that did not land.
+Both keys, the append and the sequential walk, are built on the shared insertion primitives that
+used to live only here, direct insertion against a paste, the restore guard, the held chord hazard,
+the queue against the receiving app's own clock, and how to measure any of it. That trail moved to
+`Spoons/Olm.spoon/CLAUDE.md`, in its Paste section, once the primitives themselves moved into the
+core as `lib/paste.lua`. It stayed duplicated here for a while on purpose, since the original spoon
+still embodied it on the other side of the composition root's toggle and a reader landing on this
+file needed it to be true there too. The original is retired now, so this file keeps only this one
+pointer where that whole trail used to sit, and the full account lives beside the code it describes.
 
 Both actions report what they did, since each changes something invisible, an entry growing
 offscreen and a position in a list. The message goes out through an injected `onMessage` and the
 root draws it on the shared `CanvasPanel`, following the transient feedback surface rule above.
 
-**Launcher.** Hyper+Space opens a filterable app switcher and command runner, the built-in one, built over the Chooser atom. It is a coordinator spoon that owns the app scan caches and an `hs.application.watcher`, orders open apps by recency the way Command+Tab does, and follows the picker checklist above. Its decision trail and internals live in `Spoons/Launcher.spoon/CLAUDE.md`.
+**Launcher.** Hyper+Space opens a filterable app switcher and command runner, the built-in one, built over the Chooser atom. It is a coordinator spoon that owns the app scan caches and an `hs.application.watcher`, orders open apps by recency the way Command+Tab does, and follows the picker checklist above. Its decision trail and internals live in `Spoons/Olm.spoon/host/launcher/CLAUDE.md`.
 
 Besides its catalog of apps and commands it also shows rows *computed* from what is
 typed, supplied by injected query row sources the root composes in order. A source is
@@ -1217,7 +1144,7 @@ source is a bound shortcut, so both are exempt from the two discoverability mand
 A source may also *claim* the query, meaning its rows are the whole list and the catalog is
 not shown at all, which is how a typed word hands the launcher over to one tool. An alias
 plus a space scopes the list, so `k 2h` reaches the keep awake picker without leaving the
-launcher and deleting the space hands the list back. `QueryScope.spoon` is the source that
+launcher and deleting the space hands the list back. Olm's QueryScope host is the source that
 claims, and it names no tool. This root names the concrete scopes, each a thin adapter over
 a tool that already answers a rows and a select, so a tool never learns it can be scoped.
 
@@ -1244,13 +1171,14 @@ hands out the data rather than inviting a second copy of the parse, so two surfa
 disagree about what a typed value means. Nothing here is a bound shortcut, so the mandates do
 not apply, and discoverability is the alias hint on the tool's existing launcher row. The
 grammar, why no scope is remembered between keystrokes, and why a claim holds even when nothing
-matched, live in `Spoons/QueryScope.spoon/CLAUDE.md`. Adding the spoon needed a restow, since
+matched, live in `Spoons/Olm.spoon/host/queryscope/CLAUDE.md`. Adding the spoon needed a restow, since
 `~/.hammerspoon/Spoons` holds one symlink per spoon.
 
 The scopes come in three shapes, which is the useful thing to know before adding one. Some are
 the plain shape above, a tool exporting its rows and its select, which is keep awake, VPN,
-emoji, browser tabs, and file search. Menu search and the alias directory are root policy
-rather than a spoon, so the root is both the adapter and the thing adapted. Apps, window
+emoji, browser tabs, and file search. Menu search is an olm plugin configured from the root
+now. The alias directory alone is root policy rather than a spoon, so the root is both the
+adapter and the thing adapted there. Apps, window
 actions and System Settings panes
 are neither, they narrow the launcher's own catalog, so they read `Launcher:rowsOfKind(kind)` and
 hand a chosen row back through `Launcher:runItem`, which keeps one row builder and one dispatcher
@@ -1347,7 +1275,7 @@ matched. So `/ ` lists rows with no pane, exactly as it did before the pane exis
 nothing the alias was for is missing. The same test the text case scope failed and the browser
 tabs scope passed, applied to a pane instead of to a second level.
 
-**Emoji.** Hyper+J opens an emoji picker. Emoji is a facade over interchangeable backends, the same shape as Chooser, so the root names which one the key opens in a priority ordered list by reference and the first available wins. Three backends ship, the built in picker over the Chooser atom, the macos Character Viewer triggered by Ctrl Cmd Space, and a custom backend that runs an injected callback so an external picker reached by a URL scheme or a trigger becomes a backend with no file of its own. The default is the built in picker, which owns one vendored dataset fetched once by its `regenerate.sh` and committed as `data.lua`, merging the GitHub gemoji set with a safe slice of native Unicode symbols from the official Character Database, currency and arrows and math and the Mac modifier keys and more, so a query by name, shortcode, tag, or category finds a glyph without its exact Unicode name. That artifact is a Lua table rather than json because `hs.json.decode` is quadratic in the number of objects in an array, three seconds for that set against six milliseconds through `loadfile`, and a spoon that loads a dataset in `configure` pays it on every reload rather than once. It is worth knowing beyond this spoon, since any file holding thousands of objects meets the same cliff, and `ClipboardHistory` still spends about 176 ms of every reload decoding its history for exactly this reason. Every matching emoji ranks above every matching symbol, so a query lists the emoji first and the plainer glyphs below. A pick is inserted into the focused field through an injected `onInsert`, so the backend never learns the effect, and it follows the picker checklist above. The root wires `onInsert` to the clipboard manager's `pasteText`, which pastes the glyph rather than typing it, because a synthesized keystroke mangles an astral glyph like an emoji in a terminal and in some native apps while a paste carries the real bytes everywhere, and `pasteText` snapshots the clipboard and restores it after so the paste stays invisible. It degrades to typing when the clipboard manager is absent. The provider strategy, the decision trail and internals, the safe symbol selection, the render based tofu filter, and the icon memory behavior, live in `Spoons/Emoji.spoon/CLAUDE.md`.
+**Emoji.** Hyper+J opens an emoji picker. Emoji is a facade over interchangeable backends, the same shape as Chooser, so the root names which one the key opens in a priority ordered list by reference and the first available wins. Three backends ship, the built in picker over the Chooser atom, the macos Character Viewer triggered by Ctrl Cmd Space, and a custom backend that runs an injected callback so an external picker reached by a URL scheme or a trigger becomes a backend with no file of its own. The default is the built in picker, which owns one vendored dataset fetched once by its `regenerate.sh` and committed as `data.lua`, merging the GitHub gemoji set with a safe slice of native Unicode symbols from the official Character Database, currency and arrows and math and the Mac modifier keys and more, so a query by name, shortcode, tag, or category finds a glyph without its exact Unicode name. That artifact is a Lua table rather than json because `hs.json.decode` is quadratic in the number of objects in an array, three seconds for that set against six milliseconds through `loadfile`, and a spoon that loads a dataset in `configure` pays it on every reload rather than once. It is worth knowing beyond this spoon, since any file holding thousands of objects meets the same cliff, and `ClipboardHistory` still spends about 176 ms of every reload decoding its history for exactly this reason. Every matching emoji ranks above every matching symbol, so a query lists the emoji first and the plainer glyphs below. A pick is inserted into the focused field through an injected `onInsert`, so the backend never learns the effect, and it follows the picker checklist above. The root wires `onInsert` to the clipboard manager's `pasteText`, which pastes the glyph rather than typing it, because a synthesized keystroke mangles an astral glyph like an emoji in a terminal and in some native apps while a paste carries the real bytes everywhere, and `pasteText` snapshots the clipboard and restores it after so the paste stays invisible. It degrades to typing when the clipboard manager is absent. The provider strategy, the decision trail and internals, the safe symbol selection, the render based tofu filter, and the icon memory behavior, live in `Spoons/Olm.spoon/plugins/emoji/CLAUDE.md`.
 
 **TextCase.** Recases the current selection in place, opened from the launcher only with no
 dedicated key. It is a picker over the Chooser atom that owns its own transform catalog, so
@@ -1363,7 +1291,7 @@ and its history untouched. `copySelection` is the read-side mirror of `pasteText
 alongside it in the manager. The launcher special action fires deferred after focus returns
 to the source app, so the selection is intact when the read runs. It degrades to a typed
 paste with no read when the clipboard manager is absent, the same graceful fallback the
-emoji insert takes. The decision trail and internals live in `Spoons/TextCase.spoon/CLAUDE.md`.
+emoji insert takes. The decision trail and internals live in `Spoons/Olm.spoon/plugins/textcase/CLAUDE.md`.
 
 **BrowserTabs.** Hyper+W lists every open tab across the browsers that are switched on,
 ordered most recently looked at first, each row carrying its browser's application icon, and
@@ -1397,7 +1325,7 @@ being observed and what that cost, why the last tab you opened leads and what wa
 that before it was taken back out, why a window is placed by its id and never by its index, why tab
 identity is the bundle id plus the URL and what that costs when a page navigates, why the
 permission probe is a Swift helper, why Arc reports no active tab, and why Firefox is absent, lives
-in `Spoons/BrowserTabs.spoon/CLAUDE.md`. Adding it needed a restow, since `~/.hammerspoon/Spoons`
+in `Spoons/Olm.spoon/plugins/browsertabs/CLAUDE.md`. Adding it needed a restow, since `~/.hammerspoon/Spoons`
 holds one symlink per spoon.
 
 `BrowserTabs:explainOrder(n, cb)` prints the top rows with the rank the memory gave each one, for
@@ -1424,7 +1352,26 @@ port number or a project name, not an abbreviation of a short known label. Addin
 a restow, since `~/.hammerspoon/Spoons` holds one symlink per spoon. The source contract,
 the port claim rule that collapses the docker proxy listeners into named containers, the
 group signalling and its guards, and three hs.task and lsof facts that will bite anyone who
-touches the shellouts, live in `Spoons/Processes.spoon/CLAUDE.md`.
+touches the shellouts, live in `Spoons/Olm.spoon/plugins/processes/CLAUDE.md`.
+
+**DockAutoHide.** A launcher row named Dock that is a doorway rather than a toggle, opened
+from the launcher only with no dedicated key, stepping into a page of two rows, one for the
+Dock's own auto hide setting and one for its show delay, covering the Dock alone since
+StageManager, which was meant to be its companion, was removed from the config entirely
+before this plugin was written. Choosing either row flips it in place, the chooser stays
+open, and the row's own wording changes because it was rebuilt fresh rather than patched, a
+QueryScope page like any other. The hiding row reads Turn Dock Hiding On while hiding is off
+and Turn Dock Hiding Off while hiding is on, and the delay row reads Make the Dock Instant or
+Restore the Default Dock Delay, so both always name the action choosing them is about to
+take rather than the state the Dock happens to be in. Restoring the default deletes the
+delay key rather than writing a number, since an absent key is the genuine default state on
+a machine where it has already been overridden. Hiding is felt at once through a System
+Events push, and a delay change is invisible until the Dock re reads its preferences, so a
+delay change restarts the Dock through `killall` and hiding never does, an empirical
+difference rather than an inconsistency. Every tool it shells out to, `defaults`,
+`osascript`, and `killall`, is resolved through the shared dependency door rather than being
+named in this file or probed for. The decision trail and both findings live in
+`Spoons/Olm.spoon/plugins/dockautohide/CLAUDE.md`.
 
 **FileSearch.** Hyper+/ finds a file by name and does something with it, opening,
 revealing, browsing into, or copying the path of whatever is highlighted. Activity
@@ -1503,7 +1450,7 @@ cache location, and the caps and timings.
 The grammar, the source ordering and the two measurements behind it, why one round trip per
 search rather than per keystroke is the whole performance story, why there is deliberately
 no result cache, and four Spotlight predicate facts that will bite anyone who touches the
-queries, all live in `Spoons/FileSearch.spoon/CLAUDE.md`. Adding it needed a restow, since
+queries, all live in `Spoons/Olm.spoon/plugins/filesearch/CLAUDE.md`. Adding it needed a restow, since
 `~/.hammerspoon/Spoons` holds one symlink per spoon.
 
 **Eyedropper.** A screen colour sampler on Hyper+2, on the native macOS

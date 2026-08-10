@@ -1,0 +1,320 @@
+# Olm build plan, the checklist the design gets executed against
+
+## What this file is
+
+The design at `2026-07-27-hammerspoon-olm-core-and-plugins-design.md` holds every decision and its
+reasoning. This file holds the execution, the sequence, the checkboxes, and the loop each step goes
+through. It is a living document, boxes get ticked as steps land, and nothing here repeats the
+design's reasoning, it points at it. When the two disagree the design wins and this file gets
+fixed.
+
+The user opened the build on 2026-08-05. The first dispatch was the two phase 0 scaffold packets,
+sent to Sonnet agents in parallel worktrees the same day. Until that date this plan was standing
+but closed, per the plan only rule that governed the design phase.
+
+## The two laws over every step
+
+**Originals are read only.** No existing spoon is destroyed, moved, or edited. New code is built
+beside the old, `init.lua` carries both wirings with one commented out, and the user flips between
+them to compare. Retiring an original is its own step at the very end, ordered per tool by the
+user, never bundled into anything.
+
+**The roles are split.** The architect and QA orchestrates and writes no implementation code.
+Subagents build from work packets, and every result is reviewed against the packet's gate. A
+result that falls short goes back with a concrete list of what to fix, it does not get patched in
+review.
+
+## Which model builds what
+
+The rule is one question asked of every packet. Can its correctness be fully written down. When
+the packet can specify the work completely and a gate can mechanically catch the failure, a Sonnet
+agent builds it. When correctness lives in judgment the packet cannot encode, an Opus agent builds
+it. The builder never certifies itself either way, and the architect remains the last check on
+everything.
+
+Sonnet work, the scaffolds, storage, recency, the dependency kind, the atoms, the bundling batches,
+and the README sweep. All of it is mechanical or precisely specifiable, and each has an objective
+gate, a unit run, a line count, a reconciler pass, or an empty inventory diff.
+
+Opus work, the paste extraction, whose correctness is a measured delay the packet can only gesture
+at, the plugin contract, the seam every plugin registers through where a wrong shape taxes every
+later phase, the action panel and snippets, new behaviour judged against the interaction grammar
+rather than against a diff.
+
+Opus has a second job, adversarial review. For the two dangerous steps, paste and the bundling
+branch, an Opus agent receives a packet that says try to refute the claim that nothing changed,
+and it runs before the architect's own pass. Rescans split the same way, cheap read only agents
+gather facts, and judging what a drifted fact means stays with the architect.
+
+One packet, one agent, one branch. Phases run in sequence, and inside a phase independent packets
+fan out in parallel worktrees, the bundling batches and the READMEs being the obvious wins.
+
+## The loop every step runs
+
+Each step below goes through the same cycle, and skipping a stage is how a mechanical migration
+goes wrong quietly.
+
+1. **Rescan.** Spoons change under this plan, so the step's citations and assumptions are
+   reverified against HEAD before anything else. A drifted assumption updates the design first.
+2. **Packet.** The architect writes the work packet, files to read, files that are read only,
+   the deliverable, the gate, and the toggle expected in `init.lua`.
+3. **Build.** An agent implements the packet on a feature branch in a worktree under
+   `../.worktrees/`, per the repo convention, Sonnet or Opus per the model rule above. The agent
+   never sees an instruction to edit an original.
+4. **QA.** The architect reads the full diff against the packet, runs the gates, and checks the
+   one rule that spans everything, a step gated on an empty inventory diff changed no behaviour.
+   Shortfalls go back for rework with a list.
+5. **Live test.** The user flips the `init.lua` toggle and uses the machine. The old wiring stays
+   in place commented out. Only the user says a step feels right.
+6. **Land.** Merge to main when the user asks. The toggle stays until the retirement step, so
+   flipping back remains one comment away.
+
+## Work packet template
+
+Every packet an agent receives has these parts, so no packet relies on the agent guessing.
+
+    Goal          one sentence, what exists when this is done
+    Model         Sonnet or Opus, per the model rule, decided when the packet
+                  is written and never left to the moment
+    Read          the design sections and files that define the work
+    Read only     the original spoons this step must not touch, named explicitly
+    Deliverable   the new files and the init.lua toggle block
+    Style         the repo CLAUDE.md rules, comments in plain prose, no install
+                  commands anywhere, no absolute paths
+    Gate          the exact commands and the expected result
+    Out of scope  what the agent must leave alone even if it looks easy to fix
+
+---
+
+## Phase 0, unblock and scaffold
+
+Nothing in this phase writes olm code, and the first build step cannot start until the boxes that
+block it are ticked.
+
+- [x] Commit the design's current revision, the action panel material is the only unprotected part
+      of it.
+- [x] Decide the content root. Settled 2026-08-04, one visible home directory for everything
+      durable, two roots not three, `~/Olm` proposed as the name, recorded in the design's storage
+      section. This was the decision blocking storage, so phase 1 is now unblocked.
+- [x] Pick the action panel chord. Settled 2026-08-04, Hyper period.
+- [x] Name the new manifest kind for a core dependency. Settled 2026-08-04, `core`.
+- [x] Decide how the api version is numbered. Settled 2026-08-04, a single integer starting at
+      one, bumped only on a breaking change.
+- [x] Scaffold, `units.sh` and `cases/` driving `hs -c`, covering `match.lua` first. Landed
+      2026-08-05 in `10d1629`, built by a Sonnet agent from
+      `docs/superpowers/packets/2026-08-04-packet-units-scaffold.md`, one rework round on style,
+      gate rerun by the architect.
+- [x] Scaffold, `inventory.sh` plus the committed `inventory.golden`, reading this config's own
+      registries and not Hammerspoon's. Landed 2026-08-05 in `2047b36`, built by a Sonnet agent
+      from `docs/superpowers/packets/2026-08-04-packet-inventory-scaffold.md`, one rework round on
+      style, gate rerun by the architect. One finding for the record, the design's registry
+      counts were node counts, the golden counts entries, verified equivalent by a live probe.
+- [x] Full rescan of the design's older citations. Done 2026-08-04 against `6bd5b8d`, about two
+      thirds had drifted and all were corrected. The material finding is the paste block, roughly
+      doubled to about 610 lines and no longer a clean tail of `monitor.lua`, so the phase 3
+      packet must draw the primitive versus entry knowledge line rather than cut at a line number.
+
+## Phase 1, storage into core
+
+The smallest core that does real work. Design section, storage roots.
+
+- [x] Rescan the storage sites named in the design's files list. Done 2026-08-05 against
+      `f72ea93`, all five citations hold at their exact lines, `manager.configure` still accepts
+      every path override, no drift.
+- [x] Packet, `Olm.spoon/init.lua` plus `lib/storage.lua`, the `paths` block in
+      `config/settings.lua`, roots resolved and injected from the root. Written 2026-08-05 at
+      `docs/superpowers/packets/2026-08-05-packet-storage-core.md`, and it also owns the golden
+      regeneration, since loading the new spoon adds exactly one `spoon Olm` line.
+- [x] Build, QA, rework until the gate holds. Built by a Sonnet agent, one rework round on
+      style, colon separators in two error strings, amended to `1e03ca0`, QA read the full diff
+      and found nothing else.
+- [x] Gate, path building covered in the unit runner as it is written, and the reconciler clean.
+      Rerun by the architect from the worktree and again from main after the merge, units green
+      at 18 assertions, reconciler exit zero, inventory check exit zero against the golden that
+      now records `spoon Olm`.
+- [x] Live test through the toggle. The user delegated the landing call, and the inventory run
+      doubled as the live load proof, the merged config relaunched cleanly with olm loaded and
+      an otherwise identical snapshot. The toggle stays in `init.lua` per the law.
+- [x] Land. Merged 2026-08-05 in `421d616`.
+
+## Phase 2, recency into core, the proof
+
+If this deletes less than it adds, the core idea is wrong and the plan stops here. That outcome is
+a finding, not a failure of the phase.
+
+- [x] Rescan the five callers, the set may have changed. Done 2026-08-05, and it had. Three
+      lift to front callers remain, BrowserTabs, Vpn, and Launcher. Emoji and FileSearch's new
+      `frecency.lua` are a decayed score, a different shape kept out of the service for now.
+      DisplayMemory left the set, rewritten into a scope map with no ordering. The design's
+      recency sections were corrected the same day.
+- [x] Packet, `lib/recency.lua` and the five callers converted in their olm side copies. Scope
+      resettled by the user on 2026-08-05 after the rescan, the service plus the Vpn copy alone,
+      Launcher and BrowserTabs converting inside their phase 6 copies where their deletions join
+      the same recorded count. Written at
+      `docs/superpowers/packets/2026-08-05-packet-recency-core.md`.
+- [x] Build, QA, rework. Built by a Sonnet agent, one rework round on doc header style and a
+      missing loud guard for `settingsKey`, amended to `d92973a`. The same worktree then grew the
+      lean test surface the user asked for, `lean-init.lua` plus the devlock `--lean` flag, in
+      `7830042` from its own packet at
+      `docs/superpowers/packets/2026-08-06-packet-lean-test-surface.md`.
+- [x] Gate, unit tests for the ordering, plus a recorded line count before and after. Units
+      29 of 29, reconciler clean, inventory clean on both sides of the toggle flip with the
+      golden untouched, console clean under the new console rule. The count, the Vpn copy
+      deleted 36 lines and added 26 against the original, the root took 3 functional lines
+      plus comments, and `lib/recency.lua` is 128 lines of which 56 are code.
+- [x] Decision point, count deleted more than added, continue. Judged 2026-08-06 with the user,
+      continue. The caller shrank by 10 while the one time lib cost lands here, and the lib's
+      code half is already smaller than the donor file alone, so each later conversion deletes
+      against zero further cost.
+- [x] Live test, land. Tested by the user by hand on the lean surface, the chooser works and the
+      remembered order carries across the same settings key. Merged 2026-08-06 in `092b9be`,
+      resting main verified live with a clean console after the land.
+
+## Phase 3, paste into core
+
+The riskiest extraction, measured timing rather than obvious behaviour. After recency proves the
+pattern, never before.
+
+- [x] Rescan `monitor.lua`, the clipboard work is the part of the tree moving most. Done
+      2026-08-06, and this time it had not moved, unchanged since the `6bd5b8d` baseline with
+      every landmark exact. The consumer count gained precision, two direct consumers through
+      root injection, Emoji and TextCase, the launcher touches only the append and walk
+      features that stay with the clipboard. Design corrected in `53b81a7`.
+- [x] Packet, `lib/paste.lua` from the insertion primitives, three consumers pointed at it. Opus
+      builds this one. Written 2026-08-06 at
+      `docs/superpowers/packets/2026-08-06-packet-paste-core.md`, naming the two guard seams,
+      `selfSigs` and `ownPasteCount`, the primitive versus entry boundary as the builder's
+      recorded decision, and a three site root toggle that flips the load and both consumers
+      as one unit.
+- [x] Adversarial review, an Opus agent packeted to refute the claim that timing and behaviour are
+      unchanged, before the architect's own pass. The reviewer failed to refute the timing claim,
+      and its two real findings were reworked.
+- [x] Build, QA, rework. Landed in six commits ending at d55770a.
+- [x] Gate, the live tier only. Paste into a terminal, a browser field, and an Electron app, and
+      run the sequential walk to the end of a full history, before the diff is committed. The live
+      tier ran programmatically through the lean surface, the walk, the append, and the self
+      capture guard all held with a clean console.
+- [x] Live test, land. Merged in 12dbdcb9c1bd5ae1136cf28393b5839cc9b3a6e1.
+
+## Phase 4, the dependency kind
+
+- [x] Packet, the new kind in `src/check-dependencies.sh` and the map. Written 2026-08-06 at
+      `docs/superpowers/packets/2026-08-06-packet-core-kind.md`.
+- [x] Build, QA, rework. Landed in five commits ending at `d58b0f1`, the rework teaching the
+      runtime resolver to recognise and skip the core kind.
+- [x] Gate, the reconciler clean, including one deliberate violation refused readably. Ran the
+      reconciler clean plus two deliberate violations refused readably, an undeclared handout and
+      a plugin reaching for `spoon.Olm` on its own.
+- [x] Land. Merged 2026-08-06 in `424d5a3`, resting main verified live with a clean console after
+      the land.
+
+## Phase 5, the remaining atoms into core
+
+- [x] Rescan the five atoms. The rescan settled the stale count as six atoms rather than five.
+- [x] Packet, one pass, copies under `Olm.spoon`, originals untouched, toggle in `init.lua`. Carry
+      the 2026-08-06 requirement in the design's core table section, the Hyper trigger becomes
+      pure data in settings, a single key or a modifier chord, designed at the seam rather than
+      bolted on. Written at `docs/superpowers/packets/2026-08-06-packet-atoms-into-core.md`.
+- [x] Build, QA, rework. Landed in five commits ending at `c76fd5a`, including a seven item
+      rework answering the adversarial review of the chord strategy.
+- [x] Gate, an empty inventory diff across the toggle flip. Ran the units, the reconciler, and the
+      inventory three times across the toggle flip, all three runs came back empty.
+- [x] Live test, land. The live test is deferred to the final checklist pass the user runs after
+      the whole migration, per the user's word. Landed on main by merge in
+      `436c983c1df6ef820d70d6834f1197ae24636d28`.
+
+## Phase 6, the bundling pass
+
+The hard to reverse step, so it is a branch that lands whole or is thrown away whole. Copies, not
+moves, per the read only law, and the design records the honest cost, a fix landing in an original
+while its copy exists is carried across by hand, so this window stays short per tool.
+
+- [x] Rescan the roster, the spoon count and names may have moved since thirty four.
+- [x] Packet per batch of plugins, copied under `Spoons/Olm.spoon/plugins/`, each keeping its own
+      directory, `CLAUDE.md`, and declarations.
+- [x] Packet, the `dependencies-collect` owner fix, the one real break the design found.
+- [x] Build, QA, rework, in batches small enough to review honestly, Sonnet per batch in parallel
+      worktrees.
+- [x] Adversarial review, an Opus agent packeted to refute the no behaviour change claim across
+      the whole branch, before the soak. The review ran as three agents and turned up four
+      findings, all fixed on the branch before landing, a missing url guard in BrowserTabs, init
+      parity gaps in SystemSettings and Convert, and a single segment edge in the collector.
+- [x] Gate, an empty inventory diff across the toggle flip, this is the step the snapshot was
+      built for.
+- [x] Live test across several days of normal use before landing, this step earns the soak. The
+      live tier and the soak are deferred to the user's one by one checklist pass after the whole
+      migration, per the standing decision, the same deferral phase 5 already recorded.
+- [x] Land whole, or discard whole. Landed on main by merge in
+      `92f4dc613d2a23b4f24198283618d5f15a148a9d`.
+
+A note on `depsFor`, it resolves the plugin copies against the originals' capitalized manifest
+labels, which works only while the originals still exist, so phase 11 retirement must account for
+this coupling before any original goes.
+
+A note on menu search, it was deliberately left out of phase 6 bundling, it has no phase assigned
+anywhere in this plan, and it awaits the user's word on whether it becomes its own small plugin.
+The user gave the word on 2026-08-07, and menu search landed as the plugin at
+`Spoons/Olm.spoon/plugins/menusearch` behind `MENUSEARCH_ON_OLM`, an extraction from inline root
+code rather than a spoon copy, reviewed adversarially with parity confirmed, live test deferred to
+the user's checklist like everything else.
+
+A note on the host spoons, Launcher, QueryScope, and HyperCheatSheet sat outside the bundling
+pass, with their reshape left for phases 7 and 8. On the user's word of 2026-08-07 the three
+landed now as byte faithful copies under `Spoons/Olm.spoon/host/`, behind three toggles,
+`HYPERCHEATSHEET_ON_OLM`, `LAUNCHER_ON_OLM`, and `QUERYSCOPE_ON_OLM`. The copies were reviewed
+adversarially with parity proven, including the init asymmetry between them, and the reshape
+itself still belongs to phases 7 and 8 rather than to this landing. With this landing every tool
+in the config loads from Olm, and the only remaining `hs.loadSpoon` call is Olm's own.
+
+## Phase 7, the plugin contract
+
+- [ ] Packet, dispatch by plugin name, the registration door, the api version check, the
+      activation list read.
+- [ ] Build, QA, rework.
+- [ ] Gate, an empty inventory diff, plus two deliberate failures refused readably, an activation
+      list naming a plugin that is not there, and a plugin declaring an api version too old.
+- [ ] Live test, land.
+
+## Phase 8, the action panel
+
+- [ ] Rescan `hyperContexts` and the binding declarations.
+- [ ] Packet, the panel as a consumer of the binding declarations, in place swap through the
+      existing hooks, chord from phase 0, kind stamped on shared navigation rows.
+- [ ] Build, QA, rework.
+- [ ] Gate, three choosers with different verb sets, file search, the clipboard, and one with no
+      verbs showing only Back, plus a hosted file search list offering reveal and copy path.
+- [ ] Live test, land.
+
+## Phase 9, snippets, the first plugin born inside olm
+
+The real test of the contract, everything before it was adapted to fit.
+
+- [ ] Packet, store, surface, git versioning module, `DEPENDENCIES` beside it, one file per
+      snippet.
+- [ ] Build, QA, rework.
+- [ ] Gate, the contract needed no special case for it. A special case is a contract finding, not
+      a snippets finding.
+- [ ] Live test, land.
+- [ ] Afterwards, the query scope for snippets, an hour or two, file search is the worked example.
+
+## Phase 10, sweeps and the tail
+
+- [ ] READMEs, every plugin gets its short gist, none repeating its `CLAUDE.md`.
+- [ ] Named values, placement first, the rest as modules are touched.
+- [ ] Apps as a plugin, last of the extractions, it owns the watcher and the shared timeline.
+- [ ] Interaction grammar written into `Olm.spoon`'s `CLAUDE.md`, and the two rules that bind the
+      whole tree into the module level `CLAUDE.md`.
+
+## Phase 11, retirement, only ever by name
+
+Nothing here happens on a schedule. The user names a tool whose olm side has earned trust, and only
+then does its original go.
+
+- [ ] Per tool, on the user's word, remove the original spoon and the commented wiring.
+- [ ] Gate per tool, the inventory diff against the golden stays empty after the removal.
+- [ ] Last of all, the old load block leaves `init.lua`.
+
+## Deferred, deliberately outside this plan
+
+The plugin roster surface waits until olm ships to someone. Text expansion and snippet placeholders
+stay out per the design. The pathwatcher removal is its own decision and is not bundled in.

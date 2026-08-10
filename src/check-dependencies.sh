@@ -274,7 +274,89 @@ done < <(grep -rnE "$INSTALL_VERB" "$DOTFILES" 2>/dev/null)
 [[ $bypass -eq 0 ]] && say "  no code reaches around a declared door"
 
 #-------------------------------------------------------------------------------
-# Check five, is each declared tool actually here. A warning, not an error
+# The one seam allowed to name Olm.spoon. A core capability decides injection rather than
+# installation, so its presence is proven by the lib file actually being there rather than
+# by asking a package manager, and the plugin boundary the next check polices is that same
+# folder. Named once here and reused below, so the rest of this script stays free of a
+# hardcoded module path.
+#-------------------------------------------------------------------------------
+
+OLM_SPOON="$DOTFILES/hammerspoon/.hammerspoon/Spoons/Olm.spoon"
+
+#-------------------------------------------------------------------------------
+# Check five, a core capability declared against one actually used
+#-------------------------------------------------------------------------------
+
+say ""
+say "==> Core capabilities declared against used"
+
+core_declared=()
+for line in "${declared_lines[@]}"; do
+    [[ "$(field "$line" 3)" == "core" ]] || continue
+    name="$(field "$line" 2)"
+    has "$name" ${core_declared[@]+"${core_declared[@]}"} || core_declared+=("$name")
+done
+
+# A capability the root configures on itself rather than handing to another file, matched by
+# a call straight off the lib such as spoon.Olm.lib.storage.configure(...), is not a hand out
+# and is set aside here, the same way the design leaves storage undeclared until some plugin
+# actually takes it rather than the root keeping it for itself.
+self_configured=()
+while IFS= read -r hit; do
+    [[ -z "$hit" ]] && continue
+    self_configured+=("${hit%.configure(}")
+done < <(grep -rnoE 'spoon\.Olm\.lib\.[A-Za-z_][A-Za-z0-9_]*\.configure\(' "$DOTFILES" 2>/dev/null)
+
+# Direction one. Every remaining spoon.Olm.lib. reference under dotfiles, root init included,
+# must name a capability some manifest line declares with kind core, so a capability handed
+# out with no line naming it is an error. This reconciles at the name level rather than the
+# consumer level, since an original spoon such as Emoji or TextCase reads the same capability
+# the root already received for the clipboard manager and will never carry a declaration of
+# its own, and the name level is what lets the manager's one line cover every one of those
+# reads while still catching a capability nobody declared anywhere.
+core_used=()
+core_bad=0
+while IFS= read -r hit; do
+    [[ -z "$hit" ]] && continue
+    has "$hit" ${self_configured[@]+"${self_configured[@]}"} && continue
+    path="${hit%%:*}"
+    rest="${hit#*:}"
+    lineno="${rest%%:*}"
+    name="${hit##*lib.}"
+    has "$name" ${core_used[@]+"${core_used[@]}"} || core_used+=("$name")
+    has "$name" ${core_declared[@]+"${core_declared[@]}"} && continue
+    err "${path#"$ROOT"/} line $lineno hands out the core capability $name with no manifest line declaring it, add one beside the file that needed it first"
+    core_bad=$((core_bad + 1))
+done < <(grep -rnoE 'spoon\.Olm\.lib\.[A-Za-z_][A-Za-z0-9_]*' "$DOTFILES" 2>/dev/null)
+[[ $core_bad -eq 0 ]] && say "  every spoon.Olm.lib reference names a declared core capability"
+
+# Direction two. Every declared core capability must be referenced somewhere, an unused
+# declaration is a warning in the spirit of the mapped tool nothing declares above, a
+# question worth answering rather than a defect.
+core_unused=0
+for name in ${core_declared[@]+"${core_declared[@]}"}; do
+    has "$name" ${core_used[@]+"${core_used[@]}"} && continue
+    warn "$name is declared as a core capability and nothing under dotfiles asks spoon.Olm.lib for it"
+    core_unused=$((core_unused + 1))
+done
+[[ $core_unused -eq 0 ]] && say "  every declared core capability is used somewhere"
+
+# Direction three. No file under Spoons/Olm.spoon/plugins/ may reference spoon.Olm at all, a
+# plugin takes its core slice through its own configure and never reaches around that door,
+# an offense here is an error regardless of the name involved.
+door_leak=0
+while IFS= read -r hit; do
+    [[ -z "$hit" ]] && continue
+    path="${hit%%:*}"
+    rest="${hit#*:}"
+    lineno="${rest%%:*}"
+    err "${path#"$ROOT"/} line $lineno reaches for spoon.Olm directly, a plugin takes its core slice through its own configure and never opens that door itself"
+    door_leak=$((door_leak + 1))
+done < <(grep -rnE 'spoon\.Olm\b' "$OLM_SPOON/plugins" 2>/dev/null)
+[[ $door_leak -eq 0 ]] && say "  no plugin file reaches for spoon.Olm on its own"
+
+#-------------------------------------------------------------------------------
+# Check six, is each declared tool actually here. A warning, not an error
 #-------------------------------------------------------------------------------
 
 say ""
@@ -300,6 +382,13 @@ for line in "${declared_lines[@]}"; do
         package)
             detail="$(map_detail "$name")"
             if [[ -z "$detail" ]]; then ok=0; else brew list "$detail" >/dev/null 2>&1 || ok=0; fi
+            ;;
+        # A core capability decides injection rather than installation, so nothing here is
+        # installed for it. Presence is proven by the lib file the map names actually being
+        # under the module's own Olm, using the one seam above allowed to name that spoon.
+        core)
+            detail="$(map_detail "$name")"
+            if [[ -z "$detail" ]]; then ok=0; else [[ -f "$OLM_SPOON/$detail" ]] || ok=0; fi
             ;;
         *)      err "$name in $module declares unknown kind '$kind'" ;;
     esac

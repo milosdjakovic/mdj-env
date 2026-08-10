@@ -1,0 +1,11 @@
+# What sources/walk.lua needs from outside Hammerspoon, declared beside the only file in
+# this spoon that walks a directory tree. init.lua passes the resolved path in, it never
+# runs the tool itself.
+# Format is name | kind | locator | policy | reason.
+# See Olm's lib/deps.lua for the kinds and for how these files are found.
+# Name a tool only, never how to install it. That belongs to the layer above.
+#
+# Optional, because a missing walker costs only the scoped half of the tool. Spotlight still
+# answers every unscoped search, so the key stays worth pressing and the source simply
+# reports itself unavailable and steps aside with one line in the console.
+fd | path | fd | optional | walking a named directory, which is faster than the index once a scope is given and is the only way to see dotfiles
