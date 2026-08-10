@@ -1275,6 +1275,21 @@ matched. So `/ ` lists rows with no pane, exactly as it did before the pane exis
 nothing the alias was for is missing. The same test the text case scope failed and the browser
 tabs scope passed, applied to a pane instead of to a second level.
 
+**ActionPanel.** Hyper and period opens a searchable list of the live chooser's own verbs,
+the things a person forgets the chord for, never its navigation, the shared moving,
+inserting, closing, and scrolling every context already carries. It is a host spoon like
+Launcher and QueryScope, but a decorator rather than a coordinator, installed once at
+`Chooser.configure`'s decorate seam so every chooser gains it with no edit to any of the
+twelve places one is built and no consumer learning it exists. Opening it swaps a chooser's
+own rows for the panel's, built by the same `rowsFor` the docked hint bar reads, so the two
+cannot print two different words for the same chord, and choosing a verb restores the
+highlight to the row the panel was opened over before running it, so the panel and the chord
+act on exactly the same row. Every action is classified first, verb or navigation from a
+named set the root's own `actionKinds` maps an action name onto, and a panel row is never
+navigation, the panel's own chord included. What it does not yet reach is a list hosted
+inside the launcher, whose own verbs are still a chord away rather than in this list. The
+decision trail and internals live in `Spoons/Olm.spoon/host/actionpanel/CLAUDE.md`.
+
 **Emoji.** Hyper+J opens an emoji picker. Emoji is a facade over interchangeable backends, the same shape as Chooser, so the root names which one the key opens in a priority ordered list by reference and the first available wins. Three backends ship, the built in picker over the Chooser atom, the macos Character Viewer triggered by Ctrl Cmd Space, and a custom backend that runs an injected callback so an external picker reached by a URL scheme or a trigger becomes a backend with no file of its own. The default is the built in picker, which owns one vendored dataset fetched once by its `regenerate.sh` and committed as `data.lua`, merging the GitHub gemoji set with a safe slice of native Unicode symbols from the official Character Database, currency and arrows and math and the Mac modifier keys and more, so a query by name, shortcode, tag, or category finds a glyph without its exact Unicode name. That artifact is a Lua table rather than json because `hs.json.decode` is quadratic in the number of objects in an array, three seconds for that set against six milliseconds through `loadfile`, and a spoon that loads a dataset in `configure` pays it on every reload rather than once. It is worth knowing beyond this spoon, since any file holding thousands of objects meets the same cliff, and `ClipboardHistory` still spends about 176 ms of every reload decoding its history for exactly this reason. Every matching emoji ranks above every matching symbol, so a query lists the emoji first and the plainer glyphs below. A pick is inserted into the focused field through an injected `onInsert`, so the backend never learns the effect, and it follows the picker checklist above. The root wires `onInsert` to the clipboard manager's `pasteText`, which pastes the glyph rather than typing it, because a synthesized keystroke mangles an astral glyph like an emoji in a terminal and in some native apps while a paste carries the real bytes everywhere, and `pasteText` snapshots the clipboard and restores it after so the paste stays invisible. It degrades to typing when the clipboard manager is absent. The provider strategy, the decision trail and internals, the safe symbol selection, the render based tofu filter, and the icon memory behavior, live in `Spoons/Olm.spoon/plugins/emoji/CLAUDE.md`.
 
 **TextCase.** Recases the current selection in place, opened from the launcher only with no
