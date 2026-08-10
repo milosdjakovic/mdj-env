@@ -670,3 +670,59 @@ do
     byName.colorPicker.scope == false
   )
 end
+
+-- scopes(spec), a name nothing registered is skipped and logs one warning naming it, the
+-- same mistake surfaces(spec) warns about for the same reason.
+do
+  local r, warnings = freshRegistry(1)
+  local out = r.scopes({ "noSuchTool" })
+  check("an unknown name in a scopes spec contributes nothing", #out == 0)
+  check(
+    "an unknown name in a scopes spec is warned about by name",
+    found(warnings, "noSuchTool"),
+    table.concat(warnings, " | ")
+  )
+end
+
+-- scopes(spec), a registered but inactive tool's scope is skipped with no warning at
+-- all, since that is what inactive already means everywhere else in this module.
+do
+  local r, warnings = freshRegistry(1)
+  r.register({ name = "vpn", apiVersion = 1, scope = { rows = function() end, run = function() end } })
+  -- vpn is registered but never activated.
+  local out = r.scopes({ "vpn" })
+  check("an inactive tool's scope contributes nothing to the list", #out == 0)
+  check("an inactive tool's scope is skipped without logging anything", #warnings == 0)
+end
+
+-- scopes(spec), an active tool that declared no scope is a different silence than an
+-- unregistered name, the emoji case this packet protects, a scope registering only
+-- under a condition that did not hold this run, so nothing is logged for it either.
+do
+  local r, warnings = freshRegistry(1)
+  r.register({ name = "colorPicker", apiVersion = 1, open = function() end })
+  r.activate({ "colorPicker" })
+  local out = r.scopes({ "colorPicker" })
+  check("an active tool with no scope contributes nothing to the list", #out == 0)
+  check("an active tool with no scope is skipped without logging anything", #warnings == 0)
+end
+
+-- scopes(spec), a resolved tool answers a table carrying both name and opts, since
+-- joining the identity fields from config/keys.lua stays the root's own scope(name,
+-- opts) helper's job, and a non string entry passes straight through untouched, in the
+-- order the spec gave, mixed with the resolved tool.
+do
+  local r = freshRegistry(1)
+  local rows = function() end
+  local run = function() end
+  r.register({ name = "vpn", apiVersion = 1, scope = { matcher = false, rows = rows, run = run } })
+  r.activate({ "vpn" })
+
+  local passthrough = { name = "apps", title = "Apps", rows = function() end, run = function() end }
+  local out = r.scopes({ passthrough, "vpn" })
+  check("scopes resolves a mixed spec list preserving its order", #out == 2 and out[1] == passthrough)
+  check(
+    "a resolved tool answers a table carrying its name and its opts rather than a finished scope",
+    out[2].name == "vpn" and out[2].opts.matcher == false and out[2].opts.rows == rows and out[2].opts.run == run
+  )
+end

@@ -157,6 +157,24 @@
 -- call and never at registration, which is the same discipline the surface field itself
 -- observes above.
 --
+-- scopes(spec), added in phase seven's fourth packet, is the same door a second time,
+-- resolving an ordered list mixing tool names and plain objects the same way surfaces
+-- does, for the same reason, so the two mistakes that look alike are treated alike. A
+-- string entry names a registered tool and logs one warning naming it when nothing is
+-- registered under that name at all, exactly as surfaces warns for the same mistake. Two
+-- silences stay silences here though, unlike surfaces. A registered but inactive tool is
+-- skipped without a word, the same nil-and-false every other read already answers for
+-- it, and an active tool that simply declared no scope this run is skipped without a
+-- word too, since that is the emoji case this whole packet protects, a scope that
+-- registers only under a condition and is legitimately absent when the condition does
+-- not hold, never the mistake an unregistered name is. A resolved tool answers a small
+-- table carrying both name and opts rather than a finished scope, since joining the
+-- identity fields config/keys.lua holds, name, title, glyph, and aliases, is the
+-- composition root's own scope(name, opts) helper's job and stays there, in the one
+-- place that has always done it, this module reading no configuration at all. Anything
+-- that is not a string passes straight through unexamined, in the position it was given,
+-- the same shape surfaces already reads its own spec in.
+--
 -- Every function below is a plain field on the returned instance and is meant to be dot
 -- called, matching lib/recency.lua exactly, never colon called, since there is no
 -- metatable here and no self to receive.
@@ -478,6 +496,44 @@ function M.new(opts)
             log.w(string.format(
               "Registry surfaces skipped '%s', its surface resolved to something with no isShowing", entry))
           end
+        end
+      end
+    end
+    return out
+  end
+
+  --- instance.scopes(spec)
+  --- Resolve an ordered list mixing tool names and plain objects, the same shape
+  --- surfaces reads, into an ordered list the root can fold into queryScopes. A string
+  --- entry names a registered tool. Logged and skipped when nothing is registered under
+  --- that name at all, the same mistake surfaces warns about. Skipped without a word when
+  --- the tool is registered but inactive, and skipped without a word too when the tool is
+  --- active and declared no scope this run, the emoji case this packet protects, a scope
+  --- that registers only under a condition. A resolved tool answers { name = entry, opts
+  --- = descriptor.scope } rather than a finished scope, since joining the identity fields
+  --- from config/keys.lua is the root's own scope(name, opts) helper's job and stays
+  --- there. Anything that is not a string passes straight through unexamined, in the
+  --- position it was given.
+  function instance.scopes(spec)
+    local out = {}
+    if spec == nil then return out end
+    for _, entry in ipairs(spec) do
+      if type(entry) ~= "string" then
+        out[#out + 1] = entry
+      else
+        local descriptor = toolsByName[entry]
+        if not descriptor then
+          log.w(string.format(
+            "Registry scopes found no tool registered under '%s'", entry))
+        elseif not activeTools[entry] then
+          -- Inactive is the legitimate silent case, the same nil-and-false every other
+          -- read already answers for it, so nothing is logged and nothing is added.
+        elseif not descriptor.scope then
+          -- An active tool with no scope is the other legitimate silence, the emoji case
+          -- this packet protects, a scope registering only under a condition that did
+          -- not hold this run, so nothing is logged here either.
+        else
+          out[#out + 1] = { name = entry, opts = descriptor.scope }
         end
       end
     end
