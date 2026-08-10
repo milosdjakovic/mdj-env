@@ -1402,6 +1402,52 @@ local function aliasHint(name)
   return " " .. label
 end
 
+-- The tool registry, phase seven of the build plan, packet one. A registration's open
+-- or command closure only runs long after this point, once the launcher row is chosen,
+-- so registering here, beside the actions.special table this replaces most of, costs
+-- nothing even though several of the spoons named below are configured further above.
+-- apiVersion is written as the literal 1 on every line rather than read from
+-- spoon.Olm.apiVersion, since a registration copying the core's own number can never
+-- mismatch and the check would then be theatre.
+--
+-- The eleven tools below are each keyed by the name their actions.special entry used
+-- before this packet, so no row descriptor anywhere changes. The clipboard also owns
+-- two commands, append copy and paste next, which are not tools of their own, carrying
+-- the comment that sat beside them before, and registering them here is what makes
+-- deactivating the clipboard take them with it.
+local registry = spoon.Olm.lib.registry.new({ apiVersion = spoon.Olm.apiVersion })
+registry.register({
+  name = "clipboard",
+  apiVersion = 1,
+  open = function() spoon.ClipboardHistory:open() end,
+  commands = {
+    -- Both act on the app that was frontmost before the launcher opened, append copy by
+    -- reading its selection. Every launcher row already runs deferred until focus has
+    -- gone back there, which is what keeps the selection intact, the same mechanism the
+    -- text case picker depends on.
+    appendCopy = function() spoon.ClipboardHistory.manager.appendCopy() end,
+    pasteNext = function() spoon.ClipboardHistory.manager.pasteNext() end,
+  },
+})
+registry.register({ name = "caffeinate", apiVersion = 1, open = function() spoon.Caffeinate.show() end })
+registry.register({ name = "vpn", apiVersion = 1, open = function() spoon.Vpn.show() end })
+registry.register({ name = "colorPicker", apiVersion = 1, open = function() spoon.Eyedropper:pick() end })
+registry.register({ name = "emoji", apiVersion = 1, open = function() spoon.Emoji:show() end })
+registry.register({ name = "dockAutoHide", apiVersion = 1, open = function() spoon.DockAutoHide:toggle() end })
+registry.register({
+  name = "displayProfiles", apiVersion = 1, open = function() spoon.DisplayProfiles.chooser.show() end,
+})
+registry.register({ name = "textCase", apiVersion = 1, open = function() spoon.TextCase:show() end })
+registry.register({ name = "browserTabs", apiVersion = 1, open = function() spoon.BrowserTabs:show() end })
+registry.register({ name = "processes", apiVersion = 1, open = function() spoon.Processes.chooser.show() end })
+registry.register({ name = "fileSearch", apiVersion = 1, open = function() spoon.FileSearch.chooser.show() end })
+
+-- The activation list. settings.toolActivation is the default and lists all eleven, so
+-- this machine's behaviour is identical to before this packet. The hs.settings key below
+-- is the override a future roster writes, and nothing writes it yet.
+local ACTIVATION_SETTINGS_KEY = "registryActivation"
+registry.activate(hs.settings.get(ACTIVATION_SETTINGS_KEY) or settings.toolActivation)
+
 spoon.Launcher:init()
 spoon.Launcher:configure({
   chooser = spoon.Chooser,
@@ -1417,6 +1463,7 @@ spoon.Launcher:configure({
   shortcutPanel = launcherPanel,
   queryProviders = queryProviders,
   aliasHint = aliasHint,
+  registry = registry,
   actions = {
     -- Where a computed result goes. A plain pasteboard write on purpose, so the result
     -- lands in clipboard history like any other copy and can be pasted again later,
@@ -1478,32 +1525,21 @@ spoon.Launcher:configure({
     end,
     capture = function(name) spoon.Capture:capture(name) end,
     settingsPane = function(url) spoon.SystemSettings:open(url) end,
+    -- Four names stay here rather than moving into the registry above, each for its own
+    -- reason. lock and sleep are bare system commands with no tool behind them.
+    -- searchSettings focuses a field in a pane and belongs to no plugin either.
+    -- overlayDisplay is a picker built out of root local code rather than a plugin, so it
+    -- has no descriptor to register. Do not invent a plugin for any of the four just to
+    -- tidy this table.
+    --
+    -- The alias directory stays for a different reason than those four, not because this
+    -- packet is keeping it on purpose but because it is a scope rather than a tool, and
+    -- scopes are what a later packet moves.
     special = {
-      clipboard = function() spoon.ClipboardHistory:open() end,
-      -- Both act on the app that was frontmost before the launcher opened, append copy by
-      -- reading its selection. Every launcher row already runs deferred until focus has gone
-      -- back there, which is what keeps the selection intact, the same mechanism the text case
-      -- picker depends on.
-      appendCopy = function() spoon.ClipboardHistory.manager.appendCopy() end,
-      pasteNext = function() spoon.ClipboardHistory.manager.pasteNext() end,
-      -- Several of these are named in hostedInPlace, so their row normally never reaches here at
-      -- all, the launcher hosts the tool's list instead. Opening the picker stays the answer for
-      -- the one case hosting cannot happen, a scope holding no live alias, and it is also what the
-      -- tool's own chord does, so nothing is lost when the word is gone.
-      caffeinate = function() spoon.Caffeinate.show() end,
-      vpn = function() spoon.Vpn.show() end,
-      colorPicker = function() spoon.Eyedropper:pick() end,
-      emoji = function() spoon.Emoji:show() end,
       lock = function() hs.caffeinate.lockScreen() end,
       sleep = function() hs.caffeinate.systemSleep() end,
-      dockAutoHide = function() spoon.DockAutoHide:toggle() end,
       searchSettings = function() spoon.SystemSettings:focusSearch() end,
       overlayDisplay = function() showOverlayDisplayPicker() end,
-      displayProfiles = function() spoon.DisplayProfiles.chooser.show() end,
-      textCase = function() spoon.TextCase:show() end,
-      browserTabs = function() spoon.BrowserTabs:show() end,
-      processes = function() spoon.Processes.chooser.show() end,
-      fileSearch = function() spoon.FileSearch.chooser.show() end,
       -- The directory is a scope like the tools it lists, so opening it from a row means
       -- entering that scope rather than showing anything of its own. One mechanism, so the row
       -- and the word `?` land in the same place and neither can drift from the other. Reached

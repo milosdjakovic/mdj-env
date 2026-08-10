@@ -12,6 +12,7 @@ chordkey | core | lib/chordkey.lua | required | hammerspoon | the shared hold an
 hyperkey | core | lib/hyperkey.lua | required | hammerspoon | the leader modal every Hyper binding and every Hyper context binds into
 chooser | core | lib/chooser/init.lua | required | hammerspoon | the picker facade every list tool in this config is built on
 deps | core | lib/deps.lua | required | hammerspoon | the declaration reader that hands every other spoon its resolved tools
+registry | core | lib/registry.lua | required | hammerspoon | the tool registry the launcher's special row dispatch now asks first
 recency | core | lib/recency.lua | optional | browsertabs/browsertabs | remembering the last opened tab, so the list opens already ordered by that
 osascript | system | /usr/bin/osascript | optional | browsertabs/jxa | runs the JXA that asks each browser for its open tabs
 swiftc | system | /usr/bin/swiftc | optional | browsertabs/permissions | builds the helper that asks for automation permission per browser

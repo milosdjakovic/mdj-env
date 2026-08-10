@@ -194,6 +194,17 @@ return {
     -- kind = "chord", mods = { "shift", "ctrl", "alt", "cmd" },
   },
 
+  -- The default activation list for the tool registry, phase seven of the build plan.
+  -- Every tool named here is what the composition root registers and, absent an
+  -- override, activates, so this file is what keeps a fresh machine's behaviour
+  -- identical to before the registry existed. The hs.settings key registryActivation
+  -- overrides this list when it holds one, and is the door a future roster will write
+  -- through, nothing writes it yet.
+  toolActivation = {
+    "clipboard", "caffeinate", "vpn", "colorPicker", "emoji", "dockAutoHide",
+    "displayProfiles", "textCase", "browserTabs", "processes", "fileSearch",
+  },
+
   -- The two storage roots every plugin's data lives under, pure data with the
   -- join done elsewhere, in Olm.spoon's storage module. cacheRoot holds
   -- regenerable data, safe to delete since it only costs a rebuild. olmRoot
