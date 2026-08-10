@@ -2204,15 +2204,16 @@ spoon.Olm.registry = registry
 -- Seven of the scopes that used to be built here directly, caffeinate, dockAutoHide, vpn, menu
 -- search, browserTabs, fileSearch, and emoji, moved onto their own tool's descriptor in phase
 -- seven's fourth packet, so this ordered spec names them by string rather than building them.
--- A string entry resolves through registry.scopeFor, which answers the same matcher, rows, run,
--- peek, redirect, and act opts a scope(...) call always took, or nil for a tool that is
--- inactive, unregistered, or, for emoji specifically, simply carrying no scope this run. Any of
--- those three answers is skipped in silence, the same silence an inactive tool already earns
--- everywhere else this registry is asked. Passing a resolved opts table through the scope(...)
--- helper below is what still joins the identity fields, name, title, glyph, and aliases, from
--- config/keys.lua in exactly the one place that ever did that, unchanged by the fold. Anything
--- in the spec that is not a string is an object with no tool behind it and passes straight
--- through unexamined, the same shape registry.surfaces already reads its own spec in.
+-- registry.scopes resolves a string entry into { name, opts }, opts carrying the same matcher,
+-- rows, run, peek, redirect, and act a scope(...) call always took, or drops it, warning by
+-- name only when nothing is registered under that name at all, staying silent for a tool that
+-- is inactive and for one that is active but, for emoji specifically, simply carrying no scope
+-- this run, the same silence an inactive tool already earns everywhere else this registry is
+-- asked. Anything in the spec that is not a string is an object with no tool behind it and
+-- passes straight through unexamined, the same shape registry.surfaces already reads its own
+-- spec in. The loop below maps a resolved { name, opts } through the scope(...) helper, which
+-- is what still joins the identity fields, name, title, glyph, and aliases, from config/keys.lua
+-- in exactly the one place that ever did that, and passes anything else straight through.
 --
 -- The order is preserved exactly, entry for entry, against the table this spec replaces, since
 -- QueryScope gives a colliding alias to whichever scope claims it first, so this order decides
@@ -2233,12 +2234,9 @@ local queryScopeSpec = {
 }
 
 local queryScopes = {}
-for _, entry in ipairs(queryScopeSpec) do
-  if type(entry) == "string" then
-    local opts = registry.scopeFor(entry)
-    if opts then
-      queryScopes[#queryScopes + 1] = scope(entry, opts)
-    end
+for _, entry in ipairs(registry.scopes(queryScopeSpec)) do
+  if type(entry) == "table" and entry.opts ~= nil then
+    queryScopes[#queryScopes + 1] = scope(entry.name, entry.opts)
   else
     queryScopes[#queryScopes + 1] = entry
   end
