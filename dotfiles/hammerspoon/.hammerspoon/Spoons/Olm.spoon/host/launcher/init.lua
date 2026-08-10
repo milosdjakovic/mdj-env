@@ -315,67 +315,82 @@ function obj:_buildActionRows()
     rows[#rows + 1] = { title = title, subTitle = subTitle, image = self:_glyphIcon(glyph),
                         item = item, when = when, keywords = keywords }
   end
+  -- addTool(name) asks the injected registry for this name's row and, when there is one,
+  -- builds it exactly as the thirteen hand written calls this replaced built theirs,
+  -- reading the description and the chord out of self._keys under the row's keysName or
+  -- the name itself. Doing nothing when the registry has no row for that name, whether
+  -- because nothing registered under it or because rowFor already answers nil for an
+  -- inactive tool and every command it owns, is what will make an inactive tool's row
+  -- disappear once the activation list finally means that. Also doing nothing when the
+  -- keys entry itself is absent, the same silent omission the guarded calls this
+  -- replaced already made one at a time.
+  --
+  -- This file still names no tool. It reads a name handed to it and the keys entry that
+  -- name points at, and everything about how that name's row looks, its category, its
+  -- glyph, its detail or its chord, now lives on the descriptor rather than here.
+  --
+  -- Adding a tool still costs one addTool line below, so this is not yet one
+  -- registration, only where a row's own data lives now rather than a change to how
+  -- many places know a tool exists. Removing that last line would move the whole row
+  -- order into the composition root, taking the capture loop and the window loop with
+  -- it since they sit in this same build, and that is a decision for later rather than
+  -- a thing to sneak in here.
+  local function addTool(name)
+    local row = self._registry and self._registry.rowFor(name)
+    if not row then return end
+    local keyEntry = keys[row.keysName or name]
+    if not keyEntry then return end
+    local subTitle
+    if row.detail then
+      subTitle = row.category .. " · " .. row.detail
+    elseif row.chord then
+      subTitle = row.category .. " · " .. self._glyphFor(keyEntry.key, keyEntry.modifiers)
+    else
+      subTitle = row.category .. " · " .. self:_chordLabel("Hyper", keyEntry.key)
+    end
+    add(keyEntry.description, subTitle, { kind = "special", name = name },
+      row.glyph or keyEntry.glyph, nil, row.keywords)
+  end
   -- Window actions share one glyph, the chord in the subtitle tells them apart;
   -- capture and the system actions get a per-action one.
   local captureGlyphs = { ocrArea = "🔤", captureArea = "📸", captureAreaClipboard = "📸", recordArea = "🎥" }
-  add(keys.colorPicker.description, "Tools · " .. self:_chordLabel("Hyper", keys.colorPicker.key), { kind = "special", name = "colorPicker" }, "🎨")
-  add(keys.emoji.description, "Tools · " .. self:_chordLabel("Hyper", keys.emoji.key), { kind = "special", name = "emoji" }, keys.emoji.glyph)
+  addTool("colorPicker")
+  addTool("emoji")
   for _, c in ipairs(keys.capture) do
     add(c.description or humanize(c.action), "Capture · " .. self:_chordLabel("Hyper", c.key, c.mods),
       { kind = "capture", name = c.action }, captureGlyphs[c.action] or "📸")
   end
-  add(keys.caffeinate.description, "System · " .. self:_chordLabel("Hyper", keys.caffeinate.key), { kind = "special", name = "caffeinate" }, keys.caffeinate.glyph)
-  add(keys.vpn.description, "Network · " .. self:_chordLabel("Hyper", keys.vpn.key), { kind = "special", name = "vpn" }, keys.vpn.glyph)
-  add(keys.clipboardHistory.description, "Clipboard · " .. self:_chordLabel("Hyper", keys.clipboardHistory.key), { kind = "special", name = "clipboard" }, "📋")
+  addTool("caffeinate")
+  addTool("vpn")
+  addTool("clipboard")
   -- The two clipboard actions that are global combos rather than Hyper bindings, so their
   -- subtitle carries the whole chord and names no leader. They are listed here because a
   -- global binding appears in no leader's cheat sheet, leaving this their only listing.
-  if keys.appendCopy then
-    add(keys.appendCopy.description, "Clipboard · " .. self._glyphFor(keys.appendCopy.key, keys.appendCopy.modifiers),
-      { kind = "special", name = "appendCopy" }, "➕", nil, "append copy add selection accumulate")
-  end
-  if keys.pasteNext then
-    add(keys.pasteNext.description, "Clipboard · " .. self._glyphFor(keys.pasteNext.key, keys.pasteNext.modifiers),
-      { kind = "special", name = "pasteNext" }, "⏩", nil, "paste next sequential walk history")
-  end
-  if keys.browserTabs then
-    add(keys.browserTabs.description, "Tools · " .. self:_chordLabel("Hyper", keys.browserTabs.key), { kind = "special", name = "browserTabs" }, keys.browserTabs.glyph)
-  end
+  addTool("appendCopy")
+  addTool("pasteNext")
+  addTool("browserTabs")
   -- Display profiles has no dedicated chord, it opens from here only, so its subtitle names
   -- what it does rather than a shortcut. The two display commands sit under a Displays
   -- category rather than System, so their subtitle does not read like the "System Settings"
   -- subtitle the Displays settings pane row carries.
-  if keys.displayProfiles then
-    add(keys.displayProfiles.description, "Displays · inspect and manage arrangements", { kind = "special", name = "displayProfiles" }, "🖥️")
-  end
+  addTool("displayProfiles")
   add("Search Settings", "System · opens the System Settings search field", { kind = "special", name = "searchSettings" }, "🔍")
   add("Overlay Display", "Displays · where panels and choosers appear", { kind = "special", name = "overlayDisplay" }, "🖥️")
   -- Text case has no dedicated chord, it opens from here only, so its subtitle names what
   -- it does rather than a shortcut.
-  if keys.textCase then
-    add(keys.textCase.description, "Text · recase the selection in place", { kind = "special", name = "textCase" }, "🔠")
-  end
+  addTool("textCase")
   -- Processes has no dedicated chord either, so its subtitle names what it does, and it
   -- names all three tiers rather than just servers because that is what the list holds.
   -- The keywords carry the words the title used to and no longer does, so the habit of
   -- typing process or port still lands on it.
-  if keys.processes then
-    add(keys.processes.description, "System · stop a dev server, container, or watcher",
-      { kind = "special", name = "processes" }, "🔌", nil, "processes port node docker")
-  end
+  addTool("processes")
   -- Dock auto hide has no dedicated chord either, it lost its standalone one when it moved
   -- into Olm, so its subtitle names what it does.
-  if keys.dockAutoHide then
-    add(keys.dockAutoHide.description, "System · hides or reveals the Dock",
-      { kind = "special", name = "dockAutoHide" }, "🗄️", nil, "dock hide hiding autohide show")
-  end
+  addTool("dockAutoHide")
   -- File search does have a chord, so its subtitle names it like the other keyed tools. The
   -- keywords carry the words a habit reaches for, since the title says file search and the
   -- thing people type is find.
-  if keys.fileSearch then
-    add(keys.fileSearch.description, "Tools · " .. self:_chordLabel("Hyper", keys.fileSearch.key),
-      { kind = "special", name = "fileSearch" }, keys.fileSearch.glyph, nil, "find files folders spotlight locate")
-  end
+  addTool("fileSearch")
   -- The alias directory, which has no chord because it opens from here, and is also reached by
   -- its own alias like the tools it lists. Its subtitle says what it holds rather than naming
   -- the word that reaches it, since that word is appended by the same hint every other row

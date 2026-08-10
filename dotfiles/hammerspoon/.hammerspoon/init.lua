@@ -1408,60 +1408,97 @@ end
 -- further below, since that local is declared after this point and is not yet in scope
 -- for a closure written here, the same ordering discipline in different clothes. Both
 -- names reach the identical object.
+-- Phase seven's third packet adds row to every registration below, the launcher row
+-- data that used to sit in host/launcher/init.lua's _buildActionRows as thirteen hand
+-- written add calls, one per tool plus the two clipboard commands. category is the word
+-- before the separator in the subtitle the launcher renders, required once row is
+-- present at all. keysName is only written on clipboard, the one tool whose row reads
+-- config/keys.lua under a different key, clipboardHistory, than its own registered name.
+-- chord is only written on the two clipboard commands below, since they are a modifier
+-- combination rather than a Hyper chord and their subtitle is built from that
+-- combination rather than from _chordLabel, and it must not be generalised to any other
+-- row. Everything else, detail, glyph, and keywords, is optional presentation data this
+-- registry never reads, meaningful only to the launcher's own addTool on the other end
+-- of rowFor.
 local registry = spoon.Olm.lib.registry.new({ apiVersion = spoon.Olm.apiVersion })
 registry.register({
   name = "clipboard",
   apiVersion = 1,
   open = function() spoon.ClipboardHistory:open() end,
   surface = function() return spoon.ClipboardHistory.manager end,
+  row = { category = "Clipboard", glyph = "📋", keysName = "clipboardHistory" },
   commands = {
     -- Both act on the app that was frontmost before the launcher opened, append copy by
     -- reading its selection. Every launcher row already runs deferred until focus has
     -- gone back there, which is what keeps the selection intact, the same mechanism the
     -- text case picker depends on.
-    appendCopy = function() spoon.ClipboardHistory.manager.appendCopy() end,
-    pasteNext = function() spoon.ClipboardHistory.manager.pasteNext() end,
+    appendCopy = {
+      fn = function() spoon.ClipboardHistory.manager.appendCopy() end,
+      row = { category = "Clipboard", chord = "modifier", glyph = "➕",
+        keywords = "append copy add selection accumulate" },
+    },
+    pasteNext = {
+      fn = function() spoon.ClipboardHistory.manager.pasteNext() end,
+      row = { category = "Clipboard", chord = "modifier", glyph = "⏩",
+        keywords = "paste next sequential walk history" },
+    },
   },
 })
 registry.register({
   name = "caffeinate", apiVersion = 1, hosted = true,
   open = function() spoon.Caffeinate.show() end,
   surface = function() return spoon.Caffeinate end,
+  row = { category = "System" },
 })
 registry.register({
   name = "vpn", apiVersion = 1, hosted = true,
   open = function() spoon.Vpn.show() end,
   surface = function() return spoon.Vpn end,
+  row = { category = "Network" },
 })
-registry.register({ name = "colorPicker", apiVersion = 1, open = function() spoon.Eyedropper:pick() end })
+registry.register({
+  name = "colorPicker", apiVersion = 1, open = function() spoon.Eyedropper:pick() end,
+  row = { category = "Tools", glyph = "🎨" },
+})
 registry.register({
   name = "emoji", apiVersion = 1, hosted = true,
   open = function() spoon.Emoji:show() end,
   surface = function() return spoon.Emoji:surface() end,
+  row = { category = "Tools" },
 })
-registry.register({ name = "dockAutoHide", apiVersion = 1, hosted = true, open = function() spoon.DockAutoHide:toggle() end })
+registry.register({
+  name = "dockAutoHide", apiVersion = 1, hosted = true, open = function() spoon.DockAutoHide:toggle() end,
+  row = { category = "System", detail = "hides or reveals the Dock", glyph = "🗄️",
+    keywords = "dock hide hiding autohide show" },
+})
 registry.register({
   name = "displayProfiles", apiVersion = 1, open = function() spoon.DisplayProfiles.chooser.show() end,
   surface = function() return spoon.DisplayProfiles.chooser end,
+  row = { category = "Displays", detail = "inspect and manage arrangements", glyph = "🖥️" },
 })
 registry.register({
   name = "textCase", apiVersion = 1,
   open = function() spoon.TextCase:show() end,
   surface = function() return spoon.TextCase:surface() end,
+  row = { category = "Text", detail = "recase the selection in place", glyph = "🔠" },
 })
 registry.register({
   name = "browserTabs", apiVersion = 1, hosted = true,
   open = function() spoon.BrowserTabs:show() end,
   surface = function() return spoon.BrowserTabs.chooser end,
+  row = { category = "Tools" },
 })
 registry.register({
   name = "processes", apiVersion = 1, open = function() spoon.Processes.chooser.show() end,
   surface = function() return spoon.Processes.chooser end,
+  row = { category = "System", detail = "stop a dev server, container, or watcher", glyph = "🔌",
+    keywords = "processes port node docker" },
 })
 registry.register({
   name = "fileSearch", apiVersion = 1, hosted = true,
   open = function() spoon.FileSearch.chooser.show() end,
   surface = function() return spoon.FileSearch.chooser end,
+  row = { category = "Tools", keywords = "find files folders spotlight locate" },
 })
 
 -- The activation list. settings.toolActivation is the default and lists all eleven, so
