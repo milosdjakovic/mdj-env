@@ -285,6 +285,16 @@ spoon.CheatSheet:init()
 -- column grid: the colour picker leads, then the four capture actions (OCR,
 -- screenshot copy, screenshot file, record), then menu search, keep awake, VPN,
 -- clipboard, launcher, and finally lock and sleep.
+--
+-- This list is hand maintained, and a scan for phase seven's fifth packet found that
+-- keys.fileSearch is missing from it, so file search has a live Hyper and slash chord that
+-- this overlay never lists while every other chorded tool is. That is a real defect and it
+-- is exactly the drift this whole phase exists to prevent, since this list is the one thing
+-- here that still names a chord by hand rather than reading it off the registry. Fixing it
+-- would add a new row to what the user sees on the hold overlay, which is theirs to ask for
+-- rather than something to sneak into a packet about how a chord is bound, so it stays
+-- broken here on purpose. Deriving this whole list from registry.shortcuts() instead, the
+-- same accessor the bind loop further below now walks, is the obvious next step.
 local hyperActions = { keys.colorPicker }
 for _, b in ipairs(keys.capture) do
   hyperActions[#hyperActions + 1] = b
@@ -746,11 +756,13 @@ spoon.ClipboardHistory:configure({
 -- They are global combos, the only clipboard keys not on Hyper, because they extend the plain
 -- copy and paste keys; see the reasoning in config/keys.lua. Both are also launcher rows, which
 -- is where they are discoverable, since a global binding sits in no leader's cheat sheet.
-spoon.ClipboardHistory:bindHotkeys({
-  open = keys.clipboardHistory,
-  appendCopy = keys.appendCopy,
-  pasteNext = keys.pasteNext,
-})
+--
+-- The root no longer calls spoon.ClipboardHistory:bindHotkeys, phase seven's fifth and last
+-- packet. Its open, its appendCopy, and its pasteNext are bound instead by the one loop
+-- further below that walks registry.shortcuts(), which is what lets deactivating the
+-- clipboard take its shortcut with it. The method itself stays in the plugin untouched, since
+-- the plugin is still shaped to stand alone and three other spoons implement the same
+-- bindHotkeys convention.
 
 -- Caffeinate is wired further down, alongside menu search and VPN, since all three are
 -- native choosers that dock the same deferred shortcut hint panel and share its factory,
@@ -1537,8 +1549,9 @@ openBuiltinMenuSearch = MenuSearch.open
 scopeMenuRows = MenuSearch.scopeRows
 scopeMenuRun = MenuSearch.scopeRun
 
--- Open key. Bound to the built in chooser, which is fast, direct, and shows the app icon.
-spoon.HyperKey:bind(keys.menuSearch.key, openBuiltinMenuSearch)
+-- Open key. Bound to the built in chooser, which is fast, direct, and shows the app icon,
+-- through the one loop further below that walks registry.shortcuts(), phase seven's fifth
+-- and last packet, rather than by a direct spoon.HyperKey:bind call here.
 
 -- VPN controls: a native chooser on Hyper+P that merges the controls and the locations
 -- into one flat list, Connect or Disconnect on top and every city below. It is pinned to
@@ -1568,7 +1581,8 @@ spoon.Vpn.configure({
   onClose = vpnPanel.onClose,
 })
 spoon.Vpn.start()
-spoon.HyperKey:bind(keys.vpn.key, function() spoon.Vpn.show() end)
+-- Bound through the one loop further below that walks registry.shortcuts(), phase seven's
+-- fifth and last packet, rather than by a direct spoon.HyperKey:bind call here.
 
 -- Caffeinate: the keep awake chooser on Hyper+K. Its search field doubles as the value
 -- entry, a clock like 15:55 or a duration like 1h30m, so it needs only the shared theme
@@ -1585,7 +1599,8 @@ spoon.Caffeinate.configure({
   onClose = caffeinatePanel.onClose,
 })
 spoon.Caffeinate.start()
-spoon.HyperKey:bind(keys.caffeinate.key, function() spoon.Caffeinate.show() end)
+-- Bound through the one loop further below that walks registry.shortcuts(), phase seven's
+-- fifth and last packet, rather than by a direct spoon.HyperKey:bind call here.
 
 -- Emoji picker on Hyper+J. Emoji is a facade over interchangeable backends, so the root
 -- names which one wins here and everything else stays the same. providers is the priority
@@ -1631,7 +1646,8 @@ spoon.Emoji:configure({
     end
   end,
 })
-spoon.HyperKey:bind(keys.emoji.key, function() spoon.Emoji:show() end)
+-- Bound through the one loop further below that walks registry.shortcuts(), phase seven's
+-- fifth and last packet, rather than by a direct spoon.HyperKey:bind call here.
 
 -- TextCase: recase the current selection in place, opened from the launcher only. It is a
 -- picker over the Chooser atom that owns its own transform catalog, so it needs the Chooser
@@ -1709,8 +1725,9 @@ spoon.BrowserTabs.chooser.configure({
   onClose = browserTabsPanel.onClose,
 })
 spoon.BrowserTabs.chooser.start()
--- Open key: a base HyperKey binding, suppressed while a modal context owns Hyper.
-spoon.HyperKey:bind(keys.browserTabs.key, function() spoon.BrowserTabs:show() end)
+-- Open key: a base HyperKey binding, suppressed while a modal context owns Hyper, bound
+-- through the one loop further below that walks registry.shortcuts(), phase seven's fifth
+-- and last packet, rather than by a direct spoon.HyperKey:bind call here.
 
 -- Processes: find and stop the development servers you left running, opened from the
 -- launcher only. Two configures, matching DisplayProfiles. The spoon's own root takes the
@@ -1852,8 +1869,9 @@ spoon.FileSearch.chooser.configure({
   end,
 })
 spoon.FileSearch.chooser.start()
--- Open key: a base HyperKey binding, suppressed while a modal context owns Hyper.
-spoon.HyperKey:bind(keys.fileSearch.key, function() spoon.FileSearch.chooser.show() end)
+-- Open key: a base HyperKey binding, suppressed while a modal context owns Hyper, bound
+-- through the one loop further below that walks registry.shortcuts(), phase seven's fifth
+-- and last packet, rather than by a direct spoon.HyperKey:bind call here.
 
 -- Query scopes. A word plus a space hands the launcher's whole list to one tool, so `k 2h`
 -- reaches the keep awake picker without leaving the launcher and deleting the space hands the
@@ -1980,31 +1998,49 @@ end
 -- ago. Menu search itself is the twelfth tool below, registered for the first time, since a
 -- registered name it could not reach while its own locals sat unassigned above this point is
 -- exactly what the move fixes.
+--
+-- Phase seven's fifth and last packet adds shortcut to the eight of these that used to be
+-- bound by a direct spoon.HyperKey:bind call or, for clipboard, by
+-- spoon.ClipboardHistory:bindHotkeys, and to the two clipboard commands that call was also
+-- binding. leader on the tool, global on the two commands, each naming which of the two ways
+-- config/keys.lua's own entry for that name is bound rather than binding it here, which the
+-- one loop below the activation call does instead by walking registry.shortcuts(). This is
+-- what finally makes the registry's own promise true, that an inactive tool loses its
+-- keyboard shortcut along with everything else, since a shortcut this registration never
+-- declares is a shortcut that loop never binds.
 registry.register({
   name = "clipboard",
   apiVersion = 1,
   open = function() spoon.ClipboardHistory:open() end,
   surface = function() return spoon.ClipboardHistory.manager end,
   row = { category = "Clipboard", glyph = "📋", keysName = "clipboardHistory" },
+  -- A base HyperKey binding through the leader, the same shape every other tool's open
+  -- takes, bound below by the one loop that walks registry.shortcuts() rather than by
+  -- ClipboardHistory:bindHotkeys, which the root no longer calls, see the comment beside
+  -- where that call used to sit for why.
+  shortcut = "leader",
   commands = {
     -- Both act on the app that was frontmost before the launcher opened, append copy by
     -- reading its selection. Every launcher row already runs deferred until focus has
     -- gone back there, which is what keeps the selection intact, the same mechanism the
-    -- text case picker depends on.
+    -- text case picker depends on. Both are global combinations rather than a Hyper
+    -- chord, the only clipboard keys that are, so each carries shortcut = "global" here.
     appendCopy = {
       fn = function() spoon.ClipboardHistory.manager.appendCopy() end,
       row = { category = "Clipboard", chord = "modifier", glyph = "➕",
         keywords = "append copy add selection accumulate" },
+      shortcut = "global",
     },
     pasteNext = {
       fn = function() spoon.ClipboardHistory.manager.pasteNext() end,
       row = { category = "Clipboard", chord = "modifier", glyph = "⏩",
         keywords = "paste next sequential walk history" },
+      shortcut = "global",
     },
   },
 })
 registry.register({
-  name = "caffeinate", apiVersion = 1, hosted = true,
+  name = "caffeinate", apiVersion = 1, hosted = true, shortcut = "leader",
   open = function() spoon.Caffeinate.show() end,
   surface = function() return spoon.Caffeinate end,
   row = { category = "System" },
@@ -2015,7 +2051,7 @@ registry.register({
   },
 })
 registry.register({
-  name = "vpn", apiVersion = 1, hosted = true,
+  name = "vpn", apiVersion = 1, hosted = true, shortcut = "leader",
   open = function() spoon.Vpn.show() end,
   surface = function() return spoon.Vpn end,
   row = { category = "Network" },
@@ -2044,11 +2080,12 @@ registry.register({
   },
 })
 registry.register({
-  name = "colorPicker", apiVersion = 1, open = function() spoon.Eyedropper:pick() end,
+  name = "colorPicker", apiVersion = 1, shortcut = "leader",
+  open = function() spoon.Eyedropper:pick() end,
   row = { category = "Tools", glyph = "🎨" },
 })
 local emojiDescriptor = {
-  name = "emoji", apiVersion = 1, hosted = true,
+  name = "emoji", apiVersion = 1, hosted = true, shortcut = "leader",
   open = function() spoon.Emoji:show() end,
   surface = function() return spoon.Emoji:surface() end,
   row = { category = "Tools" },
@@ -2098,7 +2135,7 @@ registry.register({
   row = { category = "Text", detail = "recase the selection in place", glyph = "🔠" },
 })
 registry.register({
-  name = "browserTabs", apiVersion = 1, hosted = true,
+  name = "browserTabs", apiVersion = 1, hosted = true, shortcut = "leader",
   open = function() spoon.BrowserTabs:show() end,
   surface = function() return spoon.BrowserTabs.chooser end,
   row = { category = "Tools" },
@@ -2133,7 +2170,7 @@ registry.register({
     keywords = "processes port node docker" },
 })
 registry.register({
-  name = "fileSearch", apiVersion = 1, hosted = true,
+  name = "fileSearch", apiVersion = 1, hosted = true, shortcut = "leader",
   open = function() spoon.FileSearch.chooser.show() end,
   surface = function() return spoon.FileSearch.chooser end,
   row = { category = "Tools", keywords = "find files folders spotlight locate" },
@@ -2178,7 +2215,7 @@ registry.register({
 -- local would have answered. No row, since it has none today and adding one is a visible
 -- change to the launcher this packet is not making. No hosted, since it is not hosted today.
 registry.register({
-  name = "menuSearch", apiVersion = 1,
+  name = "menuSearch", apiVersion = 1, shortcut = "leader",
   open = function() openBuiltinMenuSearch() end,
   surface = function() return menuSearchSurface end,
   scope = {
@@ -2200,6 +2237,39 @@ registry.activate(hs.settings.get(ACTIVATION_SETTINGS_KEY) or settings.toolActiv
 -- which is what makes opening this door safe rather than a second way for a plugin to
 -- reach around its own configure.
 spoon.Olm.registry = registry
+
+-- The one loop that binds every declared shortcut, phase seven's fifth and last packet.
+-- Eight direct spoon.HyperKey:bind calls used to sit beside each tool's own configure,
+-- menuSearch, vpn, caffeinate, emoji, browserTabs, fileSearch, and colorPicker through the
+-- bindHyper wrapper further below, plus clipboard bound differently, through
+-- spoon.ClipboardHistory:bindHotkeys, which bound its own open through the leader and its
+-- two commands, appendCopy and pasteNext, as global combinations. All eight sites are gone.
+-- registry.shortcuts() already answers nothing for an inactive tool or its commands, so
+-- this loop never reaches a bind call for one, which is the whole mechanism that keeps an
+-- inactive tool's key unbound rather than bound and later torn down.
+--
+-- The keys entry is resolved exactly as the launcher's own addTool resolves one, through the
+-- row's keysName or the entry's own name, since clipboard's row is the one registration whose
+-- keysName differs from its own name and every other entry here answers to its own. leader
+-- binds through the Hyper leader, global binds the literal combination, and either kind
+-- refusing to resolve a keys entry, or naming a third kind this loop has never heard of, is
+-- a defect in the registration rather than something this loop can repair, so it says so
+-- rather than binding nothing in silence.
+for _, entry in ipairs(registry.shortcuts()) do
+  local row = registry.rowFor(entry.name) or {}
+  local keyEntry = keys[row.keysName or entry.name]
+  if not keyEntry then
+    log.w(string.format(
+      "shortcuts: '%s' names no entry in config/keys.lua under '%s'",
+      entry.name, tostring(row.keysName or entry.name)))
+  elseif entry.kind == "leader" then
+    spoon.HyperKey:bind(keyEntry.key, entry.fn)
+  elseif entry.kind == "global" then
+    hs.hotkey.bind(keyEntry.modifiers, keyEntry.key, entry.fn)
+  else
+    log.w(string.format("shortcuts: '%s' names unknown kind '%s'", entry.name, tostring(entry.kind)))
+  end
+end
 
 -- Seven of the scopes that used to be built here directly, caffeinate, dockAutoHide, vpn, menu
 -- search, browserTabs, fileSearch, and emoji, moved onto their own tool's descriptor in phase
@@ -2649,9 +2719,10 @@ end)
 bindHyper(keys.sleep, function()
   hs.caffeinate.systemSleep()
 end)
-bindHyper(keys.colorPicker, function()
-  spoon.Eyedropper:pick()
-end)
+-- colorPicker used to bind here through bindHyper too, the same wrapper lock and sleep still
+-- use, but it is a registered tool, so phase seven's fifth and last packet moved its bind
+-- into the one loop further above that walks registry.shortcuts() instead. lock and sleep
+-- stay here, bare system commands with no tool behind them.
 
 -- This machine's name, the one place the per host split is decided. Resolved
 -- once here for DisplayProfiles (later); the terminal's per-location memory keys
