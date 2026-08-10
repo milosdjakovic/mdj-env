@@ -179,31 +179,98 @@ clicking away, or the tool closing itself. Without this an escape out of an open
 leave the state set, and the next chooser opened anywhere would come up already showing
 stale panel rows, the worst failure available here.
 
+## Why the field is captured and restored too, not only the rows
+
+The field is as much a part of what the panel swaps as the rows are, and a first pass here
+missed it, caught in review rather than by a gate, since the fake instance the unit cases
+drove had no query to get wrong. toggle now captures instance:query() beside the item and
+the row, and clears the field before its own refresh(true), so the panel opens on its full
+list rather than one rebuilt against whatever the tool's own query already held. Without
+that clearing, opening the panel on a chooser somebody had already typed into, the ordinary
+state for file search or the clipboard rather than an edge case, rebuilds against that text,
+almost nothing matches a panel title, and the panel comes up empty, the one thing the
+design says it must never do, on the single most common path there is.
+
+The same field also has to come back on the way out, and before the row, not after. Once a
+verb is chosen the atom rebuilds the tool's own list against whatever is CURRENTLY in the
+field, which by then may be text typed to find that verb inside the panel rather than what
+the tool's own list held when the panel opened. Restoring the row first and the field second
+would put the highlight back by number into a list built against the wrong query, a row that
+happens to sit there rather than the row the panel was opened over, silently. So the field is
+restored first, synchronously, and the row second, deferred, see _leave below.
+
 ## Why the highlight is captured and restored, not merely left alone
 
-toggle captures the highlighted item and row the moment it opens, and a chosen verb, once
-_choose records the action and closes the panel, restores the row through
-instance:selectRow before running it. The reason is the design's own argument for why the
-panel and the chord must never disagree about what a verb means. Running an action against
-whatever the panel's own list happened to leave highlighted, its own first row rather than
-the row the chord would have acted on, would be a second, quieter definition of a verb
-living beside the first one. Restoring the row first is what lets deps.run reach through
-exactly the same contextActions entry the chord itself runs, against exactly the row the
-chord would have acted on, so the two cannot disagree about what a verb does the way they
-already cannot disagree about what a verb is called.
+toggle captures the highlighted item, row, and query the moment it opens, and every way out,
+through the shared _leave described next, restores the row through instance:selectRow before
+running anything. The reason is the design's own argument for why the panel and the chord
+must never disagree about what a verb means. Running an action against whatever the panel's
+own list happened to leave highlighted, its own first row rather than the row the chord would
+have acted on, would be a second, quieter definition of a verb living beside the first one.
+Restoring the row is what lets deps.run reach through exactly the same contextActions entry
+the chord itself runs, against exactly the row the chord would have acted on, so the two
+cannot disagree about what a verb does the way they already cannot disagree about what a
+verb is called.
+
+## _leave, the one place every way out ends
+
+There are four ways out of the panel, Back chosen through intercept, Backspace through back,
+a verb chosen through intercept, and the chord toggling the panel closed again, and all four
+owe the chooser the exact same thing back, the field restored and the highlight on the row
+the panel was opened over. A first pass built that restore carefully for the verb path alone
+and left the other three dropping the highlight to whatever refresh(true) leaves it on, the
+first row, which review caught rather than a gate, since nothing exercised more than one way
+out at a time. _leave is the fix, one private method every one of the four calls, so they
+cannot drift from each other the way three of them already had from the fourth.
+
+_leave restores the field synchronously, before it returns, since setQuery on the atom only
+sets the text and asks nothing to rebuild on its own, so whichever rebuild runs next reads
+this restored field rather than whatever the panel's own query was left on. It then defers
+restoring the row, for the same reason _choose's own restore already had to be deferred, see
+below. Back and Backspace both close the panel with no action to run once the row is back,
+and a chosen verb closes it and runs deps.run once the row is back too, exactly the same
+contextActions entry the chord itself runs.
+
+The chord path is the one exception, and toggle carries it rather than _leave. Intercept and
+back both earn an automatic rebuild the moment their own handler answers true, since that is
+what _intercept and _back in providers/native.lua do next. The chord closing the panel answers
+neither, so nothing rebuilds it for free, and toggle runs instance:refresh(true) itself, right
+after _leave hands back a restored field, so the chooser shows the tool's own list again
+rather than sitting on stale panel rows while every wrapper here already believes the panel is
+closed. Without that explicit refresh, pressing Return next would fall through the now closed
+intercept, complete as an ordinary selection, and reach the tool's own onSelect, the exact
+warning decorate's own onSelect wrapper prints, which is how review found this one, the
+warning firing being the proof the state and the screen had disagreed.
 
 ## Why the deferral cannot be removed
 
-_choose schedules the restore and the run on a continuation, self._defer defaulting to
-hs.timer.doAfter(0, ...), rather than doing either synchronously before returning. This
-looks removable and is not. _intercept in providers/native.lua calls refresh(true) on the
-instance the moment a handler answers true, and it does that AFTER the handler has already
-returned, which is exactly what decorate's own wrapped intercept is. So anything _choose did
-to the highlight synchronously would be undone a moment later by that very rebuild, since
-refresh(true) resets the highlighted row to the first one. Answering false instead, so the
-row completes on its own, is not available either, since that tears the chooser down, and
-several verbs, browsing into a folder chief among them, must leave it open. So the restore
-has to run after the atom's own rebuild, on a fresh runloop tick, which is the only order
-that works, and the deferral is that order's one door. self._defer exists only so a unit
-case can hand in a synchronous stand in and read the continuation's own effect back without
-a real wait, the same reason self._log exists, and the composition root never sets it.
+_leave schedules the row restore, and _choose's own action with it, on a continuation,
+self._defer defaulting to hs.timer.doAfter(0, ...), rather than doing either synchronously
+before returning. This looks removable and is not. _intercept and _back in providers/native.lua
+both call refresh(true) on the instance the moment their own handler answers true, and they do
+that AFTER the handler has already returned, which is exactly what decorate's own wrapped
+intercept and back are. So anything _leave did to the highlight synchronously would be undone
+a moment later by that very rebuild, since refresh(true) resets the highlighted row to the
+first one. Answering false instead, so the row completes on its own, is not available either,
+since that tears the chooser down, and several verbs, browsing into a folder chief among them,
+must leave it open. So the restore has to run after that rebuild, on a fresh runloop tick,
+which is the only order that works, and the deferral is that order's one door. The chord path
+gets no such rebuild for free, toggle runs its own refresh(true) instead, but the row restore
+still defers through this same _leave rather than toggle carrying a second copy of it
+synchronously, since sharing the one function across all four paths is the whole point.
+self._defer exists only so a unit case can hand in a synchronous stand in and read the
+continuation's own effect back without a real wait, the same reason self._log exists, and the
+composition root never sets it.
+
+## decoratedCount, and why a green panel is not proof of a decorated one
+
+Every finding above was invisible to every gate this phase already had, since config/keys.lua,
+the panelrows section, and the unit cases all describe what the panel WOULD show, never
+whether decorate ever actually ran on the chooser in front of a person. A chooser built before
+Chooser.configure installed the decorate seam, or one that stopped going through the Chooser
+facade entirely, would leave the panel silently dead on it with every one of those still
+reading correctly. decoratedCount is the answer, a public method counting self._instances,
+needing no configure the same reason decorate itself does not, since recording an instance is
+a fact about construction rather than about the classification policy configure injects.
+test/inventory.lua reads it live, and it names twelve today, one per chooser this
+configuration builds, and would name fewer the moment that stopped being true.
