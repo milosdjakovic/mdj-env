@@ -698,7 +698,9 @@ end
 -- first, in declaration order, then Back last. Lives here beside footerFor and shares its two
 -- helpers above, chordFor and labelFor, rather than copying them, which is the whole reason the
 -- panel and the docked hint bar above cannot drift apart over what a chord is called or a verb
--- reads as.
+-- reads as. Each verb row now also carries the glyph its own binding declares in
+-- config/keys.lua, plain data read straight off the binding, so a glyph going missing is a
+-- change to that file rather than to anything here.
 --
 -- Filtered through bindingApplies, the same wiring time filter footerFor also applies, and NOT
 -- through bindingActive, footerFor's other filter. No verb in config/keys.lua carries a `when`
@@ -723,7 +725,8 @@ local function rowsFor(contextName)
     if ctx.name == contextName then
       for _, b in ipairs(spoon.ActionPanel:verbsIn(ctx.bindings)) do
         if bindingApplies(b) then
-          rows[#rows + 1] = { action = b.action, title = labelFor(b, contextName), chord = chordFor(b) }
+          rows[#rows + 1] = { action = b.action, title = labelFor(b, contextName), chord = chordFor(b),
+                              glyph = b.glyph }
         end
       end
     end
@@ -2709,6 +2712,10 @@ spoon.ActionPanel:configure({
       log.w("ActionPanel run asked for unknown action '" .. tostring(action) .. "'")
     end
   end,
+  -- The same shared glyph icon drawer the launcher draws its own rows from, phase eight's
+  -- third packet, so a panel row's glyph and a launcher row's glyph reach the exact same
+  -- cache and the exact same numbers.
+  icon = glyphIcon.icon,
 })
 
 -- The completeness check, once at load and never per panel open, the measurement phase eight's

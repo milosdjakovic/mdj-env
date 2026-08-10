@@ -29,8 +29,11 @@
 --- It names no action and no context. The composition root owns the map from an action name to
 --- a kind, since config/keys.lua already knows what every action name means, and injects that
 --- map through configure as deps.kindOf, and it owns the panel's own presentation and the
---- running of a chosen verb, injected as deps.rowsFor and deps.run. This module only asks
---- questions of what it is handed and never names a chooser, an action, or a context itself.
+--- running of a chosen verb, injected as deps.rowsFor and deps.run. deps.icon, added in phase
+--- eight's third packet, turns a row's own glyph into an icon through the shared
+--- Olm.spoon/lib/glyphicon.lua the launcher draws its own rows from, so this module still draws
+--- nothing itself. This module only asks questions of what it is handed and never names a
+--- chooser, an action, or a context itself.
 
 local obj = {}
 obj.__index = obj
@@ -66,9 +69,10 @@ obj.kinds = {
 
 -- Injected via configure
 obj._kindOf = nil -- function(action) -> a member of obj.kinds or nil, required
-obj._rowsFor = nil -- function(contextName) -> ordered rows { action, title, chord }, required
+obj._rowsFor = nil -- function(contextName) -> ordered rows { action, title, chord, glyph }, required
 obj._run = nil -- function(action), runs a named action, required
 obj._log = nil -- w(message), defaults to this module's own hs.logger instance
+obj._icon = nil -- function(glyph) -> hs.image or nil, optional, defaults to answering nil
 
 -- The panel's own runtime state, set only by decorate, toggle, and the private helpers below,
 -- and read by nothing outside this file. _instances is every raw Chooser instance decorate has
@@ -120,6 +124,16 @@ end
 ---               without going through hs.logger's own global, shared, process wide history
 ---               buffer, the same reason and the same wording lib/registry.lua gives for its
 ---               own opts.log. The composition root never passes it.
+--- deps.icon     optional, a function from a glyph to an hs.image or nil, defaulting to a
+---               function answering nil for everything. Presentation, the same line drawn for
+---               rowsFor, and optional rather than required since a row with no icon is a
+---               legitimate look for this module's own unit cases, which build no image at
+---               all, where a missing kindOf, rowsFor, or run would leave the panel unable to
+---               answer the question it exists to answer. The composition root passes the
+---               shared Olm.spoon/lib/glyphicon.lua instance's own icon function here, the
+---               same instance Launcher draws its own rows from, so a glyph drawn for one
+---               reaches the exact same cache and the exact same numbers as a glyph drawn for
+---               the other.
 function obj:configure(deps)
   deps = deps or {}
   if type(deps.kindOf) ~= "function" then
@@ -135,6 +149,7 @@ function obj:configure(deps)
   self._rowsFor = deps.rowsFor
   self._run = deps.run
   self._log = deps.log or log
+  self._icon = deps.icon or function() return nil end
   return self
 end
 
@@ -234,19 +249,23 @@ local function filterOwnRows(rows, query, filtersItself)
   return out
 end
 
--- Chooser row shaped entries { title, subTitle, item, filterText } built from deps.rowsFor's
--- plain { action, title, chord } rows, one call away from both toggle below and
--- test/inventory.lua's own live read through the public rowsFor above, so a title or a chord
--- the panel shows is never a second opinion on what deps.rowsFor answered. The chord rides as
--- the row's subTitle, since a person opening the panel to look up a verb's chord is exactly
--- this feature's own reason to exist. item carries the plain row itself back whole, so
--- _choose below can read its action directly off whatever the atom hands back as the chosen
--- item, and the Back row, carrying no action since no context declares one, is what marks it
--- Back rather than a verb there.
+-- Chooser row shaped entries { title, subTitle, image, item, filterText } built from
+-- deps.rowsFor's plain { action, title, chord, glyph } rows, one call away from both toggle
+-- below and test/inventory.lua's own live read through the public rowsFor above, so a title,
+-- a chord, or a glyph the panel shows is never a second opinion on what deps.rowsFor
+-- answered. The chord rides as the row's subTitle, since a person opening the panel to look
+-- up a verb's chord is exactly this feature's own reason to exist. image comes from turning
+-- the row's own glyph into an icon through the injected deps.icon, exactly the field the
+-- chooser atom already reads for every other row in this configuration, and a row with no
+-- glyph answers no image the same way deps.icon's own default answers nothing for anything.
+-- item carries the plain row itself back whole, so _choose below can read its action
+-- directly off whatever the atom hands back as the chosen item, and the Back row, carrying
+-- no action since no context declares one, is what marks it Back rather than a verb there.
 function obj:_buildRows(contextName)
   local rows = {}
   for _, r in ipairs(self:rowsFor(contextName)) do
-    rows[#rows + 1] = { title = r.title, subTitle = r.chord, item = r, filterText = r.title }
+    rows[#rows + 1] = { title = r.title, subTitle = r.chord, image = self._icon(r.glyph),
+                        item = r, filterText = r.title }
   end
   return rows
 end

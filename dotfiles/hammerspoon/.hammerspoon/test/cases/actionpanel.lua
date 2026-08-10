@@ -686,6 +686,24 @@ do
   )
 end
 
+-- deps.icon is optional, defaulting to a function answering nil for everything, so a row
+-- still builds and still carries no image rather than raising when the composition root's
+-- own drawer is not the thing under test.
+do
+  local ap, _, _ = configuredPanel({
+    demo = { { action = "doThing", title = "Do Thing", glyph = "🔥" }, { title = "Back" } },
+  })
+  local config = fakeConfig()
+  local instance = fakeInstance({ showing = true })
+  ap:decorate(instance, config)
+  ap:toggle("demo")
+  local rows = config.rows("")
+  check(
+    "deps.icon left unconfigured answers no image for any row rather than raising",
+    #rows == 2 and rows[1].image == nil and rows[2].image == nil
+  )
+end
+
 -- decoratedCount answers how many instances decorate has wrapped, so a live measurement can
 -- prove the panel is actually installed on a chooser rather than assuming Chooser.configure's
 -- seam ran before it was built. Needs no configure, the same reason decorate itself does not.
