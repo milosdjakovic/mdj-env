@@ -343,10 +343,21 @@ appear.
 
 App rows show the real app icon. The action rows have none of their own, so each
 gets a generic icon drawn from a glyph, since this Hammerspoon has no SF Symbol
-API and the named system images are too sparse. The glyph is rendered to an
-image once through `hs.canvas` and cached, so it lines up in the row with the
-app icons. Window actions share one glyph, the chord in the subtitle telling
-them apart, while the other command actions get a per-action one.
+API and the named system images are too sparse. Window actions share one glyph,
+the chord in the subtitle telling them apart, while the other command actions
+get a per-action one.
+
+The drawing itself, once this spoon's own private `_glyphIcon`, moved to the
+shared `Olm.spoon/lib/glyphicon.lua` in phase eight's third packet, once
+`ActionPanel` became a genuine second caller of the exact same drawing. This
+spoon keeps `_glyphIcon` as the thin caller everything here already reaches
+through, delegating to an instance the composition root builds and injects as
+`opts.glyphIcon`, so a glyph is still rendered to an image once through
+`hs.canvas` and cached, in the exact same size and frame as before, and it
+still lines up in the row with the app icons. The cache itself now lives on
+the injected instance rather than on a field of this spoon, and the root hands
+the panel the very same instance, so a glyph the two happen to share, the
+arrow pointing back among them, is drawn once rather than twice.
 
 ## Picker integration
 
