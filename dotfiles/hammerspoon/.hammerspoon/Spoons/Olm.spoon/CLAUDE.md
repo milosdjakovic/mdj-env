@@ -354,3 +354,88 @@ this is not yet one registration. Removing that last line would move the whole r
 composition root, which would take the capture loop and the window loop with it since they build
 inside the same function, and that is a decision for a later packet to weigh rather than a thing
 to fold in here without being asked.
+
+**Why the registrations moved, and what that bought, phase seven's fourth packet.** A scope's
+`rows` and `run` are the very functions this file assigns far below the old registration point,
+`scopeMenuRows` and `scopeMenuRun` chief among them, and their own `local` statement sits below
+that point too, so naming them in a closure written there would silently resolve to a nil global
+rather than the function meant. Every earlier packet in this phase solved the same hazard with a
+closure, since `open` and `surface` name something built later but the name itself already
+exists above the registration. A scope cannot be solved that way, because the name does not yet
+exist at all. The answer is to move the registrations rather than add more closure discipline, so
+`registry.register`, `registry.activate`, and `spoon.Olm.registry = registry` all sit immediately
+above `queryScopes` now, where every declaration a tool or a scope could need already exists.
+`registry.new` stays where it stood, since `spoon.Launcher:configure` needs the instance early to
+inject and only stores the reference, ordinary composition root sequencing, building the
+container where a collaborator needs it and filling it once everything it describes exists. The
+move cost nothing at runtime, since nothing reads the registry during load, `rowIntercept` and
+`addTool` both hold it as an upvalue and call it later, and it bought two things beyond removing
+the hazard, the emoji scope's condition, `spoon.Emoji:lists()`, can be asked right at registration
+because that facade has already chosen a backend by then, and menu search stops needing anything
+special to be registered at all.
+
+**The descriptor gains a scope, and why the identity fields are not on it.** `scope`, optional, is
+a table carrying exactly the fields the composition root's own `scope(name, opts)` helper passes
+through, `matcher`, `rows`, `run`, `peek`, `redirect`, and `act`. The identity fields that helper
+adds on top, `name`, `title`, `glyph`, and `aliases`, are deliberately absent, since three of them
+are read out of `config/keys.lua` and this registry reads no configuration at all, the same rule
+that keeps `name` the tool's only identity everywhere else in this file. Validated the way `row`
+already is. A `scope` present and not a table is refused, naming the tool. `rows` and `run` are
+required once a scope is present, since `QueryScope`'s own admissible function requires both and
+would otherwise refuse the assembled scope later with a line naming the scope rather than the
+registration that produced it, a worse place to learn about the same mistake. `matcher` is the one
+field that is not a function when present, false on four scopes today, so false or a function is
+accepted and anything else is refused. `peek`, `redirect`, and `act` each accept only a function
+or absence, every refusal naming the tool and the field that was wrong.
+
+**`scopeFor(name)`, the accessor this packet adds.** It answers the scope table of an active tool
+or nil, in the same shape `rowFor` already answers, resolved through the same flat index, so an
+inactive tool, an unknown name, and a command name all answer nil, a command's answer nil because
+nothing in this packet gives a command its own scope, only a tool's own entry carries one.
+
+**Why menu search could not be registered before this packet, and can now.** It has a surface, a
+scope, an open predicate, and a chord, everything a registered tool has except a launcher row,
+which is exactly what a tool that is reachable only as a scope is meant to look like. What blocked
+it was never a missing capability, it was that `openBuiltinMenuSearch`, `menuSearchSurface`,
+`scopeMenuRows`, and `scopeMenuRun` were all still unassigned forward declared locals at the old
+registration point, hundreds of lines above where they are actually filled in. The move above
+puts the registration block below every one of those assignments, so menu search's closures name
+the real functions rather than the nil the forward declared locals would have answered. It is the
+twelfth registered tool now, with no `row`, since it has none today and giving it one would be a
+visible change to the launcher this packet does not make, and no `hosted`, since it is not hosted
+today either.
+
+**`settings.toolActivation` grows to twelve, and why missing this step would fail silently.**
+Menu search joins the other eleven in the default activation list. A registered tool absent from
+that list is inactive, and an inactive tool answers nil to `surfaceFor`, `rowFor`, and `scopeFor`
+alike, so menu search would lose its navigation keys and its scope in the same stroke with nothing
+raising, logging, or failing a gate, since every one of those reads already treats an inactive
+tool's silence as the correct answer everywhere else.
+
+**Why the scope order is preserved rather than derived.** `queryScopes` now builds from an ordered
+spec, the same shape `registry.surfaces` already takes, a string naming a registered tool and
+anything else an object the registry never heard of. A string resolves through `scopeFor` into
+the same opts a `scope(...)` call always took, and is then passed through that helper so the
+identity fields still join in exactly the one place that ever added them. The order is kept entry
+for entry against the table this spec replaces, because `QueryScope` gives a colliding alias to
+whichever scope claims it first, so this order decides who owns a word, and deriving it from
+registration order instead would make that decision depend on where in the root a tool happened
+to be registered rather than on a choice anyone made on purpose. The four that stay as plain
+objects in the spec are the three `launcherCatalogScope` scopes, `apps`, `windowActions`, and
+`settingsPanes`, which narrow the launcher's own catalog rather than reaching a tool, and the
+alias directory, a scope about scopes with no tool behind it, so none of the four has anywhere to
+register.
+
+**The cross check, and why it is a snapshot rather than a warning.** Folding scopes into the
+registry means a tool marked `hosted` with no scope behind it becomes visible for the first time,
+where before this packet those two facts lived in different tables with nothing comparing them and
+the only symptom was a row that opened a picker instead of hosting, which reads as ordinary
+behaviour rather than a defect. A warning at assembly time is the obvious answer and it is wrong,
+because the emoji scope registers only when its backend owns a list, so with the Character Viewer
+fronted, emoji is legitimately hosted with no scope, and a warning would cry wolf on the one case
+this design deliberately built. So `all()` records `scope` presence beside `surface` and `hosted`
+instead, which puts it in `test/inventory.golden` through `test/inventory.lua`. A tool that is
+hosted with no scope then reads as `hosted=true scope=false` in a committed file, so the
+legitimate case is visible and stable and any real drift is a diff against the golden rather than
+a log line nobody reads. This was considered and the warning rejected, written down here so nobody
+adds one later thinking it was merely overlooked.
