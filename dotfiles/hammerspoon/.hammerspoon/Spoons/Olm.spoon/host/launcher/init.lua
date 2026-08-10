@@ -8,8 +8,9 @@
 --- names a domain spoon. The root injects every collaborator through configure,
 --- the Chooser factory, the pure keys and apps data, the window actions table, a
 --- glyph resolver, the settings pane descriptors, the shared predicate registry,
---- the docked shortcut panel callbacks, and a small dispatch of leaf actions that
---- do name the domain spoons. So the launcher owns the row building, the matching,
+--- the docked shortcut panel callbacks, the tool registry from phase seven of the
+--- build plan, and a small dispatch of leaf actions that do name the domain
+--- spoons. So the launcher owns the row building, the matching,
 --- the app enumeration, and the command dispatch structure, and knows nothing
 --- about what a row ultimately does.
 ---
@@ -45,6 +46,7 @@ obj._shortcutPanel = nil    -- { onPositioned, onActivity, onClose }
 obj._actions = nil          -- leaf dispatch: app, capture, settingsPane, special, rowIntercept
 obj._queryProviders = nil   -- ordered query row sources, each answering rows(query)
 obj._aliasHint = nil        -- function(name) -> subtitle fragment, "" when there is none
+obj._registry = nil         -- the tool registry, dot called, optional, see configure and _runItem
 
 -- Owned state
 obj._instance = nil         -- the built Chooser instance
@@ -146,6 +148,11 @@ function obj:configure(opts)
   self._predicates = opts.predicates or {}
   self._shortcutPanel = opts.shortcutPanel or {}
   self._actions = opts.actions or {}
+  -- The tool registry, phase seven of the build plan. Optional, and a launcher configured
+  -- without one dispatches a special row through actions.special alone, exactly as it did
+  -- before the registry existed, since a host that hard requires one cannot be tested
+  -- without one. See _runItem for the two places a special row is now looked up.
+  self._registry = opts.registry
   -- Query row sources, in the order their rows should appear. Each is any table
   -- answering rows(query), so the launcher composes them without knowing what any of
   -- them computes, and the root decides which exist. An empty list is the whole
@@ -817,8 +824,16 @@ function obj:_runItem(it)
   elseif it.kind == "capture" then
     if a.capture then a.capture(it.name) end
   elseif it.kind == "special" then
-    local fn = a.special and a.special[it.name]
-    if fn then fn() end
+    -- Two sources, not a leak. A name the registry answers is a tool, and everything left
+    -- in actions.special is a bare command with no tool behind it, so one lookup for each
+    -- is honest rather than one pretending every special row is a plugin. The registry is
+    -- asked first and only a name it does not run falls through to actions.special, which
+    -- registration itself makes safe, since a name cannot be claimed by both.
+    local ran = self._registry and self._registry.run(it.name)
+    if not ran then
+      local fn = a.special and a.special[it.name]
+      if fn then fn() end
+    end
   elseif it.kind == "settingsPane" then
     if a.settingsPane then a.settingsPane(it.url) end
   elseif it.kind == "calc" then
