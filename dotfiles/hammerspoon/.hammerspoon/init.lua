@@ -430,39 +430,6 @@ local enterScope
 -- here because this root refers to it in both of those places and nowhere else should.
 local ALIAS_DIRECTORY = "aliasDirectory"
 
--- The tools whose launcher row puts their list INTO the launcher rather than opening a second
--- chooser over the first. Choosing one costs no close and no reopen, the rows underneath simply
--- become that tool's rows, and that is all that visibly happens. The field stays empty and ready
--- for that tool's own query, and nothing is typed into it on the user's behalf, because a row
--- meaning give me this tool and a row meaning here is the word for this tool are two different
--- rows and only the alias directory is the second kind.
---
--- Hosting reuses the alias as an invisible prefix, so a tool joins this list by already being
--- reachable by a typed word and needs nothing of its own. A name with no live alias answers nil
--- and its row opens its picker, so nothing has to be removed from here when a scope stops
--- resolving. The emoji scope is exactly that case, registered only when the backend that won owns
--- a list, so with the Character Viewer fronted that row opens the picker.
---
--- WHAT A HOSTED LIST DOES NOT CARRY is the keys that are the tool's own rather than the shared
--- j, k, i and x, which today means reveal, copy path and browsing a folder in file search, and
--- the settings level in browser tabs. Those keys live in the Hyper context that goes with the
--- tool's own picker and a hosted list is under the launcher's context, so they are still a chord
--- away and are not here. The gap closes when a scope can carry a tool's extra verbs, which is
--- worth doing and is not this.
---
--- The alias directory is here for a different reason. It is not a tool with a picker at all, it IS
--- a scope, so its row has nothing to open and hosting it is the only correct reading of choosing
--- it. Its own rows are then the one place a word is handed over rather than a list.
-local hostedInPlace = {
-  [ALIAS_DIRECTORY] = true,
-  caffeinate = true,
-  vpn = true,
-  emoji = true,
-  fileSearch = true,
-  browserTabs = true,
-  dockAutoHide = true,
-}
-
 local predicates = {
   multipleDisplays = function() return #hs.screen.allScreens() > 1 end,
   -- The launcher chooser is open. Gates the launcher Hyper context,
@@ -1416,16 +1383,31 @@ end
 -- the comment that sat beside them before, and registering them here is what makes
 -- deactivating the clipboard take them with it.
 --
--- Several of the open closures below are named in hostedInPlace, so their row normally
--- never reaches run at all, the launcher hosts the tool's list instead. Opening the
--- picker stays the answer for the one case hosting cannot happen, a scope holding no
--- live alias, and it is also what the tool's own chord does, so nothing is lost by
--- keeping the closure here even though it is rarely what actually answers the row.
+-- Several of the tools below carry hosted = true, so their row normally never reaches
+-- run at all, the launcher hosts the tool's list instead, see the hosted test beside
+-- actions.rowIntercept further down. Opening the picker stays the answer for the one
+-- case hosting cannot happen, a scope holding no live alias, and it is also what the
+-- tool's own chord does, so nothing is lost by keeping the closure here even though it
+-- is rarely what actually answers the row.
+--
+-- Phase seven's second packet adds surface to nine of these, a function of no arguments
+-- handing back this tool's navigation adapter, and hosted, a plain boolean, to six.
+-- Every surface below is a closure and never the object itself, even the seven that are
+-- already a stable module reference and would survive either spelling, because the
+-- other two, emoji and textCase, build that object inside their own configure call
+-- further below this point and hand it back from a method, so capturing it now rather
+-- than when the shared nav registry actually asks would capture nothing at all,
+-- permanently and silently. Clipboard's own surface reads spoon.ClipboardHistory.manager
+-- directly rather than through the clipManager local the shared nav registry uses
+-- further below, since that local is declared after this point and is not yet in scope
+-- for a closure written here, the same ordering discipline in different clothes. Both
+-- names reach the identical object.
 local registry = spoon.Olm.lib.registry.new({ apiVersion = spoon.Olm.apiVersion })
 registry.register({
   name = "clipboard",
   apiVersion = 1,
   open = function() spoon.ClipboardHistory:open() end,
+  surface = function() return spoon.ClipboardHistory.manager end,
   commands = {
     -- Both act on the app that was frontmost before the launcher opened, append copy by
     -- reading its selection. Every launcher row already runs deferred until focus has
@@ -1435,24 +1417,60 @@ registry.register({
     pasteNext = function() spoon.ClipboardHistory.manager.pasteNext() end,
   },
 })
-registry.register({ name = "caffeinate", apiVersion = 1, open = function() spoon.Caffeinate.show() end })
-registry.register({ name = "vpn", apiVersion = 1, open = function() spoon.Vpn.show() end })
+registry.register({
+  name = "caffeinate", apiVersion = 1, hosted = true,
+  open = function() spoon.Caffeinate.show() end,
+  surface = function() return spoon.Caffeinate end,
+})
+registry.register({
+  name = "vpn", apiVersion = 1, hosted = true,
+  open = function() spoon.Vpn.show() end,
+  surface = function() return spoon.Vpn end,
+})
 registry.register({ name = "colorPicker", apiVersion = 1, open = function() spoon.Eyedropper:pick() end })
-registry.register({ name = "emoji", apiVersion = 1, open = function() spoon.Emoji:show() end })
-registry.register({ name = "dockAutoHide", apiVersion = 1, open = function() spoon.DockAutoHide:toggle() end })
+registry.register({
+  name = "emoji", apiVersion = 1, hosted = true,
+  open = function() spoon.Emoji:show() end,
+  surface = function() return spoon.Emoji:surface() end,
+})
+registry.register({ name = "dockAutoHide", apiVersion = 1, hosted = true, open = function() spoon.DockAutoHide:toggle() end })
 registry.register({
   name = "displayProfiles", apiVersion = 1, open = function() spoon.DisplayProfiles.chooser.show() end,
+  surface = function() return spoon.DisplayProfiles.chooser end,
 })
-registry.register({ name = "textCase", apiVersion = 1, open = function() spoon.TextCase:show() end })
-registry.register({ name = "browserTabs", apiVersion = 1, open = function() spoon.BrowserTabs:show() end })
-registry.register({ name = "processes", apiVersion = 1, open = function() spoon.Processes.chooser.show() end })
-registry.register({ name = "fileSearch", apiVersion = 1, open = function() spoon.FileSearch.chooser.show() end })
+registry.register({
+  name = "textCase", apiVersion = 1,
+  open = function() spoon.TextCase:show() end,
+  surface = function() return spoon.TextCase:surface() end,
+})
+registry.register({
+  name = "browserTabs", apiVersion = 1, hosted = true,
+  open = function() spoon.BrowserTabs:show() end,
+  surface = function() return spoon.BrowserTabs.chooser end,
+})
+registry.register({
+  name = "processes", apiVersion = 1, open = function() spoon.Processes.chooser.show() end,
+  surface = function() return spoon.Processes.chooser end,
+})
+registry.register({
+  name = "fileSearch", apiVersion = 1, hosted = true,
+  open = function() spoon.FileSearch.chooser.show() end,
+  surface = function() return spoon.FileSearch.chooser end,
+})
 
 -- The activation list. settings.toolActivation is the default and lists all eleven, so
 -- this machine's behaviour is identical to before this packet. The hs.settings key below
 -- is the override a future roster writes, and nothing writes it yet.
 local ACTIVATION_SETTINGS_KEY = "registryActivation"
 registry.activate(hs.settings.get(ACTIVATION_SETTINGS_KEY) or settings.toolActivation)
+
+-- Published here, both halves worth saying in one place. The composition root is
+-- publishing what it built, so the inventory can read this registry live rather than
+-- through the choosers pattern match further below, and the rule that a plugin never
+-- reaches for spoon.Olm on its own is already enforced by src/check-dependencies.sh,
+-- which is what makes opening this door safe rather than a second way for a plugin to
+-- reach around its own configure.
+spoon.Olm.registry = registry
 
 spoon.Launcher:init()
 spoon.Launcher:configure({
@@ -1510,15 +1528,43 @@ spoon.Launcher:configure({
         if not query then return nil end
         return function() spoon.Launcher:seedQuery(query) end
       end
-      -- A curated row for a tool with a list of its own. Its list is HOSTED, so the rows change
-      -- and nothing else does, no second window and no word appearing in a field nobody typed in.
-      -- The prefix that reaches it is the tool's own alias, which is the launcher's existing way
-      -- to ask for one tool's rows and is why hosting needed nothing new from the tool.
-      if item.kind == "special" and hostedInPlace[item.name] then
-        local prefix = spoon.QueryScope:queryFor(item.name)
-        if not prefix then return nil end
-        local title = (keys[item.name] or {}).description
-        return function() spoon.Launcher:enterPage(prefix, title) end
+      -- A curated row for a tool whose launcher row puts its list INTO the launcher rather than
+      -- opening a second chooser over the first. Choosing one costs no close and no reopen, the
+      -- rows underneath simply become that tool's rows, and that is all that visibly happens. The
+      -- field stays empty and ready for that tool's own query, and nothing is typed into it on the
+      -- user's behalf, because a row meaning give me this tool and a row meaning here is the word
+      -- for this tool are two different rows and only the alias directory is the second kind.
+      --
+      -- Hosting reuses the alias as an invisible prefix, so a tool is hosted by already being
+      -- reachable by a typed word and needs nothing else of its own. A name with no live alias
+      -- answers nil and its row opens its picker instead, so nothing has to change here when a
+      -- scope stops resolving. The emoji scope is exactly that case, registered only when the
+      -- backend that won owns a list, so with the Character Viewer fronted that row opens the
+      -- picker.
+      --
+      -- WHAT A HOSTED LIST DOES NOT CARRY is the keys that are the tool's own rather than the
+      -- shared j, k, i and x, which today means reveal, copy path and browsing a folder in file
+      -- search, and the settings level in browser tabs. Those keys live in the Hyper context that
+      -- goes with the tool's own picker and a hosted list is under the launcher's context, so they
+      -- are still a chord away and are not here. The gap closes when a scope can carry a tool's
+      -- extra verbs, which is worth doing and is not this.
+      --
+      -- The hosted bit itself now lives on the tool's own descriptor rather than in a table named
+      -- here, read through registry.get so an inactive tool answers the same nil it answers every
+      -- other read. The alias directory answers to a name check instead, since it is not a tool
+      -- with a picker at all, it IS a scope, so its row has nothing to open and hosting it is the
+      -- only correct reading of choosing it, and a scope carries no descriptor for this registry to
+      -- ask. It is named here by hand for that reason, and a later packet in this phase is where
+      -- scopes themselves join the registry and this name check moves with them.
+      if item.kind == "special" then
+        local tool = registry.get(item.name)
+        local hosted = (tool ~= nil and tool.hosted == true) or item.name == ALIAS_DIRECTORY
+        if hosted then
+          local prefix = spoon.QueryScope:queryFor(item.name)
+          if not prefix then return nil end
+          local title = (keys[item.name] or {}).description
+          return function() spoon.Launcher:enterPage(prefix, title) end
+        end
       end
       return nil
     end,
@@ -2257,7 +2303,22 @@ spoon.ClipboardHistory.manager.start()
 -- glance at the sheet plus any key clears it.
 spoon.HyperKey:configure({ predicates = predicates })
 local clipManager = spoon.ClipboardHistory.manager
-local choosers = { clipManager, spoon.Caffeinate, spoon.Vpn, spoon.Launcher:surface(), menuSearchSurface, spoon.DisplayProfiles.chooser, spoon.Emoji:surface(), overlayDisplaySurface, spoon.TextCase:surface(), spoon.BrowserTabs.chooser, spoon.Processes.chooser, spoon.FileSearch.chooser }
+-- The same twelve entries in the same order as before phase seven's second packet, the
+-- nine tools the registry now knows named as strings and the three that stay outside
+-- handed through as the objects they already are, spoon.Launcher:surface() because the
+-- launcher hosts this registry and cannot be a tool inside its own, menuSearchSurface
+-- and overlayDisplaySurface because neither has a descriptor of its own yet. The mix is
+-- deliberate rather than an inconsistency, a string names something registry.surfaces
+-- resolves and anything else is an object it was never told about and passes straight
+-- through. The order is not decoration either. activeChooser below answers with the
+-- first surface that says it is showing, so the order decides the answer if two are ever
+-- up at once, and nothing in this tree proves they cannot be, which is why this list is
+-- never reordered to suit the registry and never sorted.
+local choosers = registry.surfaces({
+  "clipboard", "caffeinate", "vpn", spoon.Launcher:surface(), menuSearchSurface,
+  "displayProfiles", "emoji", overlayDisplaySurface, "textCase", "browserTabs",
+  "processes", "fileSearch",
+})
 local function activeChooser()
   for _, c in ipairs(choosers) do
     if c.isShowing() then return c end
