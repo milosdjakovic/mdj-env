@@ -9,8 +9,9 @@
 --- the Chooser factory, the pure keys and apps data, the window actions table, a
 --- glyph resolver, the settings pane descriptors, the shared predicate registry,
 --- the docked shortcut panel callbacks, the tool registry from phase seven of the
---- build plan, and a small dispatch of leaf actions that do name the domain
---- spoons. So the launcher owns the row building, the matching,
+--- build plan, the shared glyph icon drawer from phase eight's third packet, and
+--- a small dispatch of leaf actions that do name the domain spoons. So the
+--- launcher owns the row building, the matching,
 --- the app enumeration, and the command dispatch structure, and knows nothing
 --- about what a row ultimately does.
 ---
@@ -49,11 +50,11 @@ obj._actions = nil          -- leaf dispatch: app, capture, settingsPane, specia
 obj._queryProviders = nil   -- ordered query row sources, each answering rows(query)
 obj._aliasHint = nil        -- function(name) -> subtitle fragment, "" when there is none
 obj._registry = nil         -- the tool registry, dot called, optional, see configure and _runItem
+obj._icons = nil            -- the shared glyph icon drawer, Olm.spoon/lib/glyphicon.lua, dot called
 
 -- Owned state
 obj._instance = nil         -- the built Chooser instance
 obj._surface = nil          -- dot-called navigation adapter over the instance
-obj._glyphIconCache = nil
 obj._actionRows = nil
 obj._settingsPaneRows = nil
 obj._configuredApps = nil
@@ -165,8 +166,11 @@ function obj:configure(opts)
   -- no edit here. The default answers nothing, which is the whole feature absent rather than
   -- broken. See _buildActionRows for why it is asked there and not at each call site.
   self._aliasHint = opts.aliasHint or function() return "" end
-
-  self._glyphIconCache = {}
+  -- The shared glyph icon drawer, Olm.spoon/lib/glyphicon.lua, phase eight's third packet.
+  -- The root builds one instance and hands it to whoever draws a row icon from an emoji
+  -- rather than an app bundle, ActionPanel among them since that packet, so a glyph drawn
+  -- here and a glyph drawn there share the exact same cache and the exact same numbers.
+  self._icons = opts.glyphIcon
 
   self._configuredApps = self:_buildConfiguredApps()
 
@@ -241,18 +245,16 @@ end
 --- Method
 --- An action row has no app icon of its own, so draw one from a glyph, once per
 --- glyph and cached, sized to line up with the real app icons. nil glyph yields none.
+---
+--- The drawing itself moved to the shared Olm.spoon/lib/glyphicon.lua once ActionPanel
+--- became a genuine second caller of it, phase eight's third packet, so this is the thin
+--- caller every call site in this file already reaches through, unchanged in what it
+--- answers. Answers nil when nothing was injected, the same as a nil glyph, rather than
+--- raising, since a missing collaborator here is a question for whoever configured this
+--- spoon and not a reason for a row to blow up while it is being built.
 function obj:_glyphIcon(glyph)
-  if not glyph then return nil end
-  local cache = self._glyphIconCache
-  if cache[glyph] == nil then
-    local size = 72
-    local c = hs.canvas.new({ x = 0, y = 0, w = size, h = size })
-    c[1] = { type = "text", text = glyph, textSize = 52, textAlignment = "center",
-             frame = { x = "0%", y = "8%", w = "100%", h = "100%" } }
-    cache[glyph] = c:imageFromCanvas() or false -- false marks "tried, none"
-    c:delete()
-  end
-  return cache[glyph] or nil
+  if not self._icons then return nil end
+  return self._icons.icon(glyph)
 end
 
 --- Launcher:_chordLabel(leader, key, mods)

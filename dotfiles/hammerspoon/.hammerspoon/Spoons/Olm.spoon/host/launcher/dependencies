@@ -1,0 +1,10 @@
+# What host/launcher/init.lua needs, declared beside the file that consumes it. Format is
+# name | kind | locator | policy | reason.
+# See Olm's lib/deps.lua for the kinds and for how these files are found.
+#
+# core is not a tool to install, it is a capability the composition root hands this file
+# from Olm's own lib, so this line decides injection rather than installation. Optional,
+# because only a row's own icon degrades without it, an app row already draws from its own
+# bundle icon and every other row simply shows none, while the row itself still lists, still
+# filters, and still runs.
+glyphicon | core | lib/glyphicon.lua | optional | drawing an icon for a row with no app bundle behind it, a command, a window action, or a setting

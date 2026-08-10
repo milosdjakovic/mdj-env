@@ -1469,6 +1469,12 @@ end
 -- exists by that point. See the comment there for the whole reasoning.
 local registry = spoon.Olm.lib.registry.new({ apiVersion = spoon.Olm.apiVersion })
 
+-- The shared glyph icon drawer, phase eight's third packet, built once here for the same
+-- reason registry above is, so both the launcher and, later, ActionPanel inject the exact
+-- same instance and draw a glyph they happen to share into the exact same cached image
+-- rather than two separate drawings of it.
+local glyphIcon = spoon.Olm.lib.glyphicon.new()
+
 spoon.Launcher:init()
 spoon.Launcher:configure({
   chooser = spoon.Chooser,
@@ -1485,6 +1491,7 @@ spoon.Launcher:configure({
   queryProviders = queryProviders,
   aliasHint = aliasHint,
   registry = registry,
+  glyphIcon = glyphIcon,
   actions = {
     -- Where a computed result goes. A plain pasteboard write on purpose, so the result
     -- lands in clipboard history like any other copy and can be pasted again later,
