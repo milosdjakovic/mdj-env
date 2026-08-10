@@ -41,8 +41,20 @@ bundle id, never a function. This matters because the Chooser hands every row to
 cannot be converted, so a row holding one is silently dropped and the list comes
 up empty. One dispatcher turns the descriptor back into the right call, so this
 is the Command pattern with the command encoded as data, and the launcher still
-never learns what a row does. Adding a row is a new entry in the build, never a
-change to the presenter.
+never learns what a row does.
+
+Adding a row for a registered tool is now two small edits rather than the one line
+this paragraph used to promise. Phase seven's third packet moved a tool's row data, its
+category, its glyph, its detail, its keywords, and whether it renders a chord, off this
+file and onto that tool's `row` in the composition root's registration, so the edit
+there is the `row` table itself, and the edit here is one `addTool` line in
+`_buildActionRows` naming the tool, which asks the registry for that row through
+`rowFor` and builds it. Adding a tool row is therefore not yet one registration, since
+the launcher still needs its own line and still decides where in the build that line
+sits, which is what keeps the row order exactly what a fresh reload has always shown.
+The four rows belonging to no registered tool, `lock`, `sleep`, the System Settings
+search focus, and the alias directory, are still a plain `add` call written by hand,
+since none of those names anything the registry has ever heard of.
 
 ## Query row sources, the composable half of the list
 

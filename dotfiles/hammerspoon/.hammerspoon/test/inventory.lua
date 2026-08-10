@@ -10,8 +10,10 @@
 -- source of this config's binding surface, the loaded spoon table, the chord
 -- tree in ChordKey._keys, the cheat sheet models in HyperCheatSheet, the
 -- hyperContexts bindings in config/keys.lua, and the choosers registry in
--- init.lua. It never reads hs.hotkey.getHotkeys, which the design records as
--- blind to almost everything this config actually binds.
+-- init.lua, plus the tool registry itself and, since phase seven's fourth
+-- packet, the assembled scope catalog QueryScope actually built from it. It
+-- never reads hs.hotkey.getHotkeys, which the design records as blind to
+-- almost everything this config actually binds.
 --
 -- Every listing below is sorted before it is written, and nothing here is a
 -- timestamp, a memory address, or a table identity, so two runs against the same
@@ -157,6 +159,13 @@ end
 -- listing a fingerprint of which expressions are registered and in what order,
 -- which is what the surface actually is, rather than a reading of live table
 -- state nothing here has a handle on anyway.
+--
+-- Phase seven's second packet moved nine of the twelve entries into the tool
+-- registry, so the line this reads is now the call to registry.surfaces rather
+-- than a bare table literal, and the pattern below is pointed at that call
+-- instead. What it captures is unchanged in kind, one entry per line below,
+-- read as text and not as live state, now a mix of the nine tool names the
+-- registry resolves and the three expressions that stay outside it.
 local function readFile(path)
   local f = io.open(path, "r")
   if not f then return nil end
@@ -170,9 +179,9 @@ local initSource = readFile(initPath)
 if not initSource then
   error("inventory, could not read this config's own init.lua at " .. initPath)
 end
-local choosersLine = initSource:match("local%s+choosers%s*=%s*{(.-)}")
+local choosersLine = initSource:match("local%s+choosers%s*=%s*registry%.surfaces%s*%(%s*{(.-)}")
 if not choosersLine then
-  error("inventory, could not find the choosers registry line in init.lua, the pattern needs updating")
+  error("inventory, could not find the choosers registry call in init.lua, the pattern needs updating")
 end
 local chooserEntries = {}
 for entry in choosersLine:gmatch("[^,]+") do
@@ -186,6 +195,117 @@ add("registry choosers count=" .. #chooserEntries)
 for _, e in ipairs(chooserEntries) do
   add("choosers.entry " .. e)
 end
+
+-- spoon.Olm.registry itself, read live rather than as text, since the composition root
+-- now publishes the instance it built. One line per registered tool with its active
+-- flag and, since active alone cannot see one going missing, whether it declared a
+-- surface, whether it declared hosted, and, since phase seven's fourth packet, whether
+-- it declared a scope, all presence rather than a resolved value, matching what all()
+-- itself reports, so this stays a fingerprint of what each descriptor declared rather
+-- than a second opinion on what the live surface or scope answers at the moment of the
+-- dump. scope beside hosted is the cross check that packet adds, a tool that is hosted
+-- with no scope behind it reads plainly as hosted=true scope=false in this committed
+-- file, which is legitimate for a tool whose scope registers only under a condition,
+-- emoji today, and stable rather than a warning nobody is watching for. See
+-- Spoons/Olm.spoon/CLAUDE.md's Registry section for why a warning was considered and
+-- rejected.
+local registryTools = spoon.Olm.registry and spoon.Olm.registry.all() or {}
+local toolLines = {}
+for _, tool in ipairs(registryTools) do
+  toolLines[#toolLines + 1] = string.format(
+    "tools.entry name=%s active=%s surface=%s hosted=%s scope=%s",
+    field(tool.name), field(tool.active), field(tool.surface), field(tool.hosted), field(tool.scope))
+end
+table.sort(toolLines)
+add("registry tools count=" .. #registryTools)
+for _, l in ipairs(toolLines) do add(l) end
+
+-- spoon.QueryScope:catalog(), the assembled scope list actually built, which is not the
+-- same fact tools.entry's scope field records. That field reports whether a tool's own
+-- descriptor declares a scope, and a spec entry that resolves to nothing, a misspelled
+-- name chief among the ways that happens, is skipped in silence by design, so a
+-- descriptor can read scope=true while the scope it describes never made it into the
+-- live list at all. Nothing before this packet measured the assembled list, only what
+-- was declared, and this section is what closes that gap. One line per scope actually
+-- entered, its name and its aliases, sorted by name for a stable snapshot. Aliases
+-- matter as much as the name, since QueryScope gives a contested word to whichever
+-- scope claims it first, so the order the root's spec lists scopes in decides who keeps
+-- a shared alias, and a mistake in that order shows up here as an alias moving from one
+-- scope's line to another's rather than as anything disappearing outright.
+local scopeCatalog = (spoon.QueryScope and spoon.QueryScope:catalog()) or {}
+local scopeLines = {}
+for _, s in ipairs(scopeCatalog) do
+  local aliases = {}
+  for _, a in ipairs(s.aliases or {}) do aliases[#aliases + 1] = a end
+  scopeLines[#scopeLines + 1] = string.format(
+    "scopes.entry name=%s aliases=%s", field(s.name), join(aliases))
+end
+table.sort(scopeLines)
+add("registry scopes count=" .. #scopeCatalog)
+for _, l in ipairs(scopeLines) do add(l) end
+
+-- The launcher's own command rows, read live through spoon.Launcher:rowsOfKind for the
+-- special kind, which is every row a registered tool or one of its commands builds.
+-- Phase seven's third packet moves the presentation data behind these rows, the
+-- category, the glyph, the detail, the keywords, and the chord, off the launcher and
+-- onto the registry descriptor, and this section is the instrumentation that packet
+-- commits first, before anything moves, so a row that vanished in the fold or came back
+-- with a changed subtitle fails this snapshot rather than passing every other gate this
+-- config has. The subtitle is recorded whole rather than summarised, since it is the
+-- part most likely to break quietly, carrying the chord label, the category, and the
+-- alias hint together. Sorted by name so the snapshot is stable regardless of the order
+-- the rows were built in.
+local launcherRows = spoon.Launcher and spoon.Launcher:rowsOfKind("special") or {}
+local rowLines = {}
+for _, row in ipairs(launcherRows) do
+  rowLines[#rowLines + 1] = string.format(
+    "launcherrows.entry name=%s subTitle=%s",
+    field(row.item and row.item.name), field(row.subTitle))
+end
+table.sort(rowLines)
+add("registry launcherrows count=" .. #launcherRows)
+for _, l in ipairs(rowLines) do add(l) end
+
+-- spoon.HyperKey._bindings, phase seven's fifth packet. Nothing before this measured a
+-- binding at all, so the snapshot recorded the two physical leader keys and never which
+-- letter reaches which tool, and a deleted bind line would have passed every gate this
+-- repository had. Read live, keyed by key code, which is the private field the atom itself
+-- keeps its whole binding table in, the same kind of reach this file already makes into
+-- ChordKey._keys and HyperCheatSheet's own models above. Sorted by key code since the table
+-- carries no order of its own. Per key this records how many bindings sit on it in total and
+-- how many of those are base bindings, meaning the ones carrying no `when`, since a base
+-- binding is what a plain Hyper press to that key resolves to while no modal context owns
+-- Hyper, and a base binding vanishing is exactly the shape a deleted chord would take.
+local hyperKeyBindings = (spoon.HyperKey and spoon.HyperKey._bindings) or {}
+local hyperKeyCodes = {}
+for code in pairs(hyperKeyBindings) do
+  hyperKeyCodes[#hyperKeyCodes + 1] = code
+end
+table.sort(hyperKeyCodes)
+add("registry hyperkey count=" .. #hyperKeyCodes)
+for _, code in ipairs(hyperKeyCodes) do
+  local list = hyperKeyBindings[code]
+  local base = 0
+  for _, b in ipairs(list) do
+    if not b.when then base = base + 1 end
+  end
+  add(string.format("hyperkey.key code=%s total=%s base=%s", field(code), field(#list), field(base)))
+end
+
+-- hs.hotkey.getHotkeys(), the global hotkey table Hammerspoon itself keeps, which is the one
+-- registry that sees the two global combinations that never touch the leader at all, append
+-- copy and paste next. Sorted by msg, the printable combo each hotkey answers with, rather than
+-- trusting the table's own order, which is registration order and no more stable a fingerprint
+-- than the leader's own binding table would be if read unsorted.
+local hotkeys = hs.hotkey.getHotkeys() or {}
+local hotkeyLines = {}
+for _, h in ipairs(hotkeys) do
+  hotkeyLines[#hotkeyLines + 1] = string.format(
+    "hotkeys.entry msg=%s enabled=%s", field(h.msg), field(h.enabled))
+end
+table.sort(hotkeyLines)
+add("registry hotkeys count=" .. #hotkeys)
+for _, l in ipairs(hotkeyLines) do add(l) end
 
 -- Write the whole dump to one fixed file outside the watched config tree, the
 -- same reasoning BrowserTabs' own test channel already follows, since a file

@@ -184,15 +184,99 @@ hypercontexts.binding context=vpn key=j mods=- action=selectNext when=- chord=tr
 hypercontexts.binding context=vpn key=k mods=- action=selectPrev when=- chord=true needs=- description=Move up
 hypercontexts.binding context=vpn key=x mods=- action=closeChooser when=- chord=true needs=- description=Close
 registry choosers count=12
-choosers.entry clipManager
-choosers.entry menuSearchSurface
+choosers.entry "browserTabs"
+choosers.entry "caffeinate"
+choosers.entry "clipboard"
+choosers.entry "displayProfiles"
+choosers.entry "emoji"
+choosers.entry "fileSearch"
+choosers.entry "menuSearch"
+choosers.entry "processes"
+choosers.entry "textCase"
+choosers.entry "vpn"
 choosers.entry overlayDisplaySurface
-choosers.entry spoon.BrowserTabs.chooser
-choosers.entry spoon.Caffeinate
-choosers.entry spoon.DisplayProfiles.chooser
-choosers.entry spoon.Emoji:surface()
-choosers.entry spoon.FileSearch.chooser
 choosers.entry spoon.Launcher:surface()
-choosers.entry spoon.Processes.chooser
-choosers.entry spoon.TextCase:surface()
-choosers.entry spoon.Vpn
+registry tools count=12
+tools.entry name=browserTabs active=true surface=true hosted=true scope=true
+tools.entry name=caffeinate active=true surface=true hosted=true scope=true
+tools.entry name=clipboard active=true surface=true hosted=false scope=false
+tools.entry name=colorPicker active=true surface=false hosted=false scope=false
+tools.entry name=displayProfiles active=true surface=true hosted=false scope=false
+tools.entry name=dockAutoHide active=true surface=false hosted=true scope=true
+tools.entry name=emoji active=true surface=true hosted=true scope=true
+tools.entry name=fileSearch active=true surface=true hosted=true scope=true
+tools.entry name=menuSearch active=true surface=true hosted=false scope=true
+tools.entry name=processes active=true surface=true hosted=false scope=false
+tools.entry name=textCase active=true surface=true hosted=false scope=false
+tools.entry name=vpn active=true surface=true hosted=true scope=true
+registry scopes count=11
+scopes.entry name=aliasDirectory aliases=?
+scopes.entry name=apps aliases=a+app
+scopes.entry name=browserTabs aliases=t+tabs
+scopes.entry name=caffeinate aliases=k+awake
+scopes.entry name=dockAutoHide aliases=d+dock
+scopes.entry name=emoji aliases=e+emoji
+scopes.entry name=fileSearch aliases=/
+scopes.entry name=menuSearch aliases=m+menu
+scopes.entry name=settingsPanes aliases=s+system
+scopes.entry name=vpn aliases=v+vpn
+scopes.entry name=windowActions aliases=w+window
+registry launcherrows count=18
+launcherrows.entry name=aliasDirectory subTitle=Tools · every word that scopes this list (?)
+launcherrows.entry name=appendCopy subTitle=Clipboard · ⌃⌥C
+launcherrows.entry name=browserTabs subTitle=Tools · Hyper W (t, tabs)
+launcherrows.entry name=caffeinate subTitle=System · Hyper K (k, awake)
+launcherrows.entry name=clipboard subTitle=Clipboard · Hyper X
+launcherrows.entry name=colorPicker subTitle=Tools · Hyper 2
+launcherrows.entry name=displayProfiles subTitle=Displays · inspect and manage arrangements
+launcherrows.entry name=dockAutoHide subTitle=System · hides or reveals the Dock (d, dock)
+launcherrows.entry name=emoji subTitle=Tools · Hyper J (e, emoji)
+launcherrows.entry name=fileSearch subTitle=Tools · Hyper / (/)
+launcherrows.entry name=lock subTitle=System · Hyper §
+launcherrows.entry name=overlayDisplay subTitle=Displays · where panels and choosers appear
+launcherrows.entry name=pasteNext subTitle=Clipboard · ⌃⌥V
+launcherrows.entry name=processes subTitle=System · stop a dev server, container, or watcher
+launcherrows.entry name=searchSettings subTitle=System · opens the System Settings search field
+launcherrows.entry name=sleep subTitle=System · Hyper esc
+launcherrows.entry name=textCase subTitle=Text · recase the selection in place
+launcherrows.entry name=vpn subTitle=Network · Hyper P (v, vpn)
+registry hyperkey count=35
+hyperkey.key code=0 total=2 base=1
+hyperkey.key code=1 total=2 base=1
+hyperkey.key code=2 total=2 base=1
+hyperkey.key code=3 total=2 base=1
+hyperkey.key code=4 total=1 base=0
+hyperkey.key code=6 total=1 base=1
+hyperkey.key code=7 total=12 base=1
+hyperkey.key code=8 total=1 base=1
+hyperkey.key code=9 total=1 base=1
+hyperkey.key code=10 total=1 base=1
+hyperkey.key code=11 total=1 base=1
+hyperkey.key code=12 total=1 base=0
+hyperkey.key code=13 total=1 base=1
+hyperkey.key code=14 total=1 base=1
+hyperkey.key code=15 total=2 base=1
+hyperkey.key code=16 total=1 base=0
+hyperkey.key code=17 total=1 base=1
+hyperkey.key code=19 total=1 base=1
+hyperkey.key code=20 total=1 base=1
+hyperkey.key code=21 total=2 base=2
+hyperkey.key code=23 total=1 base=1
+hyperkey.key code=31 total=2 base=1
+hyperkey.key code=34 total=13 base=1
+hyperkey.key code=35 total=1 base=1
+hyperkey.key code=37 total=2 base=1
+hyperkey.key code=38 total=14 base=1
+hyperkey.key code=40 total=14 base=1
+hyperkey.key code=42 total=1 base=1
+hyperkey.key code=43 total=1 base=1
+hyperkey.key code=44 total=1 base=1
+hyperkey.key code=45 total=1 base=1
+hyperkey.key code=46 total=1 base=1
+hyperkey.key code=49 total=2 base=1
+hyperkey.key code=50 total=1 base=1
+hyperkey.key code=53 total=1 base=1
+registry hotkeys count=3
+hotkeys.entry msg=⌃⌥C enabled=true
+hotkeys.entry msg=⌃⌥V enabled=true
+hotkeys.entry msg=⌥` enabled=true

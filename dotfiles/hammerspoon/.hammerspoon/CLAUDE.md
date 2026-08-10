@@ -1455,10 +1455,13 @@ queries, all live in `Spoons/Olm.spoon/plugins/filesearch/CLAUDE.md`. Adding it 
 
 **Eyedropper.** A screen colour sampler on Hyper+2, on the native macOS
 eyedropper. It is deliberately not a chooser, so the picker checklist above does
-not apply. It is a lone mechanism like lock and sleep, wired as a base HyperKey
-binding through `bindHyper` and surfaced as the color picker launcher row through
-the special action dispatcher, so it needs no Hyper context, predicate, or
-`choosers` entry. A pick shows Apple's own `NSColorSampler` loupe, the same smooth
+not apply. It is a lone mechanism like lock and sleep in that it needs no Hyper
+context, predicate, or `choosers` entry, but unlike them it is a registered tool,
+`colorPicker`, so its base HyperKey binding is wired through the tool registry's
+`shortcuts()` rather than through `bindHyper`, which still binds only lock and
+sleep, phase seven's fifth packet. It is surfaced as the color picker launcher row
+through the same special action dispatcher every registered tool's row goes
+through. A pick shows Apple's own `NSColorSampler` loupe, the same smooth
 magnifier the system colour pickers use, and a click copies the sampled pixel's
 hex to the clipboard with a short alert. Escape cancels.
 

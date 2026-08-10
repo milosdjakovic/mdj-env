@@ -8,8 +8,9 @@
 --- names a domain spoon. The root injects every collaborator through configure,
 --- the Chooser factory, the pure keys and apps data, the window actions table, a
 --- glyph resolver, the settings pane descriptors, the shared predicate registry,
---- the docked shortcut panel callbacks, and a small dispatch of leaf actions that
---- do name the domain spoons. So the launcher owns the row building, the matching,
+--- the docked shortcut panel callbacks, the tool registry from phase seven of the
+--- build plan, and a small dispatch of leaf actions that do name the domain
+--- spoons. So the launcher owns the row building, the matching,
 --- the app enumeration, and the command dispatch structure, and knows nothing
 --- about what a row ultimately does.
 ---
@@ -30,6 +31,8 @@ obj.version = "1.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
+local log = hs.logger.new("Launcher", "info")
+
 -- Injected via configure
 obj._chooser = nil          -- the Chooser factory (has .new)
 obj._theme = nil
@@ -45,6 +48,7 @@ obj._shortcutPanel = nil    -- { onPositioned, onActivity, onClose }
 obj._actions = nil          -- leaf dispatch: app, capture, settingsPane, special, rowIntercept
 obj._queryProviders = nil   -- ordered query row sources, each answering rows(query)
 obj._aliasHint = nil        -- function(name) -> subtitle fragment, "" when there is none
+obj._registry = nil         -- the tool registry, dot called, optional, see configure and _runItem
 
 -- Owned state
 obj._instance = nil         -- the built Chooser instance
@@ -146,6 +150,11 @@ function obj:configure(opts)
   self._predicates = opts.predicates or {}
   self._shortcutPanel = opts.shortcutPanel or {}
   self._actions = opts.actions or {}
+  -- The tool registry, phase seven of the build plan. Optional, and a launcher configured
+  -- without one dispatches a special row through actions.special alone, exactly as it did
+  -- before the registry existed, since a host that hard requires one cannot be tested
+  -- without one. See _runItem for the two places a special row is now looked up.
+  self._registry = opts.registry
   -- Query row sources, in the order their rows should appear. Each is any table
   -- answering rows(query), so the launcher composes them without knowing what any of
   -- them computes, and the root decides which exist. An empty list is the whole
@@ -308,67 +317,98 @@ function obj:_buildActionRows()
     rows[#rows + 1] = { title = title, subTitle = subTitle, image = self:_glyphIcon(glyph),
                         item = item, when = when, keywords = keywords }
   end
+  -- addTool(name) asks the injected registry for this name's row and, when there is one,
+  -- builds it exactly as the thirteen hand written calls this replaced built theirs,
+  -- reading the description and the chord out of self._keys under the row's keysName or
+  -- the name itself. Doing nothing when the registry has no row for that name, whether
+  -- because nothing registered under it or because rowFor already answers nil for an
+  -- inactive tool and every command it owns, is what will make an inactive tool's row
+  -- disappear once the activation list finally means that, and that case is legitimate
+  -- silence rather than a mistake.
+  --
+  -- A missing keys entry is not that. Eight of the thirteen calls this replaced were
+  -- already guarded with an if keys.X check and stayed silent about it, but the other
+  -- five, colorPicker, emoji, caffeinate, vpn, and clipboard, indexed straight into keys
+  -- and would have raised at config load if the entry were ever missing, which is loud.
+  -- A row declared for a name whose keys entry does not exist is a mistake in every one
+  -- of the thirteen cases, somebody described how a row should look for a tool with
+  -- nothing to build it from, so this logs one warning naming the tool and the keys name
+  -- it looked for, then skips the row exactly as the silent five now would without it.
+  -- That gives every one of the thirteen the same non fatal outcome, loudly, rather than
+  -- the mixed loud and quiet failure the calls it replaced actually had.
+  --
+  -- This file still names no tool. It reads a name handed to it and the keys entry that
+  -- name points at, and everything about how that name's row looks, its category, its
+  -- glyph, its detail or its chord, now lives on the descriptor rather than here.
+  --
+  -- Adding a tool still costs one addTool line below, so this is not yet one
+  -- registration, only where a row's own data lives now rather than a change to how
+  -- many places know a tool exists. Removing that last line would move the whole row
+  -- order into the composition root, taking the capture loop and the window loop with
+  -- it since they sit in this same build, and that is a decision for later rather than
+  -- a thing to sneak in here.
+  local function addTool(name)
+    local row = self._registry and self._registry.rowFor(name)
+    if not row then return end
+    local keysName = row.keysName or name
+    local keyEntry = keys[keysName]
+    if not keyEntry then
+      log.w(string.format(
+        "Launcher addTool skipped '%s', its row names '%s' in config/keys.lua and nothing is there",
+        name, keysName))
+      return
+    end
+    local subTitle
+    if row.detail then
+      subTitle = row.category .. " · " .. row.detail
+    elseif row.chord then
+      subTitle = row.category .. " · " .. self._glyphFor(keyEntry.key, keyEntry.modifiers)
+    else
+      subTitle = row.category .. " · " .. self:_chordLabel("Hyper", keyEntry.key)
+    end
+    add(keyEntry.description, subTitle, { kind = "special", name = name },
+      row.glyph or keyEntry.glyph, nil, row.keywords)
+  end
   -- Window actions share one glyph, the chord in the subtitle tells them apart;
   -- capture and the system actions get a per-action one.
   local captureGlyphs = { ocrArea = "🔤", captureArea = "📸", captureAreaClipboard = "📸", recordArea = "🎥" }
-  add(keys.colorPicker.description, "Tools · " .. self:_chordLabel("Hyper", keys.colorPicker.key), { kind = "special", name = "colorPicker" }, "🎨")
-  add(keys.emoji.description, "Tools · " .. self:_chordLabel("Hyper", keys.emoji.key), { kind = "special", name = "emoji" }, keys.emoji.glyph)
+  addTool("colorPicker")
+  addTool("emoji")
   for _, c in ipairs(keys.capture) do
     add(c.description or humanize(c.action), "Capture · " .. self:_chordLabel("Hyper", c.key, c.mods),
       { kind = "capture", name = c.action }, captureGlyphs[c.action] or "📸")
   end
-  add(keys.caffeinate.description, "System · " .. self:_chordLabel("Hyper", keys.caffeinate.key), { kind = "special", name = "caffeinate" }, keys.caffeinate.glyph)
-  add(keys.vpn.description, "Network · " .. self:_chordLabel("Hyper", keys.vpn.key), { kind = "special", name = "vpn" }, keys.vpn.glyph)
-  add(keys.clipboardHistory.description, "Clipboard · " .. self:_chordLabel("Hyper", keys.clipboardHistory.key), { kind = "special", name = "clipboard" }, "📋")
+  addTool("caffeinate")
+  addTool("vpn")
+  addTool("clipboard")
   -- The two clipboard actions that are global combos rather than Hyper bindings, so their
   -- subtitle carries the whole chord and names no leader. They are listed here because a
   -- global binding appears in no leader's cheat sheet, leaving this their only listing.
-  if keys.appendCopy then
-    add(keys.appendCopy.description, "Clipboard · " .. self._glyphFor(keys.appendCopy.key, keys.appendCopy.modifiers),
-      { kind = "special", name = "appendCopy" }, "➕", nil, "append copy add selection accumulate")
-  end
-  if keys.pasteNext then
-    add(keys.pasteNext.description, "Clipboard · " .. self._glyphFor(keys.pasteNext.key, keys.pasteNext.modifiers),
-      { kind = "special", name = "pasteNext" }, "⏩", nil, "paste next sequential walk history")
-  end
-  if keys.browserTabs then
-    add(keys.browserTabs.description, "Tools · " .. self:_chordLabel("Hyper", keys.browserTabs.key), { kind = "special", name = "browserTabs" }, keys.browserTabs.glyph)
-  end
+  addTool("appendCopy")
+  addTool("pasteNext")
+  addTool("browserTabs")
   -- Display profiles has no dedicated chord, it opens from here only, so its subtitle names
   -- what it does rather than a shortcut. The two display commands sit under a Displays
   -- category rather than System, so their subtitle does not read like the "System Settings"
   -- subtitle the Displays settings pane row carries.
-  if keys.displayProfiles then
-    add(keys.displayProfiles.description, "Displays · inspect and manage arrangements", { kind = "special", name = "displayProfiles" }, "🖥️")
-  end
+  addTool("displayProfiles")
   add("Search Settings", "System · opens the System Settings search field", { kind = "special", name = "searchSettings" }, "🔍")
   add("Overlay Display", "Displays · where panels and choosers appear", { kind = "special", name = "overlayDisplay" }, "🖥️")
   -- Text case has no dedicated chord, it opens from here only, so its subtitle names what
   -- it does rather than a shortcut.
-  if keys.textCase then
-    add(keys.textCase.description, "Text · recase the selection in place", { kind = "special", name = "textCase" }, "🔠")
-  end
+  addTool("textCase")
   -- Processes has no dedicated chord either, so its subtitle names what it does, and it
   -- names all three tiers rather than just servers because that is what the list holds.
   -- The keywords carry the words the title used to and no longer does, so the habit of
   -- typing process or port still lands on it.
-  if keys.processes then
-    add(keys.processes.description, "System · stop a dev server, container, or watcher",
-      { kind = "special", name = "processes" }, "🔌", nil, "processes port node docker")
-  end
+  addTool("processes")
   -- Dock auto hide has no dedicated chord either, it lost its standalone one when it moved
   -- into Olm, so its subtitle names what it does.
-  if keys.dockAutoHide then
-    add(keys.dockAutoHide.description, "System · hides or reveals the Dock",
-      { kind = "special", name = "dockAutoHide" }, "🗄️", nil, "dock hide hiding autohide show")
-  end
+  addTool("dockAutoHide")
   -- File search does have a chord, so its subtitle names it like the other keyed tools. The
   -- keywords carry the words a habit reaches for, since the title says file search and the
   -- thing people type is find.
-  if keys.fileSearch then
-    add(keys.fileSearch.description, "Tools · " .. self:_chordLabel("Hyper", keys.fileSearch.key),
-      { kind = "special", name = "fileSearch" }, keys.fileSearch.glyph, nil, "find files folders spotlight locate")
-  end
+  addTool("fileSearch")
   -- The alias directory, which has no chord because it opens from here, and is also reached by
   -- its own alias like the tools it lists. Its subtitle says what it holds rather than naming
   -- the word that reaches it, since that word is appended by the same hint every other row
@@ -817,8 +857,16 @@ function obj:_runItem(it)
   elseif it.kind == "capture" then
     if a.capture then a.capture(it.name) end
   elseif it.kind == "special" then
-    local fn = a.special and a.special[it.name]
-    if fn then fn() end
+    -- Two sources, not a leak. A name the registry answers is a tool, and everything left
+    -- in actions.special is a bare command with no tool behind it, so one lookup for each
+    -- is honest rather than one pretending every special row is a plugin. The registry is
+    -- asked first and only a name it does not run falls through to actions.special, which
+    -- registration itself makes safe, since a name cannot be claimed by both.
+    local ran = self._registry and self._registry.run(it.name)
+    if not ran then
+      local fn = a.special and a.special[it.name]
+      if fn then fn() end
+    end
   elseif it.kind == "settingsPane" then
     if a.settingsPane then a.settingsPane(it.url) end
   elseif it.kind == "calc" then

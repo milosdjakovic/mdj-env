@@ -12,6 +12,34 @@ the launcher, and deleting the space hands the list back. It is a query row sour
 like any other with one extra answer, a second return value saying this source claims
 the query.
 
+## Where a scope comes from now, and why that changed
+
+It still names no scope, that has not moved. What moved is where the root builds the
+seven scope bodies most tools carry, `caffeinate`, `dockAutoHide`, `vpn`, `browserTabs`,
+`fileSearch`, `emoji`, and menu search. Each now lives on that tool's own registration in
+`Spoons/Olm.spoon/lib/registry.lua`, under an optional `scope` field carrying exactly the
+four verbs and the matcher this spoon's own admissible function already asks for, `rows`,
+`run`, `peek`, `redirect`, and `act`, plus `matcher`. The root's `queryScopes` table reads
+those bodies out through `registry.scopes(spec)`, which resolves an ordered list of tool
+names into `{ name, opts }` pairs, warning by name for a spec entry naming a tool the
+registry has never heard of and staying silent for one that is merely inactive or, for
+emoji, active but carrying no scope this run. The root's own loop then passes each pair
+through the same `scope(name, opts)` helper it always used, which is what still joins
+`name`, `title`, `glyph`, and `aliases` from `config/keys.lua` before handing the finished
+table to this spoon's own `configure`. So the contract this file enforces, four verbs plus
+a matcher plus the identity fields, is unchanged, only the place those fields are
+assembled from moved one step further from where they are consumed.
+
+The three `launcherCatalogScope` scopes and the alias directory below still take the
+older path, built directly in the root with no tool and no registration behind them,
+since there is nothing for either to register against.
+
+`spoon.QueryScope:catalog()` is also what `test/inventory.lua` now reads live, since the
+scope field a tool's own registration carries is a declaration and not proof that a scope
+actually entered this spoon's own map, a spec entry naming an unregistered tool resolving
+to nothing that a descriptor cannot see happen. Reading the assembled catalog is what
+turns that gap into something a committed file would catch.
+
 ## The decision everything else follows from, no state
 
 The scope is derived from the query on every keystroke and nothing is remembered.

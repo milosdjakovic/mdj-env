@@ -1,11 +1,11 @@
 --- === Olm ===
 ---
---- The reusable core, phase one of the build plan. This spoon is where the
---- storage mechanism lives before the registry, the host, and the plugin
---- bundle described in the design ever land, so init here is deliberately
---- bare, a name, a version, an api version a future plugin will declare
---- itself against, and one loaded module. No registry, no activation list,
---- no plugin machinery yet, those are later phases.
+--- The reusable core, phase one of the build plan, with the tool registry from phase
+--- seven added beside the libs that arrived before it. Init here stays deliberately
+--- bare, a name, a version, an api version a plugin declares itself against, and the
+--- loaded modules under Olm.lib. The registry is state and the composition root builds
+--- its own instance from the factory this spoon loads, so nothing here names a tool or
+--- holds an activation list of its own.
 
 local obj = {}
 obj.__index = obj
@@ -52,6 +52,10 @@ end
 --- engine under every leader, hyperkey the leader modal every context binds into,
 --- and deps the declaration reader. Each is loaded here and named nowhere else in
 --- this file, so the root decides what becomes of it.
+---
+--- Registry arrived in phase seven, another factory like recency, handing the root an
+--- independent instance to register every tool against. See lib/registry.lua for its
+--- api.
 obj.lib = {
   storage = load("lib/storage.lua"),
   recency = load("lib/recency.lua"),
@@ -62,6 +66,12 @@ obj.lib = {
   chordkey = load("lib/chordkey.lua"),
   hyperkey = load("lib/hyperkey.lua"),
   deps = load("lib/deps.lua"),
+  -- The tool registry, phase seven of the build plan. A factory in the same style as
+  -- recency, so the root builds its own instance with M.new rather than reaching for a
+  -- shared one, and every function it hands back is dot called, since it holds no
+  -- metatable and no self. See lib/registry.lua for the descriptor shape, the four
+  -- refusals, and what active and inactive mean today.
+  registry = load("lib/registry.lua"),
 }
 
 return obj
