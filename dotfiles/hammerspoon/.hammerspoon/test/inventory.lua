@@ -195,9 +195,16 @@ for _, l in ipairs(verbLines) do add(l) end
 -- through the composition root's own rowsFor, through the exact same call, rather than a
 -- second opinion built in this file. Unlike the actionpanel section above, this section DOES
 -- read the root's bindingApplies filter, since rowsFor applies it, and it always carries a
--- trailing Back row the panel itself appends, so a context with no verbs at all still answers
--- one row rather than none. contextNames and byName are reused rather than read a second time,
--- though rowsFor only needs the name, never ctx.bindings itself.
+-- Back row the panel itself builds, so a context with no verbs at all still answers one row
+-- rather than none. contextNames and byName are reused rather than read a second time, though
+-- rowsFor only needs the name, never ctx.bindings itself.
+--
+-- glyph joined this line in phase eight's third packet, alongside a glyph on every verb row in
+-- config/keys.lua, so a glyph going missing from a binding is a diff here rather than something
+-- noticed by eye months later. Back leading the list rather than trailing it, phase eight's
+-- third packet too, is NOT visible in this section, since panelRowLines is sorted before it is
+-- written, the same as every other listing in this file, so ordering is deliberately not part
+-- of what this section proves.
 local panelRowsByContext = {}
 for _, name in ipairs(contextNames) do
   panelRowsByContext[name] = spoon.ActionPanel and spoon.ActionPanel:rowsFor(name) or {}
@@ -210,8 +217,8 @@ local panelRowLines = {}
 for _, name in ipairs(contextNames) do
   for _, r in ipairs(panelRowsByContext[name]) do
     panelRowLines[#panelRowLines + 1] = string.format(
-      "panelrows.row context=%s action=%s title=%s chord=%s",
-      field(name), field(r.action), field(r.title), field(r.chord))
+      "panelrows.row context=%s action=%s title=%s chord=%s glyph=%s",
+      field(name), field(r.action), field(r.title), field(r.chord), field(r.glyph))
   end
 end
 table.sort(panelRowLines)
