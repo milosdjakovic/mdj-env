@@ -184,15 +184,27 @@ hypercontexts.binding context=vpn key=j mods=- action=selectNext when=- chord=tr
 hypercontexts.binding context=vpn key=k mods=- action=selectPrev when=- chord=true needs=- description=Move up
 hypercontexts.binding context=vpn key=x mods=- action=closeChooser when=- chord=true needs=- description=Close
 registry choosers count=12
-choosers.entry clipManager
+choosers.entry "browserTabs"
+choosers.entry "caffeinate"
+choosers.entry "clipboard"
+choosers.entry "displayProfiles"
+choosers.entry "emoji"
+choosers.entry "fileSearch"
+choosers.entry "processes"
+choosers.entry "textCase"
+choosers.entry "vpn"
 choosers.entry menuSearchSurface
 choosers.entry overlayDisplaySurface
-choosers.entry spoon.BrowserTabs.chooser
-choosers.entry spoon.Caffeinate
-choosers.entry spoon.DisplayProfiles.chooser
-choosers.entry spoon.Emoji:surface()
-choosers.entry spoon.FileSearch.chooser
 choosers.entry spoon.Launcher:surface()
-choosers.entry spoon.Processes.chooser
-choosers.entry spoon.TextCase:surface()
-choosers.entry spoon.Vpn
+registry tools count=11
+tools.entry name=browserTabs active=true
+tools.entry name=caffeinate active=true
+tools.entry name=clipboard active=true
+tools.entry name=colorPicker active=true
+tools.entry name=displayProfiles active=true
+tools.entry name=dockAutoHide active=true
+tools.entry name=emoji active=true
+tools.entry name=fileSearch active=true
+tools.entry name=processes active=true
+tools.entry name=textCase active=true
+tools.entry name=vpn active=true

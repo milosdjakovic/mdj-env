@@ -157,6 +157,13 @@ end
 -- listing a fingerprint of which expressions are registered and in what order,
 -- which is what the surface actually is, rather than a reading of live table
 -- state nothing here has a handle on anyway.
+--
+-- Phase seven's second packet moved nine of the twelve entries into the tool
+-- registry, so the line this reads is now the call to registry.surfaces rather
+-- than a bare table literal, and the pattern below is pointed at that call
+-- instead. What it captures is unchanged in kind, one entry per line below,
+-- read as text and not as live state, now a mix of the nine tool names the
+-- registry resolves and the three expressions that stay outside it.
 local function readFile(path)
   local f = io.open(path, "r")
   if not f then return nil end
@@ -170,9 +177,9 @@ local initSource = readFile(initPath)
 if not initSource then
   error("inventory, could not read this config's own init.lua at " .. initPath)
 end
-local choosersLine = initSource:match("local%s+choosers%s*=%s*{(.-)}")
+local choosersLine = initSource:match("local%s+choosers%s*=%s*registry%.surfaces%s*%(%s*{(.-)}")
 if not choosersLine then
-  error("inventory, could not find the choosers registry line in init.lua, the pattern needs updating")
+  error("inventory, could not find the choosers registry call in init.lua, the pattern needs updating")
 end
 local chooserEntries = {}
 for entry in choosersLine:gmatch("[^,]+") do
@@ -186,6 +193,20 @@ add("registry choosers count=" .. #chooserEntries)
 for _, e in ipairs(chooserEntries) do
   add("choosers.entry " .. e)
 end
+
+-- spoon.Olm.registry itself, read live rather than as text, since the composition root
+-- now publishes the instance it built. One line per registered tool with its active
+-- flag, a better net than the text match above for the one fault that match cannot see,
+-- an accidental deregistration, which is what packets three and four of this phase are
+-- most likely to risk.
+local registryTools = spoon.Olm.registry and spoon.Olm.registry.all() or {}
+local toolLines = {}
+for _, tool in ipairs(registryTools) do
+  toolLines[#toolLines + 1] = string.format("tools.entry name=%s active=%s", field(tool.name), field(tool.active))
+end
+table.sort(toolLines)
+add("registry tools count=" .. #registryTools)
+for _, l in ipairs(toolLines) do add(l) end
 
 -- Write the whole dump to one fixed file outside the watched config tree, the
 -- same reasoning BrowserTabs' own test channel already follows, since a file
