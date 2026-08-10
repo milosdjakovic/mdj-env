@@ -1415,6 +1415,12 @@ end
 -- two commands, append copy and paste next, which are not tools of their own, carrying
 -- the comment that sat beside them before, and registering them here is what makes
 -- deactivating the clipboard take them with it.
+--
+-- Several of the open closures below are named in hostedInPlace, so their row normally
+-- never reaches run at all, the launcher hosts the tool's list instead. Opening the
+-- picker stays the answer for the one case hosting cannot happen, a scope holding no
+-- live alias, and it is also what the tool's own chord does, so nothing is lost by
+-- keeping the closure here even though it is rarely what actually answers the row.
 local registry = spoon.Olm.lib.registry.new({ apiVersion = spoon.Olm.apiVersion })
 registry.register({
   name = "clipboard",
