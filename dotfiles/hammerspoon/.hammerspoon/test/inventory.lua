@@ -266,6 +266,47 @@ table.sort(rowLines)
 add("registry launcherrows count=" .. #launcherRows)
 for _, l in ipairs(rowLines) do add(l) end
 
+-- spoon.HyperKey._bindings, phase seven's fifth packet. Nothing before this measured a
+-- binding at all, so the snapshot recorded the two physical leader keys and never which
+-- letter reaches which tool, and a deleted bind line would have passed every gate this
+-- repository had. Read live, keyed by key code, which is the private field the atom itself
+-- keeps its whole binding table in, the same kind of reach this file already makes into
+-- ChordKey._keys and HyperCheatSheet's own models above. Sorted by key code since the table
+-- carries no order of its own. Per key this records how many bindings sit on it in total and
+-- how many of those are base bindings, meaning the ones carrying no `when`, since a base
+-- binding is what a plain Hyper press to that key resolves to while no modal context owns
+-- Hyper, and a base binding vanishing is exactly the shape a deleted chord would take.
+local hyperKeyBindings = (spoon.HyperKey and spoon.HyperKey._bindings) or {}
+local hyperKeyCodes = {}
+for code in pairs(hyperKeyBindings) do
+  hyperKeyCodes[#hyperKeyCodes + 1] = code
+end
+table.sort(hyperKeyCodes)
+add("registry hyperkey count=" .. #hyperKeyCodes)
+for _, code in ipairs(hyperKeyCodes) do
+  local list = hyperKeyBindings[code]
+  local base = 0
+  for _, b in ipairs(list) do
+    if not b.when then base = base + 1 end
+  end
+  add(string.format("hyperkey.key code=%s total=%s base=%s", field(code), field(#list), field(base)))
+end
+
+-- hs.hotkey.getHotkeys(), the global hotkey table Hammerspoon itself keeps, which is the one
+-- registry that sees the two global combinations that never touch the leader at all, append
+-- copy and paste next. Sorted by msg, the printable combo each hotkey answers with, rather than
+-- trusting the table's own order, which is registration order and no more stable a fingerprint
+-- than the leader's own binding table would be if read unsorted.
+local hotkeys = hs.hotkey.getHotkeys() or {}
+local hotkeyLines = {}
+for _, h in ipairs(hotkeys) do
+  hotkeyLines[#hotkeyLines + 1] = string.format(
+    "hotkeys.entry msg=%s enabled=%s", field(h.msg), field(h.enabled))
+end
+table.sort(hotkeyLines)
+add("registry hotkeys count=" .. #hotkeys)
+for _, l in ipairs(hotkeyLines) do add(l) end
+
 -- Write the whole dump to one fixed file outside the watched config tree, the
 -- same reasoning BrowserTabs' own test channel already follows, since a file
 -- written inside the config directory would trigger a reload on every run. This

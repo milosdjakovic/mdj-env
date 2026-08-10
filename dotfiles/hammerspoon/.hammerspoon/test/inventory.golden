@@ -240,3 +240,43 @@ launcherrows.entry name=searchSettings subTitle=System · opens the System Setti
 launcherrows.entry name=sleep subTitle=System · Hyper esc
 launcherrows.entry name=textCase subTitle=Text · recase the selection in place
 launcherrows.entry name=vpn subTitle=Network · Hyper P (v, vpn)
+registry hyperkey count=35
+hyperkey.key code=0 total=2 base=1
+hyperkey.key code=1 total=2 base=1
+hyperkey.key code=2 total=2 base=1
+hyperkey.key code=3 total=2 base=1
+hyperkey.key code=4 total=1 base=0
+hyperkey.key code=6 total=1 base=1
+hyperkey.key code=7 total=12 base=1
+hyperkey.key code=8 total=1 base=1
+hyperkey.key code=9 total=1 base=1
+hyperkey.key code=10 total=1 base=1
+hyperkey.key code=11 total=1 base=1
+hyperkey.key code=12 total=1 base=0
+hyperkey.key code=13 total=1 base=1
+hyperkey.key code=14 total=1 base=1
+hyperkey.key code=15 total=2 base=1
+hyperkey.key code=16 total=1 base=0
+hyperkey.key code=17 total=1 base=1
+hyperkey.key code=19 total=1 base=1
+hyperkey.key code=20 total=1 base=1
+hyperkey.key code=21 total=2 base=2
+hyperkey.key code=23 total=1 base=1
+hyperkey.key code=31 total=2 base=1
+hyperkey.key code=34 total=13 base=1
+hyperkey.key code=35 total=1 base=1
+hyperkey.key code=37 total=2 base=1
+hyperkey.key code=38 total=14 base=1
+hyperkey.key code=40 total=14 base=1
+hyperkey.key code=42 total=1 base=1
+hyperkey.key code=43 total=1 base=1
+hyperkey.key code=44 total=1 base=1
+hyperkey.key code=45 total=1 base=1
+hyperkey.key code=46 total=1 base=1
+hyperkey.key code=49 total=2 base=1
+hyperkey.key code=50 total=1 base=1
+hyperkey.key code=53 total=1 base=1
+registry hotkeys count=3
+hotkeys.entry msg=⌃⌥C enabled=true
+hotkeys.entry msg=⌃⌥V enabled=true
+hotkeys.entry msg=⌥` enabled=true
