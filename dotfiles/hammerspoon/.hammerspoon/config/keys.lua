@@ -6,7 +6,7 @@ local HYPER = { "shift", "ctrl", "alt", "cmd" }
 local CTRL_ALT = { "ctrl", "alt" }
 local SHIFT_ALT = { "shift", "alt" }
 
-return {
+local M = {
   -- Expose modifiers for Spoons that need them
   modifiers = {
     HYPER = HYPER,
@@ -644,3 +644,19 @@ return {
   -- Terminal handler
   terminal = { modifiers = { "alt" }, key = "`" },
 }
+
+-- THE SEAM. The action panel's own chord, Hyper and period, folded into every context here
+-- rather than written twelve times above, so it is declared once and every context, including
+-- a thirteenth added later, carries it for free. This is the one exception to this file's own
+-- pure data claim, a loop rather than a value, and it earns that by being the alternative to
+-- twelve copies of the same table drifting the day one of them is edited and the others are
+-- not. openActionPanel is a name this file invents and hands to the root the same way any
+-- other action name here already does; the root maps it to spoon.ActionPanel:toggle and
+-- classifies it as navigation, since the panel must never list its own way in among the verbs
+-- it offers. The three consumers that walk hyperContexts, the binding loop, footerFor, and
+-- test/inventory.lua, all see this binding with no further teaching, exactly like any other.
+for _, ctx in ipairs(M.hyperContexts) do
+  ctx.bindings[#ctx.bindings + 1] = { key = ".", action = "openActionPanel", description = "Actions" }
+end
+
+return M

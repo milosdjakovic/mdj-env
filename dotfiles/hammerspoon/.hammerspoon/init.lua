@@ -637,6 +637,26 @@ local liveHintLabels = {
   end,
 }
 
+-- A binding's plain chord label, Hyper plus the key glyph, shared by footerFor below and
+-- rowsFor further down, phase eight's second packet, rather than each building its own copy.
+-- footerFor's own badge for a binding is more than this, the Return/Escape/arrow doubling and
+-- the chord = false listing case among them, but this piece, the one keystroke a binding
+-- actually fires on, is the part rowsFor needs too, and sharing it is the whole reason the
+-- panel and the docked hint bar cannot print two different words for the same chord.
+local function chordFor(b)
+  return "Hyper+" .. spoon.CheatSheet.glyphFor(b.key, b.mods)
+end
+
+-- A binding's label, the live wording when one applies to this context and this action, else
+-- the binding's own description, else its bare action name. Shared by footerFor and rowsFor
+-- for the same reason chordFor above is, so a wording that changes with the situation, the
+-- launcher's Open versus Run today, cannot say one thing in the hint bar and another in the
+-- panel.
+local function labelFor(b, name)
+  local live = liveHintLabels[b.action]
+  return (live and live(name)) or b.description or b.action
+end
+
 --- The hints for one context, ANSWERED FRESH EACH TIME rather than built once, since one of the
 --- two gates above changes while the list is open, and so does the word on the primary key.
 local function footerFor(name)
@@ -654,7 +674,7 @@ local function footerFor(name)
           -- worse. The listing is still gated, so it shows exactly while the key does something.
           badges = { spoon.CheatSheet.glyphFor(b.key, b.mods) }
         else
-        local chord = "Hyper+" .. spoon.CheatSheet.glyphFor(b.key, b.mods)
+        local chord = chordFor(b)
         badges = { chord }
         if b.action == "insertSelected" or b.action == "enter" then
           badges = { chord, spoon.CheatSheet.glyphFor("return") }
@@ -666,15 +686,52 @@ local function footerFor(name)
           badges = { chord, spoon.CheatSheet.glyphFor("up") }
         end
         end
-        local live = liveHintLabels[b.action]
-        local label = (live and live(name)) or b.description or b.action
-        hints[#hints + 1] = { badges = badges, label = label, action = b.action }
+        hints[#hints + 1] = { badges = badges, label = labelFor(b, name), action = b.action }
         end
       end
     end
   end
   return hints
 end
+
+-- rowsFor(contextName) -> the ordered rows the panel would show for that context, its verbs
+-- first, in declaration order, then Back last. Lives here beside footerFor and shares its two
+-- helpers above, chordFor and labelFor, rather than copying them, which is the whole reason the
+-- panel and the docked hint bar above cannot drift apart over what a chord is called or a verb
+-- reads as.
+--
+-- Filtered through bindingApplies, the same wiring time filter footerFor also applies, and NOT
+-- through bindingActive, footerFor's other filter. No verb in config/keys.lua carries a `when`
+-- today, so there is nothing live for bindingActive to filter, and wiring a predicate in with
+-- nothing ever exercising it is exactly the predicate with no caller this repository's own
+-- design rules reject. Teaching this function about bindingActive is a later packet's problem,
+-- the day a verb actually carries a `when`, and not a thing to add here ahead of that.
+--
+-- Takes a context name rather than reading the live one, so test/inventory.lua can ask it for
+-- all twelve with no chooser open, and ActionPanel:toggle, through deps.rowsFor, can ask it for
+-- whichever one really is live, both through the exact same call.
+--
+-- The Back row is built here too, rather than left for each caller to add a second time, since
+-- a second copy of it in the inventory section is exactly the drift this whole approach exists
+-- to prevent. It carries no action, which is what marks it Back rather than a verb to the panel,
+-- since no context declares one for it to carry. Its chord is the bare Backspace glyph, with no
+-- Hyper prefix, the same convention footerFor's own chord = false case already uses, since
+-- Backspace is a key the chooser atom reads for itself rather than one Hyper answers.
+local function rowsFor(contextName)
+  local rows = {}
+  for _, ctx in ipairs(keys.hyperContexts or {}) do
+    if ctx.name == contextName then
+      for _, b in ipairs(spoon.ActionPanel:verbsIn(ctx.bindings)) do
+        if bindingApplies(b) then
+          rows[#rows + 1] = { action = b.action, title = labelFor(b, contextName), chord = chordFor(b) }
+        end
+      end
+    end
+  end
+  rows[#rows + 1] = { title = "Back", chord = spoon.CheatSheet.glyphFor("delete") }
+  return rows
+end
+
 -- Every chooser runs on the native backend and docks the deferred CanvasPanel for
 -- its shortcut hints. The footerFor hints above feed the panels directly.
 local function hideShortcuts()
@@ -954,7 +1011,17 @@ spoon.CanvasPanel.configure({ screen = overlayScreen })
 -- false) because their query is not a plain filter, the clipboard parsing a type prefix
 -- and then reusing this same matcher for the free-text part, caffeinate parsing a time.
 -- Swap to spoon.Chooser.matchers.substring here to return every list to the old behaviour.
-spoon.Chooser.configure({ screen = overlayScreen, matcher = spoon.Chooser.matchers.fuzzy })
+--
+-- decorate is the action panel's own seam, phase eight's second packet, installed here rather
+-- than at any of the twelve call sites to Chooser.new below, so every chooser gets it and no
+-- consumer is edited or learns the panel exists. A plain forwarding closure rather than the
+-- method itself, since Chooser.new below calls decorate(instance, config), two arguments with
+-- no self, and spoon.ActionPanel:decorate needs the colon to find its own state.
+spoon.Chooser.configure({
+  screen = overlayScreen,
+  matcher = spoon.Chooser.matchers.fuzzy,
+  decorate = function(instance, config) spoon.ActionPanel:decorate(instance, config) end,
+})
 
 -- The overlay display picker is built below, alongside the other native-panel
 -- choosers, since it docks the shared shortcut hint panel and follows the picker
@@ -2570,19 +2637,32 @@ local contextActions = {
   browseUp = routeNav("browseUp"),
   revealInFinder = routeNav("reveal"),
   copyPath = routeNav("copyPath"),
+  -- The action panel's own chord, phase eight's second packet, folded into every context by
+  -- config/keys.lua itself so this is one entry rather than twelve. Unlike every other entry
+  -- above, it alone needs to know WHICH context matched, since ActionPanel:toggle asks rowsFor
+  -- for that context's rows, and nothing about a bound handler tells it which of several
+  -- `when` gated bindings on the same key just fired. So this resolves the live context
+  -- through activeContext, the exact same resolution revealHyperLayer already runs, rather
+  -- than teaching this module a second way to work it out.
+  openActionPanel = function()
+    hideShortcuts()
+    local ctx = activeContext()
+    spoon.ActionPanel:toggle(ctx and ctx.name)
+  end,
 }
 
 -- The kind every action carries, decided here beside contextActions since this is already the
 -- one place that knows what every action name means, phase eight's first packet. Written
 -- against spoon.ActionPanel.kinds rather than against a bare string, the named values rule the
--- design cites, and it names all eighteen actions that appear anywhere in keys.hyperContexts,
--- none left to a default, since a default is how a nineteenth action added later would join
+-- design cites, and it names all nineteen actions that appear anywhere in keys.hyperContexts,
+-- none left to a default, since a default is how a twentieth action added later would join
 -- the wrong side in silence. leavePage carries an entry here although it carries no entry in
 -- contextActions above, since the chooser atom reads Backspace for itself and this root only
 -- lists the key for it, and it is classified anyway, because the classification is about what
 -- a binding means and not about who runs it.
 local actionKinds = {
-  -- Navigation, eight, the shared rows every context inherits and a panel must never list.
+  -- Navigation, nine now, the shared rows every context inherits, the panel's own chord joining
+  -- them in phase eight's second packet, and a panel must never list any of the nine.
   selectNext = spoon.ActionPanel.kinds.navigation,
   selectPrev = spoon.ActionPanel.kinds.navigation,
   insertSelected = spoon.ActionPanel.kinds.navigation,
@@ -2591,6 +2671,7 @@ local actionKinds = {
   scrollPreviewDown = spoon.ActionPanel.kinds.navigation,
   scrollPreviewUp = spoon.ActionPanel.kinds.navigation,
   leavePage = spoon.ActionPanel.kinds.navigation,
+  openActionPanel = spoon.ActionPanel.kinds.navigation,
   -- Verb, ten, the things a person forgets the chord for.
   appendSelected = spoon.ActionPanel.kinds.verb,
   deleteSelected = spoon.ActionPanel.kinds.verb,
@@ -2603,8 +2684,24 @@ local actionKinds = {
   revealInFinder = spoon.ActionPanel.kinds.verb,
   copyPath = spoon.ActionPanel.kinds.verb,
 }
+-- rowsFor and run, phase eight's second packet, join kindOf here. rowsFor is presentation,
+-- shared with footerFor above and reused as is by test/inventory.lua's own measurement through
+-- ActionPanel:rowsFor, and run is dispatch, contextActions itself, so a verb the panel runs
+-- goes through exactly the entry its own chord would have run, warning naming an action this
+-- root does not otherwise know, which today can only be an action classified as a verb by a
+-- table that has drifted out of step with contextActions, an actionKinds entry that should
+-- never exist without a matching one here.
 spoon.ActionPanel:configure({
   kindOf = function(action) return actionKinds[action] end,
+  rowsFor = rowsFor,
+  run = function(action)
+    local fn = contextActions[action]
+    if fn then
+      fn()
+    else
+      log.w("ActionPanel run asked for unknown action '" .. tostring(action) .. "'")
+    end
+  end,
 })
 
 -- The completeness check, once at load and never per panel open, the measurement phase eight's
