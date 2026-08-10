@@ -1,2 +1,11 @@
+# Repo only files at this package root, kept out of the home directory. The generated
+# manifest, the module level declaration, the collector, and the declaration beside
+# .tmux.conf are this module's contract with the layer above, so they belong to the
+# repository rather than to the running config. The declarations under .tmux/scripts are not
+# listed because that whole directory is one symlink, so nothing here could hide them anyway,
+# and they are inert text that no running script reads.
 CLAUDE.md
 DEPENDENCIES
+dependencies-module
+dependencies-collect
+.tmux.conf.dependencies

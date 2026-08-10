@@ -1,0 +1,3 @@
+# What fzf-repos.sh needs, declared beside it.
+# Format is name | kind | locator | policy | reason, and the collector stamps the consumer.
+git | path | git | required | reading the branch or short sha shown beside a repository

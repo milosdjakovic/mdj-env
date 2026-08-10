@@ -1,0 +1,4 @@
+# What mullvad.sh needs, declared beside the only file here that knows this CLI, so swapping
+# the VPN provider is one new adapter plus one line in fzf-vpn.sh and nothing else.
+# Format is name | kind | locator | policy | reason, and the collector stamps the consumer.
+mullvad | path | mullvad | optional | the relay CLI behind the VPN picker

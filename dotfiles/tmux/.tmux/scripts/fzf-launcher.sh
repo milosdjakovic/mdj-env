@@ -27,13 +27,17 @@ VPN_LABEL="$(~/.tmux/scripts/fzf-vpn.sh --name 2>/dev/null)"
 # opening the popup. Empty when no keep-awake is active.
 CAFF_SUMMARY="$(~/.tmux/scripts/fzf-caffeinate.sh --summary 2>/dev/null)"
 
+# Active file explorer label for the launcher entries. The name is dynamic and
+# comes from whichever adapter explorer.sh is configured to use.
+EXPLORER_LABEL="$(~/.tmux/scripts/explorer.sh --name 2>/dev/null)"
+
 # --- Entry data: category|display_key|description|command_id ---
 # To add a new entry: add a line here and a case in execute_cmd below
 ENTRIES="tools|prefix+g|Lazygit popup|lazygit
 tools|prefix+G|Recent repos & worktrees lazygit|lazygit-recent
-tools|prefix+b|File explorer popup (lf)|lf
+tools|prefix+b|File explorer popup${EXPLORER_LABEL:+ ($EXPLORER_LABEL)}|explorer
 tools|prefix+\`|Scratch shell popup|scratch
-tools|prefix+t|Search lf tags (enter copy, ^v nvim, alt-v new window)|fzf-tags
+tools|prefix+t|Search ${EXPLORER_LABEL:-explorer} tags (enter copy, ^v nvim, alt-v new window)|fzf-tags
 tools|prefix+f|Find files globally (enter copy, ^v nvim, alt-v new window)|fzf-files-global
 tools|prefix+F|Find files (enter copy, ^v nvim, alt-v new window)|fzf-files
 tools|---|VPN service${VPN_LABEL:+ ($VPN_LABEL)}|vpn
@@ -52,7 +56,7 @@ execute_cmd() {
   case "$1" in
     lazygit)         tmux display-popup -d "$PANE_PATH" -w 90% -h 90% -E "lazygit";;
     lazygit-recent)  tmux display-popup -w 60% -h 50% -E "~/.tmux/scripts/fzf-recent-repos.sh";;
-    lf)              tmux display-popup -d "$PANE_PATH" -w 90% -h 90% -E "tmux new-session -A -s '~files' -c '$PANE_PATH' lf \\; set status off";;
+    explorer)        tmux display-popup -d "$PANE_PATH" -w 90% -h 90% -E "~/.tmux/scripts/explorer.sh --open '$PANE_PATH'";;
     scratch)         tmux display-popup -d "$PANE_PATH" -w 90% -h 90% -E "$SHELL";;
     fzf-sessions)
       tmux display-popup -w 80 -h 70% -E "~/.tmux/scripts/fzf-sessions.sh"
@@ -111,6 +115,6 @@ if [[ -n "$selected" ]]; then
   cmd_id=$(echo "$selected" | cut -f1)
   # Defer execution via tmux run-shell so the launcher popup closes first.
   # Tmux allows only one popup per client, so commands that open popups
-  # (lazygit, lf, fzf switchers) would fail if run while this popup is alive.
+  # (lazygit, the explorer, fzf switchers) would fail if run while this popup is alive.
   tmux run-shell -b "PANE_PATH='$PANE_PATH' $SCRIPT --execute $cmd_id"
 fi
