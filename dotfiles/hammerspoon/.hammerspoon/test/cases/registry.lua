@@ -480,3 +480,193 @@ do
     table.concat(warnings, " | ")
   )
 end
+
+-- Refusal, a scope that is present and is not a table, phase seven's fourth packet.
+do
+  local r, warnings = freshRegistry(1)
+  local ok = r.register({ name = "caffeinate", apiVersion = 1, scope = "not a table" })
+  check("a descriptor whose scope is present and is not a table is refused", ok == false)
+  check(
+    "the refusal names the tool and says its scope is not a table",
+    found(warnings, "caffeinate") and found(warnings, "is not a table"),
+    table.concat(warnings, " | ")
+  )
+end
+
+-- Refusal, a scope present with no rows function, or with a rows that is not a function.
+-- One line in the module covers both, so both are checked against it rather than as two
+-- refusals pretending to distinguish something the log itself does not.
+do
+  local r, warnings = freshRegistry(1)
+  local ok = r.register({ name = "vpn", apiVersion = 1, scope = { run = function() end } })
+  check("a scope with no rows function is refused", ok == false)
+  check(
+    "the refusal names the tool and says its scope has no rows function",
+    found(warnings, "vpn") and found(warnings, "no rows function"),
+    table.concat(warnings, " | ")
+  )
+
+  local ok2 = r.register({ name = "browserTabs", apiVersion = 1, scope = { rows = "not a function", run = function() end } })
+  check("a scope whose rows is present and is not a function is refused the same way", ok2 == false)
+end
+
+-- Refusal, a scope present with no run function, or with a run that is not a function.
+do
+  local r, warnings = freshRegistry(1)
+  local ok = r.register({ name = "dockAutoHide", apiVersion = 1, scope = { rows = function() end } })
+  check("a scope with no run function is refused", ok == false)
+  check(
+    "the refusal names the tool and says its scope has no run function",
+    found(warnings, "dockAutoHide") and found(warnings, "no run function"),
+    table.concat(warnings, " | ")
+  )
+
+  local ok2 = r.register({ name = "fileSearch", apiVersion = 1, scope = { rows = function() end, run = "not a function" } })
+  check("a scope whose run is present and is not a function is refused the same way", ok2 == false)
+end
+
+-- A scope's matcher is the one field that is not a function, false on four scopes today,
+-- so false is accepted and anything else that is not a function is refused.
+do
+  local r = freshRegistry(1)
+  local ok = r.register({
+    name = "caffeinate", apiVersion = 1,
+    scope = { rows = function() end, run = function() end, matcher = false },
+  })
+  check("a scope whose matcher is false registers", ok == true)
+end
+
+do
+  local r, warnings = freshRegistry(1)
+  local ok = r.register({
+    name = "vpn", apiVersion = 1,
+    scope = { rows = function() end, run = function() end, matcher = "not false or a function" },
+  })
+  check("a scope whose matcher is neither false nor a function is refused", ok == false)
+  check(
+    "the refusal names the tool and says its scope's matcher is neither false nor a function",
+    found(warnings, "vpn") and found(warnings, "neither false nor a function"),
+    table.concat(warnings, " | ")
+  )
+end
+
+-- Refusal, a scope's peek, redirect, or act present and not a function, each its own
+-- registration so one bad field cannot hide behind another.
+do
+  local r, warnings = freshRegistry(1)
+  local ok = r.register({
+    name = "fileSearch", apiVersion = 1,
+    scope = { rows = function() end, run = function() end, peek = "not a function" },
+  })
+  check("a scope whose peek is present and is not a function is refused", ok == false)
+  check(
+    "the refusal names the tool and says its scope's peek is not a function",
+    found(warnings, "fileSearch") and found(warnings, "peek is present and is not a function"),
+    table.concat(warnings, " | ")
+  )
+end
+
+do
+  local r, warnings = freshRegistry(1)
+  local ok = r.register({
+    name = "aliasDirectory", apiVersion = 1,
+    scope = { rows = function() end, run = function() end, redirect = "not a function" },
+  })
+  check("a scope whose redirect is present and is not a function is refused", ok == false)
+  check(
+    "the refusal names the tool and says its scope's redirect is not a function",
+    found(warnings, "aliasDirectory") and found(warnings, "redirect is present and is not a function"),
+    table.concat(warnings, " | ")
+  )
+end
+
+do
+  local r, warnings = freshRegistry(1)
+  local ok = r.register({
+    name = "dockAutoHide", apiVersion = 1,
+    scope = { rows = function() end, run = function() end, act = "not a function" },
+  })
+  check("a scope whose act is present and is not a function is refused", ok == false)
+  check(
+    "the refusal names the tool and says its scope's act is not a function",
+    found(warnings, "dockAutoHide") and found(warnings, "act is present and is not a function"),
+    table.concat(warnings, " | ")
+  )
+end
+
+-- A well formed scope registers, with matcher, peek, redirect, and act all present.
+do
+  local r = freshRegistry(1)
+  local ok = r.register({
+    name = "fileSearch", apiVersion = 1,
+    scope = {
+      matcher = false,
+      rows = function() end,
+      run = function() end,
+      peek = function() end,
+      redirect = function() end,
+      act = function() end,
+    },
+  })
+  check("a fully formed scope with every optional field present registers", ok == true)
+end
+
+-- scopeFor, a tool's own scope, resolved only while the tool is active, and nil for an
+-- unknown name, mirroring rowFor exactly.
+do
+  local r = freshRegistry(1)
+  local rows = function() end
+  local run = function() end
+  r.register({ name = "vpn", apiVersion = 1, scope = { rows = rows, run = run } })
+  check("scopeFor answers nil for a registered but inactive tool", r.scopeFor("vpn") == nil)
+
+  r.activate({ "vpn" })
+  local scope = r.scopeFor("vpn")
+  check(
+    "scopeFor answers the tool's own scope once it is active",
+    scope ~= nil and scope.rows == rows and scope.run == run
+  )
+
+  check("scopeFor answers nil for a name nothing registered", r.scopeFor("noSuchTool") == nil)
+end
+
+-- scopeFor, a command name answers nil, since nothing in this packet gives a command
+-- its own scope, the same silence rowFor answers for a name that owns no row.
+do
+  local r = freshRegistry(1)
+  r.register({
+    name = "clipboard",
+    apiVersion = 1,
+    open = function() end,
+    scope = { rows = function() end, run = function() end },
+    commands = { appendCopy = function() end },
+  })
+  r.activate({ "clipboard" })
+  check("scopeFor answers nil for a command name, a command carries no scope", r.scopeFor("appendCopy") == nil)
+end
+
+-- all() reports scope presence beside surface and hosted, the cross check this packet
+-- adds so a tool that is hosted with no scope behind it is visible in a committed file
+-- rather than caught only by a warning nobody is watching for.
+do
+  local r = freshRegistry(1)
+  r.register({
+    name = "emoji", apiVersion = 1, hosted = true,
+    open = function() end,
+    scope = { rows = function() end, run = function() end },
+  })
+  r.register({ name = "colorPicker", apiVersion = 1, open = function() end })
+  r.activate({ "emoji", "colorPicker" })
+
+  local all = r.all()
+  local byName = {}
+  for _, tool in ipairs(all) do byName[tool.name] = tool end
+  check(
+    "all reports scope presence true for the tool that declared one",
+    byName.emoji.scope == true and byName.emoji.hosted == true
+  )
+  check(
+    "all reports scope presence false for the tool that declared none",
+    byName.colorPicker.scope == false
+  )
+end

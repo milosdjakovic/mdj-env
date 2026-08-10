@@ -39,6 +39,18 @@
 -- detail, glyph, keywords, and chord, is presentation data this module never reads, opaque
 -- to the registry and meaningful only to the launcher on the other end of rowFor.
 --
+-- scope, added in phase seven's fourth packet, is optional, a table carrying exactly
+-- the fields the composition root's own scope helper passes through today, matcher,
+-- rows, run, peek, redirect, and act. Nothing else. The identity fields that helper
+-- adds on top, name, title, glyph, and aliases, are deliberately not here, since three
+-- of them come from config/keys.lua and this registry reads no configuration, the same
+-- rule that keeps name the tool's only identity above. rows and run are required once
+-- scope is present at all, since QueryScope's own admissible function requires both,
+-- and refusing here names the registration rather than leaving QueryScope to refuse
+-- the assembled scope later with a line naming only the scope. matcher, peek, redirect
+-- and act are all optional, matcher accepting false or a function since four scopes
+-- set it false today, and the other three accepting only a function or absence.
+--
 -- surface, added in phase seven's second packet, is optional, a function of no
 -- arguments returning this tool's navigation adapter, the object answering isShowing
 -- and whatever navigation methods its context binds. It is a function and never the
@@ -55,7 +67,7 @@
 -- register(descriptor) validates, then records, and refuses rather than raises, so one
 -- bad tool cannot empty the launcher. Every refusal is one log line at warning naming
 -- the tool and the reason, and register answers true when it registered and false when
--- it refused. Nine refusals exist. A descriptor with no name, or a name that is not a
+-- it refused. Sixteen refusals exist. A descriptor with no name, or a name that is not a
 -- string, is refused, and cannot be named in its own error, so the line says what it
 -- can. A second registration under a name already taken is refused, naming the tool,
 -- since first registration wins. A commands key equal to the tool's own name is
@@ -78,7 +90,14 @@
 -- is malformed. A commands entry that is neither a function nor a table with a callable
 -- fn is refused, naming the tool and the command, since storing it anyway would let run
 -- answer false forever with nothing logged, quieter than the raise such a value produced
--- before this packet and therefore worse.
+-- before this packet and therefore worse. A scope that is present and is not a table is
+-- refused, naming the tool. A scope present without a rows function, or without a run
+-- function, is refused, naming the tool and which of the two is missing, since QueryScope
+-- requires both and the registration is a better place to learn about the same mistake
+-- than a line further along naming only the scope. A scope's matcher, present and neither
+-- false nor a function, is refused naming the tool and the field, and a scope's peek,
+-- redirect, or act, present and not a function, is refused the same way, naming the tool
+-- and whichever field was wrong.
 --
 -- activate(names) takes a list of tool names and is called once after every
 -- registration. A registered tool whose name is in the list is active, one not in the
@@ -104,15 +123,19 @@
 -- disappear the moment the launcher asks rowFor for it, the mechanism this module owed
 -- since phase seven's first packet and finally pays here, even though nothing is
 -- deactivated by default today, so the disappearance has nothing yet to show against.
+-- scopeFor(name), added in phase seven's fourth packet, answers the scope table of an
+-- active tool in the same shape, resolved through the same flat index, so an inactive
+-- tool, an unknown name, and a command name all answer nil, a command's nil because
+-- nothing in this packet gives a command its own scope.
 -- active() lists active tool names in registration order. all() lists every registered
--- tool name with its active flag, and, since phase seven's second packet, whether it
--- declared a surface and whether it declared hosted, all four for diagnostics only and
--- all four presence rather than resolved value, since asking a live surface to resolve
--- itself at snapshot time would ask the question at a different moment than the live
--- code asks it and could disagree with it for reasons that are not defects. An inactive
--- tool answers nil and false to every read except all(). It still does not unbind a
--- chord, which stays bound regardless of activation until a later packet in this phase
--- folds chords in too.
+-- tool name with its active flag, and, since phase seven's second and fourth packets,
+-- whether it declared a surface, whether it declared hosted, and whether it declared a
+-- scope, all five for diagnostics only and all five presence rather than resolved value,
+-- since asking a live surface to resolve itself at snapshot time would ask the question
+-- at a different moment than the live code asks it and could disagree with it for
+-- reasons that are not defects. An inactive tool answers nil and false to every read
+-- except all(). It still does not unbind a chord, which stays bound regardless of
+-- activation until a later packet in this phase folds chords in too.
 --
 -- surfaces(spec), added in phase seven's second packet, takes an ordered list and
 -- answers an ordered list. A string entry names a registered tool, and resolves to that
@@ -186,6 +209,56 @@ function M.new(opts)
     return true
   end
 
+  -- A scope is optional, and when present it is validated the way a row is, structural
+  -- rather than partial, refusing the whole registration rather than accepting a scope
+  -- with a hole in it. rows and run are both required once a scope is present at all,
+  -- since QueryScope's own admissible function requires both and would otherwise refuse
+  -- the assembled scope later with a line naming the scope rather than the registration
+  -- that produced it, a worse place to learn about the same mistake. matcher, peek,
+  -- redirect and act are all optional. matcher is the one field that is not a function
+  -- when present, it is false on four scopes today, so false or a function is accepted
+  -- and anything else is refused. peek, redirect and act each accept only a function or
+  -- absence, the same rule QueryScope's own admissible function already applies to them.
+  local function scopeIsWellFormed(scope, name)
+    if scope == nil then return true end
+    if type(scope) ~= "table" then
+      log.w(string.format(
+        "Registry refused '%s', its scope is present and is not a table", name))
+      return false
+    end
+    if type(scope.rows) ~= "function" then
+      log.w(string.format(
+        "Registry refused '%s', its scope has no rows function", name))
+      return false
+    end
+    if type(scope.run) ~= "function" then
+      log.w(string.format(
+        "Registry refused '%s', its scope has no run function", name))
+      return false
+    end
+    if scope.matcher ~= nil and scope.matcher ~= false and type(scope.matcher) ~= "function" then
+      log.w(string.format(
+        "Registry refused '%s', its scope's matcher is present and is neither false nor a function", name))
+      return false
+    end
+    if scope.peek ~= nil and type(scope.peek) ~= "function" then
+      log.w(string.format(
+        "Registry refused '%s', its scope's peek is present and is not a function", name))
+      return false
+    end
+    if scope.redirect ~= nil and type(scope.redirect) ~= "function" then
+      log.w(string.format(
+        "Registry refused '%s', its scope's redirect is present and is not a function", name))
+      return false
+    end
+    if scope.act ~= nil and type(scope.act) ~= "function" then
+      log.w(string.format(
+        "Registry refused '%s', its scope's act is present and is not a function", name))
+      return false
+    end
+    return true
+  end
+
   -- A commands entry is a bare function, the shape packet one gave it, or a table
   -- carrying that function under fn plus its own optional row, the shape this packet
   -- adds so appendCopy and pasteNext keep their rows while remaining commands of the
@@ -250,6 +323,7 @@ function M.new(opts)
       return false
     end
     if not rowIsWellFormed(descriptor.row, name) then return false end
+    if not scopeIsWellFormed(descriptor.scope, name) then return false end
     for key, spec in pairs(commands) do
       local fn, commandRow = commandParts(spec)
       if not fn then
@@ -262,7 +336,7 @@ function M.new(opts)
     end
 
     toolsByName[name] = descriptor
-    flatIndex[name] = { tool = name, fn = descriptor.open, row = descriptor.row }
+    flatIndex[name] = { tool = name, fn = descriptor.open, row = descriptor.row, scope = descriptor.scope }
     order[#order + 1] = name
     for key, spec in pairs(commands) do
       local fn, commandRow = commandParts(spec)
@@ -325,6 +399,17 @@ function M.new(opts)
     return entry.row
   end
 
+  --- instance.scopeFor(name)
+  --- The scope table of an active tool, or nil, in the same shape rowFor answers in.
+  --- Resolved through the same flat index, so an inactive tool and an unknown name both
+  --- answer nil, and a command name answers nil too, since a scope lives on a tool's own
+  --- entry and never on a command's, nothing in this packet gives a command one.
+  function instance.scopeFor(name)
+    local entry = flatIndex[name]
+    if not entry or not activeTools[entry.tool] then return nil end
+    return entry.scope
+  end
+
   --- instance.active()
   --- Active tool names, in registration order.
   function instance.active()
@@ -337,10 +422,13 @@ function M.new(opts)
 
   --- instance.all()
   --- Every registered tool name with its active flag, whether it declared a surface,
-  --- and whether it declared hosted, in registration order, for diagnostics only.
-  --- surface and hosted report presence on the descriptor rather than a resolved value,
-  --- since resolving a surface here would ask the question at a different moment than
-  --- the live code asks it.
+  --- whether it declared hosted, and whether it declared a scope, in registration order,
+  --- for diagnostics only. All three report presence on the descriptor rather than a
+  --- resolved value, since resolving one here would ask the question at a different
+  --- moment than the live code asks it. scope presence beside hosted is what lets a
+  --- reader see a tool that is hosted with no scope behind it, which is legitimate for a
+  --- tool whose scope registers only under a condition, and stable in a committed file
+  --- rather than a warning nobody is watching for.
   function instance.all()
     local out = {}
     for _, name in ipairs(order) do
@@ -350,6 +438,7 @@ function M.new(opts)
         active = activeTools[name] == true,
         surface = descriptor.surface ~= nil,
         hosted = descriptor.hosted == true,
+        scope = descriptor.scope ~= nil,
       }
     end
     return out
