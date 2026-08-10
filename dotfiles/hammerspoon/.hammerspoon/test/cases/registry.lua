@@ -265,3 +265,89 @@ do
   check("a command on an active tool runs through its owning tool", r.run("appendCopy") == true)
   check("the command's own function is what ran", calls[#calls] == "appendCopy")
 end
+
+-- Refusal, a surface that is present and is not a function. This is the guard the
+-- ordering hazard section of the second packet asks for, since a surface handed in
+-- already built rather than as a closure is exactly the mistake that discipline exists
+-- to catch.
+do
+  local r, warnings = freshRegistry(1)
+  local ok = r.register({ name = "emoji", apiVersion = 1, surface = { isShowing = function() return false end } })
+  check("a descriptor whose surface is present and is not a function is refused", ok == false)
+  check(
+    "the refusal names the tool and says its surface is not a function",
+    found(warnings, "emoji") and found(warnings, "is not a function"),
+    table.concat(warnings, " | ")
+  )
+end
+
+-- surfaces(spec), a string entry resolving to an active tool's surface, in the order
+-- the spec gave, mixed with a plain object the registry was never told about.
+do
+  local r = freshRegistry(1)
+  local vpnSurface = { isShowing = function() return false end }
+  local emojiSurface = { isShowing = function() return false end }
+  r.register({ name = "vpn", apiVersion = 1, surface = function() return vpnSurface end })
+  r.register({ name = "emoji", apiVersion = 1, surface = function() return emojiSurface end })
+  r.activate({ "vpn", "emoji" })
+
+  local passthrough = { isShowing = function() return true end }
+  local out = r.surfaces({ "emoji", passthrough, "vpn" })
+  check(
+    "surfaces resolves a mixed spec list preserving its order",
+    #out == 3 and out[1] == emojiSurface and out[2] == passthrough and out[3] == vpnSurface
+  )
+end
+
+-- surfaces(spec), a registered but inactive tool's surface is skipped with no warning
+-- at all, since that is what inactive already means everywhere else in this module.
+do
+  local r, warnings = freshRegistry(1)
+  r.register({ name = "vpn", apiVersion = 1, surface = function() return { isShowing = function() end } end })
+  -- vpn is registered but never activated.
+  local out = r.surfaces({ "vpn" })
+  check("an inactive tool's surface contributes nothing to the list", #out == 0)
+  check("an inactive tool's surface is skipped without logging anything", #warnings == 0)
+end
+
+-- surfaces(spec), a name nothing registered is skipped and logs one warning naming it.
+do
+  local r, warnings = freshRegistry(1)
+  local out = r.surfaces({ "noSuchTool" })
+  check("an unknown name in a surfaces spec contributes nothing", #out == 0)
+  check(
+    "an unknown name in a surfaces spec is warned about by name",
+    found(warnings, "noSuchTool"),
+    table.concat(warnings, " | ")
+  )
+end
+
+-- surfaces(spec), a surface closure that resolves to nothing is skipped with a warning
+-- naming the tool, the same silent-hazard guard the missing isShowing case below shares.
+do
+  local r, warnings = freshRegistry(1)
+  r.register({ name = "textCase", apiVersion = 1, surface = function() return nil end })
+  r.activate({ "textCase" })
+  local out = r.surfaces({ "textCase" })
+  check("a surface resolving to nothing contributes nothing to the list", #out == 0)
+  check(
+    "a surface resolving to nothing is warned about by name",
+    found(warnings, "textCase"),
+    table.concat(warnings, " | ")
+  )
+end
+
+-- surfaces(spec), a surface resolving to an object with no isShowing is treated the
+-- same as a surface resolving to nothing, warned about by name and left out.
+do
+  local r, warnings = freshRegistry(1)
+  r.register({ name = "textCase", apiVersion = 1, surface = function() return { selectNext = function() end } end })
+  r.activate({ "textCase" })
+  local out = r.surfaces({ "textCase" })
+  check("a surface with no isShowing contributes nothing to the list", #out == 0)
+  check(
+    "a surface with no isShowing is warned about by name",
+    found(warnings, "textCase"),
+    table.concat(warnings, " | ")
+  )
+end

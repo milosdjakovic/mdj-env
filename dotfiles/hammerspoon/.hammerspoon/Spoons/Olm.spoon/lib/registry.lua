@@ -28,10 +28,23 @@
 -- map of name to function, extra named actions belonging to this tool rather than tools
 -- of their own, optional.
 --
+-- surface, added in phase seven's second packet, is optional, a function of no
+-- arguments returning this tool's navigation adapter, the object answering isShowing
+-- and whatever navigation methods its context binds. It is a function and never the
+-- surface itself because two of the nine tools this packet moved build that surface
+-- inside their own configure and hand it back from a method, and that configure call
+-- runs far below where the registration sits, so capturing the result at registration
+-- time would capture nothing at all, permanently and silently. Every registration obeys
+-- this discipline even where the surface is already a stable module reference and would
+-- have survived either way, since a rule that holds for seven tools and quietly fails
+-- two of them is worse than a rule applied everywhere. hosted, also added in that
+-- packet, is optional, a plain boolean, true when choosing this tool's launcher row
+-- should host its list in place rather than open its own picker, and nothing more.
+--
 -- register(descriptor) validates, then records, and refuses rather than raises, so one
 -- bad tool cannot empty the launcher. Every refusal is one log line at warning naming
 -- the tool and the reason, and register answers true when it registered and false when
--- it refused. Five refusals exist. A descriptor with no name, or a name that is not a
+-- it refused. Six refusals exist. A descriptor with no name, or a name that is not a
 -- string, is refused, and cannot be named in its own error, so the line says what it
 -- can. A second registration under a name already taken is refused, naming the tool,
 -- since first registration wins. A commands key equal to the tool's own name is
@@ -43,7 +56,9 @@
 -- such a collision ambiguity rather than a preference. An apiVersion that is missing,
 -- not an integer, or not equal to the core's, is refused, naming the tool, the version
 -- it declared, and the version the core offers, since the version is bumped only on a
--- breaking change and equality is the only check that respects that.
+-- breaking change and equality is the only check that respects that. A surface that is
+-- present and is not a function is refused, naming the tool, since a surface handed in
+-- already built is exactly the mistake the discipline above exists to catch.
 --
 -- activate(names) takes a list of tool names and is called once after every
 -- registration. A registered tool whose name is in the list is active, one not in the
@@ -66,6 +81,22 @@
 -- diagnostics only. An inactive tool answers nil and false to every read except all().
 -- That is the whole of what inactive means in this packet. It does not yet unbind a
 -- chord or remove a row, and later packets are what finish it.
+--
+-- surfaces(spec), added in phase seven's second packet, takes an ordered list and
+-- answers an ordered list. A string entry names a registered tool, and resolves to that
+-- tool's surface when the tool is active and has one, is skipped silently when the tool
+-- is registered and inactive, since that is what inactive already means, and logs one
+-- warning naming it when nothing is registered under that name at all. When a named
+-- tool's surface is resolved and the result is missing, or is present but has no
+-- isShowing, one warning names the tool and it is skipped the same way, so a hazard that
+-- would otherwise be silent is loud at the moment it happens. Any entry that is not a
+-- string passes straight through unexamined, which is how a surface with no tool behind
+-- it, built from root local code with no descriptor of its own, keeps its place in the
+-- list. The mix is deliberate. A string names something this registry knows about. Any
+-- other value is an object the composition root holds and this registry has never heard
+-- of, and passing it through untouched is the whole of what it owes that object.
+-- Resolution happens inside this call and never at registration, which is the same
+-- discipline the surface field itself observes above.
 --
 -- Every function below is a plain field on the returned instance and is meant to be dot
 -- called, matching lib/recency.lua exactly, never colon called, since there is no
@@ -139,6 +170,11 @@ function M.new(opts)
         name, tostring(descriptor.apiVersion), tostring(coreApiVersion)))
       return false
     end
+    if descriptor.surface ~= nil and type(descriptor.surface) ~= "function" then
+      log.w(string.format(
+        "Registry refused '%s', its surface is present and is not a function", name))
+      return false
+    end
 
     toolsByName[name] = descriptor
     flatIndex[name] = { tool = name, fn = descriptor.open }
@@ -208,6 +244,40 @@ function M.new(opts)
     local out = {}
     for _, name in ipairs(order) do
       out[#out + 1] = { name = name, active = activeTools[name] == true }
+    end
+    return out
+  end
+
+  --- instance.surfaces(spec)
+  --- Resolve an ordered list mixing tool names and plain objects into an ordered list of
+  --- navigation adapters. A string entry names a registered tool, resolved to that
+  --- tool's surface() result when the tool is active and has one, skipped silently when
+  --- the tool is registered but inactive, and logged and skipped when nothing is
+  --- registered under that name. A resolved surface that is missing, or present but has
+  --- no isShowing, is logged and skipped rather than passed through broken. Anything
+  --- that is not a string, an object this registry was never told about, passes straight
+  --- through unexamined, in the position it was given.
+  function instance.surfaces(spec)
+    local out = {}
+    if spec == nil then return out end
+    for _, entry in ipairs(spec) do
+      if type(entry) ~= "string" then
+        out[#out + 1] = entry
+      else
+        local descriptor = toolsByName[entry]
+        if not descriptor then
+          log.w(string.format(
+            "Registry surfaces found no tool registered under '%s'", entry))
+        elseif activeTools[entry] and descriptor.surface then
+          local surface = descriptor.surface()
+          if type(surface) == "table" and type(surface.isShowing) == "function" then
+            out[#out + 1] = surface
+          else
+            log.w(string.format(
+              "Registry surfaces skipped '%s', its surface resolved to something with no isShowing", entry))
+          end
+        end
+      end
     end
     return out
   end
