@@ -26,7 +26,18 @@
 -- against, required. open is a function of no arguments, what running this tool's
 -- launcher row does, optional, because a tool may exist only as a scope. commands is a
 -- map of name to function, extra named actions belonging to this tool rather than tools
--- of their own, optional.
+-- of their own, optional. A commands value may instead be a table carrying that function
+-- under fn plus its own optional row, which is how appendCopy and pasteNext, added in
+-- phase seven's third packet, keep their own launcher row while remaining commands of the
+-- clipboard rather than tools of their own.
+--
+-- row, added in that same packet, is optional, a table describing this tool's launcher
+-- row, presentation data the launcher reads through rowFor rather than owning itself. A
+-- tool with no row gets none on its launcher row, which is what a tool reachable only as
+-- a scope will want. Its one required field, once present, is category, the word before
+-- the separator in the subtitle the launcher renders, everything else inside it, keysName,
+-- detail, glyph, keywords, and chord, is presentation data this module never reads, opaque
+-- to the registry and meaningful only to the launcher on the other end of rowFor.
 --
 -- surface, added in phase seven's second packet, is optional, a function of no
 -- arguments returning this tool's navigation adapter, the object answering isShowing
@@ -44,7 +55,7 @@
 -- register(descriptor) validates, then records, and refuses rather than raises, so one
 -- bad tool cannot empty the launcher. Every refusal is one log line at warning naming
 -- the tool and the reason, and register answers true when it registered and false when
--- it refused. Six refusals exist. A descriptor with no name, or a name that is not a
+-- it refused. Eight refusals exist. A descriptor with no name, or a name that is not a
 -- string, is refused, and cannot be named in its own error, so the line says what it
 -- can. A second registration under a name already taken is refused, naming the tool,
 -- since first registration wins. A commands key equal to the tool's own name is
@@ -58,7 +69,13 @@
 -- it declared, and the version the core offers, since the version is bumped only on a
 -- breaking change and equality is the only check that respects that. A surface that is
 -- present and is not a function is refused, naming the tool, since a surface handed in
--- already built is exactly the mistake the discipline above exists to catch.
+-- already built is exactly the mistake the discipline above exists to catch. A row that
+-- is present and is not a table is refused, naming the tool. A row that is present and
+-- has no category is refused, naming the tool too, since a subtitle rendered with no
+-- category would render wrong rather than absent, and wrong is the worse failure of the
+-- two. Both row refusals apply equally to a command's own row, refused under the owning
+-- tool's name, since the whole registration is refused together whichever row inside it
+-- is malformed.
 --
 -- activate(names) takes a list of tool names and is called once after every
 -- registration. A registered tool whose name is in the list is active, one not in the
@@ -76,15 +93,23 @@
 -- command names, and calls it when the owner is active, answering true when it ran
 -- something and false when it did not, which is what lets a caller fall through.
 -- get(name) hands back the descriptor of an active tool or nil, and answers nil for a
--- command name, since a command is not a tool. active() lists active tool names in
--- registration order. all() lists every registered tool name with its active flag, and,
--- since phase seven's second packet, whether it declared a surface and whether it
--- declared hosted, all four for diagnostics only and all four presence rather than
--- resolved value, since asking a live surface to resolve itself at snapshot time would
--- ask the question at a different moment than the live code asks it and could disagree
--- with it for reasons that are not defects. An inactive tool answers nil and false to
--- every read except all(). That is the whole of what inactive means in this packet. It
--- does not yet unbind a chord or remove a row, and later packets are what finish it.
+-- command name, since a command is not a tool. rowFor(name), added in phase seven's
+-- third packet, answers the row table of an active tool or of a command of an active
+-- tool, or nil, resolved through the same flat index run uses, so a command's row is
+-- found under the command's own name and an inactive tool answers nil for itself and
+-- for every command it owns. That is what makes an inactive tool's launcher row
+-- disappear the moment the launcher asks rowFor for it, the mechanism this module owed
+-- since phase seven's first packet and finally pays here, even though nothing is
+-- deactivated by default today, so the disappearance has nothing yet to show against.
+-- active() lists active tool names in registration order. all() lists every registered
+-- tool name with its active flag, and, since phase seven's second packet, whether it
+-- declared a surface and whether it declared hosted, all four for diagnostics only and
+-- all four presence rather than resolved value, since asking a live surface to resolve
+-- itself at snapshot time would ask the question at a different moment than the live
+-- code asks it and could disagree with it for reasons that are not defects. An inactive
+-- tool answers nil and false to every read except all(). It still does not unbind a
+-- chord, which stays bound regardless of activation until a later packet in this phase
+-- folds chords in too.
 --
 -- surfaces(spec), added in phase seven's second packet, takes an ordered list and
 -- answers an ordered list. A string entry names a registered tool, and resolves to that
@@ -136,6 +161,39 @@ function M.new(opts)
     return type(v) == "number" and v == math.floor(v)
   end
 
+  -- A row is optional, and when present it is validated the same way a surface is, a
+  -- table only, one required field inside it. Absent is fine and answers true, since
+  -- optional means structural, absent rather than empty. name is the owning tool, used
+  -- for both refusals so a command's malformed row is refused in the same words a
+  -- tool's own malformed row would be, naming the tool the registration belongs to
+  -- rather than the command inside it, since the whole registration is refused either
+  -- way.
+  local function rowIsWellFormed(row, name)
+    if row == nil then return true end
+    if type(row) ~= "table" then
+      log.w(string.format(
+        "Registry refused '%s', its row is present and is not a table", name))
+      return false
+    end
+    if row.category == nil then
+      log.w(string.format(
+        "Registry refused '%s', its row has no category", name))
+      return false
+    end
+    return true
+  end
+
+  -- A commands entry is a bare function, the shape packet one gave it, or a table
+  -- carrying that function under fn plus its own optional row, the shape this packet
+  -- adds so appendCopy and pasteNext keep their rows while remaining commands of the
+  -- clipboard rather than tools of their own. Answers the function and the row, either
+  -- of which may be nil.
+  local function commandParts(spec)
+    if type(spec) == "function" then return spec, nil end
+    if type(spec) == "table" then return spec.fn, spec.row end
+    return nil, nil
+  end
+
   --- instance.register(descriptor)
   --- Validate one tool's descriptor and record it. Refuses rather than raises, logging
   --- one warning naming the tool and the reason, and answers true when it registered,
@@ -183,12 +241,18 @@ function M.new(opts)
         "Registry refused '%s', its surface is present and is not a function", name))
       return false
     end
+    if not rowIsWellFormed(descriptor.row, name) then return false end
+    for key, spec in pairs(commands) do
+      local _, commandRow = commandParts(spec)
+      if not rowIsWellFormed(commandRow, name) then return false end
+    end
 
     toolsByName[name] = descriptor
-    flatIndex[name] = { tool = name, fn = descriptor.open }
+    flatIndex[name] = { tool = name, fn = descriptor.open, row = descriptor.row }
     order[#order + 1] = name
-    for key, fn in pairs(commands) do
-      flatIndex[key] = { tool = name, fn = fn }
+    for key, spec in pairs(commands) do
+      local fn, commandRow = commandParts(spec)
+      flatIndex[key] = { tool = name, fn = fn, row = commandRow }
     end
     return true
   end
@@ -233,6 +297,18 @@ function M.new(opts)
   function instance.get(name)
     if toolsByName[name] and activeTools[name] then return toolsByName[name] end
     return nil
+  end
+
+  --- instance.rowFor(name)
+  --- The row table of an active tool or of a command of an active tool, or nil.
+  --- Resolves through the same flat index run uses, so a command's row is found under
+  --- the command's own name, and an inactive tool answers nil for itself and for every
+  --- command it owns, which is what will make an inactive tool's rows disappear once
+  --- the activation list finally means that.
+  function instance.rowFor(name)
+    local entry = flatIndex[name]
+    if not entry or not activeTools[entry.tool] then return nil end
+    return entry.row
   end
 
   --- instance.active()

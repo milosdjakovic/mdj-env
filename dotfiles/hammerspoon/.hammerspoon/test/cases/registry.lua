@@ -292,6 +292,80 @@ do
   )
 end
 
+-- Refusal, a row that is present and is not a table, the third packet's guard on the
+-- tool's own launcher row.
+do
+  local r, warnings = freshRegistry(1)
+  local ok = r.register({ name = "displayProfiles", apiVersion = 1, row = "Displays" })
+  check("a descriptor whose row is present and is not a table is refused", ok == false)
+  check(
+    "the refusal names the tool and says its row is not a table",
+    found(warnings, "displayProfiles") and found(warnings, "is not a table"),
+    table.concat(warnings, " | ")
+  )
+end
+
+-- Refusal, a row that is present and has no category, since a subtitle with no
+-- category would render wrong rather than absent.
+do
+  local r, warnings = freshRegistry(1)
+  local ok = r.register({ name = "textCase", apiVersion = 1, row = { detail = "recase the selection in place" } })
+  check("a descriptor whose row has no category is refused", ok == false)
+  check(
+    "the refusal names the tool and says its row has no category",
+    found(warnings, "textCase") and found(warnings, "has no category"),
+    table.concat(warnings, " | ")
+  )
+end
+
+-- rowFor, a tool's own row, resolved only while the tool is active.
+do
+  local r = freshRegistry(1)
+  r.register({ name = "vpn", apiVersion = 1, open = function() end, row = { category = "Network" } })
+  check("rowFor answers nil for a registered but inactive tool", r.rowFor("vpn") == nil)
+
+  r.activate({ "vpn" })
+  local row = r.rowFor("vpn")
+  check(
+    "rowFor answers the tool's own row once it is active",
+    row ~= nil and row.category == "Network"
+  )
+end
+
+-- rowFor, a command's row resolved through its owning tool, and nil for every command
+-- an inactive tool owns, the same silence rowFor already answers for the tool itself.
+do
+  local r = freshRegistry(1)
+  r.register({
+    name = "clipboard",
+    apiVersion = 1,
+    open = function() end,
+    row = { category = "Clipboard" },
+    commands = {
+      appendCopy = { fn = function() end, row = { category = "Clipboard", chord = "modifier" } },
+      pasteNext = { fn = function() end, row = { category = "Clipboard", chord = "modifier" } },
+    },
+  })
+  check("rowFor answers nil for a command of an inactive tool", r.rowFor("appendCopy") == nil)
+  check(
+    "rowFor answers nil for every other command the same inactive tool owns",
+    r.rowFor("pasteNext") == nil
+  )
+
+  r.activate({ "clipboard" })
+  local commandRow = r.rowFor("appendCopy")
+  check(
+    "rowFor answers a command's own row through its owning tool once that tool is active",
+    commandRow ~= nil and commandRow.category == "Clipboard" and commandRow.chord == "modifier"
+  )
+end
+
+-- rowFor, a name nothing registered.
+do
+  local r = freshRegistry(1)
+  check("rowFor answers nil for a name nothing registered", r.rowFor("noSuchTool") == nil)
+end
+
 -- surfaces(spec), a string entry resolving to an active tool's surface, in the order
 -- the spec gave, mixed with a plain object the registry was never told about.
 do
