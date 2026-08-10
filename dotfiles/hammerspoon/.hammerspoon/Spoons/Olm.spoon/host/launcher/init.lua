@@ -31,6 +31,8 @@ obj.version = "1.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
+local log = hs.logger.new("Launcher", "info")
+
 -- Injected via configure
 obj._chooser = nil          -- the Chooser factory (has .new)
 obj._theme = nil
@@ -321,9 +323,19 @@ function obj:_buildActionRows()
   -- the name itself. Doing nothing when the registry has no row for that name, whether
   -- because nothing registered under it or because rowFor already answers nil for an
   -- inactive tool and every command it owns, is what will make an inactive tool's row
-  -- disappear once the activation list finally means that. Also doing nothing when the
-  -- keys entry itself is absent, the same silent omission the guarded calls this
-  -- replaced already made one at a time.
+  -- disappear once the activation list finally means that, and that case is legitimate
+  -- silence rather than a mistake.
+  --
+  -- A missing keys entry is not that. Eight of the thirteen calls this replaced were
+  -- already guarded with an if keys.X check and stayed silent about it, but the other
+  -- five, colorPicker, emoji, caffeinate, vpn, and clipboard, indexed straight into keys
+  -- and would have raised at config load if the entry were ever missing, which is loud.
+  -- A row declared for a name whose keys entry does not exist is a mistake in every one
+  -- of the thirteen cases, somebody described how a row should look for a tool with
+  -- nothing to build it from, so this logs one warning naming the tool and the keys name
+  -- it looked for, then skips the row exactly as the silent five now would without it.
+  -- That gives every one of the thirteen the same non fatal outcome, loudly, rather than
+  -- the mixed loud and quiet failure the calls it replaced actually had.
   --
   -- This file still names no tool. It reads a name handed to it and the keys entry that
   -- name points at, and everything about how that name's row looks, its category, its
@@ -338,8 +350,14 @@ function obj:_buildActionRows()
   local function addTool(name)
     local row = self._registry and self._registry.rowFor(name)
     if not row then return end
-    local keyEntry = keys[row.keysName or name]
-    if not keyEntry then return end
+    local keysName = row.keysName or name
+    local keyEntry = keys[keysName]
+    if not keyEntry then
+      log.w(string.format(
+        "Launcher addTool skipped '%s', its row names '%s' in config/keys.lua and nothing is there",
+        name, keysName))
+      return
+    end
     local subTitle
     if row.detail then
       subTitle = row.category .. " · " .. row.detail
