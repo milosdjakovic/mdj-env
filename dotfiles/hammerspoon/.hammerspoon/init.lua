@@ -694,13 +694,19 @@ local function footerFor(name)
   return hints
 end
 
--- rowsFor(contextName) -> the ordered rows the panel would show for that context, its verbs
--- first, in declaration order, then Back last. Lives here beside footerFor and shares its two
+-- rowsFor(contextName) -> the ordered rows the panel would show for that context, Back first
+-- and then its verbs in declaration order. Lives here beside footerFor and shares its two
 -- helpers above, chordFor and labelFor, rather than copying them, which is the whole reason the
 -- panel and the docked hint bar above cannot drift apart over what a chord is called or a verb
--- reads as. Each verb row now also carries the glyph its own binding declares in
--- config/keys.lua, plain data read straight off the binding, so a glyph going missing is a
--- change to that file rather than to anything here.
+-- reads as. Each verb row also carries the glyph its own binding declares in config/keys.lua,
+-- plain data read straight off the binding, so a glyph going missing is a change to that file
+-- rather than to anything here.
+--
+-- Back leads rather than trails because the panel is a place a person lands in and steps back
+-- out of, so the way out is what the highlight is already sitting on the moment the list opens,
+-- which makes leaving a single press. This matches the rule the design already keeps for every
+-- other menu style chooser in this configuration, DisplayProfiles among them, that Back is the
+-- first row rather than the last one.
 --
 -- Filtered through bindingApplies, the same wiring time filter footerFor also applies, and NOT
 -- through bindingActive, footerFor's other filter. No verb in config/keys.lua carries a `when`
@@ -718,9 +724,11 @@ end
 -- to prevent. It carries no action, which is what marks it Back rather than a verb to the panel,
 -- since no context declares one for it to carry. Its chord is the bare Backspace glyph, with no
 -- Hyper prefix, the same convention footerFor's own chord = false case already uses, since
--- Backspace is a key the chooser atom reads for itself rather than one Hyper answers.
+-- Backspace is a key the chooser atom reads for itself rather than one Hyper answers. Its own
+-- glyph is written here too, the arrow pointing back, rather than in config/keys.lua, since no
+-- context declares Back and nothing else should have to know it exists.
 local function rowsFor(contextName)
-  local rows = {}
+  local rows = { { title = "Back", chord = spoon.CheatSheet.glyphFor("delete"), glyph = "⬅️" } }
   for _, ctx in ipairs(keys.hyperContexts or {}) do
     if ctx.name == contextName then
       for _, b in ipairs(spoon.ActionPanel:verbsIn(ctx.bindings)) do
@@ -731,7 +739,6 @@ local function rowsFor(contextName)
       end
     end
   end
-  rows[#rows + 1] = { title = "Back", chord = spoon.CheatSheet.glyphFor("delete") }
   return rows
 end
 

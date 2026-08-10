@@ -704,6 +704,41 @@ do
   )
 end
 
+-- The panel's own rows put Back first, ahead of every verb, and a row's own glyph carries
+-- through onto its image, phase eight's third packet. rowsByContext here is written the
+-- way the composition root's own rowsFor now answers, Back leading, and deps.icon stands
+-- in for the shared glyph icon drawer, answering a small marker table per glyph rather
+-- than a real hs.canvas drawing, so a case can tell two rows apart by identity alone.
+do
+  local ap = freshModule()
+  local icons = { ["⬅️"] = { glyph = "⬅️" }, ["➕"] = { glyph = "➕" } }
+  ap:configure({
+    kindOf = function() return nil end,
+    rowsFor = function(name)
+      if name ~= "demo" then return {} end
+      return {
+        { title = "Back", chord = "⌫", glyph = "⬅️" },
+        { action = "appendSelected", title = "Append to batch", chord = "Hyper+A", glyph = "➕" },
+      }
+    end,
+    run = function() end,
+    icon = function(glyph) return icons[glyph] end,
+  })
+  local config = fakeConfig()
+  local instance = fakeInstance({ showing = true })
+  ap:decorate(instance, config)
+  ap:toggle("demo")
+  local rows = config.rows("")
+  check(
+    "the panel's rows put Back first, ahead of every verb",
+    #rows == 2 and rows[1].title == "Back" and rows[2].title == "Append to batch"
+  )
+  check(
+    "a row's own glyph carries through onto its image, through the injected icon function",
+    rows[1].image == icons["⬅️"] and rows[2].image == icons["➕"]
+  )
+end
+
 -- decoratedCount answers how many instances decorate has wrapped, so a live measurement can
 -- prove the panel is actually installed on a chooser rather than assuming Chooser.configure's
 -- seam ran before it was built. Needs no configure, the same reason decorate itself does not.
