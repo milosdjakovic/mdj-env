@@ -1,0 +1,10 @@
+# What this module needs that no single file owns.
+#
+# Format is name | kind | locator | policy | reason, the same five fields a leaf declaration
+# uses. The collector stamps the consumer column with this module's name, since the need
+# belongs to the module as a whole rather than to anything inside it.
+#
+# Named dependencies-module rather than dependencies because this directory already holds the
+# generated DEPENDENCIES, and on a case insensitive filesystem those two names are one file.
+tmux | path | tmux | required | the multiplexer this entire module configures
+fzf  | path | fzf  | required | every picker in this module is an fzf popup

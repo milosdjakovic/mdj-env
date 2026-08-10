@@ -1,0 +1,12 @@
+# What fzf-files.sh needs, declared beside it. The preview tools are shared with fzf-tags.sh,
+# and they are declared here because this is the file whose preview defines what they do.
+# Format is name | kind | locator | policy | reason, and the collector stamps the consumer.
+#
+# The preview tools are optional because a missing one only breaks the preview pane of a
+# picker that otherwise works, so the pane shows a shell error rather than the picker
+# refusing to open.
+fd    | path | fd    | required | listing files, and finding repositories by their .git directory
+bat   | path | bat   | optional | syntax highlighted file previews, the pane shows an error without it
+eza   | path | eza   | optional | tree previews of a directory, the pane shows an error without it
+chafa | path | chafa | optional | image previews in the terminal, the pane shows an error without it
+nvim  | path | nvim  | optional | opening a chosen file, the copy action still works without it

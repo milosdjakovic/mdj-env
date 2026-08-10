@@ -1,0 +1,5 @@
+# What fzf-caffeinate.sh needs, declared beside it.
+# Format is name | kind | locator | policy | reason, and the collector stamps the consumer.
+# The system kind because this one ships with macOS at a fixed absolute path rather than
+# arriving through a package manager.
+caffeinate | system | /usr/bin/caffeinate | required | holding the machine awake, the whole point of that picker

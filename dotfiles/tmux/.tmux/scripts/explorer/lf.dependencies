@@ -1,0 +1,6 @@
+# What lf.sh needs, declared beside the only file here that knows lf exists, so swapping the
+# explorer is one new adapter plus one line in explorer.sh and nothing else.
+# Format is name | kind | locator | policy | reason, and the collector stamps the consumer.
+# Optional, because the popup and its tag picker are one part of this module rather than all
+# of it, and the rest works untouched without them.
+lf | path | lf | optional | the explorer behind the file explorer popup and its tag picker

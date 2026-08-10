@@ -56,10 +56,15 @@ present and actually configured.
 A module exposes its needs in one `DEPENDENCIES` manifest at its own package root,
 six fields per line, name, kind, locator, policy, consumer, and reason. That file is
 its entire contract upward. How the module produces it is the module's own business.
-Every module writes it by hand, except hammerspoon, which generates it from small
-declarations placed beside whatever actually knows each tool, so a spoon and even a
-single provider stays self contained. The manifest is repo only, so each package's
-`.stow-local-ignore` keeps it out of the home directory.
+A module with no moving parts writes it by hand. A module built around swappable
+units generates it instead, from small declarations placed beside whatever actually
+knows each tool, so a spoon, a provider, or an adapter stays self contained.
+Hammerspoon and tmux both do this, each with its own `dependencies-collect`, which
+the reconciler finds by name rather than by knowing either module. The test of
+whether a module needs one is simple. If replacing a swappable part would mean
+editing a manifest that sits outside it, the manifest is a leak and should be
+generated. The manifest is repo only, so each package's `.stow-local-ignore` keeps
+it, the collector, and the module level declaration out of the home directory.
 
 The program a module configures is a dependency like any other, so the tmux module
 declares tmux and the hammerspoon module declares the Hammerspoon application. A

@@ -51,7 +51,7 @@ When adding a new binding, pick a priority number that places it in the right gr
 32. New window (`c`)
 33. Show all keybindings (`?`)
 34. Scratch shell popup (`` ` ``)
-35. Search lf tags (`t`)
+35. Search explorer tags (`t`)
 36. Find files globally (`f`)
 37. Find files in pane working dir (`F`)
 
@@ -63,11 +63,11 @@ Sessions (`s`) use fzf in a `display-popup`, sorting by last used and excluding 
 
 ## FZF search popups
 
-Tags (`t`), files (`f`), and files globally (`F`) open fzf in a popup. Tags reads from lf's tags file via `~/.tmux/scripts/fzf-tags.sh`. File search uses fd with process substitution (via `~/.tmux/scripts/fzf-files.sh`) so fzf exits instantly without waiting for fd to finish traversing.
+Tags (`t`), files (`f`), and files globally (`F`) open fzf in a popup. Tags reads from the file explorer via `~/.tmux/scripts/fzf-tags.sh`, which asks `explorer.sh --tags` for plain paths and never knows which explorer it is. File search uses fd with process substitution (via `~/.tmux/scripts/fzf-files.sh`) so fzf exits instantly without waiting for fd to finish traversing.
 
-Three actions are available inside every finder popup, all selected by the key you press to leave fzf rather than by separate top-level bindings. Enter copies the selected path to the clipboard. `^v` opens the file or folder in nvim inline in the same popup, replacing the script process via `exec nvim`, so the popup closes when nvim exits. `alt-v` opens it in a new tmux window with the right cwd, and the window auto-closes when nvim exits because tmux's default `remain-on-exit` is off. Files and folders are both supported. The branching is implemented with fzf's `--expect=ctrl-v,alt-v` flag, which prints the pressed key as the first line of fzf's output.
+Four actions are available inside every finder popup, all selected by the key you press to leave fzf rather than by separate top-level bindings. Enter copies the selected path to the clipboard. `^v` opens the file or folder in nvim inline in the same popup, replacing the script process via `exec nvim`, so the popup closes when nvim exits. `alt-v` opens it in a new tmux window with the right cwd, and the window auto-closes when nvim exits because tmux's default `remain-on-exit` is off. `^b` hands the path to the file explorer through `explorer.sh --reveal`, chosen to match the `prefix+b` mnemonic, and it takes over the popup by the same `exec` move as `^v` rather than opening a second one, which tmux refuses while a popup is on screen. Its hint reads the explorer's name from the adapter, so it shows `^b lf` today and renames itself with the adapter. Files and folders are both supported by every action. The branching is implemented with fzf's `--expect=ctrl-v,alt-v,ctrl-b` flag, which prints the pressed key as the first line of fzf's output.
 
-Popup size is 90% x 90% so inline nvim has room comparable to the lazygit and lf popups. The smaller 80 x 70% sizing was kept only on read-only popups (sessions list, cheat sheet) where extra height would just be empty space.
+Popup size is 90% x 90% so inline nvim has room comparable to the lazygit and file explorer popups. The smaller 80 x 70% sizing was kept only on read-only popups (sessions list, cheat sheet) where extra height would just be empty space.
 
 ## FZF launcher (command palette)
 
@@ -77,9 +77,21 @@ Entries are defined in a pipe-delimited data section at the top of the script. E
 
 To add a new entry, add a line to the `ENTRIES` variable with the correct category, key, description, and a new command ID, then add a matching case to `execute_cmd`.
 
-Categories are toggled via keyboard shortcuts in the fzf header, using the same `become()` pattern as the scoped fzf switchers and lf fzf-find. The active category shows in brackets. Available categories are `tools` (popup apps like lazygit, lf, scratch shell, tag/file search), `nav` (session switcher and tree view), and `tmux` (session management, config reload, plugin operations). The default view shows all.
+Categories are toggled via keyboard shortcuts in the fzf header, using the same `become()` pattern as the scoped fzf switchers and lf fzf-find. The active category shows in brackets. Available categories are `tools` (popup apps like lazygit, the file explorer, scratch shell, tag/file search), `nav` (session switcher and tree view), and `tmux` (session management, config reload, plugin operations). The default view shows all.
 
-The pane's working directory is passed as `$PANE_PATH` from the `.tmux.conf` binding since `#{pane_current_path}` does not resolve inside a popup. Commands that need a working directory (lazygit, lf, scratch) use this variable.
+The pane's working directory is passed as `$PANE_PATH` from the `.tmux.conf` binding since `#{pane_current_path}` does not resolve inside a popup. Commands that need a working directory (lazygit, the file explorer, scratch) use this variable.
+
+## File explorer
+
+Opened by `prefix+b` and from the launcher, where it shows as `File explorer popup (lf)` with the name computed at open time from `~/.tmux/scripts/explorer.sh --name`, so switching explorers renames the entry automatically. The same name fills the tag picker entry.
+
+The design splits a rigid interface from a swappable adapter, the same shape as the VPN popup. `explorer.sh` is the whole interface and never names an explorer. All explorer specifics live in `explorer/<adapter>.sh`, selected by `EXPLORER_ADAPTER` at the top of `explorer.sh` (default `lf`). An adapter defines four functions. `explorer_name` prints a human label. `explorer_argv` prints the command one argument per line, so an argument may contain spaces and the interface never word splits a string. `explorer_needs_nested_session` returns 0 when the explorer opens popups of its own, which makes the interface wrap it in a nested tmux session, and 1 when it runs directly. `explorer_tags` prints every tagged path, one absolute path per line, and an explorer without such a feature prints nothing, which leaves the tag picker simply empty.
+
+The interface offers four subcommands. `--name` is the label. `--open [dir]` resumes the explorer where it was left, or starts it at the directory when nothing is running, which is what `prefix+b` and the launcher do. `--reveal <path>` starts it showing one path, a file or a directory. `--tags` is the normalized path list. Every caller goes through these and none of them knows which explorer is configured, the `prefix+b` binding, the launcher, `fzf-files.sh`, and `fzf-tags.sh`. Adding an explorer is a new file in `explorer/` plus one line at the top of `explorer.sh`, and a line in `DEPENDENCIES` naming the new binary.
+
+`--open` and `--reveal` differ in one deliberate way. `tmux new-session -A` attaches to an existing session and ignores both the working directory and the command, so the persistent `~files` session means a second `--open` resumes the kept place rather than honouring the directory it was handed. That is right for `prefix+b`, where resuming is the point. It is wrong for `--reveal`, where being taken to a specific path is the entire request, so `--reveal` kills any running session first and starts a fresh one at the target. The cost is real and worth knowing, using `^b` from a picker discards wherever the explorer was last sitting. Reveal also passes the target to the explorer as a trailing argument, which is why the contract asks an adapter for a command that accepts an optional path, and it is what puts the cursor on the file rather than only on its folder.
+
+The lf adapter knows lf's tag file lives under the XDG data directory and that its format is `path:X` with a single character tag, so it strips the trailing marker and hands back plain paths. It names the binary rather than pathing to it, and keeps an `LF` environment override so the contract can be exercised against a stub.
 
 ## VPN control popup
 
@@ -142,9 +154,9 @@ because the restricted charset never needs it, alongside `ctrl-c` and `ctrl-d`.
 
 ## Popup apps and the nested session approach
 
-tmux `display-popup` does not support `allow-passthrough` because popups have no real pane. Apps like yazi that send passthrough escape sequences crash (tmux issue 4329, yazi issue 2308). lf is used instead because it does not need passthrough.
+tmux `display-popup` does not support `allow-passthrough` because popups have no real pane. Apps like yazi that send passthrough escape sequences crash (tmux issue 4329, yazi issue 2308). lf is the configured explorer because it does not need passthrough, which is a real constraint on any adapter written for the explorer contract above.
 
-Popups also cannot nest by default. A second `display-popup` from within a popup targets the outer client. The workaround is to run a nested tmux session (`~files`) inside the popup. The nested session creates a real pane, which allows sub-commands to open their own popups. lf's sub-commands (bat, nvim, copy, trash, fzf find, tags, help) all use this to show popups overlaying lf.
+Popups also cannot nest by default. A second `display-popup` from within a popup targets the outer client. The workaround is to run a nested tmux session (`~files`) inside the popup. The nested session creates a real pane, which allows sub-commands to open their own popups. lf's sub-commands (bat, nvim, copy, trash, fzf find, tags, help) all use this to show popups overlaying lf, which is why its adapter answers yes to `explorer_needs_nested_session`. The session name and the wrapping both live in `explorer.sh`, since they are tmux mechanism rather than explorer knowledge.
 
 Lazygit runs in a plain popup without a nested session because it does not need passthrough or sub-popups.
 

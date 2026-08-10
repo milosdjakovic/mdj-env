@@ -1,0 +1,7 @@
+# What .tmux.conf needs, declared beside the only file here that knows these two.
+# Format is name | kind | locator | policy | reason, and the collector stamps the consumer.
+#
+# tpm is declared with the package kind rather than path because it ships no command, only a
+# script inside its package, which is why .tmux.conf loads it through brew --prefix tpm.
+tpm     | package | share/tpm/tpm | required | the plugin manager every @plugin line is loaded through
+lazygit | path    | lazygit       | optional | the lazygit popup binding, and its state file feeds the recent repos picker

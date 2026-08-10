@@ -106,6 +106,12 @@ if [ "$1" = "--up" ]; then
   exec "$SCRIPT" "$NEXT_TYPE"
 fi
 
+# Label for the open-in-explorer hint, resolved once and carried through the
+# become() restarts in the same env as the rest of this script's state, so a
+# toggle does not re-ask the adapter for a name that cannot change mid popup.
+EXPLORER_LABEL="${EXPLORER_LABEL:-$(~/.tmux/scripts/explorer.sh --name 2>/dev/null)}"
+export EXPLORER_LABEL
+
 SEARCH_DIR="${SEARCH_DIR:-$PWD}"
 TYPE="${1:-dirs}"
 QUERY="${2:-}"
@@ -211,7 +217,7 @@ classify_entries() {
 }
 
 display_dir="${SEARCH_DIR/#$HOME/~}"
-BORDER_LABEL=$(fzf_label "↵ copy" "^v nvim" "alt-v nvim ${ICON_NVIM_WIN}" "^h ←" "^l →" "alt-h ${ICON_HOME}" "$toggle_hint" "$hidden_hint" "$follow_hint" "^p ${ICON_SEARCH}")
+BORDER_LABEL=$(fzf_label "↵ copy" "^v nvim" "alt-v nvim ${ICON_NVIM_WIN}" "^b ${EXPLORER_LABEL:-explorer}" "^h ←" "^l →" "alt-h ${ICON_HOME}" "$toggle_hint" "$hidden_hint" "$follow_hint" "^p ${ICON_SEARCH}")
 # Preview-only header. The preview command only runs when the preview pane
 # is visible, so emitting these two lines inside the preview body keeps the
 # alt-j / alt-k shortcuts tied to the preview half and hides them when ^p
@@ -227,14 +233,14 @@ export PREVIEW_HINT_LINE PREVIEW_RULE
 
 # Run fd and fzf from SEARCH_DIR so the list shows paths relative to the
 # header base. The selected item gets re-joined to SEARCH_DIR before copy.
-# --expect makes ^v and alt-v terminate fzf with the key name printed first,
-# so we can branch between copy (enter), inline nvim (^v), and new-window
-# nvim (alt-v) below.
+# --expect makes ^v, alt-v and ^b terminate fzf with the key name printed first,
+# so we can branch between copy (enter), inline nvim (^v), new-window nvim
+# (alt-v), and the file explorer (^b) below.
 result=$(cd "$SEARCH_DIR" && fzf "${FZF_BASE_OPTS[@]}" \
   --query="$QUERY" \
   --header="$display_dir" \
   --border-label="$BORDER_LABEL" \
-  --expect=ctrl-v,alt-v \
+  --expect=ctrl-v,alt-v,ctrl-b \
   --delimiter=$'\t' \
   --with-nth=2 \
   --preview='
@@ -291,6 +297,12 @@ case "$key" in
   alt-v)
     # New window auto-closes on nvim exit (tmux remain-on-exit defaults off).
     tmux new-window -c "$nvim_cwd" nvim "$abs_path"
+    ;;
+  ctrl-b)
+    # Same replace-this-process move as ^v, so the explorer takes over the
+    # popup we already have rather than trying to open a second one, which
+    # tmux refuses while a popup is on screen.
+    exec ~/.tmux/scripts/explorer.sh --reveal "$abs_path"
     ;;
   *)
     printf '%s' "$abs_path" | pbcopy
