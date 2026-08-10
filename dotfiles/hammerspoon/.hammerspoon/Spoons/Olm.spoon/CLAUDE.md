@@ -181,17 +181,19 @@ optional, because a tool may exist only as a scope in a later packet. `commands`
 to function, extra named actions belonging to this tool rather than tools of their own, optional.
 The clipboard is the one tool using this today, owning append copy and paste next, and putting
 them here rather than registering them as tools of their own is what makes deactivating the
-clipboard take both with it.
+clipboard take both with it. `surface` and `hosted`, both optional, joined in the second packet
+and are the subject of their own sections below.
 
 **Why register refuses rather than raises.** One bad descriptor must not empty the launcher, the
 same reasoning behind a query source that raises being dropped for a keystroke rather than
 crashing the chooser. Every refusal is one log line at warning naming the tool and the reason,
 and `register` answers true when it registered, false when it refused, so a caller can react if
-it ever wants to, though the composition root does not. Four refusals exist, a missing or non
+it ever wants to, though the composition root does not. Six refusals exist, a missing or non
 string name, a second registration under a name already taken since first registration wins, a
 `commands` key colliding with any name already indexed whether a tool name or another tool's
 command since the flat index dispatch reads makes such a collision ambiguity rather than a
-preference, and an `apiVersion` that is missing, not an integer, or unequal to the core's.
+preference, an `apiVersion` that is missing, not an integer, or unequal to the core's, and a
+`surface` that is present and is not a function.
 
 **Why the version check is equality.** The core version is injected at construction, passed in as
 `opts.apiVersion` rather than read from `spoon.Olm`, since the registry must not reach for the
@@ -227,3 +229,63 @@ anything. Two sources is not a leak. A registered name is a tool. What stays in
 no tool behind it, and the design's own rule is to resist making everything a plugin, so one
 lookup for each kind of thing is honest. The order only matters because a name cannot be claimed
 by both, which registration itself already refuses.
+
+**The two fields the second packet adds.** `surface`, optional, a function of no arguments
+returning this tool's navigation adapter, the object answering `isShowing` and whatever
+navigation methods its context binds. `hosted`, optional, a plain boolean, true when choosing
+this tool's launcher row should host its list in place rather than open its own picker. Nothing
+else joined the descriptor with them, not a scope, not a predicate, not a chord, since a field
+with no consumer yet is the indirection the design principles this file already follows reject.
+
+**Why `surface` is a function, and the measurement that forced it.** A scan of the composition
+root found that `spoon.Emoji:surface()` and `spoon.TextCase:surface()` both hand back a field
+their own `configure` built, and both of those `configure` calls run far below the registration
+block. Writing `surface = spoon.Emoji:surface()` at registration time would have called the
+method before that field existed and captured nothing at all, permanently and silently, so the
+tool would simply never receive a navigation key again with no warning anywhere. Wrapping every
+`surface` in a closure and resolving it inside `surfaces` rather than at `register` time is what
+avoids that, and every registration obeys the discipline uniformly, including the seven tools
+whose surface is already a stable module reference and would have survived either spelling,
+because a rule that holds for most of a set and silently fails two members of it is worse than a
+rule with no exceptions to remember.
+
+**The `surfaces` accessor.** `surfaces(spec)` takes an ordered list and answers an ordered list.
+A string entry names a registered tool and resolves to that tool's surface when the tool is
+active and has one, is skipped silently when the tool is registered but inactive since that is
+what inactive already means everywhere else in this file, and logs one warning naming it when
+nothing is registered under that name at all. When a named tool's surface resolves to something
+missing, or present but with no `isShowing`, one warning names the tool and it is skipped the
+same way, so the exact hazard the closure discipline above guards against is loud the moment it
+would otherwise have been invisible. Resolution happens inside this call and never at
+registration, which is the same discipline stated a second way.
+
+**What the mixed spec list means.** Any entry in `spec` that is not a string passes straight
+through unexamined. A string names something this registry knows about. Anything else is an
+object the composition root holds and this registry has never heard of, and passing it through
+untouched is the whole of what the registry owes it. The root's own `choosers` list uses this to
+carry `spoon.Launcher:surface()`, `menuSearchSurface`, and `overlayDisplaySurface` in their old
+positions, none of which has a descriptor here yet.
+
+**Why the order of that list is preserved rather than derived.** The root's `activeChooser` walks
+`choosers` and answers with the first surface that says it is showing. Two of these could in
+principle be up at once, and nothing in the tree proves otherwise, so the order decides which one
+answers if that ever happens. Preserving the exact order the table held before this packet costs
+one ordered list handed to `surfaces` and removes the question entirely, so the root never
+reorders that list to suit the registry and never sorts it.
+
+**Why the alias directory is named by hand for now.** The `hosted` bit for nine of the ten
+entries `hostedInPlace` used to hold now lives on the tool's own descriptor, read through
+`registry.get` so an inactive tool answers the same nil it answers every other read. The alias
+directory is the exception. It is not a tool with a picker at all, it is a scope, so it carries no
+descriptor for this registry to ask, and the root's `actions.rowIntercept` still checks its name
+directly with one comment saying so. A later packet in this phase is where scopes join the
+registry too, and that is where this name check moves with them.
+
+**Why the twelve open predicates were left alone.** Twelve predicates exist in the composition
+root, one per chooser entry, and each restates the same fact a surface already states, whether
+that entry's `isShowing` answers true. Folding them into the registry is the obvious next step
+and this packet deliberately does not take it. A predicate that silently always answers false
+disables a tool's navigation with no gate anywhere that would catch it, and stacking that risk on
+top of the ordering hazard `surface` already carries would leave a failure nobody could bisect by
+looking at only one of the two. The predicates stay exactly as written, and the root says so
+beside them.

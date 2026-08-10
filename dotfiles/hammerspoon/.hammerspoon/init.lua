@@ -430,6 +430,12 @@ local enterScope
 -- here because this root refers to it in both of those places and nowhere else should.
 local ALIAS_DIRECTORY = "aliasDirectory"
 
+-- Twelve of these gate a chooser's own Hyper context and each restates the same fact a surface
+-- further below already states, whether that chooser's isShowing answers true. Folding them into
+-- the registry beside surface is the obvious next step and this packet weighed it and left them
+-- here on purpose. A predicate that silently always answered false would disable a tool's
+-- navigation with no gate anywhere that would catch it, and stacking that risk on top of the
+-- ordering hazard surface already carries would leave a failure nobody could bisect.
 local predicates = {
   multipleDisplays = function() return #hs.screen.allScreens() > 1 end,
   -- The launcher chooser is open. Gates the launcher Hyper context,
