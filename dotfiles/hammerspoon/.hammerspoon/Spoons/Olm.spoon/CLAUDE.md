@@ -414,17 +414,39 @@ tool's silence as the correct answer everywhere else.
 
 **Why the scope order is preserved rather than derived.** `queryScopes` now builds from an ordered
 spec, the same shape `registry.surfaces` already takes, a string naming a registered tool and
-anything else an object the registry never heard of. A string resolves through `scopeFor` into
-the same opts a `scope(...)` call always took, and is then passed through that helper so the
-identity fields still join in exactly the one place that ever added them. The order is kept entry
-for entry against the table this spec replaces, because `QueryScope` gives a colliding alias to
-whichever scope claims it first, so this order decides who owns a word, and deriving it from
-registration order instead would make that decision depend on where in the root a tool happened
-to be registered rather than on a choice anyone made on purpose. The four that stay as plain
-objects in the spec are the three `launcherCatalogScope` scopes, `apps`, `windowActions`, and
-`settingsPanes`, which narrow the launcher's own catalog rather than reaching a tool, and the
-alias directory, a scope about scopes with no tool behind it, so none of the four has anywhere to
-register.
+anything else an object the registry never heard of. The order is kept entry for entry against the
+table this spec replaces, because `QueryScope` gives a colliding alias to whichever scope claims
+it first, so this order decides who owns a word, and deriving it from registration order instead
+would make that decision depend on where in the root a tool happened to be registered rather than
+on a choice anyone made on purpose. The four that stay as plain objects in the spec are the three
+`launcherCatalogScope` scopes, `apps`, `windowActions`, and `settingsPanes`, which narrow the
+launcher's own catalog rather than reaching a tool, and the alias directory, a scope about scopes
+with no tool behind it, so none of the four has anywhere to register.
+
+**`scopes(spec)`, the same door a second time.** A first pass at the fold read the spec through
+`scopeFor` directly in the root's own loop, which worked but could not tell an unregistered name
+apart from a registered tool that is simply inactive or, for emoji, active but carrying no scope
+this run, so all three answered the same nil and all three stayed equally silent. That is wrong for
+the first of the three, since naming something this registry has never heard of is exactly the
+mistake `surfaces(spec)` already warns about by name, and a reader who learns that this registry
+warns on that mistake in one place and not in the other learns nothing reliable from either.
+`scopes(spec)` resolves inside the registry instead, mirroring `surfaces(spec)` exactly, warning by
+name for an unregistered entry and staying silent for the two legitimate cases, inactive and active
+with no scope declared. A resolved tool answers `{ name = entry, opts = descriptor.scope }` rather
+than a finished scope, since joining the identity fields from `config/keys.lua` is the root's own
+`scope(name, opts)` helper's job and stays there, this module still reading no configuration at
+all. The root's own loop is left with exactly one job, mapping a `{ name, opts }` entry through
+that helper and passing anything else straight through.
+
+**The inventory measures what QueryScope actually assembled, not only what a tool declares.**
+`all()`'s `scope` field, and the cross check below it, both report presence on a descriptor,
+whether a tool says it carries a scope. That is not the same fact as whether the scope actually
+made it into the live list `QueryScope` runs against, since a spec entry naming something the
+registry has never heard of resolves to nothing and is skipped, which a descriptor's own `scope`
+field cannot see happen. `test/inventory.lua` reads `spoon.QueryScope:catalog()` live for exactly
+this reason, one line per scope actually entered, its name and its aliases, so a broken spec entry
+shows up as a missing or a moved alias in a committed file rather than as a snapshot that keeps
+swearing everything is fine.
 
 **The cross check, and why it is a snapshot rather than a warning.** Folding scopes into the
 registry means a tool marked `hosted` with no scope behind it becomes visible for the first time,
