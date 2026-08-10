@@ -189,6 +189,34 @@ end
 table.sort(verbLines)
 for _, l in ipairs(verbLines) do add(l) end
 
+-- The panel's own row list per context, phase eight's second packet, asked of the live module
+-- through spoon.ActionPanel:rowsFor rather than recomputed here, the same public door kindOf
+-- and verbsIn above already carry, so this measures exactly what ActionPanel:toggle would show
+-- through the composition root's own rowsFor, through the exact same call, rather than a
+-- second opinion built in this file. Unlike the actionpanel section above, this section DOES
+-- read the root's bindingApplies filter, since rowsFor applies it, and it always carries a
+-- trailing Back row the panel itself appends, so a context with no verbs at all still answers
+-- one row rather than none. contextNames and byName are reused rather than read a second time,
+-- though rowsFor only needs the name, never ctx.bindings itself.
+local panelRowsByContext = {}
+for _, name in ipairs(contextNames) do
+  panelRowsByContext[name] = spoon.ActionPanel and spoon.ActionPanel:rowsFor(name) or {}
+end
+add("registry panelrows count=" .. #contextNames)
+for _, name in ipairs(contextNames) do
+  add(string.format("panelrows.context name=%s rowCount=%s", field(name), field(#panelRowsByContext[name])))
+end
+local panelRowLines = {}
+for _, name in ipairs(contextNames) do
+  for _, r in ipairs(panelRowsByContext[name]) do
+    panelRowLines[#panelRowLines + 1] = string.format(
+      "panelrows.row context=%s action=%s title=%s chord=%s",
+      field(name), field(r.action), field(r.title), field(r.chord))
+  end
+end
+table.sort(panelRowLines)
+for _, l in ipairs(panelRowLines) do add(l) end
+
 -- The choosers registry in init.lua. It is a local table in the composition
 -- root, never handed to anything global, so there is no live handle to read it
 -- through. The honest way to read it is the way it is written, as one literal
