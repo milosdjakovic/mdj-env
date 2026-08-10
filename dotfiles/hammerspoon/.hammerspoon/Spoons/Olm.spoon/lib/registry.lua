@@ -55,7 +55,7 @@
 -- register(descriptor) validates, then records, and refuses rather than raises, so one
 -- bad tool cannot empty the launcher. Every refusal is one log line at warning naming
 -- the tool and the reason, and register answers true when it registered and false when
--- it refused. Eight refusals exist. A descriptor with no name, or a name that is not a
+-- it refused. Nine refusals exist. A descriptor with no name, or a name that is not a
 -- string, is refused, and cannot be named in its own error, so the line says what it
 -- can. A second registration under a name already taken is refused, naming the tool,
 -- since first registration wins. A commands key equal to the tool's own name is
@@ -75,7 +75,10 @@
 -- category would render wrong rather than absent, and wrong is the worse failure of the
 -- two. Both row refusals apply equally to a command's own row, refused under the owning
 -- tool's name, since the whole registration is refused together whichever row inside it
--- is malformed.
+-- is malformed. A commands entry that is neither a function nor a table with a callable
+-- fn is refused, naming the tool and the command, since storing it anyway would let run
+-- answer false forever with nothing logged, quieter than the raise such a value produced
+-- before this packet and therefore worse.
 --
 -- activate(names) takes a list of tool names and is called once after every
 -- registration. A registered tool whose name is in the list is active, one not in the
@@ -186,11 +189,16 @@ function M.new(opts)
   -- A commands entry is a bare function, the shape packet one gave it, or a table
   -- carrying that function under fn plus its own optional row, the shape this packet
   -- adds so appendCopy and pasteNext keep their rows while remaining commands of the
-  -- clipboard rather than tools of their own. Answers the function and the row, either
-  -- of which may be nil.
+  -- clipboard rather than tools of their own. Anything else, a string, a number, or a
+  -- table whose fn is missing or is not a function, answers a nil function, which
+  -- register below refuses rather than stores. Before row and this shape existed a bad
+  -- value was at least stored as is and would have raised when called, loud. Storing a
+  -- nil function instead would let it register and let run answer false forever with
+  -- nothing logged anywhere, quieter than the raise it replaces and therefore worse, so
+  -- this is caught at registration instead.
   local function commandParts(spec)
     if type(spec) == "function" then return spec, nil end
-    if type(spec) == "table" then return spec.fn, spec.row end
+    if type(spec) == "table" and type(spec.fn) == "function" then return spec.fn, spec.row end
     return nil, nil
   end
 
@@ -243,7 +251,13 @@ function M.new(opts)
     end
     if not rowIsWellFormed(descriptor.row, name) then return false end
     for key, spec in pairs(commands) do
-      local _, commandRow = commandParts(spec)
+      local fn, commandRow = commandParts(spec)
+      if not fn then
+        log.w(string.format(
+          "Registry refused '%s', its command '%s' is not a function or a table with a callable fn",
+          name, key))
+        return false
+      end
       if not rowIsWellFormed(commandRow, name) then return false end
     end
 

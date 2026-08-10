@@ -159,6 +159,33 @@ do
   check("nothing about the refused descriptor was committed, run answers false", r.run("vpn") == false and #calls == 0)
 end
 
+-- Refusal, a commands entry that is neither a function nor a table with a callable fn.
+-- Before this check existed such a value was stored as is and would have raised when
+-- run called it, loud. Storing a nil function instead would have let run answer false
+-- forever with nothing logged, which is why this is caught here instead.
+do
+  local r, warnings = freshRegistry(1)
+  local ok = r.register({ name = "clipboard", apiVersion = 1, commands = { appendCopy = "not a function" } })
+  check("a commands entry that is a string rather than a function or a table is refused", ok == false)
+  check(
+    "the refusal names the tool and the command",
+    found(warnings, "clipboard") and found(warnings, "appendCopy"),
+    table.concat(warnings, " | ")
+  )
+  check("nothing about the refused descriptor was committed, run answers false", r.run("appendCopy") == false)
+end
+
+do
+  local r, warnings = freshRegistry(1)
+  local ok = r.register({ name = "clipboard", apiVersion = 1, commands = { appendCopy = { row = { category = "Clipboard" } } } })
+  check("a commands entry that is a table with no callable fn is refused", ok == false)
+  check(
+    "the refusal names the tool and the command that had no callable fn",
+    found(warnings, "clipboard") and found(warnings, "appendCopy"),
+    table.concat(warnings, " | ")
+  )
+end
+
 -- Refusal four, an apiVersion that is missing, not an integer, or does not match the
 -- core's.
 do
