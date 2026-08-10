@@ -166,7 +166,7 @@ land.
 
 ## Registry, the tool dispatch
 
-`lib/registry.lua`, phase seven of the build plan, packet one of four. A registry keyed by name,
+`lib/registry.lua`, phase seven of the build plan, all five packets. A registry keyed by name,
 backing dispatch by name, Strategy with the strategy chosen at runtime by a string. It is a
 factory in the same style as `lib/recency.lua`, `M.new(opts)` handing back an independent
 instance whose functions are dot called, never colon called, since there is no metatable and no
@@ -188,12 +188,15 @@ and are the subject of their own sections below.
 same reasoning behind a query source that raises being dropped for a keystroke rather than
 crashing the chooser. Every refusal is one log line at warning naming the tool and the reason,
 and `register` answers true when it registered, false when it refused, so a caller can react if
-it ever wants to, though the composition root does not. Six refusals exist, a missing or non
-string name, a second registration under a name already taken since first registration wins, a
-`commands` key colliding with any name already indexed whether a tool name or another tool's
-command since the flat index dispatch reads makes such a collision ambiguity rather than a
-preference, an `apiVersion` that is missing, not an integer, or unequal to the core's, and a
-`surface` that is present and is not a function.
+it ever wants to, though the composition root does not. Eighteen refusals exist by the end of the
+phase, and they are enumerated once, in that module's own header, rather than a second time here.
+This paragraph used to list them and the list went stale twice as later packets added more, which
+is the drift this whole phase was about, so it now says only what shape they take. A name must be
+a string and must not already be taken, a `commands` key must not collide with anything already
+indexed nor with its own tool's name, the `apiVersion` must equal the core's, and every optional
+field a later packet added, `surface`, `row`, `scope` and `shortcut`, is refused when present and
+malformed, always naming the tool and always refusing the whole registration rather than half of
+it.
 
 **Why the version check is equality.** The core version is injected at construction, passed in as
 `opts.apiVersion` rather than read from `spoon.Olm`, since the registry must not reach for the
@@ -218,16 +221,23 @@ rather than a resolved value, so the answer never depends on the moment it was a
 what lets `test/inventory.lua` read it live and hold the shape of every descriptor in the
 committed golden rather than only its name and its active flag.
 
-**What inactive means today, and what it does not yet mean.** `activate(names)` takes a list of
+**What inactive means, and the one thing it still does not.** `activate(names)` takes a list of
 tool names and is called once after every registration. A registered tool whose name is in the
 list is active, one not in the list is registered and inactive, and a name in the list that
 nothing registered produces one warning line naming it and is otherwise ignored, since a typo in
-a roster should be visible and harmless rather than fatal. `run(name)` answers false and `get`
-answers nil for an inactive tool, every other read behaves as if it were never asked. That is the
-whole of what inactive means in this packet. It does not yet unbind a chord, remove a launcher
-row, or stop a plugin's own `configure` or `start` from running. Packets three and four are what
-finish that promise, and reading more into it before then is the half kept promise this file
-warns against.
+a roster should be visible and harmless rather than fatal.
+
+An inactive tool now answers nothing to every read. `run` answers false, `get`, `rowFor` and
+`scopeFor` answer nil, `surfaces` and `scopes` skip it, and `shortcuts` offers neither the tool
+nor any of its commands, so its launcher row, its navigation keys, its query scope and its
+keyboard shortcut all go together. The earlier packets each left part of that promise unkept and
+said so in this paragraph while they did, and the fifth closed the last of it.
+
+What activation still does not do is stop a plugin loading. An inactive tool's file is still
+read, its `configure` still runs and its `start` still starts, so an inactive tool is a plugin
+that is present and does nothing rather than one that was never there. Closing that means gating
+the composition root's own per plugin wiring, which is a different kind of change from folding a
+join point, and it was deliberately kept out of this whole phase.
 
 **Why the launcher looks in two places.** `host/launcher/init.lua`'s `_runItem` asks the registry
 first and falls back to the injected `actions.special` table only when the registry did not run
