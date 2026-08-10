@@ -21,7 +21,10 @@
 --- decorate, toggle, and isOpen are the panel proper, the decorator that swaps a chooser's own
 --- rows for the panel's whenever it is open on that instance, installed once at
 --- Chooser.configure's decorate seam rather than at any of the twelve call sites to
---- Chooser.new, so no consumer is edited and no consumer learns this exists.
+--- Chooser.new, so no consumer is edited and no consumer learns this exists. decoratedCount is
+--- a fourth, small door onto how many instances decorate has actually wrapped, answering a
+--- question about construction rather than about presentation, which is why it asks nothing of
+--- configure.
 ---
 --- It names no action and no context. The composition root owns the map from an action name to
 --- a kind, since config/keys.lua already knows what every action name means, and injects that
@@ -67,18 +70,23 @@ obj._rowsFor = nil -- function(contextName) -> ordered rows { action, title, cho
 obj._run = nil -- function(action), runs a named action, required
 obj._log = nil -- w(message), defaults to this module's own hs.logger instance
 
--- The panel's own runtime state, set only by decorate, toggle, and the two private helpers
--- below, and read by nothing outside this file. _instances is every raw Chooser instance
--- decorate has ever been called with, in the order it was called, the same unproven assumption
--- the root's own activeChooser runs on standing in for a name here too, that at most one is
--- ever showing at once. _openInstance is the one the panel is currently open on, or nil, which
--- doubles as isOpen's whole answer. _panelRows is the row list currently being shown, valid
--- only while _openInstance is set. _capturedRow is the highlight to restore once a verb has run.
+-- The panel's own runtime state, set only by decorate, toggle, and the private helpers below,
+-- and read by nothing outside this file. _instances is every raw Chooser instance decorate has
+-- ever been called with, in the order it was called, the same unproven assumption the root's
+-- own activeChooser runs on standing in for a name here too, that at most one is ever showing
+-- at once. _openInstance is the one the panel is currently open on, or nil, which doubles as
+-- isOpen's whole answer. _panelRows is the row list currently being shown, valid only while
+-- _openInstance is set. _capturedRow is the highlight and _capturedQuery is the field text to
+-- restore on every way out, both captured once, the moment the panel opens, since the field is
+-- as much a part of what the panel swaps as the rows are, an open panel answering nothing
+-- because whatever was typed for the tool's own list matches no panel title being the failure
+-- this exists to prevent.
 obj._instances = nil
 obj._openInstance = nil
 obj._panelRows = nil
 obj._capturedItem = nil
 obj._capturedRow = nil
+obj._capturedQuery = nil
 -- The scheduler _choose below defers a verb's own restore and run through, defaulting to
 -- hs.timer.doAfter and settable directly on an instance, bypassing configure exactly the way
 -- a unit case sets _log directly, so a case can hand in a synchronous stand in, delay and fn
@@ -205,8 +213,8 @@ end
 --------------------------------------------------------------------------------
 -- The panel proper. Everything below installs at Chooser.configure's decorate seam and
 -- reads and writes only obj._instances, obj._openInstance, obj._panelRows,
--- obj._capturedItem, and obj._capturedRow, declared with the rest of this instance's fields
--- above.
+-- obj._capturedItem, obj._capturedRow, and obj._capturedQuery, declared with the rest of
+-- this instance's fields above.
 --------------------------------------------------------------------------------
 
 -- The panel's own rows, as decorate's wrapped rows function answers them while the panel is
@@ -254,15 +262,64 @@ function obj:_findShowing()
 end
 
 -- Clears every piece of the panel's open state together, the one place that does, so onClose
--- below, Back, and a verb's own close all reach the exact same idle state rather than three
--- copies of it agreeing by hand. Once this runs, every wrapped config function decorate
--- installed falls straight through to its original again, on every instance, since each
--- checks self._openInstance against its own instance and this clears it to nil.
+-- below and _leave further down both reach the exact same idle state rather than two copies of
+-- it agreeing by hand. Once this runs, every wrapped config function decorate installed falls
+-- straight through to its original again, on every instance, since each checks
+-- self._openInstance against its own instance and this clears it to nil. Callers that still
+-- need the captured row or query read them before calling this, since it clears those too.
 function obj:_close()
   self._openInstance = nil
   self._panelRows = nil
   self._capturedItem = nil
   self._capturedRow = nil
+  self._capturedQuery = nil
+end
+
+-- The one place every way out of the panel ends, whichever of the four it is, choosing Back
+-- through intercept, Backspace through back, choosing a verb through intercept, or the chord
+-- toggling the panel closed again. All four owe the chooser the exact same thing back, the
+-- field holding what it held when the panel opened and the highlight back on the row the panel
+-- was opened over, and putting that in one place rather than four is what keeps them from
+-- drifting the way three of them already had, restoring it for the verb path alone.
+--
+-- The query is restored SYNCHRONOUSLY, before this returns, since setQuery on the atom only
+-- sets the field and asks nothing to rebuild on its own, so whichever rebuild runs next,
+-- whether the atom's own refresh(true) right after intercept or back answers true, or the
+-- explicit one toggle below runs itself on the chord path, reads this field rather than
+-- whatever the panel's own query was left on.
+--
+-- The row is restored on a continuation deferred past that rebuild, for the same reason
+-- action, when there is one, has to be too. Both intercept and back in providers/native.lua
+-- call refresh(true) on instance the moment their own handler answers true, and they do that
+-- AFTER the handler has already returned, which is exactly what every caller of this function
+-- is. So anything this function did to the highlight synchronously would be undone a moment
+-- later by that very rebuild, since refresh(true) resets the highlighted row to the first one.
+-- The chord path gets no such rebuild for free and has to run its own, see toggle below, but
+-- the restore still defers here so every path shares this one function rather than three
+-- sharing it and a fourth carrying its own copy.
+--
+-- action is nil for Back, Backspace, and the chord closing the panel, and an action name for a
+-- chosen verb, run only once the row is back where it was, through deps.run, exactly the same
+-- contextActions entry the chord itself runs, against exactly the row the chord would have
+-- acted on, so the panel and the chord cannot disagree about what a verb does.
+function obj:_leave(instance, action)
+  local capturedRow = self._capturedRow
+  local capturedQuery = self._capturedQuery
+  self:_close()
+  instance:setQuery(capturedQuery)
+  local defer = self._defer or hs.timer.doAfter
+  defer(0, function()
+    if not instance:isShowing() then
+      if action then
+        self._log.w(string.format(
+          "ActionPanel action '%s' found its chooser gone by the time it ran, running nothing",
+          tostring(action)))
+      end
+      return
+    end
+    instance:selectRow(capturedRow)
+    if action then self._run(action) end
+  end)
 end
 
 -- What decorate's wrapped intercept calls while the panel is open on instance, answering
@@ -274,42 +331,10 @@ end
 -- so it is either a plain { action, title, chord } verb row or the Back row, which carries no
 -- action since no context declares one. That absence is what marks it Back here, not a
 -- separate flag, since the panel is the only thing that ever builds this row and the only
--- thing that ever reads it back.
---
--- A verb closes the panel now, synchronously, before this returns, because _intercept calls
--- refresh(true) on instance the moment this answers true, and by then self._openInstance must
--- already be nil or that rebuild would ask decorate's wrapped rows for the panel's rows all
--- over again instead of the tool's own. The action itself, and putting the highlight back on
--- the row the panel was opened over, both wait for a continuation scheduled with
--- hs.timer.doAfter(0, ...). This has to be deferred and cannot be folded in here: _intercept
--- calls that same refresh(true) AFTER this function returns, so anything this function did to
--- the highlight would be undone a moment later by that very rebuild. Answering false instead,
--- so the row completes on its own, is not available either, because that tears the chooser
--- down, and several verbs, browsing into a folder chief among them, must leave it open. So the
--- restore runs after the atom's own rebuild, on a fresh runloop tick, which is the only order
--- that works. Once it runs, the action goes through deps.run, exactly the same contextActions
--- entry the chord itself runs, against exactly the row the chord would have acted on, because
--- the list and the highlight are both back where they were before the panel opened, so the
--- panel and the chord cannot disagree about what a verb does.
+-- thing that ever reads it back, and it is also what tells _leave whether there is an action
+-- to run once the row is back where it was.
 function obj:_choose(instance, item)
-  if not item or not item.action then
-    self:_close()
-    return true
-  end
-  local action = item.action
-  local capturedRow = self._capturedRow
-  self:_close()
-  local defer = self._defer or hs.timer.doAfter
-  defer(0, function()
-    if not instance:isShowing() then
-      self._log.w(string.format(
-        "ActionPanel action '%s' found its chooser gone by the time it ran, running nothing",
-        tostring(action)))
-      return
-    end
-    instance:selectRow(capturedRow)
-    self._run(action)
-  end)
+  self:_leave(instance, item and item.action or nil)
   return true
 end
 
@@ -368,10 +393,11 @@ function obj:decorate(instance, config)
 
   -- Backspace on an empty field, one of the two ways out of the panel, the other being
   -- choosing its own Back row through intercept above. Absent on eleven of the twelve
-  -- consumers, same treatment.
+  -- consumers, same treatment. Routed through _leave with no action, the same door Back and a
+  -- chosen verb both use, so the field and the highlight come back the same way on every path.
   config.back = function()
     if self._openInstance == instance then
-      self:_close()
+      self:_leave(instance, nil)
       return true
     end
     if originalBack then return originalBack() end
@@ -418,10 +444,13 @@ end
 
 --- ActionPanel:toggle(contextName)
 --- Method
---- What the panel's chord runs. Closes the panel when it is already open. Otherwise finds the
---- first recorded instance answering isShowing (see _findShowing above) and does nothing at
---- all when none does, since the chord being pressed with nothing open is ordinary rather than
---- a mistake.
+--- What the panel's chord runs. Closes the panel when it is already open, through _leave with
+--- no action, the same door every other way out uses, and then runs its own refresh(true),
+--- since this is the one way out that answers no to intercept and to back and so earns none of
+--- their own automatic rebuild, unlike Back, Backspace, and a chosen verb, which all get one
+--- for free the moment their own handler answers true. Otherwise finds the first recorded
+--- instance answering isShowing (see _findShowing above) and does nothing at all when none
+--- does, since the chord being pressed with nothing open is ordinary rather than a mistake.
 ---
 --- contextName names the context whose rows to show. It has to be told rather than worked out
 --- from the found instance, since decorate above learns nothing about which of the twelve
@@ -429,13 +458,17 @@ end
 --- before it can call this at all, the same resolution its own activeContext already runs, so
 --- it is asked once there rather than taught to this module a second way.
 ---
---- Captures the highlighted item and row so a verb, once chosen, can act on the row the panel
---- was opened over (see _choose above), asks rowsFor for the named context's rows, sets the
---- panel's state, and calls refresh(true) on the instance so decorate's wrapped rows function
---- is asked for the panel's rows right away.
+--- Captures the highlighted item, row, and query, so a verb, once chosen, can act on the row
+--- the panel was opened over and the field can be handed back exactly as it was found (see
+--- _leave above), asks rowsFor for the named context's rows, sets the panel's state, clears the
+--- field so the panel opens on its own full list rather than filtered by whatever the tool's
+--- own query happened to be, and calls refresh(true) on the instance so decorate's wrapped rows
+--- function is asked for the panel's rows right away.
 function obj:toggle(contextName)
   if self._openInstance then
-    self:_close()
+    local instance = self._openInstance
+    self:_leave(instance, nil)
+    instance:refresh(true)
     return
   end
   if not ensureConfigured(self, "toggle") then return end
@@ -443,8 +476,10 @@ function obj:toggle(contextName)
   if not instance then return end
   self._capturedItem = instance:selectedItem()
   self._capturedRow = instance:selectedRow()
+  self._capturedQuery = instance:query()
   self._panelRows = self:_buildRows(contextName)
   self._openInstance = instance
+  instance:setQuery("")
   instance:refresh(true)
 end
 
@@ -453,6 +488,21 @@ end
 --- Whether the panel is currently showing, on any instance.
 function obj:isOpen()
   return self._openInstance ~= nil
+end
+
+--- ActionPanel:decoratedCount() -> integer
+--- Method
+--- How many instances decorate has ever wrapped. Public so test/inventory.lua can prove the
+--- panel is actually installed on every chooser rather than trusting that Chooser.configure's
+--- decorate seam ran before all twelve were built, since a chooser built before that call, or
+--- one that stopped going through the Chooser facade at all, would leave the panel silently
+--- dead on it with every other gate here still green. It reads twelve today and would read
+--- eleven the moment that stopped being true, which is the whole point of measuring it rather
+--- than assuming it. Needs no configure, the same reason decorate itself does not, since
+--- recording an instance is a fact about construction rather than about the classification
+--- policy configure injects.
+function obj:decoratedCount()
+  return #(self._instances or {})
 end
 
 return obj

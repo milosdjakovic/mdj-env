@@ -57,24 +57,30 @@ end
 local NOOP_ROWS_FOR = function() return {} end
 local NOOP_RUN = function() end
 
--- A fake picker instance answering isShowing, selectedItem, selectedRow, selectRow, and
--- refresh, the five methods decorate and toggle ever call on one, standing in for the atom the
--- same way the gate asks for. showing, row, and item are mutable through the returned table
--- itself, so a case can change what the instance answers between calls, and refreshCalls
--- records every resetRow argument refresh was called with, in order, so a case can read back
--- whether and how it was asked to rebuild.
+-- A fake picker instance answering isShowing, selectedItem, selectedRow, selectRow, query,
+-- setQuery, and refresh, the seven methods decorate and toggle ever call on one, standing in
+-- for the atom the same way the gate asks for. showing, row, item, and q are mutable through
+-- the returned table itself, so a case can change what the instance answers between calls, and
+-- refreshCalls records every resetRow argument refresh was called with, in order, so a case
+-- can read back whether and how it was asked to rebuild. query and setQuery are the field the
+-- coordinator's review found missing entirely, so this stands in for it too, a plain string
+-- the fake stores rather than anything the real atom's query changed callback would fire on,
+-- since nothing here needs that callback to prove the panel restores what it captured.
 local function fakeInstance(opts)
   opts = opts or {}
   local instance = {
     showing = opts.showing ~= false,
     row = opts.row or 1,
     item = opts.item,
+    q = opts.query or "",
     refreshCalls = {},
   }
   instance.isShowing = function() return instance.showing end
   instance.selectedItem = function() return instance.item end
   instance.selectedRow = function() return instance.row end
   instance.selectRow = function(_, n) instance.row = n end
+  instance.query = function() return instance.q end
+  instance.setQuery = function(_, text) instance.q = text or "" end
   instance.refresh = function(_, resetRow) instance.refreshCalls[#instance.refreshCalls + 1] = resetRow end
   return instance
 end
@@ -418,28 +424,60 @@ do
   )
 end
 
--- The row captured when the panel opened is what selectRow is later asked for, restored by
--- the deferred continuation after a verb is chosen. ap._defer stands in for hs.timer.doAfter,
--- running the continuation at once rather than on a later runloop tick, so this reads its
--- effect back without a real wait, exactly what obj._defer exists for.
+-- Opening the panel clears the field rather than rebuilding with whatever the tool's own query
+-- happened to be, since the query is as much a part of what the panel swaps as the rows are.
+-- Without this the panel comes up filtered by text nobody typed for a panel title and shows
+-- nothing, the one thing the design says it must never do, on the single most common path
+-- there is, a person who had already typed something.
+do
+  local ap = configuredPanel({
+    demo = { { action = "doThing", title = "Do Thing" }, { title = "Back" } },
+  })
+  local config = fakeConfig()
+  local instance = fakeInstance({ showing = true, query = "whatever the tool's own list had" })
+  ap:decorate(instance, config)
+
+  ap:toggle("demo")
+  check("opening the panel clears the field", instance:query() == "")
+  local rows = config.rows("")
+  check(
+    "the panel's own rows are not filtered out by the query the tool's own list had",
+    #rows == 2 and rows[1].title == "Do Thing" and rows[2].title == "Back"
+  )
+end
+
+-- The row captured when the panel opened is what selectRow is later asked for, and the field
+-- is restored to what the tool's own list held, not to whatever was typed inside the panel to
+-- find the verb, both restored by the deferred continuation after a verb is chosen. The query
+-- is restored SYNCHRONOUSLY though, ahead of the row, since the field has to be right before
+-- either refresh that follows, the atom's own or the continuation's, rebuilds against it.
+-- ap._defer stands in for hs.timer.doAfter, running the continuation at once rather than on a
+-- later runloop tick, so this reads its effect back without a real wait, exactly what
+-- obj._defer exists for.
 do
   local ap, runCalls = configuredPanel({
     demo = { { action = "doThing", title = "Do Thing" } },
   })
   ap._defer = function(_, fn) fn() end
   local config = fakeConfig()
-  local instance = fakeInstance({ showing = true, row = 4 })
+  local instance = fakeInstance({ showing = true, row = 4, query = "rev" })
   ap:decorate(instance, config)
 
   ap:toggle("demo")
-  -- The atom's own refresh(true), called for real by _intercept the moment a handler answers
-  -- true, resets the highlight to the first row before the continuation ever runs. Simulated
-  -- here since fakeInstance's own refresh only records the call rather than moving anything,
-  -- so the check below proves the continuation moved it rather than it never having changed.
+  check("opening the panel clears the field here too", instance:query() == "")
+  -- Typing inside the panel to find the verb, and the atom's own refresh(true), called for
+  -- real by _intercept the moment a handler answers true, resetting the highlight to the
+  -- first row before the continuation ever runs. Simulated here since fakeInstance's own
+  -- refresh only records the call rather than moving anything or reacting to typing.
+  instance:setQuery("do")
   instance.row = 1
 
   local handled = config.intercept({ action = "doThing", title = "Do Thing" })
   check("choosing a verb answers true, keeping the chooser open", handled == true)
+  check(
+    "the field is restored to what the tool's own list held, not to what found the verb",
+    instance:query() == "rev"
+  )
   check(
     "the deferred continuation puts the highlight back on the row the panel was opened over",
     instance.row == 4
@@ -447,6 +485,78 @@ do
   check(
     "the deferred continuation runs the action through deps.run",
     #runCalls == 1 and runCalls[1] == "doThing"
+  )
+end
+
+-- Choosing the Back row restores the field and the highlight the exact same way a chosen verb
+-- does, not only closing the panel, since all four ways out owe the chooser the same thing back.
+do
+  local ap = configuredPanel({ demo = { { action = "doThing", title = "Do Thing" } } })
+  ap._defer = function(_, fn) fn() end
+  local config = fakeConfig()
+  local instance = fakeInstance({ showing = true, row = 5, query = "abc" })
+  ap:decorate(instance, config)
+
+  ap:toggle("demo")
+  instance.row = 1
+  local handled = config.intercept({ title = "Back" })
+  check("choosing Back answers true", handled == true)
+  check("choosing Back restores the field the tool's own list held", instance:query() == "abc")
+  check(
+    "choosing Back puts the highlight back on the row the panel was opened over",
+    instance.row == 5
+  )
+end
+
+-- Backspace on an empty field restores the field and the highlight the same way, rather than
+-- leaving the highlight wherever the atom's own refresh(true) dropped it, the first row.
+do
+  local ap = configuredPanel({ demo = { { action = "doThing", title = "Do Thing" } } })
+  ap._defer = function(_, fn) fn() end
+  local config = fakeConfig()
+  local instance = fakeInstance({ showing = true, row = 6, query = "xyz" })
+  ap:decorate(instance, config)
+
+  ap:toggle("demo")
+  instance.row = 1
+  local handled = config.back()
+  check("back answers true while the panel is open", handled == true)
+  check("back restores the field the tool's own list held", instance:query() == "xyz")
+  check(
+    "back puts the highlight back on the row the panel was opened over",
+    instance.row == 6
+  )
+end
+
+-- Toggling the panel closed with the chord puts the chooser's own list back exactly as the
+-- other three ways out do, the field restored and the highlight back on the row the panel was
+-- opened over, through its own explicit refresh since this is the one way out that answers no
+-- to intercept and to back and so earns none of their automatic rebuild. Without this the
+-- chooser keeps showing panel rows while every wrapper already believes the panel is closed.
+do
+  local ap = configuredPanel({ demo = { { action = "doThing", title = "Do Thing" } } })
+  ap._defer = function(_, fn) fn() end
+  local config = fakeConfig()
+  local instance = fakeInstance({ showing = true, row = 3, query = "rev" })
+  ap:decorate(instance, config)
+
+  ap:toggle("demo")
+  instance.row = 1 -- the atom's own refresh(true) at open would have reset it
+  ap:toggle("demo") -- the chord pressed again while the panel is open
+  check("the panel is closed after toggling it a second time", not ap:isOpen())
+  check("the chord close restores the field the tool's own list held", instance:query() == "rev")
+  check(
+    "the chord close puts the highlight back on the row the panel was opened over",
+    instance.row == 3
+  )
+  check(
+    "the chord close rebuilds through its own refresh, once to open and once to close",
+    #instance.refreshCalls == 2
+  )
+  local rows = config.rows("")
+  check(
+    "the supplier answers the tool's own row again once the chord closed the panel",
+    #rows == 1 and rows[1].title == "tool row"
   )
 end
 
@@ -573,5 +683,24 @@ do
   check(
     "the panel answers every row unfiltered when the instance's own matcher owns ranking",
     #unfiltered == 2
+  )
+end
+
+-- decoratedCount answers how many instances decorate has wrapped, so a live measurement can
+-- prove the panel is actually installed on a chooser rather than assuming Chooser.configure's
+-- seam ran before it was built. Needs no configure, the same reason decorate itself does not.
+do
+  local ap = freshModule()
+  check("decoratedCount answers zero before decorate is ever called", ap:decoratedCount() == 0)
+  local config1 = fakeConfig()
+  local instance1 = fakeInstance({ showing = false })
+  ap:decorate(instance1, config1)
+  check("decoratedCount answers one after decorating a single instance", ap:decoratedCount() == 1)
+  local config2 = fakeConfig()
+  local instance2 = fakeInstance({ showing = false })
+  ap:decorate(instance2, config2)
+  check(
+    "decoratedCount answers two after a second instance, needing no configure at all",
+    ap:decoratedCount() == 2
   )
 end
