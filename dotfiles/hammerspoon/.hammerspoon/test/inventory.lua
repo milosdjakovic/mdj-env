@@ -142,14 +142,49 @@ for _, name in ipairs(contextNames) do
     table.sort(mods)
     local chord = b.chord
     if chord == nil then chord = true end
+    -- kind, phase eight's first packet, asked of the live wiring, spoon.ActionPanel's own
+    -- injected classifier, rather than of a copy kept in this file, so what the golden
+    -- records is what the composition root actually injected, the same reasoning that already
+    -- has this file read ChordKey._keys and HyperKey._bindings rather than a copy of either.
+    local kind = spoon.ActionPanel and spoon.ActionPanel._kindOf and spoon.ActionPanel._kindOf(b.action)
     bindingLines[#bindingLines + 1] = string.format(
-      "hypercontexts.binding context=%s key=%s mods=%s action=%s when=%s chord=%s needs=%s description=%s",
-      field(name), field(b.key), join(mods), field(b.action), field(b.when),
+      "hypercontexts.binding context=%s key=%s mods=%s action=%s kind=%s when=%s chord=%s needs=%s description=%s",
+      field(name), field(b.key), join(mods), field(b.action), field(kind), field(b.when),
       field(chord), field(b.needs), field(b.description))
   end
   table.sort(bindingLines)
   for _, l in ipairs(bindingLines) do add(l) end
 end
+
+-- The verb list per context, phase eight's first packet, asked of the live module rather than
+-- recomputed here, so this measures what spoon.ActionPanel:verbsIn actually answers for the
+-- same context.bindings the section above already walked, contextNames and byName reused
+-- rather than read a second time. This is deliberately not filtered by needs or by a live
+-- predicate, since verbsIn itself knows neither, and a later packet that adds those filters to
+-- the panel must not read this section as stale and change it, it measures the declarations
+-- rather than a moment.
+local verbsByContext = {}
+for _, name in ipairs(contextNames) do
+  local ctx = byName[name]
+  verbsByContext[name] = spoon.ActionPanel and spoon.ActionPanel:verbsIn(ctx.bindings or {}) or {}
+end
+add("registry actionpanel count=" .. #contextNames)
+for _, name in ipairs(contextNames) do
+  add(string.format("actionpanel.context name=%s verbCount=%s", field(name), field(#verbsByContext[name])))
+end
+local verbLines = {}
+for _, name in ipairs(contextNames) do
+  for _, b in ipairs(verbsByContext[name]) do
+    local mods = {}
+    for _, m in ipairs(b.mods or {}) do mods[#mods + 1] = m end
+    table.sort(mods)
+    verbLines[#verbLines + 1] = string.format(
+      "actionpanel.verb context=%s key=%s mods=%s action=%s description=%s",
+      field(name), field(b.key), join(mods), field(b.action), field(b.description))
+  end
+end
+table.sort(verbLines)
+for _, l in ipairs(verbLines) do add(l) end
 
 -- The choosers registry in init.lua. It is a local table in the composition
 -- root, never handed to anything global, so there is no live handle to read it
