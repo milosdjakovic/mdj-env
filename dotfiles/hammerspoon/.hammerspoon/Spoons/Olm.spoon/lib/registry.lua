@@ -31,16 +31,19 @@
 -- register(descriptor) validates, then records, and refuses rather than raises, so one
 -- bad tool cannot empty the launcher. Every refusal is one log line at warning naming
 -- the tool and the reason, and register answers true when it registered and false when
--- it refused. Four refusals exist. A descriptor with no name, or a name that is not a
+-- it refused. Five refusals exist. A descriptor with no name, or a name that is not a
 -- string, is refused, and cannot be named in its own error, so the line says what it
 -- can. A second registration under a name already taken is refused, naming the tool,
--- since first registration wins. A commands key colliding with any name already
--- indexed, whether a tool name or another tool's command, is refused, naming both
--- sides, since the flat index dispatch reads makes such a collision ambiguity rather
--- than a preference. An apiVersion that is missing, not an integer, or not equal to the
--- core's, is refused, naming the tool, the version it declared, and the version the
--- core offers, since the version is bumped only on a breaking change and equality is
--- the only check that respects that.
+-- since first registration wins. A commands key equal to the tool's own name is
+-- refused, naming both, since the tool's own name is not yet in the flat index at the
+-- point a command is checked, only a prior tool's is, and without this check a
+-- descriptor could otherwise overwrite its own open with no warning at all. A commands
+-- key colliding with any name already indexed, whether a tool name or another tool's
+-- command, is refused, naming both sides, since the flat index dispatch reads makes
+-- such a collision ambiguity rather than a preference. An apiVersion that is missing,
+-- not an integer, or not equal to the core's, is refused, naming the tool, the version
+-- it declared, and the version the core offers, since the version is bumped only on a
+-- breaking change and equality is the only check that respects that.
 --
 -- activate(names) takes a list of tool names and is called once after every
 -- registration. A registered tool whose name is in the list is active, one not in the
@@ -110,8 +113,19 @@ function M.new(opts)
         "Registry refused a second registration for '%s', the first registration keeps it", name))
       return false
     end
+    -- A command key is checked against the tool's own name as well as against the flat
+    -- index, since the tool's own name is not in that index yet at this point, only a
+    -- prior tool's is. Without this a descriptor whose command shares its own name would
+    -- pass here and then overwrite its own open below with no warning anywhere, the
+    -- validator resolving an ambiguity silently to the wrong answer instead of refusing
+    -- it.
     local commands = descriptor.commands or {}
     for key in pairs(commands) do
+      if key == name then
+        log.w(string.format(
+          "Registry refused '%s', its command '%s' collides with its own tool name", name, key))
+        return false
+      end
       if flatIndex[key] then
         log.w(string.format(
           "Registry refused '%s', its command '%s' collides with '%s' already registered",

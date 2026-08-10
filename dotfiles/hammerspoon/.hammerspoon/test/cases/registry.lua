@@ -82,23 +82,22 @@ do
   check("run answers true and calls open for an active tool", didRun == true and ran == 1)
 end
 
--- Refusal one, no name, or a name that is not a string.
+-- Refusal one, no name, or a name that is not a string. One line in the module covers
+-- both, its name is missing or is not a string, so both cases below are checked against
+-- that same one line rather than two checks pretending to distinguish something the log
+-- itself does not.
 do
   local r, warnings = freshRegistry(1)
 
   local ok = r.register({ apiVersion = 1, open = function() end })
   check("a descriptor with no name is refused", ok == false)
-  check(
-    "the refusal for a missing name is logged",
-    found(warnings, "name is missing"),
-    table.concat(warnings, " | ")
-  )
 
   local ok2 = r.register({ name = 42, apiVersion = 1, open = function() end })
   check("a descriptor whose name is not a string is refused", ok2 == false)
+
   check(
-    "the refusal for a non string name is logged",
-    found(warnings, "not a string"),
+    "both refusals above logged the one line covering a missing or non string name",
+    found(warnings, "name is missing"),
     table.concat(warnings, " | ")
   )
 end
@@ -121,7 +120,8 @@ do
 end
 
 -- Refusal three, a commands key colliding with any name already indexed, whether a
--- tool name or another tool's command.
+-- tool name or another tool's command, or with its own tool's name, which is not yet in
+-- that index at the point a command is checked.
 do
   local r, warnings = freshRegistry(1)
   check(
@@ -139,6 +139,24 @@ do
 
   local ok2 = r.register({ name = "appendCopy", apiVersion = 1, open = function() end })
   check("a tool named after another tool's existing command is refused", ok2 == false)
+
+  -- The tool's own name is not yet in the flat index at the point a command is checked,
+  -- only a prior tool's is, so a command keyed the same as its own tool's name needs its
+  -- own check rather than falling out of the one against the flat index.
+  local calls = {}
+  local ok3 = r.register({
+    name = "vpn",
+    apiVersion = 1,
+    open = function() calls[#calls + 1] = "open" end,
+    commands = { vpn = function() calls[#calls + 1] = "vpn" end },
+  })
+  check("a command keyed the same as its own tool's name is refused", ok3 == false)
+  check(
+    "the self collision refusal names the tool and says it collided with its own tool name",
+    found(warnings, "own tool name"),
+    table.concat(warnings, " | ")
+  )
+  check("nothing about the refused descriptor was committed, run answers false", r.run("vpn") == false and #calls == 0)
 end
 
 -- Refusal four, an apiVersion that is missing, not an integer, or does not match the
