@@ -1375,145 +1375,11 @@ local function aliasHint(name)
   return " " .. label
 end
 
--- The tool registry, phase seven of the build plan, packet one. A registration's open
--- or command closure only runs long after this point, once the launcher row is chosen,
--- so registering here, beside the actions.special table this replaces most of, costs
--- nothing even though several of the spoons named below are configured further above.
--- apiVersion is written as the literal 1 on every line rather than read from
--- spoon.Olm.apiVersion, since a registration copying the core's own number can never
--- mismatch and the check would then be theatre.
---
--- The eleven tools below are each keyed by the name their actions.special entry used
--- before this packet, so no row descriptor anywhere changes. The clipboard also owns
--- two commands, append copy and paste next, which are not tools of their own, carrying
--- the comment that sat beside them before, and registering them here is what makes
--- deactivating the clipboard take them with it.
---
--- Several of the tools below carry hosted = true, so their row normally never reaches
--- run at all, the launcher hosts the tool's list instead, see the hosted test beside
--- actions.rowIntercept further down. Opening the picker stays the answer for the one
--- case hosting cannot happen, a scope holding no live alias, and it is also what the
--- tool's own chord does, so nothing is lost by keeping the closure here even though it
--- is rarely what actually answers the row.
---
--- Phase seven's second packet adds surface to nine of these, a function of no arguments
--- handing back this tool's navigation adapter, and hosted, a plain boolean, to six.
--- Every surface below is a closure and never the object itself, even the seven that are
--- already a stable module reference and would survive either spelling, because the
--- other two, emoji and textCase, build that object inside their own configure call
--- further below this point and hand it back from a method, so capturing it now rather
--- than when the shared nav registry actually asks would capture nothing at all,
--- permanently and silently. Clipboard's own surface reads spoon.ClipboardHistory.manager
--- directly rather than through the clipManager local the shared nav registry uses
--- further below, since that local is declared after this point and is not yet in scope
--- for a closure written here, the same ordering discipline in different clothes. Both
--- names reach the identical object.
--- Phase seven's third packet adds row to every registration below, the launcher row
--- data that used to sit in host/launcher/init.lua's _buildActionRows as thirteen hand
--- written add calls, one per tool plus the two clipboard commands. category is the word
--- before the separator in the subtitle the launcher renders, required once row is
--- present at all. keysName is only written on clipboard, the one tool whose row reads
--- config/keys.lua under a different key, clipboardHistory, than its own registered name.
--- chord is only written on the two clipboard commands below, since they are a modifier
--- combination rather than a Hyper chord and their subtitle is built from that
--- combination rather than from _chordLabel, and it must not be generalised to any other
--- row. Everything else, detail, glyph, and keywords, is optional presentation data this
--- registry never reads, meaningful only to the launcher's own addTool on the other end
--- of rowFor.
+-- The instance only, built here because spoon.Launcher:configure below needs the
+-- reference to inject and only stores it. What it registers moves immediately above
+-- queryScopes further down, since every declaration a registration could need already
+-- exists by that point. See the comment there for the whole reasoning.
 local registry = spoon.Olm.lib.registry.new({ apiVersion = spoon.Olm.apiVersion })
-registry.register({
-  name = "clipboard",
-  apiVersion = 1,
-  open = function() spoon.ClipboardHistory:open() end,
-  surface = function() return spoon.ClipboardHistory.manager end,
-  row = { category = "Clipboard", glyph = "📋", keysName = "clipboardHistory" },
-  commands = {
-    -- Both act on the app that was frontmost before the launcher opened, append copy by
-    -- reading its selection. Every launcher row already runs deferred until focus has
-    -- gone back there, which is what keeps the selection intact, the same mechanism the
-    -- text case picker depends on.
-    appendCopy = {
-      fn = function() spoon.ClipboardHistory.manager.appendCopy() end,
-      row = { category = "Clipboard", chord = "modifier", glyph = "➕",
-        keywords = "append copy add selection accumulate" },
-    },
-    pasteNext = {
-      fn = function() spoon.ClipboardHistory.manager.pasteNext() end,
-      row = { category = "Clipboard", chord = "modifier", glyph = "⏩",
-        keywords = "paste next sequential walk history" },
-    },
-  },
-})
-registry.register({
-  name = "caffeinate", apiVersion = 1, hosted = true,
-  open = function() spoon.Caffeinate.show() end,
-  surface = function() return spoon.Caffeinate end,
-  row = { category = "System" },
-})
-registry.register({
-  name = "vpn", apiVersion = 1, hosted = true,
-  open = function() spoon.Vpn.show() end,
-  surface = function() return spoon.Vpn end,
-  row = { category = "Network" },
-})
-registry.register({
-  name = "colorPicker", apiVersion = 1, open = function() spoon.Eyedropper:pick() end,
-  row = { category = "Tools", glyph = "🎨" },
-})
-registry.register({
-  name = "emoji", apiVersion = 1, hosted = true,
-  open = function() spoon.Emoji:show() end,
-  surface = function() return spoon.Emoji:surface() end,
-  row = { category = "Tools" },
-})
-registry.register({
-  name = "dockAutoHide", apiVersion = 1, hosted = true, open = function() spoon.DockAutoHide:toggle() end,
-  row = { category = "System", detail = "hides or reveals the Dock", glyph = "🗄️",
-    keywords = "dock hide hiding autohide show" },
-})
-registry.register({
-  name = "displayProfiles", apiVersion = 1, open = function() spoon.DisplayProfiles.chooser.show() end,
-  surface = function() return spoon.DisplayProfiles.chooser end,
-  row = { category = "Displays", detail = "inspect and manage arrangements", glyph = "🖥️" },
-})
-registry.register({
-  name = "textCase", apiVersion = 1,
-  open = function() spoon.TextCase:show() end,
-  surface = function() return spoon.TextCase:surface() end,
-  row = { category = "Text", detail = "recase the selection in place", glyph = "🔠" },
-})
-registry.register({
-  name = "browserTabs", apiVersion = 1, hosted = true,
-  open = function() spoon.BrowserTabs:show() end,
-  surface = function() return spoon.BrowserTabs.chooser end,
-  row = { category = "Tools" },
-})
-registry.register({
-  name = "processes", apiVersion = 1, open = function() spoon.Processes.chooser.show() end,
-  surface = function() return spoon.Processes.chooser end,
-  row = { category = "System", detail = "stop a dev server, container, or watcher", glyph = "🔌",
-    keywords = "processes port node docker" },
-})
-registry.register({
-  name = "fileSearch", apiVersion = 1, hosted = true,
-  open = function() spoon.FileSearch.chooser.show() end,
-  surface = function() return spoon.FileSearch.chooser end,
-  row = { category = "Tools", keywords = "find files folders spotlight locate" },
-})
-
--- The activation list. settings.toolActivation is the default and lists all eleven, so
--- this machine's behaviour is identical to before this packet. The hs.settings key below
--- is the override a future roster writes, and nothing writes it yet.
-local ACTIVATION_SETTINGS_KEY = "registryActivation"
-registry.activate(hs.settings.get(ACTIVATION_SETTINGS_KEY) or settings.toolActivation)
-
--- Published here, both halves worth saying in one place. The composition root is
--- publishing what it built, so the inventory can read this registry live rather than
--- through the choosers pattern match further below, and the rule that a plugin never
--- reaches for spoon.Olm on its own is already enforced by src/check-dependencies.sh,
--- which is what makes opening this door safe rather than a second way for a plugin to
--- reach around its own configure.
-spoon.Olm.registry = registry
 
 spoon.Launcher:init()
 spoon.Launcher:configure({
@@ -2053,6 +1919,145 @@ local function launcherCatalogScope(name, kind)
     run = function(payload) spoon.Launcher:runItem(payload) end,
   })
 end
+
+-- The tool registry, phase seven of the build plan, packet one. A registration's open
+-- or command closure only runs long after this point, once the launcher row is chosen,
+-- so registering here, beside the actions.special table this replaces most of, costs
+-- nothing even though several of the spoons named below are configured further above.
+-- apiVersion is written as the literal 1 on every line rather than read from
+-- spoon.Olm.apiVersion, since a registration copying the core's own number can never
+-- mismatch and the check would then be theatre.
+--
+-- The eleven tools below are each keyed by the name their actions.special entry used
+-- before this packet, so no row descriptor anywhere changes. The clipboard also owns
+-- two commands, append copy and paste next, which are not tools of their own, carrying
+-- the comment that sat beside them before, and registering them here is what makes
+-- deactivating the clipboard take them with it.
+--
+-- Several of the tools below carry hosted = true, so their row normally never reaches
+-- run at all, the launcher hosts the tool's list instead, see the hosted test beside
+-- actions.rowIntercept further down. Opening the picker stays the answer for the one
+-- case hosting cannot happen, a scope holding no live alias, and it is also what the
+-- tool's own chord does, so nothing is lost by keeping the closure here even though it
+-- is rarely what actually answers the row.
+--
+-- Phase seven's second packet adds surface to nine of these, a function of no arguments
+-- handing back this tool's navigation adapter, and hosted, a plain boolean, to six.
+-- Every surface below is a closure and never the object itself, even the seven that are
+-- already a stable module reference and would survive either spelling, because the
+-- other two, emoji and textCase, build that object inside their own configure call
+-- further below this point and hand it back from a method, so capturing it now rather
+-- than when the shared nav registry actually asks would capture nothing at all,
+-- permanently and silently. Clipboard's own surface reads spoon.ClipboardHistory.manager
+-- directly rather than through the clipManager local the shared nav registry uses
+-- further below, since that local is declared after this point and is not yet in scope
+-- for a closure written here, the same ordering discipline in different clothes. Both
+-- names reach the identical object.
+-- Phase seven's third packet adds row to every registration below, the launcher row
+-- data that used to sit in host/launcher/init.lua's _buildActionRows as thirteen hand
+-- written add calls, one per tool plus the two clipboard commands. category is the word
+-- before the separator in the subtitle the launcher renders, required once row is
+-- present at all. keysName is only written on clipboard, the one tool whose row reads
+-- config/keys.lua under a different key, clipboardHistory, than its own registered name.
+-- chord is only written on the two clipboard commands below, since they are a modifier
+-- combination rather than a Hyper chord and their subtitle is built from that
+-- combination rather than from _chordLabel, and it must not be generalised to any other
+-- row. Everything else, detail, glyph, and keywords, is optional presentation data this
+-- registry never reads, meaningful only to the launcher's own addTool on the other end
+-- of rowFor.
+registry.register({
+  name = "clipboard",
+  apiVersion = 1,
+  open = function() spoon.ClipboardHistory:open() end,
+  surface = function() return spoon.ClipboardHistory.manager end,
+  row = { category = "Clipboard", glyph = "📋", keysName = "clipboardHistory" },
+  commands = {
+    -- Both act on the app that was frontmost before the launcher opened, append copy by
+    -- reading its selection. Every launcher row already runs deferred until focus has
+    -- gone back there, which is what keeps the selection intact, the same mechanism the
+    -- text case picker depends on.
+    appendCopy = {
+      fn = function() spoon.ClipboardHistory.manager.appendCopy() end,
+      row = { category = "Clipboard", chord = "modifier", glyph = "➕",
+        keywords = "append copy add selection accumulate" },
+    },
+    pasteNext = {
+      fn = function() spoon.ClipboardHistory.manager.pasteNext() end,
+      row = { category = "Clipboard", chord = "modifier", glyph = "⏩",
+        keywords = "paste next sequential walk history" },
+    },
+  },
+})
+registry.register({
+  name = "caffeinate", apiVersion = 1, hosted = true,
+  open = function() spoon.Caffeinate.show() end,
+  surface = function() return spoon.Caffeinate end,
+  row = { category = "System" },
+})
+registry.register({
+  name = "vpn", apiVersion = 1, hosted = true,
+  open = function() spoon.Vpn.show() end,
+  surface = function() return spoon.Vpn end,
+  row = { category = "Network" },
+})
+registry.register({
+  name = "colorPicker", apiVersion = 1, open = function() spoon.Eyedropper:pick() end,
+  row = { category = "Tools", glyph = "🎨" },
+})
+registry.register({
+  name = "emoji", apiVersion = 1, hosted = true,
+  open = function() spoon.Emoji:show() end,
+  surface = function() return spoon.Emoji:surface() end,
+  row = { category = "Tools" },
+})
+registry.register({
+  name = "dockAutoHide", apiVersion = 1, hosted = true, open = function() spoon.DockAutoHide:toggle() end,
+  row = { category = "System", detail = "hides or reveals the Dock", glyph = "🗄️",
+    keywords = "dock hide hiding autohide show" },
+})
+registry.register({
+  name = "displayProfiles", apiVersion = 1, open = function() spoon.DisplayProfiles.chooser.show() end,
+  surface = function() return spoon.DisplayProfiles.chooser end,
+  row = { category = "Displays", detail = "inspect and manage arrangements", glyph = "🖥️" },
+})
+registry.register({
+  name = "textCase", apiVersion = 1,
+  open = function() spoon.TextCase:show() end,
+  surface = function() return spoon.TextCase:surface() end,
+  row = { category = "Text", detail = "recase the selection in place", glyph = "🔠" },
+})
+registry.register({
+  name = "browserTabs", apiVersion = 1, hosted = true,
+  open = function() spoon.BrowserTabs:show() end,
+  surface = function() return spoon.BrowserTabs.chooser end,
+  row = { category = "Tools" },
+})
+registry.register({
+  name = "processes", apiVersion = 1, open = function() spoon.Processes.chooser.show() end,
+  surface = function() return spoon.Processes.chooser end,
+  row = { category = "System", detail = "stop a dev server, container, or watcher", glyph = "🔌",
+    keywords = "processes port node docker" },
+})
+registry.register({
+  name = "fileSearch", apiVersion = 1, hosted = true,
+  open = function() spoon.FileSearch.chooser.show() end,
+  surface = function() return spoon.FileSearch.chooser end,
+  row = { category = "Tools", keywords = "find files folders spotlight locate" },
+})
+
+-- The activation list. settings.toolActivation is the default and lists all eleven, so
+-- this machine's behaviour is identical to before this packet. The hs.settings key below
+-- is the override a future roster writes, and nothing writes it yet.
+local ACTIVATION_SETTINGS_KEY = "registryActivation"
+registry.activate(hs.settings.get(ACTIVATION_SETTINGS_KEY) or settings.toolActivation)
+
+-- Published here, both halves worth saying in one place. The composition root is
+-- publishing what it built, so the inventory can read this registry live rather than
+-- through the choosers pattern match further below, and the rule that a plugin never
+-- reaches for spoon.Olm on its own is already enforced by src/check-dependencies.sh,
+-- which is what makes opening this door safe rather than a second way for a plugin to
+-- reach around its own configure.
+spoon.Olm.registry = registry
 
 local queryScopes = {
   scope("caffeinate", {
