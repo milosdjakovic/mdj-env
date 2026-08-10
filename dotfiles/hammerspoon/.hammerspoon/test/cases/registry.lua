@@ -227,7 +227,7 @@ end
 -- Inactive answers, a registered tool left out of the activation list.
 do
   local r = freshRegistry(1)
-  r.register({ name = "vpn", apiVersion = 1, open = function() end })
+  r.register({ name = "vpn", apiVersion = 1, hosted = true, open = function() end, surface = function() end })
   r.register({ name = "emoji", apiVersion = 1, open = function() end })
   r.activate({ "vpn" })
 
@@ -240,6 +240,17 @@ do
 
   local all = r.all()
   check("all lists every registered tool regardless of active state", #all == 2)
+
+  local byName = {}
+  for _, tool in ipairs(all) do byName[tool.name] = tool end
+  check(
+    "all reports surface presence and the hosted flag for the tool that declared both",
+    byName.vpn.active == true and byName.vpn.surface == true and byName.vpn.hosted == true
+  )
+  check(
+    "all reports surface absence and hosted false for the tool that declared neither",
+    byName.emoji.active == false and byName.emoji.surface == false and byName.emoji.hosted == false
+  )
 end
 
 -- A command dispatching through its owning tool, and following its tool's active
@@ -308,6 +319,23 @@ do
   local out = r.surfaces({ "vpn" })
   check("an inactive tool's surface contributes nothing to the list", #out == 0)
   check("an inactive tool's surface is skipped without logging anything", #warnings == 0)
+end
+
+-- surfaces(spec), an active tool with no surface at all is not the same as an inactive
+-- one and must not share its silence. Naming a tool with nothing to navigate in a
+-- navigation list is a mistake, so this logs one warning naming the tool, set directly
+-- against the inactive case above to make the contrast provable in one file.
+do
+  local r, warnings = freshRegistry(1)
+  r.register({ name = "colorPicker", apiVersion = 1, open = function() end })
+  r.activate({ "colorPicker" })
+  local out = r.surfaces({ "colorPicker" })
+  check("an active tool with no surface contributes nothing to the list", #out == 0)
+  check(
+    "an active tool with no surface is warned about by name",
+    found(warnings, "colorPicker"),
+    table.concat(warnings, " | ")
+  )
 end
 
 -- surfaces(spec), a name nothing registered is skipped and logs one warning naming it.

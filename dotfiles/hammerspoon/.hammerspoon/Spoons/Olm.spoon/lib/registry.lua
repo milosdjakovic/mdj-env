@@ -77,26 +77,34 @@
 -- something and false when it did not, which is what lets a caller fall through.
 -- get(name) hands back the descriptor of an active tool or nil, and answers nil for a
 -- command name, since a command is not a tool. active() lists active tool names in
--- registration order. all() lists every registered tool name with its active flag, for
--- diagnostics only. An inactive tool answers nil and false to every read except all().
--- That is the whole of what inactive means in this packet. It does not yet unbind a
--- chord or remove a row, and later packets are what finish it.
+-- registration order. all() lists every registered tool name with its active flag, and,
+-- since phase seven's second packet, whether it declared a surface and whether it
+-- declared hosted, all four for diagnostics only and all four presence rather than
+-- resolved value, since asking a live surface to resolve itself at snapshot time would
+-- ask the question at a different moment than the live code asks it and could disagree
+-- with it for reasons that are not defects. An inactive tool answers nil and false to
+-- every read except all(). That is the whole of what inactive means in this packet. It
+-- does not yet unbind a chord or remove a row, and later packets are what finish it.
 --
 -- surfaces(spec), added in phase seven's second packet, takes an ordered list and
 -- answers an ordered list. A string entry names a registered tool, and resolves to that
 -- tool's surface when the tool is active and has one, is skipped silently when the tool
 -- is registered and inactive, since that is what inactive already means, and logs one
--- warning naming it when nothing is registered under that name at all. When a named
--- tool's surface is resolved and the result is missing, or is present but has no
--- isShowing, one warning names the tool and it is skipped the same way, so a hazard that
--- would otherwise be silent is loud at the moment it happens. Any entry that is not a
--- string passes straight through unexamined, which is how a surface with no tool behind
--- it, built from root local code with no descriptor of its own, keeps its place in the
--- list. The mix is deliberate. A string names something this registry knows about. Any
--- other value is an object the composition root holds and this registry has never heard
--- of, and passing it through untouched is the whole of what it owes that object.
--- Resolution happens inside this call and never at registration, which is the same
--- discipline the surface field itself observes above.
+-- warning naming it when nothing is registered under that name at all. An active tool
+-- with no surface at all is neither of those legitimate cases, somebody named a tool in
+-- a navigation list that has nothing to navigate, so this too logs one warning naming
+-- the tool and is skipped, matching the shape of the two warnings beside it rather than
+-- falling off the end of the check in silence. When a named tool's surface is resolved
+-- and the result is missing, or is present but has no isShowing, one warning names the
+-- tool and it is skipped the same way, so a hazard that would otherwise be silent is
+-- loud at the moment it happens. Any entry that is not a string passes straight through
+-- unexamined, which is how a surface with no tool behind it, built from root local code
+-- with no descriptor of its own, keeps its place in the list. The mix is deliberate. A
+-- string names something this registry knows about. Any other value is an object the
+-- composition root holds and this registry has never heard of, and passing it through
+-- untouched is the whole of what it owes that object. Resolution happens inside this
+-- call and never at registration, which is the same discipline the surface field itself
+-- observes above.
 --
 -- Every function below is a plain field on the returned instance and is meant to be dot
 -- called, matching lib/recency.lua exactly, never colon called, since there is no
@@ -238,12 +246,21 @@ function M.new(opts)
   end
 
   --- instance.all()
-  --- Every registered tool name with its active flag, in registration order, for
-  --- diagnostics only.
+  --- Every registered tool name with its active flag, whether it declared a surface,
+  --- and whether it declared hosted, in registration order, for diagnostics only.
+  --- surface and hosted report presence on the descriptor rather than a resolved value,
+  --- since resolving a surface here would ask the question at a different moment than
+  --- the live code asks it.
   function instance.all()
     local out = {}
     for _, name in ipairs(order) do
-      out[#out + 1] = { name = name, active = activeTools[name] == true }
+      local descriptor = toolsByName[name]
+      out[#out + 1] = {
+        name = name,
+        active = activeTools[name] == true,
+        surface = descriptor.surface ~= nil,
+        hosted = descriptor.hosted == true,
+      }
     end
     return out
   end
@@ -268,7 +285,13 @@ function M.new(opts)
         if not descriptor then
           log.w(string.format(
             "Registry surfaces found no tool registered under '%s'", entry))
-        elseif activeTools[entry] and descriptor.surface then
+        elseif not activeTools[entry] then
+          -- Inactive is the legitimate silent case, the same nil-and-false every other
+          -- read already answers for it, so nothing is logged and nothing is added.
+        elseif not descriptor.surface then
+          log.w(string.format(
+            "Registry surfaces skipped '%s', it is active and declared no surface to navigate", entry))
+        else
           local surface = descriptor.surface()
           if type(surface) == "table" and type(surface.isShowing) == "function" then
             out[#out + 1] = surface
