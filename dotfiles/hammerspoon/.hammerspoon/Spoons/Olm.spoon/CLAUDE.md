@@ -88,14 +88,19 @@ for, held keys and all, and a real app copies and pastes happily with a chord as
 that pasted through three delivery mechanisms during a genuine physical hold had all three arrive,
 including the plain `keyStroke`. So nothing waits for a release, and neither key needs one.
 
-That does not make a synthetic stroke against a held chord reliable, and it is not. The walk sent
-one Cmd+V per step into Antinote, with the log showing every write, every stroke and `held=alt+ctrl`
-each time, and not one of them pasted anything. The stroke goes out and the app simply does not act
-on it. No delay fixes that, because the app is not being asked too early, it is refusing. It arrived
-once in a probe and never in real use, so the conclusion is that it cannot be relied on and not that
-it never works, and rather than chase which apps behave which way, text now avoids the keyboard
-entirely. What remains behind a synthetic stroke is an image or a file, where there is no
-alternative, and that is worth knowing when one of those does not land during a hold.
+That does not mean a synthetic stroke against a held chord cannot be relied on, only that a delay
+cannot make it reliable. The walk sent one Cmd+V per step into Antinote, with the log showing every
+write, every stroke and `held=alt+ctrl` each time, and not one of them pasted anything through
+`keyStroke`. The app was not being asked too early, it was refusing a stroke posted to the system
+while the chord asking for it was still held. What answers that is where the stroke lands rather
+than when. A probe posting the same stroke straight to the frontmost application, built with
+`hs.eventtap.event.newKeyEvent` in place of `keyStroke`, pasted consistently in that same terminal
+at every speed tried, with the same keys held every time, after the identical stroke through
+`keyStroke` had been refused on every attempt. `lib/paste.lua` posts there now, reaching for the
+frontmost application at the moment of the stroke and keeping `keyStroke` only as the fallback for
+the one case where there is no frontmost application to post to. So a physically held chord no
+longer needs its keys lifted for either key to land, and the Cmd+C that reads a selection gets the
+same correction through the same funnel with no separate work.
 
 **The beat before a stroke.** What does interfere is posting the stroke in the same instant the
 key that asked for it is still being delivered, and that alone was the bug. The paste path always

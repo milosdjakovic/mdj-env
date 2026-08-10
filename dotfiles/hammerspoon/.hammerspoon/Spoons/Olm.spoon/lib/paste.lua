@@ -231,10 +231,17 @@ end
 -- clearing the modifier state around the stroke, which does take a hand built flagsChanged event
 -- since a key event on a modifier keycode changes nothing, cannot be timed correctly, because the
 -- app processes the stroke long after the restore has already run. A real app copied happily with
--- the state asserted anyway. So the interference, if any, is the physically held keys rather than
--- the state, and a physically held key cannot be lifted from here. Whoever binds the key waits for
--- the release instead, which is where that decision belongs, since a caller with nothing held must
--- not wait at all.
+-- the state asserted anyway. Both attempts stay recorded here because they say what does not work.
+--
+-- What was measured instead is that the interference is the delivery and never the modifiers. A
+-- stroke posted to the system through keyStroke was ignored by a terminal on every attempt while
+-- the chord asking for it was still held, and the same stroke posted straight to the frontmost
+-- application landed on every attempt with the same keys held. So a physically held key never has
+-- to be lifted and nothing here waits for a release. The stroke below posts a key down and a key
+-- up to the frontmost application, reached for at the moment of the stroke rather than earlier,
+-- and falls back to keyStroke only for the one case where there is no frontmost application to
+-- post to. The Cmd+C that reads a selection goes through this same stroke, so append copy on the
+-- same chord gets this same correction with no separate work.
 local clearableMods = { "cmd", "alt", "ctrl", "shift" }
 
 local function heldModifiers()
@@ -252,7 +259,13 @@ end
 -- caller can report it when the stroke visibly did not land.
 local function stroke(mods, key)
   local held = heldModifiers()
-  hs.eventtap.keyStroke(mods, key, 0)
+  local app = hs.application.frontmostApplication()
+  if app then
+    hs.eventtap.event.newKeyEvent(mods, key, true):post(app)
+    hs.eventtap.event.newKeyEvent(mods, key, false):post(app)
+  else
+    hs.eventtap.keyStroke(mods, key, 0)
+  end
   return held
 end
 
