@@ -405,3 +405,13 @@ provenance sentence in each of Olm's own lib, host, and plugin files now says in
 tense where the code came from instead of claiming the original still lives at its old
 path. The validate and retire loop is complete, every original spoon is retired, and
 only the merge to main and phase seven remain.
+
+A fault reported afterward sat outside that loop entirely, since every original spoon was
+already gone. Sequential paste delivered nothing at all in Ghostty while working in every
+other app, and a lossless trace showed the fallback Cmd+V leaving while the chord that
+asked for it was still physically held, with the terminal simply never acting on it. A
+throwaway probe posting the same stroke straight to the frontmost application, in place of
+the same stroke through keyStroke to the system, pasted consistently at every speed tried
+with the same keys held, so the funnel in lib/paste.lua now posts there and keeps keyStroke
+only as its fallback for the one case with no frontmost application to post to. That landed
+on feat/olm at merge commit e402d83fddd2918149a9a9630583f61dd21b6adc.
