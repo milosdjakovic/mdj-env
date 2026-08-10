@@ -211,6 +211,13 @@ it once for each tool, since the root is the only layer that knows a concrete to
 A third party plugin from the search path would call the same door itself, one door, two callers,
 and the door does not care which one knocked.
 
+**`all()` and what it is for.** `all()` lists every registered tool name in registration order
+with its active flag, and, since this packet, whether it declared a `surface` and whether it
+declared `hosted`, all for diagnostics only. Both new fields report presence on the descriptor
+rather than a resolved value, so the answer never depends on the moment it was asked, which is
+what lets `test/inventory.lua` read it live and hold the shape of every descriptor in the
+committed golden rather than only its name and its active flag.
+
 **What inactive means today, and what it does not yet mean.** `activate(names)` takes a list of
 tool names and is called once after every registration. A registered tool whose name is in the
 list is active, one not in the list is registered and inactive, and a name in the list that
@@ -251,12 +258,15 @@ rule with no exceptions to remember.
 
 **The `surfaces` accessor.** `surfaces(spec)` takes an ordered list and answers an ordered list.
 A string entry names a registered tool and resolves to that tool's surface when the tool is
-active and has one, is skipped silently when the tool is registered but inactive since that is
-what inactive already means everywhere else in this file, and logs one warning naming it when
-nothing is registered under that name at all. When a named tool's surface resolves to something
-missing, or present but with no `isShowing`, one warning names the tool and it is skipped the
-same way, so the exact hazard the closure discipline above guards against is loud the moment it
-would otherwise have been invisible. Resolution happens inside this call and never at
+active and has one. Only one of the ways a string can fail to resolve stays quiet on purpose, a
+tool that is registered but inactive, since that is what inactive already means everywhere else
+in this file. The other three all warn naming the tool and skip. Nothing registered under that
+name at all warns. An active tool that declared no `surface` warns too, a case a first pass at
+this accessor let fall off the end of the check in silence, which was wrong, naming a tool in a
+navigation list with nothing to navigate is a mistake and not the same silence inactive earns. And
+a named tool's surface resolving to something missing, or present but with no `isShowing`, warns
+the same way, so the exact hazard the closure discipline above guards against is loud the moment
+it would otherwise have been invisible. Resolution happens inside this call and never at
 registration, which is the same discipline stated a second way.
 
 **What the mixed spec list means.** Any entry in `spec` that is not a string passes straight
