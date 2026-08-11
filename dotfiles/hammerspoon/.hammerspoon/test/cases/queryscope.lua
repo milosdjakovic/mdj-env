@@ -217,15 +217,17 @@ do
 end
 
 -- The composition root's own hosted rowsFor keeps a verb row only when the tool's own verbs
--- table declares that action, a bare function or a table with a callable fn, and qualifies its
--- chord with the tool's own description so the row never claims a chord that only works
--- elsewhere. This asks the verbs table directly rather than through verbFor, since rowsFor
--- would otherwise have to build a scope row for every context to ask, and eleven of the twelve
--- name no scope at all, which would log verbFor's own unknown scope warning on every one of
--- them for a question that is presentation only and never touches a real row. The shape
--- check below is reproduced from lib/registry.lua's own verbParts, since that is what a live
--- verbs table actually holds, this module's own verbFor recognises the same shape, and this
--- block exists to prove the two answer alike rather than to invent a third opinion about it.
+-- table declares that action at all, a presence check rather than a shape check, since
+-- lib/registry.lua already refuses every shape but a table carrying fn plus a required closes
+-- by the time anything registers, so checking the shape a second time here would be a third
+-- place in the tree that knows what a verb entry looks like. It qualifies the kept row's chord
+-- with the tool's own description so it never claims a chord that only works elsewhere, and
+-- carries the verb's own closes straight off the same table the presence check just found,
+-- guaranteed by the registry to be a real boolean by now. This asks the verbs table directly
+-- rather than through verbFor, since rowsFor would otherwise have to build a scope row for
+-- every context to ask, and eleven of the twelve name no scope at all, which would log
+-- verbFor's own unknown scope warning on every one of them for a question that is presentation
+-- only and never touches a real row.
 do
   local qs = freshModule()
   local verbs = {
@@ -237,15 +239,14 @@ do
     { action = "revealInFinder", chord = "Hyper+O" },
     { action = "browseInto", chord = "Hyper+L" },
   }
-  local function hostedVerbDeclared(spec)
-    if type(spec) == "function" then return true end
-    return type(spec) == "table" and type(spec.fn) == "function"
+  local function hostedVerbDeclared(action)
+    return verbs ~= nil and verbs[action] ~= nil
   end
   local function hostedRows(description)
     local out = {}
     for _, b in ipairs(bindings) do
-      if hostedVerbDeclared(verbs[b.action]) then
-        out[#out + 1] = { action = b.action, chord = b.chord .. " in " .. description }
+      if hostedVerbDeclared(b.action) then
+        out[#out + 1] = { action = b.action, chord = b.chord .. " in " .. description, closes = verbs[b.action].closes }
       end
     end
     return out
@@ -259,14 +260,15 @@ do
     "a kept row's chord is qualified with the tool's own description",
     rows[1].chord == "Hyper+O in File search"
   )
+  check("a kept row carries the verb's own closes", rows[1].closes == true)
 
   local item = { kind = "scope", scope = "fileSearch", payload = {} }
   check(
-    "the shape check agrees with this module's own verbFor for a declared action",
-    (qs:verbFor(item, "revealInFinder") ~= nil) == hostedVerbDeclared(verbs.revealInFinder)
+    "the presence check agrees with this module's own verbFor for a declared action",
+    (qs:verbFor(item, "revealInFinder") ~= nil) == hostedVerbDeclared("revealInFinder")
   )
   check(
-    "the shape check agrees with this module's own verbFor for an undeclared action",
-    (qs:verbFor(item, "browseInto") ~= nil) == hostedVerbDeclared(verbs.browseInto)
+    "the presence check agrees with this module's own verbFor for an undeclared action",
+    (qs:verbFor(item, "browseInto") ~= nil) == hostedVerbDeclared("browseInto")
   )
 end

@@ -723,33 +723,34 @@ end
 -- the launcher whether it is currently hosting anything, which is what lets test/inventory.lua
 -- ask for the hosted rows of every context with nothing open at all, exactly as it already asks
 -- for the ordinary rows of all twelve. When true, a verb row survives only when
--- spoon.Olm.registry.scopeFor(contextName) names a scope whose own verbs table answers a
--- function for that action, so a hosted list offers exactly what QueryScope:verbFor would later
--- answer non nil for and nothing it would answer nil for, the same rule the root's own run
--- follows below. Read live through the global rather than through a local this function could
--- capture, since spoon.Olm.registry is assigned far below this point in the file and reaching
--- for the local instead would be the exact ordering hazard this phase's own hazards warn about,
--- where reaching for the global costs nothing because this function is only ever called long
--- after every registration has already run. A kept row's chord is qualified with the tool's own
+-- spoon.Olm.registry.scopeFor(contextName) names a scope whose own verbs table declares that
+-- action at all, so a hosted list offers exactly what QueryScope:verbFor would later answer non
+-- nil for and nothing it would answer nil for, the same rule the root's own run follows below.
+-- Read live through the global rather than through a local this function could capture, since
+-- spoon.Olm.registry is assigned far below this point in the file and reaching for the local
+-- instead would be the exact ordering hazard this phase's own hazards warn about, where
+-- reaching for the global costs nothing because this function is only ever called long after
+-- every registration has already run. A kept row's chord is qualified with the tool's own
 -- description from config/keys.lua, so the row reads as the chord followed by the name of the
 -- list it belongs to, honest about a chord that will not fire until that tool is reached
--- directly.
+-- directly. A kept row also carries the verb's own closes, so whether the row would close the
+-- list it ran against is a fact the row states rather than a fact the row keeps to itself the
+-- way it did before this became visible in the inventory too.
 --
--- Whether a verbs table declares anything at all for an action, a bare function or a table
--- carrying that function under fn, the same dual shape lib/registry.lua's own verbParts
--- recognises and the shape a live scope actually holds either way. This asks only whether a
--- verb exists, never what it does or whether it closes, since rowsFor only ever needs to know
--- whether to list the row, and reading verbs by hand here rather than asking
--- spoon.QueryScope:verbFor is what keeps this presentation only question from logging a
+-- Whether a verbs table declares anything at all for an action. A presence check rather than
+-- a shape check, because lib/registry.lua already refuses every shape but a table carrying fn
+-- plus a required closes, a bare function among the refused ones since it can never say
+-- closes, so the only thing a scope that actually registered can hold here is that one table
+-- shape. Checking the shape again here would be a third place in this tree that knows what a
+-- verb entry looks like, and the registry is the one place that should, so this only asks
+-- whether the action is a key in the table at all. Reading verbs by hand here rather than
+-- asking spoon.QueryScope:verbFor is what keeps this presentation only question from logging a
 -- console warning for every one of the eleven contexts that name no scope at all, which
 -- QueryScope's own routing would do, being built to warn about a row naming an unknown scope,
 -- a mistake this function never makes since it is only ever asking about the verbs table
 -- registry.scopeFor already resolved for a real tool.
 local function hostedVerbDeclared(verbs, action)
-  if not verbs then return false end
-  local spec = verbs[action]
-  if type(spec) == "function" then return true end
-  return type(spec) == "table" and type(spec.fn) == "function"
+  return verbs ~= nil and verbs[action] ~= nil
 end
 
 -- The Back row is built here too, rather than left for each caller to add a second time, since
@@ -773,11 +774,18 @@ local function rowsFor(contextName, hosted)
       for _, b in ipairs(spoon.ActionPanel:verbsIn(ctx.bindings)) do
         if bindingApplies(b) and (not hosted or hostedVerbDeclared(verbs, b.action)) then
           local chord = chordFor(b)
+          -- closes rides on the row only while hosted, read straight off the same table
+          -- hostedVerbDeclared just proved holds this action, guaranteed by the registry to
+          -- carry a real boolean by now. An ordinary, non hosted row carries no closes at
+          -- all, since that question belongs to a scope's own verb and an ordinary verb is
+          -- not one.
+          local closes
           if hosted then
             chord = chord .. " in " .. ((keys[contextName] or {}).description or contextName)
+            closes = verbs[b.action].closes
           end
           rows[#rows + 1] = { action = b.action, title = labelFor(b, contextName), chord = chord,
-                              glyph = b.glyph }
+                              glyph = b.glyph, closes = closes }
         end
       end
     end
