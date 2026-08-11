@@ -268,12 +268,14 @@ in the config loads from Olm, and the only remaining `hs.loadSpoon` call is Olm'
 
 ## Phase 7, the plugin contract
 
-- [ ] Packet, dispatch by plugin name, the registration door, the api version check, the
-      activation list read.
-- [ ] Build, QA, rework.
-- [ ] Gate, an empty inventory diff, plus two deliberate failures refused readably, an activation
+- [x] Packet, dispatch by plugin name, the registration door, the api version check, the
+      activation list read. Became five packets rather than one, the registry itself, then
+      surfaces, catalog rows, scopes, and the dedicated shortcut folded onto the descriptor one
+      at a time.
+- [x] Build, QA, rework.
+- [x] Gate, an empty inventory diff, plus two deliberate failures refused readably, an activation
       list naming a plugin that is not there, and a plugin declaring an api version too old.
-- [ ] Live test, land.
+- [x] Live test, land.
 
 ## Phase 8, the action panel
 
