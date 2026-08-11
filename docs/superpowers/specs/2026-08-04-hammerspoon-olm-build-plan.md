@@ -291,6 +291,14 @@ in the config loads from Olm, and the only remaining `hs.loadSpoon` call is Olm'
 
 ## Phase 9, snippets, the first plugin born inside olm
 
+**Deferred on 2026-08-11 by the user's decision, phase 10 runs first.** Nothing about the phase
+changed and nothing here is abandoned, only its place in the order. The reasoning for building it
+after the contract still holds and will still hold whenever it is picked up, so read this section
+as written rather than as stale. The one thing the deferral costs is that phase 10's sweeps land
+before the contract has been tested by a plugin written inside it rather than adapted into it, so
+if snippets later needs a special case, that is still a finding against the contract and phase 10
+having already run does not make it a snippets problem.
+
 The real test of the contract, everything before it was adapted to fit.
 
 - [ ] Packet, store, surface, git versioning module, `DEPENDENCIES` beside it, one file per
