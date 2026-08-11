@@ -735,6 +735,23 @@ end
 -- list it belongs to, honest about a chord that will not fire until that tool is reached
 -- directly.
 --
+-- Whether a verbs table declares anything at all for an action, a bare function or a table
+-- carrying that function under fn, the same dual shape lib/registry.lua's own verbParts
+-- recognises and the shape a live scope actually holds either way. This asks only whether a
+-- verb exists, never what it does or whether it closes, since rowsFor only ever needs to know
+-- whether to list the row, and reading verbs by hand here rather than asking
+-- spoon.QueryScope:verbFor is what keeps this presentation only question from logging a
+-- console warning for every one of the eleven contexts that name no scope at all, which
+-- QueryScope's own routing would do, being built to warn about a row naming an unknown scope,
+-- a mistake this function never makes since it is only ever asking about the verbs table
+-- registry.scopeFor already resolved for a real tool.
+local function hostedVerbDeclared(verbs, action)
+  if not verbs then return false end
+  local spec = verbs[action]
+  if type(spec) == "function" then return true end
+  return type(spec) == "table" and type(spec.fn) == "function"
+end
+
 -- The Back row is built here too, rather than left for each caller to add a second time, since
 -- a second copy of it in the inventory section is exactly the drift this whole approach exists
 -- to prevent. It carries no action, which is what marks it Back rather than a verb to the panel,
@@ -754,7 +771,7 @@ local function rowsFor(contextName, hosted)
   for _, ctx in ipairs(keys.hyperContexts or {}) do
     if ctx.name == contextName then
       for _, b in ipairs(spoon.ActionPanel:verbsIn(ctx.bindings)) do
-        if bindingApplies(b) and (not hosted or (verbs and type(verbs[b.action]) == "function")) then
+        if bindingApplies(b) and (not hosted or hostedVerbDeclared(verbs, b.action)) then
           local chord = chordFor(b)
           if hosted then
             chord = chord .. " in " .. ((keys[contextName] or {}).description or contextName)
@@ -2345,10 +2362,28 @@ registry.register({
     -- driving the launcher's own page mechanism rather than this scope's. That is a real design
     -- question of its own and not this packet's to decide, so it stays out rather than being
     -- guessed at.
+    --
+    -- Each entry carries its own closes, required rather than defaulted, since whether
+    -- running a verb should close the list it ran against is a property of the verb and not
+    -- of whatever routed to it, and the root's run only ever asks the verb rather than
+    -- deciding on its behalf. Reveal and copy path close, the same as choosing a row does and
+    -- the same as this picker's own reveal and copyPath already do through M.hide. Quick Look
+    -- does not, because peeking is a look and keep browsing verb, the whole reason it exists is
+    -- that the list stays behind it, and closing the list here would tear the very preview it
+    -- just opened straight back down through the launcher's own onClose a few lines above.
+    --
+    -- peekPreview pointing at peekRow here is not a second route to the same key. Launcher's
+    -- own peekSelected and canPeekSelected, in host/launcher/init.lua, exist and are bound to
+    -- nothing anywhere in config/keys.lua, so scope.peek above is a capability that has been
+    -- sitting unreachable since it was written, and this panel is the first thing that has
+    -- ever called it. scope.peek is the route a caller narrowing to one row without choosing
+    -- it would use, and scope.verbs.peekPreview is the action panel's own route, reached
+    -- through a bound chord rather than through Launcher's still uncalled pair, so the two
+    -- point at the same function without being redundant.
     verbs = {
-      revealInFinder = function(payload) spoon.FileSearch.chooser.revealRow(payload) end,
-      copyPath = function(payload) spoon.FileSearch.chooser.copyPathRow(payload) end,
-      peekPreview = function(payload) spoon.FileSearch.chooser.peekRow(payload) end,
+      revealInFinder = { fn = function(payload) spoon.FileSearch.chooser.revealRow(payload) end, closes = true },
+      copyPath = { fn = function(payload) spoon.FileSearch.chooser.copyPathRow(payload) end, closes = true },
+      peekPreview = { fn = function(payload) spoon.FileSearch.chooser.peekRow(payload) end, closes = false },
     },
   },
 })
@@ -2793,19 +2828,33 @@ local actionKinds = {
 -- through to contextActions exactly as before this packet, no branch on whether anything is
 -- hosted needed anywhere.
 --
--- Running the verb closes the chooser it ran against, the same way choosing that scope row
--- directly already would, since ActionPanel's own _leave keeps the chooser open on every path
--- and a hosted verb is otherwise the one way to act on a row without the launcher ever
--- completing a selection. contextActions.closeChooser is reused rather than duplicated here,
--- so this and the chord both close a chooser through the exact same call.
+-- Whether running the verb closes the chooser it ran against is asked of the verb itself,
+-- never decided here. verbFor's own second answer, closes, is read straight off the entry the
+-- tool declared, required rather than defaulted, since that is a property of the verb and not
+-- of this routing. Reveal and copy path close, the same way choosing that scope row directly
+-- already would and the same way this picker's own reveal and copyPath already do, since
+-- ActionPanel's own _leave otherwise keeps the chooser open on every path and a hosted verb
+-- would be the one way to act on a row without the launcher ever completing a selection. Quick
+-- Look does not, since closing here would tear the very preview it just opened straight back
+-- down through the launcher's own onClose. contextActions.closeChooser is reused rather than
+-- duplicated here, so this and the chord both close a chooser through the exact same call.
+--
+-- verb and closes are read into locals from an if rather than from `item and
+-- spoon.QueryScope:verbFor(...)` on one line, because and truncates a multiple return down to
+-- one value the moment it sits inside a larger expression, which would have made closes answer
+-- nil forever, silently, exactly the kind of legitimate looking mistake this phase's own
+-- hazards warn about.
 spoon.ActionPanel:configure({
   kindOf = function(action) return actionKinds[action] end,
   rowsFor = rowsFor,
   run = function(action, item)
-    local verb = item and spoon.QueryScope:verbFor(item, action)
+    local verb, closes
+    if item then
+      verb, closes = spoon.QueryScope:verbFor(item, action)
+    end
     if verb then
       verb()
-      contextActions.closeChooser()
+      if closes then contextActions.closeChooser() end
       return
     end
     local fn = contextActions[action]
