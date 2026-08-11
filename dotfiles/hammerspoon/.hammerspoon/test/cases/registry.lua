@@ -609,31 +609,74 @@ do
   )
 end
 
--- Refusal, a scope's verbs entry that is not a function, naming the tool and the action.
+-- Refusal, a scope's verbs entry that is neither a bare function nor a table with a callable
+-- fn, naming the tool and the action.
 do
   local r, warnings = freshRegistry(1)
   local ok = r.register({
     name = "fileSearch", apiVersion = 1,
     scope = { rows = function() end, run = function() end,
-      verbs = { revealInFinder = function() end, copyPath = "not a function" } },
+      verbs = { revealInFinder = { fn = function() end, closes = true }, copyPath = "not a function or a table" } },
   })
-  check("a scope whose verbs entry is not a function is refused", ok == false)
+  check("a scope whose verbs entry is neither a function nor a table with a callable fn is refused", ok == false)
   check(
-    "the refusal names the tool and the action whose verb is not a function",
+    "the refusal names the tool and the action whose verb is the wrong shape",
     found(warnings, "fileSearch") and found(warnings, "copyPath"),
     table.concat(warnings, " | ")
   )
 end
 
--- A scope whose verbs are all functions registers.
+-- Refusal, a verbs entry that declares neither, a bare function carrying no closes at all,
+-- since closes has no default and a verb that never says whether it closes is refused rather
+-- than guessed at.
+do
+  local r, warnings = freshRegistry(1)
+  local ok = r.register({
+    name = "fileSearch", apiVersion = 1,
+    scope = { rows = function() end, run = function() end,
+      verbs = { revealInFinder = function() end } },
+  })
+  check("a verbs entry spelled as a bare function, declaring no closes, is refused", ok == false)
+  check(
+    "the refusal names the tool, the action, and says it does not say whether it closes the list",
+    found(warnings, "fileSearch") and found(warnings, "revealInFinder")
+      and found(warnings, "does not say whether it closes the list"),
+    table.concat(warnings, " | ")
+  )
+end
+
+-- Refusal, a verbs entry whose table carries a callable fn but a closes that is present and
+-- not a boolean, the second way to declare neither.
+do
+  local r, warnings = freshRegistry(1)
+  local ok = r.register({
+    name = "fileSearch", apiVersion = 1,
+    scope = { rows = function() end, run = function() end,
+      verbs = { copyPath = { fn = function() end, closes = "not a boolean" } } },
+  })
+  check("a verbs entry whose closes is present and is not a boolean is refused", ok == false)
+  check(
+    "the refusal names the tool, the action, and says it does not say whether it closes the list",
+    found(warnings, "fileSearch") and found(warnings, "copyPath")
+      and found(warnings, "does not say whether it closes the list"),
+    table.concat(warnings, " | ")
+  )
+end
+
+-- A verb declared as closing, and a verb declared as not closing, both register, side by side
+-- so one true and one false are both proven rather than only the one that happens to be
+-- truthy.
 do
   local r = freshRegistry(1)
   local ok = r.register({
     name = "fileSearch", apiVersion = 1,
     scope = { rows = function() end, run = function() end,
-      verbs = { revealInFinder = function() end, copyPath = function() end } },
+      verbs = {
+        revealInFinder = { fn = function() end, closes = true },
+        peekPreview = { fn = function() end, closes = false },
+      } },
   })
-  check("a scope whose verbs are all functions registers", ok == true)
+  check("a scope whose verbs each state their own closes, true and false alike, registers", ok == true)
 end
 
 -- A well formed scope registers, with matcher, peek, redirect, and act all present.
