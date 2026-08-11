@@ -403,6 +403,29 @@ or nil, in the same shape `rowFor` already answers, resolved through the same fl
 inactive tool, an unknown name, and a command name all answer nil, a command's answer nil because
 nothing in this packet gives a command its own scope, only a tool's own entry carries one.
 
+**The scope gains `verbs`, phase eight's fourth packet.** Optional, a map from an action name to
+what running it takes, the tool saying once which of its verbs make sense when a hosted list is
+holding its rows rather than its own picker. Each entry is a bare function or a table carrying
+that function under `fn` plus a required `closes`, saying whether running this verb should close
+the list it ran against, the same dual shape a `commands` entry already takes, with one
+difference. A bare command means run it and nothing else needs saying. A bare verb cannot mean
+the whole of what a verb is, because `closes` has no default, the same choice this configuration
+already made for a binding's own `kind`, so a verb that never says whether it closes is refused
+rather than joining whichever side is convenient the day it is added. File search is the only tool
+that declares any today, three entries, `revealInFinder` and `copyPath` closing, `peekPreview` not,
+each calling straight into the plugin's own row taking entry point. Validated two levels deeper
+than the other scope fields, since it holds a table of its own shapes rather than being one, a
+`verbs` present and not a table is refused naming the tool, a `verbs` entry that is neither a bare
+function nor a table with a callable `fn` is refused naming the tool and the action, and a `verbs`
+entry whose `closes` is missing or is not a boolean is refused the same way, naming the tool and
+the action. The composition root's own `scope(name, opts)` helper, which joins the identity fields
+onto whatever a registration's `scope` carries, passes `verbs` straight through the same way it
+already passes the other four, since leaving it out there would mean a declared verb never
+reached the assembled scope `QueryScope` actually holds, a legitimate looking descriptor whose
+`QueryScope:verbFor` answered nil forever with nothing anywhere saying why. See
+`host/queryscope/CLAUDE.md` for `verbFor` itself and `host/actionpanel/CLAUDE.md` for how the
+action panel reaches it.
+
 **Why menu search could not be registered before this packet, and can now.** It has a surface, a
 scope, an open predicate, and a chord, everything a registered tool has except a launcher row,
 which is exactly what a tool that is reachable only as a scope is meant to look like. What blocked

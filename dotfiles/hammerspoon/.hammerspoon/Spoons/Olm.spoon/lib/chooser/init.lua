@@ -3,8 +3,11 @@
 --- The picker facade. One backend, native, wrapping the built in hs.chooser.
 --- Every consumer calls the same Chooser.new(config) and gets an instance that
 --- honors the picker contract, show, hide, isShowing, refresh, selectNext,
---- selectPrev, insertSelected, selectedItem, query, setFieldMode, setPlaceholder,
---- activeTheme, textBudget, textWidth.
+--- selectPrev, insertSelected, selectedItem, selectedRow, selectRow, query,
+--- setFieldMode, setPlaceholder, activeTheme, textBudget, textWidth. selectedRow
+--- and selectRow, phase eight of the build plan, are the plain public counterpart
+--- of selectedItem, added for ActionPanel, which restores a highlight by row
+--- number rather than by item.
 ---
 --- This was once a provider registry with a second, webview backend built on a
 --- Surface spoon, kept behind this facade so a consumer could swap backends with
@@ -60,6 +63,21 @@ local DEFAULT_SCREEN = nil
 -- out even when a default is set, for a tool whose query is not a plain filter.
 local DEFAULT_MATCHER = nil
 
+-- The one seam ActionPanel, phase eight of the build plan, installs through, so a
+-- decorator wraps every consumer's config functions without any of the twelve call
+-- sites to Chooser.new changing. Nil until configured, in which case new hands the
+-- instance back undecorated, the pre-injection behaviour.
+--
+-- This is legal rather than a trick. native.new stores the config table it is handed
+-- BY REFERENCE and never copies it, and every key a decorator here would touch, rows,
+-- intercept, back, onSelect, onHighlight, onClose, is read live through self.config on
+-- each use rather than captured at construction. Only matcher, fieldMode, and layout
+-- are captured once at construction, and nothing this seam is for touches those. new
+-- below already mutates the caller's own config table in place for screen and matcher,
+-- so decorating it too before handing the instance back follows this file's own idiom
+-- rather than inventing a second one.
+local DEFAULT_DECORATE = nil
+
 --- Chooser:init() - nothing to build; the native provider is loaded above.
 function obj:init()
   return self
@@ -67,12 +85,17 @@ end
 
 --- Chooser.configure(opts) - module-level defaults every new() inherits. opts.screen is
 --- a function returning the hs.screen a chooser should appear on. opts.matcher is the
---- shared filter strategy from Chooser.matchers. One call at the root wires the overlay
---- display policy and the matching policy into every chooser at once.
+--- shared filter strategy from Chooser.matchers. opts.decorate is function(instance,
+--- config), called with the instance new just built and its own config table right
+--- after native.new returns and before new hands the instance back, allowed to mutate
+--- config in place (see the note above DEFAULT_DECORATE for why that reaches the
+--- instance's live behaviour). One call at the root wires the overlay display policy,
+--- the matching policy, and the panel decorator into every chooser at once.
 function obj.configure(opts)
   opts = opts or {}
   DEFAULT_SCREEN = opts.screen
   DEFAULT_MATCHER = opts.matcher
+  DEFAULT_DECORATE = opts.decorate
   return obj
 end
 
@@ -80,12 +103,16 @@ end
 --- config.provider field is accepted and ignored, since native is the only backend.
 --- The configured default screen and matcher policies are folded in unless the config
 --- names its own. config.matcher = false opts out of the default so the supplier keeps
---- owning filtering; nil inherits the default.
+--- owning filtering; nil inherits the default. When a decorate policy is configured, it
+--- runs on the freshly built instance before this hands it back; this file learns
+--- nothing about what that function does, only that it is called with what it gave it.
 function obj.new(config)
   config = config or {}
   if config.screen == nil then config.screen = DEFAULT_SCREEN end
   if config.matcher == nil then config.matcher = DEFAULT_MATCHER end
-  return native.new(config)
+  local instance = native.new(config)
+  if DEFAULT_DECORATE then DEFAULT_DECORATE(instance, config) end
+  return instance
 end
 
 return obj

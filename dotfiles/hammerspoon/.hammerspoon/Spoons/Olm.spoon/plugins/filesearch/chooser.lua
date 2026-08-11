@@ -754,12 +754,39 @@ function M.browseUp()
   goTo(cfg.api.upQuery())
 end
 
---- chooser.reveal() - show the highlighted row in Finder instead of opening it.
-function M.reveal()
-  local row = selectedRow()
-  if not row then return end
+--- chooser.revealRow(row), show a row this picker was HANDED rather than one it highlighted,
+--- for another surface listing the same rows, the launcher's hosted list among them.
+---
+--- Split out of reveal the way peekPreview and peekRow already are, one implementation and two
+--- entry points, so reveal keeps calling straight through and behaves exactly as it did before
+--- this split, byte for byte. The guard mirrors peekRow's own, a row with no path, or the status
+--- and help rows the supplier hands back when there is nothing to act on, answers nothing rather
+--- than reaching for a path that is not there.
+---
+--- M.hide() still runs here, and it is harmless when this picker was never the one showing. A
+--- caller reaching this through the launcher's hosted list never opened this picker at all, so
+--- hide finds nothing active and its own teardown guard answers at once. What such a caller owes
+--- instead, closing itself the way it already does when it runs a scope row directly, is the
+--- caller's own business and is wired where that caller's own dispatch lives, not here.
+function M.revealRow(row)
+  if not (row and row.path) or row.status or row.help then return end
   noteUse(row)
   openPath(row.path, true)
+  M.hide()
+end
+
+--- chooser.reveal() - show the highlighted row in Finder instead of opening it.
+function M.reveal()
+  M.revealRow(selectedRow())
+end
+
+--- chooser.copyPathRow(row), put a row this picker was HANDED on the clipboard through the
+--- injected writer, so this file never learns what a clipboard is, mirroring revealRow above for
+--- the same reason and with the same guard.
+function M.copyPathRow(row)
+  if not (row and row.path) or row.status or row.help then return end
+  noteUse(row)
+  if cfg.copy then cfg.copy(row.path) end
   M.hide()
 end
 
@@ -767,11 +794,7 @@ end
 --- so this file never learns what a clipboard is. Without one injected it does nothing rather
 --- than reaching for the pasteboard directly.
 function M.copyPath()
-  local row = selectedRow()
-  if not row then return end
-  noteUse(row)
-  if cfg.copy then cfg.copy(row.path) end
-  M.hide()
+  M.copyPathRow(selectedRow())
 end
 
 return M

@@ -41,15 +41,30 @@
 --
 -- scope, added in phase seven's fourth packet, is optional, a table carrying exactly
 -- the fields the composition root's own scope helper passes through today, matcher,
--- rows, run, peek, redirect, and act. Nothing else. The identity fields that helper
--- adds on top, name, title, glyph, and aliases, are deliberately not here, since three
--- of them come from config/keys.lua and this registry reads no configuration, the same
--- rule that keeps name the tool's only identity above. rows and run are required once
--- scope is present at all, since QueryScope's own admissible function requires both,
--- and refusing here names the registration rather than leaving QueryScope to refuse
--- the assembled scope later with a line naming only the scope. matcher, peek, redirect
--- and act are all optional, matcher accepting false or a function since four scopes
--- set it false today, and the other three accepting only a function or absence.
+-- rows, run, peek, redirect, act, and, since phase eight's fourth packet, verbs. The
+-- identity fields that helper adds on top, name, title, glyph, and aliases, are
+-- deliberately not here, since three of them come from config/keys.lua and this
+-- registry reads no configuration, the same rule that keeps name the tool's only
+-- identity above. rows and run are required once scope is present at all, since
+-- QueryScope's own admissible function requires both, and refusing here names the
+-- registration rather than leaving QueryScope to refuse the assembled scope later with
+-- a line naming only the scope. matcher, peek, redirect and act are all optional,
+-- matcher accepting false or a function since four scopes set it false today, and the
+-- other three accepting only a function or absence. verbs is optional too, a map from
+-- an action name to what running it takes, the tool saying once which of its verbs make
+-- sense when a hosted list is holding its rows rather than its own picker. Each entry is
+-- a bare function or a table carrying that function under fn plus a required closes, the
+-- same dual shape a commands entry already takes below, with one difference, described
+-- where verbParts is. closes says whether running this verb should close the list it ran
+-- against, and it has no default, the same choice this phase already made for a
+-- binding's kind, so the day a second verb is declared it joins the wrong side in
+-- silence rather than being asked. Validated two levels deeper than the other four,
+-- since it holds a table of its own shapes rather than being one, verbs present and not
+-- a table is refused naming the tool, a verbs entry that is neither a bare function nor
+-- a table with a callable fn is refused naming the tool and the action, and a verbs
+-- entry whose closes is missing or is not a boolean, a bare function among the ways
+-- that happens, is refused naming the tool and the action too, since a verb that never
+-- says whether it closes is refused rather than guessed at.
 --
 -- surface, added in phase seven's second packet, is optional, a function of no
 -- arguments returning this tool's navigation adapter, the object answering isShowing
@@ -80,7 +95,7 @@
 -- register(descriptor) validates, then records, and refuses rather than raises, so one
 -- bad tool cannot empty the launcher. Every refusal is one log line at warning naming
 -- the tool and the reason, and register answers true when it registered and false when
--- it refused. Eighteen refusals exist. A descriptor with no name, or a name that is not a
+-- it refused. Twentyone refusals exist. A descriptor with no name, or a name that is not a
 -- string, is refused, and cannot be named in its own error, so the line says what it
 -- can. A second registration under a name already taken is refused, naming the tool,
 -- since first registration wins. A commands key equal to the tool's own name is
@@ -110,7 +125,12 @@
 -- than a line further along naming only the scope. A scope's matcher, present and neither
 -- false nor a function, is refused naming the tool and the field, and a scope's peek,
 -- redirect, or act, present and not a function, is refused the same way, naming the tool
--- and whichever field was wrong. A shortcut, present and neither leader nor global, is
+-- and whichever field was wrong. A scope's verbs, present and not a table, is refused
+-- naming the tool, a verbs entry that is neither a bare function nor a table with a
+-- callable fn is refused naming the tool and the action, and a verbs entry whose closes
+-- is missing or is not a boolean is refused the same way, naming the tool and the
+-- action, since a verb that never says whether it closes is refused rather than
+-- guessed at. A shortcut, present and neither leader nor global, is
 -- refused naming the tool or the command and what it said, and a shortcut present with
 -- nothing to bind, no open on the tool or no callable fn on the command, is refused too,
 -- naming the same. The second of those two is unreachable for a command in practice,
@@ -265,6 +285,22 @@ function M.new(opts)
     return true
   end
 
+  -- A verbs entry is a bare function or a table carrying that function under fn plus its own
+  -- closes, the same dual shape commandParts already parses further down, with one
+  -- difference. A bare command means run it, nothing else to say. A bare verb cannot mean the
+  -- whole of what a verb is, because closes has no default, the same choice this phase already
+  -- made for a binding's kind rather than letting a future one default to whichever side is
+  -- convenient today. So this still recognises a bare function as carrying a callable, the
+  -- same as commandParts, but never as carrying a closes, which is what makes the required
+  -- check just below refuse it precisely for not saying rather than for the wrong reason,
+  -- being the wrong shape. Anything else, closes included, answers a nil function, which
+  -- scopeIsWellFormed below refuses rather than stores.
+  local function verbParts(spec)
+    if type(spec) == "function" then return spec, nil end
+    if type(spec) == "table" and type(spec.fn) == "function" then return spec.fn, spec.closes end
+    return nil, nil
+  end
+
   -- A scope is optional, and when present it is validated the way a row is, structural
   -- rather than partial, refusing the whole registration rather than accepting a scope
   -- with a hole in it. rows and run are both required once a scope is present at all,
@@ -311,6 +347,28 @@ function M.new(opts)
       log.w(string.format(
         "Registry refused '%s', its scope's act is present and is not a function", name))
       return false
+    end
+    if scope.verbs ~= nil then
+      if type(scope.verbs) ~= "table" then
+        log.w(string.format(
+          "Registry refused '%s', its scope's verbs is present and is not a table", name))
+        return false
+      end
+      for action, spec in pairs(scope.verbs) do
+        local fn, closes = verbParts(spec)
+        if not fn then
+          log.w(string.format(
+            "Registry refused '%s', its scope's verbs entry '%s' is not a function or a table with a callable fn",
+            name, tostring(action)))
+          return false
+        end
+        if type(closes) ~= "boolean" then
+          log.w(string.format(
+            "Registry refused '%s', its scope's verbs entry '%s' does not say whether it closes the list",
+            name, tostring(action)))
+          return false
+        end
+      end
     end
     return true
   end

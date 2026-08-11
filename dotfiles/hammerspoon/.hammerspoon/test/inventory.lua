@@ -142,14 +142,134 @@ for _, name in ipairs(contextNames) do
     table.sort(mods)
     local chord = b.chord
     if chord == nil then chord = true end
+    -- kind, phase eight's first packet, asked of the live wiring through
+    -- spoon.ActionPanel:kindOf, the public door that carries its own unconfigured guard,
+    -- rather than of a copy kept in this file, so what the golden records is what the
+    -- composition root actually injected. Unlike ChordKey._keys and HyperKey._bindings, which
+    -- have no public form at all, what an action classifies as is an ordinary question this
+    -- module already answers for anyone asking, so it is asked through that door rather than
+    -- through the private field behind it.
+    local kind = spoon.ActionPanel and spoon.ActionPanel:kindOf(b.action)
     bindingLines[#bindingLines + 1] = string.format(
-      "hypercontexts.binding context=%s key=%s mods=%s action=%s when=%s chord=%s needs=%s description=%s",
-      field(name), field(b.key), join(mods), field(b.action), field(b.when),
+      "hypercontexts.binding context=%s key=%s mods=%s action=%s kind=%s when=%s chord=%s needs=%s description=%s",
+      field(name), field(b.key), join(mods), field(b.action), field(kind), field(b.when),
       field(chord), field(b.needs), field(b.description))
   end
   table.sort(bindingLines)
   for _, l in ipairs(bindingLines) do add(l) end
 end
+
+-- The verb list per context, phase eight's first packet, asked of the live module rather than
+-- recomputed here, so this measures what spoon.ActionPanel:verbsIn actually answers for the
+-- same context.bindings the section above already walked, contextNames and byName reused
+-- rather than read a second time. This is deliberately not filtered by needs or by a live
+-- predicate, since verbsIn itself knows neither, and a later packet that adds those filters to
+-- the panel must not read this section as stale and change it, it measures the declarations
+-- rather than a moment.
+local verbsByContext = {}
+for _, name in ipairs(contextNames) do
+  local ctx = byName[name]
+  verbsByContext[name] = spoon.ActionPanel and spoon.ActionPanel:verbsIn(ctx.bindings or {}) or {}
+end
+add("registry actionpanel count=" .. #contextNames)
+for _, name in ipairs(contextNames) do
+  add(string.format("actionpanel.context name=%s verbCount=%s", field(name), field(#verbsByContext[name])))
+end
+local verbLines = {}
+for _, name in ipairs(contextNames) do
+  for _, b in ipairs(verbsByContext[name]) do
+    local mods = {}
+    for _, m in ipairs(b.mods or {}) do mods[#mods + 1] = m end
+    table.sort(mods)
+    verbLines[#verbLines + 1] = string.format(
+      "actionpanel.verb context=%s key=%s mods=%s action=%s description=%s",
+      field(name), field(b.key), join(mods), field(b.action), field(b.description))
+  end
+end
+table.sort(verbLines)
+for _, l in ipairs(verbLines) do add(l) end
+
+-- The panel's own row list per context, phase eight's second packet, asked of the live module
+-- through spoon.ActionPanel:rowsFor rather than recomputed here, the same public door kindOf
+-- and verbsIn above already carry, so this measures exactly what ActionPanel:toggle would show
+-- through the composition root's own rowsFor, through the exact same call, rather than a
+-- second opinion built in this file. Unlike the actionpanel section above, this section DOES
+-- read the root's bindingApplies filter, since rowsFor applies it, and it always carries a
+-- Back row the panel itself builds, so a context with no verbs at all still answers one row
+-- rather than none. contextNames and byName are reused rather than read a second time, though
+-- rowsFor only needs the name, never ctx.bindings itself.
+--
+-- glyph joined this line in phase eight's third packet, alongside a glyph on every verb row in
+-- config/keys.lua, so a glyph going missing from a binding is a diff here rather than something
+-- noticed by eye months later. Back leading the list rather than trailing it, phase eight's
+-- third packet too, is NOT visible in this section, since panelRowLines is sorted before it is
+-- written, the same as every other listing in this file, so ordering is deliberately not part
+-- of what this section proves.
+local panelRowsByContext = {}
+for _, name in ipairs(contextNames) do
+  panelRowsByContext[name] = spoon.ActionPanel and spoon.ActionPanel:rowsFor(name) or {}
+end
+add("registry panelrows count=" .. #contextNames)
+for _, name in ipairs(contextNames) do
+  add(string.format("panelrows.context name=%s rowCount=%s", field(name), field(#panelRowsByContext[name])))
+end
+local panelRowLines = {}
+for _, name in ipairs(contextNames) do
+  for _, r in ipairs(panelRowsByContext[name]) do
+    panelRowLines[#panelRowLines + 1] = string.format(
+      "panelrows.row context=%s action=%s title=%s chord=%s glyph=%s",
+      field(name), field(r.action), field(r.title), field(r.chord), field(r.glyph))
+  end
+end
+table.sort(panelRowLines)
+for _, l in ipairs(panelRowLines) do add(l) end
+
+-- The hosted row list per context, phase eight's fourth packet, asked of the live module
+-- through the exact same ActionPanel:rowsFor door the panelrows section above uses, with its
+-- own second argument set to true this time, rather than a second function measuring
+-- something rowsFor itself does not know how to answer. This is the only measurement of the
+-- hosted path that exists, the one place a scope's verb could quietly disappear or a chord
+-- could quietly stop being qualified with nothing else catching it.
+--
+-- Only file search answers anything beyond Back today, since it is the only tool a scope
+-- declares verbs on, so this section is mostly Back rows and one interesting entry, and that
+-- is exactly what it should be. contextNames and byName are reused rather than read again,
+-- though rowsFor only needs the name here too, never ctx.bindings itself.
+--
+-- closes joins the row line here too, the fix beside this one, since whether a verb closes
+-- the list it ran against was invisible in every direction before it, and a snapshot recording
+-- the verb without recording that property would leave a future flip of it just as silent as
+-- the defect that prompted adding it. field(nil) renders the dash the Back row already answers
+-- for action, title, and chord, so a row with no closes at all, the Back row, reads no
+-- differently for this field than for any other it does not carry.
+local hostedRowsByContext = {}
+for _, name in ipairs(contextNames) do
+  hostedRowsByContext[name] = spoon.ActionPanel and spoon.ActionPanel:rowsFor(name, true) or {}
+end
+add("registry hostedrows count=" .. #contextNames)
+for _, name in ipairs(contextNames) do
+  add(string.format("hostedrows.context name=%s rowCount=%s", field(name), field(#hostedRowsByContext[name])))
+end
+local hostedRowLines = {}
+for _, name in ipairs(contextNames) do
+  for _, r in ipairs(hostedRowsByContext[name]) do
+    hostedRowLines[#hostedRowLines + 1] = string.format(
+      "hostedrows.row context=%s action=%s title=%s chord=%s glyph=%s closes=%s",
+      field(name), field(r.action), field(r.title), field(r.chord), field(r.glyph), field(r.closes))
+  end
+end
+table.sort(hostedRowLines)
+for _, l in ipairs(hostedRowLines) do add(l) end
+
+-- How many instances ActionPanel:decorate has actually wrapped, asked of the live module
+-- through the small public door built for exactly this, rather than trusted from the fact
+-- that config/keys.lua and the panelrows section above both look right. Neither of those
+-- proves the decorate seam ever ran on a given chooser, only that it would answer correctly if
+-- it had, and a chooser built before Chooser.configure installed that seam, or one that stopped
+-- going through the Chooser facade at all, would leave the panel silently dead on it with every
+-- other line in this file still reading exactly as if nothing were wrong. This reads twelve
+-- today, one per context, and would read fewer the moment that stopped being true.
+add("registry actionpaneldecorated count=" .. (spoon.ActionPanel and spoon.ActionPanel:decoratedCount() or 0))
 
 -- The choosers registry in init.lua. It is a local table in the composition
 -- root, never handed to anything global, so there is no live handle to read it

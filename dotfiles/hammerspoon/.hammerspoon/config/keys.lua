@@ -6,7 +6,7 @@ local HYPER = { "shift", "ctrl", "alt", "cmd" }
 local CTRL_ALT = { "ctrl", "alt" }
 local SHIFT_ALT = { "shift", "alt" }
 
-return {
+local M = {
   -- Expose modifiers for Spoons that need them
   modifiers = {
     HYPER = HYPER,
@@ -195,10 +195,10 @@ return {
         -- exact-mods bindings ahead of the mod-less move catch-alls on the same keys.
         { key = "j", mods = { "cmd" }, action = "scrollPreviewDown", description = "Scroll preview down" },
         { key = "k", mods = { "cmd" }, action = "scrollPreviewUp",   description = "Scroll preview up" },
-        { key = "a", action = "appendSelected", description = "Append to batch" },
+        { key = "a", action = "appendSelected", description = "Append to batch", glyph = "➕" },
         -- Delete the highlighted entry, or the whole marked batch. The composition
         -- root relabels this to "Delete marked" while a batch is gathered.
-        { key = "d", action = "deleteSelected",  description = "Delete" },
+        { key = "d", action = "deleteSelected",  description = "Delete", glyph = "🗑️" },
         { key = "x", action = "closeChooser",   description = "Close" },
       },
     },
@@ -378,9 +378,9 @@ return {
         { key = "i", action = "insertSelected", description = "Stop" },
         { key = "j", action = "selectNext",     description = "Move down" },
         { key = "k", action = "selectPrev",     description = "Move up" },
-        { key = "s", action = "sortByLoad",     description = "Sort by load" },
-        { key = "f", action = "stopForced",     description = "Force stop" },
-        { key = "r", action = "refreshList",    description = "Rescan" },
+        { key = "s", action = "sortByLoad",     description = "Sort by load", glyph = "🔥" },
+        { key = "f", action = "stopForced",     description = "Force stop", glyph = "⛔" },
+        { key = "r", action = "refreshList",    description = "Rescan", glyph = "🔄" },
         { key = "x", action = "closeChooser",   description = "Close" },
       },
     },
@@ -425,16 +425,16 @@ return {
         -- place the feature had to reach. One key meaning Quick Look wherever a file is listed is
         -- worth more than matching Finder's bar in only half of them.
         { key = "q", action = "peekPreview",
-          needs = "askedPreview", description = "Quick Look" },
-        { key = "l", action = "browseInto",     description = "Into folder" },
-        { key = "h", action = "browseUp",       description = "Up a level" },
+          needs = "askedPreview", description = "Quick Look", glyph = "👁️" },
+        { key = "l", action = "browseInto",     description = "Into folder", glyph = "📂" },
+        { key = "h", action = "browseUp",       description = "Up a level", glyph = "⬆️" },
         -- Two verbs for a row and no third. The primary key opens it with whatever the system
         -- considers its default, a folder in Finder, and this one shows it in Finder instead of
         -- opening it. There used to be a third that opened the ENCLOSING folder without selecting
         -- anything, which is a worse version of showing it, so it was dropped rather than kept for
         -- symmetry. This lives on o, the key that reads as open to whoever is pressing it.
-        { key = "o", action = "revealInFinder", description = "Reveal in Finder" },
-        { key = "y", action = "copyPath",       description = "Copy path" },
+        { key = "o", action = "revealInFinder", description = "Reveal in Finder", glyph = "🔍" },
+        { key = "y", action = "copyPath",       description = "Copy path", glyph = "📋" },
         { key = "x", action = "closeChooser",   description = "Close" },
       },
     },
@@ -644,3 +644,19 @@ return {
   -- Terminal handler
   terminal = { modifiers = { "alt" }, key = "`" },
 }
+
+-- THE SEAM. The action panel's own chord, Hyper and period, folded into every context here
+-- rather than written twelve times above, so it is declared once and every context, including
+-- a thirteenth added later, carries it for free. This is the one exception to this file's own
+-- pure data claim, a loop rather than a value, and it earns that by being the alternative to
+-- twelve copies of the same table drifting the day one of them is edited and the others are
+-- not. openActionPanel is a name this file invents and hands to the root the same way any
+-- other action name here already does; the root maps it to spoon.ActionPanel:toggle and
+-- classifies it as navigation, since the panel must never list its own way in among the verbs
+-- it offers. The three consumers that walk hyperContexts, the binding loop, footerFor, and
+-- test/inventory.lua, all see this binding with no further teaching, exactly like any other.
+for _, ctx in ipairs(M.hyperContexts) do
+  ctx.bindings[#ctx.bindings + 1] = { key = ".", action = "openActionPanel", description = "Actions" }
+end
+
+return M

@@ -869,6 +869,33 @@ function Chooser:selectedItem()
   return c and c._item or nil
 end
 
+--- Chooser:selectedRow() - the highlighted row number, or nil. The plain public counterpart
+--- of selectedItem above, added for ActionPanel, phase eight of the build plan, which has to
+--- put the highlight back on a row number rather than on an item, since the row it restores to
+--- may by then hold a different item than the one captured when the panel opened.
+function Chooser:selectedRow()
+  return self.chooser and self.chooser:selectedRow() or nil
+end
+
+--- Chooser:selectRow(n) - set the highlighted row, clamped to the number of rows currently
+--- built so a caller cannot ask for a row that is not there. Added for ActionPanel alongside
+--- selectedRow above. Clears self.lastRow afterward, the same clearing refresh already does
+--- and for the same reason, so the highlight poll notices that what is under the cursor
+--- changed rather than describing the row that used to sit at this number.
+---
+--- A nil n answers by doing nothing rather than raising on the comparison below. Not reachable
+--- today, since every caller reads n from selectedRow first, but selectedRow itself can answer
+--- nil, an empty list among the ways, so this stays a guard rather than an assumption.
+function Chooser:selectRow(n)
+  if not self.chooser or n == nil then return end
+  local count = #self.currentChoices
+  if count == 0 then return end
+  if n < 1 then n = 1 end
+  if n > count then n = count end
+  self.chooser:selectedRow(n)
+  self.lastRow = nil
+end
+
 --- Chooser:setFieldMode(mode) - switch the field between filter, off, and input
 --- at runtime. In input mode the placeholder should state the expected format.
 function Chooser:setFieldMode(mode)

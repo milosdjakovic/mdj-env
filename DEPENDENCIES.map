@@ -107,3 +107,4 @@ hyperkey   | olm       | lib/hyperkey.lua
 chooser    | olm       | lib/chooser/init.lua
 deps       | olm       | lib/deps.lua
 registry   | olm       | lib/registry.lua
+glyphicon  | olm       | lib/glyphicon.lua

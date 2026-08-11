@@ -56,6 +56,10 @@ end
 --- Registry arrived in phase seven, another factory like recency, handing the root an
 --- independent instance to register every tool against. See lib/registry.lua for its
 --- api.
+---
+--- Glyphicon arrived in phase eight's third packet, lifted out of Launcher's own private
+--- drawing once ActionPanel became a second caller of it, another factory in the same
+--- style as recency and registry. See lib/glyphicon.lua for its api.
 obj.lib = {
   storage = load("lib/storage.lua"),
   recency = load("lib/recency.lua"),
@@ -72,6 +76,10 @@ obj.lib = {
   -- metatable and no self. See lib/registry.lua for the descriptor shape, the four
   -- refusals, and what active and inactive mean today.
   registry = load("lib/registry.lua"),
+  -- The glyph to icon drawer, phase eight's third packet. A factory in the same style as
+  -- recency and registry, one instance per caller, each owning its own drawing cache. See
+  -- lib/glyphicon.lua for the one function it answers and for the numbers it draws with.
+  glyphicon = load("lib/glyphicon.lua"),
 }
 
 return obj
