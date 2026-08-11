@@ -694,8 +694,8 @@ local function footerFor(name)
   return hints
 end
 
--- rowsFor(contextName) -> the ordered rows the panel would show for that context, Back first
--- and then its verbs in declaration order. Lives here beside footerFor and shares its two
+-- rowsFor(contextName, hosted) -> the ordered rows the panel would show for that context, Back
+-- first and then its verbs in declaration order. Lives here beside footerFor and shares its two
 -- helpers above, chordFor and labelFor, rather than copying them, which is the whole reason the
 -- panel and the docked hint bar above cannot drift apart over what a chord is called or a verb
 -- reads as. Each verb row also carries the glyph its own binding declares in config/keys.lua,
@@ -719,6 +719,22 @@ end
 -- all twelve with no chooser open, and ActionPanel:toggle, through deps.rowsFor, can ask it for
 -- whichever one really is live, both through the exact same call.
 --
+-- hosted, phase eight's fourth packet, is an explicit argument rather than this function asking
+-- the launcher whether it is currently hosting anything, which is what lets test/inventory.lua
+-- ask for the hosted rows of every context with nothing open at all, exactly as it already asks
+-- for the ordinary rows of all twelve. When true, a verb row survives only when
+-- spoon.Olm.registry.scopeFor(contextName) names a scope whose own verbs table answers a
+-- function for that action, so a hosted list offers exactly what QueryScope:verbFor would later
+-- answer non nil for and nothing it would answer nil for, the same rule the root's own run
+-- follows below. Read live through the global rather than through a local this function could
+-- capture, since spoon.Olm.registry is assigned far below this point in the file and reaching
+-- for the local instead would be the exact ordering hazard this phase's own hazards warn about,
+-- where reaching for the global costs nothing because this function is only ever called long
+-- after every registration has already run. A kept row's chord is qualified with the tool's own
+-- description from config/keys.lua, so the row reads as the chord followed by the name of the
+-- list it belongs to, honest about a chord that will not fire until that tool is reached
+-- directly.
+--
 -- The Back row is built here too, rather than left for each caller to add a second time, since
 -- a second copy of it in the inventory section is exactly the drift this whole approach exists
 -- to prevent. It carries no action, which is what marks it Back rather than a verb to the panel,
@@ -726,14 +742,24 @@ end
 -- Hyper prefix, the same convention footerFor's own chord = false case already uses, since
 -- Backspace is a key the chooser atom reads for itself rather than one Hyper answers. Its own
 -- glyph is written here too, the arrow pointing back, rather than in config/keys.lua, since no
--- context declares Back and nothing else should have to know it exists.
-local function rowsFor(contextName)
+-- context declares Back and nothing else should have to know it exists. Back is never qualified
+-- by hosted, since leaving the panel works identically wherever it was opened.
+local function rowsFor(contextName, hosted)
+  local verbs
+  if hosted then
+    local tool = spoon.Olm.registry and spoon.Olm.registry.scopeFor(contextName)
+    verbs = tool and tool.verbs
+  end
   local rows = { { title = "Back", chord = spoon.CheatSheet.glyphFor("delete"), glyph = "⬅️" } }
   for _, ctx in ipairs(keys.hyperContexts or {}) do
     if ctx.name == contextName then
       for _, b in ipairs(spoon.ActionPanel:verbsIn(ctx.bindings)) do
-        if bindingApplies(b) then
-          rows[#rows + 1] = { action = b.action, title = labelFor(b, contextName), chord = chordFor(b),
+        if bindingApplies(b) and (not hosted or (verbs and type(verbs[b.action]) == "function")) then
+          local chord = chordFor(b)
+          if hosted then
+            chord = chord .. " in " .. ((keys[contextName] or {}).description or contextName)
+          end
+          rows[#rows + 1] = { action = b.action, title = labelFor(b, contextName), chord = chord,
                               glyph = b.glyph }
         end
       end
@@ -1557,11 +1583,18 @@ spoon.Launcher:configure({
       -- picker.
       --
       -- WHAT A HOSTED LIST DOES NOT CARRY is the keys that are the tool's own rather than the
-      -- shared j, k, i and x, which today means reveal, copy path and browsing a folder in file
-      -- search, and the settings level in browser tabs. Those keys live in the Hyper context that
-      -- goes with the tool's own picker and a hosted list is under the launcher's context, so they
-      -- are still a chord away and are not here. The gap closes when a scope can carry a tool's
-      -- extra verbs, which is worth doing and is not this.
+      -- shared j, k, i and x, which for browser tabs still means the settings level and for file
+      -- search still means browsing a folder, both a step into a second list or a second
+      -- mechanism a scope cannot show. Those keys live in the Hyper context that goes with the
+      -- tool's own picker and a hosted list is under the launcher's context, so they are a chord
+      -- away and are not here.
+      --
+      -- Reveal and copy path are the exception, phase eight's fourth packet, the gap this
+      -- comment used to say was still open. A scope may now carry `verbs`, a map from an action
+      -- name to a function taking the row's own payload, and the action panel's chord reaches
+      -- them there, through spoon.QueryScope:verbFor, without either key being bound inside the
+      -- launcher's own context. So a hosted file search list offers reveal and copy path a chord
+      -- away in the panel even though their ordinary chords, o and y, are not active here.
       --
       -- The hosted bit itself now lives on the tool's own descriptor rather than in a table named
       -- here, read through registry.get so an inactive tool answers the same nil it answers every
@@ -2016,6 +2049,11 @@ local function scope(name, opts)
     peek = opts.peek,
     redirect = opts.redirect,
     act = opts.act,
+    -- verbs, phase eight's fourth packet, joins the other five straight through, unexamined,
+    -- the same as every field above it. Missing it here would mean file search's own declared
+    -- verbs never reached the assembled scope QueryScope actually holds, a legitimate looking
+    -- descriptor whose verbFor answered nil forever with nothing anywhere saying why.
+    verbs = opts.verbs,
   }
 end
 
@@ -2296,6 +2334,22 @@ registry.register({
     -- from a line of text, so the preview comes along rather than being a reason to leave for the
     -- real picker. The tool's own verb again, so a file is previewed here exactly as it is there.
     peek = function(payload) spoon.FileSearch.chooser.peekRow(payload) end,
+    -- verbs, phase eight's fourth packet, the gap actions.rowIntercept's own comment named
+    -- long before this closed it. Three of file search's real verbs make sense against a row
+    -- somebody else, the launcher, is holding, each the plugin's own row taking entry point
+    -- rather than the thin caller reading this picker's own highlight, so a hosted list can
+    -- run them without this picker ever having been open.
+    --
+    -- browseInto and browseUp are deliberately absent. Both move through a list rather than
+    -- act on a row, and both work by rewriting the query, which inside the launcher would mean
+    -- driving the launcher's own page mechanism rather than this scope's. That is a real design
+    -- question of its own and not this packet's to decide, so it stays out rather than being
+    -- guessed at.
+    verbs = {
+      revealInFinder = function(payload) spoon.FileSearch.chooser.revealRow(payload) end,
+      copyPath = function(payload) spoon.FileSearch.chooser.copyPathRow(payload) end,
+      peekPreview = function(payload) spoon.FileSearch.chooser.peekRow(payload) end,
+    },
   },
 })
 -- The twelfth tool, and the one this whole packet exists to make registerable. Menu search
@@ -2661,10 +2715,30 @@ local contextActions = {
   -- `when` gated bindings on the same key just fired. So this resolves the live context
   -- through activeContext, the exact same resolution revealHyperLayer already runs, rather
   -- than teaching this module a second way to work it out.
+  --
+  -- Phase eight's fourth packet adds the one exception. The live context is "launcher" both
+  -- when the launcher is showing its own catalog and when it is hosting somebody else's list
+  -- in place, and the launcher's own hyperContext binds nothing but navigation, so asking for
+  -- "launcher" rows here would answer Back alone even over a hosted list with real verbs of
+  -- its own. spoon.Launcher:currentQuery() answers the whole query the launcher's rows are
+  -- being built from either way, typed or hosted, and spoon.QueryScope:resolve reads the same
+  -- grammar the launcher's own query sources already read it through, so a query naming a
+  -- scope hands this the tool's own context name instead, and hosted is passed to toggle so
+  -- rowsFor filters to the verbs that scope actually declared rather than every verb that
+  -- tool's real picker would offer.
   openActionPanel = function()
     hideShortcuts()
     local ctx = activeContext()
-    spoon.ActionPanel:toggle(ctx and ctx.name)
+    local contextName = ctx and ctx.name
+    local hosted = false
+    if contextName == "launcher" then
+      local resolvedScope = spoon.QueryScope:resolve(spoon.Launcher:currentQuery())
+      if resolvedScope then
+        contextName = resolvedScope.name
+        hosted = true
+      end
+    end
+    spoon.ActionPanel:toggle(contextName, hosted)
   end,
 }
 
@@ -2708,10 +2782,32 @@ local actionKinds = {
 -- root does not otherwise know, which today can only be an action classified as a verb by a
 -- table that has drifted out of step with contextActions, an actionKinds entry that should
 -- never exist without a matching one here.
+--
+-- Phase eight's fourth packet adds the item ActionPanel now hands run as a second argument
+-- and asks spoon.QueryScope:verbFor with it before falling through to contextActions. item is
+-- a scope row, { kind = "scope", scope = name, payload = ... }, only when the highlighted row
+-- came from a scope QueryScope built, and QueryScope has exactly one live provider, the
+-- launcher, so a non nil answer here can only mean the row the panel opened over was a hosted
+-- or a typed scope row inside the launcher. Every other row, an app, a window, a capture, or a
+-- plain scope row whose scope declares no such verb, answers nil by construction and falls
+-- through to contextActions exactly as before this packet, no branch on whether anything is
+-- hosted needed anywhere.
+--
+-- Running the verb closes the chooser it ran against, the same way choosing that scope row
+-- directly already would, since ActionPanel's own _leave keeps the chooser open on every path
+-- and a hosted verb is otherwise the one way to act on a row without the launcher ever
+-- completing a selection. contextActions.closeChooser is reused rather than duplicated here,
+-- so this and the chord both close a chooser through the exact same call.
 spoon.ActionPanel:configure({
   kindOf = function(action) return actionKinds[action] end,
   rowsFor = rowsFor,
-  run = function(action)
+  run = function(action, item)
+    local verb = item and spoon.QueryScope:verbFor(item, action)
+    if verb then
+      verb()
+      contextActions.closeChooser()
+      return
+    end
     local fn = contextActions[action]
     if fn then
       fn()
