@@ -399,6 +399,32 @@ function obj:actFor(item)
   end
 end
 
+--- QueryScope:verbFor(item, action) -> function or nil
+--- Method
+--- A callable running the named verb this row's own scope declared for it, or nil when the
+--- scope declares no such verb, when the scope declares no verbs at all, or when the row is
+--- not a scope row to begin with. Routed home exactly as run, peek, redirect, and act all are.
+---
+--- Mirrors actFor exactly, and for the same reason the design already gives that verb. The
+--- answer is a callable rather than having already run, so the caller decides when the effect
+--- actually happens rather than it happening merely by being asked about, which is what lets a
+--- surface ask this once to decide whether to offer a row at all and again, later, to run it.
+--- Calling the answer is what runs the scope's own verb, wrapped in pcall the same way run,
+--- peek, and act already are, so a verb that raises costs a console line rather than a broken
+--- caller.
+function obj:verbFor(item, action)
+  local scope = self:_scopeOf(item)
+  if not scope or type(scope.verbs) ~= "table" then return nil end
+  local fn = scope.verbs[action]
+  if type(fn) ~= "function" then return nil end
+  return function()
+    local ok, err = pcall(fn, item.payload)
+    if not ok then
+      hs.printf("QueryScope: the %s scope failed to run the verb %s, %s", scope.name, tostring(action), tostring(err))
+    end
+  end
+end
+
 --- QueryScope:canPeek(item) -> bool
 --- Method
 --- Whether this row has anything to peek at. Asked by a surface deciding whether a key means
