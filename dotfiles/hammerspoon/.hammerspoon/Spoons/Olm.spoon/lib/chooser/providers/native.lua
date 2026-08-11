@@ -882,8 +882,12 @@ end
 --- selectedRow above. Clears self.lastRow afterward, the same clearing refresh already does
 --- and for the same reason, so the highlight poll notices that what is under the cursor
 --- changed rather than describing the row that used to sit at this number.
+---
+--- A nil n answers by doing nothing rather than raising on the comparison below. Not reachable
+--- today, since every caller reads n from selectedRow first, but selectedRow itself can answer
+--- nil, an empty list among the ways, so this stays a guard rather than an assumption.
 function Chooser:selectRow(n)
-  if not self.chooser then return end
+  if not self.chooser or n == nil then return end
   local count = #self.currentChoices
   if count == 0 then return end
   if n < 1 then n = 1 end
