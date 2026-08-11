@@ -41,7 +41,10 @@ local function freshModule()
 end
 
 -- A minimal admissible scope, rows and run present since QueryScope requires both, plus
--- whatever verbs a block below wants to check.
+-- whatever verbs a block below wants to check. Verbs are written in the real shape
+-- lib/registry.lua now requires, a table carrying fn plus a required closes, since that is
+-- what a live scope actually holds, closes already validated to a real boolean by the time
+-- it ever reaches this module.
 local function fileSearchLikeScope(verbs)
   return {
     name = "fileSearch",
@@ -53,18 +56,19 @@ local function fileSearchLikeScope(verbs)
   }
 end
 
--- verbFor answers a callable for a declared verb, and calling it runs the underlying
--- function against the row's own payload, the same pcall wrapped shape actFor already
--- answers in.
+-- verbFor answers a callable for a declared verb, plus its own declared closes, and calling
+-- the callable runs the underlying function against the row's own payload, the same pcall
+-- wrapped shape actFor already answers in.
 do
   local qs = freshModule()
   local seen
   qs:configure({ scopes = { fileSearchLikeScope({
-    revealInFinder = function(payload) seen = payload end,
+    revealInFinder = { fn = function(payload) seen = payload end, closes = true },
   }) } })
   local item = { kind = "scope", scope = "fileSearch", payload = { path = "/tmp/x" } }
-  local verb = qs:verbFor(item, "revealInFinder")
+  local verb, closes = qs:verbFor(item, "revealInFinder")
   check("verbFor answers a callable for a declared verb", type(verb) == "function")
+  check("verbFor answers the verb's own declared closes", closes == true)
   verb()
   check(
     "calling the answer runs the verb against the row's own payload",
@@ -72,11 +76,28 @@ do
   )
 end
 
+-- verbFor answers a verb's own closes exactly as declared, true and false alike, so a caller
+-- reading it never has to guess or assume a default.
+do
+  local qs = freshModule()
+  qs:configure({ scopes = { fileSearchLikeScope({
+    revealInFinder = { fn = function() end, closes = true },
+    peekPreview = { fn = function() end, closes = false },
+  }) } })
+  local item = { kind = "scope", scope = "fileSearch", payload = {} }
+  local _, closesReveal = qs:verbFor(item, "revealInFinder")
+  local _, closesPeek = qs:verbFor(item, "peekPreview")
+  check("a verb declared closing answers closes true", closesReveal == true)
+  check("a verb declared not closing answers closes false", closesPeek == false)
+end
+
 -- verbFor answers nil for an action the scope never declared a verb for, a legitimate
 -- absence rather than a mistake.
 do
   local qs = freshModule()
-  qs:configure({ scopes = { fileSearchLikeScope({ revealInFinder = function() end }) } })
+  qs:configure({ scopes = { fileSearchLikeScope({
+    revealInFinder = { fn = function() end, closes = true },
+  }) } })
   local item = { kind = "scope", scope = "fileSearch", payload = { path = "/tmp/x" } }
   check("verbFor answers nil for an undeclared action", qs:verbFor(item, "copyPath") == nil)
 end
@@ -86,7 +107,9 @@ end
 -- answers the same nil _scopeOf already gives run, peek, redirect, and act.
 do
   local qs = freshModule()
-  qs:configure({ scopes = { fileSearchLikeScope({ revealInFinder = function() end }) } })
+  qs:configure({ scopes = { fileSearchLikeScope({
+    revealInFinder = { fn = function() end, closes = true },
+  }) } })
   check(
     "verbFor answers nil for a row with no payload",
     qs:verbFor({ kind = "app", bundleID = "com.example.app" }, "revealInFinder") == nil
@@ -106,11 +129,27 @@ do
   check("verbFor answers nil for a scope that declares no verbs", qs:verbFor(item, "revealInFinder") == nil)
 end
 
+-- A scope built by hand outside the registry, the one place this module cannot lean on
+-- lib/registry.lua's own refusal, may still spell a verb as a bare function carrying no
+-- closes at all. verbFor still runs it, since a callable is a callable, but never answers
+-- closes true for it, coercing the missing declaration to false rather than to nil, since a
+-- caller asking this needs one answer or the other and nil reads as neither.
+do
+  local qs = freshModule()
+  qs:configure({ scopes = { fileSearchLikeScope({
+    revealInFinder = function() end,
+  }) } })
+  local item = { kind = "scope", scope = "fileSearch", payload = {} }
+  local verb, closes = qs:verbFor(item, "revealInFinder")
+  check("a bare function verb still answers a callable", type(verb) == "function")
+  check("a bare function verb, declaring no closes, coerces to closes false rather than nil", closes == false)
+end
+
 -- A verb that raises costs a console line rather than a broken caller, mirroring actFor.
 do
   local qs = freshModule()
   qs:configure({ scopes = { fileSearchLikeScope({
-    revealInFinder = function() error("boom") end,
+    revealInFinder = { fn = function() error("boom") end, closes = true },
   }) } })
   local item = { kind = "scope", scope = "fileSearch", payload = {} }
   local verb = qs:verbFor(item, "revealInFinder")
@@ -118,23 +157,37 @@ do
   check("calling the answer never raises even when the verb itself does", ok == true)
 end
 
--- The composition root's own run prefers a scope's declared verb over its ordinary
--- action table, and falls through to that table only when verbFor answers nil. This
--- reproduces that one line exactly, against this module's own real verbFor, since
--- init.lua's own run closure cannot be dofiled on its own.
+-- The composition root's own run prefers a scope's declared verb over its ordinary action
+-- table, closes the chooser only when the verb's own closes says so, and falls through to
+-- the action table only when verbFor answers nil. This reproduces that exactly, against this
+-- module's own real verbFor, since init.lua's own run closure cannot be dofiled on its own.
+--
+-- verb and closes are read from an if rather than from `item and qs:verbFor(item, action)` on
+-- one line, because and truncates a multiple return down to one value the moment it sits
+-- inside a larger expression, which would make closes answer nil forever, silently, the exact
+-- shape of mistake this phase's own hazards warn about.
 do
   local qs = freshModule()
-  qs:configure({ scopes = { fileSearchLikeScope({ revealInFinder = function() end }) } })
+  qs:configure({ scopes = { fileSearchLikeScope({
+    revealInFinder = { fn = function() end, closes = true },
+    peekPreview = { fn = function() end, closes = false },
+  }) } })
   local ran = {}
   local contextActions = {
     revealInFinder = function() error("the fallback ran, the declared verb should have") end,
+    peekPreview = function() error("the fallback ran, the declared verb should have") end,
     copyPath = function() ran[#ran + 1] = "fallback" end,
+    closeChooser = function() ran[#ran + 1] = "closed" end,
   }
   local function run(action, item)
-    local verb = item and qs:verbFor(item, action)
+    local verb, closes
+    if item then
+      verb, closes = qs:verbFor(item, action)
+    end
     if verb then
       verb()
       ran[#ran + 1] = "verb"
+      if closes then contextActions.closeChooser() end
       return
     end
     local fn = contextActions[action]
@@ -142,7 +195,17 @@ do
   end
 
   run("revealInFinder", { kind = "scope", scope = "fileSearch", payload = {} })
-  check("a declared verb runs instead of the fallback", ran[1] == "verb")
+  check(
+    "a declared verb that closes runs and closes the chooser afterward",
+    ran[1] == "verb" and ran[2] == "closed"
+  )
+
+  ran = {}
+  run("peekPreview", { kind = "scope", scope = "fileSearch", payload = {} })
+  check(
+    "a declared verb that does not close runs without closing anything",
+    ran[1] == "verb" and ran[2] == nil
+  )
 
   ran = {}
   run("copyPath", { kind = "scope", scope = "fileSearch", payload = {} })
@@ -153,31 +216,41 @@ do
   check("a nil item, an ordinary row with no scope at all, falls through the same way", ran[1] == "fallback")
 end
 
--- The composition root's own hosted rowsFor keeps a verb row only when verbFor would
--- answer non nil for it, and qualifies its chord with the tool's own description so the
--- row never claims a chord that only works elsewhere. Reproduced against this module's
--- own real verbFor for the same reason as the block above.
+-- The composition root's own hosted rowsFor keeps a verb row only when the tool's own verbs
+-- table declares that action, a bare function or a table with a callable fn, and qualifies its
+-- chord with the tool's own description so the row never claims a chord that only works
+-- elsewhere. This asks the verbs table directly rather than through verbFor, since rowsFor
+-- would otherwise have to build a scope row for every context to ask, and eleven of the twelve
+-- name no scope at all, which would log verbFor's own unknown scope warning on every one of
+-- them for a question that is presentation only and never touches a real row. The shape
+-- check below is reproduced from lib/registry.lua's own verbParts, since that is what a live
+-- verbs table actually holds, this module's own verbFor recognises the same shape, and this
+-- block exists to prove the two answer alike rather than to invent a third opinion about it.
 do
   local qs = freshModule()
-  qs:configure({ scopes = { fileSearchLikeScope({
-    revealInFinder = function() end,
-    copyPath = function() end,
-  }) } })
+  local verbs = {
+    revealInFinder = { fn = function() end, closes = true },
+    copyPath = { fn = function() end, closes = true },
+  }
+  qs:configure({ scopes = { fileSearchLikeScope(verbs) } })
   local bindings = {
     { action = "revealInFinder", chord = "Hyper+O" },
     { action = "browseInto", chord = "Hyper+L" },
   }
-  local function hostedRows(contextName, description)
+  local function hostedVerbDeclared(spec)
+    if type(spec) == "function" then return true end
+    return type(spec) == "table" and type(spec.fn) == "function"
+  end
+  local function hostedRows(description)
     local out = {}
     for _, b in ipairs(bindings) do
-      local item = { kind = "scope", scope = contextName, payload = {} }
-      if qs:verbFor(item, b.action) then
+      if hostedVerbDeclared(verbs[b.action]) then
         out[#out + 1] = { action = b.action, chord = b.chord .. " in " .. description }
       end
     end
     return out
   end
-  local rows = hostedRows("fileSearch", "File search")
+  local rows = hostedRows("File search")
   check(
     "a hosted row list keeps only the actions the scope declared a verb for",
     #rows == 1 and rows[1].action == "revealInFinder"
@@ -185,5 +258,15 @@ do
   check(
     "a kept row's chord is qualified with the tool's own description",
     rows[1].chord == "Hyper+O in File search"
+  )
+
+  local item = { kind = "scope", scope = "fileSearch", payload = {} }
+  check(
+    "the shape check agrees with this module's own verbFor for a declared action",
+    (qs:verbFor(item, "revealInFinder") ~= nil) == hostedVerbDeclared(verbs.revealInFinder)
+  )
+  check(
+    "the shape check agrees with this module's own verbFor for an undeclared action",
+    (qs:verbFor(item, "browseInto") ~= nil) == hostedVerbDeclared(verbs.browseInto)
   )
 end
