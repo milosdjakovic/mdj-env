@@ -235,6 +235,13 @@ for _, l in ipairs(panelRowLines) do add(l) end
 -- declares verbs on, so this section is mostly Back rows and one interesting entry, and that
 -- is exactly what it should be. contextNames and byName are reused rather than read again,
 -- though rowsFor only needs the name here too, never ctx.bindings itself.
+--
+-- closes joins the row line here too, the fix beside this one, since whether a verb closes
+-- the list it ran against was invisible in every direction before it, and a snapshot recording
+-- the verb without recording that property would leave a future flip of it just as silent as
+-- the defect that prompted adding it. field(nil) renders the dash the Back row already answers
+-- for action, title, and chord, so a row with no closes at all, the Back row, reads no
+-- differently for this field than for any other it does not carry.
 local hostedRowsByContext = {}
 for _, name in ipairs(contextNames) do
   hostedRowsByContext[name] = spoon.ActionPanel and spoon.ActionPanel:rowsFor(name, true) or {}
@@ -247,8 +254,8 @@ local hostedRowLines = {}
 for _, name in ipairs(contextNames) do
   for _, r in ipairs(hostedRowsByContext[name]) do
     hostedRowLines[#hostedRowLines + 1] = string.format(
-      "hostedrows.row context=%s action=%s title=%s chord=%s glyph=%s",
-      field(name), field(r.action), field(r.title), field(r.chord), field(r.glyph))
+      "hostedrows.row context=%s action=%s title=%s chord=%s glyph=%s closes=%s",
+      field(name), field(r.action), field(r.title), field(r.chord), field(r.glyph), field(r.closes))
   end
 end
 table.sort(hostedRowLines)

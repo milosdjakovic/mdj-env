@@ -267,21 +267,21 @@ hostedrows.context name=overlayDisplay rowCount=1
 hostedrows.context name=processes rowCount=1
 hostedrows.context name=textCase rowCount=1
 hostedrows.context name=vpn rowCount=1
-hostedrows.row context=browserTabs action=- title=Back chord=⌫ glyph=⬅️
-hostedrows.row context=caffeinate action=- title=Back chord=⌫ glyph=⬅️
-hostedrows.row context=clipboard action=- title=Back chord=⌫ glyph=⬅️
-hostedrows.row context=displayProfiles action=- title=Back chord=⌫ glyph=⬅️
-hostedrows.row context=emoji action=- title=Back chord=⌫ glyph=⬅️
-hostedrows.row context=fileSearch action=- title=Back chord=⌫ glyph=⬅️
-hostedrows.row context=fileSearch action=copyPath title=Copy path chord=Hyper+Y in File search glyph=📋
-hostedrows.row context=fileSearch action=peekPreview title=Quick Look chord=Hyper+Q in File search glyph=👁️
-hostedrows.row context=fileSearch action=revealInFinder title=Reveal in Finder chord=Hyper+O in File search glyph=🔍
-hostedrows.row context=launcher action=- title=Back chord=⌫ glyph=⬅️
-hostedrows.row context=menuSearch action=- title=Back chord=⌫ glyph=⬅️
-hostedrows.row context=overlayDisplay action=- title=Back chord=⌫ glyph=⬅️
-hostedrows.row context=processes action=- title=Back chord=⌫ glyph=⬅️
-hostedrows.row context=textCase action=- title=Back chord=⌫ glyph=⬅️
-hostedrows.row context=vpn action=- title=Back chord=⌫ glyph=⬅️
+hostedrows.row context=browserTabs action=- title=Back chord=⌫ glyph=⬅️ closes=-
+hostedrows.row context=caffeinate action=- title=Back chord=⌫ glyph=⬅️ closes=-
+hostedrows.row context=clipboard action=- title=Back chord=⌫ glyph=⬅️ closes=-
+hostedrows.row context=displayProfiles action=- title=Back chord=⌫ glyph=⬅️ closes=-
+hostedrows.row context=emoji action=- title=Back chord=⌫ glyph=⬅️ closes=-
+hostedrows.row context=fileSearch action=- title=Back chord=⌫ glyph=⬅️ closes=-
+hostedrows.row context=fileSearch action=copyPath title=Copy path chord=Hyper+Y in File search glyph=📋 closes=true
+hostedrows.row context=fileSearch action=peekPreview title=Quick Look chord=Hyper+Q in File search glyph=👁️ closes=false
+hostedrows.row context=fileSearch action=revealInFinder title=Reveal in Finder chord=Hyper+O in File search glyph=🔍 closes=true
+hostedrows.row context=launcher action=- title=Back chord=⌫ glyph=⬅️ closes=-
+hostedrows.row context=menuSearch action=- title=Back chord=⌫ glyph=⬅️ closes=-
+hostedrows.row context=overlayDisplay action=- title=Back chord=⌫ glyph=⬅️ closes=-
+hostedrows.row context=processes action=- title=Back chord=⌫ glyph=⬅️ closes=-
+hostedrows.row context=textCase action=- title=Back chord=⌫ glyph=⬅️ closes=-
+hostedrows.row context=vpn action=- title=Back chord=⌫ glyph=⬅️ closes=-
 registry actionpaneldecorated count=12
 registry choosers count=12
 choosers.entry "browserTabs"
