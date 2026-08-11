@@ -208,11 +208,12 @@ it hands back is a value rather than a deferred effect.
 ## Choosing is not the only thing a hosted list is for either, so there is a fifth, optional verb
 
 `verbFor(item, action)` answers a callable running the named verb this row's own scope declared
-for it, or nil when the scope declares no such verb, when it declares no verbs at all, or when the
-row is not a scope row to begin with. It mirrors `actFor` exactly, same routing home through the
-item's own scope, same `pcall` wrapping, and answering a callable rather than having already run,
-for the same reason `actFor` answers that way. Optional like peek, redirect, and act, so a scope
-with nothing declared is unaffected rather than newly incomplete.
+for it, plus a bool saying whether running it should close the list it ran against, or nil for
+both when the scope declares no such verb, when it declares no verbs at all, or when the row is
+not a scope row to begin with. The callable mirrors `actFor` exactly, same routing home through
+the item's own scope, same `pcall` wrapping, and answering a callable rather than having already
+run, for the same reason `actFor` answers that way. Optional like peek, redirect, and act, so a
+scope with nothing declared is unaffected rather than newly incomplete.
 
 It exists because a hosted list can carry a tool's own list without carrying a way to act on a row
 beyond choosing it, which is the gap the composition root's `actions.rowIntercept` named for itself
@@ -222,20 +223,35 @@ have its path copied, keys that live in that picker's own Hyper context, and a h
 route to either because it is under the launcher's context instead. `verbFor` is that route.
 
 The scope declares which of its verbs make sense away from its own picker, once, in a `verbs`
-field on the same table `configure` already reads, a map from an action name to a function taking
-the row's own payload. Nothing here decides which actions exist or what a verb does, that is the
-tool's own business through its registration, and this spoon only ever asks whether one was
-declared and hands back a way to run it.
+field on the same table `configure` already reads, a map from an action name to a bare function
+or a table carrying that function under `fn` plus a required `closes`. Closing is a property of
+the verb, never of whoever routed to it, and it has no default, so a verb that never says whether
+it closes is refused at registration rather than guessed at here, the same choice this
+configuration already made for a binding's own kind. This spoon trusts a registered verb to
+already answer a real boolean and never repeats that refusal, coercing only for a scope built by
+hand outside the registry, where a bare function or a table with no `closes` at all answers false
+rather than nil, since a caller asking this needs one answer or the other and nil reads as
+neither.
 
-Two callers ask it, and neither branches on hosting. The composition root's own `run`, injected
-into `ActionPanel`, asks `verbFor` first and falls through to its ordinary action table only when
-the answer is nil, and a row from a tool's own real picker is never a scope row, so it answers nil
-by construction and the ordinary path runs exactly as it always did. The root's own `rowsFor`, when
-asked for a context's hosted rows, keeps a verb row only when `verbFor` would answer non nil for
-it, so a hosted list is never shown a verb it cannot actually run, and offers no greyed row and no
-row that does nothing, the honest answer the design settled on. See `host/actionpanel/CLAUDE.md`
-for the first and `Spoons/Olm.spoon/CLAUDE.md`'s Registry section for where `verbs` itself is
-declared and validated.
+One caller runs a verb through it and does not branch on hosting. The composition root's own
+`run`, injected into `ActionPanel`, asks `verbFor` first and falls through to its ordinary action
+table only when the answer is nil, and a row from a tool's own real picker is never a scope row,
+so it answers nil by construction and the ordinary path runs exactly as it always did. When the
+answer is a verb, the root asks it to close or not exactly as its own closes said, never deciding
+on the verb's behalf.
+
+The root's own `rowsFor`, when asked for a context's hosted rows, does NOT ask `verbFor`, on
+purpose. It would have to build a scope row for a context just to ask, and eleven of the twelve
+contexts name no scope at all, which is exactly the row `_scopeOf` warns about, a row naming an
+unknown scope, for a question that never touches a real row and is presentation only. So `rowsFor`
+reads `registry.scopeFor(contextName).verbs` and the action straight off it instead, recognising
+the same bare function or table with a callable `fn` this module's own `verbFor` recognises,
+without asking this module anything. A hosted list is still never shown a verb it cannot actually
+run, and still offers no greyed row and no row that does nothing, the honest answer the design
+settled on, it is only reached by reading the same declaration a second way rather than by a
+second call through this one. See `host/actionpanel/CLAUDE.md` for the first and
+`Spoons/Olm.spoon/CLAUDE.md`'s Registry section for where `verbs` itself is declared and
+validated.
 
 ## A scope is also what a launcher row hosts, and that came for free
 
