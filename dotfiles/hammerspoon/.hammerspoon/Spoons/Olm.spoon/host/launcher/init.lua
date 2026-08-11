@@ -818,6 +818,24 @@ function obj:isHostingList()
   return self._page ~= nil
 end
 
+--- Launcher:currentQuery() -> string
+--- Method
+--- The whole query this launcher's rows are currently being built from, `_page` followed by
+--- whatever is typed, exactly the string `_commandRows` already assembles for itself. Answered
+--- through one accessor rather than exposing `_page` raw, so a caller does not have to
+--- reassemble something this spoon already knows how to say, and so the typed case and the
+--- chosen case answer the same way, typing a scope's alias and a space shows the same query as
+--- choosing that scope's row does.
+---
+--- With no page hosted this is simply what is typed, since `_commandRows` itself asks the query
+--- sources with nothing in front of it in that case. With no chooser instance at all this
+--- answers the empty string, the same nothing typed answers.
+function obj:currentQuery()
+  local typed = (self._instance and self._instance:query()) or ""
+  if self._page then return self._page .. typed end
+  return typed
+end
+
 --- Launcher:leavePage() -> bool
 --- Method
 --- Give the launcher its own list back, answering whether there was a page to leave. False is how
