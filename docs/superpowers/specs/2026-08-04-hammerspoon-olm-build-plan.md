@@ -277,13 +277,15 @@ in the config loads from Olm, and the only remaining `hs.loadSpoon` call is Olm'
 
 ## Phase 8, the action panel
 
-- [ ] Rescan `hyperContexts` and the binding declarations.
-- [ ] Packet, the panel as a consumer of the binding declarations, in place swap through the
-      existing hooks, chord from phase 0, kind stamped on shared navigation rows.
-- [ ] Build, QA, rework.
-- [ ] Gate, three choosers with different verb sets, file search, the clipboard, and one with no
+- [x] Rescan `hyperContexts` and the binding declarations.
+- [x] Packet, the panel as a consumer of the binding declarations, in place swap through the
+      existing hooks, chord from phase 0, kind stamped on shared navigation rows. Became four
+      packets rather than one, classification and measurement, the swap itself, Back leading with
+      a glyph on every row after a live test, and the hosted list.
+- [x] Build, QA, rework.
+- [x] Gate, three choosers with different verb sets, file search, the clipboard, and one with no
       verbs showing only Back, plus a hosted file search list offering reveal and copy path.
-- [ ] Live test, land.
+- [x] Live test, land.
 
 ## Phase 9, snippets, the first plugin born inside olm
 
