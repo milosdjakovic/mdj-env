@@ -41,15 +41,21 @@
 --
 -- scope, added in phase seven's fourth packet, is optional, a table carrying exactly
 -- the fields the composition root's own scope helper passes through today, matcher,
--- rows, run, peek, redirect, and act. Nothing else. The identity fields that helper
--- adds on top, name, title, glyph, and aliases, are deliberately not here, since three
--- of them come from config/keys.lua and this registry reads no configuration, the same
--- rule that keeps name the tool's only identity above. rows and run are required once
--- scope is present at all, since QueryScope's own admissible function requires both,
--- and refusing here names the registration rather than leaving QueryScope to refuse
--- the assembled scope later with a line naming only the scope. matcher, peek, redirect
--- and act are all optional, matcher accepting false or a function since four scopes
--- set it false today, and the other three accepting only a function or absence.
+-- rows, run, peek, redirect, act, and, since phase eight's fourth packet, verbs. The
+-- identity fields that helper adds on top, name, title, glyph, and aliases, are
+-- deliberately not here, since three of them come from config/keys.lua and this
+-- registry reads no configuration, the same rule that keeps name the tool's only
+-- identity above. rows and run are required once scope is present at all, since
+-- QueryScope's own admissible function requires both, and refusing here names the
+-- registration rather than leaving QueryScope to refuse the assembled scope later with
+-- a line naming only the scope. matcher, peek, redirect and act are all optional,
+-- matcher accepting false or a function since four scopes set it false today, and the
+-- other three accepting only a function or absence. verbs is optional too, a map from
+-- an action name to a function taking the row's own payload, the tool saying once which
+-- of its verbs make sense when a hosted list is holding its rows rather than its own
+-- picker. Validated one level deeper than the other four, since it holds functions
+-- rather than being one, verbs present and not a table is refused naming the tool, and a
+-- verbs entry present and not a function is refused naming the tool and the action.
 --
 -- surface, added in phase seven's second packet, is optional, a function of no
 -- arguments returning this tool's navigation adapter, the object answering isShowing
@@ -80,7 +86,7 @@
 -- register(descriptor) validates, then records, and refuses rather than raises, so one
 -- bad tool cannot empty the launcher. Every refusal is one log line at warning naming
 -- the tool and the reason, and register answers true when it registered and false when
--- it refused. Eighteen refusals exist. A descriptor with no name, or a name that is not a
+-- it refused. Twenty refusals exist. A descriptor with no name, or a name that is not a
 -- string, is refused, and cannot be named in its own error, so the line says what it
 -- can. A second registration under a name already taken is refused, naming the tool,
 -- since first registration wins. A commands key equal to the tool's own name is
@@ -110,7 +116,9 @@
 -- than a line further along naming only the scope. A scope's matcher, present and neither
 -- false nor a function, is refused naming the tool and the field, and a scope's peek,
 -- redirect, or act, present and not a function, is refused the same way, naming the tool
--- and whichever field was wrong. A shortcut, present and neither leader nor global, is
+-- and whichever field was wrong. A scope's verbs, present and not a table, is refused
+-- naming the tool, and a verbs entry present and not a function is refused naming the
+-- tool and the action whose verb was wrong. A shortcut, present and neither leader nor global, is
 -- refused naming the tool or the command and what it said, and a shortcut present with
 -- nothing to bind, no open on the tool or no callable fn on the command, is refused too,
 -- naming the same. The second of those two is unreachable for a command in practice,
@@ -311,6 +319,20 @@ function M.new(opts)
       log.w(string.format(
         "Registry refused '%s', its scope's act is present and is not a function", name))
       return false
+    end
+    if scope.verbs ~= nil then
+      if type(scope.verbs) ~= "table" then
+        log.w(string.format(
+          "Registry refused '%s', its scope's verbs is present and is not a table", name))
+        return false
+      end
+      for action, fn in pairs(scope.verbs) do
+        if type(fn) ~= "function" then
+          log.w(string.format(
+            "Registry refused '%s', its scope's verbs entry '%s' is not a function", name, tostring(action)))
+          return false
+        end
+      end
     end
     return true
   end

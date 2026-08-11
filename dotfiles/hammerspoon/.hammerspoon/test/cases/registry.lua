@@ -594,6 +594,48 @@ do
   )
 end
 
+-- Refusal, a scope's verbs present and not a table, phase eight's fourth packet.
+do
+  local r, warnings = freshRegistry(1)
+  local ok = r.register({
+    name = "fileSearch", apiVersion = 1,
+    scope = { rows = function() end, run = function() end, verbs = "not a table" },
+  })
+  check("a scope whose verbs is present and is not a table is refused", ok == false)
+  check(
+    "the refusal names the tool and says its scope's verbs is not a table",
+    found(warnings, "fileSearch") and found(warnings, "verbs is present and is not a table"),
+    table.concat(warnings, " | ")
+  )
+end
+
+-- Refusal, a scope's verbs entry that is not a function, naming the tool and the action.
+do
+  local r, warnings = freshRegistry(1)
+  local ok = r.register({
+    name = "fileSearch", apiVersion = 1,
+    scope = { rows = function() end, run = function() end,
+      verbs = { revealInFinder = function() end, copyPath = "not a function" } },
+  })
+  check("a scope whose verbs entry is not a function is refused", ok == false)
+  check(
+    "the refusal names the tool and the action whose verb is not a function",
+    found(warnings, "fileSearch") and found(warnings, "copyPath"),
+    table.concat(warnings, " | ")
+  )
+end
+
+-- A scope whose verbs are all functions registers.
+do
+  local r = freshRegistry(1)
+  local ok = r.register({
+    name = "fileSearch", apiVersion = 1,
+    scope = { rows = function() end, run = function() end,
+      verbs = { revealInFinder = function() end, copyPath = function() end } },
+  })
+  check("a scope whose verbs are all functions registers", ok == true)
+end
+
 -- A well formed scope registers, with matcher, peek, redirect, and act all present.
 do
   local r = freshRegistry(1)
