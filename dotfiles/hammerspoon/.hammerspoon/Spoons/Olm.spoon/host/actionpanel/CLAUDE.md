@@ -274,3 +274,38 @@ needing no configure the same reason decorate itself does not, since recording a
 a fact about construction rather than about the classification policy configure injects.
 test/inventory.lua reads it live, and it names twelve today, one per chooser this
 configuration builds, and would name fewer the moment that stopped being true.
+
+## The hosted path, phase eight's fourth packet
+
+A hosted list, a tool's own rows drawn inside the launcher rather than in its own picker, is
+under the launcher's Hyper context, so its bindings are the shared navigation and nothing else.
+Before this packet a hosted file search list could not offer reveal or copy path at all, since
+the chord that runs either lives in a context that is not live there. This packet is the gap
+closing, and it costs this module exactly two things, both additive and both already covered
+above by the same "beyond passing the captured item through" line the do not change list of the
+packet that built them draws around toggle.
+
+**run gains a second argument.** deps.run now receives the item this module captured when it
+opened, `self._capturedItem`, alongside the action's bare name, read into a local in `_leave`
+before `_close` clears the field it lives on, the same reason `capturedRow` and `capturedQuery`
+are already read into locals there. The composition root asks `spoon.QueryScope:verbFor(item,
+action)` with it before falling through to its own ordinary action table, contextActions, so a
+row from a scope that declared a verb for this action runs that verb instead. A row from a
+tool's own real picker is never a scope row, so it answers nil by construction and the ordinary
+path is untouched by being asked second. This module still learns nothing about QueryScope,
+about verbs, or about hosting, it only hands back the one piece of state it already held.
+
+**rowsFor and toggle gain an optional second argument, hosted.** Passed straight through from
+toggle to _buildRows to the public rowsFor to deps.rowsFor, unexamined at every step, so the
+root's own rowsFor can filter a hosted context's verb rows to the ones a scope actually declared
+and qualify their chords with the tool's own name, without this module learning what either of
+those means. Absent or false answers exactly what toggle and rowsFor always answered, the
+ordinary rows for a context genuinely showing its own picker. test/inventory.lua's own
+hostedrows section asks the public rowsFor for every context with hosted true and nothing open,
+the same reason contextName itself is an explicit argument rather than something this module
+works out by asking a chooser.
+
+Both changes are additive to existing call sites. A caller that never passes the second argument
+to run, rowsFor, toggle, or _buildRows sees exactly the behaviour it saw before this packet,
+since Lua answers nil for an argument nobody supplied and every new branch above treats nil the
+same as false.

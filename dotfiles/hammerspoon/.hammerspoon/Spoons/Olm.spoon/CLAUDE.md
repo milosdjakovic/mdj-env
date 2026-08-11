@@ -403,6 +403,21 @@ or nil, in the same shape `rowFor` already answers, resolved through the same fl
 inactive tool, an unknown name, and a command name all answer nil, a command's answer nil because
 nothing in this packet gives a command its own scope, only a tool's own entry carries one.
 
+**The scope gains `verbs`, phase eight's fourth packet.** Optional, a map from an action name to a
+function taking the row's own payload, the tool saying once which of its verbs make sense when a
+hosted list is holding its rows rather than its own picker. File search is the only tool that
+declares one today, three entries, `revealInFinder`, `copyPath`, and `peekPreview`, each calling
+straight into the plugin's own row taking entry point. Validated one level deeper than the other
+scope fields, since it holds functions rather than being one, a `verbs` present and not a table is
+refused naming the tool, and a `verbs` entry present and not a function is refused naming the tool
+and the action whose verb was wrong. The composition root's own `scope(name, opts)` helper, which
+joins the identity fields onto whatever a registration's `scope` carries, passes `verbs` straight
+through the same way it already passes the other four, since leaving it out there would mean a
+declared verb never reached the assembled scope `QueryScope` actually holds, a legitimate looking
+descriptor whose `QueryScope:verbFor` answered nil forever with nothing anywhere saying why. See
+`host/queryscope/CLAUDE.md` for `verbFor` itself and `host/actionpanel/CLAUDE.md` for how the
+action panel reaches it.
+
 **Why menu search could not be registered before this packet, and can now.** It has a surface, a
 scope, an open predicate, and a chord, everything a registered tool has except a launcher row,
 which is exactly what a tool that is reachable only as a scope is meant to look like. What blocked

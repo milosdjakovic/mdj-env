@@ -205,6 +205,38 @@ and `peek` do, so a scope that raises while flipping costs a console line rather
 chooser, where `redirectFor` has already run its `pcall` by the time it answers since the query
 it hands back is a value rather than a deferred effect.
 
+## Choosing is not the only thing a hosted list is for either, so there is a fifth, optional verb
+
+`verbFor(item, action)` answers a callable running the named verb this row's own scope declared
+for it, or nil when the scope declares no such verb, when it declares no verbs at all, or when the
+row is not a scope row to begin with. It mirrors `actFor` exactly, same routing home through the
+item's own scope, same `pcall` wrapping, and answering a callable rather than having already run,
+for the same reason `actFor` answers that way. Optional like peek, redirect, and act, so a scope
+with nothing declared is unaffected rather than newly incomplete.
+
+It exists because a hosted list can carry a tool's own list without carrying a way to act on a row
+beyond choosing it, which is the gap the composition root's `actions.rowIntercept` named for itself
+long before this spoon could close it. `run` is what choosing a row does, and it is the only verb a
+hosted list had until now. A row inside file search's own picker can also be revealed in Finder or
+have its path copied, keys that live in that picker's own Hyper context, and a hosted list has no
+route to either because it is under the launcher's context instead. `verbFor` is that route.
+
+The scope declares which of its verbs make sense away from its own picker, once, in a `verbs`
+field on the same table `configure` already reads, a map from an action name to a function taking
+the row's own payload. Nothing here decides which actions exist or what a verb does, that is the
+tool's own business through its registration, and this spoon only ever asks whether one was
+declared and hands back a way to run it.
+
+Two callers ask it, and neither branches on hosting. The composition root's own `run`, injected
+into `ActionPanel`, asks `verbFor` first and falls through to its ordinary action table only when
+the answer is nil, and a row from a tool's own real picker is never a scope row, so it answers nil
+by construction and the ordinary path runs exactly as it always did. The root's own `rowsFor`, when
+asked for a context's hosted rows, keeps a verb row only when `verbFor` would answer non nil for
+it, so a hosted list is never shown a verb it cannot actually run, and offers no greyed row and no
+row that does nothing, the honest answer the design settled on. See `host/actionpanel/CLAUDE.md`
+for the first and `Spoons/Olm.spoon/CLAUDE.md`'s Registry section for where `verbs` itself is
+declared and validated.
+
 ## A scope is also what a launcher row hosts, and that came for free
 
 A scope answers a whole list for a query that names it, which turned out to be exactly what was

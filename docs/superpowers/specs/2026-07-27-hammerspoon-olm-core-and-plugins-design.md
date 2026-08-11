@@ -1404,7 +1404,8 @@ the whole of the runtime guard.
   together, and by the same test that keeps the clipboard and snippets apart they may be one plugin
   with five files. Deliberately not decided here, because it is a question about the window feature
   and this document is about the core.
-- Whether a hosted list's action panel also shows the chord column for verbs whose chords are not
-  active in that context, which is honest but could teach a chord that will not work until the
-  tool is opened directly. Showing them greyed or footnoted is the likely answer, decide when it is
-  built.
+- Decided, phase eight's fourth packet. A hosted list's action panel shows the chord column,
+  qualified by where it works, so the row reads as the chord followed by the name of the list it
+  belongs to, taken from that tool's own description in config/keys.lua. The chord is worth
+  teaching, which is the whole reason this feature exists, and a bare chord that does nothing
+  where it is printed would have been the one dishonest reading.
