@@ -224,6 +224,36 @@ end
 table.sort(panelRowLines)
 for _, l in ipairs(panelRowLines) do add(l) end
 
+-- The hosted row list per context, phase eight's fourth packet, asked of the live module
+-- through the exact same ActionPanel:rowsFor door the panelrows section above uses, with its
+-- own second argument set to true this time, rather than a second function measuring
+-- something rowsFor itself does not know how to answer. This is the only measurement of the
+-- hosted path that exists, the one place a scope's verb could quietly disappear or a chord
+-- could quietly stop being qualified with nothing else catching it.
+--
+-- Only file search answers anything beyond Back today, since it is the only tool a scope
+-- declares verbs on, so this section is mostly Back rows and one interesting entry, and that
+-- is exactly what it should be. contextNames and byName are reused rather than read again,
+-- though rowsFor only needs the name here too, never ctx.bindings itself.
+local hostedRowsByContext = {}
+for _, name in ipairs(contextNames) do
+  hostedRowsByContext[name] = spoon.ActionPanel and spoon.ActionPanel:rowsFor(name, true) or {}
+end
+add("registry hostedrows count=" .. #contextNames)
+for _, name in ipairs(contextNames) do
+  add(string.format("hostedrows.context name=%s rowCount=%s", field(name), field(#hostedRowsByContext[name])))
+end
+local hostedRowLines = {}
+for _, name in ipairs(contextNames) do
+  for _, r in ipairs(hostedRowsByContext[name]) do
+    hostedRowLines[#hostedRowLines + 1] = string.format(
+      "hostedrows.row context=%s action=%s title=%s chord=%s glyph=%s",
+      field(name), field(r.action), field(r.title), field(r.chord), field(r.glyph))
+  end
+end
+table.sort(hostedRowLines)
+for _, l in ipairs(hostedRowLines) do add(l) end
+
 -- How many instances ActionPanel:decorate has actually wrapped, asked of the live module
 -- through the small public door built for exactly this, rather than trusted from the fact
 -- that config/keys.lua and the panelrows section above both look right. Neither of those
