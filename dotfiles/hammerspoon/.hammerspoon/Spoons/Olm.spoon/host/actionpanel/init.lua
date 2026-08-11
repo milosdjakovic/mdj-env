@@ -112,12 +112,18 @@ end
 ---               obj.kinds or nil. A missing or non function value raises, since that is a
 ---               caller misusing this module rather than a tool's own data, the same line
 ---               lib/registry.lua draws between the two for its own required opts.apiVersion.
---- deps.rowsFor  required, a function taking a context name and answering the ordered rows
----               the panel should show for it, each a table carrying action, title, and
----               chord. Presentation, so the root owns it, the same line drawn for kindOf.
---- deps.run      required, a function taking an action name and running it. The root owns
----               that too, since it already keeps the one map from an action name to what it
----               does, contextActions.
+--- deps.rowsFor  required, a function taking a context name and, since phase eight's fourth
+---               packet, a second and optional hosted flag, and answering the ordered rows
+---               the panel should show, each a table carrying action, title, and chord.
+---               Presentation, so the root owns it, the same line drawn for kindOf. hosted
+---               is passed straight through wherever this module reads rowsFor, toggle
+---               among them, and asked of nothing here, since only the root's own
+---               implementation knows what a hosted answer looks like.
+--- deps.run      required, a function taking an action name and, since phase eight's fourth
+---               packet, the item the panel captured when it opened, and running the action
+---               against it. The root owns that too, since it already keeps the one map from
+---               an action name to what it does, contextActions, and now also the routing
+---               that lets a scope's own declared verb answer first.
 --- deps.log      optional, the logger every warning below is written through, defaulting to
 ---               this module's own hs.logger instance. It exists only so a unit case can hand
 ---               in a small table answering w(message) and read a warning back directly,
@@ -178,7 +184,7 @@ function obj:kindOf(action)
   return self._kindOf(action)
 end
 
---- ActionPanel:rowsFor(contextName) -> list
+--- ActionPanel:rowsFor(contextName, hosted) -> list
 --- Method
 --- The injected rowsFor's own answer for one context name, or an empty list when this
 --- instance has not been configured yet. Exposed as a public method for the same reason
@@ -186,9 +192,14 @@ end
 --- own live read among them, goes through the one door that carries the unconfigured guard,
 --- and so toggle below and that measurement both reach the composition root's presentation
 --- through the exact same call rather than two copies of it agreeing by hand.
-function obj:rowsFor(contextName)
+---
+--- hosted, optional, phase eight's fourth packet, is passed straight through to the injected
+--- rowsFor and asked of nothing here, since only the root's own implementation knows what a
+--- hosted list's rows look like. Absent or false answers exactly what this always answered,
+--- the ordinary rows for a context genuinely showing its own picker.
+function obj:rowsFor(contextName, hosted)
   if not ensureConfigured(self, "rowsFor") then return {} end
-  return self._rowsFor(contextName)
+  return self._rowsFor(contextName, hosted)
 end
 
 --- ActionPanel:verbsIn(bindings) -> list
@@ -261,9 +272,9 @@ end
 -- item carries the plain row itself back whole, so _choose below can read its action
 -- directly off whatever the atom hands back as the chosen item, and the Back row, carrying
 -- no action since no context declares one, is what marks it Back rather than a verb there.
-function obj:_buildRows(contextName)
+function obj:_buildRows(contextName, hosted)
   local rows = {}
-  for _, r in ipairs(self:rowsFor(contextName)) do
+  for _, r in ipairs(self:rowsFor(contextName, hosted)) do
     rows[#rows + 1] = { title = r.title, subTitle = r.chord, image = self._icon(r.glyph),
                         item = r, filterText = r.title }
   end
@@ -321,9 +332,16 @@ end
 -- chosen verb, run only once the row is back where it was, through deps.run, exactly the same
 -- contextActions entry the chord itself runs, against exactly the row the chord would have
 -- acted on, so the panel and the chord cannot disagree about what a verb does.
+--
+-- capturedItem, phase eight's fourth packet, is read here into a local for the same reason
+-- capturedRow and capturedQuery already are, since _close below clears the field it lives on
+-- before the deferred continuation runs. deps.run is handed it as a second argument so the
+-- root can route a verb against the actual row the panel opened over, a hosted scope row
+-- among them, rather than only the action's bare name.
 function obj:_leave(instance, action)
   local capturedRow = self._capturedRow
   local capturedQuery = self._capturedQuery
+  local capturedItem = self._capturedItem
   self:_close()
   instance:setQuery(capturedQuery)
   local defer = self._defer or hs.timer.doAfter
@@ -337,7 +355,7 @@ function obj:_leave(instance, action)
       return
     end
     instance:selectRow(capturedRow)
-    if action then self._run(action) end
+    if action then self._run(action, capturedItem) end
   end)
 end
 
@@ -461,7 +479,7 @@ function obj:decorate(instance, config)
   return instance
 end
 
---- ActionPanel:toggle(contextName)
+--- ActionPanel:toggle(contextName, hosted)
 --- Method
 --- What the panel's chord runs. Closes the panel when it is already open, through _leave with
 --- no action, the same door every other way out uses, and then runs its own refresh(true),
@@ -477,13 +495,21 @@ end
 --- before it can call this at all, the same resolution its own activeContext already runs, so
 --- it is asked once there rather than taught to this module a second way.
 ---
+--- hosted, optional, phase eight's fourth packet, is passed straight through to rowsFor and
+--- never asked about here, the same undecorated passthrough _buildRows and rowsFor above
+--- already give it. The chord pressed inside a tool's own picker calls this with hosted absent
+--- or false, and the root's own resolution, done before this is ever called, is what passes
+--- true instead when the live context was actually the launcher hosting that tool's list, so a
+--- hosted panel lists only the verbs the hosted tool's scope actually declared rather than
+--- every verb its own real picker would offer.
+---
 --- Captures the highlighted item, row, and query, so a verb, once chosen, can act on the row
 --- the panel was opened over and the field can be handed back exactly as it was found (see
 --- _leave above), asks rowsFor for the named context's rows, sets the panel's state, clears the
 --- field so the panel opens on its own full list rather than filtered by whatever the tool's
 --- own query happened to be, and calls refresh(true) on the instance so decorate's wrapped rows
 --- function is asked for the panel's rows right away.
-function obj:toggle(contextName)
+function obj:toggle(contextName, hosted)
   if self._openInstance then
     local instance = self._openInstance
     self:_leave(instance, nil)
@@ -496,7 +522,7 @@ function obj:toggle(contextName)
   self._capturedItem = instance:selectedItem()
   self._capturedRow = instance:selectedRow()
   self._capturedQuery = instance:query()
-  self._panelRows = self:_buildRows(contextName)
+  self._panelRows = self:_buildRows(contextName, hosted)
   self._openInstance = instance
   instance:setQuery("")
   instance:refresh(true)

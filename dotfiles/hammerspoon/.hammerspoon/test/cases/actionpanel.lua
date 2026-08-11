@@ -488,6 +488,68 @@ do
   )
 end
 
+-- The item the panel captured when it opened, phase eight's fourth packet, reaches deps.run as
+-- its own second argument once a verb is chosen, not only the action's bare name, so the
+-- composition root can route a verb against the actual row the panel opened over, a hosted
+-- scope row among them. A fresh run capturing both arguments is built here rather than reusing
+-- configuredPanel's own, since that shared helper's runCalls is a plain list of action names
+-- everywhere else in this file and changing its shape would unsettle every check already
+-- reading it that way.
+do
+  local ap = freshModule()
+  local runArgs = {}
+  ap:configure({
+    kindOf = function() return nil end,
+    rowsFor = function(name) return name == "demo" and { { action = "doThing", title = "Do Thing" } } or {} end,
+    run = function(action, item) runArgs[#runArgs + 1] = { action = action, item = item } end,
+  })
+  ap._defer = function(_, fn) fn() end
+  local config = fakeConfig()
+  local capturedItem = { kind = "scope", scope = "fileSearch", payload = { path = "/tmp/x" } }
+  local instance = fakeInstance({ showing = true, item = capturedItem })
+  ap:decorate(instance, config)
+
+  ap:toggle("demo")
+  local handled = config.intercept({ action = "doThing", title = "Do Thing" })
+  check("choosing a verb answers true, keeping the chooser open", handled == true)
+  check(
+    "deps.run receives the action and the item the panel captured when it opened",
+    #runArgs == 1 and runArgs[1].action == "doThing" and runArgs[1].item == capturedItem
+  )
+end
+
+-- toggle's own hosted flag, phase eight's fourth packet, passes straight through to deps.rowsFor
+-- as its second argument, unexamined, so the root's own rowsFor can filter and qualify a hosted
+-- list's rows without this module knowing what either of those mean. The public rowsFor door
+-- forwards the same way, since toggle reaches deps.rowsFor only through it.
+do
+  local ap = freshModule()
+  local rowsForArgs = {}
+  ap:configure({
+    kindOf = function() return nil end,
+    rowsFor = function(name, hosted)
+      rowsForArgs[#rowsForArgs + 1] = { name = name, hosted = hosted }
+      return {}
+    end,
+    run = function() end,
+  })
+  local config = fakeConfig()
+  local instance = fakeInstance({ showing = true })
+  ap:decorate(instance, config)
+
+  ap:toggle("fileSearch", true)
+  check(
+    "toggle passes its own hosted flag straight through to rowsFor",
+    #rowsForArgs == 1 and rowsForArgs[1].name == "fileSearch" and rowsForArgs[1].hosted == true
+  )
+
+  ap:rowsFor("launcher", true)
+  check(
+    "the public rowsFor door forwards hosted the same way when asked directly",
+    rowsForArgs[2] ~= nil and rowsForArgs[2].name == "launcher" and rowsForArgs[2].hosted == true
+  )
+end
+
 -- Choosing the Back row restores the field and the highlight the exact same way a chosen verb
 -- does, not only closing the panel, since all four ways out owe the chooser the same thing back.
 do
