@@ -14,7 +14,7 @@ Every custom prefix binding must include `-N "description"` so it appears in `tm
 
 Custom bindings use a `[p:N]` prefix in their `-N` note, for example `-N "[p:1] Tmux actions (tmux-fzf)"`. The cheat sheet sorts prioritized bindings by N first, then appends unprioritized bindings. The `[p:N]` tag is stripped before display using sed so the user only sees the clean description.
 
-When adding a new binding, pick a priority number that places it in the right group. Do not duplicate priority numbers. The current assignments are listed below.
+When adding a new binding, pick a priority number that places it in the right group. Do not duplicate priority numbers. The one exception is a family of sibling bindings that are one feature spread across several keys, where a shared number is what keeps them adjacent in the cheat sheet instead of scattering the feature across the list. The nine session jump keys are the only family so far, and they all carry `[p:11]`. The current assignments are listed below.
 
 ### Priority assignments
 
@@ -29,6 +29,7 @@ When adding a new binding, pick a priority number that places it in the right gr
 8. Recent repos & worktrees lazygit (`G`)
 9. Repos & worktrees picker (`r`)
 10. Sessions tree view (`S`)
+11. Jump to session by number (`M-1` through `M-9`)
 13. Switch to previous session (`(`)
 14. Switch to next session (`)`)
 15. Previous window (`p`)
@@ -176,7 +177,89 @@ Changing `allow-passthrough` requires a full tmux server restart (`tmux kill-ser
 
 Changes color based on state. Green background when prefix is active, yellow when in copy mode, transparent otherwise.
 
+Two options name what that implies, so the rest of the bar states each idea once instead of repeating the same nested conditional. `@bar_muted` is true whenever the bar has taken a background colour, which is exactly when every foreground on it must go black to stay readable. `@bar_dim` is the quiet grey for chrome and for anything the eye should skip past. It is written as `colour246` rather than the `#949494` it equals, because a hex value loses its leading `#` when read back through a second expansion, and that grey is the same one the fzf popups use for their borders and headers. Read either option back with `#{E:...}`, since an option value is otherwise handed over literally.
+
+`status-left` is a dim `W` label rather than the session name it used to hold. The session row below names every session including the current one, so printing it on the left as well said nothing. It is styled through `status-left-style` rather than an inline tag, because row 0's default format truncates `status-left` to `status-left-length` and a style tag inside the value would eat that budget.
+
 Copy mode state is tracked via a global `@copy_mode` variable propagated through hooks because `pane_in_mode` only works for the evaluated pane. Non-active windows cannot see whether the active pane is in copy mode, so the hooks set a global flag on mode change, pane focus, window change, and session change.
+
+## Session strip, the second status row
+
+`status` is set to 2, which gives the bar two rows. Row 0 is left entirely at its
+default so every window list setting above it keeps working untouched, and only
+`status-format[1]` is written. That row lists every session with the number that jumps
+to it, behind a dim `S` label that pairs with the `W` on row 0. The two labels start
+both lists at the same column and stop either row being mistaken for the other. The far
+right reads `⌥1-9` rather than naming the row again, because the label already says what
+this is and the question in the moment is which key to press.
+
+Sessions are marked the way windows are marked on the row above. The current one is
+wrapped in angle brackets and green. The one `prefix+e` goes back to carries a leading
+dash and is white, read straight from `client_last_session`, so the key shows where it
+lands before you press it. Every other session is dim.
+
+Those three levels of emphasis are doing real work rather than decoration. Windows and
+sessions both render in an identical `N:name` shape, so brightness is the only thing
+stopping the two rows reading as one list of ten items. The dim also settles which row
+the eye lands on first, and that should be the window row, since windows are what get
+switched constantly while the session row is glanced at.
+
+The dash costs a column, so the row shifts by one character when the previous session
+changes. The window row above already behaves that way, so it is consistent rather than
+surprising.
+
+### Why the rows are ordered this way
+
+Content, then windows, then sessions, reading down. Distance from the content matches
+nesting depth, since content sits in a window and that window sits in a session, so
+reading downward walks outward through the containers one layer at a time. It is the
+same relationship a browser tab strip has with its page. Putting sessions in the middle
+would place the outer container between the content and its own tabs.
+
+That reasoning depends on the bar being at the bottom. Moving `status-position` to top
+inverts the correct order to sessions, then windows, then content, for the same reason.
+
+Clicking a session switches to it, the same as clicking a window on the row above, and
+that needed no new binding. Each entry is wrapped in a `range=session` marker, and the
+default `MouseDown1Status` is already `switch-client -t =`, so a session range simply
+hands it the session as its target. The range takes a session id rather than a name,
+which is also what makes it safe, since `range=user` caps its argument at 15 bytes and
+a longer session name would not survive. The separating space sits outside each range so
+the gap between two entries is not clickable.
+
+Windows already answered half of this. `prefix` plus a bare number is a tmux default and
+selects a window, which works here because `base-index` is 1 and `renumber-windows` is
+on, so the numbers on row 0 stay dense and match the keys. Sessions needed building,
+because a session has a name and no index of its own.
+
+`~/.tmux/scripts/session-index.sh` is the one place that decides which number a session
+holds. It has two subcommands, `--renumber` stamps the numbers and `--switch N [client]`
+jumps. Both go through the same stored value rather than deriving the order twice, which
+is the whole point, since a strip and a key that each sort their own list are free to
+disagree. The number is stored on the session as the `@sidx` option, and that choice is
+what keeps the row cheap, because a tmux format reads a session option directly and the
+row never shells out on a redraw. A `#()` shell call in the format would have worked too
+and would have cost a poll interval of staleness on every session change.
+
+Order is by name in byte order, chosen over most recently used because a number worth
+learning has to hold still. It still moves when a session is created, killed, or renamed,
+which is why three hooks restamp, `session-created`, `session-closed`, and
+`after-rename-session`. Rename counts because the order is by name. Renumbering ends with
+`refresh-client -S`, since setting a session option changes nothing on screen by itself.
+A `run-shell` at the end of `.tmux.conf` stamps whatever is already running, because the
+hooks only see changes from that point on.
+
+That churn is the honest cost of numbering things with no index, and it is why the fzf
+switcher on `prefix+s` is still the right tool for a session you reach rarely. The strip
+is for the handful you live in.
+
+The jump bindings pass `#{client_name}` to the script rather than letting tmux pick.
+They run through `run-shell -b` so the key never blocks, and a backgrounded
+`switch-client` with no client chosen moves the most recently used one, which is the
+wrong terminal as soon as two are attached. `run-shell` expands formats in its command,
+which is what makes passing the client possible at all.
+
+Numbers past 9 are still stamped and still shown, they just have no key.
 
 ## Plugins
 
