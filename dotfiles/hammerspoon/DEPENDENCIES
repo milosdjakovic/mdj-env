@@ -50,5 +50,8 @@ kill | system | /bin/kill | optional | processes/ports | stops a holder, gracefu
 ps | system | /bin/ps | optional | processes/runtimes | finds candidate runtime processes and reads their working directory
 lsof | system | /usr/sbin/lsof | optional | processes/runtimes | checks whether a candidate holds a socket, the evidence that separates a dev server from a stray process
 kill | system | /bin/kill | optional | processes/runtimes | stops a runtime process, gracefully first and forcefully on request
+tmux | path | tmux | required | tmuxsessions/engine | querying and switching every session and window, the whole reason this tool exists
+open | system | /usr/bin/open | optional | tmuxsessions/alacritty | launching Alacritty with the flag that starts it attached to a session
+open | system | /usr/bin/open | optional | tmuxsessions/wezterm | launching WezTerm with the start form that runs it attached to a session
 mullvad | path | mullvad | optional | vpn/mullvad | the relay CLI behind every VPN control and location
 recency | core | lib/recency.lua | optional | vpn/vpn | remembering the last used city, so the list opens already ordered by that

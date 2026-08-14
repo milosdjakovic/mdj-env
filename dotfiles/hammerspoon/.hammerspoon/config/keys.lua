@@ -362,6 +362,24 @@ local M = {
         { key = "x", action = "closeChooser", description = "Close" },
       },
     },
+    -- The tmux sessions chooser (launcher-only). Every tmux session, with a settings
+    -- level behind the last row for choosing which terminal a fresh attach opens into, so
+    -- it is a menu and not a flat list, the same shape as browser tabs. i confirms the
+    -- highlighted row in place, jumping to a session or stepping into settings and back
+    -- out, j and k move the highlight, and x closes it. It binds `enter` rather than the
+    -- shared insertSelected for the same reason, so stepping into settings never closes
+    -- and re-shows. Plain typing filters the session list while Hyper is released.
+    {
+      name = "tmuxSessions",
+      when = "tmuxSessionsOpen",
+      priority = 100,
+      bindings = {
+        { key = "i", action = "enter",        description = "Select" },
+        { key = "j", action = "selectNext",   description = "Move down" },
+        { key = "k", action = "selectPrev",   description = "Move up" },
+        { key = "x", action = "closeChooser", description = "Close" },
+      },
+    },
     -- The processes picker (launcher-only). A flat list, so i stops the highlighted
     -- server or container the same as Return, j and k navigate vim style, and x closes it.
     -- Three extra actions are its own. f stops with no grace period and no size check,
@@ -576,6 +594,26 @@ local M = {
   -- Scoped, it lists the tabs alone. The settings row is a step into a second level, which a
   -- scope has no way to show, so reaching the browser switches means opening the tool itself.
   browserTabs = { modifiers = HYPER, key = "W", description = "Browser tabs", glyph = "📑", aliases = { "t", "tabs" } },
+
+  -- Tmux sessions (for Olm's TmuxSessions plugin, wired in init.lua). Lists every tmux
+  -- session, its windows named in the subtitle, and jumps to one, retargeting whatever
+  -- terminal already has a client attached or opening a fresh attach when nothing does.
+  -- The last row opens settings, which terminal a fresh attach opens into, the same shape
+  -- browser tabs uses for its own settings level. Hyper+U for testing, U for tmUx since T,
+  -- M, and S are already app toggles. It has its own hyperContext above, so while open it
+  -- takes the shared j/k/i navigation and x closes it. `description` labels its launcher
+  -- row; the row's `keywords`, widening what a typed word can match, are set on the
+  -- registry.register call in init.lua alongside the other row fields, the fileSearch
+  -- precedent, rather than here where nothing would read them.
+  --
+  -- Scoped, `u ` or `tmux ` hosts the window list in place of the launcher's own catalog,
+  -- the browserTabs shape, so typing either narrows straight to sessions and windows with
+  -- no picker opening on top of the launcher. The Settings level is not offered there,
+  -- being a step into a second list a scope cannot show, the same reason browser tabs
+  -- leaves its own settings level out of its scope; Hyper+U still opens the full picker
+  -- with Settings when you need to change the terminal.
+  tmuxSessions = { modifiers = HYPER, key = "U", description = "Tmux Manager", glyph = "🗂️",
+    aliases = { "u", "tmux" } },
 
   -- File search (for Olm's FileSearch plugin, wired in init.lua). Hyper+/ searches the filesystem by
   -- name, optionally filtered by type, scoped to a folder, and optionally reaching the files

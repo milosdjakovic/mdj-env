@@ -1,0 +1,9 @@
+# What engine.lua needs from outside Hammerspoon, declared beside the only file that
+# shells out to it. Format is name | kind | locator | policy | reason.
+# See Olm's lib/deps.lua for the kinds and for how these files are found.
+#
+# Required, because this tool is only a front end onto the tmux server, the same reasoning
+# Convert and Eyedropper already use for a tool with nothing sensible to fall back to. An
+# absent tmux leaves nothing to list and nothing to switch, so the root leaves the whole
+# tool unwired rather than opening a picker onto silence.
+tmux | path | tmux | required | querying and switching every session and window, the whole reason this tool exists

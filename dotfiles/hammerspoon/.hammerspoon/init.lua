@@ -148,6 +148,10 @@ spoon.TextCase = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/textcase/init
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.BrowserTabs by hand since it bypasses hs.loadSpoon.
 spoon.BrowserTabs = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/browsertabs/init.lua")
+-- TmuxSessions is a new Olm plugin from the start, no original spoon to retire, loaded the
+-- same way every olm-side plugin is, an absolute path built from hs.configdir, assigned to
+-- spoon.TmuxSessions by hand since it bypasses hs.loadSpoon.
+spoon.TmuxSessions = dofile(hs.configdir .. "/Spoons/Olm.spoon/plugins/tmuxsessions/init.lua")
 -- Processes now lives only in Olm. The original spoon passed live validation and was
 -- retired, so this loads the olm side copy unconditionally by an absolute path built from
 -- hs.configdir, assigned to spoon.Processes by hand since it bypasses hs.loadSpoon.
@@ -518,6 +522,12 @@ local predicates = {
   -- shared j, k, i, and x navigation while it is up.
   browserTabsOpen = function()
     return spoon.BrowserTabs ~= nil and spoon.BrowserTabs:isShowing()
+  end,
+  -- The tmux sessions chooser is open. Gates the tmuxSessions Hyper context, so it takes
+  -- the shared j, k, i, and x navigation while it is up. nil when tmux was not found on
+  -- this machine and the tool was never wired.
+  tmuxSessionsOpen = function()
+    return spoon.TmuxSessions ~= nil and spoon.TmuxSessions:isShowing()
   end,
   -- The processes picker is open. Gates the processes Hyper context, so it takes the
   -- shared j, k, and x navigation plus its own stop, force and refresh keys.
@@ -1880,6 +1890,97 @@ spoon.BrowserTabs.chooser.start()
 -- through the one loop further below that walks registry.shortcuts(), phase seven's fifth
 -- and last packet, rather than by a direct spoon.HyperKey:bind call here.
 
+-- TmuxSessions: lists every tmux session and jumps to one, launcher only with no
+-- dedicated key. This block names the concrete terminal backends and their order, the
+-- same shape BrowserTabs uses for its browsers, so a new terminal is a new file plus one
+-- line here. Ghostty leads, since it is the terminal actually in use on this machine
+-- (config/settings.lua's own preferredTerminal); Terminal and iTerm need nothing injected
+-- beyond their own bundle id, they carry their own AppleScript dictionary, while
+-- Alacritty and WezTerm carry none and need open resolved for their CLI based attach.
+--
+-- The resolver stamps every declaration under Olm.spoon with the one consumer name Olm,
+-- the same reason every sibling plugin's wiring site reads depsFor("Olm") rather than a
+-- name of its own. tmux is declared required, since this tool is only a front end onto
+-- it, but the gate below reads have("tmux") rather than the shared satisfied(). satisfied()
+-- answers for every required tool under the whole of Olm.spoon at once, so asking it here
+-- would let this tool's own absence fail Convert's gate too; have() asks about exactly the
+-- one name this tool needs, which is what keeps the two independent.
+--
+-- Registration sits inside this branch and runs before registry.activate below, the same
+-- ordering every other tool's registration already follows, so an absent tmux means no
+-- launcher row exists at all rather than one that opens onto a chooser nobody configured,
+-- and a present one is actually marked active rather than registered too late to count.
+local tmuxDeps = depsFor("Olm")
+if tmuxDeps.have("tmux") then
+  local tmuxProviders = spoon.TmuxSessions.providers
+  local openPath = tmuxDeps.path("open")
+  tmuxProviders.alacritty.configure({ open = openPath })
+  tmuxProviders.wezterm.configure({ open = openPath })
+
+  spoon.TmuxSessions:init()
+  spoon.TmuxSessions:configure({
+    deps = tmuxDeps,
+    providers = {
+      tmuxProviders.ghostty,
+      tmuxProviders.terminal,
+      tmuxProviders.iterm,
+      tmuxProviders.alacritty,
+      tmuxProviders.wezterm,
+    },
+    -- The lift to front ordering service, the same one BrowserTabs and Vpn each keep
+    -- their own instance of. Keyed by the tmux target string a row and a jump both use,
+    -- session:index, so a session or a window that gets killed leaves a key nothing can
+    -- ever produce again; pruneRecency is what actually drops it, called once per open.
+    recency = spoon.Olm.lib.recency.new({ settingsKey = "TmuxSessions.recentWindows" }),
+  })
+
+  local tmuxSessionsPanel = shortcutPanelFor("tmuxSessions")
+  spoon.TmuxSessions.chooser.configure({
+    chooser = spoon.Chooser,
+    theme = settings.chooserTheme,
+    api = spoon.TmuxSessions.engine,
+    -- A failed jump is the one thing this tool ever has to say, since a landed jump is
+    -- silent by design. It is a failure that stopped that one action rather than routine
+    -- feedback while the tool works, the same shape TerminalHandler's own "Terminal not
+    -- configured" alert answers, so it stays on hs.alert rather than the shared canvas
+    -- toast, whose builder is not yet defined at this point in the file in any case.
+    onMessage = function(text) hs.alert.show(text) end,
+    onPositioned = tmuxSessionsPanel.onPositioned,
+    onActivity = tmuxSessionsPanel.onActivity,
+    onClose = tmuxSessionsPanel.onClose,
+  })
+  spoon.TmuxSessions.chooser.start()
+
+  registry.register({
+    name = "tmuxSessions", apiVersion = 1, shortcut = "leader", hosted = true,
+    open = function() spoon.TmuxSessions:show() end,
+    surface = function() return spoon.TmuxSessions.chooser end,
+    -- No detail, matching fileSearch rather than displayProfiles: this tool has a real
+    -- chord, so the subtitle should read like every other keyed tool's, category then the
+    -- Hyper combo, with the alias hint appended by the launcher's own addTool, rather than
+    -- naming what the tool does in prose.
+    row = { category = "Tools", glyph = "🗂️", keywords = "tmux sessions windows terminal ghostty" },
+    -- The tabs are read straight from tmux, so this is the same shape the browserTabs scope
+    -- takes, ask for the matching rows and let the tool say what an empty list means, since
+    -- it knows whether that means no session exists at all rather than the query matching
+    -- nothing. The Settings level is not offered here, a step into a second list a scope
+    -- cannot show, so the guidance names the one door that reaches it.
+    scope = {
+      matcher = false,
+      rows = function(rest)
+        local out = spoon.TmuxSessions.chooser.hostRows(rest)
+        if #out == 0 then
+          return spoon.TmuxSessions.chooser.explain("in " .. keys.tmuxSessions.description)
+        end
+        return out
+      end,
+      run = function(payload) spoon.TmuxSessions.chooser.activate(payload) end,
+    },
+  })
+else
+  log.i("TmuxSessions is not wired, tmux was not found")
+end
+
 -- Processes: find and stop the development servers you left running, opened from the
 -- launcher only. Two configures, matching DisplayProfiles. The spoon's own root takes the
 -- pure policy from config/processes.lua and hands each discovery source its slice, and this
@@ -2487,6 +2588,7 @@ local queryScopeSpec = {
   "menuSearch",
   "browserTabs",
   "fileSearch",
+  "tmuxSessions",
   launcherCatalogScope("apps", "app"),
   launcherCatalogScope("windowActions", "window"),
   launcherCatalogScope("settingsPanes", "settingsPane"),
@@ -2691,11 +2793,19 @@ local clipManager = spoon.ClipboardHistory.manager
 -- is showing, so the order decides the answer if two are ever up at once, and nothing in this
 -- tree proves they cannot be, which is why this list is never reordered to suit the registry
 -- and never sorted.
-local choosers = registry.surfaces({
+-- tmuxSessions is only ever registered when tmux was found (see its wiring above), so it is
+-- only ever named here when that is true. Naming it unconditionally would make
+-- registry.surfaces warn every reload on a machine with no tmux, since nothing would have
+-- registered under that name to resolve. Built with table.insert rather than a nil hole in
+-- the literal below, since ipairs is not specified to keep going past one.
+local chooserSpec = {
   "clipboard", "caffeinate", "vpn", spoon.Launcher:surface(), "menuSearch",
   "displayProfiles", "emoji", overlayDisplaySurface, "textCase", "browserTabs",
-  "processes", "fileSearch",
-})
+}
+if tmuxDeps.have("tmux") then table.insert(chooserSpec, "tmuxSessions") end
+table.insert(chooserSpec, "processes")
+table.insert(chooserSpec, "fileSearch")
+local choosers = registry.surfaces(chooserSpec)
 local function activeChooser()
   for _, c in ipairs(choosers) do
     if c.isShowing() then return c end
@@ -2949,15 +3059,35 @@ hs.urlevent.bind("clipboard", function()
 end)
 
 -- Capture: screen capture / recording / OCR on the Hyper key, backed by an
--- ordered provider chain. Each action is handled by the first provider that is
--- both installed and supports it, so macshot (its macshot:// URL scheme) is used
--- for screenshots when present and the native macOS shortcuts (Cmd+Shift+4 /
--- Cmd+Shift+5) are the always-available fallback. macocr (schappim's `ocr` CLI)
--- is the sole backend for the OCR action, so it just sits last. Reorder this list
--- to change screenshot priority; drop macshot to use only native (e.g. to
--- sidestep macshot's own capture bugs). Native leads as of August 8, 2026 for
--- the user's requested test pass, and macshot is demoted to second rather
--- than removed, so it stays available once the test pass is done.
+-- ordered provider chain. Each action is handled by the first provider that
+-- supports it and is usable right now, so macshot (its macshot:// URL scheme)
+-- takes the screenshots and the recording when it is up, and the native macOS
+-- shortcuts (Cmd+Shift+4 / Cmd+Shift+5) answer whenever it is not. macocr
+-- (schappim's `ocr` CLI) is the only backend for the OCR action.
+--
+-- WHICH ORDER that is now lives in config/settings.lua's capture.providers, pure
+-- data, a list of names in priority order. Only this root turns a name into a
+-- concrete provider, the same split the overlay display modes and the tool roster
+-- already use, so changing the priority never edits code. It used to be this
+-- literal list, which is how native quietly stayed in front for months after the
+-- August 8, 2026 test pass that put it there, since a chain order buried in the
+-- root is not somewhere anyone looks. An unresolvable name is named in the console
+-- and skipped, and a list resolving to nothing hands Capture back its own default
+-- order rather than an empty chain, since no chain means no capture key at all.
+local captureProviders = {}
+for _, name in ipairs((settings.capture or {}).providers or {}) do
+  local provider = spoon.Capture.providers[name]
+  if provider then
+    table.insert(captureProviders, provider)
+  else
+    log.w("capture: no provider named '" .. tostring(name) .. "', skipped")
+  end
+end
+if not next(captureProviders) then
+  log.w("capture: settings.capture.providers named no usable provider, falling back to the default chain")
+  captureProviders = nil
+end
+
 spoon.Capture:init()
 spoon.Capture:configure({
   hyperKey = spoon.HyperKey,
@@ -2971,11 +3101,7 @@ spoon.Capture:configure({
   -- original spoon was deleted, so this reads depsFor("Olm") instead, which is where the
   -- copy's own declarations already live.
   deps = depsFor("Olm"),
-  providers = {
-    spoon.Capture.providers.native,
-    spoon.Capture.providers.macshot,
-    spoon.Capture.providers.macocr,
-  },
+  providers = captureProviders,
 })
 spoon.Capture:bindHotkeys(keys.capture)
 

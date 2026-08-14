@@ -411,6 +411,10 @@ function obj:_buildActionRows()
   -- keywords carry the words a habit reaches for, since the title says file search and the
   -- thing people type is find.
   addTool("fileSearch")
+  -- Tmux sessions has a chord (Hyper+U), so its subtitle names it like the other keyed
+  -- tools. The keywords carry session, window, and terminal so a habit of typing any of
+  -- those still lands on it.
+  addTool("tmuxSessions")
   -- The alias directory, which has no chord because it opens from here, and is also reached by
   -- its own alias like the tools it lists. Its subtitle says what it holds rather than naming
   -- the word that reaches it, since that word is appended by the same hint every other row

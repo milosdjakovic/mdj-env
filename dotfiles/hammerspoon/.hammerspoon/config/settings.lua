@@ -207,6 +207,28 @@ return {
   toolActivation = {
     "clipboard", "caffeinate", "vpn", "colorPicker", "emoji", "dockAutoHide",
     "displayProfiles", "textCase", "browserTabs", "processes", "fileSearch", "menuSearch",
+    "tmuxSessions",
+  },
+
+  -- Screen capture priority. An ordered list of Capture provider names, tried front
+  -- to back, so the first one that supports the action and is usable right now handles
+  -- it. This is the whole of the chain order, pure data, and the composition root is
+  -- still the only place a name becomes a concrete provider, the same shape the overlay
+  -- display modes and the tool roster above already use. So reordering the chain, or
+  -- dropping a backend to stay off it, is one edit here.
+  --
+  -- macshot leads because its capture is the one wanted for screenshots and recording,
+  -- and it stands aside on its own whenever it is not installed, does not own its URL
+  -- scheme, or is simply not running. native is the macOS shortcuts and is always
+  -- available, so it belongs last of the two and is what answers while macshot is down.
+  -- macocr is the only backend for the OCR action, so nothing competes with it and its
+  -- position does not matter, but removing it removes OCR entirely.
+  --
+  -- A name nothing answers to is named in the console and skipped, and a list that
+  -- resolves to no provider at all leaves Capture on its own built in order rather than
+  -- on an empty chain.
+  capture = {
+    providers = { "macshot", "native", "macocr" },
   },
 
   -- The two storage roots every plugin's data lives under, pure data with the

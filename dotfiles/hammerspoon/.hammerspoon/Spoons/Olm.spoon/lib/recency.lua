@@ -15,16 +15,22 @@
 -- since a hand rolled block with no cap of its own converts to an instance
 -- that behaves the same way.
 --
--- Every instance exposes three functions, touch, rankOf, and order, carrying
--- the donor's own semantics. touch(key) lifts a key to the front, dropping
--- any earlier entry for the same key and anything past the cap, then
--- persists. rankOf(key) answers the position, one being most recent, or nil
--- for a key never touched, built through a memo that is dropped whenever the
--- order changes, the donor's own performance reasoning, since this is asked
--- for on every item on every keystroke. order(items, keyOf) returns the
--- items with remembered ones leading in remembered order and the rest
+-- Every instance exposes four functions, touch, rankOf, order, and prune, carrying the
+-- donor's own semantics for the first three. touch(key) lifts a key to the front, dropping
+-- any earlier entry for the same key and anything past the cap, then persists. rankOf(key)
+-- answers the position, one being most recent, or nil for a key never touched, built
+-- through a memo that is dropped whenever the order changes, the donor's own performance
+-- reasoning, since this is asked for on every item on every keystroke. order(items, keyOf)
+-- returns the items with remembered ones leading in remembered order and the rest
 -- following in arrival order, stable for items sharing a key, with keyOf the
 -- caller's function from an item to its key.
+--
+-- prune(validKeys) is the one function neither donor needed, added for TmuxSessions,
+-- whose remembered keys name a session or a window that a person can simply kill, unlike
+-- an app's bundle id or a VPN city, which stay valid as long as the tool itself runs. It
+-- drops every remembered key not present in validKeys (an array, checked as a set built
+-- once per call) and persists only when something actually changed, so a caller free to
+-- call it on every open pays nothing on the ordinary reload where nothing went away.
 --
 -- The stored order loads lazily on first use, and there is no start or stop,
 -- the same reasoning the donor records, since there is nothing to start.
@@ -120,6 +126,28 @@ function M.new(opts)
     end)
     for _, item in ipairs(rest) do seen[#seen + 1] = item end
     return seen
+  end
+
+  --- instance.prune(validKeys)
+  --- Drop every remembered key that is not in validKeys, an array of the keys that still
+  --- exist right now. Persists and drops the rank memo only when a key was actually
+  --- removed, so calling this on every open of a list that has not changed costs one pass
+  --- over a short array and nothing else.
+  function instance.prune(validKeys)
+    local valid = {}
+    for _, k in ipairs(validKeys or {}) do valid[k] = true end
+    local out, removed = {}, false
+    for _, k in ipairs(loaded()) do
+      if valid[k] then
+        out[#out + 1] = k
+      else
+        removed = true
+      end
+    end
+    if not removed then return end
+    order = out
+    ranks = nil
+    hs.settings.set(settingsKey, order)
   end
 
   return instance
