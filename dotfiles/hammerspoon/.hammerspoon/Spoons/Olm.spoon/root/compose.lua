@@ -1132,6 +1132,21 @@ function obj.run(olm, cfg)
   record.modules = modules
   record.screen = overlay.screen
 
+  -- What this run actually decided, kept so something can INSPECT it afterwards rather than
+  -- having to compose a second time to ask a question about the first. The test suite is the
+  -- caller that made this necessary, since deriving a check from what a plugin declared means
+  -- reading the plan and the manifests that produced the live config rather than reading the
+  -- files again and hoping the two agree, which is exactly the self agreement that let a
+  -- manifest naming a deleted capability pass for weeks.
+  --
+  -- All five are the tables themselves rather than copies. Nothing here should be written to,
+  -- and a defensive copy would only make an inspector disagree with the config it is inspecting.
+  record.plan = plan
+  record.manifests = manifests
+  record.dispatch = dispatchTable
+  record.predicates = ownPredicates
+  record.data = wireData
+
   return record
 end
 
