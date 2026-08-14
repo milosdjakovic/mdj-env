@@ -82,4 +82,97 @@ obj.lib = {
   glyphicon = load("lib/glyphicon.lua"),
 }
 
+--- Olm:start(cfg)
+--- The one door into the composition root. Loaded the same way every atom in Olm.lib
+--- already is, relative to this file rather than by name, so this spoon still assumes
+--- nothing about where it sits on disk. Runs the root exactly once, because the root
+--- takes the shared chooser atom and the leader engines through their own init and
+--- configure, and neither is written to survive going through that twice.
+---
+--- Answers self. A separate handle table was tried first, three plain function values
+--- closing over self so a caller could still write olm:report(), olm:module(name) and
+--- olm:screen(). That shape carries its own trap. A plain function value called with a
+--- colon receives the table it was found on as its own first argument, which is exactly
+--- right for module and screen, both already written to take self first, and exactly
+--- wrong for report, which takes nothing, so handle:report() would have silently hand
+--- the handle itself in as an unused argument, harmless only because report happens to
+--- ignore every argument it receives. Getting a fourth method onto that handle right
+--- would mean remembering the same trick a fourth time. self has none of that problem.
+--- Every method below is a real colon method already, module and screen included, so
+--- returning self makes olm:report(), olm:module(name) and olm:screen() correct because
+--- they are ordinary method calls, not because three closures were each written
+--- carefully enough to fake one. The narrower handle would have hidden Olm.lib,
+--- apiVersion and the rest from a caller, which reads as tidier until you notice Lua
+--- grants no real enforcement of that hiding anyway, spoon.Olm.lib.paste is one field
+--- access away from any caller holding spoon.Olm at all, so the handle was only ever
+--- documentation of an intended contract, never a boundary, and self documents the exact
+--- same intended contract, report, module and screen, without a bug the documentation
+--- introduced trying to look narrower than Lua lets it be.
+function obj:start(cfg)
+  if self._started then
+    error("Olm:start already ran once, and it must run exactly once")
+  end
+  self._started = true
+
+  local compose = load("root/compose.lua")
+
+  -- Stored on the spoon rather than kept only in this closure, because obj:report,
+  -- obj:module and obj:screen are reached long after start returns, on the caller's own
+  -- schedule rather than this one. TerminalHandler is that caller, kept outside Olm's
+  -- own management by the user's own decision on 2026-08-07, while still needing to
+  -- reach an Olm managed plugin and the shared display policy.
+  --
+  -- report, modules and screen, read off this below by the three methods beneath it, are
+  -- the seam between this file and root/compose.lua, since compose.lua is the one file
+  -- allowed to name every atom and this file must not. report is wire.lua's own report
+  -- function passed through untouched, modules is loader.lua's table of loaded modules
+  -- keyed by plugin identity, and screen is the overlay display resolver's own screen
+  -- function, handed back rather than called here, since it must answer fresh every time
+  -- a caller asks rather than once at start time.
+  self._composed = compose.run(self, cfg or {})
+
+  return self
+end
+
+--- Olm:report()
+--- Answers the finished wiring report as one string, a line per stage naming how many
+--- steps it ran, then a line per problem, or "no problems" when nothing went wrong.
+--- wire.lua's own report function, read off the composed record and called here rather
+--- than at compose time, though every call answers the same text once start has
+--- returned, since the record it reads is already final by then. The plain text a
+--- reload's own console line, or the user's own file, prints to say the run was clean
+--- without opening a log.
+function obj:report()
+  local composed = self._composed
+  local answer = composed and composed.report
+  return answer and answer()
+end
+
+--- Olm:module(name)
+--- Answers the loaded module for a plugin identity, or nil before start has run or
+--- after a name nothing wired. The escape hatch TerminalHandler uses to reach a plugin
+--- it does not manage itself, since compose.lua already resolved identity to module
+--- once and a second resolution anywhere else would only repeat that work.
+function obj:module(name)
+  local composed = self._composed
+  return composed and composed.modules and composed.modules[name]
+end
+
+--- Olm:screen()
+--- Answers the actual hs.screen the shared overlay display resolver currently names,
+--- resolved fresh on every call rather than a screen picked once at start time and
+--- handed back stale, since the resolver watches for display changes and invalidates
+--- its own cache, and a value taken early would not see a display attached or removed
+--- afterwards. composed.screen itself is the resolver's own resolving function, kept
+--- unpicked all the way from root/compose.lua for exactly that reason, and this method
+--- is the one place that finally calls it, at the moment a caller actually asks. The
+--- other escape hatch TerminalHandler uses, so its own canvas draws against the same
+--- display policy every managed surface does rather than picking one of its own and
+--- drifting from it.
+function obj:screen()
+  local composed = self._composed
+  local resolve = composed and composed.screen
+  return resolve and resolve()
+end
+
 return obj

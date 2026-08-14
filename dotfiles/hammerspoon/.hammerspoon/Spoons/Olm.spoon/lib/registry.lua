@@ -584,6 +584,37 @@ function M.new(opts)
     return out
   end
 
+  --- instance.listing()
+  --- Every ACTIVE registered name that carries a row, tools and their commands alike, in
+  --- registration order, each tool's commands directly after it. What a catalogue builds its
+  --- rows from, so that a list of tools is asked for rather than kept by hand. all() cannot
+  --- serve this, it answers tools only and is what the activation roster is built from, so
+  --- putting a command in it would have the roster try to activate something that is not a
+  --- tool. Commands are sorted by name within their own tool because they are held in a plain
+  --- keyed table, and an order that came out of pairs would differ between two machines
+  --- running identical code, which a list a person reads must never do.
+  function instance.listing()
+    local out = {}
+    for _, name in ipairs(order) do
+      if activeTools[name] then
+        local descriptor = toolsByName[name]
+        if descriptor.row then
+          out[#out + 1] = { name = name, tool = name, isCommand = false }
+        end
+        local commandNames = {}
+        for key in pairs(descriptor.commands or {}) do commandNames[#commandNames + 1] = key end
+        table.sort(commandNames)
+        for _, key in ipairs(commandNames) do
+          local _, commandRow = commandParts(descriptor.commands[key])
+          if commandRow then
+            out[#out + 1] = { name = key, tool = name, isCommand = true }
+          end
+        end
+      end
+    end
+    return out
+  end
+
   --- instance.surfaces(spec)
   --- Resolve an ordered list mixing tool names and plain objects into an ordered list of
   --- navigation adapters. A string entry names a registered tool, resolved to that

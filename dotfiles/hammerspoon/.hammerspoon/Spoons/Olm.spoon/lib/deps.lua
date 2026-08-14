@@ -208,10 +208,36 @@ end
 
 --- Dependencies:configure(opts)
 --- Method
---- Read every spoon's declaration. opts.spoonsDir overrides where to look, which only
---- a test would pass. Idempotent, so a reload rebuilds the set from disk.
+--- Learn what is declared. Idempotent, so a reload rebuilds the set.
+---
+--- opts.declared is the one a composition root passes, a flat list of entries already
+--- carrying name, kind, locator, policy, reason and consumer, which is what a set of plugin
+--- manifests aggregates to. Given it, this reads no file at all, because a manifest and a
+--- declaration file describing the same tool would be one answer written twice and the two
+--- would drift with nothing watching. This is the only path Olm itself uses now.
+---
+--- The disk walk below is the other source, kept for a spoon that still ships its own
+--- declaration files beside its code and has no manifest layer to aggregate. opts.spoonsDir
+--- overrides where that looks, which only a test would pass.
 function obj:configure(opts)
   opts = opts or {}
+
+  if opts.declared then
+    self._declared, self._order = {}, {}
+    for _, e in ipairs(opts.declared) do
+      -- The same skip the file path takes, and for the same reason. A core entry names
+      -- something inside the tree rather than a tool on the machine, so it never reaches the
+      -- probe or a consumer's own missing set. The kind is a leftover either way.
+      if e.kind ~= "core" then
+        local consumer = e.consumer or "Olm"
+        self._declared[consumer] = self._declared[consumer] or {}
+        self._declared[consumer][e.name] = e
+        self._order[#self._order + 1] = e
+      end
+    end
+    return self
+  end
+
   local dir = opts.spoonsDir or SPOONS_DIR
   self._declared, self._order = {}, {}
   if not dir then

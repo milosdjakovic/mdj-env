@@ -187,6 +187,23 @@ function M.explain(where)
     { noop = true }, false) }
 end
 
+--- M.scopeRows(rest) - the hosted rows with the empty case already answered, which is what a
+--- scope actually wants. The retired root wrote this wrapper itself, reaching in for hostRows
+--- and for explain and then naming this tool's own description out of the key catalog to fill
+--- in where. It lives here now for the reason the browserTabs one does, this file is the only
+--- thing that knows what an empty list means, and a root assembling the answer had to know two
+--- of this file's members plus a field inside somebody else's data to manage it.
+---
+--- Where is stated plainly rather than read from a catalog, since the settings level it points
+--- at is this tool's own and its name does not move when a key binding does.
+function M.scopeRows(rest)
+  local out = M.hostRows(rest)
+  if #out == 0 then
+    return M.explain("in Tmux Manager settings")
+  end
+  return out
+end
+
 --- M.activate(item) - open the window a row from M.hostRows carries, the launcher's own
 --- scope.run. Identical to onSelect, since a row chosen through the hosted list means
 --- exactly what a row chosen through this chooser's own native instance means.

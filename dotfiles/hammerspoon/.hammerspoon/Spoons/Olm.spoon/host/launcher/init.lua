@@ -142,10 +142,26 @@ function obj:configure(opts)
   self._chooser = opts.chooser
   self._theme = opts.theme
   self._placeholder = opts.placeholder or "Search apps and commands"
-  self._keys = opts.keys or {}
+  -- The per app toggle list, the same one the app toggler and the Hyper cheat sheet already
+  -- receive under this name. This host used to take the whole key catalog and reach into it
+  -- for this one field, which meant the person had to hand over a table of everything to give
+  -- it the one thing it wanted, and meant this file knew a field name inside somebody else's
+  -- data. Every other thing it used that catalog for is now on a descriptor or declared as a
+  -- shipped row, so the catalog itself is no longer wanted here at all.
+  self._toggles = opts.toggles or {}
   self._apps = opts.apps or {}
   self._windowActions = opts.windowActions or {}
+  self._windowBindings = opts.windowBindings or {}
   self._windowLeaderName = opts.windowLeaderName or "Meta"
+  -- The display name for each leader role, so a row's subtitle can say which physical key
+  -- opens it without this file deciding what any leader is called. The word Hyper used to be
+  -- written into every one of those subtitles literally, which was correct only for as long as
+  -- nobody moved a tool to the other leader.
+  self._leaderNames = opts.leaderNames or {}
+  -- Rows that answer to no registration, declared rather than written out. Capture's are
+  -- separate from the rest because they share one kind and each carries its own glyph.
+  self._captureRows = opts.captureRows or {}
+  self._specialRows = opts.specialRows or {}
   self._glyphFor = opts.glyphFor or function(key) return tostring(key) end
   self._settingsPanes = opts.settingsPanes or {}
   self._predicates = opts.predicates or {}
@@ -265,6 +281,17 @@ function obj:_chordLabel(leader, key, mods)
   return leader .. " " .. self._glyphFor(key, mods)
 end
 
+--- Launcher:_leaderName(role)
+--- Method
+--- What to call one leader role in a row subtitle. A role is a word like app or window that a
+--- manifest uses to say which leader a tool opens on, and what that role is called on this
+--- machine is the composition root's answer since it owns the catalog. An unknown role, or
+--- none at all, answers Hyper, which is the leader every tool that names no role is on.
+function obj:_leaderName(role)
+  if not role then return "Hyper" end
+  return self._leaderNames[role] or tostring(role)
+end
+
 -- camelCase action name -> "Title Case" label, applied when a binding sets no
 -- explicit description.
 local function humanize(name)
@@ -296,7 +323,6 @@ end
 --- The static action rows. Each is { title, subTitle, image, item, when? } where
 --- item is a serializable descriptor for the dispatcher.
 function obj:_buildActionRows()
-  local keys = self._keys
   local rows = {}
   -- keywords is hidden text the matcher sees and the row does not show, the same field
   -- the injected rows already carry. It exists so a row can answer to a word its title
@@ -352,81 +378,66 @@ function obj:_buildActionRows()
   local function addTool(name)
     local row = self._registry and self._registry.rowFor(name)
     if not row then return end
-    local keysName = row.keysName or name
-    local keyEntry = keys[keysName]
-    if not keyEntry then
-      log.w(string.format(
-        "Launcher addTool skipped '%s', its row names '%s' in config/keys.lua and nothing is there",
-        name, keysName))
+    -- A row with no description names nothing a person could read, which is a defect in
+    -- whichever manifest declared it rather than a state to draw badly, so it is named and
+    -- skipped. Everything else a row needs it already carries, since the descriptor is now
+    -- built from the plugin's own manifest merged with whatever the root overrode.
+    if not row.description then
+      log.w(string.format("Launcher skipped the row for '%s', its registration carries no description", name))
       return
     end
     local subTitle
     if row.detail then
       subTitle = row.category .. " · " .. row.detail
     elseif row.chord then
-      subTitle = row.category .. " · " .. self._glyphFor(keyEntry.key, keyEntry.modifiers)
+      -- A global combination rather than a leader chord, so the subtitle spells the whole
+      -- thing out and names no leader, which is the only way it reads correctly.
+      subTitle = row.category .. " · " .. self._glyphFor(row.key, row.mods)
+    elseif row.key then
+      subTitle = row.category .. " · " .. self:_chordLabel(self:_leaderName(row.leader), row.key)
     else
-      subTitle = row.category .. " · " .. self:_chordLabel("Hyper", keyEntry.key)
+      -- No chord at all, which is ordinary. Several tools open from this list and nowhere
+      -- else, so the subtitle carries only what kind of thing they are.
+      subTitle = row.category
     end
-    add(keyEntry.description, subTitle, { kind = "special", name = name },
-      row.glyph or keyEntry.glyph, nil, row.keywords)
+    add(row.description, subTitle, { kind = "special", name = name },
+      row.glyph, nil, row.keywords)
   end
-  -- Window actions share one glyph, the chord in the subtitle tells them apart;
-  -- capture and the system actions get a per-action one.
-  local captureGlyphs = { ocrArea = "🔤", captureArea = "📸", captureAreaClipboard = "📸", recordArea = "🎥" }
-  addTool("colorPicker")
-  addTool("emoji")
-  for _, c in ipairs(keys.capture) do
-    add(c.description or humanize(c.action), "Capture · " .. self:_chordLabel("Hyper", c.key, c.mods),
-      { kind = "capture", name = c.action }, captureGlyphs[c.action] or "📸")
+  -- One row per registered tool, and one per registered command, asked of the registry in the
+  -- order it holds rather than listed here by hand. This is what the thirteen addTool calls
+  -- that used to sit here became, and it is the difference between a tool joining this list by
+  -- being registered and a tool joining it by somebody remembering to add a line. The file's
+  -- own note above said this was the last thing keeping a roster here, and this is it going.
+  --
+  -- Nothing is named. A tool that is not registered, or is registered and switched off, simply
+  -- is not in the answer, which is also how deactivating one takes its row away without a
+  -- second place having to agree.
+  for _, entry in ipairs(self._registry and self._registry.listing() or {}) do
+    addTool(entry.name)
   end
-  addTool("caffeinate")
-  addTool("vpn")
-  addTool("clipboard")
-  -- The two clipboard actions that are global combos rather than Hyper bindings, so their
-  -- subtitle carries the whole chord and names no leader. They are listed here because a
-  -- global binding appears in no leader's cheat sheet, leaving this their only listing.
-  addTool("appendCopy")
-  addTool("pasteNext")
-  addTool("browserTabs")
-  -- Display profiles has no dedicated chord, it opens from here only, so its subtitle names
-  -- what it does rather than a shortcut. The two display commands sit under a Displays
-  -- category rather than System, so their subtitle does not read like the "System Settings"
-  -- subtitle the Displays settings pane row carries.
-  addTool("displayProfiles")
-  add("Search Settings", "System · opens the System Settings search field", { kind = "special", name = "searchSettings" }, "🔍")
-  add("Overlay Display", "Displays · where panels and choosers appear", { kind = "special", name = "overlayDisplay" }, "🖥️")
-  -- Text case has no dedicated chord, it opens from here only, so its subtitle names what
-  -- it does rather than a shortcut.
-  addTool("textCase")
-  -- Processes has no dedicated chord either, so its subtitle names what it does, and it
-  -- names all three tiers rather than just servers because that is what the list holds.
-  -- The keywords carry the words the title used to and no longer does, so the habit of
-  -- typing process or port still lands on it.
-  addTool("processes")
-  -- Dock auto hide has no dedicated chord either, it lost its standalone one when it moved
-  -- into Olm, so its subtitle names what it does.
-  addTool("dockAutoHide")
-  -- File search does have a chord, so its subtitle names it like the other keyed tools. The
-  -- keywords carry the words a habit reaches for, since the title says file search and the
-  -- thing people type is find.
-  addTool("fileSearch")
-  -- Tmux sessions has a chord (Hyper+U), so its subtitle names it like the other keyed
-  -- tools. The keywords carry session, window, and terminal so a habit of typing any of
-  -- those still lands on it.
-  addTool("tmuxSessions")
-  -- The alias directory, which has no chord because it opens from here, and is also reached by
-  -- its own alias like the tools it lists. Its subtitle says what it holds rather than naming
-  -- the word that reaches it, since that word is appended by the same hint every other row
-  -- gets, so the row reads as one thing and the alias is stated once.
-  if keys.aliasDirectory then
-    add(keys.aliasDirectory.description, "Tools · every word that scopes this list",
-      { kind = "special", name = "aliasDirectory" }, keys.aliasDirectory.glyph, nil,
-      "alias aliases scope scopes shortcut words prefix")
+
+  -- Rows that answer to no registration. Each is an action this list runs itself rather than a
+  -- tool with a descriptor, so each arrives as plain declared data rather than being written
+  -- out here. Capture's are separate from the rest only because they share one kind and each
+  -- carries its own glyph, which is a shape the others do not have.
+  for _, c in ipairs(self._captureRows or {}) do
+    add(c.description or humanize(c.action),
+      "Capture · " .. self:_chordLabel(self:_leaderName(c.leader), c.key, c.mods),
+      { kind = "capture", name = c.action }, c.glyph or "📸")
   end
-  add(keys.lock.description, "System · " .. self:_chordLabel("Hyper", keys.lock.key), { kind = "special", name = "lock" }, "🔒")
-  add(keys.sleep.description, "System · " .. self:_chordLabel("Hyper", keys.sleep.key), { kind = "special", name = "sleep" }, "🌙")
-  for _, b in ipairs(keys.windowManagement) do
+
+  for _, r in ipairs(self._specialRows or {}) do
+    local subTitle = r.subTitle
+    if not subTitle and r.category and r.key then
+      subTitle = r.category .. " · " .. self:_chordLabel(self:_leaderName(r.leader), r.key)
+    end
+    add(r.description, subTitle, { kind = "special", name = r.name }, r.glyph, nil, r.keywords)
+  end
+  -- The window bindings arrive as their own injected list rather than being dug out of the
+  -- key catalog under a name this file would have to know. That indirection was also the one
+  -- place here that raised outright rather than degrading, since it indexed straight into a
+  -- table an install with no window manager never fills.
+  for _, b in ipairs(self._windowBindings) do
     if self._windowActions[b.action] then
       add(b.description or humanize(b.action), "Window · " .. self:_chordLabel(self._windowLeaderName, b.key, b.mods),
         { kind = "window", name = b.action }, "🪟", b.when)
@@ -457,7 +468,7 @@ end
 --- show its shortcut and reuse its url-pane behavior.
 function obj:_buildConfiguredApps()
   local out = {}
-  for _, t in ipairs(self._keys.appToggles or {}) do
+  for _, t in ipairs(self._toggles) do
     local bundleID = self._apps[t.app]
     if bundleID then out[bundleID] = { key = t.key, url = t.url } end
   end

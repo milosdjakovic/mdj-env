@@ -30,31 +30,47 @@ When adding a new binding, pick a priority number that places it in the right gr
 9. Repos & worktrees picker (`r`)
 10. Sessions tree view (`S`)
 11. Jump to session by number (`M-1` through `M-9`)
-13. Switch to previous session (`(`)
-14. Switch to next session (`)`)
-15. Previous window (`p`)
-16. Next window (`n`)
-17. Previous pane (`O`)
-18. Next pane (`o`)
-19. Swap window left (`P`)
-20. Swap window right (`N`)
-21. Select pane left (`h`)
-22. Select pane down (`j`)
-23. Select pane up (`k`)
-24. Select pane right (`l`)
-25. Resize pane left (`H`)
-26. Resize pane down (`J`)
-27. Resize pane up (`K`)
-28. Resize pane right (`L`)
-29. Zoom/unzoom pane (`z`)
-30. Split pane horizontally (`"`)
-31. Split pane vertically (`%`)
-32. New window (`c`)
-33. Show all keybindings (`?`)
-34. Scratch shell popup (`` ` ``)
-35. Search explorer tags (`t`)
-36. Find files globally (`f`)
-37. Find files in pane working dir (`F`)
+13. Previous session (`M-p`)
+14. Next session (`M-n`)
+15. Move session left (`M-P`)
+16. Move session right (`M-N`)
+17. Previous window (`p`)
+18. Next window (`n`)
+19. Previous pane (`O`)
+20. Next pane (`o`)
+21. Move window left (`P`)
+22. Move window right (`N`)
+23. Select pane left (`h`)
+24. Select pane down (`j`)
+25. Select pane up (`k`)
+26. Select pane right (`l`)
+27. Resize pane left (`H`)
+28. Resize pane down (`J`)
+29. Resize pane up (`K`)
+30. Resize pane right (`L`)
+31. Zoom/unzoom pane (`z`)
+32. Split pane horizontally (`"`)
+33. Split pane vertically (`%`)
+34. New window (`c`)
+35. Show all keybindings (`?`)
+36. Scratch shell popup (`` ` ``)
+37. Search explorer tags (`t`)
+38. Find files globally (`f`)
+39. Find files in pane working dir (`F`)
+
+## Switching and moving, one modifier apart
+
+Windows and sessions share one scheme rather than two unrelated ones. Plain `n`/`p`
+switches windows, `M-n`/`M-p` (option) switches sessions, `N`/`P` (shift) moves the
+current window left or right, and `M-N`/`M-P` (option+shift) moves the current session
+left or right. The rule is just the two modifiers composing: option means session
+instead of window, shift means move instead of switch. Nothing about `n` or `p`
+themselves changes meaning, only what's layered on top of them.
+
+Window move is `swap-window` against the adjacent index. Session move is
+`session-index.sh --move`, the session-strip equivalent, and is what makes the
+session order in that strip persistent and user-orderable rather than always
+re-sorted alphabetically, see below.
 
 Plugin bindings (tpm, yank, resurrect, sensible) do not use priority tags and appear after all prioritized bindings.
 
@@ -177,9 +193,9 @@ Changing `allow-passthrough` requires a full tmux server restart (`tmux kill-ser
 
 Changes color based on state. Green background when prefix is active, yellow when in copy mode, transparent otherwise.
 
-Two options name what that implies, so the rest of the bar states each idea once instead of repeating the same nested conditional. `@bar_muted` is true whenever the bar has taken a background colour, which is exactly when every foreground on it must go black to stay readable. `@bar_dim` is the quiet grey for chrome and for anything the eye should skip past. It is written as `colour246` rather than the `#949494` it equals, because a hex value loses its leading `#` when read back through a second expansion, and that grey is the same one the fzf popups use for their borders and headers. Read either option back with `#{E:...}`, since an option value is otherwise handed over literally.
+Two options name what that implies, so the rest of the bar states each idea once instead of repeating the same nested conditional. `@bar_muted` is true whenever the bar has taken a background colour, which is exactly when every foreground on it must go black to stay readable. `@bar_label` is that same readability rule applied to chrome and to every entry that is not the current one, plain white normally and black when muted. There is deliberately no grey tier on the bar, everything that isn't the current, green item is this one white. Read either option back with `#{E:...}`, since an option value is otherwise handed over literally.
 
-`status-left` is a dim `W` label rather than the session name it used to hold. The session row below names every session including the current one, so printing it on the left as well said nothing. It is styled through `status-left-style` rather than an inline tag, because row 0's default format truncates `status-left` to `status-left-length` and a style tag inside the value would eat that budget.
+`status-left` is a plain white `W` label rather than the session name it used to hold. The session row below names every session including the current one, so printing it on the left as well said nothing. It is styled through `status-left-style` rather than an inline tag, because row 0's default format truncates `status-left` to `status-left-length` and a style tag inside the value would eat that budget.
 
 Copy mode state is tracked via a global `@copy_mode` variable propagated through hooks because `pane_in_mode` only works for the evaluated pane. Non-active windows cannot see whether the active pane is in copy mode, so the hooks set a global flag on mode change, pane focus, window change, and session change.
 
@@ -188,21 +204,18 @@ Copy mode state is tracked via a global `@copy_mode` variable propagated through
 `status` is set to 2, which gives the bar two rows. Row 0 is left entirely at its
 default so every window list setting above it keeps working untouched, and only
 `status-format[1]` is written. That row lists every session with the number that jumps
-to it, behind a dim `S` label that pairs with the `W` on row 0. The two labels start
+to it, behind a plain white `S` label that pairs with the `W` on row 0. The two labels start
 both lists at the same column and stop either row being mistaken for the other. The far
 right reads `⌥1-9` rather than naming the row again, because the label already says what
 this is and the question in the moment is which key to press.
 
-Sessions are marked the way windows are marked on the row above. The current one is
-wrapped in angle brackets and green. The one `prefix+e` goes back to carries a leading
-dash and is white, read straight from `client_last_session`, so the key shows where it
-lands before you press it. Every other session is dim.
-
-Those three levels of emphasis are doing real work rather than decoration. Windows and
-sessions both render in an identical `N:name` shape, so brightness is the only thing
-stopping the two rows reading as one list of ten items. The dim also settles which row
-the eye lands on first, and that should be the window row, since windows are what get
-switched constantly while the session row is glanced at.
+Sessions are marked the way windows are marked on the row above, minus a grey tier.
+The current one is wrapped in angle brackets and green. The one `prefix+e` (or
+`M-p`/`M-n`) goes back to carries a leading dash, read straight from
+`client_last_session`, so the key shows where it lands before you press it. Every
+other session, dash or not, renders in the same plain white, since there is no grey on
+this bar to spend on a third tier. The dash is what used to be dim-vs-white's job,
+carrying it alone now.
 
 The dash costs a column, so the row shifts by one character when the previous session
 changes. The window row above already behaves that way, so it is consistent rather than
@@ -233,25 +246,60 @@ on, so the numbers on row 0 stay dense and match the keys. Sessions needed build
 because a session has a name and no index of its own.
 
 `~/.tmux/scripts/session-index.sh` is the one place that decides which number a session
-holds. It has two subcommands, `--renumber` stamps the numbers and `--switch N [client]`
-jumps. Both go through the same stored value rather than deriving the order twice, which
-is the whole point, since a strip and a key that each sort their own list are free to
-disagree. The number is stored on the session as the `@sidx` option, and that choice is
-what keeps the row cheap, because a tmux format reads a session option directly and the
-row never shells out on a redraw. A `#()` shell call in the format would have worked too
-and would have cost a poll interval of staleness on every session change.
+holds. It has five subcommands, `--ensure`, `--compact`, `--move left|right <session>`,
+`--switch N [client]`, and `--render <current> <last> <muted> <gen>`. All five go
+through the same stored value rather than deriving the order twice, which is the whole
+point, since a strip and a key that each sort their own list are free to disagree. The
+number is stored on the session as the `@sidx` option.
 
-Order is by name in byte order, chosen over most recently used because a number worth
-learning has to hold still. It still moves when a session is created, killed, or renamed,
-which is why three hooks restamp, `session-created`, `session-closed`, and
-`after-rename-session`. Rename counts because the order is by name. Renumbering ends with
-`refresh-client -S`, since setting a session option changes nothing on screen by itself.
-A `run-shell` at the end of `.tmux.conf` stamps whatever is already running, because the
+The strip's body is drawn by `--render`, not by tmux's native `#{S:}` loop, and that
+took a wrong turn to learn. `#{S:}` can only sort by index, name, or activity time,
+none of which is `@sidx`, and tmux has no `swap-session` to give a session a movable
+position the way `swap-window` gives a window one. So a first pass kept `#{S:}` for
+the body and let `M-P`/`M-N` change only the number next to a session, which is exactly
+where the bug this section used to warn about lived: the number moved, the row's actual
+left-to-right position could not, because that position was tmux's fixed name order and
+nothing in the format language can reorder a loop by a custom option. A session moved
+with the number said one thing while the strip still said another, the same failure
+mode the opening paragraph of this file warns a strip and a key can fall into if they
+derive an order twice instead of reading one. `--render` is the fix: it lists sessions,
+sorts them by `@sidx` itself, and prints the whole coloured, clickable row as text,
+so position finally means what the number says.
+
+That fix costs the thing the row used to avoid, a shell call in the redraw path. tmux
+caches a `#()` job's output and will not re-run it more than once a second, which would
+let a move sit behind a stale render for up to a second if nothing forced a fresh run.
+Two things close that gap. `bump_gen` in the script increments a `@sidx_gen` counter on
+every write, and `--render` is always called with it as a trailing argument it never
+reads, purely so the exact shell command text differs after every write and tmux has no
+cached result to reuse. `current`, `last`, and `muted` are resolved client side and
+passed in as the other three arguments (`#{client_session}`, `#{client_last_session}`,
+`#{E:@bar_muted}`), because the job's output is one cached string shared by every
+attached client, and a client's own prefix or copy-mode state is the one thing that
+still has to vary per client. `#[range=...]` and `#[fg=...]` in the script's output are
+honoured exactly as if written directly in the format string, since those are
+screen-writing tags applied to the fully expanded line, not format tokens `#()`
+substitution would need to re-expand.
+
+The order is manual and persistent, the same shape tmux already uses for window
+indices, chosen over always re-deriving from the name because `M-N`/`M-P` need a
+position that actually stays where it's put. `--ensure` seeds the whole list by name,
+byte order, the one time nothing has a position yet, and after that only ever fills in
+a position that's missing, appending after the current highest rather than resorting
+everyone, which is what makes it safe to run on `session-created`. `--compact` runs on
+`session-closed` and renumbers the survivors to 1..N in their existing relative order,
+closing the hole a dead session leaves without touching anyone's place in line.
+`--move` swaps a session's position with whichever session sits one slot to its left or
+right, the session-strip equivalent of `swap-window`, and is what `M-P`/`M-N` call.
+Renaming a session touches none of this, since the order no longer comes from a name,
+so there is no `after-rename-session` hook. Every mutation ends with `refresh-client
+-S`, since setting a session option changes nothing on screen by itself. A `run-shell`
+at the end of `.tmux.conf` calls `--ensure` on whatever is already running, because the
 hooks only see changes from that point on.
 
-That churn is the honest cost of numbering things with no index, and it is why the fzf
-switcher on `prefix+s` is still the right tool for a session you reach rarely. The strip
-is for the handful you live in.
+That bookkeeping is the honest cost of numbering things with no index, and it is why
+the fzf switcher on `prefix+s` is still the right tool for a session you reach rarely.
+The strip, and now the move keys, are for the handful you live in and want to arrange.
 
 The jump bindings pass `#{client_name}` to the script rather than letting tmux pick.
 They run through `run-shell -b` so the key never blocks, and a backgrounded

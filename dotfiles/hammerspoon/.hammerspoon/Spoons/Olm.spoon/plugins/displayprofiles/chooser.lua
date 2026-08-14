@@ -404,18 +404,22 @@ function M.insertSelected()
   M.enter()
 end
 
---- M.configure(opts) - merge injected deps across the two callers. The spoon composition
+--- M:configure(opts) - merge injected deps across the two callers. The spoon composition
 --- root injects `api`, the merged view over the engine and the store. The main root injects
 --- `theme`, the Chooser factory as `chooser`, and the docked shortcut panel callbacks
 --- (onPositioned, onActivity, onClose), the same seams the other choosers receive.
-function M.configure(opts)
+--
+-- Colon here, not dot, because every caller, the plugin root's own configure, the live top
+-- level init.lua, and the shared wiring pipeline in lib/wire.lua, reaches this submodule as
+-- chooser:configure(opts). self arrives as M and the body below never names it.
+function M:configure(opts)
   for k, v in pairs(opts or {}) do cfg[k] = v end
   return M
 end
 
---- M.start() - build the one native chooser. Called by the main root once both configures
+--- M:start() - build the one native chooser. Called by the main root once both configures
 --- have run, so the factory and the api are both present.
-function M.start()
+function M:start()
   stack = { { kind = "top" } }
   chooser = cfg.chooser.new({
     theme = cfg.theme,

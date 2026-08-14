@@ -127,7 +127,7 @@ function obj:configure(opts)
   -- The api the list surface talks through. Two verbs and nothing else, so the
   -- surface cannot reach a source, cannot reorder the merge, and cannot learn what
   -- a container is. This is also the seam a second surface would reuse unchanged.
-  obj.chooser.configure({
+  obj.chooser:configure({
     api = {
       scan = function(cb) obj:scan(cb) end,
       stop = function(row, stopOpts, cb) obj:stop(row, stopOpts, cb) end,

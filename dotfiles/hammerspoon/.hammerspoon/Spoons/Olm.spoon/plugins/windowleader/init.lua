@@ -15,10 +15,13 @@
 --- the window. Bindings with no `mods` are catch-alls -- they fire whenever no
 --- exact-mods binding matches the currently held modifiers.
 ---
---- Holding a leader ~holdDelay seconds with no other key fires the optional
---- onHold(leaderKeyCode) callback (used to reveal a cheat sheet); pressing any
---- bound key cancels it. Keeping WindowLeader a thin adapter preserves the
---- :bind contract its consumer depends on.
+--- Holding a leader ~holdDelay seconds with no other key reveals the window cheat sheet,
+--- calling show(leaderKeyCode) on whichever module opts.windowCheatSheet resolved to;
+--- releasing, or pressing any bound key, calls hide() on it and cancels the hold. The
+--- collaborator arrives through configure, resolved by the composition root from this
+--- plugin's own manifest.lua, but the two closures that call it are built here, never
+--- handed in from outside, which is what keeps WindowLeader a thin adapter and preserves
+--- the :bind contract its consumer depends on.
 ---
 --- This is the olm side copy of WindowLeader, made in the bundling pass, phase 6 of the
 --- olm build plan, and the original this was copied from lived at
@@ -38,11 +41,16 @@ local log = hs.logger.new("WindowLeader", "info")
 obj._chord = nil   -- shared ChordKey engine
 obj._leaders = nil -- keyCode -> { bindings = { code -> { {mods, fn}, ... } } }
 
--- Hold to reveal. onHold receives the leader's keycode so
--- a cheat sheet can show that leader's bindings; onHoldEnd takes none.
+-- Hold to reveal. onHold and onHoldEnd are this plugin's own closures now, built once in
+-- configure rather than handed in from outside, since the only part of this coupling
+-- anything else could know is which module answers show and hide, never the callback
+-- itself. _windowCheatSheet is that collaborator, the resolved sibling configure receives
+-- under opts.windowCheatSheet, nil on a portable install carrying no such plugin, in which
+-- case both closures below still fire on schedule and simply find nothing to call.
 obj._holdDelay = 0.6
 obj._onHold = nil
 obj._onHoldEnd = nil
+obj._windowCheatSheet = nil
 
 --- WindowLeader:init()
 --- Method
@@ -54,16 +62,32 @@ end
 
 --- WindowLeader:configure(opts)
 --- Method
---- opts.chord     - the shared ChordKey engine to register into (required)
---- opts.holdDelay - seconds to hold a leader (no other key) before onHold fires
---- opts.onHold    - function(leaderKeyCode) run once the hold passes holdDelay
---- opts.onHoldEnd - function() run when a shown hold ends (release or key press)
+--- opts.chord           - the shared ChordKey engine to register into (required)
+--- opts.holdDelay       - seconds to hold a leader (no other key) before the hold reveals
+--- opts.windowCheatSheet - the resolved WindowCheatSheet module, this plugin's own hold
+---                         calls show(leaderKeyCode) on it and its own release calls hide(),
+---                         absent on an install carrying no such plugin, which only costs
+---                         the reveal itself, every leader and every bound key keeps working
 function obj:configure(opts)
   opts = opts or {}
   self._chord = opts.chord or self._chord
   self._holdDelay = opts.holdDelay or self._holdDelay
-  self._onHold = opts.onHold or self._onHold
-  self._onHoldEnd = opts.onHoldEnd or self._onHoldEnd
+  self._windowCheatSheet = opts.windowCheatSheet or self._windowCheatSheet
+
+  -- Built here rather than accepted as opts.onHold and opts.onHoldEnd, so the composition
+  -- root only ever hands over the collaborator and never the callback. The earlier shape
+  -- had the root build both closures itself, reaching directly into a second plugin by
+  -- name, which is the exact coupling this plugin's own manifest.lua now declares instead,
+  -- and a plugin owning its own callback is what a needs.siblings declaration is for.
+  self._onHold = function(leaderKeyCode)
+    local sheet = self._windowCheatSheet
+    if sheet then sheet:show(leaderKeyCode) end
+  end
+  self._onHoldEnd = function()
+    local sheet = self._windowCheatSheet
+    if sheet then sheet:hide() end
+  end
+
   return self
 end
 

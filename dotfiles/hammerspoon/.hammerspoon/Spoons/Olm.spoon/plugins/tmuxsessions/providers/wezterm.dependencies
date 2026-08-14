@@ -1,7 +1,0 @@
-# What wezterm.lua needs from outside Hammerspoon, declared beside the only file that
-# knows this tool exists. Format is name | kind | locator | policy | reason.
-#
-# WezTerm carries no AppleScript dictionary either, so a fresh attach goes through its own
-# CLI form instead, reached through open the same way Alacritty's provider is. Optional for
-# the same reason, a missing backend only drops itself from the Settings list.
-open | system | /usr/bin/open | optional | launching WezTerm with the start form that runs it attached to a session

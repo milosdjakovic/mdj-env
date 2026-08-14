@@ -246,7 +246,7 @@ function obj:configure(opts)
   -- The one api the surface talks through, so the chooser reaches the engine, the recency
   -- memory and the permission probe while naming none of them. This is the seam that keeps
   -- the surface pure policy, the same shape DisplayProfiles builds for its chooser.
-  self.chooser.configure({
+  self.chooser:configure({
     api = {
       status = function() return this.engine.status() end,
       isEnabled = function(bundleID) return this:isEnabled(bundleID) end,

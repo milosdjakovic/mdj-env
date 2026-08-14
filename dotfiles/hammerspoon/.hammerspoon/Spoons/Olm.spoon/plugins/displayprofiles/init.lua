@@ -165,7 +165,7 @@ function obj:configure(opts)
     binary = opts.binary,
     onChange = function() self.chooser.refresh() end,
   })
-  self.chooser.configure({ api = self:_buildApi() })
+  self.chooser:configure({ api = self:_buildApi() })
   return self
 end
 

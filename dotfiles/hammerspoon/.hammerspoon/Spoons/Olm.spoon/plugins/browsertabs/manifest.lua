@@ -1,0 +1,115 @@
+-- BrowserTabs, what it declares about itself.
+--
+-- The third of the prototype three because it fails differently again. It has providers
+-- the root names, persisted per machine state, a nested settings level, and it opts out of
+-- the shared matcher, so it exercises the parts of the manifest the other two do not.
+return {
+  -- The directory is browsertabs, one word, while the identity everywhere outside this
+  -- folder, config/keys.lua, the registry, the launcher row, is browserTabs.
+  name = "browserTabs",
+
+  needs = {
+    -- Ordering the list by what you looked at last. A plain reusable mechanism, so it
+    -- comes from lib rather than from a sibling plugin. Optional, and without it the
+    -- resting order simply stands.
+    lib = {
+      recency = { from = "recency", policy = "optional" },
+    },
+    tools = {
+      { name = "osascript", kind = "system", locator = "/usr/bin/osascript", policy = "optional",
+        reason = "runs the JXA that asks each browser for its open tabs",
+        origin = { macos = "ships with the system" } },
+      { name = "swiftc", kind = "system", locator = "/usr/bin/swiftc", policy = "optional",
+        reason = "builds the helper that asks for automation permission per browser",
+        origin = { macos = "ships with the Xcode command line tools" } },
+      -- Test only, so it never reaches an install proposal for someone who just wants
+      -- the tool. Same separation the emoji dataset builders use.
+      { name = "jq", kind = "path", policy = "optional", stage = "test",
+        reason = "reads every answer the integration harness gets back from the browsers",
+        origin = { brew = "jq" } },
+    },
+    -- Safari and Arc each carry their own bundle id inside their own provider file, so
+    -- neither needs anything handed in. Chrome is different, the Chromium provider is a
+    -- factory shared by five applications, so it is the one browser whose identity this
+    -- plugin cannot know on its own.
+    data = {
+      -- Optional, and the breaks sentence below is the proof. It describes ONE browser
+      -- dropping out, not the tool failing, and Safari is the default this ships enabled
+      -- precisely because macOS guarantees it. Required would have blocked the whole plugin
+      -- on a fresh install and taken Safari's tabs down with it, over an application that
+      -- may well not be installed. The policy has to agree with the sentence.
+      chromeBundleID = { source = "user", policy = "optional",
+        breaks = "Chrome never joins the provider list, since the shared Chromium factory "
+          .. "refuses to build without a bundle id, so no Chrome tab is ever listed no "
+          .. "matter how the browser is switched on" },
+    },
+  },
+
+  provides = {
+    rows = "rows",
+    select = "select",
+  },
+
+  -- W reads as web, since B is the Books toggle and T the Stickies one.
+  --
+  -- `enabled` is the fresh install answer, and it is one browser rather than all of them
+  -- on purpose. Safari is the only one macOS guarantees is there, so a new machine
+  -- scripts exactly one browser and raises exactly one Automation prompt, and the rest
+  -- are switched on deliberately by whoever wants them.
+  defaults = {
+    leader = "app",
+    key = "W",
+    description = "Browser tabs",
+    glyph = "📑",
+    aliases = { "t", "tabs" },
+    enabled = { "safari" },
+  },
+
+  surface = {
+    context = "browserTabs",
+    -- `enter` rather than the shared insertSelected, because this is a menu with a
+    -- settings level behind its last row and stepping into it must not close and re show.
+    primary = { action = "enter", description = "Select" },
+    -- No matcher line, and its absence is the correct statement rather than an omission.
+    -- This plugin scores its own rows, because a uniform filter would rank away the Back row
+    -- and pull the Settings row into the tab ranking, and it opts its own Chooser instance out
+    -- in its own code at chooser.lua line 341. That opt out is an internal decision and the
+    -- manifest has no business restating it. What the manifest would be saying with a value
+    -- here is which STRATEGY to inject, and this plugin wants the shared default, which
+    -- bestFieldScore at chooser.lua line 291 then uses to rank the tabs. Writing false here
+    -- injected nothing and quietly degraded ranked tabs to unranked order.
+  },
+
+  -- Configure alone leaves this plugin half wired. Start warms the permission probe so
+  -- the first settings open is instant, and the picker itself lives on the chooser
+  -- submodule, which needs its own configure and its own start before a tab can show.
+  wiring = {
+    { method = "start" },
+    { target = "chooser", method = "configure" },
+    { target = "chooser", method = "start" },
+  },
+
+  -- show is a colon method on this plugin's own root, obj:show(), so open takes the default
+  -- call, and the chooser submodule is the surface. scopeRows and activate both live on that
+  -- same submodule as plain dot called functions, so the scope below says dot rather than
+  -- taking the default. scopeRows is the one member the chooser did not use to expose. It
+  -- joins M.prepare and M.tabRows exactly the way M.show already does through M.reload, and
+  -- it takes a second argument, redraw, since a scope has no chooser of its own to refresh
+  -- once the fetch answers. Olm hands that callback over so this plugin still never learns a
+  -- launcher exists, closing the one real cross plugin coupling the retired root's own
+  -- registration carried, spoon.BrowserTabs's scope calling spoon.Launcher:refresh() directly.
+  -- matcher is false for the same reason the surface block above states one nowhere, this
+  -- plugin scores its own rows and a second, uniform pass would rank the Back row away.
+  registry = {
+    row = { category = "Tools" },
+    open = "show",
+    surface = "chooser",
+    hosted = true,
+    shortcut = "leader",
+    scope = {
+      matcher = false,
+      rows = { member = "chooser.scopeRows", call = "dot" },
+      run = { member = "chooser.activate", call = "dot" },
+    },
+  },
+}

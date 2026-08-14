@@ -441,21 +441,25 @@ end
 -- Public surface
 --------------------------------------------------------------------------------
 
---- chooser.configure(opts) - see the fields on cfg above. Called by the composition root,
+--- chooser:configure(opts) - see the fields on cfg above. Called by the composition root,
 --- which is the only place that knows the concrete collaborators.
-function M.configure(opts)
+--
+-- Colon here, not dot, because every caller, the plugin root's own configure, the live top
+-- level init.lua, and the shared wiring pipeline in lib/wire.lua, reaches this submodule as
+-- chooser:configure(opts). self arrives as M and the body below never names it.
+function M:configure(opts)
   for k, v in pairs(opts or {}) do cfg[k] = v end
   return M
 end
 
---- chooser.start() - build the picker instance once and reuse it across shows.
+--- chooser:start() - build the picker instance once and reuse it across shows.
 ---
 --- The provider is resolved and configured FIRST, because how much room it wants decides the
 --- shape of the picker and that is fixed when the instance is built. A provider that reports
 --- itself unavailable is passed over with one console line naming why, which is the same
 --- degradation every optional tool here gets, and with none left the picker comes up exactly as
 --- it did before there was any preview rather than half wired.
-function M.start()
+function M:start()
   if picker or not cfg.chooser then return M end
 
   local policy = cfg.preview or {}
@@ -612,6 +616,17 @@ end
 --- and not a mechanism.
 function M.rowsForQuery(q)
   return supplier(q)
+end
+
+--- chooser.scopeRows(rest) -> the query scope's own rows. Joined rather than started, the
+--- same distinction M.ensureSession's own note explains at length, since a scope is asked for
+--- rows on every keystroke and has no open of its own to hang a fresh start on, so starting one
+--- here would restart it forever. An empty rest is the one moment a session is worth ensuring,
+--- the same moment M.show's own path ensures one, and every other keystroke only ever asks for
+--- rows over whatever session is already running.
+function M.scopeRows(rest)
+  if rest == "" then M.ensureSession() end
+  return M.rowsForQuery(rest)
 end
 
 --- chooser.choose(row) - do to a row what the primary key does, for a surface with no picker.

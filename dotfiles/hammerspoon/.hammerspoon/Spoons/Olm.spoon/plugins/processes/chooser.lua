@@ -501,7 +501,7 @@ function M.insertSelected()
   if chooser then chooser:insertSelected() end
 end
 
---- M.configure(opts) - merge injected deps across the two callers. The spoon root
+--- M:configure(opts) - merge injected deps across the two callers. The spoon root
 --- injects `api`, the view over the engine, and `metrics`, the sampler's slice of the
 --- policy. The main root injects `theme`, the Chooser factory as `chooser`, the
 --- matcher, the shared canvas surface as `surface`, and the docked shortcut panel
@@ -511,19 +511,25 @@ end
 --- is part of this surface and is loaded by this file. Forwarding the block keeps the
 --- root the only place that reads the config, and keeps the weights out of the
 --- mechanism, which is the same split each source gets.
-function M.configure(opts)
+--
+-- Colon here, not dot, because every caller, the plugin root's own configure, the live top
+-- level init.lua, and the shared wiring pipeline in lib/wire.lua, reaches this submodule as
+-- chooser:configure(opts). self arrives as M and the body below never names it. metrics stays
+-- a plain dot call, it is this file's own internal collaborator and unrelated to the wiring
+-- contract.
+function M:configure(opts)
   for k, v in pairs(opts or {}) do cfg[k] = v end
   if opts and opts.metrics then metrics.configure(opts.metrics) end
   return M
 end
 
---- M.start() - build the one native chooser, once both configures have run.
+--- M:start() - build the one native chooser, once both configures have run.
 ---
 --- The pane is configured first, because whether there is one at all decides whether
 --- the atom reserves room beside the list, and that is fixed when the instance is
 --- built. With no surface injected the pane stands down and the picker comes up exactly
 --- as it did before it existed, rather than half wired.
-function M.start()
+function M:start()
   preview.configure({
     surface = cfg.surface,
     -- Read through the instance rather than captured, so the pane picks up the palette

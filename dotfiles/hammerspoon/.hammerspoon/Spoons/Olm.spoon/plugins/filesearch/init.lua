@@ -221,7 +221,7 @@ function obj:configure(opts)
 
   -- The api the list surface talks through. A handful of verbs and nothing else, so the surface
   -- cannot reach a source, cannot reorder the sources, and cannot learn what an index is.
-  obj.chooser.configure({
+  obj.chooser:configure({
     api = {
       rowsFor = function(q) return obj:rowsFor(q) end,
       -- Walking a directory tree is two verbs, one down and one up, and both answer with a query
