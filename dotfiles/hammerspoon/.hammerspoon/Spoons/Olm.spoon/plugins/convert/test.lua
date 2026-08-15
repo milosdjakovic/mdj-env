@@ -15,29 +15,129 @@ return {
   scenarios = {
     {
       scenario = "a unit conversion typed into the launcher computes",
+      -- The query form is the tool's own grammar and not a guess. "10 km in miles" answers
+      -- nothing while "10km to miles" answers a row, which a first version of this got wrong and
+      -- reported as a broken plugin on a configuration where it works.
+      -- The answer arrives from a process rather than in the call, so the row is asked for and
+      -- then asked for again a beat later, the same shape the launcher itself uses when a late
+      -- answer lands. Asking once and judging would fail on a correct conversion.
+      steps = {
+        { fn = function(w) w._convert = w.role("convert") w._rows = nil end, wait = 0.1 },
+        -- One ask per STEP rather than a loop inside one, because the answer arrives on the
+        -- main thread and a loop that sleeps between asks blocks the very callback it is
+        -- waiting for. That mistake was made twice in this suite, once in the input helpers and
+        -- once here, which is why it is written down in both places.
+        { fn = function(w)
+            local c = w._convert
+            if not c or w._rows then return end
+            local ok, rows = pcall(function() return c:rows("10km to miles") end)
+            if ok and type(rows) == "table" and rows[1] then
+              local text = tostring(rows[1].text or rows[1].title or "")
+              if text:find("%d") then w._rows = rows end
+            end
+          end, wait = 0.5 },
+        -- One ask per STEP rather than a loop inside one, because the answer arrives on the
+        -- main thread and a loop that sleeps between asks blocks the very callback it is
+        -- waiting for. That mistake was made twice in this suite, once in the input helpers and
+        -- once here, which is why it is written down in both places.
+        { fn = function(w)
+            local c = w._convert
+            if not c or w._rows then return end
+            local ok, rows = pcall(function() return c:rows("10km to miles") end)
+            if ok and type(rows) == "table" and rows[1] then
+              local text = tostring(rows[1].text or rows[1].title or "")
+              if text:find("%d") then w._rows = rows end
+            end
+          end, wait = 0.5 },
+        -- One ask per STEP rather than a loop inside one, because the answer arrives on the
+        -- main thread and a loop that sleeps between asks blocks the very callback it is
+        -- waiting for. That mistake was made twice in this suite, once in the input helpers and
+        -- once here, which is why it is written down in both places.
+        { fn = function(w)
+            local c = w._convert
+            if not c or w._rows then return end
+            local ok, rows = pcall(function() return c:rows("10km to miles") end)
+            if ok and type(rows) == "table" and rows[1] then
+              local text = tostring(rows[1].text or rows[1].title or "")
+              if text:find("%d") then w._rows = rows end
+            end
+          end, wait = 0.5 },
+        -- One ask per STEP rather than a loop inside one, because the answer arrives on the
+        -- main thread and a loop that sleeps between asks blocks the very callback it is
+        -- waiting for. That mistake was made twice in this suite, once in the input helpers and
+        -- once here, which is why it is written down in both places.
+        { fn = function(w)
+            local c = w._convert
+            if not c or w._rows then return end
+            local ok, rows = pcall(function() return c:rows("10km to miles") end)
+            if ok and type(rows) == "table" and rows[1] then
+              local text = tostring(rows[1].text or rows[1].title or "")
+              if text:find("%d") then w._rows = rows end
+            end
+          end, wait = 0.5 },
+        -- One ask per STEP rather than a loop inside one, because the answer arrives on the
+        -- main thread and a loop that sleeps between asks blocks the very callback it is
+        -- waiting for. That mistake was made twice in this suite, once in the input helpers and
+        -- once here, which is why it is written down in both places.
+        { fn = function(w)
+            local c = w._convert
+            if not c or w._rows then return end
+            local ok, rows = pcall(function() return c:rows("10km to miles") end)
+            if ok and type(rows) == "table" and rows[1] then
+              local text = tostring(rows[1].text or rows[1].title or "")
+              if text:find("%d") then w._rows = rows end
+            end
+          end, wait = 0.5 },
+        -- One ask per STEP rather than a loop inside one, because the answer arrives on the
+        -- main thread and a loop that sleeps between asks blocks the very callback it is
+        -- waiting for. That mistake was made twice in this suite, once in the input helpers and
+        -- once here, which is why it is written down in both places.
+        { fn = function(w)
+            local c = w._convert
+            if not c or w._rows then return end
+            local ok, rows = pcall(function() return c:rows("10km to miles") end)
+            if ok and type(rows) == "table" and rows[1] then
+              local text = tostring(rows[1].text or rows[1].title or "")
+              if text:find("%d") then w._rows = rows end
+            end
+          end, wait = 0.5 },
+        -- One ask per STEP rather than a loop inside one, because the answer arrives on the
+        -- main thread and a loop that sleeps between asks blocks the very callback it is
+        -- waiting for. That mistake was made twice in this suite, once in the input helpers and
+        -- once here, which is why it is written down in both places.
+        { fn = function(w)
+            local c = w._convert
+            if not c or w._rows then return end
+            local ok, rows = pcall(function() return c:rows("10km to miles") end)
+            if ok and type(rows) == "table" and rows[1] then
+              local text = tostring(rows[1].text or rows[1].title or "")
+              if text:find("%d") then w._rows = rows end
+            end
+          end, wait = 0.5 },
+        -- One ask per STEP rather than a loop inside one, because the answer arrives on the
+        -- main thread and a loop that sleeps between asks blocks the very callback it is
+        -- waiting for. That mistake was made twice in this suite, once in the input helpers and
+        -- once here, which is why it is written down in both places.
+        { fn = function(w)
+            local c = w._convert
+            if not c or w._rows then return end
+            local ok, rows = pcall(function() return c:rows("10km to miles") end)
+            if ok and type(rows) == "table" and rows[1] then
+              local text = tostring(rows[1].text or rows[1].title or "")
+              if text:find("%d") then w._rows = rows end
+            end
+          end, wait = 0.5 },
+      },
       expect = function(w)
-        local convert = w.module("convert")
-        if not convert then
+        if not w._convert then
           return false, "the convert plugin is not loaded, so its tool is missing or it was blocked"
         end
-        if type(convert.queryRows) ~= "function" then
-          return false, "it exposes no queryRows, so the launcher can never reach it"
+        if type(w._convert.rows) ~= "function" then
+          return false, "it exposes no rows, so the launcher can never reach it"
         end
-        local ok, rows = pcall(convert.queryRows, convert, "10 km in miles")
-        if not ok then
-          -- Dot called rather than colon is a real possibility and a real defect, so the
-          -- second attempt is made and the answer says which convention worked, since a
-          -- reader chasing this needs to know which one the plugin actually uses.
-          local ok2, rows2 = pcall(convert.queryRows, "10 km in miles")
-          if not ok2 then return false, "asking it to convert raised, " .. tostring(rows) end
-          rows = rows2
-        end
-        if type(rows) ~= "table" or #rows == 0 then
-          return false, "it answered nothing for a conversion it should understand"
-        end
-        local text = tostring(rows[1].text or rows[1].title or "")
-        if not text:find("%d") then
-          return false, "its answer carries no number, it reads '" .. text .. "'"
+        if not w._rows then
+          return false, "it never answered with a number, it stayed on its Converting row, "
+            .. "so the process behind it either never ran or never came back"
         end
         return true
       end,

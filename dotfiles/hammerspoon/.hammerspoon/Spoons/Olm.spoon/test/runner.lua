@@ -33,6 +33,8 @@ local function load(relativePath)
 end
 
 local specLib = load("test/spec.lua")
+local worldLib = load("test/world.lua")
+local behaviours = load("test/behaviours.lua")
 
 -- How long to wait after asking a surface to open before believing its answer. Generous on
 -- purpose. A suite that is flaky under load teaches people to ignore it, which costs more
@@ -43,66 +45,23 @@ local SETTLE = 0.45
 -- The world a scenario is handed
 --------------------------------------------------------------------------------
 
--- Everything a scenario may do, in one table, so a scenario never reaches into Hammerspoon or
--- into Olm's internals directly. That keeps a test readable as a sentence, and it means a
--- change in how a surface is opened is one edit here rather than one per scenario.
+-- The world moved into test/world.lua once it had to serve two configurations. What stays here
+-- is only the extra reading the DERIVED checks need, which exists on the restructured config
+-- alone, so a run against the retired root simply derives nothing and tests behaviour instead.
 local function buildWorld(olm)
-  local registry = olm.registry
-  local composed = olm._composed or {}
-  local plan = composed.plan or {}
-
-  local world = {
-    olm = olm,
-    registry = registry,
-    plan = plan,
-    manifests = composed.manifests or {},
-    stamp = tostring(hs.timer.secondsSinceEpoch()):gsub("%.", ""),
-  }
-
-  function world.module(name) return olm:module(name) end
-
-  function world.settle() hs.timer.usleep(math.floor(SETTLE * 1000000)) end
-
-  -- The generic door. Every registered tool opens through its own registration and closes
-  -- through the navigation adapter it already exposes, so this file names no plugin and needs
-  -- no per tool knowledge of what a picker is called or how it is dismissed.
-  function world.open(identity)
-    local ok, err = pcall(registry.run, identity)
-    if not ok then return false, tostring(err) end
-    return true
-  end
-
-  local function adapterFor(identity)
-    local entry = registry.get(identity)
-    if not entry or type(entry.surface) ~= "function" then return nil end
+  local w = worldLib.new()
+  local composed = (olm and olm._composed) or {}
+  w.olm = olm
+  w.plan = composed.plan
+  w.manifests = composed.manifests or {}
+  w.close = function(name)
+    local entry = w.registry and w.registry.get(name)
+    if not entry or type(entry.surface) ~= "function" then return end
     local ok, adapter = pcall(entry.surface)
-    if not ok then return nil end
-    return adapter
+    if ok and adapter and adapter.hide then pcall(adapter.hide) end
   end
-
-  function world.showing(identity)
-    local adapter = adapterFor(identity)
-    if not adapter or type(adapter.isShowing) ~= "function" then return false end
-    local ok, answer = pcall(adapter.isShowing)
-    return ok and answer == true
-  end
-
-  function world.close(identity)
-    local adapter = adapterFor(identity)
-    if adapter and type(adapter.hide) == "function" then pcall(adapter.hide) end
-  end
-
-  function world.rows(identity, query)
-    local scope = registry.scopeFor(identity)
-    if not scope or type(scope.rows) ~= "function" then return nil end
-    local ok, answer = pcall(scope.rows, query or "")
-    if not ok then return nil end
-    return answer
-  end
-
-  -- Whether a tool a plugin declared is actually on this machine, asked the same way the
-  -- composition root asks it, so the suite and the config cannot disagree about a tool.
-  function world.present(tool)
+  function w.module(name) return w.role(name) end
+  function w.present(tool)
     if tool.kind == "path" then
       return hs.execute("command -v " .. tostring(tool.name) .. " >/dev/null 2>&1 && echo y", true) == "y\n"
     elseif tool.kind == "system" or tool.kind == "manual" then
@@ -113,73 +72,68 @@ local function buildWorld(olm)
     end
     return true
   end
-
-  function world.canDispatch(action)
-    local dispatch = composed.dispatch or {}
-    return dispatch[action] ~= nil
-  end
-
-  function world.hasPredicate(name)
-    local predicates = composed.predicates or {}
-    return predicates[name] ~= nil
-  end
-
-  function world.suppliedData(plugin, field)
-    local data = composed.data or {}
-    return (data[plugin] or {})[field]
-  end
-
-  function world.pasteboard(text)
-    hs.pasteboard.setContents(text)
-  end
-
-  -- A leader chord, posted rather than typed, which is the only way to prove the INPUT path
-  -- rather than the action behind it. Held for a beat before the key, because the leader
-  -- engines distinguish a hold from a tap by time and a chord posted all at once reads as a tap.
-  function world.chord(leaderFkey, key, mods)
-    local code = hs.keycodes.map[leaderFkey]
-    if not code then return false, "no keycode for " .. tostring(leaderFkey) end
-    hs.eventtap.event.newKeyEvent({}, code, true):post()
-    hs.timer.usleep(350000)
-    hs.eventtap.event.newKeyEvent(mods or {}, key, true):post()
-    hs.timer.usleep(40000)
-    hs.eventtap.event.newKeyEvent(mods or {}, key, false):post()
-    hs.timer.usleep(120000)
-    hs.eventtap.event.newKeyEvent({}, code, false):post()
-    return true
-  end
-
-  return world
+  function w.canDispatch(action) return (composed.dispatch or {})[action] ~= nil end
+  function w.hasPredicate(name) return (composed.predicates or {})[name] ~= nil end
+  function w.suppliedData(plugin, field) return ((composed.data or {})[plugin] or {})[field] end
+  function w.pasteboard(text) hs.pasteboard.setContents(text) end
+  return w
 end
 
 --------------------------------------------------------------------------------
 -- Running
 --------------------------------------------------------------------------------
 
-local function judge(scenario, world)
-  if scenario.manual then
-    return "manual", scenario.manual == true and "needs a person to look" or tostring(scenario.manual)
-  end
-
-  if type(scenario.given) == "function" then
-    local ok, err = pcall(scenario.given, world)
-    if not ok then return "fail", "its Given raised, " .. tostring(err) end
-  end
-
-  if type(scenario.when) == "function" then
-    local ok, err = pcall(scenario.when, world)
-    if not ok then return "fail", "its When raised, " .. tostring(err) end
-    world.settle()
-  end
-
+local function verdictOf(scenario, world)
   if type(scenario.expect) ~= "function" then
     return "fail", "the scenario claims something and then checks nothing"
   end
-
   local ok, answer, why = pcall(scenario.expect, world)
   if not ok then return "fail", "it raised, " .. tostring(answer) end
   if answer == true then return "pass", nil end
   return "fail", why or "it did not hold, and said nothing about what it saw instead"
+end
+
+-- Walks one scenario and hands its verdict to `done`. Asynchronous on purpose. An input
+-- scenario posts key events, and those are delivered on the main thread, so the gap between
+-- posting and looking has to be a real timer rather than a sleep. Sleeping guarantees the
+-- events can never be processed, which is precisely what made an entire calibration run report
+-- failures on a configuration whose keys work perfectly by hand.
+local function judge(scenario, world, hold, done)
+  if scenario.manual then
+    return done("manual", scenario.manual == true and "needs a person to look" or tostring(scenario.manual))
+  end
+
+  if type(scenario.given) == "function" then
+    local ok, err = pcall(scenario.given, world)
+    if not ok then return done("fail", "its Given raised, " .. tostring(err)) end
+  end
+
+  local steps = scenario.steps
+  if type(steps) ~= "table" or #steps == 0 then
+    if type(scenario.when) == "function" then
+      local ok, err = pcall(scenario.when, world)
+      if not ok then return done("fail", "its When raised, " .. tostring(err)) end
+      world.settle()
+    end
+    local v, why = verdictOf(scenario, world)
+    return done(v, why)
+  end
+
+  local i = 0
+  local function nextStep()
+    i = i + 1
+    local step = steps[i]
+    if not step then
+      local v, why = verdictOf(scenario, world)
+      return done(v, why)
+    end
+    local ok, err = pcall(step.fn or step[1], world)
+    if not ok then
+      return done("fail", "step " .. i .. " raised, " .. tostring(err))
+    end
+    hold(hs.timer.doAfter(step.wait or step[2] or 0.4, nextStep))
+  end
+  nextStep()
 end
 
 --- obj.run(olm, opts)
@@ -196,8 +150,13 @@ function obj.run(olm, opts)
   -- Derived first, then whatever is written beside a plugin, so a report reads structure
   -- before behaviour and a broken foundation is visible before its consequences are.
   local queue = {}
-  for _, scenario in ipairs(specLib.derive(world)) do
-    queue[#queue + 1] = { feature = "Olm, derived from what each plugin declares", scenario = scenario }
+  for _, scenario in ipairs(behaviours) do
+    queue[#queue + 1] = { feature = "What this config promises a person", scenario = scenario }
+  end
+  if world.plan then
+    for _, scenario in ipairs(specLib.derive(world)) do
+      queue[#queue + 1] = { feature = "Derived from what each plugin declares", scenario = scenario }
+    end
   end
 
   local features = specLib.discover({ spoonDir .. "plugins", spoonDir .. "host" })
@@ -255,34 +214,35 @@ function obj.run(olm, opts)
     if opts.onDone then pcall(opts.onDone, counts) end
   end
 
+  local function hold(timer) timers[#timers + 1] = timer end
+
   local function step()
     index = index + 1
     local item = queue[index]
     if not item then return report() end
 
     local scenario = item.scenario
-    local verdict, why
+    local tier = scenario.tier or "behaviour"
 
-    if wanted and not wanted[scenario.tier or "behaviour"] then
-      verdict, why = "skipped", "not in the tiers this run asked for"
-    else
-      verdict, why = judge(scenario, world)
-    end
-
-    counts[verdict] = counts[verdict] + 1
-    results[#results + 1] = {
-      feature = item.feature, scenario = scenario.scenario, verdict = verdict, why = why,
-    }
-
-    -- A surface scenario left something open if it failed halfway, so the next one starts from
-    -- a clean screen rather than inheriting a chooser nobody closed.
-    if scenario.tier == "surface" and verdict == "fail" then
-      for _, entry in ipairs(world.registry.all()) do
-        if world.showing(entry.name) then world.close(entry.name) end
+    local function finish(verdict, why)
+      counts[verdict] = counts[verdict] + 1
+      results[#results + 1] = {
+        feature = item.feature, scenario = scenario.scenario, verdict = verdict, why = why,
+      }
+      -- A failed scenario may have left a surface up or a leader down, so the screen and the
+      -- keyboard are both put back before the next one starts from a state it did not choose.
+      if verdict == "fail" then
+        pcall(world.closeAll)
+        for _, leader in ipairs({ "hyper", "meta", "super" }) do pcall(world.up, leader) end
       end
+      local pause = (tier == "surface" or tier == "input") and 0.3 or 0.01
+      hold(hs.timer.doAfter(pause, step))
     end
 
-    timers[#timers + 1] = hs.timer.doAfter(scenario.tier == "surface" and 0.15 or 0.01, step)
+    if wanted and not wanted[tier] then
+      return finish("skipped", "not in the tiers this run asked for")
+    end
+    judge(scenario, world, hold, finish)
   end
 
   timers[#timers + 1] = hs.timer.doAfter(0.2, step)
