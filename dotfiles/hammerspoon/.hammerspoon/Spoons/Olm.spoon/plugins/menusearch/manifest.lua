@@ -5,21 +5,32 @@
 -- dependencies file. There is no needs table here at all, since a present field is a
 -- claim and this plugin has nothing to claim.
 --
--- Two of its real collaborators still have nowhere to go here. configure also reads
--- coveredApp, a function answering which app the launcher currently covers, and
--- refreshLauncher, a function poking the launcher when this plugin's async menu fetch
--- lands. Both come from the Launcher host rather than from a sibling plugin, from
--- Olm's own lib, or from plain root computed data. needs.siblings can only name a
--- plugin under plugins, needs.lib can only name a module under lib, and needs.data
--- describes a value the plugin cannot derive rather than a live capability of a
--- concrete other module that must exist and be wired first. None of the three fits a
--- dependency on a host, so this stays undeclared rather than forced into a field that
--- would misdescribe it, the same gap the audit named and not one this manifest can
--- close on its own.
+-- Its two real collaborators are declared, and the note that used to sit here saying they
+-- could not be is wrong. It claimed needs.siblings can only name a plugin under plugins, and
+-- hosts and plugins share ONE identity keyed set, so naming the launcher works exactly as
+-- naming a plugin does. Believing otherwise left both undeclared, so nothing delivered them,
+-- and asking this plugin for rows raised on a nil coveredApp the moment its word was typed.
+--
+-- Both are ordering false. Each arrives as a closure called when a person types rather than
+-- while anything is being wired, and this plugin is deliberately configured BEFORE the
+-- launcher, so an eager edge would invert that order for no reason.
 return {
   -- The registry and every sibling lookup know this plugin as menuSearch, camel
   -- cased, while the directory beside this file is menusearch, lowercase.
   name = "menuSearch",
+
+  needs = {
+    siblings = {
+      -- Which application the launcher opened over, which is the whole subject of this
+      -- plugin, since the menus it searches belong to that app and not to the launcher.
+      coveredApp = { plugin = "launcher", member = "coveredApp", call = "method",
+        policy = "required", ordering = false },
+      -- Poking the launcher to draw again once this plugin's own menu read lands, the same
+      -- late answer shape the browser tab and relay lists take.
+      refreshLauncher = { plugin = "launcher", member = "refresh", call = "method",
+        policy = "optional", ordering = false },
+    },
+  },
 
   -- Scoped by the launcher, the alias lists the frontmost app's menus the same way
   -- the picker does and choosing one runs the same item. It is a discovery opener,

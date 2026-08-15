@@ -472,6 +472,19 @@ function obj.run(olm, cfg)
   ownPredicates.multipleDisplays = function() return #hs.screen.allScreens() > 1 end
   ownPredicates.overlayDisplayOpen = function() return overlay.isShowing() == true end
 
+  -- Whether the launcher is holding somebody else's list rather than its own catalog, which is
+  -- what decides whether the key that steps back out means anything. The launcher already
+  -- answers this about itself, so this only names the host, which this file is allowed to do.
+  --
+  -- It was declared by a binding and defined nowhere, and an unknown predicate is treated as
+  -- always active by design, so the way out was listed in the hint panel at all times including
+  -- when there was nothing to leave. Looked up inside the closure rather than captured, since
+  -- predicates are built before the loader has filled that table.
+  ownPredicates.launcherHostingList = function()
+    local host = modules[plan.identity.launcher or "launcher"]
+    return host ~= nil and type(host.isHostingList) == "function" and host:isHostingList() == true
+  end
+
   ------------------------------------------------------------------------------
   -- STEP G. Leaders, continued. The app and window keycodes above are reused
   -- here for the two engines rather than resolved a second time.
@@ -831,6 +844,34 @@ function obj.run(olm, cfg)
   -- them a home would be ceremony, so the leader binds them here from whatever the launcher's
   -- own special rows declared. They were bound by the retired root and by nothing here, which
   -- is how two working keys became two rows in a list and nothing else.
+  -- The open key of anything that declares one and does NOT register. Every registered tool's
+  -- key is bound by the loop above, off registry.shortcuts, and a host is not a tool, so a host
+  -- that declares a key had nothing anywhere binding it. The launcher is that case, and its own
+  -- key is the one every other surface is reached from, so losing it takes most of the config
+  -- with it while every check still reports a clean wiring run.
+  --
+  -- Derived rather than named. Anything with a key, a leader, and a way to be shown, that the
+  -- registry did not already claim, gets its key bound, so a second host answering the same
+  -- description needs no edit here.
+  do
+    local claimed = {}
+    for _, entry in ipairs(wiredRegistry.shortcuts() or {}) do claimed[entry.name] = true end
+
+    for directory, eff in pairs(plan.effective or {}) do
+      local identity = plan.identity[directory] or directory
+      local module = modules[identity]
+      if eff.key and eff.leader and module and not claimed[identity]
+        and type(module.show) == "function" then
+        local code = leadersLib.keycode(keymapCatalog, leaderRoles[eff.leader] or eff.leader)
+        -- Only the app leader's own engine binds by key today, which is what hyperKeyAtom is,
+        -- so a host on another leader is left alone rather than bound to the wrong engine.
+        if code == appKeycode then
+          hyperKeyAtom:bind(eff.key, function() module:show() end, eff.mods)
+        end
+      end
+    end
+  end
+
   do
     local systemCalls = {
       lock = function() hs.caffeinate.lockScreen() end,

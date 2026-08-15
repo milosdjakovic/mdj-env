@@ -424,4 +424,18 @@ function obj:hide()
   return self
 end
 
+--- CheatSheet:isShowing()
+--- Whether an overlay is on screen right now. Delegated to the shared panel, which is the
+--- thing that actually knows, so this cannot drift from what is drawn.
+---
+--- It exists because this overlay could not be OBSERVED. show and hide were the whole surface,
+--- so nothing could ask whether holding a leader had produced anything, and a cheat sheet that
+--- silently stopped appearing looked exactly like one that was working. That is not a
+--- hypothetical, both sheets went dead in a rewrite and every automated check still passed,
+--- because every check was asking whether wiring calls returned rather than whether anything
+--- was on screen. A mechanism with no observer cannot be tested, and this is the observer.
+function obj:isShowing()
+  return self._panel ~= nil and self._panel:isShowing() == true
+end
+
 return obj

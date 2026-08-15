@@ -154,7 +154,17 @@ end
 function obj:configure(opts)
   opts = opts or {}
   self._hyperKey = opts.hyperKey
-  self._provider = opts.provider or self.providers.spotlightTahoe
+  -- This plugin's OWN manager is the default, not the operating system's clipboard. That reads
+  -- as obvious and was the other way round, which meant a configuration saying nothing about
+  -- providers got the native macOS history instead of this one, silently, with the key opening
+  -- a panel this plugin does not own and nothing anywhere reporting a problem. The retired root
+  -- hid it by always passing a chain explicitly, so the wrong default only surfaced once a
+  -- person's own file stopped naming one, which is exactly what a portable spoon changes.
+  --
+  -- A plugin's default has to be the thing the plugin IS. spotlightTahoe and raycast stay
+  -- reachable by name for someone who would rather keep the manager they already use, and
+  -- neither of them is what shipping this plugin means.
+  self._provider = opts.provider or self.providers.hammerspoon
   return self
 end
 
