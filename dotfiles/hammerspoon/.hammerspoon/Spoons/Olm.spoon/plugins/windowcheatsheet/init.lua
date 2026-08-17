@@ -140,4 +140,12 @@ function obj:hide()
   return self
 end
 
+--- WindowCheatSheet:isShowing()
+--- Whether this overlay is on screen, asked of the shared renderer rather than tracked here,
+--- so this can never disagree with what is actually drawn. See lib/cheatsheet.lua for why an
+--- observer had to exist at all.
+function obj:isShowing()
+  return self._cheatSheet ~= nil and self._cheatSheet:isShowing() == true
+end
+
 return obj
