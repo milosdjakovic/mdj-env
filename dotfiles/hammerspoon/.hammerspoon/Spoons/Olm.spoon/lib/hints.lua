@@ -468,19 +468,72 @@ function obj.sections(registry, plan, deps)
     return nil
   end
 
+  -- Which leader's overlay this is being built for, as the role word a manifest already uses,
+  -- app or window. A nil answers for every leader at once, which is what this did before it
+  -- was asked the question at all, so an existing caller that never cared still works.
+  local role = (deps or {}).leader
+
   local bindings = {}
+  local seen = {}
+
+  local function add(key, mods, action, description)
+    if key == nil then return end
+    -- Two entries may legitimately share a key with different modifiers, screenshot to the
+    -- clipboard and screenshot to a file being the real pair, so identity here is the key
+    -- AND the modifiers rather than the key alone.
+    local mark = tostring(key) .. "/" .. table.concat(mods or {}, "+")
+    if seen[mark] then return end
+    seen[mark] = true
+    bindings[#bindings + 1] = {
+      key = key, mods = mods, action = action, description = description or action,
+    }
+  end
+
   for _, entry in ipairs(registry.shortcuts()) do
     if entry.kind == "leader" then
       local key = keyForIdentity(entry.name)
       local eff = (key and plan.effective[key]) or {}
-      local row = registry.rowFor(entry.name)
-      bindings[#bindings + 1] = {
-        key = eff.key,
-        action = entry.name,
-        description = eff.description or (row and row.detail) or entry.name,
-      }
+      -- A tool living on another leader has no business on this leader's overlay, and one
+      -- that states no leader is left in rather than guessed at.
+      if role == nil or eff.leader == nil or eff.leader == role then
+        local row = registry.rowFor(entry.name)
+        add(eff.key, eff.mods, entry.name,
+          eff.description or (row and row.detail) or entry.name)
+      end
     end
   end
+
+  -- A registry row is not the only way to own a chord, and reading only those left four real
+  -- Hyper keys off this overlay. Capture declares four bindings of its own and no launcher row
+  -- at all, because a screenshot is an action rather than a list you open, so screenshot,
+  -- screenshot to clipboard, OCR and record were each bound, each pressable, and each missing
+  -- from the very overlay that exists to say what the leader does.
+  --
+  -- Walked through plan.order rather than by iterating the effective table, because pairs has
+  -- no order and the overlay would otherwise draw its rows in a different sequence every load.
+  -- The same walk answers two more sources, for the same reason. A plugin's own key, which is
+  -- how a host like the launcher owns a chord without ever being a registry tool, and the
+  -- special rows some plugin declares, which is where lock and sleep live. Both are bound and
+  -- pressable, and neither appeared here. The first loop already added every registry tool, so
+  -- the dedupe above is what keeps a tool from being listed twice by two different routes.
+  --
+  -- Fields are read by name rather than by knowing which plugin declares them, exactly as
+  -- bindings already is, so this file still names nothing.
+  for _, directory in ipairs(plan.order or {}) do
+    local eff = (plan.effective or {})[directory] or {}
+    if role == nil or eff.leader == role then
+      add(eff.key, eff.mods, directory, eff.description)
+      for _, b in ipairs(eff.bindings or {}) do
+        add(b.key, b.mods, b.action, b.description)
+      end
+      for _, r in ipairs(eff.specialRows or {}) do
+        -- Only the ones carrying a key. A special row without one opens from a list and
+        -- nowhere else, so it has no chord to show and no business on a chord overlay.
+        add(r.key, r.mods, r.name, r.description)
+      end
+    end
+  end
+
   return { { title = "ACTIONS", bindings = bindings } }
 end
 

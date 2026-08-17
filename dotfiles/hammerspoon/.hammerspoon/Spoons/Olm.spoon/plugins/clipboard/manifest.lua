@@ -31,14 +31,25 @@ return {
         reason = "reading a video duration so a preview frame is picked mid clip",
         origin = { brew = "ffmpeg" } },
     },
-    -- The one external backend this plugin cannot build for itself. Everything else
-    -- the outer configure needs, the paste primitive above, the reveal routing, is
-    -- either a lib capability or plain policy this file already owns.
+    -- The external backend this plugin cannot build for itself, and the one surface it must
+    -- not draw for itself. Everything else the outer configure needs, the paste primitive
+    -- above, the reveal routing, is either a lib capability or plain policy this file owns.
     data = {
       shortcut = { source = "user", policy = "optional",
         breaks = "the shortcut backed provider, and any app it would have been gated "
           .. "on, never joins the reveal chain, so an external clipboard manager bound "
           .. "to a combo can never answer Hyper plus X ahead of the native one" },
+      -- One line of feedback, drawn by whoever owns the overlay surface. Not decoration. Two of
+      -- this plugin's actions change state a person cannot otherwise see, an entry growing
+      -- offscreen and a position in a walk through history, and this message is the whole of
+      -- what tells them anything happened.
+      --
+      -- Optional because both actions still do their work without it, which is precisely why its
+      -- absence went unnoticed. They worked perfectly, and silently.
+      notify = { source = "root", policy = "optional",
+        breaks = "appending to an entry and stepping back through history both happen in "
+          .. "silence, so the two actions whose result is otherwise invisible look exactly "
+          .. "like a key that did nothing" },
     },
   },
 

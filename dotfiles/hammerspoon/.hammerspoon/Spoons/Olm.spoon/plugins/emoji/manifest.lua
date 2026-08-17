@@ -15,8 +15,13 @@ return {
     -- a lib need on the shared insertion engine rather than a sibling need on a plugin
     -- that no longer offers it. Optional, since typing is a worse but working fallback,
     -- which is exactly what the root's own fallback closure already does.
+    --
+    -- dot, because lib/paste.lua exports plain functions, function M.pasteText(text). Left to
+    -- the default method binding it arrives with the paste module itself in the first
+    -- parameter and the glyph pushed along one, so choosing an emoji inserted nothing and
+    -- raised nothing either, which is how the mismatch stays invisible in Lua.
     lib = {
-      onInsert = { from = "paste", member = "pasteText", policy = "optional" },
+      onInsert = { from = "paste", member = "pasteText", call = "dot", policy = "optional" },
     },
     -- These build the vendored dataset and are not needed to USE the picker, which is
     -- what `stage` says. Without the split an install list would tell someone to fetch a

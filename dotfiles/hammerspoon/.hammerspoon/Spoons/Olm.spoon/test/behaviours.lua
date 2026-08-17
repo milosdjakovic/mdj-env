@@ -24,7 +24,18 @@ return {
     tier = "input",
     -- Steps rather than one function, because the gap between holding a key and looking at the
     -- screen has to be a real turn of the run loop. See test/world.lua for why.
+    --
+    -- The first two steps are a WARM UP and nothing is judged on them. An overlay that has
+    -- never been drawn on this config builds its canvas, measures its text and renders every
+    -- glyph on the first hold, which can take longer than a person would ever hold a leader,
+    -- and being first in the queue this scenario is the one that always pays it. A cold run
+    -- failed here, left a leader down, and every scenario after it failed too, on a config
+    -- that was perfect. So the first hold is spent rather than measured, and the second one,
+    -- against a warm overlay, is the one the verdict comes from. Waiting longer before the
+    -- run would not have helped, since what is cold is the drawing rather than the config.
     steps = {
+      { fn = function(w) w.down("hyper") end, wait = 1.1 },
+      { fn = function(w) w.up("hyper") end, wait = 0.8 },
       { fn = function(w) w._seen = nil w.down("hyper") end, wait = 1.1 },
       { fn = function(w) w._seen = w.showing("hypercheatsheet") w.up("hyper") end, wait = 0.6 },
     },
@@ -49,11 +60,15 @@ return {
     tier = "input",
     -- Steps rather than one function, because the gap between holding a key and looking at the
     -- screen has to be a real turn of the run loop. See test/world.lua for why.
+    -- Warmed the same way and for the same reason as the Hyper sheet above, since this is a
+    -- second overlay with its own canvas and its own first draw to pay for.
     steps = {
       -- A beat before the leader goes down, because the scenario before this one also held a
       -- leader and the shared engine has its own state to unwind. Two holds back to back is
       -- not something a person does, so the suite gives it the room a person would.
       { fn = function(w) w._seen = nil end, wait = 0.8 },
+      { fn = function(w) w.down("meta") end, wait = 1.2 },
+      { fn = function(w) w.up("meta") end, wait = 0.8 },
       { fn = function(w) w.down("meta") end, wait = 1.2 },
       { fn = function(w) w._seen = w.showing("windowcheatsheet") w.up("meta") end, wait = 0.6 },
     },
@@ -74,6 +89,83 @@ return {
   },
 
   --------------------------------------------------------------------------------
+  -- What the overlays SAY, which is a different question from whether they appear
+  --------------------------------------------------------------------------------
+
+  -- Both scenarios below exist because the two above passed on a configuration where the
+  -- Hyper overlay had no applications on it at all and the window overlay's heading was
+  -- blank. Every automated check said the sheets appeared, and they did. Appearing was never
+  -- the promise. A cheat sheet that shows nothing is worse than one that does not open, since
+  -- it answers the question wrongly instead of visibly failing to answer it.
+
+  {
+    scenario = "the Hyper overlay lists the applications its leader switches between",
+    tier = "behaviour",
+    expect = function(w)
+      local sheet = w.role("hypercheatsheet")
+      if not sheet then return false, "no Hyper cheat sheet in this config at all" end
+      local n = 0
+      for _ in pairs(sheet._apps or {}) do n = n + 1 end
+      if n == 0 then
+        return false, "it holds no application registry, so its whole app half draws empty "
+          .. "however well it opens"
+      end
+      if #(sheet._toggles or {}) == 0 then
+        return false, "it holds no toggle list, so it knows of no app to draw a row for"
+      end
+      return true
+    end,
+  },
+
+  {
+    scenario = "the Hyper overlay lists the actions bound to its leader",
+    tier = "behaviour",
+    expect = function(w)
+      local sheet = w.role("hypercheatsheet")
+      if not sheet then return false, "no Hyper cheat sheet in this config at all" end
+      local rows = 0
+      for _, section in ipairs(sheet._staticSections or {}) do
+        rows = rows + #(section.rows or {})
+      end
+      if rows == 0 then
+        return false, "it has no action rows, so every chord under this leader is unlisted"
+      end
+      -- A count rather than a list of names, since which tools a person installs is theirs to
+      -- decide and this suite has no business holding a roster. What it can say honestly is
+      -- that a set this small means whole sources were missed rather than merely unpopulated,
+      -- which is what reading only registry tools and ignoring every plugin carrying its own
+      -- bindings actually did.
+      if rows < 10 then
+        return false, "only " .. rows .. " action rows, which is fewer than the tools that "
+          .. "carry a chord, so a whole source of bindings is being skipped"
+      end
+      return true
+    end,
+  },
+
+  {
+    scenario = "the window overlay names what its leader does",
+    tier = "behaviour",
+    expect = function(w)
+      local sheet = w.role("windowcheatsheet")
+      if not sheet then return false, "no window cheat sheet in this config at all" end
+      local groups = sheet._byLeader or {}
+      local found = nil
+      for _, group in pairs(groups) do found = group break end
+      if not found then
+        return false, "it has no rows for any leader, so holding one shows an empty overlay"
+      end
+      if #(found.rows or {}) == 0 then
+        return false, "its leader group has no rows in it"
+      end
+      if found.name == nil or found.name == "" then
+        return false, "its rows have no heading, so the overlay draws a blank title over them"
+      end
+      return true
+    end,
+  },
+
+  --------------------------------------------------------------------------------
   -- The launcher, and the key that reaches it
   --------------------------------------------------------------------------------
 
@@ -84,14 +176,20 @@ return {
       { fn = function(w) w._before = w.showing("launcher") w.down("hyper") end, wait = 1.0 },
       { fn = function(w) w.press("space") end, wait = 0.2 },
       { fn = function(w) w.up("hyper") end, wait = 0.9 },
-      { fn = function(w) w._opened = w.showing("launcher") w.escape() end, wait = 0.6 },
+      { fn = function(w) w._opened = w.showing("launcher") w.escape() end, wait = 0.5 },
+      -- Closing is watched rather than checked once. The claim is that escape closes the
+      -- launcher, not that it closes it inside half a second, and a chooser that is still
+      -- animating open when the key arrives takes a beat longer to go away. Judging on the
+      -- first look failed here on runs where the same key works by hand every time.
+      { fn = function(w) w._closed = not w.showing("launcher") end, wait = 0.5 },
+      { fn = function(w) w._closed = w._closed or not w.showing("launcher") end, wait = 0.5 },
     },
     expect = function(w)
       if w._before then return false, "it was already open before the test began" end
       if not w._opened then
         return false, "the chord was posted and the launcher never appeared"
       end
-      if w.showing("launcher") then
+      if not w._closed then
         return false, "it opened but escape did not close it"
       end
       return true

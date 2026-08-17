@@ -15,11 +15,15 @@ return {
         origin = { brew = "libqalculate" } },
     },
     -- The resolved absolute path this tool arrives at is not named again here. It is
-    -- already the whole point of the required line above, ambient through the same
-    -- dependency door every declared tool goes through. The composition root happens to
-    -- hand this particular plugin the bare resolved path as opts.path rather than the
-    -- scoped adapter object other plugins read from opts.deps, but that is a call
-    -- shape decision the root makes, not a second need this plugin has.
+    -- already the whole point of the required line above, ambient through opts.deps, the
+    -- same dependency door every declared tool goes through and the one thing declaring a
+    -- tool at all earns.
+    --
+    -- This comment used to say the root handed this one plugin a bare opts.path instead,
+    -- and that was simply not true. Nothing sent that field, so the plugin held no path
+    -- and answered an empty list to every conversion typed at it, for as long as the
+    -- manifest layer has existed. A comment describing a wiring nobody performs is worse
+    -- than no comment at all, since it is the thing a reader checks the code against.
     data = {
       -- The answer to a conversion arrives after the row that asked for it was already
       -- built, since the calculator runs as a separate process. Without a way to say so,
@@ -28,7 +32,12 @@ return {
       -- computed, a closure the composition root builds over the launcher's own refresh.
       -- Optional, because the plugin's own comment says so plainly, omitting it leaves the
       -- answer to appear later rather than never.
-      onResult = { source = "root", policy = "optional",
+      --
+      -- Named redraw, which is the root's own one word for repainting whichever list is on
+      -- screen, and shared with every other plugin that answers later than the keystroke did.
+      -- It was onResult, a name only this plugin used, and a root value is delivered by field
+      -- name, so a vocabulary of one word per plugin is a vocabulary nobody can pay.
+      redraw = { source = "root", policy = "optional",
         breaks = "a landed conversion answer waits for the next keystroke to appear " ..
                  "instead of redrawing the row the moment it is ready" },
     },

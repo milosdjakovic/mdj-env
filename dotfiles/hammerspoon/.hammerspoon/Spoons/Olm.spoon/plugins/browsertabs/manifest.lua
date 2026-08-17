@@ -13,7 +13,11 @@ return {
     -- comes from lib rather than from a sibling plugin. Optional, and without it the
     -- resting order simply stands.
     lib = {
-      recency = { from = "recency", policy = "optional" },
+      -- limit is a cap on how many remembered tabs are kept, and it is declared rather than
+      -- left off because a browser session is the one list here big enough for unbounded to
+      -- mean something. The retired root passed two thousand and nothing carried it over, so
+      -- the remembered order was left to grow with no ceiling at all.
+      recency = { from = "recency", policy = "optional", limit = 2000 },
     },
     tools = {
       { name = "osascript", kind = "system", locator = "/usr/bin/osascript", policy = "optional",
@@ -56,12 +60,23 @@ return {
   -- on purpose. Safari is the only one macOS guarantees is there, so a new machine
   -- scripts exactly one browser and raises exactly one Automation prompt, and the rest
   -- are switched on deliberately by whoever wants them.
+  --
+  -- `providers` is the shipped browser order, by name, and it belongs here rather than in the
+  -- needs above because nothing outside this plugin has to know anything for it to work. The
+  -- names are resolved against the providers directory by this plugin's own configure, so a
+  -- person reordering the list, or dropping a browser they do not use, edits one line and needs
+  -- no bundle id and no knowledge of which file answers to which word. Chrome sits between the
+  -- other two because it is the one that only appears when its bundle id was supplied.
+  --
+  -- The order is not cosmetic. It is where each browser's tabs rest in the list before this tool
+  -- has ever opened one, so it is the answer to what you see first on a fresh machine.
   defaults = {
     leader = "app",
     key = "W",
     description = "Browser tabs",
     glyph = "📑",
     aliases = { "t", "tabs" },
+    providers = { "safari", "chrome", "arc" },
     enabled = { "safari" },
   },
 

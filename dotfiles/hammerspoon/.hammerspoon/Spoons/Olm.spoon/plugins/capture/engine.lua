@@ -60,8 +60,12 @@ end
 
 --- Capture:configure(opts)
 --- Method
---- opts.providers - ordered list of provider tables, tried front to back;
----                  defaults to the chain wired up in init.lua
+--- opts.providers - the chain, front to back, as NAMES that this plugin's own registry answers
+---                  to, or as finished provider tables for a caller holding one. Defaults to the
+---                  chain wired up in init.lua. Names rather than tables because the person's own
+---                  priority list is a list of words in their config, and turning a word into a
+---                  backend has to happen inside this plugin, the only place that knows which
+---                  file answers to which word.
 --- opts.hyperKey  - optional HyperKey spoon; when present, bindHotkeys binds
 ---                  into its modal and dispatch waits for its release
 --- opts.deps      - the per consumer dependency adapter, injected by the composition root
@@ -74,9 +78,44 @@ function obj:configure(opts)
   opts = opts or {}
   self._hyperKey = opts.hyperKey
   self._deps = opts.deps
-  self._providers = self:_validate(opts.providers or self._defaultProviders or {})
+  self._providers = self:_validate(self:_named(opts.providers) or self._defaultProviders or {})
   self:_logAvailability()
   return self
+end
+
+--- Capture:_named(chain)
+--- Method
+--- One ordered chain of names, turned into the providers they name, against the registry
+--- init.lua filled. Nil in and nil out, so the caller's own fallback to the shipped order still
+--- reads as one expression.
+---
+--- This is where the person's own priority list becomes real, and until now nothing did it.
+--- settings.capture.providers has been a list of three words that nothing anywhere read, so
+--- reordering the chain, or dropping a backend to keep it off, changed nothing at all. The
+--- composition root could not do this without naming this plugin's own files, which it is not
+--- allowed to, so the only honest home for it is here.
+---
+--- A name nothing answers to is logged and skipped rather than being fatal, since a person
+--- naming a backend that was removed should lose that backend and keep their chain.
+function obj:_named(chain)
+  if chain == nil then return nil end
+  local out = {}
+  for _, entry in ipairs(chain) do
+    if type(entry) == "table" then
+      out[#out + 1] = entry
+    else
+      local found = (self.providers or {})[entry]
+      if found then
+        out[#out + 1] = found
+      else
+        log.w("no capture provider answers to '" .. tostring(entry) .. "'")
+      end
+    end
+  end
+  -- An empty answer is not the same as none given. It means every name was unknown, and falling
+  -- back to the shipped order is better than a chain that can capture nothing.
+  if #out == 0 then return nil end
+  return out
 end
 
 --- Capture:_validate(providers)

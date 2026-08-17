@@ -127,23 +127,66 @@ function obj.derive(world)
 
       -- The one that actually proves something works. Open it the way the registry opens it,
       -- see it, close it the way every surface closes. Derived for every tool at once.
+      --
+      -- Written as steps rather than as an open followed by a look, and that is the whole
+      -- reason three tools reported here as broken while they open perfectly by hand. Menu
+      -- search walks the accessibility tree, processes shells out, and text case reads the
+      -- selection through the pasteboard, so all three ask for their data first and show
+      -- only once the answer lands. Every one of those answers is delivered on the MAIN
+      -- THREAD, so anything that blocks that thread while waiting is guaranteeing the show
+      -- it is waiting for can never happen. Only the runner may wait, between steps, where
+      -- a real timer lets the run loop turn.
+      --
+      -- The tools that passed this check before passed by accident. A plain chooser sets its
+      -- own showing flag inside show(), so a blocking wait could not stop it, and the three
+      -- that gather first were the only ones the defect was ever visible through.
       if manifest.registry.surface then
+        -- One look, remembered once it is a yes, so a tool that appears on the second look
+        -- is not scored on the fifth. Written once here and used by every polling step below
+        -- rather than repeated, since the steps differ only in when they happen.
+        local function look(w)
+          if not w._surfaceOpened then w._surfaceOpened = w.showing(identity) end
+        end
         add({
           tier = "surface",
           scenario = ("%s opens and closes"):format(identity),
-          when = function(w) return w.open(identity) end,
+          -- Looked at repeatedly rather than once, because how long a tool takes to appear is
+          -- its own business and one number cannot be right for all of them. A plain chooser
+          -- is up in the same breath as the call, while text case posts a Cmd+C and waits out
+          -- a timeout before it knows whether anything was selected, half a second later on a
+          -- machine with nothing selected at all. A single wait long enough for the slowest
+          -- would be paid by every other tool on every run, and one short enough to stay quick
+          -- reports the slow ones as broken, which is what it did.
+          steps = {
+            { fn = function(w) w._surfaceOpened = nil w.open(identity) end, wait = 0.3 },
+            { fn = look, wait = 0.3 },
+            { fn = look, wait = 0.3 },
+            { fn = look, wait = 0.3 },
+            { fn = look, wait = 0.3 },
+            { fn = function(w) look(w) w.close(identity) end, wait = 0.4 },
+          },
           expect = function(w)
-            if not w.showing(identity) then
+            if not w._surfaceOpened then
               return false, "it was asked to open and never showed"
             end
-            w.close(identity)
-            w.settle()
             if w.showing(identity) then
               return false, "it opened but would not close again"
             end
             return true
           end,
         })
+
+        -- Whether the config KNOWS it is open, which is a different question from whether it
+        -- is, and the one every chord inside a picker hangs off. Each context binding is gated
+        -- on a predicate named for the context, so a predicate that answers false while the
+        -- list is up leaves j, k and every other in list key bound and dead, and the plain
+        -- chord on the same key fires instead. In the clipboard that meant pressing j to move
+        -- down opened the emoji picker.
+        --
+        -- Five of the twelve pickers answered false forever, because the answer was read off
+        -- the plugin root and those five keep their picker on a submodule. Nothing raised, and
+        -- the check that only asked whether the picker appeared passed on every one of them,
+        -- which is why this is a separate scenario rather than another line in that one.
       end
 
       -- A scope is the promise that typing a word reaches this tool, so the promise is kept.
@@ -164,6 +207,104 @@ function obj.derive(world)
           end,
         })
       end
+    end
+
+    -- Whether the config KNOWS a list is open, which is a different question from whether it
+    -- is, and the one every chord inside a list hangs off. Each context binding is gated on a
+    -- predicate named for the context, so a predicate answering false while the list is up
+    -- leaves j, k and every other in list key bound and dead, and the plain chord on the same
+    -- key fires instead. In the clipboard that meant pressing j to move down opened the emoji
+    -- picker.
+    --
+    -- Five of the twelve answered false forever, because the answer was read off the plugin
+    -- root and those five keep their picker on a submodule. Nothing raised, and the check that
+    -- only asked whether the picker appeared passed on every one of them, which is exactly why
+    -- this is its own scenario rather than another line inside that one.
+    --
+    -- Guarded on the surface context ALONE, deliberately outside the registry block above. The
+    -- launcher declares a context and no registry entry at all, being a host rather than a
+    -- registered tool, so a check nested in there skipped the one list with more in list keys
+    -- than any other.
+    local context = ((manifest or {}).surface or {}).context
+    if context then
+      local predicate = context .. "Open"
+      local function look(w)
+        if not w._contextSeen then w._contextSeen = w.hasContext(predicate) end
+      end
+      add({
+        tier = "surface",
+        scenario = ("%s is known to be open while it is open"):format(identity),
+        steps = {
+          { fn = function(w) w._contextSeen = nil w.open(identity) end, wait = 0.3 },
+          { fn = look, wait = 0.3 },
+          { fn = look, wait = 0.3 },
+          { fn = look, wait = 0.3 },
+          { fn = function(w) look(w) w.close(identity) end, wait = 0.4 },
+        },
+        expect = function(w)
+          if w._contextSeen == nil then
+            return false, "this config has no " .. predicate .. " predicate at all, so every "
+              .. "chord inside this list is gated on a question nobody answers"
+          end
+          if w._contextSeen ~= true then
+            return false, "its list was open and " .. predicate .. " still said no, so every "
+              .. "chord inside it is dead and the plain chord on the same key fires instead"
+          end
+          if w.hasContext(predicate) == true then
+            return false, "its list was closed and " .. predicate .. " still says yes, so its "
+              .. "keys stay captured after it goes away"
+          end
+          return true
+        end,
+      })
+
+      -- And whether the surface that IS open answers the verbs its own keys are bound to,
+      -- which is the last link in the chain and the one nothing checked.
+      --
+      -- Knowing a list is open only gets a key as far as being eligible. Routing then picks
+      -- whichever surface says it is showing and calls the action on it, and a surface that
+      -- does not answer that name is left alone in silence. So j was bound, eligible, routed,
+      -- and then dropped, in the clipboard, emoji, menu search and the launcher, while working
+      -- perfectly in the VPN list, whose methods happen to sit where the root was looking. A
+      -- person cannot debug that from the outside and no check could see it either.
+      --
+      -- The verb list comes off the plan rather than being written here, so a context that
+      -- gains a key is checked for that key with nobody having to remember.
+      add({
+        tier = "surface",
+        scenario = ("%s answers every key it binds"):format(identity),
+        steps = {
+          { fn = function(w)
+              w._unanswered = nil
+              w._asked = false
+              w.open(identity)
+            end, wait = 0.6 },
+          { fn = function(w)
+              if not w._asked then
+                local missing = w.unanswered(w.boundActions(context))
+                if missing then w._asked = true w._unanswered = missing end
+              end
+            end, wait = 0.4 },
+          { fn = function(w)
+              if not w._asked then
+                local missing = w.unanswered(w.boundActions(context))
+                if missing then w._asked = true w._unanswered = missing end
+              end
+              w.close(identity)
+            end, wait = 0.4 },
+        },
+        expect = function(w)
+          if not w._asked then
+            return false, "its list never reported itself open, so no surface could be found "
+              .. "to ask, and every key bound inside it routes to nothing"
+          end
+          if #w._unanswered > 0 then
+            return false, "its live surface answers nothing for " ..
+              table.concat(w._unanswered, ", ") .. ", so those keys are bound and do nothing"
+          end
+          return true
+        end,
+      })
     end
 
     -- A required tool that is missing is why a plugin is not here, so it is worth stating
@@ -205,6 +346,58 @@ function obj.derive(world)
           return false, "the root declared it owed this and then did not hand it over"
         end
         return true
+      end,
+    })
+  end
+
+  -- EVERY root sourced declaration, delivered or not, whatever its policy said.
+  --
+  -- This is the check whose absence let a whole afternoon of breakage pass as a clean run, and
+  -- the reason it was absent is worth stating exactly. plan.obligations, which the check above
+  -- reads, records only the REQUIRED root sourced needs. Every one of the values that actually
+  -- went missing was declared optional, correctly, because each tool really does still open and
+  -- still run without it. So all of them landed in plan.degraded, a list nothing asserts on, and
+  -- the suite reported no problems on a config where the tab list could hold no tabs, file
+  -- search had no vocabulary, the colour sampler could not build, and this machine's display
+  -- arrangements had never arrived.
+  --
+  -- The word optional describes what breaks for the PERSON. It says nothing about whether the
+  -- root owes the value, and a promise made inside this repository is either kept or it is a
+  -- defect, identical on every machine. So policy is deliberately not consulted here.
+  for name, manifest in pairs(world.manifests or {}) do
+    for field, decl in pairs(((manifest or {}).needs or {}).data or {}) do
+      if type(decl) == "table" and decl.source == "root" then
+        local identity = (plan.identity or {})[name] or name
+        add({
+          tier = "structure",
+          scenario = ("%s was given the root value %s"):format(identity, field),
+          expect = function()
+            if world.suppliedData(name, field) ~= nil then return true end
+            return false, "nothing supplied it, so "
+              .. (decl.breaks or "whatever this value is for does not happen")
+          end,
+        })
+      end
+    end
+  end
+
+  -- Every plugin something was configured FOR is a plugin that exists.
+  --
+  -- A value handed to a name no plugin answers to is merged, carried the whole way through, and
+  -- given to nobody, and nothing about that looks wrong from the inside. It happened because a
+  -- manifest is keyed by the name a plugin declares for itself while eight of them sit in a
+  -- directory spelled differently, so browsertabs and browserTabs were two different plugins as
+  -- far as delivery was concerned and only one of them was real. Three configured values went
+  -- that way at once and every check in this suite still passed.
+  for name in pairs(world.suppliedFor and world.suppliedFor() or {}) do
+    add({
+      tier = "structure",
+      scenario = ("%s, which something was configured for, is a real plugin"):format(name),
+      expect = function()
+        if (world.manifests or {})[name] ~= nil then return true end
+        return false, "no plugin answers to that name, so everything supplied under it was "
+          .. "handed to nobody. Check it against the name the plugin declares for itself, "
+          .. "which is not always its directory."
       end,
     })
   end

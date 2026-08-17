@@ -19,9 +19,17 @@ return {
     -- read at all when that module is absent, the same degradation the emoji insert takes.
     -- So both are lib needs on the shared insertion engine, not sibling needs on a plugin
     -- that no longer offers them.
+    --
+    -- Both say dot, and both are useless without it. Every function lib/paste.lua exports is
+    -- a plain one, function M.copySelection(cb), so a member handed over with the default
+    -- method binding arrives with the paste module itself wedged into the first parameter and
+    -- every real argument shifted along one. Reading a selection then called its own module
+    -- table as the callback, so the read never came back and the picker this plugin opens
+    -- after the read never opened, and applying a case pasted the module instead of the text.
+    -- Lua raises nothing at all for either, it simply passes what it was given.
     lib = {
-      read  = { from = "paste", member = "copySelection", policy = "optional" },
-      apply = { from = "paste", member = "pasteText",     policy = "optional" },
+      read  = { from = "paste", member = "copySelection", call = "dot", policy = "optional" },
+      apply = { from = "paste", member = "pasteText",     call = "dot", policy = "optional" },
     },
   },
 

@@ -55,6 +55,11 @@ end
 
 local obj = load("engine.lua")
 
+-- This file had no logger of its own, since until now nothing here had anything to say. Named
+-- for the spoon rather than the engine underneath it, so a line about a viewer that could not be
+-- found reads as coming from the tool a person knows by that name.
+local log = hs.logger.new("FileSearch", "info")
+
 -- Inject the contract the engine validates the source list against.
 obj._contract = load("contract.lua")
 
@@ -120,15 +125,18 @@ obj.chooser = load("chooser.lua")
 --- opts.matcher  the shared matching strategy, used for the local narrow between round trips
 --- opts.onResults  optional, told when the rows changed, for a surface other than this spoon's
 ---                 own picker. Composed with the picker's redraw rather than replacing it
---- opts.previewProvider  a member of FileSearch.PreviewProvider, defaulting to SidePanel. The
----                 root names it by reference rather than by string, see the enum above.
----                 QuickLook here still wins the docked seat and yields no preview at all,
----                 since it never follows the highlight, so it belongs on opts.peekProvider
----                 below instead
---- opts.peekProvider  a member of FileSearch.PreviewProvider, or nil for none, the seam a key
----                 asks for rather than the one that follows the highlight. Kept apart from
----                 previewProvider above because the two answer different callers and either
----                 can be QuickLook, SidePanel, or absent without the other changing
+--- opts.previewWith  which viewer takes the DOCKED seat, by name, or a member of
+---                 FileSearch.PreviewProvider for a caller holding one. Defaults to sidepanel.
+---                 quicklook here still wins the seat and yields no preview at all, since it
+---                 never follows the highlight, so it belongs on opts.peekWith instead
+--- opts.peekWith   which viewer a KEY may ask for, by name, or false for none. Kept apart from
+---                 previewWith because the two answer different callers and either can be
+---                 quicklook, sidepanel, or absent without the other changing.
+---                 Named previewWith and peekWith rather than previewProvider and peekProvider
+---                 because these arrive as manifest defaults, and a default reaches the opts of
+---                 every wiring step including the chooser submodule's own configure, where
+---                 either of those two names would overwrite the resolved viewer this file just
+---                 handed it with the bare word that named it
 ---
 --- Wraps the engine's own configure so this file stays the only place that knows both which
 --- sources exist and which part of the policy each one reads. The engine is handed only what it
@@ -140,6 +148,37 @@ local function previewChain(chosen)
   local first = chosen or obj.PreviewProvider.SidePanel
   if first == obj.PreviewProvider.SidePanel then return { first } end
   return { first, obj.PreviewProvider.SidePanel }
+end
+
+-- Which viewer a NAME means, so the two seats above can be chosen from this plugin's own shipped
+-- defaults rather than by a caller holding a reference to one of its internal modules.
+--
+-- The enum above is still the right thing for a caller that has one of these in hand, and nothing
+-- about it changes. What it could not do is be the answer on a machine with no configuration at
+-- all, because naming a member by reference means somebody outside has to do the naming, and once
+-- Olm's root became portable there was nobody left who was allowed to. So both seats sat empty.
+-- The docked one silently fell back to the side panel, which looked like it worked, and the peek
+-- seat did not, so Quick Look was gone along with the key that asks for it and the hint that
+-- advertises it, with no line anywhere saying so.
+--
+-- Names come off the viewer modules themselves rather than being written out again here, so a
+-- third viewer is a new file plus one line in the table below and nothing else.
+local viewersByName = {}
+for _, viewer in ipairs({ obj.PreviewProvider.SidePanel, obj.PreviewProvider.QuickLook }) do
+  if viewer and viewer.name then viewersByName[tostring(viewer.name):lower()] = viewer end
+end
+
+local function viewerNamed(spec)
+  -- false is a person declining the seat outright, which is not the same as saying nothing, and
+  -- the difference matters for the peek seat since absent means take the shipped default.
+  if spec == nil or spec == false then return nil end
+  -- Already a viewer, which is what the enum hands back, so a caller holding one still works.
+  if type(spec) == "table" then return spec end
+  local found = viewersByName[tostring(spec):lower()]
+  if not found then
+    log.w("no file preview viewer answers to '" .. tostring(spec) .. "'")
+  end
+  return found
 end
 
 local configureEngine = obj.configure
@@ -213,9 +252,14 @@ function obj:configure(opts)
     -- this, because the spoon's own picker must keep painting whoever else is listening. Each
     -- surface's redraw already does nothing when it is not on screen, so both being told costs
     -- one dead call.
+    -- redraw is the root's own word for repainting whichever list is on screen, and it is one
+    -- name shared by every plugin that answers later than the keystroke did, rather than each
+    -- inventing its own. Read as opts.onResults it arrived as nil forever, since nothing outside
+    -- ever spelled it that way, so a file search hosted inside the launcher went stale after each
+    -- keystroke and only its own picker ever repainted.
     onResults = function()
       obj.chooser.refresh()
-      if opts.onResults then opts.onResults() end
+      if opts.redraw then opts.redraw() end
     end,
   })
 
@@ -263,12 +307,12 @@ function obj:configure(opts)
     -- unavailable first choice into a working picker with a console line rather than into no
     -- preview at all. This is the only place in the spoon that names a concrete one, and it
     -- names them by reference so no provider string exists anywhere.
-    viewers = previewChain(opts.previewProvider),
+    viewers = previewChain(viewerNamed(opts.previewWith)),
     -- The seam a key asks for, passed straight through with no chain and no fallback behind it,
     -- since asking for nothing when it steps aside is the right answer and there is no second
     -- provider here to hand the key to instead. Nil is a valid answer too, meaning the root
     -- wants no peek seam at all, and the key it would have earned drops out on its own.
-    peekProvider = opts.peekProvider,
+    peekProvider = viewerNamed(opts.peekWith),
   })
 
   return self

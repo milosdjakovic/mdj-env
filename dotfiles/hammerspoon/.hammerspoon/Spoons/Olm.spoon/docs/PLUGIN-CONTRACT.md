@@ -123,6 +123,26 @@ matter. An earlier version validated these declarations at load and then never h
 value over, which is strictly worse than not declaring it, because the check reported
 success while the plugin received nil.
 
+Naming a `member` means saying how it is called, exactly as `needs.siblings` does, and the
+default is `"method"`.
+
+```lua
+lib = {
+  apply = { from = "paste", member = "pasteText", call = "dot", policy = "optional" },
+},
+```
+
+**Get this wrong and nothing anywhere will tell you.** A plain function bound as a method
+receives its own module in the first parameter and every real argument shifted along one,
+which Lua performs without complaint. Four declarations shipped without it. Text case could
+neither read a selection nor apply a case, so the picker it opens after the read never opened
+at all, choosing an emoji inserted nothing, and every chord printed in a launcher subtitle was
+drawn from the wrong two arguments. All four looked correctly wired from every direction
+except pressing the key.
+
+Every function under `lib/` today is a plain one, `function M.pasteText(text)`, so a lib member
+wants `call = "dot"` unless you have read the source and found a colon.
+
 ### needs.siblings
 
 A capability from another plugin. This is a table rather than a dotted string, because
@@ -291,8 +311,12 @@ registry = {
   shortcut = "leader",                            -- or "global"
   scope = {
     matcher = false,
-    rows = { member = "scopeRows", call = "dot" },
-    run  = { member = "activate",  call = "dot" },
+    -- Reached through the submodule they actually live on, since a bare name is walked
+    -- against the plugin ROOT. This example named them bare for a while and a real manifest
+    -- copied it, which built a scope, registered it, resolved its word, and answered an empty
+    -- list to every keystroke, with nothing raised anywhere.
+    rows = { member = "chooser.scopeRows", call = "dot" },
+    run  = { member = "chooser.activate",  call = "dot" },
   },
   commands = {
     appendCopy = {

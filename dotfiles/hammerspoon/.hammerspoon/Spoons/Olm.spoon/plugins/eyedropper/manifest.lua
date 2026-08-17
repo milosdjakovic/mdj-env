@@ -18,6 +18,20 @@ return {
         reason = "compiles the native colour sampler helper",
         origin = { macos = "ships with the Xcode command line tools" } },
     },
+
+    data = {
+      -- Show the sampled colour. What a pick looks like and where it appears is the root's own
+      -- business, since it draws on the shared overlay surface, on whichever display the overlay
+      -- policy picked, so this reads as part of the same interface as the cheat sheet rather than
+      -- as a stray alert. This plugin only ever says which colour was picked.
+      --
+      -- Optional, and the sentence says what that costs honestly. The hex still reaches the
+      -- clipboard, which is the point of the tool, so what is lost is the confirmation that
+      -- anything happened at all.
+      showColor = { source = "root", policy = "optional",
+        breaks = "a picked colour is copied with nothing shown, so a pick and a missed pick "
+          .. "look exactly the same" },
+    },
   },
 
   -- What this plugin proposes for its own key. No glyph and no aliases, since it is reached

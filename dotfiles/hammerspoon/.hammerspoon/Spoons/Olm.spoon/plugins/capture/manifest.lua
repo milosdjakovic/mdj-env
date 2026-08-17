@@ -28,12 +28,16 @@ return {
     -- not named here on purpose. It is already ambient the moment needs.tools is non
     -- empty, which it is above, so a second line naming it would only restate that.
     data = {
-      -- The order the provider chain is tried in. Root computed, since it comes off
-      -- settings.capture.providers, a plain priority list of names the person edits in
-      -- config, resolved against this plugin's own provider registry by the composition
-      -- root. Optional, because engine.lua already falls back to its own default order,
-      -- macshot then native then macocr, when nothing usable was resolved.
-      providers = { source = "root", policy = "optional",
+      -- The order the provider chain is tried in, a plain priority list of NAMES the person
+      -- edits in their own config as settings.capture.providers. Resolved against this plugin's
+      -- own provider registry by this plugin, the only layer allowed to know which file answers
+      -- to which word, so nothing outside it ever holds a backend.
+      --
+      -- The person's own rather than root computed, which is what this claimed to be. Owed by a
+      -- file that is not allowed to name this plugin, it was paid by nobody, and the three words
+      -- in settings were read by nothing at all, so reordering the chain changed nothing.
+      -- Optional either way, since the engine falls back to its own shipped order.
+      providers = { source = "user", policy = "optional",
         breaks = "the capture chain falls back to its own hardcoded default order, " ..
                  "macshot then native then macocr, instead of the priority the person set " ..
                  "in settings.capture.providers" },

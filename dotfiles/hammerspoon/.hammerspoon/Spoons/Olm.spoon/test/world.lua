@@ -70,9 +70,18 @@ function obj.new()
     return spoon[camel] or spoon[name] or nil
   end
 
-  function w.settle(times)
-    for _ = 1, (times or 1) do hs.timer.usleep(math.floor(SETTLE * 1000000)) end
-  end
+  --- There is deliberately NO settle helper here any more, and its absence is the point.
+  ---
+  --- It used to block the main thread with usleep, which reads as waiting and is the exact
+  --- opposite. Every answer this suite waits for, a posted key reaching the event tap, an
+  --- accessibility walk finishing, a shelled out process returning, arrives on that same main
+  --- thread, so a scenario that blocks it is guaranteeing the thing it is waiting for can never
+  --- happen. It cost three tools a false failure and a whole calibration run before that, which
+  --- is twice for one mistake.
+  ---
+  --- Waiting is the RUNNER'S job and nobody else's. A scenario says what it wants to happen and
+  --- how long to leave between one step and the next, and the runner leaves that gap with a real
+  --- timer, which is the only kind of waiting that lets the run loop turn.
 
   ------------------------------------------------------------------------------
   -- Input
@@ -172,6 +181,30 @@ function obj.new()
     w.press("escape")
   end
 
+  --- Put the screen back, whatever is on it. Asked of every registered tool through the
+  --- surface the registry holds, and then of the three that answer to no registry entry.
+  ---
+  --- The three are tried through several holders rather than one, because a tool does not
+  --- necessarily keep its hide where it keeps its isShowing. The launcher is the case that
+  --- proved it. It answers isShowing on its own root and keeps hide on the picker instance
+  --- underneath, so asking the root alone found nothing, closed nothing, and said nothing.
+  --- A launcher left open at the end of one run was still open at the start of the next,
+  --- which the run after reported as already open before the test began and then failed
+  --- everything underneath, on a configuration where all of it works.
+  -- Exposed on the world, not kept private, because closing one named surface needs the same
+  -- several holder walk that closing everything does, and two versions of this would drift.
+  function w.hideThrough(module)
+    if type(module) ~= "table" then return end
+    for _, holder in ipairs({ module, module._instance, module.manager, module.chooser }) do
+      if type(holder) == "table" and type(holder.hide) == "function" then
+        -- Both conventions tried, since these submodules disagree about which they use and a
+        -- harness putting the screen back is the wrong place to care which.
+        if pcall(function() holder:hide() end) then return end
+        if pcall(holder.hide) then return end
+      end
+    end
+  end
+
   function w.closeAll()
     for _, entry in ipairs((w.registry and w.registry.all()) or {}) do
       if w.showing(entry.name) then
@@ -181,8 +214,7 @@ function obj.new()
       end
     end
     for _, role in ipairs({ "launcher", "hypercheatsheet", "windowcheatsheet" }) do
-      local m = w.role(role)
-      if m and m.hide then pcall(function() m:hide() end) end
+      w.hideThrough(w.role(role))
     end
   end
 

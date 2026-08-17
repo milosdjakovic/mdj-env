@@ -28,6 +28,28 @@ return {
         reason = "walking a named directory, which is faster than the index once a scope is given and is the only way to see dotfiles",
         origin = { brew = "fd" } },
     },
+
+    data = {
+      -- Everything in config/filesearch.lua, the type token registry, the directory aliases,
+      -- the prune list, the read caps and the cache location. Genuinely the person's own, since
+      -- which folders matter and which noise to skip is a fact about their machine rather than
+      -- anything shippable, and this plugin deliberately ships none of it.
+      --
+      -- Optional, and the sentence below is why. Every consumer of the policy already treats an
+      -- absent slice as nothing configured, so the tool still opens, still searches, and still
+      -- ranks. It simply does it over the whole disk with no vocabulary.
+      policy = { source = "user", policy = "optional",
+                 breaks = "the type words, the folder aliases and the prune list are all empty, "
+                   .. "so a query naming a type or a folder finds nothing by that name and every "
+                   .. "search walks package noise it should have skipped" },
+      -- Repaint a surface other than this plugin's own picker, for the case where the file list
+      -- is being shown inside the launcher. Composed with the picker's own redraw rather than
+      -- replacing it, so both are told and each ignores it when it is not on screen.
+      redraw = { source = "root", policy = "optional",
+                 breaks = "a file list hosted inside another surface stops updating as answers "
+                   .. "land, so it shows whatever had arrived by the time the last keystroke was "
+                   .. "painted and nothing after it" },
+    },
   },
 
   -- Scoped by the launcher, the alias is the slash itself, matching the tool's own
@@ -39,12 +61,35 @@ return {
   },
 
   -- Slash reads as search, the way it does in vim and in every browser find.
+  --
+  -- The two viewer seats are named here, BY NAME, and that is what lets this tool preview
+  -- anything on a machine with nothing configured. They used to be chosen outside, by reference
+  -- to one of this plugin's own internal modules, which only a root allowed to name a concretion
+  -- inside a plugin could do. Once no such root existed both seats sat empty. The docked one
+  -- silently fell back to the side panel, so it looked fine, and the peek seat did not, so Quick
+  -- Look was gone along with the key that asks for it and the row that advertises it.
+  --
+  -- They are two seats rather than one because they answer different callers. sidepanel follows
+  -- the highlight and reserves room beside the list, quicklook opens over the picker only when a
+  -- key asks and reserves nothing. Swapping them yields a tool with no preview at all, since a
+  -- viewer that does not follow the highlight cannot fill the docked seat. Either may be set to
+  -- false to decline that seat outright, which is different from leaving it unset.
+  --
+  -- The names are previewWith and peekWith rather than the previewProvider and peekProvider this
+  -- plugin's own configure used to read, and the difference is load bearing rather than taste. A
+  -- default declared here reaches the opts table of EVERY wiring step, the chooser submodule's own
+  -- configure included, so a default sharing a name with one of that submodule's options
+  -- overwrites whatever the plugin root had already resolved for it. That is not theoretical. As
+  -- peekProvider it reached the chooser as the bare word quicklook, landed on the field that
+  -- expects a viewer, and the picker then raised on start every single time it opened.
   defaults = {
     leader = "app",
     key = "/",
     description = "File search",
     glyph = "🗂️",
     aliases = { "/" },
+    previewWith = "sidepanel",
+    peekWith = "quicklook",
   },
 
   -- Five actions beyond the shared navigation, walking into and out of a folder,

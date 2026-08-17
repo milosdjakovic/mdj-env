@@ -199,14 +199,77 @@ end
 --- a missing one is not rejected, since the tab list is still a working surface on its resting
 --- order alone, only ever less than it could be, and the plan for this conversion records that
 --- as the right degradation here rather than a required guard.
+-- One browser name, turned into the finished provider it names.
+--
+-- This is the composition root FOR THIS PLUGIN'S OWN BACKENDS, and having one is what makes a
+-- name list a workable contract. Olm's own root must never name a browser, so somebody still has
+-- to know that "chrome" means the shared Chromium dictionary pointed at one particular
+-- application, and the only honest place for that is here, beside the directory those files live
+-- in. Adding a browser is a new file in providers plus one line in this function.
+--
+-- Chromium is the one entry taking an argument, since Chrome, Brave, Edge, Vivaldi and Opera all
+-- answer to one dictionary, so which application is a parameter rather than a fact any of them
+-- carries. Its bundle id is the single value this plugin cannot know, which is exactly why the
+-- manifest declares that and nothing else.
+local function providerNamed(name, chromeBundleID)
+  if name == "safari" then return obj.providers.safari end
+  if name == "arc" then return obj.providers.arc end
+  if name == "chrome" then
+    if not chromeBundleID then return nil, "no Chrome bundle id was supplied" end
+    return obj.providers.chromium({ name = "Chrome", bundleID = chromeBundleID })
+  end
+  return nil, "no provider answers to that name"
+end
+
 function obj:configure(opts)
   opts = opts or {}
   self._settingsKey = opts.settingsKey or "BrowserTabs.enabledBrowsers"
-  self._defaultEnabled = opts.defaultEnabled or {}
   self._recency = opts.recency
 
+  -- The ordered list is BUILT HERE from names, rather than arriving already built.
+  --
+  -- It used to arrive built, from the retired root, which was the one place naming all three
+  -- browsers. Nothing replaced that when the root became portable, so opts.providers was nil on
+  -- every run, the list stayed empty, and this tool logged that the tab list would be empty and
+  -- then was. A shipped order in the manifest plus this function is what makes it work on a
+  -- machine with no configuration at all, which is the whole point of the port.
+  local built, bundleOf = {}, {}
+  for _, entry in ipairs(opts.providers or {}) do
+    -- A finished provider table is still accepted, since a name is the ordinary case and an
+    -- object is what somebody wiring an unusual browser by hand would reach for.
+    if type(entry) == "table" then
+      built[#built + 1] = entry
+      if entry.name then bundleOf[tostring(entry.name):lower()] = entry.bundleID end
+    else
+      local provider, why = providerNamed(entry, opts.chromeBundleID)
+      if provider then
+        built[#built + 1] = provider
+        bundleOf[tostring(entry):lower()] = provider.bundleID
+      else
+        log.w("skipping the browser '" .. tostring(entry) .. "', " .. tostring(why))
+      end
+    end
+  end
+
+  -- Which browsers are on before anybody has chosen, named the same way the list above names
+  -- them and translated to bundle ids here, since that is what the stored choices are keyed by.
+  --
+  -- Two separate faults met in this one line. The field arrived as `enabled`, the name the
+  -- manifest ships it under, and was read as `defaultEnabled`, the name the retired root used, so
+  -- it was nil on every run. And the manifest names a browser, `safari`, where the comparison
+  -- underneath wants `com.apple.Safari`, so even once the name was right the value could not have
+  -- matched. Translating here is what lets the manifest keep saying safari, which is the only
+  -- spelling a person reading it would think to write, without a bundle id constant being
+  -- duplicated out of the provider file that already owns it.
+  local defaultEnabled = {}
+  for _, wanted in ipairs(opts.enabled or opts.defaultEnabled or {}) do
+    local id = bundleOf[tostring(wanted):lower()] or wanted
+    defaultEnabled[#defaultEnabled + 1] = id
+  end
+  self._defaultEnabled = defaultEnabled
+
   local ok = {}
-  for _, p in ipairs(opts.providers or {}) do
+  for _, p in ipairs(built) do
     local valid, missing = contract.validate(p)
     if valid then
       ok[#ok + 1] = p

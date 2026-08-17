@@ -467,13 +467,13 @@ end
 --- obj.scopeSpec(plan, modules, meta)
 --- Assembles the ordered list registry.scopes() is asked to resolve, preserving that order
 --- exactly, because QueryScope gives a colliding alias to whichever scope claims it first, so
---- this list decides who owns a word across the whole set of scoped tools, a total order over
---- otherwise unrelated plugins that no manifest field could ever express on any one of them.
---- The order itself is meta.scopeOrder, the composition root's own array, mixing a tool's own
---- identity string with a plain object that narrows the launcher's own catalog rather than
---- reaching any tool at all, apps, window actions and System Settings panes being the real three,
---- and this function's whole job is to hand that array to registry.scopes() in a shape it can
---- actually resolve rather than to decide the order itself, which stays meta's to own.
+--- meta.scopeOrder is still read, and is still the one way to state a deliberate order, but it is
+--- no longer how a contested word is meant to be settled and nothing in this config sets it. A
+--- central list of plugin names, held outside every plugin, is a roster, and a roster is the shape
+--- this whole design exists to remove, since adding a tool then means editing a file somewhere
+--- else that nothing checks. What replaced it is below. Two scopes claiming one word are named as
+--- a collision and one of the two declarations is changed, which ends the contest at its source
+--- instead of ranking it forever.
 ---
 --- A string entry is translated through plan.identity first, directory to identity, since
 --- registry.scopes() resolves a string against the names tools are registered under, and a
@@ -530,11 +530,12 @@ function obj.scopeSpec(plan, registry, names, meta)
     if scope then
       local row = registry.rowFor and registry.rowFor(identity)
       local eff = (plan.effective or {})[directoryOf[identity] or identity] or {}
+      local aliases = (row and row.aliases) or eff.aliases
       out[#out + 1] = {
         name = identity,
         title = (row and row.description) or eff.description,
         glyph = (row and row.glyph) or eff.glyph,
-        aliases = (row and row.aliases) or eff.aliases,
+        aliases = aliases,
         matcher = scope.matcher,
         rows = scope.rows,
         run = scope.run,
@@ -546,6 +547,41 @@ function obj.scopeSpec(plan, registry, names, meta)
     end
   end
   return out
+end
+
+--- obj.aliasCollisions(scopes)
+--- Two scopes in one assembled list claiming the same typed word, reported rather than ranked.
+---
+--- This is what makes a hand written priority order unnecessary. Two scopes answering to one word
+--- is a defect identical on every machine, exactly like two plugins proposing one key, and this
+--- repository already refuses to resolve THAT by load order, on the grounds that picking a winner
+--- turns a fixed defect into a different defect on every reload. A total order over unrelated
+--- plugins, kept in one central list outside all of them, is the same silent winner picking with a
+--- longer setup, and it hides the duplicate rather than ending it. So the duplicate is named, both
+--- claimants in the line, and one of the two declarations gets changed.
+---
+--- Asked of the FINISHED list rather than from inside obj.scopeSpec, and that is the whole reason
+--- it is its own function. Only some of these scopes reach a registered tool. The rest narrow a
+--- host's own catalog and are appended afterwards, so a check living inside scopeSpec cannot see
+--- them, and across this whole set the one word ever genuinely contested was contested by exactly
+--- one of each kind.
+---
+--- Case insensitive, since a typed word is matched that way, and self collision is impossible by
+--- construction because a scope is only ever compared against the ones before it.
+function obj.aliasCollisions(scopes)
+  local claimedBy, hits = {}, {}
+  for _, scope in ipairs(scopes or {}) do
+    for _, alias in ipairs((scope or {}).aliases or {}) do
+      local word = tostring(alias):lower()
+      local owner = claimedBy[word]
+      if owner and owner ~= scope.name then
+        hits[#hits + 1] = { alias = alias, first = owner, second = scope.name }
+      elseif not owner then
+        claimedBy[word] = scope.name
+      end
+    end
+  end
+  return hits
 end
 
 --- obj.aliasDirectory(deps)

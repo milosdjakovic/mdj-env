@@ -34,6 +34,24 @@ return {
         reason = "lists running containers and stops one by name",
         origin = { cask = "docker-desktop" } },
     },
+
+    data = {
+      -- Everything in config/processes.lua, the runtime allowlist, the commands to ignore, the
+      -- directory names that mark a dev tree and the ones too vague to name a project, the grace
+      -- period before a stop turns forceful, and the sampling weights.
+      --
+      -- It was declared NOWHERE, which is why nothing supplied it and nothing said so. A need
+      -- that is not declared cannot be reported missing, cannot be reported degraded, and cannot
+      -- be reported at all, so this was the one gap in the whole set that no amount of reading
+      -- the plan could have found. Declaring it is most of the fix.
+      --
+      -- Optional, since every consumer treats an absent slice as nothing configured, so the tool
+      -- still opens and still lists. What it loses is the ability to recognise anything.
+      policy = { source = "user", policy = "optional",
+                 breaks = "no process name counts as a dev runtime and no directory counts as a "
+                   .. "dev tree, so the list falls back to port holders alone and a running "
+                   .. "server with no listening socket is never found" },
+    },
   },
 
   -- No provides. This tool has no alias in config/keys.lua, so it is reached only by

@@ -98,8 +98,14 @@ return {
     shortcut = "leader",
     scope = {
       matcher = false,
-      rows = { member = "scopeRows", call = "dot" },
-      run = { member = "activate", call = "dot" },
+      -- Both names are reached THROUGH the chooser submodule, which is where this plugin
+      -- keeps its picker, the same path browserTabs and fileSearch already write. A bare
+      -- name is walked against this plugin's own root, finds nothing there, and answers nil
+      -- in silence, which is what the first version of this manifest did. The scope was
+      -- still built, still registered and still resolvable, so typing the word opened onto
+      -- an empty list rather than failing anywhere a person could see it.
+      rows = { member = "chooser.scopeRows", call = "dot" },
+      run = { member = "chooser.activate", call = "dot" },
     },
   },
 }

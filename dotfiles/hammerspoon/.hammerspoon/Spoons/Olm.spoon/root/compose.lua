@@ -50,8 +50,6 @@ local pluginsLib = load("lib/plugins.lua")
 local surfaceLib = load("lib/surface.lua")
 local resolveLib = load("lib/resolve.lua")
 local wireLib = load("lib/wire.lua")
-local registryLib = load("lib/registry.lua")
-local glyphIconLib = load("lib/glyphicon.lua")
 local loaderLib = load("lib/loader.lua")
 local leadersLib = load("lib/leaders.lua")
 local overlayDisplayLib = load("lib/overlaydisplay.lua")
@@ -84,12 +82,13 @@ local REGISTRY_API_VERSION = 1
 -- to, because this is the composition root's own defaults table and nothing exempts it from
 -- the rule it holds every plugin to.
 --
--- The auto reload ignore list ships with the display profiles store path baked in, not
--- because this file knows a plugin called displayprofiles exists, but because that plugin's
--- JSON store is part of what Olm itself ships and watches, the same way the shared chord
--- timing or the shared cheat sheet padding is. A person adding their own runtime data file
--- under the watched tree extends this list from their own configuration, this default only
--- covers what Olm's own bundled apparatus already writes there.
+-- The auto reload ignore list ships with the shape of a plugin's own JSON store in it, and
+-- names no plugin to do it. Every store path this root hands out is the config directory plus
+-- the declaring plugin's own name plus .json, so one pattern covers the whole set and keeps
+-- covering it as plugins are added. It used to name one file outright, which meant the pattern
+-- and the path were two separate decisions that had to agree, and a plugin capturing its own
+-- state would then trigger the reload that threw the capture away. A person adding their own
+-- runtime data file under the watched tree extends this list from their own configuration.
 local SHIPPED_POLICY = {
   chord = { holdDelay = 0.6, tapThreshold = 0.2, passthrough = true },
   hyperTrigger = { kind = "leader" },
@@ -98,7 +97,12 @@ local SHIPPED_POLICY = {
   chooserTheme = {},
   cheatSheet = {},
   matcher = "fuzzy",
-  autoReload = { ignore = { "display%-profiles%.json$" } },
+  autoReload = { ignore = { "/config/[^/]+%.json$" } },
+
+  -- The heading drawn over the window leader's rows on the hold overlay. What the leader does
+  -- rather than what it is called, since the leader's own name, META, says nothing to anybody
+  -- reading a list of window actions.
+  windowSectionTitle = "WINDOW MANAGEMENT",
 
   -- The alias directory is the one scope Olm itself owns rather than any plugin, a list of
   -- every other scope, so its own presentation has nowhere else to be declared and ships from
@@ -178,6 +182,22 @@ end
 function obj.run(olm, cfg)
   cfg = cfg or {}
 
+  -- The shared atoms are TAKEN from the spoon rather than loaded again here, and that is a
+  -- correctness point rather than a saving. loadfile hands back a fresh module every call, so
+  -- this file loading lib/chordkey.lua on its own produced a second, entirely separate engine
+  -- from the one Olm.lib already published. Both existed, only this one was ever configured,
+  -- and the published one sat there with no tap and no keys looking exactly like a leader that
+  -- had failed to wire. Reading it that way cost a wrong diagnosis, and nothing about the code
+  -- could have said which copy anyone was holding.
+  --
+  -- Only the atoms Olm.lib publishes are shared, because those are the only ones anybody can
+  -- reach a second way. The pure factories this file loads above answer .new and hold nothing,
+  -- so a second copy of one is indistinguishable from the first and there is no ambiguity to
+  -- remove.
+  local atoms = olm.lib or {}
+  local registryLib = atoms.registry
+  local glyphIconLib = atoms.glyphicon
+
   local policy = defaultsLib.merge(SHIPPED_POLICY, cfg.policy)
   local leaderRoles = defaultsLib.merge({ app = "HYPER", window = "META" }, cfg.leaders)
   local decorate = defaultsLib.merge({ installedBy = "actionpanel" }, cfg.decorate)
@@ -195,28 +215,37 @@ function obj.run(olm, cfg)
   -- anything reads a manifest and before the loader dofiles anything.
   ------------------------------------------------------------------------------
 
-  -- Forward declared and filled by steps D and E below. Every closure in this block that
-  -- reaches through one of these two names is only ever CALLED much later, at the moment
-  -- something actually shows on screen, well after both locals hold their real value, so
+  -- Forward declared and filled by steps D, E and F below. Every closure in this block that
+  -- reaches through one of these names is only ever CALLED much later, at the moment
+  -- something actually shows on screen, well after each local holds its real value, so
   -- capturing them now while they are still nil is safe and is the whole point, the same
   -- late binding the decorate hook already relies on.
+  --
+  -- plan is declared here rather than at step F, where it is assigned, for a reason that is
+  -- pure Lua and easy to get wrong. A closure written ABOVE a local's declaration does not
+  -- capture that local at all, it reads a global of the same name and finds nil forever. So
+  -- every root owned closure that looks a plugin up through plan.identity has to be written
+  -- below this line, and declaring it here is what lets those closures be built where they
+  -- belong, beside the other values the root owes its plugins, rather than being scattered
+  -- down the file at whatever point the plan happens to already exist.
   local modules
   local overlay
+  local plan
 
-  load("lib/storage.lua").configure(policy.storage)
+  atoms.storage.configure(policy.storage)
 
   -- Loaded and initialised here, but deliberately NOT configured or started until step C has
   -- read the manifests, because what it probes for is aggregated out of them. Everything
   -- between here and there only holds the atom, nothing asks it a question yet.
-  local depsAtom = load("lib/deps.lua")
+  local depsAtom = atoms.deps
   depsAtom:init()
 
-  local canvasPanel = load("lib/panel.lua")
+  local canvasPanel = atoms.panel
   canvasPanel:init()
   canvasPanel.configure({ surface = policy.surface })
   canvasPanel.configure({ screen = function() return overlay and overlay.screen() end })
 
-  local chooserAtom = load("lib/chooser/init.lua")
+  local chooserAtom = atoms.chooser
   chooserAtom:init()
   chooserAtom.configure({
     screen = function() return overlay and overlay.screen() end,
@@ -236,13 +265,13 @@ function obj.run(olm, cfg)
     end,
   })
 
-  local cheatSheetAtom = load("lib/cheatsheet.lua")
+  local cheatSheetAtom = atoms.cheatsheet
   cheatSheetAtom:init()
   local cheatSheetOpts = { canvasPanel = canvasPanel, theme = policy.chooserTheme }
   for k, v in pairs(policy.cheatSheet or {}) do cheatSheetOpts[k] = v end
   cheatSheetAtom:configure(cheatSheetOpts)
 
-  local chordKeyAtom = load("lib/chordkey.lua")
+  local chordKeyAtom = atoms.chordkey
   chordKeyAtom:init()
   chordKeyAtom:configure(policy.chord)
 
@@ -250,7 +279,7 @@ function obj.run(olm, cfg)
   -- sections down can name it as a lib capability. Existence checking in step F's plan runs
   -- before step H does, so a lib module a plugin may declare needs.lib against has to exist
   -- as a loaded module this early even though it is not actually configured until later.
-  local hyperKeyAtom = load("lib/hyperkey.lua")
+  local hyperKeyAtom = atoms.hyperkey
 
   local glyphIcon = glyphIconLib.new()
 
@@ -326,6 +355,16 @@ function obj.run(olm, cfg)
   modules = loaderLib.modules(spoonDir, baseFor, rawNames, function(rawName)
     return identityOfRaw[rawName]
   end, log)
+  -- A global asked for under a name no plugin answers to mirrors nothing, silently, which is how
+  -- the one door a test suite reaches its plugin through was shut while the whole config looked
+  -- healthy. Same slip as the data block below, and the same answer, say so.
+  for name in pairs(globals) do
+    if modules[name] == nil then
+      log.e("Olm compose, a global was asked for '" .. name
+        .. "', which is not a plugin, so nothing was mirrored. Check the spelling against the "
+        .. "name the plugin declares for itself, which is not always its directory.")
+    end
+  end
   loaderLib.mirror(modules, globals)
 
   -- Every real lib module a plugin might name through needs.lib, for two different readers.
@@ -337,13 +376,13 @@ function obj.run(olm, cfg)
   -- below still hands each declaring plugin its own fresh instance through deps.data, which
   -- wins there because that channel is read last and unconditionally.
   local libs = {
-    paste = load("lib/paste.lua"),
+    paste = atoms.paste,
     cheatsheet = cheatSheetAtom,
     registry = registryLib,
     glyphicon = glyphIcon,
     chordkey = chordKeyAtom,
     hyperkey = hyperKeyAtom,
-    recency = load("lib/recency.lua"),
+    recency = atoms.recency,
   }
 
   ------------------------------------------------------------------------------
@@ -393,6 +432,20 @@ function obj.run(olm, cfg)
   local fannedData = servicesLib.fanOut(manifests, sharedData)
   for name, fields in pairs(cfg.data or {}) do
     if type(fields) == "table" then
+      -- A key naming no plugin is named out loud rather than merged into nothing.
+      --
+      -- Every manifest is keyed by the plugin's own name, the one it is known by outside its own
+      -- folder, and eight of them spell that differently from the directory they sit in. So a key
+      -- written as the folder, browsertabs rather than browserTabs, landed in this table under a
+      -- name no plugin answered to, was merged, carried all the way through, and handed to
+      -- nobody. Three real values went that way at once, and every check in the config still
+      -- reported a clean run, because a table with an extra entry in it is not wrong about
+      -- anything, it is just alone.
+      if manifests[name] == nil then
+        log.e("Olm compose, data was supplied for '" .. name
+          .. "', which is not a plugin. Check the spelling against the name the plugin declares "
+          .. "for itself, which is not always its directory.")
+      end
       fannedData[name] = defaultsLib.merge(fannedData[name] or {}, fields)
     end
   end
@@ -434,35 +487,30 @@ function obj.run(olm, cfg)
     firstPass.effective.windowmanager and firstPass.effective.windowmanager.windowManagement,
     windowKeycode)
 
-  local rootOwnedData = {
-    keyremap = { activeNames = activeLeaderNames },
-    windowmanager = { mapping = stampedWindowBindings },
-    windowcheatsheet = { windowManagement = stampedWindowBindings },
-  }
-
-  local plan = resolver.plan({
-    manifests = manifests,
-    user = cfg,
-    present = presentTool,
-    libNames = libNames,
-    modules = modules,
-    libs = libs,
-    data = servicesLib.merge(fannedData, rootOwnedData),
-  })
-
-  for _, p in ipairs(plan.problems or {}) do
-    log.e("Olm compose, plan problem, " .. tostring(p.kind) .. " at " .. tostring(p.where) .. ", " .. tostring(p.why))
-  end
-
   ------------------------------------------------------------------------------
-  -- STEP I (computed here, before wiring, since stage 3 needs it as soon as it
-  -- runs, well before stage 4 assembles the merged table).
+  -- STEP I. Everything the root itself owes its plugins, in one table, keyed by
+  -- FIELD NAME rather than by plugin.
   --
+  -- This is the second half of a channel that only had a first half. A manifest may declare
+  -- needs.data with source "root", which is a plugin stating that a value exists, that it
+  -- cannot derive it, and that the composition root is the one that knows. Six such
+  -- declarations were satisfied by nothing at all, because the root used to pay these debts
+  -- through a table that named each owed plugin outright, so a plugin not written into that
+  -- table was validated, reported satisfied, and handed nil.
+  --
+  -- Keyed by field name for two reasons. It is what lets one display fingerprint serve every
+  -- plugin that scopes remembered state by arrangement, rather than each getting its own. And
+  -- it is what stops this file, which must never name a plugin under plugins, from having to
+  -- name three of them to pay what it owes.
+  ------------------------------------------------------------------------------
+
   -- Every predicate this file owns outright, collected once. plan.predicates already
   -- answers every surface gate, so nothing here may repeat one of those names, and
   -- lib/wire.lua reports it rather than silently letting one win if it ever happens.
-  ------------------------------------------------------------------------------
-
+  --
+  -- Built here, above the plan rather than below it, because it is one of the values the root
+  -- owes and the table below has to be able to hand it over. Every closure in it is called
+  -- long after everything it reaches for exists.
   local ownPredicates = {}
   for _, module in pairs(modules) do
     if type(module) == "table" and type(module.predicates) == "table" then
@@ -483,6 +531,166 @@ function obj.run(olm, cfg)
   ownPredicates.launcherHostingList = function()
     local host = modules[plan.identity.launcher or "launcher"]
     return host ~= nil and type(host.isHostingList) == "function" and host:isHostingList() == true
+  end
+
+  -- Repaint whichever list is on screen, for a plugin whose own answer arrives later than the
+  -- keystroke that asked for it. A tab list, a relay list and a file search all fetch from
+  -- something slower than typing, and without this the rows stay as they were when nothing had
+  -- arrived yet.
+  --
+  -- A closure rather than a value because the surface it repaints is the launcher, one of the
+  -- four host modules this file may name, and the lookup happens INSIDE it because this runs
+  -- before the plan exists. Supplying it from here is what keeps the plugins from ever learning
+  -- the launcher exists. Each one only takes a function and calls it when its own fetch
+  -- finishes, which is why that logic could move out of the retired root and onto the plugins.
+  local function redrawSurface()
+    local host = modules[plan.identity.launcher or "launcher"]
+    if host and host.refresh then host:refresh() end
+  end
+
+  -- This machine's own short name, the one every per host answer is keyed by. Read from scutil
+  -- rather than from hs.host, deliberately, since hs.host.localizedName answers the friendly
+  -- computer name and the two are different strings on the same machine. A curated arrangement
+  -- keyed by one of them cannot be found with the other.
+  --
+  -- Shelled out once here and handed to whoever declared it, never probed per plugin, the same
+  -- discipline the one command probe above already follows.
+  local localHostName = (hs.execute("scutil --get LocalHostName") or ""):gsub("%s+$", "")
+  if localHostName == "" then localHostName = nil end
+
+  ------------------------------------------------------------------------------
+  -- The two feedback surfaces, built here because the root owns how a message
+  -- looks and where it lands, and a plugin owns only what it has to say.
+  --
+  -- lib/hints.lua already carries both content strategies, ported whole, and nothing anywhere
+  -- called either of them. So the clipboard's append and paste walk, whose own comment says the
+  -- message is the only feedback those actions have, ran in complete silence, and the colour
+  -- sampler copied a hex with nothing shown at all. Both plugins were written correctly against a
+  -- callback nobody passed, which is this whole class of defect in its purest form, a mechanism
+  -- present, a caller absent, and no evidence anywhere.
+  --
+  -- One panel instance each, reused, with a small mutable state table the closure writes before
+  -- showing it again. Stacking a fresh panel per message would pile them up on screen, and both
+  -- of these fire in bursts, a walk through history being the obvious one.
+  ------------------------------------------------------------------------------
+
+  local toastContent = hintsLib.toast({ theme = policy.chooserTheme })
+
+  local messageState = { text = "" }
+  local messagePanel = canvasPanel.new({
+    placement = "center",
+    content = toastContent.message(messageState),
+  })
+  local messageTimer
+  local function notify(text)
+    messageState.text = tostring(text or "")
+    messagePanel:show()
+    -- The timer is held in a local that outlives the call on purpose. A Hammerspoon timer nobody
+    -- refers to is collected before it fires, so the panel would simply stay on screen.
+    if messageTimer then messageTimer:stop() end
+    messageTimer = hs.timer.doAfter(1.2, function() messagePanel:hide() end)
+  end
+
+  -- A hex string as a colour table. Here rather than in the plugin that samples, since the
+  -- plugin's answer is the hex a person asked to copy and this is only about drawing it.
+  local function colorOf(hex)
+    local digits = tostring(hex or ""):gsub("^#", "")
+    local r, g, b = digits:match("^(%x%x)(%x%x)(%x%x)$")
+    if not r then return { white = 0.5 } end
+    return {
+      red = tonumber(r, 16) / 255,
+      green = tonumber(g, 16) / 255,
+      blue = tonumber(b, 16) / 255,
+      alpha = 1,
+    }
+  end
+
+  local colorState = { hex = "", color = { white = 0.5 } }
+  local colorPanel = canvasPanel.new({
+    placement = "center",
+    content = toastContent.color(colorState),
+  })
+  local colorTimer
+  local function showColor(hex)
+    colorState.hex = tostring(hex or "")
+    colorState.color = colorOf(hex)
+    colorPanel:show()
+    if colorTimer then colorTimer:stop() end
+    colorTimer = hs.timer.doAfter(1.1, function() colorPanel:hide() end)
+  end
+
+  local rootValues = {
+    -- Which leader names are actually live on this keyboard, KeyRemap's own contract.
+    activeNames = activeLeaderNames,
+
+    -- THE SEAM, Fact 1's other half. Both window consumers receive the IDENTICAL stamped
+    -- table, under the two different field names their own configure calls happen to read,
+    -- because a row that names a key and the dispatch that acts on it can never be allowed to
+    -- disagree. Two entries pointing at one object is what makes that structural rather than a
+    -- thing that only happens to be true today.
+    mapping = stampedWindowBindings,
+    windowManagement = stampedWindowBindings,
+
+    -- The shared when name to predicate table every gated binding is resolved against.
+    predicates = ownPredicates,
+
+    -- What the window leader's own overlay section is CALLED. Policy rather than anything
+    -- derivable, since the leader's own name, META, says nothing to somebody reading a list of
+    -- window actions, so it ships as a default a person may override.
+    leaders = windowKeycode and { [windowKeycode] = policy.windowSectionTitle } or nil,
+
+    -- Repaint, under one name, for every plugin whose answer lands after the keystroke.
+    redraw = redrawSurface,
+
+    -- One line of feedback, and one sampled colour, both on the shared overlay so they read as
+    -- part of the same interface as the cheat sheet and the docked hint bars.
+    notify = notify,
+    showColor = showColor,
+
+    -- This machine's identity, for anything keyed per host.
+    host = localHostName,
+
+    -- Which arrangement of displays is attached right now, as one comparable string, so a
+    -- plugin remembering where a window belongs remembers it per arrangement rather than
+    -- globally. Sorted, so the same set of screens answers the same string whatever order the
+    -- system happens to enumerate them in, and read fresh on every call since the whole point
+    -- is that it changes when a display is plugged in.
+    --
+    -- One closure serving every plugin that asks is exactly why this table is keyed by field
+    -- name. Two plugins scope their memory this way and they have to agree, or the same desk
+    -- is two different places to them.
+    scope = function()
+      local ids = {}
+      for _, screen in ipairs(hs.screen.allScreens()) do
+        ids[#ids + 1] = screen:getUUID() or tostring(screen:id())
+      end
+      table.sort(ids)
+      return table.concat(ids, ",")
+    end,
+
+    -- Where a plugin keeps data a person is meant to be able to read, edit and commit. Per
+    -- declaring plugin, since two plugins sharing one file would silently overwrite each
+    -- other. Inside the live config directory on purpose rather than under the storage atom's
+    -- own roots, because this is the tracked layer a person edits by hand.
+    storePath = servicesLib.perName(function(name)
+      return hs.configdir .. "/config/" .. name .. ".json"
+    end),
+  }
+
+  local rootFanned = servicesLib.fanOut(manifests, rootValues, "root")
+
+  plan = resolver.plan({
+    manifests = manifests,
+    user = cfg,
+    present = presentTool,
+    libNames = libNames,
+    modules = modules,
+    libs = libs,
+    data = servicesLib.merge(fannedData, rootFanned),
+  })
+
+  for _, p in ipairs(plan.problems or {}) do
+    log.e("Olm compose, plan problem, " .. tostring(p.kind) .. " at " .. tostring(p.where) .. ", " .. tostring(p.why))
   end
 
   ------------------------------------------------------------------------------
@@ -548,17 +756,54 @@ function obj.run(olm, cfg)
 
   local contextOwners = hintsLib.contextOwners(plan, manifests)
 
+  -- Walk to wherever a plugin actually keeps its picker, which is what its manifest already
+  -- says through registry.surface. Five plugins keep it on a submodule, the clipboard on
+  -- manager and four more on chooser, and asking their root alone answered nothing.
+  local function surfaceOf(module, spec)
+    if spec == nil or spec == true then return module end
+    local owner, value = module, module
+    for part in tostring(spec):gmatch("[^.]+") do
+      if type(value) ~= "table" then return nil end
+      owner, value = value, value[part]
+    end
+    -- A surface may be a member that ANSWERS the adapter rather than being it, which is how
+    -- three of these are written, so the value is called when it is a function. Both calling
+    -- conventions are tried for the same reason the caller below tries both.
+    if type(value) == "function" then
+      local ok, answer = pcall(value, owner)
+      if ok and type(answer) == "table" then return answer end
+      local dotOk, dotAnswer = pcall(value)
+      if dotOk and type(dotAnswer) == "table" then return dotAnswer end
+      return nil
+    end
+    return value
+  end
+
   -- Whether a named context's surface is currently open, tried both calling conventions a
   -- surface's own isShowing might use, since no manifest field states which one a plugin
   -- picked and getting it wrong resolves to something that fails on arity rather than
   -- cleanly, the exact defect the first attempt shipped for three surfaces at once.
+  --
+  -- This asked the plugin ROOT and stopped there, and for five of the twelve pickers the root
+  -- has no isShowing at all, so the answer was a flat false forever. Every chord inside those
+  -- five was bound, gated on this, and therefore dead, and because the gate failed rather than
+  -- errored the plain Hyper binding on the same key fired instead. So pressing j in the
+  -- clipboard to move down opened the emoji picker, which is the behaviour a person reports as
+  -- the shortcut not working, and nothing anywhere logged a thing.
   local function isShowingFor(contextName)
     local owner = contextOwners[contextName]
     local module = owner and modules[owner]
-    if not module or type(module.isShowing) ~= "function" then return false end
-    local ok, answer = pcall(module.isShowing, module)
+    if not module then return false end
+    local manifest = manifests[owner] or {}
+    local spec = (manifest.surface or {}).member or (manifest.registry or {}).surface
+    local holder = module
+    if type(module.isShowing) ~= "function" then
+      holder = surfaceOf(module, spec)
+    end
+    if type(holder) ~= "table" or type(holder.isShowing) ~= "function" then return false end
+    local ok, answer = pcall(holder.isShowing, holder)
     if ok then return answer == true end
-    local dotOk, dotAnswer = pcall(module.isShowing)
+    local dotOk, dotAnswer = pcall(holder.isShowing)
     return dotOk and dotAnswer == true
   end
 
@@ -651,11 +896,24 @@ function obj.run(olm, cfg)
   -- every call rather than merging, so the base opts built here are reused verbatim for
   -- their post register second call in step K, instead of being recomputed and risking two
   -- slightly different tables answering for the same plugin in the same run.
+  -- Read off sharedData, which is where a person actually puts these two, cfg.shared. They
+  -- were read as cfg.apps and cfg.appToggles, fields nothing has ever sent, so both were nil
+  -- on every run and the overlay's whole application half was empty. It looked like a
+  -- rendering fault and was a spelling one, and the second configure call in step K reuses
+  -- this same table, so the wrong names were applied twice rather than once.
   local hyperCheatSheetOpts = {
-    apps = cfg.apps,
-    toggles = cfg.appToggles,
+    apps = sharedData.apps,
+    toggles = sharedData.toggles,
     cheatSheet = cheatSheetAtom,
   }
+
+  -- The window overlay's own three root owned values are NOT built here any more, and that is
+  -- the point rather than an omission. It declares windowManagement, leaders and predicates,
+  -- every one of them a root value another plugin also asks for by the same name, so all three
+  -- now reach it through the root fan out above with this file never naming it. Building them
+  -- here was what made a plugin under plugins appear as a literal in a file whose own header
+  -- forbids exactly that, and being on the hand written list is what every plugin that went
+  -- without was missing.
   local queryScopeOpts = {
     matcher = chooserAtom.matchers and chooserAtom.matchers[policy.matcher],
   }
@@ -693,11 +951,41 @@ function obj.run(olm, cfg)
 
   local perPluginData = servicesLib.perPlugin(plan, manifests, perPluginDeps)
 
-  local wireData = servicesLib.merge(perPluginData, rootOwnedData, {
+  -- fannedData WINS, and its absence here altogether was the single worst defect in this build.
+  --
+  -- Everything a person supplies arrives in it, cfg.shared fanned out by field name and
+  -- cfg.data keyed by plugin, and it was handed to resolver.plan and then to nothing else. So
+  -- every one of those declarations was read, validated, reported as satisfied, and then
+  -- dropped on the floor before any plugin was configured. The report said no problems because
+  -- as far as the plan was concerned there were none.
+  --
+  -- What it actually cost. The Hyper overlay had no application registry and no toggle list,
+  -- so the whole app half of it was empty, which is most of what that overlay is for. Display
+  -- profiles lost the person's own profiles, the clipboard lost its shortcut, browser tabs
+  -- lost its Chrome bundle id, display memory lost its terminal, and window management lost
+  -- its own settings and margins and ran on shipped defaults close enough to look right.
+  --
+  -- It comes LAST, so it wins, which is the order lib/services.lua's own merge documents and
+  -- the reverse of what this call did once it was added back. Mechanism derived data sits under
+  -- root computed data, and root computed data sits under the person's own choice. The reason is
+  -- the same one this whole session has been about. A value a person sets and a plugin never
+  -- receives, and a value a person sets that something else quietly overrules, are the same
+  -- defect wearing different clothes, and neither leaves any evidence. In practice the two
+  -- barely overlap, since a root computed field is one nobody is asked to supply, and where they
+  -- do overlap the person said it on purpose.
+  local wireData = servicesLib.merge(perPluginData, rootFanned, {
     hypercheatsheet = hyperCheatSheetOpts,
     queryscope = queryScopeOpts,
     actionpanel = actionPanelOpts,
-  })
+  }, fannedData)
+
+  -- What step K hands over in its own later calls, recorded as it goes so the delivery check at
+  -- the very end of this file can see it. Three host modules are configured a second time down
+  -- there, with values that only exist once registration has run, and those values never pass
+  -- through wireData at all. Auditing before they were made would report five perfectly
+  -- delivered needs as missing, and a check that cries wolf is worse than no check, since the
+  -- next real line in the same list gets read as noise too.
+  local lateData = {}
 
   local ambientServices = servicesLib.ambient({
     chooser = chooserAtom,
@@ -715,22 +1003,6 @@ function obj.run(olm, cfg)
   })
 
   local wiredRegistry = registryLib.new({ apiVersion = REGISTRY_API_VERSION, log = log })
-
-  -- What a scope calls once a late answer lands, so its rows are drawn again rather than the
-  -- list staying as it was when nothing had arrived yet. Two scopes need it, the relay list
-  -- and the browser tab list, both of which read from something slower than a keystroke.
-  --
-  -- It is a closure rather than a value because the surface it repaints is the launcher, one
-  -- of the four host modules this file is allowed to name, and it is looked up INSIDE the
-  -- closure rather than out here because this runs long before the loader has filled that
-  -- table. Supplying it from here is what keeps the plugins themselves from ever learning
-  -- the launcher exists, each one only takes a function and calls it when its own fetch
-  -- finishes, which is the whole reason that logic moved out of the retired root's own
-  -- scope tables and onto the plugins.
-  local function redrawSurface()
-    local host = modules[plan.identity.launcher or "launcher"]
-    if host and host.refresh then host:refresh() end
-  end
 
   local function describeForRegistry(name, planArg)
     return registrarLib.describe(name, planArg, modules, manifests, registryMeta,
@@ -771,6 +1043,20 @@ function obj.run(olm, cfg)
     selectNext = true, selectPrev = true,
     scrollPreviewDown = true, scrollPreviewUp = true,
   }
+
+  -- Named rather than written inline at the one call site, so it can be recorded and read back.
+  -- Whether an action routes to a differently named method is exactly what somebody checking
+  -- whether a bound key reaches anything has to know, and with the map buried in a call
+  -- argument the only way to find out was to press the key.
+  local navMethodFor = {
+    closeChooser = "hide",
+    refreshList = "refresh",
+    revealInFinder = "reveal",
+  }
+  -- The action names satisfied by a closure this file builds rather than by any surface. Kept
+  -- beside the map for the same reason, since an action in here needing no surface method is
+  -- the difference between a key that is fine and a key that is dead.
+  local navExceptionNames = { openActionPanel = true }
   local bindOneInContext = navLib.bindOne(repeatableActions)
 
   -- A dot called control surface for every plugin this plan actually built a context for,
@@ -780,13 +1066,35 @@ function obj.run(olm, cfg)
   -- ran, the exact defect three real surfaces shipped with once already. Ordered by
   -- plan.order, this file's own answer to which surface wins if two are ever open at once,
   -- since nothing here proves that can never happen and something has to decide.
-  local function surfaceAdapterFor(module)
+  --
+  -- Every method is looked for on the DECLARED SURFACE first and on the plugin root second,
+  -- and that order is the whole fix for a disjoint that made no sense from the outside. This
+  -- read the root and only the root, so a plugin keeping its list on a submodule answered
+  -- nothing here. Two separate consequences followed and both were silent.
+  --
+  -- lib/nav.lua picks whichever surface answers isShowing first and then calls the action on
+  -- it. A root with no isShowing is never picked at all, so the clipboard and menu search were
+  -- invisible to routing even while open. Emoji was picked, having isShowing on its root, and
+  -- then had no selectNext there to call. VPN keeps every one of these on its root, so VPN
+  -- alone worked, and the result a person sees is navigation that works in one list and does
+  -- nothing in three others with no error anywhere and no way to guess why.
+  --
+  -- Nothing is cached. The surface may be a member that BUILDS the adapter when asked, so a
+  -- picker rebuilt after a reconfigure would leave a cached holder pointing at a dead one, and
+  -- a table walk per key press costs nothing worth protecting.
+  local function surfaceAdapterFor(module, spec)
     return setmetatable({}, {
       __index = function(_, methodName)
-        local fn = module[methodName]
-        if type(fn) ~= "function" then return nil end
+        local owner, fn = nil, nil
+        local holder = surfaceOf(module, spec)
+        if type(holder) == "table" and type(holder[methodName]) == "function" then
+          owner, fn = holder, holder[methodName]
+        elseif type(module[methodName]) == "function" then
+          owner, fn = module, module[methodName]
+        end
+        if not fn then return nil end
         return function(...)
-          local ok, result = pcall(fn, module, ...)
+          local ok, result = pcall(fn, owner, ...)
           if ok then return result end
           local dotOk, dotResult = pcall(fn, ...)
           return dotOk and dotResult
@@ -803,8 +1111,25 @@ function obj.run(olm, cfg)
     end
     if owns and not seenOwner[name] then
       seenOwner[name] = true
-      local module = modules[plan.identity[name] or name]
-      if module then surfaceAdapters[#surfaceAdapters + 1] = surfaceAdapterFor(module) end
+      local identity = plan.identity[name] or name
+      local module = modules[identity]
+      -- Its own declared surface travels with it, so the adapter knows where this plugin
+      -- actually keeps the list rather than assuming the root is it. Looked up under both
+      -- spellings, since a manifest is found by directory here and by identity elsewhere and
+      -- seven of the tools spell the two differently.
+      local manifest = manifests[name] or manifests[identity] or {}
+      -- surface.member wins over registry.surface where a plugin states it, because the two
+      -- answer subtly different questions and one plugin needs them to differ. registry.surface
+      -- is what a launcher row opens, while this is the object that answers the navigation verbs
+      -- while the list is up. For eleven tools they are the same object and only the second is
+      -- declared. The launcher is the twelfth, has no registry entry at all being a host, and
+      -- builds a purpose made navigation adapter whose own comment says the root should drive it
+      -- through exactly this path. Nothing did, so the most used list in the config was the one
+      -- list whose j and k reached nothing.
+      local spec = (manifest.surface or {}).member or (manifest.registry or {}).surface
+      if module then
+        surfaceAdapters[#surfaceAdapters + 1] = surfaceAdapterFor(module, spec)
+      end
     end
   end
 
@@ -895,6 +1220,17 @@ function obj.run(olm, cfg)
   dispatchTable = navLib.actions(plan, {
     surfaces = surfaceAdapters,
     hideShortcuts = hideSharedOverlay,
+    -- The three action names that do not equal the surface method answering them. Everything
+    -- else routes by its own name, which is why lib/nav.lua defaults to that and this table is
+    -- three lines rather than twenty six.
+    --
+    -- Passing NOTHING here, which is what this did, meant each of these three routed to a
+    -- method no surface has, and lib/nav.lua leaves an unanswered method alone in silence by
+    -- design. So closing a list with its own close key did nothing in all twelve lists, reveal
+    -- in Finder did nothing in file search, and rescan did nothing in processes. Every one of
+    -- them bound, eligible, routed and dropped. The retired root carried these three mappings
+    -- explicitly and the restructure read the action name as the method name for all of them.
+    methodFor = navMethodFor,
     exceptions = {
       -- THE SEAM. openActionPanel cannot be a routed method on any one surface, since it
       -- toggles a panel that borrows whichever list is currently open rather than being a
@@ -942,8 +1278,16 @@ function obj.run(olm, cfg)
     -- shortcuts, neither of which the wire adapter promises to carry.
     local opts = { apps = hyperCheatSheetOpts.apps, toggles = hyperCheatSheetOpts.toggles,
       cheatSheet = hyperCheatSheetOpts.cheatSheet }
-    opts.sections = hintsLib.sections(wiredRegistry, plan, {})
+    -- Told which leader's overlay this is, so a tool bound to the window leader stays off the
+    -- Hyper one, and so the plugins that carry their own binding list rather than a launcher
+    -- row are picked up for this leader too.
+    opts.sections = hintsLib.sections(wiredRegistry, plan, { leader = "app" })
     hyperCheatSheetModule:configure(opts)
+    -- Keyed by DIRECTORY rather than by identity, since that is how a manifest is keyed and the
+    -- delivery check reads the two side by side. This host spells the two the same way, and four
+    -- others in this set do not, so using the identity here would quietly stop matching the day
+    -- one of them was renamed.
+    lateData.hypercheatsheet = opts
   end
 
   local queryScopeModule = modules[plan.identity.queryscope or "queryscope"]
@@ -954,6 +1298,20 @@ function obj.run(olm, cfg)
     local scopeNames = (plan.sets[plan.identity.queryscope or "queryscope"] or {}).scopes
       or (plan.sets.queryscope or {}).scopes
     local scopes = registrarLib.scopeSpec(plan, wiredRegistry, scopeNames, registryMeta) or {}
+
+    -- Two scopes claiming one typed word, named rather than ranked.
+    --
+    -- The retired root settled these with a hand written order of every scope, and porting that
+    -- list would have meant this config carrying a roster of plugin names outside every plugin,
+    -- which is the one shape this design exists to remove. It also hid what it was for. Across
+    -- the whole set exactly one word was ever contested, so the list read as policy over eleven
+    -- tools while answering a question about two.
+    for _, hit in ipairs(scopes.collisions or {}) do
+      log.e("Olm compose, both " .. tostring(hit.first) .. " and " .. tostring(hit.second)
+        .. " answer to the typed word '" .. tostring(hit.alias)
+        .. "', so one of them can never be reached by it, and which one is not decided anywhere. "
+        .. "Change one of the two aliases.")
+    end
 
     -- THE SEAM. The alias directory is QueryScope's own last scope, and it is fundamentally
     -- a policy over that host and over Launcher's own way of seeding a field, so both are
@@ -990,7 +1348,24 @@ function obj.run(olm, cfg)
 
     if aliasScope then scopes[#scopes + 1] = aliasScope end
 
-    queryScopeModule:configure({ matcher = queryScopeOpts.matcher, scopes = scopes })
+    -- Two scopes claiming one typed word, named rather than ranked, and asked here because this
+    -- is the first point at which the whole list exists.
+    --
+    -- The retired root settled these with a hand written order of every scope, and porting that
+    -- would have meant this config carrying a roster of plugin names held outside every plugin,
+    -- the one shape this design exists to remove. It also hid what it was for. Across the whole
+    -- set exactly one word has ever actually been contested, so an eleven name list read as
+    -- policy over eleven tools while answering a question about two.
+    for _, hit in ipairs(registrarLib.aliasCollisions(scopes)) do
+      log.e("Olm compose, both " .. tostring(hit.first) .. " and " .. tostring(hit.second)
+        .. " answer to the typed word '" .. tostring(hit.alias)
+        .. "', so one of them can never be reached by it and nothing decides which. Change one "
+        .. "of the two declarations.")
+    end
+
+    local queryScopeLate = { matcher = queryScopeOpts.matcher, scopes = scopes }
+    queryScopeModule:configure(queryScopeLate)
+    lateData.queryscope = queryScopeLate
   end
 
   local launcherModule = modules[plan.identity.launcher or "launcher"]
@@ -1048,7 +1423,7 @@ function obj.run(olm, cfg)
       end
     end
 
-    launcherModule:configure({
+    local launcherOpts = {
       chooser = ambientServices.chooser,
       theme = ambientServices.theme,
       placeholder = ambientServices.placeholder,
@@ -1129,12 +1504,31 @@ function obj.run(olm, cfg)
           end,
         },
       },
-    })
+    }
+    launcherModule:configure(launcherOpts)
+    lateData.launcher = launcherOpts
   end
 
   ------------------------------------------------------------------------------
   -- STEP L. The tail.
   ------------------------------------------------------------------------------
+
+  -- Every root sourced declaration that nothing actually delivered, named out loud.
+  --
+  -- This is the check that was missing, and its absence is why plugin after plugin could declare
+  -- a value, be told the plan had no problems, and then run on nil. A root sourced need is a
+  -- promise made inside this repository rather than a request of the person, so an unkept one is a
+  -- defect identical on every machine, and it belongs in the console as an error carrying the
+  -- plugin's own sentence about what it costs.
+  --
+  -- Asked here, at the very end, and of both channels at once. Delivery is the question rather
+  -- than declaration, so it can only be asked once everything that delivers has run, which
+  -- includes step K's three later calls just above.
+  for _, owed in ipairs(servicesLib.owed(manifests, servicesLib.merge(wireData, lateData), "root")) do
+    log.e("Olm compose, nothing supplied the root value '" .. owed.field .. "' that "
+      .. owed.plugin .. " declares as " .. owed.policy
+      .. (owed.breaks and (", so " .. owed.breaks) or ""))
+  end
 
   olm.registry = wiredRegistry
 
@@ -1185,8 +1579,27 @@ function obj.run(olm, cfg)
   record.plan = plan
   record.manifests = manifests
   record.dispatch = dispatchTable
-  record.predicates = ownPredicates
-  record.data = wireData
+  -- The MERGED table the engine was actually configured with, every surface gate plus every
+  -- root owned one, rather than the root's own dozen. Recording only the root's own meant
+  -- anything looking in here could not see a context gate at all, so the twelve answers that
+  -- decide whether an in list chord fires were invisible to inspection while being the very
+  -- thing most worth inspecting.
+  record.predicates = w._predicates or ownPredicates
+
+  -- The routed control surfaces, in the order lib/nav.lua consults them, so the question every
+  -- in list chord depends on can be asked from outside. That question is not whether a list is
+  -- open, it is whether the surface that is open ANSWERS the action the key is bound to, and
+  -- nothing could ask it before. Which is why navigation being dead in three lists out of
+  -- twelve was invisible to every check while being obvious to anybody pressing a key.
+  record.surfaces = surfaceAdapters
+  record.navMethodFor = navMethodFor
+  record.navExceptions = navExceptionNames
+  -- What each plugin was actually handed, from BOTH channels, since the question anybody asks of
+  -- this table is what a plugin received rather than which call it came through. Step K's three
+  -- later calls hand over values that never pass through the wiring table at all, so a record of
+  -- the wiring table alone reported five perfectly delivered needs as missing, and the derived
+  -- check in the suite that reads this is the one that has to be able to tell.
+  record.data = servicesLib.merge(wireData, lateData)
 
   return record
 end

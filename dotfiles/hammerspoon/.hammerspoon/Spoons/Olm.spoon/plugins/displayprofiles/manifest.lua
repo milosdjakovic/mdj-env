@@ -18,13 +18,17 @@ return {
     -- Everything below is a fact about this machine or this person's own monitors,
     -- and none of it can be shipped as a working default on a fresh install.
     data = {
+      -- Keyed by host, the whole profiles table out of config/displays.lua rather than one
+      -- machine's slice of it. This plugin takes its own slice, using the host below, so a
+      -- person's own file stays one plain table and nothing in between has to know its shape.
       profiles = { source = "user", policy = "optional",
         breaks = "no curated arrangement exists for this host, so the tool manages "
           .. "nothing here until one is added to config/displays.lua or captured "
           .. "from the chooser" },
       host = { source = "root", policy = "optional",
-        breaks = "the captured profile store has no per host key to save under, so "
-          .. "it is disabled and the chooser shows only the curated profiles" },
+        breaks = "no curated arrangement can be found, since they are keyed by host, and the "
+          .. "captured store has no key to save under either, so it is disabled and the "
+          .. "chooser is empty" },
       storePath = { source = "root", policy = "optional",
         breaks = "the captured profile store has no file to read or write, so it "
           .. "is disabled and the chooser shows only the curated profiles" },

@@ -41,10 +41,15 @@ return {
       -- from required to optional to match what the code actually does.
       registry  = { from = "registry", policy = "optional" },
       glyphIcon = { from = "glyphicon", policy = "optional" },
-      -- The shared chord glyph renderer, `spoon.CheatSheet.glyphFor`, dot called. Read by
-      -- `_chordLabel` to print a chord as words, "Hyper ⌘4", rather than as a bare key.
-      -- Optional, since configure already falls back to `tostring(key)` with no glyph styling.
-      glyphFor  = { from = "cheatsheet.glyphFor", policy = "optional" },
+      -- The shared chord glyph renderer, dot called. Read by `_chordLabel` to print a chord as
+      -- words, "Hyper ⌘4", rather than as a bare key. Optional, since configure already falls
+      -- back to `tostring(key)` with no glyph styling.
+      --
+      -- The comment said dot called for a long time while the declaration did not, and saying
+      -- it is not the same as declaring it. Bound as a method instead, every call arrived with
+      -- the cheat sheet module in the key parameter and the real key in the mods parameter, so
+      -- every chord printed in a launcher subtitle was drawn from the wrong two arguments.
+      glyphFor  = { from = "cheatsheet", member = "glyphFor", call = "dot", policy = "optional" },
     },
 
     -- A sibling naming clipboard.setContents used to sit here for actions.copy. It named a
@@ -207,6 +212,13 @@ return {
   -- while a hosted list is showing, was missing entirely.
   surface = {
     context = "launcher",
+    -- Where the object that answers the navigation verbs actually lives. This host builds a
+    -- dot called adapter over its own Chooser instance in configure, and that adapter's own
+    -- comment says the root is meant to drive it the way it drives every other picker. Nothing
+    -- did, because every other tool is found through its registry entry and this one has no
+    -- registry entry at all, being a host rather than a launcher row. So the most used list in
+    -- the config was the one list where holding the leader and pressing j reached nothing.
+    member = "_surface",
     -- This plugin's configure reads the docked panel's three callbacks nested under one
     -- field rather than as three flat ones, so the shape is named here. Four plugins
     -- disagree about this and the disagreement lives in their own configure contracts,

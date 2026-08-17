@@ -42,7 +42,6 @@ return {
     {
       scenario = "something copied reaches the top of the history",
       given  = function(w) w.pasteboard("hello " .. w.stamp) end,
-      when   = function(w) w.settle() end,
       expect = function(w)
         local rows = w.rows("clipboard", "")
         if #rows == 0 then return false, "the history is empty" end
@@ -59,8 +58,22 @@ the difference between a report that leads somewhere and one that only says look
 
 `w` is everything a scenario may do, and it is the whole vocabulary. `w.open(name)`,
 `w.close(name)`, `w.showing(name)`, `w.rows(name, query)`, `w.module(name)`, `w.pasteboard(text)`,
-`w.chord(leader, key)`, `w.settle()`, `w.stamp`. A scenario never touches `hs` or Olm's internals
-directly, so a change in how a picker is opened is one edit in the runner rather than one per test.
+`w.down(leader)`, `w.up(leader)`, `w.press(key)`, `w.escape()`, `w.keyFor(name)`, `w.stamp`. A
+scenario never touches `hs` or Olm's internals directly, so a change in how a picker is opened is
+one edit in the runner rather than one per test.
+
+There is no way to wait, on purpose. A scenario that needs time says so by splitting into `steps`,
+each a function and the gap to leave after it, and the runner leaves that gap with a real timer.
+Sleeping would block the main thread, which is the thread every answer this suite waits for is
+delivered on, so a scenario that sleeps is preventing the very thing it is waiting for. That
+mistake has been made twice here and both times it reported a working config as broken.
+
+```lua
+steps = {
+  { fn = function(w) w.open("processes") end, wait = 0.9 },
+  { fn = function(w) w._saw = w.showing("processes") w.close("processes") end, wait = 0.4 },
+},
+```
 
 ## Three verdicts, not two
 

@@ -80,41 +80,124 @@ function obj.ambient(deps)
   }
 end
 
---- obj.fanOut(manifests, shared)
+--- obj.fanOut(manifests, values, source)
 --- Function
---- The user's own shared configuration, fanned out to whichever manifest asked for a field
---- of that name. This is what shrinks the person's own file down to one apps table, one
---- keys catalog, one settings block, one displays list, rather than one copy repeated under
---- every plugin that reads a slice of it.
+--- A flat table of values, keyed by FIELD NAME, fanned out to whichever manifest asked for a
+--- field of that name from that source. For the user's own configuration this is what shrinks
+--- the person's own file down to one apps table, one keys catalog, one settings block, one
+--- displays list, rather than one copy repeated under every plugin that reads a slice of it.
 ---
---- A plugin earns a copy by declaring needs.data on that field name with source equal to
---- "user". Nothing else about the plugin matters here, not its policy, not its breaks
---- sentence, only whether the field it named and the field shared carries are the same word.
---- A plugin naming a field shared does not carry gets nothing from this function and is left
---- for resolve.lua's own rules to answer, blocked, degraded, or simply absent, exactly as it
---- would be with no fan out at all.
+--- A plugin earns a copy by declaring needs.data on that field name with a source matching the
+--- one asked for here, "user" by default. Nothing else about the plugin matters, not its
+--- policy, not its breaks sentence, only whether the field it named and the field the values
+--- table carries are the same word. A plugin naming a field the table does not carry gets
+--- nothing from this function and is left for resolve.lua's own rules to answer, blocked,
+--- degraded, or simply absent, exactly as it would be with no fan out at all.
+---
+--- THE SOURCE PARAMETER IS WHAT MAKES THE ROOT'S OWN OBLIGATIONS DELIVERABLE GENERICALLY, and
+--- it exists because six declarations were satisfied by nobody. A root sourced need is a
+--- promise the composition root makes, and the root used to keep those promises through a hand
+--- written table that named each owed plugin outright. So a plugin declaring one and not
+--- appearing in that table was validated, reported satisfied, and handed nil, which is the same
+--- defect the lib and sibling grants were both written to end. Fanning root values by name
+--- closes it the same way, and it also stops the portable composition root from having to name
+--- a plugin under plugins to pay it what it is owed.
+---
+--- One consequence is worth stating rather than discovering. A root sourced field name is
+--- GLOBAL VOCABULARY, since two plugins naming the same field both receive the same value. That
+--- is deliberate and is what lets one display fingerprint serve every plugin that scopes its
+--- memory by arrangement. It also means a root field name has to mean one thing across the
+--- whole set, unlike a user sourced one, where cfg.data is keyed per plugin precisely because
+--- bundleID and settings mean different things to different plugins.
 ---
 --- Returns a table keyed by plugin name, each value a table of field to value, shaped
 --- exactly like the per plugin data table wire.lua reads last, so this answer is one of the
 --- layers obj.merge combines rather than a table with a shape of its own to translate.
 ---
 --- Must run before resolve.lua's own plan is built, since resolve.lua reads this same shape
---- to decide whether a required user sourced field actually arrived, and a plan built with
+--- to decide whether a required sourced field actually arrived, and a plan built with
 --- nothing supplied would report every one of these plugins blocked on a fresh install where
 --- nothing is actually wrong.
-function obj.fanOut(manifests, shared)
-  shared = shared or {}
+function obj.fanOut(manifests, values, source)
+  values = values or {}
+  source = source or "user"
   local data = {}
   for name, manifest in pairs(manifests or {}) do
     local fields = ((manifest or {}).needs or {}).data or {}
     for field, decl in pairs(fields) do
-      if type(decl) == "table" and decl.source == "user" and shared[field] ~= nil then
-        data[name] = data[name] or {}
-        data[name][field] = shared[field]
+      if type(decl) == "table" and decl.source == source and values[field] ~= nil then
+        local value = values[field]
+        -- A resolver answers per declaring plugin, which is the one escape from the global
+        -- vocabulary rule above. See obj.perName for why it exists at all.
+        if type(value) == "table" and value.__perName then value = value.__perName(name) end
+        if value ~= nil then
+          data[name] = data[name] or {}
+          data[name][field] = value
+        end
       end
     end
   end
   return data
+end
+
+--- obj.perName(fn)
+--- Function
+--- Marks a root value as one that has to be COMPUTED PER DECLARING PLUGIN rather than shared,
+--- so obj.fanOut calls fn(pluginName) for each plugin that asked for the field instead of
+--- handing the same object to all of them.
+---
+--- It exists for exactly one shape of answer, a path a plugin writes its own data to. Every
+--- other root value is genuinely one object several plugins may share, a stamped binding list
+--- or a display fingerprint, and sharing it is the point. A store path is the opposite. Two
+--- plugins asking for one would each need their own file, and handing them the same string
+--- would have them overwrite each other's data with no error anywhere, which is a far worse
+--- failure than the nil this whole channel was built to end.
+---
+--- Deliberately not a general purpose lazy value. Wrapping anything else in this only moves
+--- work from one place to another and makes a flat table of values stop reading like one.
+function obj.perName(fn)
+  return { __perName = fn }
+end
+
+--- obj.owed(manifests, data, source)
+--- Function
+--- Every declaration of that source, "root" by default, that nothing actually delivered.
+---
+--- This is the check the whole build needed and did not have. The defining defect here is not
+--- a declaration that is wrong, it is a declaration that is RIGHT, validated, reported
+--- satisfied, and then never delivered, so the report says no problems while the plugin holds
+--- nil at the moment it matters. Six root sourced needs were in exactly that state at once,
+--- and every one of them cost a visible feature, while every check in the suite stayed green
+--- because a tool with no data still registers, still opens, and still answers its keys.
+---
+--- Only root sourced needs are asked about, and the asymmetry is the point. A root sourced
+--- need is a promise made inside this repository, so an unkept one is a repository defect that
+--- is identical on every machine and can be reported as an error. An absent user sourced value
+--- is a person declining to configure something, which is not a defect at all.
+---
+--- Returns a list of { plugin, field, policy, breaks }, so a caller can say what was promised,
+--- what it costs, and in whose name, rather than only that something is missing.
+function obj.owed(manifests, data, source)
+  source = source or "root"
+  data = data or {}
+  local missing = {}
+  for name, manifest in pairs(manifests or {}) do
+    local fields = ((manifest or {}).needs or {}).data or {}
+    for field, decl in pairs(fields) do
+      if type(decl) == "table" and decl.source == source
+        and (data[name] or {})[field] == nil then
+        missing[#missing + 1] = {
+          plugin = name, field = field,
+          policy = decl.policy or "optional", breaks = decl.breaks,
+        }
+      end
+    end
+  end
+  table.sort(missing, function(a, b)
+    if a.plugin ~= b.plugin then return a.plugin < b.plugin end
+    return a.field < b.field
+  end)
+  return missing
 end
 
 --- obj.perPlugin(plan, manifests, deps)
@@ -216,8 +299,16 @@ function obj.perPlugin(plan, manifests, deps)
     end
 
     -- One recency instance, keyed to this plugin's own settings slot.
-    if needs.lib and needs.lib.recency and deps.libs and deps.libs.recency then
-      slot(name).recency = deps.libs.recency.new({ settingsKey = "olm.recency." .. name })
+    -- The limit travels from the declaration, since how many remembered entries are worth
+    -- keeping is a fact about this plugin's own list rather than a global. A tab list wants a
+    -- ceiling, a list of six vpn locations does not, and an absent limit means grow, which is
+    -- lib/recency.lua's own default and the right answer for almost every list here.
+    local recencyDecl = needs.lib and needs.lib.recency
+    if recencyDecl and deps.libs and deps.libs.recency then
+      slot(name).recency = deps.libs.recency.new({
+        settingsKey = "olm.recency." .. name,
+        limit = type(recencyDecl) == "table" and recencyDecl.limit or nil,
+      })
     end
   end
 

@@ -60,6 +60,15 @@ end
 --- Glyphicon arrived in phase eight's third packet, lifted out of Launcher's own private
 --- drawing once ActionPanel became a second caller of it, another factory in the same
 --- style as recency and registry. See lib/glyphicon.lua for its api.
+---
+--- These are THE instances, not a second set alongside the running ones. The composition
+--- root reads this table and configures what it finds here rather than loading its own,
+--- because loadfile answers a fresh module on every call, so the two files each loading
+--- lib/chordkey.lua gave the config two unrelated engines. Only the root's copy was ever
+--- configured, and the copy published here sat with no tap and no keys, which reads
+--- exactly like a leader that failed to wire and was diagnosed as one. Nothing in either
+--- file could have said which copy anybody was holding, so the answer is that there is
+--- only ever one.
 obj.lib = {
   storage = load("lib/storage.lua"),
   recency = load("lib/recency.lua"),
