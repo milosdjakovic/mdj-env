@@ -307,6 +307,26 @@ function M.ready()
   return #cache > 0
 end
 
+--- M.scopeRows(rest, redraw) -> list. The query scope's own rows, asked fresh on entry or
+--- while nothing has landed, exactly the way M.show already asks through M.prepare either
+--- side of revealing its own chooser. A scope has no chooser of its own to refresh once the
+--- fetch answers, so redraw is a plain callback the caller hands in for that one moment
+--- rather than this spoon reaching for whatever is showing these rows, which is the whole
+--- reason this spoon still names no launcher and no host. The typed text rides along as the
+--- filter text on the one placeholder row below, so the matcher can never rank away the only
+--- row there is while the real list is still in flight.
+function M.scopeRows(rest, redraw)
+  if rest == "" or not M.ready() then
+    M.prepare(redraw)
+  end
+  local out = rows(rest)
+  if #out == 0 and not M.ready() then
+    return { { title = "Reading the locations", subTitle = "one moment",
+               image = emojiImage("⏳"), enabled = false, filterText = rest } }
+  end
+  return out
+end
+
 --- M.prepare(onReady) - make the rows current without opening anything, reading the live state
 --- and fetching the locations, then calling back once they land. This is what show does either
 --- side of revealing its own chooser, factored out so a surface that is already open gets the
@@ -369,7 +389,7 @@ local function onChange()
   if chooser and chooser:isShowing() then chooser:refresh() end
 end
 
---- M.configure(opts) - inject the shared theme, the Chooser factory, and the optional
+--- M:configure(opts) - inject the shared theme, the Chooser factory, and the optional
 --- docked panel callbacks (onPositioned, onActivity, onClose) the root wires to its
 --- deferred shortcut hint panel. The spoon forwards those straight to its chooser without
 --- learning what they drive, so the panel stays the root's concern. Kept as the single
@@ -383,7 +403,11 @@ end
 --- Olm.spoon, already built against this tool's own settings key. It is required, since
 --- this copy no longer carries a recency block of its own, and a missing one is rejected
 --- loudly rather than quietly ordering nothing.
-function M.configure(opts)
+-- Colon here, not dot, because the composition root and the live top level init.lua both
+-- reach this through the ordinary method call spoon.Vpn:configure(opts), and the shared
+-- wiring pipeline in lib/wire.lua calls every plugin's configure the same way. self arrives
+-- as M and is not otherwise used in the body below.
+function M:configure(opts)
   cfg = opts or {}
   if not cfg.recency then
     error("Vpn configure requires opts.recency, an instance of the shared recency service")
@@ -391,13 +415,13 @@ function M.configure(opts)
   return M
 end
 
---- M.start() - resolve availability, wire the engine when the CLI is present, and build
+--- M:start() - resolve availability, wire the engine when the CLI is present, and build
 --- the one native chooser either way. When the CLI is missing it logs the reason, read
 --- from the provider's install metadata, and leaves the engine unstarted, so the chooser
 --- opens to the self explaining unavailable row instead of the tool being a dead key. The
 --- log line names what is missing and stops there, since the repository is what knows how
 --- to obtain it.
-function M.start()
+function M:start()
   -- Hand the provider the path the shared resolver found, by the name the provider itself
   -- declares, so this spoon learns neither the tool's location nor how it is obtained.
   provider.configure({ path = cfg.deps and cfg.deps.path(provider.tool) or nil })

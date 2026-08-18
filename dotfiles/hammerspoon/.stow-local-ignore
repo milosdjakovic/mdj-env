@@ -1,11 +1,14 @@
 # Repo only files at this package root, kept out of the home directory. The generated
-# manifest, the module level declaration, and the collector are the module's contract with
-# the layer above, so they belong to the repository rather than to the running config, and
-# check-timers is a check on the source that the running config has no use for. The
-# declarations inside .hammerspoon are deliberately not listed, since the running config
-# reads them, both the per spoon ones and the per file ones such as
-# providers/mullvad.dependencies.
+# manifest, the module level declaration, and the collector with the reader beside it are the
+# module's contract with the layer above, so they belong to the repository rather than to the
+# running config, and check-timers is a check on the source the running config has no use for.
+#
+# Nothing inside .hammerspoon is listed. It used to hold declaration files that both the running
+# config and the collector read, so they had to be stowed. A plugin declares in its own
+# manifest.lua now, which the running config reads as part of the plugin itself, so there is no
+# longer a repository only file down there to keep out.
 DEPENDENCIES
 dependencies-module
 dependencies-collect
+dependencies-collect.lua
 check-timers

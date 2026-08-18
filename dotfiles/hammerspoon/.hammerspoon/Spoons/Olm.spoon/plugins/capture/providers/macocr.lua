@@ -18,9 +18,9 @@
 
 return {
   name = "macocr",
-  -- The name this tool is declared under in the spoon's dependencies file. Both the
-  -- declaration and this lookup use it, so a rename is caught by the adapter rather
-  -- than failing silently.
+  -- The name this tool is declared under in the plugin's manifest, with unit naming
+  -- macocr. Both the declaration and this lookup use it, so a rename is caught by the
+  -- adapter rather than failing silently.
   tool = "ocr",
   actions = { ocrArea = true },
 

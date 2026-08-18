@@ -744,6 +744,23 @@ function M.activate(item)
   if item and item.kind == "tab" then cfg.api.activate(item.tab) end
 end
 
+--- M.scopeRows(rest, redraw) - the query scope's own rows, fetched on entry or while nothing
+--- has landed, the same trigger M.show already uses, but redrawing through the caller's own
+--- hook instead of this chooser's own M.refresh, since a scope has no chooser of its own to
+--- redraw. redraw arrives from whoever is holding these rows for the scope, so this file still
+--- never learns what that is. What to say about an empty list still comes from M.explain,
+--- naming this tool's own settings rather than a settings row a scope cannot show.
+function M.scopeRows(rest, redraw)
+  if rest == "" or not M.ready() then
+    M.prepare(redraw)
+  end
+  local out = M.tabRows(rest)
+  if #out == 0 and (rest == "" or not M.ready()) then
+    return M.explain("in Browser tabs settings")
+  end
+  return out
+end
+
 --- M.show() - open on the tab list and start a fresh listing.
 function M.show()
   stack = { { kind = "tabs" } }
@@ -790,18 +807,22 @@ function M.insertSelected()
   M.enter()
 end
 
---- M.configure(opts) - merge injected deps across two callers. The spoon composition root
+--- M:configure(opts) - merge injected deps across two callers. The spoon composition root
 --- injects `api`, its merged view over the engine, the recency memory and the permission
 --- probe. The main root injects `theme`, the Chooser factory as `chooser`, the `matcher` this
 --- tool scores its tab rows with, and the docked shortcut panel callbacks.
-function M.configure(opts)
+--
+-- Colon here, not dot, because every caller, the plugin root's own configure, the live top
+-- level init.lua, and the shared wiring pipeline in lib/wire.lua, reaches this submodule as
+-- chooser:configure(opts). self arrives as M and the body below never names it.
+function M:configure(opts)
   for k, v in pairs(opts or {}) do cfg[k] = v end
   return M
 end
 
---- M.start() - build the one native chooser. Called by the main root once both configures have
+--- M:start() - build the one native chooser. Called by the main root once both configures have
 --- run, so the factory and the api are both present.
-function M.start()
+function M:start()
   stack = { { kind = "tabs" } }
   chooser = cfg.chooser.new({
     theme = cfg.theme,

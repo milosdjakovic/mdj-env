@@ -246,8 +246,12 @@ function M.clear()
   ui.refresh()
 end
 
---- M.configure(opts) - override any config default before start.
-function M.configure(opts)
+--- M:configure(opts) - override any config default before start.
+--
+-- Colon here, not dot, because both the live top level init.lua and the shared wiring
+-- pipeline in lib/wire.lua reach this submodule as manager:configure(opts). self arrives as
+-- M and the body below never names it.
+function M:configure(opts)
   if opts then
     for k, v in pairs(opts) do
       config[k] = v
@@ -256,10 +260,10 @@ function M.configure(opts)
   return M
 end
 
---- M.start() - wire the pieces and begin monitoring. Called once by the outer
+--- M:start() - wire the pieces and begin monitoring. Called once by the outer
 --- composition root. Safe across hs.reload(): reload tears down the whole Lua
 --- state and history is read back from disk here.
-function M.start()
+function M:start()
   math.randomseed(os.time())
   config.util = util
 
@@ -371,7 +375,14 @@ function M.start()
     end,
     -- Passed straight through, so the surface the message is drawn on stays the root's choice
     -- and neither this module nor the session layer names one.
-    onMessage = config.onMessage,
+    --
+    -- notify on the way in, onMessage on the way down, and the rename is the fix rather than an
+    -- inconsistency. It arrives under the root's own word for one line of feedback, shared with
+    -- every other plugin that has something to say, because a root value is delivered by field
+    -- name. Read as config.onMessage it was nil on every run, so appending to an entry and
+    -- walking back through history both did their work in total silence, which for those two
+    -- actions is the only feedback there is.
+    onMessage = config.notify,
   })
 
   -- onCapture is what tells the session layer a pasteboard change was a real copy rather than

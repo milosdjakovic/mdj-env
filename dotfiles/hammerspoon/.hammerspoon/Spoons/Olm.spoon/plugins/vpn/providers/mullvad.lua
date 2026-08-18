@@ -29,8 +29,9 @@ M.install = {
   note = "The Mullvad VPN app provides the mullvad CLI.",
 }
 
--- The name this CLI is declared under, in mullvad.dependencies beside this file. The layer
--- above looks the path up by it, so the declaration and this provider agree on one spelling.
+-- The name this CLI is declared under, in the plugin's manifest, with unit naming this
+-- provider. The layer above looks the path up by it, so the declaration and this provider
+-- agree on one spelling.
 M.tool = "mullvad"
 
 -- The resolved absolute path, handed in through configure. Nil means the CLI is absent,

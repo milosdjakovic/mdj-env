@@ -192,11 +192,32 @@ run three times are the ones that were genuinely seen failing during the origina
 `drift_tab_moved`, `back_to_back`, `switched_off`, `escape_raises_nothing`, `fullscreen` passed on
 Chrome, `pinned` and `phantom_not_listed` passed on Safari, and `not_running` passed against Arc.
 
-`no_query on safari` failed once in that run and has not failed since. Both witnesses said the tool
-had done its job and the terminal running the suite held the front instead. That was almost
-certainly the harness disturbing its own measurement, since every command still reached the agent
-by opening a URL at the time, which goes through Launch Services and takes focus. The channel is
-files now and activates nothing, so a repeat of that reading would mean something real.
+A later full run, on 2026-08-18, was sixty six rounds. Fifty five passed, two failed, nine reported
+themselves not covered. All nine were the same machine fact, one browser window open at the time,
+which is the state the multi window cases need and cannot make for themselves. `minimized on
+safari`, the open defect below, was not among the failures that day.
+
+`no_query on safari` failed once in the seventy round run above. Both witnesses said the tool had
+done its job and the terminal running the suite held the front instead. That was almost certainly
+the harness disturbing its own measurement, since every command still reached the agent by opening
+a URL at the time, which goes through Launch Services and takes focus. The channel is files now and
+activates nothing, so that particular reading coming back would still mean something real.
+
+It has not come back. What arrived instead is a different failure wearing the same case name, and
+telling the two apart is the reason this paragraph is longer than it wants to be. In the run of
+2026-08-18 `no_query` failed on Chrome and on Safari, and a repeat of just that case failed six
+rounds out of six on both, with the same wrong tab on top every single time. Focus is not the
+reason. The list opened and the intended tab was present, and the top row was simply a different
+tab, a real page from ordinary browsing rather than a fixture this suite made. So what this now
+reports is the order declining to lift a touched tab to the front, which is a different claim about
+a different part of the tool.
+
+Those same six rounds were then run against main with nothing modified, and main failed all six the
+same way, same two tabs and same reason. So this failure belongs to the tool as it already stands
+rather than to any branch under test, and a run whose only failures are these two has not found
+anything new. Whoever does go after it should start at the two `touch` calls the arrangement makes
+and ask whether the order the tool reads back reflects them at all, because the case is built end to
+end on the assumption that it does, and that assumption is now the least proven thing in it.
 
 `discarded on chrome` cannot be created on this machine, since Chrome here has internal debugging
 pages disabled by policy and there is no other way to force a tab out of memory. That is final

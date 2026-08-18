@@ -14,15 +14,22 @@ result. Update it whenever the provider contract or the unavailable behaviour ch
 ## The backend dependency
 
 The Mullvad provider shells out to the `mullvad` command line tool, which the Mullvad VPN
-app installs. The provider probes for nothing. `providers/mullvad.dependencies` declares
-the tool, the shared resolver in `Dependencies.spoon` finds it once for the whole config,
-and `init.lua` hands the resolved absolute path to the provider through `configure`. So no
-install prefix appears anywhere in this spoon and the same files work on either
-architecture.
+app installs. The provider probes for nothing. The plugin's manifest declares the tool,
+with unit naming this provider, the shared resolver in `lib/deps.lua` finds it once
+for the whole config, and `init.lua` hands the resolved absolute path to the provider
+through `configure`. So no install prefix appears anywhere in this spoon and the same
+files work on either architecture.
 
-The declaration sits beside `providers/mullvad.lua` rather than at the spoon root, because
-that provider is the only file that knows the tool exists. Adding a second backend is a new
-provider file plus its own declaration, with nothing shared to edit.
+The declaration used to sit in its own file beside `providers/mullvad.lua`, because that
+provider is the only file that knows the tool exists, so adding a backend was a new provider
+file plus its own declaration with nothing shared to edit. It sits in the plugin's single
+`manifest.lua` now, and that is a real cost paid on purpose. Adding a backend means one entry
+in a file two backends share, so the provider is no longer quite self contained. What was
+bought for it is that a tool is described exactly once, since the old arrangement had the
+running config reading one place and the layer above reading another, and the two drifted
+until ten tools had quietly stopped being declared at all. The `unit` field on the entry is
+what keeps the half of the old placement that was load bearing, so a missing tool still names
+this provider rather than the whole plugin.
 
 ## What the provider knows, and what it must not
 

@@ -6,8 +6,8 @@
 --- Escape cancels without copying.
 ---
 --- The copy is silent here. Confirming it visually is the composition root's
---- concern, handed out through the onPick seam below, so the confirmation is drawn
---- on the shared CanvasPanel like every other overlay rather than an
+--- concern, handed out through the showColor seam below, so the confirmation is
+--- drawn on the shared CanvasPanel like every other overlay rather than an
 --- hs.alert, keeping the UI one surface.
 ---
 --- Hammerspoon has no binding for NSColorSampler, so the sampler lives in a tiny
@@ -22,8 +22,8 @@
 --- This is a self contained mechanism, not a list tool, so it does not ride the
 --- shared Chooser atom. It exposes one small contract, pick to start and isActive
 --- to query, so the composition root can wire it onto a Hyper key and a launcher
---- row like the other lone actions (lock, sleep). An optional injected onPick
---- callback hands the result out for a consumer that wants more than the clipboard.
+--- row like the other lone actions (lock, sleep). An optional injected showColor
+--- callback hands the result out for whoever draws the confirmation.
 ---
 --- This is the olm side copy of Eyedropper, phase six of the olm build plan, and the
 --- original this was copied from lived at Spoons/Eyedropper.spoon.
@@ -48,7 +48,7 @@ local CACHE_DIR = os.getenv("HOME") .. "/Library/Caches/Hammerspoon-Eyedropper"
 local BINARY = CACHE_DIR .. "/sampler"
 
 -- Injected policy and live state.
-obj._onPick = nil    -- optional callback(hex) handed the sampled result
+obj._onPick = nil    -- optional showColor(hex), handed the sampled result to be shown
 obj._compiler = nil  -- injected resolved Swift compiler path, the one external tool here
 obj._task = nil      -- the running sampler task, if any
 obj._active = false
@@ -128,15 +128,27 @@ end
 
 --- Eyedropper:configure(opts)
 --- Method
---- Inject optional policy. onPick is a callback(hex) handed each sampled result on
---- top of the clipboard copy, for a consumer that wants the value. compiler is the
---- resolved path of the Swift compiler, injected from the shared dependency resolver,
---- since building the native sampler is the one thing here that needs a tool from
---- outside Hammerspoon. This spoon looks for nothing itself and names no installer.
+--- Inject optional policy.
+---
+--- showColor is a callback(hex) handed each sampled result on top of the clipboard copy, so
+--- whoever owns the overlay surface can show it. Named for what the root supplies rather than
+--- for the event that reaches it, since a root value is delivered by field name, and onPick was
+--- a word only this plugin used and therefore a name nothing could ever have paid.
+---
+--- The Swift compiler's path is asked of opts.deps, the scoped adapter that declaring a tool
+--- earns, since building the native sampler is the one thing here needing a tool from outside
+--- Hammerspoon. This spoon looks for nothing itself and names no installer.
 function obj:configure(opts)
   opts = opts or {}
-  self._onPick = opts.onPick
-  self._compiler = opts.compiler
+  self._onPick = opts.showColor
+  -- Asked of the scope adapter rather than read off opts.compiler, which nothing fills.
+  --
+  -- Declaring a tool entitles a plugin to the ADAPTER, under opts.deps, never to a resolved path
+  -- under a name of its own choosing. Read as opts.compiler it was nil on every run, so the
+  -- native sampler could never be built and the whole point of this tool, a colour picked off
+  -- any pixel on screen, silently fell back to nothing. Three plugins had this same mistake,
+  -- each under a different field name, which is what makes it a class rather than a typo.
+  self._compiler = opts.deps and opts.deps.path("swiftc") or nil
   -- Warm the native sampler build in the background so the first pick stays instant.
   -- This is the one wiring point, so the compile happens here rather than in init,
   -- which stays a pure return per the lifecycle contract. It never blocks and is a no

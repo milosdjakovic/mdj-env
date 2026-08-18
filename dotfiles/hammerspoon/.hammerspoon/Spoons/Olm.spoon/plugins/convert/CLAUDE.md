@@ -3,8 +3,8 @@
 Converts units and currencies from a typed query and offers the answer as a
 launcher row. Like `Arithmetic` it is a query row source, not a picker. The
 launcher side of the contract is in the Launcher `CLAUDE.md`, and how its tool is
-declared and resolved is in the hammerspoon `CLAUDE.md` and
-`Dependencies.spoon/CLAUDE.md`. This file keeps its own decisions.
+declared and resolved is in the hammerspoon `CLAUDE.md`, in `docs/PLUGIN-CONTRACT.md`,
+and in `lib/deps.lua` itself. This file keeps its own decisions.
 
 ## Why this is a separate spoon from Arithmetic
 

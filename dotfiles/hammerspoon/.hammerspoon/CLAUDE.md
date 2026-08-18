@@ -13,47 +13,58 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
   added, renamed, or removed. Each spoon that carries a non-obvious decision has its own
   `CLAUDE.md` beside its `init.lua`.
 
-**External tools, and the one door to them.** A spoon that needs something from
-outside Hammerspoon declares it in a plain declaration file, five fields per line,
-name, kind, locator, policy, and what breaks without it. The dependency door, now
-`Spoons/Olm.spoon/lib/deps.lua`, reads every such file at load with nothing listed
-in the root, probes them in one pass, and
-hands each spoon a per consumer adapter through `scope(name)`. That adapter is the only
-way a spoon may obtain an external tool, and it answers only for what that spoon
-declared, so an undeclared ask returns nothing and names the spoon in the console.
-Adding a declaration is one file and no wiring. The internals, the four kinds, the two
-policies, and where the line is drawn on what is worth declaring, are documented in
-`Spoons/Olm.spoon/lib/deps.lua`.
+**External tools, and the one door to them.** A plugin that needs something from
+outside Hammerspoon declares it in its own `manifest.lua`, under `needs.tools`, where an
+entry carries a name, a kind, a locator, a policy, and what breaks without it. The
+dependency door, `Spoons/Olm.spoon/lib/deps.lua`, is TOLD that set by the composition
+root, probes the whole of it in one pass, and hands out a scoped adapter. That adapter is
+the only way a plugin may obtain an external tool, and it answers only for what was
+declared, so an undeclared ask returns nothing and names the asker in the console.
+Declaring a tool is one entry and no wiring. The kinds, the policies, and where the line
+is drawn on what is worth declaring at all are documented in `lib/deps.lua` and in
+`Spoons/Olm.spoon/docs/PLUGIN-CONTRACT.md`.
 
-**A declaration sits beside whatever knows the tool.** Two names are recognised
-anywhere under a spoon. A file called `dependencies` declares needs of the spoon as a
-whole, so it belongs at the spoon root, which is right when the spoon's own `init.lua`
-runs the tool, as in `Convert` and `Eyedropper`. A file called `<base>.dependencies`
-declares needs of its sibling `<base>.lua`, which is right whenever one inner file is
-the only one that knows the tool exists. So `providers/mullvad.dependencies` is that
-provider's own contract, `providers/macshot.dependencies` is that backend's, and
-`manager/preview.dependencies` and `engine.dependencies` follow the same rule for the
-files that actually shell out. Adding a backend is then a new file plus its own
-declaration, with nothing shared to edit, which is the same reason providers are
-separate files in the first place.
+**One tool, described once.** There used to be a second declaration system, plain files
+named `dependencies` or `<base>.dependencies` sitting beside whatever knew each tool, and
+for a while both existed at once. That is the arrangement where one tool is described in
+two places and the two drift with nothing watching, and it went exactly that way, eight
+plugins moved their declarations into their manifests, and the twenty files left behind
+went on being read by the collector alone. The layer above then lost ten tools without a
+word, `qalc` and `tmux` among them, so a fresh machine could have been set up without the
+calculator the convert plugin is entirely built on. All twenty files are deleted and the
+manifests are it.
 
-The adapter is still scoped to the spoon rather than to the file, because the spoon root
-is what the composition root injects into and what wires its own providers. Placement
-decides which file owns a line, the spoon still decides who may ask for it, and the
-owner label rides along so a missing tool reads `Capture/macshot` instead of `Capture`.
-Both readers, the runtime resolver and `dependencies-collect`, apply one rule, since a
-file only one of them found would be either invisible at runtime or absent from the
-manifest.
+What the per file placement was FOR still matters, though, and it is worth keeping the
+reason rather than only the mechanism. A declaration beside one provider meant a missing
+tool named the provider responsible rather than the whole plugin, so a backend stayed self
+contained and adding one was a new file with nothing shared to edit. A tool entry carries
+an optional `unit` field for that, naming the file inside the plugin that wanted it, so a
+console line still reads `capture/macshot` rather than `capture`, and the generated
+manifest one layer up still stamps that owner into its consumer column.
 
-**A spoon names a tool and never names how to install one.** This is the layering
-rule that makes the rest work, and the direction is strict. A declaration says it
-needs a binary called `displayplacer`. It does not know Homebrew exists, does not
-know a Brewfile exists, and does not know it lives in this repository. The
-declarations travel upward, collected by `dotfiles/hammerspoon/dependencies-collect`
-into one generated `DEPENDENCIES` manifest at the package root, and that manifest is
-this module's whole contract with the layer above, which maps each name to a formula,
-a cask, a tap, or a manual step. So the layer above never looks inside a spoon and
-nothing under this directory ever mentions a package manager. Four places used to break
+The adapter stays scoped to the plugin rather than to the unit, because the plugin root is
+what the composition root injects into and what wires its own providers. The unit label
+decides what a message says, and the plugin still decides who may ask.
+
+**A plugin names a tool and never names how to install one.** This is the layering rule
+that makes the rest work, and one half of it has been sharpened rather than dropped. A
+declaration says it needs a binary called `displayplacer`, and it may also say that the
+binary is the `displayplacer` formula, because a plugin built to travel to another machine
+has to carry that answer with it and this repository's map will not be there. What it may
+never do is name an install command, since that is a second copy of an answer the
+repository already holds and the two drift apart. The declarations travel upward, collected
+by `dotfiles/hammerspoon/dependencies-collect` into one generated `DEPENDENCIES` manifest
+at the package root, and that manifest is this module's whole contract with the layer above,
+which holds the complete map from a name to a formula, a cask, a tap, or a manual step and
+refuses to disagree with anything a declaration states. So the layer above never looks
+inside a plugin and nothing under this directory ever runs a package manager.
+
+Reading those manifests takes Lua, since that is what they are written in, so the collector
+finds them and hands them to a real interpreter rather than pattern matching at them from a
+shell. `lua` is therefore declared like any other tool, in `dependencies-module`, as
+optional, because only regenerating the contract stops working without it.
+
+Four places used to break
 this rule and all of them are gone, a set of hardcoded Homebrew prefixes, two console
 lines advising a `brew` command, a chooser row offering to copy a `brew install` line to
 the clipboard, and a generator script telling you to run one. The last two survived
@@ -68,24 +79,28 @@ line in the VPN row was a second copy of an answer the repository already held o
 it is a disabled row and a console line that name the gap and stop, and the repository
 answers where the tool comes from.
 
-**A core kind is the one exception, and it says so.** A plugin under
-`Spoons/Olm.spoon/plugins/` names a capability handed out by Olm itself, `paste` or
-`recency`, through the same five field line and the same collector, but this line decides
-injection rather than installation. Nothing under this kind gets installed, its whole
-answer already sits inside the repository, at a lib file the map still names, under one
-new origin called `olm`, so the map stays the single place that says where any name comes
-from. The reconciler ties every `spoon.Olm.lib.` reference across the module back to a
-declaration carrying this kind, a capability handed out with no line naming it is an
-error, and a declared one nothing reads is a question rather than a defect. A plugin never
-reaches for `spoon.Olm` on its own either way, it only ever receives its slice through its
-own `configure`, so the door this kind opens is the same one every other kind already
-keeps.
+**A capability from Olm's own lib is not a dependency, and used to be declared as one.**
+There was a `core` kind for it, so a plugin named `paste` or `recency` in the same
+declaration form and the map carried an `olm` origin pointing at the lib file that answered.
+It is retired. It made sense when these were separate spoons that could not legitimately
+see each other, so a capability really did arrive from outside. Everything is one bundled
+spoon now and a lib module arrives by injection, declared as `needs.lib`, which makes a
+capability internal structure rather than a thing the machine has to provide. Nothing was
+ever installed for that kind, which was the clue.
 
-A need that belongs to the whole module rather than to any spoon goes in
+What survives is the boundary, which was always the half that mattered. No file under
+`Spoons/Olm.spoon/plugins/` may reference `spoon.Olm` at all. A plugin receives its slice
+through its own `configure` and never opens that door itself, and the reconciler above still
+proves it.
+
+A need that belongs to the whole module rather than to any plugin goes in
 `dotfiles/hammerspoon/dependencies-module`, which the collector folds in first and
 stamps with the module name. Today that is the Hammerspoon application itself, which
-has no runtime consumer because nothing here would be running without it, so the
-resolver never sees it and only the layer above acts on it. That file is deliberately
+has no runtime consumer because nothing here would be running without it, and `lua`,
+which only the collector needs. The resolver sees neither, and only the layer above acts
+on them. The composition root's own two tools are different again, since the root is a real
+consumer that reaches for `scutil` and `displayplacer`, so it declares them in
+`Spoons/Olm.spoon/root/manifest.lua` and joins the set as a declarer beside the plugins. That file is deliberately
 not called `dependencies`, because this filesystem is case insensitive and a file with
 that name beside the generated `DEPENDENCIES` is literally the same file. That mistake
 was made once and it silently re-stamped every consumer column on each run rather than

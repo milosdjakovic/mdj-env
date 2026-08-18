@@ -37,6 +37,9 @@ function obj:configure(opts)
   -- When a HyperKey spoon is provided, toggles bind into its modal (fired by
   -- holding the physical Hyper key) instead of a literal modifier combination.
   self._hyperKey = opts.hyperKey
+  -- The scoped dependency door, earned by declaring a tool at all. Kept rather than resolved
+  -- here so a toggle asks at the moment it fires, which is also the only moment it matters.
+  self._deps = opts.deps
   return self
 end
 
@@ -65,10 +68,20 @@ function obj:toggleURL(bundleID, url)
   if app and app:isFrontmost() and #app:allWindows() > 0 then
     app:hide()
   else
-    -- Use `open` rather than hs.urlevent.openURL: pane URL schemes like
-    -- x-apple.systempreferences: use a single colon and openURL rejects any URL
-    -- without '://'.
-    hs.execute("open " .. ("%q"):format(url))
+    -- The launcher binary rather than hs.urlevent.openURL, because a pane URL scheme such as
+    -- x-apple.systempreferences carries a single colon and openURL rejects any URL without a
+    -- full scheme separator. Asked of the door by name rather than run as one, so an absent
+    -- one says so instead of failing as an empty answer.
+    local opener = self._deps and self._deps.path("open")
+    if opener then
+      hs.execute(opener .. " " .. ("%q"):format(url))
+    else
+      -- Said out loud rather than swallowed, because the failure is a key that does nothing at
+      -- all, and a toggle that silently declines is indistinguishable from a binding that never
+      -- arrived. The door answers nil either because the tool is genuinely absent or because
+      -- this plugin was configured without one, and both are worth seeing.
+      log.w("no open tool, so '" .. tostring(url) .. "' cannot be reached")
+    end
   end
 end
 

@@ -168,10 +168,10 @@ changed nothing that was already working.
 ## Where the four tools come from, and why only one is injected
 
 This spoon shells out to `ps`, `kill`, `lsof` and `docker`, and it probes for none of them.
-Each is declared in a `.dependencies` file beside the source that names it, so
-`sources/ports.dependencies` covers `ports.lua` and `metrics.dependencies` covers
-`metrics.lua`. The shared resolver in `Dependencies.spoon` reads every declaration once at
-load and the root hands this spoon a scope through `configure`.
+Each is declared in `needs.tools` in the plugin's manifest, with unit naming the source
+that names it, so unit ports covers `ports.lua` and unit metrics covers `metrics.lua`. The
+shared resolver in `lib/deps.lua` is handed every declaration once at load and the root
+hands this plugin a scope through `configure`.
 
 The four split into two shapes, and the split decides how much moves. `ps`, `kill` and
 `lsof` are the system kind, binaries at fixed absolute paths that cannot move between

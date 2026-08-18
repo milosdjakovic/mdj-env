@@ -320,17 +320,21 @@ function M.insertSelected()
   if chooser then chooser:insertSelected() end
 end
 
---- M.configure(opts) - inject the shared theme, the Chooser factory, and the optional
+--- M:configure(opts) - inject the shared theme, the Chooser factory, and the optional
 --- docked panel callbacks (onPositioned, onActivity, onClose) the root wires to its
 --- deferred shortcut hint panel. The spoon forwards those straight to its chooser without
 --- learning what they drive, so the panel stays the root's concern.
-function M.configure(opts)
+--
+-- Colon here, not dot, because spoon.Caffeinate:configure(opts) is how both the live top
+-- level init.lua and the shared wiring pipeline in lib/wire.lua reach it. self arrives as M
+-- and the body below never names it.
+function M:configure(opts)
   cfg = opts or {}
   return M
 end
 
---- M.start() - wire the engine and build the one native chooser. Called once by the root.
-function M.start()
+--- M:start() - wire the engine and build the one native chooser. Called once by the root.
+function M:start()
   engine.configure({ onChange = onChange })
   engine.start()
   chooser = cfg.chooser.new({

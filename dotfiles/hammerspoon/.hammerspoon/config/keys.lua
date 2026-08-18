@@ -369,17 +369,6 @@ local M = {
     -- out, j and k move the highlight, and x closes it. It binds `enter` rather than the
     -- shared insertSelected for the same reason, so stepping into settings never closes
     -- and re-shows. Plain typing filters the session list while Hyper is released.
-    {
-      name = "tmuxSessions",
-      when = "tmuxSessionsOpen",
-      priority = 100,
-      bindings = {
-        { key = "i", action = "enter",        description = "Select" },
-        { key = "j", action = "selectNext",   description = "Move down" },
-        { key = "k", action = "selectPrev",   description = "Move up" },
-        { key = "x", action = "closeChooser", description = "Close" },
-      },
-    },
     -- The processes picker (launcher-only). A flat list, so i stops the highlighted
     -- server or container the same as Return, j and k navigate vim style, and x closes it.
     -- Three extra actions are its own. f stops with no grace period and no size check,
@@ -465,76 +454,14 @@ local M = {
   sleep = { modifiers = HYPER, key = "escape", description = "Sleep" },
   lock  = { modifiers = HYPER, key = "§",      description = "Lock" },
 
-  -- Screen capture (for Olm's Capture plugin). Provider-agnostic action names; the
-  -- active provider maps them to its own commands, so swapping capture apps never
-  -- touches this list. Screenshots and recording go through macshot (or native as
-  -- fallback); ocrArea goes through the macocr provider (schappim's `ocr` CLI),
-  -- which drags a region, OCRs it, and copies the text to the clipboard. Keys
-  -- mirror the macOS Cmd-Shift-3 / Cmd-Shift-4 / Cmd-Shift-5 muscle memory. The
-  -- HYPER field is the fallback combo used when HyperKey is not wired up, matching
-  -- appToggles. Optional `mods` are sub-modifiers within the Hyper modal, so
-  -- Hyper+4 and Hyper+Shift+4 are distinct, clipboard vs file. The bare Hyper+4
-  -- copies the region to the clipboard, the common case, and Hyper+Shift+4 saves it
-  -- to a file. `description` labels the row on the Hyper cheat sheet, where init.lua
-  -- surfaces these as a CAPTURE section.
-  capture = {
-    { action = "ocrArea",              modifiers = HYPER, key = "3",                     description = "OCR" },
-    { action = "captureAreaClipboard", modifiers = HYPER, key = "4",                     description = "Screenshot (copy)" },
-    { action = "captureArea",          modifiers = HYPER, key = "4", mods = { "shift" }, description = "Screenshot" },
-    { action = "recordArea",           modifiers = HYPER, key = "5",                     description = "Record screen" },
-  },
+  -- Screen capture keys now ship with the Capture plugin itself, in its own manifest,
+  -- because the four this file held were byte for byte the four Olm proposes. Override
+  -- them through Olm's own configuration if they ever need to differ.
 
-  -- Window management bindings (for Olm's WindowManager plugin via its WindowLeader plugin).
-  -- This is an ORDERED list: the sequence here is exactly the cheat-sheet order
-  -- (WindowCheatSheet fills row-major, two columns), so reorder these lines to
-  -- reorder the overlay. `action` names the WindowManager handler and `key` is a
-  -- single press. An optional `mods` list adds required sub-modifiers, so a bare
-  -- arrow and a Shift+arrow are two actions on one key. Each label is the action
-  -- name humanized (nextDisplay -> "Next Display"); add `description = "..."` to
-  -- any entry to override its label. An optional `when = "<predicate>"` gates the
-  -- binding on live state. When the named predicate returns false the key does
-  -- nothing and its cheat-sheet row is hidden. Predicates live in the registry
-  -- wired up in init.lua, so this stays pure data. Unknown names are treated as
-  -- always active so a typo fails visibly rather than silently hiding a binding.
-  --
-  -- There is deliberately NO leader field here. Every binding attaches to
-  -- whichever catalog key `windowLeader` above names, resolved and stamped on in
-  -- init.lua. So a bare arrow resizes, a Shift+arrow moves, and letters and
-  -- symbols cover maximize, presets, grow/shrink, center, and display switch, all
-  -- on that one leader. Changing `windowLeader` moves the whole set to another
-  -- key without touching a single line below. Hold the leader ~0.6s with no other
-  -- key to reveal the cheat sheet.
-  windowManagement = {
-    -- Switch display (first row; hidden on a single display by the predicate)
-    { action = "previousDisplay",      key = ",", when = "multipleDisplays" },
-    { action = "nextDisplay",          key = ".", when = "multipleDisplays" },
-    -- Resize (bare key)
-    { action = "leftHalf",             key = "left" },
-    { action = "rightHalf",            key = "right" },
-    { action = "fullHeight",           key = "up" },
-    { action = "reasonableSize",       key = "down" },
-    { action = "maximize",             key = "return" },
-    { action = "smallSize",            key = "Z" },
-    { action = "increaseSize",         key = "=" },
-    { action = "decreaseSize",         key = "-" },
-    -- Move (WASD) and center
-    { action = "moveLeft",             key = "a" },
-    { action = "moveRight",            key = "d" },
-    { action = "moveUp",               key = "w" },
-    { action = "moveDown",             key = "s" },
-    { action = "center",               key = "C" },
-    -- Hide all except the focused window (kept last so it sits in the last row)
-    { action = "hideAllExceptFocused", key = "H" },
-  },
+  -- Window management bindings now ship with the WindowManager plugin itself, in its own
+  -- manifest, sixteen for sixteen identical to the set this file held. The overlay order is
+  -- still the declaration order, it is just declared there now.
 
-  -- Launcher (for the Chooser atom, wired in init.lua). Hyper+Space opens a filterable
-  -- list of every installed app (open first, then not running) plus the Hyper and
-  -- window-leader actions; apps with a Hyper toggle show their shortcut, and Return runs
-  -- the highlighted row. Same shape as clipboardHistory/vpn: a base HyperKey binding,
-  -- suppressed while a modal context owns Hyper, with the HYPER field as the fallback
-  -- combo. It also has its own hyperContext below, so while open it takes the shared
-  -- j/k/i navigation and Space closes it (the open key doubles as the close, like the
-  -- clipboard's X).
   launcher = { modifiers = HYPER, key = "space", description = "Launcher" },
 
   -- Menu search (for the Chooser atom, wired in init.lua). Hyper+E lists every
@@ -612,8 +539,6 @@ local M = {
   -- being a step into a second list a scope cannot show, the same reason browser tabs
   -- leaves its own settings level out of its scope; Hyper+U still opens the full picker
   -- with Settings when you need to change the terminal.
-  tmuxSessions = { modifiers = HYPER, key = "U", description = "Tmux Manager", glyph = "🗂️",
-    aliases = { "u", "tmux" } },
 
   -- File search (for Olm's FileSearch plugin, wired in init.lua). Hyper+/ searches the filesystem by
   -- name, optionally filtered by type, scoped to a folder, and optionally reaching the files

@@ -138,34 +138,60 @@ end
 
 --- DisplayProfiles:configure(opts)
 --- Method
---- opts.profiles    the curated reference profiles for this machine, from config/displays.lua,
----                  read only from the tool. Defaults to empty.
+--- opts.profiles    the curated reference profiles, KEYED BY HOST, straight out of
+---                  config/displays.lua, read only from the tool. This plugin takes the slice
+---                  belonging to opts.host itself, since an arrangement of monitors is a fact
+---                  about one desk and a person with two machines has two sets. Defaults to
+---                  empty.
 --- opts.settleDelay seconds to coalesce a burst of screen events before applying.
---- opts.host        LocalHostName, the key the captured JSON is stored under. Without it the
----                  store is disabled and the tool shows only the curated profiles.
---- opts.storePath   absolute path to the captured profiles JSON, resolved by the main root
----                  from the live config directory. Without it the store is disabled.
---- opts.binary      the resolved absolute path of the display arrangement tool, injected by
----                  the main root from the shared dependency resolver and passed straight to
----                  the engine. Nothing here probes for it or names how it is installed.
+--- opts.host        LocalHostName, both the key the curated profiles are looked up under and the
+---                  key the captured JSON is stored under. Without it the store is disabled and
+---                  no curated profile can be found either.
+--- opts.storePath   absolute path to the captured profiles JSON, supplied by the root since only
+---                  it knows where a person's own editable data lives. Without it the store is
+---                  disabled.
+--- opts.deps        the scoped tool path adapter, earned by declaring displayplacer. The
+---                  resolved path is asked for HERE rather than arriving ready made, which is
+---                  what declaring a tool actually entitles a plugin to.
 --- Builds the store, merges curated and captured, injects the merged list into the engine,
 --- and hands the chooser its api. The chooser's view deps (theme, factory, panel callbacks)
 --- come separately from the main root, so this is safe to call before or after that.
 function obj:configure(opts)
   opts = opts or {}
-  self._curated = opts.profiles or {}
+
+  -- The person's own file is keyed by host and this takes its own machine's slice, which the
+  -- retired root used to do before injecting. Nothing did it afterwards, so what arrived was the
+  -- whole hostname keyed table, and every walk of it with ipairs found zero entries, so the tool
+  -- came up with no curated profile at all on a machine that has four.
+  --
+  -- Done here rather than back in the root deliberately. That a curated arrangement belongs to
+  -- one desk is this plugin's own domain knowledge, it already receives the host for the store,
+  -- and doing it here means a person's own configuration stays one plain table they can read.
+  local curated = opts.profiles or {}
+  if opts.host and type(curated[opts.host]) == "table" then
+    curated = curated[opts.host]
+  end
+  self._curated = curated
+
   self._settleDelay = opts.settleDelay
-  self._binary = opts.binary
+  -- Asked of the scope adapter rather than read off a field nobody fills.
+  --
+  -- opts.binary was what this read, and no channel anywhere supplies it. Declaring a tool earns
+  -- the ADAPTER, under opts.deps, never a resolved path under a name of the plugin's own choosing,
+  -- so the path was nil however the tool was installed and every arrangement the engine tried to
+  -- apply did nothing. The same mistake was in three plugins at once, each with its own field
+  -- name, which is what makes it a class rather than a typo.
+  self._binary = opts.deps and opts.deps.path("displayplacer") or nil
   if opts.host and opts.storePath then
     self._store = store.new({ path = opts.storePath, host = opts.host })
   end
   engine:configure({
     profiles = self:_merged(),
     settleDelay = opts.settleDelay,
-    binary = opts.binary,
+    binary = self._binary,
     onChange = function() self.chooser.refresh() end,
   })
-  self.chooser.configure({ api = self:_buildApi() })
+  self.chooser:configure({ api = self:_buildApi() })
   return self
 end
 

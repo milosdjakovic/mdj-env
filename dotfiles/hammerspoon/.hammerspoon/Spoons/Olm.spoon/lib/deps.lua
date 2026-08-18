@@ -1,34 +1,32 @@
 --- === Dependencies ===
 ---
 --- The one door to an external tool, and the only thing in this config that probes
---- for one. A spoon declares what it needs in a plain declaration file, this spoon reads
---- every such file, probes them all in one pass, and hands each spoon a small adapter that
---- answers only for what that spoon declared.
+--- for one. It is told what is declared, probes the whole set in one pass, and hands out a
+--- small adapter that answers only for what its consumer declared.
 ---
---- A declaration sits beside whatever actually knows the tool, which is how a provider
---- stays self contained. Two names are recognised anywhere under a spoon. A file called
---- `dependencies` declares needs of the spoon as a whole, so it belongs at the spoon root.
---- A file called `<base>.dependencies` declares needs of its sibling `<base>.lua`, so
---- `providers/mullvad.dependencies` is the mullvad provider's own contract, and adding a
---- second backend is a new provider file plus a new declaration with nothing shared to
---- edit.
+--- It reads no declaration itself. Every plugin declares its tools in its own manifest,
+--- under needs.tools, and the composition root aggregates those manifests into the flat list
+--- passed to configure. This file used to walk the tree for separate declaration files
+--- instead, and for a while it could do both, which meant one tool could be described twice
+--- with nothing watching the two answers agree. One source is the whole point, so the walk is
+--- gone and the manifests are it.
 ---
---- Either way the adapter is scoped to the spoon rather than to the file, because the spoon
---- root is what the composition root injects into and what wires its own providers. So
---- placement decides which file owns a line, and the spoon still decides who may ask for
---- it. The owner label is carried alongside for the console and the manifest, which is what
---- makes a missing tool point at the file responsible instead of at a whole spoon.
+--- The adapter is scoped to a consumer rather than to a file, because the consumer is what
+--- the composition root injects into and what wires its own providers. A declaration may
+--- still name the unit inside a plugin that wanted a tool, and that label is carried
+--- alongside for the console and for the manifest one layer up, which is what makes a missing
+--- tool point at the provider responsible instead of at a whole plugin.
 ---
---- Why the door matters more than the probing. A spoon that reaches for a tool it did
+--- Why the door matters more than the probing. Anything that reaches for a tool it did
 --- not declare gets nothing back and is named in the console, so an undeclared
 --- dependency stops working on the machine of whoever is writing it rather than on the
 --- next machine. That is the whole guarantee, and it is a consequence of the adapter
 --- refusing to answer rather than of anybody remembering to run a checker.
 ---
---- A declaration names a tool and never names how to install one. Homebrew, casks,
---- taps and manual steps are the concern of the layer above this config, which reads
---- the collected manifest and maps each name to a concrete install. So nothing here,
---- and nothing in a spoon, may mention an installer.
+--- A declaration may say where a tool comes from, since a plugin that travels needs to carry
+--- that answer with it, but nothing here reads it and nothing here installs anything. Where
+--- a tool comes from is carried upward by the manifest collector and reconciled one layer up,
+--- which is the only layer that knows what a package manager is.
 ---
 --- Four kinds of dependency exist, because this config already needs all four. A
 --- `path` tool is a binary on the login PATH. A `system` tool is a binary at a fixed
@@ -37,14 +35,6 @@
 --- installed by a clone or a script, so it declares a marker path to test instead.
 --- Only the path kind needs a shell, and every path tool is probed in one shell call,
 --- which is why this costs less than the four hand rolled probes it replaces.
----
---- This is the olm side copy of Dependencies, moved into the core as lib/deps.lua in phase
---- five of the build plan. It is a faithful copy, the colon methods and the adapter shape
---- are unchanged, so assigning it to the Dependencies spoon global is a drop in. The one
---- line that could not be copied as it stood is the walk up to the Spoons directory, since
---- this file sits two levels below that directory where the original sat one, and the
---- comment there records it. The original this was copied from lived at
---- Spoons/Dependencies.spoon.
 
 local obj = {}
 obj.__index = obj
@@ -69,31 +59,13 @@ obj._resolved = nil     -- tool -> absolute path or true, absent when missing
 obj._probed = false
 obj._undeclaredSeen = nil -- consumer .. "/" .. tool already logged, so a loop logs once
 
--- The Spoons directory, resolved from this file's own location, since a spoon
--- directory is not on package.path. Every declaration file under a sibling `<Name>.spoon`
--- is read, so adding one is a new file and no wiring anywhere.
---
--- THE ONE LINE THIS COPY COULD NOT TAKE UNCHANGED. The original sat one level under the
--- Spoons directory, at Dependencies.spoon/init.lua, so it stripped one trailing component.
--- This copy sits two levels under it, at Olm.spoon/lib/deps.lua, so it strips two. The
--- intent is the same, walk up to the directory holding every spoon, and the answer is the
--- same directory. Copying the original pattern here instead would have resolved to
--- Olm.spoon, which holds no spoon at all, and every declaration in this config would have
--- gone unread with nothing saying so.
-local selfPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
-local SPOONS_DIR = selfPath:match("^(.*)/[^/]+/[^/]+/$")
-
 -- A tool name and a locator both reach a shell in the path probe, so they are
--- validated rather than trusted. Anything outside this set is refused at parse time
--- with a visible log line, which fails loudly instead of building a surprising
--- command.
+-- validated rather than trusted. Anything outside this set is refused as the declarations
+-- are taken in, with a visible log line, which fails loudly instead of building a
+-- surprising command.
 local SAFE = "^[%w._+/-]+$"
 
--- core is recognised so a line naming it parses cleanly, but it is never probed. It names
--- a capability the root already resolves at wiring time by injection, so this file has no
--- business asking whether it is present, and configure below keeps every core entry out of
--- the declared and order sets that start, missing, satisfied, and report all read from.
-local KINDS = { path = true, system = true, app = true, manual = true, core = true }
+local KINDS = { path = true, system = true, app = true, manual = true }
 local POLICIES = { optional = true, required = true }
 
 --- Dependencies:init()
@@ -115,137 +87,54 @@ local function expand(p)
   return p
 end
 
--- Parse one declaration line into an entry, or nil plus a reason. The format is five
--- fields separated by a pipe, name, kind, locator, policy, reason. Blank lines and
--- lines opening with a hash are skipped by the caller.
-local function parseLine(line)
-  local fields = {}
-  for field in (line .. "|"):gmatch("([^|]*)|") do
-    fields[#fields + 1] = field:gsub("^%s+", ""):gsub("%s+$", "")
+-- Check one declared entry on the way in, or say what is wrong with it. The manifest layer
+-- checks the same things when it reads a manifest, and this checks them again rather than
+-- trusting that, because a locator reaches a shell from here and this is the file that would
+-- build the surprising command. It is also the door for anything that aggregates its own
+-- declarations, so it cannot assume which reader assembled the list.
+local function faultIn(e)
+  if type(e) ~= "table" then return "is a " .. type(e) .. " rather than a table" end
+  if type(e.name) ~= "string" or e.name == "" then return "has no name" end
+  if not KINDS[e.kind] then return "has unknown kind '" .. tostring(e.kind) .. "'" end
+  if not POLICIES[e.policy] then return "has unknown policy '" .. tostring(e.policy) .. "'" end
+  local locator = e.locator
+  if locator == nil or locator == "" then locator = e.name end
+  if type(locator) ~= "string" or not locator:match(SAFE) then
+    return "has unsafe locator '" .. tostring(locator) .. "'"
   end
-  if #fields < 5 then return nil, "expected five pipe separated fields" end
-  local name, kind, locator, policy, reason = fields[1], fields[2], fields[3], fields[4], fields[5]
-  if name == "" then return nil, "empty tool name" end
-  if not KINDS[kind] then return nil, "unknown kind '" .. kind .. "'" end
-  if not POLICIES[policy] then return nil, "unknown policy '" .. policy .. "'" end
-  if locator == "" then locator = name end
-  if not locator:match(SAFE) then return nil, "unsafe locator '" .. locator .. "'" end
-  return { name = name, kind = kind, locator = locator, policy = policy, reason = reason }
-end
-
--- Read one declaration file. Returns a list of entries, logging and skipping any malformed
--- line rather than refusing the whole file, so one typo costs one tool instead of every tool
--- that file declares. consumer is the spoon the adapter will be scoped to, owner is the file
--- that declared the line, which is what a log or a manifest shows.
-local function readFile(path, consumer, owner)
-  local f = io.open(path, "r")
-  if not f then return {} end
-  local entries = {}
-  local n = 0
-  for line in f:lines() do
-    n = n + 1
-    local trimmed = line:gsub("^%s+", ""):gsub("%s+$", "")
-    if trimmed ~= "" and trimmed:sub(1, 1) ~= "#" then
-      local entry, err = parseLine(trimmed)
-      if entry then
-        entry.consumer = consumer
-        entry.owner = owner
-        entries[#entries + 1] = entry
-      else
-        log.w(string.format("%s declaration line %d ignored, %s", owner, n, err))
-      end
-    end
-  end
-  f:close()
-  return entries
-end
-
--- The suffix that marks a per file declaration, and its length, used to recover the base
--- name the declaration belongs to.
-local SUFFIX = ".dependencies"
-
--- Every declaration file under one spoon, in a stable order. A file named `dependencies`
--- belongs to the spoon as a whole and carries no base, a file named `<base>.dependencies`
--- belongs to its sibling `<base>.lua` and carries that base as its owner label.
---
--- The walk is depth capped. Four levels reaches a plugin root under Olm, a subdirectory of
--- that plugin such as providers, manager, or sources, and one level under that, which is
--- deeper than anything here. The cap sits one level past what the original Dependencies.spoon
--- needs, because a plugin hosted under Olm carries the same internal shape a standalone spoon
--- had, sources beside its own root among them, one level below where that shape used to sit
--- directly under the Spoons directory. Processes is the tool that first exposed this, its
--- sources.dependencies files went unread at the old cap of three, quietly dropping docker,
--- lsof, and kill from every consumer that could have named them. A plugin that needed more
--- than this would be organising itself wrong rather than needing more depth, and an uncapped
--- walk in the resolver that runs before every other spoon is not worth the risk of one stray
--- directory.
-local MAX_DEPTH = 4
-local function declarationFiles(dir, depth, out)
-  local ok, iterFn, dirObj = pcall(hs.fs.dir, dir)
-  if not ok or not iterFn then return out end
-  local names = {}
-  for entry in iterFn, dirObj do
-    if entry ~= "." and entry ~= ".." then names[#names + 1] = entry end
-  end
-  -- Sorted so the manifest and the report come out in a stable order rather than in whatever
-  -- order the filesystem hands back, which keeps a generated manifest from churning in git.
-  table.sort(names)
-  for _, entry in ipairs(names) do
-    local full = dir .. "/" .. entry
-    local mode = hs.fs.attributes(full, "mode")
-    if mode == "file" then
-      if entry == "dependencies" then
-        out[#out + 1] = { path = full }
-      elseif #entry > #SUFFIX and entry:sub(-#SUFFIX) == SUFFIX then
-        out[#out + 1] = { path = full, base = entry:sub(1, #entry - #SUFFIX) }
-      end
-    elseif mode == "directory" and depth < MAX_DEPTH then
-      declarationFiles(full, depth + 1, out)
-    end
-  end
-  return out
+  return nil
 end
 
 --- Dependencies:configure(opts)
 --- Method
---- Read every spoon's declaration. opts.spoonsDir overrides where to look, which only
---- a test would pass. Idempotent, so a reload rebuilds the set from disk.
+--- Learn what is declared. Idempotent, so a reload rebuilds the set.
+---
+--- opts.declared is a flat list of entries already carrying name, kind, locator, policy,
+--- reason, consumer, and optionally the owner label naming the unit that wanted the tool.
+--- That is what a set of plugin manifests aggregates to, and it is the only source. Reading
+--- files here as well was the arrangement where one tool could be described twice with
+--- nothing watching the two answers agree.
+---
+--- A malformed entry is logged and skipped rather than refusing the whole list, so one bad
+--- declaration costs one tool instead of every tool in the set.
 function obj:configure(opts)
   opts = opts or {}
-  local dir = opts.spoonsDir or SPOONS_DIR
   self._declared, self._order = {}, {}
-  if not dir then
-    log.w("could not resolve the Spoons directory, no declarations read")
-    return self
-  end
-  local names = {}
-  local ok, iterFn, dirObj = pcall(hs.fs.dir, dir)
-  if not ok or not iterFn then
-    log.w("could not read the Spoons directory, no declarations read")
-    return self
-  end
-  for entry in iterFn, dirObj do
-    if entry:sub(-6) == ".spoon" then names[#names + 1] = entry end
-  end
-  -- Sorted so the manifest and the report come out in a stable order rather than in
-  -- whatever order the filesystem hands back, which keeps a generated manifest from
-  -- churning in git for no reason.
-  table.sort(names)
-  for _, entry in ipairs(names) do
-    local consumer = entry:sub(1, -7)
-    for _, file in ipairs(declarationFiles(dir .. "/" .. entry, 1, {})) do
-      local owner = file.base and (consumer .. "/" .. file.base) or consumer
-      for _, e in ipairs(readFile(file.path, consumer, owner)) do
-        -- A core entry parsed cleanly above, but it never enters the declared or order
-        -- sets, so it never reaches the probe, the summary count, or a consumer's own
-        -- missing and satisfied. The root hands it out directly at wiring time, and this
-        -- file has no business with it either way.
-        if e.kind ~= "core" then
-          self._declared[consumer] = self._declared[consumer] or {}
-          self._declared[consumer][e.name] = e
-          self._order[#self._order + 1] = e
-        end
-      end
+
+  for _, e in ipairs(opts.declared or {}) do
+    local fault = faultIn(e)
+    if fault then
+      log.w(string.format("declaration for '%s' ignored, it %s",
+        tostring(type(e) == "table" and e.owner or e), fault))
+    else
+      local consumer = e.consumer or "Olm"
+      -- A locator defaults to the name here rather than at every read of it, so the probe and
+      -- the report below can rely on one being present. A path kind tool is usually declared
+      -- without one, since the name IS what a shell looks for.
+      if e.locator == nil or e.locator == "" then e.locator = e.name end
+      self._declared[consumer] = self._declared[consumer] or {}
+      self._declared[consumer][e.name] = e
+      self._order[#self._order + 1] = e
     end
   end
   return self
@@ -253,8 +142,8 @@ end
 
 -- Probe every path kind tool in one shell call. A login shell costs tens of
 -- milliseconds, so it runs once for the whole set rather than once per tool, which is
--- what makes this cheaper than the per spoon probes it replaced. Names were validated
--- at parse time, so they are safe to interpolate.
+-- what makes this cheaper than the per spoon probes it replaced. Names were validated as
+-- configure took them in, so they are safe to interpolate.
 --
 -- The command carries no shell variable and no quote, deliberately. hs.execute with the
 -- user environment wraps the command in double quotes and hands it to another shell

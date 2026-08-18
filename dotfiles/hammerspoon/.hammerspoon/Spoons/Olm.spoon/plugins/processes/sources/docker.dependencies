@@ -1,7 +1,0 @@
-# What docker.lua needs from outside Hammerspoon, declared beside the only file that
-# knows this tool exists. Format is name | kind | locator | policy | reason.
-# See Olm's lib/deps.lua for the kinds and for how these files are found.
-# Optional, because a machine with no docker is an ordinary machine. The source reports
-# itself unavailable, the merge simply gains no container rows, and every other source
-# still lists what it finds.
-docker | path | docker | optional | lists running containers and stops one by name

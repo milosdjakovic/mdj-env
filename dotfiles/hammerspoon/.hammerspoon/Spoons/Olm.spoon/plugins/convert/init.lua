@@ -39,7 +39,7 @@ obj.license = "MIT"
 
 local log = hs.logger.new("Convert", "info")
 
--- The name this tool is declared under in the dependencies file beside this init.lua.
+-- The name this tool is declared under in the plugin's manifest.
 -- The root looks the path up by it, so the declaration and this spoon agree on one
 -- spelling and a rename fails visibly rather than silently.
 obj.tool = "qalc"
@@ -92,21 +92,32 @@ end
 
 --- Convert:configure(opts)
 --- Method
---- opts.path     the resolved absolute path of the calculator tool, injected by the
----               composition root from the shared dependency resolver. This spoon probes
----               for nothing and names no way to install anything.
+--- opts.deps     the dependency scope this plugin earned by declaring a tool at all, asked
+---               here for the calculator's resolved absolute path. This spoon probes for
+---               nothing and names no way to install anything.
+---
+---               It reads the same door every other plugin with a tool reads, and it used
+---               to read a bare opts.path instead. Nothing ever supplied that, because a
+---               bare path was something the retired root handed over by hand and the
+---               entitlement replaced. The plugin wired, registered and answered rows on
+---               every keystroke, and every one of those rows was empty, since the very
+---               first line of rows returns nothing without a path. A plugin reading a
+---               field nobody sends fails exactly this quietly, which is why there is one
+---               door rather than one per plugin.
 --- opts.glyph    the character shown as the row icon, rendered by the presenter.
 --- opts.category the word leading the row subtitle, so the visible wording stays config.
---- opts.onResult called with no arguments when a late answer lands, so the presenter can
+--- opts.redraw   called with no arguments when a late answer lands, so the presenter can
 ---               redraw its list. Omit it and a result simply appears the next time rows
----               are asked for.
+---               are asked for. Named redraw because it is the root's own one word for this,
+---               shared with every plugin that answers later than the keystroke did, and a
+---               root value is delivered by field name so the name has to be the shared one.
 --- opts.debounce seconds of quiet before a run starts, defaulting to a quarter second.
 function obj:configure(opts)
   opts = opts or {}
-  self._path = opts.path
+  self._path = opts.deps and opts.deps.path(self.tool) or nil
   self._glyph = opts.glyph or "📐"
   self._category = opts.category or "Convert"
-  self._onResult = opts.onResult
+  self._onResult = opts.redraw
   self._debounce = opts.debounce or 0.25
   return self
 end

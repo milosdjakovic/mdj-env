@@ -132,23 +132,40 @@ local function glyph(str)
   return img
 end
 
+-- This picker's own icon memo, used whenever nothing was injected.
+--
+-- It exists because the injected one stopped arriving. The retired root held the memo table and
+-- passed a closure over it, nothing replaced that when the root became portable, and every branch
+-- below then took its unmemoized path. So every row asked the system fresh, measured at 6.6ms for
+-- two hundred rows against 0.2ms memoized, on the one path where a list is waiting to appear.
+--
+-- Kept here rather than restored as a root obligation, since a memo with one consumer and no
+-- policy in it is this file's own business, and that is one fewer value a portable install can be
+-- missing. Cleared with the rest of the per open state, because an icon costs little to ask for
+-- again and holding images for files nobody is looking at any more is not worth the memory.
+local iconMemo = {}
+local function memoized(key, produce)
+  local hit = iconMemo[key]
+  if hit ~= nil then return hit or nil end
+  local img = produce() or false
+  iconMemo[key] = img
+  return img or nil
+end
+
 -- The icon for a row. Types are keyed by extension rather than by path, which is what makes
--- the memo effective, since a hundred rows of one kind ask once. Folders share one key.
--- Without an injected memo this still works and simply asks every time, measured at 6.6ms for
--- two hundred rows against 0.2ms memoized, so the fallback is slower and perfectly usable.
+-- the memo effective, since a hundred rows of one kind ask once. Folders share one key. An
+-- injected memo still wins, for a caller wanting one shared across several pickers, and the one
+-- above answers otherwise, so neither the fast path nor the memo depends on anybody outside.
 local function iconFor(row)
-  local memo = cfg.iconFor
+  local memo = cfg.iconFor or memoized
   if row.isDir then
-    if memo then return memo("dir", function() return hs.image.iconForFileType("public.folder") end) end
-    return hs.image.iconForFileType("public.folder")
+    return memo("dir", function() return hs.image.iconForFileType("public.folder") end)
   end
   local ext = row.ext or ""
   if ext ~= "" then
-    if memo then return memo("ext:" .. ext, function() return hs.image.iconForFileType(ext) end) end
-    return hs.image.iconForFileType(ext)
+    return memo("ext:" .. ext, function() return hs.image.iconForFileType(ext) end)
   end
-  if memo then return memo("data", function() return hs.image.iconForFileType("public.data") end) end
-  return hs.image.iconForFileType("public.data")
+  return memo("data", function() return hs.image.iconForFileType("public.data") end)
 end
 
 -- Elided directories for this open, keyed by the path and the room it had. A page of search
@@ -441,21 +458,25 @@ end
 -- Public surface
 --------------------------------------------------------------------------------
 
---- chooser.configure(opts) - see the fields on cfg above. Called by the composition root,
+--- chooser:configure(opts) - see the fields on cfg above. Called by the composition root,
 --- which is the only place that knows the concrete collaborators.
-function M.configure(opts)
+--
+-- Colon here, not dot, because every caller, the plugin root's own configure, the live top
+-- level init.lua, and the shared wiring pipeline in lib/wire.lua, reaches this submodule as
+-- chooser:configure(opts). self arrives as M and the body below never names it.
+function M:configure(opts)
   for k, v in pairs(opts or {}) do cfg[k] = v end
   return M
 end
 
---- chooser.start() - build the picker instance once and reuse it across shows.
+--- chooser:start() - build the picker instance once and reuse it across shows.
 ---
 --- The provider is resolved and configured FIRST, because how much room it wants decides the
 --- shape of the picker and that is fixed when the instance is built. A provider that reports
 --- itself unavailable is passed over with one console line naming why, which is the same
 --- degradation every optional tool here gets, and with none left the picker comes up exactly as
 --- it did before there was any preview rather than half wired.
-function M.start()
+function M:start()
   if picker or not cfg.chooser then return M end
 
   local policy = cfg.preview or {}
@@ -482,13 +503,20 @@ function M.start()
   }
   viewer = NO_VIEWER
   for _, candidate in ipairs(cfg.viewers or {}) do
-    candidate.configure(deps)
-    local ok, why = candidate.available()
-    if ok then
-      viewer = candidate
-      break
+    -- Guarded for the same reason the peek seat below is. An entry that is not a viewer is
+    -- skipped with a line rather than raising here, since raising in this loop takes the whole
+    -- picker down over one bad entry in a chain that has a working fallback behind it.
+    if type(candidate) ~= "table" or type(candidate.configure) ~= "function" then
+      util.log.i("ignoring a preview provider that is not a viewer, " .. tostring(candidate))
+    else
+      candidate.configure(deps)
+      local ok, why = candidate.available()
+      if ok then
+        viewer = candidate
+        break
+      end
+      util.log.i("preview provider " .. tostring(candidate.name) .. " stepped aside, " .. tostring(why))
     end
-    util.log.i("preview provider " .. tostring(candidate.name) .. " stepped aside, " .. tostring(why))
   end
 
   -- The provider a key can ask for, resolved the same way as the docked one just above but on
@@ -496,7 +524,12 @@ function M.start()
   -- an ordered list to fall through. Stepping aside here means the q key drops from the binding
   -- rather than opening nothing, the same degradation every optional provider in this file gets.
   peekViewer = NO_VIEWER
-  if cfg.peekProvider then
+  -- A viewer or nothing. Checked for the one method every viewer has rather than merely for
+  -- being set, because what arrived here once was the WORD naming a viewer rather than the
+  -- viewer, from a manifest default whose name matched this option, and a string passes a plain
+  -- truth test and then raises the moment anything is called on it. This picker refusing to
+  -- open at all was the whole cost of that one name.
+  if type(cfg.peekProvider) == "table" and type(cfg.peekProvider.configure) == "function" then
     cfg.peekProvider.configure(deps)
     local ok, why = cfg.peekProvider.available()
     if ok then
@@ -551,6 +584,9 @@ function M.start()
       -- what fits there. Dropped on the same one path everything else is, and the last frame
       -- goes with it since it describes a picker that is now gone.
       dirFits = {}
+      -- The icon memo goes with them, for the same reason. It is per open state about files a
+      -- person was looking at a moment ago and is not now.
+      iconMemo = {}
       lastChooserFrame = nil
       if cfg.onClose then cfg.onClose() end
     end,
@@ -612,6 +648,17 @@ end
 --- and not a mechanism.
 function M.rowsForQuery(q)
   return supplier(q)
+end
+
+--- chooser.scopeRows(rest) -> the query scope's own rows. Joined rather than started, the
+--- same distinction M.ensureSession's own note explains at length, since a scope is asked for
+--- rows on every keystroke and has no open of its own to hang a fresh start on, so starting one
+--- here would restart it forever. An empty rest is the one moment a session is worth ensuring,
+--- the same moment M.show's own path ensures one, and every other keystroke only ever asks for
+--- rows over whatever session is already running.
+function M.scopeRows(rest)
+  if rest == "" then M.ensureSession() end
+  return M.rowsForQuery(rest)
 end
 
 --- chooser.choose(row) - do to a row what the primary key does, for a surface with no picker.
@@ -786,13 +833,24 @@ end
 function M.copyPathRow(row)
   if not (row and row.path) or row.status or row.help then return end
   noteUse(row)
-  if cfg.copy then cfg.copy(row.path) end
+  -- The injected writer if there is one, and the system pasteboard otherwise.
+  --
+  -- Doing nothing when none was injected is what this did, and nothing was injected, so a key
+  -- advertised in the hint panel as Copy path closed the list and put nothing anywhere. The
+  -- fallback is a plain pasteboard write on purpose, matching what the retired root injected, so
+  -- this reads as an ordinary copy to anything watching the clipboard rather than as one of the
+  -- hidden writes the insertion paths use.
+  if cfg.copy then
+    cfg.copy(row.path)
+  else
+    hs.pasteboard.setContents(row.path)
+  end
   M.hide()
 end
 
---- chooser.copyPath() - put the highlighted path on the clipboard through the injected writer,
---- so this file never learns what a clipboard is. Without one injected it does nothing rather
---- than reaching for the pasteboard directly.
+--- chooser.copyPath() - put the highlighted path on the clipboard through the injected writer
+--- when there is one, so a caller may route it through a clipboard manager, and on the plain
+--- system pasteboard otherwise, which is what an ordinary copy is.
 function M.copyPath()
   M.copyPathRow(selectedRow())
 end

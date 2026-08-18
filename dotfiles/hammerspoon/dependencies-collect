@@ -1,41 +1,57 @@
 #!/bin/bash
 set -euo pipefail
 
-# Collect every spoon's dependency declaration into this module's single upward facing
+# Collect every plugin's dependency declaration into this module's single upward facing
 # manifest. This is the Hammerspoon module's half of the contract with the layer above,
 # which reads only the generated DEPENDENCIES file and never looks inside a spoon, so the
 # top layer stays ignorant of spoons and this module stays free to organise itself.
 #
-# A leaf declaration is five fields, name | kind | locator | policy | reason. The consumer
-# column is not written by hand, it is stamped here from where the declaration sits, so a
-# file cannot mislabel itself and a rename cannot leave a stale owner behind.
+# A plugin declares its tools in its own manifest.lua, under needs.tools, which is also the
+# one source the running config reads. So this script does not parse those declarations
+# itself, it finds the manifests and hands them to a Lua interpreter, which reads them
+# exactly rather than guessing at their shape. Reading Lua needs Lua, and how this module
+# produces its manifest is this module's own business, so the tool is declared like any other
+# and the layer above still reads only the generated file.
 #
-# A declaration sits beside whatever knows the tool, so two names are read anywhere under a
-# spoon, matching what Olm's lib/deps.lua reads at runtime. A file called dependencies
-# declares needs of the whole spoon and is stamped with the spoon name. A file called
-# <base>.dependencies declares needs of its sibling <base>.lua and is stamped Spoon/base, so
-# a missing tool names the provider that wanted it rather than the whole spoon. Keeping the
-# two readers on one rule matters, since a file only one of them found would either be
-# invisible at runtime or missing from the manifest.
+# A declaration beside this script rather than inside a plugin is a need of the module
+# itself, such as the application every plugin runs inside, and is stamped with the module
+# name. It is written by hand in the same pipe separated form, five fields, name, kind,
+# locator, policy, and reason, since one file at a module root does not drift the way a
+# roster of plugins would. It is named dependencies-module, not dependencies, because this
+# filesystem is case insensitive and a file called dependencies here would be the same file
+# as the generated DEPENDENCIES.
 #
-# A declaration beside this script rather than under a spoon is a need of the module itself,
-# such as the application every spoon runs inside, and is stamped with the module name. It is
-# named dependencies-module, not dependencies, because this filesystem is case insensitive and
-# a file called dependencies here would be the same file as the generated DEPENDENCIES. The
-# guard below refuses to read the output as an input for the same reason, since that mistake
-# silently re-stamps every consumer column instead of failing.
-#
-# Nothing here knows how a tool is installed. That mapping lives one layer up, keyed by the
-# name column. Run this after adding or changing a declaration, and the reconciler above
-# runs it too so a stale manifest cannot be committed.
+# Nothing here knows how a tool is installed unless the declaration itself says so, and then
+# this only carries that answer upward. Run it after adding or changing a declaration, and
+# the reconciler above runs it too so a stale manifest cannot be committed.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SPOONS_DIR="$SCRIPT_DIR/.hammerspoon/Spoons"
+SPOON_DIR="$SCRIPT_DIR/.hammerspoon/Spoons/Olm.spoon"
 OUT="$SCRIPT_DIR/DEPENDENCIES"
+READER="$SCRIPT_DIR/dependencies-collect.lua"
 
-if [[ ! -d "$SPOONS_DIR" ]]; then
-    echo "dependencies-collect: no Spoons directory at $SPOONS_DIR" >&2
+if [[ ! -d "$SPOON_DIR" ]]; then
+    echo "dependencies-collect: no Olm.spoon at $SPOON_DIR" >&2
     exit 1
+fi
+if [[ ! -f "$READER" ]]; then
+    echo "dependencies-collect: no reader beside this script at $READER" >&2
+    exit 1
+fi
+# Named and not installed, which is the rule every other declaration in this repository
+# follows. lua is declared in this module's own manifest and the map one layer up says where
+# it comes from, so the answer to this message lives in one place rather than in this text.
+#
+# Exit 2, not 1, and the difference is the whole contract with the reconciler above. Two means
+# this cannot run on THIS machine, which is a machine fact and a warning up there. Anything else
+# nonzero means the declarations themselves are wrong, which is a repository defect and identical
+# everywhere, so it is an error. Without that split a missing tool on one laptop reads as a broken
+# repository, which is exactly the confusion the two severities exist to prevent.
+if ! command -v lua >/dev/null 2>&1; then
+    echo "dependencies-collect: lua is not on PATH, and reading a manifest needs it." >&2
+    echo "  It is declared in this module's DEPENDENCIES, so ./src/check-dependencies.sh" >&2
+    echo "  names where it comes from and setup.sh puts it there." >&2
+    exit 2
 fi
 
 tmp="$(mktemp)"
@@ -43,16 +59,18 @@ trap 'rm -f "$tmp"' EXIT
 
 {
     echo "# What this module needs from outside itself. Generated by dependencies-collect,"
-    echo "# do not edit. Each line is name | kind | locator | policy | consumer | reason."
+    echo "# do not edit. Each line is name | kind | locator | policy | consumer | reason,"
+    echo "# and then origin and origin detail, which are empty for a tool that states no"
+    echo "# origin of its own and is answered by DEPENDENCIES.map instead."
     echo "#"
-    echo "# This file is the whole contract with the layer above. It names tools and never"
-    echo "# names how to install one, because that mapping belongs to the layer that owns"
-    echo "# package management. The consumer column names the file that declared the line,"
-    echo "# so to change one, edit the declaration beside that file and run this again."
+    echo "# This file is the whole contract with the layer above. The consumer column names"
+    echo "# the plugin that declared the line, or the plugin and the unit inside it where the"
+    echo "# declaration says which one wanted the tool, so to change a line, edit needs.tools"
+    echo "# in that plugin's manifest.lua and run this again."
 } >"$tmp"
 
-# The module's own declaration leads, then every spoon's in a stable order, so the output does
-# not churn in git across machines or filesystems.
+# The module's own declaration leads, then every plugin's, so the output does not churn in
+# git across machines or filesystems.
 same_file_as_output() {
     [[ -e "$1" && -e "$OUT" ]] || return 1
     [[ "$(cd "$(dirname "$1")" && pwd -P)/$(basename "$1")" \
@@ -61,81 +79,40 @@ same_file_as_output() {
     [[ "$(stat -f '%i' "$1")" == "$(stat -f '%i' "$OUT")" ]]
 }
 
-declarations=()
-if [[ -f "$SCRIPT_DIR/dependencies-module" ]] && ! same_file_as_output "$SCRIPT_DIR/dependencies-module"; then
-    declarations+=("$SCRIPT_DIR/dependencies-module")
-fi
-while IFS= read -r found_decl; do
-    if same_file_as_output "$found_decl"; then
-        echo "dependencies-collect: refusing to read $found_decl, it is the output file" >&2
+module_decl="$SCRIPT_DIR/dependencies-module"
+if [[ -f "$module_decl" ]]; then
+    if same_file_as_output "$module_decl"; then
+        echo "dependencies-collect: refusing to read $module_decl, it is the output file" >&2
         exit 1
     fi
-    declarations+=("$found_decl")
-done < <(find "$SPOONS_DIR" -type f \( -name dependencies -o -name '*.dependencies' \) | sort)
-
-# Who owns a declaration, derived from where it sits. Under a spoon the first path segment
-# names the spoon, and a <base>.dependencies file adds its base, so the label reads
-# Capture/macshot. The module level declaration is not under the Spoons directory, so the
-# path is unchanged by the strip and the label falls back to the module directory name.
-#
-# Olm is a host, not an owner, so a declaration under its plugins, host, or lib directory
-# is stripped of that leading segment before the first segment is read. That first segment
-# is then the plugin directory itself, so a declaration under plugins/vpn names vpn rather
-# than Olm, and a declaration under plugins/filesearch names filesearch the same way.
-#
-# A declaration can also sit flat, directly under plugins, host, or lib with no plugin
-# directory beneath it. The strip above then leaves nothing before a slash, so there is no
-# second segment to read, and the label falls back to the base alone, a flat
-# recency.dependencies there reads recency rather than swallowing the whole filename.
-owner_of() {
-    local decl="$1" rel spoon base stripped=0
-    rel="${decl#"$SPOONS_DIR"/}"
-    if [[ "$rel" == "$decl" ]]; then
-        basename "$(dirname "$decl")"
-        return
-    fi
-    case "$rel" in
-        Olm.spoon/plugins/*) rel="${rel#Olm.spoon/plugins/}"; stripped=1 ;;
-        Olm.spoon/host/*) rel="${rel#Olm.spoon/host/}"; stripped=1 ;;
-        Olm.spoon/lib/*) rel="${rel#Olm.spoon/lib/}"; stripped=1 ;;
-    esac
-    base="$(basename "$decl")"
-    if [[ "$stripped" == 1 && "$rel" != */* ]]; then
-        if [[ "$base" == "dependencies" ]]; then
-            echo "dependencies"
-        else
-            echo "${base%.dependencies}"
-        fi
-        return
-    fi
-    spoon="${rel%%/*}"
-    spoon="${spoon%.spoon}"
-    if [[ "$base" == "dependencies" ]]; then
-        echo "$spoon"
-    else
-        echo "$spoon/${base%.dependencies}"
-    fi
-}
-
-found=0
-for decl in "${declarations[@]}"; do
-    consumer="$(owner_of "$decl")"
+    consumer="$(basename "$SCRIPT_DIR")"
+    trim() { local s="$1"; s="${s#"${s%%[![:space:]]*}"}"; echo "${s%"${s##*[![:space:]]}"}"; }
     while IFS= read -r line; do
         # Skip blanks and comments, the leaf file documents itself for whoever edits it.
         trimmed="${line#"${line%%[![:space:]]*}"}"
         [[ -z "$trimmed" || "${trimmed:0:1}" == "#" ]] && continue
-        # Split on the pipe, trim each field, and re-emit with the consumer inserted before
-        # the reason so the column order matches the documented format.
         IFS='|' read -r name kind locator policy reason <<<"$trimmed"
-        trim() { local s="$1"; s="${s#"${s%%[![:space:]]*}"}"; echo "${s%"${s##*[![:space:]]}"}"; }
+        # Six fields out of five, with the consumer stamped in. Nothing at this level states
+        # its own origin, so the line stops at the reason the same way a generated one does.
         printf '%s | %s | %s | %s | %s | %s\n' \
             "$(trim "$name")" "$(trim "$kind")" "$(trim "$locator")" \
             "$(trim "$policy")" "$consumer" "$(trim "${reason:-}")"
-        found=$((found + 1))
-    done <"$decl"
-done >>"$tmp"
+    done <"$module_decl" >>"$tmp"
+fi
+
+# Sorted so the output is stable whatever order the filesystem hands the manifests back in.
+manifests=()
+while IFS= read -r found; do
+    manifests+=("$found")
+done < <(find "$SPOON_DIR/plugins" "$SPOON_DIR/host" "$SPOON_DIR/root" \
+    -type f -name manifest.lua 2>/dev/null | sort)
+
+if [[ ${#manifests[@]} -gt 0 ]]; then
+    lua "$READER" "${manifests[@]}" >>"$tmp"
+fi
 
 mv "$tmp" "$OUT"
 trap - EXIT
 
-echo "dependencies-collect: wrote $found declaration(s) to ${OUT#"$(dirname "$SCRIPT_DIR")"/}"
+count="$(grep -cvE '^[[:space:]]*(#|$)' "$OUT" || true)"
+echo "dependencies-collect: wrote $count declaration(s) to ${OUT#"$(dirname "$SCRIPT_DIR")"/}"

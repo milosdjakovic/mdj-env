@@ -36,9 +36,9 @@ local util = loadfile(viewerPath .. "../util.lua")()
 local M = {}
 
 --- The Swift compiler, at the fixed absolute path a system binary lives at. Declared in
---- quicklook.dependencies as the system kind, which is what allows the literal here, the same
---- as /bin/ls in sources/walk.lua and /usr/bin/open in chooser.lua. Nothing is injected because
---- nothing can move it.
+--- the plugin's manifest as the system kind, with unit naming quicklook, which is what
+--- allows the literal here, the same as /bin/ls in sources/walk.lua and /usr/bin/open in
+--- chooser.lua. Nothing is injected because nothing can move it.
 local SWIFTC = "/usr/bin/swiftc"
 
 --- The helper, its source beside this file and its binary in a cache under HOME. Outside the
