@@ -665,6 +665,25 @@ function obj.run(olm, cfg)
     log.e("Olm compose, plan problem, " .. tostring(p.kind) .. " at " .. tostring(p.where) .. ", " .. tostring(p.why))
   end
 
+  -- Degradation, said out loud. Every optional tool and optional value that did not arrive is
+  -- already collected into plan.degraded, and nothing read it. lib/plugins.lua carries a report
+  -- that would have printed it and has no callers, and test/spec.lua says of the same list that
+  -- nothing asserts on it, so a plugin quietly losing part of itself was the one planning outcome
+  -- this layer worked out and then dropped. A blocked plugin is loud and a degraded one was
+  -- silent, which is backwards, because the degraded one still comes up and still looks fine.
+  --
+  -- Read off the final plan rather than the first pass on purpose. The first runs before the root
+  -- has handed over its own values, so every root sourced optional need looks absent there, and
+  -- reporting that pass would announce a dozen losses on a perfectly healthy config. The required
+  -- branch of resolve's own data check already makes this distinction, recording a root sourced
+  -- absence as an obligation rather than a failure, and this is the same fact read at the point
+  -- where it has stopped being true.
+  for name, losses in pairs(plan.degraded or {}) do
+    for _, loss in ipairs(losses) do
+      log.w("plugin '" .. name .. "' loaded degraded, " .. loss)
+    end
+  end
+
   ------------------------------------------------------------------------------
   -- STEP G. Leaders, continued. The app and window keycodes above are reused
   -- here for the two engines rather than resolved a second time.

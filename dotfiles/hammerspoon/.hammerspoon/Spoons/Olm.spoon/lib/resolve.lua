@@ -215,10 +215,27 @@ function obj.new(deps)
             end
           end
         end
+        -- The same exemption the required branch above makes, and for the same reason. A field
+        -- Olm owes itself is not absent, it is not due yet, because the root discharges these at
+        -- wiring time and the plan is drawn up before that. Without this the optional branch
+        -- called six root sourced needs losses on a completely healthy config, four of them the
+        -- launcher's, one of which announced that choosing almost any row does nothing at all
+        -- while the launcher was demonstrably opening and dispatching. A report that cries wolf
+        -- on every load is worse than no report, since the next real loss scrolls past with it.
+        --
+        -- Recorded as an obligation rather than dropped, so a root that genuinely never hands one
+        -- over still leaves a line a person can read, which is the same bargain the required
+        -- branch already strikes.
         for field, breaks in pairs(buckets.optional or {}) do
           if absent(name, field) then
-            out.degraded[name] = out.degraded[name] or {}
-            table.insert(out.degraded[name], breaks or (field .. " was not supplied"))
+            local source = ((live[name].needs or {}).data or {})[field]
+            source = source and source.source
+            if source == "root" then
+              out.obligations[#out.obligations + 1] = name .. "." .. field
+            else
+              out.degraded[name] = out.degraded[name] or {}
+              table.insert(out.degraded[name], breaks or (field .. " was not supplied"))
+            end
           end
         end
       end
