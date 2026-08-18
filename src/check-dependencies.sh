@@ -59,23 +59,46 @@ field() { echo "$1" | cut -d'|' -f"$2"; }
 # Regenerate every module manifest, so a stale one cannot pass unnoticed
 #-------------------------------------------------------------------------------
 
+# A collector says which of two things went wrong by its exit status, and this layer needs the
+# distinction rather than one undifferentiated failure. Status 2 means it cannot run on THIS
+# machine, a tool of its own is absent, which is a machine fact and so a warning here. Any other
+# nonzero status means the declarations it read are wrong, which is a repository defect and
+# identical on every machine, so an error.
+#
+# Its own diagnostics are shown rather than discarded. They used to go to /dev/null, which was
+# nearly harmless while a collector could only fail by being unreadable, and became a real loss
+# once one of them started reporting which plugin and which field is wrong. A failure that names
+# nothing is a failure somebody has to reproduce by hand.
+CANNOT_RUN_HERE=2
+
 say "==> Refreshing module manifests"
 stale=0
+unchecked=0
 while IFS= read -r collector; do
     module_dir="$(dirname "$collector")"
     module="$(basename "$module_dir")"
     manifest="$module_dir/DEPENDENCIES"
     before="$(mktemp)"
+    complaint="$(mktemp)"
     [[ -f "$manifest" ]] && cp "$manifest" "$before"
-    if ! "$collector" >/dev/null 2>&1; then
+    "$collector" >/dev/null 2>"$complaint"
+    status=$?
+    if [[ $status -eq $CANNOT_RUN_HERE ]]; then
+        warn "$module, its manifest could not be regenerated on this machine, so a stale one would not be caught here"
+        while IFS= read -r line; do say "         $line"; done <"$complaint"
+        unchecked=$((unchecked + 1))
+    elif [[ $status -ne 0 ]]; then
         err "$module, its dependencies-collect failed to run"
+        while IFS= read -r line; do say "         $line"; done <"$complaint"
     elif [[ -s "$before" ]] && ! cmp -s "$before" "$manifest"; then
         err "$module, its DEPENDENCIES was stale and has been regenerated, review and commit it"
         stale=$((stale + 1))
     fi
-    rm -f "$before"
+    rm -f "$before" "$complaint"
 done < <(find "$DOTFILES" -maxdepth 2 -name dependencies-collect -type f | sort)
-[[ $stale -eq 0 ]] && say "  all module manifests current"
+# Only claimed when every module was actually regenerated. A module that could not be checked has
+# no business being counted as current, which is the difference between a check and a reassurance.
+[[ $stale -eq 0 && $unchecked -eq 0 ]] && say "  all module manifests current"
 
 #-------------------------------------------------------------------------------
 # Read every module manifest into one declared set
@@ -138,6 +161,82 @@ for name in "${declared_names[@]}"; do
     fi
 done
 [[ $missing_map -eq 0 ]] && say "  every declared tool is mapped"
+
+#-------------------------------------------------------------------------------
+# Check two, a mapped tool nothing declares any more
+#-------------------------------------------------------------------------------
+
+#-------------------------------------------------------------------------------
+# Check one and a half, a declaration that states its own origin and disagrees
+#-------------------------------------------------------------------------------
+
+# A declaration may state where its tool comes from, in the two trailing columns of a module
+# manifest, because a plugin that travels to another machine has to carry that answer with it
+# and cannot rely on this repository's map existing at all. So the same answer is written in
+# two places on purpose, and the only thing that makes that safe is proving they agree.
+#
+# The origin kind is compared always. The detail is compared only for the three package manager
+# origins, where it names a formula, a cask, or a tap and a difference is a real defect. For the
+# rest it is a sentence a person wrote for a person, so macOS and the system are the same answer
+# said twice and comparing them would report a defect that is not one.
+say ""
+say "==> Declared origins against the map"
+stated_names=()
+stated_origins=()
+stated_where=()
+for line in "${declared_lines[@]}"; do
+    stated_origin="$(field "$line" 8)"
+    [[ -z "$stated_origin" ]] && continue
+    stated_names+=("$(field "$line" 2)")
+    stated_origins+=("$stated_origin|$(field "$line" 9)")
+    stated_where+=("$(field "$line" 1)/$(field "$line" 6)")
+done
+
+origin_conflicts=0
+i=0
+while [[ $i -lt ${#stated_names[@]} ]]; do
+    name="${stated_names[$i]}"
+    origin="${stated_origins[$i]%%|*}"
+    detail="${stated_origins[$i]#*|}"
+    where="${stated_where[$i]}"
+    map_record="$(records "$MAP" | awk -F'|' -v n="$name" '$1 == n { print; exit }')"
+    if [[ -n "$map_record" ]]; then
+        map_origin="$(field "$map_record" 2)"
+        map_value="$(field "$map_record" 3)"
+        if [[ "$origin" != "$map_origin" ]]; then
+            err "$where states $name comes from $origin but DEPENDENCIES.map says $map_origin, and one of the two is wrong"
+            origin_conflicts=$((origin_conflicts + 1))
+        elif [[ "$origin" == "brew" || "$origin" == "cask" || "$origin" == "tap" ]] \
+            && [[ "$detail" != "$map_value" ]]; then
+            err "$where states $name is $origin $detail but DEPENDENCIES.map says $map_value"
+            origin_conflicts=$((origin_conflicts + 1))
+        fi
+    fi
+    # And against every other declaration of the same tool, since two plugins needing one tool
+    # each state its origin and nothing else would notice them drifting apart.
+    j=$((i + 1))
+    while [[ $j -lt ${#stated_names[@]} ]]; do
+        if [[ "${stated_names[$j]}" == "$name" ]]; then
+            other_origin="${stated_origins[$j]%%|*}"
+            other_detail="${stated_origins[$j]#*|}"
+            if [[ "$other_origin" != "$origin" ]]; then
+                err "${stated_where[$j]} states $name comes from $other_origin but $where says $origin"
+                origin_conflicts=$((origin_conflicts + 1))
+            elif [[ "$origin" == "brew" || "$origin" == "cask" || "$origin" == "tap" ]] \
+                && [[ "$other_detail" != "$detail" ]]; then
+                err "${stated_where[$j]} states $name is $origin $other_detail but $where says $detail"
+                origin_conflicts=$((origin_conflicts + 1))
+            fi
+        fi
+        j=$((j + 1))
+    done
+    i=$((i + 1))
+done
+if [[ ${#stated_names[@]} -eq 0 ]]; then
+    say "  no declaration states an origin of its own"
+elif [[ $origin_conflicts -eq 0 ]]; then
+    say "  every stated origin agrees with the map and with every other statement of it"
+fi
 
 #-------------------------------------------------------------------------------
 # Check two, a mapped tool nothing declares any more
@@ -216,6 +315,7 @@ fi
 say ""
 say "==> Declared doors respected"
 bypass=0
+reached=0
 
 # A module's resolver is the one place allowed to probe, and it says so by carrying the
 # dependency-resolver-door marker. Skipping marked files is what keeps this check module
@@ -247,6 +347,64 @@ while IFS= read -r hit; do
     bypass=$((bypass + 1))
 done < <(grep -rnE 'hs\.execute\("command -v' "$DOTFILES" --include='*.lua' 2>/dev/null)
 
+# Every tool a module actually runs, against what it declares. This is the check the two above
+# were reaching for and kept missing, because a line that runs a tool looks like ordinary code
+# and names no prefix and no installer. It found nine sites the first time it ran, three of them
+# tools nothing in this repository had ever declared, which means the layer that guarantees a
+# tool is present had never heard of them.
+#
+# The command word is taken from the call and reduced to a tool name, so this knows no module
+# and no tool and asks two questions in order of how much they matter.
+#
+# An UNDECLARED tool is an error. Nothing above can guarantee it, nothing says what breaks
+# without it, and it is invisible to the map and the Brewfile, which is the whole failure this
+# layer exists to prevent.
+#
+# A declared tool reached at its own fixed path rather than through the door is a warning. It is
+# a real discipline break, and worth naming, but a path under /usr/bin is the same on every
+# machine, so unlike a Homebrew prefix it costs correctness nowhere. It costs the console line an
+# absent tool would otherwise produce.
+#
+# A declared tool of kind path invoked as a bare word is an error again, because that resolves
+# against whatever PATH the process happens to carry, and Hammerspoon's own carries none of the
+# places a package manager installs into.
+#
+# What this cannot see, stated rather than left for somebody to discover. A call whose first
+# argument is a variable is invisible, and that is the correct shape anyway, since a resolved path
+# arrives in one. A call split across lines is invisible, because grep works a line at a time. And
+# where two calls share one line only the last is read, since the pattern is greedy. The first two
+# are acceptable, the third is a genuine hole and the reason it stays is that no line in this tree
+# has two calls on it today. If one appears, this check goes quiet about the first of them.
+while IFS= read -r hit; do
+    [[ -z "$hit" ]] && continue
+    path="${hit%%:*}"
+    is_door "$path" && continue
+    content="${hit#*:}"; content="${content#*:}"
+    # A commented out call is not an invocation. Without this, an example in a comment is reported
+    # as a defect, and a check that cries wolf gets ignored on the day it is right.
+    [[ "$(printf '%s' "$content" | sed -E 's/^[[:space:]]+//')" == --* ]] && continue
+    invoked="$(printf '%s' "$hit" | sed -E 's/.*(hs\.execute|hs\.task\.new)\("([^" ]+).*/\2/')"
+    [[ -z "$invoked" || "$invoked" == "$hit" ]] && continue
+    tool="${invoked##*/}"
+    kind=""
+    for line in "${declared_lines[@]}"; do
+        if [[ "$(field "$line" 2)" == "$tool" ]]; then kind="$(field "$line" 3)"; break; fi
+    done
+    if [[ -z "$kind" ]]; then
+        err "${path#"$ROOT"/} runs $tool, which no module declares, so nothing above knows it is needed"
+        bypass=$((bypass + 1))
+    elif [[ "$invoked" == /* ]]; then
+        warn "${path#"$ROOT"/} runs $tool at its fixed path rather than asking the door for it"
+        reached=$((reached + 1))
+    elif [[ "$kind" == "path" ]]; then
+        err "${path#"$ROOT"/} runs $tool as a bare word, which resolves against a PATH that holds no package manager prefix"
+        bypass=$((bypass + 1))
+    else
+        warn "${path#"$ROOT"/} runs $tool by name rather than asking the door for it"
+        reached=$((reached + 1))
+    fi
+done < <(grep -rnE '(hs\.execute|hs\.task\.new)\("[^"]' "$DOTFILES" --include='*.lua' 2>/dev/null)
+
 # A module naming an install command is the leak this whole split exists to prevent, and it is
 # worse than a hardcoded path because it also duplicates an answer this layer already holds
 # exactly once, so the two drift apart in silence. Two real ones hid here for a long time, a
@@ -271,86 +429,37 @@ while IFS= read -r hit; do
     err "${path#"$ROOT"/} names an install command, only DEPENDENCIES.map and the Brewfile may"
     bypass=$((bypass + 1))
 done < <(grep -rnE "$INSTALL_VERB" "$DOTFILES" 2>/dev/null)
-[[ $bypass -eq 0 ]] && say "  no code reaches around a declared door"
+[[ $bypass -eq 0 && $reached -eq 0 ]] && say "  no code reaches around a declared door"
+[[ $bypass -eq 0 && $reached -gt 0 ]] && say "  every tool that is run is declared, and $reached of those runs reach around the door"
 
 #-------------------------------------------------------------------------------
-# The one seam allowed to name Olm.spoon. A core capability decides injection rather than
-# installation, so its presence is proven by the lib file actually being there rather than
-# by asking a package manager, and the plugin boundary the next check polices is that same
-# folder. Named once here and reused below, so the rest of this script stays free of a
-# hardcoded module path.
+# Check five, a plugin reaching for the spoon that hosts it
 #-------------------------------------------------------------------------------
 
+# The one seam allowed to name Olm.spoon, since the boundary this check polices is that folder.
+# Named once here so the rest of this script stays free of a hardcoded module path.
+#
+# There used to be a core kind of dependency, and two checks here that reconciled it, a plugin
+# declaring a capability from its host spoon's own lib so the composition root would hand it
+# over. That kind is retired. It policed plugins reaching into lib back when they were separate
+# spoons that could not legitimately see each other, and everything is one bundled spoon now
+# where a lib module arrives by injection through a plugin's own configure. So a capability is
+# internal structure rather than a dependency, and the map above no longer answers for one.
+#
+# What survives is the boundary itself, which is the half that was never about installation. No
+# file under the plugins folder may reference spoon.Olm at all. A plugin takes what it needs
+# through its own configure and never reaches around that door, whatever the name involved.
 OLM_SPOON="$DOTFILES/hammerspoon/.hammerspoon/Spoons/Olm.spoon"
 
-#-------------------------------------------------------------------------------
-# Check five, a core capability declared against one actually used
-#-------------------------------------------------------------------------------
-
 say ""
-say "==> Core capabilities declared against used"
-
-core_declared=()
-for line in "${declared_lines[@]}"; do
-    [[ "$(field "$line" 3)" == "core" ]] || continue
-    name="$(field "$line" 2)"
-    has "$name" ${core_declared[@]+"${core_declared[@]}"} || core_declared+=("$name")
-done
-
-# A capability the root configures on itself rather than handing to another file, matched by
-# a call straight off the lib such as spoon.Olm.lib.storage.configure(...), is not a hand out
-# and is set aside here, the same way the design leaves storage undeclared until some plugin
-# actually takes it rather than the root keeping it for itself.
-self_configured=()
-while IFS= read -r hit; do
-    [[ -z "$hit" ]] && continue
-    self_configured+=("${hit%.configure(}")
-done < <(grep -rnoE 'spoon\.Olm\.lib\.[A-Za-z_][A-Za-z0-9_]*\.configure\(' "$DOTFILES" 2>/dev/null)
-
-# Direction one. Every remaining spoon.Olm.lib. reference under dotfiles, root init included,
-# must name a capability some manifest line declares with kind core, so a capability handed
-# out with no line naming it is an error. This reconciles at the name level rather than the
-# consumer level, since an original spoon such as Emoji or TextCase reads the same capability
-# the root already received for the clipboard manager and will never carry a declaration of
-# its own, and the name level is what lets the manager's one line cover every one of those
-# reads while still catching a capability nobody declared anywhere.
-core_used=()
-core_bad=0
-while IFS= read -r hit; do
-    [[ -z "$hit" ]] && continue
-    has "$hit" ${self_configured[@]+"${self_configured[@]}"} && continue
-    path="${hit%%:*}"
-    rest="${hit#*:}"
-    lineno="${rest%%:*}"
-    name="${hit##*lib.}"
-    has "$name" ${core_used[@]+"${core_used[@]}"} || core_used+=("$name")
-    has "$name" ${core_declared[@]+"${core_declared[@]}"} && continue
-    err "${path#"$ROOT"/} line $lineno hands out the core capability $name with no manifest line declaring it, add one beside the file that needed it first"
-    core_bad=$((core_bad + 1))
-done < <(grep -rnoE 'spoon\.Olm\.lib\.[A-Za-z_][A-Za-z0-9_]*' "$DOTFILES" 2>/dev/null)
-[[ $core_bad -eq 0 ]] && say "  every spoon.Olm.lib reference names a declared core capability"
-
-# Direction two. Every declared core capability must be referenced somewhere, an unused
-# declaration is a warning in the spirit of the mapped tool nothing declares above, a
-# question worth answering rather than a defect.
-core_unused=0
-for name in ${core_declared[@]+"${core_declared[@]}"}; do
-    has "$name" ${core_used[@]+"${core_used[@]}"} && continue
-    warn "$name is declared as a core capability and nothing under dotfiles asks spoon.Olm.lib for it"
-    core_unused=$((core_unused + 1))
-done
-[[ $core_unused -eq 0 ]] && say "  every declared core capability is used somewhere"
-
-# Direction three. No file under Spoons/Olm.spoon/plugins/ may reference spoon.Olm at all, a
-# plugin takes its core slice through its own configure and never reaches around that door,
-# an offense here is an error regardless of the name involved.
+say "==> The plugin boundary"
 door_leak=0
 while IFS= read -r hit; do
     [[ -z "$hit" ]] && continue
     path="${hit%%:*}"
     rest="${hit#*:}"
     lineno="${rest%%:*}"
-    err "${path#"$ROOT"/} line $lineno reaches for spoon.Olm directly, a plugin takes its core slice through its own configure and never opens that door itself"
+    err "${path#"$ROOT"/} line $lineno reaches for spoon.Olm directly, a plugin takes what it needs through its own configure and never opens that door itself"
     door_leak=$((door_leak + 1))
 done < <(grep -rnE 'spoon\.Olm\b' "$OLM_SPOON/plugins" 2>/dev/null)
 [[ $door_leak -eq 0 ]] && say "  no plugin file reaches for spoon.Olm on its own"
@@ -382,13 +491,6 @@ for line in "${declared_lines[@]}"; do
         package)
             detail="$(map_detail "$name")"
             if [[ -z "$detail" ]]; then ok=0; else brew list "$detail" >/dev/null 2>&1 || ok=0; fi
-            ;;
-        # A core capability decides injection rather than installation, so nothing here is
-        # installed for it. Presence is proven by the lib file the map names actually being
-        # under the module's own Olm, using the one seam above allowed to name that spoon.
-        core)
-            detail="$(map_detail "$name")"
-            if [[ -z "$detail" ]]; then ok=0; else [[ -f "$OLM_SPOON/$detail" ]] || ok=0; fi
             ;;
         *)      err "$name in $module declares unknown kind '$kind'" ;;
     esac

@@ -1,8 +1,8 @@
 -- DockAutoHide, what it declares about itself.
 --
 -- A thin front end onto three macOS binaries with no partial service to offer if
--- any is gone, so all three are required rather than optional, matching the plugin's
--- own dependencies file exactly. It carries no surface, unlike most of this set,
+-- any is gone, so all three are required rather than optional, matching the needs
+-- table below exactly. It carries no surface, unlike most of this set,
 -- since it is a two row page hosted inside the launcher rather than a native chooser
 -- with its own hyperContext.
 return {

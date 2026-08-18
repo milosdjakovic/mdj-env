@@ -85,25 +85,83 @@ name = "colorPicker",   -- the directory is eyedropper
 Omit it only when the identity is exactly the directory name. Seven of the twelve
 surfaced tools differ, so omitting it is the exception rather than the rule.
 
+This is also the identity a person's own configuration has to use. `cfg.data` is keyed by
+plugin, and `cfg.globals` says which spoon global a plugin should be mirrored onto, and
+both are keyed by the identity a plugin declares for itself here, never by the directory
+it happens to live in. Eight plugins in this tree spell the two differently, browsertabs
+the directory and browserTabs the declared identity among them, so a person's own file
+that copies the directory into either key lands data or a global under a name no plugin
+answers to. Olm names the mismatch out loud at compose time rather than merging it into
+nothing, but the fix is still to write the identity a plugin claims for itself, never the
+folder it was found in.
+
 ### needs.tools
 
-An external binary or bundle. Presence is proven by `kind`, `path` for a command on
-PATH, `system` for a fixed absolute path, `app` for a macOS bundle id, `manual` for a
-marker path.
+An external binary or bundle, and now the only place a tool is ever declared. A second
+system used to exist beside this one, a plain file placed next to the code that wanted a
+tool, and the running config read both. That system is gone, every such file has been
+deleted, and nothing in this config reads one any more. A tool a plugin needs lives in
+this field or it is not declared at all. The reason is not tidiness. The same tool named
+in two places drifts, one answer changes and the other does not, and nothing anywhere
+watches the two agree with each other, so one source is the only version of this that can
+be trusted a year from now.
+
+Presence is proven by `kind`, `path` for a command on PATH, `system` for a fixed absolute
+path, `app` for a macOS bundle id, `manual` for a marker path.
 
 `policy = "required"` means the plugin is not wired at all when the tool is absent,
 because a dead surface is worse than no surface. `policy = "optional"` means the plugin
 loads degraded and Olm says on the console what was lost.
 
-`origin` says how to get it, and it lives here rather than in a map at Olm's root. The
-rule that matters is not that a plugin must not know Homebrew exists, it is that
-install instructions must not be duplicated where they drift.
+`unit` names the file inside the plugin that actually wanted the tool, written as
+`unit = "engine"` or `unit = "sources/hidden"`, and it is optional, since most plugins are
+small enough that naming the plugin alone already says where to look. Where it is given,
+two readers use it. Olm stamps a missing tool's owner label from it, so a console line
+about an absent tool names the file responsible rather than the whole plugin, and the
+collector that builds this module's upward facing dependency manifest stamps the same
+label into that file's consumer column. This precision used to come for free from where a
+separate declaration file happened to sit beside the code that needed it. Now that a
+plugin declares everything in one manifest, a field is what carries the same precision
+instead.
+
+`stage` says when the tool is needed, `"runtime"` by default, or `"dev"`, or `"test"`. A
+dev tool regenerates a dataset a plugin ships, and a test tool drives an integration
+harness, and the running configuration never touches either kind while it is open and in
+use. Declaring them anyway, under the stage that names what they are actually for, is what
+keeps a tool only tooling uses from being the one category nothing checks.
+
+One thing reads the field today. `lib/services.lua` grants the scoped `deps` adapter only to
+a plugin with at least one runtime stage tool, so a plugin whose tools are all dev or test
+never receives a door it would have no runtime use for. Nothing else reads it. The layer
+above deliberately does not, since a dev tool still has to be installed on a machine somebody
+develops on, so the generated manifest carries every stage and the map answers for all of
+them. `lib/plugins.lua` has an `installList` that would be the natural second reader, and it
+has no callers, so a stage does not yet keep any install list honest and this document should
+not claim otherwise until it does.
+
+`origin` says where to get the tool, and it lives here rather than only in a map at Olm's
+own root, because a plugin that travels to another machine has to carry that answer with
+it. Its keys are `brew`, `cask`, `tap`, `xcode-clt`, `macos`, and `manual`, and an entry
+carries exactly one of them. The detail is a formula, cask, or tap name for the first
+three, and a plain sentence for the other two. `xcode-clt` needs the bracket form because
+of the hyphen in the key, so it is written
+`origin = { ["xcode-clt"] = "xcode-select --install" }`.
+
+The repository also keeps a complete map of these same answers at its own root,
+`DEPENDENCIES.map`, so the same fact exists twice on purpose. What makes that safe rather
+than a second place for the answer to drift is that a reconciler one layer up reads both
+and refuses to let them disagree, on the origin itself and, for the three package manager
+origins, on the detail too. The duplication is not an oversight this contract missed. It
+is the thing that makes carrying the answer inside a portable manifest safe to do at all.
 
 ```lua
 tools = {
-  { name = "qalc", kind = "path", policy = "required",
+  { name = "qalc", kind = "path", policy = "required", unit = "engine",
     reason = "the calculator that answers a unit conversion",
     origin = { brew = "libqalculate" } },
+  { name = "jq", kind = "path", policy = "optional", stage = "test", unit = "test/harness",
+    reason = "reads what the integration harness gets back from a run",
+    origin = { brew = "jq" } },
 },
 ```
 
@@ -243,6 +301,51 @@ a policy meaning total failure is a contradiction, and the policy was the half t
 wrong. Required there would have taken Safari's tabs down over an application that may not
 even be installed.
 
+### The root fan out
+
+A `needs.data` entry with `source = "root"` says a value exists and that the composition
+root is the one that knows it, and delivering that half of the contract works differently
+from every other field in this document. A root sourced value is not addressed by plugin
+at all. It is addressed by FIELD NAME, through `services.fanOut`, so a plugin earns a copy
+by declaring a need under the same word the root publishes it under, and which plugin is
+doing the asking makes no difference whatsoever.
+
+The composition root builds one table of these values, keyed by field name, and today it
+publishes the following words. `activeNames`, which leader names are actually live on this
+keyboard, KeyRemap's own contract. `mapping` and `windowManagement`, the identical stamped
+window binding table handed to WindowManager and WindowCheatSheet under the two different
+names their own configure calls happen to read, so a row that names a key and the dispatch
+that acts on it can never be allowed to disagree. `predicates`, the shared when name to
+predicate table every gated binding is resolved against. `leaders`, what the window
+leader's own overlay section is called, since the leader's own name says nothing to
+somebody reading a list of window actions. `redraw`, repaint whichever list is on screen,
+for a plugin whose own answer lands after the keystroke that asked for it. `notify` and
+`showColor`, one line of feedback and one sampled colour, both drawn on the shared overlay
+so they read as part of the same interface as the cheat sheet and the docked hint bars.
+`host`, this machine's own identity, for anything a plugin keys per host. `scope`, which
+arrangement of displays is attached right now, as one comparable string, so two plugins
+that both scope memory to the desk agree on what the desk currently is. `storePath`, where
+a plugin keeps data a person is meant to read, edit, and commit by hand.
+
+A root sourced field name is therefore GLOBAL VOCABULARY. Two plugins that both declare
+`needs.data.scope` receive the exact same value, which is the point, it is what lets one
+display fingerprint serve every plugin that scopes its own memory by arrangement. It also
+means the word has to mean one thing across the whole set. A plugin that invents its own
+name for something the root already publishes under a different word gets nothing for its
+trouble, since the fan out has no way to pay a debt nobody wrote down, and that plugin is
+left blocked or degraded exactly as it would be if the root had never built the value at
+all.
+
+`storePath` cannot be one shared object the way the others are, since a store path is a
+place a plugin writes its own data, and handing two plugins the same string would have
+them silently overwrite each other's file with no error anywhere. `services.perName(fn)`
+is the escape built for exactly this shape. It marks a root value as one `fanOut` must
+compute once per declaring plugin rather than share whole, calling `fn(pluginName)` for
+each plugin that asked instead of handing every one of them the same object. It exists for
+this one case rather than as a general lazy value, since wrapping anything else in it would
+only move the same work somewhere else and stop a flat table of values from reading like
+one.
+
 ### needs.set
 
 A question about the whole plugin set rather than about any one plugin, and the field that
@@ -376,6 +479,18 @@ express, which silently broke `matcher = false`.
 Two defaults claiming one slot is reported and never resolved. It is a defect identical
 on every machine, and picking a winner by load order would make it a different defect
 on every reload instead.
+
+**A default is delivered on the same `opts` table every wiring step reads, not only the
+one `configure` receives.** A submodule configured as a later wiring step sees the same
+table, so a default named the same as a value that submodule already reads for itself
+arrives twice, once through whatever the plugin root actually meant to pass and once more
+as the ambient default sitting on the same table, and whichever lands second wins. This
+cost a real picker once. A default proposed under the same name as a value a file search
+submodule resolves for its own use arrived at that submodule as a plain string where a
+table was expected, and the picker crashed instead of opening. Naming a default is
+therefore not only a question of what a fresh install should propose, it is a question of
+whether that name collides with something one of this plugin's own submodules already
+reads off opts, and nothing checks that for you, so it has to be asked by hand every time.
 
 ### surface
 
@@ -512,11 +627,20 @@ row silently vanished.
 ## Checklist for a new plugin
 
 - `manifest.lua` loads with nothing required and touches no `hs`.
-- `name` is set unless the identity is exactly the directory.
-- Every external binary is in `needs.tools` with a `reason` and an `origin`.
+- `name` is set unless the identity is exactly the directory, and any `cfg.data` or
+  `cfg.globals` key a person writes for this plugin uses that identity, never the
+  directory.
+- Every external binary is in `needs.tools` with a `reason` and an `origin`, and nowhere
+  else, since a manifest is the only place a tool may be declared. A tool named by `unit`
+  when more than one file inside the plugin could plausibly want it, and staged `dev` or
+  `test` when the running configuration never touches it.
 - Every sibling capability names a plugin, a member or the module, and a `call`.
-- Every parameter the plugin cannot derive is in `needs.data` with a `breaks` sentence.
-- Every default works on a fresh macOS install, or it is not a default.
+- Every parameter the plugin cannot derive is in `needs.data` with a `breaks` sentence,
+  and a `source = "root"` entry names a field the composition root actually publishes
+  through the fan out, never a word this plugin invented for itself.
+- Every default works on a fresh macOS install, or it is not a default, and its name is
+  checked against every value this plugin's own submodules already read off opts, since
+  a collision there silently overwrites what the plugin root meant to pass.
 - A surfaced plugin declares `surface` and does not declare `chooser` or `theme`.
 - A plugin that wants a launcher row, a word, or a key declares `registry`, and its `row`
   carries a `category`, without which no row is built.

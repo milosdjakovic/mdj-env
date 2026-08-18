@@ -24,12 +24,25 @@ return {
       hyperKey = { from = "hyperkey", policy = "optional" },
     },
     tools = {
-      { name = "ffmpeg", kind = "path", policy = "optional",
+      { name = "ffmpeg", kind = "path", policy = "optional", unit = "preview",
         reason = "video clipboard previews",
         origin = { brew = "ffmpeg" } },
-      { name = "ffprobe", kind = "path", policy = "optional",
+      { name = "ffprobe", kind = "path", policy = "optional", unit = "preview",
         reason = "reading a video duration so a preview frame is picked mid clip",
         origin = { brew = "ffmpeg" } },
+      -- Both of these were run by absolute path and declared nowhere, so the layer that
+      -- guarantees a tool is present had never heard of either, and a preview that quietly
+      -- stopped rendering would have had nothing to say about why.
+      { name = "sips", kind = "system", locator = "/usr/bin/sips", policy = "optional",
+        unit = "preview",
+        reason = "resizing a raster image to a preview box and forcing it to png, which is " ..
+                 "what makes a heic or a webp render in the preview at all",
+        origin = { macos = "ships with the system" } },
+      { name = "head", kind = "system", locator = "/usr/bin/head", policy = "optional",
+        unit = "ui",
+        reason = "reading the front of a text file off the main thread, so previewing a " ..
+                 "large one cannot freeze the pane",
+        origin = { macos = "ships with the system" } },
     },
     -- The external backend this plugin cannot build for itself, and the one surface it must
     -- not draw for itself. Everything else the outer configure needs, the paste primitive

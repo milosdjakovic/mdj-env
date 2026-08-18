@@ -27,12 +27,19 @@ return {
     -- what `stage` says. Without the split an install list would tell someone to fetch a
     -- dataset builder before they can pick an emoji.
     tools = {
-      { name = "jq", kind = "path", policy = "optional", stage = "dev",
+      { name = "jq", kind = "path", policy = "optional", stage = "dev", unit = "regenerate",
         reason = "reshaping both upstream sources into the vendored dataset",
         origin = { brew = "jq" } },
-      { name = "perl", kind = "path", policy = "optional", stage = "dev",
+      { name = "perl", kind = "path", policy = "optional", stage = "dev", unit = "regenerate",
         reason = "parsing the Unicode Character Database into candidate rows",
         origin = { macos = "ships with the system" } },
+      -- hs is the Hammerspoon CLI itself, which does not arrive on PATH the way a brew
+      -- formula does. The cask ships it inside the app bundle, and cliInstall is the one
+      -- step that symlinks it out, so the origin says that rather than naming a package
+      -- manager that never touches this tool.
+      { name = "hs", kind = "path", policy = "optional", stage = "dev", unit = "regenerate",
+        reason = "rendering every candidate glyph to drop the ones that draw as a box, and writing the dataset",
+        origin = { manual = "the Hammerspoon cask ships the CLI inside the app, run hs.ipc.cliInstall() once from the Hammerspoon console to symlink it onto the PATH" } },
     },
   },
 

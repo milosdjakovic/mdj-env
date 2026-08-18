@@ -1,9 +1,0 @@
-# What plugins/browsertabs/init.lua needs, declared beside the file that consumes it. Format
-# is name | kind | locator | policy | reason.
-# See Olm's lib/deps.lua for the kinds and for how these files are found.
-#
-# core is not a tool to install, it is a capability the composition root hands this file
-# from Olm's own lib, so this line decides injection rather than installation. Optional,
-# because only the resting order of the tab list degrades without it, the list still opens
-# and still switches tabs.
-recency | core | lib/recency.lua | optional | remembering the last opened tab, so the list opens already ordered by that

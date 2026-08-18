@@ -113,68 +113,6 @@ local SHIPPED_POLICY = {
   aliasDirectory = { title = "Aliases", glyph = "🏷️", aliases = { "?" } },
 }
 
--- Every command kind tool the whole set declares, asked for in ONE login shell, once, and the
--- answers kept. Two things forced this shape and both are worth stating.
---
--- The login shell is not optional. Hammerspoon's own environment carries a bare PATH holding
--- none of the places a package manager installs into, so a probe without it reports every
--- Homebrew tool absent. That is invisible for an optional tool, which simply degrades, and
--- fatal for a required one, which blocks its whole plugin from planning with nothing said.
--- tmux is the case that exposed it, and convert had been blocked the same way over qalc for as
--- long as this file has existed, silently, on a machine where qalc is installed.
---
--- And it is one call rather than one per tool because a login shell costs tens of milliseconds
--- and the plan runs twice, so asking separately turned startup into seconds of shelling out.
--- lib/deps.lua's own probe batches for exactly this reason and says so.
-local function probeCommands(manifests)
-  local names, seen = {}, {}
-  for _, manifest in pairs(manifests or {}) do
-    for _, tool in ipairs(((manifest or {}).needs or {}).tools or {}) do
-      if tool.kind == "path" and not seen[tool.name] then
-        seen[tool.name] = true
-        names[#names + 1] = tool.name
-      end
-    end
-  end
-  local found = {}
-  if #names == 0 then return found end
-  -- The names were written by hand in a manifest rather than typed by anyone at runtime, and
-  -- the answers are mapped back by their last path segment, so no quoting is needed and none
-  -- is used, which is the same reasoning lib/deps.lua's own probe records.
-  local answer = hs.execute("command -v " .. table.concat(names, " "), true) or ""
-  for line in answer:gmatch("[^\n]+") do
-    -- Absolute paths only. A login shell also answers here with aliases and shell builtins,
-    -- and neither is a thing that can be run as a command.
-    if line:sub(1, 1) == "/" then
-      local base = line:match("([^/]+)$")
-      if base then found[base] = true end
-    end
-  end
-  return found
-end
-
--- resolve.plan's own existence question for one declared tool, answered directly from the
--- four probeable kinds the contract defines. This is not the door a plugin reaches through
--- for a resolved path at runtime, that stays lib/deps.lua's alone. It is the simpler yes or
--- no the plan needs before any plugin, and before lib/deps.lua itself, has been configured,
--- so it cannot be answered through a per consumer scope that does not exist yet.
-local function toolPresent(tool, commands)
-  local kind = tool.kind
-  if kind == "path" then
-    return (commands or {})[tool.name] == true
-  elseif kind == "system" or kind == "manual" then
-    return tool.locator ~= nil and hs.fs.attributes(tool.locator) ~= nil
-  elseif kind == "app" then
-    local path = tool.locator and hs.application.pathForBundleID(tool.locator)
-    return path ~= nil and path ~= ""
-  end
-  -- A "package" kind proves presence by asking the package manager rather than by probing a
-  -- path, which nothing at this layer can do generically. Treated as present so the plugin
-  -- wires and finds out for itself, rather than blocked here on a question this file cannot
-  -- answer honestly either way.
-  return true
-end
-
 --------------------------------------------------------------------------------
 -- run(olm, cfg), the one door into all of this
 --------------------------------------------------------------------------------
@@ -302,17 +240,40 @@ function obj.run(olm, cfg)
   --
   -- One consumer name for the whole set, matching the single shared scope handed out below,
   -- since every plugin here reads through the same adapter rather than one of its own.
-  -- One shell for every command the whole set names, before either planning pass asks
-  -- about any of them, so the two passes share one answer and neither pays for it twice.
-  local commandsPresent = probeCommands(manifests)
-  local function presentTool(tool) return toolPresent(tool, commandsPresent) end
+  --
+  -- The door is configured and probed BEFORE the plan is built, deliberately, because the plan
+  -- has to know which tools are present and the door has just answered that for all of them in
+  -- one login shell. This file used to carry a second probe of its own for the plan to read,
+  -- which was the same shell call a second time and a second implementation of the same
+  -- reasoning, and the login shell part of that reasoning is not optional. Hammerspoon's own
+  -- environment carries a bare PATH holding none of the places a package manager installs
+  -- into, so a probe without it reports every Homebrew tool absent, invisibly for an optional
+  -- tool and fatally for a required one.
+  -- The root declares its own two tools in root/manifest.lua and joins the set as a declarer
+  -- beside the plugins, rather than shelling out for them by name. It is added to a COPY here,
+  -- since the manifests table is the plugin set that everything downstream plans, resolves, and
+  -- reports over, and the root is not a plugin. Declaring in the same shape is what lets the
+  -- door answer for the root on the same terms, and what puts its two tools in the manifest the
+  -- layer above reads.
+  local declarers = { root = load("root/manifest.lua") }
+  for identity, manifest in pairs(manifests) do declarers[identity] = manifest end
 
-  depsAtom:configure({ declared = pluginsLib.declarations(manifests, "Olm") })
+  depsAtom:configure({ declared = pluginsLib.declarations(declarers, "Olm") })
   depsAtom:start()
   -- The one shared scope every plugin earning the ambient deps grant is handed, unscoped by
   -- consumer, matching what services.perPlugin's own contract says it hands out, the same
   -- single adapter every plugin sharing it in the live root already reads today.
   local sharedDepsScope = depsAtom:scope("Olm")
+
+  -- resolve.plan's existence question for one declared tool, which is the door's own answer
+  -- rather than a probe of its own. A package kind is the exception, since presence for one is
+  -- proven by asking the package manager and nothing at this layer can do that, so it is taken
+  -- as present and the plugin finds out for itself rather than being blocked here on a question
+  -- this file cannot answer honestly either way.
+  local function presentTool(tool)
+    if tool.kind == "package" then return true end
+    return sharedDepsScope.have(tool.name)
+  end
 
   -- The set of real lib module names, read off this directory rather than kept as a hand
   -- written list, so a lib file added later needs no edit here to be a valid needs.lib
@@ -394,6 +355,11 @@ function obj.run(olm, cfg)
     chooser = chooserAtom,
     canvasPanel = canvasPanel,
     theme = policy.chooserTheme,
+    -- The resolved tool rather than a name in a command string, declared by the root in
+    -- root/manifest.lua since this lib module is the root's own apparatus and has no manifest of
+    -- its own to declare with. It used to run the command by bare name, which worked and was
+    -- still a second door, and an absent tool there was a silent empty answer.
+    displayplacer = sharedDepsScope.path("displayplacer"),
     -- currentProfile answers a set question rather than naming a plugin, so a portable
     -- install with no display arrangement plugin simply always answers nil here, and fixed
     -- mode falls back to the active window the same way an unpinned arrangement already does.
@@ -553,10 +519,16 @@ function obj.run(olm, cfg)
   -- computer name and the two are different strings on the same machine. A curated arrangement
   -- keyed by one of them cannot be found with the other.
   --
-  -- Shelled out once here and handed to whoever declared it, never probed per plugin, the same
-  -- discipline the one command probe above already follows.
-  local localHostName = (hs.execute("scutil --get LocalHostName") or ""):gsub("%s+$", "")
-  if localHostName == "" then localHostName = nil end
+  -- Shelled out once here and handed to whoever declared it, never probed per plugin. The tool
+  -- comes through the door from the root's own declaration rather than being named in a command
+  -- string, which is what makes an absent one a console line naming what it costs instead of a
+  -- silent empty answer that leaves every per host lookup keyed by nothing.
+  local localHostName = nil
+  local scutil = sharedDepsScope.path("scutil")
+  if scutil then
+    localHostName = (hs.execute(scutil .. " --get LocalHostName") or ""):gsub("%s+$", "")
+    if localHostName == "" then localHostName = nil end
+  end
 
   ------------------------------------------------------------------------------
   -- The two feedback surfaces, built here because the root owns how a message
@@ -1579,6 +1551,12 @@ function obj.run(olm, cfg)
   record.plan = plan
   record.manifests = manifests
   record.dispatch = dispatchTable
+  -- The dependency door's own scope, so anything inspecting this config asks IT whether a tool
+  -- is present rather than probing again and comparing two answers. The suite carried its own
+  -- third probe of the same question, which is a test deriving the truth in parallel instead of
+  -- checking what the config concluded, and the whole lesson of this layer is that a second
+  -- answer to one question is where drift lives.
+  record.tools = sharedDepsScope
   -- The MERGED table the engine was actually configured with, every surface gate plus every
   -- root owned one, rather than the root's own dozen. Recording only the root's own meant
   -- anything looking in here could not see a context gate at all, so the twelve answers that

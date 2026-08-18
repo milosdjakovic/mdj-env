@@ -315,7 +315,14 @@ function obj.derive(world)
           tier = "structure",
           scenario = ("%s has %s, which it cannot work without"):format(identity, tool.name),
           expect = function()
-            if world.present(tool) then return true end
+            local answer = world.present(tool)
+            -- nil rather than false means nothing could answer, since this config recorded no
+            -- dependency door, so there is no result to report either way.
+            if answer == nil then
+              return nil, "this root records no dependency door, so nothing can say whether "
+                .. tool.name .. " is here"
+            end
+            if answer then return true end
             return false, tool.name .. " is not on this machine, so " .. tool.reason
           end,
         })

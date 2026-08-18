@@ -2,11 +2,13 @@
 --
 -- A lone mechanism rather than a list tool, so it does not ride the shared Chooser atom and
 -- carries no surface block. The one thing it needs from outside Hammerspoon is a Swift
--- compiler to build its native sampler helper, declared beside the spoon's own root since
--- init.lua is the only file here that runs it, matching the existing dependencies file this
--- plugin already carries. Optional, because a failed build is answered with an alert and a
--- console line rather than a refusal to wire, the choice this whole config makes about what
--- the user sees rather than about how badly a spoon wants its tool.
+-- compiler to build its native sampler helper, declared in the needs table below since
+-- init.lua is the only file here that runs it. Optional, because a failed build is
+-- answered with an alert and a console line rather than a refusal to wire, the choice
+-- this whole config makes about what
+-- the user sees rather than about how badly a spoon wants its tool. swiftc is not on a fresh
+-- install until the command line tools go on, so its origin names that install step rather
+-- than claiming the compiler ships with the system.
 return {
   -- The registry and the launcher's registered tool row know this plugin as colorPicker,
   -- while the directory beside this file is eyedropper.
@@ -16,7 +18,7 @@ return {
     tools = {
       { name = "swiftc", kind = "system", locator = "/usr/bin/swiftc", policy = "optional",
         reason = "compiles the native colour sampler helper",
-        origin = { macos = "ships with the Xcode command line tools" } },
+        origin = { ["xcode-clt"] = "xcode-select --install" } },
     },
 
     data = {

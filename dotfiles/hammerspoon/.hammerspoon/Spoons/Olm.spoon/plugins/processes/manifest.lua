@@ -5,32 +5,32 @@
 -- the same name appears more than once below with a different reason each time.
 -- None of the sources ever go missing on a real machine, every tool here ships with
 -- macOS itself, so optional documents the contract rather than guarding against a
--- practical absence, matching the reasoning ports.dependencies itself gives.
+-- practical absence, matching the reasoning the ports entries below already give.
 return {
   needs = {
     tools = {
-      { name = "ps", kind = "system", locator = "/bin/ps", policy = "optional",
+      { name = "ps", kind = "system", locator = "/bin/ps", policy = "optional", unit = "metrics",
         reason = "samples cpu and memory for the rows the picker is showing",
         origin = { macos = "ships with the system" } },
-      { name = "lsof", kind = "system", locator = "/usr/sbin/lsof", policy = "optional",
+      { name = "lsof", kind = "system", locator = "/usr/sbin/lsof", policy = "optional", unit = "ports",
         reason = "finds which process holds a listening port",
         origin = { macos = "ships with the system" } },
-      { name = "ps", kind = "system", locator = "/bin/ps", policy = "optional",
+      { name = "ps", kind = "system", locator = "/bin/ps", policy = "optional", unit = "ports",
         reason = "reads the command, start time, and working directory of a holder",
         origin = { macos = "ships with the system" } },
-      { name = "kill", kind = "system", locator = "/bin/kill", policy = "optional",
+      { name = "kill", kind = "system", locator = "/bin/kill", policy = "optional", unit = "ports",
         reason = "stops a holder, gracefully first and forcefully on request",
         origin = { macos = "ships with the system" } },
-      { name = "ps", kind = "system", locator = "/bin/ps", policy = "optional",
+      { name = "ps", kind = "system", locator = "/bin/ps", policy = "optional", unit = "runtimes",
         reason = "finds candidate runtime processes and reads their working directory",
         origin = { macos = "ships with the system" } },
-      { name = "lsof", kind = "system", locator = "/usr/sbin/lsof", policy = "optional",
+      { name = "lsof", kind = "system", locator = "/usr/sbin/lsof", policy = "optional", unit = "runtimes",
         reason = "checks whether a candidate holds a socket, the evidence that separates a dev server from a stray process",
         origin = { macos = "ships with the system" } },
-      { name = "kill", kind = "system", locator = "/bin/kill", policy = "optional",
+      { name = "kill", kind = "system", locator = "/bin/kill", policy = "optional", unit = "runtimes",
         reason = "stops a runtime process, gracefully first and forcefully on request",
         origin = { macos = "ships with the system" } },
-      { name = "docker", kind = "path", policy = "optional",
+      { name = "docker", kind = "path", policy = "optional", unit = "docker",
         reason = "lists running containers and stops one by name",
         origin = { cask = "docker-desktop" } },
     },

@@ -1,9 +1,9 @@
 -- MenuSearch, what it declares about itself.
 --
 -- Pure composition root policy over the shared Chooser atom and the Accessibility
--- api hs.application already exposes, so it names no external tool and has no
--- dependencies file. There is no needs table here at all, since a present field is a
--- claim and this plugin has nothing to claim.
+-- api hs.application already exposes, so it names no external tool and declares no
+-- tools. There is no needs table here at all, since a present field is a claim and
+-- this plugin has nothing to claim.
 --
 -- Its two real collaborators are declared, and the note that used to sit here saying they
 -- could not be is wrong. It claimed needs.siblings can only name a plugin under plugins, and

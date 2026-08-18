@@ -62,10 +62,11 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUT="$DIR/data.lua"
 FILTER="$DIR/filter-glyphs.lua"
 
-# All three are declared in regenerate.dependencies beside this script. This is a plain shell
-# script run by hand from the repository, so it cannot reach the shared resolver and checks for
-# them itself. It names each tool and stops there. Where a tool comes from is the repository's
-# answer, which src/check-dependencies.sh gives, and never this file's.
+# All three are declared in the plugin's manifest, with stage dev and unit naming
+# regenerate. This is a plain shell script run by hand from the repository, so it cannot
+# reach the shared resolver and checks for them itself. It names each tool and stops
+# there. Where a tool comes from is the repository's answer, which src/check-dependencies.sh
+# gives, and never this file's.
 need() { echo "$1 is required to regenerate the dataset, $2" >&2; exit 1; }
 command -v jq >/dev/null 2>&1 || need jq "run src/check-dependencies.sh in the repository to see where it comes from"
 command -v perl >/dev/null 2>&1 || need perl "it ships with macOS, so an absent one means the PATH is wrong"

@@ -69,16 +69,17 @@ local function buildWorld(olm)
     w.hideThrough(w.role(name))
   end
   function w.module(name) return w.role(name) end
+  --- Whether one declared tool is present, asked of the dependency door the config configured
+  --- rather than probed here. This used to be a third copy of the same probe, which meant a
+  --- scenario could pass while the running config had concluded the opposite, and checking what
+  --- the config concluded is the only version of this question worth asking. A run against a
+  --- root that records no door answers nil, so such a scenario reports needing a person instead
+  --- of quietly passing on an answer nobody gave.
   function w.present(tool)
-    if tool.kind == "path" then
-      return hs.execute("command -v " .. tostring(tool.name) .. " >/dev/null 2>&1 && echo y", true) == "y\n"
-    elseif tool.kind == "system" or tool.kind == "manual" then
-      return tool.locator ~= nil and hs.fs.attributes(tool.locator) ~= nil
-    elseif tool.kind == "app" then
-      local path = tool.locator and hs.application.pathForBundleID(tool.locator)
-      return path ~= nil and path ~= ""
-    end
-    return true
+    local door = composed.tools
+    if not door then return nil end
+    if tool.kind == "package" then return true end
+    return door.have(tool.name)
   end
   function w.canDispatch(action) return (composed.dispatch or {})[action] ~= nil end
   function w.hasPredicate(name) return (composed.predicates or {})[name] ~= nil end
@@ -160,6 +161,15 @@ local function verdictOf(scenario, world)
   local ok, answer, why = pcall(scenario.expect, world)
   if not ok then return "fail", "it raised, " .. tostring(answer) end
   if answer == true then return "pass", nil end
+  -- nil is not false. An Expect answering nil could not reach the question at all, which is a
+  -- different thing from reaching it and finding the answer no, and reporting the two the same
+  -- way makes an unanswerable check read as a defect that exists.
+  -- And it has to SAY it could not reach the question. An Expect that simply falls off its own
+  -- end also answers nil while saying nothing, and that is a defective check rather than an
+  -- unanswerable one, so it keeps failing the way it always did.
+  if answer == nil and why ~= nil then
+    return "manual", why
+  end
   return "fail", why or "it did not hold, and said nothing about what it saw instead"
 end
 

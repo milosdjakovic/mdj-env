@@ -20,6 +20,7 @@ brew "chafa"
 brew "displayplacer"
 brew "ffmpeg"
 brew "libqalculate"
+brew "lua"
 
 # Third party taps, for a tool with no formula in core
 tap "schappim/ocr"

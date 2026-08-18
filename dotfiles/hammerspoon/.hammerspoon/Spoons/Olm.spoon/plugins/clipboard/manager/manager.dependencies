@@ -1,9 +1,0 @@
-# What plugins/clipboard/manager/init.lua needs, declared beside the file that consumes
-# it. Format is name | kind | locator | policy | reason.
-# See Olm's lib/deps.lua for the kinds and for how these files are found.
-#
-# core is not a tool to install, it is a capability the composition root hands this file
-# from Olm's own lib, so this line decides injection rather than installation. It lets a
-# check confirm the root actually gives the manager what it asks for, and it lets that same
-# check catch a paste handed out anywhere with no line naming it.
-paste | core | lib/paste.lua | required | the shared insertion engine every paste and every selection read runs through

@@ -47,24 +47,46 @@ stow -D -t ~ <package>        # Unlink a package
 ### Dependencies, and which layer knows what
 
 **A module declares what it needs on the machine and installs nothing.** That is the
-whole rule. A module names a tool and says what breaks without it. It never knows
-whether that tool arrives by Homebrew, by a cask, or by hand, and it never tells
-anyone to install anything. This layer is the only place that knows about package
-managers, and it is the layer responsible for making every declared thing actually
-present and actually configured.
+whole rule. A module names a tool and says what breaks without it, and it never tells
+anyone to install anything. This layer is the only place that runs a package manager,
+and it is the layer responsible for making every declared thing actually present and
+actually configured.
+
+A module MAY say where a tool comes from, and that is a recent change worth being
+precise about, since the older rule said it must not. The thing that was never allowed
+is naming an install command, because that duplicates an answer this layer already
+holds and the two then drift apart. Saying that a tool is the `displayplacer` formula
+is not that. It is a fact about the tool, and a plugin built to travel to another
+machine has to carry it, since this repository's map will not be there. So an origin
+may sit in a declaration, the map at the repository root stays the complete answer key
+a person reads, and the reconciler refuses any disagreement between the two. That is
+what makes writing it twice safe rather than a source of drift.
 
 A module exposes its needs in one `DEPENDENCIES` manifest at its own package root,
-six fields per line, name, kind, locator, policy, consumer, and reason. That file is
-its entire contract upward. How the module produces it is the module's own business.
-A module with no moving parts writes it by hand. A module built around swappable
-units generates it instead, from small declarations placed beside whatever actually
-knows each tool, so a spoon, a provider, or an adapter stays self contained.
-Hammerspoon and tmux both do this, each with its own `dependencies-collect`, which
-the reconciler finds by name rather than by knowing either module. The test of
-whether a module needs one is simple. If replacing a swappable part would mean
-editing a manifest that sits outside it, the manifest is a leak and should be
-generated. The manifest is repo only, so each package's `.stow-local-ignore` keeps
-it, the collector, and the module level declaration out of the home directory.
+name, kind, locator, policy, consumer, and reason, then origin and origin detail where
+the declaration states one. That file is its entire contract upward. How the module
+produces it is the module's own business. A module with no moving parts writes it by
+hand. A module built around swappable units generates it instead, from declarations
+that live with whatever actually knows each tool, so a plugin, a provider, or an
+adapter stays self contained. Hammerspoon and tmux both do this, each with its own
+`dependencies-collect`, which the reconciler finds by name rather than by knowing
+either module. The test of whether a module needs one is simple. If replacing a
+swappable part would mean editing a manifest that sits outside it, the manifest is a
+leak and should be generated.
+
+Where those inner declarations live is also the module's own business, and the two
+modules answer differently. tmux keeps small data files beside each unit. Hammerspoon
+keeps them inside each plugin's `manifest.lua`, under `needs.tools`, which is the same
+file the running config reads, so one tool is described exactly once. That choice has a
+consequence for the collector, since a shell cannot read Lua, so the Hammerspoon
+collector finds the manifests and hands them to a real Lua interpreter rather than
+guessing at their shape with a pattern. Reading Lua needs Lua, so the module declares
+it like any other tool. It is optional, because only regenerating the contract stops
+working without it and the running config does not care.
+
+Every one of these is repo only, so each package's `.stow-local-ignore` keeps the
+generated manifest, the collector, its reader, and the module level declaration out of
+the home directory.
 
 The program a module configures is a dependency like any other, so the tmux module
 declares tmux and the hammerspoon module declares the Hammerspoon application. A
@@ -84,28 +106,40 @@ stow and duti would otherwise be the one category nothing checks.
 `DEPENDENCIES.map` joins a tool name to where it comes from, a Homebrew formula, a
 cask, a third party tap, the Xcode command line tools, the operating system itself, or
 a manual step whose detail says exactly what to do. The Brewfile carries the actual
-install lines. So when a module declares something new, the work happens here and
-nowhere else. Add the line to `DEPENDENCIES.map`, add the matching Brewfile entry for
-a package manager origin, and for a manual origin make sure the detail says both how
-to install it and how to configure it, since an installed tool that is unconfigured is
-still a broken dependency. Never answer a missing tool by editing the module to
-mention Homebrew, which is the leak this split exists to prevent.
+install lines. So when a module declares something new, the work happens here. Add the
+line to `DEPENDENCIES.map`, add the matching Brewfile entry for a package manager
+origin, and for a manual origin make sure the detail says both how to install it and how
+to configure it, since an installed tool that is unconfigured is still a broken
+dependency. Never answer a missing tool by writing an install command into a module,
+which is the leak this split exists to prevent.
 
 `src/check-dependencies.sh` reconciles all of it, and runs at the end of `setup.sh` or
 alone at any time. It regenerates every generated manifest so a stale one cannot be
-committed, then reports a declared tool with no mapping, a mapping nothing declares any
-more, a mapped formula missing from the Brewfile, any module that hardcodes an install
-prefix or probes for a tool itself instead of naming it, and any module that names an
-install command at all. That last one matches every file type under `dotfiles`, not only
-the scripted ones, because the two real leaks it was written for were both help text, a
-chooser row offering to copy a `brew install` line and a generator script telling you to
-run one. Help text is not exempt, since it duplicates an answer the map already holds and
-the two then drift apart with nothing watching. Those are errors, because they are
-repository defects and identical on every machine. Two things are only
-warnings. A declared tool not installed here, since an optional one may legitimately
-not be wanted on this machine, and a Brewfile entry nothing declares, since the
-Brewfile is also a personal package list and an unclaimed entry is a question rather
-than a defect. The warning names the entry so the question is answerable.
+committed, then reports these as errors, since each is a repository defect and identical
+on every machine. A declared tool with no mapping. A mapping nothing declares any more. A
+mapped formula missing from the Brewfile. A declaration whose stated origin contradicts
+the map or contradicts another declaration of the same tool. A module that hardcodes an
+install prefix, or probes for a tool itself instead of naming it, or names an install
+command at all. And a module that RUNS a tool nothing declares, which is the check that
+matters most and was the last one written, because a line that runs a tool looks like
+ordinary code and names no prefix and no installer. It found three tools this repository
+had never heard of, so the layer meant to guarantee they were present had no idea they
+were needed.
+
+The install command check matches every file type under `dotfiles`, not only the scripted
+ones, because the two real leaks it was written for were both help text, a chooser row
+offering to copy a `brew install` line and a generator script telling you to run one. Help
+text is not exempt, since it duplicates an answer the map already holds and the two then
+drift apart with nothing watching.
+
+Three things are only warnings. A declared tool not installed here, since an optional one
+may legitimately not be wanted on this machine. A Brewfile entry nothing declares, since
+the Brewfile is also a personal package list and an unclaimed entry is a question rather
+than a defect. And a declared tool reached at its own fixed absolute path rather than
+through the module's resolver, which is a real discipline break worth naming, but a path
+under `/usr/bin` is the same on every machine, so unlike a Homebrew prefix it costs
+correctness nowhere. It costs the console line an absent tool would otherwise produce.
+Every warning names what it found so the question is answerable.
 
 The script is module agnostic by construction, reading manifests and knowing no module
 by name, so a future config joins in by writing a manifest, with no change to the

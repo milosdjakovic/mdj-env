@@ -4,34 +4,17 @@
 # collector stamps the consumer column with this module's name, since the need belongs to the
 # module as a whole rather than to anything inside it.
 #
-# Nothing here is read by the running config. The resolver inside .hammerspoon serves spoons and
-# probes only what a spoon declared, so a need like the application itself, which has no runtime
+# Nothing here is read by the running config. The resolver inside .hammerspoon serves plugins and
+# probes only what a plugin declared, so a need like the application itself, which has no runtime
 # consumer because nothing would be running without it, is declared here instead.
 #
 # Named dependencies-module rather than dependencies because this directory already holds the
 # generated DEPENDENCIES, and on a case insensitive filesystem those two names are one file.
 hammerspoon | app | org.hammerspoon.Hammerspoon | required | the application this entire module configures
 
-# The seven core capabilities the composition root takes for itself rather than handing to a
-# spoon it configures. Six are atoms that moved into Olm's lib in phase five of the olm build
-# plan and retired for good once every other tool had passed its own validation, so the root
-# assigns each straight to the spoon global of the same name and no second side is left to
-# disagree with it. They belong here rather than beside a spoon because the taker is init.lua,
-# which is the module as a whole rather than anything inside it, and it is the one file in this
-# config that no spoon owns.
-#
-# registry joined in phase seven. The root builds its own instance from this factory rather
-# than assigning the module straight to a global, and hands that instance to the launcher, but
-# the reason for declaring it here is the same, init.lua is the sole taker and no plugin ever
-# reaches for it.
-#
-# Required, all seven, because there is no degraded config without them. These lines only say
-# that the root is handed these seven and that the files answering for them are where they are
-# supposed to be.
-panel | core | lib/panel.lua | required | the shared canvas surface behind every preview pane, docked hint bar, and cheat sheet
-cheatsheet | core | lib/cheatsheet.lua | required | the shared overlay renderer both cheat sheets draw through
-chordkey | core | lib/chordkey.lua | required | the shared hold and tap engine every leader key registers into
-hyperkey | core | lib/hyperkey.lua | required | the leader modal every Hyper binding and every Hyper context binds into
-chooser | core | lib/chooser/init.lua | required | the picker facade every list tool in this config is built on
-deps | core | lib/deps.lua | required | the declaration reader that hands every other spoon its resolved tools
-registry | core | lib/registry.lua | required | the tool registry the launcher's special row dispatch now asks first
+# The collector beside this file reads every plugin's manifest to build the generated
+# DEPENDENCIES, and those manifests are written in Lua, so reading them takes Lua. Optional
+# rather than required, because the running configuration does not care. Only regenerating this
+# module's contract with the layer above stops working, which is a maintenance task rather than
+# a feature, and the reconciler above says so plainly when it cannot run.
+lua | path | lua | optional | reading every plugin manifest so the collector can build this module's generated manifest

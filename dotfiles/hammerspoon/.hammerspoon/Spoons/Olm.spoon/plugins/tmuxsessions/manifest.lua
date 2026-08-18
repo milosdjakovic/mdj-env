@@ -30,13 +30,17 @@ return {
       -- list and nothing to switch. Declaring it required is what makes Olm leave the whole
       -- plugin unwired rather than open a picker onto silence, which is the same answer
       -- Convert and Eyedropper already take for a tool with no sensible fallback.
-      { name = "tmux", kind = "path", policy = "required",
+      { name = "tmux", kind = "path", policy = "required", unit = "engine",
         reason = "querying and switching every session and window, the whole reason this tool exists",
         origin = { brew = "tmux" } },
       -- Alacritty and WezTerm carry no AppleScript dictionary, so a fresh attach goes through
       -- each one's own command line form, reached through open, the one door from Hammerspoon
       -- to a bundle's own argv. Optional, since a missing path drops those two backends from
-      -- the settings list and leaves the three that script themselves working.
+      -- the settings list and leaves the three that script themselves working. The retired
+      -- generated file carried this as two lines, one per terminal, since each backend file
+      -- declared open for itself. Merged into the one line above, it has no single owner left
+      -- to name, so it carries no unit rather than crediting only one of the two terminals it
+      -- actually serves.
       { name = "open", kind = "system", locator = "/usr/bin/open", policy = "optional",
         reason = "launching Alacritty or WezTerm already attached to a session",
         origin = { macos = "ships with the system" } },

@@ -19,9 +19,9 @@ local util = loadfile(sourcePath .. "../util.lua")()
 local M = {}
 M.name = "docker"
 
--- The name this CLI is declared under, in docker.dependencies beside this file. The
--- layer above looks the path up by it, so the declaration and this source agree on one
--- spelling.
+-- The name this CLI is declared under, in the plugin's manifest, with unit naming this
+-- source. The layer above looks the path up by it, so the declaration and this source
+-- agree on one spelling.
 M.tool = "docker"
 
 local FORMAT = "{{.ID}}|{{.Names}}|{{.Image}}|{{.Ports}}|{{.Status}}"

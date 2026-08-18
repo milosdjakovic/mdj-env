@@ -3,10 +3,15 @@
 -- The HID level applier only, turning a name based catalog into one hidutil mapping and
 -- clearing it on quit. It decides which key is active nowhere, the composition root passes
 -- the catalog and the active names into apply rather than into configure, and both are
--- plain data, so there is nothing here from a sibling plugin or from Olm's lib. hidutil
--- ships with macOS, so there is no tool to declare either. It has no chooser, no key of its
--- own, and no alias, every key it touches belongs to whichever domain referenced it, so
--- this plugin is infrastructure with no user surface of its own.
+-- plain data, so there is nothing here from a sibling plugin or from Olm's lib. It has no
+-- chooser, no key of its own, and no alias, every key it touches belongs to whichever domain
+-- referenced it, so this plugin is infrastructure with no user surface of its own.
+--
+-- This comment used to say that hidutil ships with macOS so there was no tool to declare, and
+-- that was the wrong conclusion from a true fact. Shipping with the system is an ORIGIN, not a
+-- reason to stay silent, which is why defaults, killall, osascript and ps are all declared by
+-- the plugins that run them. Declaring is what tells the layer above that a tool is needed at
+-- all, and this one was invisible to it for as long as the plugin has existed.
 --
 -- Its whole lifecycle is one call, apply(catalog, activeNames), and that call is not
 -- configure(opts), so the call itself belongs here rather than in an empty return. Both
@@ -31,6 +36,17 @@
 -- keeps that from blocking a fresh install, since the root always discharges it.
 return {
   needs = {
+    -- Required, because this plugin is nothing but a front end onto this one binary. Without it
+    -- no catalog row can be applied, which is every leader key at once, so a dead plugin the
+    -- root leaves out entirely is a more honest outcome than one that wires and silently
+    -- remaps nothing.
+    tools = {
+      { name = "hidutil", kind = "system", locator = "/usr/bin/hidutil", policy = "required",
+        reason = "applying the one HID mapping every leader key depends on, and clearing it " ..
+                 "again on quit",
+        origin = { macos = "ships with the system" } },
+    },
+
     data = {
       activeNames = { source = "root", policy = "required",
         breaks = "no catalog row is active, so hidutil remaps nothing and every leader key, "

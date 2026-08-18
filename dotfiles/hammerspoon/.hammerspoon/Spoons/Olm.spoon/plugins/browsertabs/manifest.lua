@@ -20,17 +20,50 @@ return {
       recency = { from = "recency", policy = "optional", limit = 2000 },
     },
     tools = {
-      { name = "osascript", kind = "system", locator = "/usr/bin/osascript", policy = "optional",
+      { name = "osascript", kind = "system", locator = "/usr/bin/osascript", policy = "optional", unit = "jxa",
         reason = "runs the JXA that asks each browser for its open tabs",
         origin = { macos = "ships with the system" } },
-      { name = "swiftc", kind = "system", locator = "/usr/bin/swiftc", policy = "optional",
+      -- swiftc is absent on a fresh install until the command line tools go on, so this is not
+      -- a macos origin the way the sibling lines above and below are, it is a thing to install
+      -- rather than a thing already present, and the origin has to say so honestly.
+      { name = "swiftc", kind = "system", locator = "/usr/bin/swiftc", policy = "optional", unit = "permissions",
         reason = "builds the helper that asks for automation permission per browser",
-        origin = { macos = "ships with the Xcode command line tools" } },
-      -- Test only, so it never reaches an install proposal for someone who just wants
-      -- the tool. Same separation the emoji dataset builders use.
-      { name = "jq", kind = "path", policy = "optional", stage = "test",
+        origin = { ["xcode-clt"] = "xcode-select --install" } },
+      -- Runtime, and separate from the test stage line below that happens to name the same
+      -- binary. The permission surface opens the Automation pane by URL, which is the only
+      -- route left once a browser has been refused, and that is a running feature rather than
+      -- part of the harness.
+      { name = "open", kind = "system", locator = "/usr/bin/open", policy = "optional", unit = "permissions",
+        reason = "opening the Automation pane, the only way to undo a refused browser",
+        origin = { macos = "ships with the system" } },
+      -- Test only, so none of the four below ever reach an install proposal for someone who
+      -- just wants the tool. Same separation the emoji dataset builders use. All four came from
+      -- the integration harness's own beside file declaration rather than being invented here,
+      -- and all four name that file as their unit.
+      { name = "jq", kind = "path", policy = "optional", stage = "test", unit = "test/harness",
         reason = "reads every answer the integration harness gets back from the browsers",
         origin = { brew = "jq" } },
+      -- The harness runs the browser adapters and the accessibility witness through osascript
+      -- itself, in six of its own files, so it declares the tool rather than leaning on the jxa
+      -- provider's runtime line above happening to name it. The tool would have been installed
+      -- either way, since two other units declare it, and what was missing is the harness's own
+      -- claim on it, which is what a person reads to know why it is needed.
+      { name = "osascript", kind = "system", locator = "/usr/bin/osascript", policy = "optional",
+        stage = "test", unit = "test/harness",
+        reason = "runs the browser adapters and the accessibility witness that judges each round",
+        origin = { macos = "ships with the system" } },
+      -- The harness once carried each command to the agent as a URL and declared open for it. It
+      -- does not any more, and lib/hs.sh says at length why, opening a URL goes through Launch
+      -- Services, which takes focus, and focus is the very thing most of these rounds measure. The
+      -- channel is files on both sides now and nothing in the harness activates anything. The
+      -- declaration outlived the mechanism, which is what a declaration does when nothing checks
+      -- it against the code, so it is gone rather than carried forward.
+      { name = "ioreg", kind = "system", locator = "/usr/sbin/ioreg", policy = "optional", stage = "test", unit = "test/harness",
+        reason = "asks the window server whether the screen is locked, which the accessibility layer cannot be trusted to report about itself",
+        origin = { macos = "ships with the system" } },
+      { name = "caffeinate", kind = "system", locator = "/usr/bin/caffeinate", policy = "optional", stage = "test", unit = "test/harness",
+        reason = "holds the display awake for a run, since a suite drives the machine with synthesised events and the idle timer does not count those",
+        origin = { macos = "ships with the system" } },
     },
     -- Safari and Arc each carry their own bundle id inside their own provider file, so
     -- neither needs anything handed in. Chrome is different, the Chromium provider is a

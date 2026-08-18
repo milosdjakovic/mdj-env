@@ -45,10 +45,11 @@ local util = loadfile(thumbsPath .. "util.lua")()
 
 local M = {}
 
--- Quick Look, at the fixed absolute path a system binary lives at. Declared in
--- thumbs.dependencies as the system kind, which is what allows the literal here, the same
--- as /bin/ls in sources/walk.lua and /usr/bin/open in chooser.lua. Nothing is injected
--- because nothing can move it, and this spoon still never learns how anything is installed.
+-- Quick Look, at the fixed absolute path a system binary lives at. Declared in the
+-- plugin's manifest as the system kind, with unit naming thumbs, which is what allows
+-- the literal here, the same as /bin/ls in sources/walk.lua and /usr/bin/open in
+-- chooser.lua. Nothing is injected because nothing can move it, and this spoon still
+-- never learns how anything is installed.
 local QLMANAGE = "/usr/bin/qlmanage"
 
 local cfg = {

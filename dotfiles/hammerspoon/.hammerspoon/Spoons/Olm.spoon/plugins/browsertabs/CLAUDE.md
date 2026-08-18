@@ -410,9 +410,9 @@ pane in System Settings. `notRunning` means there is nothing to ask about yet.
 ## Both outside tools are declared, and neither is injected
 
 This spoon runs two binaries, `osascript` from `jxa.lua` and `swiftc` from
-`permissions.lua`, and each is declared in a `.dependencies` file beside the file that
-names it. Both are the system kind, binaries at fixed absolute paths that cannot move
-between machines, so the declaration records the path and the Lua file keeps the same
+`permissions.lua`, and each is declared in `needs.tools` in the plugin's manifest, with
+unit naming the file that names it. Both are the system kind, binaries at fixed absolute
+paths that cannot move between machines, so the declaration records the path and the Lua file keeps the same
 literal. Nothing is resolved at load and nothing is handed in through `configure`. The
 declarations exist so the repository's manifest records what this spoon actually runs,
 which is the whole point of declaring rather than probing.

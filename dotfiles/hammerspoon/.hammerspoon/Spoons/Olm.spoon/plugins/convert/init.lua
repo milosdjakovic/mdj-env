@@ -39,7 +39,7 @@ obj.license = "MIT"
 
 local log = hs.logger.new("Convert", "info")
 
--- The name this tool is declared under in the dependencies file beside this init.lua.
+-- The name this tool is declared under in the plugin's manifest.
 -- The root looks the path up by it, so the declaration and this spoon agree on one
 -- spelling and a rename fails visibly rather than silently.
 obj.tool = "qalc"

@@ -17,7 +17,7 @@ return {
       recency = { from = "recency", policy = "required" },
     },
     tools = {
-      { name = "mullvad", kind = "path", policy = "optional",
+      { name = "mullvad", kind = "path", policy = "optional", unit = "mullvad",
         reason = "the relay CLI behind every VPN control and location",
         origin = { cask = "mullvad-vpn" } },
     },

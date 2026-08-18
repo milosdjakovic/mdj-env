@@ -22,6 +22,21 @@ return {
       hyperKey = { from = "hyperkey", policy = "optional" },
     },
 
+    -- One toggle form opens a URL rather than an application, for a pane scheme such as the
+    -- one System Settings answers to, and hs.urlevent.openURL refuses those since they carry
+    -- a single colon instead of a scheme separator. So the launcher binary is a real
+    -- dependency of this plugin rather than an implementation detail, and it was invoked by
+    -- name here for as long as this plugin has existed with nothing declaring it.
+    --
+    -- Optional, because every ordinary toggle resolves an application through the
+    -- accessibility API and never reaches this, so an absent one costs the URL form alone.
+    tools = {
+      { name = "open", kind = "system", locator = "/usr/bin/open", policy = "optional",
+        reason = "opening a pane URL for a toggle whose target is a settings pane rather " ..
+                 "than an application",
+        origin = { macos = "ships with the system" } },
+    },
+
     -- Both fields now have a working shipped default below, so neither blocks a fresh
     -- install, but both are still worth declaring, since the person's own fuller list is the
     -- entire point of this plugin and its absence is a real, if contained, loss.

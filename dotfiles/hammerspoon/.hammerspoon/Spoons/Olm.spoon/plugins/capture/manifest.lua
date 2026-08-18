@@ -17,10 +17,10 @@ return {
       hyperKey = { from = "hyperkey", policy = "optional" },
     },
     tools = {
-      { name = "ocr", kind = "path", locator = "ocr", policy = "optional",
+      { name = "ocr", kind = "path", locator = "ocr", policy = "optional", unit = "macocr",
         reason = "the OCR backend, the sole handler of text capture",
         origin = { tap = "schappim/ocr/ocr" } },
-      { name = "macshot", kind = "app", locator = "com.sw33tlie.macshot.macshot", policy = "optional",
+      { name = "macshot", kind = "app", locator = "com.sw33tlie.macshot.macshot", policy = "optional", unit = "macshot",
         reason = "the preferred screenshot backend, native is the fallback",
         origin = { manual = "install the macshot app, then enable its URL scheme in its settings" } },
     },

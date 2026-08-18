@@ -12,19 +12,22 @@ return {
 
   needs = {
     tools = {
-      { name = "qlmanage", kind = "system", locator = "/usr/bin/qlmanage", policy = "optional",
+      { name = "qlmanage", kind = "system", locator = "/usr/bin/qlmanage", policy = "optional", unit = "thumbs",
         reason = "drawing a preview of a pdf, a video, or anything else only Quick Look can render",
         origin = { macos = "ships with the system" } },
-      { name = "swiftc", kind = "system", locator = "/usr/bin/swiftc", policy = "optional",
+      -- swiftc is absent on a fresh install until the command line tools go on, unlike
+      -- qlmanage above, which is why this one line names an install step rather than
+      -- claiming the compiler already ships with the system.
+      { name = "swiftc", kind = "system", locator = "/usr/bin/swiftc", policy = "optional", unit = "quicklook",
         reason = "compiling the helper that opens the native Quick Look panel",
-        origin = { macos = "ships with the Xcode command line tools" } },
-      { name = "fd", kind = "path", policy = "optional",
+        origin = { ["xcode-clt"] = "xcode-select --install" } },
+      { name = "fd", kind = "path", policy = "optional", unit = "hidden",
         reason = "building the index of paths Spotlight cannot see",
         origin = { brew = "fd" } },
-      { name = "fzf", kind = "path", policy = "optional",
+      { name = "fzf", kind = "path", policy = "optional", unit = "hidden",
         reason = "ranking that index, the one thing a substring tool cannot do over 42 thousand matches",
         origin = { brew = "fzf" } },
-      { name = "fd", kind = "path", policy = "optional",
+      { name = "fd", kind = "path", policy = "optional", unit = "walk",
         reason = "walking a named directory, which is faster than the index once a scope is given and is the only way to see dotfiles",
         origin = { brew = "fd" } },
     },

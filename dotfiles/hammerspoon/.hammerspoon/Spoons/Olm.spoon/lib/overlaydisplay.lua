@@ -63,11 +63,17 @@ M.modes = {
 ---                      arrangement's name, or nil when nothing matches. Read fresh
 ---                      every time a screen is resolved or the picker is opened,
 ---                      never cached, since the arrangement changes under both.
+--- deps.displayplacer   the resolved absolute path to displayplacer, or nil when the machine
+---                      has none. Passed in rather than named in a command here, because this
+---                      module is not a dependency door and the composition root declares the
+---                      tool on its behalf. Only fixed mode needs it, so nil costs the serial
+---                      id bridge and nothing else.
 function M.new(deps)
   deps = deps or {}
 
   local self = {}
   self._canvasPanel = deps.canvasPanel
+  self._displayplacer = deps.displayplacer
 
   -- The runtime store keys, kept local rather than read from a config table, since
   -- a fresh install needs somewhere for a picker choice to persist before any
@@ -119,7 +125,11 @@ function M.new(deps)
   local uuidToSerial = nil -- the reverse, so an attached screen resolves to its serial
   local function refreshSerialMap()
     serialToUUID, uuidToSerial = {}, {}
-    local out = hs.execute("displayplacer list", true) or ""
+    -- No tool, no map, and both directions stay empty. Fixed mode then resolves no screen and
+    -- falls back to the active window exactly as an unpinned arrangement already does, which is
+    -- why the root declares this one optional.
+    if not self._displayplacer then return end
+    local out = hs.execute(self._displayplacer .. " list", true) or ""
     local persistent, serial
     local function flush()
       if serial and persistent then

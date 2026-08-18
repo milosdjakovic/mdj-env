@@ -11,7 +11,7 @@ return {
 
   needs = {
     tools = {
-      { name = "displayplacer", kind = "path", policy = "optional",
+      { name = "displayplacer", kind = "path", policy = "optional", unit = "engine",
         reason = "reading and applying display arrangements",
         origin = { brew = "displayplacer" } },
     },

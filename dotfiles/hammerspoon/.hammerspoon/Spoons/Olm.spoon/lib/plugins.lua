@@ -271,13 +271,25 @@ function obj.declarations(manifests, consumer)
     for _, tool in ipairs((manifests[name].needs or {}).tools or {}) do
       local locator = tool.locator or tool.name
       local key = tool.name .. "\0" .. locator
+      -- The unit inside the plugin that wanted the tool, where the declaration names one, so a
+      -- console line about a missing tool points at the provider responsible rather than at the
+      -- whole plugin. That precision used to come from where a declaration file sat, and it is
+      -- carried by a field now that a plugin declares everything in one manifest.
+      --
+      -- Built once here, before the branch, because the merge below needs the same label the
+      -- first declaration got. Building it in the new entry branch alone was the whole of a real
+      -- defect. Every tool declared by more than one unit merges, which is most of the shared
+      -- ones, so the label read `processes/metrics, processes, processes` and lost the two units
+      -- it exists to name, and `open` collapsed four owners into a list of plugin names with no
+      -- unit among them.
+      local owner = tool.unit and (name .. "/" .. tool.unit) or name
       local already = seen[key]
       if already then
         if tool.reason and not already.reason:find(tool.reason, 1, true) then
           already.reason = already.reason .. ", and " .. tool.reason
         end
         if tool.policy == "required" then already.policy = "required" end
-        already.owner = already.owner .. ", " .. name
+        already.owner = already.owner .. ", " .. owner
       else
         local entry = {
           name = tool.name,
@@ -286,7 +298,7 @@ function obj.declarations(manifests, consumer)
           policy = tool.policy,
           reason = tool.reason or "no stated reason",
           consumer = consumer,
-          owner = name,
+          owner = owner,
         }
         seen[key] = entry
         out[#out + 1] = entry

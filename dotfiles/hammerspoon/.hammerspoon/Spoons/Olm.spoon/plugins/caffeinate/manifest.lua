@@ -1,7 +1,7 @@
 -- Caffeinate, what it declares about itself.
 --
 -- Native Lua over the built in hs.caffeinate api, so it names no external tool and
--- has no dependencies file anywhere in this plugin. There is no needs table here at
+-- declares no tools anywhere in this plugin. There is no needs table here at
 -- all, since a present field is a claim and this plugin has nothing to claim. Its
 -- chooser and its theme are the same story, both ambient once a surface is declared,
 -- so a present manifest field for either would only be restating global policy.
