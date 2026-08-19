@@ -214,6 +214,34 @@ local function judge(scenario, world, hold, done)
       local v, why = verdictOf(scenario, world)
       return done(v, why)
     end
+    -- A polling step asks its own question over and over and moves on the moment the answer is
+    -- yes. A fixed row of looks cannot serve both ends of this. It has to be long enough for the
+    -- slowest tool, and then every quick one pays that length on every run, which is the trade
+    -- the surface scenarios used to be stuck with.
+    --
+    -- The moment that breaks it is the first run after a relaunch, when no picker has been built
+    -- yet and the first build of one is the slowest thing that will happen all session. A cold
+    -- surface run reported thirteen failures in alphabetical order on 2026-08-18, every one
+    -- saying the tool was asked to open and never showed, when the tools were fine and simply
+    -- had not finished being built inside the window. Waiting only while the answer is still no
+    -- gets both halves, a quick run once things are warm and patience when nothing is.
+    if type(step.poll) == "function" then
+      local every = step.every or 0.25
+      local left = step.upTo or 3
+      local function tick()
+        local ok, answer = pcall(step.poll, world)
+        if not ok then
+          return done("fail", "step " .. i .. " raised, " .. tostring(answer))
+        end
+        -- Running out of budget carries on to the next step rather than deciding anything here,
+        -- so a surface that really is dead still reaches its own expect and fails in that
+        -- scenario's own words instead of stalling the queue or inventing a reason.
+        if answer or left <= 0 then return nextStep() end
+        left = left - every
+        hold(hs.timer.doAfter(every, tick))
+      end
+      return tick()
+    end
     local ok, err = pcall(step.fn or step[1], world)
     if not ok then
       return done("fail", "step " .. i .. " raised, " .. tostring(err))

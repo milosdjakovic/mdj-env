@@ -157,13 +157,16 @@ function obj.derive(world)
           -- machine with nothing selected at all. A single wait long enough for the slowest
           -- would be paid by every other tool on every run, and one short enough to stay quick
           -- reports the slow ones as broken, which is what it did.
+          --
+          -- So it polls rather than looking a fixed number of times, and the runner's polling
+          -- step moves on the instant it sees the list. Quick tools now cost one look instead of
+          -- five, and a slow one may take up to five seconds without anybody paying for that
+          -- unless it needs it. The budget is a whole second per look longer than the old row
+          -- was in total, which is what a first build after a relaunch turned out to want.
           steps = {
-            { fn = function(w) w._surfaceOpened = nil w.open(identity) end, wait = 0.3 },
-            { fn = look, wait = 0.3 },
-            { fn = look, wait = 0.3 },
-            { fn = look, wait = 0.3 },
-            { fn = look, wait = 0.3 },
-            { fn = function(w) look(w) w.close(identity) end, wait = 0.4 },
+            { fn = function(w) w._surfaceOpened = nil w.open(identity) end, wait = 0.25 },
+            { poll = function(w) look(w) return w._surfaceOpened end, every = 0.25, upTo = 5 },
+            { fn = function(w) w.close(identity) end, wait = 0.4 },
           },
           expect = function(w)
             if not w._surfaceOpened then
@@ -235,11 +238,12 @@ function obj.derive(world)
         tier = "surface",
         scenario = ("%s is known to be open while it is open"):format(identity),
         steps = {
-          { fn = function(w) w._contextSeen = nil w.open(identity) end, wait = 0.3 },
-          { fn = look, wait = 0.3 },
-          { fn = look, wait = 0.3 },
-          { fn = look, wait = 0.3 },
-          { fn = function(w) look(w) w.close(identity) end, wait = 0.4 },
+          { fn = function(w) w._contextSeen = nil w.open(identity) end, wait = 0.25 },
+          -- Stops on a yes only. A predicate answering false may still turn true once the list
+          -- is really up, and one answering nil has no predicate at all, which polling cannot
+          -- mend, so both simply run the budget out and let expect tell the two apart.
+          { poll = function(w) look(w) return w._contextSeen == true end, every = 0.25, upTo = 5 },
+          { fn = function(w) w.close(identity) end, wait = 0.4 },
         },
         expect = function(w)
           if w._contextSeen == nil then
@@ -278,20 +282,15 @@ function obj.derive(world)
               w._unanswered = nil
               w._asked = false
               w.open(identity)
-            end, wait = 0.6 },
-          { fn = function(w)
+            end, wait = 0.25 },
+          { poll = function(w)
               if not w._asked then
                 local missing = w.unanswered(w.boundActions(context))
                 if missing then w._asked = true w._unanswered = missing end
               end
-            end, wait = 0.4 },
-          { fn = function(w)
-              if not w._asked then
-                local missing = w.unanswered(w.boundActions(context))
-                if missing then w._asked = true w._unanswered = missing end
-              end
-              w.close(identity)
-            end, wait = 0.4 },
+              return w._asked
+            end, every = 0.25, upTo = 5 },
+          { fn = function(w) w.close(identity) end, wait = 0.4 },
         },
         expect = function(w)
           if not w._asked then
