@@ -289,7 +289,14 @@ relaunches. The resting state is main. The lock is a directory created
 atomically, held outside `~/.hammerspoon` so it never trips the pathwatcher, and
 its holder file records who took it and what to restore.
 
-The discipline every session must follow. Do not hold the lock across
+The discipline every session must follow. Ask before you start, and wait to be
+told to. Nothing that seizes the screen or the keyboard begins on an announcement,
+not taking the lock, not running a suite, not opening a chooser, and not posting a
+key or a chord, because a run drives this machine with synthesised events and lands
+in the middle of whatever the person is doing. Do the reading and the patching off
+the machine first, then say what the command is and roughly how long it holds the
+screen, and leave the checkout clean while waiting so nothing sits half applied if
+the answer is not now. Do not hold the lock across
 development, only across testing. When you reach a point where you need the live
 config, run `bin/hs-devlock acquire` from your worktree, or `bin/hs-devlock
 acquire --wait` in the background when another session holds it, which polls
