@@ -14,8 +14,15 @@ than from its text. Choosing a tab selects it in its window, raises the window, 
 browser to the front. The last row opens a settings level where each browser is switched on or off
 and shows whether it is installed, open, and allowed to be scripted.
 
-The order never changes on its own. Nothing here watches the browsers, so the list is the same
+The ORDER never changes on its own. Nothing here watches the browsers, so the order is the same
 every time until you open a tab through it, which is the one thing that moves anything.
+
+Which tabs are IN the list is a separate question and the answer is different. That is read live,
+`M.show` calls `M.reload` and the listing is fetched from every switched on browser on every open,
+so a tab opened or closed in the browser is present or gone the next time this comes up. Nothing is
+cached and nothing needs watching for that. This paragraph used to say the list was the same every
+time, meaning the order, and it was read as meaning the membership, which is a fair reading of what
+it said and the reason the two are now named apart.
 
 ## The shape, and why the root names the browsers
 
@@ -96,7 +103,13 @@ browser. For someone who mostly switches by hand the list is therefore the brows
 rather than a recency order. What is not given up is anything across a restart, since the
 remembered order is kept in `hs.settings` and survives a reload, a restart and a reboot, so the
 list is only ever cold on a machine where this tool has not been used yet. That is the trade and it
-was made deliberately, because a stable list that can be learned beats a truthful one that moves. It also makes every browser
+was made deliberately, because a stable list that can be learned beats a truthful one that moves.
+
+Confirmed by the user on 2026-08-20 as the wanted behaviour rather than a cost to be paid back
+later. Asked directly whether picking a tab here keeps it leading even after switching tabs by hand
+in the browser, the answer was yes and that is correct. So an observer is not wanted, and nobody
+should add one back on the grounds that the order looks stale. The only thing worth watching for
+was membership, and that is already live, see the second paragraph of this file. It also makes every browser
 behave alike, where before Arc was the odd one out, since Arc reports no active tab and could
 never be observed at all.
 
