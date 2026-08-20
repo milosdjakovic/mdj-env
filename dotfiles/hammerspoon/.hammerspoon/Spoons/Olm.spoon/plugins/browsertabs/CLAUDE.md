@@ -362,6 +362,10 @@ the next run deletes.
 The suite reproduces this on demand through the ordinary path, which is what the raise paragraph
 above had been waiting for. The case is `minimized on safari`. Chrome has never once failed it.
 
+It did not reproduce on 2026-08-20, passing three rounds out of three inside a seventy round run
+with nothing else red. Nothing in this path was changed, so that is one clean run rather than a
+repair, and it is recorded here so the word on demand is read as often rather than always.
+
 The witnesses disagree in a specific way. Safari's own dictionary says the window is not minimized,
 that it sits at index one, that it holds a document, and that the fixture tab is the selected one.
 The window server says Safari has no windows at all, and three readers agree about that

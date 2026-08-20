@@ -229,6 +229,58 @@ floating a remembered one above untouched ones.
 The note above pointing at the two `touch` calls was the right instinct. What mattered was not
 whether the order reflected them but which order they were made in.
 
+Confirmed by running it rather than by reading it. Ten consecutive rounds on 2026-08-20, five on
+Safari and five on Chrome, all ten passing. One round before those was driven by hand a step at a
+time with the selection path instrumented, so what happened after Return was observed rather than
+inferred from a verdict, the Return tap firing while the chooser was up, the in place confirm
+reading row one, that row being a tab, the activation being called with the address the ranking had
+put on top, and the browser arriving in front. So the ordering fix above was the whole of it and
+there is nothing else hiding under this case.
+
+One round did fail after that fix and has not come back, and it is recorded because a single red
+round of this case is a thing to run again before it is investigated. It was one round taken minutes
+before the fix was committed, and the witness shows the fixture correctly on top and then nothing
+having moved at all, the other application still in front and the browser's own selected tab
+unchanged. Ten rounds since have not reproduced it, and the console carries no complaint from the
+engine, which logs a refused activation and a browser it could not bring forward. So it is left
+unexplained rather than called solved. The nearest documented candidate is the discretionary cross
+application raise in the spoon's own `CLAUDE.md`, and it does not fit on its own, since a raise
+macOS declined would still have left the tab selected.
+
+The full run of 2026-08-20 was seventy rounds. Sixty eight passed, none failed, and two reported
+themselves not covered. It is the first run of this suite with nothing red in it.
+
+Two extra windows were opened by hand in each browser before starting, and that is the whole reason
+this run answered more than the last one. Nine cases reported themselves not covered on 2026-08-18
+for the single reason that one window was open, and every one of them ran and passed here. So
+opening a second window in each browser is part of starting a full run rather than a nicety, since
+without it the run costs the same twenty minutes and answers nine fewer questions.
+
+`minimized on safari`, the open defect below, passed three rounds out of three. That is not a fix
+and it is deliberately not written up as one. Nothing in that path changed, and the section below
+records the failure as intermittent and correlated with minimizing and restoring one window
+repeatedly, so three clean rounds is one clean run and not a resolution. It is recorded because a
+run where it does not appear is itself information about how often it does.
+
+The two not covered were `discarded on chrome` and `tab_group on safari`, both for machine reasons
+already recorded further down, neither of which is a gap to close.
+
+Two `jq` errors printed during that run, each reading that it could not iterate over null. They come
+from a case cleanup asking a browser for its window list and getting nothing back, so `.windows[]`
+had null to walk. No case failed and no assertion rested on them, and the switched off check, which
+makes a similar call, demonstrably got its answer since it passed on the comparison that call feeds.
+Where the two lines landed in a captured log is not evidence of which case produced them, since
+stderr is unbuffered and the pass lines are not, so do not read their position as a clue. Cosmetic,
+and a default on that jq path would end it.
+
+A trap for anyone driving the harness by hand rather than through `suite.sh`. Every answer is read
+straight out of a reply file by `hs_cmd`, so anything else the shell prints during that call lands
+inside the JSON. An interactive shell on this machine has `rm` aliased to `rm -iv`, and the verbose
+half printed the reply path immediately after the answer, which made `jq` fail on every call, which
+reads exactly like an agent that has stopped answering. Both `suite.sh` and `run.sh` are unaffected,
+since each runs under a non interactive bash where no alias of that shell is loaded, so drive
+anything by hand from `bash` too and never from the interactive shell.
+
 `discarded on chrome` cannot be created on this machine, since Chrome here has internal debugging
 pages disabled by policy and there is no other way to force a tab out of memory. That is final
 rather than a gap to close, and the hazard a discarded tab carries, a page reloading and renaming
