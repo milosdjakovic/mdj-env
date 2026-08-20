@@ -41,10 +41,34 @@ return {
       -- Optional, and the sentence below is why. Every consumer of the policy already treats an
       -- absent slice as nothing configured, so the tool still opens, still searches, and still
       -- ranks. It simply does it over the whole disk with no vocabulary.
+      --
+      -- One slice of it IS shippable, and saying otherwise above was wrong. Which folders
+      -- matter is personal, and so is a name that only appears on one machine, but a list of
+      -- package and build caches nobody ever searches for is the same on every Mac. node_modules
+      -- is node_modules everywhere. So that slice ships, and the rest still waits for a person.
+      --
+      -- Laid under anything supplied rather than over it, so a person handing over their own
+      -- policy keeps every key they wrote, and one handing over a policy with no prune list of
+      -- their own still gets this. A person who wants a different list writes one and it replaces
+      -- this outright, because a list is a complete statement, which is lib/defaults.lua's rule
+      -- rather than a new one invented here.
+      --
+      -- Icon\r is a file rather than a directory and the trailing carriage return is part of its
+      -- real name, which is why it is the only artifact of its kind that ever reached a list,
+      -- every other one being dot prefixed and already out of an ordinary search.
       policy = { source = "user", policy = "optional",
-                 breaks = "the type words, the folder aliases and the prune list are all empty, "
-                   .. "so a query naming a type or a folder finds nothing by that name and every "
-                   .. "search walks package noise it should have skipped" },
+                 default = {
+                   prune = {
+                     "Library", "Backups", ".git", ".cache", ".Trash",
+                     ".npm", ".pnpm-store", ".yarn", ".bun", ".cargo", ".rustup", ".nvm", ".gem",
+                     ".venv", "venv", "__pycache__", ".gradle", ".m2", ".cocoapods",
+                     "node_modules", ".next", ".turbo", "target", ".terraform",
+                     "Icon\r",
+                   },
+                 },
+                 breaks = "the type words and the folder aliases are empty, so a query naming a "
+                   .. "type or a folder finds nothing by that name, though the shipped prune list "
+                   .. "still keeps an unscoped hidden search out of package caches" },
       -- Repaint a surface other than this plugin's own picker, for the case where the file list
       -- is being shown inside the launcher. Composed with the picker's own redraw rather than
       -- replacing it, so both are told and each ignores it when it is not on screen.

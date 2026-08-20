@@ -416,6 +416,25 @@ function obj.run(olm, cfg)
     end
   end
 
+  -- Whatever each plugin ships for its own declared data needs, laid UNDERNEATH everything a
+  -- person handed over. Until now a plugin could declare a need, describe what breaks without
+  -- it, and have no way to answer it itself, so every such need went unmet until somebody wrote
+  -- the value out by hand. That is backwards for a spoon meant to work on a machine that has
+  -- configured nothing.
+  --
+  -- Combined with lib/defaults.lua's merge rather than servicesLib.merge, and the difference is
+  -- the whole point. servicesLib.merge overwrites per field, so a person handing over a whole
+  -- policy map would silently drop every shipped key they had not mentioned. defaults.merge
+  -- reads the shape instead, merging a map key by key so their siblings survive, and letting a
+  -- list replace outright because a list is a complete statement. That rule is already written
+  -- down there and this must not grow a second copy of it.
+  for name, fields in pairs(servicesLib.shipped(manifests)) do
+    fannedData[name] = fannedData[name] or {}
+    for field, shippedValue in pairs(fields) do
+      fannedData[name][field] = defaultsLib.merge(shippedValue, fannedData[name][field])
+    end
+  end
+
   local firstPass = resolver.plan({
     manifests = manifests,
     user = cfg,

@@ -335,6 +335,43 @@ end
 --- copies of an earlier layer are never mutated by a later one, which matters because
 --- obj.perPlugin's own answer is exactly the kind of table a caller might reasonably want
 --- to inspect again afterward.
+--- obj.shipped(manifests)
+--- Function
+--- Every value a plugin ships for one of its own declared data needs, name keyed the same way
+--- fanOut and merge answer, so it layers with them.
+---
+--- This exists because a plugin could declare a data need and describe what breaks without it,
+--- and had no way at all to ship an answer of its own. So every such need was unmet until a
+--- person wrote the value out, which is the opposite of what a portable spoon wants. A fresh
+--- install reported fifteen losses and most of them were values nobody but the author could
+--- have known, but three were universal, a list of package directories to skip is the same on
+--- every machine.
+---
+--- The caller layers this UNDER anything a person or the root supplied, and must combine it with
+--- lib/defaults.lua's own merge rather than a flat overwrite, since the shapes matter. A person
+--- handing over a whole policy map should keep the shipped keys they did not mention, while a
+--- person handing over a list is making a complete statement and replaces it. That rule already
+--- exists and is written down there, so this must not invent a second one.
+---
+--- A shipped default also makes the need genuinely SUPPLIED rather than merely defaulted, which
+--- is the part that matters beyond convenience. resolve's own absent() reads what was supplied
+--- and nothing else, so a plugin that shipped a working value while its declaration still read
+--- as unmet would report a loss it no longer suffers, which is the false warning this layer was
+--- just taught not to emit.
+function obj.shipped(manifests)
+  local data = {}
+  for name, manifest in pairs(manifests or {}) do
+    local fields = ((manifest or {}).needs or {}).data or {}
+    for field, decl in pairs(fields) do
+      if type(decl) == "table" and decl.default ~= nil then
+        data[name] = data[name] or {}
+        data[name][field] = decl.default
+      end
+    end
+  end
+  return data
+end
+
 function obj.merge(...)
   local out = {}
   for i = 1, select("#", ...) do
