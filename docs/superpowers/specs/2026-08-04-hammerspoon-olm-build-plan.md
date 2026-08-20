@@ -330,3 +330,46 @@ then does its original go.
 
 The plugin roster surface waits until olm ships to someone. Text expansion and snippet placeholders
 stay out per the design. The pathwatcher removal is its own decision and is not bundled in.
+
+## The fresh install gate, run 2026-08-20
+
+This plan never contained a test of the one thing it exists to produce, a spoon that works on a
+machine that has configured nothing. `init.lua` has claimed since the portable work landed that
+deleting any of its contents leaves Olm still coming up working, and nothing ever ran that claim.
+It has now been run, by loading `spoon.Olm:start({})` from an eight line `init.lua` in a throwaway
+worktree.
+
+The claim holds. Zero errors, zero plugins blocked, 29 declared dependencies all present, and the
+wiring report ends in `no problems`. Against the real 108 line config the counts are the same,
+24 tools registered, 13 contexts, 20 extra steps, 3 starts, differing only by one configure call.
+So a second person on a new machine gets the whole tool set, and both leader keys, since Olm ships
+`app = HYPER` and `window = META` and KeyRemap ships the catalog that gives them keycodes.
+
+What the run produces instead of failures is 15 honest degradations, and sorting them is the real
+remaining work on defaults.
+
+Nine of them are correct and must stay. The curated display arrangement for a host, the person's
+own application registry and toggle list, which three plugins each name a loss for, the only
+resolving toggle being the shipped Finder one, and an external clipboard manager's own combo. None
+of these can be shipped by anybody.
+
+Three are genuine gaps where Olm ships nothing and could ship something good.
+
+- [ ] File search ships no type words, no folder aliases and no prune list, so a fresh install
+  walks package noise it should skip. A prune list at least is universal rather than personal.
+- [ ] Processes ships no dev runtime names and no dev tree markers, so it falls back to port
+  holders alone and never finds a running server with no listening socket. Runtime names are
+  universal.
+- [ ] Window manager margins resolve to zero, so every window sits flush against the raw screen
+  edge. Zero is a value, but it is not a sensible one.
+
+Three more name a fallback that already exists and is stated, the display settle delay, the capture
+chain order, and the window animation and named sizes. Those are working as designed and are not
+gaps.
+
+One deserves a look rather than a fix.
+
+- [ ] BrowserTabs reports that Chrome never joins the provider list for want of a bundle id, while
+  `enabled` ships as Safari alone on purpose, so the loss is announced for a browser that is
+  switched off anyway. Either the warning is conditional on the browser being enabled, or the
+  shipped default is not saying what it means.
