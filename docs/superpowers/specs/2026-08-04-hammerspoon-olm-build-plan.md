@@ -355,13 +355,23 @@ of these can be shipped by anybody.
 
 Three are genuine gaps where Olm ships nothing and could ship something good.
 
-- [ ] File search ships no type words, no folder aliases and no prune list, so a fresh install
+- [x] File search ships no type words, no folder aliases and no prune list, so a fresh install
   walks package noise it should skip. A prune list at least is universal rather than personal.
-- [ ] Processes ships no dev runtime names and no dev tree markers, so it falls back to port
+  Done 2026-08-20 in `bc93b56`, on the mechanism added in `0741942`. It ships the type words, the
+  standard folder aliases, the extra search roots, the prune list and the preview tuning, and no
+  project folder, since nobody else can know what those are called.
+- [x] Processes ships no dev runtime names and no dev tree markers, so it falls back to port
   holders alone and never finds a running server with no listening socket. Runtime names are
-  universal.
-- [ ] Window manager margins resolve to zero, so every window sits flush against the raw screen
-  edge. Zero is a value, but it is not a sensible one.
+  universal. Done 2026-08-20 in `bc93b56`. It ships the runtime names, the ignore list and the
+  generic directory vocabulary, and not the dev roots. Its sampling weights, stop timings and
+  scan timeout are deliberately still absent, being already defaulted inside the plugin, and a
+  second copy here would only drift.
+- [x] Window manager margins resolve to zero, so every window sits flush against the raw screen
+  edge. Zero is a value, but it is not a sensible one. WITHDRAWN 2026-08-20, this was not a gap.
+  This machine's own `settings.gap` is zero, so flush against the edge is what the person who
+  wrote the config actually chose, and shipping a margin would push a fresh install toward
+  something they had rejected. What remains is a sentence calling a working default a loss,
+  which belongs with the three below rather than here.
 
 Three more name a fallback that already exists and is stated, the display settle delay, the capture
 chain order, and the window animation and named sizes. Those are working as designed and are not
@@ -373,3 +383,16 @@ One deserves a look rather than a fix.
   `enabled` ships as Safari alone on purpose, so the loss is announced for a browser that is
   switched off anyway. Either the warning is conditional on the browser being enabled, or the
   shipped default is not saying what it means.
+
+### What the thirteen remaining degradations are, 2026-08-20
+
+After `bc93b56` a fresh install reports thirteen, and none of them is a missing default any more.
+Eight are values only this person can give, their applications, their toggle list, their curated
+display arrangements and their own clipboard combo. Four describe a fallback that already exists
+and works, the window animation and named sizes, the display settle delay, the capture chain order,
+and the window margins now that zero is understood to be a choice. One is the BrowserTabs line
+below.
+
+So the remaining work here is the honesty of four sentences rather than any more content. A
+declaration that calls a working fallback a loss trains a person to ignore the report, which is the
+same harm the false warnings did before `fe6bf58` made any of this visible.
