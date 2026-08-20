@@ -47,10 +47,62 @@ return {
       --
       -- Optional, since every consumer treats an absent slice as nothing configured, so the tool
       -- still opens and still lists. What it loses is the ability to recognise anything.
+      --
+      -- Most of it ships now, because most of it is not personal at all. node is node on every
+      -- machine and so is every other runtime name, a directory called dist tells you nothing
+      -- about a project anywhere, and a system daemon is never a dev server on anyone's Mac. What
+      -- genuinely cannot ship is where a person keeps their own work, since nobody else knows
+      -- what that folder is called.
+      --
+      -- Three slices are deliberately absent, and for the opposite reason to devRoots. The
+      -- sampling weights, the stop timings and the scan timeout are already defaulted inside the
+      -- plugin, metrics.lua against its own DEFAULTS table and both sources against their own
+      -- initial values, so shipping them here would put one number in two files and let the two
+      -- drift. One fact, one home.
       policy = { source = "user", policy = "optional",
-                 breaks = "no process name counts as a dev runtime and no directory counts as a "
-                   .. "dev tree, so the list falls back to port holders alone and a running "
-                   .. "server with no listening socket is never found" },
+                 default = {
+                   -- What counts as a dev runtime. Binary names, so they travel exactly.
+                   runtimes = {
+                     "node", "deno", "bun",
+                     "python", "python2", "python3", "pypy",
+                     "ruby", "puma", "unicorn",
+                     "java", "kotlin", "scala",
+                     "php", "php-fpm",
+                     "perl", "beam.smp", "erl",
+                     "dotnet", "mono",
+                     "caddy", "hugo", "esbuild", "vite", "webpack",
+                     "gunicorn", "uvicorn", "daphne", "hypercorn", "flask", "rails",
+                     "air", "gin", "reflex",
+                   },
+                   -- Never a dev server. An entry costs nothing on a machine that does not run
+                   -- the thing it names, and hides nothing anybody wants, since none of these
+                   -- IS a dev server anywhere. That is why third party names sit here quite
+                   -- happily while a project folder name could never sit above.
+                   ignoreCommands = {
+                     "com.docker.backend",
+                     "com.docke",
+                     "rapportd",
+                     "ControlCenter",
+                     "ControlCe",
+                     "Google Drive",
+                     "Raycast",
+                     "Code Helper",
+                     "Code\\x20H",
+                     "identityservicesd",
+                     "sharingd",
+                     "AirPlayXPCHelper",
+                   },
+                   -- Too vague to name a project, so a server found in one is labelled by
+                   -- something further up instead. Generic by definition, hence shippable.
+                   genericDirs = {
+                     "static", "src", "dist", "build", "public", "app", "apps",
+                     "server", "backend", "frontend", "api", "web", "client", "www",
+                     "packages", "site", "docs",
+                   },
+                 },
+                 breaks = "the directories this person keeps their own work in are unknown, so a "
+                   .. "runtime found outside a recognised tree is labelled by whatever directory "
+                   .. "it happens to sit in rather than by the project it belongs to" },
     },
   },
 

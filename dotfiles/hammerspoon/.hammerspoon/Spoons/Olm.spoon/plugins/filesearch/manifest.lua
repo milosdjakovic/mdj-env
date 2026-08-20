@@ -58,6 +58,61 @@ return {
       -- every other one being dot prefixed and already out of an ordinary search.
       policy = { source = "user", policy = "optional",
                  default = {
+                   -- Extension families. Universal by nature, png is png on every machine, and a
+                   -- token absent here still works as a plain text search, so this list decides
+                   -- where the STRICT filter is available rather than what can be found at all.
+                   types = {
+                     img  = { "png", "jpg", "jpeg", "gif", "webp", "heic", "tiff", "bmp", "svg", "ico" },
+                     vid  = { "mp4", "mov", "mkv", "avi", "webm", "m4v" },
+                     aud  = { "mp3", "wav", "flac", "aac", "m4a", "ogg" },
+                     doc  = { "pdf", "doc", "docx", "pages", "rtf", "odt", "epub" },
+                     xls  = { "xls", "xlsx", "numbers", "csv", "tsv" },
+                     ppt  = { "ppt", "pptx", "key" },
+                     arch = { "zip", "tar", "gz", "tgz", "bz2", "xz", "zst", "7z", "rar", "dmg" },
+                     js   = { "js", "mjs", "cjs", "jsx" },
+                     ts   = { "ts", "tsx", "mts", "cts" },
+                     web  = { "html", "htm", "css", "scss", "sass", "less" },
+                     cfg  = { "json", "yaml", "yml", "toml", "ini", "conf", "plist", "env" },
+                     lua  = { "lua" },
+                     py   = { "py", "pyi" },
+                     go   = { "go" },
+                     rs   = { "rs" },
+                     sh   = { "sh", "bash", "zsh", "fish" },
+                     md   = { "md", "markdown", "mdx" },
+                     txt  = { "txt", "text", "log" },
+                     swift = { "swift" },
+                     java = { "java", "kt" },
+                     c    = { "c", "h" },
+                     cpp  = { "cpp", "cc", "hpp", "cxx" },
+                     rb   = { "rb" },
+                     php  = { "php" },
+                     sql  = { "sql" },
+                     app  = { "app" },
+                   },
+                   -- The standard macOS folders, every one relative to home so the same table
+                   -- works anywhere, plus the two absolute ones. A person's OWN project folders
+                   -- are the part that cannot ship, since nobody else knows what they are called,
+                   -- and this is a map so adding one keeps every alias below.
+                   roots = {
+                     downloads = "Downloads",
+                     dl        = "Downloads",
+                     documents = "Documents",
+                     docs      = "Documents",
+                     desktop   = "Desktop",
+                     pictures  = "Pictures",
+                     pics      = "Pictures",
+                     movies    = "Movies",
+                     music     = "Music",
+                     home      = "",
+                     config    = ".config",
+                     hs        = ".hammerspoon",
+                     apps      = "/Applications",
+                     root      = "/",
+                   },
+                   -- Applications live outside home, so without this the app type token above
+                   -- finds nothing at all. Both paths exist on every Mac, and an entry that is
+                   -- not a directory here is skipped, so the list travels.
+                   searchAlso = { "/Applications", "/System/Applications" },
                    prune = {
                      "Library", "Backups", ".git", ".cache", ".Trash",
                      ".npm", ".pnpm-store", ".yarn", ".bun", ".cargo", ".rustup", ".nvm", ".gem",
@@ -65,10 +120,30 @@ return {
                      "node_modules", ".next", ".turbo", "target", ".terraform",
                      "Icon\r",
                    },
+                   -- The pane beside the list. Shipped because nothing else answers for it, no
+                   -- consumer carries a fallback for any of these, so an absent table left the
+                   -- pane with no read cap and nowhere to keep a render. Numbers rather than
+                   -- taste, each one bounding work that happens once per highlighted row.
+                   preview = {
+                     readCap = 64 * 1024,
+                     headLines = 400,
+                     headSlack = 20,
+                     folderEntries = 100,
+                     imageEdge = 600,
+                     nativeMaxBytes = 20 * 1024 * 1024,
+                     cacheDir = "~/.cache/hammerspoon/filesearch-previews",
+                     cacheFiles = 400,
+                   },
+                   -- limits is deliberately NOT here. engine.lua already merges it against its
+                   -- own DEFAULTS table, so shipping it again would put one fact in two files and
+                   -- let them drift, which is the whole failure this repository keeps removing.
+                   -- pruneLocal is not here either, for the opposite reason, it is names on one
+                   -- machine by its own definition.
                  },
-                 breaks = "the type words and the folder aliases are empty, so a query naming a "
-                   .. "type or a folder finds nothing by that name, though the shipped prune list "
-                   .. "still keeps an unscoped hidden search out of package caches" },
+                 breaks = "this person's own project folder aliases and the enormous "
+                   .. "directories only their machine holds are absent, so those names resolve to "
+                   .. "nothing and the hidden walk descends into whatever they keep that is not "
+                   .. "general package noise" },
       -- Repaint a surface other than this plugin's own picker, for the case where the file list
       -- is being shown inside the launcher. Composed with the picker's own redraw rather than
       -- replacing it, so both are told and each ignores it when it is not on screen.

@@ -387,6 +387,53 @@ function obj.derive(world)
     end
   end
 
+  -- Every value a plugin ships for one of its own needs, proven to have survived the layering.
+  --
+  -- A shipped default travels further than anything else here. The manifest declares it, the
+  -- composition root lays it under whatever a person supplied, and the plugin reads the result,
+  -- and each of those handoffs has broken at least once somewhere in this config. It also has a
+  -- failure mode all of its own. A default that is dropped does not raise, it just leaves the
+  -- plugin doing less, and the degradation report cannot catch it either, since the declaration
+  -- reads as satisfied the moment anything at all arrives.
+  --
+  -- Every shipped KEY is checked rather than only the field, because the whole point of laying a
+  -- default underneath is that a person overriding one key keeps the rest. A person is free to
+  -- replace any value, which is why the check asks whether the key arrived at all rather than
+  -- whether it still matches what was shipped.
+  for name, manifest in pairs(world.manifests or {}) do
+    for field, decl in pairs(((manifest or {}).needs or {}).data or {}) do
+      if type(decl) == "table" and decl.default ~= nil then
+        local identity = (plan.identity or {})[name] or name
+        add({
+          tier = "structure",
+          scenario = ("%s kept the %s it ships"):format(identity, field),
+          expect = function()
+            local got = world.suppliedData(name, field)
+            if got == nil then
+              return false, "it ships a default for this and nothing arrived, so the value was "
+                .. "lost between the manifest and the plugin"
+            end
+            if type(decl.default) ~= "table" then return true end
+            if type(got) ~= "table" then
+              return false, "it ships a table and a " .. type(got) .. " arrived instead, which is "
+                .. "the shape mismatch that crashed this very picker once before"
+            end
+            local missing = {}
+            for k in pairs(decl.default) do
+              if got[k] == nil then missing[#missing + 1] = tostring(k) end
+            end
+            if #missing > 0 then
+              table.sort(missing)
+              return false, "it ships " .. table.concat(missing, ", ") .. " and none of that "
+                .. "arrived, so a shipped default is being lost rather than overridden"
+            end
+            return true
+          end,
+        })
+      end
+    end
+  end
+
   -- Every plugin something was configured FOR is a plugin that exists.
   --
   -- A value handed to a name no plugin answers to is merged, carried the whole way through, and
