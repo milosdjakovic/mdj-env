@@ -746,21 +746,39 @@ case_escape_raises_nothing_check() {
 # Getting a known tab onto the top row is the whole arrangement, and it used to be done by
 # selecting the tab and activating the browser, because the order was observed and that is what it
 # followed. Nothing done inside a browser moves the order now, so the arrangement asks for what it
-# wants directly. Two tabs are recorded rather than one, because the tab you are on sits below the
-# one you came from, so the top row is the second most recently opened and not the most recent.
+# wants directly. Two tabs are recorded rather than one so the check proves the order ranks two
+# remembered tabs against each other rather than only floating a remembered one above untouched
+# ones. The most recently touched is the top row, which is this tool's whole ordering rule.
+#
+# This sentence used to say the top row was the second most recently opened, because the tab you
+# are on sits below the one you came from. That described a demotion which was removed from the
+# tool before this was written, so the case has been failing every round on both browsers ever
+# since, and the failure was read as a defect in the switcher rather than a stale expectation.
 case_no_query_arrange() {
   local s; s=$(bt_simple_target "$BT_BUNDLE") || { printf '%s' "$s"; return; }
   IFS=$'\t' read -r win idx url name <<<"$s"
 
-  # Any other tab of this browser, standing as the one opened after the fixture and so taking the
-  # row below it. Its own row is never chosen, it only has to exist.
+  # Any other tab of this browser, recorded BEFORE the fixture so the fixture outranks it. Its own
+  # row is never chosen, it only has to exist and be remembered, so that the check is about two
+  # remembered tabs rather than a remembered one against untouched ones.
   local other
   other=$(bt "$BT_BUNDLE" list | jq -r --arg u "$url" \
     '[.windows[].tabs[] | select(.url != $u) | .url] | .[0] // ""')
   [ -n "$other" ] || { bt_skip "this browser holds only the fixture tab, so there is no second one to record"; return; }
 
-  hs_cmd touch "bundleID=$BT_BUNDLE" "url=$url" > /dev/null
+  # The fixture is touched SECOND so it is the most recently opened, because that is the only
+  # ordering rule this tool has. It used to be touched first, on the strength of a demotion that
+  # swapped the top two rows so the switcher never spent its best position on the tab you were
+  # already looking at. That demotion was built, found wrong in use and deliberately removed, and
+  # the reasoning is in the CLAUDE.md beside this suite under the last tab you opened leads. This
+  # case kept asserting it for long enough to fail every round on both browsers and on untouched
+  # main, and to be mistaken for a defect in the tool rather than a stale expectation here.
+  #
+  # The other tab is still touched, and first, which makes this a stronger check than touching the
+  # fixture alone. It proves the order actually ranks two remembered tabs against each other rather
+  # than merely floating a remembered one above untouched ones.
   hs_cmd touch "bundleID=$BT_BUNDLE" "url=$other" > /dev/null
+  hs_cmd touch "bundleID=$BT_BUNDLE" "url=$url" > /dev/null
 
   osascript -e 'tell application "Finder" to activate' > /dev/null 2>&1
   sleep 0.8

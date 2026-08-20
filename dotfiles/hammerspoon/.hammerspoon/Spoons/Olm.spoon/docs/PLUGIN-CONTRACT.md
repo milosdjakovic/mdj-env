@@ -135,9 +135,12 @@ a plugin with at least one runtime stage tool, so a plugin whose tools are all d
 never receives a door it would have no runtime use for. Nothing else reads it. The layer
 above deliberately does not, since a dev tool still has to be installed on a machine somebody
 develops on, so the generated manifest carries every stage and the map answers for all of
-them. `lib/plugins.lua` has an `installList` that would be the natural second reader, and it
-has no callers, so a stage does not yet keep any install list honest and this document should
-not claim otherwise until it does.
+them. `lib/plugins.lua` used to carry an `installList` that would have been the natural second
+reader, and it was deleted on 2026-08-20 having never once been called. A stage therefore keeps
+no install list honest, and rather than leave a function sitting there implying otherwise, the
+honest state is that this field has exactly one reader and the sentence above names it. Anyone
+wanting an install report should write it against the manifest shape of the day rather than
+resurrect thirty lines that were never run.
 
 `origin` says where to get the tool, and it lives here rather than only in a map at Olm's
 own root, because a plugin that travels to another machine has to carry that answer with

@@ -78,7 +78,13 @@ local function buildWorld(olm)
   function w.present(tool)
     local door = composed.tools
     if not door then return nil end
-    if tool.kind == "package" then return true end
+    -- A package kind tool is unknown here rather than present, and answering true was a lie
+    -- with a real edge to it. lib/deps.lua lists the kind but resolves only a command on PATH,
+    -- a fixed path, a bundle id and a marker file, so nothing anywhere actually proves one of
+    -- these arrived. A required tool of that kind would therefore have sailed through the check
+    -- written to catch exactly that, which is the one failure this suite exists to prevent.
+    -- nil routes it to the verdict that asks a person to look, which is the honest answer.
+    if tool.kind == "package" then return nil end
     return door.have(tool.name)
   end
   function w.canDispatch(action) return (composed.dispatch or {})[action] ~= nil end
@@ -378,10 +384,30 @@ function obj.run(olm, opts)
     -- search as broken, on the very suite written because structural checks had reported a
     -- broken config as fine. Answering "I could not see" is the only honest verdict here, and
     -- it is what skipped means.
-    if tier == "surface" or tier == "input" then
+    local function screenLocked()
       local session = hs.caffeinate.sessionProperties() or {}
-      if session.CGSSessionScreenIsLocked == 1 or session.CGSSessionScreenIsLocked == true then
+      return session.CGSSessionScreenIsLocked == 1 or session.CGSSessionScreenIsLocked == true
+    end
+    if tier == "surface" or tier == "input" then
+      if screenLocked() then
         return finish("skipped", "the screen was locked, so nothing could be seen or typed at")
+      end
+      -- Asked again at the verdict, because reading it once at the start only covers a screen
+      -- that was ALREADY locked. A lock landing while a scenario is in flight gets past that
+      -- check and then fails, which is the same false failure this guard exists to stop, just
+      -- arriving a second later. A full run did exactly this on 2026-08-20, two input scenarios
+      -- came back red on a healthy config and thirty three others skipped around them, and the
+      -- re-run was clean.
+      --
+      -- Only a failure is reconsidered. A pass on a screen that locked afterwards saw what it
+      -- says it saw, and turning that into a skip would throw away a true answer.
+      local record = finish
+      finish = function(verdict, why)
+        if verdict == "fail" and screenLocked() then
+          return record("skipped", "the screen locked while this was running, so what it saw "
+            .. "cannot be trusted either way")
+        end
+        return record(verdict, why)
       end
     end
     judge(scenario, world, hold, finish)

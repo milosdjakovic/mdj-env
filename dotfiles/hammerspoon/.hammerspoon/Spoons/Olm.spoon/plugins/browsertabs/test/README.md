@@ -213,11 +213,21 @@ reports is the order declining to lift a touched tab to the front, which is a di
 a different part of the tool.
 
 Those same six rounds were then run against main with nothing modified, and main failed all six the
-same way, same two tabs and same reason. So this failure belongs to the tool as it already stands
-rather than to any branch under test, and a run whose only failures are these two has not found
-anything new. Whoever does go after it should start at the two `touch` calls the arrangement makes
-and ask whether the order the tool reads back reflects them at all, because the case is built end to
-end on the assumption that it does, and that assumption is now the least proven thing in it.
+same way, same two tabs and same reason. That was read at the time as the failure belonging to the
+tool rather than to any branch under test, and it was wrong.
+
+Resolved on 2026-08-20, and the fault was here. The case touched the fixture FIRST and the other
+tab second, then asserted the fixture was row one, which only holds if something demotes the most
+recently opened tab. That demotion existed once, was found wrong in use and was deliberately
+removed, and the spoon's own `CLAUDE.md` says so under the last tab you opened leads. So the tool
+was right every round and this case had been asking for reverted behaviour, which is exactly why it
+failed identically on both browsers and on untouched main. Touching the other tab first and the
+fixture second makes it agree with the one ordering rule the tool has, and it is a stronger check
+that way, since it proves the order ranks two remembered tabs against each other rather than only
+floating a remembered one above untouched ones.
+
+The note above pointing at the two `touch` calls was the right instinct. What mattered was not
+whether the order reflected them but which order they were made in.
 
 `discarded on chrome` cannot be created on this machine, since Chrome here has internal debugging
 pages disabled by policy and there is no other way to force a tab out of memory. That is final
