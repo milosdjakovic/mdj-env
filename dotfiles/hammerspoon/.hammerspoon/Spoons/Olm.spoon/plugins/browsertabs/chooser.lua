@@ -477,7 +477,7 @@ local function browserRows(bundleID)
   if not s.enabled then return out end
 
   local perm = permState[bundleID]
-  if perm == "notDetermined" then
+  if perm == cfg.api.states.notDetermined then
     if s.running then
       out[#out + 1] = glyphRow("Ask for permission",
         "macOS will ask whether Hammerspoon may read " .. s.name,
@@ -488,10 +488,10 @@ local function browserRows(bundleID)
       out[#out + 1] = glyphRow("Open " .. s.name .. " first",
         "Permission can only be asked while it runs", ICON.warn, { noop = true }, false)
     end
-  elseif perm == "denied" then
+  elseif perm == cfg.api.states.denied then
     out[#out + 1] = glyphRow("Open Automation settings", "macOS never asks twice, so this is changed by hand",
       ICON.locked, { act = "openSettings" }, true)
-  elseif perm == "unknown" or perm == "noTarget" then
+  elseif perm == cfg.api.states.unknown or perm == cfg.api.states.noTarget then
     -- Nothing here can fix this one, so it is stated rather than offered, and the console
     -- carries the detail.
     out[#out + 1] = glyphRow("Permission cannot be read",
@@ -535,9 +535,9 @@ local function refreshPermissions()
     local bundleID, name = s.bundleID, s.name
     cfg.api.permissionStatus(bundleID, function(state)
       permState[bundleID] = state
-      if state == "unknown" or state == "noTarget" then
+      if state == cfg.api.states.unknown or state == cfg.api.states.noTarget then
         log.w("could not read the automation permission for " .. name .. ", the probe said " .. tostring(state))
-      elseif state == "denied" then
+      elseif state == cfg.api.states.denied then
         log.w(name .. " has refused automation, macOS will not ask again, change it in System Settings")
       end
       M.refresh()
@@ -589,7 +589,7 @@ local function applySelection(item)
     cfg.api.permissionRequest(item.bundleID, function(state)
       permState[item.bundleID] = state
       -- A grant makes tabs readable that were not a moment ago, so pick them up at once.
-      if state == "granted" then
+      if state == cfg.api.states.granted then
         M.reload()
       else
         log.w("the automation request for " .. tostring(item.bundleID) .. " ended as " .. tostring(state))

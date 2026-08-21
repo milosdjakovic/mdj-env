@@ -356,6 +356,10 @@ function obj:configure(opts)
       permissionStatus = permissions.status,
       permissionRequest = permissions.request,
       openPermissionSettings = permissions.openSettings,
+      -- The chooser compares a probed state against these named members rather than against
+      -- loose strings, and the set was already declared in permissions.lua but never carried
+      -- across this boundary until now.
+      states = permissions.states,
       notPermitted = jxa.notPermitted,
     },
   })
