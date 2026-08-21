@@ -1230,7 +1230,7 @@ end
 function UI.build()
   picker = Chooser.new({
     theme = cfg.theme,
-    fieldMode = "filter",
+    fieldMode = Chooser.fieldModes.filter,
     -- Opt out of the atom's filtering and ranking. The clipboard owns its query (it parses
     -- a type prefix) and keeps recency order, so buildChoices filters with the shared
     -- matcher itself rather than handing the atom the full list to rank.

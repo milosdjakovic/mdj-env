@@ -241,7 +241,7 @@ function M.show()
     chooser = cfg.chooser.new({
       theme = cfg.theme,
       placeholder = "Search sessions and windows",
-      fieldMode = "filter",
+      fieldMode = cfg.chooser.fieldModes.filter,
       -- Owns its own filtering, the DisplayProfiles shape, since the shared matcher would
       -- rank and could hide the Settings door and the Back row on the second level.
       matcher = false,

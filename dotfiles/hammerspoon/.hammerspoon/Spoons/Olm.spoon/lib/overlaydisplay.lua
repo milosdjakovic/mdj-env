@@ -418,7 +418,7 @@ function M.new(deps)
       picker = deps.chooser.new({
         theme = deps.theme,
         placeholder = "Overlay display",
-        fieldMode = "filter",
+        fieldMode = deps.chooser.fieldModes.filter,
         -- A drill in menu whose supplier morphs its rows per view and does its own
         -- substring filter in buildRows, so it opts out of the atom's own matcher.
         -- Leaving the shared matcher in would rerank the morphing rows and could

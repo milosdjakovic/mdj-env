@@ -424,7 +424,7 @@ function M:start()
   chooser = cfg.chooser.new({
     theme = cfg.theme,
     placeholder = "Search profiles",
-    fieldMode = "filter",
+    fieldMode = cfg.chooser.fieldModes.filter,
     -- Opt out of the shared matcher. This is a stack of frames, not a plain list: the field
     -- filters at the top but is a name entry on the rename and capture screens, and the
     -- supplier morphs its rows from the query and the frame. Letting the atom filter and rank

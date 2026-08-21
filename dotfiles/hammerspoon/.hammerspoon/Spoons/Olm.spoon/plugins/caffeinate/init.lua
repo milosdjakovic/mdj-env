@@ -344,7 +344,7 @@ function M:start()
     -- gives the single row room to render fully.
     theme = cfg.theme,
     placeholder = "Time or duration",
-    fieldMode = "filter",
+    fieldMode = cfg.chooser.fieldModes.filter,
     -- Opt out of the shared matcher. The field is not a filter over a list, it is a value
     -- being typed, so the supplier re-parses the query each keystroke and returns the one
     -- morphing row. Letting the matcher filter that row would drop it whenever the parsed

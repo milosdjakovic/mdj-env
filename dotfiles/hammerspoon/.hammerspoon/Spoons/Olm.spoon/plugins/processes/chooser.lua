@@ -545,7 +545,7 @@ function M:start()
   chooser = cfg.chooser.new({
     theme = cfg.theme,
     placeholder = cfg.placeholder or "Search project, port, runtime",
-    fieldMode = "filter",
+    fieldMode = cfg.chooser.fieldModes.filter,
     -- The word matcher rather than the shared fuzzy default, the same choice the
     -- clipboard makes and for the same reason. A query here is a real fragment you
     -- remember, a port number or a project name, not an abbreviation of a short

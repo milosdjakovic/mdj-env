@@ -361,7 +361,7 @@ end
 function obj.shortcutPanelFor(contextName, plan, deps)
   local shortcutsPanel = deps and deps.settings and deps.settings.shortcutsPanel
   local panel = deps.canvasPanel.new({
-    placement = "below",
+    placement = deps.canvasPanel.placements.below,
     gap = 8,
     padX = 14, padY = 10,
     delay = shortcutsPanel and shortcutsPanel.delayMs,

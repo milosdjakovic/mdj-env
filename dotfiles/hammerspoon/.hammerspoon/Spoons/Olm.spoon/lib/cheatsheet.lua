@@ -392,7 +392,7 @@ function obj:_ensurePanel()
   local cfg = self._panelCfg
   if not (cfg and cfg.factory) then return nil end
   self._panel = cfg.factory.new({
-    placement = "center",
+    placement = cfg.factory.placements.center,
     padX = cfg.padding, padY = cfg.padding,
     content = {
       preferredSize = function()

@@ -439,7 +439,7 @@ function M:start()
   chooser = cfg.chooser.new({
     theme = cfg.theme,
     placeholder = available and "Search locations" or ((provider.name or "VPN") .. " not installed"),
-    fieldMode = "filter",
+    fieldMode = cfg.chooser.fieldModes.filter,
     rows = rows,
     onSelect = onSelect,
     -- The root's deferred shortcut hint panel, wired through the chooser's own seams so

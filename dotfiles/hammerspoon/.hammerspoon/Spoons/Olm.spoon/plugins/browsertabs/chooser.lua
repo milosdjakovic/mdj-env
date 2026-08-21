@@ -827,7 +827,7 @@ function M:start()
   chooser = cfg.chooser.new({
     theme = cfg.theme,
     placeholder = "Search open tabs",
-    fieldMode = "filter",
+    fieldMode = cfg.chooser.fieldModes.filter,
     -- Opt out of the shared matcher. This is a stack of frames, not one plain list. The atom
     -- filtering uniformly would rank away the Back row on the settings levels and would pull
     -- the pinned Settings row into the tab ranking. So the supplier owns the query and scores

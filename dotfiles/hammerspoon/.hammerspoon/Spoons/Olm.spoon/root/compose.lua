@@ -569,7 +569,7 @@ function obj.run(olm, cfg)
 
   local messageState = { text = "" }
   local messagePanel = canvasPanel.new({
-    placement = "center",
+    placement = canvasPanel.placements.center,
     content = toastContent.message(messageState),
   })
   local messageTimer
@@ -598,7 +598,7 @@ function obj.run(olm, cfg)
 
   local colorState = { hex = "", color = { white = 0.5 } }
   local colorPanel = canvasPanel.new({
-    placement = "center",
+    placement = canvasPanel.placements.center,
     content = toastContent.color(colorState),
   })
   local colorTimer
