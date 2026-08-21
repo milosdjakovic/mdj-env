@@ -502,6 +502,42 @@ done
 [[ $absent -eq 0 ]] && say "  every declared tool is installed"
 
 #-------------------------------------------------------------------------------
+# Check seven, a closed set option handed a bare string instead of a named value
+#-------------------------------------------------------------------------------
+
+say ""
+say "==> Named values assigned by reference"
+
+# The option keys a module owns as a closed set, placement and align on CanvasPanel and
+# fieldMode on the Chooser atom, each published by its owner as a table whose member value
+# is its own name. A bare string is an error because the two then drift, a typo becomes a
+# panel on the wrong side or a field that silently does nothing, and nothing anywhere says
+# so, which is the same reasoning the install command check already rests on.
+#
+# The list is named by hand and stays short. A check that guessed which options are closed
+# would flag work this rule was never meant to reach, and a noisy check gets ignored, which
+# is worse than none. A future set joins this list when the module that owns it publishes
+# one, and not before, since a watched key with no named value to offer would report a
+# defect and give the reader nowhere to go.
+named_keys=(placement align fieldMode)
+
+named_bad=0
+for key in "${named_keys[@]}"; do
+    while IFS= read -r hit; do
+        [[ -z "$hit" ]] && continue
+        path="${hit%%:*}"
+        rest="${hit#*:}"
+        lineno="${rest%%:*}"
+        content="${rest#*:}"
+        value="$(printf '%s' "$content" | grep -oE "\b${key}[[:space:]]*=[[:space:]]*[\"'][^\"']*[\"']" \
+            | head -1 | sed -E "s/^${key}[[:space:]]*=[[:space:]]*//")"
+        err "${path#"$ROOT"/} line $lineno gives $key the bare string $value, hand it the owning module's named value"
+        named_bad=$((named_bad + 1))
+    done < <(grep -rnE "\b${key}[[:space:]]*=[[:space:]]*[\"']" "$DOTFILES" 2>/dev/null)
+done
+[[ $named_bad -eq 0 ]] && say "  every named value is assigned by reference"
+
+#-------------------------------------------------------------------------------
 
 say ""
 if [[ $errors -gt 0 ]]; then
