@@ -112,6 +112,35 @@ local DEFAULT_STYLE = nil
 -- live state.
 local SCREEN_PROVIDER = hs.screen.mainScreen
 
+--- CanvasPanel.placements - the five placements, and CanvasPanel.aligns the three
+--- alignments, published so a caller writes CanvasPanel.placements.below rather than the
+--- bare string "below". Both are closed sets this atom owns and validates, and both were
+--- already documented as options above, so publishing them is finishing a contract that
+--- was half stated rather than adding a layer. A member's value is its own name, which is
+--- what keeps a stored config readable and keeps the change to every call site a swap of
+--- one expression for another rather than a change of what is stored.
+obj.placements = { below = "below", above = "above", left = "left",
+                   right = "right", center = "center" }
+obj.aligns = { start = "start", center = "center", ["end"] = "end" }
+
+-- Answer whether a value is a member of a set, and name the members when it is not. A
+-- warning and a fallback rather than an error, since a mistyped placement should cost the
+-- panel its intended side and not take the whole overlay down with it, which is the same
+-- trade every other refusal in this tree makes.
+local function memberOf(set, value, option, fallback)
+  if value == nil then return fallback end
+  for _, member in pairs(set) do
+    if value == member then return value end
+  end
+  local names = {}
+  for name in pairs(set) do names[#names + 1] = name end
+  table.sort(names)
+  print("CanvasPanel: " .. option .. " was given " .. tostring(value)
+    .. ", which is not one of " .. table.concat(names, ", ")
+    .. ", so " .. tostring(fallback) .. " is used")
+  return fallback
+end
+
 --- CanvasPanel.configure(opts) - the one injection door.
 --- opts.surface sets the shared surface style (dark/light bg and border, border width,
 ---   corner radius). One source, so every surface this atom draws stays identical and one
@@ -187,8 +216,9 @@ function Panel:_layout(anchor)
   local c = self.config
   local padX, padY = c.padX or 14, c.padY or 10
   local gap = c.gap or 8
-  local centered = (c.placement == "center")
-  local horizontal = (c.placement == "left" or c.placement == "right")
+  local centered = (c.placement == obj.placements.center)
+  local horizontal = (c.placement == obj.placements.left
+    or c.placement == obj.placements.right)
 
   -- The shared axis matches the anchor unless breadth overrides it; the free axis
   -- comes from config.length, else the content's preferred size on that axis. A
@@ -214,8 +244,8 @@ function Panel:_layout(anchor)
 
   -- Align along the shared axis when the panel is smaller than the anchor there.
   local function alignOn(start, anchorLen, panelLen)
-    if c.align == "center" then return start + (anchorLen - panelLen) / 2 end
-    if c.align == "end" then return start + anchorLen - panelLen end
+    if c.align == obj.aligns.center then return start + (anchorLen - panelLen) / 2 end
+    if c.align == obj.aligns["end"] then return start + anchorLen - panelLen end
     return start
   end
 
@@ -225,13 +255,13 @@ function Panel:_layout(anchor)
     local sf = screen:frame()
     x = sf.x + (sf.w - panelW) / 2
     y = sf.y + (sf.h - panelH) / 2
-  elseif c.placement == "above" then
+  elseif c.placement == obj.placements.above then
     x = alignOn(anchor.x, anchor.w, panelW)
     y = anchor.y - gap - panelH
-  elseif c.placement == "left" then
+  elseif c.placement == obj.placements.left then
     x = anchor.x - gap - panelW
     y = alignOn(anchor.y, anchor.h, panelH)
-  elseif c.placement == "right" then
+  elseif c.placement == obj.placements.right then
     x = anchor.x + anchor.w + gap
     y = alignOn(anchor.y, anchor.h, panelH)
   else -- below
@@ -379,6 +409,10 @@ end
 --- CanvasPanel.new(config) -> instance.
 function obj.new(config)
   assert(config and config.content, "CanvasPanel.new: config.content is required")
+  -- Checked here rather than at each read, since this is the one door a config arrives
+  -- through and a value corrected once is corrected for every draw that follows.
+  config.placement = memberOf(obj.placements, config.placement, "placement", obj.placements.below)
+  config.align = memberOf(obj.aligns, config.align, "align", obj.aligns.start)
   return setmetatable({ config = config, canvas = nil, timer = nil, shown = false, anchor = nil,
                         watchTimer = nil, lastState = nil }, Panel)
 end

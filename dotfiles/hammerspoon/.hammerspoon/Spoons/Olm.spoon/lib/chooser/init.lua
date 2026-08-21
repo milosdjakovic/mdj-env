@@ -49,6 +49,13 @@ local native = load("providers/native.lua")
 --- match(query, hay) -> score or nil. See match.lua.
 obj.matchers = load("match.lua")
 
+--- Chooser.fieldModes - the field mode values, so a caller writes
+--- Chooser.fieldModes.filter rather than the bare string. Defined on the provider,
+--- the one place a field mode is read and validated, and re-exported here because the
+--- provider is an implementation of this atom rather than its public face, which is the
+--- same reason matchers is reached through this table too.
+obj.fieldModes = native.fieldModes
+
 -- The screen policy every chooser resolves against, injected once by the composition
 -- root so the consumers never thread it through themselves. It is the same seam
 -- CanvasPanel reads, so the choosers and the cheat sheets agree on which display they

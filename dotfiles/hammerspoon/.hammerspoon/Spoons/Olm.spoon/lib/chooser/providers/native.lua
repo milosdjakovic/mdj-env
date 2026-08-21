@@ -214,7 +214,7 @@ function Chooser:_build(query)
   local items = self.config.rows and self.config.rows(query) or {}
   local matcher = self.matcher
   local out = {}
-  if type(matcher) == "function" and self.fieldMode == "filter" and query ~= "" then
+  if type(matcher) == "function" and self.fieldMode == obj.fieldModes.filter and query ~= "" then
     local ranked = {}
     for i = 1, #items do
       local score = matcher(query, haystackOf(items[i]))
@@ -488,7 +488,7 @@ end
 -- the previous level left it on.
 function Chooser:_intercept(item)
   local ask = self.config.intercept
-  if not ask or not item or self.fieldMode ~= "filter" then return false end
+  if not ask or not item or self.fieldMode ~= obj.fieldModes.filter then return false end
   if ask(item) ~= true then return false end
   self:refresh(true)
   return true
@@ -498,7 +498,7 @@ end
 -- editing for every press that has a character to delete.
 function Chooser:_back()
   local ask = self.config.back
-  if not ask or self.fieldMode ~= "filter" then return false end
+  if not ask or self.fieldMode ~= obj.fieldModes.filter then return false end
   if (self.chooser and self.chooser:query() or "") ~= "" then return false end
   if ask() ~= true then return false end
   self:refresh(true)
@@ -717,7 +717,8 @@ function Chooser:_completion(choice)
   -- mode, where rows and a typed value coexist, Return commits the text only when
   -- the field is non empty, otherwise it selects the highlighted row below.
   local q = self.chooser and self.chooser:query() or ""
-  if self.config.onInput and (self.fieldMode == "input" or (self.fieldMode == "hybrid" and q ~= "")) then
+  if self.config.onInput and (self.fieldMode == obj.fieldModes.input
+    or (self.fieldMode == obj.fieldModes.hybrid and q ~= "")) then
     self:_teardown()
     self.config.onInput(q)
     return
@@ -896,10 +897,37 @@ function Chooser:selectRow(n)
   self.lastRow = nil
 end
 
---- Chooser:setFieldMode(mode) - switch the field between filter, off, and input
---- at runtime. In input mode the placeholder should state the expected format.
+--- Chooser.fieldModes - the four field modes, published so a caller writes
+--- Chooser.fieldModes.filter rather than the bare string "filter". A closed set this
+--- file owns because this is the only file that reads one, enumerated in prose in the
+--- config doc above since before it existed, so publishing it states once what was
+--- already stated twice. A member's value is its own name, so nothing a consumer stores
+--- or logs changes.
+obj.fieldModes = { filter = "filter", off = "off", input = "input", hybrid = "hybrid" }
+
+--- Chooser.memberFieldMode(mode) - the mode when it is one of the set, else filter with
+--- one warning naming what was given and what is allowed. Shared by the constructor and
+--- by setFieldMode so both answer a bad value the same way, which they did not when each
+--- wrote its own `or "filter"` and neither looked at what it had been handed.
+function obj.memberFieldMode(mode)
+  if mode == nil then return obj.fieldModes.filter end
+  for _, member in pairs(obj.fieldModes) do
+    if mode == member then return mode end
+  end
+  local names = {}
+  for name in pairs(obj.fieldModes) do names[#names + 1] = name end
+  table.sort(names)
+  print("Chooser: fieldMode was given " .. tostring(mode) .. ", which is not one of "
+    .. table.concat(names, ", ") .. ", so filter is used")
+  return obj.fieldModes.filter
+end
+
+--- Chooser:setFieldMode(mode) - switch the field between filter, off, input and
+--- hybrid at runtime. In input mode the placeholder should state the expected format.
+--- An unknown mode warns and falls back to filter rather than being stored, since a
+--- stored typo leaves a field that silently does nothing and nothing anywhere saying why.
 function Chooser:setFieldMode(mode)
-  self.fieldMode = mode or "filter"
+  self.fieldMode = obj.memberFieldMode(mode)
 end
 
 --- Chooser:setPlaceholder(text) - update the empty-field hint live.
@@ -1012,7 +1040,7 @@ function obj.new(config)
   local self = setmetatable({
     config = config,
     layout = layout,
-    fieldMode = config.fieldMode or "filter",
+    fieldMode = obj.memberFieldMode(config.fieldMode),
     -- The injected filter strategy, resolved by the facade to the module default when
     -- the consumer named none. A function means the atom filters; false or nil means it
     -- does not and the supplier owns filtering.
@@ -1037,7 +1065,7 @@ function obj.new(config)
   -- consumer's supplier owns filtering. Only filter mode refilters on typing; off
   -- and input leave the rows as they were built.
   c:queryChangedCallback(function(q)
-    if self.fieldMode == "filter" then
+    if self.fieldMode == obj.fieldModes.filter then
       c:choices(self:_build(q))
       self.lastRow = nil -- top row changed, force a highlight refresh
     end
