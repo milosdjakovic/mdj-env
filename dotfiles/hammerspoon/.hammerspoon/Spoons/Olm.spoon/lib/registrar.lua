@@ -605,20 +605,18 @@ end
 --- deps.catalog, deps.queryFor and deps.show are the one named collaborator this function cannot
 --- do without, the resolver a directory of every scope is fundamentally a policy over, so this
 --- is the seam the brief for this file asks to be marked rather than hidden inside a rule meant
---- for ordinary plugins. Nothing here spells that collaborator's name, it arrives as three plain
---- functions and this function never learns what built them.
+--- for ordinary plugins. Nothing here spells that collaborator's name, it arrives as plain
+--- functions and this function never learns what built them. deps.aliasLabel is asked for too
+--- and is not part of that seam, it is only how a set of aliases is worded, which the
+--- composition root answers once so this file and a launcher row cannot word it differently.
 function obj.aliasDirectory(deps)
   deps = deps or {}
   assert(type(deps.catalog) == "function", "aliasDirectory needs deps.catalog, every resolvable scope")
   assert(type(deps.queryFor) == "function", "aliasDirectory needs deps.queryFor, the canonical word for a name")
   assert(type(deps.show) == "function", "aliasDirectory needs deps.show, opening a list with a word seeded")
+  assert(type(deps.aliasLabel) == "function", "aliasDirectory needs deps.aliasLabel, the one spelling of a set of aliases")
 
   local name = deps.name or "aliasDirectory"
-
-  local function label(aliases)
-    if not aliases or #aliases == 0 then return "" end
-    return "(" .. table.concat(aliases, ", ") .. ")"
-  end
 
   return {
     name = name,
@@ -631,7 +629,7 @@ function obj.aliasDirectory(deps)
         if entry.name ~= name then
           out[#out + 1] = {
             title = entry.title,
-            subTitle = label(entry.aliases),
+            subTitle = deps.aliasLabel(entry.aliases),
             glyph = entry.glyph,
             item = entry.name,
           }

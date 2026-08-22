@@ -1276,6 +1276,11 @@ impossible to forget on a row after it had already been forgotten on file search
 live, so they state the aliases that resolved rather than the ones config requested, which a
 collision can make different.
 
+A chord is spelled the same way, by one function here, `chordLabel`, since the launcher's own
+rows and the docked hint bar both have to say the same key for the same tool. They did not,
+one writing a plus where the other wrote a space, until this shared speller closed the gap the
+same way `aliasHint` and `aliasLabel` already had for the aliases.
+
 File search is the first scope whose alias is punctuation, `/` then a space, which the grammar
 already allowed since its only rule is one word with no whitespace. It matches that tool's Hyper
 key, so there is one thing to remember rather than two, and a slash reads as a path everywhere

@@ -46,6 +46,11 @@ else
   log = { e = function() end, w = function() end, i = function() end }
 end
 
+-- chordFor runs for every binding on every reveal, so a missing collaborator warned there
+-- would flood the console at that same rate. This flag is what keeps the warning to one line
+-- for the life of the config instead.
+local warnedNoChordLabel = false
+
 -- Whether a binding's LIVE gate is open right now. A key gated on live state and printed
 -- anyway is exactly the disagreement the two discoverability mandates exist to prevent, and
 -- the dispatch side already refuses the key through this same predicates table. An unknown
@@ -108,15 +113,26 @@ function obj.contextOwners(plan, manifests)
   return owners
 end
 
--- A binding's plain chord label, Hyper plus the key glyph, shared by footerFor and rowsFor
--- rather than each building its own copy, which is the whole reason the panel and the
--- docked hint bar cannot print two different words for the same chord. glyphFor is asked
--- through deps rather than through a named atom, so this file never learns what renders a
--- glyph, only that something does.
+-- A binding's chord label, shared by footerFor and rowsFor rather than each building its own
+-- copy, which is the whole reason the panel and the docked hint bar cannot print two
+-- different words for the same chord. The spelling itself is asked of deps.chordLabel and
+-- deps.leaderName rather than done here, so this file never learns how a leader's name or a
+-- chord's words are put together, only that something answers both. Either missing degrades
+-- to the bare glyph, the same shape footerFor already renders for a binding declaring
+-- chord = false, so a missing collaborator lands on a shape this file already knows rather
+-- than an invented one.
 function obj.chordFor(binding, deps)
+  local chordLabel = deps and deps.chordLabel
+  local leaderName = deps and deps.leaderName
+  if chordLabel and leaderName then
+    return chordLabel(leaderName, binding.key, binding.mods)
+  end
+  if log and not warnedNoChordLabel then
+    warnedNoChordLabel = true
+    log.w("hints, chordFor has no chordLabel or leaderName injected, so a chord prints as its bare glyph")
+  end
   local glyphFor = deps and deps.glyphFor
-  local glyph = (glyphFor and glyphFor(binding.key, binding.mods)) or tostring(binding.key)
-  return "Hyper+" .. glyph
+  return (glyphFor and glyphFor(binding.key, binding.mods)) or tostring(binding.key)
 end
 
 -- A binding's label, the live wording when one applies to this context and this action,

@@ -143,6 +143,11 @@ return {
       -- several other plugins have configured.
       aliasHint = { source = "root", policy = "optional",
         breaks = "no row ever states the word that would scope the launcher onto it, so a tool's alias still works when typed but is never discovered by reading its row" },
+      -- The one spelling of a chord, shared with the docked hint bar so a row and a hint can
+      -- never print two different words for the same key. Root computed, since the leader
+      -- catalog and the glyph renderer both live there.
+      chordLabel = { source = "root", policy = "optional",
+        breaks = "every row that would name a keyboard shortcut shows its bare category instead" },
       -- The ordered query row sources, QueryScope plus whichever of arithmetic and convert
       -- are present. Root assembled from the `queryRows` set answer above plus QueryScope
       -- itself, which does not appear in that answer since it claims rather than provides.

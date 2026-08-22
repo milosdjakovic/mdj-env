@@ -163,6 +163,17 @@ function obj:configure(opts)
   self._captureRows = opts.captureRows or {}
   self._specialRows = opts.specialRows or {}
   self._glyphFor = opts.glyphFor or function(key) return tostring(key) end
+  -- The shared chord speller, held as data rather than wrapped in a method of its own, so a
+  -- row states the exact same words the docked hint bar and the action panel already agree
+  -- on. There is deliberately no fallback function, since inventing one would be a second
+  -- speller rather than the shared one, which is the whole defect this closed.
+  --
+  -- Kept rather than overwritten when a later call arrives without one, because this host is
+  -- configured twice, once by the generic wiring stage and once by the composition root with
+  -- the values only it can compute. Written as a plain assignment the first of those two
+  -- silently erased the speller whenever it happened to run second, which is a landmine
+  -- rather than a bug today only because of the order those two stages happen to run in.
+  self._chordLabel = opts.chordLabel or self._chordLabel
   self._settingsPanes = opts.settingsPanes or {}
   self._predicates = opts.predicates or {}
   self._shortcutPanel = opts.shortcutPanel or {}
@@ -273,22 +284,27 @@ function obj:_glyphIcon(glyph)
   return self._icons.icon(glyph)
 end
 
---- Launcher:_chordLabel(leader, key, mods)
+--- Launcher:_chordSuffix(category, leader, key, mods)
 --- Method
---- Readable row text for a chord, the leader name plus the key glyph. Words, not
---- badges, since a chooser row is plain text.
-function obj:_chordLabel(leader, key, mods)
-  return leader .. " " .. self._glyphFor(key, mods)
+--- A row's subtitle tail. The bare category is what a row with no configured chord already
+--- reads as, so that is exactly what this falls back to when no chord speller was injected.
+--- Otherwise the category joined to the chord by the shared middot.
+function obj:_chordSuffix(category, leader, key, mods)
+  if not self._chordLabel then return category end
+  return category .. " · " .. self._chordLabel(leader, key, mods)
 end
 
 --- Launcher:_leaderName(role)
 --- Method
 --- What to call one leader role in a row subtitle. A role is a word like app or window that a
 --- manifest uses to say which leader a tool opens on, and what that role is called on this
---- machine is the composition root's answer since it owns the catalog. An unknown role, or
---- none at all, answers Hyper, which is the leader every tool that names no role is on.
+--- machine is the composition root's answer since it owns the catalog. No role at all means
+--- the app leader, so this reads the catalog's own name for that role too rather than a
+--- literal word kept here, which is what let this file keep saying Hyper after the app leader
+--- itself moved to another physical key. The literal is the answer only when the catalog has
+--- nothing for that role either.
 function obj:_leaderName(role)
-  if not role then return "Hyper" end
+  if not role then return self._leaderNames.app or "Hyper" end
   return self._leaderNames[role] or tostring(role)
 end
 
@@ -394,7 +410,7 @@ function obj:_buildActionRows()
       -- thing out and names no leader, which is the only way it reads correctly.
       subTitle = row.category .. " · " .. self._glyphFor(row.key, row.mods)
     elseif row.key then
-      subTitle = row.category .. " · " .. self:_chordLabel(self:_leaderName(row.leader), row.key)
+      subTitle = self:_chordSuffix(row.category, self:_leaderName(row.leader), row.key)
     else
       -- No chord at all, which is ordinary. Several tools open from this list and nowhere
       -- else, so the subtitle carries only what kind of thing they are.
@@ -422,14 +438,14 @@ function obj:_buildActionRows()
   -- carries its own glyph, which is a shape the others do not have.
   for _, c in ipairs(self._captureRows or {}) do
     add(c.description or humanize(c.action),
-      "Capture · " .. self:_chordLabel(self:_leaderName(c.leader), c.key, c.mods),
+      self:_chordSuffix("Capture", self:_leaderName(c.leader), c.key, c.mods),
       { kind = "capture", name = c.action }, c.glyph or "📸")
   end
 
   for _, r in ipairs(self._specialRows or {}) do
     local subTitle = r.subTitle
     if not subTitle and r.category and r.key then
-      subTitle = r.category .. " · " .. self:_chordLabel(self:_leaderName(r.leader), r.key)
+      subTitle = self:_chordSuffix(r.category, self:_leaderName(r.leader), r.key)
     end
     add(r.description, subTitle, { kind = "special", name = r.name }, r.glyph, nil, r.keywords)
   end
@@ -439,7 +455,7 @@ function obj:_buildActionRows()
   -- table an install with no window manager never fills.
   for _, b in ipairs(self._windowBindings) do
     if self._windowActions[b.action] then
-      add(b.description or humanize(b.action), "Window · " .. self:_chordLabel(self._windowLeaderName, b.key, b.mods),
+      add(b.description or humanize(b.action), self:_chordSuffix("Window", self._windowLeaderName, b.key, b.mods),
         { kind = "window", name = b.action }, "🪟", b.when)
     end
   end
@@ -926,6 +942,13 @@ end
 --- track the machine without rescanning on every open. Idempotent.
 function obj:start()
   if self._appRowsWatcher then return self end
+  -- Asked here rather than in configure, since configure runs twice and the first of those
+  -- two legitimately carries no chord speller, so complaining there printed a warning about
+  -- a gap that the second call was about to fill. By the time anything starts, whatever is
+  -- missing is really missing.
+  if not self._chordLabel then
+    log.w("no chord wording was injected, so every row that would name a shortcut reads its bare category instead")
+  end
   self._mru = hs.settings.get(MRU_SETTINGS_KEY) or {}
   self._orderedRowsCache = nil
   self._appRowsWatcher = hs.application.watcher.new(function(_, event, app)

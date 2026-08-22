@@ -464,6 +464,23 @@ function obj.run(olm, cfg)
     leaderDisplayNames[role] = word:sub(1, 1):upper() .. word:sub(2):lower()
   end
 
+  -- The one spelling of a chord, a leader's name then a space then the key glyph. Human
+  -- wording is this file's answer, and two surfaces state the same chord, every launcher row
+  -- and the docked hint bar, so spelling it in each is how one key comes to read two ways
+  -- depending on where you met it. It did, one writing a plus where the other wrote a space.
+  local function chordLabel(leader, key, mods)
+    return leader .. " " .. cheatSheetAtom.glyphFor(key, mods)
+  end
+
+  -- The one spelling of a set of aliases, the words alone. Two surfaces state these as well,
+  -- a launcher row and the alias directory's own rows, and each had written its own copy
+  -- differing by a leading space. That space is the joiner rather than part of the wording,
+  -- so it belongs to whichever caller is joining and not to this.
+  local function aliasLabel(aliases)
+    if not aliases or #aliases == 0 then return "" end
+    return "(" .. table.concat(aliases, ", ") .. ")"
+  end
+
   -- THE SEAM, Fact 1. WindowManager and WindowCheatSheet must dispatch and display the
   -- identical physical key, so this stamped table is built exactly once, right here, and
   -- the same local is handed to both consumers below rather than two calls that would only
@@ -896,6 +913,11 @@ function obj.run(olm, cfg)
     theme = policy.chooserTheme,
     settings = policy,
     hideShortcuts = hideSharedOverlay,
+    chordLabel = chordLabel,
+    -- leaderName hands over this leader's already resolved word rather than the catalog
+    -- itself, since deciding what a leader is called belongs to this file and lib/hints.lua
+    -- must not learn it by name any more than it learns any other plugin's name.
+    leaderName = leaderDisplayNames.app,
     -- liveLabels is absent. The one live relabelling case that exists today, the launcher's
     -- Run reading as Open over an application row, is that plugin's own business, and this
     -- file has nowhere generic to reach it from without naming Launcher for a value lib/
@@ -1336,6 +1358,7 @@ function obj.run(olm, cfg)
       title = aliasPolicy.title,
       glyph = aliasPolicy.glyph,
       aliases = aliasPolicy.aliases,
+      aliasLabel = aliasLabel,
       log = logFn,
     })
     -- The scopes that narrow the launcher's own catalog rather than reaching a tool. Declared
@@ -1453,6 +1476,9 @@ function obj.run(olm, cfg)
       glyphFor = cheatSheetAtom and cheatSheetAtom.glyphFor,
       leaderNames = leaderDisplayNames,
       windowLeaderName = leaderDisplayNames.window,
+      -- The shared speller rather than one the launcher owns for itself, so a row states the
+      -- same chord the docked hint bar already agreed on.
+      chordLabel = chordLabel,
       windowActions = kin.windowActions and kin.windowActions() or {},
       -- The SAME stamped table both window consumers already hold, Fact 1's own object, so a
       -- row in this list can never name a different physical key than the one that acts.
@@ -1466,8 +1492,9 @@ function obj.run(olm, cfg)
       aliasHint = function(name)
         if not queryScopeModule then return "" end
         local aliases = queryScopeModule:aliasesOf(name)
-        if not aliases or #aliases == 0 then return "" end
-        return " (" .. table.concat(aliases, ", ") .. ")"
+        local words = aliasLabel(aliases)
+        if words == "" then return "" end
+        return " " .. words
       end,
 
       -- The leaf dispatch. The catalogue owns the kind switch, these are the calls it routes
