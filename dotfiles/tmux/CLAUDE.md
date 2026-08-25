@@ -191,7 +191,7 @@ Changing `allow-passthrough` requires a full tmux server restart (`tmux kill-ser
 
 ## Status bar
 
-Changes color based on state. Green background when prefix is active, yellow when in copy mode, transparent otherwise.
+Changes color based on state. Green background when prefix is active, yellow when in copy mode, transparent otherwise. Prefix takes priority over copy mode in the conditional, so pressing prefix while already in copy mode still shows green rather than staying stuck on yellow.
 
 Two options name what that implies, so the rest of the bar states each idea once instead of repeating the same nested conditional. `@bar_muted` is true whenever the bar has taken a background colour, which is exactly when every foreground on it must go black to stay readable. `@bar_label` is that same readability rule applied to chrome and to every entry that is not the current one, plain white normally and black when muted. There is deliberately no grey tier on the bar, everything that isn't the current, green item is this one white. Read either option back with `#{E:...}`, since an option value is otherwise handed over literally.
 
