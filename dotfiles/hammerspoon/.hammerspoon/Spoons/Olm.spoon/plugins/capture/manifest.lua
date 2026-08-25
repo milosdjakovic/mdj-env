@@ -38,9 +38,9 @@ return {
       -- in settings were read by nothing at all, so reordering the chain changed nothing.
       -- Optional either way, since the engine falls back to its own shipped order.
       providers = { source = "user", policy = "optional",
-        breaks = "the capture chain falls back to its own hardcoded default order, " ..
-                 "macshot then native then macocr, instead of the priority the person set " ..
-                 "in settings.capture.providers" },
+        breaks = "the capture chain runs fine in its own shipped default order, " ..
+                 "macshot then native then macocr, and only ignores the person's own choice " ..
+                 "if they set one in settings.capture.providers" },
     },
   },
 
