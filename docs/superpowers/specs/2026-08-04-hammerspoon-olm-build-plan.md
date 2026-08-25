@@ -311,9 +311,22 @@ The real test of the contract, everything before it was adapted to fit.
 
 ## Phase 10, sweeps and the tail
 
-- [ ] READMEs, every plugin gets its short gist, none repeating its `CLAUDE.md`.
-- [ ] Named values, placement first, the rest as modules are touched.
+- [x] READMEs, every plugin gets its short gist, none repeating its `CLAUDE.md`. Landed through
+      the readmes branch, the four docs(readmes) commits of 2026-08-11, merged to main in
+      `a3666d6`, with the fixup commit `3e6736c` following directly on main eleven minutes
+      later. A directory count confirms twenty four plugin README files, one per plugin. The
+      four hosts, launcher, hypercheatsheet, queryscope and actionpanel, still have none, that
+      work is running separately on this same branch.
+- [x] Named values, placement first, the rest as modules are touched. The named sets exist,
+      CanvasPanel's placement and align and the Chooser atom's fieldMode, each published by its
+      owner as a table. `src/check-dependencies.sh` carries check seven, erroring on a bare
+      string assigned to any of the three anywhere under `dotfiles`, landed in `5092ac2`.
+      Enforcement landed in the reconciler rather than staying optional.
 - [ ] Apps as a plugin, last of the extractions, it owns the watcher and the shared timeline.
+      WITHDRAWN, this is a decision rather than an unfinished step. The extraction was weighed
+      against the manifest era config and declined. The branch that attempted it, apps leaving
+      the launcher to become its own plugin, was deleted, its commits now unreachable from any
+      branch, and its themes were either rebuilt on main or dropped.
 - [ ] Interaction grammar written into `Olm.spoon`'s `CLAUDE.md`, and the two rules that bind the
       whole tree into the module level `CLAUDE.md`.
 
@@ -322,9 +335,27 @@ The real test of the contract, everything before it was adapted to fit.
 Nothing here happens on a schedule. The user names a tool whose olm side has earned trust, and only
 then does its original go.
 
-- [ ] Per tool, on the user's word, remove the original spoon and the commented wiring.
-- [ ] Gate per tool, the inventory diff against the golden stays empty after the removal.
-- [ ] Last of all, the old load block leaves `init.lua`.
+- [x] Per tool, on the user's word, remove the original spoon and the commented wiring. Verified,
+      `Spoons/` now holds only `Olm.spoon` and `TerminalHandler.spoon`. The git log shows each
+      tool leaving in its own merge and its own toggle collapsing in `init.lua` the same day,
+      twenty seven collapse commits in all, WindowManager first and twenty six more after it,
+      ending with the six atoms retired together as the final one.
+- [x] Gate per tool, the inventory diff against the golden stays empty after the removal. Held
+      through that whole run of retirements, then broke when the portable manifest system
+      replaced the load block outright, and sat stale for eleven days until this fold's
+      regeneration reconciled it in one pass, `4799677` on 2026-08-25, every changed line
+      accounted.
+- [x] Last of all, the old load block leaves `init.lua`. Confirmed, the block of per tool
+      unconditional loads is gone, replaced by the composition root's single `spoon.Olm:start`
+      call. `init.lua` reads 108 lines now, not the 78 it first reached at that rewrite, since
+      later work, tmux sessions and the action panel among it, put lines back.
+
+A note on the shape of this phase. The originals left one at a time exactly as the law above
+describes, each retirement collapsing its own toggle as it happened. The old load block was a
+different kind of thing, one block rather than many toggles, and it left in a single stroke when
+the portable manifest system replaced it. The golden only caught up to that change at this fold,
+rather than alongside it, which is the wholesale part of this story, not the removal of the
+originals themselves.
 
 ## Deferred, deliberately outside this plan
 

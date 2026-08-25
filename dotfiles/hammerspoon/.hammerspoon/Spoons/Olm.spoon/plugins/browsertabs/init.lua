@@ -215,7 +215,10 @@ local function providerNamed(name, chromeBundleID)
   if name == "safari" then return obj.providers.safari end
   if name == "arc" then return obj.providers.arc end
   if name == "chrome" then
-    if not chromeBundleID then return nil, "no Chrome bundle id was supplied" end
+    if not chromeBundleID then
+      return nil, "no Chrome bundle id was supplied, set data.browserTabs.chromeBundleID "
+        .. "in the top level init.lua, normally apps.GoogleChrome from config/apps.lua"
+    end
     return obj.providers.chromium({ name = "Chrome", bundleID = chromeBundleID })
   end
   return nil, "no provider answers to that name"

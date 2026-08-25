@@ -70,15 +70,16 @@ return {
     -- factory shared by five applications, so it is the one browser whose identity this
     -- plugin cannot know on its own.
     data = {
-      -- Optional, and the breaks sentence below is the proof. It describes ONE browser
-      -- dropping out, not the tool failing, and Safari is the default this ships enabled
-      -- precisely because macOS guarantees it. Required would have blocked the whole plugin
-      -- on a fresh install and taken Safari's tabs down with it, over an application that
-      -- may well not be installed. The policy has to agree with the sentence.
+      -- Optional, and the breaks sentence below is the proof. It describes every other
+      -- browser continuing to work with only Chrome left out, not the tool failing, and
+      -- Safari is the default this ships enabled precisely because macOS guarantees it.
+      -- Required would have blocked the whole plugin on a fresh install and taken Safari's
+      -- tabs down with it, over an application that may well not be installed. The policy
+      -- has to agree with the sentence.
       chromeBundleID = { source = "user", policy = "optional",
-        breaks = "Chrome never joins the provider list, since the shared Chromium factory "
-          .. "refuses to build without a bundle id, so no Chrome tab is ever listed no "
-          .. "matter how the browser is switched on" },
+        breaks = "Every other browser keeps working, and Chrome alone stays out of the "
+          .. "list until the bundle id is supplied, since the shared Chromium factory "
+          .. "refuses to build without one" },
     },
   },
 

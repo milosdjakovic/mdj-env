@@ -49,12 +49,16 @@ return {
       -- own preference, and configure already treats an absent one as {}, so it degrades
       -- rather than breaks.
       margins = { source = "user", policy = "optional",
-                  breaks = "every window sizes and moves flush to the raw screen edge, since every margin resolves to zero" },
+                  breaks = "every window still sizes and moves the same way, sitting flush to the " ..
+                           "screen edge exactly as the shipped default gap already does, and only " ..
+                           "loses the person's own wider gap if they set one in settings" },
       -- configure's own settings block, animation duration, resize pixel step, and every
       -- named window size. The person's own tuning, and configure already treats an absent
       -- one as {}, falling back to this plugin's own hardcoded numbers.
       settings = { source = "user", policy = "optional",
-                   breaks = "window animation duration, the resize step, and every named window size fall back to this plugin's own hardcoded defaults rather than the person's chosen settings" },
+                   breaks = "window animation duration, the resize step, and every named window " ..
+                            "size run fine on this plugin's own shipped defaults, and only ignore " ..
+                            "the person's own tuning if they set one in settings" },
     },
   },
 
