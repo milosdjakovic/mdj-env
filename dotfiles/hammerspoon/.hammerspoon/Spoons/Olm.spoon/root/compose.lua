@@ -905,6 +905,17 @@ function obj.run(olm, cfg)
 
   local function hideSharedOverlay() hideHyperLayer() end
 
+  -- The kind derivation reads a binding's position and the fixed generic navigation set,
+  -- and gets these three wrong on that evidence alone, since each sits below the first
+  -- binding in its own context yet moves the view or leaves a page rather than acting on
+  -- anything selected. The retired root called all three navigation by hand, and this
+  -- table is the override seam actionKinds reserves for exactly that one small correction.
+  local actionKindOverrides = {
+    scrollPreviewDown = "navigation",
+    scrollPreviewUp = "navigation",
+    leavePage = "navigation",
+  }
+
   local hintsDeps = {
     predicates = ownPredicates,
     glyphFor = cheatSheetAtom.glyphFor,
@@ -918,6 +929,10 @@ function obj.run(olm, cfg)
     -- itself, since deciding what a leader is called belongs to this file and lib/hints.lua
     -- must not learn it by name any more than it learns any other plugin's name.
     leaderName = leaderDisplayNames.app,
+    -- kinds carries the same action kind overrides the actionKinds call below is given,
+    -- since rowsFor derives kinds a second time inside hints.lua, and it must see the same
+    -- overrides the panel's own kindOf uses or the panel rows and verbsIn drift apart.
+    kinds = actionKindOverrides,
     -- liveLabels is absent. The one live relabelling case that exists today, the launcher's
     -- Run reading as Open over an application row, is that plugin's own business, and this
     -- file has nowhere generic to reach it from without naming Launcher for a value lib/
@@ -961,7 +976,7 @@ function obj.run(olm, cfg)
   -- and reached through the closure at the moment a verb is actually run, which is always long
   -- after the whole pipeline has finished.
   local dispatchTable
-  local actionKinds = hintsLib.actionKinds(plan)
+  local actionKinds = hintsLib.actionKinds(plan, actionKindOverrides)
   local actionPanelOpts = {
     kindOf = function(action) return actionKinds[action] end,
     rowsFor = function(contextName, hosted) return hintsLib.rowsFor(contextName, plan, hintsDeps, hosted) end,
@@ -1273,6 +1288,22 @@ function obj.run(olm, cfg)
         if not actionPanelModule then return end
         for contextName in pairs(plan.contexts) do
           if isShowingFor(contextName) then
+            -- The hosted argument's meaning moved into the caller when hints.lua stopped
+            -- reading globals, and the rebuilt seam never picked that duty up, so the panel
+            -- over a hosted list silently answered Back alone rather than the scope's own
+            -- verbs. This branch restores the retired root's behavior, with the verbs table
+            -- resolved here, because here is the one caller that knows a list is hosted.
+            if contextOwners[contextName] == (plan.identity.launcher or "launcher") then
+              local queryScopeModule = modules[plan.identity.queryscope or "queryscope"]
+              local launcherModule = modules[plan.identity.launcher or "launcher"]
+              if queryScopeModule and launcherModule then
+                local scope = queryScopeModule:resolve(launcherModule:currentQuery())
+                if scope then
+                  actionPanelModule:toggle(scope.name, scope.verbs or {})
+                  return
+                end
+              end
+            end
             actionPanelModule:toggle(contextName)
             return
           end

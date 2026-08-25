@@ -25,6 +25,9 @@
 --                  here, since knowing Launcher exists is not this file's business.
 --   owners,        context name to plugin key, the answer obj.contextOwners gives, needed by
 --                  rowsFor to qualify a hosted verb's chord with the tool it belongs to.
+--   kinds,         the caller's own action kind overrides, merged last inside actionKinds,
+--                  needed here too since rowsFor derives kinds a second time, and both
+--                  doors must answer the same classification for the same action.
 --   canvasPanel,   the shared docked panel atom's factory, exposing new(opts), used by
 --                  shortcutPanelFor to build one panel per context.
 --   theme,         the shared chooser theme table, handed straight to a content builder.
@@ -204,7 +207,7 @@ function obj.rowsFor(contextName, plan, deps, hosted)
   local rows = { { title = "Back", chord = backChord, glyph = "⬅️" } }
   local ctx = plan.contexts and plan.contexts[contextName]
   if not ctx then return rows end
-  local kinds = obj.actionKinds(plan)
+  local kinds = obj.actionKinds(plan, deps and deps.kinds)
   for _, b in ipairs(ctx.bindings) do
     if kinds[b.action] == "verb" and (not hosted or hostedVerbDeclared(hosted, b.action)) then
       local chord = obj.chordFor(b, deps)
