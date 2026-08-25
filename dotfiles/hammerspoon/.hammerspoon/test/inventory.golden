@@ -1,38 +1,7 @@
-registry spoon count=34
-spoon ActionPanel
-spoon AppToggler
-spoon Arithmetic
+registry spoon count=3
 spoon BrowserTabs
-spoon Caffeinate
-spoon CanvasPanel
-spoon Capture
-spoon CheatSheet
-spoon Chooser
-spoon ChordKey
-spoon ClipboardHistory
-spoon Convert
-spoon Dependencies
-spoon DisplayMemory
-spoon DisplayProfiles
-spoon DockAutoHide
-spoon Emoji
-spoon Eyedropper
-spoon FileSearch
-spoon HyperCheatSheet
-spoon HyperKey
-spoon KeyRemap
-spoon Launcher
 spoon Olm
-spoon Processes
-spoon QueryScope
-spoon SystemSettings
 spoon TerminalHandler
-spoon TextCase
-spoon Vpn
-spoon WindowCheatSheet
-spoon WindowLeader
-spoon WindowManager
-spoon WindowMemory
 registry chordkey count=2
 chordkey key=79 holdDelay=0.6 tapThreshold=0.2 passthrough=true onTap=true onHold=true onHoldEnd=true onKey=true
 chordkey key=106 holdDelay=0.6 tapThreshold=0.2 passthrough=true onTap=false onHold=true onHoldEnd=true onKey=true
@@ -235,23 +204,23 @@ panelrows.context name=vpn rowCount=1
 panelrows.row context=browserTabs action=- title=Back chord=⌫ glyph=⬅️
 panelrows.row context=caffeinate action=- title=Back chord=⌫ glyph=⬅️
 panelrows.row context=clipboard action=- title=Back chord=⌫ glyph=⬅️
-panelrows.row context=clipboard action=appendSelected title=Append to batch chord=Hyper+A glyph=➕
-panelrows.row context=clipboard action=deleteSelected title=Delete chord=Hyper+D glyph=🗑️
+panelrows.row context=clipboard action=appendSelected title=Append to batch chord=Hyper A glyph=➕
+panelrows.row context=clipboard action=deleteSelected title=Delete chord=Hyper D glyph=🗑️
 panelrows.row context=displayProfiles action=- title=Back chord=⌫ glyph=⬅️
 panelrows.row context=emoji action=- title=Back chord=⌫ glyph=⬅️
 panelrows.row context=fileSearch action=- title=Back chord=⌫ glyph=⬅️
-panelrows.row context=fileSearch action=browseInto title=Into folder chord=Hyper+L glyph=📂
-panelrows.row context=fileSearch action=browseUp title=Up a level chord=Hyper+H glyph=⬆️
-panelrows.row context=fileSearch action=copyPath title=Copy path chord=Hyper+Y glyph=📋
-panelrows.row context=fileSearch action=peekPreview title=Quick Look chord=Hyper+Q glyph=👁️
-panelrows.row context=fileSearch action=revealInFinder title=Reveal in Finder chord=Hyper+O glyph=🔍
+panelrows.row context=fileSearch action=browseInto title=Into folder chord=Hyper L glyph=📂
+panelrows.row context=fileSearch action=browseUp title=Up a level chord=Hyper H glyph=⬆️
+panelrows.row context=fileSearch action=copyPath title=Copy path chord=Hyper Y glyph=📋
+panelrows.row context=fileSearch action=peekPreview title=Quick Look chord=Hyper Q glyph=👁️
+panelrows.row context=fileSearch action=revealInFinder title=Reveal in Finder chord=Hyper O glyph=🔍
 panelrows.row context=launcher action=- title=Back chord=⌫ glyph=⬅️
 panelrows.row context=menuSearch action=- title=Back chord=⌫ glyph=⬅️
 panelrows.row context=overlayDisplay action=- title=Back chord=⌫ glyph=⬅️
 panelrows.row context=processes action=- title=Back chord=⌫ glyph=⬅️
-panelrows.row context=processes action=refreshList title=Rescan chord=Hyper+R glyph=🔄
-panelrows.row context=processes action=sortByLoad title=Sort by load chord=Hyper+S glyph=🔥
-panelrows.row context=processes action=stopForced title=Force stop chord=Hyper+F glyph=⛔
+panelrows.row context=processes action=refreshList title=Rescan chord=Hyper R glyph=🔄
+panelrows.row context=processes action=sortByLoad title=Sort by load chord=Hyper S glyph=🔥
+panelrows.row context=processes action=stopForced title=Force stop chord=Hyper F glyph=⛔
 panelrows.row context=textCase action=- title=Back chord=⌫ glyph=⬅️
 panelrows.row context=vpn action=- title=Back chord=⌫ glyph=⬅️
 registry hostedrows count=12
@@ -273,30 +242,17 @@ hostedrows.row context=clipboard action=- title=Back chord=⌫ glyph=⬅️ clos
 hostedrows.row context=displayProfiles action=- title=Back chord=⌫ glyph=⬅️ closes=-
 hostedrows.row context=emoji action=- title=Back chord=⌫ glyph=⬅️ closes=-
 hostedrows.row context=fileSearch action=- title=Back chord=⌫ glyph=⬅️ closes=-
-hostedrows.row context=fileSearch action=copyPath title=Copy path chord=Hyper+Y in File search glyph=📋 closes=true
-hostedrows.row context=fileSearch action=peekPreview title=Quick Look chord=Hyper+Q in File search glyph=👁️ closes=false
-hostedrows.row context=fileSearch action=revealInFinder title=Reveal in Finder chord=Hyper+O in File search glyph=🔍 closes=true
+hostedrows.row context=fileSearch action=copyPath title=Copy path chord=Hyper Y in File search glyph=📋 closes=true
+hostedrows.row context=fileSearch action=peekPreview title=Quick Look chord=Hyper Q in File search glyph=👁️ closes=false
+hostedrows.row context=fileSearch action=revealInFinder title=Reveal in Finder chord=Hyper O in File search glyph=🔍 closes=true
 hostedrows.row context=launcher action=- title=Back chord=⌫ glyph=⬅️ closes=-
 hostedrows.row context=menuSearch action=- title=Back chord=⌫ glyph=⬅️ closes=-
 hostedrows.row context=overlayDisplay action=- title=Back chord=⌫ glyph=⬅️ closes=-
 hostedrows.row context=processes action=- title=Back chord=⌫ glyph=⬅️ closes=-
 hostedrows.row context=textCase action=- title=Back chord=⌫ glyph=⬅️ closes=-
 hostedrows.row context=vpn action=- title=Back chord=⌫ glyph=⬅️ closes=-
-registry actionpaneldecorated count=12
-registry choosers count=12
-choosers.entry "browserTabs"
-choosers.entry "caffeinate"
-choosers.entry "clipboard"
-choosers.entry "displayProfiles"
-choosers.entry "emoji"
-choosers.entry "fileSearch"
-choosers.entry "menuSearch"
-choosers.entry "processes"
-choosers.entry "textCase"
-choosers.entry "vpn"
-choosers.entry overlayDisplaySurface
-choosers.entry spoon.Launcher:surface()
-registry tools count=12
+registry actionpaneldecorated count=13
+registry tools count=13
 tools.entry name=browserTabs active=true surface=true hosted=true scope=true
 tools.entry name=caffeinate active=true surface=true hosted=true scope=true
 tools.entry name=clipboard active=true surface=true hosted=false scope=false
@@ -308,8 +264,9 @@ tools.entry name=fileSearch active=true surface=true hosted=true scope=true
 tools.entry name=menuSearch active=true surface=true hosted=false scope=true
 tools.entry name=processes active=true surface=true hosted=false scope=false
 tools.entry name=textCase active=true surface=true hosted=false scope=false
+tools.entry name=tmuxSessions active=true surface=true hosted=true scope=true
 tools.entry name=vpn active=true surface=true hosted=true scope=true
-registry scopes count=11
+registry scopes count=12
 scopes.entry name=aliasDirectory aliases=?
 scopes.entry name=apps aliases=a+app
 scopes.entry name=browserTabs aliases=t+tabs
@@ -319,9 +276,10 @@ scopes.entry name=emoji aliases=e+emoji
 scopes.entry name=fileSearch aliases=/
 scopes.entry name=menuSearch aliases=m+menu
 scopes.entry name=settingsPanes aliases=s+system
+scopes.entry name=tmuxSessions aliases=u+tmux
 scopes.entry name=vpn aliases=v+vpn
 scopes.entry name=windowActions aliases=w+window
-registry launcherrows count=18
+registry launcherrows count=19
 launcherrows.entry name=aliasDirectory subTitle=Tools · every word that scopes this list (?)
 launcherrows.entry name=appendCopy subTitle=Clipboard · ⌃⌥C
 launcherrows.entry name=browserTabs subTitle=Tools · Hyper W (t, tabs)
@@ -335,12 +293,13 @@ launcherrows.entry name=fileSearch subTitle=Tools · Hyper / (/)
 launcherrows.entry name=lock subTitle=System · Hyper §
 launcherrows.entry name=overlayDisplay subTitle=Displays · where panels and choosers appear
 launcherrows.entry name=pasteNext subTitle=Clipboard · ⌃⌥V
-launcherrows.entry name=processes subTitle=System · stop a dev server, container, or watcher
+launcherrows.entry name=processes subTitle=System · stops a dev server, container, or watcher
 launcherrows.entry name=searchSettings subTitle=System · opens the System Settings search field
 launcherrows.entry name=sleep subTitle=System · Hyper esc
 launcherrows.entry name=textCase subTitle=Text · recase the selection in place
+launcherrows.entry name=tmuxSessions subTitle=Tools · Hyper U (u, tmux)
 launcherrows.entry name=vpn subTitle=Network · Hyper P (v, vpn)
-registry hyperkey count=36
+registry hyperkey count=37
 hyperkey.key code=0 total=2 base=1
 hyperkey.key code=1 total=2 base=1
 hyperkey.key code=2 total=2 base=1
@@ -363,6 +322,7 @@ hyperkey.key code=20 total=1 base=1
 hyperkey.key code=21 total=2 base=2
 hyperkey.key code=23 total=1 base=1
 hyperkey.key code=31 total=2 base=1
+hyperkey.key code=32 total=1 base=1
 hyperkey.key code=34 total=13 base=1
 hyperkey.key code=35 total=1 base=1
 hyperkey.key code=37 total=2 base=1
