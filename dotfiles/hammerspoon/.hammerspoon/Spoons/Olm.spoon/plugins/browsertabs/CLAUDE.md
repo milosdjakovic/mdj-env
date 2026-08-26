@@ -424,15 +424,23 @@ offers that, and only while the browser is running, since a permission for a clo
 resolve. `denied` cannot be re-prompted at all, so the only honest offer is the Automation
 pane in System Settings. `notRunning` means there is nothing to ask about yet.
 
-## Both outside tools are declared, and neither is injected
+## Both outside tools are declared, and two of the three are injected now
 
-This spoon runs two binaries, `osascript` from `jxa.lua` and `swiftc` from
+This spoon runs three binaries, `osascript` from `jxa.lua`, and `swiftc` and `open` from
 `permissions.lua`, and each is declared in `needs.tools` in the plugin's manifest, with
-unit naming the file that names it. Both are the system kind, binaries at fixed absolute
-paths that cannot move between machines, so the declaration records the path and the Lua file keeps the same
-literal. Nothing is resolved at load and nothing is handed in through `configure`. The
-declarations exist so the repository's manifest records what this spoon actually runs,
-which is the whole point of declaring rather than probing.
+unit naming the file that names it. All are the system kind, binaries at fixed absolute
+paths that cannot move between machines.
+
+This section used to say that nothing was resolved at load and nothing was handed in
+through `configure`, and that the declaration recording the path was reason enough for the
+Lua file to keep the same literal. That reasoning was wrong in a way worth keeping on the
+record, because it is the argument anyone will reach for again. A path that is identical on
+every machine costs correctness nothing, true, but the door is not only about correctness.
+Asking it is what lets an absent tool be reported by name instead of failing as a task that
+would not start, and a file holding its own copy of the path is a second statement of an
+answer the manifest already gives. `permissions.lua` now takes both of its tools through a
+`configure` of its own, called by this plugin's root, which never read `opts.deps` at all
+before that. `osascript` in `jxa.lua` is the one still holding a literal.
 
 `swiftc` is declared here and also by `Eyedropper`, which compiles its own native helper.
 Both declarations are kept. A declaration belongs beside whatever knows the tool, and

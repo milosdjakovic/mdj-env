@@ -26,6 +26,7 @@ local P = {}
 local util = nil
 local ffmpeg = nil -- injected absolute path, or nil when ffmpeg is not installed
 local ffprobe = nil
+local sips = nil -- injected absolute path, or nil when the dependency door could not place it
 
 local function wrote(dest)
   return hs.fs.attributes(dest) ~= nil
@@ -44,7 +45,14 @@ local sipsGen = {
     return util.RASTER_EXT[ext] == true
   end,
   run = function(spec, cb)
-    local t = hs.task.new("/usr/bin/sips", function(code)
+    -- sips ships on every real Mac, so a nil path here is a stranger machine rather than
+    -- the ordinary case, and it takes the same route hs.task.new failing already takes,
+    -- one raster preview quietly missing rather than an error.
+    if not sips then
+      cb(false)
+      return
+    end
+    local t = hs.task.new(sips, function(code)
       cb(code == 0 and wrote(spec.dest))
     end, { "-s", "format", "png", "-Z", tostring(spec.edge), spec.path, "--out", spec.dest })
     if t then
@@ -169,6 +177,7 @@ function P.configure(opts)
   util = opts.util
   ffmpeg = opts.ffmpeg
   ffprobe = opts.ffprobe
+  sips = opts.sips
   return P
 end
 

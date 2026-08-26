@@ -229,6 +229,12 @@ function obj:configure(opts)
   self._settingsKey = opts.settingsKey or "BrowserTabs.enabledBrowsers"
   self._recency = opts.recency
 
+  -- permissions.lua is a plain module reached by a direct load() rather than through this
+  -- root's own wiring table, so nothing carried opts.deps to it before now. Its own
+  -- configure resolves swiftc and open through the adapter this plugin was already granted,
+  -- since both are declared under this manifest's unit permissions.
+  permissions.configure({ deps = opts.deps })
+
   -- The ordered list is BUILT HERE from names, rather than arriving already built.
   --
   -- It used to arrive built, from the retired root, which was the one place naming all three

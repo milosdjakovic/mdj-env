@@ -26,6 +26,8 @@ obj.version = "1.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
+local log = hs.logger.new("SystemSettings", "info")
+
 -- The one piece of fixed domain knowledge, the URL scheme every pane shares. A
 -- pane's id from the catalog is appended to open it, so General and the extension
 -- based panes all open through the same call.
@@ -43,11 +45,14 @@ end
 --- SystemSettings:configure(opts)
 --- Method
 --- Injects the pane catalog. opts.panes is the list from config/settingsPanes, each
---- entry a table with name, id, glyph, and keywords. Called once from the
---- composition root. Returns self so it can chain after loadSpoon.
+--- entry a table with name, id, glyph, and keywords. opts.deps is the scoped dependency
+--- adapter, granted because the manifest declares open under needs.tools, and it is what
+--- open below resolves the pane launcher against rather than a path named in this file.
+--- Called once from the composition root. Returns self so it can chain after loadSpoon.
 function obj:configure(opts)
   opts = opts or {}
   self.panes = opts.panes or {}
+  self._deps = opts.deps
   return self
 end
 
@@ -79,10 +84,18 @@ end
 --- Dispatched through the open binary rather than hs.urlevent.openURL, which
 --- rejects this scheme because it carries no :// authority. open handles it, and
 --- passing the URL as a task argument needs no shell quoting.
+---
+--- open is optional, so an unresolved path leaves the pane unreached, and the one thing
+--- this method can still do about it is name the pane that was asked for, since choosing a
+--- row that quietly does nothing reads as the launcher itself being broken.
 function obj:open(url)
-  if url and url ~= "" then
-    hs.task.new("/usr/bin/open", nil, { url }):start()
+  if not (url and url ~= "") then return end
+  local openPath = self._deps and self._deps.path("open")
+  if not openPath then
+    log.w("no open, could not open the System Settings pane at " .. url)
+    return
   end
+  hs.task.new(openPath, nil, { url }):start()
 end
 
 -- Walk the Accessibility tree for the search field. System Settings renders its

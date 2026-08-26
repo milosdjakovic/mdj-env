@@ -375,8 +375,13 @@ end
 -- would hold the main thread through it.
 local function openPath(path, reveal)
   if not path then return end
+  -- open is optional, so a machine where the door could not place it takes the same
+  -- silent route hs.task.new failing already takes below, nothing opens and nothing
+  -- raises.
+  local openBin = cfg.deps and cfg.deps.path("open")
+  if not openBin then return end
   local args = reveal and { "-R", path } or { path }
-  local t = hs.task.new("/usr/bin/open", nil, args)
+  local t = hs.task.new(openBin, nil, args)
   if t then t:start() end
 end
 

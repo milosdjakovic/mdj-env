@@ -13,7 +13,7 @@
 -- the plugins that run them. Declaring is what tells the layer above that a tool is needed at
 -- all, and this one was invisible to it for as long as the plugin has existed.
 --
--- Its whole lifecycle is one call, apply(catalog, activeNames), and that call is not
+-- Its whole lifecycle is one call, apply(catalog, activeNames, deps), and that call is not
 -- configure(opts), so the call itself belongs here rather than in an empty return. Both
 -- values it needs are shippable, not personal, so they are defaults rather than a needs.data
 -- entry with policy required. Caps Lock to F18, Right Option to F16, and Right Command to
@@ -62,11 +62,18 @@ return {
     },
   },
 
-  -- apply's own shape, apply(catalog, activeNames), is not configure(opts), so it is named
-  -- here as a wiring step rather than assumed. The catalog is this plugin's own shipped
+  -- apply's own shape, apply(catalog, activeNames, deps), is not configure(opts), so it is
+  -- named here as a wiring step rather than assumed. The catalog is this plugin's own shipped
   -- default and reads from self. The active set is the root's answer about the whole plugin
   -- set and reads from root, which is the split the two namespaces exist for.
+  --
+  -- The adapter is the third argument for a reason worth stating, since it looks like it
+  -- belongs in a configure. A step that names args gets ONLY those args, so the grant this
+  -- plugin already earned by declaring a tool was being built for it and then discarded,
+  -- which is why the one binary it exists to run was reached at its own hardcoded path
+  -- instead. Naming it here is what delivers it, and it costs no configure this plugin would
+  -- otherwise have no reason to own.
   wiring = {
-    { method = "apply", args = { "self.catalog", "root.activeNames" } },
+    { method = "apply", args = { "self.catalog", "root.activeNames", "self.deps" } },
   },
 }

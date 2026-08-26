@@ -27,23 +27,41 @@ return {
     captureAreaClipboard = "macshot://quick-capture",
     recordArea = "macshot://record",
   },
+
+  -- Absolute path to open, handed over by available() and consumed by trigger(), the
+  -- same seam macocr keeps for its own tool. open is what delivers the URL in the
+  -- background, so an unresolved open belongs beside every other reason this provider
+  -- declines rather than turning trigger into a second place that can fail.
+  _resolvedOpen = nil,
+
   available = function(self, deps)
     if not deps then
+      self._resolvedOpen = nil
       return false, "no dependency adapter injected"
     end
     if not deps.have(self.name) then
+      self._resolvedOpen = nil
       return false, "not installed"
     end
     local handler = hs.urlevent.getDefaultHandler(self.scheme)
     if not handler then
+      self._resolvedOpen = nil
       return false, self.scheme .. ":// URLs not available (enable the URL scheme in macshot settings)"
     end
     if handler:lower() ~= self.bundleID:lower() then
+      self._resolvedOpen = nil
       return false, "the " .. self.scheme .. ":// scheme is handled by " .. handler .. ", not macshot"
     end
     if #hs.application.applicationsForBundleID(self.bundleID) == 0 then
+      self._resolvedOpen = nil
       return false, "not running"
     end
+    local openPath = deps.path("open")
+    if not openPath then
+      self._resolvedOpen = nil
+      return false, "open is not resolved, so the url cannot be delivered in the background"
+    end
+    self._resolvedOpen = openPath
     return true
   end,
   supports = function(self, action)
@@ -54,12 +72,15 @@ return {
     if not url then
       return false
     end
+    if not self._resolvedOpen then
+      return false
+    end
     -- Deliver the URL through `open` in the background instead of
     -- hs.urlevent.openURL, which foregrounds macshot. Foregrounding steals key
     -- focus from whatever is front, and an hs.chooser like the clipboard list
     -- dismisses itself the moment it loses focus. The `-g` flag hands macshot the
     -- URL without bringing it forward, matching how its own global hotkey fires.
-    local t = hs.task.new("/usr/bin/open", nil, { "-g", url })
+    local t = hs.task.new(self._resolvedOpen, nil, { "-g", url })
     if not t then
       return false
     end

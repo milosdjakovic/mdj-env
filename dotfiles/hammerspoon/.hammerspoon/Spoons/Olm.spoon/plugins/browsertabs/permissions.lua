@@ -37,6 +37,12 @@ local SETTINGS_URL = "x-apple.systempreferences:com.apple.preference.security?Pr
 -- reason and same fix as in jxa.lua.
 local inFlight = {}
 
+-- Resolved absolute paths, filled by configure below. This file is a plain module rather
+-- than a colon called spoon, so the two tools it reaches for live as module locals rather
+-- than on a self.
+local swiftcPath = nil
+local openPath = nil
+
 --- The states the probe reports. Exposed so a consumer compares against these rather than
 --- against loose strings.
 M.states = {
@@ -62,12 +68,20 @@ local function binaryFresh()
 end
 
 -- Ensure the binary exists and is current, then call done(ok). Compilation runs off the main
--- thread, so the first read after an edit never blocks Hammerspoon.
+-- thread, so the first read after an edit never blocks Hammerspoon. A missing swiftc is the
+-- same shape as a build that failed, the probe cannot exist, so it takes the same route out
+-- rather than a second one, and every status read then answers unknown, which is already the
+-- answer the surface gives for a probe that could not be built.
 local function ensureBinary(done)
   if binaryFresh() then done(true) return end
+  if not swiftcPath then
+    log.w("no swiftc, the permission probe cannot be built, so every browser reads unknown until the command line tools are installed")
+    done(false)
+    return
+  end
   hs.fs.mkdir(CACHE_DIR)
   local build
-  build = hs.task.new("/usr/bin/swiftc", function(code, _, err)
+  build = hs.task.new(swiftcPath, function(code, _, err)
     inFlight[build] = nil
     if code ~= 0 then
       log.e("could not build the permission probe (" .. tostring(code) .. "), " .. tostring(err))
@@ -77,6 +91,22 @@ local function ensureBinary(done)
   if not build then done(false) return end
   inFlight[build] = true
   build:start()
+end
+
+--- M.configure(opts) - learn the resolved paths for the two tools this file reaches for.
+--- opts.deps is the scoped dependency adapter the plugin root received, granted because the
+--- plugin manifest declares both swiftc and open under this unit. Called from the plugin
+--- root's own configure, before either tool is ever reached for, and safe to call with no
+--- opts.deps at all, in which case both stay unresolved and every path below degrades the
+--- way a genuinely missing tool already does.
+function M.configure(opts)
+  opts = opts or {}
+  local deps = opts.deps
+  if deps then
+    swiftcPath = deps.path("swiftc")
+    openPath = deps.path("open")
+  end
+  return M
 end
 
 --- M.warm() - build the probe in the background now, so the first settings open is instant.
@@ -127,9 +157,19 @@ function M.request(bundleID, cb)
   run(bundleID, true, cb)
 end
 
---- M.openSettings() - open the Automation pane, the only way to undo a refusal.
+--- M.openSettings() - open the Automation pane, the only way to undo a refusal. Answers
+--- false plus a short reason when open never resolved, rather than shelling out to a bare
+--- word that a missing PATH entry would silently fail on with nothing said anywhere.
 function M.openSettings()
-  hs.execute("open '" .. SETTINGS_URL .. "'")
+  if not openPath then
+    log.w("no open, cannot reach the Automation pane, undo a refused browser by hand in System Settings instead")
+    return false, "open is not resolved"
+  end
+  -- Built into a local rather than handed to hs.execute as a literal, so the resolved path
+  -- is the whole of what this call names and the reconciler's own door check, which reads a
+  -- quoted literal as the tool being invoked, sees a variable here exactly as it should.
+  local cmd = "'" .. openPath .. "' '" .. SETTINGS_URL .. "'"
+  hs.execute(cmd)
   return M
 end
 

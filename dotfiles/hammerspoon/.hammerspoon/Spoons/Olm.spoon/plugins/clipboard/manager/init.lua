@@ -316,10 +316,27 @@ function M:start()
     end,
   })
 
-  -- Hand the preview chain its tool paths. Both are resolved outside this spoon by the
-  -- shared dependency door and injected through configure, so nothing here probes and a
-  -- missing one just leaves the video generator unable to handle anything.
-  preview.configure({ util = util, ffmpeg = config.ffmpeg, ffprobe = config.ffprobe })
+  -- Hand the preview chain its tool paths, all three asked of the shared dependency door
+  -- right here, so nothing in the chain probes and a missing tool just leaves that one
+  -- generator unable to handle anything.
+  --
+  -- This used to read config.ffmpeg and config.ffprobe and say they were resolved outside
+  -- this spoon and injected through configure. Nothing resolved them. No code anywhere in
+  -- this plugin or above it ever assigned either field, so both arrived nil for as long as
+  -- the fields existed and a video clipboard entry could never render a preview at all.
+  -- Both tools are declared, mapped and installed, so every layer meant to guarantee them
+  -- had done its job and the value simply stopped one hop short of the thing that needed
+  -- it. Reading all three off the door in one place is what makes that unable to happen
+  -- again, since there is no named field left for anyone to forget to fill.
+  local function resolve(tool)
+    return config.deps and config.deps.path(tool) or nil
+  end
+  preview.configure({
+    util = util,
+    ffmpeg = resolve("ffmpeg"),
+    ffprobe = resolve("ffprobe"),
+    sips = resolve("sips"),
+  })
 
   -- The media layer, images and files, injected into the store. It gets the dirs and
   -- sizes, the preview module, the store's save so a late async render can re-persist,

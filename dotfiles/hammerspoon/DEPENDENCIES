@@ -19,6 +19,7 @@ ioreg | system | /usr/sbin/ioreg | optional | browsertabs/test/harness | asks th
 caffeinate | system | /usr/bin/caffeinate | optional | browsertabs/test/harness | holds the display awake for a run, since a suite drives the machine with synthesised events and the idle timer does not count those | macos | ships with the system
 ocr | path | ocr | optional | capture/macocr | the OCR backend, the sole handler of text capture | tap | schappim/ocr/ocr
 macshot | app | com.sw33tlie.macshot.macshot | optional | capture/macshot | the preferred screenshot backend, native is the fallback | manual | install the macshot app, then enable its URL scheme in its settings
+open | system | /usr/bin/open | optional | capture/macshot | delivering the macshot url in the background, without raising macshot | macos | ships with the system
 ffmpeg | path | ffmpeg | optional | clipboard/preview | video clipboard previews | brew | ffmpeg
 ffprobe | path | ffprobe | optional | clipboard/preview | reading a video duration so a preview frame is picked mid clip | brew | ffmpeg
 sips | system | /usr/bin/sips | optional | clipboard/preview | resizing a raster image to a preview box and forcing it to png, which is what makes a heic or a webp render in the preview at all | macos | ships with the system
@@ -36,6 +37,7 @@ qlmanage | system | /usr/bin/qlmanage | optional | filesearch/thumbs | drawing a
 swiftc | system | /usr/bin/swiftc | optional | filesearch/quicklook | compiling the helper that opens the native Quick Look panel | xcode-clt | xcode-select --install
 fd | path | fd | optional | filesearch/hidden | building the index of paths Spotlight cannot see | brew | fd
 fzf | path | fzf | optional | filesearch/hidden | ranking that index, the one thing a substring tool cannot do over 42 thousand matches | brew | fzf
+open | system | /usr/bin/open | optional | filesearch/chooser | opening a found file or its containing folder in whatever application owns it | macos | ships with the system
 fd | path | fd | optional | filesearch/walk | walking a named directory, which is faster than the index once a scope is given and is the only way to see dotfiles | brew | fd
 hidutil | system | /usr/bin/hidutil | required | keyremap | applying the one HID mapping every leader key depends on, and clearing it again on quit | macos | ships with the system
 ps | system | /bin/ps | optional | processes/metrics | samples cpu and memory for the rows the picker is showing | macos | ships with the system
@@ -46,6 +48,7 @@ ps | system | /bin/ps | optional | processes/runtimes | finds candidate runtime 
 lsof | system | /usr/sbin/lsof | optional | processes/runtimes | checks whether a candidate holds a socket, the evidence that separates a dev server from a stray process | macos | ships with the system
 kill | system | /bin/kill | optional | processes/runtimes | stops a runtime process, gracefully first and forcefully on request | macos | ships with the system
 docker | path | docker | optional | processes/docker | lists running containers and stops one by name | cask | docker-desktop
+open | system | /usr/bin/open | optional | systemsettings/panes | opening a System Settings pane by its url scheme | macos | ships with the system
 tmux | path | tmux | required | tmuxsessions/engine | querying and switching every session and window, the whole reason this tool exists | brew | tmux
 open | system | /usr/bin/open | optional | tmuxsessions | launching Alacritty or WezTerm already attached to a session | macos | ships with the system
 mullvad | path | mullvad | optional | vpn/mullvad | the relay CLI behind every VPN control and location | cask | mullvad-vpn

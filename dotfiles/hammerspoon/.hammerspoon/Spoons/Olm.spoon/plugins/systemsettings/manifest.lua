@@ -15,6 +15,18 @@
 -- declaration nothing tells the loader that SystemSettings must be configured before the
 -- launcher captures its rows, which is the exact silent loss the launcher already suffered.
 return {
+  needs = {
+    tools = {
+      -- open is what turns a pane's x-apple.systempreferences url into a real navigation,
+      -- the whole of what this plugin does past building the url itself. Optional, and an
+      -- unresolved open degrades to a row that logs rather than one that silently opens
+      -- nothing.
+      { name = "open", kind = "system", locator = "/usr/bin/open", policy = "optional", unit = "panes",
+        reason = "opening a System Settings pane by its url scheme",
+        origin = { macos = "ships with the system" } },
+    },
+  },
+
   provides = {
     rows = "rows",
     -- open is the real member. Choosing a pane in the live root actually runs through the

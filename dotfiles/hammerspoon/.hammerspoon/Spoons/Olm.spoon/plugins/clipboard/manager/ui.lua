@@ -873,9 +873,16 @@ local function buildNonFile(e)
 end
 
 -- Read the head of a file off the main thread, so a slow or large file cannot
--- freeze the pane. head -c cap+1 lets us detect truncation.
+-- freeze the pane. head -c cap+1 lets us detect truncation. head is optional, and a
+-- machine without it should read exactly like a task that failed to start, which is
+-- already the shape the caller understands.
 local function asyncRead(path, cap, cb)
-  local t = hs.task.new("/usr/bin/head", function(code, out)
+  local headPath = cfg.deps and cfg.deps.path("head")
+  if not headPath then
+    cb("", true)
+    return
+  end
+  local t = hs.task.new(headPath, function(code, out)
     cb(out or "", code ~= 0)
   end, { "-c", tostring(cap + 1), path })
   if t then

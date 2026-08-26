@@ -23,6 +23,12 @@ return {
       { name = "macshot", kind = "app", locator = "com.sw33tlie.macshot.macshot", policy = "optional", unit = "macshot",
         reason = "the preferred screenshot backend, native is the fallback",
         origin = { manual = "install the macshot app, then enable its URL scheme in its settings" } },
+      -- Delivering a macshot URL without bringing macshot to the front, the -g flag reaches
+      -- through open rather than through hs.urlevent.openURL. Optional, and its absence
+      -- costs only this one backend, native still handles a screenshot or a recording.
+      { name = "open", kind = "system", locator = "/usr/bin/open", policy = "optional", unit = "macshot",
+        reason = "delivering the macshot url in the background, without raising macshot",
+        origin = { macos = "ships with the system" } },
     },
     -- The per consumer dependency adapter that turns a tool name into an absolute path is
     -- not named here on purpose. It is already ambient the moment needs.tools is non
