@@ -80,6 +80,14 @@ never asks whether any chooser is even open. Those filters already exist in the
 composition root, named bindingApplies and bindingActive, and composing them with this
 module is a later packet's work, not this one's.
 
+That later packet has since happened, on the other side of the seam rather than in here. The
+rows a person actually sees now come from `lib/hints.lua`'s `rowsFor`, injected as `deps.rowsFor`,
+and that function asks the live gate as well as the kind, so a verb whose `when` is currently
+false is no longer offered. `verbsIn` is untouched and stays untouched, for exactly the reason
+the next section gives. The correction was owed the moment a picker grew a page whose two entry
+verbs are gated off, since the panel was listing two rows that did nothing, and it belonged in
+`rowsFor` because that is the function the hint bar already read the same answer from.
+
 Keeping them out here is what makes verbsIn a statement about the declarations themselves,
 a fact that only changes when config/keys.lua or actionKinds changes, rather than a
 statement about a moment that could answer differently from one call to the next with

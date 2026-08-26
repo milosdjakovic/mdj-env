@@ -197,10 +197,14 @@ end
 -- own closes, read straight off the same table hostedVerbDeclared just proved holds this
 -- action.
 --
--- Filtered by kind rather than by bindingApplies or bindingActive, since a wiring time needs
--- gate was already answered once by lib/surface.lua's own keep, and no verb here carries a
--- when whose disagreement with the panel would be worth a second gate on top of the kind
--- check.
+-- Filtered by kind AND by the live gate, which is a correction rather than the original design.
+-- It filtered by kind alone, on the stated grounds that no verb anywhere carried a when, so
+-- there was nothing for a second gate to disagree with. That stopped being true the moment a
+-- picker grew a page, since the two verbs that act on one highlighted entry are gated off while
+-- that page is up and were still listed here, offering a person two rows that do nothing.
+-- footerFor has asked this same question all along, so this is the panel catching up with the
+-- hint bar rather than a new idea. The wiring time needs gate is still not repeated, since
+-- lib/surface.lua's own keep answered that before the binding ever reached plan.contexts.
 function obj.rowsFor(contextName, plan, deps, hosted)
   local glyphFor = deps and deps.glyphFor
   local backChord = (glyphFor and glyphFor("delete")) or "delete"
@@ -209,7 +213,8 @@ function obj.rowsFor(contextName, plan, deps, hosted)
   if not ctx then return rows end
   local kinds = obj.actionKinds(plan, deps and deps.kinds)
   for _, b in ipairs(ctx.bindings) do
-    if kinds[b.action] == "verb" and (not hosted or hostedVerbDeclared(hosted, b.action)) then
+    if kinds[b.action] == "verb" and bindingActive(b, deps)
+      and (not hosted or hostedVerbDeclared(hosted, b.action)) then
       local chord = obj.chordFor(b, deps)
       local closes
       if hosted then

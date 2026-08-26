@@ -770,6 +770,14 @@ was not met. So a key appears in the hints exactly while it does something, and 
 option for a chooser binding rather than a trap. The cost is rebuilding a small list each time the
 panel is revealed, which happens once per pause rather than per keystroke.
 
+THE ACTION PANEL ASKS IT TOO, which it did not at first. Its rows come from the same `rowsFor`
+the hint bar reads, and that function filtered by an action's kind alone, on the stated grounds
+that no verb anywhere carried a `when` for a second gate to disagree with. A picker with a second
+page ended that, since the two clipboard verbs that act on one highlighted entry are gated off
+while the page is up and the panel went on offering both, which is the same disagreement one
+surface further along. The panel's own `verbsIn` is deliberately still unfiltered, because the
+committed snapshot leans on it being a statement about declarations rather than about a moment.
+
 ASKING ON REVEAL IS NOT ENOUGH, and that took a second report to see. The panel latches visible,
 so the reveal shows the truth and then nothing redraws while the state carries on changing
 underneath. Entering a tool's list after the panel was already up left the way out unlisted, and
@@ -782,6 +790,17 @@ might matter, because that is a list nobody keeps complete and the entry already
 the reason this exists. Content without `state` runs no timer, and a steady panel costs a string
 comparison and nothing else. The guard is the canvas being up rather than the reveal flag, since
 that flag tracks only the delayed reveal and stays false for a panel configured with no delay.
+
+A WORD MAY FOLLOW LIVE STATE TOO, through `liveLabels`, which is the same idea applied to what a
+key is called rather than to whether it is listed. `lib/hints.lua` has always accepted the table
+and the root always passed nothing, on the grounds that the only case then in existence was the
+launcher's own business and there was nowhere generic to reach such a value from. There is, and it
+is the same place the predicates come from, harvested off whatever each module offers under its own
+`liveLabels` so this root still names no plugin. What earned it was a primary key that means two
+different things on two pages, pasting an entry on the clipboard's history list and applying a
+delete on its manage history page while the panel called it Paste either way. A label answering nil
+leaves the binding's declared description standing, so a plugin says only what changes, and an
+action claimed by two plugins is reported rather than one quietly winning.
 
 **A binding may be a LISTING rather than a binding, which `chord = false` says.** Some keys belong
 to the Chooser atom and are read there directly, Backspace on an empty field being the one, so

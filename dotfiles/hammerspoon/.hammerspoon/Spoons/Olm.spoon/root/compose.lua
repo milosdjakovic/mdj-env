@@ -519,6 +519,27 @@ function obj.run(olm, cfg)
       for name, fn in pairs(module.predicates) do ownPredicates[name] = fn end
     end
   end
+  -- The live relabelling table, harvested exactly the way the predicates above are and for the
+  -- same reason. A word that changes with a plugin's own live state can only be answered by that
+  -- plugin, and this file may not name one, so it takes whatever each module offers under its own
+  -- liveLabels and merges them. That closes the gap the hints deps table below used to state
+  -- outright, that it had nowhere generic to reach such a value from. An action claimed twice is
+  -- reported rather than letting one quietly win, the same rule the predicates merge keeps.
+  local ownLiveLabels = {}
+  for name, module in pairs(modules) do
+    if type(module) == "table" and type(module.liveLabels) == "table" then
+      for action, fn in pairs(module.liveLabels) do
+        if ownLiveLabels[action] then
+          log.w(string.format(
+            "live label for '%s' is claimed by more than one plugin, '%s' is being ignored",
+            tostring(action), tostring(name)))
+        else
+          ownLiveLabels[action] = fn
+        end
+      end
+    end
+  end
+
   ownPredicates.multipleDisplays = function() return #hs.screen.allScreens() > 1 end
   ownPredicates.overlayDisplayOpen = function() return overlay.isShowing() == true end
 
@@ -940,10 +961,15 @@ function obj.run(olm, cfg)
     -- since rowsFor derives kinds a second time inside hints.lua, and it must see the same
     -- overrides the panel's own kindOf uses or the panel rows and verbsIn drift apart.
     kinds = actionKindOverrides,
-    -- liveLabels is absent. The one live relabelling case that exists today, the launcher's
-    -- Run reading as Open over an application row, is that plugin's own business, and this
-    -- file has nowhere generic to reach it from without naming Launcher for a value lib/
-    -- hints.lua itself is careful never to ask this file to name.
+    -- liveLabels, harvested above off whatever each module offers rather than written here, so
+    -- a word that follows a plugin's own live state reaches the hint bar and the action panel
+    -- with this file still naming no plugin. It was absent, on the grounds that the only case
+    -- then in existence, the launcher's Run reading as Open over an application row, was that
+    -- plugin's own business and there was nowhere generic to reach it from. The generic place is
+    -- the same one the predicates already use, one screen up, and a picker whose primary key
+    -- means something else on a second page is what made the difference worth paying. The
+    -- launcher's own case is still its own and is not routed through here.
+    liveLabels = ownLiveLabels,
   }
 
   -- HyperCheatSheet and QueryScope both reset the whole of what configure gave them on
@@ -1666,6 +1692,11 @@ function obj.run(olm, cfg)
   -- decide whether an in list chord fires were invisible to inspection while being the very
   -- thing most worth inspecting.
   record.predicates = w._predicates or ownPredicates
+  -- Exposed for the same reason the predicates above are, so what a plugin offered and what the
+  -- hint bar was actually handed can be read from outside rather than only inferred from this
+  -- file. A harvest that silently collected nothing looks exactly like a config with nothing to
+  -- collect, which is the failure this one line makes answerable.
+  record.liveLabels = ownLiveLabels
 
   -- The routed control surfaces, in the order lib/nav.lua consults them, so the question every
   -- in list chord depends on can be asked from outside. That question is not whether a list is

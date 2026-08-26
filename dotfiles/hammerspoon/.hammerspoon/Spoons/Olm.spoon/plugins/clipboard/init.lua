@@ -109,6 +109,25 @@ obj.predicates = {
   end,
 }
 
+--- ClipboardHistory.liveLabels
+--- The words on this plugin's own keys that change with its own live state, collected by the
+--- composition root the same way the predicates above are, so the hint bar and the action panel
+--- read one answer and this plugin still never learns which surfaces exist or which key reaches
+--- it. A label answers nil to leave the binding's declared description standing.
+---
+--- One entry. The primary key pastes the highlighted entry on the history list and applies the
+--- highlighted slice on the manage history page, which is the same key doing two different things
+--- and was printed as Paste either way. The row it acts on already says Delete, so the panel was
+--- the only thing left saying otherwise, and a destructive key described as a paste is the one
+--- disagreement here worth paying a seam to close.
+obj.liveLabels = {
+  insertSelected = function(contextName)
+    if contextName ~= "clipboard" then return nil end
+    if obj.manager.isManagingHistory() then return "Delete" end
+    return nil
+  end,
+}
+
 --- ClipboardHistory.providers.firstAvailable(chain)
 --- Constructor
 --- Build a provider that, on every show, delegates to the first provider in
