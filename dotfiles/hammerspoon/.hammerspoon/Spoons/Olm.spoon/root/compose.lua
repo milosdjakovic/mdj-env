@@ -906,14 +906,21 @@ function obj.run(olm, cfg)
   local function hideSharedOverlay() hideHyperLayer() end
 
   -- The kind derivation reads a binding's position and the fixed generic navigation set,
-  -- and gets these three wrong on that evidence alone, since each sits below the first
+  -- and gets these four wrong on that evidence alone, since each sits below the first
   -- binding in its own context yet moves the view or leaves a page rather than acting on
-  -- anything selected. The retired root called all three navigation by hand, and this
+  -- anything selected. The retired root called the first three navigation by hand, and this
   -- table is the override seam actionKinds reserves for exactly that one small correction.
+  --
+  -- The fourth is the same shape as leavePage above, a step back out of a swapped list, and it
+  -- earns the same correction for the same reason. The action panel draws its own Back row, so
+  -- a step out classified as a verb would be listed twice, once as the panel's Back and once as
+  -- a row of its own. These are action names and no plugin is named, which is the only reason
+  -- this table may sit in this file at all.
   local actionKindOverrides = {
     scrollPreviewDown = "navigation",
     scrollPreviewUp = "navigation",
     leavePage = "navigation",
+    leaveManageHistory = "navigation",
   }
 
   local hintsDeps = {

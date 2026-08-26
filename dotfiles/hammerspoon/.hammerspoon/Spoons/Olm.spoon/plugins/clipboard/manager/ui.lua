@@ -29,6 +29,22 @@ local isAccumulator = function() return false end
 local cfg = nil -- layout and size config, see configure
 local Chooser = nil -- the injected Chooser.spoon factory
 local picker = nil -- our Chooser instance, built once in UI.build
+-- The manage history page, injected. It owns the duration grammar, the slices and their
+-- wording, and this file only draws whatever it hands back, see prune.lua.
+local prune = nil
+-- Which page the one chooser is showing, nil for the history list and "prune" for manage
+-- history. The atom's own drill down pair drives it, intercept acting on a page row without
+-- closing the list and back stepping out of the page on Backspace from an empty field, so
+-- there is one chooser, one context, and one set of keys either way.
+local page = nil
+
+-- What the field says it wants, one label per page. Named here rather than written at each of
+-- the three places that set it, since the field is the only thing telling a person that the
+-- same box now takes a duration instead of a search.
+local PLACEHOLDER = {
+  history = "Search clipboard",
+  prune = "Duration, 90m or 4d12h",
+}
 
 -- Display labels and the type-filter query prefixes, both ui policy.
 local KIND_LABEL = { text = "Text", url = "URL", file = "File", image = "Image" }
@@ -292,12 +308,20 @@ local function drawEmojiGlyph(glyph)
   return img
 end
 
-local function kindGlyph(kind)
-  local hit = glyphCache[kind]
+-- Any emoji as a row icon, drawn once and cached by the string itself. Keyed by the glyph
+-- rather than by what it stands for, so the kind marks and the manage history page's own
+-- glyphs, which arrive as plain strings from a file that may not call into hs at all, share one
+-- cache and one renderer.
+local function emojiImage(glyph)
+  local hit = glyphCache[glyph]
   if hit ~= nil then return hit or nil end
-  local img = drawEmojiGlyph(kind == "url" and "🔗" or "📝")
-  glyphCache[kind] = img
+  local img = drawEmojiGlyph(glyph)
+  glyphCache[glyph] = img
   return img or nil
+end
+
+local function kindGlyph(kind)
+  return emojiImage(kind == "url" and "🔗" or "📝")
 end
 
 -- A small chip of a colour literal, cached by the colour so it is drawn once. A
@@ -323,6 +347,20 @@ local function colorChip(col)
   return img or nil, key
 end
 
+-- The manage history page's rows, its own plain data with each glyph string turned into the
+-- icon image here. The page never touches a canvas and this never decides what a row means,
+-- which is the whole split, and it is why that file loads and can be tested without hs.
+local function pruneChoices(q)
+  local out = prune.rows(q)
+  for _, r in ipairs(out) do
+    if r.glyph then
+      r.image, r.iconKey = emojiImage(r.glyph), "glyph:" .. r.glyph
+      r.glyph = nil
+    end
+  end
+  return out
+end
+
 -- The atom's rows supplier. Returns plain items; the atom styles them with the
 -- active palette. Filtering, the type prefix, the batch mark, and the kind icon
 -- are all clipboard policy and live here. The free-text part runs through
@@ -331,6 +369,11 @@ end
 -- is truncated. Its result is used only as a yes or no, so a match keeps the row and the
 -- store's recency order is preserved.
 local function buildChoices(q)
+  -- The page is a different list, not a filtered one, so it answers first and the type prefix
+  -- and the word matcher below never see its query. That field is a duration being typed rather
+  -- than a search, which is also why the chooser opts out of the shared matcher entirely.
+  if page == "prune" then return pruneChoices(q) end
+
   local kind, rest = parseQuery(q)
   rest = (rest or ""):gsub("^%s+", ""):gsub("%s+$", ""):lower()
   local out = {}
@@ -1012,6 +1055,20 @@ local function renderPreview(e)
     paint({}, 0)
     return
   end
+  -- A manage history row, whose pane lists what the row would take rather than the content of
+  -- one entry. Drawn with the same meta line and monospace body every other kind uses, since
+  -- what differs is the text and nothing about the shape.
+  if e.side then
+    local meta, body = prune.preview(e)
+    if not meta then
+      paint({}, 0)
+      return
+    end
+    local els, w = {}, innerWidth()
+    local y = metaHeader(els, nil, w, meta) + BLOCK_GAP
+    paint(els, appendText(els, body, 0, y, w, colors.fg, BODY_SIZE))
+    return
+  end
   if e.kind == "file" then
     renderFile(e, renderToken)
     return
@@ -1041,6 +1098,10 @@ end
 -- is ignored, otherwise the single highlighted item pastes. The atom fires this
 -- before onClose, so the batch is still intact here; onClose clears it after.
 local function onSelect(entry)
+  -- A manage history row is answered in intercept, which acts and keeps the list open, so
+  -- nothing that pastes should ever see one. This is the guard for the paths intercept does not
+  -- cover rather than a second dispatch, since pasting a slice descriptor is meaningless.
+  if entry and entry.side then return end
   if #batch > 0 then
     -- The deferred reorder. Collecting never touches the store, so the list stays put while
     -- the picker is open, and only here, on commit and close, does each collected entry float
@@ -1061,11 +1122,37 @@ local function onSelect(entry)
   end
 end
 
+-- A row was chosen while the manage history page is on. Acting here rather than in onSelect is
+-- what the atom's intercept is for, since a delete leaves a list that should now read
+-- differently rather than one that should be gone, so the slice goes, the counts redraw
+-- themselves from the store, and the page stays open for a second pass. Answering false for
+-- every other row is what leaves Return meaning paste on the history list.
+local function intercept(item)
+  if page ~= "prune" or not item or not item.side or item.side == "hint" then return false end
+  local removed = prune.apply(item)
+  local left = #store.all()
+  if cfg.notify then cfg.notify(prune.message(item, removed, left)) end
+  return true
+end
+
+-- Backspace on an empty field, the way out of the page. It is the same press that steps out of
+-- a hosted list in the launcher and out of a typed scope, so one habit covers all three, and
+-- answering false with no page on keeps it ordinary editing everywhere else.
+local function back()
+  if page == nil then return false end
+  UI.leaveManageHistory()
+  return true
+end
+
 -- The chooser closed for any reason. Cancel any uncommitted batch, hide the
 -- preview, and tell the root (which drops the shortcut overlay). Injected as the
 -- atom's onClose, so this file never learns about the overlay or the click watcher.
 local function onClose()
   batch = {}
+  -- Leave the page behind, so the next open is the history list. The same reason the launcher
+  -- drops a hosted list on show, a page is where you were rather than a setting you chose.
+  page = nil
+  if picker then picker:setPlaceholder(PLACEHOLDER.history) end
   -- Reset the footer to its no-batch labels now the batch is cleared, so the next
   -- open does not come up still reading "Delete marked". The picker is hidden here,
   -- so setFooter only updates the stored hints the next open renders from.
@@ -1102,7 +1189,7 @@ local function onPositioned(chooserFrame, companionFrame)
 end
 
 local function onRightClick(entry)
-  if not entry then return end
+  if not entry or entry.side then return end
   store.removeEntry(entry)
   picker:refresh()
 end
@@ -1199,7 +1286,7 @@ end
 --- Hyper a binding. The chooser stays open. Refreshing redraws the rows with the
 --- new order badges, and the atom's refresh preserves the highlight.
 function UI.appendSelected()
-  if not picker or not picker:isShowing() then return end
+  if not picker or not picker:isShowing() or page then return end
   local entry = picker:selectedItem()
   if not entry then return end
   toggleBatch(entry)
@@ -1213,7 +1300,10 @@ end
 --- marked" label; otherwise delete just the highlighted entry. Refreshing redraws the
 --- remaining rows, and refreshFooter restores the label once the batch is empty.
 function UI.deleteSelected()
-  if not picker or not picker:isShowing() then return end
+  -- Inert on the manage history page. Every row there already deletes, on Return, in a slice
+  -- whose size the row states, and a d that took the highlighted slice instead would be the one
+  -- key in this picker whose meaning silently changed with the page.
+  if not picker or not picker:isShowing() or page then return end
   if #batch > 0 then
     for _, e in ipairs(batch) do store.removeEntry(e) end
     batch = {}
@@ -1224,6 +1314,52 @@ function UI.deleteSelected()
   end
   picker:refresh()
   refreshFooter()
+end
+
+--- UI.manageHistory() - show the manage history page, or step back off it when it is already
+--- on, for the Hyper m binding and for the launcher row that opens straight onto it. One verb
+--- both ways round, because the key is what a person will press again to get out and finding it
+--- inert there is worse than a second key nobody would guess.
+---
+--- Opening from the launcher arrives here with nothing showing, so the picker is shown too, and
+--- the page is set BEFORE the show since showing is what builds the first rows.
+function UI.manageHistory()
+  if not picker then return end
+  if page == "prune" then
+    UI.leaveManageHistory()
+    return
+  end
+  page = "prune"
+  picker:setPlaceholder(PLACEHOLDER.prune)
+  if not picker:isShowing() then
+    picker:show()
+    return
+  end
+  -- Whatever was typed was a search over history, and on this page the same text would read as
+  -- a duration, so the field starts empty and the ladder is what a person sees first.
+  picker:setQuery("")
+  picker:refresh(true)
+  renderPreview(picker:selectedItem())
+end
+
+--- UI.leaveManageHistory() - give the history list back, the answer to Backspace on an empty
+--- field and to pressing the page's own key again. Rebuilds from the top, since the list now
+--- means something else and the highlight has no business staying on the row number the page
+--- left it on.
+function UI.leaveManageHistory()
+  if page == nil then return end
+  page = nil
+  if not picker then return end
+  picker:setPlaceholder(PLACEHOLDER.history)
+  picker:setQuery("")
+  picker:refresh(true)
+  renderPreview(picker:selectedItem())
+end
+
+--- UI.isManagingHistory() - whether the page is on, read by the plugin's own predicate so the
+--- hint panel lists the way out exactly while there is one.
+function UI.isManagingHistory()
+  return page == "prune" and picker ~= nil and picker:isShowing()
 end
 
 --- UI.build() - create the Chooser instance. Called once at start and reused
@@ -1242,10 +1378,16 @@ function UI.build()
     -- a type prefix) and keeps recency order, so buildChoices filters with the shared
     -- matcher itself rather than handing the atom the full list to rank.
     matcher = false,
-    placeholder = "Search clipboard",
+    placeholder = PLACEHOLDER.history,
     pollInterval = cfg.previewPoll,
     rows = buildChoices,
     onSelect = onSelect,
+    -- The drill down pair. intercept is what lets a manage history row act and leave the list
+    -- standing, since hs.chooser hardwires Return to complete and a row whose result is a
+    -- differently counted list has nothing left to change once the window is gone, and back is
+    -- the way out of it again.
+    intercept = intercept,
+    back = back,
     onHighlight = renderPreview,
     onClose = onClose,
     onPositioned = onPositioned,
@@ -1273,7 +1415,8 @@ function UI.build()
 end
 
 --- UI.configure(opts) - inject store, the insertion engine, util, media (for the shared file
---- state rule fileBadge draws on), the Chooser factory, the theme, the shared
+--- state rule fileBadge draws on), prune (the manage history page, whose rows and wording this
+--- file only draws), the Chooser factory, the theme, the shared
 --- surface routine (opts.surface, drawing the preview pane's background and
 --- border), and the layout config.
 function UI.configure(opts)
@@ -1281,6 +1424,7 @@ function UI.configure(opts)
   paste = opts.paste
   util = opts.util
   media = opts.media
+  prune = opts.prune
   Chooser = opts.chooser
   isAccumulator = opts.isAccumulator or isAccumulator
   cfg = opts

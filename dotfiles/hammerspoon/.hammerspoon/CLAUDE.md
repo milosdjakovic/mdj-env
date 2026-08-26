@@ -1180,6 +1180,52 @@ Both actions report what they did, since each changes something invisible, an en
 offscreen and a position in a list. The message goes out through an injected `onMessage` and the
 root draws it on the shared `CanvasPanel`, following the transient feedback surface rule above.
 
+**Clipboard manage history, deleting by age.** Deleting a slice of history by age is a
+second PAGE of the clipboard picker rather than a chooser of its own, which is the decision
+worth knowing. The atom already carries the drill down pair, `intercept` to act on a row
+without closing and `back` to step out on Backspace, so a page costs no second context, no
+second predicate, and no second surface, and every key the clipboard context already binds
+stays live while it is open. A separate chooser would have needed a context of its own, and
+one plugin gets one context here, since `contextOwners` and the open gate both resolve a
+context through its owning plugin's single `surface` declaration. Reusing the page also keeps
+the companion pane, which matters more here than anywhere else in this tool, since it lists
+what a row would take, newest first, and a count is a promise while that is the evidence for
+it. The one cost is a mode inside the picker, so `d`, `a`, and a right click go inert on the
+page rather than meaning something different there, and the field's placeholder is what says
+the box now takes a duration instead of a search.
+
+Both directions come off one parse, delete what was copied in the last span and delete
+everything older than it, because a clipboard genuinely has both intents, wiping what you just
+copied and reclaiming what you stopped needing, and the same grammar answers both for the price
+of a second row. The rungs an empty field offers are the browser ladder, the recent window, since
+that is the one a person reaches for by habit.
+
+The grammar refuses a year and a month rather than guessing, which is the one wording decision
+here that could not be taken back. `m` is minutes, as it is in the keep awake field, so `1mo`
+would be the only way to say a month and the two share a prefix, meaning a half typed `1m`
+reads as a minute while it is on its way to being a month. History reaches a month or two at the
+most and `4w` says that already, so both units are simply refused and the ambiguity never
+exists. Units are summed in any order, so `12h4d` and `4d12h` agree and `4d4d` is eight days,
+and a trailing number with no unit yet is a keep typing hint rather than an error, the same
+three way answer the keep awake field gives.
+
+Counting and deleting share one predicate, built in one place, so the number a person read and
+the number that goes cannot come from two readings of the same span. The boundary is still
+resolved twice, once when the row is drawn and once when it is chosen, which is inherent to a
+window named relative to now, and it is why the message afterwards reports the store's own
+count rather than the row's. `store.removeWhere` exists for this, one pass and one write for a
+whole slice, where the per row `removeEntry` would have been four hundred list scans and four
+hundred json writes on one keypress. The engine still decides nothing about what goes, the
+predicate is the caller's, which is what keeps the age policy outside the store rather than
+another branch inside it. This is also a different thing from `retention.lua` above it, one
+being asked for by hand and the other running automatically after every capture, and the
+automatic one still has no age policy in it at all.
+
+The page's own rows, grammar, and wording live in `manager/prune.lua`, which touches no canvas
+and hands back a glyph string rather than an image, so it loads and is exercised in plain Lua
+with no Hammerspoon at all, which is how the grammar and the slice counting were checked before
+anything went live.
+
 **Launcher.** Hyper+Space opens a filterable app switcher and command runner, the built-in one, built over the Chooser atom. It is a coordinator spoon that owns the app scan caches and an `hs.application.watcher`, orders open apps by recency the way Command+Tab does, and follows the picker checklist above. Its decision trail and internals live in `Spoons/Olm.spoon/host/launcher/CLAUDE.md`.
 
 Besides its catalog of apps and commands it also shows rows *computed* from what is

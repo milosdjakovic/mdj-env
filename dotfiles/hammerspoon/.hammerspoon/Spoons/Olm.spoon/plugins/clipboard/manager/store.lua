@@ -10,8 +10,10 @@
 ---
 --- Public API, unchanged from before the split so the monitor and the ui do not care
 --- that the internals moved: configure, load, all, add, moveToFront, replaceText,
---- removeEntry, clear, and save. save is public because the media layer re-persists after
---- an async preview render resolves. replaceText is the one way an entry's content changes
+--- removeEntry, removeWhere, clear, and save. save is public because the media layer
+--- re-persists after an async preview render resolves. removeWhere is the bulk counterpart of
+--- removeEntry, taking the caller's own rule for what goes, so a slice of history is one pass
+--- and one write rather than one of each per entry. replaceText is the one way an entry's content changes
 --- after capture, so the key recompute that keeps dedupe honest lives in a single place.
 
 local S = {}
@@ -216,6 +218,29 @@ function S.removeEntry(entry)
   end
   if media then media.release(entry) end
   S.save()
+end
+
+--- S.removeWhere(pred) -> how many left the list.
+--- Delete every entry the predicate answers true for, releasing each one's media, in a single
+--- backward pass with a single save at the end. removeEntry exists for one row and walks the
+--- whole list and writes the file each time, so a slice of four hundred entries through it
+--- would be four hundred scans and four hundred json writes on a keypress. This is the same
+--- deletion, asked once.
+---
+--- The engine decides nothing about what makes an entry go. The predicate is the caller's,
+--- which is what lets an age slice, and anything else later, be policy sitting outside this
+--- file rather than another branch inside it.
+function S.removeWhere(pred)
+  local removed = 0
+  for i = #history, 1, -1 do
+    if pred(history[i]) then
+      local e = table.remove(history, i)
+      if media then media.release(e) end
+      removed = removed + 1
+    end
+  end
+  if removed > 0 then S.save() end
+  return removed
 end
 
 --- S.clear() - wipe history and all media.

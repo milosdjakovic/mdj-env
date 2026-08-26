@@ -88,8 +88,25 @@ return {
       -- while the bare keys still move the highlight.
       { key = "j", mods = { "cmd" }, action = "scrollPreviewDown", description = "Scroll preview down" },
       { key = "k", mods = { "cmd" }, action = "scrollPreviewUp",   description = "Scroll preview up" },
-      { key = "a", action = "appendSelected", description = "Append to batch", glyph = "➕" },
-      { key = "d", action = "deleteSelected", description = "Delete", glyph = "🗑️" },
+      -- Both act on one highlighted entry, so both are gated on the list being the history
+      -- rather than the manage history page. Inert would have been enough for the keys, and is
+      -- not enough for the panel, since a key listed there while it does nothing is exactly the
+      -- disagreement between a hint and a binding the two discoverability mandates exist to
+      -- prevent. Gated, they leave the panel the moment the page opens and come back with it.
+      { key = "a", action = "appendSelected", description = "Append to batch", glyph = "➕",
+        when = "clipboardHistoryList" },
+      { key = "d", action = "deleteSelected", description = "Delete", glyph = "🗑️",
+        when = "clipboardHistoryList" },
+      -- The manage history page, where history is deleted by age rather than a row at a time.
+      -- The same key steps back off the page, since that is what a person presses again.
+      { key = "m", action = "manageHistory", description = "Manage history", glyph = "🧹" },
+      -- A listing rather than a binding. Backspace on an empty field belongs to the Chooser
+      -- atom, which reads it directly as its `back` hook, so there is nothing here to bind and
+      -- chord = false says so. It is still declared, because the hint panel is where a key
+      -- becomes visible and a way out nobody can see is a way out nobody takes, and it is gated
+      -- so it appears exactly while there is a page to leave.
+      { key = "delete", action = "leaveManageHistory", when = "clipboardManagingHistory",
+        chord = false, description = "Back to history", glyph = "⬅️" },
     },
     -- Entries here are prose and code searched from the inside, a real remembered
     -- word rather than an abbreviation of a short label, so the words matcher fits
@@ -132,6 +149,17 @@ return {
     -- rather than on a list that is already open, a different gesture that wants a plain
     -- global combination, and it is the only place either has ever lived.
     commands = {
+      -- The manage history page from the launcher, for the case where the picker is not open and
+      -- deleting a slice of history is the whole errand. No key and no shortcut, deliberately.
+      -- It already has one inside the picker, and a second global chord for a door that is one
+      -- keystroke away from the list it acts on would be a key to remember for nothing. The row
+      -- is how it is found, which is what a keyless command is for.
+      manageHistory = {
+        fn = { member = "manager.manageHistory", call = "dot" },
+        row = { category = "Clipboard", glyph = "🧹",
+          description = "Manage clipboard history",
+          keywords = "clipboard delete clear wipe prune history age old hour day week" },
+      },
       appendCopy = {
         fn = { member = "manager.appendCopy", call = "dot" },
         key = "C", mods = { "ctrl", "alt" },

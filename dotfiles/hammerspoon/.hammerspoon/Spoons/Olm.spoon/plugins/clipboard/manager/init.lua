@@ -36,6 +36,9 @@
 ---   finder-target.lua the one file that knows Finder or AppleScript, answering only
 ---                 where a paste would land right now
 ---   retention.lua the eviction policies (count, age, bytes), combined as an or
+---   prune.lua     the manage history page, the duration grammar and the age slices a person
+---                 deletes by hand, which is a different thing from retention above, one being
+---                 asked for and the other automatic
 ---   readers.lua   per-type capture readers, a Chain of Responsibility
 ---   monitor.lua   the poll engine, reading the self-capture guard off the injected engine
 ---   session.lua   the transient session state, the append accumulator and the paste walk
@@ -57,6 +60,7 @@ local store = load("store.lua")
 local media = load("media.lua")
 local finderTargetAdapter = load("finder-target.lua")
 local retention = load("retention.lua")
+local prune = load("prune.lua")
 local readers = load("readers.lua")
 local monitor = load("monitor.lua")
 local session = load("session.lua")
@@ -203,6 +207,29 @@ end
 --- one is gathered, for the Hyper d binding wired in the composition root.
 function M.deleteSelected()
   ui.deleteSelected()
+end
+
+--- M.manageHistory() - swap the open picker onto its manage history page, where a slice of
+--- history is deleted by age, or step back off the page when it is already on. Reached from the
+--- Hyper m binding while the list is open and from the launcher row with nothing open at all,
+--- which is why it shows the picker itself when it has to.
+function M.manageHistory()
+  ui.manageHistory()
+end
+
+--- M.leaveManageHistory() - give the history list back. The Chooser atom already reads Backspace
+--- on an empty field itself, so nothing binds this today and the surface declares it as a
+--- listing rather than a chord. It exists because the declaration names it, and an action named
+--- in a manifest that resolves to nothing is the kind of half true contract this plugin's own
+--- history has more than one example of.
+function M.leaveManageHistory()
+  ui.leaveManageHistory()
+end
+
+--- M.isManagingHistory() - whether that page is on, read by the plugin's own `when` predicate so
+--- the hint panel lists the way back out exactly while there is one.
+function M.isManagingHistory()
+  return ui.isManagingHistory()
 end
 
 --- M.appendCopy() - copy the selection and glue it onto the newest entry instead of pushing a
@@ -418,8 +445,13 @@ function M:start()
     onCapture = session.noteCapture,
     onUserPaste = session.resetSequence,
   })
+  -- The manage history page, policy over the store and nothing else. It holds no state of its
+  -- own between opens, so like the session layer it is configured and never started.
+  prune.configure({ store = store })
+
   ui.configure(merged({
     store = store,
+    prune = prune,
     paste = paste,
     util = util,
     media = media,

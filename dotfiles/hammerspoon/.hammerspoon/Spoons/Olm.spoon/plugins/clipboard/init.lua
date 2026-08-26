@@ -90,6 +90,25 @@ obj.providers = {
   shortcut = load("providers/shortcut.lua"),
 }
 
+--- ClipboardHistory.predicates
+--- The live `when` gates this plugin's own bindings name. The composition root collects these
+--- off every module rather than holding a list of its own, so a key gated on a state only this
+--- plugin can see needs nothing outside this plugin, and an unknown name would be treated as
+--- always live, which is what leaves a key listed in the hint panel when there is nothing for it
+--- to do. Both are about one thing, whether the picker is on its manage history page, which is
+--- what decides which of its keys mean anything and which of them are worth printing.
+obj.predicates = {
+  clipboardManagingHistory = function()
+    return obj.manager.isManagingHistory()
+  end,
+  -- The complement, and both are needed rather than one, since a `when` only ever gates a key on
+  -- its predicate being TRUE. The keys that act on one highlighted entry name this one and the
+  -- way back out names the other, so each is listed exactly while it means something.
+  clipboardHistoryList = function()
+    return obj.manager.isShowing() and not obj.manager.isManagingHistory()
+  end,
+}
+
 --- ClipboardHistory.providers.firstAvailable(chain)
 --- Constructor
 --- Build a provider that, on every show, delegates to the first provider in
