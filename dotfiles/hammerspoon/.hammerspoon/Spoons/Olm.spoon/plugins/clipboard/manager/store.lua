@@ -222,7 +222,11 @@ end
 
 --- S.removeWhere(pred) -> how many left the list.
 --- Delete every entry the predicate answers true for, releasing each one's media, in a single
---- backward pass with a single save at the end. removeEntry exists for one row and walks the
+--- backward pass with a single save at the end. The predicate is called with the entry and its
+--- position in the list, newest first, so a rule about where a line falls in the order can be
+--- expressed without a second deletion path. The pass runs backward, and removing at a position
+--- never shifts anything above it, so each position handed over is the one the entry held when
+--- the pass began. removeEntry exists for one row and walks the
 --- whole list and writes the file each time, so a slice of four hundred entries through it
 --- would be four hundred scans and four hundred json writes on a keypress. This is the same
 --- deletion, asked once.
@@ -233,7 +237,7 @@ end
 function S.removeWhere(pred)
   local removed = 0
   for i = #history, 1, -1 do
-    if pred(history[i]) then
+    if pred(history[i], i) then
       local e = table.remove(history, i)
       if media then media.release(e) end
       removed = removed + 1

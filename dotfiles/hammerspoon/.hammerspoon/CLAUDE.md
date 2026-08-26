@@ -1200,6 +1200,18 @@ copied and reclaiming what you stopped needing, and the same grammar answers bot
 of a second row. The rungs an empty field offers are the browser ladder, the recent window, since
 that is the one a person reaches for by habit.
 
+A plain number is the same question on the other axis, a count rather than a span, offering the
+newest hundred or everything but them, since where the line falls in the list is as natural a
+way to say it as where it falls in time. One predicate answers both, taking an entry and its
+position, so `store.removeWhere` gained the position rather than the count gaining a deletion
+path of its own. It was also the one thing a person could type here that meant nothing, since a
+bare number used to be a keep typing hint. That hint still exists for the case it was really
+for, a run of digits AFTER a unit, so `4d1` is a span mid keystroke while `100` is a value, and
+the count is only ever read off the whole field. The second count row is titled delete rather
+than keep although keeping the newest hundred is what it is for, because every row on this page
+deletes and one whose title said keep while removing nine hundred entries would be the single
+place where reading the title was not enough.
+
 The grammar refuses a year and a month rather than guessing, which is the one wording decision
 here that could not be taken back. `m` is minutes, as it is in the keep awake field, so `1mo`
 would be the only way to say a month and the two share a prefix, meaning a half typed `1m`

@@ -12,6 +12,13 @@
 --- hands rows back as plain data carrying a glyph STRING rather than an image, so every canvas
 --- call stays in the ui and this stays loadable, and testable, with no Hammerspoon at all.
 ---
+--- What a field holds is either a duration or a count, and the count came second because a plain
+--- number was the one thing a person typed here that meant nothing. A bare 100 now reads as a
+--- hundred entries, offering the same two directions a span does, so trimming history to the
+--- newest hundred is the count shaped twin of deleting everything older than a week. A trailing
+--- run of digits AFTER a unit is still a value being typed rather than a count, so 4d1 keeps
+--- reading as a half typed span on its way to 4d12h.
+---
 --- The one thing it decides on its own is what a duration means. The units are w, d, h and m,
 --- m being minutes exactly as the keep awake field reads it, written in any order and summed,
 --- so 4d12h and 12h4d are the same span and 4d4d is eight days rather than an error. There is
@@ -39,7 +46,9 @@ local PRESETS = {
   { secs = 7 * 86400, title = "Last 7 days" },
 }
 
-local EXAMPLES = "90m, 4d12h, 3w2d, any order, w d h m"
+-- Both shapes, since the field takes either and a person who typed one may not know the other is
+-- there. Units first because they are the less guessable half.
+local EXAMPLES = "90m, 4d12h, 3w2d in any order, or a plain 100 for a count"
 
 -- What the pane lists at most, so a slice holding hundreds of entries still builds one bounded
 -- block of text rather than a wall the pane has to measure and clip.
@@ -49,22 +58,34 @@ local PREVIEW_ROWS = 30
 -- The duration grammar
 --------------------------------------------------------------------------------
 
---- P.parse(q) -> seconds, or nil and a status.
---- The status says which of three things a field that holds no value is doing, "empty" for
---- nothing typed, "incomplete" for something still forming toward a value, meaning a trailing
---- number with its unit not typed yet, and "bad" for anything else. The rows turn the middle
---- one into a keep typing hint and the last into an error row, both disabled, which is what
---- keeps Return from ever applying a half typed span.
+--- P.parse(q) -> value, or nil and a status.
+--- A value is one of two shapes, { secs = n } for a duration and { count = n } for a number of
+--- entries, so a caller reads which it got by asking which field is there rather than by being
+--- told a kind twice. The status says what a field holding no value is doing, "empty" for nothing
+--- typed, "incomplete" for a span still forming, meaning a trailing number whose unit has not
+--- been typed yet, and "bad" for anything else. The rows turn the middle one into a keep typing
+--- hint and the last into an error row, both disabled, which is what keeps Return from ever
+--- applying a half typed value.
+---
+--- The whole field being digits is a count. A run of digits at the END of something that already
+--- carries a unit is not, it is a span mid keystroke, which is the one place these two readings
+--- could have collided and the reason the count is only ever read from the whole field.
 function P.parse(q)
   q = tostring(q or ""):gsub("%s+", ""):lower()
   if q == "" then return nil, "empty" end
+
+  local bare = q:match("^%d+$")
+  if bare then
+    local n = tonumber(bare)
+    if n < 1 then return nil, "bad" end
+    return { count = n }
+  end
+
   local total, pos = 0, 1
   while pos <= #q do
     local num, unit, nextPos = q:match("^(%d+)(%a)()", pos)
     if not num then
-      -- Digits with no unit yet, so the value is still being typed rather than wrong. This is
-      -- the same answer for a bare 12 and for the 1 in 4d1, since both are one keystroke away
-      -- from meaning something.
+      -- Digits with no unit yet, so the span is still being typed rather than wrong.
       if q:sub(pos):match("^%d+$") then return nil, "incomplete" end
       return nil, "bad"
     end
@@ -74,7 +95,7 @@ function P.parse(q)
     pos = nextPos
   end
   if total <= 0 then return nil, "bad" end
-  return total
+  return { secs = total }
 end
 
 --- P.label(secs) -> a compact descending label, 1w 4d 12h 30m, dropping the zero parts, so a
@@ -96,20 +117,34 @@ end
 -- What a row would take
 --------------------------------------------------------------------------------
 
--- One rule per row, as a predicate over an entry. Built in a single place and used both to
--- count for the row and to delete when the row is chosen, so the number a person read and the
--- number that actually goes can never come from two different readings of the same span.
+-- One rule per row, as a predicate over an entry and its position in history, newest first.
+-- Built in a single place and used both to count for the row and to delete when the row is
+-- chosen, so the number a person read and the number that actually goes can never come from two
+-- different readings of the same value.
 --
--- The cutoff is resolved when this is called rather than carried on the row, so both the count
--- and the delete measure from the moment they run. A pause between reading a row and pressing
--- Return therefore moves the boundary a little, which is inherent to a window named relative
--- to now and is why the message afterwards reports the store's own count rather than the row's.
+-- The position is what a count row needs and a span row ignores. A count is about where the line
+-- falls in the list and a span about where it falls in time, and both are the same question
+-- asked of a different axis, which is why one predicate shape answers for both rather than the
+-- count growing a deletion path of its own.
+--
+-- A span's cutoff is resolved when this is called rather than carried on the row, so both the
+-- count and the delete measure from the moment they run. A pause between reading a row and
+-- pressing Return therefore moves the boundary a little, which is inherent to a window named
+-- relative to now, and is why the message afterwards reports the store's own count rather than
+-- the row's. A count has no such drift, since nothing about a position moves while you look at
+-- it, though a copy landing in the meantime shifts every position by one.
 --
 -- An entry with no timestamp counts as ancient, so it falls inside older than and outside the
 -- last, the safe way round for a row whose whole promise is that it keeps what is fresh.
 local function predicateFor(item)
   if item.side == "all" then
     return function() return true end
+  end
+  if item.side == "newest" then
+    return function(_, i) return i <= item.count end
+  end
+  if item.side == "trim" then
+    return function(_, i) return i > item.count end
   end
   local cutoff = os.time() - item.secs
   if item.side == "older" then
@@ -122,8 +157,8 @@ end
 -- draws six of these and the field re-runs the whole supplier on every keystroke.
 local function countFor(item)
   local pred, n = predicateFor(item), 0
-  for _, e in ipairs(store.all()) do
-    if pred(e) then n = n + 1 end
+  for i, e in ipairs(store.all()) do
+    if pred(e, i) then n = n + 1 end
   end
   return n
 end
@@ -132,8 +167,8 @@ end
 -- this, one row at a time.
 local function matchesFor(item)
   local pred, out = predicateFor(item), {}
-  for _, e in ipairs(store.all()) do
-    if pred(e) then out[#out + 1] = e end
+  for i, e in ipairs(store.all()) do
+    if pred(e, i) then out[#out + 1] = e end
   end
   return out
 end
@@ -171,15 +206,34 @@ end
 --- against the query and the ui hands these rows to the chooser exactly as they are.
 function P.rows(q)
   local total = #store.all()
-  local secs, status = P.parse(q)
+  local value, status = P.parse(q)
 
-  if secs then
-    local span = P.label(secs)
+  if value and value.secs then
+    local span = P.label(value.secs)
     return {
-      sliceRow({ side = "recent", secs = secs, span = span },
+      sliceRow({ side = "recent", secs = value.secs, span = span },
         "Delete the last " .. span, "🧹", total),
-      sliceRow({ side = "older", secs = secs, span = span },
+      sliceRow({ side = "older", secs = value.secs, span = span },
         "Delete older than " .. span, "🕰️", total),
+    }
+  end
+
+  -- The same two directions on the other axis. The second row is titled Delete rather than Keep
+  -- although keeping the newest hundred is what it is for, because every row on this page
+  -- deletes, and one whose title said keep while it removed nine hundred entries would be the
+  -- single place here where reading the title was not enough. What survives is in the subtitle.
+  if value and value.count then
+    local n = value.count
+    local many = n .. (n == 1 and " item" or " items")
+    return {
+      -- Newest rather than last, although a span row says last, because a list has a bottom and
+      -- the last hundred of one could honestly be read as the hundred at the end of it. Time has
+      -- no such second reading. It also makes all four places that name this slice agree, the
+      -- row, its twin below, the pane and the message afterwards.
+      sliceRow({ side = "newest", count = n, span = "the newest " .. many },
+        "Delete the newest " .. many, "🧹", total),
+      sliceRow({ side = "trim", count = n, span = "all but the newest " .. many },
+        "Delete all but the newest " .. many, "✂️", total),
     }
   end
 
@@ -196,12 +250,20 @@ function P.rows(q)
   if status == "incomplete" then
     return { hintRow("Keep typing", "⌨️") }
   end
-  return { hintRow("Not a duration", "⚠️") }
+  return { hintRow("Not a duration or a count", "⚠️") }
 end
 
 --------------------------------------------------------------------------------
 -- The pane
 --------------------------------------------------------------------------------
+
+-- One entry's copy time as a short readable stamp, or a plain word when it carries none, since
+-- an entry from before timestamps were recorded still has to print something.
+local function stamp(e)
+  local ts = e and e.ts
+  if not ts then return "at an unknown time" end
+  return os.date("%a %d %b, %H:%M", ts)
+end
 
 --- P.preview(item) -> a meta line and a body block for the highlighted row, or nil for a row
 --- with nothing to say, a hint. Two plain strings, because the pane already knows how to draw
@@ -219,6 +281,10 @@ function P.preview(item)
     meta = "Everything  ·  " .. total .. " items"
   elseif item.side == "older" then
     meta = "Older than " .. item.span .. "  ·  " .. #hits .. " of " .. total
+  elseif item.side == "trim" then
+    meta = "All but the newest " .. item.count .. "  ·  " .. #hits .. " of " .. total
+  elseif item.side == "newest" then
+    meta = "The newest " .. item.count .. "  ·  " .. #hits .. " of " .. total
   else
     meta = "Last " .. item.span .. "  ·  " .. #hits .. " of " .. total
   end
@@ -227,9 +293,17 @@ function P.preview(item)
   if #hits == 0 then
     lines[1] = "Nothing falls in this slice, so this row does nothing."
   else
-    if item.side ~= "all" then
+    -- Where the line falls, named on the going side either way. A span knows its own boundary as
+    -- a clock reading, while a count only learns one by looking at the entry the line lands
+    -- against, so each says which end it is describing rather than both printing one word that
+    -- would be true for only one of them.
+    if item.secs then
       local cutoff = os.time() - item.secs
       lines[#lines + 1] = "Cutting at " .. os.date("%a %d %b, %H:%M", cutoff)
+    elseif item.side == "newest" then
+      lines[#lines + 1] = "Oldest one going, copied " .. stamp(hits[#hits])
+    elseif item.side == "trim" then
+      lines[#lines + 1] = "Newest one going, copied " .. stamp(hits[1])
     end
     lines[#lines + 1] = (total - #hits) .. " of " .. total .. " items stay"
     lines[#lines + 1] = ""
@@ -265,15 +339,29 @@ end
 
 --- P.message(item, removed, left) -> the one line of feedback after a delete.
 --- Here rather than in the ui because it is wording, and all of this page's wording lives
---- together or it drifts apart.
+--- together or it drifts apart. Each side writes its own sentence rather than filling in a shared
+--- one, since a phrase loose enough to fit a span and a position both reads as neither.
+---
+--- Every number in it is a measured one, what actually left and what is actually still there, so
+--- a row asking for the newest hundred out of a history holding forty says forty and not a
+--- hundred.
 function P.message(item, removed, left)
   if removed == 0 then return "Nothing to delete" end
   local what = removed .. (removed == 1 and " item" or " items")
   if item.side == "all" then
     return "Cleared clipboard history, " .. what .. " gone"
   end
-  local where = (item.side == "older" and "older than " or "from the last ") .. item.span
-  return "Deleted " .. what .. " " .. where .. ", " .. left .. " left"
+  if item.side == "newest" then
+    return "Deleted the " .. removed .. (removed == 1 and " newest item, " or " newest items, ")
+      .. left .. " left"
+  end
+  if item.side == "trim" then
+    return "Deleted " .. what .. ", kept the newest " .. left
+  end
+  if item.side == "older" then
+    return "Deleted " .. what .. " older than " .. item.span .. ", " .. left .. " left"
+  end
+  return "Deleted " .. what .. " from the last " .. item.span .. ", " .. left .. " left"
 end
 
 --- P.configure(opts) - inject the store this page reads and deletes from. Nothing else, since

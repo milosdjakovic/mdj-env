@@ -43,7 +43,7 @@ local page = nil
 -- same box now takes a duration instead of a search.
 local PLACEHOLDER = {
   history = "Search clipboard",
-  prune = "Duration, 90m or 4d12h",
+  prune = "Duration or count, 4d12h or 100",
 }
 
 -- Display labels and the type-filter query prefixes, both ui policy.
