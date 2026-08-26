@@ -45,7 +45,7 @@ split_idx_name() {
 
 usage() {
     echo "usage, session-index.sh --ensure | --compact | --move left|right <session> |" \
-         "--switch N [client] | --render <current> <last> <muted> <gen>" >&2
+         "--switch N [client] | --render <current> <last> <pill-bg> <pill-fg> <gen>" >&2
     exit 2
 }
 
@@ -170,21 +170,22 @@ switch_to() {
     return 0
 }
 
-# Draw the strip body, one session per @sidx position in ascending order, current
-# session bracketed and green, the last-session dash next, everyone else plain. current,
-# last, and muted are handed in already resolved (#{client_session}, #{client_last_session},
-# #{E:@bar_muted}) since a client's own state is what decides the colour, and a shared
-# job cached server side has no client of its own to read that state from. gen is never
-# read, see bump_gen above for why it's still a required argument. A session with no
+# Draw the strip body, one session per @sidx position in ascending order, the current
+# session wearing the pill, the last session underlined, everyone else plain. current,
+# last, and the two pill colours are handed in already resolved (#{client_session},
+# #{client_last_session}, #{E:@pill_bg}, #{E:@pill_fg}) since a client's own state is
+# what decides all four, and a shared job cached server side has no client of its own
+# to read that state from. That the colours arrive as text is also what makes the pill
+# turn green the moment prefix is pressed, since the argument changing rewrites the
+# command line, so tmux reruns the job instead of serving the cached grey one. gen is
+# never read, see bump_gen above for why it's still a required argument. A session with no
 # @sidx yet (the instant between session-created firing and its --ensure hook landing)
 # sorts last rather than first, so it does not jump the queue while it waits for a number.
 render() {
-    local current="$1" last="$2" muted="$3" line idx sid name plain fg
+    local current="$1" last="$2" pbg="$3" pfg="$4"
+    local line idx sid name
     local -a rows=()
     local i j tmp key
-
-    plain="white"
-    [ "$muted" = "1" ] && plain="black"
 
     # One fork is unavoidable, the tmux call that lists live sessions. The sort past
     # it does not need a second and third fork of its own. The list is only ever a
@@ -214,13 +215,17 @@ render() {
         [ -n "$name" ] || continue
 
         if [ "$name" = "$current" ]; then
-            fg="green"
-            [ "$muted" = "1" ] && fg="black"
-            printf '#[range=session|%s]#[fg=%s]>%s:%s<#[default]#[norange] ' "$sid" "$fg" "$idx" "$name"
+            # The same pill the current window wears on the row above, in the same
+            # colours, so one shape and one colour answer both rows at once.
+            printf '#[range=session|%s]#[fg=%s,bg=%s] %s %s #[default]#[norange] ' \
+                "$sid" "$pfg" "$pbg" "$idx" "$name"
         elif [ "$name" = "$last" ]; then
-            printf '#[range=session|%s]#[fg=%s]-%s:%s#[default]#[norange] ' "$sid" "$plain" "$idx" "$name"
+            # Underlined rather than marked with a leading character, matching the
+            # window row. The rule ends with the name because the trailing space that
+            # separates two entries is printed outside the styled run.
+            printf '#[range=session|%s]#[fg=white,underscore]%s:%s#[default]#[norange] ' "$sid" "$idx" "$name"
         else
-            printf '#[range=session|%s]#[fg=%s]%s:%s#[default]#[norange] ' "$sid" "$plain" "$idx" "$name"
+            printf '#[range=session|%s]#[fg=white]%s:%s#[default]#[norange] ' "$sid" "$idx" "$name"
         fi
     done
 }
@@ -237,8 +242,8 @@ case "${1:-}" in
         switch_to "$2" "${3:-}"
         ;;
     --render)
-        [ $# -ge 5 ] || usage
-        render "$2" "$3" "$4"
+        [ $# -ge 6 ] || usage
+        render "$2" "$3" "$4" "$5"
         ;;
     *) usage ;;
 esac

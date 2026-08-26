@@ -191,11 +191,23 @@ Changing `allow-passthrough` requires a full tmux server restart (`tmux kill-ser
 
 ## Status bar
 
-Changes color based on state. Green background when prefix is active, yellow when in copy mode, transparent otherwise. Prefix takes priority over copy mode in the conditional, so pressing prefix while already in copy mode still shows green rather than staying stuck on yellow.
+The bar itself never takes a background. State is said on the current entry instead, which is the one item the eye is already on, so the answer to "am I in prefix" lands in the same place as the answer to "which window am I on". A whole bar changing colour said it far louder than it needed saying, and it cost every other foreground on the line its own colour, since nothing stays readable on green.
 
-Two options name what that implies, so the rest of the bar states each idea once instead of repeating the same nested conditional. `@bar_muted` is true whenever the bar has taken a background colour, which is exactly when every foreground on it must go black to stay readable. `@bar_label` is that same readability rule applied to chrome and to every entry that is not the current one, plain white normally and black when muted. There is deliberately no grey tier on the bar, everything that isn't the current, green item is this one white. Read either option back with `#{E:...}`, since an option value is otherwise handed over literally.
+The current entry on both rows is a filled block rather than coloured text between angle brackets. One background colour carries the index and the name together, with a space of padding at each end. It is grey normally, green under prefix, and yellow in copy mode, with black text on either signal colour. Prefix takes priority over copy mode, so pressing prefix while already in copy mode shows green rather than staying stuck on yellow. Everything else on the line stays plain white through all three states, and there is deliberately no grey tier between entries.
+
+The last used entry on both rows is underlined. It was a leading dash until then, one dim character in a row already full of colons and digits, which read as punctuation rather than as a mark. A rule is the width of the name it belongs to, costs no column, and needs no colour of its own, so it stays out of the way of the block's three states. On the window row the underline is written inline in `window-status-format` rather than through `window-status-last-style`, because that style covers the whole entry including the padding space at each end, and the last window is very often the one sitting right beside the current one, so the rule would run straight into the block's edge with no gap.
+
+Rounded Nerd Font caps, `U+E0B6` and `U+E0B4`, were tried on the ends and dropped. A half disc inks only half of the cell it occupies, so the leftover half read as slack beside the block and no format tuning reaches it. `window-status-separator` is emptied and the gap between entries moved into `window-status-format`, so the block's own padding is the only space touching it.
+
+Three options carry all of this. `@pill_hot` is true whenever the block has taken a signal colour, which is exactly when its text must go black. `@pill_bg` holds the three way colour choice and `@pill_fg` the readability rule that follows from it, so the two formats that draw a block name a colour and never repeat the conditional. `@pill_grey` holds the resting colour on its own line, since `@pill_bg` is a format now and a literal buried in a false branch is harder to find. Read any of them back with `#{E:...}`, since an option value is otherwise handed over literally. Holding a colour in an option is also what keeps it safe, because a tmux colour is written with a leading hash and a hash is the character that opens every format token, so an inline value would put a live token opener against the digits of a colour.
 
 `status-left` is a plain white `W` label rather than the session name it used to hold. The session row below names every session including the current one, so printing it on the left as well said nothing. It is styled through `status-left-style` rather than an inline tag, because row 0's default format truncates `status-left` to `status-left-length` and a style tag inside the value would eat that budget.
+
+The current entry on both rows is a pill rather than coloured text between angle brackets. One background colour carries the index and the name together, and a rounded Nerd Font cap closes each end, `U+E0B6` on the left and `U+E0B4` on the right. Both caps are the pill colour on `bg=default`, so the round edge is the pill body bleeding into whatever the bar itself currently is, which is what keeps the shape correct when the bar turns green or yellow with no state conditional of its own. The pill keeps its grey through all three states, because the whole bar changing colour already says which state you are in and a second signal on the same item would say it twice.
+
+A cap is a half disc, so it inks only half of the cell it occupies and always leaves half a cell of bar showing past the round edge. That half cell is fixed and cannot be reclaimed, which is why `window-status-separator` is emptied and the gap between entries moved into `window-status-format` instead, so the pill is not paying for a list separator on top of the half cell it already owes.
+
+The two colours live in `@pill_bg` and `@pill_fg`, and that is not only tidiness. A tmux colour is written with a leading hash, and a hash is the character that opens every format token, so writing the value inline puts a live token opener against the digits of a colour. Holding it in an option and reading it back with `#{E:...}` expands the value exactly once, after which nothing parses those characters again.
 
 Copy mode state is tracked via a global `@copy_mode` variable propagated through hooks because `pane_in_mode` only works for the evaluated pane. Non-active windows cannot see whether the active pane is in copy mode, so the hooks set a global flag on mode change, pane focus, window change, and session change.
 
@@ -210,16 +222,23 @@ right reads `⌥1-9` rather than naming the row again, because the label already
 this is and the question in the moment is which key to press.
 
 Sessions are marked the way windows are marked on the row above, minus a grey tier.
-The current one is wrapped in angle brackets and green. The one `prefix+e` (or
-`M-p`/`M-n`) goes back to carries a leading dash, read straight from
+The current one wears the same block in the same colours, handed to `--render` as two
+more arguments rather than read back with two more `show-option` forks the redraw would
+have to wait on. That the colours arrive as text is also what makes the block turn
+green the moment prefix is pressed, since the argument changing rewrites the command
+line, so tmux reruns the job instead of serving the cached grey one. The one `prefix+e` (or
+`M-p`/`M-n`) goes back to is underlined, read straight from
 `client_last_session`, so the key shows where it lands before you press it. Every
-other session, dash or not, renders in the same plain white, since there is no grey on
-this bar to spend on a third tier. The dash is what used to be dim-vs-white's job,
-carrying it alone now.
+other session renders in the same plain white, since there is no grey on this bar to
+spend on a third tier. The underline is what used to be dim-vs-white's job, carrying it
+alone now.
 
-The dash costs a column, so the row shifts by one character when the previous session
-changes. The window row above already behaves that way, so it is consistent rather than
-surprising.
+It replaced a leading dash, which was one dim character in a row already full of colons
+and digits and read as punctuation rather than as a mark. A rule is the width of the
+name it belongs to, which is what makes it findable without hunting, and it costs no
+column, so the row no longer shifts sideways when the previous session changes. The
+window row above is marked the same way for the same reason, so one shape means last
+used on both rows.
 
 ### Why the rows are ordered this way
 
@@ -272,11 +291,11 @@ let a move sit behind a stale render for up to a second if nothing forced a fres
 Two things close that gap. `bump_gen` in the script increments a `@sidx_gen` counter on
 every write, and `--render` is always called with it as a trailing argument it never
 reads, purely so the exact shell command text differs after every write and tmux has no
-cached result to reuse. `current`, `last`, and `muted` are resolved client side and
-passed in as the other three arguments (`#{client_session}`, `#{client_last_session}`,
-`#{E:@bar_muted}`), because the job's output is one cached string shared by every
-attached client, and a client's own prefix or copy-mode state is the one thing that
-still has to vary per client. `#[range=...]` and `#[fg=...]` in the script's output are
+cached result to reuse. `current`, `last`, and the two block colours are resolved
+client side and passed in as the other four arguments (`#{client_session}`,
+`#{client_last_session}`, `#{E:@pill_bg}`, `#{E:@pill_fg}`), because the job's output is
+one cached string shared by every attached client, and a client's own session and
+prefix or copy-mode state are the things that still have to vary per client. `#[range=...]` and `#[fg=...]` in the script's output are
 honoured exactly as if written directly in the format string, since those are
 screen-writing tags applied to the fully expanded line, not format tokens `#()`
 substitution would need to re-expand.
