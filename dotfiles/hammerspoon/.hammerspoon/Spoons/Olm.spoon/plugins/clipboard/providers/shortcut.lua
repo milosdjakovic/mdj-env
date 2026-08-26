@@ -33,7 +33,10 @@ return function(opts)
     -- Only gate when a target is named; without one the provider omits the available
     -- method entirely, so it is treated as always available, matching the spoon header.
     available = opts.bundleID and function(self)
-      if not hs.application.pathForBundleID(self.bundleID) then
+      -- pathForBundleID answers an empty string rather than nil for an app it cannot
+      -- place, so the absent case has to be tested for explicitly.
+      local path = hs.application.pathForBundleID(self.bundleID)
+      if path == nil or path == "" then
         return false, "not installed"
       end
       if not hs.application.get(self.bundleID) then

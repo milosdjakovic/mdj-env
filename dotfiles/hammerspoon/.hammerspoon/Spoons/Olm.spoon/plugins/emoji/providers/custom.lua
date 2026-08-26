@@ -15,7 +15,10 @@
 --- and a table describes the backend more fully,
 ---   providers.custom({
 ---     name = "alfred",
----     isAvailable = function() return hs.application.pathForBundleID("com.runningwithcrocodiles.alfred") ~= nil end,
+---     isAvailable = function()
+---       local path = hs.application.pathForBundleID("com.runningwithcrocodiles.alfred")
+---       return path ~= nil and path ~= ""
+---     end,
 ---     show = function() hs.eventtap.keyStroke({ "alt" }, "space") end,
 ---   })
 --- so a backend that should be skipped when its app is missing can say so, and the facade

@@ -20,7 +20,10 @@ return {
   deferUntilHyperRelease = false, -- opens a URL / hides, neither is swallowed
   _shown = false,
   available = function(self)
-    if not hs.application.pathForBundleID(self.bundleID) then
+    -- pathForBundleID answers an empty string rather than nil for an app it cannot
+    -- place, so the absent case has to be tested for explicitly.
+    local path = hs.application.pathForBundleID(self.bundleID)
+    if path == nil or path == "" then
       return false, "not installed"
     end
     if not hs.application.get(self.bundleID) then

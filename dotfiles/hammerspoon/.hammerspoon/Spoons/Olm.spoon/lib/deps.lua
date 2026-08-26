@@ -195,7 +195,10 @@ function obj:start()
     elseif e.kind == "system" then
       hit = (hs.fs.attributes(e.locator, "mode") == "file") and e.locator or nil
     elseif e.kind == "app" then
-      hit = hs.application.pathForBundleID(e.locator)
+      -- pathForBundleID answers an empty string rather than nil for an app it cannot
+      -- place, so an absent application must be tested for explicitly here too.
+      local path = hs.application.pathForBundleID(e.locator)
+      hit = (path ~= nil and path ~= "") and path or nil
     elseif e.kind == "manual" then
       local p = expand(e.locator)
       hit = hs.fs.attributes(p) and p or nil
