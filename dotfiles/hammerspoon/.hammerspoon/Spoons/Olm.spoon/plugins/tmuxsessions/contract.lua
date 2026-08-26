@@ -4,8 +4,17 @@
 --- methods, the same shape BrowserTabs already keeps between its engine and its browsers,
 --- so a provider never learns why it is asked, only what to do.
 ---
+--- Three of those four are decided entirely by the bundle id, so no backend writes them.
+--- providers/bundle.lua supplies them and every provider file is built through it, leaving
+--- each one holding only its identity and its own openAttach. This file stays the thing both
+--- sides point at, since a backend built some other way satisfies it just the same.
+---
 ---   available()          -> boolean, is this terminal actually installed on this machine.
----   running()             -> boolean, is it running right now.
+---   running()             -> boolean, is it running right now. Answered through
+---                            hs.application.applicationsForBundleID rather than
+---                            hs.application.get, a measured difference rather than a taste,
+---                            see this plugin's CLAUDE.md for what get costs when the answer
+---                            is no.
 ---   activate()            -> bring its frontmost window forward, launching it first when
 ---                            it was not running. No return value.
 ---   openAttach(target)    -> ok, err. Open a NEW window that runs

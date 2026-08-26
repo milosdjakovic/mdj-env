@@ -77,7 +77,20 @@ return {
   -- configure alone leaves this plugin with an engine and no picker. The picker lives on the
   -- chooser submodule, which needs its own configure and its own start before a session can
   -- show, and both are plain dot called functions there rather than methods, so each says so.
+  --
+  -- The engine is a target for the same reason the chooser is, and adding it is what stopped a
+  -- granted service being able to go missing here. A declared step receives the whole granted
+  -- options table, so the engine reads deps and recency straight off it, and the plugin's own
+  -- configure no longer writes a list of ambient fields it has to keep in step with whatever
+  -- its needs block declares. It was exactly such a list, restating two fields and forgetting a
+  -- third, that left this picker with no remembered order at all and nothing anywhere saying
+  -- so. Its configure is a colon method, so it takes the default call rather than naming one.
+  --
+  -- Both callers of the engine's configure are partial and neither knows the other's fields,
+  -- which is the arrangement the chooser already had and which the engine's own configure was
+  -- changed to allow, writing only what it was actually handed rather than resetting itself.
   wiring = {
+    { target = "engine", method = "configure" },
     { target = "chooser", method = "configure", call = "dot" },
     { target = "chooser", method = "start", call = "dot" },
   },

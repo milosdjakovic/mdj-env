@@ -34,15 +34,24 @@ end
 obj.engine = load("engine.lua")
 obj.chooser = load("chooser.lua")
 
+-- The shared macOS half of every backend, loaded once here and handed to each one, so a
+-- provider file names no path and no sibling and this file is the only place that knows where
+-- either lives. A provider file therefore returns a FUNCTION taking this rather than a finished
+-- table, which is the whole of what the injection costs.
+local bundle = load("providers/bundle.lua")
+local function backend(file)
+  return load("providers/" .. file .. ".lua")(bundle)
+end
+
 --- TmuxSessions.providers - the terminal backends, exposed by reference so a person who
 --- wants a different set or a different order can name them, the same shape BrowserTabs
 --- uses for its browsers.
 obj.providers = {
-  ghostty = load("providers/ghostty.lua"),
-  terminal = load("providers/terminal.lua"),
-  iterm = load("providers/iterm.lua"),
-  alacritty = load("providers/alacritty.lua"),
-  wezterm = load("providers/wezterm.lua"),
+  ghostty = backend("ghostty"),
+  terminal = backend("terminal"),
+  iterm = backend("iterm"),
+  alacritty = backend("alacritty"),
+  wezterm = backend("wezterm"),
 }
 
 --- The order used when nothing else is given, which is what makes this tool work on a
@@ -63,8 +72,19 @@ function obj:init()
   return self
 end
 
---- TmuxSessions:configure(opts) delegates to the engine, opts.deps and opts.providers,
---- since the spoon carries no state of its own beyond the engine's.
+--- TmuxSessions:configure(opts) settles what this plugin alone decides and hands the engine
+--- exactly that, its provider chain, since the spoon carries no state of its own beyond the
+--- engine's.
+---
+--- What it deliberately does NOT do any more is relay the ambient services it was handed. The
+--- engine is a declared wiring target in manifest.lua, so Olm's own wiring calls its configure
+--- directly with the same granted options table this method receives, and the engine reads
+--- deps and recency off that. This method used to restate them in a table it wrote by hand,
+--- which is where recency went missing for the whole life of this plugin, silently, because a
+--- declared need validates at load and reads as wired long before anything checks that the
+--- value arrived where it was going. A relay nobody writes is a relay nobody can forget a
+--- field from, and it means this file no longer knows recency exists at all, which is the part
+--- that keeps holding as more services are granted.
 ---
 --- Two things are settled here first rather than by whoever configures this, and both moved
 --- in from the composition root when this became a plugin that declares itself. The chain
@@ -84,7 +104,7 @@ function obj:configure(opts)
     self.providers.wezterm.configure({ open = openPath })
   end
 
-  self.engine:configure({ deps = opts.deps, providers = chain })
+  self.engine:configure({ providers = chain })
 
   -- The two things this plugin's own picker needs that no manifest could hand it. The engine
   -- is this plugin's own, a self reference nothing outside could name, and the message sink is

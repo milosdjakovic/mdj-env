@@ -233,9 +233,16 @@ function M.setQuery(text) if chooser then chooser:setQuery(text) chooser:refresh
 
 function M.show()
   level = "top"
+  -- A deliberate open is exactly the moment a person expects to be shown what is true right
+  -- now, so the engine's held read is dropped here and the first question of this open goes to
+  -- the tmux server. Everything after it inside this open, every keystroke, reads what that one
+  -- question answered rather than asking again.
+  cfg.api:invalidate()
   -- Once per open rather than on every keystroke, since a session or window can only
   -- disappear between opens, and prune() itself is cheap enough either way, this is
   -- simply the natural place a maintenance pass belongs rather than the hot filter path.
+  -- It is also what makes the fresh read above serve the first render for free, since both
+  -- go through the same held read and this one asks first.
   cfg.api:pruneRecency()
   if not chooser then
     chooser = cfg.chooser.new({

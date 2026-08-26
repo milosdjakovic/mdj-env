@@ -7,34 +7,20 @@
 -- live run. available() answers false on a machine without it either way, and the
 -- Settings row shows it disabled rather than pretending it works.
 
-local BUNDLE_ID = "com.googlecode.iterm2"
+return function(bundle)
+  local BUNDLE_ID = "com.googlecode.iterm2"
 
-local function asQuote(s)
-  return '"' .. tostring(s):gsub("\\", "\\\\"):gsub('"', '\\"') .. '"'
+  return bundle.provider({
+    name = "iTerm",
+    bundleID = BUNDLE_ID,
+    openAttach = function(target)
+      hs.application.launchOrFocusByBundleID(BUNDLE_ID)
+      local cmd = "tmux attach-session -t " .. bundle.asQuote(target)
+      local script = 'tell application id ' .. bundle.asQuote(BUNDLE_ID)
+        .. ' to create window with default profile command ' .. bundle.asQuote(cmd)
+      local ok, _, err = hs.osascript.applescript(script)
+      if not ok then return false, tostring(err) end
+      return true
+    end,
+  })
 end
-
-local P = { name = "iTerm", bundleID = BUNDLE_ID }
-
-function P.available()
-  return hs.application.pathForBundleID(BUNDLE_ID) ~= nil
-end
-
-function P.running()
-  return hs.application.get(BUNDLE_ID) ~= nil
-end
-
-function P.activate()
-  hs.application.launchOrFocusByBundleID(BUNDLE_ID)
-end
-
-function P.openAttach(target)
-  hs.application.launchOrFocusByBundleID(BUNDLE_ID)
-  local cmd = "tmux attach-session -t " .. asQuote(target)
-  local script = 'tell application id ' .. asQuote(BUNDLE_ID)
-    .. ' to create window with default profile command ' .. asQuote(cmd)
-  local ok, _, err = hs.osascript.applescript(script)
-  if not ok then return false, tostring(err) end
-  return true
-end
-
-return P

@@ -42,6 +42,126 @@ saying so before now. Any future file in this config that parses delimited comma
 through `hs.execute` should read this before reaching for a tab, a newline survives fine
 since only newlines split the rows, it is a byte inside one row that gets rewritten.
 
+## hs.application.get costs a third of a second to say no, measured here
+
+Choosing a window left the picker sitting on screen for a beat before it closed, and the whole
+of that beat was one loop. `_raiseWhicheverIsRunning` asks every configured provider whether it
+is running, and each provider answered by calling `hs.application.get(BUNDLE_ID)`. That call is
+cheap when the app is running and expensive when it is not, because a failed bundle id lookup
+falls through to searching names and window titles across everything running. Timed against the
+five providers on this machine, the one running terminal answered in about a millisecond and the
+four absent ones cost between twenty seven and fifty one, so the loop spent something near two
+hundred and seventy milliseconds to learn one fact it already nearly had. `switch-client` and the
+tty read together cost about forty five, so the raise was most of the delay rather than a part of
+it.
+
+`hs.application.applicationsForBundleID` answers the same question and does nothing else, no
+fallback and no title search, and timed the same way it costs zero to a fraction of a millisecond
+whether the app is running or not. Every provider's `running()` goes through it now, in one place
+rather than five, which is the subject of its own section below since paying for this fix five
+times over is what made the duplication worth removing. Nothing about
+the ordering of the jump changed, and that was deliberate. `onSelect` still runs to completion
+before the atom tears the chooser down, which is what lets a raise land before hs.chooser queues
+its own restore of focus to whatever the picker covered, so the fix was to make the work cheap
+rather than to move it behind a timer and race that restore.
+
+Worth generalising from, since nothing about this is specific to terminals. Any hot path in this
+config that asks `hs.application.get` about an app that is usually absent is paying the same
+price, and the same substitution applies wherever only presence is being asked.
+
+## A declared need can arrive nowhere and nothing says so
+
+The picker reset its order on every open for as long as it existed, and the reason was one
+omission in this plugin's own `configure`. `manifest.lua` declares `needs.lib.recency`,
+`lib/services.lua` builds this plugin its own instance keyed to `olm.recency.tmuxSessions`, and
+`lib/wire.lua` hands it over as `opts.recency`. This plugin's `configure` then built the engine's
+options by hand, `deps` and `providers`, and never mentioned it. The engine guards every use of
+`_recency` with a nil check, exactly so a plugin that declares nothing still works, so the
+omission was not an error at any layer. It was `windows()` answering in plain session-then-index
+order, forever.
+
+What made it invisible is the shape rather than the slip. A declared need is validated when the
+plugin loads, which reads as the need being handled, and the value travelling from the root to the
+place that uses it is a separate journey nothing checks the end of. The cheap way to catch it is to
+ask the running config rather than to read the wiring,
+`hs.settings.get("olm.recency.tmuxSessions")` answered nil while browserTabs' own key held real
+data, which is a one line probe that proves an injected service is not merely wired but actually
+being written to.
+
+Adding the missing word to that list was the first fix and it is not the one that is here. It
+worked and it left the next granted service one forgotten word away from vanishing exactly as
+quietly, which is not a fix so much as a reset of the same trap. The engine is a declared wiring
+target now, one more line in `manifest.lua` beside the two the chooser already had, so
+`lib/wire.lua` calls its `configure` directly with the whole granted options table and the engine
+reads `deps` and `recency` off it. This plugin's own `configure` passes the provider chain and
+nothing else, so it no longer knows recency exists at all. There is no list, so there is nothing to
+forget a name from, and a service granted in future arrives with no edit here.
+
+Two things had to be true for that to work and both are worth knowing. A declared step receives the
+full options table by default, and `targetOf` in `wire.lua` resolves a single named submodule off
+the plugin root, so `obj.engine` was already a legal target and no shared lib changed. And the
+engine's `configure` had to stop resetting every field on every call, since it is now called twice
+with two partial tables, once by this plugin with what it decides and once by the wiring with what
+was granted. It writes only what it was actually handed. That is the same two caller arrangement
+the chooser already had, and the manifest already documented for the chooser, so this is the
+existing shape applied to the other half of the plugin rather than a new idea.
+
+## Five identical edits are the smell, and consolidating them found a bug
+
+Changing how a terminal's presence is proven cost five edits to five files, because three of the
+four methods `contract.lua` asks for are decided entirely by a bundle id and every provider wrote
+its own byte for byte identical copy of all three. The quoting helpers were duplicated too, an
+AppleScript one in three files and a shell one in two. Only `openAttach` and the identity were ever
+genuinely a backend's own.
+
+`providers/bundle.lua` holds the bundle decided half now, and each provider file returns a function
+taking it and answers with its identity and its `openAttach`. The mechanism is handed in rather
+than reached for, so no provider computes a path or names a sibling, and `init.lua`, which is this
+plugin's composition point for backends, is the only file that loads it. It stops deliberately
+short of collapsing more. Three backends open through AppleScript and two through their own argv,
+a second real similarity, and folding that too would leave a provider file no longer showing the
+exact script or command line it sends, which is the text a person opens one of these files to read.
+
+Consolidating them is what found a bug that had been in all five copies since the first one was
+written. `hs.application.pathForBundleID` answers an EMPTY STRING for a bundle id it cannot place,
+never nil, so `pathForBundleID(id) ~= nil` is true for an application that is not installed. Every
+one of these providers reported itself available on a machine without it, which meant the Settings
+level listed iTerm, Alacritty and WezTerm as Installed on a machine holding none of the three, and
+`currentProviderName` would accept a stored choice naming one of them and then fail at the attach.
+Measured rather than reasoned about, all three answered an empty path and all three answered
+available. The test is `path ~= nil and path ~= ""`, which is exactly what
+`browsertabs/providers/chromium.lua` and `host/hypercheatsheet/init.lua` both already wrote, the
+second with a comment naming this trap, so this plugin was the outlier rather than the discoverer.
+
+The same trap sits in three more places this plugin does not own, `lib/deps.lua` resolving a
+declaration of kind `app`, and the clipboard's `raycast.lua` and `shortcut.lua` providers, all
+three testing the path for truthiness where an empty string is truthy. None of them is answering
+wrongly on this machine, since every bundle id they name is genuinely installed here, so all three
+are latent rather than live. `deps.lua` is the one that matters, since an `app` kind declaration is
+how this config guarantees an application is present and an empty string means it can never report
+one missing.
+
+## A read of tmux held for a moment, and why the picker could not own it
+
+Every keystroke rebuilt the row list, and the row list came from two shell calls to the tmux
+server, about twenty two milliseconds, so typing paid for two fresh round trips per character to
+answer a question whose answer had not changed. The engine holds its last read for a second now.
+Measured, a cold read is twenty four to forty two milliseconds and a warm one is two hundredths of
+one, and dropping the held read puts it straight back to a real read.
+
+The obvious shape is a snapshot taken when the picker opens and thrown away when it closes, and it
+is wrong here, which is the part worth recording. The launcher's hosted list has no open and no
+close. It asks `scopeRows` on every keystroke forever, so there is no moment there that could
+stand for now, and a lifecycle snapshot would leave the hosted path paying the full cost while the
+native picker paid none. So how long a read stays good is the engine's own business, since only
+the engine knows what a read costs, and it is a short window rather than a lifecycle.
+
+Two details keep it honest. It caches the READ and never the ordering, because a jump touches
+recency and a cached ordering would then be wrong in a way a cached read never is, so `windows()`
+applies recency over the held read on every call. And a deliberate open still reads fresh, since
+`M.show` calls `invalidate` before anything else, which also makes an open cost one read rather
+than two, because `pruneRecency` asks first and the first render reuses what it got.
+
 ## Registering is not enough, the launcher still needs its own line
 
 `registry.register` makes a tool active, gives it a surface, and lets its row be asked for
@@ -181,7 +301,10 @@ AppleScript dictionary at all, so their `openAttach` goes through `open -na <App
 instead, `-e ... tmux attach-session` for Alacritty and `start -- tmux attach-session` for
 WezTerm, both documented CLI shapes and neither one run live. `available()` answers false
 for whichever of these are not installed on a given machine either way, so an unverified
-provider degrades to a disabled Settings row rather than a wrong answer.
+provider degrades to a disabled Settings row rather than a wrong answer. That sentence was
+written before it was true. The empty string trap above meant every absent backend reported
+itself installed, so this section made exactly the promise the bug was breaking, which is worth
+leaving on the record as the reason to measure a claim like it rather than write it down.
 
 ## No restow
 

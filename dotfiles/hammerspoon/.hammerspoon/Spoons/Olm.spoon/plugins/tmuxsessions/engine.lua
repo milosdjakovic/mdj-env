@@ -32,8 +32,17 @@ local contract = loadfile(enginePath .. "contract.lua")()
 
 obj._tmux = nil          -- resolved absolute path to the tmux binary, injected via configure
 obj._providers = nil     -- ordered, validated list of terminal providers
-obj._settingsKey = nil   -- hs.settings key remembering the chosen provider by name
 obj._recency = nil       -- Olm.lib.recency instance remembering which window was jumped to
+
+-- The default sits on the field rather than inside configure, because configure now only ever
+-- writes what it was actually handed, so a default applied there would never run for a caller
+-- that had nothing to say about this.
+obj._settingsKey = "TmuxSessions.terminal"
+
+-- The last read of the tmux server, { at = nanoseconds, sessions = ... }, and how long one
+-- stays good for. See _cachedSessions below for why this exists and what it is not.
+obj._read = nil
+obj._readTTL = 1.0
 
 function obj:init()
   return self
@@ -41,26 +50,38 @@ end
 
 --- TmuxSessions.engine:configure(opts)
 --- opts.deps is the per consumer dependency scope, opts.providers the ordered terminal
---- backends named by the root, each validated against contract.lua before being kept.
---- opts.recency is an Olm.lib.recency instance; omitting it leaves windows() in plain
---- session-then-index order with nothing remembered.
+--- backends, each validated against contract.lua before being kept. opts.recency is an
+--- Olm.lib.recency instance, and leaving it out leaves windows() in plain session-then-index
+--- order with nothing remembered.
+---
+--- Every field is written only when it was actually given, which is the whole point and is
+--- what changed here. This is called twice by design, once by the plugin with the provider
+--- chain it alone decides, and once by Olm's own wiring with the ambient services the
+--- plugin's manifest earned, and neither caller knows the other's fields. The version that
+--- reset all four on every call could not be called twice, so the plugin had to relay the
+--- ambient half by hand, restating each field by name in a table it wrote itself. That list
+--- is where recency went missing for the whole life of this plugin, and no list to forget a
+--- name from is the only fix that holds.
 function obj:configure(opts)
   opts = opts or {}
-  local deps = opts.deps
-  self._tmux = deps and deps.path("tmux") or nil
-  self._settingsKey = opts.settingsKey or "TmuxSessions.terminal"
-  self._recency = opts.recency
 
-  local ok = {}
-  for _, p in ipairs(opts.providers or {}) do
-    local valid, missing = contract.validate(p)
-    if valid then
-      ok[#ok + 1] = p
-    else
-      log.w("dropping a terminal provider, it does not implement " .. tostring(missing))
+  if opts.deps ~= nil then self._tmux = opts.deps.path("tmux") end
+  if opts.settingsKey ~= nil then self._settingsKey = opts.settingsKey end
+  if opts.recency ~= nil then self._recency = opts.recency end
+
+  if opts.providers ~= nil then
+    local ok = {}
+    for _, p in ipairs(opts.providers) do
+      local valid, missing = contract.validate(p)
+      if valid then
+        ok[#ok + 1] = p
+      else
+        log.w("dropping a terminal provider, it does not implement " .. tostring(missing))
+      end
     end
+    self._providers = ok
   end
-  self._providers = ok
+
   return self
 end
 
@@ -125,6 +146,39 @@ function obj:sessions()
   return order
 end
 
+--- TmuxSessions.engine:invalidate() throws away the last read, so the next question goes to
+--- the tmux server. Opening the picker calls this, since a deliberate open is exactly the
+--- moment a person expects to be shown what is true right now.
+function obj:invalidate()
+  self._read = nil
+end
+
+-- A read of the tmux server, reused for a moment rather than repeated. Two shell calls cost
+-- about twenty two milliseconds together, and the list they feed is rebuilt on every keystroke
+-- by both this plugin's own picker and the launcher's hosted list, so every character typed
+-- was paying for two fresh round trips to answer a question whose answer had not changed.
+--
+-- This caches the READ and never the ordering. Recency is applied over the result on every
+-- call in windows() below, because a jump touches the remembered order and a cached ordering
+-- would then be wrong in a way a cached read never is.
+--
+-- A window lifetime rather than a lifecycle, and the hosted list is the reason. This plugin's
+-- own picker has an open and a close to hang freshness on, and invalidate above is called from
+-- exactly there. The launcher's hosted rows have neither, it simply asks for rows on every
+-- keystroke forever, so there is no moment there that could stand for now. A second is long
+-- enough to cover a burst of typing and short enough that a session started in another window
+-- shows up before anyone could finish reaching for it.
+function obj:_cachedSessions()
+  local now = hs.timer.absoluteTime()
+  local last = self._read
+  if last and (now - last.at) / 1e9 < self._readTTL then
+    return last.sessions
+  end
+  local sessions = self:sessions()
+  self._read = { at = now, sessions = sessions }
+  return sessions
+end
+
 function obj:_firstClientTty()
   local rows = self:_run("list-clients -F '#{client_tty}'")
   return rows[1] and rows[1][1] or nil
@@ -139,7 +193,7 @@ end
 --- and every other window keeping its session-then-index arrival order behind them.
 function obj:windows()
   local out = {}
-  for _, s in ipairs(self:sessions()) do
+  for _, s in ipairs(self:_cachedSessions()) do
     for _, w in ipairs(s.windows) do
       out[#out + 1] = {
         session = s.name,
@@ -164,7 +218,7 @@ end
 function obj:pruneRecency()
   if not self._recency then return end
   local valid = {}
-  for _, s in ipairs(self:sessions()) do
+  for _, s in ipairs(self:_cachedSessions()) do
     for _, w in ipairs(s.windows) do
       valid[#valid + 1] = s.name .. ":" .. w.index
     end
