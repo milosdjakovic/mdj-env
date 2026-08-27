@@ -122,8 +122,13 @@ end
 -- answers nil rather than raising when the task never actually launches, a missing
 -- executable or a spawn the OS refused among the causes, and every caller here used to trust
 -- the task object it got back from hs.task.new regardless, so a launch failure left the
--- callback never called at all, silently, with nothing to tell connect, disconnect, or
--- setLocation their own action never ran.
+-- callback never called at all, silently.
+--
+-- Adversarial review finding L3. None of connect, disconnect, or setLocation in
+-- plugins/vpn/init.lua pass a callback at their three call sites today, so cb is nil at every
+-- one of them and this branch answers nobody in practice yet. The guard is written for a
+-- future caller that does pass one, and it is correct and worth keeping, but nothing in this
+-- tree currently reads what it answers.
 local function runAsync(args, cb)
   if not cli then
     if cb then cb(false, "mullvad not installed") end

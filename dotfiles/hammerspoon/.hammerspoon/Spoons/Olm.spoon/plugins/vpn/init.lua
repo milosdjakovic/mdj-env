@@ -439,12 +439,27 @@ function M.prepare(onReady)
   -- both counting. apply is called only by whichever wins, and only the real answer ever
   -- calls it, never the timeout, which is what leaves current, target, and cache untouched on
   -- a leg that gave up.
+  --
+  -- apply runs wrapped in pcall, adversarial review finding M5. Without it a raise inside
+  -- apply, cfg.recency.order over a malformed relay row being the one the review named,
+  -- reaches here having already set fired true and never calls landed(), which is word for
+  -- word the failure this whole rider exists to close, fetching stuck true forever with
+  -- pending only ever growing. landed() runs unconditionally on the line after, whether apply
+  -- succeeded or not, so this leg always counts down. Calling landed() before apply instead,
+  -- the rider's own other suggested close, does not hold here, since the last of the three
+  -- legs to land is exactly the one whose own apply has not run yet at the moment its own
+  -- landed() would fire, and that is also the moment landed() flushes pending, so a caller
+  -- redrawing from that flush would read this leg's stale value for one redraw. pcall keeps
+  -- apply before landed and only adds a floor under it.
   local function landedGate(apply)
     local fired = false
     local function onAnswer(...)
       if fired then return end
       fired = true
-      apply(...)
+      local ok, err = pcall(apply, ...)
+      if not ok then
+        log.w(string.format("Vpn.prepare's own apply raised for one leg of a fetch round, %s, the round still completes with whatever this leg last held", tostring(err)))
+      end
       landed()
     end
     local function onTimeout()
@@ -454,6 +469,13 @@ function M.prepare(onReady)
     end
     return onAnswer, onTimeout
   end
+  -- A timed out status leg leaves current exactly as it was, adversarial review finding L2,
+  -- a deliberate choice named here rather than left to read as an oversight. The honest third
+  -- answer, current = { state = "unavailable" } on timeout, exists and was not taken, because
+  -- a daemon that answers everything except wedging mid connect would then have this file
+  -- report Disconnected while the tunnel is actually up, trading a stale but plausible answer
+  -- for a wrong and confident one. Stale beats hanging, which is the whole rider, and stale
+  -- beats confidently wrong too.
   local onStatus, statusTimeout = landedGate(function(status) current = status end)
   local onTarget, targetTimeout = landedGate(function(loc) target = loc end)
   local onList, listTimeout = landedGate(function(list)

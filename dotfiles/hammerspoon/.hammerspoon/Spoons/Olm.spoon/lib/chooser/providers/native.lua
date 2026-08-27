@@ -1052,6 +1052,18 @@ function obj.new(config)
 
   local self = setmetatable({
     config = config,
+    -- Adversarial review finding L4, the geometry phase of the chooser stage build.
+    -- host/stage/init.lua reads layout.rowCount, layout.gap, and layout.paneMaxW, and writes
+    -- layout.companionWidth and paneFrames, directly, on the one instance it owns, the same
+    -- kind of seam decision five of docs/BRIEF-STAGE.md already opened for config, which the
+    -- ActionPanel decorator mutates in place for the identical reason, this atom storing both
+    -- by reference and reading them live rather than copying either at construction. No
+    -- method here exposes either field, so a reader of this file has no way to learn that
+    -- from here alone, and this comment is what closes that gap. Whichever of
+    -- _positionAndShow and
+    -- _settleFrames runs next still overwrites paneFrames on its own terms regardless of what
+    -- a caller last wrote there, since neither reads it back, only companionWidth is ever
+    -- read live by this file's own arithmetic.
     layout = layout,
     fieldMode = obj.memberFieldMode(config.fieldMode),
     -- The injected filter strategy, resolved by the facade to the module default when

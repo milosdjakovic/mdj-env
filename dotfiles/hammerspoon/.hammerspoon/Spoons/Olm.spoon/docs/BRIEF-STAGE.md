@@ -90,7 +90,11 @@ stage. Fields, all optional except name, rows, and onSelect.
     onHighlight   function(item) for a companion consumer, nil for none
     onPositioned  function(chooserFrame, companionFrame) told whenever the stage repositions
                   the pair for this presentation, companionFrame nil when paneWidth is
-                  absent, added in the geometry phase for a pane consumer to draw or clear
+                  absent, added in the geometry phase for a pane consumer to draw or clear.
+                  Also told with both frames nil, once, when present, push, or pop makes a
+                  different presentation current, so a pane this one drew clears rather than
+                  sitting beside a window that already moved past it, adversarial review
+                  finding H2
     onClose       function() told when the stage hides entirely, not on a swap. Widened in
                   the handoff phase for a stack deeper than one, every discarded level is
                   told, top down, except the one that survives a reopen at any depth

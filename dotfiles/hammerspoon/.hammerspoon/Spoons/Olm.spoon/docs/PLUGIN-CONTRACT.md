@@ -605,21 +605,46 @@ own fetch at all.
 `paneWidth` and `onPositioned` are the geometry brief's own pair, and they arrive together
 because the first is meaningless without the second. `paneWidth` is a plain number in points,
 or `true` to inherit the chooser's own width, the atom's own `layout.companionWidth` semantics
-carried one layer up, since the shared instance every presentation now shows into keeps that
-field at zero for the life of the config, host/stage's own `_resolvePaneWidth` reimplementing
-the identical cap at `layout.paneMaxW` rather than reaching for the atom's private one. Absent,
-`false`, or a non positive number all mean this presentation reserves no pane, the every
-consumer today answers. `onPositioned` is called with `chooserFrame, companionFrame`, the same
-two frames `lib/chooser/providers/native.lua`'s own `config.onPositioned` already hands its
-caller, once the stage has repositioned the pair for this presentation, `companionFrame` nil
-when this presentation declared no `paneWidth`. A plugin migrating its own companion pane onto
-the stage in phase five hands over the identical function it already wrote for that field on a
-`Chooser.new` call, with nothing to rewrite beyond where it is declared. Docking the pane's own
-content, and the docked hint panel's own anchor beneath the pair, both stay this plugin's own
-business exactly as they are today, `host/stage`'s own `paneAnchor(chooserFrame,
-companionFrame)` being the one call worth knowing about for the second of those, the single
-copy of the anchor arithmetic three plugins each carried their own copy of before this phase,
-built for phase five to call rather than inherit a fourth copy.
+carried one layer up. `host/stage` writes the current presentation's own `paneWidth` into that
+same field on the shared instance before every show, present, push, and pop alike, adversarial
+review finding M6, so a cold show computes the pair's centering natively, through the atom's
+own arithmetic, rather than painting a lone chooser first and correcting it by hand a beat
+later. A swap still moves the window itself, since it triggers no show the atom would
+reposition on its own. `_resolvePaneWidth` on the stage reimplements the identical cap at
+`layout.paneMaxW` for that manual arithmetic rather than reaching for the atom's private one.
+Absent, `false`, or a non positive number all mean this presentation reserves no pane, the
+every consumer today answers, and both this field and `rowCount` are checked for their own
+type at register, a non number, or the member spec shape nine of the other ten fields take,
+refusing the whole registration loudly rather than reaching the stage as something that could
+corrupt the one instance it never rebuilds, adversarial review finding H3.
+
+`onPositioned` is called with `chooserFrame, companionFrame`, the same two frames
+`lib/chooser/providers/native.lua`'s own `config.onPositioned` already hands its caller, once
+the pair has been repositioned for this presentation, whether the atom placed it natively on a
+cold show or the stage placed it by hand on a swap, both converging on the stage's own
+`_onPositioned`, adversarial review finding M2. `companionFrame` is nil both when this
+presentation declared no `paneWidth` and, once, when this presentation is the one a transition
+is leaving, told with both frames nil so its own pane consumer clears rather than sitting drawn
+beside a window that already moved on, adversarial review finding H2, fired on every door,
+present, push, and pop, before the incoming side is given anything.
+
+A plugin migrating its own companion pane onto the stage in phase five carries its existing
+`onPositioned` function largely intact, not unchanged. Three things still move. It has to
+become a resolvable module member, since a manifest member spec can only name one, and all
+three of today's pane consumers keep theirs as a file local function instead,
+`plugins/filesearch/chooser.lua:435`, `plugins/processes/chooser.lua:337`,
+`plugins/clipboard/manager/ui.lua:1172`. It drops its own call to `cfg.onPositioned(anchor)`,
+since the docked hint panel is atom level policy the stage now re anchors itself, through
+`paneAnchor` below, on every path that has real frames to report, and a plugin still making
+that call would be a second, competing writer of the identical panel, finding M2's own residue
+had this file's first draft not corrected it. And FileSearch's own seed of the first pane paint
+reads `picker:selectedItem()` directly, `plugins/filesearch/chooser.lua:449`, which needs its
+own instance to still exist by the time it runs, an instance that plugin stops holding once it
+migrates. Docking the pane's own content stays this plugin's own business exactly as it is
+today. `host/stage`'s own `paneAnchor(chooserFrame, companionFrame)` is the one true copy of
+the anchor arithmetic three plugins each carried their own copy of before this phase, the
+single call worth knowing about for the docked panel's own anchor, and it is the stage's own
+call to make now, never a migrating plugin's.
 
 `rows` and `select` are required. A plugin naming neither, or naming one without the other,
 IS refused outright, `lib/registry.lua`'s own `presentationIsWellFormed` refuses the whole

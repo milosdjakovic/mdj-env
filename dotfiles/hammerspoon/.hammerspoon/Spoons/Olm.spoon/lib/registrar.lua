@@ -448,6 +448,36 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
         end
       end
     end
+    -- Adversarial review finding H3, the phase four geometry rework. rowCount and paneWidth
+    -- are the two contract fields that are plain values rather than member specs, so the loop
+    -- above never touches either, and until this fix neither was checked at all, anywhere,
+    -- between the manifest and the stage. A bad rowCount, a string typed where a number was
+    -- meant, or the member spec shape written by habit since nine of the eleven other fields
+    -- take exactly that shape, reached math.min inside the atom's own _positionAndShow with
+    -- nothing to stop it, raised there, and left layout.rowCount corrupted on the one instance
+    -- the stage never rebuilds, wedging every future show of every presentation until the
+    -- config reloads. paneWidth already survived a bad value, host/stage/init.lua's own
+    -- _resolvePaneWidth refuses anything that is not a positive number or true, but only at
+    -- runtime, on every call, with no console line naming the tool, which is a weaker and
+    -- quieter protection than refusing the registration once, loudly, here, so it is checked
+    -- here too, to close the asymmetry rather than leave one field better protected than the
+    -- other for a reason nobody chose on purpose.
+    if p.rowCount ~= nil and type(p.rowCount) ~= "number" then
+      broken = true
+      if deps.log then
+        deps.log("e", string.format(
+          "registrar refused '%s', its presentation.rowCount is '%s', not a plain number",
+          name, tostring(p.rowCount)))
+      end
+    end
+    if p.paneWidth ~= nil and p.paneWidth ~= true and type(p.paneWidth) ~= "number" then
+      broken = true
+      if deps.log then
+        deps.log("e", string.format(
+          "registrar refused '%s', its presentation.paneWidth is '%s', not a plain number or true",
+          name, tostring(p.paneWidth)))
+      end
+    end
     -- Finding ten. A presenting plugin routes by identity, isShowingFor and the surface
     -- adapters loop both ask the registry by identity and the stage's own current() answers
     -- the identity the registrar stamped, but the docked hint bar still looks the answer up in

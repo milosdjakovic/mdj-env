@@ -43,21 +43,26 @@
 --- presentation block alike, closing review finding ten.
 ---
 --- Live geometry, docs/BRIEF-GEOMETRY.md, phase four of the chooser stage track. A
---- presentation may now declare paneWidth, the atom's own companionWidth semantics carried
---- one layer up since the shared instance's own layout.companionWidth stays zero for the
---- life of the config, so every companion pixel a presentation shows is stage arithmetic laid
---- over a window the atom itself still believes has no pane. present and push recompute the
---- pair and shift the live window with setTopLeft, through the same window finding trick
---- lib/chooser/providers/native.lua's own _settleFrames uses, rather than reopening it, the
---- probe having proved that move exact and the widget stays live,
---- docs/PROBE-FINDINGS-2026-08-27.md section C3. paneFrames is stamped with the result so the
---- atom's own click watcher keeps hit testing honestly, and the presentation's own
---- onPositioned, new this phase, is refired so its pane consumer draws or clears. Two
---- presentations that both decline a pane move nothing at all. Row count changes take the one
---- resize path that exists, hide, rows(n), show, through Chooser:setRows, the one lib/chooser
---- addition this phase makes, and paneAnchor is the one true copy of the anchor arithmetic
---- three plugins still carry their own copy of, consumer map sections 7.3 and 9.11, built
---- here for phase five's migrations to call rather than inherit a fourth copy.
+--- presentation may declare paneWidth, the atom's own companionWidth semantics carried one
+--- layer up. present, push, and pop alike write the current presentation's own value into
+--- the shared instance's layout.companionWidth before touching the window, the one
+--- lib/chooser reach this phase keeps beyond setRows, so a cold show computes the pair's
+--- centering natively, through the atom's own _positionAndShow, rather than painting alone
+--- and correcting itself a beat later. A swap or the resize path's own reshow touches no
+--- frame the atom would reposition on its own, so those still move the live window by hand,
+--- through the same window finding trick _settleFrames uses, gated on how long ago this
+--- instance last showed rather than on what kind of call this one is, adversarial review
+--- finding M1. onPositioned, refired through _positionPane on the manual path and through
+--- the atom's own automatic firing on the native one, converge on one function, _onPositioned,
+--- which is also what re anchors the docked shortcut panel now, finding M2, using paneAnchor,
+--- the one true copy of the anchor arithmetic three plugins still carry their own copy of,
+--- consumer map sections 7.3 and 9.11, built for phase five's migrations to call rather than
+--- inherit a fourth copy. The presentation a transition leaves behind is told its own
+--- onPositioned with nil frames before the incoming one is given real ones, finding H2, on
+--- every door, present, push, and pop, so a pane consumer never sits drawn beside a window
+--- that already moved past it. pop now routes through the same _show every other door does,
+--- finding H1, so a two row window from caffeinate cannot survive a Backspace back into a ten
+--- row list, and its own docstring says so.
 
 local obj = {}
 obj.__index = obj
@@ -86,16 +91,17 @@ local SELF_BUNDLE = hs.processInfo and hs.processInfo.bundleID
 -- damage a value that can actually render would risk again.
 local CONSTRUCTION_PLACEHOLDER = ""
 
--- The wait this host gives the atom's own settle correction before it lays a pane beside a
--- freshly opened window. lib/chooser/providers/native.lua's own _settleFrames corrects the
--- window's real position on its own 0.03 second timer after Chooser:show returns,
--- docs/PROBE-FINDINGS-2026-08-27.md section C3, and a shift posted before that correction
--- lands would only be overwritten by it, the atom recentring on the companion of zero it
--- still believes is the whole story, since layout.companionWidth never leaves zero on this
--- shared instance. Comfortably longer than that 0.03 so the two can never race, short enough
--- that the eye never catches a second move. A swap into a window already settled races
--- nothing and pays none of this wait, see _applyPaneGeometry's own cold check.
-local PANE_SETTLE_DELAY = 0.06
+-- Mirrors lib/chooser/providers/native.lua's own hardcoded settle delay, the 0.03 seconds
+-- _settleFrames waits after Chooser:show returns before it corrects the window's real
+-- position. No accessor exposes that number, so this is the one duplicated constant the
+-- geometry rework accepts, the alternative being to reach into the atom's own private
+-- settleTimer field to ask it directly, which would trade one small duplication for a worse
+-- one. Used by _applyPaneGeometry to gate a manual pane placement on the window's own age
+-- rather than on the shape of the call that triggered it, adversarial review finding M1, a
+-- swap landing inside this window of a recent cold show still races that show's own pending
+-- settle correction, which reads layout.companionWidth live and would otherwise place the
+-- window against a frame that has not settled yet.
+local ATOM_SETTLE_DELAY = 0.03
 
 -- Injected via configure
 obj._chooser = nil          -- the Chooser factory (has .new), the one door this host builds through
@@ -110,11 +116,11 @@ obj.surface = nil           -- the one nav adapter, delegated to whichever prese
 obj._stack = nil            -- ordered presentations, the last entry is the one showing
 obj._openId = nil           -- bumped on every fresh stack, see _bumpOpenId and world()
 obj._coveredApp = nil       -- tied to the window's own appearance, see _captureCoveredApp
-obj._paneW = 0               -- the last companion width actually applied, 0 for no pane, see _applyPaneGeometry
 obj._rowCount = nil          -- the row count the window is currently built for, seeded at configure
 obj._defaultRowCount = nil   -- the atom's own default, read once at configure, never mutated after
 obj._geometryTimer = nil     -- held so a pending pane settle cannot be collected before it fires, see _applyPaneGeometry
 obj._suppressClose = false   -- true only while _applyRowCount's own internal hide is in flight, see _onClose
+obj._lastShowAt = nil        -- hs.timer.secondsSinceEpoch() at the last real show(), see _applyPaneGeometry
 
 --- Stage:init()
 --- Method
@@ -184,7 +190,14 @@ function obj:configure(opts)
     intercept = function(item) return self:_intercept(item) end,
     back = function() return self:_back() end,
     onHighlight = function(item) self:_onHighlight(item) end,
-    onPositioned = self._panelOnPositioned,
+    -- Adversarial review finding M2. Routed through this host's own _onPositioned rather
+    -- than handed self._panelOnPositioned directly, so the docked panel is re anchored
+    -- through the identical function a manual placement uses on a swap, _onPositioned
+    -- being the one place that knows to span the pair through paneAnchor rather than
+    -- anchor to the list alone. A presentation with no pane still reaches the panel
+    -- exactly as before, paneAnchor answers the bare chooser frame back unchanged when
+    -- there is no companion to span.
+    onPositioned = function(chooserFrame, companionFrame) self:_onPositioned(chooserFrame, companionFrame) end,
     onActivity = self._panelOnActivity,
     onClose = function() self:_onClose() end,
   })
@@ -321,14 +334,26 @@ function obj:_freshStack(p, old)
   self:_bumpOpenId()
 end
 
--- What both doors do once the stack itself has already been decided, placeholder first
+-- What every door does once the stack itself has already been decided, placeholder first
 -- since setting it cannot change visibility, then a swap into a window already up or a cold
 -- show into a hidden one, the single question every caller of this asked before calling it.
--- The covered app is captured here, and only here, because it is tied to the window's own
--- appearance, finding five, never to the stack, which _freshStack above already handles on
--- its own terms.
-function obj:_show(p, wasShowing)
+-- outgoing is the presentation that was current a moment ago, nil at the first open of a
+-- session, and it is told before the incoming side is given anything, adversarial review
+-- finding H2. The covered app is captured here, and only here, because it is tied to the
+-- window's own appearance, finding five, never to the stack, which _freshStack above already
+-- handles on its own terms. pop now calls this too, finding H1, present and push already did.
+function obj:_show(p, wasShowing, outgoing)
   self._instance:setPlaceholder(p.placeholder or "")
+  -- Adversarial review finding M6. Written before every show, cold or swap alike, so a cold
+  -- show's own _positionAndShow computes the pair's centering natively, through the atom's
+  -- own arithmetic, rather than painting a lone chooser first and being shifted by hand a
+  -- beat later. Just as important on the branch that does NOT show anything this call, since
+  -- a settle timer left pending by an EARLIER cold show reads this field live when it finally
+  -- fires, docs/PROBE-FINDINGS-2026-08-27.md section C3, so writing it here keeps that timer
+  -- honest too rather than only the show this call might itself trigger. A presentation
+  -- naming no paneWidth writes nil, which the atom's own _resolveCompanionWidth already
+  -- treats as no pane, so the window centres itself alone with nothing else asked.
+  self._instance.layout.companionWidth = p.paneWidth
   -- Decision two of the geometry brief. A row count change takes the one resize path that
   -- exists, hide, rows(n), show, which the probe found applies on the next show of the same
   -- instance, docs/PROBE-FINDINGS-2026-08-27.md section C2. _applyRowCount below drives that
@@ -337,18 +362,36 @@ function obj:_show(p, wasShowing)
   -- top of that.
   local resized = self:_applyRowCount(p)
   local cold = resized or not wasShowing
+  -- Adversarial review finding H2. present already tells a genuinely discarded outgoing
+  -- level its own onClose through _freshStack, and this still runs for it too, since
+  -- onPositioned is where a pane consumer actually knows to erase its own canvas, never
+  -- onClose, and telling both is cheap and never wrong. push tells nobody's onClose, by
+  -- design, decision six of the handoff brief, so without this the level it stacked under
+  -- would sit drawn beside a window that already moved on. pop's own leaving already hears
+  -- onClose, and is told this too for the identical reason present's survivor is. Skipped
+  -- when there is no outgoing, or when the outgoing IS the incoming, a reopen that must not
+  -- be told it lost anything it still has.
+  if outgoing and outgoing ~= p and outgoing.onPositioned then
+    outgoing.onPositioned(nil, nil)
+  end
   if cold then
     -- The covered app is only ever worth capturing on a genuinely fresh appearance, never on
     -- the reshow a resize just drove, since nothing had anywhere else to send focus during a
     -- same tick hide and show, finding five of the phase three review keeping the identical
     -- split for the identical reason.
     if not resized then self:_captureCoveredApp() end
+    self._lastShowAt = hs.timer.secondsSinceEpoch()
     self._instance:show()
+    -- Nothing further to do here. layout.companionWidth already carries this presentation's
+    -- own value, so _positionAndShow and _settleFrames both compute the pair natively and
+    -- fire onPositioned, routed to this host's own _onPositioned below, on their own.
   else
     self._instance:setQuery("")
     self._instance:refresh(true)
+    -- A swap touches no frame the atom itself would reposition, refresh only rebuilds rows,
+    -- so the pair still has to be placed by hand, decision one of the geometry brief.
+    self:_applyPaneGeometry(p, outgoing)
   end
-  self:_applyPaneGeometry(p, cold)
 end
 
 -- Applies a presentation's own row count when it differs from what the window is currently
@@ -367,6 +410,13 @@ end
 -- shut for exactly this one call rather than let onClose tell every presentation on the stack
 -- it just closed. Answers true when it drove that hide itself, so _show above knows not to
 -- also run its own swap or cold show path on top of this one.
+--
+-- Adversarial review finding M3. The hide is wrapped in pcall and the flag is cleared
+-- unconditionally right after, since without that a raise anywhere inside the atom's own
+-- teardown, or inside the ActionPanel decorator it calls through on the way, would leave
+-- _suppressClose stuck true for the life of the config, silencing every future onClose,
+-- launcher and every presentation alike, with nothing anywhere saying why. Nothing found in
+-- that path is known to raise today, the cost of guarding it anyway is one pcall.
 function obj:_applyRowCount(p)
   local desired = p.rowCount or self._defaultRowCount
   if desired == self._rowCount then return false end
@@ -376,44 +426,48 @@ function obj:_applyRowCount(p)
     return false
   end
   self._suppressClose = true
-  self._instance:hide()
+  local ok, err = pcall(function() self._instance:hide() end)
   self._suppressClose = false
+  if not ok then
+    log.w(string.format("Stage's own resize hide raised, %s, continuing to setRows and show regardless", tostring(err)))
+  end
   self._instance:setRows(desired)
   return true
 end
 
--- Applies a presentation's own pane, decision one of the geometry brief. The shared
--- instance's own layout.companionWidth never leaves the zero it was built with, atom level
--- policy fixed for the life of the instance, so every companion pixel a presentation shows or
--- clears from here on is stage arithmetic laid over a window the atom itself still believes
--- has no companion at all. Skipped entirely when neither the presentation now current nor the
--- one last applied wanted a pane, self._paneW already at zero and this one declaring none
--- either, which is every swap this phase actually exercises, launcher and VPN alike, so the
--- unchanged behaviour the brief's own acceptance asks for costs nothing beyond the one
--- comparison below.
-function obj:_applyPaneGeometry(p, cold)
-  -- Cancelled unconditionally, before the skip check below, so a pane presentation's own
-  -- pending settle can never fire after a later presentation with nothing of its own to do
-  -- has already returned early, which would otherwise leave a stale timer to find out for
-  -- itself, through _positionPane's own identity guard, that it no longer has anything to
-  -- draw.
+-- Places a presentation's own pane on a swap, decision one of the geometry brief. A cold show
+-- no longer reaches this at all, adversarial review finding M6, since layout.companionWidth
+-- already carries this presentation's own value by the time show() runs and the atom computes
+-- the pair natively. A swap touches no frame the atom would reposition on its own, so the
+-- pair still has to be placed by hand here.
+--
+-- Skipped when neither this presentation nor the one it replaces wanted a pane, which is
+-- every swap this phase actually exercises, launcher and VPN alike, so the unchanged
+-- behaviour the brief's own acceptance asks for costs nothing beyond the comparison below.
+--
+-- Adversarial review finding M1. The deferral that used to gate on whether THIS call was a
+-- cold show is replaced with a gate on the window's own age. A swap landing within
+-- ATOM_SETTLE_DELAY of this instance's last show still races that show's own pending settle
+-- timer, which reads layout.companionWidth live and, now that this host writes it honestly,
+-- would confirm rather than corrupt the shift, but the window frame this function reads
+-- before that timer fires may not have settled yet, docs/PROBE-FINDINGS-2026-08-27.md's own
+-- note that a first show renders taller than its steady state, so this still waits out
+-- whatever remains of that window before reading the frame itself. A swap landing later than
+-- that, the overwhelming ordinary case, races nothing and runs at once.
+function obj:_applyPaneGeometry(p, outgoing)
   if self._geometryTimer then
     self._geometryTimer:stop()
     self._geometryTimer = nil
   end
-  if not p.paneWidth and self._paneW == 0 then return end
-  if cold then
-    -- The atom's own settle correction has not run yet, so a shift posted now would only be
-    -- overwritten by it a moment later, see PANE_SETTLE_DELAY above for the full reasoning.
-    -- Held in a field so a fast second present or push landing before this ever fires
-    -- supersedes it rather than stacking two.
-    self._geometryTimer = hs.timer.doAfter(PANE_SETTLE_DELAY, function()
+  local hadPane = outgoing and outgoing.paneWidth
+  if not p.paneWidth and not hadPane then return end
+  local age = hs.timer.secondsSinceEpoch() - (self._lastShowAt or 0)
+  if age < ATOM_SETTLE_DELAY then
+    self._geometryTimer = hs.timer.doAfter(ATOM_SETTLE_DELAY - age, function()
       self._geometryTimer = nil
       self:_positionPane(p)
     end)
   else
-    -- A swap changes no frame at all and nothing else is moving the window, so there is
-    -- nothing to race and the pane is placed at once.
     self:_positionPane(p)
   end
 end
@@ -425,14 +479,21 @@ end
 -- reopening it, docs/PROBE-FINDINGS-2026-08-27.md section C3 having found that move exact and
 -- the widget staying live through it. Stamps self._instance.paneFrames with the result, the
 -- field the atom's own click watcher already reads for every hit test, so a click on the new
--- companion keeps testing honestly, and refires this presentation's own onPositioned so its
--- pane consumer draws into the real rect or clears when this presentation asked for none.
+-- companion keeps testing honestly, and hands the two frames to _onPositioned, the one
+-- function that also fires on the atom's own native path, so the panel and this
+-- presentation's own onPositioned are told through the identical route regardless of which
+-- of the two placed the window, adversarial review finding M2.
 --
--- Guarded against a stale call landing after a newer presentation already took over, which a
--- cold show's own settle wait makes possible, a present or a push racing ahead of the timer
--- above before it ever fires.
+-- Guarded against a stale call landing after a newer presentation already took over, which
+-- the settle wait above makes possible, a present, push, or pop racing ahead of the timer
+-- before it ever fires. Also guarded, adversarial review finding L1, against a foreign
+-- window also titled "Chooser", the overlay display picker or any of the twelve still
+-- unmigrated consumers among them, being the one the loop above happens to find while this
+-- instance's own window is not actually up, the same self.active guard _settleFrames itself
+-- opens with before running the identical search.
 function obj:_positionPane(p)
   if self:_current() ~= p then return end
+  if not (self._instance and self._instance.active) then return end
   local app = hs.application.get("Hammerspoon")
   if not app then return end
   local w = nil
@@ -447,7 +508,6 @@ function obj:_positionPane(p)
   local L = self._instance.layout
   local cf = w:frame()
   local paneW = self:_resolvePaneWidth(p.paneWidth, cf.w, L.paneMaxW)
-  self._paneW = paneW
 
   local sf = (w:screen() or hs.screen.mainScreen()):frame()
   local total = cf.w + (paneW > 0 and (L.gap + paneW) or 0)
@@ -460,20 +520,40 @@ function obj:_positionPane(p)
     companionFrame = { x = x + cf.w + L.gap, y = cf.y, w = paneW, h = cf.h }
   end
   self._instance.paneFrames = { chooser = chooserFrame, companion = companionFrame }
-  if p.onPositioned then p.onPositioned(chooserFrame, companionFrame) end
+  self:_onPositioned(chooserFrame, companionFrame)
 end
 
 -- The atom's own companionWidth semantics, decision one of the geometry brief, reproduced
 -- here rather than reached for on the instance, since the shared instance's own
--- _resolveCompanionWidth answers for layout.companionWidth, a field this host never touches,
--- not for a presentation's own paneWidth. true inherits the chooser's own width for this show,
--- a number is the independent value, and both are capped at paneMaxW exactly as the atom caps
--- its own. Anything else, absent, false, or a non positive number, means no pane.
+-- _resolveCompanionWidth answers for layout.companionWidth, which by the time this runs
+-- already carries this same presentation's own paneWidth, adversarial review finding M6, but
+-- _positionPane needs the resolved PIXEL width for its own arithmetic, not the raw value, true
+-- or a number or absent, the atom's own field stores. true inherits the chooser's own
+-- width for this show, a number is the independent value, and both are capped at paneMaxW
+-- exactly as the atom caps its own. Anything else, absent, false, or a non positive number,
+-- means no pane.
 function obj:_resolvePaneWidth(paneWidth, chooserW, paneMaxW)
   local w = paneWidth
   if w == true then w = chooserW end
   if type(w) ~= "number" or w <= 0 then return 0 end
   return math.min(w, paneMaxW)
+end
+
+-- Where every geometry pass that has real frames to report converges, the atom's own
+-- automatic firing on a cold show, docs/BRIEF-GEOMETRY.md decision one wired through
+-- configure above, and _positionPane's own manual one on a swap alike, adversarial review
+-- finding M2. Re anchors the docked shortcut panel through paneAnchor, spanning the pair
+-- rather than the list alone, so the host that claims to own that panel is the one that
+-- actually moves it, and tells the current presentation's own onPositioned the same two
+-- frames, so a pane consumer draws into the real rect or clears when this presentation
+-- declares none. A presentation with no onPositioned of its own is silently skipped, exactly
+-- as an ordinary missing field already is everywhere else in this file.
+function obj:_onPositioned(chooserFrame, companionFrame)
+  if self._panelOnPositioned then
+    self._panelOnPositioned(self:paneAnchor(chooserFrame, companionFrame))
+  end
+  local p = self:_current()
+  if p and p.onPositioned then p.onPositioned(chooserFrame, companionFrame) end
 end
 
 -- Told once a presentation has become current, through present or push alike, right after
@@ -509,9 +589,13 @@ function obj:present(p)
   end
 
   local wasShowing = self._instance:isShowing()
+  -- Captured before _freshStack mutates the stack, so _show can tell whatever was current a
+  -- moment ago that it lost the pane, adversarial review finding H2, alongside whatever
+  -- onClose it may separately hear as a discarded level.
+  local outgoing = self:_current()
   self:_freshStack(p, self._stack)
   self:_announce(p)
-  self:_show(p, wasShowing)
+  self:_show(p, wasShowing, outgoing)
   return true
 end
 
@@ -540,13 +624,19 @@ function obj:push(p)
   end
 
   local wasShowing = self._instance:isShowing()
+  -- Captured before the stack mutation below, for the identical reason present captures it,
+  -- adversarial review finding H2. This is the door where telling it matters most, since push
+  -- deliberately fires nobody's onClose when it stacks, decision six of the handoff brief, so
+  -- without this the level being stacked under would have no other way to learn its pane is
+  -- gone.
+  local outgoing = self:_current()
   if not wasShowing then
     self:_freshStack(p, self._stack)
   elseif self:_current() ~= p then
     self._stack[#self._stack + 1] = p
   end
   self:_announce(p)
-  self:_show(p, wasShowing)
+  self:_show(p, wasShowing, outgoing)
   return true
 end
 
@@ -556,19 +646,25 @@ end
 --- row one, answering false when the stack holds one or none, the case that leaves backspace
 --- an ordinary press. Tells only the one leaving its own onClose, decision six, never the one
 --- it lands back on, since that one is not hiding, it is what is left showing, and never
---- calls onPresent either, restoring is not becoming current through present or push. Self
---- sufficient, rebuilding the rows and the highlight itself rather than relying on being
---- called only from the atom's own back path, so a caller reaching this directly gets the
---- same result Backspace does.
+--- calls onPresent either, restoring is not becoming current through present or push.
+---
+--- Routed through the same _show every other door already uses, adversarial review finding
+--- H1. Before this fix pop rebuilt the field and the rows by hand and stopped there, so a
+--- presentation the stack is landing back on that differs in row count or in pane from the
+--- one that just left kept whatever the departing level last left the window built for, a
+--- caffeinate exit leaving a ten row list rendered into a two row window until some later
+--- present or push happened to self correct it. leaving is handed to _show as the outgoing
+--- presentation, finding H2, so a pane it drew is told to clear on the same path present and
+--- push already use, and the one leaving still hears its own onClose first, exactly as
+--- before, since that is a real dismissal for it and _show's own outgoing notice is not a
+--- substitute for it, the two are told for different reasons and neither replaces the other.
 function obj:pop()
   if #self._stack <= 1 then return false end
   local leaving = table.remove(self._stack)
   if leaving.onClose then leaving.onClose() end
   local below = self:_current()
   if self._instance then
-    self._instance:setPlaceholder(below and below.placeholder or "")
-    self._instance:setQuery("")
-    self._instance:refresh(true)
+    self:_show(below, self._instance:isShowing(), leaving)
   end
   return true
 end
@@ -589,7 +685,6 @@ function obj:hide()
     self._geometryTimer:stop()
     self._geometryTimer = nil
   end
-  self._paneW = 0
   if self._instance then self._instance:hide() end
   closeStack(self._stack)
   self._stack = {}
