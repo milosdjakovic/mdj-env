@@ -35,7 +35,7 @@ return {
     -- Neither breaks anything structural when absent, both degrade to a key or a status
     -- change that quietly does nothing, which is why both are optional.
     data = {
-      presentTool = { source = "root", policy = "optional",
+      stagePresent = { source = "root", policy = "optional",
         breaks = "this plugin's own leader key opens nothing, since M.show has no other way to reach the shared stage" },
       redrawPresented = { source = "root", policy = "optional",
         breaks = "the list stays on its last read status and location until the field is touched, since the daemon changing state no longer redraws whatever is on screen" },
@@ -79,12 +79,19 @@ return {
   -- Chooser.new block read from is exactly what the stage wants too, there was never a
   -- second list to build. placeholder resolves once, at register time, to whatever M's own
   -- placeholder member currently answers, which depends on the availability this plugin's
-  -- own start already resolved by then. All three are dot called, like every function this
-  -- plugin exposes.
+  -- own start already resolved by then. onPresent, added in the phase three review's own
+  -- second finding, names M.onPresent, the fetch M.show used to start directly before this
+  -- plugin owned no window to reveal, now run whenever the stage makes this presentation
+  -- current through either door rather than only the hotkey one. Every member here is dot
+  -- called, like every function this plugin exposes, and every one is checked to actually
+  -- resolve on this plugin's own module at register, lib/registrar.lua's own new refusal,
+  -- so a typo here would keep this whole tool out of the catalogue rather than open to a
+  -- silently empty list.
   presentation = {
     rows = { member = "rows", call = "dot" },
     select = { member = "select", call = "dot" },
     placeholder = { member = "placeholder", call = "dot" },
+    onPresent = { member = "onPresent", call = "dot" },
   },
 
   -- show, and every scope action below, are plain dot called functions on this plugin's own

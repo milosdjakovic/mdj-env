@@ -82,10 +82,15 @@ stage. Fields, all optional except name, rows, and onSelect.
     placeholder   the field placeholder while this presentation is current
     rows          function(query) returning the row tables the atom already takes
     onSelect      function(item) run when a row completes
+    onPresent     function() told when this presentation becomes current, through present
+                  or push, never through pop, added in the handoff phase for a tool whose
+                  rows depend on something async nothing else has necessarily warmed
     intercept     function(item) answering true when the row swapped the list in place
     back          function() answering true when an inner level was popped
     onHighlight   function(item) for a companion consumer, nil for none
-    onClose       function() told when the stage hides entirely, not on a swap
+    onClose       function() told when the stage hides entirely, not on a swap. Widened in
+                  the handoff phase for a stack deeper than one, every discarded level is
+                  told, top down, except the one that survives a reopen at any depth
     rowCount      a number when the tool genuinely differs from ten, else absent
 
 The stage owns everything else the thirteen call sites pass today, screen policy,

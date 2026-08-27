@@ -559,6 +559,7 @@ presentation = {
   rows        = { member = "rows", call = "dot" },      -- required
   select      = { member = "select", call = "dot" },    -- required
   placeholder = { member = "placeholder", call = "dot" }, -- optional
+  onPresent   = { member = "onPresent", call = "dot" },  -- optional
   intercept   = { member = "intercept", call = "dot" },  -- optional
   back        = { member = "back", call = "dot" },       -- optional
   onHighlight = { member = "onHighlight", call = "dot" },-- optional
@@ -572,18 +573,36 @@ Every field but `rowCount` is a member spec, the identical bare string or `{ mem
 table `registry.open` and `registry.scope` already resolve, and for the identical reason,
 `call` defaults to `method` and must say `dot` for a plugin whose own functions are plain
 dot called rather than colon methods. The words are the presentation contract's own,
-BRIEF-STAGE.md version one, `rows`, `onSelect`, `placeholder`, `intercept`, `back`,
-`onHighlight`, `onClose`, `peekPreview`, with one deliberate difference. This block calls
-the contract's `onSelect` field `select` instead, the same word `provides.select` and
-`registry.scope.run` already use for a plugin's own selection member, so one plugin never
-has to name the same function two different ways depending on which part of the config is
-asking.
+BRIEF-STAGE.md version one plus phase three's own addition, `rows`, `onSelect`,
+`placeholder`, `onPresent`, `intercept`, `back`, `onHighlight`, `onClose`, `peekPreview`,
+with one deliberate difference. This block calls the contract's `onSelect` field `select`
+instead, the same word `provides.select` and `registry.scope.run` already use for a
+plugin's own selection member, so one plugin never has to name the same function two
+different ways depending on which part of the config is asking.
+
+`onPresent` is called with no arguments whenever this presentation becomes current, through
+either door, `stage.present` or `stage.push`, never on `stage.pop`, which restores a
+presentation rather than making it current through either door. It exists for a plugin
+whose own rows depend on something async nothing else has necessarily warmed, VPN's own
+location fetch being the case that named it, phase three review finding two, a launcher row
+choosing a presenting tool used to swap onto whatever the plugin's own module happened to
+hold already, empty on a fresh load, since nothing on that path used to call the plugin's
+own fetch at all.
 
 `rows` and `select` are required. A plugin naming neither, or naming one without the other,
-is not refused outright, `lib/registry.lua`'s own `presentationIsWellFormed` refuses the
-whole registration the same way a malformed `scope` already does, structural rather than
-partial, since a presentation with a hole in either of these two is not a presentation
-anything could show.
+IS refused outright, `lib/registry.lua`'s own `presentationIsWellFormed` refuses the whole
+registration the same way a malformed `scope` already does, structural rather than partial,
+since a presentation with a hole in either of these two is not a presentation anything could
+show.
+
+**Every named member is checked against the real, loaded module at register, and a name
+that does not resolve refuses the whole registration too, loudly, naming the tool and the
+field.** Phase three review finding four, `docs/AUDIT-2026-08-13.md`'s own failure class
+reopened, a manifest naming a member that had been deleted or misspelled, with nothing
+anywhere reporting it. This check is what makes checking `rows` and `select` for existence,
+not merely for shape, safe to do at register at all, since by then every plugin's own wiring
+step has already run and the module this checks against is the real, finished one. A member
+this block leaves undeclared is never checked, since there is nothing there to be wrong.
 
 Every field the registrar resolves into a member becomes a closure on the presentation
 table it hands to `registry.presentationFor(name)`, resolved fresh against the real module
@@ -601,10 +620,21 @@ answer rather than one frozen before that state existed.
 it, the same identity `registry.presentationFor` is keyed by, so a presentation always
 answers to the one name the rest of this configuration already knows it by.
 
+**A presenting plugin's own `surface.context`, when it names one, should spell the identity
+exactly.** `isShowingFor`, the surface adapters loop, and `stage.current()` all route a
+presenting plugin by its resolved identity, never by its declared context, while the docked
+hint bar still looks a context up in `plan.contexts`, keyed by the context a plugin declared.
+The two agree today because every presenting plugin spells its context exactly as its
+identity, and the registrar warns, one console line naming both words, phase three review
+finding ten, the moment a plugin ever lets them diverge, since that plugin would route, gate,
+and present correctly while its own hint bar silently went empty.
+
 **A presenting plugin declares no `registry.surface`.** The object that used to answer
 `isShowing`, `selectNext`, `selectPrev`, `insertSelected`, and `hide` for a plugin's own
 picker is now `host/stage`'s own `surfaceFor(identity)`, resolved by the composition root
-the moment `registry.presentationFor` answers something for that identity, so a
+the moment `registry.presentationFor` answers something for that identity, checked lazily on
+every access rather than once when the adapter was built, phase three review finding one,
+since nothing has registered yet at the point that adapter is assembled. So a
 `registry.surface` entry left in place would be dead weight nobody reads rather than a
 second answer. `registry.open` still stays, and still matters, it is what this plugin's own
 leader key binds to directly, the hotkey door, and what an unmigrated fallback would still
@@ -614,10 +644,13 @@ call if `presentationFor` ever answered nil for a name it used to answer for.
 `extra` are what `plan.contexts` is built from and what the navigation bind loop still binds
 a presenting plugin's own keys against, `presentation` only changes which object answers
 for those bindings once they fire, never whether they exist. `panelAs` stops mattering to a
-presenting plugin's own `configure`, since the docked shortcut panel is atom level policy
-`host/stage` owns for the life of its one instance rather than something a presentation
-carries, but the field may still need to stay declared if `services.perPlugin` computing it
-is what something else, the composition root's own stage wiring today, still reads it for.
+presenting plugin's own `configure` and to the composition root alike. The docked shortcut
+panel is atom level policy `host/stage` owns for the life of its one instance rather than
+something a presentation carries, and the one such panel that matters for the stage is now
+its own dedicated instance, built once by the composition root with a context resolver that
+asks `stage.current()` on every reveal, never a nested or flat reading of any one plugin's
+own `perPluginData` entry, so `panelAs` answers nothing for a presenting plugin's own panel
+either way.
 
 ### wiring
 

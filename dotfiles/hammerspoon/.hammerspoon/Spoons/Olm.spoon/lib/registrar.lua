@@ -86,6 +86,27 @@ local function memberSpec(spec)
   return nil, nil
 end
 
+-- Whether a member NAME, already split from its own spec by memberSpec above, resolves to a
+-- real function on module, walking the identical dotted path obj.member and callMember both
+-- walk. Phase three of the chooser stage build, the adversarial review's own fourth finding,
+-- docs/AUDIT-2026-08-13.md's failure class reopened, a manifest naming a member that resolves
+-- to nothing with nothing anywhere reporting it. obj.action's own closure answers nil in
+-- silence for exactly this case, by design, since most callers resolve against a module still
+-- being assembled inside its own configure and cannot check any earlier than the first real
+-- call. A presentation's own members are the one case that can check earlier, since they are
+-- resolved at register, stage five, once every plugin's own wiring has already run, so this
+-- exists for that one caller rather than folded into obj.action itself. A nil module answers
+-- false rather than raising, since nothing loaded has nothing this could resolve against.
+local function memberResolves(module, member)
+  if module == nil or member == nil then return false end
+  local value = module
+  for part in tostring(member):gmatch("[^.]+") do
+    if type(value) ~= "table" then return false end
+    value = value[part]
+  end
+  return type(value) == "function"
+end
+
 -- Walk a dotted member path against a real module and call whatever sits at the end of it,
 -- forwarding every argument this call actually carries. method binds the table the walk
 -- stopped at as the first argument, the same receiver a colon call would bind, since a
@@ -352,14 +373,71 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
   -- reads live state, VPN's own available flag among them, answers the real answer rather
   -- than one frozen before that state existed.
   --
-  -- The remaining five contract fields, intercept, back, onHighlight, onClose, and
-  -- peekPreview, resolve the same way rows does, and a plugin naming none of them hands the
+  -- The remaining six contract fields, intercept, back, onHighlight, onClose, peekPreview,
+  -- and onPresent, resolve the same way rows does, and a plugin naming none of them hands the
   -- stage a presentation with nothing under that name, exactly as an ordinary presentation
-  -- table already allows. rowCount is read as a plain number, never a member, since the
-  -- contract itself never asks it to be computed.
+  -- table already allows. onPresent is the phase three review's own second finding, called by
+  -- the stage whenever this presentation becomes current through present or push, the seam a
+  -- plugin whose own rows depend on an async fetch, VPN among them, starts that fetch from
+  -- rather than depending on some other door having already warmed it. rowCount is read as a
+  -- plain number, never a member, since the contract itself never asks it to be computed.
+  --
+  -- Every named member is checked against the REAL, already loaded module before any of this
+  -- is trusted, the phase three review's own fourth finding, docs/AUDIT-2026-08-13.md's
+  -- failure class reopened, a manifest naming a member that resolves to nothing with nothing
+  -- anywhere reporting it. obj.action's own closure answers nil in silence for exactly that
+  -- case, by its own design, since a lookup made once here cannot see a module a plugin still
+  -- assembles inside its own configure, but a presentation's rows and select are checked here
+  -- BECAUSE this file runs at register, stage five, after every plugin's own wiring has
+  -- already completed, so the module this checks against is the real, finished one rather than
+  -- one still being built. A name that does not resolve refuses the WHOLE registration, loudly,
+  -- naming the tool and the field, the same severity presentationIsWellFormed already gives a
+  -- shape error in lib/registry.lua, since a declaration that cannot fail loudly is worse than
+  -- none at all.
   local presentation = nil
   if type(manifest.presentation) == "table" then
     local p = manifest.presentation
+    local owner = (modules and modules[identity]) or (modules and modules[name])
+    local presentationFields = {
+      "rows", "select", "placeholder", "intercept", "back",
+      "onHighlight", "onClose", "peekPreview", "onPresent",
+    }
+    local broken = false
+    for _, field in ipairs(presentationFields) do
+      local member = memberSpec(p[field])
+      if member ~= nil and not memberResolves(owner, member) then
+        broken = true
+        if deps.log then
+          deps.log("e", string.format(
+            "registrar refused '%s', its presentation.%s names '%s', which does not resolve to a function on the real module",
+            name, field, tostring(member)))
+        end
+      end
+    end
+    -- Finding ten. A presenting plugin routes by identity, isShowingFor and the surface
+    -- adapters loop both ask the registry by identity and the stage's own current() answers
+    -- the identity the registrar stamped, but the docked hint bar still looks the answer up in
+    -- plan.contexts, which is keyed by this plugin's own declared surface.context when it
+    -- named one. The two agree today because every plugin that presents also spells its
+    -- context exactly as its identity, and nothing enforces that agreement, so a plugin that
+    -- ever let them diverge would route, gate, and present correctly while its hint bar quietly
+    -- went empty. One console line, naming both words, so that divergence cannot happen in
+    -- silence even though this phase does not fix the routing itself.
+    local declaredContext = manifest.surface and manifest.surface.context
+    if declaredContext and declaredContext ~= identity and deps.log then
+      deps.log("w", string.format(
+        "registrar found '%s' presenting under identity '%s' while its surface declares context '%s', the docked hint bar routes by identity and will not follow that context",
+        name, identity, declaredContext))
+    end
+    -- A broken member refuses the WHOLE registration, matching presentationIsWellFormed's
+    -- own severity in lib/registry.lua for a shape error, not merely a dropped presentation,
+    -- since the alternative, registering everything else and quietly leaving this plugin
+    -- unmigrated, is exactly the silence this finding exists to close. Every deps.log line
+    -- above already ran, so refusing loudly here means the console named the reason before
+    -- the tool vanished from the catalogue rather than after.
+    if broken then
+      return nil
+    end
     presentation = {
       name = identity,
       rows = obj.action(modules, identity, name, p.rows, nil),
@@ -369,6 +447,7 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
       onHighlight = obj.action(modules, identity, name, p.onHighlight, nil),
       onClose = obj.action(modules, identity, name, p.onClose, nil),
       peekPreview = obj.action(modules, identity, name, p.peekPreview, nil),
+      onPresent = obj.action(modules, identity, name, p.onPresent, nil),
       rowCount = p.rowCount,
     }
     if p.placeholder ~= nil then

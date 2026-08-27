@@ -688,14 +688,19 @@ function obj.run(olm, cfg)
     -- decision one and decision eight of the handoff brief both ask, and VPN is only today's
     -- one answer.
     --
-    -- presentTool is the hotkey door from outside the launcher, decision one, a plugin's own
+    -- stagePresent is the hotkey door from outside the launcher, decision one, a plugin's own
     -- leader key asking the registry for its own presentation and handing it to the stage
-    -- fresh, exactly what stage.present already means for the launcher's own hotkey. Nil
-    -- when either the registry or the stage has nothing to answer, in which case the plugin
-    -- asked before its own registration or the stage's own configure had run, which is a
-    -- wiring defect rather than a state a key press should silently swallow, so it is left to
-    -- read as an inert press rather than guarded into looking intentional.
-    presentTool = function(name)
+    -- fresh, exactly what stage.present already means for the launcher's own hotkey. Named
+    -- stagePresent rather than presentTool, review finding six, since this same file already
+    -- has a local called presentTool, the predicate answering whether a declared tool is
+    -- installed on this machine, and one word meaning two unrelated questions in a file its
+    -- own header asks to be read top to bottom is worth avoiding even though nothing actually
+    -- shadows, the local never having been a table key. Nil when either the registry or the
+    -- stage has nothing to answer, in which case the plugin asked before its own registration
+    -- or the stage's own configure had run, which is a wiring defect rather than a state a key
+    -- press should silently swallow, so it is left to read as an inert press rather than
+    -- guarded into looking intentional.
+    stagePresent = function(name)
       local presentation = wiredRegistry.presentationFor and wiredRegistry.presentationFor(name)
       if presentation and stageModule then stageModule:present(presentation) end
     end,
@@ -1194,7 +1199,7 @@ function obj.run(olm, cfg)
 
   local function describeForRegistry(name, planArg)
     return registrarLib.describe(name, planArg, modules, manifests, registryMeta,
-      REGISTRY_API_VERSION, { merge = defaultsLib.merge, redraw = redrawSurface })
+      REGISTRY_API_VERSION, { merge = defaultsLib.merge, redraw = redrawSurface, log = logFn })
   end
 
   local function bindShortcut(entry)
@@ -1270,9 +1275,21 @@ function obj.run(olm, cfg)
   -- Nothing is cached. The surface may be a member that BUILDS the adapter when asked, so a
   -- picker rebuilt after a reconfigure would leave a cached holder pointing at a dead one, and
   -- a table walk per key press costs nothing worth protecting.
-  local function surfaceAdapterFor(module, spec)
+  -- identity, phase three, is asked of the registry INSIDE the proxy, every single access,
+  -- rather than once by the caller building it, review finding one. w.register has not run
+  -- yet at the point this whole loop executes, stage five of the eight fixed stages, so an
+  -- eager question asked out here always answers nil for a presenting plugin, forever,
+  -- since nothing ever asks again. This file's own comment already states the rule the eager
+  -- version broke, nothing here is cached and a table walk per key press costs nothing worth
+  -- protecting, so the presenting question belongs inside __index with everything else this
+  -- proxy already resolves lazily, not outside it as a one time decision.
+  local function surfaceAdapterFor(module, spec, identity)
     return setmetatable({}, {
       __index = function(_, methodName)
+        if identity and stageModule and wiredRegistry and wiredRegistry.presentationFor
+          and wiredRegistry.presentationFor(identity) then
+          return stageModule:surfaceFor(identity)[methodName]
+        end
         local owner, fn = nil, nil
         local holder = surfaceOf(module, spec)
         if type(holder) == "table" and type(holder[methodName]) == "function" then
@@ -1317,18 +1334,11 @@ function obj.run(olm, cfg)
       local spec = (manifest.surface or {}).member or (manifest.registry or {}).surface
       if module then
         -- A presenting plugin, phase three, is routed a third way, ahead of the manifest
-        -- spelling above. Its own module may carry no isShowing, no selectNext, nothing at
-        -- all any more, VPN's own surface adapter having been deleted in favour of the
-        -- shared stage, so asking surfaceAdapterFor to walk that module would answer a table
-        -- with every method missing. stageModule:surfaceFor gives this identity its own
-        -- isShowing, scoped so it never wins lib/nav.lua's own activeSurface race for a
-        -- presentation that is not actually the one on screen, review finding ten, while
-        -- still reaching the shared instance for the four members that are safe to share.
-        if stageModule and wiredRegistry.presentationFor and wiredRegistry.presentationFor(identity) then
-          surfaceAdapters[#surfaceAdapters + 1] = stageModule:surfaceFor(identity)
-        else
-          surfaceAdapters[#surfaceAdapters + 1] = surfaceAdapterFor(module, spec)
-        end
+        -- spelling above, decided lazily inside surfaceAdapterFor's own proxy rather than
+        -- here, review finding one, since the registry has not registered anything yet at
+        -- the moment this loop runs. identity travels into the proxy so it can ask again on
+        -- every access instead of once, now, too early to ever be true.
+        surfaceAdapters[#surfaceAdapters + 1] = surfaceAdapterFor(module, spec, identity)
       end
     end
   end
@@ -1712,9 +1722,16 @@ function obj.run(olm, cfg)
         -- presentation for one that has migrated onto the stage, nil for every one that has
         -- not, which is the whole of what lets an unmigrated tool fall through to the second
         -- branch below completely untouched. The callable itself does nothing but push, no
-        -- hide, no deferral, one redraw, exactly the three sentences decision two asks for,
-        -- since Stage:push already does the query clear and the refresh(true) that redraw
-        -- means. Promoting the row to recency still happens the ordinary way, one level up in
+        -- hide, no deferral, decision two's own words, since Stage:push already does the
+        -- query clear and the refresh(true) that redraw means. It is genuinely two rebuilds
+        -- rather than the one decision two names, phase three review finding seven, since
+        -- Chooser:_intercept in lib/chooser/providers/native.lua calls refresh(true) itself,
+        -- by its own documented contract, the moment push's own answer of true comes back to
+        -- it, on top of the refresh push already ran. Harmless, a rebuild is idempotent and
+        -- cheap for the launcher, left as is rather than reworked to save five milliseconds
+        -- nothing can see, but the code should not be described as doing what the intercept
+        -- path itself always adds a second pass of regardless of what this callable does.
+        -- Promoting the row to recency still happens the ordinary way, one level up in
         -- host/launcher/init.lua's own intercept, which promotes anything this function hands
         -- back a callable for, so this file learns nothing new about recency to make VPN's row
         -- remember itself.

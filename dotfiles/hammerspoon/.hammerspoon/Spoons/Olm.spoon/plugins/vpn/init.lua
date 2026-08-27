@@ -31,7 +31,7 @@
 --- rows and its selection dispatch are exactly what they always were, M.rows and M.select
 --- below, now named on the manifest's own presentation block instead of handed to a
 --- Chooser.new call this file no longer makes. Its own leader key still opens it, through
---- cfg.presentTool, the root published word for the hotkey door every presenting plugin
+--- cfg.stagePresent, the root published word for the hotkey door every presenting plugin
 --- shares, and its own async status refresh, onChange below, now asks for a redraw through
 --- cfg.redrawPresented rather than reaching for a chooser instance directly.
 ---
@@ -68,7 +68,7 @@ do
   end
 end
 
-local cfg = nil       -- injected: opts.recency required, presentTool and redrawPresented optional
+local cfg = nil       -- injected: opts.recency required, stagePresent and redrawPresented optional
 local available = false -- whether the provider's CLI was found at start
 local cache = {}      -- the last fetched location list, filtered by the supplier
 local current = { state = "unavailable" } -- status snapshot, refreshed on open and change
@@ -282,25 +282,34 @@ end
 -- Public control surface (dot-called)
 --------------------------------------------------------------------------------
 
---- M.show() - read the state and the selected relay once, fetch the relay list, and present
---- through the shared stage. The status lives on the action row, not the placeholder, so the
---- field just prompts the location filter. The list is refreshed once the relays land, which
---- also resolves the selected relay's codes to its human label in the title.
+--- M.show() - present through the shared stage. This is the hotkey door, decision one of the
+--- handoff brief, reached only from this plugin's own leader key. A launcher row choosing VPN
+--- never calls this at all, it pushes the registry's own presentation straight from the
+--- root's rowIntercept, decision two, so this function's only remaining caller is the key
+--- registry.open binds directly. cfg.stagePresent asks the registry for this plugin's own
+--- presentation and hands it to Stage:present, the fresh stack door, exactly what opening VPN
+--- from cold has always meant.
 ---
---- This is the hotkey door, decision one of the handoff brief, reached only from this
---- plugin's own leader key. A launcher row choosing VPN never calls this at all any more, it
---- pushes the registry's own presentation straight from the root's rowIntercept, decision
---- two, so this function's only remaining caller is the key registry.open binds directly.
---- cfg.presentTool asks the registry for this plugin's own presentation and hands it to
---- Stage:present, the fresh stack door, exactly what opening VPN from cold has always meant.
+--- Fetches nothing itself any more. Stage:present calls the presentation's own onPresent
+--- once p becomes current, M.onPresent below, which is what both doors, this one and the
+--- launcher's own push, now share for the read and the fetch that used to live only here,
+--- phase three review finding two, a launcher row choosing VPN used to swap onto a list with
+--- no cities at all until something else had warmed the cache.
 function M.show()
-  -- The reads and the fetch are prepare's job, so both paths into these rows share one fetch
-  -- and one in flight guard. When the provider is unavailable prepare calls straight back and
-  -- the stage opens on its single install row.
+  if cfg.stagePresent then cfg.stagePresent("vpn") end
+end
+
+--- M.onPresent() - the presentation contract's own lifecycle member, phase three review
+--- finding two, called by the stage whenever this plugin's presentation becomes current,
+--- through present or push alike, before the window itself is shown or swapped into. Starts
+--- the same fetch M.show used to start directly, redrawing through cfg.redrawPresented once
+--- it lands, the identical word onChange already asks for its own async status refresh,
+--- rather than a fresh mechanism this one hook alone would need. Named on the manifest's own
+--- presentation block as onPresent.
+function M.onPresent()
   M.prepare(function()
     if cfg.redrawPresented then cfg.redrawPresented("vpn") end
   end)
-  if cfg.presentTool then cfg.presentTool("vpn") end
 end
 
 --- M.rows(query) -> list. The merged control and location rows, named on the manifest's own
@@ -410,7 +419,7 @@ end
 --- this copy no longer carries a recency block of its own, and a missing one is rejected
 --- loudly rather than quietly ordering nothing.
 ---
---- opts.presentTool and opts.redrawPresented are the two root published words phase three
+--- opts.stagePresent and opts.redrawPresented are the two root published words phase three
 --- adds, both optional, both no ops when absent, M.show and onChange above say what each
 --- one degrades to without the other.
 -- Colon here, not dot, because the composition root and the live top level init.lua both

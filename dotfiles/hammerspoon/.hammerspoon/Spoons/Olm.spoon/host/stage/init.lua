@@ -80,8 +80,8 @@ obj._panelOnClose = nil
 obj._instance = nil         -- the one Chooser instance, built once and never rebuilt
 obj.surface = nil           -- the one nav adapter, delegated to whichever presentation is current
 obj._stack = nil            -- ordered presentations, the last entry is the one showing
-obj._openId = nil           -- world capture, see _captureWorld and world()
-obj._coveredApp = nil
+obj._openId = nil           -- bumped on every fresh stack, see _bumpOpenId and world()
+obj._coveredApp = nil       -- tied to the window's own appearance, see _captureCoveredApp
 
 --- Stage:init()
 --- Method
@@ -208,19 +208,6 @@ function obj:_current()
   return self._stack[#self._stack]
 end
 
--- Records the app this stack covers and an id for this open, once per stack, at the first
--- present that finds the window hidden. Decision seven of the stage design brief. Guarded
--- against recording Hammerspoon itself the way the launcher's own capture already is, for the
--- identical reason, two quick opens would otherwise hand a presentation Hammerspoon's own
--- frontmost state instead of whatever app was really covered.
-function obj:_captureWorld()
-  self._openId = (self._openId or 0) + 1
-  local front = hs.application.frontmostApplication()
-  if not (SELF_BUNDLE and front and front:bundleID() == SELF_BUNDLE) then
-    self._coveredApp = front
-  end
-end
-
 -- Whether p is a well formed presentation, name, rows, and onSelect all required and
 -- nothing else asked, the same three fields BRIEF-STAGE.md's own contract calls required.
 -- Shared by present and push so the two doors refuse a malformed table identically, naming
@@ -243,18 +230,79 @@ local function closeStack(stack)
   end
 end
 
+-- The same walk, except keep is never told, wherever in the stack it sits. Phase three
+-- review finding three. present's own dedup only recognised a reopen when the whole stack
+-- was keep alone, so re presenting the surviving top of a deeper stack, VPN's own hotkey
+-- pressed again while VPN is already what a push landed on, told VPN it had closed while it
+-- is exactly what stays on screen. Identity decides who is told, not depth, so keep is
+-- skipped wherever it sits and everything else still hears its own onClose top down.
+local function closeStackExcept(stack, keep)
+  for i = #stack, 1, -1 do
+    local p = stack[i]
+    if p ~= keep and p.onClose then p.onClose() end
+  end
+end
+
+-- Advances the open id, once per fresh stack, regardless of whether the window was already
+-- up. Split from covered app capture below, phase three review finding five, since decision
+-- one makes a present over a visible window a normal and expected thing, and a consumer
+-- keying a per open cache off this id, MenuSearch among them, has to see a new id every time
+-- the stack genuinely starts over, a present replacing a live stack included, or it would
+-- read an answer that belongs to whatever the stack held before the replacement.
+function obj:_bumpOpenId()
+  self._openId = (self._openId or 0) + 1
+end
+
+-- Records the app this stack covers, tied to the window's own appearance rather than to the
+-- stack starting over, since a present that replaces a live stack still covers the same app
+-- the window originally opened over, the window itself never having gone anywhere for focus
+-- to have left. Guarded against recording Hammerspoon itself the way the launcher's own
+-- capture already is, for the identical reason, two quick opens would otherwise hand a
+-- presentation Hammerspoon's own frontmost state instead of whatever app was really covered.
+function obj:_captureCoveredApp()
+  local front = hs.application.frontmostApplication()
+  if not (SELF_BUNDLE and front and front:bundleID() == SELF_BUNDLE) then
+    self._coveredApp = front
+  end
+end
+
+-- What both doors reach when the outcome is a fresh stack, present always and push only when
+-- it finds nothing to stack on top of, phase three review finding eight, which closes the gap
+-- where push discarded a stack in silence and present did not. Tells every discarded level
+-- except p itself its own onClose, bumps the open id, and replaces the stack with p alone.
+-- Does not touch the covered app, _show below does that, and only on the branch that finds
+-- the window hidden, per finding five's own split.
+function obj:_freshStack(p, old)
+  closeStackExcept(old, p)
+  self._stack = { p }
+  self:_bumpOpenId()
+end
+
 -- What both doors do once the stack itself has already been decided, placeholder first
 -- since setting it cannot change visibility, then a swap into a window already up or a cold
 -- show into a hidden one, the single question every caller of this asked before calling it.
+-- The covered app is captured here, and only here, because it is tied to the window's own
+-- appearance, finding five, never to the stack, which _freshStack above already handles on
+-- its own terms.
 function obj:_show(p, wasShowing)
   self._instance:setPlaceholder(p.placeholder or "")
   if wasShowing then
     self._instance:setQuery("")
     self._instance:refresh(true)
   else
-    self:_captureWorld()
+    self:_captureCoveredApp()
     self._instance:show()
   end
+end
+
+-- Told once a presentation has become current, through present or push alike, right after
+-- the stack is decided and before the window itself is touched. Phase three review finding
+-- two, the presentation contract's own onPresent, for a plugin whose rows depend on an async
+-- fetch nothing else has necessarily warmed, VPN among them. Never told on pop, which
+-- restores a presentation rather than making it current through either door, decision two's
+-- own three doors, present, push, and the hotkey, pop not being one of them.
+function obj:_announce(p)
+  if p.onPresent then p.onPresent() end
 end
 
 --- Stage:present(p) -> bool
@@ -265,15 +313,10 @@ end
 --- level of whatever happened to be showing. Resets the highlight to row one either way.
 --- Answers false and refuses when p is not a presentation this host can show.
 ---
---- The discarded stack, if there was one, is told its own onClose top down before it is
---- dropped, decision six, UNLESS the discarded stack was already exactly p alone, which is a
---- reopen of what is already current rather than anything hiding, the shape a tool's own
---- hotkey opening its own already-open list needs and the one case that must not fire a
---- presentation's onClose over being asked to show itself again.
----
---- The world is captured exactly when the window was hidden, once per stack by construction
---- rather than once per hidden present, findings two and five, since a fresh stack and a
---- world capture are the same branch inside _show and cannot drift apart.
+--- Every discarded level except p itself, wherever it sits in the old stack, is told its own
+--- onClose top down before it is dropped, decision six, closing finding three, a reopen of
+--- p from any depth is a reshow rather than a close and must never fire p's own onClose over
+--- being asked to show itself again.
 function obj:present(p)
   if not isPresentation(p) then
     log.w("Stage present was given something that is not a presentation, name, rows, and onSelect are all required, refusing")
@@ -284,12 +327,9 @@ function obj:present(p)
     return false
   end
 
-  local old = self._stack
   local wasShowing = self._instance:isShowing()
-  if not (#old == 1 and old[1] == p) then
-    closeStack(old)
-  end
-  self._stack = { p }
+  self:_freshStack(p, self._stack)
+  self:_announce(p)
   self:_show(p, wasShowing)
   return true
 end
@@ -299,15 +339,15 @@ end
 --- The row selection door, decision one and two of the handoff brief. Stacks p on top of
 --- whatever is already showing, the shape a launcher row choosing a presenting tool wants,
 --- so drilling into VPN from the launcher is a swap into a window already up rather than a
---- close and a reopen. Tells nobody's onClose, decision six, since pushing discards
---- nothing, it only adds a level. Answers false and refuses when p is not a presentation
---- this host can show.
+--- close and a reopen. Tells nobody's onClose when it stacks, decision six, since stacking
+--- discards nothing, it only adds a level. Answers false and refuses when p is not a
+--- presentation this host can show.
 ---
 --- A push that finds the window hidden has nothing to stack on top of, so it degrades to
---- present's own fresh stack and world capture instead, the correct answer for a caller
---- that assumed a window already up and was wrong, rather than an undefined third shape.
---- Pushing the presentation already on top is a reopen, the identical dedup present's own
---- reopen case keeps, and neither pushes a duplicate level nor fires anyone's onClose.
+--- present's own fresh stack, findings three, five, and eight together, closing finding
+--- eight's own gap where this branch used to discard a stack in silence while present told
+--- it. Pushing the presentation already on top is a reopen, the identical dedup present's
+--- own reopen case keeps, and neither pushes a duplicate level nor fires anyone's onClose.
 function obj:push(p)
   if not isPresentation(p) then
     log.w("Stage push was given something that is not a presentation, name, rows, and onSelect are all required, refusing")
@@ -320,10 +360,11 @@ function obj:push(p)
 
   local wasShowing = self._instance:isShowing()
   if not wasShowing then
-    self._stack = { p }
+    self:_freshStack(p, self._stack)
   elseif self:_current() ~= p then
     self._stack[#self._stack + 1] = p
   end
+  self:_announce(p)
   self:_show(p, wasShowing)
   return true
 end
@@ -333,7 +374,8 @@ end
 --- Back one presentation, restoring the one below with an empty query and the highlight at
 --- row one, answering false when the stack holds one or none, the case that leaves backspace
 --- an ordinary press. Tells only the one leaving its own onClose, decision six, never the one
---- it lands back on, since that one is not hiding, it is what is left showing. Self
+--- it lands back on, since that one is not hiding, it is what is left showing, and never
+--- calls onPresent either, restoring is not becoming current through present or push. Self
 --- sufficient, rebuilding the rows and the highlight itself rather than relying on being
 --- called only from the atom's own back path, so a caller reaching this directly gets the
 --- same result Backspace does.
@@ -408,8 +450,16 @@ end
 
 --- Stage:world() -> hs.application, number
 --- Method
---- The app this stack covers and the id of this open, captured once per stack at the first
---- present over a hidden window. Nil before the first capture.
+--- The app this stack covers and the id of this open. The two halves are captured on
+--- different terms, phase three review finding five, since decision one made a present over
+--- a visible window a normal and expected thing and the old single invariant, one capture per
+--- fresh stack, stopped holding for both halves at once. The covered app is tied to the
+--- window's own appearance, _captureCoveredApp, since a stack replaced while the window stays
+--- up still covers the same app that window originally opened over, focus never having had
+--- anywhere to go. The open id is tied to the stack instead, _bumpOpenId, advancing on every
+--- fresh stack regardless of visibility, so a consumer keying a cache off this id, the reason
+--- BRIEF-STAGE.md decision seven wants it captured at all, never serves an answer that
+--- belongs to whatever the stack held before a replacement. Nil before the first capture.
 function obj:world()
   return self._coveredApp, self._openId
 end
