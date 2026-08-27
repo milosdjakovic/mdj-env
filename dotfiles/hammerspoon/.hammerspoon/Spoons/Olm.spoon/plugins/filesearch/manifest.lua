@@ -183,6 +183,14 @@ return {
       stageTextWidth = { source = "root", policy = "optional",
         breaks = "fitDir has no way to measure a candidate string at all, so it answers the " ..
                  "unfitted directory unconditionally rather than narrowing it to fit" },
+      -- Review finding H6. selectedRow, onPositioned's own seed call, and M.refresh all used
+      -- to read a module local cache seeded only by the atom's own poll and never cleared on
+      -- close, so a cold open answered whatever the previous session had highlighted. This
+      -- word reads the shared widget directly instead.
+      stageSelectedItem = { source = "root", policy = "optional",
+        breaks = "the pane, the peek key, reveal, and copy path all act on whatever the " ..
+                 "previous session last highlighted rather than the row actually under the " ..
+                 "cursor, since selectedRow has no other way to ask the shared widget directly" },
     },
   },
 
@@ -303,14 +311,21 @@ return {
     onPositioned = { member = "chooser.onPositioned", call = "dot" },
     onClose = { member = "chooser.onClose", call = "dot" },
     peekPreview = { member = "chooser.peekPreview", call = "dot" },
-    -- true inherits the chooser's own width, matching what sidepanel.companionWidth(policy)
-    -- already answers whenever the docked viewer is available and policy.width names nothing,
-    -- which is every real config today. A person setting previewWith = false to decline the
-    -- docked seat outright still reserves this pane under the migration, a plain value having
-    -- no way to read that runtime choice, one honest gap this migration leaves named rather
-    -- than papered over with a fabricated fallback.
-    paneWidth = true,
+    -- Review finding M1. A member spec now, contract v2's own extension, rather than the
+    -- static true this migration first shipped, which centred the pair as if a pane always
+    -- stood up even when the resolved provider asked for none, quicklook's own
+    -- companionWidth() answering 0, or a person setting previewWith = false to decline the
+    -- seat outright. chooser.paneWidth() mirrors M:start's own arithmetic and is resolved
+    -- once, at register, after wiring has already settled which viewer, if any, won.
+    paneWidth = { member = "chooser.paneWidth", call = "dot" },
     matcher = false,
+    -- Rework rider, restored. Every title here is a filename, and the last few characters of
+    -- a filename are its extension. A tail cut spends them first, so a long name arrives as
+    -- "mahamba_gastric-pain-evaluation-protocol_5b…" with the one field that says what KIND
+    -- of thing it is gone. Cutting the middle keeps both ends, the identical value this
+    -- plugin's own retired layout block carried, now travelling as a live written field the
+    -- same way matcher does rather than a construction time only default.
+    titleLineBreak = "truncateMiddle",
   },
 
   -- This plugin's own configure already wires the api wave onto the chooser

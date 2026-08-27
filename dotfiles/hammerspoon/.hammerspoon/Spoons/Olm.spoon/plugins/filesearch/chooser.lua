@@ -66,12 +66,17 @@ local cfg = {
 
 -- Migrated onto host/stage, the trickle migration. This plugin owns no Chooser instance and
 -- builds no window any more, so isShowing lives here instead as a plain flag, true from the
--- moment M.onPresent runs until M.onClose says otherwise. lastHighlighted is the item the
--- presentation's own onHighlight last named, cached so a re-render asked for outside a fresh
--- highlight event has something to redraw without an instance of its own left to ask
--- selectedItem() of, the identical shape processes' own migration already carries.
+-- moment M.onPresent runs until M.onClose says otherwise.
+--
+-- Review finding H6. This file used to also hold lastHighlighted, a module local cache set
+-- only by the atom's own onHighlight and read back everywhere else that wanted "the row under
+-- the cursor right now". It was never seeded any other way and never cleared on close, so a
+-- cold open answered whatever the previous session had highlighted for one full poll interval,
+-- 80 milliseconds, since the atom's own poll fires no sooner than that and a direct read of
+-- the widget answers instantly instead. cfg.stageSelectedItem, host/stage's own
+-- Stage:selectedItem() published for exactly this, replaces every read the cache used to
+-- answer, so there is no cache left to seed or to forget to clear.
 local showing = false
-local lastHighlighted = nil
 
 -- The provider in use for this picker, resolved once in start, see resolveViewer.
 --
@@ -397,12 +402,10 @@ local function openPath(path, reveal)
   if t then t:start() end
 end
 
--- Migrated onto host/stage. Reads lastHighlighted rather than an instance this file no
--- longer holds, populated by onHighlight below on every highlight event, which always runs
--- at least once before this could ever be called, the atom seeding the highlight before it
--- positions anything on every fresh show.
+-- Review finding H6. Reads cfg.stageSelectedItem live rather than a cache, an instance this
+-- file no longer holds directly but the stage still does.
 local function selectedRow()
-  local item = lastHighlighted
+  local item = cfg.stageSelectedItem and cfg.stageSelectedItem()
   if not item or item.status or item.help then return nil end
   return item
 end
@@ -432,11 +435,19 @@ end
 -- The presentation's own onHighlight, host/stage's own poll still fired for the identical
 -- reason the atom's own poll used to feed the picker this file no longer owns. A row with
 -- nothing to describe, a status row or a help row, clears the pane rather than leaving a
--- stale one beside the list. Cached into lastHighlighted too, since selectedRow above and the
--- seed call in onPositioned below both need the current highlight with no instance left to
--- ask selectedItem() of.
+-- stale one beside the list.
+--
+-- Review finding H7. This is the atom facing wiring the plugin's own CLAUDE.md records the
+-- followsHighlight gate for, at 995 through 1002, "under Quick Look that meant merely opening
+-- the picker threw a panel onto the screen for whatever row happened to be first, and a
+-- result set landing threw another." A provider that is asked for rather than followed,
+-- quicklook.lua's own followsHighlight = false, must never be handed a highlight event, since
+-- it opens a real window on every one rather than drawing into a docked rect. Gated at the
+-- one seam that reaches every caller, this function itself, rather than only at the call
+-- sites the migration happened to touch, M.refresh's own gate at :709 and onPositioned's own
+-- seed gate below being the two that already survived.
 local function onHighlight(item)
-  lastHighlighted = item
+  if not viewer.followsHighlight then return end
   if item and item.path and not (item.status or item.help) then
     viewer.show(item)
   else
@@ -457,13 +468,18 @@ local function onPositioned(chooserFrame, companionFrame)
   if companionFrame then
     viewer.dock(companionFrame)
     -- The atom seeds the highlight before it positions anything, so the first onHighlight lands
-    -- with nowhere to draw. This is what fills the pane on open.
+    -- with nowhere to draw. This is what fills the pane on open. Review finding H6, reads
+    -- cfg.stageSelectedItem live, which answers correctly even at this exact moment, before
+    -- the atom's own isVisible() would say true, host/stage/init.lua's own Stage:selectedItem()
+    -- guarding on the stack rather than on that for precisely this call.
     --
-    -- Gated on the same question the poll is, and it has to be. This call is a direct one rather
-    -- than one the atom makes, so without the gate it reached a provider that is supposed to be
-    -- asked rather than followed. Under Quick Look that meant merely opening the picker threw a
-    -- panel onto the screen for whatever row happened to be first, which is the back row.
-    if viewer.followsHighlight then onHighlight(lastHighlighted) end
+    -- Gated on the same question the poll is, and it has to be, though onHighlight now keeps
+    -- its own copy of this gate too, review finding H7, so this outer one is belt and braces
+    -- rather than the only thing standing between a highlight event and a provider that is
+    -- supposed to be asked rather than followed.
+    if viewer.followsHighlight then
+      onHighlight(cfg.stageSelectedItem and cfg.stageSelectedItem())
+    end
   end
 end
 
@@ -583,13 +599,16 @@ end
 
 --- chooser.onHighlight, chooser.onScroll, chooser.onPositioned - the presentation contract's
 --- own pane hooks, named on the manifest's own presentation block, exposing the file local
---- functions already defined above without a second copy to disagree with. onScroll wraps
---- viewer.scrollBy directly, the atom's own trackpad and wheel callback and the two scroll
---- keys both going through the identical verb, so a pane is scrolled the same amount whichever
---- one asked, and it costs nothing when the provider reserved no rect, NO_VIEWER's own
---- scrollBy already being a no op.
+--- functions already defined above without a second copy to disagree with. onHighlight
+--- carries its own followsHighlight gate now, review finding H7, so exposing it directly is
+--- safe. onScroll wraps viewer.scrollBy, the atom's own trackpad and wheel callback and the
+--- two scroll keys both going through the identical verb, so a pane is scrolled the same
+--- amount whichever one asked, gated the identical way onHighlight is, since a provider that
+--- is asked for rather than followed reserves no companion rect for a trackpad to scroll
+--- either, the same bug class H7 restores the gate against.
 M.onHighlight = onHighlight
 function M.onScroll(points)
+  if not viewer.followsHighlight then return end
   viewer.scrollBy(points)
 end
 M.onPositioned = onPositioned
@@ -660,6 +679,32 @@ function M.onPresent()
   M.beginSession()
 end
 
+--- chooser.placeholder() -> string. The field hint while this plugin's own presentation is
+--- current, named on the manifest's own presentation block. Review finding H1. The manifest
+--- named this member from the day it migrated and this file never defined it, so the
+--- registrar refused the whole presentation at register, silently, with the only trace two
+--- console lines nothing forced anyone to go read, taking every launcher row, every scope,
+--- and every routed key with it. Resolved once, at register, since the presentation contract
+--- wants a plain string a presentation carries rather than a function to call again later.
+--- Answers cfg.placeholder unchanged, the identical value this plugin's own retired
+--- Chooser.new call passed straight through with no fallback of its own.
+function M.placeholder()
+  return cfg.placeholder
+end
+
+--- chooser.paneWidth() -> number, true, or 0. Review finding M1. paneWidth used to flatten to
+--- a static true in the manifest, which centred the pair as if a pane always stood up even
+--- when the resolved provider asked for none, quicklook's own companionWidth() answering 0 or
+--- previewWith = false declining the seat outright. Resolved once, at register, contract v2's
+--- own extension letting paneWidth be a member spec the identical way placeholder already is,
+--- by which point M:start has already resolved viewer, so this answers the real reservation
+--- rather than a number frozen before the viewer chain ever ran. Mirrors M:start's own
+--- companionWidth = viewer.companionWidth(policy) line exactly, recomputing policy from
+--- cfg.preview since that local does not survive past M:start's own return.
+function M.paneWidth()
+  return viewer.companionWidth(cfg.preview or {})
+end
+
 --- chooser.rowsForQuery(q) -> the rows a query draws, for a surface other than this picker.
 ---
 --- The row supplier itself, exposed rather than reimplemented, so a second surface shows the
@@ -706,7 +751,13 @@ end
 function M.refresh()
   if showing then
     if cfg.redrawPresented then cfg.redrawPresented("fileSearch") end
-    if viewer.followsHighlight then onHighlight(lastHighlighted) end
+    -- Review finding H6. Reads cfg.stageSelectedItem live, the same substitution
+    -- selectedRow and onPositioned's own seed call already make, so the re render this
+    -- function exists for repaints the row actually under the cursor rather than a memo of
+    -- whichever row last fired a highlight event.
+    if viewer.followsHighlight then
+      onHighlight(cfg.stageSelectedItem and cfg.stageSelectedItem())
+    end
   end
 end
 
