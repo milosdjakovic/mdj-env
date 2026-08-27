@@ -98,10 +98,17 @@ return {
     },
 
     -- Everything below is root or user data configure reads that this plugin cannot derive
-    -- and that had no declaration anywhere. All eight are optional, because every one of them
+    -- and that had no declaration anywhere. All nine are optional, because every one of them
     -- has a working, if diminished, absence already built into configure, none of them make
     -- this plugin refuse to wire.
     data = {
+      -- The stage, host/stage, the one host owning the live chooser instance this plugin
+      -- presents into since the chooser stage build, phase two. Root computed, since the stage
+      -- is one of the host modules the composition root alone is allowed to name, the same
+      -- exception this manifest's own sibling table already used for the domain spoons this
+      -- plugin's leaf actions call into.
+      stage = { source = "root", policy = "optional",
+        breaks = "this plugin builds no presentation and no navigation surface, so its list never opens at all, no window, no rows, and no way for the shared list keys to reach it" },
       -- The per app toggle list, the same value the app toggler and the Hyper cheat sheet both
       -- declare under this name, so one answer reaches all three and none of them is named by
       -- the person's own file.

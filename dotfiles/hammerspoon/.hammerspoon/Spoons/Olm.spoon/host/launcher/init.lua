@@ -6,12 +6,11 @@
 --- owns real state, the app scan caches and an hs.application.watcher, so it is a
 --- spoon of its own rather than inline wiring in the composition root. It never
 --- names a domain spoon. The root injects every collaborator through configure,
---- the Chooser factory, the pure keys and apps data, the window actions table, a
+--- the stage it presents into, the pure keys and apps data, the window actions table, a
 --- glyph resolver, the settings pane descriptors, the shared predicate registry,
---- the docked shortcut panel callbacks, the tool registry from phase seven of the
---- build plan, the shared glyph icon drawer from phase eight's third packet, and
---- a small dispatch of leaf actions that do name the domain spoons. So the
---- launcher owns the row building, the matching,
+--- the tool registry from phase seven of the build plan, the shared glyph icon drawer
+--- from phase eight's third packet, and a small dispatch of leaf actions that do name
+--- the domain spoons. So the launcher owns the row building, the matching,
 --- the app enumeration, and the command dispatch structure, and knows nothing
 --- about what a row ultimately does.
 ---
@@ -19,6 +18,13 @@
 --- descriptor, its kind plus a name or bundle id, never a function, because the
 --- Chooser hands each row to hs.chooser which serialises it and would drop a
 --- function. runItem turns that descriptor back into the injected call.
+---
+--- Since the chooser stage build's phase two, this host owns no chooser instance of its own.
+--- It builds one presentation, a plain table of policy, and hands it to host/stage, the one
+--- host owning the single live instance every tool presents into, so its own show is a
+--- present into that stage, its hide and refresh and its navigation surface are the stage's
+--- own. Its rows supplier, its dispatcher, its intercept routing, its page mechanism, and its
+--- recency all stay exactly here, unchanged, the stage only owns the window they show in.
 ---
 --- This is the olm side copy of Launcher, made in the host into olm pass on 2026-08-07, and
 --- the original this was copied from lived at Spoons/Launcher.spoon.
@@ -35,8 +41,7 @@ obj.license = "MIT"
 local log = hs.logger.new("Launcher", "info")
 
 -- Injected via configure
-obj._chooser = nil          -- the Chooser factory (has .new)
-obj._theme = nil
+obj._stage = nil            -- host/stage, the one host owning the live chooser instance
 obj._placeholder = nil
 obj._keys = nil
 obj._apps = nil
@@ -45,7 +50,6 @@ obj._windowLeaderName = nil
 obj._glyphFor = nil         -- function(key, mods) -> chord glyph string
 obj._settingsPanes = nil    -- raw settings pane descriptors, injected by the root
 obj._predicates = nil       -- shared predicate registry, for `when` gating
-obj._shortcutPanel = nil    -- { onPositioned, onActivity, onClose }
 obj._actions = nil          -- leaf dispatch: app, capture, settingsPane, special, rowIntercept
 obj._queryProviders = nil   -- ordered query row sources, each answering rows(query)
 obj._aliasHint = nil        -- function(name) -> subtitle fragment, "" when there is none
@@ -53,8 +57,8 @@ obj._registry = nil         -- the tool registry, dot called, optional, see conf
 obj._icons = nil            -- the shared glyph icon drawer, Olm.spoon/lib/glyphicon.lua, dot called
 
 -- Owned state
-obj._instance = nil         -- the built Chooser instance
-obj._surface = nil          -- dot-called navigation adapter over the instance
+obj._presentation = nil     -- this host's one presentation, handed to the stage, never rebuilt
+obj._surface = nil          -- the stage's own nav adapter, delegated to rather than built here
 obj._actionRows = nil
 obj._settingsPaneRows = nil
 obj._configuredApps = nil
@@ -139,8 +143,7 @@ end
 --- Configure with every injected collaborator. See the field list above.
 function obj:configure(opts)
   opts = opts or {}
-  self._chooser = opts.chooser
-  self._theme = opts.theme
+  self._stage = opts.stage
   self._placeholder = opts.placeholder or "Search apps and commands"
   -- The per app toggle list, the same one the app toggler and the Hyper cheat sheet already
   -- receive under this name. This host used to take the whole key catalog and reach into it
@@ -176,7 +179,6 @@ function obj:configure(opts)
   self._chordLabel = opts.chordLabel or self._chordLabel
   self._settingsPanes = opts.settingsPanes or {}
   self._predicates = opts.predicates or {}
-  self._shortcutPanel = opts.shortcutPanel or {}
   self._actions = opts.actions or {}
   -- The tool registry, phase seven of the build plan. Optional, and a launcher configured
   -- without one dispatches a special row through actions.special alone, exactly as it did
@@ -201,13 +203,19 @@ function obj:configure(opts)
 
   self._configuredApps = self:_buildConfiguredApps()
 
-  -- The Chooser instance, wired with the docked shortcut panel callbacks. The row
-  -- runs deferred, after the chooser tears down and macOS restores focus to the app
-  -- that was frontmost before the launcher opened, since a window action acts on
-  -- hs.window.focusedWindow().
-  local sp = self._shortcutPanel
-  self._instance = self._chooser.new({
-    theme = self._theme,
+  -- The one presentation this host hands the stage, built once here and reused for the life
+  -- of this spoon, never rebuilt, mirroring decision one of the stage design brief that the
+  -- instance behind it is never rebuilt either. Every function below is exactly what used to
+  -- go straight into Chooser.new's own config in this same place. The row still runs
+  -- deferred, after the chooser tears down and macOS restores focus to the app that was
+  -- frontmost before the launcher opened, since a window action acts on
+  -- hs.window.focusedWindow(). What is gone is the docked shortcut panel triple, onPositioned,
+  -- onActivity, and onClose, which this host no longer passes anywhere. The stage owns that
+  -- triple now as fixed, atom level policy rather than something a presentation carries, and
+  -- the composition root hands it this host's own panel directly when it configures the
+  -- stage, before the stage is ever handed to this host.
+  self._presentation = {
+    name = "launcher",
     placeholder = self._placeholder,
     rows = function(query) return self:_commandRows(query) end,
     onSelect = function(item)
@@ -224,16 +232,17 @@ function obj:configure(opts)
       end
     end,
     -- Whether a row means this list becomes another list rather than being taken, asked by the
-    -- atom before it lets a row close. The launcher only routes the question, exactly as it
-    -- routes running a row and peeking at one, so it still learns nothing about what a scope or
-    -- a tool is. Whoever answers acts through the two public doors below, seedQuery and
+    -- stage before it lets a row close, routed straight through to the atom underneath exactly
+    -- as it always reached the atom directly. The launcher only routes the question, exactly as
+    -- it routes running a row and peeking at one, so it still learns nothing about what a scope
+    -- or a tool is. Whoever answers acts through the two public doors below, seedQuery and
     -- enterPage.
     --
-    -- Promoting happens HERE and not in _replacementFor, because the atom calls this closure only
-    -- when a row is actually being taken while the shortcut hint asks _replacementFor on every
-    -- highlight move to decide what to call the key. Taking a row that replaces the list is
-    -- still using the thing it points at, so it belongs in the shared recency order exactly as
-    -- running it did, and it lands under the same key running it produced. A row with no
+    -- Promoting happens HERE and not in _replacementFor, because the stage calls this closure
+    -- only when a row is actually being taken while the shortcut hint asks _replacementFor on
+    -- every highlight move to decide what to call the key. Taking a row that replaces the list
+    -- is still using the thing it points at, so it belongs in the shared recency order exactly
+    -- as running it did, and it lands under the same key running it produced. A row with no
     -- identity to remember, which is every row a scope computed, answers nil to recencyKey and
     -- so stays out of the timeline as it always has.
     intercept = function(item)
@@ -243,27 +252,23 @@ function obj:configure(opts)
       self:_promote(recencyKey(item))
       return true
     end,
-    -- Backspace on an empty field, which is how you leave a hosted list. The atom asks only
-    -- when there is nothing to delete, so this never competes with ordinary editing.
+    -- Backspace on an empty field, which is how you leave a hosted list. The stage asks only
+    -- when the presentation below declines, and the atom underneath only asks the stage at
+    -- all when there is nothing to delete, so this never competes with ordinary editing.
     back = function() return self:leavePage() end,
-    onPositioned = sp.onPositioned,
-    onActivity = sp.onActivity,
-    onClose = sp.onClose,
-  })
-
-  -- Dot-called navigation adapter over the colon-called Chooser instance, so the
-  -- root's shared activeChooser / routeNav registry drives it like the other pickers.
-  local instance = self._instance
-  self._surface = {
-    isShowing = function() return instance:isShowing() end,
-    selectNext = function() instance:selectNext() end,
-    selectPrev = function() instance:selectPrev() end,
-    insertSelected = function() instance:insertSelected() end,
-    -- The same verb name the tools' own pickers answer, so one routed action reaches whichever
-    -- list is open and this one needs no case of its own in the root.
+    -- The same verb name the tools' own pickers answer, carried on the presentation rather
+    -- than the formal contract's own nine fields since it is UI surface rather than chooser
+    -- policy, so one routed action reaches whichever list is open and this one needs no case
+    -- of its own in the root. See host/stage's own surface, which delegates it to whichever
+    -- presentation is current when one answers it.
     peekPreview = function() self:peekSelected() end,
-    hide = function() instance:hide() end,
   }
+
+  -- The stage's own nav adapter, shared rather than built here. A host that owned its
+  -- instance built its own dot-called adapter over it; a host that presents into a shared
+  -- one delegates to the one adapter the stage already built over that instance, so the
+  -- root's shared activeChooser / routeNav registry drives it exactly as it always did.
+  self._surface = self._stage and self._stage.surface or nil
 
   return self
 end
@@ -740,7 +745,7 @@ end
 --- Only a claimed row has anywhere to send the question. An app or a command is already fully
 --- described by its own row, so there is deliberately no second thing to show for one.
 function obj:peekSelected()
-  local it = self._instance and self._instance:selectedItem()
+  local it = self._stage and self._stage:selectedItem()
   if not it or it.kind ~= "scope" then return end
   if self._actions.scopePeek then self._actions.scopePeek(it) end
 end
@@ -751,7 +756,7 @@ end
 --- binding. A key that is bound and inert is the disagreement the shortcut hints exist to avoid,
 --- so the question is answered live rather than assumed from the list being open.
 function obj:canPeekSelected()
-  local it = self._instance and self._instance:selectedItem()
+  local it = self._stage and self._stage:selectedItem()
   if not it or it.kind ~= "scope" then return false end
   local ask = self._actions.scopeCanPeek
   return ask ~= nil and ask(it) == true
@@ -795,7 +800,7 @@ end
 --- exposes nothing new. What any kind should be CALLED stays outside, since a word shown to a person
 --- belongs to the root and to config by the rule the whole configuration follows.
 function obj:selectedKind()
-  local it = self._instance and self._instance:selectedItem()
+  local it = self._stage and self._stage:selectedItem()
   return it and it.kind or nil
 end
 
@@ -811,9 +816,9 @@ end
 --- into a query neither of them meant, which is what choosing an alias inside the hosted directory
 --- did before, asking for the directory's own rows filtered by the word it had just handed over.
 function obj:seedQuery(text)
-  if not self._instance or type(text) ~= "string" or text == "" then return false end
+  if not self._stage or type(text) ~= "string" or text == "" then return false end
   self:leavePage()
-  self._instance:setQuery(text)
+  self._stage:setQuery(text)
   return true
 end
 
@@ -834,10 +839,10 @@ end
 --- visible. The way out is not said here. It is a listed key in the shortcut panel like every other
 --- key, gated on a page existing, since a sentence in a placeholder was doing a panel's job worse.
 function obj:enterPage(prefix, title)
-  if not self._instance or type(prefix) ~= "string" or prefix == "" then return false end
+  if not self._stage or type(prefix) ~= "string" or prefix == "" then return false end
   self._page = prefix
-  self._instance:setQuery("")
-  self._instance:setPlaceholder(title or "This list")
+  self._stage:setQuery("")
+  self._stage:setPlaceholder(title or "This list")
   return true
 end
 
@@ -859,10 +864,10 @@ end
 --- choosing that scope's row does.
 ---
 --- With no page hosted this is simply what is typed, since `_commandRows` itself asks the query
---- sources with nothing in front of it in that case. With no chooser instance at all this
---- answers the empty string, the same nothing typed answers.
+--- sources with nothing in front of it in that case. With no stage at all this answers the
+--- empty string, the same nothing typed answers.
 function obj:currentQuery()
-  local typed = (self._instance and self._instance:query()) or ""
+  local typed = (self._stage and self._stage:query()) or ""
   if self._page then return self._page .. typed end
   return typed
 end
@@ -874,9 +879,9 @@ end
 function obj:leavePage()
   if not self._page then return false end
   self._page = nil
-  if self._instance then
-    self._instance:setQuery("")
-    self._instance:setPlaceholder(self._placeholder)
+  if self._stage then
+    self._stage:setQuery("")
+    self._stage:setPlaceholder(self._placeholder)
   end
   return true
 end
@@ -887,9 +892,7 @@ end
 --- answer arrives late calls this through the callback the root injects into it, so the
 --- row appears without the user typing again. A no op while the launcher is closed.
 function obj:refresh()
-  if self._instance and self._instance:isShowing() then
-    self._instance:refresh()
-  end
+  if self._stage then self._stage:refresh() end
 end
 
 --- Launcher:_runItem(it)
@@ -1008,14 +1011,14 @@ function obj:show(query)
   if not (SELF_BUNDLE and front and front:bundleID() == SELF_BUNDLE) then
     self._coveredApp = front
   end
-  if not self._instance then return end
+  if not self._stage then return end
   -- Every open starts on this catalog with this placeholder, whatever list the previous open was
   -- left hosting when it closed. Done before the show, since showing builds the first rows.
   self:leavePage()
-  self._instance:show()
+  self._stage:present(self._presentation)
   if query and query ~= "" then
-    self._instance:setQuery(query)
-    self._instance:refresh(true)
+    self._stage:setQuery(query)
+    self._stage:refresh(true)
   end
 end
 
@@ -1028,15 +1031,19 @@ end
 
 --- Launcher:isShowing()
 --- Method
---- Whether the launcher chooser is open. Safe before configure.
+--- Whether the launcher itself, rather than some other presentation, is what the stage is
+--- currently showing. Safe before configure. Checking the stage's own current name rather
+--- than only whether the stage is visible at all is what keeps this answering false once a
+--- future presentation is what the shared window actually holds.
 function obj:isShowing()
-  return self._instance ~= nil and self._instance:isShowing()
+  return self._presentation ~= nil and self._stage ~= nil
+    and self._stage:current() == self._presentation.name
 end
 
 --- Launcher:surface()
 --- Method
 --- The dot-called navigation adapter, for the root to register in its shared
---- choosers list.
+--- choosers list. The stage's own, delegated to rather than built here.
 function obj:surface()
   return self._surface
 end

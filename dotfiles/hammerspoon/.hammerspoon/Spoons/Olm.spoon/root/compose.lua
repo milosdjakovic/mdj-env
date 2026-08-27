@@ -17,12 +17,12 @@
 -- The rule that matters most. This file is part of a portable spoon. Someone installing Olm
 -- with a different set of plugins still loads this file unchanged, so it must never name a
 -- concrete plugin under plugins, never assume one exists, and never hold a roster of
--- anything a plugin set could answer for itself. The four modules under host are the one
+-- anything a plugin set could answer for itself. The five modules under host are the one
 -- exception, and it is a considered one rather than an oversight. They are Olm's own fixed
 -- apparatus, shipped with the spoon itself rather than installed per person the way a
--- plugin is, so naming ActionPanel, HyperCheatSheet, Launcher, or QueryScope here is not the
--- leak naming a swappable plugin would be. Every such seam below is commented as one and
--- says why, and nowhere else in this file may a plugin's own identity appear as a literal.
+-- plugin is, so naming ActionPanel, HyperCheatSheet, Launcher, QueryScope, or Stage here is
+-- not the leak naming a swappable plugin would be. Every such seam below is commented as one
+-- and says why, and nowhere else in this file may a plugin's own identity appear as a literal.
 
 local obj = {}
 
@@ -188,7 +188,7 @@ function obj.run(olm, cfg)
   chooserAtom.configure({
     screen = function() return overlay and overlay.screen() end,
     matcher = chooserAtom.matchers and chooserAtom.matchers[policy.matcher],
-    -- THE SEAM. ActionPanel is one of the four host modules this file is allowed to name.
+    -- THE SEAM. ActionPanel is one of the five host modules this file is allowed to name.
     -- decorate has to be installed before the first Chooser.new call anywhere or every
     -- instance keeps its own rows and the panel decorates nothing, which is Fact 2, and
     -- landing it here, before a manifest is even read, is what stops that constraint from
@@ -562,7 +562,7 @@ function obj.run(olm, cfg)
   -- arrived yet.
   --
   -- A closure rather than a value because the surface it repaints is the launcher, one of the
-  -- four host modules this file may name, and the lookup happens INSIDE it because this runs
+  -- five host modules this file may name, and the lookup happens INSIDE it because this runs
   -- before the plan exists. Supplying it from here is what keeps the plugins from ever learning
   -- the launcher exists. Each one only takes a function and calls it when its own fetch
   -- finishes, which is why that logic could move out of the retired root and onto the plugins.
@@ -868,7 +868,7 @@ function obj.run(olm, cfg)
     if activeCtx then
       heldHyperLayer = "none"
     else
-      -- THE SEAM. HyperCheatSheet is one of the four host modules this file may name.
+      -- THE SEAM. HyperCheatSheet is one of the five host modules this file may name.
       local sheet = modules[plan.identity.hypercheatsheet or "hypercheatsheet"]
       if sheet then sheet:show() end
       heldHyperLayer = "apps"
@@ -1031,6 +1031,26 @@ function obj.run(olm, cfg)
 
   local perPluginData = servicesLib.perPlugin(plan, manifests, perPluginDeps)
 
+  -- Stage's own data, built here for the same reason ActionPanel's own three are, its
+  -- manifest asks for values only the root can compute and the ordinary stage two configure
+  -- reaches every plugin in the plan regardless of when else it might be handed them. chooser
+  -- and theme are exactly what a surfaced plugin already receives ambiently, handed over
+  -- explicitly because this host opens no context of its own and so earns nothing through
+  -- that entitlement. The panel triple is the launcher's own, the only one that exists yet,
+  -- read straight off perPluginData two lines above rather than waiting for launcherOpts
+  -- further down, since the stage design brief's own decision hands the docked shortcut
+  -- panel to the stage as fixed, atom level policy rather than as something a presentation
+  -- carries, and the launcher is still the one presentation there is.
+  local stagePanel = perPluginData.launcher and perPluginData.launcher.shortcutPanel
+  local stageOpts = {
+    chooser = chooserAtom,
+    theme = policy.chooserTheme,
+    placeholder = policy.placeholder,
+    onPositioned = stagePanel and stagePanel.onPositioned,
+    onActivity = stagePanel and stagePanel.onActivity,
+    onClose = stagePanel and stagePanel.onClose,
+  }
+
   -- fannedData WINS, and its absence here altogether was the single worst defect in this build.
   --
   -- Everything a person supplies arrives in it, cfg.shared fanned out by field name and
@@ -1057,6 +1077,7 @@ function obj.run(olm, cfg)
     hypercheatsheet = hyperCheatSheetOpts,
     queryscope = queryScopeOpts,
     actionpanel = actionPanelOpts,
+    stage = stageOpts,
   }, fannedData)
 
   -- What step K hands over in its own later calls, recorded as it goes so the delivery check at
@@ -1520,14 +1541,18 @@ function obj.run(olm, cfg)
       end
     end
 
+    -- THE SEAM. Stage is one of the five host modules this file may name. It is fully
+    -- configured already, in the ordinary stage two pass above, so this is only the reference
+    -- the launcher presents into, the same shape chooser used to be handed here before this
+    -- host existed.
+    local stageModule = modules[plan.identity.stage or "stage"]
+
     local launcherOpts = {
-      chooser = ambientServices.chooser,
-      theme = ambientServices.theme,
+      stage = stageModule,
       placeholder = ambientServices.placeholder,
       toggles = sharedData and sharedData.toggles,
       apps = sharedData and sharedData.apps,
       predicates = ownPredicates,
-      shortcutPanel = perPluginData.launcher and perPluginData.launcher.shortcutPanel,
       queryProviders = queryProviders,
       -- The drawer itself, not its icon function. This host stores what it is given and then
       -- calls .icon on it, so handing over the function alone made every row build raise the
