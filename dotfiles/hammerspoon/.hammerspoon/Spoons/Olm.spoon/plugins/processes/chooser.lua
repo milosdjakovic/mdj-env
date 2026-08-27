@@ -25,6 +25,14 @@
 --- three are tied together. It owns the row lookup the pane needs, the highlight the
 --- pane follows, and the tick the pane redraws on, and the pane itself knows none of
 --- them.
+---
+--- Migrated onto host/stage, the trickle migration, docs/BRIEF-CONTRACT-V2.md. This file
+--- owns no chooser instance and builds no window any more. Its rows, its selection dispatch,
+--- and its pane hooks are exactly what they always were, now named on the manifest's own
+--- presentation block instead of handed to a Chooser.new call this file no longer makes. Its
+--- own documented rule that a scan must land before the picker ever shows is what needed
+--- contract v2's own second addition, enter, rather than being quietly dropped to fit a
+--- contract that could not otherwise express it.
 
 local M = { name = "Processes.chooser" }
 
@@ -35,18 +43,43 @@ local preview = loadfile(chooserPath .. "preview.lua")()
 local icons = loadfile(chooserPath .. "icons.lua")()
 
 local cfg = {}         -- injected, api from the spoon root, view deps from the main root
-local chooser = nil    -- the one native Chooser instance
 local rows = {}        -- rows from the most recent scan, read by the supplier
 local pending = nil    -- a stop awaiting confirmation, { row = ..., message = ... }
 local reopen = false   -- ask onClose to re-show rather than end, for the confirmation
 local scanning = false -- guards against overlapping scans from a fast refresh
 local misses = 0       -- consecutive samples that found no window, see onSample
 
+-- Migrated onto host/stage, the trickle migration. This plugin owns no Chooser instance of
+-- its own any more, so isShowing lives here instead as a plain flag, true from the moment
+-- chooser.enter's own proceed is about to fire until chooser.onClose says otherwise, the
+-- window this plugin used to ask isShowing() directly having become a fact only the stage
+-- itself now holds. lastHighlighted is the item the presentation's own onHighlight last
+-- named, cached so a re-render asked for outside a fresh highlight event, a rescan or a
+-- reorder under a stationary highlight, has something to redraw without a chooser instance
+-- of its own left to ask selectedItem() of.
+local showing = false
+local lastHighlighted = nil
+
 -- The pending re-show, held until it fires. A Hammerspoon timer is userdata whose finalizer
 -- stops it, so one nothing refers to can be collected before it runs, and the confirmation
 -- would then never appear, leaving a stop the user asked for silently abandoned. Only one
 -- re-show is ever pending, since it is armed on the single selection that needs confirming.
 local reopenTimer = nil
+
+-- Every proceed still waiting on the scan chooser.enter is already running, contract v2
+-- decision two. A second enter while the first is still in flight does not start a second
+-- scan, cfg.api.scan's own note on being asked to overlap, it joins this list instead and is
+-- called once the one scan already running lands, alongside whichever proceed started it.
+-- host/stage's own generation guard is what makes calling a stale one harmless, so this list
+-- never has to work out which of its own entries still matter.
+local entering = {}
+
+-- The longest a scan is ever given before enter proceeds regardless, contract v2 decision
+-- two's own requirement that a deferring presentation arranges its own timeout, the identical
+-- discipline VPN's FETCH_TIMEOUT already keeps, so a task that never calls back cannot strand
+-- a person on a launcher row that silently does nothing. Chosen well past what an ordinary
+-- local scan ever takes, M.show's own retired design note put that under a tenth of a second.
+local ENTER_TIMEOUT = 5
 
 --------------------------------------------------------------------------------
 -- Row icons
@@ -60,10 +93,11 @@ local ICON_EMPTY = "🚫"
 local ICON_KEEP = "↩️"
 local ICON_STOP = "🛑"
 
--- The detail pane beside the list inherits the chooser's own width by default, the
--- same place the clipboard's preview does, so this surface has no width of its own to
--- keep. A root that wants a different one still passes previewWidth, and the atom's
--- paneMaxW still caps whichever one wins.
+-- The detail pane beside the list inherits the chooser's own width, the manifest's own
+-- presentation.paneWidth = true, the atom's own paneMaxW still capping whichever width wins.
+-- Migrated onto host/stage, this is now a plain declared value rather than something read
+-- off cfg.previewWidth at start, cfg.previewWidth having never been set by anything on the
+-- retired standalone path either, so nothing here loses a capability that was ever exercised.
 
 --------------------------------------------------------------------------------
 -- Row text
@@ -249,9 +283,9 @@ end
 local MISSES_BEFORE_STOP = 3
 
 local function onSample()
-  if chooser and chooser:isShowing() then
+  if showing then
     misses = 0
-    if not pending then chooser:refresh() end
+    if not pending and cfg.redrawPresented then cfg.redrawPresented("processes") end
     -- The pane advances on the same tick as the rows, which is the whole reason it
     -- takes its trail from the sampler rather than keeping one. There is no second
     -- timer anywhere and there must not be, since two of them would drift apart and a
@@ -263,19 +297,13 @@ local function onSample()
   if misses >= MISSES_BEFORE_STOP then metrics.stop() end
 end
 
+-- Migrated onto host/stage. The chooser instance guard is gone along with the instance
+-- itself, showing above being the one fact left to ask, since sampling still means nothing
+-- for the confirmation's own two rows.
 local function startSampling()
-  if not chooser or pending then return end
+  if pending then return end
   misses = 0
   metrics.start(metricTargets, onSample)
-end
-
--- Show the LIST and put the sampler behind it, so there is one place where the two are
--- tied together and no way to open the list without its numbers. The confirmation
--- frame shows the chooser directly instead, since it carries no rows to sample for.
-local function showChooser()
-  if not chooser then return end
-  chooser:show()
-  startSampling()
 end
 
 --------------------------------------------------------------------------------
@@ -309,10 +337,14 @@ local function previewRow(item)
   return item and item.key and rowByKey(item.key) or nil
 end
 
--- The atom's onHighlight target. Fired from a poll, so everything expensive behind it
--- is cached on the row, and a row with nothing behind it, the empty state or a
--- confirmation answer, clears the pane rather than leaving a stale one beside the list.
+-- The presentation's own onHighlight, host/stage's own poll still fired for the identical
+-- reason the atom's own poll used to feed the chooser this file no longer owns. Everything
+-- expensive behind it is cached on the row, and a row with nothing behind it, the empty
+-- state or a confirmation answer, clears the pane rather than leaving a stale one beside the
+-- list. Cached into lastHighlighted too, since renderHighlighted below has no chooser
+-- instance left to ask selectedItem() of and this is the only place that fact is heard fresh.
 local function onHighlight(item)
+  lastHighlighted = item
   preview.show(previewRow(item))
 end
 
@@ -321,19 +353,19 @@ end
 -- Needed because the atom's poll compares the highlighted ROW NUMBER, so when the list
 -- itself changes under a stationary highlight, a rescan or a heat sort, it sees the
 -- same number and never fires. Without this the pane would keep describing whatever
--- used to be in that position.
+-- used to be in that position. Reads lastHighlighted rather than asking an instance this
+-- file no longer holds, safe because onHighlight above always runs at least once before
+-- this could ever be called, the atom seeding the highlight before it positions anything
+-- on every fresh show and this presentation's own onPositioned below never running first.
 local function renderHighlighted()
-  if chooser then onHighlight(chooser:selectedItem()) end
+  onHighlight(lastHighlighted)
 end
 
--- Compose with the root's own onPositioned rather than replacing it. The atom reports
--- both frames, the pane docks into the companion rect it reserved, and the root's
--- shortcut panel still gets its anchor, so neither knows about the other.
---
--- The anchor handed on spans the pair rather than the list alone, the same as the
--- clipboard, so the hints sit full width beneath both panes instead of stopping short
--- under the list. With no pane there is no companion rect and the anchor is the plain
--- chooser frame, exactly as it was before the pane existed.
+-- Migrated onto host/stage. Docks the pane into the companion rect the stage reserved and
+-- seeds its first paint, exactly as before, and drops its own call to cfg.onPositioned and
+-- the anchor arithmetic that built it, since host/stage's own paneAnchor now re anchors the
+-- docked shortcut panel itself, on every path that has real frames to report, and a plugin
+-- still making that call would be a second, competing writer of the identical panel.
 local function onPositioned(chooserFrame, companionFrame)
   if companionFrame then
     preview.dock(companionFrame)
@@ -341,15 +373,6 @@ local function onPositioned(chooserFrame, companionFrame)
     -- onHighlight lands with nowhere to draw. This is what fills the pane on open.
     renderHighlighted()
   end
-  if not cfg.onPositioned then return end
-  local anchor = chooserFrame
-  if companionFrame then
-    anchor = {
-      x = chooserFrame.x, y = chooserFrame.y, h = chooserFrame.h,
-      w = (companionFrame.x + companionFrame.w) - chooserFrame.x,
-    }
-  end
-  cfg.onPositioned(anchor)
 end
 
 -- Run a stop and deal with the three outcomes. Done, refused for a reason the user
@@ -364,12 +387,14 @@ local function runStop(row, opts)
     if not opts.confirmed and message and message:find("confirm") then
       pending = { key = row.key, message = message }
       reopen = true
-      -- The native chooser has already closed on the selection, so the confirm
-      -- frame is shown on the next tick once it has finished hiding. Shown raw
-      -- rather than through showChooser, since the confirmation carries no rows
-      -- and there is nothing for a sampler to feed while it is up.
+      -- The shared instance has already closed on the selection, host/stage's own onClose
+      -- clearing the whole stack the identical way a genuine dismissal does, so the confirm
+      -- frame is shown on the next tick as a fresh present rather than a reshow of anything
+      -- still standing. cfg.stagePresent rather than the retired chooser:show(), migrated
+      -- onto the shared stage. chooser.enter sees pending already set and proceeds at once,
+      -- without paying for a scan the confirmation's own two rows never asked for.
       reopenTimer = hs.timer.doAfter(0, function()
-        if chooser then chooser:show() end
+        if cfg.stagePresent then cfg.stagePresent("processes") end
       end)
       return
     end
@@ -396,22 +421,92 @@ end
 -- Public control surface (dot-called)
 --------------------------------------------------------------------------------
 
---- M.show() - scan, then open on the result.
---- The scan is asynchronous, so the picker is shown only once the rows are in hand,
---- the same order TextCase reads a selection before opening. Showing first and
---- filling in later would flash an empty list on every open for no gain, a scan
---- costs well under a tenth of a second.
+--- M.show() - present through the shared stage. registry.open's own kept fallback, VPN's
+--- identical precedent, reached only if presentationFor ever answered nil for a name it used
+--- to answer for, since this tool proposes no key of its own and a launcher row choosing it
+--- pushes the registry's own presentation straight from root/compose.lua's rowIntercept
+--- without ever calling this. cfg.stagePresent asks the registry for this plugin's own
+--- presentation and hands it to Stage:present, which is what runs chooser.enter's own scan
+--- before showing anything, exactly what M.show used to do inline before this plugin had a
+--- presentation to defer through instead.
 function M.show()
-  if scanning then return end
-  pending = nil
+  if cfg.stagePresent then cfg.stagePresent("processes") end
+end
+
+--- M.rows(query) -> list. The row supplier, named on the manifest's own presentation block
+--- as the contract's rows. Ignores query, the same as it always has, since this list has
+--- never been a text filter over its own rows, the shared stage's own matcher, "words" per
+--- this plugin's own presentation.matcher, doing the only filtering this list ever answers to.
+M.rows = supplier
+
+--- M.select(item) - apply one of those rows, named on the manifest's own presentation block
+--- as the contract's onSelect.
+M.select = onSelect
+
+--- M.placeholder() -> string. The field hint while this plugin's own presentation is current,
+--- named on the manifest's own presentation block. Resolved once, at register, since the
+--- presentation contract wants a plain string a presentation carries rather than a function
+--- to call again later.
+function M.placeholder()
+  return cfg.placeholder or "Search project, port, runtime"
+end
+
+--- M.enter(proceed) - contract v2's own deferred entry, named on the manifest's own
+--- presentation block. Scans first and proceeds after, so the picker never appears before its
+--- rows mean something, the identical rule M.show's own retired design note stated, "Showing
+--- first and filling in later would flash an empty list on every open for no gain." A
+--- confirmation already has its own two rows built from whatever runStop's own callback
+--- populated in pending, nothing left to gather, so that branch proceeds at once rather than
+--- paying for a scan the confirmation never asked for.
+---
+--- A scan already in flight is joined rather than restarted, cfg.api.scan's own reason for a
+--- scanning guard existing at all, proceed queued in entering and called once that one scan
+--- lands alongside whichever proceed started it, host/stage's own generation guard being what
+--- makes calling a stale one harmless. A scan that never calls back, an hs.task that fails to
+--- launch among the failures VPN's own review already named for its identical async doors,
+--- proceeds anyway once ENTER_TIMEOUT elapses, on whatever rows this list already held, rather
+--- than stranding a person on a launcher row that silently does nothing, contract v2's own
+--- requirement that a deferring presentation arranges its own timeout. A real answer landing
+--- after that timeout already fired still updates rows and asks to be redrawn, through the
+--- published word every other async source here already uses, rather than being dropped.
+function M.enter(proceed)
+  if pending then
+    showing = true
+    proceed()
+    return
+  end
+  if scanning then
+    entering[#entering + 1] = proceed
+    return
+  end
   -- The glyph tints depend on whether the chooser will draw light or dark, and an open
   -- is the only moment that can have changed since anyone last asked.
   icons.refresh()
   scanning = true
+  local proceeded = false
+  local function proceedOnce()
+    if proceeded then return end
+    proceeded = true
+    showing = true
+    startSampling()
+    local waiting = entering
+    entering = {}
+    proceed()
+    for _, cb in ipairs(waiting) do cb() end
+  end
+  local timeoutTimer = hs.timer.doAfter(ENTER_TIMEOUT, function()
+    scanning = false
+    proceedOnce()
+  end)
   cfg.api.scan(function(result)
+    timeoutTimer:stop()
     scanning = false
     rows = result or {}
-    showChooser()
+    if proceeded then
+      if cfg.redrawPresented then cfg.redrawPresented("processes") end
+    else
+      proceedOnce()
+    end
   end)
 end
 
@@ -419,13 +514,13 @@ end
 --- Also the way back to the engine's own order after a heat sort, since a rescan
 --- rebuilds the list rather than reordering the one in hand.
 function M.refresh()
-  if not (chooser and chooser:isShowing()) or scanning then return end
+  if not showing or scanning then return end
   scanning = true
   cfg.api.scan(function(result)
     scanning = false
     rows = result or {}
-    if chooser and chooser:isShowing() then
-      chooser:refresh()
+    if showing then
+      if cfg.redrawPresented then cfg.redrawPresented("processes") end
       -- The highlight has not moved, so the poll will not fire, but every row behind
       -- it is a fresh table from this scan and the one under the highlight may be a
       -- different server entirely.
@@ -446,7 +541,7 @@ end
 --- The highlight resets to the top, unlike the in place tick. Every row has moved, so
 --- there is no row to stay on, and the point of asking was to see what is at the top.
 function M.sortByLoad()
-  if not (chooser and chooser:isShowing()) or pending or #rows == 0 then return end
+  if not showing or pending or #rows == 0 then return end
   local score, order = {}, {}
   for i, row in ipairs(rows) do
     local reading = metrics.reading(row.key)
@@ -463,7 +558,9 @@ function M.sortByLoad()
     if score[a] ~= score[b] then return score[a] > score[b] end
     return order[a] < order[b]
   end)
-  chooser:refresh(true)
+  -- resetRow true, the trickle migration's own addition to the published redraw word,
+  -- since every row has moved and the point of asking was to see what is at the top.
+  if cfg.redrawPresented then cfg.redrawPresented("processes", true) end
   -- The highlight returns to the top, which is where it usually already was, so the
   -- poll sees no move even though every row has changed place underneath it.
   renderHighlighted()
@@ -473,39 +570,56 @@ end
 --- confirmation. The deliberate escape hatch for something already wedged, which is
 --- why it skips the guard that a plain stop respects.
 function M.stopForced()
-  if not (chooser and chooser:isShowing()) or pending then return end
-  local item = chooser:selectedItem()
-  local row = item and item.key and rowByKey(item.key)
+  if not showing or pending then return end
+  local row = lastHighlighted and lastHighlighted.key and rowByKey(lastHighlighted.key)
   if not row then return end
-  chooser:hide()
+  -- The trickle migration's own published word, the same instant feedback
+  -- chooser:hide() gave the retired standalone picker, so a forced stop does not leave
+  -- a stale row on screen until the next sample or rescan corrects it.
+  if cfg.stageHide then cfg.stageHide() end
   runStop(row, { force = true, confirmed = true })
 end
 
-function M.isShowing()
-  return chooser ~= nil and chooser:isShowing()
+-- isShowing, hide, selectNext, selectPrev, and insertSelected are gone, the trickle
+-- migration, deleted along with the Chooser.new block that gave them something to answer
+-- for. The composition root now routes this plugin's own navigation through host/stage's own
+-- surfaceFor once wiredRegistry.presentationFor("processes") answers a presentation, falling
+-- through to this submodule for refresh, sortByLoad, and stopForced, the three extra verbs
+-- neither the stage nor its five function adapter was ever asked to carry.
+
+--- M.onHighlight, M.onPositioned - the presentation contract's own pane hooks, named on the
+--- manifest's own presentation block, exposing the file local functions already defined above
+--- under "The detail pane, following the highlight" without a second copy to disagree with.
+M.onHighlight = onHighlight
+M.onPositioned = onPositioned
+
+--- M.onClose() - the presentation contract's own onClose, named on the manifest's own
+--- presentation block, told once whenever the stage hides entirely, never on a swap, which is
+--- what the atom's own teardown already meant for the standalone picker this used to be
+--- attached to directly. Composes the confirmation behaviour with the pane and sampler
+--- teardown exactly as before. A pending confirm asked to re-show is left alone rather than
+--- cleared, so an escape out of the confirmation leaves the process alone, and showing is
+--- dropped here too, so onSample's own backstop and stopForced's own guard both read a closed
+--- presentation the instant a real dismissal tears it down.
+function M.onClose()
+  metrics.stop()
+  preview.destroy()
+  showing = false
+  if reopen then
+    reopen = false
+  else
+    pending = nil
+  end
 end
 
-function M.hide()
-  if chooser then chooser:hide() end
-end
-
-function M.selectNext()
-  if chooser then chooser:selectNext() end
-end
-
-function M.selectPrev()
-  if chooser then chooser:selectPrev() end
-end
-
-function M.insertSelected()
-  if chooser then chooser:insertSelected() end
-end
-
---- M:configure(opts) - merge injected deps across the two callers. The spoon root
---- injects `api`, the view over the engine, and `metrics`, the sampler's slice of the
---- policy. The main root injects `theme`, the Chooser factory as `chooser`, the
---- matcher, the shared canvas surface as `surface`, and the docked shortcut panel
---- callbacks, the same seams every other chooser receives.
+--- M:configure(opts) - merge injected deps across the two callers. The spoon root injects
+--- `api`, the view over the engine, and `metrics`, the sampler's slice of the policy. The main
+--- root injects `theme`, `chooser`, `matcher`, and the panel triple too, the ambient grant a
+--- surfaced plugin still earns even though this file no longer reads any of them, having no
+--- Chooser.new call left to hand them to, kept as the single wiring seam so the main root
+--- stays the one place the atoms are handed in, VPN's own manifest carrying the identical note.
+--- stagePresent, redrawPresented, and stageHide, the trickle migration's own three root
+--- published words, arrive here too, under needs.data above.
 ---
 --- The sampler's policy arrives here rather than at the spoon root because the sampler
 --- is part of this surface and is loaded by this file. Forwarding the block keeps the
@@ -523,72 +637,37 @@ function M:configure(opts)
   return M
 end
 
---- M:start() - build the one native chooser, once both configures have run.
+--- M:start() - configure the detail pane. Builds no chooser any more, the trickle migration.
+--- Whatever this plugin used to hand a Chooser.new call, theme, a field mode, the matcher,
+--- rows, onSelect, and the panel triple, is now either read straight off this module by the
+--- registrar, rows and select through the manifest's own presentation block, or owned by the
+--- stage as fixed, atom level policy that never varied per presentation in the first place,
+--- matcher being contract v2's own exception, still read straight off presentation.matcher
+--- rather than computed here, since this plugin never varies it either.
 ---
---- The pane is configured first, because whether there is one at all decides whether
---- the atom reserves room beside the list, and that is fixed when the instance is
---- built. With no surface injected the pane stands down and the picker comes up exactly
---- as it did before it existed, rather than half wired.
+--- The pane is configured first, because whether there is one at all used to decide whether
+--- the atom reserved room beside the list. It still decides paneWidth's own honesty, true
+--- meaning a pane genuinely exists, but the reservation itself is host/stage's concern now.
+--- With no surface injected the pane stands down and this presentation opens exactly as it
+--- did before one existed, rather than half wired.
 function M:start()
   preview.configure({
     surface = cfg.surface,
-    -- Read through the instance rather than captured, so the pane picks up the palette
-    -- the atom selected for THIS open and follows the light and dark switch with it.
-    palette = function() return chooser and chooser:activeTheme().preview end,
+    -- The atom's own light and dark resolution, hs.host.interfaceStyle() picking cfg.theme's
+    -- dark or light half, lib/chooser/providers/native.lua:178's own arithmetic, reproduced
+    -- here rather than reached through an instance this file no longer holds, so the pane
+    -- still follows the system appearance switch exactly as it did before the migration.
+    palette = function()
+      local p = cfg.theme or {}
+      local dark = hs.host.interfaceStyle() == "Dark"
+      local resolved = (dark and p.dark) or p.light or p.dark
+      return resolved and resolved.preview
+    end,
     -- The one sampler this file already holds. Handing it over rather than letting the
     -- pane load its own matters, since loadfile returns a fresh module every call and a
     -- second sampler would keep its own empty history behind every sparkline.
     metrics = metrics,
     formatCpu = formatCpu,
-  })
-
-  chooser = cfg.chooser.new({
-    theme = cfg.theme,
-    placeholder = cfg.placeholder or "Search project, port, runtime",
-    fieldMode = cfg.chooser.fieldModes.filter,
-    -- The word matcher rather than the shared fuzzy default, the same choice the
-    -- clipboard makes and for the same reason. A query here is a real fragment you
-    -- remember, a port number or a project name, not an abbreviation of a short
-    -- known label, and subsequence matching over a haystack containing digits and
-    -- paths ranks badly on exactly those. Words also keeps the engine's recency
-    -- order instead of reranking it.
-    matcher = cfg.matcher,
-    rows = supplier,
-    onSelect = onSelect,
-    -- Setting this is what starts the atom's highlight poll, so the pane costs a timer
-    -- only when there is a pane to feed.
-    onHighlight = preview.isEnabled() and onHighlight or nil,
-    onPositioned = onPositioned,
-    onActivity = cfg.onActivity,
-    -- Compose the root's panel teardown with the confirmation behavior. A pending
-    -- confirm asked to re-show, anything else is a real dismissal and clears it, so
-    -- an escape out of the confirmation leaves the process alone.
-    --
-    -- The sampler stops here, on the atom's one idempotent teardown path, which fires
-    -- once for a selection, an escape, a click away, or a programmatic close alike. So
-    -- there is no dismissal that leaves a timer behind, and the re-show for a
-    -- confirmation starts a fresh one rather than keeping the old one alive across a
-    -- screen with no rows on it.
-    --
-    -- The pane goes with it, on the same path and for the same rule. It is destroyed
-    -- rather than hidden, so a dismissal leaves nothing behind at all, and the re-show
-    -- for a confirmation builds a fresh one the way any other open does.
-    onClose = function()
-      metrics.stop()
-      preview.destroy()
-      if cfg.onClose then cfg.onClose() end
-      if reopen then
-        reopen = false
-      else
-        pending = nil
-      end
-    end,
-    layout = {
-      -- Room beside the list for the detail pane, and zero when there is no pane to
-      -- put there, which is what makes the whole feature degrade to the picker as it
-      -- was rather than to a gap where something should be.
-      companionWidth = preview.isEnabled() and (cfg.previewWidth or true) or 0,
-    },
   })
   return M
 end

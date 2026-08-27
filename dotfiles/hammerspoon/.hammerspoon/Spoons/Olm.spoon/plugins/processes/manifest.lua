@@ -103,6 +103,27 @@ return {
                  breaks = "the directories this person keeps their own work in are unknown, so a "
                    .. "runtime found outside a recognised tree is labelled by whatever directory "
                    .. "it happens to sit in rather than by the project it belongs to" },
+
+      -- Three root computed words, the trickle migration onto the shared stage. stagePresent
+      -- is what a fresh present asks for, both from the confirmation's own reopen and from
+      -- registry.open's kept fallback. redrawPresented is the async seam a completed scan and
+      -- a live sample both ask to be redrawn through, once this presentation, and no other, is
+      -- what the stage is actually showing. stageHide is this plugin's own addition to the
+      -- published set, for the one action that wants the shared window gone at once rather
+      -- than waiting on a dismissal, a forced stop giving instant feedback rather than leaving
+      -- a stale row on screen. All three degrade to an inert press or a silently skipped
+      -- redraw when absent, never a crash, so all three are optional.
+      stagePresent = { source = "root", policy = "optional",
+        breaks = "a fresh open, and the confirmation screen's own reopen after a stop needing " ..
+                 "confirmation, both reach nothing, since neither has any other way to ask the " ..
+                 "shared stage to show this presentation" },
+      redrawPresented = { source = "root", policy = "optional",
+        breaks = "a scan that lands after the keystroke that asked for it, and the live sampler's " ..
+                 "own tick, both stop reaching the screen, so the list and the pane freeze at " ..
+                 "whatever they last showed until the picker is closed and reopened" },
+      stageHide = { source = "root", policy = "optional",
+        breaks = "a forced stop no longer closes the window at once, leaving a stale row on " ..
+                 "screen until the next sample or rescan catches up with what actually happened" },
     },
   },
 
@@ -130,14 +151,56 @@ return {
     },
     -- A query here is a real remembered fragment, a port number or a project name,
     -- rather than an abbreviation of a short label, so this plugin wants the words
-    -- matcher over fuzzy. Unlike file search and the clipboard, this one reaches
-    -- its own Chooser instance directly, so the value injected here is exactly the
-    -- one the atom ranks with.
+    -- matcher over fuzzy. Migrated onto the shared stage, contract v2, this word now
+    -- travels through presentation.matcher below instead, host/stage/init.lua writing
+    -- it onto the live instance before every show and swap, but it stays declared here
+    -- too, unread by the stage, since surface is where a person reading this file
+    -- expects to find what a query means for this tool.
     matcher = "words",
     -- The detail pane beside the list is the live sampler's home, the port, the
     -- project, and the process tree that makes pressing stop safe, so it earns the
     -- reserved room.
     pane = true,
+  },
+
+  -- The presentation contract, contract v2, docs/BRIEF-CONTRACT-V2.md. rows and select are
+  -- this plugin's own chooser.rows and chooser.select, plain closures assigned inside the
+  -- chooser submodule exactly the way its show, refresh, and every other public member
+  -- already are, so every field below says call = dot, stated outright, never the bare
+  -- string shorthand this contract allows everywhere else a member is not a presentation's
+  -- own. placeholder resolves once, at register, to whatever chooser.placeholder currently
+  -- answers, which by then already reflects whatever this plugin's own configure passed.
+  --
+  -- enter is contract v2's own second addition and the reason this plugin needed it at all.
+  -- M.show used to scan before ever building the picker, "the picker is shown only once the
+  -- rows are in hand", and present used to call onPresent then show synchronously with
+  -- nothing able to delay the second half, so a presentation with no enter would have shown
+  -- an empty "Nothing running" row on every fresh open, the exact flash this plugin's own
+  -- design record already rejected. chooser.enter receives proceed and calls it once the scan
+  -- lands, or at once when a confirmation is already built and needs no scan at all.
+  --
+  -- onHighlight, onPositioned, and onClose carry the detail pane, its dock, and its teardown,
+  -- the identical shape filesearch and clipboard's own onPositioned already keep, minus the
+  -- anchor arithmetic and the cfg.onPositioned call the stage now owns for every presenting
+  -- plugin, host/stage's own paneAnchor replacing the local copy this file used to carry.
+  --
+  -- No back and no intercept. This tool has one level, a flat list with an occasional two row
+  -- confirmation that is a fresh present of its own rather than an inner level Backspace steps
+  -- out of, so it declares neither hook.
+  presentation = {
+    rows = { member = "chooser.rows", call = "dot" },
+    select = { member = "chooser.select", call = "dot" },
+    placeholder = { member = "chooser.placeholder", call = "dot" },
+    enter = { member = "chooser.enter", call = "dot" },
+    onHighlight = { member = "chooser.onHighlight", call = "dot" },
+    onPositioned = { member = "chooser.onPositioned", call = "dot" },
+    onClose = { member = "chooser.onClose", call = "dot" },
+    -- true inherits the chooser's own width, the atom's own companionWidth semantics carried
+    -- one layer up, matching what this plugin's own retired layout block asked for whenever
+    -- the detail pane was enabled, preview.isEnabled() and (cfg.previewWidth or true) or 0,
+    -- cfg.previewWidth never set by anything today.
+    paneWidth = true,
+    matcher = "words",
   },
 
   -- This plugin's own configure already wires the api and the metrics slice onto
@@ -152,7 +215,24 @@ return {
   },
 
   -- show lives on the chooser submodule as a plain dot called function, function M.show(),
-  -- never a colon method, so open says so, and the chooser is the surface too.
+  -- never a colon method, so open says so. show still stays, and still matters even though
+  -- this tool proposes no key of its own, contract v2's own precedent, VPN's manifest, since
+  -- a launcher row choosing this tool now pushes the registry's own presentation straight
+  -- from root/compose.lua's rowIntercept and never calls open at all, leaving this as the
+  -- fallback an unmigrated path would still reach if presentationFor ever answered nil for a
+  -- name it used to answer for.
+  --
+  -- surface = "chooser" stays declared, a narrower exception to PLUGIN-CONTRACT.md's own "a
+  -- presenting plugin declares no registry.surface" rule that this plugin is the first to
+  -- need. isShowing, selectNext, selectPrev, insertSelected, and hide are gone from the
+  -- chooser submodule, deleted along with the Chooser.new block that gave them something to
+  -- answer for, and host/stage's own surfaceFor(identity) answers all five now. But refresh,
+  -- sortByLoad, and stopForced, the three extra verbs surface.extra above binds keys to, live
+  -- on nowhere else, and root/compose.lua's own surfaceAdapterFor falls through to whatever
+  -- this field names once the stage's own five have been asked and answered nothing, exactly
+  -- the same walk it already used before this plugin presented at all. Leaving this field out
+  -- would not merely be dead weight, it would silently drop three bound keys with nothing in
+  -- the console naming why.
   registry = {
     row = { category = "System", detail = "stops a dev server, container, or watcher",
       glyph = "🔌", keywords = "processes port node docker" },
