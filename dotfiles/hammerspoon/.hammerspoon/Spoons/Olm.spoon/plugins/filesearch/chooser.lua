@@ -64,7 +64,14 @@ local cfg = {
   onClose = nil,
 }
 
-local picker = nil
+-- Migrated onto host/stage, the trickle migration. This plugin owns no Chooser instance and
+-- builds no window any more, so isShowing lives here instead as a plain flag, true from the
+-- moment M.onPresent runs until M.onClose says otherwise. lastHighlighted is the item the
+-- presentation's own onHighlight last named, cached so a re-render asked for outside a fresh
+-- highlight event has something to redraw without an instance of its own left to ask
+-- selectedItem() of, the identical shape processes' own migration already carries.
+local showing = false
+local lastHighlighted = nil
 
 -- The provider in use for this picker, resolved once in start, see resolveViewer.
 --
@@ -175,8 +182,8 @@ local dirFits = {}
 
 -- The directory, shortened to the room the row actually has.
 --
--- With no picker yet, or a picker too old to answer, the full directory comes back and the
--- widget cuts it as it always did. Nothing here depends on the measurement being available.
+-- With no measurement available yet, the full directory comes back and the widget cuts it as
+-- it always did. Nothing here depends on the measurement being available.
 --
 -- ONE COUPLING WORTH KNOWING. These rows are also handed to the launcher's alias, and they
 -- are fitted here against THIS picker's room rather than the one that will draw them, since
@@ -186,16 +193,21 @@ local dirFits = {}
 -- pinned its own width and then scoped to this tool would shorten against the wrong number.
 -- The fix at that point is for a surface to state its room, which means a parameter on the
 -- scope contract, and that is not worth adding for a case nothing has yet.
+--
+-- Migrated onto host/stage, the trickle migration. cfg.stageTextBudget and cfg.stageTextWidth
+-- replace the direct picker:textBudget()/textWidth() calls this used to make on an instance
+-- it held itself, both root published words proxying host/stage's own public methods, since
+-- this file has no instance left to ask directly.
 local function fitDir(dir, reserved)
   if dir == "" then return dir end
-  if not (picker and picker.textBudget) then return dir end
+  if not (cfg.stageTextBudget and cfg.stageTextWidth) then return dir end
   -- `reserved` is the rest of the line verbatim, its own separator included, so a caller
   -- states what shares the row rather than this having to know where each caller puts it.
-  local budget = picker:textBudget() - picker:textWidth(reserved, "sub")
+  local budget = cfg.stageTextBudget() - cfg.stageTextWidth(reserved, "sub")
   local key = dir .. "\0" .. math.floor(budget)
   local hit = dirFits[key]
   if hit then return hit end
-  local fitted = util.elideDir(dir, budget, function(s) return picker:textWidth(s, "sub") end)
+  local fitted = util.elideDir(dir, budget, function(s) return cfg.stageTextWidth(s, "sub") end)
   dirFits[key] = fitted
   return fitted
 end
@@ -385,9 +397,12 @@ local function openPath(path, reveal)
   if t then t:start() end
 end
 
+-- Migrated onto host/stage. Reads lastHighlighted rather than an instance this file no
+-- longer holds, populated by onHighlight below on every highlight event, which always runs
+-- at least once before this could ever be called, the atom seeding the highlight before it
+-- positions anything on every fresh show.
 local function selectedRow()
-  if not picker then return nil end
-  local item = picker:selectedItem()
+  local item = lastHighlighted
   if not item or item.status or item.help then return nil end
   return item
 end
@@ -414,9 +429,14 @@ end
 -- The pane, following the highlight
 --------------------------------------------------------------------------------
 
--- The atom's onHighlight target, fired from a poll. A row with nothing to describe, a status
--- row or a help row, clears the pane rather than leaving a stale one beside the list.
+-- The presentation's own onHighlight, host/stage's own poll still fired for the identical
+-- reason the atom's own poll used to feed the picker this file no longer owns. A row with
+-- nothing to describe, a status row or a help row, clears the pane rather than leaving a
+-- stale one beside the list. Cached into lastHighlighted too, since selectedRow above and the
+-- seed call in onPositioned below both need the current highlight with no instance left to
+-- ask selectedItem() of.
 local function onHighlight(item)
+  lastHighlighted = item
   if item and item.path and not (item.status or item.help) then
     viewer.show(item)
   else
@@ -424,14 +444,11 @@ local function onHighlight(item)
   end
 end
 
--- Compose with the root's own onPositioned rather than replacing it. The atom reports both
--- frames, the pane docks into the companion rect it reserved, and the root's shortcut panel
--- still gets its anchor, so neither knows about the other.
---
--- The anchor handed on spans the pair rather than the list alone, the same as the clipboard
--- and Processes, so the hints sit full width beneath both panes instead of stopping short
--- under the list. With no pane there is no companion rect and the anchor is the plain chooser
--- frame, exactly as it was before the pane existed.
+-- Migrated onto host/stage. Docks the pane into the companion rect the stage reserved and
+-- seeds its first paint, exactly as before, and drops its own call to cfg.onPositioned and
+-- the anchor arithmetic that built it, since host/stage's own paneAnchor now re anchors the
+-- docked shortcut panel itself, on every path that has real frames to report, and a plugin
+-- still making that call would be a second, competing writer of the identical panel.
 local function onPositioned(chooserFrame, companionFrame)
   -- Kept for the peek path below, which fires later on a key press rather than on this call, so
   -- it needs its own record of where the picker actually landed rather than the seed it opened
@@ -446,17 +463,8 @@ local function onPositioned(chooserFrame, companionFrame)
     -- than one the atom makes, so without the gate it reached a provider that is supposed to be
     -- asked rather than followed. Under Quick Look that meant merely opening the picker threw a
     -- panel onto the screen for whatever row happened to be first, which is the back row.
-    if picker and viewer.followsHighlight then onHighlight(picker:selectedItem()) end
+    if viewer.followsHighlight then onHighlight(lastHighlighted) end
   end
-  if not cfg.onPositioned then return end
-  local anchor = chooserFrame
-  if companionFrame then
-    anchor = {
-      x = chooserFrame.x, y = chooserFrame.y, h = chooserFrame.h,
-      w = (companionFrame.x + companionFrame.w) - chooserFrame.x,
-    }
-  end
-  cfg.onPositioned(anchor)
 end
 
 --------------------------------------------------------------------------------
@@ -474,16 +482,23 @@ function M:configure(opts)
   return M
 end
 
---- chooser:start() - build the picker instance once and reuse it across shows.
+--- chooser:start() - resolve the preview providers once. Builds no picker instance any
+--- more, the trickle migration. Whatever this used to hand a Chooser.new call, theme, rows,
+--- onSelect, the panel triple, and layout, is now either read straight off this module by the
+--- registrar, rows and select through the manifest's own presentation block, or owned by the
+--- stage as fixed, atom level policy, matcher being contract v2's own exception, still read
+--- straight off presentation.matcher rather than computed here since this plugin never varies
+--- it. layout.titleLineBreak has nowhere left to travel, the one honest loss of this
+--- migration, since the presentation contract carries no layout block at all and the shared
+--- instance's own title cut is fixed for every presentation alike, truncateTail rather than
+--- this plugin's own truncateMiddle, a filename's extension no longer protected the way it
+--- was, cosmetic rather than functional and named here rather than silently absorbed.
 ---
---- The provider is resolved and configured FIRST, because how much room it wants decides the
---- shape of the picker and that is fixed when the instance is built. A provider that reports
---- itself unavailable is passed over with one console line naming why, which is the same
---- degradation every optional tool here gets, and with none left the picker comes up exactly as
---- it did before there was any preview rather than half wired.
+--- The provider is resolved and configured FIRST, unchanged, since how much room it wants is
+--- still what paneWidth's own static true in the manifest assumes, sidepanel's own
+--- companionWidth(policy) answering true whenever it is available and policy.width names
+--- nothing, which is every real config today.
 function M:start()
-  if picker or not cfg.chooser then return M end
-
   local policy = cfg.preview or {}
   thumbs.configure({
     -- Written with a tilde in config, since nothing there names an absolute location.
@@ -496,9 +511,16 @@ function M:start()
   -- knows about and ignores the rest, which is what lets one call configure both of them.
   local deps = {
     surface = cfg.surface,
-    -- Read through the instance rather than captured, so a provider picks up the palette the
-    -- atom selected for THIS open and follows the light and dark switch with it.
-    palette = function() return picker and picker:activeTheme().preview end,
+    -- The atom's own light and dark resolution, hs.host.interfaceStyle() picking cfg.theme's
+    -- dark or light half, lib/chooser/providers/native.lua:178's own arithmetic, reproduced
+    -- here rather than reached through an instance this file no longer holds, so a provider
+    -- still follows the system appearance switch exactly as it did before the migration.
+    palette = function()
+      local p = cfg.theme or {}
+      local dark = hs.host.interfaceStyle() == "Dark"
+      local resolved = (dark and p.dark) or p.light or p.dark
+      return resolved and resolved.preview
+    end,
     limits = policy,
     -- The same seam the row subtitle reads, so a preview and the row cannot disagree about when
     -- a path was last acted on.
@@ -543,71 +565,57 @@ function M:start()
       util.log.i("peek preview provider " .. tostring(cfg.peekProvider.name) .. " stepped aside, " .. tostring(why))
     end
   end
-
-  picker = cfg.chooser.new({
-    theme = cfg.theme,
-    rows = supplier,
-    -- The engine owns filtering and ordering, see the header.
-    matcher = false,
-    placeholder = cfg.placeholder,
-    onSelect = onSelect,
-    -- The parent row is a step rather than a destination, so it puts the query for the level above
-    -- in the field and the picker stays where it is. Asked before a row may complete, which is
-    -- what makes Return, the insert key and a click all go up, where before only the insert key
-    -- did and the other two opened the parent folder instead. Every other row answers false and
-    -- is opened exactly as it always was.
-    --
-    -- The field is set here rather than answered with, because the atom's hook says only whether
-    -- the row was a completion and leaves what it meant to whoever knows. So the query goes in
-    -- through the picker itself, which is also what a level change already does elsewhere here.
-    intercept = function(item)
-      if not (item and item.up and cfg.api and cfg.api.upQuery) then return false end
-      local query = cfg.api.upQuery()
-      if type(query) ~= "string" or query == "" then return false end
-      picker:setQuery(query)
-      return true
-    end,
-    -- Setting this is what starts the atom's highlight poll, so a provider that is asked for
-    -- rather than followed costs no timer at all.
-    onHighlight = viewer.followsHighlight and onHighlight or nil,
-    onPositioned = onPositioned,
-    onActivity = cfg.onActivity,
-    -- A trackpad or a wheel over the companion rect, which a canvas cannot report for itself.
-    -- The same verb the two keys go through, so there is one notion of where a pane is scrolled
-    -- to, and nothing to wire when the provider reserved no rect.
-    onScroll = viewer.followsHighlight and viewer.scrollBy or nil,
-    onClose = function()
-      -- Abandon anything in flight, so a search for a picker nobody is looking at is not
-      -- still running, and the root's overlay teardown runs through the injected handler.
-      if cfg.api then cfg.api.cancel() end
-      -- Closed on the atom's one idempotent teardown path, so no dismissal leaves a canvas or
-      -- a Quick Look window behind, and a reopen builds a fresh one. Both viewers are told,
-      -- since either one, the docked or the one a key asks for, may have something open.
-      viewer.close()
-      peekViewer.close()
-      -- The next open may land on a display of another width, so what fitted here is not
-      -- what fits there. Dropped on the same one path everything else is, and the last frame
-      -- goes with it since it describes a picker that is now gone.
-      dirFits = {}
-      -- The icon memo goes with them, for the same reason. It is per open state about files a
-      -- person was looking at a moment ago and is not now.
-      iconMemo = {}
-      lastChooserFrame = nil
-      if cfg.onClose then cfg.onClose() end
-    end,
-    layout = {
-      -- The provider says how much room it needs, so the one that draws beside the list gets it
-      -- and the one that opens its own window leaves the picker as a plain list.
-      companionWidth = viewer.companionWidth(policy),
-      -- Every title here is a filename, and the last few characters of a filename are its
-      -- extension. A tail cut spends them first, so a long name arrives as
-      -- `mahamba_gastric-pain-evaluation-protocol_5b…` with the one field that says what KIND
-      -- of thing it is gone. Cutting the middle keeps both ends and costs nothing, since
-      -- AppKit does it from the paragraph style with no measuring involved.
-      titleLineBreak = "truncateMiddle",
-    },
-  })
   return M
+end
+
+--- chooser.intercept(item) - the parent row's own step up a level, named on the manifest's
+--- own presentation block. The field is set through cfg.stageSetQuery rather than answered
+--- with, because the atom's hook says only whether the row was a completion and leaves what
+--- it meant to whoever knows, and a presenting plugin has no instance of its own left to call
+--- setQuery on directly, the one piece of direct field control cfg.stageSetQuery exists for.
+function M.intercept(item)
+  if not (item and item.up and cfg.api and cfg.api.upQuery) then return false end
+  local query = cfg.api.upQuery()
+  if type(query) ~= "string" or query == "" then return false end
+  if cfg.stageSetQuery then cfg.stageSetQuery(query) end
+  return true
+end
+
+--- chooser.onHighlight, chooser.onScroll, chooser.onPositioned - the presentation contract's
+--- own pane hooks, named on the manifest's own presentation block, exposing the file local
+--- functions already defined above without a second copy to disagree with. onScroll wraps
+--- viewer.scrollBy directly, the atom's own trackpad and wheel callback and the two scroll
+--- keys both going through the identical verb, so a pane is scrolled the same amount whichever
+--- one asked, and it costs nothing when the provider reserved no rect, NO_VIEWER's own
+--- scrollBy already being a no op.
+M.onHighlight = onHighlight
+function M.onScroll(points)
+  viewer.scrollBy(points)
+end
+M.onPositioned = onPositioned
+
+--- chooser.onClose() - the presentation contract's own onClose, named on the manifest's own
+--- presentation block, told once whenever the stage hides entirely, never on a swap, which is
+--- what the atom's own teardown already meant for the standalone picker this used to be
+--- attached to directly.
+function M.onClose()
+  -- Abandon anything in flight, so a search for a picker nobody is looking at is not
+  -- still running, and the root's overlay teardown runs through the injected handler.
+  if cfg.api then cfg.api.cancel() end
+  -- Closed on the identical one idempotent teardown path, so no dismissal leaves a canvas or
+  -- a Quick Look window behind, and a reopen builds a fresh one. Both viewers are told,
+  -- since either one, the docked or the one a key asks for, may have something open.
+  viewer.close()
+  peekViewer.close()
+  -- The next open may land on a display of another width, so what fitted here is not
+  -- what fits there. Dropped on the same one path everything else is, and the last frame
+  -- goes with it since it describes a picker that is now gone.
+  dirFits = {}
+  -- The icon memo goes with them, for the same reason. It is per open state about files a
+  -- person was looking at a moment ago and is not now.
+  iconMemo = {}
+  lastChooserFrame = nil
+  showing = false
 end
 
 --- chooser.beginSession() - start a fresh session without showing anything.
@@ -632,12 +640,24 @@ function M.ensureSession()
   return M
 end
 
---- chooser.show() - open on a fresh session.
+--- chooser.show() - present through the shared stage. registry.open's own kept fallback for
+--- this plugin's own leader key, VPN's identical precedent, since a launcher row choosing this
+--- tool pushes the registry's own presentation straight from root/compose.lua's rowIntercept
+--- without ever calling this. cfg.stagePresent asks the registry for this plugin's own
+--- presentation and hands it to Stage:present, which announces chooser.onPresent below before
+--- showing anything.
 function M.show()
-  M.start()
-  if not picker then return end
+  if cfg.stagePresent then cfg.stagePresent("fileSearch") end
+end
+
+--- chooser.onPresent() - the presentation contract's own onPresent, named on the manifest's
+--- own presentation block, called whenever this presentation becomes current, through present
+--- or push alike. Starts a fresh session, exactly what M.show used to do inline before this
+--- plugin had a presentation to announce through instead, both doors, the hotkey and a
+--- launcher row, now sharing the identical beginning.
+function M.onPresent()
+  showing = true
   M.beginSession()
-  picker:show()
 end
 
 --- chooser.rowsForQuery(q) -> the rows a query draws, for a surface other than this picker.
@@ -684,27 +704,19 @@ end
 --- Gated for the same reason the seed in onPositioned is. Rows landing under the cursor must not
 --- throw a window onto the screen for a provider nobody asked yet.
 function M.refresh()
-  if picker and picker:isShowing() then
-    picker:refresh(false)
-    if viewer.followsHighlight then onHighlight(picker:selectedItem()) end
+  if showing then
+    if cfg.redrawPresented then cfg.redrawPresented("fileSearch") end
+    if viewer.followsHighlight then onHighlight(lastHighlighted) end
   end
 end
 
-function M.isShowing()
-  return picker ~= nil and picker:isShowing()
-end
-
-function M.hide()
-  if picker then picker:hide() end
-end
-
-function M.selectNext()
-  if picker then picker:selectNext() end
-end
-
-function M.selectPrev()
-  if picker then picker:selectPrev() end
-end
+-- isShowing, hide, selectNext, and selectPrev are gone, the trickle migration, deleted along
+-- with the Chooser.new block that gave them something to answer for. The composition root now
+-- routes this plugin's own navigation through host/stage's own surfaceFor once
+-- wiredRegistry.presentationFor("fileSearch") answers a presentation, falling through to this
+-- submodule for browseInto, browseUp, revealInFinder, copyPath, scrollPreviewDown,
+-- scrollPreviewUp, and peekPreview, the extra verbs neither the stage nor its five function
+-- adapter was ever asked to carry.
 
 -- How far one key press moves the pane, roughly a wheel notch, the same distance the clipboard
 -- moves per press so the gesture means the same amount in both.
@@ -735,7 +747,7 @@ function M.peekPreview()
   -- file. This one opens a window whose only teardown is the picker closing, so a peek that lands
   -- after that teardown has already run leaves a panel on screen that nothing owns and nothing
   -- will ever take down. Cheap to ask, and the alternative is unrecoverable without a kill.
-  if not M.isShowing() then return end
+  if not showing then return end
   local row = selectedRow()
   if not row then return end
   M.peekRow(row)
@@ -767,24 +779,22 @@ function M.closePreview()
   peekViewer.close()
 end
 
---- chooser.insertSelected() - the primary key, choosing the highlighted row.
----
---- It used to intercept the back row here and browse up instead of delegating, because choosing a
---- row goes through the atom's completion which tears the picker down straight after. That is the
---- injected `intercept` above now, asked by the atom before a row may complete, so the interception
---- covers Return and a mouse click as well rather than this one key. Nothing is left to check here.
-function M.insertSelected()
-  if not picker then return end
-  picker:insertSelected()
-end
+-- insertSelected is gone too, the identical reason isShowing, hide, selectNext, and
+-- selectPrev are, host/stage's own surfaceFor answering it now. It used to intercept the back
+-- row here and browse up instead of delegating, because choosing a row goes through the
+-- atom's completion which tears the picker down straight after, and that interception is
+-- chooser.intercept above now, asked by the atom before a row may complete, so it covers
+-- Return and a mouse click alike rather than only this one key, unchanged by the migration.
 
 -- Put a query in the field and rebuild. Setting the field may or may not fire the change
 -- callback depending on the widget, so the rebuild is asked for explicitly, and asking twice is
--- harmless because the engine answers an unchanged query from what it already holds.
+-- harmless because the engine answers an unchanged query from what it already holds. Migrated
+-- onto host/stage, cfg.stageSetQuery and cfg.redrawPresented(name, true) replace the direct
+-- picker:setQuery/refresh(true) calls this used to make on an instance it held itself.
 local function goTo(q)
-  if not q or not picker then return end
-  picker:setQuery(q)
-  picker:refresh(true)
+  if not q then return end
+  if cfg.stageSetQuery then cfg.stageSetQuery(q) end
+  if cfg.redrawPresented then cfg.redrawPresented("fileSearch", true) end
 end
 
 --- chooser.browseInto() - walk into the highlighted directory rather than opening it.
@@ -802,7 +812,7 @@ end
 --- there is no history to keep and nothing to get out of step with the field. It does nothing
 --- when the query carries no scope, since there is nowhere above a search of everywhere.
 function M.browseUp()
-  if not picker or not cfg.api.upQuery then return end
+  if not cfg.api.upQuery then return end
   goTo(cfg.api.upQuery())
 end
 
@@ -815,16 +825,20 @@ end
 --- and help rows the supplier hands back when there is nothing to act on, answers nothing rather
 --- than reaching for a path that is not there.
 ---
---- M.hide() still runs here, and it is harmless when this picker was never the one showing. A
---- caller reaching this through the launcher's hosted list never opened this picker at all, so
---- hide finds nothing active and its own teardown guard answers at once. What such a caller owes
---- instead, closing itself the way it already does when it runs a scope row directly, is the
---- caller's own business and is wired where that caller's own dispatch lives, not here.
+--- Migrated onto host/stage. cfg.stageHide, guarded on this plugin's own showing flag, replaces
+--- the direct M.hide() this used to call unconditionally on an instance it held itself, since
+--- an unconditional hide now would close the shared window out from under whatever ELSE is
+--- current, the launcher included, when this call arrives through the launcher's hosted scope
+--- rather than through this presentation's own primary key. Harmless, and correctly a no op,
+--- when this picker was never the one showing, the identical guarantee the retired M.hide()
+--- guard gave for free by having nothing active to hide. What a scope caller owes instead,
+--- closing itself the way it already does when it runs a scope row directly, is the caller's
+--- own business and is wired where that caller's own dispatch lives, not here.
 function M.revealRow(row)
   if not (row and row.path) or row.status or row.help then return end
   noteUse(row)
   openPath(row.path, true)
-  M.hide()
+  if showing and cfg.stageHide then cfg.stageHide() end
 end
 
 --- chooser.reveal() - show the highlighted row in Finder instead of opening it.
@@ -850,7 +864,9 @@ function M.copyPathRow(row)
   else
     hs.pasteboard.setContents(row.path)
   end
-  M.hide()
+  -- Migrated onto host/stage, the identical guard revealRow above carries and for the
+  -- identical reason.
+  if showing and cfg.stageHide then cfg.stageHide() end
 end
 
 --- chooser.copyPath() - put the highlighted path on the clipboard through the injected writer

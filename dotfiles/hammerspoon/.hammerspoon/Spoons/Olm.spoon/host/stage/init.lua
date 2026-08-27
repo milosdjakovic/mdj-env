@@ -215,6 +215,13 @@ function obj:configure(opts)
     intercept = function(item) return self:_intercept(item) end,
     back = function() return self:_back() end,
     onHighlight = function(item) self:_onHighlight(item) end,
+    -- Found during the trickle migrations rather than named by either brief, the identical
+    -- shape onHighlight just above already keeps, config.onScroll read live on self.config
+    -- exactly like every other routed field, lib/chooser/providers/native.lua's own note on
+    -- why a canvas companion needs this at all, a canvas having no scroll callback of its
+    -- own. A presentation with no onScroll of its own is silently skipped, exactly as an
+    -- ordinary missing field already is everywhere else in this file.
+    onScroll = function(points) self:_onScroll(points) end,
     -- Adversarial review finding M2. Routed through this host's own _onPositioned rather
     -- than handed self._panelOnPositioned directly, so the docked panel is re anchored
     -- through the identical function a manual placement uses on a swap, _onPositioned
@@ -985,6 +992,25 @@ function obj:query()
   return self._instance and self._instance:query() or ""
 end
 
+--- Stage:textBudget() -> number
+--- Method
+--- The pixel room a row's text has, title and subtitle alike, on the live instance, 0 before
+--- one exists. Found during the trickle migrations, FileSearch's own fitDir needing this and
+--- Chooser:textWidth below to elide a long path against the room the row actually has, a
+--- measurement it used to ask its own instance for directly and now has no instance left to
+--- ask, the same addition as setQuery and for the same reason.
+function obj:textBudget()
+  return self._instance and self._instance:textBudget() or 0
+end
+
+--- Stage:textWidth(str, which) -> number
+--- Method
+--- How wide that string renders in a row, in pixels, on the live instance, 0 before one
+--- exists. Found alongside textBudget above, for the identical caller.
+function obj:textWidth(str, which)
+  return self._instance and self._instance:textWidth(str, which) or 0
+end
+
 -- Everything below installs at Chooser.new's own config and reads only the stack above,
 -- through _current, so every one of these behaves correctly however deep the stack is even
 -- though it never exceeds one today.
@@ -1021,6 +1047,17 @@ end
 function obj:_onHighlight(item)
   local p = self:_current()
   if p and p.onHighlight then p.onHighlight(item) end
+end
+
+-- A trackpad or a wheel scrolled over the companion rect, which a canvas cannot report for
+-- itself, lib/chooser/providers/native.lua's own reason this exists at all. Found during the
+-- trickle migrations, filesearch and the clipboard both already wiring one directly into
+-- their own retired Chooser.new calls. Routed the identical way _onHighlight is, the current
+-- presentation's own onScroll answering first and a presentation with none simply never
+-- asked, since scrolling a pane that is not currently drawn would move nothing anyway.
+function obj:_onScroll(points)
+  local p = self:_current()
+  if p and p.onScroll then p.onScroll(points) end
 end
 
 -- Fired for any teardown, a completed selection, escape, a click away, or a programmatic

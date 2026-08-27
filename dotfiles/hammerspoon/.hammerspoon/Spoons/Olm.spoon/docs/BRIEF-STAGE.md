@@ -88,6 +88,10 @@ stage. Fields, all optional except name, rows, and onSelect.
     intercept     function(item) answering true when the row swapped the list in place
     back          function() answering true when an inner level was popped
     onHighlight   function(item) for a companion consumer, nil for none
+    onScroll      function(points) a trackpad or a wheel scrolled over the companion rect,
+                  nil for none, found during the trickle migrations rather than named by
+                  this brief, filesearch and clipboard both already wiring one directly,
+                  routed the identical way onHighlight is
     onPositioned  function(chooserFrame, companionFrame) told whenever the stage repositions
                   the pair for this presentation, companionFrame nil when paneWidth is
                   absent, added in the geometry phase for a pane consumer to draw or clear.

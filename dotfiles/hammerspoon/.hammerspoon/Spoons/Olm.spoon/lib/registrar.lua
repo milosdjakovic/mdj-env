@@ -434,6 +434,13 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
       -- that argument into whatever the receiver would have occupied, the identical silent
       -- failure the comment above this whole loop already worries about for rows and select.
       "enter",
+      -- onScroll, found during the trickle migrations rather than named by either contract
+      -- brief, filesearch and clipboard both already wiring one directly into their own
+      -- retired Chooser.new calls for the identical reason
+      -- lib/chooser/providers/native.lua's own header names, a canvas companion has no
+      -- scroll callback of its own. A member spec exactly like onHighlight, resolved and
+      -- checked the same way.
+      "onScroll",
     }
     local broken = false
     for _, field in ipairs(presentationFields) do
@@ -563,6 +570,9 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
         intercept = obj.action(modules, identity, name, p.intercept, nil),
         back = obj.action(modules, identity, name, p.back, nil),
         onHighlight = obj.action(modules, identity, name, p.onHighlight, nil),
+        -- onScroll, found during the trickle migrations, resolved the identical lazy way
+        -- onHighlight just above already is.
+        onScroll = obj.action(modules, identity, name, p.onScroll, nil),
         onClose = obj.action(modules, identity, name, p.onClose, nil),
         peekPreview = obj.action(modules, identity, name, p.peekPreview, nil),
         onPresent = obj.action(modules, identity, name, p.onPresent, nil),

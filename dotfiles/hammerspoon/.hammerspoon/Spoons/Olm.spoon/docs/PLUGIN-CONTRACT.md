@@ -564,6 +564,7 @@ presentation = {
   intercept   = { member = "intercept", call = "dot" },  -- optional
   back        = { member = "back", call = "dot" },       -- optional
   onHighlight = { member = "onHighlight", call = "dot" },-- optional
+  onScroll    = { member = "onScroll", call = "dot" },   -- optional
   onClose     = { member = "onClose", call = "dot" },    -- optional
   peekPreview = { member = "peekPreview", call = "dot" },-- optional
   onPositioned = { member = "onPositioned", call = "dot" }, -- optional
@@ -651,6 +652,13 @@ declaring `enter` is responsible for its own timeout, the way VPN's and menu sea
 walks already arrange their own, since the stage will wait on `proceed` forever otherwise and a
 person left on a launcher row that silently does nothing has no way to know why. The stage
 never learns why a presentation deferred or what it was waiting for, only that it did.
+
+`onScroll` is a third addition the trickle migrations found rather than either contract brief
+naming, `function(points)` for a trackpad or a wheel scrolled over the companion rect, which a
+canvas cannot report for itself, `lib/chooser/providers/native.lua`'s own reason it exists at
+all. filesearch and clipboard both already wired one directly into their own retired
+`Chooser.new` calls, config read live on every scroll exactly the way `onHighlight` already is,
+so `host/stage` routes it the identical way, a presentation with none simply never asked.
 
 `onPositioned` is called with `chooserFrame, companionFrame`, the same two frames
 `lib/chooser/providers/native.lua`'s own `config.onPositioned` already hands its caller, once

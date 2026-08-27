@@ -154,6 +154,35 @@ return {
                  breaks = "a file list hosted inside another surface stops updating as answers "
                    .. "land, so it shows whatever had arrived by the time the last keystroke was "
                    .. "painted and nothing after it" },
+
+      -- Three root computed words, the trickle migration onto the shared stage. stagePresent
+      -- is the hotkey door, what this plugin's own leader key now asks for instead of building
+      -- a window of its own. redrawPresented is the async seam the engine's own onResults
+      -- callback asks to be redrawn through, once this presentation, and no other, is what the
+      -- stage is actually showing, composed with the retired redraw word above rather than
+      -- replacing it, so a launcher hosted list and a presented one are both told. stageSetQuery
+      -- is this plugin's own addition to the published set, for the parent row's own intercept,
+      -- which puts the query for the level above in the field without the presentation closing,
+      -- the one piece of direct field control a presenting plugin has no other way to reach.
+      stagePresent = { source = "root", policy = "optional",
+        breaks = "this plugin's own leader key opens nothing, since M.show has no other way " ..
+                 "to reach the shared stage" },
+      redrawPresented = { source = "root", policy = "optional",
+        breaks = "a result set landing after the keystroke that asked for it never reaches the " ..
+                 "screen while this presentation, and no other, is what is actually showing" },
+      stageSetQuery = { source = "root", policy = "optional",
+        breaks = "the parent row no longer steps up a level, Return and a click both opening " ..
+                 "the row instead of climbing, since intercept has no other way to put the " ..
+                 "level above's own query in the field" },
+      -- fitDir used to measure a row's own room straight off the picker instance it held
+      -- directly. Two more root words, the identical shape stageSetQuery above already takes,
+      -- for the one plugin whose subtitle actually needs to know how much of it fits.
+      stageTextBudget = { source = "root", policy = "optional",
+        breaks = "every subtitle falls back to the widget's own default cut rather than the " ..
+                 "elided form this plugin used to compute against the room it actually had" },
+      stageTextWidth = { source = "root", policy = "optional",
+        breaks = "fitDir has no way to measure a candidate string at all, so it answers the " ..
+                 "unfitted directory unconditionally rather than narrowing it to fit" },
     },
   },
 
@@ -218,14 +247,70 @@ return {
     },
     -- A path is long text searched from the inside with a real remembered fragment,
     -- a project name or a folder, rather than an abbreviation of a short label, so
-    -- this plugin wants the words matcher over fuzzy. It still opts its own Chooser
-    -- instance out of the atom's own ranking, since the query is structured rather
-    -- than a plain filter, so the words value reaches the engine instead, narrowing
-    -- a held result set between round trips one layer down from everywhere else.
+    -- this plugin wants the words matcher over fuzzy. It still opts its own picker
+    -- out of the atom's own ranking, since the query is structured rather than a
+    -- plain filter, so the words value reaches the engine instead, narrowing a held
+    -- result set between round trips one layer down from everywhere else. Migrated
+    -- onto the shared stage, contract v2, the opt out itself now travels through
+    -- presentation.matcher below as false, while this word stays declared here too,
+    -- unread by the stage, since surface is where a person reading this file expects
+    -- to find what a query means for this tool, and needs.data's own engine facing
+    -- matcher injection, unrelated to either, still reads this exact word.
     matcher = "words",
     -- The pane beside the list is the one place a highlighted file's name, size,
     -- dates and a rendered preview live, so it earns the reserved room.
     pane = true,
+  },
+
+  -- The presentation contract, contract v2, docs/BRIEF-CONTRACT-V2.md. rows and select are
+  -- chooser.rowsForQuery and chooser.choose, the identical two functions the launcher's own
+  -- scope path already calls through provides above, so the stage and a typed alias draw from
+  -- one supplier and one dispatcher rather than two that could disagree. placeholder resolves
+  -- once, at register, to whatever chooser.placeholder currently answers.
+  --
+  -- matcher is false, contract v2's own first addition and the reason this plugin needed it
+  -- at all. The atom's own scoring did no filtering here before the migration and must still
+  -- do none after it, chooser.lua's own header states why at length, a structured, sigil
+  -- bearing query fought by a second ranking pass on top of the engine's own would hide the
+  -- status row and mismatch real results. host/stage writes false onto the live instance
+  -- before every show and swap, the same discipline paneWidth already keeps for
+  -- companionWidth, so the supplier goes on owning every bit of its own filtering.
+  --
+  -- intercept is the parent row's own step up a level, chooser.intercept below, which used to
+  -- call picker:setQuery(query) directly and now reaches the identical field through
+  -- cfg.stageSetQuery, the one piece of direct field control a presenting plugin has no other
+  -- way to reach, since the atom's own contract says only whether a row was a completion and
+  -- leaves what it meant to whoever knows.
+  --
+  -- onHighlight, onScroll, onPositioned, onClose, and peekPreview carry the detail pane, its
+  -- scroll, its dock, its teardown, and the key that opens Quick Look over it, the identical
+  -- shape processes' own presentation block already keeps, minus the anchor arithmetic and
+  -- the cfg.onPositioned call host/stage now owns for every presenting plugin. onScroll is
+  -- contract v2's own third addition, found by this migration rather than named by either
+  -- brief, since a canvas companion has no scroll callback of its own.
+  --
+  -- No back. This tool has one level, a flat list with a parent row stepping up rather than an
+  -- inner level Backspace steps out of, so it declares no back hook, the identical shape
+  -- TmuxSessions and the two eventtap consumers are not, since this plugin's own step up is
+  -- forward through intercept rather than backward through Backspace.
+  presentation = {
+    rows = { member = "chooser.rowsForQuery", call = "dot" },
+    select = { member = "chooser.choose", call = "dot" },
+    placeholder = { member = "chooser.placeholder", call = "dot" },
+    intercept = { member = "chooser.intercept", call = "dot" },
+    onHighlight = { member = "chooser.onHighlight", call = "dot" },
+    onScroll = { member = "chooser.onScroll", call = "dot" },
+    onPositioned = { member = "chooser.onPositioned", call = "dot" },
+    onClose = { member = "chooser.onClose", call = "dot" },
+    peekPreview = { member = "chooser.peekPreview", call = "dot" },
+    -- true inherits the chooser's own width, matching what sidepanel.companionWidth(policy)
+    -- already answers whenever the docked viewer is available and policy.width names nothing,
+    -- which is every real config today. A person setting previewWith = false to decline the
+    -- docked seat outright still reserves this pane under the migration, a plain value having
+    -- no way to read that runtime choice, one honest gap this migration leaves named rather
+    -- than papered over with a fabricated fallback.
+    paneWidth = true,
+    matcher = false,
   },
 
   -- This plugin's own configure already wires the api wave onto the chooser
@@ -250,6 +335,19 @@ return {
   -- verbs mirrors the three real actions beyond choosing and previewing a row, each carrying
   -- closes exactly as the retired root's own registration stated it, since whether running a
   -- verb should close the list it ran against is this plugin's own fact about that verb.
+  --
+  -- open still stays, and still matters even after migration, the hotkey door this plugin's
+  -- own leader key binds to directly, VPN's identical precedent, chooser.show now asking
+  -- cfg.stagePresent for the shared stage instead of building a window of its own.
+  --
+  -- surface = "chooser" stays declared too, a narrower exception to PLUGIN-CONTRACT.md's own
+  -- "a presenting plugin declares no registry.surface" rule that Processes' own migration
+  -- already carved out. isShowing, selectNext, selectPrev, insertSelected, and hide are gone
+  -- from the chooser submodule, host/stage's own surfaceFor(identity) answering all five now,
+  -- but browseInto, browseUp, revealInFinder, copyPath, scrollPreviewDown, scrollPreviewUp,
+  -- and peekPreview, the extra verbs surface.extra above binds keys to, live on nowhere else,
+  -- and root/compose.lua's own surfaceAdapterFor falls through to whatever this field names
+  -- once the stage's own five have been asked and answered nothing.
   registry = {
     row = { category = "Tools", keywords = "find files folders spotlight locate" },
     open = { member = "chooser.show", call = "dot" },

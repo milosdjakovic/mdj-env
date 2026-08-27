@@ -721,8 +721,50 @@ function obj.run(olm, cfg)
     -- the stage is actually showing. A plugin not currently presented is silently a no op,
     -- since a tool's own background status changing is not a reason to redraw whatever
     -- unrelated list a person happens to be looking at.
-    redrawPresented = function(name)
-      if stageModule and stageModule:current() == name then stageModule:refresh() end
+    --
+    -- resetRow, the trickle migration's own addition, Processes' own sortByLoad, is optional
+    -- and forwarded straight to Stage:refresh(resetRow), which already answers it, nil
+    -- behaving exactly as before for VPN and MenuSearch, neither of which ever passes a
+    -- second argument. A one shot reorder has no row left to preserve, every row having
+    -- moved, so it asks for the highlight back at the top the same way a query source
+    -- rebuilding what the field means already does.
+    redrawPresented = function(name, resetRow)
+      if stageModule and stageModule:current() == name then stageModule:refresh(resetRow) end
+    end,
+
+    -- stageHide, the trickle migration's own addition, Processes' own stopForced. A forced
+    -- stop wants the shared window gone at once, the same instant feedback the retired
+    -- standalone picker's own chooser:hide() gave before an async stop even started, rather
+    -- than leaving a stale row on screen until the next sample or rescan corrects it. One
+    -- closure under one name, the identical shape stagePresent and redrawPresented already
+    -- take, since the question is "hide the shared window" and never which plugin is asking.
+    stageHide = function()
+      if stageModule then stageModule:hide() end
+    end,
+
+    -- stageSetQuery, the trickle migration's own addition, FileSearch's own parent row
+    -- intercept, which puts the query for the level above in the field and the presentation
+    -- stays open, the identical "swap the list in place" shape host/launcher's own paging
+    -- already performs through Stage:setQuery directly, since the launcher holds the stage.
+    -- A presenting plugin has no such direct hold, so this is the one word letting it reach
+    -- the identical field control. host/stage's own _intercept, and native.lua's contract
+    -- underneath it, already call refresh(true) once an intercept answers true, so nothing
+    -- here has to ask for a rebuild on top of what the atom already gives every intercept.
+    stageSetQuery = function(text)
+      if stageModule then stageModule:setQuery(text) end
+    end,
+
+    -- stageTextBudget and stageTextWidth, the trickle migration's own addition, FileSearch's
+    -- own fitDir, which used to measure a row's own room straight off the picker instance it
+    -- held and now has no instance left to ask. Both proxy host/stage's own public methods,
+    -- the identical thin shape every other stage word here already takes, 0 before an
+    -- instance exists rather than raising, since a caller measuring before configure has run
+    -- is a wiring defect this word should degrade under rather than crash over.
+    stageTextBudget = function()
+      return stageModule and stageModule:textBudget() or 0
+    end,
+    stageTextWidth = function(str, which)
+      return stageModule and stageModule:textWidth(str, which) or 0
     end,
 
     -- stageSelectedRow, the menu search cache's own addition, docs/BRIEF-MENUSEARCH-CACHE.md.
@@ -1328,11 +1370,21 @@ function obj.run(olm, cfg)
           -- stage's own self, dot called on purpose, so one pcall is the whole of what
           -- consistency asks for here.
           local fn = stageModule:surfaceFor(identity)[methodName]
-          if not fn then return nil end
-          return function(...)
-            local ok, result = pcall(fn, ...)
-            return ok and result
+          if fn then
+            return function(...)
+              local ok, result = pcall(fn, ...)
+              return ok and result
+            end
           end
+          -- Falls through to the ordinary lookup below rather than answering nil here, the
+          -- trickle migration's own fix, found the moment a presenting plugin first carried
+          -- an extra verb beyond the five generic ones stageFor's own adapter answers.
+          -- isShowing, selectNext, selectPrev, insertSelected, and hide are the stage's own
+          -- business now and never reach this point, but refresh, sortByLoad, and stopForced,
+          -- Processes' own three, are not, and stageFor answering nil for a name it was never
+          -- asked to carry is not the same claim as this plugin having nothing to answer it.
+          -- Before this fix a presenting plugin's own extra verbs were unreachable no matter
+          -- what registry.surface named, silently, since the branch below never ran for one.
         end
         local owner, fn = nil, nil
         local holder = surfaceOf(module, spec)
