@@ -828,8 +828,18 @@ end
 --- docs/BRIEF-MENUSEARCH-CACHE.md, whose own background correction has to know whether a
 --- person has moved off row one before it is safe to redraw without disturbing a considered
 --- position, a row number being the whole question rather than the item sitting on it.
+---
+--- Guarded on isShowing rather than only on the instance existing, second review pass of the
+--- cache build, finding N1. hs.chooser keeps its own selected row across a hide, restoring
+--- it only on the next show, lib/chooser/providers/native.lua's own reason for resetting the
+--- highlight there, so an unguarded read answers a row that belonged to whatever was on
+--- screen before the window last closed rather than nothing. A consumer asking what the
+--- highlight is doing while nothing is showing almost never means "what was it last", so nil
+--- is the honest answer for every caller of this method at once rather than a fix each one
+--- would otherwise have to invent for itself.
 function obj:selectedRow()
-  return self._instance and self._instance:selectedRow() or nil
+  if not self:isShowing() then return nil end
+  return self._instance:selectedRow()
 end
 
 --- Stage:query() -> string

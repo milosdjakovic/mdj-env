@@ -136,17 +136,25 @@ end
 -- path, which is the everyday case rather than a rare one, review finding H1. Two windows
 -- sharing a title, two Finder windows both named Documents, two blank TextEdit documents, both
 -- show up as identical leaves under Window. Walking a list in its own order and appending how
--- many times a path has already been seen turns that collision into two distinct keys, first
--- Documents and second Documents, so a set built from these keys is already a multiset in
--- effect, one entry per real row rather than one per distinct path. The index is recomputed
--- fresh from a list's own order every time rather than persisted, since order survives the json
--- round trip untouched and a derived value is one less thing that could ever disagree with what
--- produced it. Every caller that needs an identity, the live and fresh comparison, the merge,
--- and a recency touch, reads r.key from this rather than recomputing pathKey on its own.
+-- many times a path and shortcut pair has already been seen turns that collision into two
+-- distinct keys, first Documents and second Documents, so a set built from these keys is
+-- already a multiset in effect, one entry per real row rather than one per distinct path. The
+-- shortcut rides inside the grouping itself, review finding N4, rather than only on the row
+-- built from it, since two leaves that share a path but not a shortcut are not really
+-- duplicates of one another and grouping them as though they were let an unstable walk order
+-- hand one leaf's shortcut to the other's key from one read to the next, reading as changed
+-- and back with nothing visibly different. Grouping by path and shortcut together means an
+-- occurrence index only ever has to break a tie between leaves that are genuinely
+-- interchangeable, identical in every field this file reads, which is the one case H1's own
+-- review already found harmless at dispatch. The index is recomputed fresh from a list's own
+-- order every time rather than persisted, since order survives the json round trip untouched
+-- and a derived value is one less thing that could ever disagree with what produced it. Every
+-- caller that needs an identity, the live and fresh comparison, the merge, and a recency
+-- touch, reads r.key from this rather than recomputing pathKey on its own.
 local function keyedList(list)
   local seen, out = {}, {}
   for _, r in ipairs(list or {}) do
-    local base = pathKey(r.path)
+    local base = pathKey(r.path) .. PATH_SEP .. (r.shortcut or "")
     seen[base] = (seen[base] or 0) + 1
     out[#out + 1] = { path = r.path, shortcut = r.shortcut, key = base .. "#" .. seen[base] }
   end
@@ -506,16 +514,23 @@ end
 
 -- Kicks the background accessibility walk for this entry unless one is already running. Off
 -- the main thread by construction, hs.application:getMenuItems's own callback form, so this
--- never blocks the open that asked for it. Review finding two. entry.generation is bumped on
--- every call, and the closure below captures its own value at the moment it started, so a
--- callback that eventually fires after a newer walk has already begun, the timeout having
--- already cleared reading for it, is dropped rather than corrupting that newer walk's own
--- state, the identical shape VPN's own once only gate takes for a leg that can answer twice.
+-- never blocks the open that asked for it. Review finding H2.
+--
+-- fired is the single mechanism, deliberately, second review pass finding N2. An earlier
+-- version of this also carried a per entry generation counter, reasoning that a stale
+-- callback landing after a newer walk had begun needed a second guard beyond fired. It did
+-- not. entry.reading, the one thing that lets a newer walk start at all, is only ever
+-- cleared inside finish, below the fired check, so no newer walk can exist yet at the moment
+-- any walk's own finish body is running, which makes a generation compare unreachable. Worse
+-- than unreachable, since finish also stops entry.readTimeout above where that compare would
+-- sit, so a version of this that DID reach the compare and returned early would have already
+-- disarmed the newer walk's own timeout on the way out, reopening H2 for the walk the guard
+-- was meant to protect. One flag, checked once, first, is both sufficient and correct. A
+-- walk that genuinely outlasts READ_TIMEOUT has its real answer discarded when it finally
+-- lands, fired already true by then, the same choice VPN's own timed out leg makes.
 local function beginRead(entry)
   if entry.reading or not entry.app then return end
   entry.reading = true
-  entry.generation = (entry.generation or 0) + 1
-  local generation = entry.generation
   local app = entry.app
   local fired = false
 
@@ -529,7 +544,6 @@ local function beginRead(entry)
       entry.readTimeout:stop()
       entry.readTimeout = nil
     end
-    if entry.generation ~= generation then return end
     entry.reading = false
     if fresh then onLanded(entry, fresh) end
   end
@@ -548,6 +562,43 @@ local function beginRead(entry)
   end)
 end
 
+-- One file's worth of the sweep below, pulled out so it can be run under its own pcall,
+-- review finding N3. A raise anywhere in here used to abort every file after it for the rest
+-- of this Hammerspoon load, since the loop that calls this carried no protection of its own,
+-- and the one call in this body that was already capable of raising on some Hammerspoon
+-- builds, per the same finding, sat unguarded in the middle of it.
+local function sweepOne(dir, name, cutoff)
+  if name:sub(-5) ~= ".json" then return end
+  local full = dir .. "/" .. name
+  -- Review finding L2, the other half. A planted symlink among real snapshots is left
+  -- alone rather than followed and removed on its target's own behalf, os.remove already
+  -- removing only the link itself, never its target, which is the containment this file
+  -- already had. This is what keeps a foreign file from being reached at all.
+  local entryLink = hs.fs.symlinkAttributes(full)
+  if entryLink and entryLink.mode == "link" then return end
+  local bundleId = decodeBundleId(name:sub(1, -6))
+  -- pathForBundleID answers an empty string, never nil, for a bundle id it cannot
+  -- place, so both are checked, the same idiom lib/deps.lua and tmuxsessions already
+  -- read it by.
+  local installed = hs.application.pathForBundleID(bundleId)
+  local mtime = hs.fs.attributes(full, "modification")
+  if not (installed == nil or installed == "" or (mtime and mtime < cutoff)) then return end
+  local removedOk = os.remove(full)
+  if not removedOk then
+    log.w("could not remove a dead snapshot at " .. full .. ", it will be retried on the next Hammerspoon load")
+  end
+  -- Review finding M4, the deletion call itself corrected under review finding N3.
+  -- hs.settings.clear is the documented door this tree otherwise reaches for nowhere else
+  -- had reached for at all, hs.settings.set(key, nil) being an undocumented way to ask the
+  -- identical question that a future Hammerspoon build owes nothing to keep answering the
+  -- same way. The recency settings key ages out with the file it belongs to, rather than
+  -- persisting in the Hammerspoon plist forever once an app that no longer resolves has had
+  -- its cache dropped, and the in memory instance is dropped too, so nothing this session
+  -- resurrects the key on its own next touch.
+  hs.settings.clear(recencySettingsKey(bundleId))
+  recencyByApp[bundleId] = nil
+end
+
 -- Deferred hygiene, decision five, scheduled once per Hammerspoon load, on this plugin's own
 -- first open of any app, never at load time and never on the open path itself.
 local pruneScheduled, pruneTimer = false, nil
@@ -561,33 +612,13 @@ local function pruneDeadSnapshots()
   if not ok or not iter then return end
   local cutoff = os.time() - STALE_DAYS * 24 * 60 * 60
   for name in iter, dirObj do
-    if name:sub(-5) == ".json" then
-      local full = dir .. "/" .. name
-      -- Review finding L2, the other half. A planted symlink among real snapshots is left
-      -- alone rather than followed and removed on its target's own behalf, os.remove already
-      -- removing only the link itself, never its target, which is the containment this file
-      -- already had. This is what keeps a foreign file from being reached at all.
-      local entryLink = hs.fs.symlinkAttributes(full)
-      if not (entryLink and entryLink.mode == "link") then
-        local bundleId = decodeBundleId(name:sub(1, -6))
-        -- pathForBundleID answers an empty string, never nil, for a bundle id it cannot
-        -- place, so both are checked, the same idiom lib/deps.lua and tmuxsessions already
-        -- read it by.
-        local installed = hs.application.pathForBundleID(bundleId)
-        local mtime = hs.fs.attributes(full, "modification")
-        if installed == nil or installed == "" or (mtime and mtime < cutoff) then
-          local removedOk = os.remove(full)
-          if not removedOk then
-            log.w("could not remove a dead snapshot at " .. full .. ", it will be retried on the next Hammerspoon load")
-          end
-          -- Review finding M4. The recency settings key ages out with the file it belongs
-          -- to, rather than persisting in the Hammerspoon plist forever once an app that no
-          -- longer resolves has had its cache dropped, and the in memory instance is dropped
-          -- too, so nothing this session resurrects the key on its own next touch.
-          hs.settings.set(recencySettingsKey(bundleId), nil)
-          recencyByApp[bundleId] = nil
-        end
-      end
+    -- Review finding N3. Each file's own sweep runs under its own pcall now, so a raise
+    -- on one file, malformed on disk, a settings call an unexpected Hammerspoon build
+    -- answers differently, or anything else, is logged and the sweep still reaches every
+    -- file after it rather than stopping cold for the rest of this Hammerspoon load.
+    local sweepOk, sweepErr = pcall(sweepOne, dir, name, cutoff)
+    if not sweepOk then
+      log.w("the dead snapshot sweep raised on " .. tostring(name) .. ", " .. tostring(sweepErr) .. ", continuing with the rest")
     end
   end
 end
