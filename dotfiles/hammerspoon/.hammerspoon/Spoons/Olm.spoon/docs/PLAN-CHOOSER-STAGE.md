@@ -46,18 +46,15 @@ Track one, unification.
       from the brief. Adversarial review by Opus, live test gate with Milos.
       Landed on main 2026-08-27, three commits merged at eaaba33, review in
       docs/REVIEW-STAGE-PHASE2.md, findings 4 and 12 inherited by phase 3.
-- [ ] 3. Handoff becomes a swap. Registry opens a presentation declaring tool
-      through stage.present, backspace on empty pops back to the launcher, hotkey
-      opens present over an empty stack. Deferral survives only for dispatch into
-      the outside world. Review and live test.
-- [ ] 4. Live geometry. Reposition and pane show or hide on present, built from the
-      settle mechanics, paneFrames kept honest for the click watcher. Row count per
-      the 0a answer. Review and live test.
-- [ ] 5. Menu search, promoted ahead of the other migrations on 2026-08-27 because
+- [x] 3. Handoff becomes a swap. Landed on main 2026-08-27, VPN the proving
+      consumer, review in docs/REVIEW-HANDOFF-PHASE3.md.
+- [x] 4. Live geometry. Landed on main 2026-08-27 with phase 3 at one shared
+      gate, review in docs/REVIEW-GEOMETRY-PHASE4.md.
+- [x] 5. Menu search, promoted ahead of the other migrations on 2026-08-27 because
       the slow hyper e open was the original complaint and it does not need them.
-      One step, the menusearch migration onto a presentation block plus the
-      snapshot cache of BRIEF-MENUSEARCH-CACHE.md, one review, one live test on
-      the heaviest app from the 0a timings.
+      Landed on main 2026-08-27 at 7206aba after the gate, the first press shows
+      the window within a tenth of a second and the second serves from the
+      snapshot. Review in the scratchpad review-menusearch doc of that session.
 - [ ] 6. The remaining migrations become trickle work rather than a scheduled
       phase, one plugin whenever convenient, each mechanical against the proven
       contract, old path and new path coexisting by design. BrowserTabs suite
