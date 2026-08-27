@@ -17,6 +17,14 @@
 -- free, the chooser factory, the theme, and a placeholder. Every one of those is asked for
 -- directly instead, the same values the ambient grant would have handed over, so the request
 -- says what it needs rather than pretending to be a kind of plugin it is not.
+--
+-- All six needs below are delivered by hand into wireData.stage at the composition root
+-- rather than through servicesLib.fanOut, the same door host/actionpanel's own kindOf,
+-- rowsFor, and run already go through for the identical reason, a value only the root can
+-- compute for one particular host rather than a word many plugins share. This is worth
+-- writing down because it once was not honoured, source root declared six words and only five
+-- of them were ever actually handed over, placeholder read nil on every load until
+-- SHIPPED_POLICY in root/compose.lua learned to carry one.
 return {
   needs = {
     data = {

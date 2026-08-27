@@ -224,18 +224,25 @@ return {
   -- while a hosted list is showing, was missing entirely.
   surface = {
     context = "launcher",
-    -- Where the object that answers the navigation verbs actually lives. This host builds a
-    -- dot called adapter over its own Chooser instance in configure, and that adapter's own
-    -- comment says the root is meant to drive it the way it drives every other picker. Nothing
-    -- did, because every other tool is found through its registry entry and this one has no
-    -- registry entry at all, being a host rather than a launcher row. So the most used list in
-    -- the config was the one list where holding the leader and pressing j reached nothing.
+    -- Where the object that answers the navigation verbs actually lives. Originally this host
+    -- built its own dot called adapter over its own Chooser instance in configure. Since the
+    -- chooser stage build's phase two it builds no instance at all, and _surface is instead a
+    -- plain assignment of the stage's own shared nav adapter, host/stage's own surface field.
+    -- The reason this is still declared here rather than being assumed is the one that made it
+    -- necessary in the first place, every other tool is found through its registry entry and
+    -- this one has no registry entry at all, being a host rather than a launcher row, so
+    -- nothing else tells the root where to look.
     member = "_surface",
-    -- This plugin's configure reads the docked panel's three callbacks nested under one
-    -- field rather than as three flat ones, so the shape is named here. Four plugins
-    -- disagree about this and the disagreement lives in their own configure contracts,
-    -- so it has to be declared. Assuming the flat form silently removed the panel from
-    -- every one of them while handing each three fields it never reads.
+    -- The docked panel's three callbacks arrive nested under this one field name rather than
+    -- as three flat ones, so the shape is named here for whoever reads perPluginData off it.
+    -- That reader used to be this plugin's own configure, and since the chooser stage build's
+    -- phase two it no longer is, configure does not read opts.shortcutPanel at all any more.
+    -- The declaration still has to stay, because lib/services.lua's own perPlugin is what puts
+    -- the docked panel under this exact name in perPluginData, and the composition root now
+    -- reads it from there for the stage's own fixed panel config instead, root/compose.lua's
+    -- own THE SEAM comment beside that read says as much. So opts.shortcutPanel still arrives
+    -- on this plugin's ordinary configure call too, as a side effect of the same declaration
+    -- serving two readers, and this plugin drops it on the floor on purpose.
     panelAs = "shortcutPanel",
     primary = { action = "insertSelected", description = "Run" },
     close = { key = "space" },

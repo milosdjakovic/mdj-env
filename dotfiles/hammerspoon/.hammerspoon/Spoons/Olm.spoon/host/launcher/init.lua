@@ -991,11 +991,16 @@ end
 --- An optional query opens the launcher with the field already filled, which is how something
 --- outside hands the list back with a word in it. It is plain text and the launcher attaches no
 --- meaning to it, so this is not a way to open one tool, it is the same open with typing already
---- done. Three details are load bearing. It is set after the show, because showing clears the
+--- done. Four details are load bearing. It is set after the show, because showing clears the
 --- field. It is followed by a refresh, because setting a chooser's query does not fire the
 --- callback that rebuilds the rows, so without it the field would read one thing and the list
---- would show another. And the refresh resets the highlight to the top, which is right for a
---- list the user has not seen yet.
+--- would show another. The refresh resets the highlight to the top, which is right for a list
+--- the user has not seen yet. And the refresh is FORCED rather than left to the stage's
+--- ordinary visibility guard, because hs.chooser:isVisible() can still read false for a moment
+--- right after present has just shown the window, finding three of the phase two adversarial
+--- review, and a guarded refresh landing in that gap silently drops the rebuild, leaving the
+--- field reading one thing and the list showing another exactly as the sentence above warns
+--- against.
 function obj:show(query)
   self._openId = (self._openId or 0) + 1
   -- The app this launcher covers, which can never be this app. macOS answers with ourselves
@@ -1018,7 +1023,7 @@ function obj:show(query)
   self._stage:present(self._presentation)
   if query and query ~= "" then
     self._stage:setQuery(query)
-    self._stage:refresh(true)
+    self._stage:refresh(true, true)
   end
 end
 
@@ -1031,13 +1036,18 @@ end
 
 --- Launcher:isShowing()
 --- Method
---- Whether the launcher itself, rather than some other presentation, is what the stage is
---- currently showing. Safe before configure. Checking the stage's own current name rather
---- than only whether the stage is visible at all is what keeps this answering false once a
---- future presentation is what the shared window actually holds.
+--- Whether the stage's window is actually up AND the launcher itself, rather than some other
+--- presentation, is what it currently shows. Safe before configure. Both halves are load
+--- bearing. The name check is what keeps this answering false once a future presentation is
+--- what the shared window actually holds. The visibility check is what keeps this answering
+--- false the moment the window genuinely tears down even if the stack briefly disagrees,
+--- finding two of the phase two adversarial review, a present that lands in the narrow gap
+--- where the widget is still dismissing can leave the stack claiming the launcher is current
+--- with no window behind it, and this predicate must not stay stuck on through that, since
+--- launcherOpen gates j, k, space, and the action panel chord.
 function obj:isShowing()
   return self._presentation ~= nil and self._stage ~= nil
-    and self._stage:current() == self._presentation.name
+    and self._stage:isShowing() and self._stage:current() == self._presentation.name
 end
 
 --- Launcher:surface()

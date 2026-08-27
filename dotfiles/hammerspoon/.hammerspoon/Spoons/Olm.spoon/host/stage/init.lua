@@ -8,10 +8,11 @@
 --- root, which is the only place that ever hands this host a concrete presentation.
 ---
 --- Phase two of the stage design build plan, host/stage owning the one Chooser.new and the
---- launcher migrated onto it as the first presentation. Nine tools still open their own
---- window, that is later phases, so this host's stack sits at depth one everywhere today,
---- which is correct and expected here. See docs/BRIEF-STAGE.md for the decisions this file
---- follows, and its own evidence in docs/CONSUMER-MAP-2026-08-27.md.
+--- launcher migrated onto it as the first presentation. Twelve other consumers still open
+--- their own window, the overlay display picker among them, that is later phases, so this
+--- host's stack sits at depth one everywhere today, which is correct and expected here. See
+--- docs/BRIEF-STAGE.md for the decisions this file follows, and its own evidence in
+--- docs/CONSUMER-MAP-2026-08-27.md.
 ---
 --- One instance, built once at configure, never rebuilt. Every consumer used to build its own
 --- hs.chooser and tear it down with its window; this host builds one and keeps it for the
@@ -78,6 +79,18 @@ end
 ---                     something a presentation carries. Phase two hands this the launcher's
 ---                     own panel, the only one that exists yet.
 function obj:configure(opts)
+  -- Decision one of the stage design brief, the one instance this host ever builds is never
+  -- rebuilt. A second call here would not merely waste a chooser, it would orphan the first
+  -- one inside ActionPanel's own instance roster, which appends every instance decorate ever
+  -- sees and never removes one, so an orphan would sit in that roster forever, finding six of
+  -- the phase two adversarial review. Not reachable today, this host is configured exactly
+  -- once in the ordinary wiring pass and never again, but the guard costs one comparison and
+  -- follows the same idempotent shape Launcher:start already keeps for the identical reason.
+  if self._instance then
+    log.w("Stage configure ran a second time, ignoring it, the one instance this host builds is never rebuilt")
+    return self
+  end
+
   opts = opts or {}
   self._chooser = opts.chooser
   self._theme = opts.theme
@@ -128,6 +141,23 @@ function obj:configure(opts)
   -- exception, the sixth function consumer map section 2.2 already found on the launcher's
   -- own surface, so it is asked of the current presentation and answered only when that
   -- presentation carries one.
+  --
+  -- WARNING FOR WHOEVER MIGRATES THE SECOND PRESENTATION ONTO THIS HOST. isShowing here
+  -- answers for the shared window, not for whichever presentation's own surface reaches it.
+  -- Every presenting plugin's manifest still points its own surface.member at ITS OWN adapter,
+  -- the launcher's is _surface, and that adapter's isShowing is this one, shared. Today the two
+  -- questions, is the launcher current and is the window up, always agree, because the launcher
+  -- is the only presentation there is. The moment a second one lands, lib/nav.lua's
+  -- activeSurface picks the FIRST adapter in plan.order whose isShowing answers true, and since
+  -- every presenting plugin's isShowing would be this same shared function, whichever of them
+  -- sits earliest in plan.order, the launcher today, wins the routing no matter which
+  -- presentation is actually on screen, and every navigation key reaches the wrong tool's own
+  -- rows and dispatch. Finding 10 of the phase two adversarial review names this. The honest
+  -- fix is for a presenting plugin's own surface to stop lending this shared isShowing at all
+  -- and answer instead whether ITS OWN presentation is current, host/launcher/init.lua's own
+  -- isShowing already does exactly that rather than delegating to this table for that one
+  -- question, and whichever plugin migrates next should follow it rather than this shared
+  -- surface as written today.
   self.surface = {
     isShowing = function() return self:isShowing() end,
     selectNext = function() if self._instance then self._instance:selectNext() end end,
@@ -165,13 +195,22 @@ end
 
 --- Stage:present(p) -> bool
 --- Method
---- Show p, pushing it on the stack unless p is already the presentation on top, in which case
---- this is a reopen of what is already current rather than a second level of it, the shape a
---- tool's own hotkey opening its own already-open list needs. Swaps live when the instance is
---- already showing, resets the highlight to row one either way, per decision two of the stage
---- design brief. Answers false and refuses when p is not a presentation this host can show,
---- naming what was missing, the same discipline lib/registry.lua's own register keeps for a
+--- Show p. Resets the highlight to row one either way, per decision two of the stage design
+--- brief. Answers false and refuses when p is not a presentation this host can show, naming
+--- what was missing, the same discipline lib/registry.lua's own register keeps for a
 --- malformed descriptor.
+---
+--- One question decides everything else, whether the window is already up. Findings two, four,
+--- and five of the phase two adversarial review are one mechanism for the same reason, a
+--- present that finds the window hidden cannot trust anything the stack still holds, since
+--- nothing can genuinely be mid drill with no window to have drilled in, so it starts a FRESH
+--- stack, p and nothing below it, rather than pushing onto whatever is there, and this is also
+--- the one moment the world is captured, once per stack by construction rather than once per
+--- hidden present, since a fresh stack and a world capture are now the same branch and cannot
+--- drift apart. A present that finds the window already up is a swap, joining the existing
+--- stack unless p is already the presentation on top, in which case this is a reopen of what
+--- is already current rather than a second level of it, the shape a tool's own hotkey opening
+--- its own already-open list needs.
 function obj:present(p)
   if type(p) ~= "table" or type(p.name) ~= "string" or p.name == ""
     or type(p.rows) ~= "function" or type(p.onSelect) ~= "function" then
@@ -182,14 +221,17 @@ function obj:present(p)
     log.w(string.format("Stage present for '%s' arrived with no instance built, refusing", p.name))
     return false
   end
-  if self:_current() ~= p then
-    self._stack[#self._stack + 1] = p
-  end
+
+  local wasShowing = self._instance:isShowing()
   self._instance:setPlaceholder(p.placeholder or "")
-  if self._instance:isShowing() then
+  if wasShowing then
+    if self:_current() ~= p then
+      self._stack[#self._stack + 1] = p
+    end
     self._instance:setQuery("")
     self._instance:refresh(true)
   else
+    self._stack = { p }
     self:_captureWorld()
     self._instance:show()
   end
@@ -224,14 +266,25 @@ function obj:hide()
   self._stack = {}
 end
 
---- Stage:refresh(resetRow)
+--- Stage:refresh(resetRow, force)
 --- Method
 --- Re run the current presentation's rows, keeping the highlight by default. resetRow mirrors
 --- the atom's own Chooser:refresh(resetRow), for a caller that swapped what the field means
---- and wants the highlight back at the top, the shape Launcher:show's own seeded query needs.
---- A no op while nothing is showing.
-function obj:refresh(resetRow)
-  if self._instance and self._instance:isShowing() then
+--- and wants the highlight back at the top. A no op while nothing is showing, unless force is
+--- true.
+---
+--- force exists for exactly one caller, Launcher:show's own seeded query rebuild, finding
+--- three of the phase two adversarial review. The old code called instance:refresh(true)
+--- straight, with no visibility guard at all, right after instance:show(), and
+--- host/launcher/init.lua's own comment on that call site states why, hs.chooser:isVisible()
+--- can still read false for a moment after show returns, so gating this call on isShowing
+--- immediately after a show is a guard the old code never had and can silently drop the
+--- rebuild that makes a seeded query mean anything. Every other caller wants the ordinary
+--- guarded behaviour, a query source redrawing late through Launcher:refresh should still be a
+--- no op while closed, so the guard stays the default and force is how one caller opts out of
+--- it rather than the guard being removed for everybody.
+function obj:refresh(resetRow, force)
+  if self._instance and (force or self._instance:isShowing()) then
     self._instance:refresh(resetRow)
   end
 end
