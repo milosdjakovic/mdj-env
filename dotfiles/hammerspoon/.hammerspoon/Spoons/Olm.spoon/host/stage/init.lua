@@ -222,6 +222,11 @@ function obj:configure(opts)
     -- own. A presentation with no onScroll of its own is silently skipped, exactly as an
     -- ordinary missing field already is everywhere else in this file.
     onScroll = function(points) self:_onScroll(points) end,
+    -- Found alongside onScroll above, clipboard's own onRightClick, the only consumer
+    -- anywhere, a canvas row offering no native right click handling of its own either.
+    -- Routed the identical way, live on self.config, a presentation with none simply
+    -- never asked.
+    onRightClick = function(item, row) self:_onRightClick(item, row) end,
     -- Adversarial review finding M2. Routed through this host's own _onPositioned rather
     -- than handed self._panelOnPositioned directly, so the docked panel is re anchored
     -- through the identical function a manual placement uses on a swap, _onPositioned
@@ -1058,6 +1063,14 @@ end
 function obj:_onScroll(points)
   local p = self:_current()
   if p and p.onScroll then p.onScroll(points) end
+end
+
+-- A canvas row right clicked, which a native chooser row cannot answer for itself, the reason
+-- this exists at all. Routed the identical way _onScroll is, clipboard's own presentation
+-- being the only consumer today.
+function obj:_onRightClick(item, row)
+  local p = self:_current()
+  if p and p.onRightClick then p.onRightClick(item, row) end
 end
 
 -- Fired for any teardown, a completed selection, escape, a click away, or a programmatic

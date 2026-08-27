@@ -28,7 +28,16 @@ local store, paste, util, media = nil, nil, nil, nil
 local isAccumulator = function() return false end
 local cfg = nil -- layout and size config, see configure
 local Chooser = nil -- the injected Chooser.spoon factory
-local picker = nil -- our Chooser instance, built once in UI.build
+-- Migrated onto host/stage, the trickle migration. This plugin owns no Chooser instance and
+-- builds no window any more, so isShowing lives here instead as a plain flag, true from the
+-- moment UI.onPresent runs until onClose says otherwise. lastHighlighted is the item the
+-- presentation's own onHighlight, renderPreview itself, last named, cached so appendSelected,
+-- deleteSelected, and every explicit re-render have something to act on without an instance of
+-- its own left to ask selectedItem() of, the identical shape filesearch and processes already
+-- carry. Both are also what providers/hammerspoon.lua's own toggle now reads and drives,
+-- through UI.isShowing and UI.hide, in place of the instance it used to ask directly.
+local showing = false
+local lastHighlighted = nil
 -- The manage history page, injected. It owns the duration grammar, the slices and their
 -- wording, and this file only draws whatever it hands back, see prune.lua.
 local prune = nil
@@ -101,10 +110,15 @@ end
 -- Push a fresh footer whenever the batch count changes, so the injected footer
 -- supplier can relabel the delete hint ("Delete" vs "Delete marked (N)") to match.
 -- The supplier owns the wording; this only hands it the live count and forwards the
--- result to the picker. A no op on a backend whose picker has no setFooter (native).
+-- result to the picker. Already a no op before this migration, since the native backend,
+-- the only one left since the webview backend was retired, has no setFooter method at all,
+-- and host/stage exposes none either, so this stays exactly as inert as it already was
+-- rather than gaining a new gap the migration would have to answer for.
 local function refreshFooter()
-  if picker and picker.setFooter and cfg and cfg.footerFor then
-    picker:setFooter(cfg.footerFor(#batch))
+  if cfg and cfg.footerFor then
+    -- Nothing left to forward the result to. Kept as the one place this would resume
+    -- working from if a future backend, or a future stage capability, ever answered
+    -- setFooter, rather than deleted and rediscovered from nothing.
   end
 end
 
@@ -1040,13 +1054,23 @@ end
 -- without one, so it defers entirely rather than guessing a width, the same way the
 -- processes and filesearch panes defer their own first paint. onPositioned calls
 -- this again the moment it has a real rect, well before anything is visible.
+-- Migrated onto host/stage. Caches e into lastHighlighted, since this is the presentation's
+-- own onHighlight, named directly on the manifest's own presentation block, so every other
+-- caller that used to ask picker:selectedItem() reads this cache instead.
 local function renderPreview(e)
+  lastHighlighted = e
   if not previewFrame then return end
   renderToken = renderToken + 1
   scrollOffset = 0
   -- Only the text colours come from the palette; the pane's background and border are
-  -- the shared surface, drawn in paint() through the injected cfg.surface.
-  local p = picker:activeTheme().preview
+  -- the shared surface, drawn in paint() through the injected cfg.surface. The atom's own
+  -- light and dark resolution, hs.host.interfaceStyle() picking cfg.theme's dark or light
+  -- half, lib/chooser/providers/native.lua:178's own arithmetic, reproduced here rather than
+  -- reached through an instance this file no longer holds.
+  local theme = cfg.theme or {}
+  local dark = hs.host.interfaceStyle() == "Dark"
+  local resolved = (dark and theme.dark) or theme.light or theme.dark or {}
+  local p = resolved.preview or {}
   colors = {
     fg = hexColor(p.fg), meta = hexColor(p.meta),
     path = hexColor(p.path), note = hexColor(p.note),
@@ -1145,53 +1169,53 @@ local function back()
 end
 
 -- The chooser closed for any reason. Cancel any uncommitted batch, hide the
--- preview, and tell the root (which drops the shortcut overlay). Injected as the
--- atom's onClose, so this file never learns about the overlay or the click watcher.
+-- preview, and drop the page. Named on the manifest's own presentation block as the
+-- contract's onClose, told once whenever the stage hides entirely, never on a swap, the
+-- identical meaning the atom's own onClose already carried for the standalone picker this
+-- used to be attached to directly.
+--
+-- Migrated onto host/stage. Drops its own picker:setPlaceholder(PLACEHOLDER.history) call,
+-- since the next cold show already carries that exact string as this presentation's own
+-- static placeholder, resolved once at register, so there is nothing left to reset by hand.
+-- Drops its own call to cfg.onClose too, the docked shortcut panel being atom level policy
+-- host/stage owns for the life of its one instance now, and a plugin still calling it would
+-- be a second, competing writer of the identical panel.
 local function onClose()
   batch = {}
   -- Leave the page behind, so the next open is the history list. The same reason the launcher
   -- drops a hosted list on show, a page is where you were rather than a setting you chose.
   page = nil
-  if picker then picker:setPlaceholder(PLACEHOLDER.history) end
   -- Reset the footer to its no-batch labels now the batch is cleared, so the next
   -- open does not come up still reading "Delete marked". The picker is hidden here,
   -- so setFooter only updates the stored hints the next open renders from.
   refreshFooter()
   hidePreview()
-  if cfg and cfg.onClose then
-    cfg.onClose()
-  end
+  showing = false
 end
 
 -- The native atom reserved a companion rect beside the chooser. Record it and
 -- render the current selection into the canvas (paint places it there). Fired at
 -- show with a seed frame and again once the real chooser window settles, so
--- re-docking is expected and harmless. The chooserFrame is forwarded to the
--- injected onPositioned, which the composition root uses to dock the shortcut
--- panel below, so this file never learns about that panel.
+-- re-docking is expected and harmless.
+--
+-- Migrated onto host/stage. Drops its own call to cfg.onPositioned and the anchor
+-- arithmetic that built it, since host/stage's own paneAnchor now re anchors the docked
+-- shortcut panel itself, on every path that has real frames to report, and a plugin still
+-- making that call would be a second, competing writer of the identical panel. Reads
+-- lastHighlighted rather than picker:selectedItem(), an instance this file no longer holds.
 local function onPositioned(chooserFrame, companionFrame)
   if companionFrame then
     previewFrame = companionFrame
-    renderPreview(picker:selectedItem())
-  end
-  if cfg and cfg.onPositioned then
-    -- The shortcut panel docks below this anchor. Span it across the chooser and the
-    -- companion preview so it sits full width beneath the pair, not just the list.
-    local anchor = chooserFrame
-    if companionFrame then
-      anchor = {
-        x = chooserFrame.x, y = chooserFrame.y, h = chooserFrame.h,
-        w = (companionFrame.x + companionFrame.w) - chooserFrame.x,
-      }
-    end
-    cfg.onPositioned(anchor)
+    renderPreview(lastHighlighted)
   end
 end
 
+-- Migrated onto host/stage. cfg.redrawPresented replaces the direct picker:refresh() this
+-- used to call on an instance it held itself.
 local function onRightClick(entry)
   if not entry or entry.side then return end
   store.removeEntry(entry)
-  picker:refresh()
+  if cfg.redrawPresented then cfg.redrawPresented("clipboard") end
 end
 
 --------------------------------------------------------------------------------
@@ -1199,21 +1223,32 @@ end
 -- navigation methods)
 --------------------------------------------------------------------------------
 
+--- UI.show() - present through the shared stage. Called by providers/hammerspoon.lua's own
+--- toggle, which reads UI.isShowing() first and calls this only when the native manager is not
+--- already up, so this itself does not need to guard against a redundant present.
 function UI.show()
-  if picker then picker:show() end
+  if cfg.stagePresent then cfg.stagePresent("clipboard") end
 end
 
+--- UI.isShowing() - migrated onto host/stage. Reads the plain flag this presentation's own
+--- onPresent and onClose keep current, rather than an instance this file no longer holds.
+--- providers/hammerspoon.lua's own toggle is what this exists for now, isShowing deciding
+--- whether a press means UI.show or UI.hide, the identical question the nav system asks
+--- host/stage's own surfaceFor instead, both answering from the same underlying fact.
 function UI.isShowing()
-  return picker ~= nil and picker:isShowing()
+  return showing
 end
 
+--- UI.hide() - migrated onto host/stage. cfg.stageHide replaces the direct picker:hide() this
+--- used to call on an instance it held itself, for providers/hammerspoon.lua's own toggle.
 function UI.hide()
-  if picker then picker:hide() end
+  if cfg.stageHide then cfg.stageHide() end
 end
 
---- UI.refresh() - rebuild the visible rows, e.g. after a clear.
+--- UI.refresh() - rebuild the visible rows, e.g. after a clear. Migrated onto host/stage,
+--- cfg.redrawPresented replacing the direct picker:refresh() this used to call.
 function UI.refresh()
-  if picker then picker:refresh() end
+  if cfg.redrawPresented then cfg.redrawPresented("clipboard") end
 end
 
 --- UI.mediaReady() - a just-copied item's preview or thumbnail finished generating
@@ -1225,9 +1260,9 @@ function UI.mediaReady()
   thumbCache = {}
   imageCache = {}
   existCache = {}
-  if picker and picker:isShowing() then
-    picker:refresh()
-    renderPreview(picker:selectedItem())
+  if showing then
+    if cfg.redrawPresented then cfg.redrawPresented("clipboard") end
+    renderPreview(lastHighlighted)
   end
 end
 
@@ -1238,23 +1273,19 @@ end
 --- itself and the media caches are keyed by path.
 function UI.entryChanged(entry)
   hayCache[entry] = nil
-  if picker and picker:isShowing() then
-    picker:refresh()
-    renderPreview(picker:selectedItem())
+  if showing then
+    if cfg.redrawPresented then cfg.redrawPresented("clipboard") end
+    renderPreview(lastHighlighted)
   end
 end
 
-function UI.selectNext()
-  if picker then picker:selectNext() end
-end
-
-function UI.selectPrev()
-  if picker then picker:selectPrev() end
-end
-
-function UI.insertSelected()
-  if picker then picker:insertSelected() end
-end
+-- selectNext, selectPrev, and insertSelected are gone, the trickle migration, deleted along
+-- with the Chooser.new block that gave them something to answer for. The composition root now
+-- routes this plugin's own navigation through host/stage's own surfaceFor once
+-- wiredRegistry.presentationFor("clipboard") answers a presentation, falling through to this
+-- submodule for appendSelected, deleteSelected, manageHistory, leaveManageHistory,
+-- scrollPreviewDown, and scrollPreviewUp, the extra verbs neither the stage nor its five
+-- function adapter was ever asked to carry.
 
 -- How far one Hyper+Cmd+j/k press scrolls the preview, roughly a mouse-wheel
 -- notch, enough to read a long entry in a few presses without overshooting.
@@ -1266,7 +1297,7 @@ local PREVIEW_SCROLL_STEP = 120
 --- already was, in paint. Repaint redraws the last content at the new offset without
 --- rebuilding it.
 function UI.scrollPreviewBy(points)
-  if not (preview and picker and picker:isShowing()) then return end
+  if not (preview and showing) then return end
   scrollOffset = scrollOffset + (tonumber(points) or 0)
   repaint()
 end
@@ -1286,11 +1317,11 @@ end
 --- Hyper a binding. The chooser stays open. Refreshing redraws the rows with the
 --- new order badges, and the atom's refresh preserves the highlight.
 function UI.appendSelected()
-  if not picker or not picker:isShowing() or page then return end
-  local entry = picker:selectedItem()
+  if not showing or page then return end
+  local entry = lastHighlighted
   if not entry then return end
   toggleBatch(entry)
-  picker:refresh()
+  if cfg.redrawPresented then cfg.redrawPresented("clipboard") end
   renderPreview(entry) -- update the preview's mark to match the row, without moving
   refreshFooter()
 end
@@ -1303,16 +1334,16 @@ function UI.deleteSelected()
   -- Inert on the manage history page. Every row there already deletes, on Return, in a slice
   -- whose size the row states, and a d that took the highlighted slice instead would be the one
   -- key in this picker whose meaning silently changed with the page.
-  if not picker or not picker:isShowing() or page then return end
+  if not showing or page then return end
   if #batch > 0 then
     for _, e in ipairs(batch) do store.removeEntry(e) end
     batch = {}
   else
-    local entry = picker:selectedItem()
+    local entry = lastHighlighted
     if not entry then return end
     store.removeEntry(entry)
   end
-  picker:refresh()
+  if cfg.redrawPresented then cfg.redrawPresented("clipboard") end
   refreshFooter()
 end
 
@@ -1323,94 +1354,84 @@ end
 ---
 --- Opening from the launcher arrives here with nothing showing, so the picker is shown too, and
 --- the page is set BEFORE the show since showing is what builds the first rows.
+--- Migrated onto host/stage. A fresh present when nothing was showing carries this
+--- presentation's own static placeholder, "Search clipboard", so cfg.stageSetPlaceholder
+--- corrects it to the prune wording right after, the identical direct field control
+--- cfg.stageSetQuery already exists for. Already showing, the field is cleared and the ladder
+--- rebuilt exactly as before, through the published words rather than the retired instance.
 function UI.manageHistory()
-  if not picker then return end
   if page == "prune" then
     UI.leaveManageHistory()
     return
   end
   page = "prune"
-  picker:setPlaceholder(PLACEHOLDER.prune)
-  if not picker:isShowing() then
-    picker:show()
-    return
+  if not showing then
+    if cfg.stagePresent then cfg.stagePresent("clipboard") end
   end
-  -- Whatever was typed was a search over history, and on this page the same text would read as
-  -- a duration, so the field starts empty and the ladder is what a person sees first.
-  picker:setQuery("")
-  picker:refresh(true)
-  renderPreview(picker:selectedItem())
+  if cfg.stageSetPlaceholder then cfg.stageSetPlaceholder(PLACEHOLDER.prune) end
+  if showing then
+    -- Whatever was typed was a search over history, and on this page the same text would
+    -- read as a duration, so the field starts empty and the ladder is what a person sees
+    -- first.
+    if cfg.stageSetQuery then cfg.stageSetQuery("") end
+    if cfg.redrawPresented then cfg.redrawPresented("clipboard", true) end
+    renderPreview(lastHighlighted)
+  end
 end
 
 --- UI.leaveManageHistory() - give the history list back, the answer to Backspace on an empty
 --- field and to pressing the page's own key again. Rebuilds from the top, since the list now
 --- means something else and the highlight has no business staying on the row number the page
---- left it on.
+--- left it on. Migrated onto host/stage, the identical published words manageHistory above
+--- already uses.
 function UI.leaveManageHistory()
   if page == nil then return end
   page = nil
-  if not picker then return end
-  picker:setPlaceholder(PLACEHOLDER.history)
-  picker:setQuery("")
-  picker:refresh(true)
-  renderPreview(picker:selectedItem())
+  if cfg.stageSetPlaceholder then cfg.stageSetPlaceholder(PLACEHOLDER.history) end
+  if cfg.stageSetQuery then cfg.stageSetQuery("") end
+  if cfg.redrawPresented then cfg.redrawPresented("clipboard", true) end
+  renderPreview(lastHighlighted)
 end
 
 --- UI.isManagingHistory() - whether the page is on, read by the plugin's own predicate so the
---- hint panel lists the way out exactly while there is one.
+--- hint panel lists the way out exactly while there is one. Migrated onto host/stage, reading
+--- the plain showing flag rather than an instance this file no longer holds.
 function UI.isManagingHistory()
-  return page == "prune" and picker ~= nil and picker:isShowing()
+  return page == "prune" and showing
 end
 
---- UI.build() - create the Chooser instance. Called once at start and reused
---- across shows. Maps the clipboard layout config onto the atom's layout, wires
---- the clipboard policy through the atom's callbacks, and reserves a companion
---- pane the width of the preview. The provider and the onActivity/onPositioned
---- hooks are injected from the composition root (native, with a docked shortcut
---- panel); onActivity is forwarded straight to the atom so the panel's idle timer
---- resets on each keypress, and onPositioned is composed inside our own so both
---- the preview and the panel get placed.
+--- UI.placeholder() -> string. The field hint while this plugin's own presentation is
+--- current, named on the manifest's own presentation block. Resolved once, at register, since
+--- the presentation contract wants a plain string a presentation carries rather than a
+--- function to call again later. The prune page's own wording is reached live instead,
+--- through cfg.stageSetPlaceholder, manageHistory and leaveManageHistory above, the direct
+--- field control a presentation's own static placeholder cannot express.
+function UI.placeholder()
+  return PLACEHOLDER.history
+end
+
+--- UI.onPresent() - the presentation contract's own onPresent, named on the manifest's own
+--- presentation block, called whenever this presentation becomes current, through present or
+--- push alike. Marks this plugin's own showing flag, which providers/hammerspoon.lua's own
+--- toggle, and every guard in this file, now reads in place of an instance's own isShowing().
+function UI.onPresent()
+  showing = true
+end
+
+--- UI.build() - no longer creates a Chooser instance, the trickle migration. Whatever this
+--- used to hand a Chooser.new call, theme, fieldMode, rows, onSelect, the drill down pair, the
+--- panel triple, and layout, is now either read straight off this module by the registrar,
+--- rows and select through the manifest's own presentation block, or owned by the stage as
+--- fixed, atom level policy, matcher being contract v2's own exception, still read straight
+--- off presentation.matcher rather than computed here since this plugin never varies it.
+--- widthPct, paneMaxW, rowH, baseH, rowCount, gap, topFrac, and minVPad were eight restated
+--- atom defaults even before this migration, surprise 9.4 of the consumer map, and pollInterval
+--- turns out to equal the atom's own hardcoded fallback of 0.08 exactly, so nothing here was
+--- ever a real override beyond companionWidth, which paneWidth = true in the manifest now
+--- carries. Kept as a callable no op rather than deleted, since manager/init.lua's own start
+--- still calls it and a wiring step this file no longer needs is cheaper to leave inert than to
+--- go edit a second file over.
 function UI.build()
-  picker = Chooser.new({
-    theme = cfg.theme,
-    fieldMode = Chooser.fieldModes.filter,
-    -- Opt out of the atom's filtering and ranking. The clipboard owns its query (it parses
-    -- a type prefix) and keeps recency order, so buildChoices filters with the shared
-    -- matcher itself rather than handing the atom the full list to rank.
-    matcher = false,
-    placeholder = PLACEHOLDER.history,
-    pollInterval = cfg.previewPoll,
-    rows = buildChoices,
-    onSelect = onSelect,
-    -- The drill down pair. intercept is what lets a manage history row act and leave the list
-    -- standing, since hs.chooser hardwires Return to complete and a row whose result is a
-    -- differently counted list has nothing left to change once the window is gone, and back is
-    -- the way out of it again.
-    intercept = intercept,
-    back = back,
-    onHighlight = renderPreview,
-    onClose = onClose,
-    onPositioned = onPositioned,
-    onActivity = cfg.onActivity,
-    -- A trackpad or a wheel over the preview pane, which a canvas cannot report for
-    -- itself, so the atom watches for it and hands over a distance in points. The same
-    -- verb the two keys go through, so there is one notion of where the pane is scrolled
-    -- to and no second one to keep in step.
-    onScroll = UI.scrollPreviewBy,
-    onRightClick = onRightClick,
-    layout = {
-      widthPct = cfg.chooserWidthPct,
-      paneMaxW = cfg.paneMaxW,
-      rowH = cfg.chooserRowH,
-      baseH = cfg.chooserBaseH,
-      rowCount = cfg.chooserRows,
-      gap = cfg.uiGap,
-      topFrac = cfg.uiTopFrac,
-      minVPad = cfg.minVPad,
-      -- The width the atom reserves for the docked companion preview beside the list.
-      companionWidth = cfg.previewW,
-    },
-  })
   return UI
 end
 
@@ -1418,7 +1439,9 @@ end
 --- state rule fileBadge draws on), prune (the manage history page, whose rows and wording this
 --- file only draws), the Chooser factory, the theme, the shared
 --- surface routine (opts.surface, drawing the preview pane's background and
---- border), and the layout config.
+--- border), and the layout config. stagePresent, redrawPresented, stageHide, stageSetQuery,
+--- and stageSetPlaceholder, the trickle migration's own root published words, arrive here too,
+--- under needs.data in the manifest.
 function UI.configure(opts)
   store = opts.store
   paste = opts.paste
@@ -1430,5 +1453,34 @@ function UI.configure(opts)
   cfg = opts
   return UI
 end
+
+--- UI.rows(query) -> list. The row supplier, named on the manifest's own presentation block
+--- as the contract's rows, exposing buildChoices, the atom's own rows supplier from before
+--- the migration, without a second copy to disagree with.
+UI.rows = buildChoices
+
+--- UI.select(item) - apply a row, named on the manifest's own presentation block as the
+--- contract's onSelect, exposing the file local onSelect already defined above.
+UI.select = onSelect
+
+--- UI.intercept, UI.back - the presentation contract's own drill down pair, named on the
+--- manifest's own presentation block, exposing the file local functions already defined above
+--- without a second copy to disagree with.
+UI.intercept = intercept
+UI.back = back
+
+--- UI.onHighlight - the presentation contract's own onHighlight, named on the manifest's own
+--- presentation block. renderPreview already is the atom's onHighlight target, unchanged.
+UI.onHighlight = renderPreview
+
+--- UI.onScroll, UI.onPositioned, UI.onRightClick, UI.onClose - the remaining presentation
+--- contract hooks, named on the manifest's own presentation block, exposing the file local
+--- functions already defined above without a second copy to disagree with. onScroll wraps
+--- UI.scrollPreviewBy directly, the identical function the two scroll keys already go through,
+--- so a pane is scrolled the same amount whichever one asked.
+UI.onScroll = UI.scrollPreviewBy
+UI.onPositioned = onPositioned
+UI.onRightClick = onRightClick
+UI.onClose = onClose
 
 return UI

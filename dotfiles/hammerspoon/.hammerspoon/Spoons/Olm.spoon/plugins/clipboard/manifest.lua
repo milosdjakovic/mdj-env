@@ -63,6 +63,35 @@ return {
         breaks = "appending to an entry and stepping back through history both happen in "
           .. "silence, so the two actions whose result is otherwise invisible look exactly "
           .. "like a key that did nothing" },
+
+      -- Five root computed words, the trickle migration onto the shared stage. stagePresent
+      -- is the hotkey door, reached through providers/hammerspoon.lua's own toggle rather than
+      -- called directly, and the launcher row's own manageHistory command when nothing is
+      -- showing. redrawPresented is the async seam every explicit redraw in this file now
+      -- asks for, once this presentation, and no other, is what the stage is actually showing.
+      -- stageHide is what providers/hammerspoon.lua's own toggle closes the window with.
+      -- stageSetQuery and stageSetPlaceholder are this plugin's own addition to the published
+      -- set, the direct field control the manage history page needs to change both what the
+      -- field says and what it holds without the presentation closing, since a static
+      -- presentation.placeholder cannot express a page that changes what the box means.
+      stagePresent = { source = "root", policy = "optional",
+        breaks = "the history picker opens nothing, whichever door asked, since UI.show has " ..
+                 "no other way to reach the shared stage" },
+      redrawPresented = { source = "root", policy = "optional",
+        breaks = "a right click delete, a media preview finishing, and every other answer " ..
+                 "landing after the keystroke that asked for it never reaches the screen " ..
+                 "while this presentation, and no other, is what is actually showing" },
+      stageHide = { source = "root", policy = "optional",
+        breaks = "a second Hyper plus X, or an external toggle, can no longer close the " ..
+                 "history picker, since providers/hammerspoon.lua's own toggle has no other " ..
+                 "way to ask the shared stage to hide" },
+      stageSetQuery = { source = "root", policy = "optional",
+        breaks = "entering and leaving the manage history page stops clearing the field, so " ..
+                 "whatever was typed as a search is read as a duration or the other way round" },
+      stageSetPlaceholder = { source = "root", policy = "optional",
+        breaks = "the field keeps reading Search clipboard on the manage history page, and " ..
+                 "the reverse on the way back, since intercept and back have no other way to " ..
+                 "put the level's own wording in the field" },
     },
   },
 
@@ -110,14 +139,64 @@ return {
     },
     -- Entries here are prose and code searched from the inside, a real remembered
     -- word rather than an abbreviation of a short label, so the words matcher fits
-    -- and fuzzy would only cost more for less. The manager still opts its own
-    -- Chooser instance out of the atom's own ranking, since it parses a type prefix
-    -- off the query itself, but it wants the shared matching value handed to it
-    -- anyway to score the free text part, which is what makes the pane worth having.
+    -- and fuzzy would only cost more for less. The manager still opts its own picker
+    -- out of the atom's own ranking, since it parses a type prefix off the query
+    -- itself, but it wants the shared matching value handed to it anyway to score
+    -- the free text part, which is what makes the pane worth having. Migrated onto
+    -- the shared stage, contract v2, the opt out itself now travels through
+    -- presentation.matcher below as false, while this word stays declared here too,
+    -- unread by the stage, since needs.data's own engine facing matcher injection,
+    -- unrelated to either, still reads this exact word for buildChoices's own scoring.
     matcher = "words",
     -- The docked companion pane is most of what this picker is, the live preview of
     -- whatever is highlighted, so it earns the reserved room rather than going without.
     pane = true,
+  },
+
+  -- The presentation contract, contract v2, docs/BRIEF-CONTRACT-V2.md. rows and select are
+  -- manager.rows and manager.select, forwarded straight through to the ui submodule's own
+  -- buildChoices and onSelect, the same shape every other presenting plugin's own rows and
+  -- select already take. placeholder resolves once, at register, to the history wording,
+  -- ui.placeholder below, the manage history page's own wording reached live instead through
+  -- cfg.stageSetPlaceholder, since a static contract field cannot express a page that changes
+  -- what the field means.
+  --
+  -- matcher is false, contract v2's own first addition and the largest reason this plugin
+  -- needed it. The atom's own scoring did no filtering here before the migration, buildChoices
+  -- owning every bit of it itself, the type prefix parsed off the query and the free text part
+  -- scored by the injected words matcher while preserving the store's own recency order, and
+  -- the manage history page reads the same field as a duration with no relationship to entry
+  -- content at all. host/stage writes false onto the live instance before every show and swap,
+  -- so both pages keep exactly the filtering, or the total absence of it, they always had.
+  --
+  -- intercept and back are the manage history page's own drill down pair, unchanged in what
+  -- they do, migrated in how they reach the field, cfg.stageSetQuery and cfg.stageSetPlaceholder
+  -- replacing the direct picker calls this used to make on an instance it held itself.
+  --
+  -- onHighlight, onScroll, onRightClick, onPositioned, and onClose carry the live preview, its
+  -- scroll, its right click delete, its dock, and its teardown, the identical shape filesearch
+  -- and processes already keep, minus the anchor arithmetic and the cfg.onPositioned call
+  -- host/stage now owns for every presenting plugin. onScroll and onRightClick are contract
+  -- v2's own third and fourth additions, found by this migration rather than named by either
+  -- brief, since a canvas companion has no scroll callback of its own and a canvas row has no
+  -- native right click handling either.
+  presentation = {
+    rows = { member = "manager.rows", call = "dot" },
+    select = { member = "manager.select", call = "dot" },
+    placeholder = { member = "manager.placeholder", call = "dot" },
+    onPresent = { member = "manager.onPresent", call = "dot" },
+    intercept = { member = "manager.intercept", call = "dot" },
+    back = { member = "manager.back", call = "dot" },
+    onHighlight = { member = "manager.onHighlight", call = "dot" },
+    onScroll = { member = "manager.onScroll", call = "dot" },
+    onRightClick = { member = "manager.onRightClick", call = "dot" },
+    onPositioned = { member = "manager.onPositioned", call = "dot" },
+    onClose = { member = "manager.onClose", call = "dot" },
+    -- true inherits the chooser's own width, matching cfg.previewW = true unconditionally,
+    -- the manager's own config, this plugin's only real layout override even before the
+    -- migration, consumer map surprise 9.4 naming the other eight as restated atom defaults.
+    paneWidth = true,
+    matcher = false,
   },
 
   -- Configure alone leaves this plugin silent. Every field the picker needs, the
@@ -137,7 +216,23 @@ return {
   -- leader, since that is the only place either has ever lived.
   registry = {
     row = { category = "Clipboard", glyph = "📋" },
+    -- open still stays, and still matters, the hotkey door this plugin's own leader key binds
+    -- to, unchanged by the migration since it never called the picker directly. It resolves
+    -- the provider chain, native or an external manager, and only the native leg's own
+    -- manager.show now reaches cfg.stagePresent underneath, so an external provider is
+    -- entirely untouched by any of this.
     open = "open",
+    -- surface = "manager" stays declared, a narrower exception to PLUGIN-CONTRACT.md's own "a
+    -- presenting plugin declares no registry.surface" rule that Processes' own migration
+    -- already carved out. isShowing, selectNext, selectPrev, insertSelected, and hide are
+    -- gone, host/stage's own surfaceFor(identity) answering all five now, but appendSelected,
+    -- deleteSelected, manageHistory, leaveManageHistory, scrollPreviewDown, and
+    -- scrollPreviewUp, the extra verbs surface.extra above binds keys to, live on nowhere
+    -- else, and root/compose.lua's own surfaceAdapterFor falls through to whatever this field
+    -- names once the stage's own five have answered nothing. manager.isShowing and
+    -- manager.hide also stay real functions rather than being deleted with the other three,
+    -- since providers/hammerspoon.lua's own toggle calls them directly, a caller the nav
+    -- system's own five never was.
     surface = "manager",
     shortcut = "leader",
     --

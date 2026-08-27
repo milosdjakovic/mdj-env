@@ -565,6 +565,7 @@ presentation = {
   back        = { member = "back", call = "dot" },       -- optional
   onHighlight = { member = "onHighlight", call = "dot" },-- optional
   onScroll    = { member = "onScroll", call = "dot" },   -- optional
+  onRightClick = { member = "onRightClick", call = "dot" }, -- optional
   onClose     = { member = "onClose", call = "dot" },    -- optional
   peekPreview = { member = "peekPreview", call = "dot" },-- optional
   onPositioned = { member = "onPositioned", call = "dot" }, -- optional
@@ -659,6 +660,11 @@ canvas cannot report for itself, `lib/chooser/providers/native.lua`'s own reason
 all. filesearch and clipboard both already wired one directly into their own retired
 `Chooser.new` calls, config read live on every scroll exactly the way `onHighlight` already is,
 so `host/stage` routes it the identical way, a presentation with none simply never asked.
+
+`onRightClick` is a fourth, found alongside `onScroll`, `function(item, row)` for a canvas row
+right clicked, which a native chooser row cannot answer for itself either. clipboard's own
+retired `Chooser.new` call is the only consumer anywhere, and `host/stage` routes it the
+identical way.
 
 `onPositioned` is called with `chooserFrame, companionFrame`, the same two frames
 `lib/chooser/providers/native.lua`'s own `config.onPositioned` already hands its caller, once

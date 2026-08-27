@@ -441,6 +441,10 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
       -- scroll callback of its own. A member spec exactly like onHighlight, resolved and
       -- checked the same way.
       "onScroll",
+      -- onRightClick, found alongside onScroll, clipboard's own retired Chooser.new call,
+      -- the only consumer anywhere, a canvas row offering no native right click handling of
+      -- its own either.
+      "onRightClick",
     }
     local broken = false
     for _, field in ipairs(presentationFields) do
@@ -573,6 +577,8 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
         -- onScroll, found during the trickle migrations, resolved the identical lazy way
         -- onHighlight just above already is.
         onScroll = obj.action(modules, identity, name, p.onScroll, nil),
+        -- onRightClick, found alongside onScroll, resolved the identical lazy way.
+        onRightClick = obj.action(modules, identity, name, p.onRightClick, nil),
         onClose = obj.action(modules, identity, name, p.onClose, nil),
         peekPreview = obj.action(modules, identity, name, p.peekPreview, nil),
         onPresent = obj.action(modules, identity, name, p.onPresent, nil),

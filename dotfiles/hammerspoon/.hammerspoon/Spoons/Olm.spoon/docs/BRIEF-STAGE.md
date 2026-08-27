@@ -92,6 +92,9 @@ stage. Fields, all optional except name, rows, and onSelect.
                   nil for none, found during the trickle migrations rather than named by
                   this brief, filesearch and clipboard both already wiring one directly,
                   routed the identical way onHighlight is
+    onRightClick  function(item, row) a canvas row right clicked, nil for none, found
+                  alongside onScroll, clipboard's own retired Chooser.new call being the
+                  only consumer anywhere
     onPositioned  function(chooserFrame, companionFrame) told whenever the stage repositions
                   the pair for this presentation, companionFrame nil when paneWidth is
                   absent, added in the geometry phase for a pane consumer to draw or clear.

@@ -161,7 +161,59 @@ function M.show()
   ui.show()
 end
 
---- M.isShowing() - is the chooser currently visible.
+--- The presentation contract's own members, the trickle migration onto the shared stage,
+--- thin forwards onto the ui submodule the identical way every member below already is,
+--- since the manifest names this module, manager, as the owner and ui is a plain local this
+--- file never re-exports. rows and select are the contract's own words for ui's own
+--- buildChoices and onSelect, so this plugin never has to expose the same two functions under
+--- two different names depending on which part of the manifest is asking.
+function M.rows(query)
+  return ui.rows(query)
+end
+
+function M.select(item)
+  ui.select(item)
+end
+
+function M.placeholder()
+  return ui.placeholder()
+end
+
+function M.onPresent()
+  ui.onPresent()
+end
+
+function M.intercept(item)
+  return ui.intercept(item)
+end
+
+function M.back()
+  return ui.back()
+end
+
+function M.onHighlight(item)
+  ui.onHighlight(item)
+end
+
+function M.onScroll(points)
+  ui.onScroll(points)
+end
+
+function M.onRightClick(item, row)
+  ui.onRightClick(item, row)
+end
+
+function M.onPositioned(chooserFrame, companionFrame)
+  ui.onPositioned(chooserFrame, companionFrame)
+end
+
+function M.onClose()
+  ui.onClose()
+end
+
+--- M.isShowing() - is the chooser currently visible. Kept, unlike selectNext, selectPrev,
+--- and insertSelected below, since providers/hammerspoon.lua's own toggle calls this and
+--- M.hide directly, a caller the nav system's own five generic methods never was.
 function M.isShowing()
   return ui.isShowing()
 end
@@ -171,20 +223,10 @@ function M.hide()
   ui.hide()
 end
 
---- M.selectNext() / M.selectPrev() - move the chooser highlight, for the Hyper j
---- and k navigation bindings wired in the composition root.
-function M.selectNext()
-  ui.selectNext()
-end
-
-function M.selectPrev()
-  ui.selectPrev()
-end
-
---- M.insertSelected() - paste the highlighted entry, same as Return.
-function M.insertSelected()
-  ui.insertSelected()
-end
+-- selectNext, selectPrev, and insertSelected are gone, the trickle migration, deleted along
+-- with the Chooser.new block that gave ui's own copies something to answer for. The
+-- composition root now routes this plugin's own navigation through host/stage's own
+-- surfaceFor once wiredRegistry.presentationFor("clipboard") answers a presentation.
 
 --- M.appendSelected() - toggle the highlighted entry in the append batch, for the
 --- Hyper a binding. The chooser stays open so several items can be gathered.
