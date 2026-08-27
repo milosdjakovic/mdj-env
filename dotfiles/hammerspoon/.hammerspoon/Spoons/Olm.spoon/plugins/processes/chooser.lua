@@ -50,15 +50,20 @@ local scanning = false -- guards against overlapping scans from a fast refresh
 local misses = 0       -- consecutive samples that found no window, see onSample
 
 -- Migrated onto host/stage, the trickle migration. This plugin owns no Chooser instance of
--- its own any more, so isShowing lives here instead as a plain flag, true from the moment
--- chooser.enter's own proceed is about to fire until chooser.onClose says otherwise, the
--- window this plugin used to ask isShowing() directly having become a fact only the stage
--- itself now holds. lastHighlighted is the item the presentation's own onHighlight last
--- named, cached so a re-render asked for outside a fresh highlight event, a rescan or a
--- reorder under a stationary highlight, has something to redraw without a chooser instance
--- of its own left to ask selectedItem() of.
+-- its own any more, so isShowing lives here instead as a plain flag.
+--
+-- Review finding H4. showing is now written only from inside the honoured branch of
+-- chooser.enter, once host/stage's own proceed has answered true, never before it, since a
+-- proceed the stage's own generation guard drops leaves this presentation never actually
+-- pushed, and setting showing regardless left onSample's own backstop blind, misses reset to
+-- zero on every tick by a flag that believed a window was up when nothing was.
+--
+-- Review finding H6. lastHighlighted is gone. It used to cache the item the presentation's
+-- own onHighlight last named, seeded only by the atom's own poll and never cleared on close,
+-- so a cold open answered whatever the previous session had highlighted for one poll
+-- interval. cfg.stageSelectedItem, host/stage's own Stage:selectedItem() published for
+-- exactly this, replaces every read the cache used to answer.
 local showing = false
-local lastHighlighted = nil
 
 -- The pending re-show, held until it fires. A Hammerspoon timer is userdata whose finalizer
 -- stops it, so one nothing refers to can be collected before it runs, and the confirmation
@@ -66,19 +71,31 @@ local lastHighlighted = nil
 -- re-show is ever pending, since it is armed on the single selection that needs confirming.
 local reopenTimer = nil
 
--- Every proceed still waiting on the scan chooser.enter is already running, contract v2
--- decision two. A second enter while the first is still in flight does not start a second
--- scan, cfg.api.scan's own note on being asked to overlap, it joins this list instead and is
--- called once the one scan already running lands, alongside whichever proceed started it.
--- host/stage's own generation guard is what makes calling a stale one harmless, so this list
--- never has to work out which of its own entries still matter.
+-- Review finding L1. Held as a module local now rather than only as an upvalue of the scan
+-- callback that used to be the one thing keeping it reachable, reopenTimer's own comment
+-- above stating this file's own rule, a Hammerspoon timer being userdata whose finalizer
+-- stops it the moment nothing refers to it. Named to match, one enter timeout in flight at a
+-- time, since a fresh chooser.enter call always finds scanning already true or already false
+-- and never starts a second timer racing this one.
+local enterTimeoutTimer = nil
+
+-- Every enter still waiting on a scan already in flight, review finding H5, whether that scan
+-- was started by chooser.enter itself or by M.refresh's own rescan, since scanning is one
+-- shared flag either can set. Each entry is { proceed = ..., timer = ..., done = false },
+-- carrying its OWN ENTER_TIMEOUT bound rather than trusting whichever scan it queued behind
+-- to land, or even to still exist, since M.refresh's own callback used to clear scanning and
+-- never look at this list at all, stranding anything queued behind it with no timeout and
+-- nothing in the console. host/stage's own generation guard is what makes calling a stale one
+-- harmless, so this list never has to work out which of its own entries still matter, only
+-- that every one of them is eventually called exactly once.
 local entering = {}
 
--- The longest a scan is ever given before enter proceeds regardless, contract v2 decision
--- two's own requirement that a deferring presentation arranges its own timeout, the identical
--- discipline VPN's FETCH_TIMEOUT already keeps, so a task that never calls back cannot strand
--- a person on a launcher row that silently does nothing. Chosen well past what an ordinary
--- local scan ever takes, M.show's own retired design note put that under a tenth of a second.
+-- The longest a scan, or a queued wait behind one, is ever given before proceeding regardless,
+-- contract v2 decision two's own requirement that a deferring presentation arranges its own
+-- timeout, the identical discipline VPN's FETCH_TIMEOUT already keeps, so a task that never
+-- calls back cannot strand a person on a launcher row that silently does nothing. Chosen well
+-- past what an ordinary local scan ever takes, M.show's own retired design note put that under
+-- a tenth of a second.
 local ENTER_TIMEOUT = 5
 
 --------------------------------------------------------------------------------
@@ -341,10 +358,8 @@ end
 -- reason the atom's own poll used to feed the chooser this file no longer owns. Everything
 -- expensive behind it is cached on the row, and a row with nothing behind it, the empty
 -- state or a confirmation answer, clears the pane rather than leaving a stale one beside the
--- list. Cached into lastHighlighted too, since renderHighlighted below has no chooser
--- instance left to ask selectedItem() of and this is the only place that fact is heard fresh.
+-- list.
 local function onHighlight(item)
-  lastHighlighted = item
   preview.show(previewRow(item))
 end
 
@@ -353,12 +368,17 @@ end
 -- Needed because the atom's poll compares the highlighted ROW NUMBER, so when the list
 -- itself changes under a stationary highlight, a rescan or a heat sort, it sees the
 -- same number and never fires. Without this the pane would keep describing whatever
--- used to be in that position. Reads lastHighlighted rather than asking an instance this
--- file no longer holds, safe because onHighlight above always runs at least once before
--- this could ever be called, the atom seeding the highlight before it positions anything
--- on every fresh show and this presentation's own onPositioned below never running first.
+-- used to be in that position.
+--
+-- Review finding M2. This used to call onHighlight(lastHighlighted), and onHighlight used to
+-- begin by writing lastHighlighted = item, so the call fed the cache to itself, repainting
+-- whatever the LAST highlight event had named rather than the row the rebuild just landed
+-- under, worst felt in M.sortByLoad, whose own highlight returns to row one, the same number
+-- the poll already held, so nothing corrected it until the next unrelated highlight event.
+-- Reads cfg.stageSelectedItem live instead, host/stage's own Stage:selectedItem() answering
+-- the widget's own current selection rather than a memo of its last poll.
 local function renderHighlighted()
-  onHighlight(lastHighlighted)
+  onHighlight(cfg.stageSelectedItem and cfg.stageSelectedItem())
 end
 
 -- Migrated onto host/stage. Docks the pane into the companion rect the stage reserved and
@@ -451,6 +471,55 @@ function M.placeholder()
   return cfg.placeholder or "Search project, port, runtime"
 end
 
+--- M.paneWidth() -> number, true, or 0. Review finding M1. paneWidth used to flatten to a
+--- static true in the manifest, which centred the pair as if the detail pane always stood up
+--- even when opts.surface was never injected. Resolved once, at register, contract v2's own
+--- extension letting paneWidth be a member spec the identical way placeholder already is, by
+--- which point M:start has already configured preview, so this answers the real reservation.
+--- Mirrors the retired layout block's own companionWidth = preview.isEnabled() and
+--- (cfg.previewWidth or true) or 0 exactly, cfg.previewWidth never set by anything today.
+function M.paneWidth()
+  return preview.isEnabled() and (cfg.previewWidth or true) or 0
+end
+
+-- Calls every queued entry exactly once, review finding H5, each stopping its own timer
+-- first so a drain that beat the timer to it leaves nothing left to fire late. Answers
+-- whether any one of them was actually honoured, host/stage's own generation guard deciding
+-- that for each, so the caller knows whether to start believing this presentation is current.
+local function resolveEntering(waiting)
+  local accepted = false
+  for _, w in ipairs(waiting) do
+    if w.timer then w.timer:stop() end
+    if not w.done then
+      w.done = true
+      if w.proceed() then accepted = true end
+    end
+  end
+  return accepted
+end
+
+-- Queues a proceed behind a scan already in flight, review finding H5, with its own
+-- ENTER_TIMEOUT bound rather than trusting whichever scan it queued behind to land, since
+-- that scan may be M.refresh's own rescan, whose own callback used to clear scanning and
+-- never look at this list at all. Removes itself from entering before firing late, so
+-- whichever drains this list first, its own timeout or the scan that was actually running,
+-- is the only one that ever calls it.
+local function queueEnter(proceed)
+  local w = { proceed = proceed, done = false }
+  w.timer = hs.timer.doAfter(ENTER_TIMEOUT, function()
+    if w.done then return end
+    w.done = true
+    for i, e in ipairs(entering) do
+      if e == w then table.remove(entering, i) break end
+    end
+    if w.proceed() then
+      showing = true
+      startSampling()
+    end
+  end)
+  entering[#entering + 1] = w
+end
+
 --- M.enter(proceed) - contract v2's own deferred entry, named on the manifest's own
 --- presentation block. Scans first and proceeds after, so the picker never appears before its
 --- rows mean something, the identical rule M.show's own retired design note stated, "Showing
@@ -460,23 +529,27 @@ end
 --- paying for a scan the confirmation never asked for.
 ---
 --- A scan already in flight is joined rather than restarted, cfg.api.scan's own reason for a
---- scanning guard existing at all, proceed queued in entering and called once that one scan
---- lands alongside whichever proceed started it, host/stage's own generation guard being what
---- makes calling a stale one harmless. A scan that never calls back, an hs.task that fails to
+--- scanning guard existing at all, queued through queueEnter above rather than restarted, and
+--- drained once that scan lands. A scan that never calls back, an hs.task that fails to
 --- launch among the failures VPN's own review already named for its identical async doors,
 --- proceeds anyway once ENTER_TIMEOUT elapses, on whatever rows this list already held, rather
 --- than stranding a person on a launcher row that silently does nothing, contract v2's own
 --- requirement that a deferring presentation arranges its own timeout. A real answer landing
 --- after that timeout already fired still updates rows and asks to be redrawn, through the
 --- published word every other async source here already uses, rather than being dropped.
+---
+--- Review finding H4. showing and the sampler are set only inside the branch that knows
+--- proceed was actually honoured, never merely because this function was allowed to call it,
+--- since host/stage's own generation guard may have already dropped it as stale, a second
+--- open racing ahead of a slow first one being the reachable case, and setting showing
+--- regardless left onSample's own backstop blind to a window that was never really there.
 function M.enter(proceed)
   if pending then
-    showing = true
-    proceed()
+    if proceed() then showing = true end
     return
   end
   if scanning then
-    entering[#entering + 1] = proceed
+    queueEnter(proceed)
     return
   end
   -- The glyph tints depend on whether the chooser will draw light or dark, and an open
@@ -487,19 +560,22 @@ function M.enter(proceed)
   local function proceedOnce()
     if proceeded then return end
     proceeded = true
-    showing = true
-    startSampling()
     local waiting = entering
     entering = {}
-    proceed()
-    for _, cb in ipairs(waiting) do cb() end
+    local accepted = false
+    if proceed() then accepted = true end
+    if resolveEntering(waiting) then accepted = true end
+    if accepted then
+      showing = true
+      startSampling()
+    end
   end
-  local timeoutTimer = hs.timer.doAfter(ENTER_TIMEOUT, function()
+  enterTimeoutTimer = hs.timer.doAfter(ENTER_TIMEOUT, function()
     scanning = false
     proceedOnce()
   end)
   cfg.api.scan(function(result)
-    timeoutTimer:stop()
+    if enterTimeoutTimer then enterTimeoutTimer:stop() end
     scanning = false
     rows = result or {}
     if proceeded then
@@ -513,12 +589,26 @@ end
 --- M.refresh() - rescan and redraw in place, without closing.
 --- Also the way back to the engine's own order after a heat sort, since a rescan
 --- rebuilds the list rather than reordering the one in hand.
+---
+--- Review finding H5. Drains entering on its own landing now too, since scanning is one
+--- shared flag and a chooser.enter call arriving while THIS rescan is in flight queues
+--- behind it exactly as it would behind chooser.enter's own scan, and until this fix nothing
+--- ever drained that queue, each entry surviving only on its own ENTER_TIMEOUT bound rather
+--- than being silently stranded the way it used to be with none at all.
 function M.refresh()
   if not showing or scanning then return end
   scanning = true
   cfg.api.scan(function(result)
     scanning = false
     rows = result or {}
+    if #entering > 0 then
+      local waiting = entering
+      entering = {}
+      if resolveEntering(waiting) then
+        showing = true
+        startSampling()
+      end
+    end
     if showing then
       if cfg.redrawPresented then cfg.redrawPresented("processes") end
       -- The highlight has not moved, so the poll will not fire, but every row behind
@@ -571,7 +661,11 @@ end
 --- why it skips the guard that a plain stop respects.
 function M.stopForced()
   if not showing or pending then return end
-  local row = lastHighlighted and lastHighlighted.key and rowByKey(lastHighlighted.key)
+  -- Review finding H6. Reads cfg.stageSelectedItem live rather than the retired
+  -- lastHighlighted cache, so a key that only existed in a previous session can no longer be
+  -- force killed by mistake.
+  local item = cfg.stageSelectedItem and cfg.stageSelectedItem()
+  local row = item and item.key and rowByKey(item.key)
   if not row then return end
   -- The trickle migration's own published word, the same instant feedback
   -- chooser:hide() gave the retired standalone picker, so a forced stop does not leave

@@ -124,6 +124,14 @@ return {
       stageHide = { source = "root", policy = "optional",
         breaks = "a forced stop no longer closes the window at once, leaving a stale row on " ..
                  "screen until the next sample or rescan catches up with what actually happened" },
+      -- Review finding H6. renderHighlighted and M.stopForced both used to read a module
+      -- local cache seeded only by the atom's own poll and never cleared on close, so a cold
+      -- open answered whatever the previous session had highlighted, a stale key force killed
+      -- by mistake among the ways that cost. This word reads the shared widget directly.
+      stageSelectedItem = { source = "root", policy = "optional",
+        breaks = "the pane and a forced stop both act on whatever the previous session last " ..
+                 "highlighted rather than the row actually under the cursor, since neither has " ..
+                 "any other way to ask the shared widget directly" },
     },
   },
 
@@ -195,11 +203,12 @@ return {
     onHighlight = { member = "chooser.onHighlight", call = "dot" },
     onPositioned = { member = "chooser.onPositioned", call = "dot" },
     onClose = { member = "chooser.onClose", call = "dot" },
-    -- true inherits the chooser's own width, the atom's own companionWidth semantics carried
-    -- one layer up, matching what this plugin's own retired layout block asked for whenever
-    -- the detail pane was enabled, preview.isEnabled() and (cfg.previewWidth or true) or 0,
-    -- cfg.previewWidth never set by anything today.
-    paneWidth = true,
+    -- Review finding M1. A member spec now, contract v2's own extension, rather than the
+    -- static true this migration first shipped, which centred the pair as if the detail pane
+    -- always stood up even when opts.surface was never injected. chooser.paneWidth() mirrors
+    -- the retired layout block's own preview.isEnabled() and (cfg.previewWidth or true) or 0
+    -- and is resolved once, at register, after M:start has already configured preview.
+    paneWidth = { member = "chooser.paneWidth", call = "dot" },
     matcher = "words",
   },
 
