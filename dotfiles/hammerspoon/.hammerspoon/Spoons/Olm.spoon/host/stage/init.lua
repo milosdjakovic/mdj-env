@@ -343,6 +343,18 @@ end
 -- window's own appearance, finding five, never to the stack, which _freshStack above already
 -- handles on its own terms. pop now calls this too, finding H1, present and push already did.
 function obj:_show(p, wasShowing, outgoing)
+  -- Rider N2 of the geometry review, second pass. Cancelled unconditionally here, on every
+  -- door, rather than only inside _applyPaneGeometry, which only the swap branch below ever
+  -- reaches. A timer a cold show leaves armed from an earlier swap used to survive a cold
+  -- show untouched, and a stale fire landing after this presentation had already changed
+  -- again would place a window for a pane that is no longer current, the identity guard in
+  -- _positionPane catching most of it but not the case where the same presentation is what
+  -- reopens before the timer fires. Moved here so every call to _show starts from a clean
+  -- slate, the reason the old unconditional cancel existed in the first place.
+  if self._geometryTimer then
+    self._geometryTimer:stop()
+    self._geometryTimer = nil
+  end
   self._instance:setPlaceholder(p.placeholder or "")
   -- Adversarial review finding M6. Written before every show, cold or swap alike, so a cold
   -- show's own _positionAndShow computes the pair's centering natively, through the atom's
@@ -380,8 +392,18 @@ function obj:_show(p, wasShowing, outgoing)
     -- same tick hide and show, finding five of the phase three review keeping the identical
     -- split for the identical reason.
     if not resized then self:_captureCoveredApp() end
-    self._lastShowAt = hs.timer.secondsSinceEpoch()
     self._instance:show()
+    -- Rider N1 of the geometry review, second pass. Stamped after show() returns rather
+    -- than before it is called, since the atom arms its own settle timer at the END of
+    -- show, once the theme is applied, every row is rebuilt, and hs.chooser:show has
+    -- actually run, docs/PROBE-FINDINGS-2026-08-27.md's own note that this is the
+    -- dominant cost of a cold open. Stamping above the call understated the window by the
+    -- full cost of show() itself, which is what made the age gate's own comment untrue,
+    -- a swap landing in that undercounted gap would run its manual placement before the
+    -- settle it claimed to have waited out. M6 already makes the eventual outcome correct
+    -- either way, since the atom's own settle recomputes and overwrites, but this is what
+    -- makes the comment describe what the code actually does.
+    self._lastShowAt = hs.timer.secondsSinceEpoch()
     -- Nothing further to do here. layout.companionWidth already carries this presentation's
     -- own value, so _positionAndShow and _settleFrames both compute the pair natively and
     -- fire onPositioned, routed to this host's own _onPositioned below, on their own.
@@ -455,10 +477,10 @@ end
 -- whatever remains of that window before reading the frame itself. A swap landing later than
 -- that, the overwhelming ordinary case, races nothing and runs at once.
 function obj:_applyPaneGeometry(p, outgoing)
-  if self._geometryTimer then
-    self._geometryTimer:stop()
-    self._geometryTimer = nil
-  end
+  -- The unconditional cancel that used to open this function now sits at the top of _show
+  -- instead, rider N2 of the geometry review, so every door clears a pending timer before
+  -- either the cold or the swap path runs, not only the swap path this function itself is
+  -- reached from.
   local hadPane = outgoing and outgoing.paneWidth
   if not p.paneWidth and not hadPane then return end
   local age = hs.timer.secondsSinceEpoch() - (self._lastShowAt or 0)

@@ -462,11 +462,16 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
     -- quieter protection than refusing the registration once, loudly, here, so it is checked
     -- here too, to close the asymmetry rather than leave one field better protected than the
     -- other for a reason nobody chose on purpose.
-    if p.rowCount ~= nil and type(p.rowCount) ~= "number" then
+    -- Rider N4 of the geometry review, second pass. A plain number check alone still let
+    -- zero, a negative, and a fraction through to math.min and then to rows(), each one a
+    -- degenerate window rather than the crash the first fix already closed, and the refusal
+    -- costs nothing to widen. paneMaxW gives the arithmetic a sane ceiling of its own
+    -- already, so this only needs a floor and a wholeness check, not a matching cap.
+    if p.rowCount ~= nil and (type(p.rowCount) ~= "number" or p.rowCount < 1 or p.rowCount % 1 ~= 0) then
       broken = true
       if deps.log then
         deps.log("e", string.format(
-          "registrar refused '%s', its presentation.rowCount is '%s', not a plain number",
+          "registrar refused '%s', its presentation.rowCount is '%s', not a positive whole number",
           name, tostring(p.rowCount)))
       end
     end
