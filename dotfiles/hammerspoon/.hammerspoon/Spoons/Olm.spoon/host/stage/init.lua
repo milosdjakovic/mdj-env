@@ -217,15 +217,23 @@ function obj:configure(opts)
     intercept = function(item) return self:_intercept(item) end,
     back = function() return self:_back() end,
     onHighlight = function(item) self:_onHighlight(item) end,
-    -- onScroll and onRightClick are NOT installed here, review finding M5. Both used to be
-    -- permanent closures on this table, and lib/chooser/providers/native.lua's own
-    -- _startScrollWatcher and its onRightClick construction check both promise "wired only
-    -- when a consumer listens", a promise a permanent closure here broke for every
-    -- presentation with no companion at all, the launcher, VPN, menu search and caffeinate
-    -- among them, paying for an idle eventtap on every cold show. _show below writes both
-    -- fields directly, honestly nil or a real closure, only on a cold show, the one moment
-    -- the atom re-reads either to decide whether to listen at all, so a presentation that
-    -- declares neither costs the atom nothing rather than an inert watcher.
+    -- Review findings N1 and N2, reverting the construction half of M5. onScroll and
+    -- onRightClick are permanent closures again. lib/chooser/providers/native.lua installs
+    -- rightClickCallback exactly once, at construction inside obj.new, never re-read
+    -- afterward, so writing this field only on a later cold show, M5's own first attempt,
+    -- meant the callback was never registered on the real hs.chooser at all and every right
+    -- click delete went dead on every door. _startScrollWatcher IS re-read, but only from
+    -- Chooser:show(), never from a swap, so the same write-on-cold-show-only left every
+    -- presentation reached by push, which is the launcher door, with no watcher and a dead
+    -- trackpad gesture, a door dependent bug M5's own promise made worse rather than better.
+    -- These closures already route through _onScroll and _onRightClick below, which ask
+    -- _current() fresh on every call and no-op when the current presentation declares
+    -- neither, which is M5's own isolation goal reached at the routing layer, where it holds
+    -- for every call regardless of which door showed the window, rather than at the
+    -- installation layer, where the atom's own once-at-construction and only-on-a-real-show
+    -- lifecycles defeated it.
+    onScroll = function(points) self:_onScroll(points) end,
+    onRightClick = function(item, row) self:_onRightClick(item, row) end,
     -- Adversarial review finding M2. Routed through this host's own _onPositioned rather
     -- than handed self._panelOnPositioned directly, so the docked panel is re anchored
     -- through the identical function a manual placement uses on a swap, _onPositioned
@@ -470,15 +478,6 @@ function obj:_show(p, wasShowing, outgoing)
     -- same tick hide and show, finding five of the phase three review keeping the identical
     -- split for the identical reason.
     if not resized then self:_captureCoveredApp() end
-    -- Review finding M5. Written only here, the one moment
-    -- lib/chooser/providers/native.lua's own _startScrollWatcher and its onRightClick
-    -- construction check actually re-read either field to decide whether to listen at all,
-    -- never on a swap, which triggers no such re-check and where writing nil could silence a
-    -- watcher already running mid scroll. Honestly nil when this presentation declares
-    -- neither, so the atom's own "wired only when a consumer listens" promise holds for every
-    -- presentation with no companion rather than paying for an idle eventtap regardless.
-    self._instance.config.onScroll = p.onScroll and function(points) self:_onScroll(points) end or nil
-    self._instance.config.onRightClick = p.onRightClick and function(item, row) self:_onRightClick(item, row) end or nil
     self._instance:show()
     -- Rider N1 of the geometry review, second pass. Stamped after show() returns rather
     -- than before it is called, since the atom arms its own settle timer at the END of

@@ -74,9 +74,13 @@ local reopenTimer = nil
 -- Review finding L1. Held as a module local now rather than only as an upvalue of the scan
 -- callback that used to be the one thing keeping it reachable, reopenTimer's own comment
 -- above stating this file's own rule, a Hammerspoon timer being userdata whose finalizer
--- stops it the moment nothing refers to it. Named to match, one enter timeout in flight at a
--- time, since a fresh chooser.enter call always finds scanning already true or already false
--- and never starts a second timer racing this one.
+-- stops it the moment nothing refers to it.
+--
+-- This slot can still be superseded while an older attempt's own scan is late, review
+-- finding N3, a scan landing after its own timeout already fired and a fresh attempt already
+-- armed a new timer into this same slot. M.enter's own myTimer compares identity against
+-- this slot before touching it or scanning, so a superseded attempt never stops or clears
+-- state a newer one now owns.
 local enterTimeoutTimer = nil
 
 -- Every enter still waiting on a scan already in flight, review finding H5, whether that scan
@@ -512,6 +516,12 @@ local function queueEnter(proceed)
     for i, e in ipairs(entering) do
       if e == w then table.remove(entering, i) break end
     end
+    -- Review finding N4. Without this a hung scan this entry queued behind left scanning
+    -- true forever once every queued entry had timed out, the refresh key dead at its own
+    -- "if not showing or scanning" guard and every later chooser.enter waiting the full
+    -- ENTER_TIMEOUT to queue behind a scan that will never land. Clearing it here degrades
+    -- to a retryable state instead, the next open or refresh free to start a fresh scan.
+    scanning = false
     if w.proceed() then
       showing = true
       startSampling()
@@ -570,14 +580,32 @@ function M.enter(proceed)
       startSampling()
     end
   end
-  enterTimeoutTimer = hs.timer.doAfter(ENTER_TIMEOUT, function()
-    scanning = false
+  -- Review finding N3. myTimer identifies THIS attempt's own timeout, compared against the
+  -- shared enterTimeoutTimer slot rather than trusted to still occupy it, since a scan can
+  -- land after its own timeout has already fired, scanning already cleared, and a fresh
+  -- attempt already armed a new timer into the same slot. Without the comparison, that late
+  -- landing stopped the SUCCESSOR's timer and cleared scanning out from under a scan that
+  -- was still genuinely in flight, reopening H5 by a second route and letting a third
+  -- attempt start a third overlapping scan on top of it. Only the attempt that still owns
+  -- the slot is allowed to touch it or the shared scanning flag; a superseded attempt still
+  -- runs proceedOnce, since that closure is scoped to this call alone through host/stage's
+  -- own generation guard, but leaves the shared state for its successor to answer for.
+  local myTimer
+  myTimer = hs.timer.doAfter(ENTER_TIMEOUT, function()
+    if enterTimeoutTimer == myTimer then
+      enterTimeoutTimer = nil
+      scanning = false
+    end
     proceedOnce()
   end)
+  enterTimeoutTimer = myTimer
   cfg.api.scan(function(result)
-    if enterTimeoutTimer then enterTimeoutTimer:stop() end
-    scanning = false
     rows = result or {}
+    if enterTimeoutTimer == myTimer then
+      myTimer:stop()
+      enterTimeoutTimer = nil
+      scanning = false
+    end
     if proceeded then
       if cfg.redrawPresented then cfg.redrawPresented("processes") end
     else
