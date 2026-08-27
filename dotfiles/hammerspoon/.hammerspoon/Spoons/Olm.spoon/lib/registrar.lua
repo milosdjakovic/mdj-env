@@ -497,11 +497,40 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
           name, tostring(p.rowCount)))
       end
     end
-    if p.paneWidth ~= nil and p.paneWidth ~= true and type(p.paneWidth) ~= "number" then
+    -- Review finding M1. paneWidth may now ALSO be a member spec, the identical exception
+    -- placeholder already gets, for a plugin whose own reservation depends on state only its
+    -- own wiring resolves, filesearch's own viewer chain and processes' own preview surface
+    -- among them. A flat true papered over both, centring the pair as if a pane always stood
+    -- up even when the resolved provider asked for none. Resolved once, at register, the
+    -- identical moment placeholder is, since by then every plugin's own wiring has already
+    -- run and the answer is the real one rather than one frozen before it existed. Checked
+    -- for its own call kind and its own resolution the same way every other member spec in
+    -- this loop is, since a wrong default here would silently call the module table where a
+    -- policy table belonged.
+    if type(p.paneWidth) == "table" then
+      if not callKindStated(p.paneWidth) then
+        broken = true
+        if deps.log then
+          deps.log("e", string.format(
+            "registrar refused '%s', its presentation.paneWidth does not state call, dot or method, explicitly",
+            name))
+        end
+      else
+        local member = memberSpec(p.paneWidth)
+        if not memberResolves(owner, member) then
+          broken = true
+          if deps.log then
+            deps.log("e", string.format(
+              "registrar refused '%s', its presentation.paneWidth names '%s', which does not resolve to a function on the real module",
+              name, tostring(member)))
+          end
+        end
+      end
+    elseif p.paneWidth ~= nil and p.paneWidth ~= true and type(p.paneWidth) ~= "number" then
       broken = true
       if deps.log then
         deps.log("e", string.format(
-          "registrar refused '%s', its presentation.paneWidth is '%s', not a plain number or true",
+          "registrar refused '%s', its presentation.paneWidth is '%s', not a plain number, true, or a member spec",
           name, tostring(p.paneWidth)))
       end
     end
@@ -534,6 +563,21 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
             "registrar refused '%s', its presentation.matcher names '%s', which is not a strategy the Chooser atom exports",
             name, p.matcher))
         end
+      end
+    end
+    -- Rework rider, filesearch's own titleLineBreak restored. A fourth plain value field,
+    -- the identical shape matcher just above takes, since host/stage writes it onto the live
+    -- instance the same live way rather than resolving it once at construction. Only a type
+    -- check, not a check against AppKit's own line break enum, since that enum lives nowhere
+    -- in this repository worth naming and a bad string is what AppKit itself is left to
+    -- answer for, the same trust every other atom facing string this contract hands through
+    -- untouched, a theme name among them.
+    if p.titleLineBreak ~= nil and type(p.titleLineBreak) ~= "string" then
+      broken = true
+      if deps.log then
+        deps.log("e", string.format(
+          "registrar refused '%s', its presentation.titleLineBreak is '%s', not a string",
+          name, tostring(p.titleLineBreak)))
       end
     end
     -- Finding ten. A presenting plugin routes by identity, isShowingFor and the surface
@@ -588,13 +632,26 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
         -- found once that has actually run.
         enter = obj.action(modules, identity, name, p.enter, nil),
         rowCount = p.rowCount,
-        paneWidth = p.paneWidth,
         -- matcher, contract v2 decision one, carried through as the plain value the check
         -- above already trusts, false, a strategy name, or nil, never resolved into the
         -- actual matcher function here, since host/stage/init.lua's own _resolveMatcher is
         -- what holds the Chooser factory this would have to be looked up against.
         matcher = p.matcher,
+        -- titleLineBreak, the rework rider, carried through the identical way, a plain string
+        -- or nil, host/stage writing it live rather than this file resolving anything.
+        titleLineBreak = p.titleLineBreak,
       }
+      -- paneWidth, review finding M1. A member spec resolves once, right here, the identical
+      -- moment and the identical reason placeholder does, since a plugin's own reservation
+      -- depending on wiring only just finished running wants the real answer rather than one
+      -- frozen before it existed. A plain value, true, a number, or nil, carries through
+      -- unresolved exactly as rowCount and matcher do.
+      if type(p.paneWidth) == "table" then
+        local resolvePaneWidth = obj.action(modules, identity, name, p.paneWidth, nil)
+        presentation.paneWidth = resolvePaneWidth and resolvePaneWidth()
+      else
+        presentation.paneWidth = p.paneWidth
+      end
       if p.placeholder ~= nil then
         local resolvePlaceholder = obj.action(modules, identity, name, p.placeholder, nil)
         presentation.placeholder = resolvePlaceholder and resolvePlaceholder()

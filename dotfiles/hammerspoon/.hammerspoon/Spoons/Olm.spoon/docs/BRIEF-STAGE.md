@@ -106,19 +106,33 @@ stage. Fields, all optional except name, rows, and onSelect.
                   the handoff phase for a stack deeper than one, every discarded level is
                   told, top down, except the one that survives a reopen at any depth
     rowCount      a number when the tool genuinely differs from ten, else absent
-    paneWidth     a number in points, or true to inherit the chooser's own width, absent
-                  means no pane, added in the geometry phase, matching the atom's own
-                  companionWidth semantics
+    paneWidth     a number in points, true to inherit the chooser's own width, or a member
+                  spec resolved once at register the same way placeholder is, for a plugin
+                  whose own reservation depends on state only its own wiring settles, added
+                  to the rework following the trickle migrations, review finding M1, since a
+                  plain true papered over a viewer or a surface that resolved to no pane at
+                  all. Absent means no pane, added in the geometry phase, matching the atom's
+                  own companionWidth semantics
     matcher       false, meaning the supplier owns filtering, or a string naming a strategy
                   in Chooser.matchers, absent inherits the root default, added in contract
                   v2 for the three trickle plugins that each declare their own matching
                   policy today, written onto the live instance before every show and swap
                   the same way paneWidth already is
+    titleLineBreak a string naming where a title too long for its row loses characters,
+                  "truncateMiddle" for filesearch's own filenames, absent everywhere else,
+                  restored in the rework following the trickle migrations after the first
+                  pass silently dropped it, the one layout field with no other seat on this
+                  contract, written onto the live instance the identical live way matcher is
+                  rather than resolved once at construction
     enter         function(proceed) called instead of showing immediately, when a tool must
                   gather something before its first row means anything, added in contract v2
                   for Processes' own documented rule that its picker never appears before its
                   scan lands. proceed is a function of no arguments the presentation calls
-                  once it is ready, and the stage never learns what it was waiting for
+                  once it is ready, and the stage never learns what it was waiting for.
+                  Answers true when it actually made the presentation current and false when
+                  the stage's own generation guard found it stale, added in the rework
+                  following the trickle migrations, review finding H4, so a caller with more
+                  than one proceed in flight can tell which one, if any, was honoured
 
 The stage owns everything else the thirteen call sites pass today, screen policy,
 theme, panel callbacks, poll interval. A presentation cannot override them. matcher was one

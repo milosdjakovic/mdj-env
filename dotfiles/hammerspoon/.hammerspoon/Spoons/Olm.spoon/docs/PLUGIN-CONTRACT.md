@@ -330,6 +330,30 @@ arrangement of displays is attached right now, as one comparable string, so two 
 that both scope memory to the desk agree on what the desk currently is. `storePath`, where
 a plugin keeps data a person is meant to read, edit, and commit by hand.
 
+And the presenting plugin's own set, review finding L4, none of these named here until the
+rework following the trickle migrations, which is what let one of them, `stageSetPlaceholder`,
+be declared, validated, reported satisfied, and delivered nowhere for a whole migration,
+review finding H2. `stagePresent(name)` asks the registry for `name`'s own presentation and
+hands it to `stage.present`, the hotkey door for a plugin whose own leader key no longer
+builds a window itself. `redrawPresented(name, resetRow)` asks the stage to re run the
+current presentation's rows if, and only if, `name` is still the one showing, `resetRow`
+optional and forwarded straight to `Stage:refresh`. `stageHide()` hides the shared window
+outright. `stageSetQuery(text)` and `stageSetPlaceholder(text)` write the field's text and
+its placeholder directly, for an inner level that changes what the box means without the
+presentation closing, the way a manage history page or a parent row's own step up both do.
+`stageSelectedItem()` answers the item under the highlight on the live widget, guarded so a
+closed stage answers nil rather than whatever was last highlighted before it closed, review
+finding H6, the fix for three module local caches that answered exactly that. `stageSelectedRow()`
+is the same question by row number, for a background correction that has to know whether a
+person has moved off row one before it is safe to redraw. `stageTextBudget()` and
+`stageTextWidth(str, which)` answer the pixel room a row's text has and how wide a candidate
+string renders in it, for a plugin whose own subtitle elides to fit. Every one of these
+degrades to an inert press or a silently skipped redraw when the declaring plugin's own
+`needs.data` entry names it as optional, which every one of them should, and none of them
+exists for one plugin specifically, they exist for the question a presenting plugin with no
+instance of its own left to ask directly, and today's declaring plugin is only ever today's
+one answer.
+
 A root sourced field name is therefore GLOBAL VOCABULARY. Two plugins that both declare
 `needs.data.scope` receive the exact same value, which is the point, it is what lets one
 display fingerprint serve every plugin that scopes its own memory by arrangement. It also
@@ -570,12 +594,14 @@ presentation = {
   peekPreview = { member = "peekPreview", call = "dot" },-- optional
   onPositioned = { member = "onPositioned", call = "dot" }, -- optional
   rowCount    = 2,                                       -- optional, a plain number
-  paneWidth   = 320,                                     -- optional, a plain number or true
+  paneWidth   = 320,                                     -- optional, a plain number, true, or a member spec
   matcher     = "words",                                 -- optional, false or a strategy name
+  titleLineBreak = "truncateMiddle",                     -- optional, a plain string
 }
 ```
 
-Every field but `rowCount`, `paneWidth`, and `matcher` is a member spec, the same `{ member, call }` shape
+Every field but `rowCount`, `matcher`, and `titleLineBreak` is either a member spec or, for `paneWidth`
+alone, may be either one, the same `{ member, call }` shape
 `registry.open` and `registry.scope` already resolve, with one deliberate tightening. **A presentation member
 must be the table form and must state `call` itself, `"dot"` or `"method"`, never the bare
 string shorthand and never left to default.** Every other member spec in this whole contract
@@ -619,9 +645,31 @@ reposition on its own. `_resolvePaneWidth` on the stage reimplements the identic
 `layout.paneMaxW` for that manual arithmetic rather than reaching for the atom's private one.
 Absent, `false`, or a non positive number all mean this presentation reserves no pane, the
 every consumer today answers, and both this field and `rowCount` are checked for their own
-type at register, a non number, or the member spec shape every field but `matcher` takes,
-refusing the whole registration loudly rather than reaching the stage as something that could
-corrupt the one instance it never rebuilds, adversarial review finding H3.
+type at register, a non number, or the member spec shape every field but `matcher` and
+`titleLineBreak` takes, refusing the whole registration loudly rather than reaching the stage
+as something that could corrupt the one instance it never rebuilds, adversarial review
+finding H3.
+
+`paneWidth` may also be a member spec, added in the rework following the trickle migrations,
+review finding M1. A plain `true`, the value every one of the three trickle plugins first
+shipped, papers over a viewer or a companion surface that resolves to no pane at all,
+filesearch's own `quicklook.companionWidth()` answering `0` and Processes' own
+`preview.isEnabled()` answering `false` when `opts.surface` was never injected among the ways.
+A member spec resolves once, at register, the identical moment and the identical reason
+`placeholder` already does, since by register every plugin's own wiring has already settled
+which viewer or which surface won, so the answer is the real reservation rather than a number
+frozen before it existed.
+
+`titleLineBreak` is a plain string, restored in the rework following the trickle migrations
+after the first pass silently dropped it, the one field of a plugin's own retired `layout`
+block with nowhere else to travel once that whole block stopped existing. Where a title too
+long for its row loses characters, `"truncateMiddle"` for FileSearch's own filenames, since
+the last few characters of a filename are its extension and a tail cut, the atom's own
+default, loses exactly the one thing a middle cut could have kept. `host/stage` writes it
+onto `layout.titleLineBreak` before every show and swap, the identical live discipline
+`matcher` already follows rather than a value resolved once at construction, and a
+presentation naming none of its own resolves back to `"truncateTail"`, the atom's own default
+inherited at configure.
 
 `matcher` and `enter`, contract v2, docs/BRIEF-CONTRACT-V2.md, close the two gaps the trickle
 migrations opened rather than one either brief anticipated. `matcher` is `false`, meaning the
@@ -646,13 +694,20 @@ second half. A tool declaring `enter` is handed `proceed` instead, and nothing a
 or the window moves until that presentation calls it, so the tool that must gather something
 first controls exactly when its own first row means anything, while whatever was already
 showing, the launcher included, stays up and answerable in the meantime. `proceed` takes no
-arguments and is idempotent, a second call is a silent no op, and a call that arrives after the
-stage has moved on, a person escaped, or a different present or push already ran, is dropped
-the same way, `host/stage`'s own generation counter being what tells the difference. A tool
-declaring `enter` is responsible for its own timeout, the way VPN's and menu search's async
-walks already arrange their own, since the stage will wait on `proceed` forever otherwise and a
-person left on a launcher row that silently does nothing has no way to know why. The stage
-never learns why a presentation deferred or what it was waiting for, only that it did.
+arguments and answers `true` when it actually made the presentation current and `false`
+otherwise, added in the rework following the trickle migrations, review finding H4, so a
+caller queuing more than one `proceed` behind a single slow gather can tell which one, if any,
+was honoured rather than assuming its own call succeeded merely because it was allowed to run.
+A second call to the same `proceed` is a silent no op, and a call that arrives after the stage
+has moved on, a person escaped, a completed selection or any other real dismissal tore the
+atom down, or a different present or push already ran, is dropped the same way, `host/stage`'s
+own generation counter being what tells the difference; the atom's own teardown bumping it too
+is itself a rework fix, review finding H3, since without it a proceed still in flight when a
+person dismissed what was showing would show itself back over whatever they returned to. A
+tool declaring `enter` is responsible for its own timeout, the way VPN's and menu search's
+async walks already arrange their own, since the stage will wait on `proceed` forever otherwise
+and a person left on a launcher row that silently does nothing has no way to know why. The
+stage never learns why a presentation deferred or what it was waiting for, only that it did.
 
 `onScroll` is a third addition the trickle migrations found rather than either contract brief
 naming, `function(points)` for a trackpad or a wheel scrolled over the companion rect, which a
@@ -739,16 +794,25 @@ identity, and the registrar warns, one console line naming both words, phase thr
 finding ten, the moment a plugin ever lets them diverge, since that plugin would route, gate,
 and present correctly while its own hint bar silently went empty.
 
-**A presenting plugin declares no `registry.surface`.** The object that used to answer
-`isShowing`, `selectNext`, `selectPrev`, `insertSelected`, and `hide` for a plugin's own
-picker is now `host/stage`'s own `surfaceFor(identity)`, resolved by the composition root
-the moment `registry.presentationFor` answers something for that identity, checked lazily on
-every access rather than once when the adapter was built, phase three review finding one,
-since nothing has registered yet at the point that adapter is assembled. So a
-`registry.surface` entry left in place would be dead weight nobody reads rather than a
-second answer. `registry.open` still stays, and still matters, it is what this plugin's own
-leader key binds to directly, the hotkey door, and what an unmigrated fallback would still
-call if `presentationFor` ever answered nil for a name it used to answer for.
+**A presenting plugin declares `registry.surface` only when it carries verbs beyond the five
+generic ones.** `isShowing`, `selectNext`, `selectPrev`, `insertSelected`, and `hide` for a
+plugin's own picker are answered by `host/stage`'s own `surfaceFor(identity)`, resolved by
+the composition root the moment `registry.presentationFor` answers something for that
+identity, checked lazily on every access rather than once when the adapter was built, phase
+three review finding one, since nothing has registered yet at the point that adapter is
+assembled, and `surfaceFor` always wins those five regardless of what `registry.surface`
+names. Review finding M3, the trickle migrations. All three declare `registry.surface`
+anyway, because all three carry extra verbs bound in `surface.extra`, Processes' `refresh`,
+`sortByLoad`, and `stopForced`, the clipboard's `appendSelected`, `deleteSelected`,
+`manageHistory`, `leaveManageHistory`, and two scroll keys, FileSearch's seven more, none of
+which live anywhere but the declared surface object. `root/compose.lua`'s own
+`surfaceAdapterFor` falls through to it for exactly those names, once the stage's own five
+have been asked and answered nothing, so leaving the field out would silently drop every one
+of those bound keys rather than leave dead weight. A plugin presenting with no verbs beyond
+the five, VPN and menu search among them, still declares none. `registry.open` still stays,
+and still matters, it is what this plugin's own leader key binds to directly, the hotkey
+door, and what an unmigrated fallback would still call if `presentationFor` ever answered nil
+for a name it used to answer for.
 
 **`surface` itself is unchanged and still required.** `context`, `primary`, `nav`, and
 `extra` are what `plan.contexts` is built from and what the navigation bind loop still binds
@@ -863,9 +927,10 @@ row silently vanished.
 - A plugin that wants a launcher row, a word, or a key declares `registry`, and its `row`
   carries a `category`, without which no row is built.
 - A plugin that shows its own rows through the shared stage rather than building its own
-  `Chooser.new` declares `presentation`, with `rows` and `select` required, and declares no
-  `registry.surface`, since host/stage answers navigation for it once presentationFor
-  answers something.
+  `Chooser.new` declares `presentation`, with `rows` and `select` required. It declares
+  `registry.surface` only if `surface.extra` binds a verb beyond the five generic ones,
+  since host/stage answers those five for it once presentationFor answers something but
+  falls through to the declared surface for anything past them.
 - `configure` is a colon method, and so is every `wiring` target, unless the step says
   `call = "dot"`. Everything Olm ships is colon. Getting this wrong does not raise, Lua
   binds the module itself to the first parameter and drops the real options, which is a

@@ -135,6 +135,8 @@ obj._defaultRowCount = nil   -- the atom's own default, read once at configure, 
 obj._defaultMatcher = nil    -- the root's own matcher, read once at configure the same way
                               -- _defaultRowCount is, what a presentation naming no matcher of its
                               -- own is asking to return to, contract v2 decision one
+obj._defaultTitleLineBreak = nil -- the atom's own "truncateTail", read once at configure the
+                              -- identical way, rework rider restoring filesearch's own field
 obj._geometryTimer = nil     -- held so a pending pane settle cannot be collected before it fires, see _applyPaneGeometry
 obj._suppressClose = false   -- true only while _applyRowCount's own internal hide is in flight, see _onClose
 obj._lastShowAt = nil        -- hs.timer.secondsSinceEpoch() at the last real show(), see _applyPaneGeometry
@@ -215,18 +217,15 @@ function obj:configure(opts)
     intercept = function(item) return self:_intercept(item) end,
     back = function() return self:_back() end,
     onHighlight = function(item) self:_onHighlight(item) end,
-    -- Found during the trickle migrations rather than named by either brief, the identical
-    -- shape onHighlight just above already keeps, config.onScroll read live on self.config
-    -- exactly like every other routed field, lib/chooser/providers/native.lua's own note on
-    -- why a canvas companion needs this at all, a canvas having no scroll callback of its
-    -- own. A presentation with no onScroll of its own is silently skipped, exactly as an
-    -- ordinary missing field already is everywhere else in this file.
-    onScroll = function(points) self:_onScroll(points) end,
-    -- Found alongside onScroll above, clipboard's own onRightClick, the only consumer
-    -- anywhere, a canvas row offering no native right click handling of its own either.
-    -- Routed the identical way, live on self.config, a presentation with none simply
-    -- never asked.
-    onRightClick = function(item, row) self:_onRightClick(item, row) end,
+    -- onScroll and onRightClick are NOT installed here, review finding M5. Both used to be
+    -- permanent closures on this table, and lib/chooser/providers/native.lua's own
+    -- _startScrollWatcher and its onRightClick construction check both promise "wired only
+    -- when a consumer listens", a promise a permanent closure here broke for every
+    -- presentation with no companion at all, the launcher, VPN, menu search and caffeinate
+    -- among them, paying for an idle eventtap on every cold show. _show below writes both
+    -- fields directly, honestly nil or a real closure, only on a cold show, the one moment
+    -- the atom re-reads either to decide whether to listen at all, so a presentation that
+    -- declares neither costs the atom nothing rather than an inert watcher.
     -- Adversarial review finding M2. Routed through this host's own _onPositioned rather
     -- than handed self._panelOnPositioned directly, so the docked panel is re anchored
     -- through the identical function a manual placement uses on a swap, _onPositioned
@@ -257,6 +256,13 @@ function obj:configure(opts)
   -- its own asks to return to exactly what this host would have shown before contract v2 ever
   -- started writing this field on every show.
   self._defaultMatcher = self._instance.matcher
+
+  -- Rework rider. self._instance.layout.titleLineBreak already holds the atom's own default,
+  -- "truncateTail", DEFAULT_LAYOUT's own value folded in at construction the identical way
+  -- layout.rowCount is. Read once, right here, for the identical reason _defaultRowCount and
+  -- _defaultMatcher are, so a presentation naming no titleLineBreak of its own asks to return
+  -- to exactly what this host would have shown before this field existed.
+  self._defaultTitleLineBreak = self._instance.layout.titleLineBreak
 
   -- The one nav adapter, unscoped, answering isShowing for the shared window itself rather
   -- than for any one presentation. selectNext, selectPrev, insertSelected, and hide are safe
@@ -432,6 +438,12 @@ function obj:_show(p, wasShowing, outgoing)
   -- tool that never asks for anything unusual keeps behaving exactly as it did before this
   -- field existed.
   self._instance.matcher = self:_resolveMatcher(p.matcher)
+  -- Rework rider, filesearch's own titleLineBreak restored. Written before every show, cold
+  -- or swap alike, the identical placement matcher just above keeps, since a swap's own
+  -- refresh(true) rebuilds every row's styling live off layout.titleLineBreak exactly the
+  -- way it rebuilds off layout.companionWidth. A presentation naming none of its own resolves
+  -- to _defaultTitleLineBreak, the atom's own "truncateTail" this host inherited at configure.
+  self._instance.layout.titleLineBreak = p.titleLineBreak or self._defaultTitleLineBreak
   -- Decision two of the geometry brief. A row count change takes the one resize path that
   -- exists, hide, rows(n), show, which the probe found applies on the next show of the same
   -- instance, docs/PROBE-FINDINGS-2026-08-27.md section C2. _applyRowCount below drives that
@@ -458,6 +470,15 @@ function obj:_show(p, wasShowing, outgoing)
     -- same tick hide and show, finding five of the phase three review keeping the identical
     -- split for the identical reason.
     if not resized then self:_captureCoveredApp() end
+    -- Review finding M5. Written only here, the one moment
+    -- lib/chooser/providers/native.lua's own _startScrollWatcher and its onRightClick
+    -- construction check actually re-read either field to decide whether to listen at all,
+    -- never on a swap, which triggers no such re-check and where writing nil could silence a
+    -- watcher already running mid scroll. Honestly nil when this presentation declares
+    -- neither, so the atom's own "wired only when a consumer listens" promise holds for every
+    -- presentation with no companion rather than paying for an idle eventtap regardless.
+    self._instance.config.onScroll = p.onScroll and function(points) self:_onScroll(points) end or nil
+    self._instance.config.onRightClick = p.onRightClick and function(item, row) self:_onRightClick(item, row) end or nil
     self._instance:show()
     -- Rider N1 of the geometry review, second pass. Stamped after show() returns rather
     -- than before it is called, since the atom arms its own settle timer at the END of
@@ -702,10 +723,16 @@ function obj:present(p)
   end
   if p.enter then
     local fired = false
+    -- Review finding H4. Answers whether this call actually made p current, true only on the
+    -- one call that ran finish, false on a second call and on a call that finds itself stale,
+    -- so a presentation whose own enter queues several proceeds behind one scan can tell which
+    -- of them, if any, was honoured rather than assuming its own call succeeded just because it
+    -- was allowed to run.
     local function proceed()
-      if fired or self._enterGen ~= myGen then return end
+      if fired or self._enterGen ~= myGen then return false end
       fired = true
       finish()
+      return true
     end
     p.enter(proceed)
   else
@@ -764,10 +791,16 @@ function obj:push(p)
   end
   if p.enter then
     local fired = false
+    -- Review finding H4. Answers whether this call actually made p current, true only on the
+    -- one call that ran finish, false on a second call and on a call that finds itself stale,
+    -- so a presentation whose own enter queues several proceeds behind one scan can tell which
+    -- of them, if any, was honoured rather than assuming its own call succeeded just because it
+    -- was allowed to run.
     local function proceed()
-      if fired or self._enterGen ~= myGen then return end
+      if fired or self._enterGen ~= myGen then return false end
       fired = true
       finish()
+      return true
     end
     p.enter(proceed)
   else
@@ -963,7 +996,22 @@ end
 --- setQuery and for the same reason, the launcher's own peekSelected, canPeekSelected, and
 --- selectedKind all read the highlighted row and had nowhere else to reach it from once they
 --- stopped holding the instance themselves.
+---
+--- Review finding H6. Guarded on the stack being non empty rather than on isShowing, and the
+--- two are not the same question here. native.lua's own show sequence fires config.onPositioned
+--- BEFORE self.chooser:show(...) ever runs, so a presentation's own seed call, docking its pane
+--- and asking for the row already on it, lands while isShowing() still answers false, and a
+--- guard borrowed from selectedRow's own would have answered nil for the one call that most
+--- needs the real row. The stack is populated by _freshStack before _show ever runs, so it is
+--- already true by the time any presentation's own code could possibly ask, and it is false
+--- exactly when hide has cleared it and nothing is current, which is the one case worth
+--- refusing, the underlying Chooser:selectedItem() answering whatever was highlighted before a
+--- hide the same way Chooser:selectedRow() does, hs.chooser restoring rather than forgetting a
+--- selection across one. This is also what closes the cache every one of the three trickle
+--- migrations built, host/compose.lua's own stageSelectedItem handing this out so a plugin
+--- reads the widget live instead of a module local a poll interval behind it.
 function obj:selectedItem()
+  if #self._stack == 0 then return nil end
   return self._instance and self._instance:selectedItem() or nil
 end
 
@@ -1086,6 +1134,15 @@ function obj:_onClose()
   -- hide, which resizes the same presentation that is still current and about to be reshown
   -- on the very next line, never a level actually leaving the stack.
   if self._suppressClose then return end
+  -- Review finding H3. The atom's own teardown is the one path a person actually takes,
+  -- escape, a completed selection, or a click away, and until this fix it was the one door
+  -- that did not bump the generation, so a proceed a deferring presentation is still waiting
+  -- on when any of those happens found the stage's own book still open and showed itself
+  -- over whatever the person went back to, seconds after they dismissed it. Placed after the
+  -- suppress guard on purpose, since _applyRowCount's own internal hide is the one call that
+  -- must not count as the stage moving on, the presentation it resizes being the one about to
+  -- be reshown on the very next line rather than one actually leaving.
+  self:_bumpEnterGen()
   if self._panelOnClose then self._panelOnClose() end
   closeStack(self._stack)
   self._stack = {}

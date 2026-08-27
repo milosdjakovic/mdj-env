@@ -754,6 +754,31 @@ function obj.run(olm, cfg)
       if stageModule then stageModule:setQuery(text) end
     end,
 
+    -- stageSetPlaceholder, review finding H2. Declared by the clipboard's own manifest from
+    -- the day it migrated and published by nobody until this rework, the exact failure class
+    -- lib/services.lua's own owed() exists to catch, a declaration that is right, validated,
+    -- reported satisfied, and delivered nowhere. The manage history page changes what the
+    -- field means, not only what it holds, so it needs the identical direct control
+    -- stageSetQuery gives the field's own text, Stage:setPlaceholder already public for the
+    -- launcher's own paging to reach.
+    stageSetPlaceholder = function(text)
+      if stageModule then stageModule:setPlaceholder(text) end
+    end,
+
+    -- stageSelectedItem, review finding H6. host/stage's own selectedItem() already reads the
+    -- live widget rather than a cache, guarded now on the stack being current rather than on
+    -- isShowing so a presentation's own onPositioned seed call, which fires before the atom's
+    -- own isVisible() would answer true, still gets the real row. Every one of the three
+    -- trickle migrations built its own module local cache instead, seeded only by the atom's
+    -- own poll and never cleared on close, so a cold open answered whatever the previous
+    -- session last highlighted for one poll interval, up to and including what the clipboard's
+    -- own delete key removed. This word is what lets a presenting plugin ask the widget
+    -- directly instead of keeping a cache that cannot answer the question the widget already
+    -- answers.
+    stageSelectedItem = function()
+      return stageModule and stageModule:selectedItem() or nil
+    end,
+
     -- stageTextBudget and stageTextWidth, the trickle migration's own addition, FileSearch's
     -- own fitDir, which used to measure a row's own room straight off the picker instance it
     -- held and now has no instance left to ask. Both proxy host/stage's own public methods,
