@@ -97,6 +97,13 @@ return {
   -- for them once fired now differs. panelAs is gone, the docked shortcut panel is atom level
   -- policy host/stage owns for the life of its one instance rather than something a presenting
   -- plugin's own configure reads any more.
+  --
+  -- This plugin still earns the docked panel triple regardless, review finding L7, since
+  -- lib/services.lua builds it for any plugin with a surface and a context that resolves, with
+  -- no way to ask for a surface's own navigation wiring without it. VPN carries the identical
+  -- residue for the identical reason. Both are deliberate, three unread fields on opts rather
+  -- than a special case in a shared function for the one or two plugins that no longer read
+  -- them.
   surface = {
     context = "menuSearch",
     primary = { action = "insertSelected", description = "Run" },
@@ -115,12 +122,17 @@ return {
   -- read for it begins, the identical seam VPN's own onPresent starts its fetch from, never
   -- blocking the swap that is about to happen, since the read this plugin starts here runs off
   -- the main thread and the instant snapshot the open already drew from is what the window
-  -- shows the moment it appears.
+  -- shows the moment it appears. onClose, review finding M3, is told once whenever the
+  -- stage hides entirely, never on a swap, and is what clears the highlight gate's own per
+  -- entry bookkeeping, so a correction that lands after a genuine close is judged on its own
+  -- terms rather than held back by a row number a hidden hs.chooser instance is still sitting
+  -- on from before the hide.
   presentation = {
     rows = { member = "rows", call = "dot" },
     select = { member = "select", call = "dot" },
     placeholder = { member = "placeholder", call = "dot" },
     onPresent = { member = "onPresent", call = "dot" },
+    onClose = { member = "onClose", call = "dot" },
   },
 
   -- open, scopeRows and scopeRun are all assigned as plain closures inside this plugin's own

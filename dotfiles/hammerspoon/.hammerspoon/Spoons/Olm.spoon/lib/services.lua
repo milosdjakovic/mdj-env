@@ -244,6 +244,15 @@ end
 --- shared instance across two plugins would merge two tools' remembered orderings into one,
 --- so each plugin's slot is keyed to its own name.
 ---
+--- This watches the literal field name recency and nothing else, on purpose. A plugin that
+--- wants more than one instance of its own, MenuSearch among them, one per app rather than one
+--- for the whole plugin, declares needs.lib under a different field name entirely, which never
+--- reaches this function at all and is answered by wire.lua's own generic grant instead, the
+--- raw module rather than a built instance. That is a deliberate opt out through a documented
+--- field, decl.from, not a gap this function forgot to close, and it stays correct only as long
+--- as this function keeps matching on the field name recency rather than on where a declaration
+--- says it comes from.
+---
 --- Runs after resolve.lua's own plan, since it reads plan.contexts and plan.identity, both
 --- of which only exist once the plan has been built.
 function obj.perPlugin(plan, manifests, deps)
