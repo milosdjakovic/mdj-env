@@ -821,6 +821,17 @@ function obj:selectedItem()
   return self._instance and self._instance:selectedItem() or nil
 end
 
+--- Stage:selectedRow() -> number or nil
+--- Method
+--- The highlighted row NUMBER on the live instance, or nil, the plain public counterpart
+--- Chooser:selectedRow() already answers for ActionPanel. Added for the menu search cache,
+--- docs/BRIEF-MENUSEARCH-CACHE.md, whose own background correction has to know whether a
+--- person has moved off row one before it is safe to redraw without disturbing a considered
+--- position, a row number being the whole question rather than the item sitting on it.
+function obj:selectedRow()
+  return self._instance and self._instance:selectedRow() or nil
+end
+
 --- Stage:query() -> string
 --- Method
 --- The current field text on the live instance, "" when there is none. The same addition as

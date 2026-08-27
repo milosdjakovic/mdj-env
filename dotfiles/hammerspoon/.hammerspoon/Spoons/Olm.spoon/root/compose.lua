@@ -346,6 +346,16 @@ function obj.run(olm, cfg)
   -- one, so the module sits here for the existence check to find, and services.perPlugin
   -- below still hands each declaring plugin its own fresh instance through deps.data, which
   -- wins there because that channel is read last and unconditionally.
+  --
+  -- storage joins this list for the menu search cache, docs/BRIEF-MENUSEARCH-CACHE.md,
+  -- the first consumer lib/storage.lua ever had. Its own configure already ran above, atoms.
+  -- storage.configure(policy.storage), so the module handed out here is the one already
+  -- carrying its expanded roots, never a second copy a plugin's own loadfile would build
+  -- unconfigured. A plugin that wants several instances of its own shape, the way menu
+  -- search wants one recency per bundle id rather than the one per plugin services.perPlugin
+  -- builds automatically, declares needs.lib under a field name other than the module's own,
+  -- so the generic grant above hands over the raw module rather than tripping whatever
+  -- automatic instance that module's own key would otherwise earn.
   local libs = {
     paste = atoms.paste,
     cheatsheet = cheatSheetAtom,
@@ -354,6 +364,7 @@ function obj.run(olm, cfg)
     chordkey = chordKeyAtom,
     hyperkey = hyperKeyAtom,
     recency = atoms.recency,
+    storage = atoms.storage,
   }
 
   ------------------------------------------------------------------------------
@@ -712,6 +723,18 @@ function obj.run(olm, cfg)
     -- unrelated list a person happens to be looking at.
     redrawPresented = function(name)
       if stageModule and stageModule:current() == name then stageModule:refresh() end
+    end,
+
+    -- stageSelectedRow, the menu search cache's own addition, docs/BRIEF-MENUSEARCH-CACHE.md.
+    -- A background correction landing while a list is on screen has to know whether the
+    -- highlight is still sitting on row one before it is safe to redraw without disturbing a
+    -- position a person is actively considering, and host/stage already exposes
+    -- Stage:selectedRow() publicly for exactly this, a plain number a consumer with no
+    -- instance of its own has nowhere else to reach. One closure under one name, the
+    -- identical shape stagePresent and redrawPresented already take, since the question is
+    -- "what is the shared window doing right now" and never which plugin is asking it.
+    stageSelectedRow = function()
+      return stageModule and stageModule:selectedRow() or nil
     end,
 
     -- One line of feedback, and one sampled colour, both on the shared overlay so they read as

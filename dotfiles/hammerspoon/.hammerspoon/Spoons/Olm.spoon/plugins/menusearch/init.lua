@@ -1,41 +1,83 @@
 --- === MenuSearch ===
 ---
---- Lists every enabled menu bar item of the frontmost app and runs the chosen one. Like the
---- launcher this is pure composition root policy over the shared Chooser atom, so it added no
---- spoon of its own before this extraction. macOS exposes each app's menus through the
---- Accessibility API, which hs.application:getMenuItems reads, the callback form doing the
---- tree walk off the main thread so a large menu never blocks Hammerspoon. The app frontmost
---- when the open action runs is captured as the target, since showing the chooser takes
---- focus, and the chosen item is dispatched back to that app once focus returns to it.
+--- Lists every enabled menu bar item of an app and runs the chosen one. macOS exposes each
+--- app's menus through the Accessibility API, which hs.application:getMenuItems reads, the
+--- callback form doing the tree walk off the main thread so a large menu never blocks
+--- Hammerspoon. That walk is also the whole of what made this tool feel slow, fifty to five
+--- hundred and fifty milliseconds by app depending on how much a menu tree holds, paid again
+--- on every single open before this file ever showed a row.
 ---
---- Each row carries only a serializable descriptor, its menu path as a list of titles, never
---- a function, since hs.chooser serialises each row and would silently drop a function. The
---- menu tree is fetched per open, since it changes with the app and its state, so the rows
---- supplier reads a module local list the fetch fills, and the chooser is shown only once the
---- fetch has built the rows.
+--- Migrated onto host/stage, phase five of the chooser stage build, docs/PLAN-CHOOSER-STAGE.md.
+--- This file owns no chooser of its own any more, builds no window, and wires no docked panel
+--- by hand. Its rows and its selection dispatch are named on the manifest's own presentation
+--- block instead of handed to a Chooser.new call this file no longer makes, following VPN's own
+--- migration exactly. Its leader key still opens it, through cfg.stagePresent, the root
+--- published word every presenting plugin's own hotkey door shares.
 ---
---- init returns self with no side effects. configure takes every collaborator this plugin
---- needs and returns self, the Chooser atom whose new builds the picker, the chooser theme
---- table, a table carrying the three docked shortcut panel callbacks, a function answering
---- the app the launcher covers, a function poking the launcher when async rows land, and the
---- root's deferred call helper. It names no spoon global, reads no config file, and learns
---- nothing about which key opens it, so a caller reaches it only through the surface, the
---- open action, and the two scope functions this file hands back.
+--- Paired with that migration, and built as one step with it per docs/BRIEF-MENUSEARCH-CACHE.md,
+--- is the reason the migration was promoted ahead of every other plugin still waiting its turn.
+--- A per app snapshot on disk, paths and shortcut glyphs only, is what an open draws from
+--- instantly, never waiting on the accessibility walk. That walk still runs, in the background,
+--- on every open, and when it lands its answer is compared directly against what is already on
+--- screen. Equal means nothing happens, not even a redraw. Different means a quiet correction,
+--- a newly appeared item is appended at the bottom, an item that vanished is dimmed in place
+--- through the same disabled row style a first ever open already shows, and nothing above the
+--- highlight ever moves, since neither an append nor an in place dim can shift anything that was
+--- already there. The correction defers whenever the highlight has moved off row one, since a
+--- list a person is part way down should not visibly change under them, applying instead as the
+--- next open's own starting point, a fresh open always landing back on row one being exactly the
+--- gate the deferred correction was waiting on. host/stage's own Stage:selectedRow, reached
+--- through the root published stageSelectedRow, is what answers whether the highlight has
+--- moved, a plain row number rather than an item, since the question is only ever "is it still
+--- row one" and never which item happens to sit there.
 ---
---- This is the olm side extraction of menu search, made the seventh of August 2026. The
---- original lives inline in the root init.lua, behind a toggle, rather than in a spoon
---- directory of its own, since that is where a reader must look for the other side.
+--- Two doors used to run two separate reads, this plugin's own hotkey and the launcher's scope.
+--- Both now converge on one function, openApp below, the one source owning the disk read, the
+--- in memory snapshot, the recency ordering, and the deferred correction, with the presentation
+--- and the scope as its two consumers, decision four of the cache brief. State is kept in one
+--- table per bundle id rather than per open, so a hotkey open and a scope open of the same app
+--- share the identical entry, and a background read that lands after its own open has already
+--- closed still updates that app's own standing snapshot for whichever door opens it next.
+---
+--- Recency is per app, decision three, one lib/recency instance per bundle id, built lazily and
+--- keyed by the joined menu path, since a shared instance across every app would prune one app's
+--- own dead paths using a different app's own fresh read. The sort it drives applies once, when
+--- an open's own display list is first built from the standing snapshot, never again while that
+--- list is up, so a live correction only ever appends and dims, it never reshuffles what recency
+--- already settled for this open.
+---
+--- Dead snapshots are swept as hygiene, decision five, a few minutes after this plugin's first
+--- open of any app this Hammerspoon load, never on the open path itself. A file whose bundle id
+--- no longer resolves to an installed app, or one untouched for sixty days, is removed.
+---
+--- Every row carries only a serializable descriptor, its menu path as a list of titles, never a
+--- function, since hs.chooser serialises each row and would silently drop a function. The chosen
+--- item still runs deferred, after the chooser tears down and macOS restores focus to the
+--- captured app, since a menu action acts on that app and this is genuine world dispatch, the
+--- one piece of this file that was never a caching question.
+---
+--- This is the olm side extraction of menu search, made the seventh of August 2026, and this
+--- migration and cache build the twenty seventh.
 
 local obj = {}
 obj.__index = obj
 
 obj.name = "MenuSearch"
-obj.version = "1.0"
+obj.version = "2.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
-local cfg = nil        -- the injected collaborators, chooser atom, theme, panel callbacks, coveredApp, refreshLauncher, after
-local menuSearch = nil -- the one native Chooser instance
+local cfg = nil -- injected collaborators, coveredApp, refreshLauncher, recencyLib, storage,
+                 -- stagePresent, redrawPresented, stageSelectedRow, after
+
+-- Deferred hygiene, decision five of the cache brief, never paid on the open path.
+local PRUNE_DELAY = 300  -- five minutes into this Hammerspoon load's first open, plenty of
+                          -- runway for the open itself to have long since drawn its rows
+local STALE_DAYS = 60
+
+--------------------------------------------------------------------------------
+-- Menu shapes shared by the disk cache, the fresh accessibility read, and both row suppliers
+--------------------------------------------------------------------------------
 
 -- hs decodes AXMenuItemCmdModifiers into a list of modifier names (e.g. { "cmd" }
 -- or { "cmd", "shift" }). Turn it plus the command char into a readable glyph for
@@ -53,11 +95,39 @@ local function menuShortcutGlyph(char, mods)
   return g .. char:upper()
 end
 
--- Flatten the nested AX menu tree into leaf rows. An entry's submenu is its
--- AXChildren[1] (a list); an entry with one is a container we recurse into, an
--- entry without is a runnable leaf. Blank-title entries (separators) are skipped,
--- and disabled items are dropped so the list stays actionable. Each leaf keeps the
--- full title path for selectMenuItem, plus its parent path and shortcut for display.
+-- The one identity a menu item ever has, for the disk cache, the live correction diff, and
+-- recency alike. A joined path rather than the title alone, since two different menus can
+-- share a leaf title, File and a submenu both offering New for instance, and only the full
+-- path tells them apart. The unit separator, not a space or an arrow, so a title that happens
+-- to contain either never collides with the join itself.
+local PATH_SEP = "\31"
+local function pathKey(path)
+  return table.concat(path, PATH_SEP)
+end
+
+-- The leaf title and the parent trail, both derived from a path rather than carried
+-- separately, since a path already says both and a second copy is only ever a second place
+-- for them to disagree once an app renames a menu.
+local function titleAndParents(path)
+  local n = #path
+  local parents = {}
+  for i = 1, n - 1 do parents[i] = path[i] end
+  return path[n], table.concat(parents, " ▸ ")
+end
+
+local function subtitleFor(parents, shortcut)
+  if shortcut then
+    return (parents ~= "" and (parents .. "   ") or "") .. shortcut
+  end
+  return parents
+end
+
+-- Flatten the nested AX menu tree into leaf descriptors. An entry's submenu is its
+-- AXChildren[1] (a list); an entry with one is a container recursed into, an entry without is
+-- a runnable leaf. Blank title entries (separators) are skipped, and disabled items are
+-- dropped so the list stays actionable, which is also why enabled state is never part of what
+-- either the disk cache or a fresh read carries, only paths and shortcuts, decision one of the
+-- cache brief. Every leaf this walk answers was enabled the moment it was asked.
 local function flattenMenus(entries, path, out)
   for _, e in ipairs(entries) do
     local title = e.AXTitle
@@ -69,123 +139,393 @@ local function flattenMenus(entries, path, out)
       if type(kids) == "table" and #kids > 0 then
         flattenMenus(kids, newPath, out)
       elseif e.AXEnabled ~= false then
-        local parents = {}
-        for i = 1, #newPath - 1 do parents[i] = newPath[i] end
-        out[#out + 1] = {
-          title = title,
-          path = newPath,
-          parents = table.concat(parents, " ▸ "),
-          shortcut = menuShortcutGlyph(e.AXMenuItemCmdChar, e.AXMenuItemCmdModifiers),
-        }
+        out[#out + 1] = { path = newPath, shortcut = menuShortcutGlyph(e.AXMenuItemCmdChar, e.AXMenuItemCmdModifiers) }
       end
     end
   end
 end
 
-local menuRows = {}   -- filled by the async fetch on each open
-local menuTargetApp   -- the app frontmost when the open action fired, the dispatch target
-local menuAppIcon     -- the target app's icon, shown on every row (one app per open)
-local menuAppKey      -- a stable icon key so that icon is encoded once, not per row
+-- Row descriptors, shared by the picker's own presentation and the launcher's scope, so the
+-- two present a menu item identically and cannot drift. Extra fields beyond what hs.chooser
+-- itself reads, iconKey and shortcut, ride along on the row table the same harmless way this
+-- plugin's own iconKey always has, one for icon memoisation and one this file's own live
+-- correction reads back later to tell an unchanged shortcut from a changed one.
+local function buildRow(r, icon, iconKey)
+  local title, parents = titleAndParents(r.path)
+  return {
+    title = title,
+    subTitle = subtitleFor(parents, r.shortcut),
+    image = icon,
+    iconKey = iconKey,
+    item = { path = r.path },
+    filterText = title .. " " .. parents,
+    enabled = true,
+    shortcut = r.shortcut,
+  }
+end
 
--- Rows supplier. Returns every menu item and lets the atom's shared matcher filter and
--- rank, so typing a parent menu name (File, Format) narrows too since the path rides in
--- filterText. The shortcut glyph rides in the subtitle after the path.
--- The row shape, shared by this chooser and the launcher's menu scope below, so the two
--- present a menu item identically and cannot drift. Every item belongs to the one captured
--- app, so each row shows that app's icon, and the stable key memoizes the encoded icon once
--- rather than per row.
-local function buildMenuRows(list, icon, iconKey)
+local function buildRows(list, icon, iconKey)
   local out = {}
-  for _, r in ipairs(list or {}) do
-    local subtitle = r.parents
-    if r.shortcut then
-      subtitle = (subtitle ~= "" and (subtitle .. "   ") or "") .. r.shortcut
-    end
-    out[#out + 1] = { title = r.title, subTitle = subtitle, image = icon,
-                      iconKey = iconKey, item = { path = r.path },
-                      filterText = r.title .. " " .. r.parents }
-  end
+  for _, r in ipairs(list or {}) do out[#out + 1] = buildRow(r, icon, iconKey) end
   return out
 end
 
-local function menuSearchRows(_)
-  return buildMenuRows(menuRows, menuAppIcon, menuAppKey)
+-- The one row shown while a first ever read for this app is still in flight, no disk snapshot
+-- and nothing yet drawn to correct. filterText carries whatever was typed so the shared
+-- matcher can never rank this row away while it is the only thing there is to show.
+local function readingRow(entry, filterText)
+  local app = entry and entry.app
+  return {
+    title = "Reading the menus",
+    subTitle = (app and app:name() or "this app") .. ", one moment",
+    glyph = "⏳",
+    enabled = false,
+    filterText = filterText or "",
+  }
 end
 
--- Open the built-in menu search: capture the frontmost app, fetch its menus
--- asynchronously so a large tree never blocks, then show the chooser once the rows
--- are built. Does nothing if no app is frontmost, the app exposes no menus, or focus
--- moved before the fetch returned (so we never target the wrong app).
-local function openBuiltinMenuSearch()
-  local app = hs.application.frontmostApplication()
-  if not app then return end
-  menuTargetApp = app
-  local bundleID = app:bundleID()
-  menuAppIcon = bundleID and hs.image.imageFromAppBundle(bundleID) or nil
-  menuAppKey = bundleID and ("menuapp:" .. bundleID) or nil
+--------------------------------------------------------------------------------
+-- The snapshot cache on disk, one json file per bundle id
+--------------------------------------------------------------------------------
+
+local function snapshotPath(bundleId)
+  return cfg.storage.cacheDir("menusearch") .. "/" .. bundleId .. ".json"
+end
+
+local function loadSnapshot(bundleId)
+  local path = snapshotPath(bundleId)
+  if not hs.fs.attributes(path) then return nil end
+  local data = hs.json.read(path)
+  if type(data) == "table" and type(data.items) == "table" then return data.items end
+  return nil
+end
+
+local function saveSnapshot(bundleId, items)
+  hs.json.write({ items = items }, snapshotPath(bundleId), true, true)
+end
+
+--------------------------------------------------------------------------------
+-- Recency, one lib/recency instance per bundle id, built lazily
+--------------------------------------------------------------------------------
+
+local recencyByApp = {}
+local function recencyFor(bundleId)
+  if not cfg.recencyLib then return nil end
+  local r = recencyByApp[bundleId]
+  if not r then
+    r = cfg.recencyLib.new({ settingsKey = "olm.recency.menuSearch." .. bundleId })
+    recencyByApp[bundleId] = r
+  end
+  return r
+end
+
+-- Applied once, when an open's own display list is first built from the standing snapshot,
+-- decision three of the cache brief. Never called again while that list is up, which is what
+-- keeps a live correction to an append and an in place dim rather than a reshuffle.
+local function sortForOpen(entry, items)
+  local recency = recencyFor(entry.bundleId)
+  if not recency then return items end
+  return recency.order(items, function(r) return pathKey(r.path) end)
+end
+
+--------------------------------------------------------------------------------
+-- Per app state, one entry per bundle id, the one source every consumer reads
+--------------------------------------------------------------------------------
+
+local entriesByBundle = {}
+
+-- An app Launch Services never gave a bundle id is rare and has no identity stable across a
+-- relaunch. The pid at least keeps this session's own cache and recency from colliding with a
+-- different app that also has none, and the prune sweep drops a file keyed this way quickly,
+-- since pathForBundleID can never resolve a pid shaped id back to an installed app.
+local function bundleIdFor(app)
+  local id = app:bundleID()
+  if id and id ~= "" then return id end
+  return "noBundle:" .. tostring(app:pid())
+end
+
+-- Merge a fresh read into an entry's own display list without disturbing anything already on
+-- screen, decision as agreed in the cache brief's own mechanism section. A survivor keeps its
+-- exact position and picks up whatever changed about it, a shortcut most likely. An item the
+-- fresh read no longer has is dimmed in place, enabled false, rather than removed, so nothing
+-- below it shifts. A genuinely new item is appended at the bottom, in the fresh read's own
+-- order. No recency pass runs here, that already happened once when this open's own display
+-- list was first built.
+local function mergeFresh(entry, freshList)
+  local freshByKey = {}
+  for _, r in ipairs(freshList) do freshByKey[pathKey(r.path)] = r end
+  local seen = {}
+  for _, row in ipairs(entry.rows or {}) do
+    local key = pathKey(row.item.path)
+    local fresh = freshByKey[key]
+    if fresh then
+      seen[key] = true
+      row.enabled = true
+      row.shortcut = fresh.shortcut
+      local title, parents = titleAndParents(fresh.path)
+      row.title = title
+      row.subTitle = subtitleFor(parents, fresh.shortcut)
+      row.filterText = title .. " " .. parents
+    else
+      row.enabled = false
+    end
+  end
+  for _, r in ipairs(freshList) do
+    local key = pathKey(r.path)
+    if not seen[key] then
+      entry.rows[#entry.rows + 1] = buildRow(r, entry.icon, entry.iconKey)
+      seen[key] = true
+    end
+  end
+end
+
+-- Whether a fresh read matches exactly what is already live on screen, decision two of the
+-- cache brief, no checksum, the two lists are already in memory so a direct compare costs
+-- nothing next to the walk that produced them. Only the live, enabled rows count, an item
+-- already dimmed by an earlier correction has already told its own story once. Order is
+-- deliberately not part of this comparison, since the display list is recency sorted and a
+-- fresh read is not, so a sequence compare would read every open as changed even when nothing
+-- moved. false is stored in place of a nil shortcut so a present key with no shortcut can
+-- never be confused with an absent one, a plain table cannot tell those two apart by indexing
+-- alone.
+local function sameAsLive(entry, freshList)
+  local live, count = {}, 0
+  for _, row in ipairs(entry.rows or {}) do
+    if row.enabled ~= false then
+      live[pathKey(row.item.path)] = row.shortcut or false
+      count = count + 1
+    end
+  end
+  if count ~= #freshList then return false end
+  for _, r in ipairs(freshList) do
+    local seen = live[pathKey(r.path)]
+    if seen == nil or seen ~= (r.shortcut or false) then return false end
+  end
+  return true
+end
+
+-- Where a landed background read is actually reconciled against an entry's own state. Runs
+-- for every app this plugin has ever opened, whether or not anything is showing right now, so
+-- an app's own standing snapshot keeps repairing itself between opens at no cost, decision
+-- three's own prune line among them.
+local function onLanded(entry, freshList)
+  local recency = recencyFor(entry.bundleId)
+  if recency then
+    local keys = {}
+    for _, r in ipairs(freshList) do keys[#keys + 1] = pathKey(r.path) end
+    -- Pruned against THIS read's own path set, the confirmed live truth, rather than against
+    -- whatever the display list happens to be built from right now, which may still be a
+    -- stale snapshot from disk. Decision three, "the fresh read's own path set feeds prune".
+    recency.prune(keys)
+  end
+
+  if not entry.snapshot then
+    -- The first read this app has ever answered, this session or ever on disk. Nothing to
+    -- compare it against and nothing on screen to preserve, so this plants the baseline
+    -- rather than correcting one.
+    entry.snapshot = freshList
+    entry.rows = buildRows(sortForOpen(entry, freshList), entry.icon, entry.iconKey)
+    saveSnapshot(entry.bundleId, freshList)
+    if entry.notify then entry.notify() end
+    return
+  end
+
+  if sameAsLive(entry, freshList) then return end
+
+  local atRowOne = true
+  if cfg.stageSelectedRow then
+    local row = cfg.stageSelectedRow()
+    if row then atRowOne = (row == 1) end
+  end
+
+  if not atRowOne then
+    -- Somebody is already looking part way down the list. The correction is not lost, it
+    -- waits as this app's own next baseline, since a fresh open always lands back on row
+    -- one, which is exactly the gate this deferral is waiting on, decision as agreed.
+    entry.pendingFresh = freshList
+    return
+  end
+
+  mergeFresh(entry, freshList)
+  entry.snapshot = freshList
+  saveSnapshot(entry.bundleId, freshList)
+  if entry.notify then entry.notify() end
+end
+
+-- Kicks the background accessibility walk for this entry unless one is already running. Off
+-- the main thread by construction, hs.application:getMenuItems's own callback form, so this
+-- never blocks the open that asked for it.
+local function beginRead(entry)
+  if entry.reading or not entry.app then return end
+  entry.reading = true
+  local app = entry.app
   app:getMenuItems(function(menus)
-    if not menus then return end
-    if hs.application.frontmostApplication() ~= app then return end
-    menuRows = {}
-    flattenMenus(menus, {}, menuRows)
-    menuSearch:show()
+    entry.reading = false
+    -- The answer can land after the app has quit or after this open has long since moved
+    -- on. There is no one left to redraw in that case, onLanded's own notify simply does
+    -- nothing, but the read is still worth keeping, the next open of this same app reads
+    -- it fresh off entry.snapshot regardless of who was watching when it arrived.
+    local fresh = {}
+    if menus then flattenMenus(menus, {}, fresh) end
+    onLanded(entry, fresh)
   end)
 end
 
+-- Deferred hygiene, decision five, scheduled once per Hammerspoon load, on this plugin's own
+-- first open of any app, never at load time and never on the open path itself.
+local pruneScheduled, pruneTimer = false, nil
+local function pruneDeadSnapshots()
+  local dir = cfg.storage.cacheDir("menusearch")
+  local ok, iter, dirObj = pcall(hs.fs.dir, dir)
+  if not ok or not iter then return end
+  local cutoff = os.time() - STALE_DAYS * 24 * 60 * 60
+  for name in iter, dirObj do
+    if name:sub(-5) == ".json" then
+      local bundleId = name:sub(1, -6)
+      local full = dir .. "/" .. name
+      -- pathForBundleID answers an empty string, never nil, for a bundle id it cannot
+      -- place, so both are checked, the same idiom lib/deps.lua and tmuxsessions already
+      -- read it by.
+      local installed = hs.application.pathForBundleID(bundleId)
+      local mtime = hs.fs.attributes(full, "modification")
+      if installed == nil or installed == "" or (mtime and mtime < cutoff) then
+        os.remove(full)
+      end
+    end
+  end
+end
+local function scheduleFirstUsePrune()
+  if pruneScheduled then return end
+  pruneScheduled = true
+  pruneTimer = hs.timer.doAfter(PRUNE_DELAY, pruneDeadSnapshots)
+end
+
+-- The one source, decision four of the cache brief. Called at the start of a fresh open of
+-- this app's menus, whichever door asked, folding in whatever a deferred correction left
+-- waiting from the last open, since a fresh open always lands on row one, rebuilding the
+-- display list from the standing snapshot so a previous open's own live only dimming and
+-- appending never bleeds into this one, and starting this open's own background read. notify
+-- is how THIS open wants to be told a later correction landed, cfg.redrawPresented for the
+-- picker or cfg.refreshLauncher for the scope, kept on the entry rather than decided here,
+-- since only one of the two can genuinely be on screen at a time.
+local function openApp(bundleId, app, notify)
+  scheduleFirstUsePrune()
+  local entry = entriesByBundle[bundleId]
+  if not entry then
+    entry = {
+      bundleId = bundleId,
+      icon = hs.image.imageFromAppBundle(bundleId),
+      iconKey = "menuapp:" .. bundleId,
+      snapshot = loadSnapshot(bundleId),
+      reading = false,
+    }
+    entriesByBundle[bundleId] = entry
+  end
+  entry.app = app
+  entry.notify = notify
+  if entry.pendingFresh then
+    entry.snapshot = entry.pendingFresh
+    entry.pendingFresh = nil
+    saveSnapshot(bundleId, entry.snapshot)
+  end
+  entry.rows = entry.snapshot and buildRows(sortForOpen(entry, entry.snapshot), entry.icon, entry.iconKey) or nil
+  beginRead(entry)
+  return entry
+end
+
+--------------------------------------------------------------------------------
+-- The picker, this plugin's own presentation
+--------------------------------------------------------------------------------
+
+local pickerEntry = nil -- which entry this plugin's own presentation is currently showing
+
+local function menuSearchRows(query)
+  if not pickerEntry then return {} end
+  return pickerEntry.rows or { readingRow(pickerEntry, query) }
+end
+
+-- Acts on the app the open captured, never on whatever is frontmost when the row runs, since
+-- showing the chooser takes focus and by the time a selection completes the frontmost app is
+-- this one. Deferred, genuine world dispatch, so the picker has torn down and focus has
+-- actually returned to the target app before its own menu item is asked to run, unchanged by
+-- either half of this migration.
+local function menuSearchSelect(item)
+  if not (item and item.path and pickerEntry and pickerEntry.app) then return end
+  local app = pickerEntry.app
+  local recency = recencyFor(pickerEntry.bundleId)
+  if recency then recency.touch(pathKey(item.path)) end
+  cfg.after(0.1, function() app:selectMenuItem(item.path) end)
+end
+
+-- Resolved once, at register, per the presentation contract, so a plain static string is all
+-- this needs to answer.
+local function menuSearchPlaceholder()
+  return "Search menu items"
+end
+
+-- The presentation contract's own onPresent, called whenever this plugin's own presentation
+-- becomes current, before the window itself is shown or swapped into. Captures the frontmost
+-- app, the dispatch target, and opens its entry, which draws the standing snapshot instantly
+-- and starts this open's own background read without blocking the swap that is about to
+-- happen, VPN's own onPresent, phase three review finding eleven, being the identical shape.
+local function menuSearchOnPresent()
+  local app = hs.application.frontmostApplication()
+  if not app then
+    pickerEntry = nil
+    return
+  end
+  pickerEntry = openApp(bundleIdFor(app), app, function()
+    if cfg.redrawPresented then cfg.redrawPresented("menuSearch") end
+  end)
+end
+
+-- The hotkey door, decision one of the handoff brief, the only remaining caller being the key
+-- registry.open binds directly. cfg.stagePresent asks the registry for this plugin's own
+-- presentation and hands it to the stage, which calls menuSearchOnPresent above before the
+-- window itself is touched.
+local function openMenuSearch()
+  if cfg.stagePresent then cfg.stagePresent("menuSearch") end
+end
+
+--------------------------------------------------------------------------------
+-- The launcher's menu scope, unchanged in shape, now drawing from the same one source
+--------------------------------------------------------------------------------
+
+-- A fresh (app, openId) pair is what tells this apart from every other keystroke of the same
+-- launcher open, the identical shape the retired per open state kept before this migration,
+-- since scopeMenuRows is asked again on every keystroke and must not reopen the app each
+-- time.
+local scopeSeen = { app = nil, openId = nil }
+local scopeEntry = nil
+
 -- The launcher's menu scope. It lists the menus of the app the launcher covered rather than
 -- the frontmost one, since once the chooser is up the frontmost app is this one, which is why
--- the launcher hands over both that app and an id for the open. The tree is read once per open.
--- Re-reading it on every keystroke would be unusable, since the accessibility walk is the slow
--- part of menu search, and caching it across opens would go stale as an app enables and
--- disables its items. A read in flight shows as one disabled row, so the list says what it is
--- doing rather than briefly claiming nothing matched, and that row carries the typed text as
--- its filter text so the matcher cannot rank it away while it is the only thing to show.
-local scopeMenu = { app = nil, openId = nil, list = nil, icon = nil, key = nil, reading = false }
-
+-- the launcher hands over both that app and an id for the open. A read in flight, or no
+-- snapshot yet, shows as one disabled row, so the list says what it is doing rather than
+-- briefly claiming nothing matched.
 local function scopeMenuRows(rest)
   local app, openId = cfg.coveredApp()
   if not app then return {} end
-  if app ~= scopeMenu.app or openId ~= scopeMenu.openId then
-    local bundleID = app:bundleID()
-    scopeMenu = {
-      app = app, openId = openId, list = nil, reading = false,
-      icon = bundleID and hs.image.imageFromAppBundle(bundleID) or nil,
-      key = bundleID and ("menuapp:" .. bundleID) or nil,
-    }
-  end
-  if not scopeMenu.list and not scopeMenu.reading then
-    scopeMenu.reading = true
-    local forApp, forOpen = app, openId
-    app:getMenuItems(function(menus)
-      -- The answer can arrive after another open has moved on, so it is kept only for the
-      -- read that asked for it and dropped otherwise.
-      if scopeMenu.app ~= forApp or scopeMenu.openId ~= forOpen then return end
-      scopeMenu.reading = false
-      local flat = {}
-      if menus then flattenMenus(menus, {}, flat) end
-      scopeMenu.list = flat
-      cfg.refreshLauncher()
+  if app ~= scopeSeen.app or openId ~= scopeSeen.openId then
+    scopeSeen.app, scopeSeen.openId = app, openId
+    scopeEntry = openApp(bundleIdFor(app), app, function()
+      if cfg.refreshLauncher then cfg.refreshLauncher() end
     end)
   end
-  if not scopeMenu.list then
-    return { {
-      title = "Reading the menus",
-      subTitle = (app:name() or "this app") .. ", one moment",
-      glyph = "⏳",
-      enabled = false,
-      filterText = rest,
-    } }
-  end
-  return buildMenuRows(scopeMenu.list, scopeMenu.icon, scopeMenu.key)
+  return scopeEntry.rows or { readingRow(scopeEntry, rest) }
 end
 
 -- Acts on the app the read was for, not on whatever is frontmost when the row runs, so a menu
--- item can never be sent to the wrong app. selectMenuItem addresses that app directly, so this
--- does not depend on focus having returned, though the launcher defers it anyway.
+-- item can never be sent to the wrong app. No deferral of its own, the launcher already defers
+-- a scope's own run by a beat before calling this.
 local function scopeMenuRun(payload)
-  local app = scopeMenu.app
-  if app and payload and payload.path then app:selectMenuItem(payload.path) end
+  if not (scopeEntry and scopeEntry.app and payload and payload.path) then return end
+  local recency = recencyFor(scopeEntry.bundleId)
+  if recency then recency.touch(pathKey(payload.path)) end
+  scopeEntry.app:selectMenuItem(payload.path)
 end
+
+--------------------------------------------------------------------------------
 
 --- MenuSearch:init()
 --- Method
@@ -196,47 +536,31 @@ end
 
 --- MenuSearch:configure(opts)
 --- Method
---- Configure with every collaborator this plugin needs. opts.chooser is the Chooser atom
---- table whose new builds the picker. opts.theme is the chooser theme table. opts.panel is a
---- table carrying the three docked shortcut panel callbacks onPositioned, onActivity and
---- onClose. opts.coveredApp is a function answering the app the launcher covers.
---- opts.refreshLauncher is a function poking the launcher when async rows land. opts.after is
---- the root's deferred call helper. Builds the one native chooser, assigns the public
---- surface, the open action, and the launcher's two menu scope functions. Returns self.
+--- Configure with every collaborator this plugin needs, opts.coveredApp and opts.refreshLauncher
+--- from the launcher, opts.recencyLib the raw recency module this plugin builds its own per app
+--- instances from, opts.storage the path mechanism its snapshots are written under,
+--- opts.stagePresent, opts.redrawPresented and opts.stageSelectedRow the three root published
+--- words the stage migration and the cache both lean on, and opts.after the root's deferred call
+--- helper. Assigns the public surface, the open action, and the launcher's two menu scope
+--- functions, all as plain dot called closures. Returns self.
 function obj:configure(opts)
   cfg = opts or {}
+  -- Required exactly the way VPN's own opts.recency is, rejected loudly rather than left to
+  -- fail quietly three calls later inside loadSnapshot the first time an open actually
+  -- reaches for it. The manifest already declares storage required, so this is a second,
+  -- structural guard rather than the only one, the same discipline the manifest's own
+  -- comment names.
+  if not cfg.storage then
+    error("MenuSearch configure requires opts.storage, lib/storage.lua's own cacheDir mechanism, the disk half of an open that never waits on the accessibility walk")
+  end
+  cfg.storage.ensure(cfg.storage.cacheDir("menusearch"))
 
-  -- The chosen item runs deferred, after the chooser tears down and macOS restores
-  -- focus to the captured app, since a menu action acts on that app. The shortcut
-  -- panel is wired in through onPositioned/onActivity/onClose, so it complements the
-  -- native chooser without the chooser knowing about it.
-  local panel = cfg.panel or {}
-  menuSearch = cfg.chooser.new({
-    theme = cfg.theme,
-    placeholder = "Search menu items",
-    rows = menuSearchRows,
-    onSelect = function(item)
-      if item and item.path and menuTargetApp then
-        local app = menuTargetApp
-        cfg.after(0.1, function() app:selectMenuItem(item.path) end)
-      end
-    end,
-    onPositioned = panel.onPositioned,
-    onActivity = panel.onActivity,
-    onClose = panel.onClose,
-  })
+  self.open = openMenuSearch
+  self.rows = menuSearchRows
+  self.select = menuSearchSelect
+  self.placeholder = menuSearchPlaceholder
+  self.onPresent = menuSearchOnPresent
 
-  -- Dot-called navigation adapter over the Chooser instance, so the shared
-  -- activeChooser / routeNav registry drives it exactly like the other pickers.
-  self.surface = {
-    isShowing = function() return menuSearch:isShowing() end,
-    selectNext = function() menuSearch:selectNext() end,
-    selectPrev = function() menuSearch:selectPrev() end,
-    insertSelected = function() menuSearch:insertSelected() end,
-    hide = function() menuSearch:hide() end,
-  }
-
-  self.open = openBuiltinMenuSearch
   self.scopeRows = scopeMenuRows
   self.scopeRun = scopeMenuRun
 
