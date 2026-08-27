@@ -42,8 +42,10 @@ Track one, unification.
 - [ ] 1. Design brief for the stage and the presentation contract, written by the
       orchestrator from 0a and 0b. Decision points, stack semantics, back behavior,
       what the manifest declares, what the registrar automates.
-- [ ] 2. Implement host/stage with the launcher as the first presentation. Sonnet
+- [x] 2. Implement host/stage with the launcher as the first presentation. Sonnet
       from the brief. Adversarial review by Opus, live test gate with Milos.
+      Landed on main 2026-08-27, three commits merged at eaaba33, review in
+      docs/REVIEW-STAGE-PHASE2.md, findings 4 and 12 inherited by phase 3.
 - [ ] 3. Handoff becomes a swap. Registry opens a presentation declaring tool
       through stage.present, backspace on empty pops back to the launcher, hotkey
       opens present over an empty stack. Deferral survives only for dispatch into
@@ -51,21 +53,21 @@ Track one, unification.
 - [ ] 4. Live geometry. Reposition and pane show or hide on present, built from the
       settle mechanics, paneFrames kept honest for the click watcher. Row count per
       the 0a answer. Review and live test.
-- [ ] 5. Plugin migrations, one at a time, each deleting its Chooser.new block,
-      surface adapter, and ad hoc async guards for a manifest presentation block.
-      BrowserTabs suite before its step merges. Caffeinate carries the row count
-      answer. Filesearch and processes exercise the pane path.
-
-Track two, menu search.
-
-- [ ] 6. Brief for the snapshot cache, quiet correction, per app recency, and the
-      deferred prune of dead bundle ids. Sonnet implements inside the plugin.
-- [ ] 7. Review and live test, hyper e on the heaviest app from the 0a timings.
+- [ ] 5. Menu search, promoted ahead of the other migrations on 2026-08-27 because
+      the slow hyper e open was the original complaint and it does not need them.
+      One step, the menusearch migration onto a presentation block plus the
+      snapshot cache of BRIEF-MENUSEARCH-CACHE.md, one review, one live test on
+      the heaviest app from the 0a timings.
+- [ ] 6. The remaining migrations become trickle work rather than a scheduled
+      phase, one plugin whenever convenient, each mechanical against the proven
+      contract, old path and new path coexisting by design. BrowserTabs suite
+      before its own step merges. Caffeinate exercises the row count path,
+      filesearch and processes the pane path.
 
 Close.
 
-- [ ] 8. Retire dead surface plumbing, update docs/PLUGIN-CONTRACT.md, sweep
-      reconciler warnings.
+- [ ] 7. Retire dead surface plumbing, update docs/PLUGIN-CONTRACT.md, sweep
+      reconciler warnings. Runs after the trickle finishes, whenever that is.
 
 ## Testing discipline
 
