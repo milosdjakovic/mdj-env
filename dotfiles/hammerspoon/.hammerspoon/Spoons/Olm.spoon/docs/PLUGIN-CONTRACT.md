@@ -560,6 +560,7 @@ presentation = {
   select      = { member = "select", call = "dot" },    -- required
   placeholder = { member = "placeholder", call = "dot" }, -- optional
   onPresent   = { member = "onPresent", call = "dot" },  -- optional
+  enter       = { member = "enter", call = "dot" },      -- optional
   intercept   = { member = "intercept", call = "dot" },  -- optional
   back        = { member = "back", call = "dot" },       -- optional
   onHighlight = { member = "onHighlight", call = "dot" },-- optional
@@ -568,10 +569,11 @@ presentation = {
   onPositioned = { member = "onPositioned", call = "dot" }, -- optional
   rowCount    = 2,                                       -- optional, a plain number
   paneWidth   = 320,                                     -- optional, a plain number or true
+  matcher     = "words",                                 -- optional, false or a strategy name
 }
 ```
 
-Every field but `rowCount` and `paneWidth` is a member spec, the same `{ member, call }` shape
+Every field but `rowCount`, `paneWidth`, and `matcher` is a member spec, the same `{ member, call }` shape
 `registry.open` and `registry.scope` already resolve, with one deliberate tightening. **A presentation member
 must be the table form and must state `call` itself, `"dot"` or `"method"`, never the bare
 string shorthand and never left to default.** Every other member spec in this whole contract
@@ -587,7 +589,8 @@ member that leaves `call` unstated, the same refusal named below for a member th
 resolve at all. The words themselves are the presentation contract's own, BRIEF-STAGE.md
 version one plus phase three's own addition, `rows`, `onSelect`, `placeholder`, `onPresent`,
 `intercept`, `back`, `onHighlight`, `onClose`, `peekPreview`, plus the geometry brief's own
-two additions, `onPositioned` and `paneWidth`, docs/BRIEF-GEOMETRY.md, with one deliberate
+two additions, `onPositioned` and `paneWidth`, docs/BRIEF-GEOMETRY.md, plus contract v2's own
+pair, `matcher` and `enter`, docs/BRIEF-CONTRACT-V2.md, with one deliberate
 difference. This block calls the contract's `onSelect` field `select` instead, the same word
 `provides.select` and `registry.scope.run` already use for a plugin's own selection member,
 so one plugin never has to name the same function two different ways depending on which part
@@ -614,9 +617,40 @@ reposition on its own. `_resolvePaneWidth` on the stage reimplements the identic
 `layout.paneMaxW` for that manual arithmetic rather than reaching for the atom's private one.
 Absent, `false`, or a non positive number all mean this presentation reserves no pane, the
 every consumer today answers, and both this field and `rowCount` are checked for their own
-type at register, a non number, or the member spec shape nine of the other ten fields take,
+type at register, a non number, or the member spec shape every field but `matcher` takes,
 refusing the whole registration loudly rather than reaching the stage as something that could
 corrupt the one instance it never rebuilds, adversarial review finding H3.
+
+`matcher` and `enter`, contract v2, docs/BRIEF-CONTRACT-V2.md, close the two gaps the trickle
+migrations opened rather than one either brief anticipated. `matcher` is `false`, meaning the
+supplier owns filtering, exactly what filesearch and clipboard already ask their own standalone
+`Chooser.new` for, or a string naming a strategy in `Chooser.matchers`, the identical table
+`root/compose.lua` already resolves this word against for every consumer that still builds its
+own instance, `words` for processes among them. Absent inherits the root default, the version
+one behaviour, unchanged for every plugin that names nothing here. The registrar checks a
+declared string against the real strategy names at register, the same loud refusal `rowCount`
+and `paneWidth` already get, since a typo left to `host/stage`'s own `_resolveMatcher` would
+fall back to the root default in silence with nothing anywhere naming the misspelling.
+`host/stage` writes the resolved value onto `self._instance.matcher` before every show and
+swap, present, push, and pop alike, the identical live mutation discipline `paneWidth` already
+follows for `layout.companionWidth`, since `native.lua`'s own `Chooser:_build` reads `self.matcher`
+fresh on every keystroke rather than once at construction.
+
+`enter` is a member, called with one function, `proceed`, in place of the stage showing this
+presentation immediately. Processes' own documented rule is that its picker never appears
+before its async scan lands, and `present` and `push` both used to call a presentation's own
+`onPresent` and then show synchronously on the same call, with nothing able to delay the
+second half. A tool declaring `enter` is handed `proceed` instead, and nothing about the stack
+or the window moves until that presentation calls it, so the tool that must gather something
+first controls exactly when its own first row means anything, while whatever was already
+showing, the launcher included, stays up and answerable in the meantime. `proceed` takes no
+arguments and is idempotent, a second call is a silent no op, and a call that arrives after the
+stage has moved on, a person escaped, or a different present or push already ran, is dropped
+the same way, `host/stage`'s own generation counter being what tells the difference. A tool
+declaring `enter` is responsible for its own timeout, the way VPN's and menu search's async
+walks already arrange their own, since the stage will wait on `proceed` forever otherwise and a
+person left on a launcher row that silently does nothing has no way to know why. The stage
+never learns why a presentation deferred or what it was waiting for, only that it did.
 
 `onPositioned` is called with `chooserFrame, companionFrame`, the same two frames
 `lib/chooser/providers/native.lua`'s own `config.onPositioned` already hands its caller, once

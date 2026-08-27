@@ -403,7 +403,12 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
   -- the stage in phase five hands over the identical function it already wrote for that field
   -- with nothing to rewrite. rowCount and paneWidth are both read as a plain value, a number
   -- or, for paneWidth, true, never a member, since the contract itself never asks either one to
-  -- be computed.
+  -- be computed. matcher, contract v2 decision one, joins them as a third plain value, false or
+  -- a strategy name, checked below rather than in the loop above for the identical reason.
+  -- enter, contract v2 decision two, is a member like rows and the rest, called with one
+  -- function, proceed, in place of the stage showing this presentation immediately, for a tool
+  -- whose own rows depend on gathering something first and whose own design record already
+  -- rejected a show then correct flash, Processes' own documented scan rule among them.
   --
   -- Every named member is checked against the REAL, already loaded module before any of this
   -- is trusted, the phase three review's own fourth finding, docs/AUDIT-2026-08-13.md's
@@ -423,6 +428,12 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
     local presentationFields = {
       "rows", "select", "placeholder", "intercept", "back",
       "onHighlight", "onClose", "peekPreview", "onPresent", "onPositioned",
+      -- enter, contract v2 decision two, docs/BRIEF-CONTRACT-V2.md. A member spec exactly
+      -- like every other one in this list, resolved the same lazy way and checked the same
+      -- way, since it is called with one argument, proceed, and a wrong call kind would shift
+      -- that argument into whatever the receiver would have occupied, the identical silent
+      -- failure the comment above this whole loop already worries about for rows and select.
+      "enter",
     }
     local broken = false
     for _, field in ipairs(presentationFields) do
@@ -483,6 +494,37 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
           name, tostring(p.paneWidth)))
       end
     end
+    -- Contract v2 decision one, docs/BRIEF-CONTRACT-V2.md. matcher is the third contract field
+    -- that is a plain value rather than a member spec, false meaning the supplier owns
+    -- filtering the way four unmigrated consumers already ask for today, or a string naming
+    -- one of the strategies the Chooser atom itself exports, deps.matchers, the identical
+    -- table root/compose.lua already resolves this same word against for every consumer that
+    -- still builds its own Chooser.new. A string that names nothing there would otherwise
+    -- reach host/stage/init.lua's own _resolveMatcher at runtime, which falls back to the root
+    -- default in silence rather than raising, so a typo would read as "this presentation just
+    -- inherited fuzzy" with nothing anywhere saying a word was misspelled. Checked here, once,
+    -- loudly, naming the tool and the unknown strategy, the same discipline rowCount and
+    -- paneWidth just above already keep. deps.matchers absent, which nothing in the ordinary
+    -- wiring pass ever leaves true, degrades to skipping this one check rather than refusing
+    -- every string outright, since a missing dependency of the CHECK is not the same claim as
+    -- a bad VALUE from the plugin.
+    if p.matcher ~= nil and p.matcher ~= false then
+      if type(p.matcher) ~= "string" then
+        broken = true
+        if deps.log then
+          deps.log("e", string.format(
+            "registrar refused '%s', its presentation.matcher is '%s', not false or a string naming a matcher strategy",
+            name, tostring(p.matcher)))
+        end
+      elseif deps.matchers and not deps.matchers[p.matcher] then
+        broken = true
+        if deps.log then
+          deps.log("e", string.format(
+            "registrar refused '%s', its presentation.matcher names '%s', which is not a strategy the Chooser atom exports",
+            name, p.matcher))
+        end
+      end
+    end
     -- Finding ten. A presenting plugin routes by identity, isShowingFor and the surface
     -- adapters loop both ask the registry by identity and the stage's own current() answers
     -- the identity the registrar stamped, but the docked hint bar still looks the answer up in
@@ -525,8 +567,17 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
         peekPreview = obj.action(modules, identity, name, p.peekPreview, nil),
         onPresent = obj.action(modules, identity, name, p.onPresent, nil),
         onPositioned = obj.action(modules, identity, name, p.onPositioned, nil),
+        -- enter, contract v2 decision two, resolved the identical lazy way every other member
+        -- above already is, so a plugin that assembles it inside its own configure is still
+        -- found once that has actually run.
+        enter = obj.action(modules, identity, name, p.enter, nil),
         rowCount = p.rowCount,
         paneWidth = p.paneWidth,
+        -- matcher, contract v2 decision one, carried through as the plain value the check
+        -- above already trusts, false, a strategy name, or nil, never resolved into the
+        -- actual matcher function here, since host/stage/init.lua's own _resolveMatcher is
+        -- what holds the Chooser factory this would have to be looked up against.
+        matcher = p.matcher,
       }
       if p.placeholder ~= nil then
         local resolvePlaceholder = obj.action(modules, identity, name, p.placeholder, nil)

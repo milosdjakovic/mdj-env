@@ -63,6 +63,20 @@
 --- that already moved past it. pop now routes through the same _show every other door does,
 --- finding H1, so a two row window from caffeinate cannot survive a Backspace back into a ten
 --- row list, and its own docstring says so.
+---
+--- Contract v2, docs/BRIEF-CONTRACT-V2.md, forced open by the trickle migrations rather than
+--- scheduled. Two gaps neither the design brief nor the geometry phase anticipated, both
+--- surfaced by plugins that resisted version one honestly rather than being bent to fit it.
+--- A presentation may now declare matcher, false or a strategy name from the same table
+--- root/compose.lua already resolves this word against for every unmigrated consumer,
+--- written onto self._instance.matcher live before every show and swap through
+--- _resolveMatcher, the identical discipline paneWidth already keeps for companionWidth. A
+--- presentation may also declare enter, a member handed one function, proceed, instead of
+--- showing immediately, for a tool whose own rows depend on gathering something first and
+--- whose own author already rejected a show then correct flash. present and push both honour
+--- it now, each deferring its own stack mutation and show into a closure proceed alone
+--- triggers, guarded by _enterGen against a proceed that fires twice or fires after the
+--- stage has since moved on, pop or hide or a newer present or push having run meanwhile.
 
 local obj = {}
 obj.__index = obj
@@ -118,9 +132,15 @@ obj._openId = nil           -- bumped on every fresh stack, see _bumpOpenId and 
 obj._coveredApp = nil       -- tied to the window's own appearance, see _captureCoveredApp
 obj._rowCount = nil          -- the row count the window is currently built for, seeded at configure
 obj._defaultRowCount = nil   -- the atom's own default, read once at configure, never mutated after
+obj._defaultMatcher = nil    -- the root's own matcher, read once at configure the same way
+                              -- _defaultRowCount is, what a presentation naming no matcher of its
+                              -- own is asking to return to, contract v2 decision one
 obj._geometryTimer = nil     -- held so a pending pane settle cannot be collected before it fires, see _applyPaneGeometry
 obj._suppressClose = false   -- true only while _applyRowCount's own internal hide is in flight, see _onClose
 obj._lastShowAt = nil        -- hs.timer.secondsSinceEpoch() at the last real show(), see _applyPaneGeometry
+obj._enterGen = 0            -- bumped by every present, push, hide, and pop, contract v2 decision
+                              -- two, so a deferring presentation's own proceed can tell whether the
+                              -- stage is still waiting on it or has since moved on, see _bumpEnterGen
 
 --- Stage:init()
 --- Method
@@ -176,7 +196,12 @@ function obj:configure(opts)
   -- on why that reference is safe to mutate after construction. Screen and matcher are left
   -- unset here on purpose, so this instance inherits the module wide defaults the composition
   -- root already installed on the Chooser facade, the same way the launcher's own config
-  -- never named either before this host existed.
+  -- never named either before this host existed. Contract v2 decision one. This is only the
+  -- SEED, the matcher a presentation naming none of its own returns to, captured below into
+  -- _defaultMatcher the instant construction has resolved it, exactly the way _defaultRowCount
+  -- is captured a few lines further down. From the first present onward, _show writes every
+  -- presentation's own matcher onto self._instance.matcher live, before each show and swap,
+  -- the identical discipline layout.companionWidth already follows.
   self._instance = self._chooser.new({
     theme = self._theme,
     placeholder = CONSTRUCTION_PLACEHOLDER,
@@ -211,6 +236,15 @@ function obj:configure(opts)
   -- something this host already asked it to become.
   self._rowCount = self._instance.layout.rowCount
   self._defaultRowCount = self._rowCount
+
+  -- Contract v2 decision one. self._instance.matcher already holds the resolved module wide
+  -- default the instant construction above returns, native.lua's own `matcher = config.matcher`
+  -- having already folded DEFAULT_MATCHER in for a config that named none, lib/chooser/init.lua:122.
+  -- Read once, right here, before any presentation has ever written to it, the same moment
+  -- _defaultRowCount is read for the identical reason, so a presentation naming no matcher of
+  -- its own asks to return to exactly what this host would have shown before contract v2 ever
+  -- started writing this field on every show.
+  self._defaultMatcher = self._instance.matcher
 
   -- The one nav adapter, unscoped, answering isShowing for the shared window itself rather
   -- than for any one presentation. selectNext, selectPrev, insertSelected, and hide are safe
@@ -309,6 +343,17 @@ function obj:_bumpOpenId()
   self._openId = (self._openId or 0) + 1
 end
 
+-- Contract v2 decision two. Advances once at the start of present, push, pop, and hide alike,
+-- whether or not the call in front of it ends up deferring through enter, so a proceed closure
+-- built from an earlier call can always tell whether it is still the request the stage is
+-- waiting on. Answers the new value, which the caller keeps as its own myGen to compare
+-- against later, since self._enterGen itself keeps moving and a proceed asked to fire after
+-- something else already bumped it again must find itself stale rather than lucky.
+function obj:_bumpEnterGen()
+  self._enterGen = (self._enterGen or 0) + 1
+  return self._enterGen
+end
+
 -- Records the app this stack covers, tied to the window's own appearance rather than to the
 -- stack starting over, since a present that replaces a live stack still covers the same app
 -- the window originally opened over, the window itself never having gone anywhere for focus
@@ -366,6 +411,15 @@ function obj:_show(p, wasShowing, outgoing)
   -- naming no paneWidth writes nil, which the atom's own _resolveCompanionWidth already
   -- treats as no pane, so the window centres itself alone with nothing else asked.
   self._instance.layout.companionWidth = p.paneWidth
+  -- Contract v2 decision one. Written before every show, cold or swap alike, the identical
+  -- placement and the identical reasoning companionWidth just above already carries, since
+  -- native.lua's own Chooser:_build reads self.matcher live on every keystroke rather than
+  -- once at construction, lib/chooser/init.lua's own note on why that reference is safe to
+  -- mutate after construction. A presentation naming no matcher of its own resolves back to
+  -- _defaultMatcher, the module wide default this host itself inherited at configure, so a
+  -- tool that never asks for anything unusual keeps behaving exactly as it did before this
+  -- field existed.
+  self._instance.matcher = self:_resolveMatcher(p.matcher)
   -- Decision two of the geometry brief. A row count change takes the one resize path that
   -- exists, hide, rows(n), show, which the probe found applies on the next show of the same
   -- instance, docs/PROBE-FINDINGS-2026-08-27.md section C2. _applyRowCount below drives that
@@ -600,6 +654,17 @@ end
 --- onClose top down before it is dropped, decision six, closing finding three, a reopen of
 --- p from any depth is a reshow rather than a close and must never fire p's own onClose over
 --- being asked to show itself again.
+---
+--- Contract v2 decision two. p.enter, when declared, is called with one function, proceed,
+--- INSTEAD of the stack mutation and the show below running immediately, so a tool whose own
+--- rows depend on gathering something first, Processes' own scan among them, keeps whatever is
+--- currently up exactly as it is until proceed actually runs. p without an enter of its own
+--- keeps today's synchronous behaviour untouched, finish() below running on the same call. The
+--- generation bumped before either branch is what lets a proceed that fires late, after the
+--- person escaped or opened something else meanwhile, recognise itself as stale and do nothing,
+--- and the fired flag is what makes a second call to the same proceed a no op rather than a
+--- second show. The stage asks p.enter to call proceed and nothing more, it never learns why a
+--- tool deferred or what it was waiting for.
 function obj:present(p)
   if not isPresentation(p) then
     log.w("Stage present was given something that is not a presentation, name, rows, and onSelect are all required, refusing")
@@ -610,14 +675,30 @@ function obj:present(p)
     return false
   end
 
-  local wasShowing = self._instance:isShowing()
-  -- Captured before _freshStack mutates the stack, so _show can tell whatever was current a
-  -- moment ago that it lost the pane, adversarial review finding H2, alongside whatever
-  -- onClose it may separately hear as a discarded level.
-  local outgoing = self:_current()
-  self:_freshStack(p, self._stack)
-  self:_announce(p)
-  self:_show(p, wasShowing, outgoing)
+  local myGen = self:_bumpEnterGen()
+  local function finish()
+    local wasShowing = self._instance:isShowing()
+    -- Captured before _freshStack mutates the stack, so _show can tell whatever was current a
+    -- moment ago that it lost the pane, adversarial review finding H2, alongside whatever
+    -- onClose it may separately hear as a discarded level. Read fresh here rather than at the
+    -- top of present, since a deferring p may run this closure long after the call that built
+    -- it, by which point what is actually showing is the only honest answer.
+    local outgoing = self:_current()
+    self:_freshStack(p, self._stack)
+    self:_announce(p)
+    self:_show(p, wasShowing, outgoing)
+  end
+  if p.enter then
+    local fired = false
+    local function proceed()
+      if fired or self._enterGen ~= myGen then return end
+      fired = true
+      finish()
+    end
+    p.enter(proceed)
+  else
+    finish()
+  end
   return true
 end
 
@@ -635,6 +716,12 @@ end
 --- eight's own gap where this branch used to discard a stack in silence while present told
 --- it. Pushing the presentation already on top is a reopen, the identical dedup present's
 --- own reopen case keeps, and neither pushes a duplicate level nor fires anyone's onClose.
+---
+--- Contract v2 decision two, the identical deferral present's own docstring describes, on the
+--- door that matters most for it, since this is what a launcher row choosing Processes actually
+--- calls, decision three, "the launcher remains up and responsive until proceed runs, so
+--- choosing processes feels like the list swapping once the scan lands rather than a window
+--- blinking empty." A p with no enter of its own keeps today's synchronous behaviour.
 function obj:push(p)
   if not isPresentation(p) then
     log.w("Stage push was given something that is not a presentation, name, rows, and onSelect are all required, refusing")
@@ -645,20 +732,35 @@ function obj:push(p)
     return false
   end
 
-  local wasShowing = self._instance:isShowing()
-  -- Captured before the stack mutation below, for the identical reason present captures it,
-  -- adversarial review finding H2. This is the door where telling it matters most, since push
-  -- deliberately fires nobody's onClose when it stacks, decision six of the handoff brief, so
-  -- without this the level being stacked under would have no other way to learn its pane is
-  -- gone.
-  local outgoing = self:_current()
-  if not wasShowing then
-    self:_freshStack(p, self._stack)
-  elseif self:_current() ~= p then
-    self._stack[#self._stack + 1] = p
+  local myGen = self:_bumpEnterGen()
+  local function finish()
+    local wasShowing = self._instance:isShowing()
+    -- Captured before the stack mutation below, for the identical reason present captures it,
+    -- adversarial review finding H2. This is the door where telling it matters most, since push
+    -- deliberately fires nobody's onClose when it stacks, decision six of the handoff brief, so
+    -- without this the level being stacked under would have no other way to learn its pane is
+    -- gone. Read fresh inside finish for the identical reason present's own copy is, a deferring
+    -- p may run this long after the call that built it.
+    local outgoing = self:_current()
+    if not wasShowing then
+      self:_freshStack(p, self._stack)
+    elseif self:_current() ~= p then
+      self._stack[#self._stack + 1] = p
+    end
+    self:_announce(p)
+    self:_show(p, wasShowing, outgoing)
   end
-  self:_announce(p)
-  self:_show(p, wasShowing, outgoing)
+  if p.enter then
+    local fired = false
+    local function proceed()
+      if fired or self._enterGen ~= myGen then return end
+      fired = true
+      finish()
+    end
+    p.enter(proceed)
+  else
+    finish()
+  end
   return true
 end
 
@@ -680,8 +782,14 @@ end
 --- push already use, and the one leaving still hears its own onClose first, exactly as
 --- before, since that is a real dismissal for it and _show's own outgoing notice is not a
 --- substitute for it, the two are told for different reasons and neither replaces the other.
+---
+--- Bumps the enter generation, contract v2 decision two, only once it is known there is
+--- something real to pop, since answering false here means nothing about the stage actually
+--- moved on. A proceed some earlier present or push is still waiting on reads this bump and
+--- drops itself rather than showing a presentation Backspace has since stepped away from.
 function obj:pop()
   if #self._stack <= 1 then return false end
+  self:_bumpEnterGen()
   local leaving = table.remove(self._stack)
   if leaving.onClose then leaving.onClose() end
   local below = self:_current()
@@ -702,7 +810,13 @@ end
 --- function's own closeStack call ever runs, leaving nothing left to walk and making the
 --- second call harmless rather than a second notice, the identical reasoning phase two's own
 --- version of this method already relied on for clearing the stack twice.
+---
+--- Bumps the enter generation unconditionally, contract v2 decision two, the same "the stage
+--- moved on" signal pop gives, so a proceed still waiting on an earlier present or push finds
+--- itself stale the moment a person escapes out from under it, rather than showing a
+--- presentation over a window that was just asked to clear.
 function obj:hide()
+  self:_bumpEnterGen()
   if self._geometryTimer then
     self._geometryTimer:stop()
     self._geometryTimer = nil
@@ -765,6 +879,26 @@ end
 --- belongs to whatever the stack held before a replacement. Nil before the first capture.
 function obj:world()
   return self._coveredApp, self._openId
+end
+
+-- Contract v2 decision one. A presentation's own matcher field survives the registrar as a
+-- plain value, false, a string, or nil, exactly what paneWidth and rowCount already are, the
+-- registrar having already refused any string that does not name a strategy this host's own
+-- Chooser factory exports, lib/registrar.lua's own check against deps.matchers. false is
+-- honoured outright, the supplier owns filtering, the same meaning it already carries at
+-- construction. A string is looked up against self._chooser.matchers, the identical table the
+-- composition root already resolves this same word against for every unmigrated consumer,
+-- root/compose.lua's own ambientServices.matcher. nil, and a string that somehow still failed
+-- to resolve even though the registrar already checked it, both answer _defaultMatcher, the
+-- module wide default this host itself inherited at configure, so a presentation naming
+-- nothing unusual keeps this host behaving exactly as it always has.
+function obj:_resolveMatcher(matcher)
+  if matcher == false then return false end
+  if type(matcher) == "string" then
+    local fn = self._chooser.matchers and self._chooser.matchers[matcher]
+    if fn then return fn end
+  end
+  return self._defaultMatcher
 end
 
 --- Stage:paneAnchor(chooserFrame, companionFrame) -> table

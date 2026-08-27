@@ -102,9 +102,23 @@ stage. Fields, all optional except name, rows, and onSelect.
     paneWidth     a number in points, or true to inherit the chooser's own width, absent
                   means no pane, added in the geometry phase, matching the atom's own
                   companionWidth semantics
+    matcher       false, meaning the supplier owns filtering, or a string naming a strategy
+                  in Chooser.matchers, absent inherits the root default, added in contract
+                  v2 for the three trickle plugins that each declare their own matching
+                  policy today, written onto the live instance before every show and swap
+                  the same way paneWidth already is
+    enter         function(proceed) called instead of showing immediately, when a tool must
+                  gather something before its first row means anything, added in contract v2
+                  for Processes' own documented rule that its picker never appears before its
+                  scan lands. proceed is a function of no arguments the presentation calls
+                  once it is ready, and the stage never learns what it was waiting for
 
 The stage owns everything else the thirteen call sites pass today, screen policy,
-matcher, theme, panel callbacks, poll interval. A presentation cannot override them.
+theme, panel callbacks, poll interval. A presentation cannot override them. matcher was one
+of these in version one and stopped being one in contract v2, docs/BRIEF-CONTRACT-V2.md,
+once three separate plugins resisted the fixed default on grounds that could not be papered
+over, filesearch and clipboard ranking their own structured queries and disabling the atom's
+matching outright, processes preferring word matching for digit and path heavy haystacks.
 
 ## The stage api
 

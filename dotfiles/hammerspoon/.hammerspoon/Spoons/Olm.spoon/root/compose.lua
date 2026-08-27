@@ -1221,8 +1221,15 @@ function obj.run(olm, cfg)
   wiredRegistry = registryLib.new({ apiVersion = REGISTRY_API_VERSION, log = log })
 
   local function describeForRegistry(name, planArg)
+    -- matchers, contract v2 decision one, docs/BRIEF-CONTRACT-V2.md, is what lets the
+    -- registrar refuse a presentation.matcher naming a strategy the Chooser atom does not
+    -- export, loudly, at register, rather than have host/stage/init.lua's own _resolveMatcher
+    -- discover the typo at runtime and quietly fall back to the root default. The identical
+    -- table ambientServices.matcher above is already resolved against for every unmigrated
+    -- consumer, so this names no new concretion, only hands the registrar the same map.
     return registrarLib.describe(name, planArg, modules, manifests, registryMeta,
-      REGISTRY_API_VERSION, { merge = defaultsLib.merge, redraw = redrawSurface, log = logFn })
+      REGISTRY_API_VERSION, { merge = defaultsLib.merge, redraw = redrawSurface, log = logFn,
+        matchers = chooserAtom.matchers })
   end
 
   local function bindShortcut(entry)
