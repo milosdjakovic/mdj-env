@@ -565,12 +565,14 @@ presentation = {
   onHighlight = { member = "onHighlight", call = "dot" },-- optional
   onClose     = { member = "onClose", call = "dot" },    -- optional
   peekPreview = { member = "peekPreview", call = "dot" },-- optional
+  onPositioned = { member = "onPositioned", call = "dot" }, -- optional
   rowCount    = 2,                                       -- optional, a plain number
+  paneWidth   = 320,                                     -- optional, a plain number or true
 }
 ```
 
-Every field but `rowCount` is a member spec, the same `{ member, call }` shape `registry.open`
-and `registry.scope` already resolve, with one deliberate tightening. **A presentation member
+Every field but `rowCount` and `paneWidth` is a member spec, the same `{ member, call }` shape
+`registry.open` and `registry.scope` already resolve, with one deliberate tightening. **A presentation member
 must be the table form and must state `call` itself, `"dot"` or `"method"`, never the bare
 string shorthand and never left to default.** Every other member spec in this whole contract
 lets a bare string default `call` to `"method"` in silence, and for most of them that default
@@ -584,8 +586,9 @@ once for a sibling need bound the wrong way, and the registrar now refuses a pre
 member that leaves `call` unstated, the same refusal named below for a member that does not
 resolve at all. The words themselves are the presentation contract's own, BRIEF-STAGE.md
 version one plus phase three's own addition, `rows`, `onSelect`, `placeholder`, `onPresent`,
-`intercept`, `back`, `onHighlight`, `onClose`, `peekPreview`, with one deliberate difference.
-This block calls the contract's `onSelect` field `select` instead, the same word
+`intercept`, `back`, `onHighlight`, `onClose`, `peekPreview`, plus the geometry brief's own
+two additions, `onPositioned` and `paneWidth`, docs/BRIEF-GEOMETRY.md, with one deliberate
+difference. This block calls the contract's `onSelect` field `select` instead, the same word
 `provides.select` and `registry.scope.run` already use for a plugin's own selection member,
 so one plugin never has to name the same function two different ways depending on which part
 of the config is asking.
@@ -598,6 +601,25 @@ location fetch being the case that named it, phase three review finding two, a l
 choosing a presenting tool used to swap onto whatever the plugin's own module happened to
 hold already, empty on a fresh load, since nothing on that path used to call the plugin's
 own fetch at all.
+
+`paneWidth` and `onPositioned` are the geometry brief's own pair, and they arrive together
+because the first is meaningless without the second. `paneWidth` is a plain number in points,
+or `true` to inherit the chooser's own width, the atom's own `layout.companionWidth` semantics
+carried one layer up, since the shared instance every presentation now shows into keeps that
+field at zero for the life of the config, host/stage's own `_resolvePaneWidth` reimplementing
+the identical cap at `layout.paneMaxW` rather than reaching for the atom's private one. Absent,
+`false`, or a non positive number all mean this presentation reserves no pane, the every
+consumer today answers. `onPositioned` is called with `chooserFrame, companionFrame`, the same
+two frames `lib/chooser/providers/native.lua`'s own `config.onPositioned` already hands its
+caller, once the stage has repositioned the pair for this presentation, `companionFrame` nil
+when this presentation declared no `paneWidth`. A plugin migrating its own companion pane onto
+the stage in phase five hands over the identical function it already wrote for that field on a
+`Chooser.new` call, with nothing to rewrite beyond where it is declared. Docking the pane's own
+content, and the docked hint panel's own anchor beneath the pair, both stay this plugin's own
+business exactly as they are today, `host/stage`'s own `paneAnchor(chooserFrame,
+companionFrame)` being the one call worth knowing about for the second of those, the single
+copy of the anchor arithmetic three plugins each carried their own copy of before this phase,
+built for phase five to call rather than inherit a fourth copy.
 
 `rows` and `select` are required. A plugin naming neither, or naming one without the other,
 IS refused outright, `lib/registry.lua`'s own `presentationIsWellFormed` refuses the whole

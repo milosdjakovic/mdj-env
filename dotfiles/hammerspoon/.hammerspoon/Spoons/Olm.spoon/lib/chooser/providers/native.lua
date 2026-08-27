@@ -935,6 +935,19 @@ function Chooser:setPlaceholder(text)
   if self.chooser then self.chooser:placeholderText(text or "") end
 end
 
+--- Chooser:setRows(n) - remember a new row count for this instance's NEXT show. Docs/
+--- PROBE-FINDINGS-2026-08-27.md section C2 found that a live window does not resize when
+--- rows() is called on it directly, and that the pending count applies cleanly on the
+--- following hide and show with no rebuild at all, the same finding that let width work the
+--- identical way. This is a plain passthrough onto layout.rowCount, the one field
+--- _positionAndShow already reads to ask the widget how tall to draw, so it changes nothing
+--- about a window already on screen. A caller wanting the resize to actually show hides and
+--- shows around this call itself, host/stage/init.lua being the one caller this exists for,
+--- the one permitted lib/chooser change of the geometry phase per docs/BRIEF-GEOMETRY.md.
+function Chooser:setRows(n)
+  self.layout.rowCount = n
+end
+
 --- Chooser:activeTheme() - the palette selected for this open, so a consumer can
 --- style a companion (its preview colors live under .preview).
 function Chooser:activeTheme()

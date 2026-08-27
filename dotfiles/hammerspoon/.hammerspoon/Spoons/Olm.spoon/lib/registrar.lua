@@ -389,14 +389,21 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
   -- reads live state, VPN's own available flag among them, answers the real answer rather
   -- than one frozen before that state existed.
   --
-  -- The remaining six contract fields, intercept, back, onHighlight, onClose, peekPreview,
-  -- and onPresent, resolve the same way rows does, and a plugin naming none of them hands the
-  -- stage a presentation with nothing under that name, exactly as an ordinary presentation
-  -- table already allows. onPresent is the phase three review's own second finding, called by
-  -- the stage whenever this presentation becomes current through present or push, the seam a
-  -- plugin whose own rows depend on an async fetch, VPN among them, starts that fetch from
-  -- rather than depending on some other door having already warmed it. rowCount is read as a
-  -- plain number, never a member, since the contract itself never asks it to be computed.
+  -- The remaining contract fields, intercept, back, onHighlight, onClose, peekPreview,
+  -- onPresent, and onPositioned, resolve the same way rows does, and a plugin naming none of
+  -- them hands the stage a presentation with nothing under that name, exactly as an ordinary
+  -- presentation table already allows. onPresent is the phase three review's own second
+  -- finding, called by the stage whenever this presentation becomes current through present or
+  -- push, the seam a plugin whose own rows depend on an async fetch, VPN among them, starts
+  -- that fetch from rather than depending on some other door having already warmed it.
+  -- onPositioned is the geometry brief's own addition, docs/BRIEF-GEOMETRY.md decision one,
+  -- called by the stage with the chooser and companion frames whenever it repositions the pair
+  -- for this presentation, mirroring the shape and the name lib/chooser/providers/native.lua's
+  -- own config.onPositioned already carries, so a plugin migrating its own companion pane onto
+  -- the stage in phase five hands over the identical function it already wrote for that field
+  -- with nothing to rewrite. rowCount and paneWidth are both read as a plain value, a number
+  -- or, for paneWidth, true, never a member, since the contract itself never asks either one to
+  -- be computed.
   --
   -- Every named member is checked against the REAL, already loaded module before any of this
   -- is trusted, the phase three review's own fourth finding, docs/AUDIT-2026-08-13.md's
@@ -415,7 +422,7 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
     local owner = (modules and modules[identity]) or (modules and modules[name])
     local presentationFields = {
       "rows", "select", "placeholder", "intercept", "back",
-      "onHighlight", "onClose", "peekPreview", "onPresent",
+      "onHighlight", "onClose", "peekPreview", "onPresent", "onPositioned",
     }
     local broken = false
     for _, field in ipairs(presentationFields) do
@@ -482,7 +489,9 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
         onClose = obj.action(modules, identity, name, p.onClose, nil),
         peekPreview = obj.action(modules, identity, name, p.peekPreview, nil),
         onPresent = obj.action(modules, identity, name, p.onPresent, nil),
+        onPositioned = obj.action(modules, identity, name, p.onPositioned, nil),
         rowCount = p.rowCount,
+        paneWidth = p.paneWidth,
       }
       if p.placeholder ~= nil then
         local resolvePlaceholder = obj.action(modules, identity, name, p.placeholder, nil)

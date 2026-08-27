@@ -379,9 +379,10 @@ function M.new(opts)
   -- keeps just above. rows and onSelect are both required, the same two the presentation
   -- contract itself, BRIEF-STAGE.md version one, calls required beside name, name being this
   -- registry's own to stamp on rather than anything a manifest declares. Every other field a
-  -- presentation carries, intercept, back, onHighlight, onClose, peekPreview, and rowCount, is
-  -- optional and passed through untouched, since the stage itself already answers for what a
-  -- presentation with a hole in one of those means.
+  -- presentation carries, intercept, back, onHighlight, onClose, peekPreview, onPresent,
+  -- onPositioned, rowCount, and paneWidth, the geometry brief's own addition, is optional and
+  -- passed through untouched, since the stage itself already answers for what a presentation
+  -- with a hole in one of those means.
   local function presentationIsWellFormed(presentation, name)
     if type(presentation) ~= "table" then
       log.w(string.format(

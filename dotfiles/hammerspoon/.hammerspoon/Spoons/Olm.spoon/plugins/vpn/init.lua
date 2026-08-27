@@ -77,6 +77,22 @@ local fetching = false -- status, the selected relay, and the location list are 
                         -- flight together, so a second ask does not start any of them again
 local pending = {}    -- callbacks waiting on that fetch, so none of them is dropped
 
+-- The bound M.prepare gives each of its three reads before treating a leg that has not
+-- answered as gone rather than merely slow. The phase three verification rider: none of the
+-- three had a failure path before this, so a daemon that never calls back, wedged rather than
+-- merely slow, left fetching stuck true forever with pending only ever growing, since nothing
+-- was left to count that leg's own landed() down. Five seconds is a plain chosen bound rather
+-- than a measured one, comfortably past what a live CLI read ever takes and short enough that
+-- a person waiting on the picker is not left sitting for it.
+local FETCH_TIMEOUT = 5
+
+-- Held so the three timers a round schedules cannot be collected before they fire, a
+-- Hammerspoon timer being userdata whose finalizer stops it the moment nothing refers to it.
+-- Only one round is ever in flight at a time, guarded by fetching above, so reusing one table
+-- across rounds is safe, a new round's own three timers simply overwrite whatever a finished
+-- round left behind.
+local fetchTimers = {}
+
 --------------------------------------------------------------------------------
 -- Location recency (command policy, ordering lifted from the shared service)
 --------------------------------------------------------------------------------
@@ -388,6 +404,20 @@ end
 --- function with, so a bounce between the launcher and VPN while a read is already in flight
 --- spawns nothing extra and every caller still waiting is still called back exactly once,
 --- after all three reads have landed rather than after whichever lands first.
+---
+--- Each of the three legs races its own FETCH_TIMEOUT, the phase three verification rider.
+--- Before this, nothing here answered a leg that never calls back, an hs.task that fails to
+--- launch or a daemon that wedges mid answer, so fetching stayed true forever and every
+--- request behind it queued into pending with nothing left to drain it, one stuck leg
+--- silencing every future open of this tool. mullvad.lua's own async doors now check their
+--- own start() return and answer the degraded value at once when a task never launches at
+--- all, which closes the launch failure half of this on its own, but a task that DOES launch
+--- and then never calls back, the daemon itself wedged, has no such signal, which is what the
+--- timeout below is for. landedGate wraps each leg's own real answer and its own timeout in
+--- one shared closure, so whichever of the two arrives first is the one that counts and the
+--- other finds the gate already shut. A leg that times out never writes current, target, or
+--- cache at all, which is the whole point, so this round degrades to whatever those already
+--- held, the stale snapshot, rather than to a dead refresh nothing can ever finish.
 function M.prepare(onReady)
   if not available then
     if onReady then onReady() end
@@ -405,18 +435,36 @@ function M.prepare(onReady)
     pending = {}
     for _, cb in ipairs(waiting) do cb() end
   end
-  engine.statusAsync(function(status)
-    current = status
-    landed()
-  end)
-  engine.selectedLocationAsync(function(loc)
-    target = loc
-    landed()
-  end)
-  engine.listLocations(function(list)
+  -- One shared gate per leg, so its real answer and its own timeout can race without ever
+  -- both counting. apply is called only by whichever wins, and only the real answer ever
+  -- calls it, never the timeout, which is what leaves current, target, and cache untouched on
+  -- a leg that gave up.
+  local function landedGate(apply)
+    local fired = false
+    local function onAnswer(...)
+      if fired then return end
+      fired = true
+      apply(...)
+      landed()
+    end
+    local function onTimeout()
+      if fired then return end
+      fired = true
+      landed()
+    end
+    return onAnswer, onTimeout
+  end
+  local onStatus, statusTimeout = landedGate(function(status) current = status end)
+  local onTarget, targetTimeout = landedGate(function(loc) target = loc end)
+  local onList, listTimeout = landedGate(function(list)
     cache = cfg.recency.order(list or {}, function(loc) return loc.id end)
-    landed()
   end)
+  fetchTimers[1] = hs.timer.doAfter(FETCH_TIMEOUT, statusTimeout)
+  fetchTimers[2] = hs.timer.doAfter(FETCH_TIMEOUT, targetTimeout)
+  fetchTimers[3] = hs.timer.doAfter(FETCH_TIMEOUT, listTimeout)
+  engine.statusAsync(onStatus)
+  engine.selectedLocationAsync(onTarget)
+  engine.listLocations(onList)
 end
 
 -- isShowing, hide, selectNext, selectPrev, and insertSelected are gone, phase three,

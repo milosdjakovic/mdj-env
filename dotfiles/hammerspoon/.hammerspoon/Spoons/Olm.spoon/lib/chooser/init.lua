@@ -4,10 +4,13 @@
 --- Every consumer calls the same Chooser.new(config) and gets an instance that
 --- honors the picker contract, show, hide, isShowing, refresh, selectNext,
 --- selectPrev, insertSelected, selectedItem, selectedRow, selectRow, query,
---- setFieldMode, setPlaceholder, activeTheme, textBudget, textWidth. selectedRow
---- and selectRow, phase eight of the build plan, are the plain public counterpart
---- of selectedItem, added for ActionPanel, which restores a highlight by row
---- number rather than by item.
+--- setFieldMode, setPlaceholder, setRows, activeTheme, textBudget, textWidth.
+--- selectedRow and selectRow, phase eight of the build plan, are the plain public
+--- counterpart of selectedItem, added for ActionPanel, which restores a highlight
+--- by row number rather than by item. setRows, the geometry phase of the chooser
+--- stage build, docs/BRIEF-GEOMETRY.md, remembers a row count for this instance's
+--- next show, the one lib/chooser change that phase permits, host/stage/init.lua
+--- being its one caller.
 ---
 --- This was once a provider registry with a second, webview backend built on a
 --- Surface spoon, kept behind this facade so a consumer could swap backends with

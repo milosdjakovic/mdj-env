@@ -14,6 +14,17 @@
 --- one parse function each, so the synchronous and the asynchronous reads can never answer
 --- the identical CLI output two different ways. connect, disconnect, setLocation, and the
 --- relay list were already off the main thread, through hs.task, and still are.
+---
+--- Every hs.task spawn in this file now checks its own start() return, the phase three
+--- verification rider. hs.task:start() answers nil rather than raising when the task never
+--- actually launches, and none of the four spawns here used to look, so a launch failure left
+--- a callback that was never going to be called with nothing anywhere saying so. That silence
+--- reached furthest through statusAsync, selectedLocationAsync, and listLocations, the three
+--- Vpn.init.lua's own M.prepare races together, whose countdown had no way to notice a leg
+--- that would never land. A failed start now answers the identical degraded value a missing
+--- cli already answers, unavailable for status, nil for the selected relay, an empty list for
+--- the relays, so a daemon that cannot even be launched reads the same as one that was never
+--- installed rather than as a fetch stuck open forever.
 
 local M = {}
 
@@ -106,6 +117,13 @@ end
 
 -- Run a CLI subcommand off the main thread and fire the callback on completion. The
 -- callback lands on the main thread, so it is safe to touch the UI from it.
+--
+-- start()'s own return is checked now, the phase three verification rider. hs.task:start()
+-- answers nil rather than raising when the task never actually launches, a missing
+-- executable or a spawn the OS refused among the causes, and every caller here used to trust
+-- the task object it got back from hs.task.new regardless, so a launch failure left the
+-- callback never called at all, silently, with nothing to tell connect, disconnect, or
+-- setLocation their own action never ran.
 local function runAsync(args, cb)
   if not cli then
     if cb then cb(false, "mullvad not installed") end
@@ -114,7 +132,9 @@ local function runAsync(args, cb)
   local t = hs.task.new(cli, function(rc, _, se)
     if cb then cb(rc == 0, (se ~= nil and se ~= "" and se) or nil) end
   end, args)
-  t:start()
+  if not t:start() then
+    if cb then cb(false, "mullvad failed to launch") end
+  end
 end
 
 -- status and selectedLocation's own async doors, phase three review finding eleven, through
@@ -124,6 +144,12 @@ end
 -- separate values rather than one combined string a shell pipe would otherwise have to be
 -- asked to separate. Each shares its own parse function with its synchronous counterpart, so
 -- the two can never read the identical output two different ways.
+--
+-- Each now checks start()'s own return, the phase three verification rider. A task that never
+-- launches used to leave its callback never called, which for these two feeds straight into
+-- Vpn.init.lua's own M.prepare, whose three way countdown has no other way to learn a leg is
+-- never coming, so a launch failure here degrades to the same unavailable answer a missing
+-- cli already gives rather than to a fetch nothing can ever finish.
 function M.statusAsync(cb)
   if not cli then
     if cb then cb({ state = "unavailable" }) end
@@ -132,7 +158,9 @@ function M.statusAsync(cb)
   local t = hs.task.new(cli, function(rc, so, _)
     if cb then cb(parseStatusOutput(so, rc == 0)) end
   end, { "status", "-j" })
-  t:start()
+  if not t:start() then
+    if cb then cb({ state = "unavailable" }) end
+  end
 end
 
 function M.selectedLocationAsync(cb)
@@ -143,7 +171,9 @@ function M.selectedLocationAsync(cb)
   local t = hs.task.new(cli, function(rc, so, _)
     if cb then cb(parseSelectedLocationOutput(so, rc == 0)) end
   end, { "relay", "get" })
-  t:start()
+  if not t:start() then
+    if cb then cb(nil) end
+  end
 end
 
 function M.connect(cb) runAsync({ "connect" }, cb) end
@@ -200,7 +230,9 @@ function M.listLocations(cb)
   local t = hs.task.new(cli, function(rc, so, _)
     if cb then cb((rc == 0 and so) and parseRelays(so) or {}) end
   end, { "relay", "list" })
-  t:start()
+  if not t:start() then
+    if cb then cb({}) end
+  end
 end
 
 return M

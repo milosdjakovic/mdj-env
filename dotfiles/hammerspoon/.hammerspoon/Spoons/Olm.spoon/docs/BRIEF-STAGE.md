@@ -88,10 +88,16 @@ stage. Fields, all optional except name, rows, and onSelect.
     intercept     function(item) answering true when the row swapped the list in place
     back          function() answering true when an inner level was popped
     onHighlight   function(item) for a companion consumer, nil for none
+    onPositioned  function(chooserFrame, companionFrame) told whenever the stage repositions
+                  the pair for this presentation, companionFrame nil when paneWidth is
+                  absent, added in the geometry phase for a pane consumer to draw or clear
     onClose       function() told when the stage hides entirely, not on a swap. Widened in
                   the handoff phase for a stack deeper than one, every discarded level is
                   told, top down, except the one that survives a reopen at any depth
     rowCount      a number when the tool genuinely differs from ten, else absent
+    paneWidth     a number in points, or true to inherit the chooser's own width, absent
+                  means no pane, added in the geometry phase, matching the atom's own
+                  companionWidth semantics
 
 The stage owns everything else the thirteen call sites pass today, screen policy,
 matcher, theme, panel callbacks, poll interval. A presentation cannot override them.

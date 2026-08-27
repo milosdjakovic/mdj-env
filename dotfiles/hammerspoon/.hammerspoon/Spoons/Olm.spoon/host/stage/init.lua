@@ -41,6 +41,23 @@
 --- regardless of which was really on screen. Each presenting plugin now asks this host for
 --- an adapter scoped to its own name instead, host/launcher/init.lua and VPN's own manifest
 --- presentation block alike, closing review finding ten.
+---
+--- Live geometry, docs/BRIEF-GEOMETRY.md, phase four of the chooser stage track. A
+--- presentation may now declare paneWidth, the atom's own companionWidth semantics carried
+--- one layer up since the shared instance's own layout.companionWidth stays zero for the
+--- life of the config, so every companion pixel a presentation shows is stage arithmetic laid
+--- over a window the atom itself still believes has no pane. present and push recompute the
+--- pair and shift the live window with setTopLeft, through the same window finding trick
+--- lib/chooser/providers/native.lua's own _settleFrames uses, rather than reopening it, the
+--- probe having proved that move exact and the widget stays live,
+--- docs/PROBE-FINDINGS-2026-08-27.md section C3. paneFrames is stamped with the result so the
+--- atom's own click watcher keeps hit testing honestly, and the presentation's own
+--- onPositioned, new this phase, is refired so its pane consumer draws or clears. Two
+--- presentations that both decline a pane move nothing at all. Row count changes take the one
+--- resize path that exists, hide, rows(n), show, through Chooser:setRows, the one lib/chooser
+--- addition this phase makes, and paneAnchor is the one true copy of the anchor arithmetic
+--- three plugins still carry their own copy of, consumer map sections 7.3 and 9.11, built
+--- here for phase five's migrations to call rather than inherit a fourth copy.
 
 local obj = {}
 obj.__index = obj
@@ -69,6 +86,17 @@ local SELF_BUNDLE = hs.processInfo and hs.processInfo.bundleID
 -- damage a value that can actually render would risk again.
 local CONSTRUCTION_PLACEHOLDER = ""
 
+-- The wait this host gives the atom's own settle correction before it lays a pane beside a
+-- freshly opened window. lib/chooser/providers/native.lua's own _settleFrames corrects the
+-- window's real position on its own 0.03 second timer after Chooser:show returns,
+-- docs/PROBE-FINDINGS-2026-08-27.md section C3, and a shift posted before that correction
+-- lands would only be overwritten by it, the atom recentring on the companion of zero it
+-- still believes is the whole story, since layout.companionWidth never leaves zero on this
+-- shared instance. Comfortably longer than that 0.03 so the two can never race, short enough
+-- that the eye never catches a second move. A swap into a window already settled races
+-- nothing and pays none of this wait, see _applyPaneGeometry's own cold check.
+local PANE_SETTLE_DELAY = 0.06
+
 -- Injected via configure
 obj._chooser = nil          -- the Chooser factory (has .new), the one door this host builds through
 obj._theme = nil
@@ -82,6 +110,11 @@ obj.surface = nil           -- the one nav adapter, delegated to whichever prese
 obj._stack = nil            -- ordered presentations, the last entry is the one showing
 obj._openId = nil           -- bumped on every fresh stack, see _bumpOpenId and world()
 obj._coveredApp = nil       -- tied to the window's own appearance, see _captureCoveredApp
+obj._paneW = 0               -- the last companion width actually applied, 0 for no pane, see _applyPaneGeometry
+obj._rowCount = nil          -- the row count the window is currently built for, seeded at configure
+obj._defaultRowCount = nil   -- the atom's own default, read once at configure, never mutated after
+obj._geometryTimer = nil     -- held so a pending pane settle cannot be collected before it fires, see _applyPaneGeometry
+obj._suppressClose = false   -- true only while _applyRowCount's own internal hide is in flight, see _onClose
 
 --- Stage:init()
 --- Method
@@ -155,6 +188,16 @@ function obj:configure(opts)
     onActivity = self._panelOnActivity,
     onClose = function() self:_onClose() end,
   })
+
+  -- Decision two of the geometry brief. The row count the window is currently built for is
+  -- read straight off the fresh instance's own layout rather than assumed, so this can never
+  -- drift from whatever lib/chooser/providers/native.lua actually ships as its own default,
+  -- and _defaultRowCount is what a presentation naming no rowCount of its own is asking to
+  -- return to. Read once, right here, before setRows is ever called on this instance, since
+  -- that is the only moment layout.rowCount still holds the atom's own answer rather than
+  -- something this host already asked it to become.
+  self._rowCount = self._instance.layout.rowCount
+  self._defaultRowCount = self._rowCount
 
   -- The one nav adapter, unscoped, answering isShowing for the shared window itself rather
   -- than for any one presentation. selectNext, selectPrev, insertSelected, and hide are safe
@@ -286,13 +329,151 @@ end
 -- its own terms.
 function obj:_show(p, wasShowing)
   self._instance:setPlaceholder(p.placeholder or "")
-  if wasShowing then
+  -- Decision two of the geometry brief. A row count change takes the one resize path that
+  -- exists, hide, rows(n), show, which the probe found applies on the next show of the same
+  -- instance, docs/PROBE-FINDINGS-2026-08-27.md section C2. _applyRowCount below drives that
+  -- cycle itself when it is needed and answers whether it did, since a window it already
+  -- reshowed for a resize must not also run the ordinary swap or cold show path just below on
+  -- top of that.
+  local resized = self:_applyRowCount(p)
+  local cold = resized or not wasShowing
+  if cold then
+    -- The covered app is only ever worth capturing on a genuinely fresh appearance, never on
+    -- the reshow a resize just drove, since nothing had anywhere else to send focus during a
+    -- same tick hide and show, finding five of the phase three review keeping the identical
+    -- split for the identical reason.
+    if not resized then self:_captureCoveredApp() end
+    self._instance:show()
+  else
     self._instance:setQuery("")
     self._instance:refresh(true)
-  else
-    self:_captureCoveredApp()
-    self._instance:show()
   end
+  self:_applyPaneGeometry(p, cold)
+end
+
+-- Applies a presentation's own row count when it differs from what the window is currently
+-- built for, decision two of the geometry brief, paid only on that difference, which today is
+-- only caffeinate's two rows both ways, entering it and returning to the default the moment
+-- anything else is shown next. A presentation naming no rowCount of its own wants the atom's
+-- own default back, self._defaultRowCount, read once at configure.
+--
+-- A window not yet up has nowhere to hide from, so the new count takes effect for free on the
+-- cold show _show is about to run anyway, and this only remembers it. A window already up is
+-- genuinely hidden and reshown, the one resize path that exists, which the probe found applies
+-- cleanly with no rebuilt instance, docs/PROBE-FINDINGS-2026-08-27.md section C2. That hide
+-- runs through the atom's own teardown, which fires onClose, the same signal a genuine
+-- dismissal fires, and this is not one, the presentation being resized is still current and
+-- about to be reshown on the very next line inside _show, so _suppressClose holds the door
+-- shut for exactly this one call rather than let onClose tell every presentation on the stack
+-- it just closed. Answers true when it drove that hide itself, so _show above knows not to
+-- also run its own swap or cold show path on top of this one.
+function obj:_applyRowCount(p)
+  local desired = p.rowCount or self._defaultRowCount
+  if desired == self._rowCount then return false end
+  self._rowCount = desired
+  if not self._instance:isShowing() then
+    self._instance:setRows(desired)
+    return false
+  end
+  self._suppressClose = true
+  self._instance:hide()
+  self._suppressClose = false
+  self._instance:setRows(desired)
+  return true
+end
+
+-- Applies a presentation's own pane, decision one of the geometry brief. The shared
+-- instance's own layout.companionWidth never leaves the zero it was built with, atom level
+-- policy fixed for the life of the instance, so every companion pixel a presentation shows or
+-- clears from here on is stage arithmetic laid over a window the atom itself still believes
+-- has no companion at all. Skipped entirely when neither the presentation now current nor the
+-- one last applied wanted a pane, self._paneW already at zero and this one declaring none
+-- either, which is every swap this phase actually exercises, launcher and VPN alike, so the
+-- unchanged behaviour the brief's own acceptance asks for costs nothing beyond the one
+-- comparison below.
+function obj:_applyPaneGeometry(p, cold)
+  -- Cancelled unconditionally, before the skip check below, so a pane presentation's own
+  -- pending settle can never fire after a later presentation with nothing of its own to do
+  -- has already returned early, which would otherwise leave a stale timer to find out for
+  -- itself, through _positionPane's own identity guard, that it no longer has anything to
+  -- draw.
+  if self._geometryTimer then
+    self._geometryTimer:stop()
+    self._geometryTimer = nil
+  end
+  if not p.paneWidth and self._paneW == 0 then return end
+  if cold then
+    -- The atom's own settle correction has not run yet, so a shift posted now would only be
+    -- overwritten by it a moment later, see PANE_SETTLE_DELAY above for the full reasoning.
+    -- Held in a field so a fast second present or push landing before this ever fires
+    -- supersedes it rather than stacking two.
+    self._geometryTimer = hs.timer.doAfter(PANE_SETTLE_DELAY, function()
+      self._geometryTimer = nil
+      self:_positionPane(p)
+    end)
+  else
+    -- A swap changes no frame at all and nothing else is moving the window, so there is
+    -- nothing to race and the pane is placed at once.
+    self:_positionPane(p)
+  end
+end
+
+-- Finds the live window through the same trick lib/chooser/providers/native.lua's own
+-- _settleFrames uses, since hs.chooser hands out no window handle of its own, only a title an
+-- hs.application can be asked for. Recomputes the pair the way _positionAndShow already
+-- centers a chooser and its companion, moves the live window with setTopLeft rather than
+-- reopening it, docs/PROBE-FINDINGS-2026-08-27.md section C3 having found that move exact and
+-- the widget staying live through it. Stamps self._instance.paneFrames with the result, the
+-- field the atom's own click watcher already reads for every hit test, so a click on the new
+-- companion keeps testing honestly, and refires this presentation's own onPositioned so its
+-- pane consumer draws into the real rect or clears when this presentation asked for none.
+--
+-- Guarded against a stale call landing after a newer presentation already took over, which a
+-- cold show's own settle wait makes possible, a present or a push racing ahead of the timer
+-- above before it ever fires.
+function obj:_positionPane(p)
+  if self:_current() ~= p then return end
+  local app = hs.application.get("Hammerspoon")
+  if not app then return end
+  local w = nil
+  for _, cand in ipairs(app:allWindows()) do
+    if (cand:title() or "") == "Chooser" and cand:isVisible() then
+      w = cand
+      break
+    end
+  end
+  if not w then return end
+
+  local L = self._instance.layout
+  local cf = w:frame()
+  local paneW = self:_resolvePaneWidth(p.paneWidth, cf.w, L.paneMaxW)
+  self._paneW = paneW
+
+  local sf = (w:screen() or hs.screen.mainScreen()):frame()
+  local total = cf.w + (paneW > 0 and (L.gap + paneW) or 0)
+  local x = sf.x + math.floor((sf.w - total) / 2)
+  w:setTopLeft({ x = x, y = cf.y })
+
+  local chooserFrame = { x = x, y = cf.y, w = cf.w, h = cf.h }
+  local companionFrame = nil
+  if paneW > 0 then
+    companionFrame = { x = x + cf.w + L.gap, y = cf.y, w = paneW, h = cf.h }
+  end
+  self._instance.paneFrames = { chooser = chooserFrame, companion = companionFrame }
+  if p.onPositioned then p.onPositioned(chooserFrame, companionFrame) end
+end
+
+-- The atom's own companionWidth semantics, decision one of the geometry brief, reproduced
+-- here rather than reached for on the instance, since the shared instance's own
+-- _resolveCompanionWidth answers for layout.companionWidth, a field this host never touches,
+-- not for a presentation's own paneWidth. true inherits the chooser's own width for this show,
+-- a number is the independent value, and both are capped at paneMaxW exactly as the atom caps
+-- its own. Anything else, absent, false, or a non positive number, means no pane.
+function obj:_resolvePaneWidth(paneWidth, chooserW, paneMaxW)
+  local w = paneWidth
+  if w == true then w = chooserW end
+  if type(w) ~= "number" or w <= 0 then return 0 end
+  return math.min(w, paneMaxW)
 end
 
 -- Told once a presentation has become current, through present or push alike, right after
@@ -404,6 +585,11 @@ end
 --- second call harmless rather than a second notice, the identical reasoning phase two's own
 --- version of this method already relied on for clearing the stack twice.
 function obj:hide()
+  if self._geometryTimer then
+    self._geometryTimer:stop()
+    self._geometryTimer = nil
+  end
+  self._paneW = 0
   if self._instance then self._instance:hide() end
   closeStack(self._stack)
   self._stack = {}
@@ -462,6 +648,27 @@ end
 --- belongs to whatever the stack held before a replacement. Nil before the first capture.
 function obj:world()
   return self._coveredApp, self._openId
+end
+
+--- Stage:paneAnchor(chooserFrame, companionFrame) -> table
+--- Method
+--- The one true copy of the anchor arithmetic three plugins carried a literal copy of before
+--- this phase, decision three of the geometry brief, consumer map sections 7.3 and 9.11,
+--- plugins/clipboard/manager/ui.lua:1180, plugins/filesearch/chooser.lua:454,
+--- plugins/processes/chooser.lua:347. Spans the chooser and its companion so a docked hint
+--- panel sits full width beneath both rather than stopping short under the list alone.
+--- Answers the plain chooser frame when there is no companion, exactly as the three copies
+--- already do, so a plugin migrating onto this host in phase five drops its own copy in
+--- favour of this one call with no change in what its own docked panel receives. Pure
+--- arithmetic, kept a method only for the same reason every other member of this host's
+--- public api is one, a plugin that already holds this host through its own needs.siblings
+--- reaches it the same way it reaches present and push.
+function obj:paneAnchor(chooserFrame, companionFrame)
+  if not companionFrame then return chooserFrame end
+  return {
+    x = chooserFrame.x, y = chooserFrame.y, h = chooserFrame.h,
+    w = (companionFrame.x + companionFrame.w) - chooserFrame.x,
+  }
 end
 
 --- Stage:setQuery(text)
@@ -553,6 +760,10 @@ end
 -- every level below it silently discarded. Then clears the whole stack, so the next present
 -- or push anywhere starts fresh.
 function obj:_onClose()
+  -- Held shut for the one call that is not a real dismissal, _applyRowCount's own internal
+  -- hide, which resizes the same presentation that is still current and about to be reshown
+  -- on the very next line, never a level actually leaving the stack.
+  if self._suppressClose then return end
   if self._panelOnClose then self._panelOnClose() end
   closeStack(self._stack)
   self._stack = {}
