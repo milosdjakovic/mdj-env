@@ -233,17 +233,18 @@ return {
     -- this one has no registry entry at all, being a host rather than a launcher row, so
     -- nothing else tells the root where to look.
     member = "_surface",
-    -- The docked panel's three callbacks arrive nested under this one field name rather than
-    -- as three flat ones, so the shape is named here for whoever reads perPluginData off it.
-    -- That reader used to be this plugin's own configure, and since the chooser stage build's
-    -- phase two it no longer is, configure does not read opts.shortcutPanel at all any more.
-    -- The declaration still has to stay, because lib/services.lua's own perPlugin is what puts
-    -- the docked panel under this exact name in perPluginData, and the composition root now
-    -- reads it from there for the stage's own fixed panel config instead, root/compose.lua's
-    -- own THE SEAM comment beside that read says as much. So opts.shortcutPanel still arrives
-    -- on this plugin's ordinary configure call too, as a side effect of the same declaration
-    -- serving two readers, and this plugin drops it on the floor on purpose.
-    panelAs = "shortcutPanel",
+    -- No panelAs line, and unlike every other plugin that omits one, the absence here is not
+    -- about this plugin's own configure contract at all, since the chooser stage build's
+    -- phase two left this plugin reading no docked panel callback in any shape, flat or
+    -- nested. It matters to a different reader. lib/services.lua's own perPlugin writes the
+    -- three callbacks onto perPluginData under this manifest's own name either way, nested
+    -- under a panelAs word when one is declared or flat when none is, and root/compose.lua's
+    -- own THE SEAM comment beside its stage wiring reads them flat now, straight off
+    -- perPluginData, with no nested field name for that file to carry by heart any more. So
+    -- this plugin's own configure still receives whichever shape arrives, flat fields now
+    -- rather than one nested table, on its ordinary call, and drops every one of them on the
+    -- floor on purpose either way, findings seven and eight of the phase two adversarial
+    -- review closed together by removing the line rather than by explaining it.
     primary = { action = "insertSelected", description = "Run" },
     close = { key = "space" },
     extra = {

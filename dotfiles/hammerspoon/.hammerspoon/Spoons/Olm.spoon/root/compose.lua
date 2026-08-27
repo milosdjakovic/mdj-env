@@ -97,16 +97,6 @@ local SHIPPED_POLICY = {
   chooserTheme = {},
   cheatSheet = {},
   matcher = "fuzzy",
-  -- The empty field hint every chooser inherits ambiently the moment it declares a surface,
-  -- and now also what host/stage reads for the instant between its own construction and the
-  -- first presentation it shows, since a presentation's own placeholder is not applied until
-  -- it is current. This was absent before the chooser stage build, which cost nothing visibly
-  -- because every one of the thirteen original consumers passed its own literal placeholder
-  -- and never fell back to this one, but it left the ambient grant quietly answering nil for
-  -- anybody who ever did lean on it, stage among them, phase two's own finding one and finding
-  -- nine of the adversarial review. A short, generic word rather than any one tool's own,
-  -- since this is what every surfaced plugin inherits before it says its own.
-  placeholder = "Search",
   autoReload = { ignore = { "/config/[^/]+%.json$" } },
 
   -- The heading drawn over the window leader's rows on the hold overlay. What the leader does
@@ -1045,32 +1035,37 @@ function obj.run(olm, cfg)
   -- actionPanelOpts above, source root in its manifest for a value only the root can compute,
   -- delivered by hand into wireData.stage below rather than through the fan out, the identical
   -- door ActionPanel's own kindOf, rowsFor, and run already go through and are declared the
-  -- same way at host/actionpanel/manifest.lua. PLUGIN-CONTRACT.md's own checklist says a
-  -- source root entry names a word the fan out publishes, and this table is the honest
-  -- exception the tree already lives with rather than a new one, findings one and nine of the
-  -- phase two adversarial review name it. chooser and theme are exactly what a surfaced plugin
-  -- already receives ambiently, handed over explicitly because this host opens no context of
-  -- its own and so earns nothing through that entitlement, and placeholder now resolves too,
-  -- since SHIPPED_POLICY carries a real one above where it used to carry none.
+  -- same way at host/actionpanel/manifest.lua. chooser and theme are exactly what a surfaced
+  -- plugin already receives ambiently, handed over explicitly because this host opens no
+  -- context of its own and so earns nothing through that entitlement.
+  --
+  -- No placeholder here. It was added once, briefly, and reverted, finding eleven of the phase
+  -- two adversarial review. SHIPPED_POLICY is read by the ambient grant every surfaced plugin
+  -- inherits, not only by this host, so a value shipped there for the stage's own construction
+  -- time field silently rewrote what five other tools say on their own empty field, the
+  -- launcher, processes, emoji, textcase, and filesearch among them, every one of them falling
+  -- back to that grant precisely because it used to answer nil. The stage never even shows the
+  -- value it was fixing, Stage:present sets a presentation's own placeholder before every show,
+  -- so the construction time field is never on screen for a single frame, and host/stage/
+  -- init.lua now writes a literal there instead of asking anyone for one.
   --
   -- The panel triple is the launcher's own, the only one that exists yet, read off
-  -- perPluginData under the launcher's own resolved identity rather than the bare directory
-  -- name, the same lookup every other host reference in this file uses, since the identity and
-  -- the directory only agree because host/launcher/manifest.lua declares no name of its own.
-  -- .shortcutPanel is the one thing this line still has to know by heart, the exact field
-  -- host/launcher/manifest.lua's own surface.panelAs names, and that coupling has nowhere else
-  -- to live since this is the one file allowed to name the launcher at all, so it stays here,
-  -- marked, rather than hidden behind a second indirection that would only move the same
-  -- knowledge somewhere quieter.
+  -- perPluginData under the launcher's own resolved identity, the same lookup every other host
+  -- reference in this file uses, even though identity and directory answer the same word here
+  -- today since host/launcher/manifest.lua declares no name of its own. Flat fields rather than
+  -- a nested table, since host/launcher/manifest.lua's own surface no longer declares panelAs
+  -- at all, findings seven and eight closed together. Dropping it left services.perPlugin
+  -- writing these three field names onto perPluginData directly, which is what this file reads
+  -- below, so the one piece of another plugin's own nesting choice this file used to have to
+  -- know by heart, the literal word "shortcutPanel", is gone rather than merely marked.
   local launcherIdentity = plan.identity.launcher or "launcher"
-  local stagePanel = perPluginData[launcherIdentity] and perPluginData[launcherIdentity].shortcutPanel
+  local launcherPanel = perPluginData[launcherIdentity] or {}
   local stageOpts = {
     chooser = chooserAtom,
     theme = policy.chooserTheme,
-    placeholder = policy.placeholder,
-    onPositioned = stagePanel and stagePanel.onPositioned,
-    onActivity = stagePanel and stagePanel.onActivity,
-    onClose = stagePanel and stagePanel.onClose,
+    onPositioned = launcherPanel.onPositioned,
+    onActivity = launcherPanel.onActivity,
+    onClose = launcherPanel.onClose,
   }
 
   -- fannedData WINS, and its absence here altogether was the single worst defect in this build.

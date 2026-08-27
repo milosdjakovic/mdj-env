@@ -44,10 +44,18 @@ local log = hs.logger.new("Stage", "info")
 -- replacing it, so a later phase deletes the launcher's copy rather than inventing this one.
 local SELF_BUNDLE = hs.processInfo and hs.processInfo.bundleID
 
+-- What Chooser.new reads before any presentation exists to set its own. Never asked of the
+-- root and never configurable, finding eleven of the phase two adversarial review, since
+-- Stage:present sets a presentation's own placeholder before every show and present is the
+-- only way this window ever opens, so this literal is never on screen for a single frame. A
+-- shipped default here once leaked through the same ambient grant every surfaced plugin's own
+-- placeholder falls back to and silently rewrote five other tools' fields, which is the
+-- damage a value that can actually render would risk again.
+local CONSTRUCTION_PLACEHOLDER = ""
+
 -- Injected via configure
 obj._chooser = nil          -- the Chooser factory (has .new), the one door this host builds through
 obj._theme = nil
-obj._placeholder = nil
 obj._panelOnPositioned = nil -- the docked shortcut panel triple, fixed for the life of the instance
 obj._panelOnActivity = nil
 obj._panelOnClose = nil
@@ -73,7 +81,6 @@ end
 ---                     it nothing can ever be presented, see the manifest's own breaks
 ---                     sentence.
 --- opts.theme          the shared palette, forwarded once at construction.
---- opts.placeholder    what the field reads before any presentation is current.
 --- opts.onPositioned, opts.onActivity, opts.onClose
 ---                     the docked shortcut panel triple, fixed atom level policy rather than
 ---                     something a presentation carries. Phase two hands this the launcher's
@@ -94,7 +101,6 @@ function obj:configure(opts)
   opts = opts or {}
   self._chooser = opts.chooser
   self._theme = opts.theme
-  self._placeholder = opts.placeholder or ""
   self._panelOnPositioned = opts.onPositioned
   self._panelOnActivity = opts.onActivity
   self._panelOnClose = opts.onClose
@@ -118,7 +124,7 @@ function obj:configure(opts)
   -- never named either before this host existed.
   self._instance = self._chooser.new({
     theme = self._theme,
-    placeholder = self._placeholder,
+    placeholder = CONSTRUCTION_PLACEHOLDER,
     rows = function(query) return self:_rows(query) end,
     onSelect = function(item) self:_onSelect(item) end,
     -- Decision five of the stage design brief. This host's own intercept and back are what

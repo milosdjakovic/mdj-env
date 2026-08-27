@@ -14,17 +14,26 @@
 -- what it is for.
 --
 -- Because it opens no context, it earns none of the ambient grant a surfaced plugin gets for
--- free, the chooser factory, the theme, and a placeholder. Every one of those is asked for
--- directly instead, the same values the ambient grant would have handed over, so the request
--- says what it needs rather than pretending to be a kind of plugin it is not.
+-- free, the chooser factory and the theme among them. Both are asked for directly instead, the
+-- same values the ambient grant would have handed over, so the request says what it needs
+-- rather than pretending to be a kind of plugin it is not.
 --
--- All six needs below are delivered by hand into wireData.stage at the composition root
+-- A placeholder is deliberately NOT one of these needs, and its absence is worth explaining
+-- since an earlier version of this file declared one. This host never shows a construction
+-- time placeholder to anyone, Stage:present sets a presentation's own placeholder before every
+-- show and present is the only way the window ever opens, so the field host/stage/init.lua
+-- hands Chooser.new at construction is a literal that can never render rather than a value
+-- worth asking the root for. Declaring the need anyway once cost real damage, since the fix for
+-- it living nowhere shipped a default into SHIPPED_POLICY, the same table the ambient grant
+-- every surfaced plugin reads from, and silently rewrote what five other tools say on their own
+-- empty field, the launcher, processes, emoji, textcase, and filesearch among them, finding
+-- eleven of the phase two adversarial review. The lesson kept is that a need only belongs here
+-- when this host actually reads what arrives.
+--
+-- All five needs below are delivered by hand into wireData.stage at the composition root
 -- rather than through servicesLib.fanOut, the same door host/actionpanel's own kindOf,
 -- rowsFor, and run already go through for the identical reason, a value only the root can
--- compute for one particular host rather than a word many plugins share. This is worth
--- writing down because it once was not honoured, source root declared six words and only five
--- of them were ever actually handed over, placeholder read nil on every load until
--- SHIPPED_POLICY in root/compose.lua learned to carry one.
+-- compute for one particular host rather than a word many plugins share.
 return {
   needs = {
     data = {
@@ -36,11 +45,6 @@ return {
       -- The shared theme, the same palette every surfaced plugin already receives ambiently.
       theme = { source = "root", policy = "optional",
         breaks = "the one instance falls back to the atom's own minimal dark palette instead of the configured theme" },
-      -- What the field reads for the instant between construction and the first present, since
-      -- a presentation's own placeholder is not applied until that presentation is current.
-      -- Cosmetic only, nothing is ever typed before a presentation exists to read it.
-      placeholder = { source = "root", policy = "optional",
-        breaks = "the field carries the atom's own bare default until the first presentation sets its own" },
       -- The docked shortcut panel triple. Fixed for the life of this one instance rather than
       -- carried on a presentation, per the stage design brief's own decision that panel
       -- callbacks are atom level policy alongside screen, matcher, and theme, not something a
