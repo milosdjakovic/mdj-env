@@ -138,15 +138,61 @@ return {
     delayMs = 3000,
   },
 
-  -- Window sizing defaults
+  -- Window sizing defaults. A move or resize key travels one of two amounts and never anything
+  -- in between. stepPixels is what a press on its own does, kept small because a press is how
+  -- a window is placed by eye, and heldPixels is what each repeat of a held key does, which is
+  -- where the speed of a hold comes from, since the rate itself is the machine's and stays
+  -- steady. holdGrace is how many presses still count as a press before the held amount takes
+  -- over, so 1 means the very first repeat already cruises.
+  --
+  -- Resizing carries its own pair, and a larger one, because the two keys do not cover the
+  -- same apparent ground with the same number. A move slides the whole window one distance,
+  -- where a resize moves an edge and spends its step across two axes at once.
+  --
+  -- A resize number is what the canvas's LONG edge grows by, and the short edge takes its
+  -- proportional share, so a window grows in the shape of the screen it is growing inside
+  -- instead of reaching the top and bottom of an ultrawide long before the sides. The long
+  -- edge is the reference rather than the width so that a rotated, portrait screen behaves the
+  -- same way, one press always growing the long edge by the number written here whichever way
+  -- the screen is turned.
+  --
+  -- The held amount over the repeat interval is the hold's speed, so on a stock keyboard, at
+  -- twelve repeats a second, a move holds about 480 pixels a second and a resize grows its
+  -- long edge by about 600. Raise the Held numbers to cross a screen quicker and nothing about
+  -- a single press changes.
+  --
+  -- minWidth and minHeight are the floor a shrink stops at, since growing has the screen edge
+  -- to stop at and shrinking has nothing, and a held shrink key with no floor walks a window
+  -- down to a sliver.
   windowSizing = {
     maxWidth = 2400,
     maxHeight = 1350,
     fullHeightMaxWidth = 2400,
     movePixels = 20,
-    resizePixels = 50,
+    movePixelsHeld = 40,
+    resizePixels = 30,
+    resizePixelsHeld = 50,
+    holdGrace = 1,
+    minWidth = 400,
+    minHeight = 300,
     screenRecording = { width = 2400, height = 1350 },
     smallSize = { width = 700, height = 800 },
+  },
+
+  -- How OFTEN a held key repeats, which is empty on purpose. Both beats are read off this
+  -- machine, the Delay Until Repeat and Key Repeat sliders in System Settings under Keyboard,
+  -- so a held leader key waits and then runs exactly like a held key in any text field and
+  -- follows whatever is set there. The long first beat is what keeps one deliberate press to
+  -- one press, and the steady rate after it never changes under the finger, so where a window
+  -- ends up does not depend on the exact moment it is released.
+  --
+  -- Naming either number here overrides the machine for the leader keys alone, which is worth
+  -- doing only to make them differ from every other held key on purpose. How FAR each of
+  -- those repeats moves a window is the windowSizing block above, and that is the knob to
+  -- reach for, since one is a property of the keyboard and the other of the action.
+  keyRepeat = {
+    -- delay = 0.5,
+    -- interval = 0.08,
   },
 
   -- What physically means Hyper. Pure data, and the one place a person whose keyboard is not

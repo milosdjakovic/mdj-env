@@ -39,7 +39,7 @@ obj.license = "MIT"
 local log = hs.logger.new("WindowLeader", "info")
 
 obj._chord = nil   -- shared ChordKey engine
-obj._leaders = nil -- keyCode -> { bindings = { code -> { {mods, fn}, ... } } }
+obj._leaders = nil -- keyCode -> { bindings = { code -> { {mods, fn, repeats}, ... } } }
 
 -- Hold to reveal. onHold and onHoldEnd are this plugin's own closures now, built once in
 -- configure rather than handed in from outside, since the only part of this coupling
@@ -48,6 +48,14 @@ obj._leaders = nil -- keyCode -> { bindings = { code -> { {mods, fn}, ... } } }
 -- under opts.windowCheatSheet, nil on a portable install carrying no such plugin, in which
 -- case both closures below still fire on schedule and simply find nothing to call.
 obj._holdDelay = 0.6
+-- Window actions are nudges rather than toggles, so a bound key that says it repeats has its
+-- repeats scheduled by the engine rather than taken from the OS autorepeat events. The timing
+-- is the same either way, the machine's own delay and then its own steady rate. What the
+-- driven mode buys is that each repeat knows how deep into the hold it is, which is what lets
+-- a press place a window by eye while a repeat travels far enough to cross a screen. This is
+-- the leader's own answer for every key under it, a property of the domain rather than of one
+-- binding, and configure may put it back on the plain OS events.
+obj._repeatMode = "driven"
 obj._onHold = nil
 obj._onHoldEnd = nil
 obj._windowCheatSheet = nil
@@ -64,6 +72,9 @@ end
 --- Method
 --- opts.chord           - the shared ChordKey engine to register into (required)
 --- opts.holdDelay       - seconds to hold a leader (no other key) before the hold reveals
+--- opts.repeatMode      - how a repeating binding under this leader keeps firing, the shared
+---                        engine's own option, "driven" here rather than the engine's
+---                        "system" default
 --- opts.windowCheatSheet - the resolved WindowCheatSheet module, this plugin's own hold
 ---                         calls show(leaderKeyCode) on it and its own release calls hide(),
 ---                         absent on an install carrying no such plugin, which only costs
@@ -72,6 +83,7 @@ function obj:configure(opts)
   opts = opts or {}
   self._chord = opts.chord or self._chord
   self._holdDelay = opts.holdDelay or self._holdDelay
+  self._repeatMode = opts.repeatMode or self._repeatMode
   self._windowCheatSheet = opts.windowCheatSheet or self._windowCheatSheet
 
   -- Built here rather than accepted as opts.onHold and opts.onHoldEnd, so the composition
@@ -99,11 +111,14 @@ function obj:addLeader(keyCode)
   return self
 end
 
---- WindowLeader:bind(leaderKeyCode, key, fn, mods)
+--- WindowLeader:bind(leaderKeyCode, key, fn, mods, repeats)
 --- Method
 --- Register a handler under a leader. `mods` is an optional list of required
---- modifier names ({"shift"}); omit it for a catch-all binding.
-function obj:bind(leaderKeyCode, key, fn, mods)
+--- modifier names ({"shift"}); omit it for a catch-all binding. `repeats` is true for a
+--- handler that should keep firing while its key stays held, which is the binding's own
+--- business rather than the leader's, since moving a window a step is worth repeating and
+--- maximizing it is not. HOW it repeats is the leader's, see _repeatMode.
+function obj:bind(leaderKeyCode, key, fn, mods, repeats)
   local leader = self._leaders[leaderKeyCode]
   if not leader then
     log.w("no leader registered for keycode " .. tostring(leaderKeyCode))
@@ -118,7 +133,7 @@ function obj:bind(leaderKeyCode, key, fn, mods)
   end
 
   leader.bindings[code] = leader.bindings[code] or {}
-  table.insert(leader.bindings[code], { mods = mods, fn = fn })
+  table.insert(leader.bindings[code], { mods = mods, fn = fn, repeats = repeats })
   return self
 end
 
@@ -132,6 +147,11 @@ local REAL_MODS = { "shift", "ctrl", "alt", "cmd" }
 --- Pick the handler for the current modifier flags: an exact match on the real
 --- modifiers (shift/ctrl/alt/cmd, ignoring `fn`) wins, otherwise fall back to a
 --- catch-all (mods == nil) binding if present.
+---
+--- Answers the handler and its `repeats` flag as a pair, the shape the shared engine's onKey
+--- contract asks for, so whether a key keeps firing travels with the handler that was
+--- actually chosen rather than being looked up a second time against a different set of
+--- modifiers than the one that resolved.
 function obj:_resolve(list, flags)
   if not list then return nil end
 
@@ -141,7 +161,7 @@ function obj:_resolve(list, flags)
     if flags[m] then present[m] = true end
   end
 
-  local catchAll = nil
+  local catchAll, catchAllRepeats = nil, nil
   for _, b in ipairs(list) do
     if b.mods then
       local need = {}
@@ -155,13 +175,13 @@ function obj:_resolve(list, flags)
         end
       end
       if match then
-        return b.fn
+        return b.fn, b.repeats
       end
     else
-      catchAll = b.fn
+      catchAll, catchAllRepeats = b.fn, b.repeats
     end
   end
-  return catchAll
+  return catchAll, catchAllRepeats
 end
 
 --- WindowLeader:start()
@@ -178,6 +198,7 @@ function obj:start()
   for keyCode, leader in pairs(self._leaders) do
     self._chord:addKey(keyCode, {
       holdDelay = self._holdDelay,
+      repeatMode = self._repeatMode,
       onHold = self._onHold,
       onHoldEnd = self._onHoldEnd,
       -- No onTap: leaders have no tap fallback.

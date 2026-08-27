@@ -17,6 +17,18 @@ obj.license = "MIT"
 
 local log = hs.logger.new("WindowManager", "info")
 
+-- Hold a value inside a travel range, whichever way round the two bounds arrive. A window
+-- wider than the canvas inverts the range, since its left edge can then only sit at or left
+-- of the canvas edge, and ordering the pair keeps that case a real range to slide along,
+-- flush left through flush right, rather than an empty one that would pin the window where
+-- it stands.
+local function clampBetween(value, a, b)
+  local low, high = math.min(a, b), math.max(a, b)
+  if value < low then return low end
+  if value > high then return high end
+  return value
+end
+
 -- Dependencies (injected via configure)
 obj._margins = {}
 obj._settings = nil
@@ -260,7 +272,24 @@ end
 
 --- WindowManager:adjustSize(amount)
 --- Method
---- Adjust window size by amount
+--- Adjust window size, `amount` being what the canvas's LONG edge grows by, with the short
+--- edge taking its proportional share, so a window grows in the shape of the screen it is
+--- growing inside.
+---
+--- A screen is almost never square and an ultrawide is nowhere near it, so a step applied
+--- equally to both axes spends the same pixels on the short axis as on the long one, and a
+--- growing window reaches the top and bottom of the canvas long before it reaches the sides.
+--- Each axis therefore takes the step scaled by its own share of the longest one.
+---
+--- The LONG edge is the reference rather than the width, and that is the part portrait makes
+--- necessary. Scaling from the width instead would still be proportional, but the step would
+--- then mean the long edge on a landscape screen and the short edge on a rotated one, so the
+--- same key would cover very different ground before and after a rotation. Anchoring on the
+--- longest axis means one press always moves the long edge by `amount` whichever way the
+--- screen is turned, and a square screen is simply the case where both shares are one.
+---
+--- Both axes are taken to whole pixels per side, since a window edge on a half pixel lines up
+--- with nothing beside it.
 function obj:adjustSize(amount)
   amount = amount or 100
 
@@ -277,15 +306,43 @@ function obj:adjustSize(amount)
   -- a window that is already outside the canvas from inverting on growth.
   local screenFrame = self:getScreenFrame(screen)
 
+  -- Each axis's share of the step, its own length over the longest, so the longest axis takes
+  -- the step whole and the other one takes less. A zero longest means there is no usable
+  -- canvas at all, where a share of one is as good an answer as any and nothing is about to be
+  -- resized regardless.
+  local longest = math.max(screenFrame.w, screenFrame.h)
+  local shareW = longest > 0 and (screenFrame.w / longest) or 1
+  local shareH = longest > 0 and (screenFrame.h / longest) or 1
+
+  -- To whole pixels, and by an even number, since half of the step goes to each of the two
+  -- opposing edges and a half pixel edge lines up with nothing beside it.
+  local function wholePair(value)
+    local half = value / 2
+    local rounded = half >= 0 and math.floor(half + 0.5) or -math.floor(-half + 0.5)
+    return rounded * 2
+  end
+
+  -- Growing has the canvas to stop at and shrinking has nothing, so it stops at a floor
+  -- instead. Without one a held key walks a window down to a sliver and there is no keystroke
+  -- that brings a lost window back. Per axis rather than one shared limit, since a window
+  -- already at the floor on its height should still be able to lose width.
+  local sizing = self._settings.windowSizing or {}
+  local amountW, amountH = wholePair(amount * shareW), wholePair(amount * shareH)
+  if amount < 0 then
+    amountW = -math.min(-amountW, math.max(0, windowFrame.w - (sizing.minWidth or 400)))
+    amountH = -math.min(-amountH, math.max(0, windowFrame.h - (sizing.minHeight or 300)))
+    if amountW == 0 and amountH == 0 then return end
+  end
+
   local roomLeft = math.max(0, windowFrame.x - screenFrame.x)
   local roomRight = math.max(0, (screenFrame.x + screenFrame.w) - (windowFrame.x + windowFrame.w))
   local roomTop = math.max(0, windowFrame.y - screenFrame.y)
   local roomBottom = math.max(0, (screenFrame.y + screenFrame.h) - (windowFrame.y + windowFrame.h))
 
-  local increaseLeft = math.min(amount / 2, roomLeft)
-  local increaseRight = math.min(amount / 2, roomRight)
-  local increaseTop = math.min(amount / 2, roomTop)
-  local increaseBottom = math.min(amount / 2, roomBottom)
+  local increaseLeft = math.min(amountW / 2, roomLeft)
+  local increaseRight = math.min(amountW / 2, roomRight)
+  local increaseTop = math.min(amountH / 2, roomTop)
+  local increaseBottom = math.min(amountH / 2, roomBottom)
 
   local newWidth = windowFrame.w + increaseLeft + increaseRight
   local newLeft = windowFrame.x - increaseLeft
@@ -309,20 +366,62 @@ function obj:adjustSize(amount)
   win:setFrame(windowFrame)
 end
 
---- WindowManager:increaseSize()
+--- WindowManager:_holdStep(press, held, hold)
 --- Method
---- Increase window size
-function obj:increaseSize()
-  local pixels = (self._settings.windowSizing and self._settings.windowSizing.resizePixels) or 50
-  self:adjustSize(pixels)
+--- How far one press travels, which is one of two amounts and never anything in between.
+---
+--- A key pressed on its own moves `press`, small enough to place a window by eye. A key that
+--- is being held moves `held`, far enough that crossing a screen is a hold rather than an
+--- errand. `hold` is the depth the engine calls a repeating action with, 0 for the press
+--- itself, and the first `holdGrace` of them count as the press.
+---
+--- Two amounts rather than a ramp between them, deliberately. A distance that keeps growing
+--- under a held finger is a distance you cannot aim with, since where the window ends up
+--- depends on exactly when you let go, and the timing underneath is steady for the same
+--- reason. So a hold has one speed, it just is not the speed of a single press.
+function obj:_holdStep(press, held, hold)
+  hold = hold or 0
+  local grace = (self._settings.windowSizing or {}).holdGrace or 1
+  if hold < grace then return press end
+  return held
 end
 
---- WindowManager:decreaseSize()
+--- WindowManager:_moveStep(hold)
 --- Method
---- Decrease window size
-function obj:decreaseSize()
-  local pixels = (self._settings.windowSizing and self._settings.windowSizing.resizePixels) or 50
-  self:adjustSize(-pixels)
+--- The move step, movePixels for a press and movePixelsHeld while the key is held.
+function obj:_moveStep(hold)
+  local sizing = self._settings.windowSizing or {}
+  local press = sizing.movePixels or 20
+  return self:_holdStep(press, sizing.movePixelsHeld or (press * 2), hold)
+end
+
+--- WindowManager:_resizeStep(hold)
+--- Method
+--- The resize step, resizePixels for a press and resizePixelsHeld while held.
+---
+--- Its own pair rather than the move's, and a larger one, because the two keys are not doing
+--- the same amount of work with the same number. A move slides a window one distance, where a
+--- resize spends its step across two axes and moves an edge rather than the whole window, so
+--- the same figure covers less apparent ground. What the step means for each axis is
+--- adjustSize's business, not this one's.
+function obj:_resizeStep(hold)
+  local sizing = self._settings.windowSizing or {}
+  local press = sizing.resizePixels or 30
+  return self:_holdStep(press, sizing.resizePixelsHeld or (press + 20), hold)
+end
+
+--- WindowManager:increaseSize(hold)
+--- Method
+--- Increase window size, by the held amount while the key is held
+function obj:increaseSize(hold)
+  self:adjustSize(self:_resizeStep(hold))
+end
+
+--- WindowManager:decreaseSize(hold)
+--- Method
+--- Decrease window size, by the held amount while the key is held
+function obj:decreaseSize(hold)
+  self:adjustSize(-self:_resizeStep(hold))
 end
 
 --- WindowManager:hideAllExceptFocused()
@@ -345,22 +444,30 @@ end
 
 --- WindowManager:moveByPixels(direction, pixels)
 --- Method
---- Move window by pixels in direction
+--- Move window by pixels in direction, stopping at the gap-inset canvas.
+---
+--- The step stops flush against the same border maximize uses, so a window slides to the
+--- edge and stays on screen. It used to walk as far as it was asked to, which nothing
+--- noticed while one press was one step of twenty pixels, and a held key that keeps stepping
+--- turns that into a window pushed off the display and then off the next one. Crossing to
+--- another display is what the display switch keys are for, and they sit on adjacent keys.
 function obj:moveByPixels(direction, pixels)
   local win = hs.window.focusedWindow()
   if not win then return end
 
   pixels = pixels or (self._settings.windowSizing and self._settings.windowSizing.movePixels) or 20
   local frame = win:frame()
+  local canvas = self:getScreenFrame(win:screen())
 
-  if direction == "left" then
-    frame.x = frame.x - pixels
-  elseif direction == "right" then
-    frame.x = frame.x + pixels
-  elseif direction == "up" then
-    frame.y = frame.y - pixels
-  elseif direction == "down" then
-    frame.y = frame.y + pixels
+  -- Only the axis this key moved is clamped. Clamping both would let a press meant to move a
+  -- window right also pull it down onto the canvas, which reads as the window drifting on its
+  -- own, so a key changes the one thing it was pressed for and nothing else.
+  if direction == "left" or direction == "right" then
+    frame.x = frame.x + (direction == "right" and pixels or -pixels)
+    frame.x = clampBetween(frame.x, canvas.x, canvas.x + canvas.w - frame.w)
+  elseif direction == "up" or direction == "down" then
+    frame.y = frame.y + (direction == "down" and pixels or -pixels)
+    frame.y = clampBetween(frame.y, canvas.y, canvas.y + canvas.h - frame.h)
   end
 
   win:setFrame(frame)
@@ -421,16 +528,20 @@ function obj:actions()
     rightHalf =            function() self:rightHalf() end,
     reasonableSize =       function() self:resizeDefault() end,
     smallSize =            function() self:smallSize() end,
-    increaseSize =         function() self:increaseSize() end,
-    decreaseSize =         function() self:decreaseSize() end,
+    increaseSize =         function(hold) self:increaseSize(hold) end,
+    decreaseSize =         function(hold) self:decreaseSize(hold) end,
     nextDisplay =          function() self:moveToDisplay("next") end,
     previousDisplay =      function() self:moveToDisplay("previous") end,
     hideAllExceptFocused = function() self:hideAllExceptFocused() end,
     screenRecording =      function() self:screenRecording() end,
-    moveLeft =             function() self:moveByPixels("left") end,
-    moveRight =            function() self:moveByPixels("right") end,
-    moveUp =               function() self:moveByPixels("up") end,
-    moveDown =             function() self:moveByPixels("down") end,
+    -- The four moves and the two resizes above take the hold depth the leader calls a
+    -- repeating action with, and read their step off it, the press amount or the held one.
+    -- Every other action here ignores the argument, since none of them repeats and a
+    -- placement is the same wherever in a hold it is asked for.
+    moveLeft =             function(hold) self:moveByPixels("left", self:_moveStep(hold)) end,
+    moveRight =            function(hold) self:moveByPixels("right", self:_moveStep(hold)) end,
+    moveUp =               function(hold) self:moveByPixels("up", self:_moveStep(hold)) end,
+    moveDown =             function(hold) self:moveByPixels("down", self:_moveStep(hold)) end,
   }
 end
 
@@ -438,7 +549,11 @@ end
 --- Method
 --- Bind window actions onto a WindowLeader spoon. `mapping` is an ordered list;
 --- each entry is { action = <name>, leader = <keycode>, key = <key>,
---- mods = <optional list>, when = <optional predicate name> }. `predicates` maps
+--- mods = <optional list>, when = <optional predicate name>,
+--- repeats = <optional bool> }. `repeats` says the action keeps firing while its key is
+--- held, which only some of these want. A step is worth repeating and a placement is not, so
+--- moving and resizing carry it while maximize, the halves and the display switch do not,
+--- since holding a key that puts a window somewhere exact would only put it there again. `predicates` maps
 --- a `when` name to a function() -> bool. An entry with a `when` is wrapped so it
 --- runs only while its predicate holds; a false predicate makes the key a no-op
 --- (still swallowed by the held leader, so no raw character leaks). This is the
@@ -458,12 +573,12 @@ function obj:bindToLeader(windowLeader, mapping, predicates)
         if not p then
           log.w("unknown predicate '" .. tostring(when) .. "'")
         else
-          fn = function()
-            if p() then action() end
+          fn = function(hold)
+            if p() then action(hold) end
           end
         end
       end
-      windowLeader:bind(binding.leader, binding.key, fn, binding.mods)
+      windowLeader:bind(binding.leader, binding.key, fn, binding.mods, binding.repeats)
     else
       log.w("Unknown action '" .. tostring(binding.action) .. "'")
     end

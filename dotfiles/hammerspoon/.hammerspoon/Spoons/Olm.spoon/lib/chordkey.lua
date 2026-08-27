@@ -22,6 +22,18 @@
 --- an eventtap-based app downstream (a shortcut recorder, Raycast, Karabiner) bind
 --- combos the domain does not claim, while bound combos still run and swallow.
 ---
+--- A binding may also say that it repeats while its key stays down, and the key's
+--- repeatMode decides how. A repeating handler is called with how deep into the hold it is,
+--- 0 on the press and 1, 2, 3 on the repeats after it, since the engine is the only layer
+--- that knows and an action may want to grow with the hold rather than only run again.
+---
+--- "system" leans on the OS autorepeat events themselves, so the feel matches every other
+--- held key on the machine. "driven" ignores those events and schedules the repeats itself,
+--- on the machine's own two beats, its delay until repeat and then its repeat interval held
+--- steady. The timing is therefore the same either way, and what the second mode buys is that
+--- the engine knows how deep into the hold each repeat is and can tell the handler, which an
+--- OS autorepeat event gives no way to know.
+---
 --- This is only the MECHANISM. The domain policy -- which keys map to what, and
 --- how sub-modifiers resolve -- lives in the callers, which register their key(s)
 --- here via addKey() and supply an onKey() lookup.
@@ -79,6 +91,34 @@ obj._overlaySettle = 0.05
 -- default so a key that opts out (or a caller that never configures it) keeps the
 -- original swallow-everything behaviour.
 obj._passthrough = false
+-- How a binding that asks to repeat keeps firing while its key stays down.
+--
+-- "system" lets the OS autorepeat drive it, so a held key runs at whatever initial delay
+-- and rate the person already set for every other key on the machine. That is the right
+-- answer for stepping through a list, where the feel should match the arrow keys exactly.
+--
+-- "driven" ignores those OS events and schedules its own on the same two beats, the machine's
+-- delay until repeat and then its repeat interval. The timing is deliberately identical, so
+-- what it buys is not a different rate but a known depth, since the engine counts its own
+-- repeats and an OS autorepeat event carries no count. A window nudge wants that, because a
+-- press placing a window by eye and a repeat crossing a screen are not the same distance.
+--
+-- Per key rather than global, because the two leaders on this keyboard want different
+-- answers, and "system" is the default so a caller that says nothing keeps what it had.
+obj._repeatMode = "system"
+-- The timing of a driven repeat, which is two numbers, and both are deliberately absent.
+--
+-- `delay` is the wait before the FIRST repeat and `interval` the wait between the repeats
+-- after it, exactly the pair macOS itself calls Delay Until Repeat and Key Repeat. Absent
+-- means ask the machine, so a held leader key waits the same beat and then runs at the same
+-- steady rate as a held key in any text field, and a person who moves either slider moves
+-- this with it. Naming one here overrides the machine for that key alone.
+--
+-- The long first beat is what keeps one deliberate press to one press. The steady rate after
+-- it is the whole of the rest. There is no ramp, since a rate that keeps changing under a
+-- held finger is a rate you cannot aim with, and it is not this engine's place to invent one
+-- the platform did not.
+obj._repeatTiming = {}
 
 --- ChordKey:init()
 --- Method
@@ -95,11 +135,16 @@ end
 --- opts.holdDelay    - seconds held (nothing else pressed) before onHold fires
 --- opts.tapThreshold - seconds under which a bare press/release counts as a tap
 --- opts.passthrough  - default for whether unbound combos leak downstream (bool)
+--- opts.repeatMode   - default for how a repeating binding is driven, "system" or "driven"
+--- opts.repeatTiming - default repeat timing, { delay, interval }, where an absent one of
+---                     either means the machine's own setting
 function obj:configure(opts)
   opts = opts or {}
   if opts.holdDelay ~= nil then self._holdDelay = opts.holdDelay end
   if opts.tapThreshold ~= nil then self._tapThreshold = opts.tapThreshold end
   if opts.passthrough ~= nil then self._passthrough = opts.passthrough end
+  if opts.repeatMode ~= nil then self._repeatMode = opts.repeatMode end
+  if opts.repeatTiming ~= nil then self._repeatTiming = opts.repeatTiming end
   return self
 end
 
@@ -109,14 +154,18 @@ end
 ---   holdDelay    - override the default hold delay for this key
 ---   tapThreshold - override the default tap threshold for this key
 ---   passthrough  - override whether this key's unbound combos leak downstream
+---   repeatMode   - override how this key's repeating bindings are driven
+---   repeatTiming - override the repeat timing used by "driven"
 ---   onTap        - function() on a quick tap with no other key (optional; omit
 ---                  for keys with no tap fallback, e.g. window leaders)
 ---   onHold       - function(keyCode) once the hold passes holdDelay (optional)
 ---   onHoldEnd    - function(keyCode) when a shown hold ends (release or key)
----   onKey        - function(pressedKeyCode, flags) -> handler|nil; the returned
----                  handler (if any) is dispatched when a key is pressed while
----                  this chord key is held. This is where domain lookup and
----                  sub-modifier resolution live.
+---   onKey        - function(pressedKeyCode, flags) -> handler|nil, repeats; the
+---                  returned handler (if any) is dispatched when a key is pressed
+---                  while this chord key is held, and a true second value says that
+---                  handler keeps firing while the key stays down. The handler is called
+---                  with the hold depth, 0 on the press and counting up per repeat. This is
+---                  where domain lookup and sub-modifier resolution live.
 function obj:addKey(keyCode, opts)
   opts = opts or {}
   self._keys[keyCode] = {
@@ -124,6 +173,8 @@ function obj:addKey(keyCode, opts)
     holdDelay = opts.holdDelay or self._holdDelay,
     tapThreshold = opts.tapThreshold or self._tapThreshold,
     passthrough = opts.passthrough ~= nil and opts.passthrough or self._passthrough,
+    repeatMode = opts.repeatMode or self._repeatMode,
+    repeatTiming = opts.repeatTiming or self._repeatTiming,
     onTap = opts.onTap,
     onHold = opts.onHold,
     onHoldEnd = opts.onHoldEnd,
@@ -136,6 +187,9 @@ function obj:addKey(keyCode, opts)
     holdTimer = nil,
     passthroughDown = false, -- have we synthesized this leader's key-down?
     passedKeys = {},         -- codes leaked downstream this hold, pending their up
+    repeatTimer = nil,       -- the pending tick of a driven repeat, see _startRepeat
+    repeatCode = nil,        -- which key that repeat belongs to
+    repeatFired = 0,         -- how many repeats it has already sent
   }
   return self
 end
@@ -179,6 +233,64 @@ function obj:_defer(delay, fn)
     self._deferred[slot] = nil
     fn()
   end)
+end
+
+--- The wait before the next repeat, given how many have already gone out.
+---
+--- The first waits the delay until repeat and every one after it the repeat interval, the two
+--- separate beats a held key has always had on this platform, read off the machine when the
+--- timing table names neither. See _repeatTiming.
+local function repeatDelay(timing, fired)
+  timing = timing or {}
+  if fired == 0 then
+    return timing.delay or hs.eventtap.keyRepeatDelay()
+  end
+  return timing.interval or hs.eventtap.keyRepeatInterval()
+end
+
+--- ChordKey:_stopRepeat(k)
+--- Method
+--- End whatever driven repeat this chord key is running. Clearing the code as well as
+--- the timer is what makes a tick already in flight a no-op, since the tick checks it.
+function obj:_stopRepeat(k)
+  if k.repeatTimer then
+    k.repeatTimer:stop()
+  end
+  k.repeatTimer = nil
+  k.repeatCode = nil
+  k.repeatFired = 0
+end
+
+--- ChordKey:_startRepeat(k, code, fn)
+--- Method
+--- Keep firing a bound handler while its key stays down, on this engine's own schedule rather
+--- than on the OS autorepeat's events.
+---
+--- Each tick schedules the next only after the handler has returned, rather than a repeating
+--- timer at a fixed period. A window action is an accessibility round trip and a slow app can
+--- take longer than the interval, so a repeating timer would queue ticks behind each other and
+--- then fire them in a burst once the app caught up. Chaining makes a slow app simply repeat
+--- slower, which is the graceful failure.
+---
+--- One repeat per chord key at a time. Pressing a second bound key under the same held leader
+--- takes the repeat over, the same way typing another letter takes over the OS autorepeat, and
+--- releasing the first key then finds it is no longer the one repeating and leaves the second
+--- alone.
+function obj:_startRepeat(k, code, fn)
+  self:_stopRepeat(k)
+  k.repeatCode = code
+  k.repeatFired = 0
+  local timing = k.repeatTiming
+  local function tick()
+    -- The leader or the key itself may have come up while this tick was waiting.
+    if not k.active or k.repeatCode ~= code then return end
+    -- The depth counts the press as 0, so the first repeat is 1. An action that grows with
+    -- the hold reads this, and every action that does not simply ignores an extra argument.
+    fn(k.repeatFired + 1)
+    k.repeatFired = k.repeatFired + 1
+    k.repeatTimer = hs.timer.doAfter(repeatDelay(timing, k.repeatFired), tick)
+  end
+  k.repeatTimer = hs.timer.doAfter(repeatDelay(timing, 0), tick)
 end
 
 --- ChordKey:_passDown(k)
@@ -251,6 +363,10 @@ function obj:start()
         end
       else -- keyUp
         self:_cancelHold(k)
+        -- The leader going up ends everything held under it, the repeat included. The
+        -- repeating key's own up is no longer seen here once no leader is active, so this
+        -- is the only place a lifted leader can stop it.
+        self:_stopRepeat(k)
         if k.shown and k.onHoldEnd then
           k.onHoldEnd(k.code)
         end
@@ -289,9 +405,18 @@ function obj:start()
             held.onHoldEnd(held.code)
             held.shown = false
           end
-          local fn = held.onKey and held.onKey(code, e:getFlags())
+          -- onKey answers the handler plus whether it repeats; keep both, since an `and`
+          -- guard would truncate the pair to one value.
+          local fn, repeats
+          if held.onKey then fn, repeats = held.onKey(code, e:getFlags()) end
           if fn then
-            self:_defer(wasShown and self._overlaySettle or 0, fn)
+            self:_defer(wasShown and self._overlaySettle or 0, function() fn(0) end)
+            -- Under "driven" the repeat is this engine's own schedule, armed here on the
+            -- first press. Under "system" there is nothing to arm, the OS autorepeat below
+            -- is the schedule.
+            if repeats and held.repeatMode == "driven" then
+              self:_startRepeat(held, code, fn)
+            end
             return true, {} -- bound: run the handler and swallow the key
           end
           -- Unbound. With passthrough on, leak the combo downstream so another
@@ -316,8 +441,18 @@ function obj:start()
         if t == types.keyDown and repeated then
           local fn, repeats
           if held.onKey then fn, repeats = held.onKey(code, e:getFlags()) end
-          if fn and repeats then fn() end
+          -- Under "driven" this engine is already firing on a schedule of its own, so the OS
+          -- repeat is swallowed and never acted on, since acting on both would fire twice
+          -- per tick.
+          if fn and repeats and held.repeatMode ~= "driven" then fn() end
           return true, {}
+        end
+        -- The finger coming off the repeating key ends its repeat, and only its own. A
+        -- second bound key pressed under the same leader has already taken the repeat over,
+        -- so the first one's release finds it is no longer the one repeating and leaves the
+        -- newer one running.
+        if t == types.keyUp and held.repeatCode == code then
+          self:_stopRepeat(held)
         end
         -- The release of a key we leaked downstream: send the matching synthetic
         -- up so the app never sees it stuck down. Repeats stay swallowed.
@@ -347,6 +482,7 @@ function obj:stop()
   end
   for _, k in pairs(self._keys or {}) do
     self:_cancelHold(k)
+    self:_stopRepeat(k)
     k.active = false
     k.shown = false
     k.passthroughDown = false

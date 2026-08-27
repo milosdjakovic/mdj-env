@@ -65,6 +65,10 @@ local olm = spoon.Olm:start({
 
   -- Global policy that differs from what Olm ships. Absent means Olm's own default stands.
   policy = {
+    -- The window leader's repeat timing, empty unless this machine wants to differ from its
+    -- own keyboard settings. Merged per key, so the hold delay, the tap threshold and
+    -- passthrough all keep whatever Olm ships.
+    chord          = { repeatTiming = settings.keyRepeat },
     surface        = settings.surface,
     chooserTheme   = settings.chooserTheme,
     cheatSheet     = settings.cheatSheet,

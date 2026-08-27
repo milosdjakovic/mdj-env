@@ -197,6 +197,51 @@ since F16/F17/F18 are not real modifiers and macOS's standard shortcut fields
 reject them; the trade is that the three leaders stay distinct, which one shared
 Hyper modifier combo could not give.
 
+A bound key may also REPEAT while it stays held, and how it repeats is the leader's choice
+rather than the binding's. A binding says only that it repeats, which is a fact about the
+action, since a step is worth doing several times and a placement is not. The mode says how,
+and it is set per registered key in `ChordKey`. `system` leans on the OS autorepeat events
+themselves, so the feel matches every other held key on the machine, which is what a list nav
+key wants and what every existing one already used. `driven` ignores those events and
+schedules the repeats itself, on the same two beats the OS uses, which it READS off the
+machine through `hs.eventtap.keyRepeatDelay` and `hs.eventtap.keyRepeatInterval`, the Delay
+Until Repeat and Key Repeat sliders in System Settings. So a held leader key waits and then
+runs exactly like a held key in any text field, and follows whatever a person set there. That
+long first beat is load bearing rather than politeness, since a rate quick enough to be
+useful, applied from the very first repeat, turns a finger resting a moment too long into
+three moves, and it is why the platform ships two numbers rather than one.
+
+NOTHING RAMPS, in either mode, and that is a decision rather than an omission. The rate is
+the machine's own and it holds steady for as long as the key is down, because a rate that
+shifts under a held finger makes where a window ends up depend on the exact moment it was
+released, which is the opposite of aiming. The `keyRepeat` block of `config/settings.lua` is
+therefore empty, carrying only the commented seam for overriding either beat on purpose.
+
+WHAT THE DRIVEN MODE ACTUALLY BUYS IS A KNOWN DEPTH, not a different rate, since the two
+modes now keep identical time. The engine counts its own repeats where an OS autorepeat event
+carries no count, so a repeating handler is called with how deep into the hold it is, 0 on the
+press and counting up. `WindowManager` reads that depth and travels one of two distances,
+`movePixels` for a press and `movePixelsHeld` for a repeat, which is where the speed of a hold
+comes from given that the rate is fixed. Two distances rather than a ramp between them, for
+the same reason the rate does not ramp, and an action that ignores the argument, which is
+every action that does not repeat, is unaffected. Resizing carries its own larger pair, since
+a move slides a whole window one distance where a resize moves an edge and spends its step
+across two axes at once.
+
+HOW A RESIZE SPENDS THAT STEP IS THE ONE PLACE THE SCREEN'S SHAPE ENTERS. The step is what the
+canvas's long edge grows by and the short edge takes its proportional share, so a window grows
+in the proportions of the screen rather than reaching the top and bottom of an ultrawide long
+before the sides. The long edge is the reference rather than the width, which is what makes a
+rotated screen behave: anchoring on the width would still be proportional, but the step would
+mean the long edge in landscape and the short edge in portrait, so one key would cover very
+different ground either side of a rotation. A square screen is simply where both shares are
+one. Two properties are deliberate on top of
+that. Each tick schedules the next only after the handler returns, so a slow app repeats
+slower rather than queueing a burst. And an action a held key can run away with grows a bound
+of its own, which is why a move stops flush against the same canvas maximize uses and a shrink
+stops at a floor, since a window walked off the screen or down to a sliver has no keystroke
+that brings it back.
+
 `onHold` reveals a cheat sheet, and both cheat sheets draw through one shared
 grid renderer, `Spoons/Olm.spoon/lib/cheatsheet.lua` (dark panel, key-badge rows filled row-major
 across columns). `HyperCheatSheet` and `WindowCheatSheet` only build the content

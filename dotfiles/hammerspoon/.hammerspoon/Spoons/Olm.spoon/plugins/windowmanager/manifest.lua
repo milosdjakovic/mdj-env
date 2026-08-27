@@ -3,6 +3,13 @@
 -- Window positioning and sizing operations only, taking its margins and its settings block
 -- as plain policy data through configure, so neither is a declared need.
 --
+-- Six of the sixteen carry `repeats`, the four moves and the two resize steps, since each of
+-- those is a STEP and a person placing a window by eye wants several of them without pressing
+-- the key several times. The other ten are placements, so holding one would put the window
+-- where it already is, again. How that repeat is timed is not decided here, the window leader
+-- answers it once for every key under it and takes the answer off the machine, which is why an
+-- entry says only that it repeats and never how often.
+--
 -- Its sixteen bindings hang off the WINDOW leader rather than the app leader, and every one
 -- of them, resize, move, center, maximize, and the display switch pair, depends on nothing
 -- local, they behave identically on every Mac. That is the test a default has to pass, and
@@ -89,13 +96,13 @@ return {
       { action = "reasonableSize",       key = "down" },
       { action = "maximize",             key = "return" },
       { action = "smallSize",            key = "Z" },
-      { action = "increaseSize",         key = "=" },
-      { action = "decreaseSize",         key = "-" },
+      { action = "increaseSize",         key = "=", repeats = true },
+      { action = "decreaseSize",         key = "-", repeats = true },
       -- Move (WASD) and center
-      { action = "moveLeft",             key = "a" },
-      { action = "moveRight",            key = "d" },
-      { action = "moveUp",               key = "w" },
-      { action = "moveDown",             key = "s" },
+      { action = "moveLeft",             key = "a", repeats = true },
+      { action = "moveRight",            key = "d", repeats = true },
+      { action = "moveUp",               key = "w", repeats = true },
+      { action = "moveDown",             key = "s", repeats = true },
       { action = "center",               key = "C" },
       -- Hide all except the focused window (kept last so it sits in the last row)
       { action = "hideAllExceptFocused", key = "H" },
