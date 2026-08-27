@@ -221,14 +221,18 @@ function obj:configure(opts)
     onSelect = function(item)
       if item then
         -- Promote now, on the true "user chose this row" moment, so the order
-        -- persists at once even though the run is deferred below. Any kind counts.
+        -- persists at once even though a kind that acts on the world still defers its own
+        -- run below. Any kind counts.
         self:_promote(recencyKey(item))
-        -- The run waits a beat for focus to return to the app the launcher covered, and the
-        -- timer is held in a field for the length of that wait. A Hammerspoon timer is
-        -- userdata whose finalizer stops it, so one nothing refers to can be collected
-        -- before it fires, and the chosen row would then do nothing at all. Only one is
-        -- ever pending, because choosing a row closes the chooser.
-        self._runTimer = hs.timer.doAfter(0.1, function() self:_runItem(item) end)
+        -- _runItem is called straight, not deferred here any more. Decision four of the
+        -- handoff brief, the deferral moves inside the dispatcher's own branches, since a
+        -- presenting tool's row never reaches onSelect at all, decision two, it completes
+        -- through intercept above and stage.push, and the kinds that do still reach here,
+        -- app, window, capture, settingsPane, calc, scope, and an unmigrated special, are
+        -- the only ones that still genuinely need to wait for focus to return before acting,
+        -- so each of those branches now owns its own wait rather than one wrapper owning it
+        -- for a switch it cannot see inside.
+        self:_runItem(item)
       end
     end,
     -- Whether a row means this list becomes another list rather than being taken, asked by the
@@ -264,11 +268,13 @@ function obj:configure(opts)
     peekPreview = function() self:peekSelected() end,
   }
 
-  -- The stage's own nav adapter, shared rather than built here. A host that owned its
-  -- instance built its own dot-called adapter over it; a host that presents into a shared
-  -- one delegates to the one adapter the stage already built over that instance, so the
-  -- root's shared activeChooser / routeNav registry drives it exactly as it always did.
-  self._surface = self._stage and self._stage.surface or nil
+  -- The stage's own nav adapter, scoped to this presentation's own name rather than the
+  -- shared, unscoped one. Phase two pointed this at self._stage.surface directly, which
+  -- answers isShowing for the window itself, correct only because the launcher was the one
+  -- presentation there was. Now that VPN presents too, host/stage's own surfaceFor is what
+  -- keeps j, k, and every other routed key reaching whichever presentation is actually on
+  -- screen rather than whichever one is earliest in plan.order, review finding ten.
+  self._surface = self._stage and self._stage:surfaceFor(self._presentation.name) or nil
 
   return self
 end
@@ -898,42 +904,68 @@ end
 --- Launcher:_runItem(it)
 --- Method
 --- The one dispatcher. Maps a row descriptor back to a call. The launcher owns the
---- kind switch; the leaf calls are injected, so it names no domain spoon. Window
---- actions come straight from the injected windowActions table.
+--- kind switch; the leaf calls are injected, so it names no domain spoon.
+---
+--- Decision four of the handoff brief, the deferral moved inside these branches rather than
+--- wrapping the whole switch from outside, review 9.7's own warning accepted and answered.
+--- Every branch below still waits the same 0.1 seconds for focus to return to the app the
+--- launcher covered before it acts, since app, window, capture, settingsPane, calc, and scope
+--- all genuinely act on the world once that focus is back, window actions the clearest case,
+--- reading hs.window.focusedWindow(). special waits too, but only ever runs for an
+--- unmigrated tool or a bare command, since a presenting tool's own row never reaches this
+--- function at all, decision two, it completes through the presentation's own intercept and
+--- stage.push before onSelect is ever asked, synchronously, with no close and no wait.
+--- self._runTimer holds whichever branch's timer, one at a time, since only one kind ever
+--- fires per call and a Hammerspoon timer nothing refers to can be collected before it runs.
 function obj:_runItem(it)
   if not it then return end
   local a = self._actions
   if it.kind == "app" then
-    if a.app then a.app(it.bundleID, it.url) end
+    self._runTimer = hs.timer.doAfter(0.1, function()
+      if a.app then a.app(it.bundleID, it.url) end
+    end)
   elseif it.kind == "window" then
-    local fn = self._windowActions[it.name]
-    if fn then fn() end
+    self._runTimer = hs.timer.doAfter(0.1, function()
+      local fn = self._windowActions[it.name]
+      if fn then fn() end
+    end)
   elseif it.kind == "capture" then
-    if a.capture then a.capture(it.name) end
+    self._runTimer = hs.timer.doAfter(0.1, function()
+      if a.capture then a.capture(it.name) end
+    end)
   elseif it.kind == "special" then
     -- Two sources, not a leak. A name the registry answers is a tool, and everything left
     -- in actions.special is a bare command with no tool behind it, so one lookup for each
     -- is honest rather than one pretending every special row is a plugin. The registry is
     -- asked first and only a name it does not run falls through to actions.special, which
-    -- registration itself makes safe, since a name cannot be claimed by both.
-    local ran = self._registry and self._registry.run(it.name)
-    if not ran then
-      local fn = a.special and a.special[it.name]
-      if fn then fn() end
-    end
+    -- registration itself makes safe, since a name cannot be claimed by both. Reached only
+    -- for an unmigrated tool or a bare command, see this method's own doc comment above.
+    self._runTimer = hs.timer.doAfter(0.1, function()
+      local ran = self._registry and self._registry.run(it.name)
+      if not ran then
+        local fn = a.special and a.special[it.name]
+        if fn then fn() end
+      end
+    end)
   elseif it.kind == "settingsPane" then
-    if a.settingsPane then a.settingsPane(it.url) end
+    self._runTimer = hs.timer.doAfter(0.1, function()
+      if a.settingsPane then a.settingsPane(it.url) end
+    end)
   elseif it.kind == "calc" then
     -- A computed result is put somewhere useful by an injected action, so the launcher
     -- does not learn what a clipboard is, exactly as it does not learn what an app or a
     -- capture is. A pending row carries no value and is disabled, so it never arrives.
-    if it.value and a.copy then a.copy(it.value) end
+    self._runTimer = hs.timer.doAfter(0.1, function()
+      if it.value and a.copy then a.copy(it.value) end
+    end)
   elseif it.kind == "scope" then
     -- A row that came from a source claiming the query. It carries the name of whatever
     -- made it plus that thing's own descriptor, and an injected action hands both back, so
     -- the launcher routes the row without learning which tool it belongs to or what the
     -- payload inside it means, exactly as it does for a computed result.
-    if a.scope then a.scope(it) end
+    self._runTimer = hs.timer.doAfter(0.1, function()
+      if a.scope then a.scope(it) end
+    end)
   end
 end
 
@@ -1037,17 +1069,19 @@ end
 --- Launcher:isShowing()
 --- Method
 --- Whether the stage's window is actually up AND the launcher itself, rather than some other
---- presentation, is what it currently shows. Safe before configure. Both halves are load
---- bearing. The name check is what keeps this answering false once a future presentation is
---- what the shared window actually holds. The visibility check is what keeps this answering
---- false the moment the window genuinely tears down even if the stack briefly disagrees,
---- finding two of the phase two adversarial review, a present that lands in the narrow gap
---- where the widget is still dismissing can leave the stack claiming the launcher is current
---- with no window behind it, and this predicate must not stay stuck on through that, since
---- launcherOpen gates j, k, space, and the action panel chord.
+--- presentation, is what it currently shows. Safe before configure. Delegates to self._surface,
+--- host/stage's own surfaceFor, which answers exactly this question and is now the one place
+--- that answer is written, so this predicate and lib/nav.lua's own routing can never drift
+--- apart the way review finding ten warned two separate answers to the same question would.
+--- Both halves stay load bearing inside that one answer. The name check is what keeps this
+--- false once a future presentation is what the shared window actually holds. The visibility
+--- check is what keeps this false the moment the window genuinely tears down even if the
+--- stack briefly disagrees, finding two of the phase two adversarial review, a present that
+--- lands in the narrow gap where the widget is still dismissing can leave the stack claiming
+--- the launcher is current with no window behind it, and this predicate must not stay stuck
+--- on through that, since launcherOpen gates j, k, space, and the action panel chord.
 function obj:isShowing()
-  return self._presentation ~= nil and self._stage ~= nil
-    and self._stage:isShowing() and self._stage:current() == self._presentation.name
+  return self._surface ~= nil and self._surface.isShowing()
 end
 
 --- Launcher:surface()

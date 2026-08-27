@@ -331,6 +331,52 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
     end
   end
 
+  -- presentation, phase three of the chooser stage build, docs/BRIEF-HANDOFF.md decision
+  -- three. Read off the manifest directly rather than off info, since a presentation is not
+  -- registry policy a person's own cfg.registry could reasonably override, it is a structural
+  -- fact about how this plugin shows its own rows, so there is no second source to merge
+  -- against here the way registry itself merges against meta.
+  --
+  -- rows and select are required, resolved through obj.action exactly as a scope's own rows
+  -- and run already are, so the module is looked up fresh every time a row is chosen rather
+  -- than once here, the identical laziness every other member this file resolves already
+  -- keeps for a plugin that assembles its own module inside its own configure. select is the
+  -- manifest's own word for the contract's onSelect, the same word this plugin's own
+  -- provides.select and registry.scope.run already use for the identical function, so one
+  -- plugin never has to name the same member two different ways.
+  --
+  -- placeholder is resolved differently, once, right here, rather than handed over as a
+  -- closure, because the presentation contract wants a plain string a presentation carries,
+  -- not a function to call later. By the time this file runs, register is the fifth of the
+  -- eight fixed stages, every plugin's own wiring step has already run, so a member that
+  -- reads live state, VPN's own available flag among them, answers the real answer rather
+  -- than one frozen before that state existed.
+  --
+  -- The remaining five contract fields, intercept, back, onHighlight, onClose, and
+  -- peekPreview, resolve the same way rows does, and a plugin naming none of them hands the
+  -- stage a presentation with nothing under that name, exactly as an ordinary presentation
+  -- table already allows. rowCount is read as a plain number, never a member, since the
+  -- contract itself never asks it to be computed.
+  local presentation = nil
+  if type(manifest.presentation) == "table" then
+    local p = manifest.presentation
+    presentation = {
+      name = identity,
+      rows = obj.action(modules, identity, name, p.rows, nil),
+      onSelect = obj.action(modules, identity, name, p.select, nil),
+      intercept = obj.action(modules, identity, name, p.intercept, nil),
+      back = obj.action(modules, identity, name, p.back, nil),
+      onHighlight = obj.action(modules, identity, name, p.onHighlight, nil),
+      onClose = obj.action(modules, identity, name, p.onClose, nil),
+      peekPreview = obj.action(modules, identity, name, p.peekPreview, nil),
+      rowCount = p.rowCount,
+    }
+    if p.placeholder ~= nil then
+      local resolvePlaceholder = obj.action(modules, identity, name, p.placeholder, nil)
+      presentation.placeholder = resolvePlaceholder and resolvePlaceholder()
+    end
+  end
+
   return {
     name = identity,
     apiVersion = apiVersion,
@@ -341,6 +387,7 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
     scope = scope,
     row = row,
     surface = surface,
+    presentation = presentation,
   }
 end
 

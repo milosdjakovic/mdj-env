@@ -375,13 +375,21 @@ local function shortcutsContent(theme, hints)
   }
 end
 
--- The deferred shortcut hint panel, one per context. Builds a fresh docked panel through
--- deps.canvasPanel, inheriting the shared surface so it matches the native picker, with that
--- context's footerFor hints as its content, and returns the three callbacks a native chooser
--- is wired with. arm on onPositioned starts the idle countdown, poke on onActivity resets it
--- on each keypress, and hide on onClose tears it down and clears any peeked overlay through
--- the injected hideShortcuts. A caller must call this once per plugin and never share one
--- panel across two, since every call here builds a new one.
+-- The deferred shortcut hint panel, one per context, ordinarily. Builds a fresh docked panel
+-- through deps.canvasPanel, inheriting the shared surface so it matches the native picker,
+-- with that context's footerFor hints as its content, and returns the three callbacks a
+-- native chooser is wired with. arm on onPositioned starts the idle countdown, poke on
+-- onActivity resets it on each keypress, and hide on onClose tears it down and clears any
+-- peeked overlay through the injected hideShortcuts. A caller must call this once per plugin
+-- and never share one panel across two, since every call here builds a new one.
+--
+-- contextName is ordinarily a plain string, one context for the life of this panel, which is
+-- true for every plugin that owns its own window. Phase three of the chooser stage build adds
+-- the other shape, a function, for the one panel that does not, host/stage's own fixed,
+-- constructor time panel, which outlives every presentation it will ever show hints for.
+-- Asked fresh on every reveal rather than once here, since the panel is built long before
+-- anyone can say which presentation it will be showing hints for on any one open, decision
+-- seven of the handoff brief, contexts and hints follow current().
 function obj.shortcutPanelFor(contextName, plan, deps)
   local shortcutsPanel = deps and deps.settings and deps.settings.shortcutsPanel
   local panel = deps.canvasPanel.new({
@@ -390,8 +398,12 @@ function obj.shortcutPanelFor(contextName, plan, deps)
     padX = 14, padY = 10,
     delay = shortcutsPanel and shortcutsPanel.delayMs,
     -- Handed as a question rather than as an answer, so a binding whose predicate turns
-    -- while the list is open is listed only while it means something.
-    content = shortcutsContent(deps and deps.theme, function() return obj.footerFor(contextName, plan, deps) end),
+    -- while the list is open is listed only while it means something, and so a caller naming
+    -- a function rather than a string is asked again on every reveal rather than once here.
+    content = shortcutsContent(deps and deps.theme, function()
+      local name = type(contextName) == "function" and contextName() or contextName
+      return obj.footerFor(name, plan, deps)
+    end),
   })
   return {
     onPositioned = function(frame) panel:arm(frame) end,

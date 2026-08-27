@@ -3,16 +3,24 @@
 --- The one host owning the single live chooser instance every tool presents into. A
 --- presentation is a plain table of policy, name, placeholder, rows, onSelect, and the rest
 --- of the presentation contract, and this host is the engine that shows whichever one is
---- current. Presentations stack, present pushes, backspace on an empty field pops, hide
---- clears. This is Strategy for the presentations over one engine, wired at the composition
---- root, which is the only place that ever hands this host a concrete presentation.
+--- current. Two doors show one, present and push, docs/BRIEF-HANDOFF.md decision one.
+--- present means a fresh stack, the shape a hotkey opening its own tool wants, replacing
+--- whatever stack exists even while the window is already up. push means stack on top of
+--- what is showing, the shape a launcher row choosing a presenting tool wants, so drilling
+--- into VPN from the launcher is a swap rather than a close and a reopen. Backspace on an
+--- empty field pops, hide clears. This is Strategy for the presentations over one engine,
+--- wired at the composition root, which is the only place that ever hands this host a
+--- concrete presentation.
 ---
---- Phase two of the stage design build plan, host/stage owning the one Chooser.new and the
---- launcher migrated onto it as the first presentation. Twelve other consumers still open
---- their own window, the overlay display picker among them, that is later phases, so this
---- host's stack sits at depth one everywhere today, which is correct and expected here. See
---- docs/BRIEF-STAGE.md for the decisions this file follows, and its own evidence in
---- docs/CONSUMER-MAP-2026-08-27.md.
+--- Phase two built this host with the launcher as its only presentation, one door, present,
+--- serving both the hotkey open and the reopen of what is already current, since with one
+--- presentation the two questions never came apart. Phase three of the handoff brief adds
+--- push, VPN as the first tool migrated onto it, and widens onClose so a discarded stack
+--- tells every level rather than only the one on top, decision six. Every other consumer
+--- still opens its own window, that is phase five, so this host's stack sits at depth two at
+--- most today, launcher then VPN. See docs/BRIEF-STAGE.md and docs/BRIEF-HANDOFF.md for the
+--- decisions this file follows, and their own evidence in docs/CONSUMER-MAP-2026-08-27.md
+--- and docs/REVIEW-STAGE-PHASE2.md.
 ---
 --- One instance, built once at configure, never rebuilt. Every consumer used to build its own
 --- hs.chooser and tear it down with its window; this host builds one and keeps it for the
@@ -25,6 +33,14 @@
 --- the life of the one instance, never per presentation, the same list the stage design
 --- brief's own decisions name. A presentation that wants any of those is asking the wrong
 --- layer.
+---
+--- surfaceFor(name), added this phase, is the fix for a divergence phase two only warned
+--- about. The one nav adapter every presenting plugin used to share answered isShowing for
+--- the window, not for whichever presentation actually owned it, so once a second
+--- presentation existed the earliest one in plan.order would have won every routed key
+--- regardless of which was really on screen. Each presenting plugin now asks this host for
+--- an adapter scoped to its own name instead, host/launcher/init.lua and VPN's own manifest
+--- presentation block alike, closing review finding ten.
 
 local obj = {}
 obj.__index = obj
@@ -140,30 +156,14 @@ function obj:configure(opts)
     onClose = function() self:_onClose() end,
   })
 
-  -- The one nav adapter every presenting plugin's own surface delegates to, phase two's
-  -- launcher included. isShowing, selectNext, selectPrev, insertSelected, and hide answer
-  -- against this host's own instance regardless of which presentation is current, since
-  -- moving the highlight means the same thing whatever is on screen. peekPreview is the
-  -- exception, the sixth function consumer map section 2.2 already found on the launcher's
-  -- own surface, so it is asked of the current presentation and answered only when that
-  -- presentation carries one.
-  --
-  -- WARNING FOR WHOEVER MIGRATES THE SECOND PRESENTATION ONTO THIS HOST. isShowing here
-  -- answers for the shared window, not for whichever presentation's own surface reaches it.
-  -- Every presenting plugin's manifest still points its own surface.member at ITS OWN adapter,
-  -- the launcher's is _surface, and that adapter's isShowing is this one, shared. Today the two
-  -- questions, is the launcher current and is the window up, always agree, because the launcher
-  -- is the only presentation there is. The moment a second one lands, lib/nav.lua's
-  -- activeSurface picks the FIRST adapter in plan.order whose isShowing answers true, and since
-  -- every presenting plugin's isShowing would be this same shared function, whichever of them
-  -- sits earliest in plan.order, the launcher today, wins the routing no matter which
-  -- presentation is actually on screen, and every navigation key reaches the wrong tool's own
-  -- rows and dispatch. Finding 10 of the phase two adversarial review names this. The honest
-  -- fix is for a presenting plugin's own surface to stop lending this shared isShowing at all
-  -- and answer instead whether ITS OWN presentation is current, host/launcher/init.lua's own
-  -- isShowing already does exactly that rather than delegating to this table for that one
-  -- question, and whichever plugin migrates next should follow it rather than this shared
-  -- surface as written today.
+  -- The one nav adapter, unscoped, answering isShowing for the shared window itself rather
+  -- than for any one presentation. selectNext, selectPrev, insertSelected, and hide are safe
+  -- to share exactly as written, since moving the highlight or hiding the window means the
+  -- same thing regardless of which presentation asked, and so is peekPreview, which is
+  -- already scoped by reading whatever _current answers rather than by anything the caller
+  -- states. isShowing is the one member a presenting plugin must never point at directly, see
+  -- surfaceFor below, which is why this table is kept for the members that are safe to share
+  -- rather than handed out by name to every presenting plugin's own surface.member.
   self.surface = {
     isShowing = function() return self:isShowing() end,
     selectNext = function() if self._instance then self._instance:selectNext() end end,
@@ -177,6 +177,28 @@ function obj:configure(opts)
   }
 
   return self
+end
+
+--- Stage:surfaceFor(name) -> table
+--- Method
+--- The nav adapter one presenting plugin's own context should point at, isShowing scoped to
+--- whether THIS name is the one currently presented, the other four members reused exactly
+--- as this.surface already answers them, since selectNext, selectPrev, insertSelected, and
+--- hide are correct regardless of which presenting plugin's own adapter happened to be asked,
+--- only isShowing decides who wins lib/nav.lua's own activeSurface race. This is the fix
+--- review finding ten asked for, generalised so a second presenting plugin costs no new
+--- routing logic anywhere, only a call to this method from wherever that plugin's own surface
+--- is resolved.
+function obj:surfaceFor(name)
+  local shared = self.surface
+  return {
+    isShowing = function() return self:current() == name and self:isShowing() end,
+    selectNext = shared.selectNext,
+    selectPrev = shared.selectPrev,
+    insertSelected = shared.insertSelected,
+    hide = shared.hide,
+    peekPreview = shared.peekPreview,
+  }
 end
 
 -- The presentation currently on top of the stack, or nil when nothing is presented. Every
@@ -199,27 +221,61 @@ function obj:_captureWorld()
   end
 end
 
+-- Whether p is a well formed presentation, name, rows, and onSelect all required and
+-- nothing else asked, the same three fields BRIEF-STAGE.md's own contract calls required.
+-- Shared by present and push so the two doors refuse a malformed table identically, naming
+-- what was missing, the same discipline lib/registry.lua's own register keeps for a
+-- malformed descriptor.
+local function isPresentation(p)
+  return type(p) == "table" and type(p.name) == "string" and p.name ~= ""
+    and type(p.rows) == "function" and type(p.onSelect) == "function"
+end
+
+-- Every presentation currently on the stack is told its own onClose, top down, without
+-- touching the stack itself, the caller's job. Decision six of the handoff brief, closing
+-- review finding twelve, a discarded level used to hear nothing at all. A presentation that
+-- declares none is silently skipped, exactly as an ordinary missing field already is
+-- everywhere else in this file.
+local function closeStack(stack)
+  for i = #stack, 1, -1 do
+    local p = stack[i]
+    if p.onClose then p.onClose() end
+  end
+end
+
+-- What both doors do once the stack itself has already been decided, placeholder first
+-- since setting it cannot change visibility, then a swap into a window already up or a cold
+-- show into a hidden one, the single question every caller of this asked before calling it.
+function obj:_show(p, wasShowing)
+  self._instance:setPlaceholder(p.placeholder or "")
+  if wasShowing then
+    self._instance:setQuery("")
+    self._instance:refresh(true)
+  else
+    self:_captureWorld()
+    self._instance:show()
+  end
+end
+
 --- Stage:present(p) -> bool
 --- Method
---- Show p. Resets the highlight to row one either way, per decision two of the stage design
---- brief. Answers false and refuses when p is not a presentation this host can show, naming
---- what was missing, the same discipline lib/registry.lua's own register keeps for a
---- malformed descriptor.
+--- The hotkey door, decision one of the handoff brief. Always a fresh stack, p and nothing
+--- below it, replacing whatever stack exists even while the window is already up, which is
+--- what closes review finding four, a tool opened by its own hotkey no longer becomes a
+--- level of whatever happened to be showing. Resets the highlight to row one either way.
+--- Answers false and refuses when p is not a presentation this host can show.
 ---
---- One question decides everything else, whether the window is already up. Findings two, four,
---- and five of the phase two adversarial review are one mechanism for the same reason, a
---- present that finds the window hidden cannot trust anything the stack still holds, since
---- nothing can genuinely be mid drill with no window to have drilled in, so it starts a FRESH
---- stack, p and nothing below it, rather than pushing onto whatever is there, and this is also
---- the one moment the world is captured, once per stack by construction rather than once per
---- hidden present, since a fresh stack and a world capture are now the same branch and cannot
---- drift apart. A present that finds the window already up is a swap, joining the existing
---- stack unless p is already the presentation on top, in which case this is a reopen of what
---- is already current rather than a second level of it, the shape a tool's own hotkey opening
---- its own already-open list needs.
+--- The discarded stack, if there was one, is told its own onClose top down before it is
+--- dropped, decision six, UNLESS the discarded stack was already exactly p alone, which is a
+--- reopen of what is already current rather than anything hiding, the shape a tool's own
+--- hotkey opening its own already-open list needs and the one case that must not fire a
+--- presentation's onClose over being asked to show itself again.
+---
+--- The world is captured exactly when the window was hidden, once per stack by construction
+--- rather than once per hidden present, findings two and five, since a fresh stack and a
+--- world capture are the same branch inside _show and cannot drift apart.
 function obj:present(p)
-  if type(p) ~= "table" or type(p.name) ~= "string" or p.name == ""
-    or type(p.rows) ~= "function" or type(p.onSelect) ~= "function" then
+  if not isPresentation(p) then
     log.w("Stage present was given something that is not a presentation, name, rows, and onSelect are all required, refusing")
     return false
   end
@@ -228,19 +284,47 @@ function obj:present(p)
     return false
   end
 
+  local old = self._stack
   local wasShowing = self._instance:isShowing()
-  self._instance:setPlaceholder(p.placeholder or "")
-  if wasShowing then
-    if self:_current() ~= p then
-      self._stack[#self._stack + 1] = p
-    end
-    self._instance:setQuery("")
-    self._instance:refresh(true)
-  else
-    self._stack = { p }
-    self:_captureWorld()
-    self._instance:show()
+  if not (#old == 1 and old[1] == p) then
+    closeStack(old)
   end
+  self._stack = { p }
+  self:_show(p, wasShowing)
+  return true
+end
+
+--- Stage:push(p) -> bool
+--- Method
+--- The row selection door, decision one and two of the handoff brief. Stacks p on top of
+--- whatever is already showing, the shape a launcher row choosing a presenting tool wants,
+--- so drilling into VPN from the launcher is a swap into a window already up rather than a
+--- close and a reopen. Tells nobody's onClose, decision six, since pushing discards
+--- nothing, it only adds a level. Answers false and refuses when p is not a presentation
+--- this host can show.
+---
+--- A push that finds the window hidden has nothing to stack on top of, so it degrades to
+--- present's own fresh stack and world capture instead, the correct answer for a caller
+--- that assumed a window already up and was wrong, rather than an undefined third shape.
+--- Pushing the presentation already on top is a reopen, the identical dedup present's own
+--- reopen case keeps, and neither pushes a duplicate level nor fires anyone's onClose.
+function obj:push(p)
+  if not isPresentation(p) then
+    log.w("Stage push was given something that is not a presentation, name, rows, and onSelect are all required, refusing")
+    return false
+  end
+  if not self._instance then
+    log.w(string.format("Stage push for '%s' arrived with no instance built, refusing", p.name))
+    return false
+  end
+
+  local wasShowing = self._instance:isShowing()
+  if not wasShowing then
+    self._stack = { p }
+  elseif self:_current() ~= p then
+    self._stack[#self._stack + 1] = p
+  end
+  self:_show(p, wasShowing)
   return true
 end
 
@@ -248,12 +332,15 @@ end
 --- Method
 --- Back one presentation, restoring the one below with an empty query and the highlight at
 --- row one, answering false when the stack holds one or none, the case that leaves backspace
---- an ordinary press. Self sufficient, rebuilding the rows and the highlight itself rather
---- than relying on being called only from the atom's own back path, so a caller reaching this
---- directly gets the same result Backspace does.
+--- an ordinary press. Tells only the one leaving its own onClose, decision six, never the one
+--- it lands back on, since that one is not hiding, it is what is left showing. Self
+--- sufficient, rebuilding the rows and the highlight itself rather than relying on being
+--- called only from the atom's own back path, so a caller reaching this directly gets the
+--- same result Backspace does.
 function obj:pop()
   if #self._stack <= 1 then return false end
-  table.remove(self._stack)
+  local leaving = table.remove(self._stack)
+  if leaving.onClose then leaving.onClose() end
   local below = self:_current()
   if self._instance then
     self._instance:setPlaceholder(below and below.placeholder or "")
@@ -266,9 +353,17 @@ end
 --- Stage:hide()
 --- Method
 --- Hide the window and clear the stack, unconditionally, so a fresh present afterward always
---- starts a fresh stack whatever state the last one was left in.
+--- starts a fresh stack whatever state the last one was left in. Tells every presentation
+--- still on the stack its own onClose, top down, decision six, the same widened notice
+--- _onClose gives the atom's own teardown. The two can run for the same hide, since
+--- self._instance:hide() below fires the atom's own teardown synchronously when the window
+--- was genuinely showing, which already empties the stack through _onClose before this
+--- function's own closeStack call ever runs, leaving nothing left to walk and making the
+--- second call harmless rather than a second notice, the identical reasoning phase two's own
+--- version of this method already relied on for clearing the stack twice.
 function obj:hide()
   if self._instance then self._instance:hide() end
+  closeStack(self._stack)
   self._stack = {}
 end
 
@@ -400,15 +495,16 @@ function obj:_onHighlight(item)
 end
 
 -- Fired for any teardown, a completed selection, escape, a click away, or a programmatic
--- hide, never for a swap between presentations while the window stays open, since a swap
--- never tears the atom down at all. Tells the fixed docked panel first, since that is atom
--- level infrastructure this host owns regardless of what was showing, then the current
--- presentation's own onClose when it declares one, then clears the whole stack, so the next
--- present anywhere starts fresh.
+-- hide, never for a swap or a push between presentations while the window stays open, since
+-- neither ever tears the atom down at all. Tells the fixed docked panel first, since that is
+-- atom level infrastructure this host owns regardless of what was showing, then every
+-- presentation still on the stack its own onClose, top down, decision six of the handoff
+-- brief, closing review finding twelve, which used to tell only the one on top and leave
+-- every level below it silently discarded. Then clears the whole stack, so the next present
+-- or push anywhere starts fresh.
 function obj:_onClose()
-  local p = self:_current()
   if self._panelOnClose then self._panelOnClose() end
-  if p and p.onClose then p.onClose() end
+  closeStack(self._stack)
   self._stack = {}
 end
 

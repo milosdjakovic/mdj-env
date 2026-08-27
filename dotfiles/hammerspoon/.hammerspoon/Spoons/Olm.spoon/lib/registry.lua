@@ -373,6 +373,34 @@ function M.new(opts)
     return true
   end
 
+  -- A presentation is optional, and when present it is validated the way a scope is,
+  -- structural rather than partial, refusing the whole registration rather than accepting a
+  -- presentation with nothing to show, the identical discipline scopeIsWellFormed already
+  -- keeps just above. rows and onSelect are both required, the same two the presentation
+  -- contract itself, BRIEF-STAGE.md version one, calls required beside name, name being this
+  -- registry's own to stamp on rather than anything a manifest declares. Every other field a
+  -- presentation carries, intercept, back, onHighlight, onClose, peekPreview, and rowCount, is
+  -- optional and passed through untouched, since the stage itself already answers for what a
+  -- presentation with a hole in one of those means.
+  local function presentationIsWellFormed(presentation, name)
+    if type(presentation) ~= "table" then
+      log.w(string.format(
+        "Registry refused '%s', its presentation is present and is not a table", name))
+      return false
+    end
+    if type(presentation.rows) ~= "function" then
+      log.w(string.format(
+        "Registry refused '%s', its presentation has no rows function", name))
+      return false
+    end
+    if type(presentation.onSelect) ~= "function" then
+      log.w(string.format(
+        "Registry refused '%s', its presentation has no onSelect function", name))
+      return false
+    end
+    return true
+  end
+
   -- A commands entry is a bare function, the shape packet one gave it, or a table
   -- carrying that function under fn plus its own optional row and, since phase seven's
   -- fifth and last packet, its own optional shortcut, the shape this packet adds so
@@ -463,6 +491,9 @@ function M.new(opts)
     if not rowIsWellFormed(descriptor.row, name) then return false end
     if not scopeIsWellFormed(descriptor.scope, name) then return false end
     if not shortcutIsWellFormed(descriptor.shortcut, descriptor.open ~= nil, name) then return false end
+    if descriptor.presentation ~= nil and not presentationIsWellFormed(descriptor.presentation, name) then
+      return false
+    end
     for key, spec in pairs(commands) do
       local fn, commandRow, commandShortcut = commandParts(spec)
       if not fn then
@@ -476,7 +507,8 @@ function M.new(opts)
     end
 
     toolsByName[name] = descriptor
-    flatIndex[name] = { tool = name, fn = descriptor.open, row = descriptor.row, scope = descriptor.scope }
+    flatIndex[name] = { tool = name, fn = descriptor.open, row = descriptor.row, scope = descriptor.scope,
+      presentation = descriptor.presentation }
     order[#order + 1] = name
     for key, spec in pairs(commands) do
       local fn, commandRow = commandParts(spec)
@@ -548,6 +580,18 @@ function M.new(opts)
     local entry = flatIndex[name]
     if not entry or not activeTools[entry.tool] then return nil end
     return entry.scope
+  end
+
+  --- instance.presentationFor(name)
+  --- The presentation table of an active tool, or nil, the same shape rowFor and scopeFor
+  --- already answer in. Phase three of the chooser stage build. nil for a tool that never
+  --- declared one, which is what lets a launcher row fall through to the old close, defer,
+  --- open path without the caller ever having to ask what migrated means, and nil for an
+  --- inactive tool too, the same rule every other read through this flat index already keeps.
+  function instance.presentationFor(name)
+    local entry = flatIndex[name]
+    if not entry or not activeTools[entry.tool] then return nil end
+    return entry.presentation
   end
 
   --- instance.active()

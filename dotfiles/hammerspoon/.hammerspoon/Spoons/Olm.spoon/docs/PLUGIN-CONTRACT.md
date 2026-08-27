@@ -547,6 +547,78 @@ proved.
 **A user override merges into this block rather than replacing it.** The first attempt
 got this backwards and a user changing one key destroyed that plugin's whole context.
 
+### presentation
+
+Phase three of the chooser stage build, docs/BRIEF-HANDOFF.md. A plugin declares this block
+when it shows its own rows through host/stage, the one host owning the single live chooser
+instance every presenting plugin shows into, rather than calling `Chooser.new` and building
+a window of its own. VPN is the first and, as of this phase, only plugin that does.
+
+```lua
+presentation = {
+  rows        = { member = "rows", call = "dot" },      -- required
+  select      = { member = "select", call = "dot" },    -- required
+  placeholder = { member = "placeholder", call = "dot" }, -- optional
+  intercept   = { member = "intercept", call = "dot" },  -- optional
+  back        = { member = "back", call = "dot" },       -- optional
+  onHighlight = { member = "onHighlight", call = "dot" },-- optional
+  onClose     = { member = "onClose", call = "dot" },    -- optional
+  peekPreview = { member = "peekPreview", call = "dot" },-- optional
+  rowCount    = 2,                                       -- optional, a plain number
+}
+```
+
+Every field but `rowCount` is a member spec, the identical bare string or `{ member, call }`
+table `registry.open` and `registry.scope` already resolve, and for the identical reason,
+`call` defaults to `method` and must say `dot` for a plugin whose own functions are plain
+dot called rather than colon methods. The words are the presentation contract's own,
+BRIEF-STAGE.md version one, `rows`, `onSelect`, `placeholder`, `intercept`, `back`,
+`onHighlight`, `onClose`, `peekPreview`, with one deliberate difference. This block calls
+the contract's `onSelect` field `select` instead, the same word `provides.select` and
+`registry.scope.run` already use for a plugin's own selection member, so one plugin never
+has to name the same function two different ways depending on which part of the config is
+asking.
+
+`rows` and `select` are required. A plugin naming neither, or naming one without the other,
+is not refused outright, `lib/registry.lua`'s own `presentationIsWellFormed` refuses the
+whole registration the same way a malformed `scope` already does, structural rather than
+partial, since a presentation with a hole in either of these two is not a presentation
+anything could show.
+
+Every field the registrar resolves into a member becomes a closure on the presentation
+table it hands to `registry.presentationFor(name)`, resolved fresh against the real module
+on every call rather than once when this plugin wired, the identical laziness `registry.open`
+and every scope action already keep, so a plugin that builds one of these functions inside
+its own `configure` is still found once that has actually run. `placeholder` is the one
+exception. It is called ONCE, at register time, stage five of the eight fixed stages, and
+the plain string it answers is what the presentation table carries from then on, since the
+presentation contract wants a value a presentation carries, not a function to call again
+later. By register time every plugin's own wiring step has already run, so a placeholder
+member that reads live state, VPN's own `available` flag among them, answers the real
+answer rather than one frozen before that state existed.
+
+`name` is never declared here. The registrar stamps the plugin's own resolved identity onto
+it, the same identity `registry.presentationFor` is keyed by, so a presentation always
+answers to the one name the rest of this configuration already knows it by.
+
+**A presenting plugin declares no `registry.surface`.** The object that used to answer
+`isShowing`, `selectNext`, `selectPrev`, `insertSelected`, and `hide` for a plugin's own
+picker is now `host/stage`'s own `surfaceFor(identity)`, resolved by the composition root
+the moment `registry.presentationFor` answers something for that identity, so a
+`registry.surface` entry left in place would be dead weight nobody reads rather than a
+second answer. `registry.open` still stays, and still matters, it is what this plugin's own
+leader key binds to directly, the hotkey door, and what an unmigrated fallback would still
+call if `presentationFor` ever answered nil for a name it used to answer for.
+
+**`surface` itself is unchanged and still required.** `context`, `primary`, `nav`, and
+`extra` are what `plan.contexts` is built from and what the navigation bind loop still binds
+a presenting plugin's own keys against, `presentation` only changes which object answers
+for those bindings once they fire, never whether they exist. `panelAs` stops mattering to a
+presenting plugin's own `configure`, since the docked shortcut panel is atom level policy
+`host/stage` owns for the life of its one instance rather than something a presentation
+carries, but the field may still need to stay declared if `services.perPlugin` computing it
+is what something else, the composition root's own stage wiring today, still reads it for.
+
 ### wiring
 
 The steps Olm must run beyond `configure`, in order. Omit it and Olm calls
@@ -647,6 +719,10 @@ row silently vanished.
 - A surfaced plugin declares `surface` and does not declare `chooser` or `theme`.
 - A plugin that wants a launcher row, a word, or a key declares `registry`, and its `row`
   carries a `category`, without which no row is built.
+- A plugin that shows its own rows through the shared stage rather than building its own
+  `Chooser.new` declares `presentation`, with `rows` and `select` required, and declares no
+  `registry.surface`, since host/stage answers navigation for it once presentationFor
+  answers something.
 - `configure` is a colon method, and so is every `wiring` target, unless the step says
   `call = "dot"`. Everything Olm ships is colon. Getting this wrong does not raise, Lua
   binds the module itself to the first parameter and drops the real options, which is a

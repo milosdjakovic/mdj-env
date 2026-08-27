@@ -169,6 +169,16 @@ function obj.run(olm, cfg)
   local modules
   local overlay
   local plan
+  -- The registry and the stage join this forward declared set in phase three, so
+  -- isShowingFor, the surface adapters loop, and rootValues, all of which are built well
+  -- before either is actually assigned, can close over the real instance rather than a
+  -- global of the same name that is nil forever, the identical reason plan itself sits here.
+  -- Neither closure that reaches through these two is ever CALLED until long after this
+  -- whole function has returned and Hammerspoon is idling on a key press, so it is safe for
+  -- the real assignment to land later in this same file, at wherever building each of them
+  -- already made sense before this phase existed.
+  local wiredRegistry
+  local stageModule
 
   atoms.storage.configure(policy.storage)
 
@@ -671,6 +681,34 @@ function obj.run(olm, cfg)
     -- Repaint, under one name, for every plugin whose answer lands after the keystroke.
     redraw = redrawSurface,
 
+    -- Two words for a presenting plugin, phase three of the chooser stage build, both taking
+    -- the identity a plugin was registered under, its own presentation.name, so the same
+    -- closure serves every presenting plugin rather than one built per plugin by a file that
+    -- must never name one. Neither exists for VPN specifically, they exist for the question
+    -- decision one and decision eight of the handoff brief both ask, and VPN is only today's
+    -- one answer.
+    --
+    -- presentTool is the hotkey door from outside the launcher, decision one, a plugin's own
+    -- leader key asking the registry for its own presentation and handing it to the stage
+    -- fresh, exactly what stage.present already means for the launcher's own hotkey. Nil
+    -- when either the registry or the stage has nothing to answer, in which case the plugin
+    -- asked before its own registration or the stage's own configure had run, which is a
+    -- wiring defect rather than a state a key press should silently swallow, so it is left to
+    -- read as an inert press rather than guarded into looking intentional.
+    presentTool = function(name)
+      local presentation = wiredRegistry.presentationFor and wiredRegistry.presentationFor(name)
+      if presentation and stageModule then stageModule:present(presentation) end
+    end,
+
+    -- redrawPresented is the async status seam, decision eight, VPN's own onChange asking to
+    -- be redrawn once its status changes while its own presentation, and no other, is what
+    -- the stage is actually showing. A plugin not currently presented is silently a no op,
+    -- since a tool's own background status changing is not a reason to redraw whatever
+    -- unrelated list a person happens to be looking at.
+    redrawPresented = function(name)
+      if stageModule and stageModule:current() == name then stageModule:refresh() end
+    end,
+
     -- One line of feedback, and one sampled colour, both on the shared overlay so they read as
     -- part of the same interface as the cheat sheet and the docked hint bars.
     notify = notify,
@@ -802,6 +840,16 @@ function obj.run(olm, cfg)
     predicates = ownPredicates,
   }
 
+  -- Assigned rather than declared, joining the forward declared set at the top of this
+  -- function in phase three. Needed here, synchronously, rather than only inside a later
+  -- closure, because the surface adapters loop a little further down builds its answer NOW,
+  -- not the moment a key is pressed, so stageModule has to be real before that loop runs
+  -- rather than merely before Hammerspoon starts idling. wiredRegistry, assigned further
+  -- down this file, is not moved, since the surface adapters loop still runs after that
+  -- assignment in this function's own sequence and only isShowingFor, a closure, reaches it
+  -- ahead of that point in the source.
+  stageModule = modules[plan.identity.stage or "stage"]
+
   local contextOwners = hintsLib.contextOwners(plan, manifests)
 
   -- Walk to wherever a plugin actually keeps its picker, which is what its manifest already
@@ -838,9 +886,25 @@ function obj.run(olm, cfg)
   -- errored the plain Hyper binding on the same key fired instead. So pressing j in the
   -- clipboard to move down opened the emoji picker, which is the behaviour a person reports as
   -- the shortcut not working, and nothing anywhere logged a thing.
+  --
+  -- A presenting plugin, phase three of the chooser stage build, is asked a third way, ahead
+  -- of both of the above, since its own module may no longer carry an isShowing at all, VPN's
+  -- own surface adapter having been deleted in favour of the shared stage. wiredRegistry
+  -- already knows which plugins present, presentationFor answers nil for one that does not,
+  -- so this asks the registry rather than probing the module for a method that used to be
+  -- there. Routes through stage:current() plus stage:isShowing(), decision seven of the
+  -- handoff brief, exactly what host/stage's own surfaceFor already answers for the nav
+  -- registry, so a context's predicate and its navigation adapter can never disagree about
+  -- whether it is open.
   local function isShowingFor(contextName)
     local owner = contextOwners[contextName]
-    local module = owner and modules[owner]
+    if not owner then return false end
+    local ownerIdentity = plan.identity[owner] or owner
+    if stageModule and wiredRegistry and wiredRegistry.presentationFor
+      and wiredRegistry.presentationFor(ownerIdentity) then
+      return stageModule:current() == ownerIdentity and stageModule:isShowing() == true
+    end
+    local module = modules[owner]
     if not module then return false end
     local manifest = manifests[owner] or {}
     local spec = (manifest.surface or {}).member or (manifest.registry or {}).surface
@@ -1049,23 +1113,29 @@ function obj.run(olm, cfg)
   -- so the construction time field is never on screen for a single frame, and host/stage/
   -- init.lua now writes a literal there instead of asking anyone for one.
   --
-  -- The panel triple is the launcher's own, the only one that exists yet, read off
-  -- perPluginData under the launcher's own resolved identity, the same lookup every other host
-  -- reference in this file uses, even though identity and directory answer the same word here
-  -- today since host/launcher/manifest.lua declares no name of its own. Flat fields rather than
-  -- a nested table, since host/launcher/manifest.lua's own surface no longer declares panelAs
-  -- at all, findings seven and eight closed together. Dropping it left services.perPlugin
-  -- writing these three field names onto perPluginData directly, which is what this file reads
-  -- below, so the one piece of another plugin's own nesting choice this file used to have to
-  -- know by heart, the literal word "shortcutPanel", is gone rather than merely marked.
-  local launcherIdentity = plan.identity.launcher or "launcher"
-  local launcherPanel = perPluginData[launcherIdentity] or {}
+  -- THE SEAM, its second half. The panel triple used to be the launcher's own, read straight
+  -- off perPluginData, correct only for as long as the launcher was the one presentation there
+  -- was. Phase three's own decision seven, contexts and hints follow current(), means the
+  -- docked hint bar beneath the stage's one window has to answer for whichever presentation is
+  -- actually up, VPN's own keys while VPN is presented and the launcher's again after pop, not
+  -- the launcher's forever. lib/hints.lua's own shortcutPanelFor now accepts a function for the
+  -- context name it renders hints for, asked fresh on every reveal rather than fixed once, so
+  -- this builds ONE dedicated panel for the stage, here, naming no plugin, asking only
+  -- stageModule:current() at the moment a hint is actually about to be drawn. The generic
+  -- panel services.perPlugin still builds for the launcher's own identity, because
+  -- host/launcher/manifest.lua still declares a surface and earns one automatically, is left
+  -- unused rather than suppressed, since nothing in this contract lets one plugin's manifest
+  -- opt out of an entitlement its own declared surface earns, and an unarmed CanvasPanel nobody
+  -- ever positions costs nothing worth a deeper change to avoid.
+  local stagePanel = hintsLib.shortcutPanelFor(
+    function() return (stageModule and stageModule:current()) or (plan.identity.launcher or "launcher") end,
+    plan, hintsDeps)
   local stageOpts = {
     chooser = chooserAtom,
     theme = policy.chooserTheme,
-    onPositioned = launcherPanel.onPositioned,
-    onActivity = launcherPanel.onActivity,
-    onClose = launcherPanel.onClose,
+    onPositioned = stagePanel.onPositioned,
+    onActivity = stagePanel.onActivity,
+    onClose = stagePanel.onClose,
   }
 
   -- fannedData WINS, and its absence here altogether was the single worst defect in this build.
@@ -1120,7 +1190,7 @@ function obj.run(olm, cfg)
     -- flat ambient grant structurally cannot.
   })
 
-  local wiredRegistry = registryLib.new({ apiVersion = REGISTRY_API_VERSION, log = log })
+  wiredRegistry = registryLib.new({ apiVersion = REGISTRY_API_VERSION, log = log })
 
   local function describeForRegistry(name, planArg)
     return registrarLib.describe(name, planArg, modules, manifests, registryMeta,
@@ -1246,7 +1316,19 @@ function obj.run(olm, cfg)
       -- list whose j and k reached nothing.
       local spec = (manifest.surface or {}).member or (manifest.registry or {}).surface
       if module then
-        surfaceAdapters[#surfaceAdapters + 1] = surfaceAdapterFor(module, spec)
+        -- A presenting plugin, phase three, is routed a third way, ahead of the manifest
+        -- spelling above. Its own module may carry no isShowing, no selectNext, nothing at
+        -- all any more, VPN's own surface adapter having been deleted in favour of the
+        -- shared stage, so asking surfaceAdapterFor to walk that module would answer a table
+        -- with every method missing. stageModule:surfaceFor gives this identity its own
+        -- isShowing, scoped so it never wins lib/nav.lua's own activeSurface race for a
+        -- presentation that is not actually the one on screen, review finding ten, while
+        -- still reaching the shared instance for the four members that are safe to share.
+        if stageModule and wiredRegistry.presentationFor and wiredRegistry.presentationFor(identity) then
+          surfaceAdapters[#surfaceAdapters + 1] = stageModule:surfaceFor(identity)
+        else
+          surfaceAdapters[#surfaceAdapters + 1] = surfaceAdapterFor(module, spec)
+        end
       end
     end
   end
@@ -1559,10 +1641,11 @@ function obj.run(olm, cfg)
     end
 
     -- THE SEAM. Stage is one of the five host modules this file may name. It is fully
-    -- configured already, in the ordinary stage two pass above, so this is only the reference
-    -- the launcher presents into, the same shape chooser used to be handed here before this
-    -- host existed.
-    local stageModule = modules[plan.identity.stage or "stage"]
+    -- configured already, in the ordinary stage two pass above. stageModule itself was
+    -- assigned earlier in this same function, ahead of the surface adapters loop which
+    -- needs it synchronously, phase three's own note beside that assignment says why, so
+    -- this is only the reference the launcher presents into, the same shape chooser used to
+    -- be handed here before this host existed.
 
     local launcherOpts = {
       stage = stageModule,
@@ -1624,7 +1707,24 @@ function obj.run(olm, cfg)
         scopeCanPeek = function(item)
           return queryScopeModule ~= nil and queryScopeModule:canPeek(item) == true
         end,
+        -- Decision two of the handoff brief, the first branch added in phase three. A
+        -- special row names a registered tool, and wiredRegistry.presentationFor answers a
+        -- presentation for one that has migrated onto the stage, nil for every one that has
+        -- not, which is the whole of what lets an unmigrated tool fall through to the second
+        -- branch below completely untouched. The callable itself does nothing but push, no
+        -- hide, no deferral, one redraw, exactly the three sentences decision two asks for,
+        -- since Stage:push already does the query clear and the refresh(true) that redraw
+        -- means. Promoting the row to recency still happens the ordinary way, one level up in
+        -- host/launcher/init.lua's own intercept, which promotes anything this function hands
+        -- back a callable for, so this file learns nothing new about recency to make VPN's row
+        -- remember itself.
         rowIntercept = function(item)
+          if item.kind == "special" and wiredRegistry.presentationFor then
+            local presentation = wiredRegistry.presentationFor(item.name)
+            if presentation then
+              return function() stageModule:push(presentation) end
+            end
+          end
           if item.kind ~= "scope" or not queryScopeModule then return nil end
           local act = queryScopeModule:actFor(item)
           if act then return act end

@@ -1,35 +1,39 @@
 --- === Vpn ===
 ---
---- A VPN control tool. It opens a single native chooser that merges the controls and the
---- location search into one flat list. The first row is the action that fits the live
---- state, its title naming the place, Disconnect from where the tunnel is when it is up
---- and Connect to the selected relay when it is down, with the live state word and the
---- provider in its subtitle. Every city the provider offers follows below it, ordered most
---- recently used first so the last place you connected to leads and the action row stays
---- pinned above them all. Typing
---- filters the cities, and once a filter is present the action row drops out so selecting
---- the top row connects to the top matching city rather than toggling the tunnel. Choosing
---- a city sets the relay and connects. It never names the keys that open or drive it, those
---- live in config and the root.
+--- A VPN control tool. It presents a single merged list of the controls and the location
+--- search as one flat list, into the shared stage every presenting tool now shows through.
+--- The first row is the action that fits the live state, its title naming the place,
+--- Disconnect from where the tunnel is when it is up and Connect to the selected relay when
+--- it is down, with the live state word and the provider in its subtitle. Every city the
+--- provider offers follows below it, ordered most recently used first so the last place you
+--- connected to leads and the action row stays pinned above them all. Typing filters the
+--- cities, and once a filter is present the action row drops out so selecting the top row
+--- connects to the top matching city rather than toggling the tunnel. Choosing a city sets
+--- the relay and connects. It never names the keys that open or drive it, those live in
+--- config and the root.
 ---
 --- This file is the composition root and the command policy. It loads the engine and the
---- Mullvad provider, names them, validates the provider against the contract, and builds
---- one Chooser instance pinned to the native hs.chooser backend. It turns a chosen row
---- into an engine call. When the CLI is not
---- installed it logs the reason and still builds the chooser, which then opens to a single
---- row naming the missing backend and what provides it, both read from the provider's own
---- install metadata so the panel never learns the concrete tool. The engine is left
---- unstarted in that state, so a machine without Mullvad degrades to a self explaining
---- panel rather than a dead key. That row is a label and not an action, since how to obtain
---- a tool is the concern of the layer above this config and no file here may answer it.
+--- Mullvad provider, names them, and validates the provider against the contract. When the
+--- CLI is not installed it logs the reason and still presents, to a single row naming the
+--- missing backend and what provides it, both read from the provider's own install metadata
+--- so the panel never learns the concrete tool. The engine is left unstarted in that state,
+--- so a machine without Mullvad degrades to a self explaining row rather than a dead key.
+--- That row is a label and not an action, since how to obtain a tool is the concern of the
+--- layer above this config and no file here may answer it.
 ---
 --- One flat list, not a drill down. The controls and the locations live in the same list,
 --- so there is no mode to switch and no second level to re-show. The location list is
 --- fetched on each open so a relay update is reflected, and the list is refreshed once it
---- lands. The navigation shortcuts are wired from the main root, this spoon never names
---- them, and the root also docks its shared deferred shortcut hint panel below the list
---- through the onPositioned, onActivity, and onClose seams this spoon forwards to its
---- chooser.
+--- lands. The navigation shortcuts are wired from the main root, this spoon never names them.
+---
+--- Migrated onto host/stage, phase three of the chooser stage build, docs/BRIEF-HANDOFF.md
+--- decision eight. This file owns no chooser instance and builds no window any more. Its
+--- rows and its selection dispatch are exactly what they always were, M.rows and M.select
+--- below, now named on the manifest's own presentation block instead of handed to a
+--- Chooser.new call this file no longer makes. Its own leader key still opens it, through
+--- cfg.presentTool, the root published word for the hotkey door every presenting plugin
+--- shares, and its own async status refresh, onChange below, now asks for a redraw through
+--- cfg.redrawPresented rather than reaching for a chooser instance directly.
 ---
 --- This is the olm side copy of Vpn, converted to use the shared recency service at
 --- Olm.spoon/lib/recency.lua instead of a hand rolled block, and the original this was
@@ -64,8 +68,7 @@ do
   end
 end
 
-local cfg = nil       -- injected: the shared theme and the Chooser factory
-local chooser = nil   -- the one native Chooser instance
+local cfg = nil       -- injected: opts.recency required, presentTool and redrawPresented optional
 local available = false -- whether the provider's CLI was found at start
 local cache = {}      -- the last fetched location list, filtered by the supplier
 local current = { state = "unavailable" } -- status snapshot, refreshed on open and change
@@ -253,12 +256,14 @@ end
 --------------------------------------------------------------------------------
 
 -- A row was chosen. Connect and Disconnect delegate to the engine, and any other row is
--- a city, so set that relay and connect. The native chooser has already closed either
--- way.
+-- a city, so set that relay and connect. None of the three is a presentation swap, this
+-- plugin's own presentation declares no intercept, so the shared stage has already closed
+-- the whole way down to whatever was below it, exactly as VPN's own standalone chooser used
+-- to close on any of these three before the migration.
 local function onSelect(sel)
   if not sel then return end
-  -- The unavailable row is built disabled, so the chooser never dispatches it and there is
-  -- no branch for it here. Guarded anyway, since a row arriving without a live engine would
+  -- The unavailable row is built disabled, so this never dispatches it and there is no
+  -- branch for it here. Guarded anyway, since a row arriving without a live engine would
   -- otherwise reach an engine call.
   if sel.id == "unavailable" then return end
   if sel.id == "connect" then
@@ -277,29 +282,45 @@ end
 -- Public control surface (dot-called)
 --------------------------------------------------------------------------------
 
---- M.show() - read the state and the selected relay once, fetch the relay list, and open
---- the chooser. The status lives on the action row, not the placeholder, so the field just
---- prompts the location filter. The list is refreshed once the relays land, which also
---- resolves the selected relay's codes to its human label in the title.
+--- M.show() - read the state and the selected relay once, fetch the relay list, and present
+--- through the shared stage. The status lives on the action row, not the placeholder, so the
+--- field just prompts the location filter. The list is refreshed once the relays land, which
+--- also resolves the selected relay's codes to its human label in the title.
+---
+--- This is the hotkey door, decision one of the handoff brief, reached only from this
+--- plugin's own leader key. A launcher row choosing VPN never calls this at all any more, it
+--- pushes the registry's own presentation straight from the root's rowIntercept, decision
+--- two, so this function's only remaining caller is the key registry.open binds directly.
+--- cfg.presentTool asks the registry for this plugin's own presentation and hands it to
+--- Stage:present, the fresh stack door, exactly what opening VPN from cold has always meant.
 function M.show()
-  if not chooser then return end
   -- The reads and the fetch are prepare's job, so both paths into these rows share one fetch
   -- and one in flight guard. When the provider is unavailable prepare calls straight back and
-  -- the chooser opens on its single install row.
+  -- the stage opens on its single install row.
   M.prepare(function()
-    if chooser then chooser:refresh() end
+    if cfg.redrawPresented then cfg.redrawPresented("vpn") end
   end)
-  chooser:show()
+  if cfg.presentTool then cfg.presentTool("vpn") end
 end
 
---- M.rows(query) -> list. The merged control and location rows, the same data this spoon's
---- own chooser is built from, exposed so another surface can present them instead. Handing out
---- the data rather than a second copy is what keeps the two from disagreeing, and it says
---- nothing about where the rows are shown.
+--- M.rows(query) -> list. The merged control and location rows, named on the manifest's own
+--- presentation block as the contract's rows, and exposed here under this plain name so a
+--- scope can ask for the identical data through provides.rows without a second copy to
+--- disagree with. Says nothing about where the rows are shown.
 M.rows = rows
 
 --- M.select(item) - apply one of those rows, taking the descriptor its own rows produced.
+--- Named on the manifest's own presentation block as the contract's onSelect.
 M.select = onSelect
+
+--- M.placeholder() -> string. The field hint while this plugin's own presentation is
+--- current, named on the manifest's own presentation block. Resolved once, when this plugin
+--- registers, since the presentation contract wants a plain string rather than something to
+--- call again later, and by then this plugin's own start has already resolved available, so
+--- the answer already reflects it.
+function M.placeholder()
+  return available and "Search locations" or ((provider.name or "VPN") .. " not installed")
+end
 
 --- M.ready() -> boolean. Whether any locations have landed. They arrive from a process, so a
 --- surface presenting these rows needs to tell no locations yet from no locations at all.
@@ -309,12 +330,13 @@ end
 
 --- M.scopeRows(rest, redraw) -> list. The query scope's own rows, asked fresh on entry or
 --- while nothing has landed, exactly the way M.show already asks through M.prepare either
---- side of revealing its own chooser. A scope has no chooser of its own to refresh once the
---- fetch answers, so redraw is a plain callback the caller hands in for that one moment
---- rather than this spoon reaching for whatever is showing these rows, which is the whole
---- reason this spoon still names no launcher and no host. The typed text rides along as the
---- filter text on the one placeholder row below, so the matcher can never rank away the only
---- row there is while the real list is still in flight.
+--- side of presenting. A scope has no list of its own to refresh once the fetch answers, so
+--- redraw is a plain callback the caller hands in for that one moment rather than this spoon
+--- reaching for whatever is showing these rows, which is the whole reason this spoon still
+--- names no launcher and no host. Unchanged by the migration, decision eight, this scope
+--- stays exactly as is. The typed text rides along as the filter text on the one placeholder
+--- row below, so the matcher can never rank away the only row there is while the real list
+--- is still in flight.
 function M.scopeRows(rest, redraw)
   if rest == "" or not M.ready() then
     M.prepare(redraw)
@@ -327,10 +349,10 @@ function M.scopeRows(rest, redraw)
   return out
 end
 
---- M.prepare(onReady) - make the rows current without opening anything, reading the live state
---- and fetching the locations, then calling back once they land. This is what show does either
---- side of revealing its own chooser, factored out so a surface that is already open gets the
---- same fresh data and redraws itself. A fetch already in flight is not started again, since
+--- M.prepare(onReady) - make the rows current without presenting anything, reading the live
+--- state and fetching the locations, then calling back once they land. This is what show does
+--- either side of presenting, factored out so a presentation that is already up gets the same
+--- fresh data and redraws itself. A fetch already in flight is not started again, since
 --- the first one's callback redraws anyway, which is what keeps a keystroke from spawning a
 --- process. Unavailable calls back at once, so a caller never waits on a fetch that cannot
 --- happen and the single self explaining row is what gets shown.
@@ -357,43 +379,27 @@ function M.prepare(onReady)
   end)
 end
 
-function M.isShowing()
-  return chooser ~= nil and chooser:isShowing()
-end
+-- isShowing, hide, selectNext, selectPrev, and insertSelected are gone, phase three,
+-- deleted along with the Chooser.new block that gave them something to answer for. The
+-- composition root now routes this plugin's own navigation through host/stage's own
+-- surfaceFor once wiredRegistry.presentationFor("vpn") answers a presentation, root/
+-- compose.lua's own surface adapters loop, so there is nothing left for this file to
+-- expose under those five names.
 
-function M.hide()
-  if chooser then chooser:hide() end
-end
-
--- List navigation, routed here from the vpn context by the main root. The spoon exposes
--- the methods and never names the keys bound to them.
-function M.selectNext()
-  if chooser then chooser:selectNext() end
-end
-
-function M.selectPrev()
-  if chooser then chooser:selectPrev() end
-end
-
---- M.insertSelected() - apply the highlighted row, the same as choosing it, routed here
---- from the navigation shortcut the root binds.
-function M.insertSelected()
-  if chooser then chooser:insertSelected() end
-end
-
--- The daemon state changed while the chooser may be open. Refresh the snapshot and the
--- selected relay, then redraw so the action row's title and status follow the live state.
+-- The daemon state changed while this plugin's own presentation may be up. Refresh the
+-- snapshot and the selected relay, then ask to be redrawn, which is a no op unless this
+-- plugin's own presentation, and no other, is what the stage is actually showing, decision
+-- eight of the handoff brief.
 local function onChange()
   current = engine.status()
   target = engine.selectedLocation()
-  if chooser and chooser:isShowing() then chooser:refresh() end
+  if cfg.redrawPresented then cfg.redrawPresented("vpn") end
 end
 
---- M:configure(opts) - inject the shared theme, the Chooser factory, and the optional
---- docked panel callbacks (onPositioned, onActivity, onClose) the root wires to its
---- deferred shortcut hint panel. The spoon forwards those straight to its chooser without
---- learning what they drive, so the panel stays the root's concern. Kept as the single
---- wiring seam so the main root stays the one place the atoms are handed in.
+--- M:configure(opts) - inject the shared theme, the ambient grant a surfaced plugin still
+--- earns even though this file no longer reads chooser or theme from it, having no
+--- Chooser.new call left to hand either to. Kept as the single wiring seam so the main root
+--- stays the one place the atoms are handed in.
 ---
 --- opts.deps is the per consumer dependency adapter, also from the root. start passes the
 --- path it holds to the provider, which is why nothing under this spoon probes for a CLI
@@ -403,6 +409,10 @@ end
 --- Olm.spoon, already built against this tool's own settings key. It is required, since
 --- this copy no longer carries a recency block of its own, and a missing one is rejected
 --- loudly rather than quietly ordering nothing.
+---
+--- opts.presentTool and opts.redrawPresented are the two root published words phase three
+--- adds, both optional, both no ops when absent, M.show and onChange above say what each
+--- one degrades to without the other.
 -- Colon here, not dot, because the composition root and the live top level init.lua both
 -- reach this through the ordinary method call spoon.Vpn:configure(opts), and the shared
 -- wiring pipeline in lib/wire.lua calls every plugin's configure the same way. self arrives
@@ -415,12 +425,17 @@ function M:configure(opts)
   return M
 end
 
---- M:start() - resolve availability, wire the engine when the CLI is present, and build
---- the one native chooser either way. When the CLI is missing it logs the reason, read
---- from the provider's install metadata, and leaves the engine unstarted, so the chooser
---- opens to the self explaining unavailable row instead of the tool being a dead key. The
---- log line names what is missing and stops there, since the repository is what knows how
---- to obtain it.
+--- M:start() - resolve availability and wire the engine when the CLI is present. When the
+--- CLI is missing it logs the reason, read from the provider's install metadata, and leaves
+--- the engine unstarted, so a presentation of this plugin opens to the self explaining
+--- unavailable row instead of the tool being a dead key. The log line names what is missing
+--- and stops there, since the repository is what knows how to obtain it.
+---
+--- Builds no chooser any more, phase three. Whatever this plugin used to hand a Chooser.new
+--- call, theme, a field mode, rows, onSelect, and the panel triple, is now either read
+--- straight off this module by the registrar, rows and select through the manifest's own
+--- presentation block, or owned by the stage as fixed, atom level policy that never varied
+--- per presentation in the first place.
 function M:start()
   -- Hand the provider the path the shared resolver found, by the name the provider itself
   -- declares, so this spoon learns neither the tool's location nor how it is obtained.
@@ -436,18 +451,6 @@ function M:start()
     if info.note then parts[#parts + 1] = info.note end
     log.w(table.concat(parts, ". "))
   end
-  chooser = cfg.chooser.new({
-    theme = cfg.theme,
-    placeholder = available and "Search locations" or ((provider.name or "VPN") .. " not installed"),
-    fieldMode = cfg.chooser.fieldModes.filter,
-    rows = rows,
-    onSelect = onSelect,
-    -- The root's deferred shortcut hint panel, wired through the chooser's own seams so
-    -- the spoon stays ignorant of the panel. All optional; nil when no panel is injected.
-    onPositioned = cfg.onPositioned,
-    onActivity = cfg.onActivity,
-    onClose = cfg.onClose,
-  })
   return M
 end
 
