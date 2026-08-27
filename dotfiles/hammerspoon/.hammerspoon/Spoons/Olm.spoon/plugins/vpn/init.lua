@@ -73,7 +73,8 @@ local available = false -- whether the provider's CLI was found at start
 local cache = {}      -- the last fetched location list, filtered by the supplier
 local current = { state = "unavailable" } -- status snapshot, refreshed on open and change
 local target = nil    -- the selected relay to connect to, { countryCode, cityCode }
-local fetching = false -- a location fetch is in flight, so a second ask does not start one
+local fetching = false -- status, the selected relay, and the location list are all in
+                        -- flight together, so a second ask does not start any of them again
 local pending = {}    -- callbacks waiting on that fetch, so none of them is dropped
 
 --------------------------------------------------------------------------------
@@ -306,6 +307,11 @@ end
 --- it lands, the identical word onChange already asks for its own async status refresh,
 --- rather than a fresh mechanism this one hook alone would need. Named on the manifest's own
 --- presentation block as onPresent.
+---
+--- Never blocks the swap that is about to happen, phase three review finding eleven. Every
+--- read M.prepare below now starts is off the main thread, so this call returns the instant
+--- the reads and the fetch have been asked for rather than after they answer, which is what
+--- lets the stage go on to swap the window in on the same keypress that reached here.
 function M.onPresent()
   M.prepare(function()
     if cfg.redrawPresented then cfg.redrawPresented("vpn") end
@@ -369,22 +375,47 @@ end
 --- Every caller waiting on the same fetch is called back, rather than the second one being
 --- dropped along with the fetch it did not need to start. Dropping it would mean a surface
 --- opening while another one's fetch was in flight never learned the list had landed.
+---
+--- All three reads run off the main thread now, phase three review finding eleven. current
+--- and target used to be read synchronously here, straight into two CLI spawns, before this
+--- function ever reached the already async relay list. M.onPresent below calls this before
+--- the swap that reveals it, decision two, so a blocking read here used to be a blocking read
+--- on the keypress itself, the row completing only once the shell had answered twice. rows
+--- below draws from whatever current and target already hold the instant it is asked, the
+--- last snapshot or the { state = "unavailable" } default neither has ever been read past,
+--- and this function only ever updates them once the async answer actually lands, landing
+--- through the identical fetching and pending guard the relay list already shared this
+--- function with, so a bounce between the launcher and VPN while a read is already in flight
+--- spawns nothing extra and every caller still waiting is still called back exactly once,
+--- after all three reads have landed rather than after whichever lands first.
 function M.prepare(onReady)
   if not available then
     if onReady then onReady() end
     return
   end
-  current = engine.status()
-  target = engine.selectedLocation()
   if onReady then pending[#pending + 1] = onReady end
   if fetching then return end
   fetching = true
-  engine.listLocations(function(list)
+  local remaining = 3
+  local function landed()
+    remaining = remaining - 1
+    if remaining > 0 then return end
     fetching = false
-    cache = cfg.recency.order(list or {}, function(loc) return loc.id end)
     local waiting = pending
     pending = {}
     for _, cb in ipairs(waiting) do cb() end
+  end
+  engine.statusAsync(function(status)
+    current = status
+    landed()
+  end)
+  engine.selectedLocationAsync(function(loc)
+    target = loc
+    landed()
+  end)
+  engine.listLocations(function(list)
+    cache = cfg.recency.order(list or {}, function(loc) return loc.id end)
+    landed()
   end)
 end
 

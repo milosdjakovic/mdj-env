@@ -82,11 +82,20 @@ return {
   -- own start already resolved by then. onPresent, added in the phase three review's own
   -- second finding, names M.onPresent, the fetch M.show used to start directly before this
   -- plugin owned no window to reveal, now run whenever the stage makes this presentation
-  -- current through either door rather than only the hotkey one. Every member here is dot
-  -- called, like every function this plugin exposes, and every one is checked to actually
-  -- resolve on this plugin's own module at register, lib/registrar.lua's own new refusal,
-  -- so a typo here would keep this whole tool out of the catalogue rather than open to a
-  -- silently empty list.
+  -- current through either door rather than only the hotkey one, never blocking either one,
+  -- phase three review finding eleven, since M.onPresent draws from whatever M.prepare last
+  -- read and only then kicks its own reads off the main thread.
+  --
+  -- Every member here is written the table form with call stated outright, dot, since every
+  -- function this plugin exposes is dot called, never the bare string shorthand this
+  -- contract still allows everywhere else, phase three review's own residue on finding four.
+  -- A presentation member is the one place in the whole contract that refuses a call kind
+  -- left to default, since a wrong default here would not raise, it would call M.rows with
+  -- this plugin's own module table where the typed query belongs and shift every argument
+  -- after it along by one. Every member is also checked to actually resolve on this plugin's
+  -- own module at register, lib/registrar.lua's own refusal, so either mistake here would
+  -- keep this whole tool out of the catalogue, loudly, rather than open to a silently wrong
+  -- or a silently empty list.
   presentation = {
     rows = { member = "rows", call = "dot" },
     select = { member = "select", call = "dot" },

@@ -107,6 +107,22 @@ local function memberResolves(module, member)
   return type(value) == "function"
 end
 
+-- Whether a member spec states its own call kind outright, dot or method, rather than
+-- leaving memberSpec free to default it in silence. Phase three review's own residue on
+-- finding four, a dot function declared with no call kind still passes memberResolves above,
+-- since existence does not depend on calling convention, and callMember then calls it AS a
+-- method, shifting every real argument along by one, the identical shape
+-- docs/AUDIT-2026-08-13.md already recorded once for a sibling need bound the wrong way. A
+-- presentation's own rows and select run on every keystroke a presenting tool's own list
+-- receives, where a shifted argument answers the wrong thing rather than raising, so a
+-- presentation member is the one place in this whole contract that refuses the silent
+-- default every other member spec still keeps. A bare string can never state a call kind at
+-- all, so this answers false for one, and a presentation member must always be written the
+-- table way, { member = ..., call = ... }.
+local function callKindStated(spec)
+  return type(spec) == "table" and (spec.call == "dot" or spec.call == "method")
+end
+
 -- Walk a dotted member path against a real module and call whatever sits at the end of it,
 -- forwarding every argument this call actually carries. method binds the table the walk
 -- stopped at as the first argument, the same receiver a colon call would bind, since a
@@ -390,10 +406,9 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
   -- assembles inside its own configure, but a presentation's rows and select are checked here
   -- BECAUSE this file runs at register, stage five, after every plugin's own wiring has
   -- already completed, so the module this checks against is the real, finished one rather than
-  -- one still being built. A name that does not resolve refuses the WHOLE registration, loudly,
-  -- naming the tool and the field, the same severity presentationIsWellFormed already gives a
-  -- shape error in lib/registry.lua, since a declaration that cannot fail loudly is worse than
-  -- none at all.
+  -- one still being built. callKindStated above is what makes that check honest rather than
+  -- merely present, refusing a member whose own calling convention was left to a default this
+  -- contract does not trust for a presentation.
   local presentation = nil
   if type(manifest.presentation) == "table" then
     local p = manifest.presentation
@@ -404,13 +419,25 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
     }
     local broken = false
     for _, field in ipairs(presentationFields) do
-      local member = memberSpec(p[field])
-      if member ~= nil and not memberResolves(owner, member) then
-        broken = true
-        if deps.log then
-          deps.log("e", string.format(
-            "registrar refused '%s', its presentation.%s names '%s', which does not resolve to a function on the real module",
-            name, field, tostring(member)))
+      local declared = p[field]
+      if declared ~= nil then
+        if not callKindStated(declared) then
+          broken = true
+          if deps.log then
+            deps.log("e", string.format(
+              "registrar refused '%s', its presentation.%s does not state call, dot or method, explicitly",
+              name, field))
+          end
+        else
+          local member = memberSpec(declared)
+          if not memberResolves(owner, member) then
+            broken = true
+            if deps.log then
+              deps.log("e", string.format(
+                "registrar refused '%s', its presentation.%s names '%s', which does not resolve to a function on the real module",
+                name, field, tostring(member)))
+            end
+          end
         end
       end
     end
@@ -429,30 +456,38 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
         "registrar found '%s' presenting under identity '%s' while its surface declares context '%s', the docked hint bar routes by identity and will not follow that context",
         name, identity, declaredContext))
     end
-    -- A broken member refuses the WHOLE registration, matching presentationIsWellFormed's
-    -- own severity in lib/registry.lua for a shape error, not merely a dropped presentation,
-    -- since the alternative, registering everything else and quietly leaving this plugin
-    -- unmigrated, is exactly the silence this finding exists to close. Every deps.log line
-    -- above already ran, so refusing loudly here means the console named the reason before
-    -- the tool vanished from the catalogue rather than after.
     if broken then
-      return nil
-    end
-    presentation = {
-      name = identity,
-      rows = obj.action(modules, identity, name, p.rows, nil),
-      onSelect = obj.action(modules, identity, name, p.select, nil),
-      intercept = obj.action(modules, identity, name, p.intercept, nil),
-      back = obj.action(modules, identity, name, p.back, nil),
-      onHighlight = obj.action(modules, identity, name, p.onHighlight, nil),
-      onClose = obj.action(modules, identity, name, p.onClose, nil),
-      peekPreview = obj.action(modules, identity, name, p.peekPreview, nil),
-      onPresent = obj.action(modules, identity, name, p.onPresent, nil),
-      rowCount = p.rowCount,
-    }
-    if p.placeholder ~= nil then
-      local resolvePlaceholder = obj.action(modules, identity, name, p.placeholder, nil)
-      presentation.placeholder = resolvePlaceholder and resolvePlaceholder()
+      -- Passed through as an empty, structurally invalid presentation rather than dropped
+      -- or refused by returning nil here, phase three review's own second residue on finding
+      -- four. Returning nil, the first pass at this fix, refused the tool just as hard but
+      -- through silence, since lib/wire.lua's own self.register only ever calls
+      -- pcall(registry.register, descriptor) when describe answered something, so a nil
+      -- descriptor here left w.report() saying no problems while a tool had vanished from
+      -- the catalogue with only the console line above as evidence. An empty table instead
+      -- still reaches lib/registry.lua's own presentationIsWellFormed, which refuses it on
+      -- the identical "has no rows function" it already gives a malformed scope, so
+      -- instance.register answers false, and self.register's own fail records the problem in
+      -- wire.record.problems the same way a malformed scope's refusal already does. The
+      -- deps.log lines above already named the real reason, this is what carries the refusal
+      -- the rest of the way to a report a person might actually read.
+      presentation = {}
+    else
+      presentation = {
+        name = identity,
+        rows = obj.action(modules, identity, name, p.rows, nil),
+        onSelect = obj.action(modules, identity, name, p.select, nil),
+        intercept = obj.action(modules, identity, name, p.intercept, nil),
+        back = obj.action(modules, identity, name, p.back, nil),
+        onHighlight = obj.action(modules, identity, name, p.onHighlight, nil),
+        onClose = obj.action(modules, identity, name, p.onClose, nil),
+        peekPreview = obj.action(modules, identity, name, p.peekPreview, nil),
+        onPresent = obj.action(modules, identity, name, p.onPresent, nil),
+        rowCount = p.rowCount,
+      }
+      if p.placeholder ~= nil then
+        local resolvePlaceholder = obj.action(modules, identity, name, p.placeholder, nil)
+        presentation.placeholder = resolvePlaceholder and resolvePlaceholder()
+      end
     end
   end
 

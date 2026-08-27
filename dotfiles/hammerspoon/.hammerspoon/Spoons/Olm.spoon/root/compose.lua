@@ -1288,7 +1288,21 @@ function obj.run(olm, cfg)
       __index = function(_, methodName)
         if identity and stageModule and wiredRegistry and wiredRegistry.presentationFor
           and wiredRegistry.presentationFor(identity) then
-          return stageModule:surfaceFor(identity)[methodName]
+          -- Wrapped in the identical pcall guard the non presenting branch below already
+          -- gives every method it resolves, phase three review's own residue on finding
+          -- one. Returning the raw closure here meant a raise inside the stage's own
+          -- isShowing or selectNext propagated straight out of a key handler for a
+          -- presenting plugin, where the exact same raise would have been swallowed for
+          -- every other one. No dot and colon fallback is needed, unlike the branch below,
+          -- since every function surfaceFor hands back is already a plain closure over the
+          -- stage's own self, dot called on purpose, so one pcall is the whole of what
+          -- consistency asks for here.
+          local fn = stageModule:surfaceFor(identity)[methodName]
+          if not fn then return nil end
+          return function(...)
+            local ok, result = pcall(fn, ...)
+            return ok and result
+          end
         end
         local owner, fn = nil, nil
         local holder = surfaceOf(module, spec)

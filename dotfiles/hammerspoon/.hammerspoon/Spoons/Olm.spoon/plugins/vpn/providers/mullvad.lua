@@ -4,9 +4,16 @@
 --- resolver, so no Homebrew location is hardcoded here and the probing happens once for
 --- the whole config. Until a path is handed in every method degrades safely and
 --- available returns false, so the root can log the reason and the picker still opens.
---- Fast reads, status, run synchronously. Slow actions, connect and the relay list,
---- run through hs.task off the main thread so the UI never stalls, and their callback
---- lands back on the main thread.
+---
+--- status and selectedLocation are fast enough to read synchronously and are kept that
+--- way for a caller off the hot path, the engine's own onChange among them, but each now
+--- has an async counterpart too, statusAsync and selectedLocationAsync, phase three review
+--- finding eleven. A synchronous CLI spawn on the path from a keypress to the stage's own
+--- swap read as the swap stalling rather than as the tool opening, since the window that
+--- used to hide the cost by already being closed no longer closes first. Both pairs share
+--- one parse function each, so the synchronous and the asynchronous reads can never answer
+--- the identical CLI output two different ways. connect, disconnect, setLocation, and the
+--- relay list were already off the main thread, through hs.task, and still are.
 
 local M = {}
 
@@ -49,11 +56,10 @@ function M.available()
   return cli ~= nil
 end
 
--- Read the tunnel state now. A single fast call, so synchronous. Returns a plain
--- table the engine caches. When the daemon does not answer the state is unavailable.
-function M.status()
-  if not cli then return { state = "unavailable" } end
-  local out, ok = hs.execute(cli .. " status -j 2>/dev/null")
+-- Shared by the synchronous read below and its async counterpart further down, so the two
+-- can never parse the identical CLI output two different ways. Phase three review finding
+-- eleven split the read from the parse for exactly that reason.
+local function parseStatusOutput(out, ok)
   if not ok or not out or out == "" then return { state = "unavailable" } end
   local data = hs.json.decode(out)
   if not data then return { state = "unavailable" } end
@@ -67,15 +73,21 @@ function M.status()
   return s
 end
 
+-- Read the tunnel state now. A single fast call, so synchronous. Returns a plain
+-- table the engine caches. When the daemon does not answer the state is unavailable.
+function M.status()
+  if not cli then return { state = "unavailable" } end
+  local out, ok = hs.execute(cli .. " status -j 2>/dev/null")
+  return parseStatusOutput(out, ok)
+end
+
 -- The relay the tunnel would use on connect, read from the location constraint rather
 -- than the live tunnel, since a disconnected tunnel still has a selection and its status
 -- reports the real geography, not the target. A fast synchronous read like status. The
 -- constraint prints as "Location: city lax, us" for a city, "Location: country us" for a
 -- country, or "any" when unset. Returns { countryCode, cityCode } with cityCode nil for a
 -- country only constraint, or nil when nothing is set.
-function M.selectedLocation()
-  if not cli then return nil end
-  local out, ok = hs.execute(cli .. " relay get 2>/dev/null")
+local function parseSelectedLocationOutput(out, ok)
   if not ok or not out then return nil end
   local rest = out:match("Location:%s*(.-)\n")
   if not rest then return nil end
@@ -84,6 +96,12 @@ function M.selectedLocation()
   local c = rest:match("^country%s+(%a%a)")
   if c then return { countryCode = c } end
   return nil
+end
+
+function M.selectedLocation()
+  if not cli then return nil end
+  local out, ok = hs.execute(cli .. " relay get 2>/dev/null")
+  return parseSelectedLocationOutput(out, ok)
 end
 
 -- Run a CLI subcommand off the main thread and fire the callback on completion. The
@@ -96,6 +114,35 @@ local function runAsync(args, cb)
   local t = hs.task.new(cli, function(rc, _, se)
     if cb then cb(rc == 0, (se ~= nil and se ~= "" and se) or nil) end
   end, args)
+  t:start()
+end
+
+-- status and selectedLocation's own async doors, phase three review finding eleven, through
+-- hs.task rather than hs.execute, the identical mechanism the relay list below already runs
+-- its own read through. No shell string and no output redirect are needed the way the
+-- synchronous reads above use them, since hs.task already answers stdout and stderr as two
+-- separate values rather than one combined string a shell pipe would otherwise have to be
+-- asked to separate. Each shares its own parse function with its synchronous counterpart, so
+-- the two can never read the identical output two different ways.
+function M.statusAsync(cb)
+  if not cli then
+    if cb then cb({ state = "unavailable" }) end
+    return
+  end
+  local t = hs.task.new(cli, function(rc, so, _)
+    if cb then cb(parseStatusOutput(so, rc == 0)) end
+  end, { "status", "-j" })
+  t:start()
+end
+
+function M.selectedLocationAsync(cb)
+  if not cli then
+    if cb then cb(nil) end
+    return
+  end
+  local t = hs.task.new(cli, function(rc, so, _)
+    if cb then cb(parseSelectedLocationOutput(so, rc == 0)) end
+  end, { "relay", "get" })
   t:start()
 end
 

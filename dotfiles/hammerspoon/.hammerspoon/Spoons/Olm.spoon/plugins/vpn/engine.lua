@@ -36,10 +36,25 @@ function M.start()
   return M
 end
 
--- The status read on demand, so an opening panel shows the live state.
+-- The status read on demand, so an opening panel shows the live state. Synchronous, kept
+-- for a caller off the hot path, refresh above among them.
 function M.status()
   if provider then last = provider.status() or { state = "unavailable" } end
   return last
+end
+
+-- The async counterparts to status and selectedLocation below, phase three review finding
+-- eleven, for a caller that must never block the main thread while it draws, VPN's own
+-- M.prepare among them. Answer through cb rather than updating last or firing onChange,
+-- since a caller reading fresh state for its own presentation is not the daemon telling
+-- every open panel something changed, two different events, and onChange stays the second
+-- one's own door alone.
+function M.statusAsync(cb)
+  if not provider or not provider.statusAsync then
+    if cb then cb(last) end
+    return
+  end
+  provider.statusAsync(function(status) if cb then cb(status or { state = "unavailable" }) end end)
 end
 
 -- An action runs through the provider off the main thread, then refreshes when it
@@ -61,10 +76,18 @@ function M.listLocations(cb)
 end
 
 -- The relay the tunnel would use on connect, read live from the provider so the disconnected
--- label can name where a connect would go.
+-- label can name where a connect would go. Synchronous, kept for a caller off the hot path.
 function M.selectedLocation()
   if provider then return provider.selectedLocation() end
   return nil
+end
+
+function M.selectedLocationAsync(cb)
+  if not provider or not provider.selectedLocationAsync then
+    if cb then cb(nil) end
+    return
+  end
+  provider.selectedLocationAsync(cb)
 end
 
 return M

@@ -569,16 +569,26 @@ presentation = {
 }
 ```
 
-Every field but `rowCount` is a member spec, the identical bare string or `{ member, call }`
-table `registry.open` and `registry.scope` already resolve, and for the identical reason,
-`call` defaults to `method` and must say `dot` for a plugin whose own functions are plain
-dot called rather than colon methods. The words are the presentation contract's own,
-BRIEF-STAGE.md version one plus phase three's own addition, `rows`, `onSelect`,
-`placeholder`, `onPresent`, `intercept`, `back`, `onHighlight`, `onClose`, `peekPreview`,
-with one deliberate difference. This block calls the contract's `onSelect` field `select`
-instead, the same word `provides.select` and `registry.scope.run` already use for a
-plugin's own selection member, so one plugin never has to name the same function two
-different ways depending on which part of the config is asking.
+Every field but `rowCount` is a member spec, the same `{ member, call }` shape `registry.open`
+and `registry.scope` already resolve, with one deliberate tightening. **A presentation member
+must be the table form and must state `call` itself, `"dot"` or `"method"`, never the bare
+string shorthand and never left to default.** Every other member spec in this whole contract
+lets a bare string default `call` to `"method"` in silence, and for most of them that default
+is harmless, since a wrong guess there fails loud, an arity mismatch on a call nobody expected
+to work. A presentation's own `rows` and `select` run on every keystroke a presenting tool's
+list receives, so a wrong default there fails quiet instead, `callMember` calls a plain dot
+function as a method, and the module table lands where the first real argument belonged,
+shifting everything after it along by one rather than raising anything. Phase three's own
+review named this residue, the identical shape `docs/AUDIT-2026-08-13.md` already recorded
+once for a sibling need bound the wrong way, and the registrar now refuses a presentation
+member that leaves `call` unstated, the same refusal named below for a member that does not
+resolve at all. The words themselves are the presentation contract's own, BRIEF-STAGE.md
+version one plus phase three's own addition, `rows`, `onSelect`, `placeholder`, `onPresent`,
+`intercept`, `back`, `onHighlight`, `onClose`, `peekPreview`, with one deliberate difference.
+This block calls the contract's `onSelect` field `select` instead, the same word
+`provides.select` and `registry.scope.run` already use for a plugin's own selection member,
+so one plugin never has to name the same function two different ways depending on which part
+of the config is asking.
 
 `onPresent` is called with no arguments whenever this presentation becomes current, through
 either door, `stage.present` or `stage.push`, never on `stage.pop`, which restores a
@@ -596,13 +606,18 @@ since a presentation with a hole in either of these two is not a presentation an
 show.
 
 **Every named member is checked against the real, loaded module at register, and a name
-that does not resolve refuses the whole registration too, loudly, naming the tool and the
-field.** Phase three review finding four, `docs/AUDIT-2026-08-13.md`'s own failure class
-reopened, a manifest naming a member that had been deleted or misspelled, with nothing
-anywhere reporting it. This check is what makes checking `rows` and `select` for existence,
-not merely for shape, safe to do at register at all, since by then every plugin's own wiring
-step has already run and the module this checks against is the real, finished one. A member
-this block leaves undeclared is never checked, since there is nothing there to be wrong.
+that does not resolve, or a member whose own `call` was left unstated, refuses the whole
+registration, loudly, naming the tool and the field.** Phase three review finding four,
+`docs/AUDIT-2026-08-13.md`'s own failure class reopened, a manifest naming a member that had
+been deleted or misspelled, with nothing anywhere reporting it. This check is what makes
+checking `rows` and `select` for existence, not merely for shape, safe to do at register at
+all, since by then every plugin's own wiring step has already run and the module this checks
+against is the real, finished one. A member this block leaves undeclared is never checked,
+since there is nothing there to be wrong. A refused registration is recorded in
+`wire.record.problems` too, not only logged, the identical path a malformed `scope` already
+takes, `lib/registry.lua`'s own `presentationIsWellFormed` refusing an intentionally empty
+presentation this file hands it in place of the broken one, so a load report can never say
+no problems while a tool has silently vanished from the catalogue.
 
 Every field the registrar resolves into a member becomes a closure on the presentation
 table it hands to `registry.presentationFor(name)`, resolved fresh against the real module
