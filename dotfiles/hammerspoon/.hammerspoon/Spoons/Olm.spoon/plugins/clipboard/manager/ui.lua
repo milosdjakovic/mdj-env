@@ -30,14 +30,19 @@ local cfg = nil -- layout and size config, see configure
 local Chooser = nil -- the injected Chooser.spoon factory
 -- Migrated onto host/stage, the trickle migration. This plugin owns no Chooser instance and
 -- builds no window any more, so isShowing lives here instead as a plain flag, true from the
--- moment UI.onPresent runs until onClose says otherwise. lastHighlighted is the item the
--- presentation's own onHighlight, renderPreview itself, last named, cached so appendSelected,
--- deleteSelected, and every explicit re-render have something to act on without an instance of
--- its own left to ask selectedItem() of, the identical shape filesearch and processes already
--- carry. Both are also what providers/hammerspoon.lua's own toggle now reads and drives,
--- through UI.isShowing and UI.hide, in place of the instance it used to ask directly.
+-- moment UI.onPresent runs until onClose says otherwise. It is also what
+-- providers/hammerspoon.lua's own toggle now reads and drives, through UI.isShowing and
+-- UI.hide, in place of the instance it used to ask directly.
+--
+-- Review finding H6. This file used to also hold lastHighlighted, a module local cache set
+-- only by renderPreview, the atom's own onHighlight target, and read back by appendSelected,
+-- deleteSelected, and every explicit re-render. It was never seeded any other way and never
+-- cleared on close, so a cold open answered whatever the previous session had highlighted for
+-- one poll interval, 80 milliseconds, and UI.deleteSelected read it unconditionally, an
+-- unrecoverable wrong deletion the one real cost among the three plugins this bug touched.
+-- cfg.stageSelectedItem, host/stage's own Stage:selectedItem() published for exactly this,
+-- replaces every read the cache used to answer.
 local showing = false
-local lastHighlighted = nil
 -- The manage history page, injected. It owns the duration grammar, the slices and their
 -- wording, and this file only draws whatever it hands back, see prune.lua.
 local prune = nil
@@ -114,12 +119,14 @@ end
 -- the only one left since the webview backend was retired, has no setFooter method at all,
 -- and host/stage exposes none either, so this stays exactly as inert as it already was
 -- rather than gaining a new gap the migration would have to answer for.
+--
+-- Review finding L2. A genuine no op body rather than a conditional guarding an empty
+-- block, legal Lua the first version of this fix left behind for a reader to re derive.
+-- Nothing calls into this function differently depending on cfg.footerFor, so there is
+-- nothing left to branch on until a future backend, or a future stage capability, answers
+-- setFooter, at which point this is the one place that resumes working from rather than
+-- being rediscovered from nothing.
 local function refreshFooter()
-  if cfg and cfg.footerFor then
-    -- Nothing left to forward the result to. Kept as the one place this would resume
-    -- working from if a future backend, or a future stage capability, ever answered
-    -- setFooter, rather than deleted and rediscovered from nothing.
-  end
 end
 
 --------------------------------------------------------------------------------
@@ -1054,11 +1061,10 @@ end
 -- without one, so it defers entirely rather than guessing a width, the same way the
 -- processes and filesearch panes defer their own first paint. onPositioned calls
 -- this again the moment it has a real rect, well before anything is visible.
--- Migrated onto host/stage. Caches e into lastHighlighted, since this is the presentation's
--- own onHighlight, named directly on the manifest's own presentation block, so every other
--- caller that used to ask picker:selectedItem() reads this cache instead.
+-- This is the presentation's own onHighlight, named directly on the manifest's own
+-- presentation block. Review finding H6, no longer caches e anywhere, every other caller
+-- that used to read that cache now asks cfg.stageSelectedItem for the live row instead.
 local function renderPreview(e)
-  lastHighlighted = e
   if not previewFrame then return end
   renderToken = renderToken + 1
   scrollOffset = 0
@@ -1201,12 +1207,14 @@ end
 -- Migrated onto host/stage. Drops its own call to cfg.onPositioned and the anchor
 -- arithmetic that built it, since host/stage's own paneAnchor now re anchors the docked
 -- shortcut panel itself, on every path that has real frames to report, and a plugin still
--- making that call would be a second, competing writer of the identical panel. Reads
--- lastHighlighted rather than picker:selectedItem(), an instance this file no longer holds.
+-- making that call would be a second, competing writer of the identical panel. Review
+-- finding H6. Reads cfg.stageSelectedItem live, which answers correctly even at this exact
+-- moment, before the atom's own isVisible() would say true, host/stage/init.lua's own
+-- Stage:selectedItem() guarding on the stack rather than on that for precisely this call.
 local function onPositioned(chooserFrame, companionFrame)
   if companionFrame then
     previewFrame = companionFrame
-    renderPreview(lastHighlighted)
+    renderPreview(cfg.stageSelectedItem and cfg.stageSelectedItem())
   end
 end
 
@@ -1262,7 +1270,7 @@ function UI.mediaReady()
   existCache = {}
   if showing then
     if cfg.redrawPresented then cfg.redrawPresented("clipboard") end
-    renderPreview(lastHighlighted)
+    renderPreview(cfg.stageSelectedItem and cfg.stageSelectedItem())
   end
 end
 
@@ -1275,7 +1283,7 @@ function UI.entryChanged(entry)
   hayCache[entry] = nil
   if showing then
     if cfg.redrawPresented then cfg.redrawPresented("clipboard") end
-    renderPreview(lastHighlighted)
+    renderPreview(cfg.stageSelectedItem and cfg.stageSelectedItem())
   end
 end
 
@@ -1316,9 +1324,13 @@ end
 --- UI.appendSelected() - toggle the highlighted row in the append batch, for the
 --- Hyper a binding. The chooser stays open. Refreshing redraws the rows with the
 --- new order badges, and the atom's refresh preserves the highlight.
+---
+--- Review finding H6. Reads cfg.stageSelectedItem live rather than the retired
+--- lastHighlighted cache, so this can no longer add the previous session's entry to the
+--- batch on a cold open plus immediate keypress.
 function UI.appendSelected()
   if not showing or page then return end
-  local entry = lastHighlighted
+  local entry = cfg.stageSelectedItem and cfg.stageSelectedItem()
   if not entry then return end
   toggleBatch(entry)
   if cfg.redrawPresented then cfg.redrawPresented("clipboard") end
@@ -1339,7 +1351,13 @@ function UI.deleteSelected()
     for _, e in ipairs(batch) do store.removeEntry(e) end
     batch = {}
   else
-    local entry = lastHighlighted
+    -- Review finding H6, the costly one. This used to read a module local cache seeded only
+    -- by the atom's own poll and never cleared on close, so a cold open plus an immediate d
+    -- deleted whatever the previous session had highlighted, wherever it now sat in history,
+    -- an unrecoverable wrong deletion. cfg.stageSelectedItem reads the widget's own live
+    -- selection directly, answering correctly the instant a row is on screen with no poll
+    -- interval to race.
+    local entry = cfg.stageSelectedItem and cfg.stageSelectedItem()
     if not entry then return end
     store.removeEntry(entry)
   end
@@ -1359,23 +1377,34 @@ end
 --- corrects it to the prune wording right after, the identical direct field control
 --- cfg.stageSetQuery already exists for. Already showing, the field is cleared and the ladder
 --- rebuilt exactly as before, through the published words rather than the retired instance.
+---
+--- Review finding M4. wasShowing is captured before cfg.stagePresent runs, and it has to be,
+--- since Stage:present calls this presentation's own onPresent, which sets showing true,
+--- before it ever returns, so testing showing itself after that call answers true on the
+--- cold path too and the warm path's own block ran a second time on top of a cold show that
+--- had already done the identical work honestly, through its own onPresent and the atom's own
+--- native seeding. Harmless in the specific numbers, an empty field cleared again and a
+--- redraw asking for what a cold show already painted, but the comment claimed a path the
+--- code did not take, and a live selectedItem read landing on top of a fresh show was one
+--- fewer thing worth reasoning about correctly than needed to be.
 function UI.manageHistory()
   if page == "prune" then
     UI.leaveManageHistory()
     return
   end
   page = "prune"
-  if not showing then
+  local wasShowing = showing
+  if not wasShowing then
     if cfg.stagePresent then cfg.stagePresent("clipboard") end
   end
   if cfg.stageSetPlaceholder then cfg.stageSetPlaceholder(PLACEHOLDER.prune) end
-  if showing then
+  if wasShowing then
     -- Whatever was typed was a search over history, and on this page the same text would
     -- read as a duration, so the field starts empty and the ladder is what a person sees
     -- first.
     if cfg.stageSetQuery then cfg.stageSetQuery("") end
     if cfg.redrawPresented then cfg.redrawPresented("clipboard", true) end
-    renderPreview(lastHighlighted)
+    renderPreview(cfg.stageSelectedItem and cfg.stageSelectedItem())
   end
 end
 
@@ -1390,7 +1419,7 @@ function UI.leaveManageHistory()
   if cfg.stageSetPlaceholder then cfg.stageSetPlaceholder(PLACEHOLDER.history) end
   if cfg.stageSetQuery then cfg.stageSetQuery("") end
   if cfg.redrawPresented then cfg.redrawPresented("clipboard", true) end
-  renderPreview(lastHighlighted)
+  renderPreview(cfg.stageSelectedItem and cfg.stageSelectedItem())
 end
 
 --- UI.isManagingHistory() - whether the page is on, read by the plugin's own predicate so the

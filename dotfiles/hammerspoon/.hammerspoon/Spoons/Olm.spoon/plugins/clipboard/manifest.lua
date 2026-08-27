@@ -92,6 +92,15 @@ return {
         breaks = "the field keeps reading Search clipboard on the manage history page, and " ..
                  "the reverse on the way back, since intercept and back have no other way to " ..
                  "put the level's own wording in the field" },
+      -- Review finding H6, the costly one. deleteSelected, appendSelected, and every explicit
+      -- re-render used to read a module local cache seeded only by the atom's own poll and
+      -- never cleared on close, so a cold open plus an immediate d deleted whatever the
+      -- previous session had highlighted, wherever it now sat in history, an unrecoverable
+      -- wrong deletion. This word reads the shared widget directly instead.
+      stageSelectedItem = { source = "root", policy = "optional",
+        breaks = "the preview, append, and delete all act on whatever the previous session " ..
+                 "last highlighted rather than the row actually under the cursor, since none " ..
+                 "of them has any other way to ask the shared widget directly" },
     },
   },
 
