@@ -331,9 +331,12 @@ disagreement between your declaration and the map. The full rule is in the repos
 6. `presentation` with `rows` and `select` only, table form, `call` stated, nothing else yet.
 7. Add one optional field at a time, each because something was actually wrong without it.
 8. `src/check-dependencies.sh` clean, no error and no new warning naming you.
-9. The dry contract gate, a lock free check that reads your manifest and your module and
-   reports every refusal above without Hammerspoon running. It is arriving under the Olm test
-   directory. Until it lands, reload and read the console, which is where every line above
-   appears.
+9. The dry contract gate, `Spoons/Olm.spoon/test/drygate.sh`, or `test/suite.sh dry` from the
+   same directory. A lock free check, plain lua, no Hammerspoon, no reload, no lock, that
+   loads your manifest and your real module under a permissive stub and reports every refusal
+   above in well under a second. A finding fails it. A module that will not load or configure
+   under the stub is reported unknown rather than guessed at, and an unknown does not fail the
+   gate unless you pass `--strict`. A clean tree exits zero, so run it and read the line it
+   prints naming your tool before you commit.
 10. Then use it once, with a real key press. Everything above is structure, and structure has
     never proven that a key fires.

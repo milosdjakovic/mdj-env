@@ -13,6 +13,7 @@
 #
 # Usage
 #   suite.sh                  every tier
+#   suite.sh dry [--strict]   plain lua, no Hammerspoon, no lock, see drygate.sh below
 #   suite.sh structure        the checks that need no screen, fast, safe to run any time
 #   suite.sh surface          open and close every picker, takes over the screen briefly
 #   suite.sh behaviour        the hand written per plugin scenarios
@@ -22,6 +23,20 @@ set -uo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 spoon="$(cd "$here/.." && pwd)"
+
+tiers="${1:-all}"
+
+# dry is answered before any of the machinery below runs, on purpose. Every other tier
+# needs a live Hammerspoon and the lock that guards one, and dry exists specifically so a
+# builder agent with neither can still catch a bad declaration, drygate.sh's own header
+# says the rest. Answered here, by name, rather than folded into the lock and report
+# dance below, so it stays true that this tier never starts Hammerspoon and never touches
+# the lock, not merely that it happens to finish before either would matter.
+if [ "$tiers" = "dry" ]; then
+  shift
+  exec "$here/drygate.sh" "$@"
+fi
+
 # The config directory is two levels up from the spoon, and the checkout this spoon lives in
 # is five, Olm.spoon then Spoons then .hammerspoon then hammerspoon then dotfiles.
 config="$(cd "$spoon/../.." && pwd)"
@@ -32,7 +47,6 @@ devlock="$worktree/bin/hs-devlock"
 [ -x "$devlock" ] || devlock="$(cd "$worktree/../.." 2>/dev/null && pwd)/mdj-env/bin/hs-devlock"
 
 report="${TMPDIR:-/tmp}/olm-test-report.txt"
-tiers="${1:-all}"
 
 took_lock=0
 cleanup() {

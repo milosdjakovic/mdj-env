@@ -79,12 +79,19 @@ end
 -- string defaulting to method, or a table naming member and call. A manifest author reads one
 -- rule for every place Olm resolves a name against a real module rather than a different rule
 -- per field, and this is the one function that rule is written in.
-local function memberSpec(spec)
+--
+-- DRY GATE SEAM. Exposed as obj.memberSpec, unchanged, so a lua only checker that never
+-- starts Hammerspoon can read a manifest's own member declarations by the identical rule
+-- this file applies at wire time, rather than a second reading of the same two shapes
+-- drifting from this one. Every internal call site below keeps the short local name and is
+-- otherwise untouched.
+function obj.memberSpec(spec)
   if spec == nil then return nil, nil end
   if type(spec) == "string" then return spec, "method" end
   if type(spec) == "table" then return spec.member, spec.call or "method" end
   return nil, nil
 end
+local memberSpec = obj.memberSpec
 
 -- Whether a member NAME, already split from its own spec by memberSpec above, resolves to a
 -- real function on module, walking the identical dotted path obj.member and callMember both
@@ -97,7 +104,12 @@ end
 -- resolved at register, stage five, once every plugin's own wiring has already run, so this
 -- exists for that one caller rather than folded into obj.action itself. A nil module answers
 -- false rather than raising, since nothing loaded has nothing this could resolve against.
-local function memberResolves(module, member)
+--
+-- DRY GATE SEAM. Exposed as obj.memberResolves, unchanged, so a lua only checker can ask the
+-- identical question this file asks at register, does this member resolve on the real, loaded
+-- module, against a module it loaded itself under a stub rather than against a live
+-- Hammerspoon. Internal call sites below keep the short local name.
+function obj.memberResolves(module, member)
   if module == nil or member == nil then return false end
   local value = module
   for part in tostring(member):gmatch("[^.]+") do
@@ -106,6 +118,7 @@ local function memberResolves(module, member)
   end
   return type(value) == "function"
 end
+local memberResolves = obj.memberResolves
 
 -- Whether a member spec states its own call kind outright, dot or method, rather than
 -- leaving memberSpec free to default it in silence. Phase three review's own residue on
@@ -119,9 +132,15 @@ end
 -- default every other member spec still keeps. A bare string can never state a call kind at
 -- all, so this answers false for one, and a presentation member must always be written the
 -- table way, { member = ..., call = ... }.
-local function callKindStated(spec)
+--
+-- DRY GATE SEAM. Exposed as obj.callKindStated, unchanged, for the identical reason
+-- memberSpec and memberResolves are above, so a lua only checker demands an explicit call
+-- kind exactly where this file demands one and nowhere else. Internal call sites below keep
+-- the short local name.
+function obj.callKindStated(spec)
   return type(spec) == "table" and (spec.call == "dot" or spec.call == "method")
 end
+local callKindStated = obj.callKindStated
 
 -- Walk a dotted member path against a real module and call whatever sits at the end of it,
 -- forwarding every argument this call actually carries. method binds the table the walk
@@ -247,6 +266,266 @@ end
 --- spoon.Olm.apiVersion instead of a grep across every tool. Skipping it, or answering it with a
 --- boolean, is exactly how the first attempt's registrations were refused twenty seven times over
 --- with nothing anywhere reading the false that came back, audit findings eight and thirty.
+--- obj.validatePresentation(name, identity, manifest, modules, deps)
+--- The exact check obj.describe applies to a presentation block, factored out so both
+--- obj.describe and a lua only dry gate call the identical rule rather than two copies of
+--- it drifting apart. name is the plugin's own directory or manifest key, used in every
+--- refusal line below the same way describe's own refusals already read. identity is the
+--- registered identity, stamped onto presentation.name and compared against a declared
+--- surface.context. modules is an identity or name keyed table of already loaded modules,
+--- exactly the shape describe itself receives, so a dry gate hands over whatever it loaded
+--- under its own stub rather than a live wiring table. deps.log and deps.matchers are the
+--- same two collaborators describe already threads through here.
+---
+--- Answers nil when the manifest declares no presentation at all, the same silence row and
+--- surface keep elsewhere in this file. Answers {} when the presentation is broken, so a
+--- caller building a registry descriptor still reaches lib/registry.lua's own
+--- presentationIsWellFormed and gets a loud, recorded refusal rather than a registration
+--- that silently vanished. Answers the fully resolved presentation table otherwise.
+function obj.validatePresentation(name, identity, manifest, modules, deps)
+  deps = deps or {}
+  if type(manifest.presentation) ~= "table" then return nil end
+  local p = manifest.presentation
+  local owner = (modules and modules[identity]) or (modules and modules[name])
+  -- Declared here rather than assumed, since this used to be `local presentation = nil` at
+  -- the top of describe's own inline block. Losing the `local` would leak this name as a
+  -- global on every call, silent pollution that costs nothing to avoid.
+  local presentation
+  local presentationFields = {
+    "rows", "select", "placeholder", "intercept", "back",
+    "onHighlight", "onClose", "peekPreview", "onPresent", "onPositioned",
+    -- enter, contract v2 decision two, docs/BRIEF-CONTRACT-V2.md. A member spec exactly
+    -- like every other one in this list, resolved the same lazy way and checked the same
+    -- way, since it is called with one argument, proceed, and a wrong call kind would shift
+    -- that argument into whatever the receiver would have occupied, the identical silent
+    -- failure the comment above this whole loop already worries about for rows and select.
+    "enter",
+    -- onScroll, found during the trickle migrations rather than named by either contract
+    -- brief, filesearch and clipboard both already wiring one directly into their own
+    -- retired Chooser.new calls for the identical reason
+    -- lib/chooser/providers/native.lua's own header names, a canvas companion has no
+    -- scroll callback of its own. A member spec exactly like onHighlight, resolved and
+    -- checked the same way.
+    "onScroll",
+    -- onRightClick, found alongside onScroll, clipboard's own retired Chooser.new call,
+    -- the only consumer anywhere, a canvas row offering no native right click handling of
+    -- its own either.
+    "onRightClick",
+  }
+  local broken = false
+  for _, field in ipairs(presentationFields) do
+    local declared = p[field]
+    if declared ~= nil then
+      if not callKindStated(declared) then
+        broken = true
+        if deps.log then
+          deps.log("e", string.format(
+            "registrar refused '%s', its presentation.%s does not state call, dot or method, explicitly",
+            name, field))
+        end
+      else
+        local member = memberSpec(declared)
+        if not memberResolves(owner, member) then
+          broken = true
+          if deps.log then
+            deps.log("e", string.format(
+              "registrar refused '%s', its presentation.%s names '%s', which does not resolve to a function on the real module",
+              name, field, tostring(member)))
+          end
+        end
+      end
+    end
+  end
+  -- Adversarial review finding H3, the phase four geometry rework. rowCount and paneWidth
+  -- are the two contract fields that are plain values rather than member specs, so the loop
+  -- above never touches either, and until this fix neither was checked at all, anywhere,
+  -- between the manifest and the stage. A bad rowCount, a string typed where a number was
+  -- meant, or the member spec shape written by habit since nine of the eleven other fields
+  -- take exactly that shape, reached math.min inside the atom's own _positionAndShow with
+  -- nothing to stop it, raised there, and left layout.rowCount corrupted on the one instance
+  -- the stage never rebuilds, wedging every future show of every presentation until the
+  -- config reloads. paneWidth already survived a bad value, host/stage/init.lua's own
+  -- _resolvePaneWidth refuses anything that is not a positive number or true, but only at
+  -- runtime, on every call, with no console line naming the tool, which is a weaker and
+  -- quieter protection than refusing the registration once, loudly, here, so it is checked
+  -- here too, to close the asymmetry rather than leave one field better protected than the
+  -- other for a reason nobody chose on purpose.
+  -- Rider N4 of the geometry review, second pass. A plain number check alone still let
+  -- zero, a negative, and a fraction through to math.min and then to rows(), each one a
+  -- degenerate window rather than the crash the first fix already closed, and the refusal
+  -- costs nothing to widen. paneMaxW gives the arithmetic a sane ceiling of its own
+  -- already, so this only needs a floor and a wholeness check, not a matching cap.
+  if p.rowCount ~= nil and (type(p.rowCount) ~= "number" or p.rowCount < 1 or p.rowCount % 1 ~= 0) then
+    broken = true
+    if deps.log then
+      deps.log("e", string.format(
+        "registrar refused '%s', its presentation.rowCount is '%s', not a positive whole number",
+        name, tostring(p.rowCount)))
+    end
+  end
+  -- Review finding M1. paneWidth may now ALSO be a member spec, the identical exception
+  -- placeholder already gets, for a plugin whose own reservation depends on state only its
+  -- own wiring resolves, filesearch's own viewer chain and processes' own preview surface
+  -- among them. A flat true papered over both, centring the pair as if a pane always stood
+  -- up even when the resolved provider asked for none. Resolved once, at register, the
+  -- identical moment placeholder is, since by then every plugin's own wiring has already
+  -- run and the answer is the real one rather than one frozen before it existed. Checked
+  -- for its own call kind and its own resolution the same way every other member spec in
+  -- this loop is, since a wrong default here would silently call the module table where a
+  -- policy table belonged.
+  if type(p.paneWidth) == "table" then
+    if not callKindStated(p.paneWidth) then
+      broken = true
+      if deps.log then
+        deps.log("e", string.format(
+          "registrar refused '%s', its presentation.paneWidth does not state call, dot or method, explicitly",
+          name))
+      end
+    else
+      local member = memberSpec(p.paneWidth)
+      if not memberResolves(owner, member) then
+        broken = true
+        if deps.log then
+          deps.log("e", string.format(
+            "registrar refused '%s', its presentation.paneWidth names '%s', which does not resolve to a function on the real module",
+            name, tostring(member)))
+        end
+      end
+    end
+  elseif p.paneWidth ~= nil and p.paneWidth ~= true and type(p.paneWidth) ~= "number" then
+    broken = true
+    if deps.log then
+      deps.log("e", string.format(
+        "registrar refused '%s', its presentation.paneWidth is '%s', not a plain number, true, or a member spec",
+        name, tostring(p.paneWidth)))
+    end
+  end
+  -- Contract v2 decision one, docs/BRIEF-CONTRACT-V2.md. matcher is the third contract field
+  -- that is a plain value rather than a member spec, false meaning the supplier owns
+  -- filtering the way four unmigrated consumers already ask for today, or a string naming
+  -- one of the strategies the Chooser atom itself exports, deps.matchers, the identical
+  -- table root/compose.lua already resolves this same word against for every consumer that
+  -- still builds its own Chooser.new. A string that names nothing there would otherwise
+  -- reach host/stage/init.lua's own _resolveMatcher at runtime, which falls back to the root
+  -- default in silence rather than raising, so a typo would read as "this presentation just
+  -- inherited fuzzy" with nothing anywhere saying a word was misspelled. Checked here, once,
+  -- loudly, naming the tool and the unknown strategy, the same discipline rowCount and
+  -- paneWidth just above already keep. deps.matchers absent, which nothing in the ordinary
+  -- wiring pass ever leaves true, degrades to skipping this one check rather than refusing
+  -- every string outright, since a missing dependency of the CHECK is not the same claim as
+  -- a bad VALUE from the plugin.
+  if p.matcher ~= nil and p.matcher ~= false then
+    if type(p.matcher) ~= "string" then
+      broken = true
+      if deps.log then
+        deps.log("e", string.format(
+          "registrar refused '%s', its presentation.matcher is '%s', not false or a string naming a matcher strategy",
+          name, tostring(p.matcher)))
+      end
+    elseif deps.matchers and not deps.matchers[p.matcher] then
+      broken = true
+      if deps.log then
+        deps.log("e", string.format(
+          "registrar refused '%s', its presentation.matcher names '%s', which is not a strategy the Chooser atom exports",
+          name, p.matcher))
+      end
+    end
+  end
+  -- Rework rider, filesearch's own titleLineBreak restored. A fourth plain value field,
+  -- the identical shape matcher just above takes, since host/stage writes it onto the live
+  -- instance the same live way rather than resolving it once at construction. Only a type
+  -- check, not a check against AppKit's own line break enum, since that enum lives nowhere
+  -- in this repository worth naming and a bad string is what AppKit itself is left to
+  -- answer for, the same trust every other atom facing string this contract hands through
+  -- untouched, a theme name among them.
+  if p.titleLineBreak ~= nil and type(p.titleLineBreak) ~= "string" then
+    broken = true
+    if deps.log then
+      deps.log("e", string.format(
+        "registrar refused '%s', its presentation.titleLineBreak is '%s', not a string",
+        name, tostring(p.titleLineBreak)))
+    end
+  end
+  -- Finding ten. A presenting plugin routes by identity, isShowingFor and the surface
+  -- adapters loop both ask the registry by identity and the stage's own current() answers
+  -- the identity the registrar stamped, but the docked hint bar still looks the answer up in
+  -- plan.contexts, which is keyed by this plugin's own declared surface.context when it
+  -- named one. The two agree today because every plugin that presents also spells its
+  -- context exactly as its identity, and nothing enforces that agreement, so a plugin that
+  -- ever let them diverge would route, gate, and present correctly while its hint bar quietly
+  -- went empty. One console line, naming both words, so that divergence cannot happen in
+  -- silence even though this phase does not fix the routing itself.
+  local declaredContext = manifest.surface and manifest.surface.context
+  if declaredContext and declaredContext ~= identity and deps.log then
+    deps.log("w", string.format(
+      "registrar found '%s' presenting under identity '%s' while its surface declares context '%s', the docked hint bar routes by identity and will not follow that context",
+      name, identity, declaredContext))
+  end
+  if broken then
+    -- Passed through as an empty, structurally invalid presentation rather than dropped
+    -- or refused by returning nil here, phase three review's own second residue on finding
+    -- four. Returning nil, the first pass at this fix, refused the tool just as hard but
+    -- through silence, since lib/wire.lua's own self.register only ever calls
+    -- pcall(registry.register, descriptor) when describe answered something, so a nil
+    -- descriptor here left w.report() saying no problems while a tool had vanished from
+    -- the catalogue with only the console line above as evidence. An empty table instead
+    -- still reaches lib/registry.lua's own presentationIsWellFormed, which refuses it on
+    -- the identical "has no rows function" it already gives a malformed scope, so
+    -- instance.register answers false, and self.register's own fail records the problem in
+    -- wire.record.problems the same way a malformed scope's refusal already does. The
+    -- deps.log lines above already named the real reason, this is what carries the refusal
+    -- the rest of the way to a report a person might actually read.
+    presentation = {}
+  else
+    presentation = {
+      name = identity,
+      rows = obj.action(modules, identity, name, p.rows, nil),
+      onSelect = obj.action(modules, identity, name, p.select, nil),
+      intercept = obj.action(modules, identity, name, p.intercept, nil),
+      back = obj.action(modules, identity, name, p.back, nil),
+      onHighlight = obj.action(modules, identity, name, p.onHighlight, nil),
+      -- onScroll, found during the trickle migrations, resolved the identical lazy way
+      -- onHighlight just above already is.
+      onScroll = obj.action(modules, identity, name, p.onScroll, nil),
+      -- onRightClick, found alongside onScroll, resolved the identical lazy way.
+      onRightClick = obj.action(modules, identity, name, p.onRightClick, nil),
+      onClose = obj.action(modules, identity, name, p.onClose, nil),
+      peekPreview = obj.action(modules, identity, name, p.peekPreview, nil),
+      onPresent = obj.action(modules, identity, name, p.onPresent, nil),
+      onPositioned = obj.action(modules, identity, name, p.onPositioned, nil),
+      -- enter, contract v2 decision two, resolved the identical lazy way every other member
+      -- above already is, so a plugin that assembles it inside its own configure is still
+      -- found once that has actually run.
+      enter = obj.action(modules, identity, name, p.enter, nil),
+      rowCount = p.rowCount,
+      -- matcher, contract v2 decision one, carried through as the plain value the check
+      -- above already trusts, false, a strategy name, or nil, never resolved into the
+      -- actual matcher function here, since host/stage/init.lua's own _resolveMatcher is
+      -- what holds the Chooser factory this would have to be looked up against.
+      matcher = p.matcher,
+      -- titleLineBreak, the rework rider, carried through the identical way, a plain string
+      -- or nil, host/stage writing it live rather than this file resolving anything.
+      titleLineBreak = p.titleLineBreak,
+    }
+    -- paneWidth, review finding M1. A member spec resolves once, right here, the identical
+    -- moment and the identical reason placeholder does, since a plugin's own reservation
+    -- depending on wiring only just finished running wants the real answer rather than one
+    -- frozen before it existed. A plain value, true, a number, or nil, carries through
+    -- unresolved exactly as rowCount and matcher do.
+    if type(p.paneWidth) == "table" then
+      local resolvePaneWidth = obj.action(modules, identity, name, p.paneWidth, nil)
+      presentation.paneWidth = resolvePaneWidth and resolvePaneWidth()
+    else
+      presentation.paneWidth = p.paneWidth
+    end
+    if p.placeholder ~= nil then
+      local resolvePlaceholder = obj.action(modules, identity, name, p.placeholder, nil)
+      presentation.placeholder = resolvePlaceholder and resolvePlaceholder()
+    end
+  end
+  return presentation
+end
+
 function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
   plan = plan or {}
   deps = deps or {}
@@ -421,243 +700,11 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
   -- one still being built. callKindStated above is what makes that check honest rather than
   -- merely present, refusing a member whose own calling convention was left to a default this
   -- contract does not trust for a presentation.
-  local presentation = nil
-  if type(manifest.presentation) == "table" then
-    local p = manifest.presentation
-    local owner = (modules and modules[identity]) or (modules and modules[name])
-    local presentationFields = {
-      "rows", "select", "placeholder", "intercept", "back",
-      "onHighlight", "onClose", "peekPreview", "onPresent", "onPositioned",
-      -- enter, contract v2 decision two, docs/BRIEF-CONTRACT-V2.md. A member spec exactly
-      -- like every other one in this list, resolved the same lazy way and checked the same
-      -- way, since it is called with one argument, proceed, and a wrong call kind would shift
-      -- that argument into whatever the receiver would have occupied, the identical silent
-      -- failure the comment above this whole loop already worries about for rows and select.
-      "enter",
-      -- onScroll, found during the trickle migrations rather than named by either contract
-      -- brief, filesearch and clipboard both already wiring one directly into their own
-      -- retired Chooser.new calls for the identical reason
-      -- lib/chooser/providers/native.lua's own header names, a canvas companion has no
-      -- scroll callback of its own. A member spec exactly like onHighlight, resolved and
-      -- checked the same way.
-      "onScroll",
-      -- onRightClick, found alongside onScroll, clipboard's own retired Chooser.new call,
-      -- the only consumer anywhere, a canvas row offering no native right click handling of
-      -- its own either.
-      "onRightClick",
-    }
-    local broken = false
-    for _, field in ipairs(presentationFields) do
-      local declared = p[field]
-      if declared ~= nil then
-        if not callKindStated(declared) then
-          broken = true
-          if deps.log then
-            deps.log("e", string.format(
-              "registrar refused '%s', its presentation.%s does not state call, dot or method, explicitly",
-              name, field))
-          end
-        else
-          local member = memberSpec(declared)
-          if not memberResolves(owner, member) then
-            broken = true
-            if deps.log then
-              deps.log("e", string.format(
-                "registrar refused '%s', its presentation.%s names '%s', which does not resolve to a function on the real module",
-                name, field, tostring(member)))
-            end
-          end
-        end
-      end
-    end
-    -- Adversarial review finding H3, the phase four geometry rework. rowCount and paneWidth
-    -- are the two contract fields that are plain values rather than member specs, so the loop
-    -- above never touches either, and until this fix neither was checked at all, anywhere,
-    -- between the manifest and the stage. A bad rowCount, a string typed where a number was
-    -- meant, or the member spec shape written by habit since nine of the eleven other fields
-    -- take exactly that shape, reached math.min inside the atom's own _positionAndShow with
-    -- nothing to stop it, raised there, and left layout.rowCount corrupted on the one instance
-    -- the stage never rebuilds, wedging every future show of every presentation until the
-    -- config reloads. paneWidth already survived a bad value, host/stage/init.lua's own
-    -- _resolvePaneWidth refuses anything that is not a positive number or true, but only at
-    -- runtime, on every call, with no console line naming the tool, which is a weaker and
-    -- quieter protection than refusing the registration once, loudly, here, so it is checked
-    -- here too, to close the asymmetry rather than leave one field better protected than the
-    -- other for a reason nobody chose on purpose.
-    -- Rider N4 of the geometry review, second pass. A plain number check alone still let
-    -- zero, a negative, and a fraction through to math.min and then to rows(), each one a
-    -- degenerate window rather than the crash the first fix already closed, and the refusal
-    -- costs nothing to widen. paneMaxW gives the arithmetic a sane ceiling of its own
-    -- already, so this only needs a floor and a wholeness check, not a matching cap.
-    if p.rowCount ~= nil and (type(p.rowCount) ~= "number" or p.rowCount < 1 or p.rowCount % 1 ~= 0) then
-      broken = true
-      if deps.log then
-        deps.log("e", string.format(
-          "registrar refused '%s', its presentation.rowCount is '%s', not a positive whole number",
-          name, tostring(p.rowCount)))
-      end
-    end
-    -- Review finding M1. paneWidth may now ALSO be a member spec, the identical exception
-    -- placeholder already gets, for a plugin whose own reservation depends on state only its
-    -- own wiring resolves, filesearch's own viewer chain and processes' own preview surface
-    -- among them. A flat true papered over both, centring the pair as if a pane always stood
-    -- up even when the resolved provider asked for none. Resolved once, at register, the
-    -- identical moment placeholder is, since by then every plugin's own wiring has already
-    -- run and the answer is the real one rather than one frozen before it existed. Checked
-    -- for its own call kind and its own resolution the same way every other member spec in
-    -- this loop is, since a wrong default here would silently call the module table where a
-    -- policy table belonged.
-    if type(p.paneWidth) == "table" then
-      if not callKindStated(p.paneWidth) then
-        broken = true
-        if deps.log then
-          deps.log("e", string.format(
-            "registrar refused '%s', its presentation.paneWidth does not state call, dot or method, explicitly",
-            name))
-        end
-      else
-        local member = memberSpec(p.paneWidth)
-        if not memberResolves(owner, member) then
-          broken = true
-          if deps.log then
-            deps.log("e", string.format(
-              "registrar refused '%s', its presentation.paneWidth names '%s', which does not resolve to a function on the real module",
-              name, tostring(member)))
-          end
-        end
-      end
-    elseif p.paneWidth ~= nil and p.paneWidth ~= true and type(p.paneWidth) ~= "number" then
-      broken = true
-      if deps.log then
-        deps.log("e", string.format(
-          "registrar refused '%s', its presentation.paneWidth is '%s', not a plain number, true, or a member spec",
-          name, tostring(p.paneWidth)))
-      end
-    end
-    -- Contract v2 decision one, docs/BRIEF-CONTRACT-V2.md. matcher is the third contract field
-    -- that is a plain value rather than a member spec, false meaning the supplier owns
-    -- filtering the way four unmigrated consumers already ask for today, or a string naming
-    -- one of the strategies the Chooser atom itself exports, deps.matchers, the identical
-    -- table root/compose.lua already resolves this same word against for every consumer that
-    -- still builds its own Chooser.new. A string that names nothing there would otherwise
-    -- reach host/stage/init.lua's own _resolveMatcher at runtime, which falls back to the root
-    -- default in silence rather than raising, so a typo would read as "this presentation just
-    -- inherited fuzzy" with nothing anywhere saying a word was misspelled. Checked here, once,
-    -- loudly, naming the tool and the unknown strategy, the same discipline rowCount and
-    -- paneWidth just above already keep. deps.matchers absent, which nothing in the ordinary
-    -- wiring pass ever leaves true, degrades to skipping this one check rather than refusing
-    -- every string outright, since a missing dependency of the CHECK is not the same claim as
-    -- a bad VALUE from the plugin.
-    if p.matcher ~= nil and p.matcher ~= false then
-      if type(p.matcher) ~= "string" then
-        broken = true
-        if deps.log then
-          deps.log("e", string.format(
-            "registrar refused '%s', its presentation.matcher is '%s', not false or a string naming a matcher strategy",
-            name, tostring(p.matcher)))
-        end
-      elseif deps.matchers and not deps.matchers[p.matcher] then
-        broken = true
-        if deps.log then
-          deps.log("e", string.format(
-            "registrar refused '%s', its presentation.matcher names '%s', which is not a strategy the Chooser atom exports",
-            name, p.matcher))
-        end
-      end
-    end
-    -- Rework rider, filesearch's own titleLineBreak restored. A fourth plain value field,
-    -- the identical shape matcher just above takes, since host/stage writes it onto the live
-    -- instance the same live way rather than resolving it once at construction. Only a type
-    -- check, not a check against AppKit's own line break enum, since that enum lives nowhere
-    -- in this repository worth naming and a bad string is what AppKit itself is left to
-    -- answer for, the same trust every other atom facing string this contract hands through
-    -- untouched, a theme name among them.
-    if p.titleLineBreak ~= nil and type(p.titleLineBreak) ~= "string" then
-      broken = true
-      if deps.log then
-        deps.log("e", string.format(
-          "registrar refused '%s', its presentation.titleLineBreak is '%s', not a string",
-          name, tostring(p.titleLineBreak)))
-      end
-    end
-    -- Finding ten. A presenting plugin routes by identity, isShowingFor and the surface
-    -- adapters loop both ask the registry by identity and the stage's own current() answers
-    -- the identity the registrar stamped, but the docked hint bar still looks the answer up in
-    -- plan.contexts, which is keyed by this plugin's own declared surface.context when it
-    -- named one. The two agree today because every plugin that presents also spells its
-    -- context exactly as its identity, and nothing enforces that agreement, so a plugin that
-    -- ever let them diverge would route, gate, and present correctly while its hint bar quietly
-    -- went empty. One console line, naming both words, so that divergence cannot happen in
-    -- silence even though this phase does not fix the routing itself.
-    local declaredContext = manifest.surface and manifest.surface.context
-    if declaredContext and declaredContext ~= identity and deps.log then
-      deps.log("w", string.format(
-        "registrar found '%s' presenting under identity '%s' while its surface declares context '%s', the docked hint bar routes by identity and will not follow that context",
-        name, identity, declaredContext))
-    end
-    if broken then
-      -- Passed through as an empty, structurally invalid presentation rather than dropped
-      -- or refused by returning nil here, phase three review's own second residue on finding
-      -- four. Returning nil, the first pass at this fix, refused the tool just as hard but
-      -- through silence, since lib/wire.lua's own self.register only ever calls
-      -- pcall(registry.register, descriptor) when describe answered something, so a nil
-      -- descriptor here left w.report() saying no problems while a tool had vanished from
-      -- the catalogue with only the console line above as evidence. An empty table instead
-      -- still reaches lib/registry.lua's own presentationIsWellFormed, which refuses it on
-      -- the identical "has no rows function" it already gives a malformed scope, so
-      -- instance.register answers false, and self.register's own fail records the problem in
-      -- wire.record.problems the same way a malformed scope's refusal already does. The
-      -- deps.log lines above already named the real reason, this is what carries the refusal
-      -- the rest of the way to a report a person might actually read.
-      presentation = {}
-    else
-      presentation = {
-        name = identity,
-        rows = obj.action(modules, identity, name, p.rows, nil),
-        onSelect = obj.action(modules, identity, name, p.select, nil),
-        intercept = obj.action(modules, identity, name, p.intercept, nil),
-        back = obj.action(modules, identity, name, p.back, nil),
-        onHighlight = obj.action(modules, identity, name, p.onHighlight, nil),
-        -- onScroll, found during the trickle migrations, resolved the identical lazy way
-        -- onHighlight just above already is.
-        onScroll = obj.action(modules, identity, name, p.onScroll, nil),
-        -- onRightClick, found alongside onScroll, resolved the identical lazy way.
-        onRightClick = obj.action(modules, identity, name, p.onRightClick, nil),
-        onClose = obj.action(modules, identity, name, p.onClose, nil),
-        peekPreview = obj.action(modules, identity, name, p.peekPreview, nil),
-        onPresent = obj.action(modules, identity, name, p.onPresent, nil),
-        onPositioned = obj.action(modules, identity, name, p.onPositioned, nil),
-        -- enter, contract v2 decision two, resolved the identical lazy way every other member
-        -- above already is, so a plugin that assembles it inside its own configure is still
-        -- found once that has actually run.
-        enter = obj.action(modules, identity, name, p.enter, nil),
-        rowCount = p.rowCount,
-        -- matcher, contract v2 decision one, carried through as the plain value the check
-        -- above already trusts, false, a strategy name, or nil, never resolved into the
-        -- actual matcher function here, since host/stage/init.lua's own _resolveMatcher is
-        -- what holds the Chooser factory this would have to be looked up against.
-        matcher = p.matcher,
-        -- titleLineBreak, the rework rider, carried through the identical way, a plain string
-        -- or nil, host/stage writing it live rather than this file resolving anything.
-        titleLineBreak = p.titleLineBreak,
-      }
-      -- paneWidth, review finding M1. A member spec resolves once, right here, the identical
-      -- moment and the identical reason placeholder does, since a plugin's own reservation
-      -- depending on wiring only just finished running wants the real answer rather than one
-      -- frozen before it existed. A plain value, true, a number, or nil, carries through
-      -- unresolved exactly as rowCount and matcher do.
-      if type(p.paneWidth) == "table" then
-        local resolvePaneWidth = obj.action(modules, identity, name, p.paneWidth, nil)
-        presentation.paneWidth = resolvePaneWidth and resolvePaneWidth()
-      else
-        presentation.paneWidth = p.paneWidth
-      end
-      if p.placeholder ~= nil then
-        local resolvePlaceholder = obj.action(modules, identity, name, p.placeholder, nil)
-        presentation.placeholder = resolvePlaceholder and resolvePlaceholder()
-      end
-    end
-  end
+  -- Delegates to obj.validatePresentation above, the dry gate seam, so the checks
+  -- against the real, loaded module and the checks that need no module at all live in
+  -- one function this file and a lua only checker both call, rather than the identical
+  -- rule written twice and free to drift.
+  local presentation = obj.validatePresentation(name, identity, manifest, modules, deps)
 
   return {
     name = identity,
