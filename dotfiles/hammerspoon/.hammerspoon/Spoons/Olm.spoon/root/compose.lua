@@ -1562,8 +1562,34 @@ function obj.run(olm, cfg)
   -- makes inside surfaceAdapterFor above, so overlay display asks for the same thing by hand
   -- rather than through the loop that can never reach it. Appended after the loop rather than
   -- inside it, since it owns no plan.order entry to be found at.
+  --
+  -- THE SEAM. Laziness here is mandatory, not stylistic, the exact defect a live probe found,
+  -- the config dying before ipc ever came up. stageModule:surfaceFor("overlayDisplay") reads
+  -- self.surface, host/stage/init.lua's own field built inside Stage:configure, stage two of
+  -- the eight fixed stages below, w.configure(modules, manifests), which has not run yet at
+  -- the point this line executes, this whole join sitting well before STEP J even starts.
+  -- Calling surfaceFor here, eagerly, at wire time, indexes a nil self.surface and crashes the
+  -- whole config load. The identical class of defect phase three review finding one already
+  -- named for the ordinary presenting plugin path above, resolved eagerly before the thing
+  -- being resolved existed, and surfaceAdapterFor's own lazy __index immediately above this
+  -- is the fix that was already written for it, so this mirrors that precedent rather than
+  -- inventing a second shape. The whole call is deferred, not only the field read after it,
+  -- since Stage:surfaceFor itself indexes self.surface the moment IT runs, so a proxy that
+  -- resolved surfaceFor eagerly and only deferred the methodName lookup would still crash at
+  -- the same line. Nav asking whether this context is showing, lib/nav.lua's own
+  -- activeSurface, is what triggers resolution now, which never happens before every stage
+  -- has run, since nothing dispatches a key until w.start, the very last one.
   if stageModule then
-    surfaceAdapters[#surfaceAdapters + 1] = stageModule:surfaceFor("overlayDisplay")
+    surfaceAdapters[#surfaceAdapters + 1] = setmetatable({}, {
+      __index = function(_, methodName)
+        local fn = stageModule:surfaceFor("overlayDisplay")[methodName]
+        if not fn then return nil end
+        return function(...)
+          local ok, result = pcall(fn, ...)
+          return ok and result
+        end
+      end,
+    })
   end
 
   ------------------------------------------------------------------------------
