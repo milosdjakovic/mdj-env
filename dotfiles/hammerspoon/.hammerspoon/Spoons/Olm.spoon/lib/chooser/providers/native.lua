@@ -66,11 +66,6 @@
 ---   onPositioned function(chooserFrame, companionFrame) fired after layout, both
 ---                a seed frame at show and a corrected frame once the real window
 ---                settles. A consumer docks its companion into companionFrame.
----   onInput      function(text) fired on Return while in input field mode.
----   fieldMode    "filter" (query filters rows), "off" (query inert), "input"
----                (query is a typed value, Return calls onInput), or "hybrid"
----                (rows plus a typed value, Return submits the text when the field
----                is non empty else selects the row). Default filter.
 ---   placeholder  the empty field hint.
 ---   layout       sizes: width (chooser width in px, the uniform default 480 unless
 ---                a consumer overrides it, clamped to the screen; set false to use
@@ -203,18 +198,18 @@ end
 
 -- Run the consumer's supplier for the current query and map to chooser choices,
 -- keeping the mapped list so navigation and selection can read items back. With a
--- matcher set and a non-empty query in filter mode the atom owns filtering: score every
--- candidate, drop the misses, and sort by score with the original order breaking ties,
--- so a stable secondary order like the launcher's recency still shows through. The
--- styling in _toChoice then runs only for the survivors, so a heavy list styles a few
--- matched rows per keystroke rather than all of them. Without a matcher, or on an empty
--- query, every returned item is kept in order, the pre-injection behaviour, which is
--- also the path a supplier that owns its own filtering (matcher = false) always takes.
+-- matcher set and a non-empty query the atom owns filtering: score every candidate,
+-- drop the misses, and sort by score with the original order breaking ties, so a
+-- stable secondary order like the launcher's recency still shows through. The styling
+-- in _toChoice then runs only for the survivors, so a heavy list styles a few matched
+-- rows per keystroke rather than all of them. Without a matcher, or on an empty query,
+-- every returned item is kept in order, the pre-injection behaviour, which is also the
+-- path a supplier that owns its own filtering (matcher = false) always takes.
 function Chooser:_build(query)
   local items = self.config.rows and self.config.rows(query) or {}
   local matcher = self.matcher
   local out = {}
-  if type(matcher) == "function" and self.fieldMode == obj.fieldModes.filter and query ~= "" then
+  if type(matcher) == "function" and query ~= "" then
     local ranked = {}
     for i = 1, #items do
       local score = matcher(query, haystackOf(items[i]))
@@ -509,7 +504,7 @@ end
 -- inline check already kept it from being actionable through a click.
 function Chooser:_intercept(item, enabled)
   local ask = self.config.intercept
-  if not ask or not item or self.fieldMode ~= obj.fieldModes.filter then return false end
+  if not ask or not item then return false end
   if ask(item, enabled) ~= true then return false end
   self:refresh(true)
   return true
@@ -519,7 +514,7 @@ end
 -- editing for every press that has a character to delete.
 function Chooser:_back()
   local ask = self.config.back
-  if not ask or self.fieldMode ~= obj.fieldModes.filter then return false end
+  if not ask then return false end
   if (self.chooser and self.chooser:query() or "") ~= "" then return false end
   if ask() ~= true then return false end
   self:refresh(true)
@@ -734,16 +729,6 @@ end
 --------------------------------------------------------------------------------
 
 function Chooser:_completion(choice)
-  -- Text submit. In input mode Return always commits the typed value. In hybrid
-  -- mode, where rows and a typed value coexist, Return commits the text only when
-  -- the field is non empty, otherwise it selects the highlighted row below.
-  local q = self.chooser and self.chooser:query() or ""
-  if self.config.onInput and (self.fieldMode == obj.fieldModes.input
-    or (self.fieldMode == obj.fieldModes.hybrid and q ~= "")) then
-    self:_teardown()
-    self.config.onInput(q)
-    return
-  end
   local item, enabled = nil, true
   if choice then
     item = choice._item
@@ -922,39 +907,6 @@ function Chooser:selectRow(n)
   self.lastRow = nil
 end
 
---- Chooser.fieldModes - the four field modes, published so a caller writes
---- Chooser.fieldModes.filter rather than the bare string "filter". A closed set this
---- file owns because this is the only file that reads one, enumerated in prose in the
---- config doc above since before it existed, so publishing it states once what was
---- already stated twice. A member's value is its own name, so nothing a consumer stores
---- or logs changes.
-obj.fieldModes = { filter = "filter", off = "off", input = "input", hybrid = "hybrid" }
-
---- Chooser.memberFieldMode(mode) - the mode when it is one of the set, else filter with
---- one warning naming what was given and what is allowed. Shared by the constructor and
---- by setFieldMode so both answer a bad value the same way, which they did not when each
---- wrote its own `or "filter"` and neither looked at what it had been handed.
-function obj.memberFieldMode(mode)
-  if mode == nil then return obj.fieldModes.filter end
-  for _, member in pairs(obj.fieldModes) do
-    if mode == member then return mode end
-  end
-  local names = {}
-  for name in pairs(obj.fieldModes) do names[#names + 1] = name end
-  table.sort(names)
-  print("Chooser: fieldMode was given " .. tostring(mode) .. ", which is not one of "
-    .. table.concat(names, ", ") .. ", so filter is used")
-  return obj.fieldModes.filter
-end
-
---- Chooser:setFieldMode(mode) - switch the field between filter, off, input and
---- hybrid at runtime. In input mode the placeholder should state the expected format.
---- An unknown mode warns and falls back to filter rather than being stored, since a
---- stored typo leaves a field that silently does nothing and nothing anywhere saying why.
-function Chooser:setFieldMode(mode)
-  self.fieldMode = obj.memberFieldMode(mode)
-end
-
 --- Chooser:setPlaceholder(text) - update the empty-field hint live.
 function Chooser:setPlaceholder(text)
   if self.chooser then self.chooser:placeholderText(text or "") end
@@ -1090,7 +1042,6 @@ function obj.new(config)
     -- a caller last wrote there, since neither reads it back, only companionWidth is ever
     -- read live by this file's own arithmetic.
     layout = layout,
-    fieldMode = obj.memberFieldMode(config.fieldMode),
     -- The injected filter strategy, resolved by the facade to the module default when
     -- the consumer named none. A function means the atom filters; false or nil means it
     -- does not and the supplier owns filtering.
@@ -1112,13 +1063,10 @@ function obj.new(config)
   c:rows(layout.rowCount)
   c:placeholderText(config.placeholder or "")
   -- Setting queryChangedCallback disables hs.chooser's built-in matching, so the
-  -- consumer's supplier owns filtering. Only filter mode refilters on typing; off
-  -- and input leave the rows as they were built.
+  -- consumer's supplier owns filtering, refiltered here on every keystroke.
   c:queryChangedCallback(function(q)
-    if self.fieldMode == obj.fieldModes.filter then
-      c:choices(self:_build(q))
-      self.lastRow = nil -- top row changed, force a highlight refresh
-    end
+    c:choices(self:_build(q))
+    self.lastRow = nil -- top row changed, force a highlight refresh
   end)
   -- Right click hands the consumer the item under the row (a consumer may delete it),
   -- which then calls refresh to redraw. Wired only when a handler is given.

@@ -69,19 +69,6 @@ local ui = load("ui.lua")
 local HOME = os.getenv("HOME")
 local DATA_DIR = HOME .. "/.cache/hs-clipboard"
 
--- hs.chooser sizes by whole row count, not pixels, so rows(N) is only a request
--- and the window height cannot be set directly. Once the chooser has been
--- reshown, its steady-state height settles near 94 plus 42 times the row count,
--- 10 rows landing around 514pt. The ui reads the chooser's real rendered frame
--- after it shows and sizes the preview to match, so both panes are always the
--- same height. The line below (42pt per row over a 94pt search-field and chrome
--- base, measured on the real Chooser window) seeds the preview's first frame
--- before that correction. Fractional counts are rejected by hs.chooser, so this
--- must stay a whole number.
-local CHOOSER_ROWS = 10 -- 94 + 10*42 = 514pt steady-state height
-local CHOOSER_ROW_H = 42 -- measured points per visible row
-local CHOOSER_BASE_H = 94 -- measured search-field and chrome overhead, points
-
 -- Defaults. The outer composition root may override any of these via configure()
 -- before start(). Stored outside the git-tracked config dir.
 local config = {
@@ -108,7 +95,6 @@ local config = {
 
   pollInterval = 0.5, -- changeCount poll
   pasteDelay = 0.1, -- focus settle before Cmd+V
-  previewPoll = 0.08, -- follow-selection poll
 
   -- What an appended piece is joined onto the entry with. A newline, matching what a
   -- collected batch pastes with, so gathering on the copy side and gathering on the paste
@@ -127,16 +113,15 @@ local config = {
   -- only some of what was asked for, in an app that services a paste slowly.
   sequenceDrainDelay = 0.25,
 
-  chooserWidthPct = 32, -- list width, percent of screen, capped by paneMaxW below
-  paneMaxW = 480, -- cap for each pane's width, in points
-  chooserRows = CHOOSER_ROWS, -- desired row count, trimmed on short screens to keep the padding
-  chooserRowH = CHOOSER_ROW_H, -- points per row, used to fit rows to the screen
-  chooserBaseH = CHOOSER_BASE_H, -- search-field and chrome overhead, points
-  previewW = true, -- inherits the chooser's own resolved width, the atom's default for every companion
-  previewH = CHOOSER_BASE_H + CHOOSER_ROWS * CHOOSER_ROW_H, -- seed height, matchPreviewToChooser corrects it to the chooser's real height
-  uiGap = 12,
-  uiTopFrac = 0.06, -- bias the pair toward the top of the screen
-  minVPad = 60, -- mandatory space above and below the pair, honored on short screens
+  -- chooserWidthPct, paneMaxW, chooserRows, chooserRowH, chooserBaseH, previewW, previewH,
+  -- uiGap, uiTopFrac, and minVPad all stood here once, ten restated atom defaults or exact
+  -- matches for the atom's own hardcoded fallback, none of them a real override, and none of
+  -- them read by manager/ui.lua's own cfg since the trickle migration moved this plugin onto
+  -- the shared stage. previewPoll, beside pollInterval above, was the eleventh. Deleted in the
+  -- chooser stage close out sweep, REVIEW-TRICKLE.md's own L3, which named nine of the ten cfg
+  -- fields and Chooser itself; previewH and previewPoll were found unread by the identical grep
+  -- this sweep applied to the rest and removed on the same ground, previewH's own comment
+  -- naming a matchPreviewToChooser that no longer exists anywhere in this plugin.
 
   -- NSPasteboard hints that a copy must not be recorded; the concealed one is
   -- what password managers stamp.

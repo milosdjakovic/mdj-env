@@ -182,56 +182,39 @@
 -- so the only thing left to do about an inactive tool's key is never reach the bind call
 -- at all, which costs nothing and fails in no new way.
 --
--- surfaces(spec), added in phase seven's second packet, takes an ordered list and
--- answers an ordered list. A string entry names a registered tool, and resolves to that
--- tool's surface when the tool is active and has one, is skipped silently when the tool
--- is registered and inactive, since that is what inactive already means, and logs one
--- warning naming it when nothing is registered under that name at all. An active tool
--- with no surface at all is neither of those legitimate cases, somebody named a tool in
--- a navigation list that has nothing to navigate, so this too logs one warning naming
--- the tool and is skipped, matching the shape of the two warnings beside it rather than
--- falling off the end of the check in silence. When a named tool's surface is resolved
--- and the result is missing, or is present but has no isShowing, one warning names the
--- tool and it is skipped the same way, so a hazard that would otherwise be silent is
--- loud at the moment it happens. Any entry that is not a string passes straight through
--- unexamined, which is how a surface with no tool behind it, built from root local code
--- with no descriptor of its own, keeps its place in the list. The mix is deliberate. A
--- string names something this registry knows about. Any other value is an object the
--- composition root holds and this registry has never heard of, and passing it through
--- untouched is the whole of what it owes that object. Resolution happens inside this
--- call and never at registration, which is the same discipline the surface field itself
--- observes above.
---
--- scopes(spec), added in phase seven's fourth packet, is the same door a second time,
--- resolving an ordered list mixing tool names and plain objects the same way surfaces
--- does, for the same reason, so the two mistakes that look alike are treated alike. A
--- string entry names a registered tool and logs one warning naming it when nothing is
--- registered under that name at all, exactly as surfaces warns for the same mistake. Two
--- silences stay silences here though, unlike surfaces. A registered but inactive tool is
--- skipped without a word, the same nil-and-false every other read already answers for
--- it, and an active tool that simply declared no scope this run is skipped without a
--- word too, since that is the emoji case this whole packet protects, a scope that
--- registers only under a condition and is legitimately absent when the condition does
--- not hold, never the mistake an unregistered name is. A resolved tool answers a small
--- table carrying both name and opts rather than a finished scope, since joining the
--- identity fields config/keys.lua holds, name, title, glyph, and aliases, is the
--- composition root's own scope(name, opts) helper's job and stays there, in the one
--- place that has always done it, this module reading no configuration at all. Anything
--- that is not a string passes straight through unexamined, in the position it was given,
--- the same shape surfaces already reads its own spec in.
+-- scopes(spec), added in phase seven's fourth packet, resolves an ordered list mixing
+-- tool names and plain objects into an ordered list the root can fold into queryScopes.
+-- A string entry names a registered tool and logs one warning naming it when nothing is
+-- registered under that name at all. A registered but inactive tool is skipped without a
+-- word, the same nil-and-false every other read already answers for it, and an active
+-- tool that simply declared no scope this run is skipped without a word too, since that
+-- is the emoji case this whole packet protects, a scope that registers only under a
+-- condition and is legitimately absent when the condition does not hold, never the
+-- mistake an unregistered name is. A resolved tool answers a small table carrying both
+-- name and opts rather than a finished scope, since joining the identity fields
+-- config/keys.lua holds, name, title, glyph, and aliases, is the composition root's own
+-- scope(name, opts) helper's job and stays there, in the one place that has always done
+-- it, this module reading no configuration at all. Anything that is not a string passes
+-- straight through unexamined, in the position it was given.
 --
 -- shortcuts(), added in phase seven's fifth and last packet, takes no spec, since unlike
--- surfaces and scopes it names nothing the composition root already holds a competing
--- object for, and answers in registration order one entry per active tool or active
--- tool's command that declares a shortcut, each carrying name, kind, and fn, the function
--- to bind. An inactive tool contributes nothing, itself or its commands, the same
--- nil-and-false silence every other read already answers for it, which is the whole
--- mechanism that keeps an inactive tool's key unbound. A tool's own commands are walked
--- sorted by their own name rather than in whatever order pairs happens to answer for the
--- literal table a descriptor wrote them in, since Lua promises nothing about that order
--- and a snapshot needs one it can trust run over run, and the choice between two commands'
--- own order is otherwise arbitrary, each binding a different key with nothing to disagree
--- about.
+-- scopes it names nothing the composition root already holds a competing object for, and
+-- answers in registration order one entry per active tool or active tool's command that
+-- declares a shortcut, each carrying name, kind, and fn, the function to bind. An
+-- inactive tool contributes nothing, itself or its commands, the same nil-and-false
+-- silence every other read already answers for it, which is the whole mechanism that
+-- keeps an inactive tool's key unbound. A tool's own commands are walked sorted by their
+-- own name rather than in whatever order pairs happens to answer for the literal table a
+-- descriptor wrote them in, since Lua promises nothing about that order and a snapshot
+-- needs one it can trust run over run, and the choice between two commands' own order is
+-- otherwise arbitrary, each binding a different key with nothing to disagree about.
+--
+-- A surfaces(spec) door once stood beside scopes here, added in phase seven's second
+-- packet and resolving the identical shape for navigation adapters instead of scopes.
+-- The composition root never wired through it, building its own list by hand instead,
+-- consumer map surprise 9.10, docs/CONSUMER-MAP-2026-08-27.md, so it sat dead from the
+-- day it was added. Deleted in the chooser stage close out rather than left as a second,
+-- unwired mechanism beside the one the root actually uses.
 --
 -- Every function below is a plain field on the returned instance and is meant to be dot
 -- called, matching lib/recency.lua exactly, never colon called, since there is no
@@ -658,46 +641,6 @@ function M.new(opts)
           local _, commandRow = commandParts(descriptor.commands[key])
           if commandRow then
             out[#out + 1] = { name = key, tool = name, isCommand = true }
-          end
-        end
-      end
-    end
-    return out
-  end
-
-  --- instance.surfaces(spec)
-  --- Resolve an ordered list mixing tool names and plain objects into an ordered list of
-  --- navigation adapters. A string entry names a registered tool, resolved to that
-  --- tool's surface() result when the tool is active and has one, skipped silently when
-  --- the tool is registered but inactive, and logged and skipped when nothing is
-  --- registered under that name. A resolved surface that is missing, or present but has
-  --- no isShowing, is logged and skipped rather than passed through broken. Anything
-  --- that is not a string, an object this registry was never told about, passes straight
-  --- through unexamined, in the position it was given.
-  function instance.surfaces(spec)
-    local out = {}
-    if spec == nil then return out end
-    for _, entry in ipairs(spec) do
-      if type(entry) ~= "string" then
-        out[#out + 1] = entry
-      else
-        local descriptor = toolsByName[entry]
-        if not descriptor then
-          log.w(string.format(
-            "Registry surfaces found no tool registered under '%s'", entry))
-        elseif not activeTools[entry] then
-          -- Inactive is the legitimate silent case, the same nil-and-false every other
-          -- read already answers for it, so nothing is logged and nothing is added.
-        elseif not descriptor.surface then
-          log.w(string.format(
-            "Registry surfaces skipped '%s', it is active and declared no surface to navigate", entry))
-        else
-          local surface = descriptor.surface()
-          if type(surface) == "table" and type(surface.isShowing) == "function" then
-            out[#out + 1] = surface
-          else
-            log.w(string.format(
-              "Registry surfaces skipped '%s', its surface resolved to something with no isShowing", entry))
           end
         end
       end

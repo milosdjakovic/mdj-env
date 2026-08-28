@@ -896,9 +896,26 @@ end
 --- Method
 --- Rebuild the list for the current query, keeping the highlight. A query source whose
 --- answer arrives late calls this through the callback the root injects into it, so the
---- row appears without the user typing again. A no op while the launcher is closed.
+--- row appears without the user typing again. A no op while the launcher is closed OR
+--- while some other presentation is what the stage is actually showing.
+---
+--- Scoped in the chooser stage close out, REVIEW-TRICKLE.md's own L5. Stage:refresh reruns
+--- whichever presentation is current, not the launcher's specifically, and this call used to
+--- reach for it unconditionally. Harmless while the launcher was the only presentation the
+--- migrations had not yet reached, since it was also the only thing that could ever be
+--- current, but the trickle and final batch migrations widened what "current" can mean to
+--- every presenting tool in the config. A menu search scope answer landing late while the
+--- clipboard's prune page is pushed on top used to rebuild the prune ladder instead of doing
+--- nothing, silently and without touching any data, which is what kept it from ever being
+--- reported as a defect. isCurrent(self._presentation), the same identity check a child's own
+--- async answer already uses, docs/PLUGIN-CONTRACT.md's own redrawPresented, is table identity
+--- against the exact object present() and push() hand the stage, never against the shared name
+--- a child could borrow, so this asks the one question that can never be true for anything but
+--- the launcher's own top level.
 function obj:refresh()
-  if self._stage then self._stage:refresh() end
+  if self._stage and self._stage:isCurrent(self._presentation) then
+    self._stage:refresh()
+  end
 end
 
 --- Launcher:_runItem(it)

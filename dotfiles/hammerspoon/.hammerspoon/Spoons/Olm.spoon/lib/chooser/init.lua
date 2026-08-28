@@ -4,7 +4,7 @@
 --- Every consumer calls the same Chooser.new(config) and gets an instance that
 --- honors the picker contract, show, hide, isShowing, refresh, selectNext,
 --- selectPrev, insertSelected, selectedItem, selectedRow, selectRow, query,
---- setFieldMode, setPlaceholder, setRows, activeTheme, textBudget, textWidth.
+--- setPlaceholder, setRows, activeTheme, textBudget, textWidth.
 --- selectedRow and selectRow, phase eight of the build plan, are the plain public
 --- counterpart of selectedItem, added for ActionPanel, which restores a highlight
 --- by row number rather than by item. setRows, the geometry phase of the chooser
@@ -52,13 +52,6 @@ local native = load("providers/native.lua")
 --- match(query, hay) -> score or nil. See match.lua.
 obj.matchers = load("match.lua")
 
---- Chooser.fieldModes - the field mode values, so a caller writes
---- Chooser.fieldModes.filter rather than the bare string. Defined on the provider,
---- the one place a field mode is read and validated, and re-exported here because the
---- provider is an implementation of this atom rather than its public face, which is the
---- same reason matchers is reached through this table too.
-obj.fieldModes = native.fieldModes
-
 -- The screen policy every chooser resolves against, injected once by the composition
 -- root so the consumers never thread it through themselves. It is the same seam
 -- CanvasPanel reads, so the choosers and the cheat sheets agree on which display they
@@ -81,8 +74,8 @@ local DEFAULT_MATCHER = nil
 -- This is legal rather than a trick. native.new stores the config table it is handed
 -- BY REFERENCE and never copies it, and every key a decorator here would touch, rows,
 -- intercept, back, onSelect, onHighlight, onClose, is read live through self.config on
--- each use rather than captured at construction. Only matcher, fieldMode, and layout
--- are captured once at construction, and nothing this seam is for touches those. new
+-- each use rather than captured at construction. Only matcher and layout are captured
+-- once at construction, and nothing this seam is for touches those. new
 -- below already mutates the caller's own config table in place for screen and matcher,
 -- so decorating it too before handing the instance back follows this file's own idiom
 -- rather than inventing a second one.

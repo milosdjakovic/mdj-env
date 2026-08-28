@@ -27,7 +27,6 @@ local store, paste, util, media = nil, nil, nil, nil
 -- answering no, so the rows render the same when no accumulator is wired in at all.
 local isAccumulator = function() return false end
 local cfg = nil -- layout and size config, see configure
-local Chooser = nil -- the injected Chooser.spoon factory
 -- Migrated onto host/stage, the trickle migration. This plugin owns no Chooser instance and
 -- builds no window any more, so isShowing lives here instead as a plain flag, true from the
 -- moment UI.onPresent runs until onClose says otherwise. It is also what
@@ -1457,16 +1456,19 @@ end
 --- atom defaults even before this migration, surprise 9.4 of the consumer map, and pollInterval
 --- turns out to equal the atom's own hardcoded fallback of 0.08 exactly, so nothing here was
 --- ever a real override beyond companionWidth, which paneWidth = true in the manifest now
---- carries. Kept as a callable no op rather than deleted, since manager/init.lua's own start
---- still calls it and a wiring step this file no longer needs is cheaper to leave inert than to
---- go edit a second file over.
+--- carries. The injected Chooser factory and the ten now unread layout keys it used to build a
+--- window from were deleted from manager/init.lua's own defaults in the close out sweep,
+--- REVIEW-TRICKLE.md's own L3, rather than left as inert injection nothing reads. Kept as a
+--- callable no op rather than deleted itself, since manager/init.lua's own start still calls it
+--- and a wiring step this file no longer needs is cheaper to leave inert than to go edit a
+--- second file over.
 function UI.build()
   return UI
 end
 
 --- UI.configure(opts) - inject store, the insertion engine, util, media (for the shared file
 --- state rule fileBadge draws on), prune (the manage history page, whose rows and wording this
---- file only draws), the Chooser factory, the theme, the shared
+--- file only draws), the theme, the shared
 --- surface routine (opts.surface, drawing the preview pane's background and
 --- border), and the layout config. stagePresent, redrawPresented, stageHide, stageSetQuery,
 --- and stageSetPlaceholder, the trickle migration's own root published words, arrive here too,
@@ -1477,7 +1479,6 @@ function UI.configure(opts)
   util = opts.util
   media = opts.media
   prune = opts.prune
-  Chooser = opts.chooser
   isAccumulator = opts.isAccumulator or isAccumulator
   cfg = opts
   return UI
