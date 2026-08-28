@@ -41,12 +41,39 @@ Run it standalone too, straight from the shell, no suite.sh, no lock, no Hammers
 
 ```
 Spoons/Olm.spoon/test/drygate.sh
+Spoons/Olm.spoon/test/drygate.sh --strict   # an unknown module fails the gate too
 ```
 
-It takes the test lock only if this worktree is not already live, and gives it back. If you
-already acquired it for a hands on session, it reuses your hold and leaves it alone.
+**A clean tree exits zero.** A gate that turns red on a tree nobody broke gets ignored
+within a week, and an ignored gate protects nothing, so an UNKNOWN never fails this gate by
+default, only `--strict` asks for that harder stance, and a finding verified by hand and
+genuinely not worth blocking on is named once in `drygate-accepted.txt`, one line, the exact
+text this gate would otherwise print, then ` | `, then the reason. An accepted finding still
+prints, as its own ACCEPTED line, it is never silent, it only stops failing the gate. The
+match is exact text on purpose, so an accepted line that stops matching anything this run,
+because the wording changed or the underlying question is now answered differently, becomes
+a finding of its own rather than quietly going on covering whatever the wording now means,
+which is what keeps that file from rotting into a list nobody rechecks.
+
+`drygate-accepted.txt` travels with the tree, the same as every other file this gate reads.
+This gate runs against whatever Olm looks like at the moment it is asked, never a fixed
+snapshot of today's plugins, so a migration that reshapes several manifests at once,
+`feat/chooser-final`'s own final batch adds a presentation to six more plugins plus one the
+composition root builds for itself, is exactly the kind of change this gate will meet at its
+next run and, correctly, at its next reconciliation with whatever `drygate-accepted.txt`
+still says by then. An accepted line a migration makes true again for a different reason
+than the one written beside it is still worth a person's own second look, exact text
+matching alone cannot tell the difference, only catch the ones where the words no longer
+match at all.
 
 ## The idea
+
+The other four tiers, `structure`, `surface`, `behaviour`, and `input`, run through
+`runner.lua` against a LIVE Hammerspoon, `hs -c` and the test lock, proving something the
+dry gate cannot, that a plugin actually behaves once it is running rather than only that its
+own declarations are well formed. `suite.sh` takes the lock only if this worktree is not
+already live, and gives it back. If you already acquired it for a hands on session, it
+reuses your hold and leaves it alone.
 
 **Almost nothing here is written by hand, and that is the point.** A plugin that declares a
 `registry` block in its manifest is checked for registering, for being active, for owning a

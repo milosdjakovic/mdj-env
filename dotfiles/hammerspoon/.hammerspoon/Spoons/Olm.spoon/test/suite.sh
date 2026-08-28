@@ -13,7 +13,7 @@
 #
 # Usage
 #   suite.sh                  every tier
-#   suite.sh dry              plain lua, no Hammerspoon, no lock, see drygate.sh below
+#   suite.sh dry [--strict]   plain lua, no Hammerspoon, no lock, see drygate.sh below
 #   suite.sh structure        the checks that need no screen, fast, safe to run any time
 #   suite.sh surface          open and close every picker, takes over the screen briefly
 #   suite.sh behaviour        the hand written per plugin scenarios
@@ -33,7 +33,8 @@ tiers="${1:-all}"
 # dance below, so it stays true that this tier never starts Hammerspoon and never touches
 # the lock, not merely that it happens to finish before either would matter.
 if [ "$tiers" = "dry" ]; then
-  exec "$here/drygate.sh"
+  shift
+  exec "$here/drygate.sh" "$@"
 fi
 
 # The config directory is two levels up from the spoon, and the checkout this spoon lives in

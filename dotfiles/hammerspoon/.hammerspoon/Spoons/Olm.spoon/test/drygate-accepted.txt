@@ -1,0 +1,11 @@
+# Findings this gate would otherwise print, verified by hand and accepted rather than
+# blocked on. One entry per line, blank lines and lines starting with # are skipped.
+#
+# <exact finding text this gate would print> | <reason it was verified by hand>
+#
+# Matching is EXACT text against the finding this run actually produces. test/drygate.lua's
+# own header explains why, and what it means when a line here stops matching anything, it
+# becomes a finding of its own rather than being silently trusted forever. Edit or remove a
+# stale line the same way any other finding gets fixed.
+
+dry gate found 'hypercheatsheet' declaring needs.data.sections with source root, and 'sections' does not appear in this gate's structural scan of root/compose.lua, verify by hand before treating this as settled, see test/drygate-composewords.lua's own header for what that scan can and cannot see | verified by hand, root/compose.lua publishes it as `opts.sections = hintsLib.sections(wiredRegistry, plan, { leader = "app" })`, a later field assignment onto the hypercheatsheet host's own opts table rather than a key written inside one of the named table literals test/drygate-composewords.lua's own scan reads, exactly the gap that file's own header names

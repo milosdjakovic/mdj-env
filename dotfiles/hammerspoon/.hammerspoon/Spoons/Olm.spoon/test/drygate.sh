@@ -9,13 +9,22 @@
 #
 # Usage
 #   test/drygate.sh                 every manifest under plugins/ and host/
+#   test/drygate.sh --strict        the harder stance, a module this gate could not verify
+#                                    at all fails the gate too, rather than only printing
 #
-# Exit status mirrors drygate.lua's own, nonzero on any finding.
+# Exit status mirrors drygate.lua's own. A clean tree, meaning every finding is either
+# genuinely absent or accepted by test/drygate-accepted.txt, exits zero. An unknown module
+# and a warning both print but do not fail the gate on their own, unless --strict is given.
 
 set -uo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 spoon="$(cd "$here/.." && pwd)"
+
+if [ "${1:-}" = "--strict" ]; then
+  export DRYGATE_STRICT=1
+  shift
+fi
 
 # lua is this spoon's own dependencies-collect.lua's own choice too, dotfiles/hammerspoon/
 # dependencies-module declares it, and DEPENDENCIES.map says where it comes from, so this

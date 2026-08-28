@@ -47,13 +47,25 @@
 -- refused in the identical words a live reload would refuse them in.
 --
 -- WHAT COUNTS AS WHAT. A FINDING is a proven contract violation and is what makes this
--- script exit nonzero. A WARNING is informational, the one example today being a presenting
--- plugin whose declared surface.context diverges from its own identity, which the live
--- registrar itself only ever warns about rather than refuses, so this gate answers it the
--- same way. An UNKNOWN means a plugin's own module would not load under the stub at all, so
--- every check needing that real module is skipped for it and said so once, rather than
--- guessed at as a pass or reported as a false failure. An honest unknown beats a false
--- green, and neither a warning nor an unknown makes this script exit nonzero on its own.
+-- script exit nonzero, unless it is also named in test/drygate-accepted.txt, one line
+-- naming the exact finding text and the reason a person verified it by hand, in which case
+-- it still prints, as its own ACCEPTED line, and stops counting. An accepted line that
+-- stops matching any finding this run is itself a finding, so that file cannot rot into a
+-- list nobody rechecks. A WARNING is informational, the one example today being a
+-- presenting plugin whose declared surface.context diverges from its own identity, which
+-- the live registrar itself only ever warns about rather than refuses, so this gate answers
+-- it the same way. An UNKNOWN means a plugin's own module would not load, or would not
+-- configure, under the stub at all, so every check needing that real module is skipped for
+-- it and said so once, rather than guessed at as a pass or reported as a false failure. An
+-- honest unknown beats a false green, and by default an unknown does not fail the gate any
+-- more than a warning does, since it names a limit of this gate rather than a defect in a
+-- manifest. DRYGATE_STRICT=1 in the environment, drygate.sh's own --strict, is the harder
+-- stance for whoever wants it, promoting every unknown to a failure too.
+--
+-- A CLEAN TREE EXITS ZERO. That is the entire point of the accepted file and of leaving an
+-- unknown unpunished by default, a gate that a clean tree still turns red gets ignored
+-- within a week, and an ignored gate protects nothing. Exit nonzero must mean something
+-- changed for the worse, never that this gate is merely being run.
 --
 -- A finding already reusing lib/registrar.lua's own wording is printed exactly as that file
 -- would print it, "registrar refused '<name>', ...". A finding this gate makes on its own,
@@ -74,13 +86,62 @@ if spoonDir:sub(-1) ~= "/" then spoonDir = spoonDir .. "/" end
 local manifestPaths = {}
 for i = 2, #arg do manifestPaths[#manifestPaths + 1] = arg[i] end
 
-----------------------------------------------------------------------------------------
--- Findings
-----------------------------------------------------------------------------------------
+-- A clean tree exits zero, loudly checkable, is the whole contract this gate exists to
+-- keep. Read before a gate that exits nonzero on a clean tree ever gets ignored within a
+-- week, which is worse than not running one at all, since a red light nobody trusts stops
+-- being a signal. strict is the harder stance for whoever wants it, promoting an honest
+-- unknown to a failure, off by default because an unknown is a limit of this gate rather
+-- than a defect in a manifest.
+local strict = os.getenv("DRYGATE_STRICT") == "1"
 
-local findings, warnings, unknowns = {}, {}, {}
+----------------------------------------------------------------------------------------
+-- Findings, and the accepted findings file beside this one.
+--
+-- A finding verified by hand and genuinely not worth blocking on, hypercheatsheet's own
+-- needs.data.sections against test/drygate-composewords.lua's own documented blind spot
+-- being the seed case, is named in test/drygate-accepted.txt rather than silenced by
+-- editing this file, one line per accepted finding, the exact text this gate would
+-- otherwise print, then " | " then the reason a person checked it by hand. An accepted
+-- finding still prints, as its own line, so accepting one is never silent, it only stops
+-- counting toward the exit code.
+--
+-- Matching is EXACT text, on purpose. A softer match, a substring or a pattern, would let
+-- one accepted line quietly cover a second, different problem that happens to share a
+-- word, which is worse than making someone re paste a line. The cost of exactness is
+-- pointed the other way on purpose too, an accepted line that stops matching anything this
+-- run, because the finding's own wording changed or the underlying question is now
+-- answered differently, is ITSELF a finding, so the file cannot rot into a growing list of
+-- lines nobody rechecks. Removing or rewording an accepted line is the fix, both are one
+-- edit to a file this gate already reads.
+local acceptedPath = scriptDir .. "drygate-accepted.txt"
+local acceptedReason, acceptedSeen = {}, {}
+do
+  local f = io.open(acceptedPath, "r")
+  if f then
+    for line in f:lines() do
+      local trimmed = line:match("^%s*(.-)%s*$")
+      if trimmed ~= "" and trimmed:sub(1, 1) ~= "#" then
+        local text, reason = trimmed:match("^(.-)%s*|%s*(.+)$")
+        if text and reason and text ~= "" then
+          acceptedReason[text] = reason
+          acceptedSeen[text] = false
+        end
+      end
+    end
+    f:close()
+  end
+end
 
-local function finding(line) findings[#findings + 1] = line end
+local findings, warnings, unknowns, accepted = {}, {}, {}, {}
+
+local function finding(line)
+  if acceptedReason[line] then
+    acceptedSeen[line] = true
+    accepted[#accepted + 1] = string.format("accepted, %s (%s)", line, acceptedReason[line])
+  else
+    findings[#findings + 1] = line
+  end
+end
 local function warning(line) warnings[#warnings + 1] = line end
 local function unknown(dir, reason)
   unknowns[#unknowns + 1] = string.format("dry gate, '%s', unknown, %s", dir, reason)
@@ -490,17 +551,42 @@ for dir, manifest in pairs(manifestsByDir) do
 end
 
 ----------------------------------------------------------------------------------------
--- Output. One line per finding, then warnings, then unknowns, then a summary. Zero output
--- noise on a clean tree means zero findings and zero warnings; an unknown still prints,
--- since silence about a module this gate could not verify would be the false green the
--- whole design of this file exists to refuse.
+-- An accepted line that no longer matches anything this run is itself a finding, appended
+-- straight to the real list rather than through finding() above, so it is never itself
+-- eligible to be accepted away, the one rule that keeps this file from rotting.
+----------------------------------------------------------------------------------------
+
+do
+  local staleText = {}
+  for text in pairs(acceptedReason) do
+    if not acceptedSeen[text] then staleText[#staleText + 1] = text end
+  end
+  table.sort(staleText)
+  for _, text in ipairs(staleText) do
+    findings[#findings + 1] = string.format(
+      "dry gate refused test/drygate-accepted.txt, its line '%s' does not match any finding this run, remove it or reverify and reword it",
+      text)
+  end
+end
+
+----------------------------------------------------------------------------------------
+-- Output. One line per finding, then accepted findings, then warnings, then unknowns, then
+-- a summary. Zero output noise on a clean tree means zero findings and zero warnings; an
+-- accepted finding still prints, since accepting one is never silent, and an unknown still
+-- prints, since silence about a module this gate could not verify would be the false green
+-- the whole design of this file exists to refuse. Neither an accepted finding nor a plain
+-- unknown fails the gate; a clean tree, meaning every finding is either genuinely absent or
+-- explicitly accepted, exits zero, loudly checkable, rather than nonzero forever, which is
+-- what a real regression on a genuinely clean tree needs to mean something.
 ----------------------------------------------------------------------------------------
 
 table.sort(findings)
+table.sort(accepted)
 table.sort(warnings)
 table.sort(unknowns)
 
 for _, line in ipairs(findings) do print(line) end
+for _, line in ipairs(accepted) do print(line) end
 for _, line in ipairs(warnings) do print("warning, " .. line) end
 for _, line in ipairs(unknowns) do print(line) end
 
@@ -508,7 +594,8 @@ local pluginCount = 0
 for _ in pairs(manifestsByDir) do pluginCount = pluginCount + 1 end
 
 print(string.format(
-  "olm dry gate, %d plugin(s) checked, %d finding(s), %d warning(s), %d unknown",
-  pluginCount, #findings, #warnings, #unknowns))
+  "olm dry gate, %d plugin(s) checked, %d finding(s), %d accepted, %d warning(s), %d unknown%s",
+  pluginCount, #findings, #accepted, #warnings, #unknowns, strict and ", strict" or ""))
 
-os.exit(#findings > 0 and 1 or 0)
+local failed = (#findings > 0) or (strict and #unknowns > 0)
+os.exit(failed and 1 or 0)
