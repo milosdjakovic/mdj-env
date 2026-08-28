@@ -15,10 +15,19 @@
 --- name, so a swap is one edit and a bad reference is a load error rather than a silent miss.
 ---
 --- configure walks the list, logs any backend it finds unavailable, and configures only the
---- first available one, so a backend that never wins never pays its setup cost. show,
---- isShowing, and surface all delegate to that winner, and the winner's surface is what the
---- root registers in the shared choosers list, a real navigation adapter for the hammerspoon
---- backend and a no op for the macos and custom ones since those drive their own keys.
+--- first available one, so a backend that never wins never pays its setup cost.
+---
+--- Migrated onto host/stage, the trickle migration. Whichever backend wins, only the
+--- hammerspoon backend ever owns a list, lists() below is exactly that question, and only
+--- that backend is ever shown through the shared stage. show branches on it, presenting
+--- through cfg.stagePresent when the winner lists and calling straight through to the
+--- winner's own show otherwise, which is unchanged for the macos and custom backends, both
+--- always having driven their own keys with no chooser and no navigation surface of their
+--- own to route. The presentation itself belongs to this facade rather than to the
+--- hammerspoon backend, plugins/emoji/providers/hammerspoon.lua, since the facade is the one
+--- thing every launcher row, scope, and key already reaches, and its own rows and select
+--- simply ask whichever backend won for the answer, the identical forwarding this file
+--- already did for a scope's own rows and run before the stage existed to ask for it too.
 ---
 --- This is the olm side copy of Emoji, copied into the plugins directory in phase six of
 --- the build plan, the bundling pass. Its vendored data.lua travels unchanged as the
@@ -50,17 +59,8 @@ end
 --- isShowing }). Populated by init.
 obj.providers = nil
 
--- A no op navigation surface, the facade's own guard for a call before configure or a
--- backend that returns no surface, so the shared navigation registry never sees a nil.
-local NOOP_SURFACE = {
-  isShowing = function() return false end,
-  selectNext = function() end,
-  selectPrev = function() end,
-  insertSelected = function() end,
-  hide = function() end,
-}
-
-obj._active = nil   -- the resolved winning backend, set at configure
+obj._active = nil        -- the resolved winning backend, set at configure
+obj._stagePresent = nil  -- root published, the hotkey door onto the shared stage
 
 --- Emoji:init()
 --- Method
@@ -98,8 +98,10 @@ end
 --- Method
 --- Pick the backend and wire it. opts.providers is the priority ordered list of backends by
 --- reference, and the rest of opts is the shared wiring the winning backend reads what it
---- needs from, the Chooser factory, the theme, the placeholder, the docked shortcut panel,
---- and onInsert. Only the winner is configured, so an unused backend pays no setup cost.
+--- needs from, onInsert among them. Only the winner is configured, so an unused backend
+--- pays no setup cost. opts.stagePresent is the root published hotkey door onto the shared
+--- stage, read here rather than only forwarded, since show below needs it directly and no
+--- backend reaches for it on this facade's behalf.
 function obj:configure(opts)
   opts = opts or {}
   local order = opts.providers
@@ -108,22 +110,24 @@ function obj:configure(opts)
   end
   self._active = self:_resolve(order)
   self._active:configure(opts)
+  self._stagePresent = opts.stagePresent
   return self
 end
 
 --- Emoji:show()
 --- Method
---- Open the selected backend.
+--- Open the selected backend. When it owns a list, that list is presented through the
+--- shared stage exactly as every other presenting tool's hotkey door is, cfg.stagePresent
+--- asking the registry for this plugin's own presentation and handing it to Stage:present.
+--- The macos and custom backends never own a list, lists() answering false for both, so
+--- each is shown by calling straight through to its own show, unchanged, since neither has
+--- ever had a chooser or a navigation surface to route through this host.
 function obj:show()
-  if self._active then self._active:show() end
-end
-
---- Emoji:isShowing()
---- Method
---- Whether the selected backend reports itself open. A system backend we do not drive always
---- reports false, which keeps it out of the navigation registry.
-function obj:isShowing()
-  return self._active ~= nil and self._active:isShowing()
+  if self:lists() then
+    if self._stagePresent then self._stagePresent("emoji") end
+  elseif self._active then
+    self._active:show()
+  end
 end
 
 --- Emoji:lists()
@@ -148,22 +152,33 @@ end
 
 --- Emoji:insert(glyph)
 --- Method
---- Insert a glyph the caller picked from rows above, through the same path a pick in the
---- backend's own chooser takes, so a pick made elsewhere is remembered too.
+--- Insert a glyph the caller picked from rows above, through the same path a pick made via
+--- the shared stage takes, so a pick made elsewhere is remembered too. Named on the
+--- manifest's own presentation block as the contract's select, the word every presenting
+--- plugin's own onSelect answers to.
 function obj:insert(glyph)
   if not self:lists() then return end
   self._active:insert(glyph)
 end
 
---- Emoji:surface()
+--- Emoji:placeholder() -> string
 --- Method
---- The navigation adapter of the selected backend for the shared choosers registry, or a no
---- op when the backend drives its own keys or before configure has run.
-function obj:surface()
-  if self._active and self._active.surface then
-    return self._active:surface() or NOOP_SURFACE
-  end
-  return NOOP_SURFACE
+--- The field hint while this plugin's own presentation is current, named on the manifest's
+--- own presentation block. Resolved once, at register, since the presentation contract
+--- wants a plain string a presentation carries rather than a function to call again later.
+--- Only the hammerspoon backend is ever presented, lists() being what decides that in show
+--- above, so this names that backend's own wording directly rather than asking a backend
+--- that will never be shown through the stage at all.
+function obj:placeholder()
+  return "Search by name or keyword"
 end
+
+-- surface is gone, the trickle migration, deleted along with the Chooser.new block that
+-- gave it something to answer for. The composition root now routes this plugin's own
+-- navigation through host/stage's own surfaceFor once wiredRegistry.presentationFor("emoji")
+-- answers a presentation, which is unconditional regardless of which backend won, matching
+-- the old NOOP_SURFACE's own always-false isShowing for the macos and custom backends, since
+-- show above never presents through the stage for either of them, so stage:current() is
+-- simply never "emoji" while one of those two is what actually opened.
 
 return obj

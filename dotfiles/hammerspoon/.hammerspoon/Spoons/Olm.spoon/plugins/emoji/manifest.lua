@@ -23,6 +23,18 @@ return {
     lib = {
       onInsert = { from = "paste", member = "pasteText", call = "dot", policy = "optional" },
     },
+    -- One root computed word, the trickle migration onto the shared stage. stagePresent is
+    -- the hotkey door this plugin's own show reaches for when the winning backend owns a
+    -- list, which only the hammerspoon backend ever does. Optional, and it degrades to an
+    -- inert press rather than a crash, since a plugin asking before the stage's own
+    -- configure has run is a wiring defect rather than a state a key press should silently
+    -- swallow.
+    data = {
+      stagePresent = { source = "root", policy = "optional",
+        breaks = "the leader key and the special row dispatch both open nothing when the " ..
+                 "winning backend owns a list, since show has no other way to reach the " ..
+                 "shared stage" },
+    },
     -- These build the vendored dataset and are not needed to USE the picker, which is
     -- what `stage` says. Without the split an install list would tell someone to fetch a
     -- dataset builder before they can pick an emoji.
@@ -71,13 +83,25 @@ return {
   -- name and priority follow from the context name.
   surface = {
     context = "emoji",
-    -- This plugin's configure reads the docked panel's three callbacks nested under one
-    -- field rather than as three flat ones, so the shape is named here. Four plugins
-    -- disagree about this and the disagreement lives in their own configure contracts,
-    -- so it has to be declared. Assuming the flat form silently removed the panel from
-    -- every one of them while handing each three fields it never reads.
-    panelAs = "shortcutPanel",
     primary = { action = "insertSelected", description = "Insert" },
+  },
+
+  -- The presentation contract, contract v2, docs/BRIEF-CONTRACT-V2.md. rows and select are
+  -- this plugin's own colon methods, so every field below says call = method, stated
+  -- outright, never the bare string shorthand this contract allows everywhere else a member
+  -- is not a presentation's own. Both simply forward to whichever backend won, obj:rows and
+  -- obj:insert already having done exactly that before the stage existed to ask for either.
+  --
+  -- matcher is false, the identical opt out the retired Chooser.new block already declared,
+  -- since this tool filters over a hidden haystack, the folded name, aliases, tags, and
+  -- category, with its own token AND scan and ranking, never over the visible title and
+  -- subtitle the shared matcher would see. placeholder resolves once, at register, to the
+  -- hammerspoon backend's own wording, the only backend ever shown through this presentation.
+  presentation = {
+    rows = { member = "rows", call = "method" },
+    select = { member = "insert", call = "method" },
+    placeholder = { member = "placeholder", call = "method" },
+    matcher = false,
   },
 
   -- show, rows, insert and lists are all colon methods, obj:show(), obj:rows(query),
@@ -85,12 +109,16 @@ return {
   -- names lists because this plugin picks a backend at start and the system Character Viewer
   -- has no rows of its own to hand over, so a scope built regardless of which backend won
   -- would open onto an empty list rather than the plain unscoped search that already works
-  -- for that backend. matcher is false because the scope matches over a hidden haystack of
-  -- names, shortcodes, tags and categories the shared word or fuzzy strategies never see.
+  -- for that backend. matcher is false for the identical reason presentation.matcher above
+  -- is, since the scope matches over the same hidden haystack the shared word or fuzzy
+  -- strategies never see. surface is no longer declared, host/stage's own surfaceFor
+  -- answering the five generic nav verbs now that presentation above exists, and this
+  -- plugin binds no verb beyond them, unconditionally, matching the old NOOP_SURFACE's own
+  -- always-false isShowing for the macos and custom backends since neither is ever what the
+  -- stage is showing.
   registry = {
     row = { category = "Tools" },
     open = "show",
-    surface = "surface",
     hosted = true,
     shortcut = "leader",
     scope = {

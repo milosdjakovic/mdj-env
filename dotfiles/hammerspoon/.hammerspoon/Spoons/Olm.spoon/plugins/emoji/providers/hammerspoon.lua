@@ -1,12 +1,20 @@
 --- === Emoji.hammerspoon backend ===
 ---
---- The emoji picker built over the Chooser atom, one of the backends the Emoji facade
---- can select. It owns the vendored emoji dataset loaded when this backend is configured,
---- plus a small persisted pick memory that floats your most used glyphs to the top of the
---- empty browse view, and the chooser instance built over both. It owns only a transient
---- prewarm timer that self stops once the leading icons are warmed, and no watcher or
---- eventtap, and the pick memory lives in hs.settings, so nothing needs an explicit start
---- or stop, matching the lifecycle contract.
+--- The emoji picker's own data and dispatch, one of the backends the Emoji facade can
+--- select. It owns the vendored emoji dataset loaded when this backend is configured, plus
+--- a small persisted pick memory that floats your most used glyphs to the top of the empty
+--- browse view. It owns only a transient prewarm timer that self stops once the leading
+--- icons are warmed, and no watcher or eventtap, and the pick memory lives in hs.settings,
+--- so nothing needs an explicit start or stop, matching the lifecycle contract.
+---
+--- Migrated onto host/stage, the trickle migration. This backend owns no Chooser instance
+--- and builds no window any more, having never been the layer that showed one. The facade
+--- is what declares a presentation now, plugins/emoji/manifest.lua, and its own rows and
+--- insert forward straight through to this backend's identically named members, the same
+--- forwarding the facade always did for a scope's own rows and run. This file keeps the
+--- dataset, the matching, the icon cache, and the pick memory, none of which is presentation
+--- wiring, and loses only the Chooser.new call and the navigation adapter that gave it
+--- something to answer for.
 ---
 --- The match is keyword based, not exact name. Each entry carries a lowercased haystack
 --- folding its name, its shortcode aliases, its tags, and its category, so a word like
@@ -26,16 +34,10 @@ obj.__index = obj
 obj.name = "hammerspoon"
 
 -- Injected via configure
-obj._chooser = nil          -- the Chooser factory (has .new)
-obj._theme = nil
-obj._placeholder = nil
-obj._shortcutPanel = nil     -- { onPositioned, onActivity, onClose }
 obj._onInsert = nil          -- function(glyph), the effect of a chosen row
 
 -- Owned state
 obj._data = nil              -- the vendored emoji list, loaded once when this backend wins
-obj._instance = nil          -- the built Chooser instance
-obj._surface = nil           -- dot-called navigation adapter over the instance
 obj._iconCache = nil         -- glyph -> hs.image, each rendered once and reused
 obj._iconCanvas = nil        -- one reused canvas the glyph icons are drawn through
 obj._prewarmTimer = nil      -- transient, warms the empty-state icons after configure
@@ -314,18 +316,16 @@ end
 
 --- Emoji.hammerspoon:configure(opts)
 --- Method
---- Wire the injected collaborators and build the chooser. opts carries the Chooser
---- factory, the shared theme, the placeholder, the docked shortcut panel callbacks,
---- and onInsert, the closure that acts on the chosen glyph. The dataset and pick memory
---- are loaded first, here rather than at facade load, so this cost is paid only when the
---- facade selects this backend.
+--- Wire onInsert, the closure that acts on the chosen glyph, and load the dataset and pick
+--- memory. Both are loaded first, here rather than at facade load, so this cost is paid
+--- only when the facade selects this backend. Migrated onto host/stage, this backend no
+--- longer reads a Chooser factory, a theme, a placeholder, or the docked panel triple, none
+--- of which it has anywhere left to hand to, the facade's own presentation carrying the
+--- static matcher and placeholder now and host/stage owning the panel for the life of its
+--- one instance.
 function obj:configure(opts)
   opts = opts or {}
   self:_load()
-  self._chooser = opts.chooser
-  self._theme = opts.theme
-  self._placeholder = opts.placeholder or "Search by name or keyword"
-  self._shortcutPanel = opts.shortcutPanel or {}
   self._onInsert = opts.onInsert or function() end
 
   -- One reused canvas draws every glyph icon, far cheaper than a canvas per glyph,
@@ -334,37 +334,6 @@ function obj:configure(opts)
   self._iconCanvas = hs.canvas.new({ x = 0, y = 0, w = ICON_SIZE, h = ICON_SIZE })
   self._iconCanvas[1] = { type = "text", text = "", textSize = ICON_TEXT_SIZE,
     textAlignment = "center", frame = { x = "0%", y = "8%", w = "100%", h = "100%" } }
-
-  local sp = self._shortcutPanel
-  self._instance = self._chooser.new({
-    theme = self._theme,
-    placeholder = self._placeholder,
-    -- Opt out of the shared matcher. This tool filters over a hidden haystack, the folded
-    -- name, aliases, tags, and category in k, with its own token AND scan and ranking, not
-    -- over the visible title and subtitle the shared matcher would see, so letting the atom
-    -- filter would drop a glyph matched only by a tag. It also caps the visible rows to bound
-    -- the icon render, which the atom styling every survivor would undo. So _rows owns the
-    -- query end to end and the atom does no second pass.
-    matcher = false,
-    rows = function(query) return self:_rows(query) end,
-    onSelect = function(glyph)
-      self:insert(glyph)
-    end,
-    onPositioned = sp.onPositioned,
-    onActivity = sp.onActivity,
-    onClose = sp.onClose,
-  })
-
-  -- Dot-called navigation adapter over the colon-called Chooser instance, so the
-  -- root's shared activeChooser and routeNav registry drives it like the others.
-  local instance = self._instance
-  self._surface = {
-    isShowing = function() return instance:isShowing() end,
-    selectNext = function() instance:selectNext() end,
-    selectPrev = function() instance:selectPrev() end,
-    insertSelected = function() instance:insertSelected() end,
-    hide = function() instance:hide() end,
-  }
 
   -- Warm the empty-state icons in the background so the first open is instant. The
   -- match runs over everything but only MAX_RESULTS show at once, so warming that
@@ -397,26 +366,10 @@ function obj:_prewarm(count)
   end)
 end
 
---- Emoji.hammerspoon:show()
---- Method
---- Open the picker.
-function obj:show()
-  if self._instance then self._instance:show() end
-end
-
---- Emoji.hammerspoon:isShowing()
---- Method
---- Whether the picker is open. Safe before configure.
-function obj:isShowing()
-  return self._instance ~= nil and self._instance:isShowing()
-end
-
---- Emoji.hammerspoon:surface()
---- Method
---- The dot-called navigation adapter, for the facade to hand the root's shared
---- choosers list.
-function obj:surface()
-  return self._surface
-end
+-- show, isShowing, and surface are gone, the trickle migration, deleted along with the
+-- Chooser.new block that gave them something to answer for. The facade's own show now
+-- reaches the shared stage directly through cfg.stagePresent when this backend is the one
+-- that won, host/stage's own surfaceFor(identity) answering the five generic navigation
+-- verbs once plugins/emoji/manifest.lua's own presentation exists for the registrar to find.
 
 return obj
