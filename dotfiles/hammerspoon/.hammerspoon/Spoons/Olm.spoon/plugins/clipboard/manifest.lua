@@ -182,6 +182,23 @@ return {
   -- they do, migrated in how they reach the field, cfg.stageSetQuery and cfg.stageSetPlaceholder
   -- replacing the direct picker calls this used to make on an instance it held itself.
   --
+  -- Contract v3, docs/BRIEF-CONTRACT-V3.md, was weighed against this pair and left both fields
+  -- exactly as they are, for two different reasons rather than one. A child is pushed only from
+  -- select answering a table for a row that was just chosen, the one door host/stage's own
+  -- intercept chain opens, on Return, insertSelected, or a click, and no other door exists, no
+  -- published root word hands a plugin the stage's own push directly the way stagePresent and
+  -- stagePop already do. The prune page's own delete rows keep intercept for the reason contract
+  -- v3 names outright, decision three, a row that mutates the list it is standing on rather than
+  -- moving to a new one, exactly the case that pair is reserved for. The page switch itself,
+  -- entering and leaving manage history, was weighed the same way and earns the identical
+  -- reservation for a different reason. It is reached by the Hyper m binding and by its own
+  -- keyless launcher command, both acting on whatever list already happens to be open rather
+  -- than completing a highlighted row, so there is no select call for a child ever to be
+  -- returned from. displayprofiles and browsertabs, contract v3's own two converted plugins,
+  -- drill into every one of their levels by choosing a row, the shape neither of this plugin's
+  -- two pages shares, so intercept and back, already migrated onto the published stage words
+  -- above, stay the whole of how this plugin's two pages open and close.
+  --
   -- onHighlight, onScroll, onRightClick, onPositioned, and onClose carry the live preview, its
   -- scroll, its right click delete, its dock, and its teardown, the identical shape filesearch
   -- and processes already keep, minus the anchor arithmetic and the cfg.onPositioned call

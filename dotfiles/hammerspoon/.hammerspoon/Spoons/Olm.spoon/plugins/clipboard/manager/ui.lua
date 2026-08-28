@@ -1156,6 +1156,12 @@ end
 -- differently rather than one that should be gone, so the slice goes, the counts redraw
 -- themselves from the store, and the page stays open for a second pass. Answering false for
 -- every other row is what leaves Return meaning paste on the history list.
+--
+-- Contract v3, docs/BRIEF-CONTRACT-V3.md, was weighed against this and left it as it is,
+-- decision three's own reserved case, a row that mutates the list it is standing on rather
+-- than moving to a new one. manifest.lua's own presentation comment carries the fuller
+-- reasoning, including why the page switch below stays on this same pair for a second, separate
+-- reason.
 local function intercept(item)
   if page ~= "prune" or not item or not item.side or item.side == "hint" then return false end
   local removed = prune.apply(item)
@@ -1167,6 +1173,11 @@ end
 -- Backspace on an empty field, the way out of the page. It is the same press that steps out of
 -- a hosted list in the launcher and out of a typed scope, so one habit covers all three, and
 -- answering false with no page on keeps it ordinary editing everywhere else.
+--
+-- Contract v3 leaves this in place too, since the page it steps out of was never entered
+-- through select in the first place, the Hyper m binding and the manage history command both
+-- acting on whatever list is already open rather than completing a chosen row, so there is no
+-- child here for Stage:pop to have restored. manifest.lua's own presentation comment says why.
 local function back()
   if page == nil then return false end
   UI.leaveManageHistory()
