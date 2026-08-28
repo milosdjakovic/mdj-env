@@ -55,11 +55,15 @@ Track one, unification.
       Landed on main 2026-08-27 at 7206aba after the gate, the first press shows
       the window within a tenth of a second and the second serves from the
       snapshot. Review in the scratchpad review-menusearch doc of that session.
-- [ ] 6. The remaining migrations become trickle work rather than a scheduled
-      phase, one plugin whenever convenient, each mechanical against the proven
-      contract, old path and new path coexisting by design. BrowserTabs suite
-      before its own step merges. Caffeinate exercises the row count path,
-      filesearch and processes the pane path.
+- [~] 6. The remaining migrations are trickle work, one plugin whenever
+      convenient, old path and new path coexisting by design. filesearch,
+      processes, and clipboard landed 2026-08-28 at 9697bcf together with the
+      contract's second revision, BRIEF-CONTRACT-V2.md, matcher and enter, plus
+      titleLineBreak and paneWidth as member specs, review in
+      docs/REVIEW-TRICKLE.md. Still open, emoji, textcase, tmuxsessions,
+      caffeinate, browsertabs, displayprofiles, and the root's overlay display
+      picker. BrowserTabs suite before its own step merges. Caffeinate
+      exercises the row count path.
 
 Close.
 
