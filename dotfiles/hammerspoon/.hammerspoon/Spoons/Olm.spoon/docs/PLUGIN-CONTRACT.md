@@ -338,7 +338,14 @@ hands it to `stage.present`, the hotkey door for a plugin whose own leader key n
 builds a window itself. `redrawPresented(name, resetRow)` asks the stage to re run the
 current presentation's rows if, and only if, `name` is still the one showing, `resetRow`
 optional and forwarded straight to `Stage:refresh`. `stageHide()` hides the shared window
-outright. `stageSetQuery(text)` and `stageSetPlaceholder(text)` write the field's text and
+outright. `stagePop()`, contract v3's own addition, docs/BRIEF-CONTRACT-V3.md, asks the stage
+to leave the current child the way Backspace on an empty field already does, `Stage:pop`
+restoring the parent and answering false at the bottom exactly as that press does, for a
+row that must leave a level rather than drill into one, the one shape a child returned from
+`select` cannot express since a child only ever pushes, never pops. Called from inside a
+presentation's own `intercept`, decision three's reserved case, a row that mutates the list
+it is on and stands, the leaving being the mutation and the parent left standing being what
+the list becomes. `stageSetQuery(text)` and `stageSetPlaceholder(text)` write the field's text and
 its placeholder directly, for an inner level that changes what the box means without the
 presentation closing, the way a manage history page or a parent row's own step up both do.
 `stageSelectedItem()` answers the item under the highlight on the live widget, guarded so a

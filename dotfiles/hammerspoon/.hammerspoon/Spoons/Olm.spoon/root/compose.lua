@@ -742,6 +742,23 @@ function obj.run(olm, cfg)
       if stageModule then stageModule:hide() end
     end,
 
+    -- stagePop, DisplayProfiles' own addition, contract v3's own back door for the one thing
+    -- a child cannot express on its own, leaving a level a row pushed rather than one Backspace
+    -- was pressed to leave. A child that pops itself does so from inside its own intercept,
+    -- decision three's reserved case, a row that mutates the list it is on and stands, since
+    -- popping the stack out from under the row that asked is itself the mutation, the list
+    -- left standing being the parent rather than the child. Stage:pop already restores
+    -- whatever sits below the top of the stack and answers false at the bottom exactly as an
+    -- ordinary Backspace does, so a presentation calling this and then answering true from its
+    -- own intercept gets the identical outcome literal Backspace already gives a child that
+    -- declares no back of its own, just reachable from a row rather than only from the field
+    -- going empty. Called more than once in the same intercept for a level that must skip past
+    -- a now stale sibling, DisplayProfiles' own delete leaving both the delete frame and the
+    -- profile it just removed behind in one press.
+    stagePop = function()
+      if stageModule then stageModule:pop() end
+    end,
+
     -- stageSetQuery, the trickle migration's own addition, FileSearch's own parent row
     -- intercept, which puts the query for the level above in the field and the presentation
     -- stays open, the identical "swap the list in place" shape host/launcher's own paging

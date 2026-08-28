@@ -8,14 +8,23 @@
 --- active profile for the rare case where macOS scrambled the layout with no hardware change
 --- so no screen event fired.
 ---
---- One native chooser, driven as a nested menu stack, not a chain of separate chooser
---- instances. A stack of frames names where you are, the row supplier reads the top frame
---- and the live query, and selecting a row either navigates (push or pop a frame) or runs a
---- terminal action. The native chooser closes itself whenever a row is chosen, which is why
---- a drill in cannot keep it open, so a navigation selection re-shows the one instance at
---- the new level. This is the same re-show a flat list would avoid, done on
---- purpose here because the tool is genuinely a menu. Escape and a click away close for
---- real, which resets the stack to the top for the next open.
+--- Migrated onto host/stage, contract v3, docs/BRIEF-CONTRACT-V3.md. Each level of the menu
+--- is now its own presentation table, built lazily and pushed as a child the moment a row
+--- drills into it, rather than one instance driven as a hand kept stack of frames. Choosing a
+--- profile, Rename, Delete, or Capture returns the level it leads to from select, and
+--- host/stage pushes it, swapping the shared window in place with no window ever closing.
+--- Leaving a level, the Back row, the delete confirm's own Keep, and the pop a successful
+--- rename, delete, or capture lands on, all ride each level's own intercept instead, decision
+--- three's reserved case, a row that mutates the list it is on and stands, the mutation here
+--- being that the level standing after the row runs is the parent rather than the child,
+--- reached through cfg.stagePop, contract v3's own addition for exactly this. Delete pops
+--- twice in the same press, since a removed profile leaves both the delete frame and the
+--- profile screen naming it behind, stale, in the same motion a single pop would only clear
+--- half of. The private Return swallowing eventtap, the hand kept frame stack, and the zero
+--- timer re-show the click path used to need are all gone, since intercept is asked before
+--- Return, insertSelected, and a click alike are ever let through to a real completion, the
+--- one gate capable of keeping the window open through a swap at all, so nothing here has to
+--- reimplement what that gate already promises.
 ---
 --- The attached display set is cached in the engine and cleared on a screen change, so the
 --- row supplier, which asks the engine which profile is active on every keystroke, never
@@ -23,24 +32,13 @@
 ---
 --- This file talks to the engine and the store only through the injected api table, so it
 --- is pure policy. The spoon composition root in init.lua builds that api by merging the
---- curated profiles with the captured ones and owns the rebuild after a write. The theme,
---- the Chooser factory, and the docked shortcut panel callbacks are injected by the main
---- root, the same way the other choosers receive them.
+--- curated profiles with the captured ones and owns the rebuild after a write.
 
 local M = { name = "DisplayProfiles.chooser" }
 
 local log = hs.logger.new("DisplayProfiles", "info")
 
 local cfg = {}        -- injected across two calls: api from the spoon, view deps from the root
-local chooser = nil   -- the one native Chooser instance
-local stack = nil     -- the menu stack, stack[#stack] is the current frame
-local reopen = false  -- set by a click selection so onClose re-shows instead of ending
-local returnTap = nil -- swallows Return while open so a menu step stays in place, no re-show
--- The pending re-show, held until it fires. A Hammerspoon timer is userdata whose finalizer
--- stops it, so one nothing refers to can be collected before it runs, and the menu would
--- then close on a click that was meant to step into it. Only one re-show is ever pending,
--- because the reopen flag above is cleared before this is armed.
-local reopenTimer = nil
 
 --------------------------------------------------------------------------------
 -- Row icons
@@ -113,7 +111,7 @@ end
 -- when the current arrangement matches no profile, which is the tool's notion of add new. A
 -- typed query filters the profiles by a case insensitive substring on the name.
 local function topRows(query)
-  local q = query:lower()
+  local q = (query or ""):lower()
   local out = {}
   local active = cfg.api.active()
   if not active then
@@ -218,196 +216,214 @@ local function captureRows(query)
   return out
 end
 
--- The one supplier the chooser calls, dispatched on the current frame.
-local function rows(query)
-  query = query or ""
-  local top = stack[#stack]
-  if top.kind == "profile" then return profileRows(top.name) end
-  if top.kind == "rename" then return renameRows(top.name, query) end
-  if top.kind == "delete" then return deleteRows(top.name) end
-  if top.kind == "capture" then return captureRows(query) end
-  return topRows(query)
-end
-
 --------------------------------------------------------------------------------
--- Placeholder chrome, set per frame after each show
+-- Child levels, built lazily and pushed the moment a row drills into one
 --------------------------------------------------------------------------------
 
-local function placeholderFor(top)
-  if top.kind == "rename" then return "New name for '" .. top.name .. "'" end
-  if top.kind == "capture" then return "Name this arrangement" end
-  if top.kind == "top" then return "Search profiles" end
-  return ""
+-- Every child below shares this one shape. rows reads whatever this level names, matcher
+-- stands the shared strategy down for the identical reason the retired single instance
+-- always did, its own supplier morphing rows from the query and the level rather than
+-- filtering a fixed list, and intercept is where a level that mutates the list it is on, or
+-- leaves it for its parent, answers for itself. A level with nothing to mutate and nowhere
+-- to leave from a row, profile and top among them, simply declares no intercept, exactly as
+-- an ordinary presentation with none already does, backspace still reaching the parent
+-- through host/stage's own Stage:pop.
+
+-- The rename screen, a child of a profile screen. name is the profile being renamed, over a
+-- shared upvalue rather than a value frozen at creation, so a successful rename can correct
+-- what the profile screen it pops back onto reads without rebuilding that screen's own
+-- presentation table.
+local function buildRenameChild(state)
+  return {
+    placeholder = "New name for '" .. state.name .. "'",
+    matcher = false,
+    rows = function(query) return renameRows(state.name, query) end,
+    -- select never actually answers, every reachable row on this level is caught by
+    -- intercept below, back and the one real action alike, but the field is required on
+    -- every presentation, host/stage's own isPresentation refusing one without it.
+    onSelect = function() end,
+    intercept = function(item)
+      if not item or item.noop then return true end
+      if item.nav and item.to == "back" then
+        if cfg.stagePop then cfg.stagePop() end
+        return true
+      end
+      if item.act == "saveRename" then
+        local ok, err = cfg.api.rename(item.name, item.newName)
+        if ok then
+          -- Corrects the shared upvalue so the profile screen this pops back onto, which
+          -- reads state.name on every rows() call rather than a name frozen when it was
+          -- built, shows the renamed profile at once rather than answering "Profile is
+          -- gone" for a name that no longer resolves.
+          state.name = item.newName
+          if cfg.stagePop then cfg.stagePop() end
+        else
+          log.e("rename failed, " .. tostring(err))
+        end
+        return true
+      end
+      return false
+    end,
+  }
 end
 
---------------------------------------------------------------------------------
--- Selection dispatch, shared by the in-place path and the click fallback
---------------------------------------------------------------------------------
-
-local function frameFor(item)
-  if item.to == "profile" then return { kind = "profile", name = item.name } end
-  if item.to == "rename" then return { kind = "rename", name = item.name } end
-  if item.to == "delete" then return { kind = "delete", name = item.name } end
-  if item.to == "capture" then return { kind = "capture" } end
-  return { kind = "top" }
+-- The delete confirm screen, a child of a profile screen. Keep leaves exactly like Back,
+-- both being the same { nav = true, to = "back" } item, so one branch answers both. A
+-- successful delete pops twice in the same press, past the delete frame and past the
+-- profile screen naming a profile that no longer exists, landing on top the identical place
+-- the retired stack = { { kind = "top" } } always did.
+local function buildDeleteChild(state)
+  return {
+    placeholder = "",
+    matcher = false,
+    rows = function() return deleteRows(state.name) end,
+    onSelect = function() end,
+    intercept = function(item)
+      if not item then return true end
+      if item.nav and item.to == "back" then
+        if cfg.stagePop then cfg.stagePop() end
+        return true
+      end
+      if item.act == "delete" then
+        local ok, err = cfg.api.remove(item.name)
+        if ok then
+          if cfg.stagePop then cfg.stagePop() end
+          if cfg.stagePop then cfg.stagePop() end
+        else
+          log.e("delete failed, " .. tostring(err))
+        end
+        return true
+      end
+      return false
+    end,
+  }
 end
 
--- Apply the chosen item to the stack and return where the chooser should go next, "stay" to
--- remain open at the resulting frame or "close" to end. A disabled hint stays. A navigation
--- row pushes or pops a frame. A terminal action calls the api, and on success sends the stack
--- to where it should land, the top after a capture or delete, the renamed profile's menu
--- after a rename, and Reapply closes for good. A failed write logs and stays on the screen so
--- nothing is lost. This decides only the stack, the two callers decide how to move there.
-local function applySelection(item)
-  if not item or item.noop then return "stay" end
-
-  if item.nav then
-    if item.to == "back" then
-      if #stack > 1 then table.remove(stack) end
-    else
-      stack[#stack + 1] = frameFor(item)
-    end
-    return "stay"
-  end
-
-  if item.act == "reapply" then
-    cfg.api.reapply()
-    return "close"
-  end
-
-  if item.act == "capture" then
-    local ok, err = cfg.api.capture(item.newName)
-    if ok then stack = { { kind = "top" } } else log.e("capture failed, " .. tostring(err)) end
-    return "stay"
-  end
-
-  if item.act == "saveRename" then
-    local ok, err = cfg.api.rename(item.name, item.newName)
-    if ok then
-      table.remove(stack) -- pop the rename frame
-      stack[#stack] = { kind = "profile", name = item.newName } -- the profile menu, renamed
-    else
-      log.e("rename failed, " .. tostring(err))
-    end
-    return "stay"
-  end
-
-  if item.act == "delete" then
-    local ok, err = cfg.api.remove(item.name)
-    if ok then stack = { { kind = "top" } } else log.e("delete failed, " .. tostring(err)) end
-    return "stay"
-  end
-
-  return "stay"
+-- The profile screen, a child of the top level. state is the one mutable table this level's
+-- own rows reads, { name = ... }, which its own rename child corrects in place on success
+-- rather than this level being rebuilt, so popping back after a rename lands on a level that
+-- already answers for the new name.
+local function buildProfileChild(name)
+  local state = { name = name }
+  return {
+    placeholder = "",
+    matcher = false,
+    rows = function() return profileRows(state.name) end,
+    -- Rename and Delete are genuine levels, so each answers through select, the ordinary
+    -- child push decision one describes, host/stage pushing whatever comes back. Reapply is
+    -- a genuine completion instead, not a level, calling the engine and returning nothing,
+    -- the ordinary meaning this contract has always given nil, the whole stack tears down,
+    -- closing the tool for good exactly as the retired chooser:hide() always did.
+    onSelect = function(item)
+      if not item then return nil end
+      if item.act == "reapply" then
+        cfg.api.reapply()
+        return nil
+      end
+      if item.nav and item.to == "rename" then return buildRenameChild(state) end
+      if item.nav and item.to == "delete" then return buildDeleteChild(state) end
+      return nil
+    end,
+    -- Back is the one row on this level that leaves rather than drills or completes, decision
+    -- three's reserved case, so it alone answers through intercept, cfg.stagePop leaving the
+    -- level the row was pressed on and the parent, the top level, standing in its place.
+    intercept = function(item)
+      if not item or item.noop then return true end
+      if item.nav and item.to == "back" then
+        if cfg.stagePop then cfg.stagePop() end
+        return true
+      end
+      return false
+    end,
+  }
 end
 
--- Redraw the current frame in place, no re-show, so a menu step is instant. The query is
--- cleared so a new level is not narrowed by a filter typed at the previous one, and the
--- highlight jumps back to the first row of the new list.
-local function drawFrame()
-  chooser:setQuery("")
-  chooser:refresh(true)
-  chooser:setPlaceholder(placeholderFor(stack[#stack]))
-end
-
---------------------------------------------------------------------------------
--- Return interceptor, so a menu step never re-shows
---------------------------------------------------------------------------------
-
--- The native chooser closes on any Return, which would force a re-show to keep a menu open.
--- To keep every step in place, a passive tap swallows Return and the keypad enter while this
--- chooser is up and routes them through the in-place enter instead, so the native completion
--- never fires. Plain typing and the arrows pass straight through. Started on show, stopped on
--- close. Hyper+i routes to the same in-place enter, so both confirm keys behave identically.
-local RETURN_CODES = { [36] = true, [76] = true }
-local function startReturnTap()
-  if returnTap then returnTap:stop() end
-  returnTap = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, function(e)
-    if not (chooser and chooser:isShowing()) then return false end
-    if RETURN_CODES[e:getKeyCode()] then
-      M.enter()
-      return true
-    end
-    return false
-  end)
-  returnTap:start()
-end
-local function stopReturnTap()
-  if returnTap then returnTap:stop(); returnTap = nil end
-end
-
--- Show the one instance at the current frame, set its placeholder to match, and arm the
--- Return tap. The first open and the click fallback's re-show route through here.
-local function present()
-  if not chooser then return end
-  chooser:show()
-  chooser:setPlaceholder(placeholderFor(stack[#stack]))
-  startReturnTap()
-end
-
--- A row was chosen by mouse click, the one path that still reaches the native completion, so
--- the chooser has already closed. A stay result re-shows at the new frame on the next tick,
--- after the native chooser finishes hiding, a close just lets it end.
-local function onSelect(item)
-  if applySelection(item) == "stay" then reopen = true end
+-- The capture screen, a child of the top level.
+local function buildCaptureChild()
+  return {
+    placeholder = "Name this arrangement",
+    matcher = false,
+    rows = captureRows,
+    onSelect = function() end,
+    intercept = function(item)
+      if not item or item.noop then return true end
+      if item.nav and item.to == "back" then
+        if cfg.stagePop then cfg.stagePop() end
+        return true
+      end
+      if item.act == "capture" then
+        local ok, err = cfg.api.capture(item.newName)
+        if ok then
+          if cfg.stagePop then cfg.stagePop() end
+        else
+          log.e("capture failed, " .. tostring(err))
+        end
+        return true
+      end
+      return false
+    end,
+  }
 end
 
 --------------------------------------------------------------------------------
 -- Public control surface (dot-called)
 --------------------------------------------------------------------------------
 
---- M.show() - open at the top level. The list reads the live state itself, so there is
---- nothing to fetch first.
+--- M.show() - present through the shared stage. cfg.stagePresent asks the registry for
+--- this plugin's own presentation, the top level below, and hands it to Stage:present,
+--- always a fresh stack, so a reopen from the launcher or this plugin's own launcher row
+--- never resumes a previous drill.
 function M.show()
-  stack = { { kind = "top" } }
-  present()
+  if cfg.stagePresent then cfg.stagePresent("displayProfiles") end
 end
 
-function M.isShowing()
-  return chooser ~= nil and chooser:isShowing()
+--- M.rows(query) -> list. The top level's own row supplier, named on the manifest's own
+--- presentation block as the contract's rows.
+M.rows = topRows
+
+--- M.select(item) -> presentation or nil. The top level's own onSelect, named on the
+--- manifest's own presentation block. A profile row or the capture row drills into a child
+--- of its own, host/stage pushing whatever is answered, and every other row, none existing
+--- at this level, answers nothing.
+function M.select(item)
+  if not item then return nil end
+  if item.nav and item.to == "profile" then return buildProfileChild(item.name) end
+  if item.nav and item.to == "capture" then return buildCaptureChild() end
+  return nil
 end
 
---- M.refresh() - redraw the current frame in place, so a screen change that lands while the
---- chooser is open updates the active marker without waiting for a keystroke. A no-op when
---- the chooser is closed.
+--- M.placeholder() -> string. The field hint while the top level is current, named on the
+--- manifest's own presentation block. Resolved once, at register, since the presentation
+--- contract wants a plain string a presentation carries rather than a function to call
+--- again later. Every child below carries its own instead, a plain field on a table built
+--- at runtime rather than something the registrar ever resolves.
+function M.placeholder()
+  return "Search profiles"
+end
+
+--- M.refresh() - redraw the current level in place, so a screen change that lands while
+--- this presentation, and no other, is what the stage is actually showing updates the
+--- active marker without waiting for a keystroke. Migrated onto host/stage,
+--- cfg.redrawPresented replacing the direct chooser:refresh() this used to call on an
+--- instance it held itself, already a no op unless "displayProfiles" is current.
 function M.refresh()
-  if chooser and chooser:isShowing() then chooser:refresh() end
+  if cfg.redrawPresented then cfg.redrawPresented("displayProfiles") end
 end
 
-function M.hide()
-  if chooser then chooser:hide() end
-end
-
-function M.selectNext()
-  if chooser then chooser:selectNext() end
-end
-
-function M.selectPrev()
-  if chooser then chooser:selectPrev() end
-end
-
---- M.enter() - the in-place confirm, from Hyper+i and from the Return tap. Reads the
---- highlighted row, applies it to the stack, and either redraws the new frame in place with
---- no re-show, or closes on a terminal action like Reapply.
-function M.enter()
-  if not (chooser and chooser:isShowing()) then return end
-  if applySelection(chooser:selectedItem()) == "close" then
-    chooser:hide()
-  else
-    drawFrame()
-  end
-end
-
---- M.insertSelected() - alias for enter, so any generic routing that names the shared
---- insertSelected action still confirms the highlighted row in place.
-function M.insertSelected()
-  M.enter()
-end
+-- isShowing, hide, selectNext, selectPrev, insertSelected, and enter are gone, the trickle
+-- migration, deleted along with the Chooser.new block, the private Return swallowing
+-- eventtap, the hand kept frame stack, and the zero timer re-show that gave them something
+-- to answer for. The composition root now routes this plugin's own navigation through
+-- host/stage's own surfaceFor once wiredRegistry.presentationFor("displayProfiles") answers
+-- a presentation, which answers insertSelected directly, reaching the atom's own real
+-- completion path, intercept asked first exactly as every other row on every level already
+-- is.
 
 --- M:configure(opts) - merge injected deps across the two callers. The spoon composition
 --- root injects `api`, the merged view over the engine and the store. The main root injects
---- `theme`, the Chooser factory as `chooser`, and the docked shortcut panel callbacks
---- (onPositioned, onActivity, onClose), the same seams the other choosers receive.
+--- stagePresent, stagePop, and redrawPresented, the root published words this
+--- migration needs. Builds no chooser any more, the trickle migration, so theme and the
+--- Chooser factory are no longer read here.
 --
 -- Colon here, not dot, because every caller, the plugin root's own configure, the live top
 -- level init.lua, and the shared wiring pipeline in lib/wire.lua, reaches this submodule as
@@ -417,39 +433,14 @@ function M:configure(opts)
   return M
 end
 
---- M:start() - build the one native chooser. Called by the main root once both configures
---- have run, so the factory and the api are both present.
+--- M:start() - nothing left to build. Builds no chooser any more, the trickle migration.
+--- Whatever this plugin used to hand a Chooser.new call, theme, a field mode, the matcher,
+--- rows, onSelect, and the panel triple, is now either read straight off this module by the
+--- registrar, rows and select through the manifest's own presentation block, or owned by
+--- the stage as fixed, atom level policy. Kept as a callable no op rather than deleted,
+--- since manifest.lua's own wiring still names it and a step this file no longer needs is
+--- cheaper to leave inert than to go edit the manifest over.
 function M:start()
-  stack = { { kind = "top" } }
-  chooser = cfg.chooser.new({
-    theme = cfg.theme,
-    placeholder = "Search profiles",
-    fieldMode = cfg.chooser.fieldModes.filter,
-    -- Opt out of the shared matcher. This is a stack of frames, not a plain list: the field
-    -- filters at the top but is a name entry on the rename and capture screens, and the
-    -- supplier morphs its rows from the query and the frame. Letting the atom filter and rank
-    -- those rows would drop the Save row while a name is typed and hide the Back row. The
-    -- supplier owns the query.
-    matcher = false,
-    rows = rows,
-    onSelect = onSelect,
-    onPositioned = cfg.onPositioned,
-    onActivity = cfg.onActivity,
-    -- Compose the root's panel teardown with the menu stack behavior. The Return tap is
-    -- stopped first, since the chooser is down. A click fallback set reopen, so re-show at
-    -- the new frame on the next tick (present re-arms the tap), after the native chooser has
-    -- finished hiding. Any real dismissal resets the stack for the next open.
-    onClose = function()
-      stopReturnTap()
-      if cfg.onClose then cfg.onClose() end
-      if reopen then
-        reopen = false
-        reopenTimer = hs.timer.doAfter(0, present)
-      else
-        stack = { { kind = "top" } }
-      end
-    end,
-  })
   return M
 end
 

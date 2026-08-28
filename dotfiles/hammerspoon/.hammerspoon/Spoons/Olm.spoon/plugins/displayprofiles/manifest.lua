@@ -35,6 +35,25 @@ return {
       settleDelay = { source = "user", policy = "optional",
         breaks = "a burst of screen events is coalesced with the built in one and a "
           .. "half second window rather than one tuned for this setup" },
+
+      -- Three root computed words, the trickle migration onto the shared stage. stagePresent
+      -- is the hotkey door, reached through this plugin's own M.show, and through the
+      -- registered special row dispatch, this tool proposing no key of its own. redrawPresented
+      -- is the async status seam, the engine's own screen watcher asking to be redrawn once
+      -- the active profile changes while this presentation, and no other, is what the stage
+      -- is actually showing. stagePop, contract v3's own addition, docs/BRIEF-CONTRACT-V3.md,
+      -- is what every child level's own Back row, and every successful rename, delete, and
+      -- capture, leaves a level through, the one thing a child pushed from select cannot
+      -- express on its own. All three optional, all three degrading to an inert press or a
+      -- silently skipped redraw, never a crash, since a plugin asking before the stage's own
+      -- configure has run is a wiring defect rather than a state a key press should silently
+      -- swallow.
+      stagePresent = { source = "root", policy = "optional",
+        breaks = "this plugin's own launcher row opens nothing, since M.show has no other way to reach the shared stage" },
+      redrawPresented = { source = "root", policy = "optional",
+        breaks = "the active marker stays stale after a screen change lands while the tool is open, since M.refresh has no other way to reach whatever is on screen" },
+      stagePop = { source = "root", policy = "optional",
+        breaks = "every child level's own Back row, and a successful rename, delete, or capture, all stand on the level they meant to leave rather than returning to its parent" },
     },
   },
 
@@ -47,14 +66,34 @@ return {
     launcherRow = true,
   },
 
-  -- A nested menu you navigate, enter rather than the shared insertSelected, since
-  -- selecting through the native chooser would close it and force a re show. No
-  -- matcher and no pane, this plugin's own Chooser instance hardcodes matcher false
-  -- itself regardless of anything injected, since its supplier morphs the rows from
-  -- the query rather than filtering a fixed list, and it reserves no companion pane.
+  -- A nested menu you navigate, insertSelected now rather than the retired enter. The
+  -- rename costs nothing behaviourally, this level's own drill down and its Back row both
+  -- go through host/stage's own intercept, the atom's real completion path, asked before
+  -- Return, insertSelected, or a click alike are ever let through, so nothing here needs a
+  -- private mechanism to keep the window open through a step any more. No pane, this
+  -- plugin's own levels reserve no companion pane, and matcher stays false through
+  -- presentation.matcher below and every child's own field, since each level's own supplier
+  -- morphs its rows from the query rather than filtering a fixed list.
   surface = {
     context = "displayProfiles",
-    primary = { action = "enter", description = "Select" },
+    primary = { action = "insertSelected", description = "Select" },
+  },
+
+  -- The presentation contract, contract v3, docs/BRIEF-CONTRACT-V3.md. rows and select are
+  -- this plugin's own chooser.rows and chooser.select, plain closures assigned or defined on
+  -- the chooser submodule exactly the way its show, placeholder, and every other public
+  -- member already are, so every field below says call = dot, stated outright, never the
+  -- bare string shorthand this contract allows everywhere else a member is not a
+  -- presentation's own. placeholder resolves once, at register, to the top level's own
+  -- static wording, every child level below it carrying its own instead, a plain field on a
+  -- table built at runtime rather than something the registrar ever resolves. matcher is a
+  -- real false, unchanged by the migration, since the top level's own supplier already
+  -- filters the profile list itself rather than leaving that to the shared strategy.
+  presentation = {
+    rows = { member = "chooser.rows", call = "dot" },
+    select = { member = "chooser.select", call = "dot" },
+    placeholder = { member = "chooser.placeholder", call = "dot" },
+    matcher = false,
   },
 
   -- Configure alone leaves this plugin half wired. Start begins the screen watcher
@@ -69,11 +108,12 @@ return {
   },
 
   -- show lives on the chooser submodule as a plain dot called function, function M.show(),
-  -- never a colon method, so open says so, and the chooser is the surface too, a table
-  -- rather than a function, so it needs no call convention of its own.
+  -- never a colon method, so open says so. surface is no longer declared, host/stage's own
+  -- surfaceFor answering the five generic nav verbs now that presentation above exists, and
+  -- M.refresh, this plugin's only other public member, was never routed through the nav
+  -- registry to begin with, called only from this plugin's own screen watcher.
   registry = {
     row = { category = "Displays", detail = "inspect and manage arrangements", glyph = "🖥️" },
     open = { member = "chooser.show", call = "dot" },
-    surface = "chooser",
   },
 }
