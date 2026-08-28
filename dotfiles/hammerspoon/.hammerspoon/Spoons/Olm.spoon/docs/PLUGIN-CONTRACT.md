@@ -618,8 +618,9 @@ resolve at all. The words themselves are the presentation contract's own, BRIEF-
 version one plus phase three's own addition, `rows`, `onSelect`, `placeholder`, `onPresent`,
 `intercept`, `back`, `onHighlight`, `onClose`, `peekPreview`, plus the geometry brief's own
 two additions, `onPositioned` and `paneWidth`, docs/BRIEF-GEOMETRY.md, plus contract v2's own
-pair, `matcher` and `enter`, docs/BRIEF-CONTRACT-V2.md, with one deliberate
-difference. This block calls the contract's `onSelect` field `select` instead, the same word
+pair, `matcher` and `enter`, docs/BRIEF-CONTRACT-V2.md, plus contract v3's own widening of
+`select` itself to answer a child presentation table, docs/BRIEF-CONTRACT-V3.md, with one
+deliberate difference. This block calls the contract's `onSelect` field `select` instead, the same word
 `provides.select` and `registry.scope.run` already use for a plugin's own selection member,
 so one plugin never has to name the same function two different ways depending on which part
 of the config is asking.
@@ -708,6 +709,39 @@ tool declaring `enter` is responsible for its own timeout, the way VPN's and men
 async walks already arrange their own, since the stage will wait on `proceed` forever otherwise
 and a person left on a launcher row that silently does nothing has no way to know why. The
 stage never learns why a presentation deferred or what it was waiting for, only that it did.
+
+**Child presentations, contract v3, docs/BRIEF-CONTRACT-V3.md.** `select`, the contract's own
+word for `onSelect`, may answer a presentation table instead of nothing, and answering one means
+the row was never a completion, it was a drill into a level of its own. `host/stage` pushes the
+answered table as a child of the presentation that produced it, the identical door a launcher row
+already pushes a tool through, so choosing such a row swaps the shared window in place with no
+close and no reopen. Every field on this list may differ per child, its own `paneWidth`, `matcher`,
+`placeholder`, `rowCount`, or `titleLineBreak`, or be left absent to resolve to the ordinary
+default the way any other presentation's absent field already does, since a child is not a
+distinct kind of table, it is an ordinary presentation table that happened to arrive through a
+return value rather than through a call to `stage.present` or `stage.push`. `name` may be left off
+a child, the one field this contract otherwise requires, and `host/stage` fills it in from the
+parent's own name so the docked hint bar and `stage.current()` still answer something a context can
+be found under, though a child whose own level genuinely wants different hint content may still
+name itself. Backspace on an empty field needs no hook from the plugin, `Stage:pop` already
+restores whatever sits below the top of the stack, which is the parent the moment a child sits
+above it, the identical mechanism that already returns a launcher row's own tool back to the
+launcher. A child answering nil from its own `select`, the ordinary case at any depth, still means
+what a completion has always meant on this contract, the whole stack tears down, since nothing
+about `onClose`'s own unconditional clear on a real dismissal changes for this.
+
+The mechanism rides the existing `intercept` chain inside `host/stage` rather than adding a second
+hook, since `intercept` is already the one gate every selection path, Return, `insertSelected`, and
+a click alike, passes through before `hs.chooser` is ever allowed to complete a row natively, and a
+child pushed there never lets that native completion happen at all, which is the only way the
+window can stay open through the swap. A plugin writes no `intercept` of its own to get this,
+`select` returning a table is the whole of what it does. `intercept` itself, when a presentation
+still declares one, keeps meaning exactly what it always has, a row that mutates the list it is on
+and stands, the clipboard's own prune page being the case neither a child nor a completion could
+express, since the row does not want a new list, it wants the same list with a different count.
+Contract v3 decision three names that boundary outright, a plugin needing levels declares no
+`intercept` and returns children from `select` instead, and a plugin needing in place mutation
+keeps `intercept` exactly as before, and the two are not expected to mix on the same row.
 
 `onScroll` is a third addition the trickle migrations found rather than either contract brief
 naming, `function(points)` for a trackpad or a wheel scrolled over the companion rect, which a

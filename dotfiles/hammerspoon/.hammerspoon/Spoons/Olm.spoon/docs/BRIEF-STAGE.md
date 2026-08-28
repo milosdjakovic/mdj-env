@@ -78,10 +78,21 @@ names concretions.
 A presentation is pure data plus closures, serialisable nowhere, held only by the
 stage. Fields, all optional except name, rows, and onSelect.
 
-    name          the context name, matching the manifest surface context of the tool
+    name          the context name, matching the manifest surface context of the tool, or
+                  absent on a child presentation, contract v3, docs/BRIEF-CONTRACT-V3.md,
+                  which inherits its parent's own name unless it states one of its own
     placeholder   the field placeholder while this presentation is current
     rows          function(query) returning the row tables the atom already takes
-    onSelect      function(item) run when a row completes
+    onSelect      function(item) run when a row completes, or, contract v3, answering a
+                  presentation table instead of nothing when the row drills into a level of
+                  its own rather than completing, which the stage pushes as a child of this
+                  one, swapping the list in place with no window ever closing, exactly the
+                  way a launcher row already pushes a tool. Every field on this list may
+                  differ per child or be left absent to inherit the ordinary default, and
+                  backspace on an empty field pops back to the parent through the stack the
+                  same way it already leaves any other level. Riding the existing intercept
+                  chain, docs/BRIEF-CONTRACT-V3.md, so a plugin declaring levels this way
+                  writes no hook of its own beyond the return value itself
     onPresent     function() told when this presentation becomes current, through present
                   or push, never through pop, added in the handoff phase for a tool whose
                   rows depend on something async nothing else has necessarily warmed
