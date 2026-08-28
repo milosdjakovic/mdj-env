@@ -39,6 +39,14 @@ names concretions.
    it. The same path serves a future width change, per the probe width() also applies
    on a plain hide and show.
 
+   Superseded by the geometry phase and contract v2, docs/BRIEF-GEOMETRY.md and
+   docs/BRIEF-CONTRACT-V2.md. Layout stopped meaning "constant beyond rowCount" once a
+   presentation could also carry its own paneWidth, matcher, and titleLineBreak, all
+   three joining rowCount as fields host/stage writes onto the live instance before
+   every show, present, push, and pop alike, docs/PLUGIN-CONTRACT.md's own presentation
+   section names the live write for each. Four live layout fields per presentation is
+   the shape that actually shipped, not the one field this decision originally named.
+
 5. The ActionPanel decorator stays exactly where it is and the stage sits under it.
    Surprise 9.8, the decorator already wraps intercept and back on every instance by
    mutating config in place, legally, because the atom reads config live. The stage

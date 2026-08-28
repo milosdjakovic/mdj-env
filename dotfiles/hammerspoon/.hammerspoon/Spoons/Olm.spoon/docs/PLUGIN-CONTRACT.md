@@ -597,7 +597,15 @@ got this backwards and a user changing one key destroyed that plugin's whole con
 Phase three of the chooser stage build, docs/BRIEF-HANDOFF.md. A plugin declares this block
 when it shows its own rows through host/stage, the one host owning the single live chooser
 instance every presenting plugin shows into, rather than calling `Chooser.new` and building
-a window of its own. VPN is the first and, as of this phase, only plugin that does.
+a window of its own. VPN was the first plugin to declare it, phase three's own proving
+consumer, and it no longer stands alone. The trickle and final batch migrations,
+docs/PLAN-CHOOSER-STAGE.md, moved every remaining list in this configuration onto the shared
+stage, so by now most manifests under `plugins/` carry this block rather than building a
+picker of their own. The launcher is the one presenting consumer with no manifest at all,
+being a host rather than a plugin, and builds its presentation table directly in
+`host/launcher/init.lua`. The overlay display picker is presented the identical way for the
+identical reason, `lib/overlaydisplay.lua` carrying no manifest to declare a block in,
+`root/compose.lua` building its presentation by hand and handing it to the stage directly.
 
 ```lua
 presentation = {
@@ -665,12 +673,11 @@ own arithmetic, rather than painting a lone chooser first and correcting it by h
 later. A swap still moves the window itself, since it triggers no show the atom would
 reposition on its own. `_resolvePaneWidth` on the stage reimplements the identical cap at
 `layout.paneMaxW` for that manual arithmetic rather than reaching for the atom's private one.
-Absent, `false`, or a non positive number all mean this presentation reserves no pane, the
-every consumer today answers, and both this field and `rowCount` are checked for their own
-type at register, a non number, or the member spec shape every field but `matcher` and
-`titleLineBreak` takes, refusing the whole registration loudly rather than reaching the stage
-as something that could corrupt the one instance it never rebuilds, adversarial review
-finding H3.
+Absent, `false`, or a non positive number all mean this presentation reserves no pane. Both
+this field and `rowCount` are checked for their own type at register, a non number, or the
+member spec shape every field but `matcher` and `titleLineBreak` takes, refusing the whole
+registration loudly rather than reaching the stage as something that could corrupt the one
+instance it never rebuilds, adversarial review finding H3.
 
 `paneWidth` may also be a member spec, added in the rework following the trickle migrations,
 review finding M1. A plain `true`, the value every one of the three trickle plugins first
