@@ -80,6 +80,23 @@ return {
         breaks = "Every other browser keeps working, and Chrome alone stays out of the "
           .. "list until the bundle id is supplied, since the shared Chromium factory "
           .. "refuses to build without one" },
+
+      -- Three root computed words, the trickle migration onto the shared stage. stagePresent
+      -- is the hotkey door, reached through this plugin's own M.show. redrawPresented is the
+      -- async status seam, an async tab listing and a permission read both asking to be
+      -- redrawn once they land while this presentation, and no other, is what the stage is
+      -- actually showing. stagePop, contract v3's own addition, docs/BRIEF-CONTRACT-V3.md, is
+      -- what every child level's own Back row leaves a level through, the one thing a child
+      -- pushed from select cannot express on its own. All three optional, all three degrading
+      -- to an inert press or a silently skipped redraw, never a crash, since a plugin asking
+      -- before the stage's own configure has run is a wiring defect rather than a state a key
+      -- press should silently swallow.
+      stagePresent = { source = "root", policy = "optional",
+        breaks = "this plugin's own leader key opens nothing, since M.show has no other way to reach the shared stage" },
+      redrawPresented = { source = "root", policy = "optional",
+        breaks = "an async tab listing, or a permission read, lands with nothing on screen following it, since neither has any other way to reach whatever is on screen" },
+      stagePop = { source = "root", policy = "optional",
+        breaks = "every child level's own Back row stands on the level it meant to leave rather than returning to its parent" },
     },
   },
 
@@ -116,17 +133,54 @@ return {
 
   surface = {
     context = "browserTabs",
-    -- `enter` rather than the shared insertSelected, because this is a menu with a
-    -- settings level behind its last row and stepping into it must not close and re show.
-    primary = { action = "enter", description = "Select" },
+    -- insertSelected rather than the retired enter. The rename costs nothing behaviourally,
+    -- this chooser's own drill down and its Back rows all go through host/stage's own
+    -- intercept, the atom's real completion path, asked before Return, insertSelected, or a
+    -- click alike are ever let through, so nothing here needs a private mechanism to keep
+    -- the window open through a step any more.
+    primary = { action = "insertSelected", description = "Select" },
     -- No matcher line, and its absence is the correct statement rather than an omission.
     -- This plugin scores its own rows, because a uniform filter would rank away the Back row
-    -- and pull the Settings row into the tab ranking, and it opts its own Chooser instance out
-    -- in its own code at chooser.lua line 341. That opt out is an internal decision and the
-    -- manifest has no business restating it. What the manifest would be saying with a value
-    -- here is which STRATEGY to inject, and this plugin wants the shared default, which
-    -- bestFieldScore at chooser.lua line 291 then uses to rank the tabs. Writing false here
-    -- injected nothing and quietly degraded ranked tabs to unranked order.
+    -- and pull the Settings row into the tab ranking, and it opts the shared instance out
+    -- through presentation.matcher below rather than here. What the manifest would be saying
+    -- with a value here is which STRATEGY to inject, and this plugin wants the shared
+    -- default, which bestFieldScore in chooser.lua then uses to rank the tabs. Writing false
+    -- here injected nothing and quietly degraded ranked tabs to unranked order.
+  },
+
+  -- The presentation contract, contract v3, docs/BRIEF-CONTRACT-V3.md. rows and select are
+  -- this plugin's own chooser.rows and chooser.select, plain closures assigned or defined on
+  -- the chooser submodule exactly the way its show, placeholder, and every other public
+  -- member already are, so every field below says call = dot, stated outright, never the
+  -- bare string shorthand this contract allows everywhere else a member is not a
+  -- presentation's own. placeholder resolves once, at register, to the tab list's own static
+  -- wording, every child level below it carrying its own instead, a plain field on a table
+  -- built at runtime rather than something the registrar ever resolves. onPresent starts the
+  -- fresh listing M.show used to do inline before this plugin had a presentation to defer
+  -- through instead, run on both doors, present and push alike.
+  --
+  -- matcher is a real false, unchanged by the migration. This plugin scores its own rows
+  -- with the injected matcher strategy, still read off cfg.matcher inside chooser.lua's own
+  -- bestFieldScore, and a uniform pass by the shared instance would rank the Back row away
+  -- and pull the Settings row into the tab ranking.
+  presentation = {
+    rows = { member = "chooser.rows", call = "dot" },
+    select = { member = "chooser.select", call = "dot" },
+    -- intercept exists at this level for one narrow reason, standing on a stray selection
+    -- of one of this level's own disabled guidance rows, emptyRows in chooser.lua, rather
+    -- than falling to select and answering nil, which would close the whole tool over a row
+    -- that was never meant to do anything, the identical noop guard the retired
+    -- applySelection always gave every level including this one.
+    intercept = { member = "chooser.intercept", call = "dot" },
+    placeholder = { member = "chooser.placeholder", call = "dot" },
+    onPresent = { member = "chooser.onPresent", call = "dot" },
+    -- onClose exists for one reason beyond the ordinary teardown every presentation may
+    -- decline, clearing the plain showing flag plugins/browsertabs/test/agent.lua's own
+    -- commands.showing reads through chooser.isShowing, the integration harness's one
+    -- direct reach into this submodule's state, left untouched per the standing
+    -- instruction that its own directory is not this migration's to edit.
+    onClose = { member = "chooser.onClose", call = "dot" },
+    matcher = false,
   },
 
   -- Configure alone leaves this plugin half wired. Start warms the permission probe so
@@ -139,20 +193,16 @@ return {
   },
 
   -- show is a colon method on this plugin's own root, obj:show(), so open takes the default
-  -- call, and the chooser submodule is the surface. scopeRows and activate both live on that
-  -- same submodule as plain dot called functions, so the scope below says dot rather than
-  -- taking the default. scopeRows is the one member the chooser did not use to expose. It
-  -- joins M.prepare and M.tabRows exactly the way M.show already does through M.reload, and
-  -- it takes a second argument, redraw, since a scope has no chooser of its own to refresh
-  -- once the fetch answers. Olm hands that callback over so this plugin still never learns a
-  -- launcher exists, closing the one real cross plugin coupling the retired root's own
-  -- registration carried, spoon.BrowserTabs's scope calling spoon.Launcher:refresh() directly.
-  -- matcher is false for the same reason the surface block above states one nowhere, this
-  -- plugin scores its own rows and a second, uniform pass would rank the Back row away.
+  -- call. scopeRows and activate both live on the chooser submodule as plain dot called
+  -- functions, so the scope below says dot rather than taking the default. surface is no
+  -- longer declared, host/stage's own surfaceFor answering the five generic nav verbs now
+  -- that presentation above exists, and this plugin binds no verb beyond them, insertSelected
+  -- replacing the retired enter being exactly what closed that gap. matcher is false for the
+  -- same reason presentation.matcher above is, this plugin scores its own rows and a second,
+  -- uniform pass would rank the Back row away.
   registry = {
     row = { category = "Tools" },
     open = "show",
-    surface = "chooser",
     hosted = true,
     shortcut = "leader",
     scope = {

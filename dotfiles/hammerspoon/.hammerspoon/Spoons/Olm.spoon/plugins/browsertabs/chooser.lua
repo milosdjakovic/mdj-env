@@ -1,8 +1,22 @@
 --- === BrowserTabs.chooser ===
 ---
---- The surface. One native chooser driven as a menu stack, the same shape DisplayProfiles
---- uses, with three levels. The tab list, the settings list of browsers, and one browser's
+--- The surface. Three levels shown through the shared stage, the same shape DisplayProfiles
+--- uses, contract v3. The tab list, the settings list of browsers, and one browser's
 --- own actions.
+---
+--- Migrated onto host/stage, contract v3, docs/BRIEF-CONTRACT-V3.md. Settings and a
+--- browser's own level are each built lazily and pushed as a child the moment a row drills
+--- into one, rather than one instance driven as a hand kept stack of frames. Leaving a
+--- level, every Back row, rides each level's own intercept, decision three's reserved case,
+--- a row that mutates the list it is on and stands, reached through cfg.stagePop. A
+--- browser's own toggle and permission request mutate that same level in place through
+--- intercept too, standing exactly as they always did, while opening a tab and opening
+--- Automation settings both answer through select with nothing, the ordinary meaning this
+--- contract gives nil, the whole tool closing exactly as chooser:hide() always did. The
+--- private Return swallowing eventtap, the hand kept frame stack, and the zero timer
+--- re-show the click path used to need are all gone, since intercept is asked before
+--- Return, insertSelected, and a click alike are ever let through to a real completion, the
+--- one gate capable of keeping the window open through a swap at all.
 ---
 --- The tab list is the tool. Every open tab across every switched on browser, the ones this tool
 --- has opened leading in the order it opened them, each row carrying its browser's icon so which
@@ -32,22 +46,20 @@ local M = { name = "BrowserTabs.chooser" }
 local log = hs.logger.new("BrowserTabs", "info")
 
 local cfg = {}          -- injected across two calls, api from the spoon, view deps from the root
-local chooser = nil     -- the one native Chooser instance
-local stack = nil       -- the menu stack, stack[#stack] is the current frame
-local reopen = false    -- set by a click selection so onClose re-shows instead of ending
-local returnTap = nil   -- swallows Return while open so a menu step stays in place, no re-show
 local tabs = nil        -- the last listing, so a reopen paints before the refresh lands
 local listSig = nil     -- what that listing is made of, so an answer saying the same is not redrawn
 local listErrors = {}   -- per bundle id reasons a browser did not answer
 local loading = false   -- whether a listing is in flight
 local waiting = {}      -- callbacks due when that listing lands, so none of them is dropped
+-- Migrated onto host/stage, this plugin owns no Chooser instance of its own any more, so
+-- isShowing lives here instead as a plain flag, set in M.onPresent, which fires only when
+-- the tab list, never a child level, becomes current, and cleared in M.onClose, which fires
+-- once for the whole stack tearing down regardless of which level was current at the time.
+-- Kept declared and read by plugins/browsertabs/test/agent.lua's own commands.showing, the
+-- integration harness's one direct reach into this submodule's state, left untouched per
+-- the standing instruction that its own directory is not this migration's to edit.
+local showing = false
 local permState = {}    -- per bundle id permission state, filled asynchronously
-
--- The pending re-show, held until it fires. A Hammerspoon timer is userdata whose finalizer
--- stops it, so one nothing refers to can be collected before it runs, and the menu would then
--- close on a click that was meant to step into it. Only one re-show is ever pending, because
--- the reopen flag above is cleared before this is armed.
-local reopenTimer = nil
 
 --------------------------------------------------------------------------------
 -- Row icons
@@ -502,24 +514,6 @@ local function browserRows(bundleID)
 end
 
 --------------------------------------------------------------------------------
--- The one supplier, dispatched on the current frame
---------------------------------------------------------------------------------
-
-local function rows(query)
-  query = query or ""
-  local top = stack[#stack]
-  if top.kind == "settings" then return settingsRows() end
-  if top.kind == "browser" then return browserRows(top.bundleID) end
-  return tabRows(query)
-end
-
-local function placeholderFor(top)
-  if top.kind == "settings" then return "Browsers" end
-  if top.kind == "browser" then return "" end
-  return "Search open tabs"
-end
-
---------------------------------------------------------------------------------
 -- Permission reads
 --------------------------------------------------------------------------------
 
@@ -546,110 +540,100 @@ local function refreshPermissions()
 end
 
 --------------------------------------------------------------------------------
--- Selection dispatch
+-- Child levels, built lazily and pushed the moment a row drills into one
 --------------------------------------------------------------------------------
 
-local function frameFor(item)
-  if item.to == "settings" then return { kind = "settings" } end
-  if item.to == "browser" then return { kind = "browser", bundleID = item.bundleID } end
-  return { kind = "tabs" }
-end
+-- Every child below shares the shape displayprofiles' own children settled, contract v3.
+-- rows reads whatever this level names, matcher stands the shared strategy down for the
+-- identical reason the retired single instance always did, and intercept is where a level
+-- that mutates the list it is on, or leaves it for its parent, answers for itself. Drilling
+-- into a genuine deeper level, settings to one browser, answers through onSelect instead,
+-- the ordinary child push decision one describes.
 
--- Apply the chosen item and say where the chooser should go, "stay" to remain open at the
--- resulting frame or "close" to end. A disabled hint stays. A navigation row pushes or pops a
--- frame. Opening a tab is the one terminal action, everything in settings keeps the menu open
--- so several browsers can be set in a row.
-local function applySelection(item)
-  if not item or item.noop then return "stay" end
-
-  if item.kind == "tab" then
-    cfg.api.activate(item.tab)
-    return "close"
-  end
-
-  if item.nav then
-    if item.to == "back" then
-      if #stack > 1 then table.remove(stack) end
-    else
-      stack[#stack + 1] = frameFor(item)
-      if item.to == "settings" then refreshPermissions() end
-    end
-    return "stay"
-  end
-
-  if item.act == "toggle" then
-    cfg.api.setEnabled(item.bundleID, not cfg.api.isEnabled(item.bundleID))
-    -- Switching a browser on is only useful once its tabs appear, and switching one off should
-    -- drop them, so the listing is redone straight away rather than on the next open.
-    M.reload()
-    return "stay"
-  end
-
-  if item.act == "request" then
-    cfg.api.permissionRequest(item.bundleID, function(state)
-      permState[item.bundleID] = state
-      -- A grant makes tabs readable that were not a moment ago, so pick them up at once.
-      if state == cfg.api.states.granted then
-        M.reload()
-      else
-        log.w("the automation request for " .. tostring(item.bundleID) .. " ended as " .. tostring(state))
+-- A browser's own level, a child of settings. bundleID names the browser, frozen at
+-- creation rather than a shared upvalue, since nothing here ever needs to correct which
+-- browser this level is about the way displayprofiles' own rename corrects a shared name.
+local function buildBrowserChild(bundleID)
+  return {
+    placeholder = "",
+    matcher = false,
+    rows = function() return browserRows(bundleID) end,
+    -- Opening Automation settings is a genuine completion, not a level, so it answers
+    -- through select, calling the api and returning nothing, the ordinary meaning this
+    -- contract has always given nil, the whole stack tears down, closing the tool for good
+    -- exactly as the retired chooser:hide() always did for this one row.
+    onSelect = function(item)
+      if item and item.act == "openSettings" then
+        cfg.api.openPermissionSettings()
       end
-      M.refresh()
-    end)
-    return "stay"
-  end
-
-  if item.act == "openSettings" then
-    cfg.api.openPermissionSettings()
-    return "close"
-  end
-
-  return "stay"
+      return nil
+    end,
+    -- Back leaves. The switch and the permission request both mutate this same level in
+    -- place and stand, decision three's reserved case, exactly as they always did, reading
+    -- fine again on the very next line the moment the async answer they started lands.
+    intercept = function(item)
+      if not item or item.noop then return true end
+      if item.nav and item.to == "back" then
+        if cfg.stagePop then cfg.stagePop() end
+        return true
+      end
+      if item.act == "toggle" then
+        cfg.api.setEnabled(bundleID, not cfg.api.isEnabled(bundleID))
+        -- Switching a browser on is only useful once its tabs appear, and switching one
+        -- off should drop them, so the listing is redone straight away rather than on the
+        -- next open. Reloads the tab list in the background regardless of which level is
+        -- current, the identical unconditional call the retired applySelection made.
+        M.reload()
+        return true
+      end
+      if item.act == "request" then
+        cfg.api.permissionRequest(bundleID, function(state)
+          permState[bundleID] = state
+          -- A grant makes tabs readable that were not a moment ago, so pick them up at once.
+          if state == cfg.api.states.granted then
+            M.reload()
+          else
+            log.w("the automation request for " .. tostring(bundleID) .. " ended as " .. tostring(state))
+          end
+          if cfg.redrawPresented then cfg.redrawPresented("browserTabs") end
+        end)
+        return true
+      end
+      return false
+    end,
+  }
 end
 
--- Redraw the current frame in place, no re-show, so a menu step is instant. The query is
--- cleared so a new level is not narrowed by a filter typed at the previous one, and the
--- highlight jumps back to the first row.
-local function drawFrame()
-  chooser:setQuery("")
-  chooser:refresh(true)
-  chooser:setPlaceholder(placeholderFor(stack[#stack]))
-end
-
---------------------------------------------------------------------------------
--- Return interceptor, so a menu step never re-shows
---------------------------------------------------------------------------------
-
--- The native chooser closes on any Return, which would force a re-show to keep a menu open.
--- A passive tap swallows Return and the keypad enter while this chooser is up and routes them
--- through the in-place enter instead, so a drill in stays put and only opening a tab closes.
--- The same trick DisplayProfiles uses. Plain typing and the arrows pass straight through.
-local RETURN_CODES = { [36] = true, [76] = true }
-local function startReturnTap()
-  if returnTap then returnTap:stop() end
-  returnTap = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, function(e)
-    if not (chooser and chooser:isShowing()) then return false end
-    if RETURN_CODES[e:getKeyCode()] then
-      M.enter()
-      return true
-    end
-    return false
-  end)
-  returnTap:start()
-end
-local function stopReturnTap()
-  if returnTap then returnTap:stop(); returnTap = nil end
-end
-
-local function present()
-  if not chooser then return end
-  chooser:show()
-  chooser:setPlaceholder(placeholderFor(stack[#stack]))
-  startReturnTap()
-end
-
-local function onSelect(item)
-  if applySelection(item) == "stay" then reopen = true end
+-- The settings level, a child of the tab list. onPresent starts the permission reads the
+-- moment this level becomes current, through either door, present or push, the identical
+-- warmth VPN's own async fetch already gets, replacing the retired applySelection's own
+-- special case for entering this one frame.
+local function buildSettingsChild()
+  return {
+    placeholder = "Browsers",
+    matcher = false,
+    rows = settingsRows,
+    onPresent = refreshPermissions,
+    -- A browser row is a genuine deeper level, so it answers through select, host/stage
+    -- pushing whatever comes back.
+    onSelect = function(item)
+      if item and item.nav and item.to == "browser" then
+        return buildBrowserChild(item.bundleID)
+      end
+      return nil
+    end,
+    -- Back is the one row on this level that leaves rather than drills, decision three's
+    -- reserved case, so it alone answers through intercept, cfg.stagePop leaving the level
+    -- the row was pressed on and the parent, the tab list, standing in its place.
+    intercept = function(item)
+      if not item or item.noop then return true end
+      if item.nav and item.to == "back" then
+        if cfg.stagePop then cfg.stagePop() end
+        return true
+      end
+      return false
+    end,
+  }
 end
 
 --------------------------------------------------------------------------------
@@ -761,56 +745,114 @@ function M.scopeRows(rest, redraw)
   return out
 end
 
---- M.show() - open on the tab list and start a fresh listing.
+--- M.show() - present through the shared stage. cfg.stagePresent asks the registry for
+--- this plugin's own presentation, the tab list below, and hands it to Stage:present,
+--- always a fresh stack, so a reopen from the launcher or this plugin's own launcher row
+--- never resumes a previous drill. The fresh listing used to be started here inline; it now
+--- runs from M.onPresent below, so it is asked for through either door, present or push,
+--- not only this one.
 function M.show()
-  stack = { { kind = "tabs" } }
-  M.reload()
-  present()
+  if cfg.stagePresent then cfg.stagePresent("browserTabs") end
 end
 
-function M.isShowing()
-  return chooser ~= nil and chooser:isShowing()
+--- M.rows(query) -> list. The tab list's own row supplier, named on the manifest's own
+--- presentation block as the contract's rows.
+M.rows = tabRows
+
+--- M.intercept(item) -> bool. Named on the manifest's own presentation block. The tab list's
+--- own guidance rows, emptyRows above, answer disabled and carry item.noop, the identical
+--- shape every child level already guards against in its own intercept, and this is the
+--- guard for this level, since a stray selection reaching one, a click the atom's own
+--- enabled gate did not catch among them, must stand exactly as the retired
+--- applySelection's own "if not item or item.noop then return stay" already promised rather
+--- than falling to select below and answering nil, which would close the whole tool over a
+--- row that was never meant to do anything.
+function M.intercept(item)
+  if item and item.noop then return true end
+  return false
 end
 
---- M.refresh() - redraw in place, so an async listing or permission read updates the open
---- chooser without waiting for a keystroke. A no op when it is closed.
-function M.refresh()
-  if chooser and chooser:isShowing() then chooser:refresh() end
-end
-
-function M.hide()
-  if chooser then chooser:hide() end
-end
-
-function M.selectNext()
-  if chooser then chooser:selectNext() end
-end
-
-function M.selectPrev()
-  if chooser then chooser:selectPrev() end
-end
-
---- M.enter() - the in-place confirm, from the navigation shortcut and from the Return tap.
---- Applies the highlighted row and either redraws the new frame with no re-show, or closes
---- when the row was a tab to open.
-function M.enter()
-  if not (chooser and chooser:isShowing()) then return end
-  if applySelection(chooser:selectedItem()) == "close" then
-    chooser:hide()
-  else
-    drawFrame()
+--- M.select(item) -> presentation or nil. The tab list's own onSelect, named on the
+--- manifest's own presentation block. Opening a tab is a genuine completion, answering
+--- nothing, the ordinary meaning this contract gives nil, the whole tool closing exactly as
+--- chooser:hide() always did. The Settings row drills into a child of its own, host/stage
+--- pushing whatever is answered.
+function M.select(item)
+  if not item then return nil end
+  if item.kind == "tab" then
+    cfg.api.activate(item.tab)
+    return nil
   end
+  if item.nav and item.to == "settings" then
+    return buildSettingsChild()
+  end
+  return nil
 end
 
---- M.insertSelected() - alias for enter, so the shared navigation action confirms in place.
-function M.insertSelected()
-  M.enter()
+--- M.placeholder() -> string. The field hint while the tab list is current, named on the
+--- manifest's own presentation block. Resolved once, at register, since the presentation
+--- contract wants a plain string a presentation carries rather than a function to call
+--- again later. Every child below carries its own instead, a plain field on a table built
+--- at runtime rather than something the registrar ever resolves.
+function M.placeholder()
+  return "Search open tabs"
 end
+
+--- M.onPresent() - the presentation contract's own onPresent, named on the manifest's own
+--- presentation block, called by the stage whenever the tab list, never a child level,
+--- becomes current, through present or push alike. Carries the fresh listing M.show used to
+--- start inline before this plugin had a presentation to defer through instead, run on both
+--- doors now rather than only the hotkey one, and marks showing for M.isShowing below.
+function M.onPresent()
+  showing = true
+  M.reload()
+end
+
+--- M.onClose() - the presentation contract's own onClose, named on the manifest's own
+--- presentation block, told once whenever the stage hides the whole stack this tool's own
+--- levels sit on, never on a swap between them. Clears showing for M.isShowing below.
+function M.onClose()
+  showing = false
+end
+
+--- M.isShowing() - whether this tool's own tab list is current, plainly true from the first
+--- M.onPresent until the next M.onClose, unaffected by drilling into or backing out of
+--- settings or a browser's own level in between. Not part of the presentation contract and
+--- not routed through by host/stage's own surfaceFor, which answers the identical question
+--- for the nav registry by asking the stage directly, kept only for
+--- plugins/browsertabs/test/agent.lua's own commands.showing, the integration harness's one
+--- direct reach into this submodule's state, left untouched per the standing instruction
+--- that its own directory is not this migration's to edit.
+function M.isShowing()
+  return showing
+end
+
+--- M.refresh() - redraw whichever level is current in place, so an async listing or
+--- permission read updates the open picker without waiting for a keystroke. Migrated onto
+--- host/stage, cfg.redrawPresented replacing the direct chooser:refresh() this used to call
+--- on an instance it held itself, already a no op unless this presentation, and no other,
+--- is what the stage is actually showing, and already redrawing whichever child is current
+--- rather than only the tab list, the identical reach the retired chooser:refresh() always
+--- had over whatever frame was on top.
+function M.refresh()
+  if cfg.redrawPresented then cfg.redrawPresented("browserTabs") end
+end
+
+-- hide, selectNext, selectPrev, enter, and insertSelected are gone, the trickle
+-- migration, deleted along with the Chooser.new block, the private Return swallowing
+-- eventtap, the hand kept frame stack, and the zero timer re-show that gave them something
+-- to answer for. The composition root now routes this plugin's own navigation through
+-- host/stage's own surfaceFor once wiredRegistry.presentationFor("browserTabs") answers a
+-- presentation, which answers insertSelected directly, reaching the atom's own real
+-- completion path, intercept asked first exactly as every other row on every level already
+-- is.
 
 --- M:configure(opts) - merge injected deps across two callers. The spoon composition root
 --- injects `api`, its merged view over the engine, the recency memory and the permission
---- probe. The main root injects `theme`, the Chooser factory as `chooser`, the `matcher` this
---- tool scores its tab rows with, and the docked shortcut panel callbacks.
+--- probe. The main root injects the `matcher` this tool scores its tab rows with,
+--- stagePresent, stagePop, and redrawPresented, the root published words this migration
+--- needs. Builds no chooser any more, the trickle migration, so theme and the Chooser
+--- factory are no longer read here.
 --
 -- Colon here, not dot, because every caller, the plugin root's own configure, the live top
 -- level init.lua, and the shared wiring pipeline in lib/wire.lua, reaches this submodule as
@@ -820,39 +862,14 @@ function M:configure(opts)
   return M
 end
 
---- M:start() - build the one native chooser. Called by the main root once both configures have
---- run, so the factory and the api are both present.
+--- M:start() - nothing left to build. Builds no chooser any more, the trickle migration.
+--- Whatever this plugin used to hand a Chooser.new call, theme, a field mode, the matcher,
+--- rows, onSelect, and the panel triple, is now either read straight off this module by the
+--- registrar, rows and select through the manifest's own presentation block, or owned by
+--- the stage as fixed, atom level policy. Kept as a callable no op rather than deleted,
+--- since manifest.lua's own wiring still names it and a step this file no longer needs is
+--- cheaper to leave inert than to go edit the manifest over.
 function M:start()
-  stack = { { kind = "tabs" } }
-  chooser = cfg.chooser.new({
-    theme = cfg.theme,
-    placeholder = "Search open tabs",
-    fieldMode = cfg.chooser.fieldModes.filter,
-    -- Opt out of the shared matcher. This is a stack of frames, not one plain list. The atom
-    -- filtering uniformly would rank away the Back row on the settings levels and would pull
-    -- the pinned Settings row into the tab ranking. So the supplier owns the query and scores
-    -- the tab rows itself with the injected matcher, which keeps the shared matching policy
-    -- while leaving the pinned rows outside it.
-    matcher = false,
-    rows = rows,
-    onSelect = onSelect,
-    onPositioned = cfg.onPositioned,
-    onActivity = cfg.onActivity,
-    -- Compose the root's panel teardown with the menu stack behaviour, the same shape
-    -- DisplayProfiles uses. A click selection set reopen, so re-show at the new frame on the
-    -- next tick once the native chooser has finished hiding. Any real dismissal resets the
-    -- stack for the next open.
-    onClose = function()
-      stopReturnTap()
-      if cfg.onClose then cfg.onClose() end
-      if reopen then
-        reopen = false
-        reopenTimer = hs.timer.doAfter(0, present)
-      else
-        stack = { { kind = "tabs" } }
-      end
-    end,
-  })
   return M
 end
 
