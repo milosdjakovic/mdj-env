@@ -403,6 +403,20 @@ function obj:decorate(instance, config)
   local originalOnHighlight = config.onHighlight
   local originalOnClose = config.onClose
 
+  -- SEAM, review finding N1. Every wrapper below now takes ... and forwards ... to whatever
+  -- it calls through to, rather than a fixed named parameter list, because a fixed list is
+  -- exactly what silently ate host/stage's own second argument to intercept, enabled, the
+  -- moment native.lua started passing one. Lua drops an extra argument at a call site with no
+  -- error, no warning, and nothing luac or the reconciler can see, so a wrapper that names its
+  -- own parameters is a promise about the atom's own calling convention that nothing checks
+  -- against the atom actually keeping it, the identical arity shift class of failure
+  -- callKindStated already exists to refuse for a presentation member, here with no such
+  -- refusal available since this file is plain Lua rather than a declared contract. Only
+  -- config.rows and config.onSelect still name query and item inline, since filterOwnRows and
+  -- the warning below each need that one value positionally and Lua adjusts a non final ...
+  -- to exactly one value on its own, so naming it is reading it, never narrowing what
+  -- reaches the original through the untouched ... beside it.
+
   -- The swap, and there is no other. While the panel is open on this instance the supplier
   -- answers the panel's rows instead of the tool's; otherwise the tool's own supplier, exactly
   -- as before this module existed.
@@ -423,22 +437,27 @@ function obj:decorate(instance, config)
   -- matcher = false today, four before this batch and seven more inside it, and every one of
   -- them typed into the action panel over their own rows without narrowing anything until
   -- this line changed.
-  config.rows = function(query)
+  config.rows = function(query, ...)
     if self._openInstance == instance then
       local filtersItself = instance.matcher == false
       return filterOwnRows(self._panelRows or {}, query, filtersItself)
     end
-    return originalRows and originalRows(query) or {}
+    return originalRows and originalRows(query, ...) or {}
   end
 
   -- Choosing a panel row is answered here rather than completing as a row of the underlying
   -- list. Absent on ten of the twelve consumers, so this supplies one where there was none and
-  -- falls through to the original where there was.
-  config.intercept = function(item)
+  -- falls through to the original where there was. Review finding N1. ... now carries item
+  -- and, since native.lua widened its own call, enabled too, and both reach originalIntercept
+  -- untouched, the stage's own disabled row guard finally seeing what native.lua actually
+  -- sends rather than nil. _choose itself still only reads instance and item, the extra
+  -- argument landing on a parameter _choose never declared and Lua silently discarding it,
+  -- which is the harmless half of the same rule that made the truncation harmful the other way.
+  config.intercept = function(...)
     if self._openInstance == instance then
-      return self:_choose(instance, item)
+      return self:_choose(instance, ...)
     end
-    if originalIntercept then return originalIntercept(item) end
+    if originalIntercept then return originalIntercept(...) end
     return false
   end
 
@@ -446,12 +465,15 @@ function obj:decorate(instance, config)
   -- choosing its own Back row through intercept above. Absent on eleven of the twelve
   -- consumers, same treatment. Routed through _leave with no action, the same door Back and a
   -- chosen verb both use, so the field and the highlight come back the same way on every path.
-  config.back = function()
+  -- Review finding N1. native.lua calls this with no arguments today, but the wrapper takes
+  -- and forwards ... anyway, the same defensive widening as every wrapper here, so a future
+  -- argument to back needs no second visit to this file to stop being eaten.
+  config.back = function(...)
     if self._openInstance == instance then
       self:_leave(instance, nil)
       return true
     end
-    if originalBack then return originalBack() end
+    if originalBack then return originalBack(...) end
     return false
   end
 
@@ -459,35 +481,39 @@ function obj:decorate(instance, config)
   -- since intercept above answers first and keeps the row from completing. Reaching here with
   -- the panel open is a defect, a panel row about to be treated as one of the tool's own
   -- items, so this warns naming it rather than calling the original in silence, and does not
-  -- call the original at all, since the tool never asked to see a panel row.
-  config.onSelect = function(item)
+  -- call the original at all, since the tool never asked to see a panel row. Review finding
+  -- N1, the same widening, item read positionally since the warning below needs it by name
+  -- and the untouched ... beside it still carries whatever else native.lua ever sends.
+  config.onSelect = function(item, ...)
     if self._openInstance == instance then
       self._log.w(string.format(
         "ActionPanel row '%s' reached onSelect, a panel row should complete through intercept and never here",
         tostring(item and item.action or item)))
       return
     end
-    if originalOnSelect then originalOnSelect(item) end
+    if originalOnSelect then originalOnSelect(item, ...) end
   end
 
   -- Deliberately not called at all while the panel is open on this instance, rather than an
   -- omission. A companion pane keeps showing the item the panel was opened over, which is
   -- exactly what a chosen verb acts on, and leaving the preview on it is more honest than
-  -- blanking it or describing a menu row as though it were the thing being previewed.
-  config.onHighlight = function(item)
+  -- blanking it or describing a menu row as though it were the thing being previewed. Review
+  -- finding N1, the same widening.
+  config.onHighlight = function(...)
     if self._openInstance == instance then return end
-    if originalOnHighlight then originalOnHighlight(item) end
+    if originalOnHighlight then originalOnHighlight(...) end
   end
 
   -- Escaping, clicking away, or the tool closing itself all tear the chooser down through
   -- this, so this is where the panel's own state clears too. Without it, an escape out of an
   -- open panel would leave the state set, and the next chooser opened anywhere would come up
-  -- showing stale panel rows, the worst failure available here.
-  config.onClose = function()
+  -- showing stale panel rows, the worst failure available here. Review finding N1, the same
+  -- widening.
+  config.onClose = function(...)
     if self._openInstance == instance then
       self:_close()
     end
-    if originalOnClose then originalOnClose() end
+    if originalOnClose then originalOnClose(...) end
   end
 
   return instance
