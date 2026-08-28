@@ -1,5 +1,5 @@
 ---
-allowed-tools: Read, Glob, Grep, Edit, Write, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(./src/check-dependencies.sh:*)
+allowed-tools: Read, Glob, Grep, Edit, Write, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(./src/check-dependencies.sh:*), Bash(dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/test/drygate.sh:*), Bash(dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/test/suite.sh:*)
 argument-hint: [plugin name or what it should do]
 description: Build or modify an Olm Hammerspoon plugin against the authoring guide
 ---
@@ -62,10 +62,12 @@ plugin. The full rule is the dependencies section of the repository root `CLAUDE
 
 ## Step 5, the gate before committing
 
-Run the dry contract gate, the lock free check that reads a manifest and its module and reports
-every registrar and registry refusal without Hammerspoon running. It lives under the Olm test
-directory. If it is not there yet, say so rather than skipping the step silently, and fall back
-to reading the console after a reload, which is where every refusal line appears.
+Run the dry contract gate, `dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/test/drygate.sh`,
+or `test/suite.sh dry` from the same directory. It is the lock free check that reads a manifest
+and its module and reports every registrar and registry refusal without Hammerspoon running, in
+well under a second. A finding fails it; a module that will not load or configure under its stub
+prints as unknown and does not fail it unless `--strict` is given. Run it and read the line it
+prints naming your tool before committing.
 
 Never run `hs`, never reload the live config, and never take the devlock as part of this
 command. Making a change live is a separate decision with its own discipline in the hammerspoon

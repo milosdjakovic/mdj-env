@@ -228,7 +228,7 @@ nothing registered produces one warning line naming it and is otherwise ignored,
 a roster should be visible and harmless rather than fatal.
 
 An inactive tool now answers nothing to every read. `run` answers false, `get`, `rowFor` and
-`scopeFor` answer nil, `surfaces` and `scopes` skip it, and `shortcuts` offers neither the tool
+`scopeFor` answer nil, `scopes` skips it, and `shortcuts` offers neither the tool
 nor any of its commands, so its launcher row, its navigation keys, its query scope and its
 keyboard shortcut all go together. The earlier packets each left part of that promise unkept and
 said so in this paragraph while they did, and the fifth closed the last of it.
@@ -260,38 +260,27 @@ their own `configure` built, and both of those `configure` calls run far below t
 block. Writing `surface = spoon.Emoji:surface()` at registration time would have called the
 method before that field existed and captured nothing at all, permanently and silently, so the
 tool would simply never receive a navigation key again with no warning anywhere. Wrapping every
-`surface` in a closure and resolving it inside `surfaces` rather than at `register` time is what
-avoids that, and every registration obeys the discipline uniformly, including the seven tools
+`surface` in a closure and resolving it lazily, rather than at `register` time, is what
+avoids that, the discipline `surfaces(spec)` kept for the life of that accessor and
+`root/compose.lua`'s own `surfaceAdapterFor` still keeps for whatever replaced it, and
+every registration obeys it uniformly, including the seven tools
 whose surface is already a stable module reference and would have survived either spelling,
 because a rule that holds for most of a set and silently fails two members of it is worse than a
 rule with no exceptions to remember.
 
-**The `surfaces` accessor.** `surfaces(spec)` takes an ordered list and answers an ordered list.
-A string entry names a registered tool and resolves to that tool's surface when the tool is
-active and has one. Only one of the ways a string can fail to resolve stays quiet on purpose, a
-tool that is registered but inactive, since that is what inactive already means everywhere else
-in this file. The other three all warn naming the tool and skip. Nothing registered under that
-name at all warns. An active tool that declared no `surface` warns too, a case a first pass at
-this accessor let fall off the end of the check in silence, which was wrong, naming a tool in a
-navigation list with nothing to navigate is a mistake and not the same silence inactive earns. And
-a named tool's surface resolving to something missing, or present but with no `isShowing`, warns
-the same way, so the exact hazard the closure discipline above guards against is loud the moment
-it would otherwise have been invisible. Resolution happens inside this call and never at
-registration, which is the same discipline stated a second way.
-
-**What the mixed spec list means.** Any entry in `spec` that is not a string passes straight
-through unexamined. A string names something this registry knows about. Anything else is an
-object the composition root holds and this registry has never heard of, and passing it through
-untouched is the whole of what the registry owes it. The root's own `choosers` list uses this to
-carry `spoon.Launcher:surface()`, `menuSearchSurface`, and `overlayDisplaySurface` in their old
-positions, none of which has a descriptor here yet.
-
-**Why the order of that list is preserved rather than derived.** The root's `activeChooser` walks
-`choosers` and answers with the first surface that says it is showing. Two of these could in
-principle be up at once, and nothing in the tree proves otherwise, so the order decides which one
-answers if that ever happens. Preserving the exact order the table held before this packet costs
-one ordered list handed to `surfaces` and removes the question entirely, so the root never
-reorders that list to suit the registry and never sorts it.
+**The `surfaces` accessor, retired.** `surfaces(spec)` once took an ordered list mixing tool
+names and plain objects and answered an ordered list of navigation adapters, warning by name on
+every hazard, an unregistered name, an active tool declaring no `surface`, and a surface
+resolving to something missing or with no `isShowing`, and staying silent only for the one
+legitimate case, a registered but inactive tool. It fed the retired root's own `choosers` list
+and `activeChooser` walk, both gone along with the standalone pickers they served. The
+composition root building the chooser stage never wired through it, building its own navigation
+adapter list by hand in `root/compose.lua` instead, `surfaceAdapterFor` and the `plan.order` loop
+around it, consumer map surprise 9.10, and it was deleted in the chooser stage close out sweep
+rather than left as a second, unwired mechanism beside the one the root actually uses. Read
+`root/compose.lua`'s own `surfaceAdapterFor` for the live equivalent, the identical lazy
+resolution, closures asked at each key press rather than captured at registration, adapted to a
+registry that no longer builds a `choosers` list at all.
 
 **Why the alias directory is named by hand for now.** The `hosted` bit for nine of the ten
 entries `hostedInPlace` used to hold now lives on the tool's own descriptor, read through
@@ -446,7 +435,7 @@ raising, logging, or failing a gate, since every one of those reads already trea
 tool's silence as the correct answer everywhere else.
 
 **Why the scope order is preserved rather than derived.** `queryScopes` now builds from an ordered
-spec, the same shape `registry.surfaces` already takes, a string naming a registered tool and
+spec, the same shape `registry.surfaces` once took before it was retired, a string naming a registered tool and
 anything else an object the registry never heard of. The order is kept entry for entry against the
 table this spec replaces, because `QueryScope` gives a colliding alias to whichever scope claims
 it first, so this order decides who owns a word, and deriving it from registration order instead
@@ -461,9 +450,9 @@ with no tool behind it, so none of the four has anywhere to register.
 apart from a registered tool that is simply inactive or, for emoji, active but carrying no scope
 this run, so all three answered the same nil and all three stayed equally silent. That is wrong for
 the first of the three, since naming something this registry has never heard of is exactly the
-mistake `surfaces(spec)` already warns about by name, and a reader who learns that this registry
-warns on that mistake in one place and not in the other learns nothing reliable from either.
-`scopes(spec)` resolves inside the registry instead, mirroring `surfaces(spec)` exactly, warning by
+mistake `surfaces(spec)` already warned about by name, and a reader who learned that this registry
+warned on that mistake in one place and not in the other learned nothing reliable from either.
+`scopes(spec)` resolves inside the registry instead, mirroring the retired `surfaces(spec)` exactly, warning by
 name for an unregistered entry and staying silent for the two legitimate cases, inactive and active
 with no scope declared. A resolved tool answers `{ name = entry, opts = descriptor.scope }` rather
 than a finished scope, since joining the identity fields from `config/keys.lua` is the root's own
@@ -517,8 +506,8 @@ fields on `scope` already keep. `config/keys.lua` holds the key, the modifiers, 
 description, and this registry reads no configuration at all, so a field naming the key here
 would be the same fact stated twice with nothing to keep the two in agreement.
 
-**`shortcuts()`, the accessor this packet adds.** It takes no spec, unlike `surfaces` and
-`scopes`, since it names nothing the composition root already holds a competing object for, and
+**`shortcuts()`, the accessor this packet adds.** It takes no spec, unlike `scopes` and the
+retired `surfaces`, since it names nothing the composition root already holds a competing object for, and
 answers in registration order one entry per active tool or active tool's command that declares a
 shortcut, each carrying `name`, `kind`, and `fn`, the function to bind. An inactive tool
 contributes nothing, itself or its commands, the same nil-and-false silence every other read in

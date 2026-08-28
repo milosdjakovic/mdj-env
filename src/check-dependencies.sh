@@ -508,18 +508,20 @@ done
 say ""
 say "==> Named values assigned by reference"
 
-# The option keys a module owns as a closed set, placement and align on CanvasPanel and
-# fieldMode on the Chooser atom, each published by its owner as a table whose member value
-# is its own name. A bare string is an error because the two then drift, a typo becomes a
-# panel on the wrong side or a field that silently does nothing, and nothing anywhere says
-# so, which is the same reasoning the install command check already rests on.
+# The option keys a module owns as a closed set, placement and align on CanvasPanel,
+# each published by its owner as a table whose member value is its own name. A bare string
+# is an error because the two then drift, a typo becomes a panel on the wrong side, and
+# nothing anywhere says so, which is the same reasoning the install command check already
+# rests on.
 #
 # The list is named by hand and stays short. A check that guessed which options are closed
 # would flag work this rule was never meant to reach, and a noisy check gets ignored, which
 # is worse than none. A future set joins this list when the module that owns it publishes
 # one, and not before, since a watched key with no named value to offer would report a
-# defect and give the reader nowhere to go.
-named_keys=(placement align fieldMode)
+# defect and give the reader nowhere to go. fieldMode left this list in the chooser stage
+# close out sweep, the module that owned its set, Chooser.fieldModes, having been deleted
+# along with it, so a watched key with no owning set to answer for it does not linger here.
+named_keys=(placement align)
 
 named_bad=0
 for key in "${named_keys[@]}"; do

@@ -399,7 +399,7 @@ function obj.run(olm, cfg)
     -- relies on. Lets the pin level's own Back row, and a pin just written, leave that
     -- level and restore root, the one thing a child pushed from overlay.select cannot
     -- express on its own.
-    stagePop = function() if stageModule then stageModule:pop() end end,
+    stagePop = function() return (stageModule and stageModule:pop()) or false end,
   })
   overlay.configure(policy.overlayDisplay or {})
 
@@ -573,10 +573,14 @@ function obj.run(olm, cfg)
   -- whichever presentation is actually current, the identical isShowingFor shape every
   -- presenting plugin's own context predicate already resolves through, named by hand here
   -- since this tool has no manifest and so builds no context of its own for isShowingFor to
-  -- be asked about. Still referenced by no when anywhere in the tree, consumer map surprise
-  -- 9.2's other half, since building one needs a manifest.surface declaration this lib
-  -- module structurally cannot make, kept correct anyway rather than left answering a
-  -- retired instance that no longer exists.
+  -- be asked about. Referenced by a when now, consumer map surprise 9.2's other half closed
+  -- in the chooser stage close out, a root contributed context block below building exactly
+  -- the manifest.surface declaration this lib module cannot make itself, docs/REVIEW-FINAL-
+  -- BATCH.md's own recommended shape, "a root contributed context block plus a root
+  -- contributed adapter". Named "overlayDisplayOpen" here first regardless, since it was kept
+  -- correct even while nothing referenced it, so surfaceLib.context's own default when name
+  -- for this context, name .. "Open", would find this predicate already installed rather than
+  -- the two drifting apart.
   ownPredicates.overlayDisplayOpen = function()
     return stageModule ~= nil and stageModule:current() == "overlayDisplay" and stageModule:isShowing() == true
   end
@@ -796,7 +800,7 @@ function obj.run(olm, cfg)
     -- a now stale sibling, DisplayProfiles' own delete leaving both the delete frame and the
     -- profile it just removed behind in one press.
     stagePop = function()
-      if stageModule then stageModule:pop() end
+      return (stageModule and stageModule:pop()) or false
     end,
 
     -- stageSetQuery, the trickle migration's own addition, FileSearch's own parent row
@@ -1540,6 +1544,15 @@ function obj.run(olm, cfg)
   -- defaults to x, and when defaults to "overlayDisplayOpen", the exact name ownPredicates
   -- already installs above, so the binding this produces is gated correctly with nothing
   -- further to wire.
+  --
+  -- surfaceLib.context also appends ACTION_PANEL_BINDING, Hyper and period, to every block it
+  -- builds, unconditionally, so this join newly binds that key here too, not only i, j, k, and
+  -- x. It is newly bound and inert, both true at once rather than the second standing in for
+  -- the first. root/compose.lua's own isShowingFor requires a contextOwners entry to recognise
+  -- a context as showing, contextOwners is built from plan.order and manifest.surface, and
+  -- overlay display is in neither, so openActionPanel's own scan finds no match and does
+  -- nothing. That gap predates this join and this join does not close it, but the key itself is
+  -- new, where before nothing bound Hyper and period in this context at all.
   plan.contexts.overlayDisplay = surfaceLib.context("overlayDisplay", {
     primary = { action = "insertSelected", description = "Select" },
   })

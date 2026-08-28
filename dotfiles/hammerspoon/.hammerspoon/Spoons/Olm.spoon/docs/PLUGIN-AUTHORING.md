@@ -281,10 +281,15 @@ Your `rows` function is never checked. It runs on every keystroke and whatever i
 straight to the widget, so a row with no text, no category, or a wrong shape is your problem
 alone.
 
-`registry.open`, `provides`, and `registry.scope` members are resolved lazily and answer nil in
-silence when they name nothing, by design, because a plugin may still be assembling its module
-when they are read. A typo there costs you a key that does nothing with no line anywhere. Only
-presentation members are checked against the real module.
+`provides` members are resolved lazily and answer nil in silence when they name nothing, by
+design, because a plugin may still be assembling its module when they are read. A typo there
+costs you a key that does nothing with no line anywhere. `registry.open` and every
+`registry.scope` member used to share that gap and no longer do, the dry gate's own
+`checkRegistryMembers` resolves both against the real module the identical way it resolves a
+presentation member, step 9 of the build order below. Presentation members are checked at the
+live wiring layer too, register, stage five; `registry.open`, `registry.scope`, and every
+`registry.commands.*.fn` are checked only by the gate, never by a live reload, so running it is
+what stands between a typo there and a key that does nothing.
 
 A `matcher = false` plugin that then filters nothing shows an unfiltered list, and nothing
 notices. The two questions, whether the widget filters and whether you rank, are independent

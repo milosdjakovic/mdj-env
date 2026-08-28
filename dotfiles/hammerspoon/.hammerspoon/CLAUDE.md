@@ -1067,22 +1067,22 @@ row build filters and styles only survivors as before. A database-backed full-te
 tens of thousands; at this scale the scan is already well within a frame.
 
 **An option with a closed set of values is named by its owner, never spelled at the call
-site.** Three options are like this today, `placement` and `align` on `CanvasPanel` and
-`fieldMode` on the `Chooser` atom, and each owning module publishes its set as a table whose
-member value is its own name, `CanvasPanel.placements`, `CanvasPanel.aligns`, and
-`Chooser.fieldModes`, the same shape `Chooser.matchers` already had. A caller writes
-`cfg.chooser.fieldModes.filter` through the reference it was already injected with, so nothing
-gains an injection and no file names a global spoon of its own. `fieldModes` is defined on the
-provider, since that is the only file that reads a field mode, and re-exported by the facade
-because the provider is an implementation of the atom rather than its public face.
+site.** Two options are like this today, `placement` and `align`, both on `CanvasPanel`, and the
+owning module publishes its set as a table whose member value is its own name,
+`CanvasPanel.placements` and `CanvasPanel.aligns`, the same shape `Chooser.matchers` already had.
+`Chooser` itself once published a third, `fieldModes`, for the `fieldMode` option `filter`, `off`,
+`input`, and `hybrid` on the atom's own `providers/native.lua`, deleted in the chooser stage close
+out sweep along with the three modes beside `filter` that no consumer had ever asked for, the atom
+having stood at one member of a four member set since the trickle migrations, docs/BRIEF-STAGE.md
+decision three's own close out note.
 
 The set is only half of it. The owning module also validates at the one door a config arrives
 through, and answers a value that is not a member with one warning naming the option, what it
 was given, and what is allowed, then falls back to the documented default rather than storing
 what it was handed. Storing it was the real cost. A mistyped placement drew a panel on a side
-nobody asked for and a mistyped field mode left a field that silently did nothing, and in both
-cases nothing anywhere said why, so the failure read as the tool being broken rather than as a
-typo one line away.
+nobody asked for and, before it was deleted, a mistyped field mode left a field that silently did
+nothing, and in both cases nothing anywhere said why, so the failure read as the tool being broken
+rather than as a typo one line away.
 
 `align` is published although nothing outside `CanvasPanel` writes it yet, which looks like the
 ceremony the design principles reject and is not. It is a documented public option of that

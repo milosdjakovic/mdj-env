@@ -840,40 +840,38 @@ function obj.forWire(registry, activation, defaultRoster)
   }
 end
 
---- obj.scopeSpec(plan, modules, meta)
---- Assembles the ordered list registry.scopes() is asked to resolve, preserving that order
---- exactly, because QueryScope gives a colliding alias to whichever scope claims it first, so
---- meta.scopeOrder is still read, and is still the one way to state a deliberate order, but it is
---- no longer how a contested word is meant to be settled and nothing in this config sets it. A
---- central list of plugin names, held outside every plugin, is a roster, and a roster is the shape
---- this whole design exists to remove, since adding a tool then means editing a file somewhere
---- else that nothing checks. What replaced it is below. Two scopes claiming one word are named as
---- a collision and one of the two declarations is changed, which ends the contest at its source
---- instead of ranking it forever.
+--- obj.scopeSpec(plan, registry, names, meta)
+--- Assembles the ordered, resolved scope list QueryScope's own configure takes, one table per
+--- scopable tool carrying name, title, aliases, glyph, and every function half of the contract,
+--- walking registry.scopeFor and registry.rowFor itself rather than handing a spec to
+--- registry.scopes(), which nothing in this tree calls any more, having stood with zero live
+--- callers since this function took over the assembly it used to be handed. names is the plan's
+--- own answer to the set question about who provides rows and select, plain identity strings,
+--- and decides MEMBERSHIP. meta.scopeOrder, when a tool is named in it, decides the order
+--- members are walked in, because QueryScope gives a colliding alias to whichever scope claims
+--- it first, so a deliberate order still matters even though nothing in this config sets one
+--- today. A central list of plugin names, held outside every plugin, is a roster, and a roster
+--- is the shape this whole design exists to remove, so scopeOrder is optional ordering rather
+--- than the membership list itself, membership living in names instead. Two scopes claiming one
+--- word are named as a collision, by obj.aliasCollisions below, asked of the finished list this
+--- function returns, and one of the two declarations is changed, which ends the contest at its
+--- source instead of ranking it forever.
 ---
---- A string entry is translated through plan.identity first, directory to identity, since
---- registry.scopes() resolves a string against the names tools are registered under, and a
---- root array authored against a directory name, the same slip that cost seven tools their key
---- elsewhere in this file, would otherwise resolve against nothing and log one warning per
---- plugin with the list quietly one entry short every time. A string already naming a registered
---- identity, one plan.identity has no directory answering to, passes through unchanged, and
---- every non string entry, the plain narrowing objects, passes through exactly as it arrived,
---- since registry.scopes() already knows to leave those alone.
---- What this answers is the assembled list QueryScope's own configure takes, one table per
---- scopable tool carrying name, title, aliases, glyph and every function half of the contract.
---- It used to answer a list of NAMES instead, which read as correct and was not, because
---- QueryScope refuses anything without a title, a rows and a run, so a bare string was rejected
---- the moment it arrived. With nothing in meta.scopeOrder on a fresh install the list came out
---- empty rather than wrong, which is worse, since an empty list is silent and every scoped tool
---- simply stopped being reachable by typing its word with no line anywhere saying so.
+--- Every entry names, an identity, is translated to a directory only to read plan.effective by,
+--- through a reverse map built from plan.identity, since registry.scopeFor and registry.rowFor
+--- are both keyed by identity while plan.effective is keyed by directory, the same directory
+--- versus identity slip that cost seven tools their key elsewhere in this file. The registry
+--- decides what each member actually is, since only the registry knows which tools ended up
+--- registered and active, and a tool that is present but switched off must not keep its word,
+--- registry.scopeFor already answering nil for it. The presentation half, title and aliases and
+--- glyph, is read off the registry's own row first and off the plan's effective values second,
+--- so a root override of a description reaches the scope directory rather than only the launcher
+--- row.
 ---
---- The two halves come from two places on purpose. names, the plan's own answer to the set
---- question about who provides rows and select, decides MEMBERSHIP, and the registry decides
---- what each member actually is, because only the registry knows which tools ended up
---- registered and active, and a tool that is present but switched off must not keep its word.
---- The presentation half, title and aliases and glyph, is read off the registry's own row first
---- and off the plan's effective values second, so a root override of a description reaches the
---- scope directory rather than only the launcher row.
+--- What this function does not do. The plain narrowing objects, the launcherCatalogScope
+--- entries and the alias directory, carry no tool identity for names or scopeFor to answer, so
+--- this function never sees them at all, root/compose.lua appending each to the list this
+--- function returns rather than this function passing them through.
 function obj.scopeSpec(plan, registry, names, meta)
   plan = plan or {}
   local out = {}
