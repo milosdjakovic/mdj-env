@@ -1,16 +1,16 @@
 --- === TmuxSessions.chooser ===
 ---
---- One native chooser with two levels. The top lists every WINDOW across every session,
---- one row each, title the window name and subtitle the session it belongs to, so a
---- window with a common name (several sessions keep a plain "zsh" window) still reads
+--- Two levels shown through the shared stage. The top lists every WINDOW across every
+--- session, one row each, title the window name and subtitle the session it belongs to, so
+--- a window with a common name (several sessions keep a plain "zsh" window) still reads
 --- unambiguously and is searchable by either name, or both together, a word at a time in
 --- any order ("vic zsh" finds the zsh window inside vicert), matchesQuery below. Choosing
 --- one jumps straight to that window and closes like any ordinary row. The last row is a
---- Settings door, the shape
---- BrowserTabs already uses for choosing which browsers are scripted, leading to a second
---- level that names which terminal a fresh attach opens into. Both levels share the one
---- chooser instance through the atom's intercept and back hooks, so entering and leaving
---- Settings never flickers a close and reopen.
+--- Settings door, the shape BrowserTabs still uses for choosing which browsers are
+--- scripted, leading to a second level that names which terminal a fresh attach opens
+--- into. Both levels share the one shared instance through the presentation contract's own
+--- intercept and back, exactly the drill down pair the atom always asked for, so entering
+--- and leaving Settings never flickers a close and reopen.
 ---
 --- The list is ordered by recency, not by session then index, the engine's own doing
 --- (windows() returns it already ordered), so this file only ever filters what it is
@@ -19,13 +19,22 @@
 --- This file talks to tmux and to the terminal providers only through the injected api
 --- table, so it is pure command policy, the same split DisplayProfiles keeps between its
 --- engine and its own chooser.
+---
+--- Migrated onto host/stage, the trickle migration. This file owns no chooser instance and
+--- builds no window any more. Its rows, its selection dispatch, and its drill down pair are
+--- exactly what they always were, now named on the manifest's own presentation block
+--- instead of handed to a Chooser.new call this file no longer makes. The primary action
+--- renamed from enter to insertSelected in the manifest, since that naming existed only to
+--- match a hand rolled surface method name a private mechanism this file never actually
+--- used would have answered to, and host/stage's own surfaceFor answers insertSelected
+--- directly, closing the atom's real completion path the identical way this file's own
+--- intercept and back always did.
 
 local M = { name = "TmuxSessions.chooser" }
 
 local log = hs.logger.new("TmuxSessions", "info")
 
 local cfg = {}       -- injected across two calls: api from the spoon, view deps from the root
-local chooser = nil  -- the one native Chooser instance
 local level = "top"  -- "top" | "settings"
 
 -- Render an emoji string to a small image so a row can carry it as its icon, an offscreen
@@ -142,32 +151,31 @@ end
 -- and rebuilds it instead of closing and reshowing. Choosing a terminal in the Settings
 -- level is the same shape, it changes what is persisted and stays open so the moved green
 -- circle is what confirms the choice, rather than a reopen.
+--
+-- Migrated onto host/stage. Neither branch calls refresh any more, since the atom's own
+-- key watcher already calls refresh(true) on the shared instance once this handler
+-- returns true, lib/chooser/providers/native.lua's own contract for intercept, unchanged
+-- by which presentation's own hook is what answered it.
 local function intercept(item)
   if not item then return false end
   if item.nav then
     level = item.nav
-    chooser:refresh(true)
     return true
   end
   if item.setProvider then
     cfg.api:setProviderName(item.setProvider)
-    chooser:refresh(true)
     return true
   end
   return false
 end
 
+-- Migrated onto host/stage, the identical reason intercept above no longer calls refresh.
 local function back()
   if level == "settings" then
     level = "top"
-    chooser:refresh(true)
     return true
   end
   return false
-end
-
-function M.isShowing()
-  return chooser ~= nil and chooser:isShowing()
 end
 
 --- M.hostRows(query) - the matching window rows alone, for the launcher's own scope rather
@@ -211,57 +219,63 @@ function M.activate(item)
   onSelect(item)
 end
 
-function M.selectNext() if chooser then chooser:selectNext() end end
-function M.selectPrev() if chooser then chooser:selectPrev() end end
-function M.insertSelected() if chooser then chooser:insertSelected() end end
--- The root's shared contextActions table dispatches a hyperContext action by calling a
--- method of that exact name on the active surface (routeNav), and the two names it
--- expects are enter and hide, not insertSelected and close. DisplayProfiles and
--- BrowserTabs each expose enter as their own hand rolled confirm, since they predate the
--- atom's real intercept and back hooks and dispatch through a homemade applySelection
--- instead. This chooser already goes through those atom hooks correctly via
--- insertSelected, so enter is simply the name contextActions needs for the very same
--- call, not a second implementation. hide is close under the name routeNav("hide")
--- expects; nothing here reads M.close, so it is renamed rather than kept alongside it.
-function M.enter() if chooser then chooser:insertSelected() end end
-function M.hide() if chooser then chooser:hide() end end
--- Thin passthroughs to the atom's own public contract, not bound to any key, kept for
--- the same reason the atom exposes them itself, restoring a highlight by row number.
-function M.selectRow(n) if chooser then chooser:selectRow(n) end end
-function M.selectedItem() return chooser and chooser:selectedItem() end
-function M.setQuery(text) if chooser then chooser:setQuery(text) chooser:refresh(true) end end
+-- isShowing, hide, selectNext, selectPrev, and insertSelected are gone, the trickle
+-- migration, deleted along with the Chooser.new block that gave them something to answer
+-- for. The composition root now routes this plugin's own navigation through host/stage's
+-- own surfaceFor once wiredRegistry.presentationFor("tmuxSessions") answers a
+-- presentation, which answers all five, insertSelected among them, so nothing here binds a
+-- verb beyond them any more and registry.surface is no longer declared. selectRow,
+-- selectedItem, and setQuery are gone too, unused passthroughs onto an instance this file
+-- no longer holds, kept only for the reason the atom exposed them itself before this
+-- migration, which is no longer a reason anything here needs.
 
-function M.show()
+--- M.rows(query) -> list. The row supplier, named on the manifest's own presentation block
+--- as the contract's rows, exposing the file local rows already defined above without a
+--- second copy to disagree with.
+M.rows = rows
+
+--- M.select(item) - apply a row, named on the manifest's own presentation block as the
+--- contract's onSelect, exposing the file local onSelect already defined above.
+M.select = onSelect
+
+--- M.intercept, M.back - the presentation contract's own drill down pair, named on the
+--- manifest's own presentation block, exposing the file local functions already defined
+--- above without a second copy to disagree with.
+M.intercept = intercept
+M.back = back
+
+--- M.placeholder() -> string. The field hint while this plugin's own presentation is
+--- current, named on the manifest's own presentation block. Resolved once, at register,
+--- since the presentation contract wants a plain string a presentation carries rather than
+--- a function to call again later.
+function M.placeholder()
+  return "Search sessions and windows"
+end
+
+--- M.onPresent() - the presentation contract's own onPresent, named on the manifest's own
+--- presentation block, called by the stage whenever this presentation becomes current,
+--- through present or push alike, before the window itself is shown or swapped into.
+--- Carries the three things M.show used to do inline before this plugin had a presentation
+--- to defer through instead. The level always resets to top, since a fresh appearance from
+--- either door means the window list rather than wherever a previous visit to Settings left
+--- it. A deliberate open is exactly the moment a person expects to be shown what is true
+--- right now, so the engine's held read is dropped here and the first question of this open
+--- goes to the tmux server, and prune runs once per open rather than on every keystroke,
+--- since a session or window can only disappear between opens.
+function M.onPresent()
   level = "top"
-  -- A deliberate open is exactly the moment a person expects to be shown what is true right
-  -- now, so the engine's held read is dropped here and the first question of this open goes to
-  -- the tmux server. Everything after it inside this open, every keystroke, reads what that one
-  -- question answered rather than asking again.
   cfg.api:invalidate()
-  -- Once per open rather than on every keystroke, since a session or window can only
-  -- disappear between opens, and prune() itself is cheap enough either way, this is
-  -- simply the natural place a maintenance pass belongs rather than the hot filter path.
-  -- It is also what makes the fresh read above serve the first render for free, since both
-  -- go through the same held read and this one asks first.
   cfg.api:pruneRecency()
-  if not chooser then
-    chooser = cfg.chooser.new({
-      theme = cfg.theme,
-      placeholder = "Search sessions and windows",
-      fieldMode = cfg.chooser.fieldModes.filter,
-      -- Owns its own filtering, the DisplayProfiles shape, since the shared matcher would
-      -- rank and could hide the Settings door and the Back row on the second level.
-      matcher = false,
-      rows = rows,
-      onSelect = onSelect,
-      intercept = intercept,
-      back = back,
-      onPositioned = cfg.onPositioned,
-      onActivity = cfg.onActivity,
-      onClose = cfg.onClose,
-    })
-  end
-  chooser:show()
+end
+
+--- M.show() - present through the shared stage. This is the hotkey door, reached from this
+--- plugin's own leader key through the plugin root's own show, which still delegates here.
+--- cfg.stagePresent asks the registry for this plugin's own presentation and hands it to
+--- Stage:present, which is what runs onPresent above before showing anything, exactly what
+--- this function used to do inline before this plugin had a presentation to defer through
+--- instead.
+function M.show()
+  if cfg.stagePresent then cfg.stagePresent("tmuxSessions") end
 end
 
 function M.configure(opts)

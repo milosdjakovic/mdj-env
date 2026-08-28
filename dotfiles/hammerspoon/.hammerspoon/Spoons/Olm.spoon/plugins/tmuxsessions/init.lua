@@ -126,10 +126,10 @@ function obj:available()
   return self.engine:available()
 end
 
-function obj:isShowing()
-  return self.chooser.isShowing()
-end
-
+-- isShowing is gone, the trickle migration. Nothing in this tree called it, the chooser
+-- submodule's own isShowing having answered for it before, and that member is deleted
+-- along with the Chooser.new block that gave it something to answer for, host/stage's own
+-- surfaceFor("tmuxSessions") being what the composition root now asks instead.
 function obj:show()
   self.chooser.show()
 end

@@ -24,6 +24,18 @@ return {
       recency = { from = "recency", policy = "optional" },
     },
 
+    -- One root computed word, the trickle migration onto the shared stage. stagePresent is
+    -- the hotkey door this plugin's own show reaches for, the plugin root still delegating
+    -- to the chooser submodule exactly as it always did. Optional, and it degrades to an
+    -- inert press rather than a crash, since a plugin asking before the stage's own
+    -- configure has run is a wiring defect rather than a state a key press should silently
+    -- swallow.
+    data = {
+      stagePresent = { source = "root", policy = "optional",
+        breaks = "the leader key opens nothing, since show has no other way to reach the " ..
+                 "shared stage" },
+    },
+
     tools = {
       -- Required, and it is the one dependency in this plugin that genuinely is. This tool is
       -- a front end onto the tmux server and nothing else, so an absent tmux leaves nothing to
@@ -66,12 +78,39 @@ return {
 
   surface = {
     context = "tmuxSessions",
-    -- enter rather than the shared insertSelected, because this is a menu with a settings
-    -- level behind it and stepping in must not close and re show the list.
-    primary = { action = "enter", description = "Select" },
-    -- No panelAs line, and its absence is the statement. This plugin's chooser reads the
-    -- docked panel's three callbacks flat off its own options, the same as browserTabs does,
-    -- so the ambient grant reaches it in the shape it already expects.
+    -- insertSelected rather than the retired enter. The rename costs nothing behaviourally,
+    -- this chooser has always gone through the atom's own real completion path via its
+    -- intercept and back hooks rather than a private mechanism, enter having only ever been
+    -- the name a hand rolled surface elsewhere in this tree would have answered to. Stepping
+    -- into Settings still never closes and re shows the list, that is what intercept below
+    -- is for, and host/stage's own surfaceFor now answers insertSelected directly.
+    primary = { action = "insertSelected", description = "Select" },
+  },
+
+  -- The presentation contract, contract v2, docs/BRIEF-CONTRACT-V2.md. rows and select are
+  -- this plugin's own chooser.rows and chooser.select, plain closures assigned inside the
+  -- chooser submodule exactly the way its show, placeholder, and every other public member
+  -- already are, so every field below says call = dot, stated outright, never the bare
+  -- string shorthand this contract allows everywhere else a member is not a presentation's
+  -- own. placeholder resolves once, at register, to the static field wording. onPresent
+  -- carries the level reset, the fresh read, and the recency prune M.show used to do inline
+  -- before this plugin had a presentation to defer through instead, run on both doors,
+  -- present and push alike. intercept and back are this plugin's own drill down pair,
+  -- unchanged in what they do, migrated in that the atom's own post handler refresh now
+  -- reaches them through host/stage rather than through an instance this file held itself.
+  --
+  -- matcher is a real false, unchanged by the migration. The rows are already ordered by
+  -- what was jumped to last and carry a Back row and a Settings row that a second uniform
+  -- pass would rank away, which is the same reason this plugin's own picker always stood
+  -- the shared matcher down.
+  presentation = {
+    rows = { member = "chooser.rows", call = "dot" },
+    select = { member = "chooser.select", call = "dot" },
+    placeholder = { member = "chooser.placeholder", call = "dot" },
+    onPresent = { member = "chooser.onPresent", call = "dot" },
+    intercept = { member = "chooser.intercept", call = "dot" },
+    back = { member = "chooser.back", call = "dot" },
+    matcher = false,
   },
 
   -- configure alone leaves this plugin with an engine and no picker. The picker lives on the
@@ -95,22 +134,21 @@ return {
     { target = "chooser", method = "start", call = "dot" },
   },
 
-  -- show is a colon method on this plugin's own root, so open takes the default call, and the
-  -- chooser submodule is the surface. hostRows and activate both live on that submodule as
-  -- plain dot called functions.
+  -- show is a colon method on this plugin's own root, so open takes the default call.
+  -- hostRows and activate both live on the chooser submodule as plain dot called functions,
+  -- reached only by the scope below, never by the nav registry.
   --
   -- No detail on the row, matching fileSearch rather than displayProfiles, because this tool
   -- has a real chord and its subtitle should read like every other keyed tool's, the category
   -- then the combination, with the alias hint appended by the catalogue itself.
   --
-  -- matcher is a real false. The rows are already ordered by what was jumped to last and carry
-  -- a Back row and a Settings row that a second uniform pass would rank away, which is the
-  -- same reason this plugin's own picker stands the shared matcher down.
+  -- surface is no longer declared, host/stage's own surfaceFor answering the five generic
+  -- nav verbs now that presentation above exists, and this plugin binds no verb beyond
+  -- them, insertSelected replacing the retired enter being exactly what closed that gap.
   registry = {
     row = { category = "Tools", glyph = "🗂️",
       keywords = "tmux sessions windows terminal ghostty" },
     open = "show",
-    surface = "chooser",
     hosted = true,
     shortcut = "leader",
     scope = {
