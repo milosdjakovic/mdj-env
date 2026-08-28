@@ -31,6 +31,19 @@ return {
       read  = { from = "paste", member = "copySelection", call = "dot", policy = "optional" },
       apply = { from = "paste", member = "pasteText",     call = "dot", policy = "optional" },
     },
+
+    -- One root computed word, the trickle migration onto the shared stage. stagePresent is
+    -- the hotkey door reached through registry.open's own kept fallback, VPN's identical
+    -- precedent, since a launcher row choosing this tool pushes the registry's own
+    -- presentation straight from root/compose.lua's rowIntercept and never calls show at
+    -- all in the ordinary case. Optional, and it degrades to an inert press, never a crash,
+    -- since a plugin asking before the stage's own configure has run is a wiring defect
+    -- rather than a state a key press should silently swallow.
+    data = {
+      stagePresent = { source = "root", policy = "optional",
+        breaks = "the special row dispatch reaches nothing, since show has no other way to " ..
+                 "reach the shared stage" },
+    },
   },
 
   -- No `provides`, deliberately. A launcher scope cannot read your selection, since that
@@ -48,20 +61,31 @@ return {
 
   surface = {
     context = "textCase",
-    -- This plugin's configure reads the docked panel's three callbacks nested under one
-    -- field rather than as three flat ones, so the shape is named here. Four plugins
-    -- disagree about this and the disagreement lives in their own configure contracts,
-    -- so it has to be declared. Assuming the flat form silently removed the panel from
-    -- every one of them while handing each three fields it never reads.
-    panelAs = "shortcutPanel",
     primary = { action = "insertSelected", description = "Apply" },
   },
 
-  -- show and surface are both colon methods, obj:show() and obj:surface(), so open takes
-  -- the default call.
+  -- The presentation contract, contract v2, docs/BRIEF-CONTRACT-V2.md. rows and select are
+  -- this plugin's own colon methods, so every field below says call = method, stated
+  -- outright, never the bare string shorthand this contract allows everywhere else a
+  -- member is not a presentation's own. No matcher, so this presentation inherits the
+  -- root default, fuzzy, the one picker in the whole tree that deliberately keeps it,
+  -- stated as such at obj:rows above. No paneWidth, this list reserves no companion pane.
+  --
+  -- enter is contract v2's own second addition and the reason this plugin needed it before
+  -- the word for it existed. obj:enter reads the selection and proceeds once the rows built
+  -- from it are ready, so the picker never appears before its first row means anything, the
+  -- identical rule this file's own retired show already followed inline.
+  presentation = {
+    rows = { member = "rows", call = "method" },
+    select = { member = "select", call = "method" },
+    enter = { member = "enter", call = "method" },
+  },
+
+  -- show is a colon method, obj:show(), so open takes the default call. surface is no
+  -- longer declared, host/stage's own surfaceFor(identity) answering the five generic nav
+  -- verbs now that presentation above exists, and this plugin binds no verb beyond them.
   registry = {
     row = { category = "Text", detail = "recase the selection in place", glyph = "🔠" },
     open = "show",
-    surface = "surface",
   },
 }
