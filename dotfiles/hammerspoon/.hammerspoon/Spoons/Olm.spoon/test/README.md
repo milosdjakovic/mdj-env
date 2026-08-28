@@ -4,10 +4,43 @@ Run it.
 
 ```
 Spoons/Olm.spoon/test/suite.sh              # everything
+Spoons/Olm.spoon/test/suite.sh dry          # plain lua, no Hammerspoon, no lock, see below
 Spoons/Olm.spoon/test/suite.sh structure    # no screen needed, fast, safe any time
 Spoons/Olm.spoon/test/suite.sh surface      # opens and closes every picker
 Spoons/Olm.spoon/test/suite.sh behaviour    # the hand written per plugin scenarios
 Spoons/Olm.spoon/test/suite.sh input        # posted leader chords, keys rather than actions
+```
+
+## The dry gate
+
+`dry` is a different kind of tier from the other four, run through `drygate.sh` rather than
+through the lock and report machinery every other tier shares, and it is worth understanding
+why before reaching for it.
+
+Every other tier proves something about a plugin actually RUNNING, which means a live
+Hammerspoon, the test lock that guards one, and the several seconds a reload costs. The dry
+gate proves something narrower and earlier, that every manifest is well formed, plain lua,
+in well under a second, with nothing started and nothing locked. It exists because a builder
+agent has no way to acquire the lock or start Hammerspoon at all, and this repository's own
+review trickle this week named the cost of that gap directly, a presentation member naming a
+function that does not exist and a root sourced word nobody publishes, each shipped at least
+once before a person or the live suite caught it.
+
+It reuses `lib/registrar.lua`'s and `lib/registry.lua`'s own validation wherever it can,
+rather than restating their rules a second time to drift from, loading each plugin's real
+module under a permissive stub, attempting its own configure too, since a real tool commonly
+assembles the very members this checks against inside configure rather than at load. A
+module that will not load or will not configure under that stub is reported UNKNOWN rather
+than guessed at as passing or failing, since an honest unknown beats a false green. Read
+`drygate.lua`'s own header for the full account of what each of its four checks actually
+reuses, and `drygate-composewords.lua`'s own header for the one check, a root sourced word
+against what `root/compose.lua` publishes, that is a structural scan of that file's source
+text rather than a real read, and exactly what that scan can and cannot see.
+
+Run it standalone too, straight from the shell, no suite.sh, no lock, no Hammerspoon:
+
+```
+Spoons/Olm.spoon/test/drygate.sh
 ```
 
 It takes the test lock only if this worktree is not already live, and gives it back. If you
