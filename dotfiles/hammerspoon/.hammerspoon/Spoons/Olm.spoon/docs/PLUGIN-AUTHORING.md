@@ -343,5 +343,15 @@ disagreement between your declaration and the map. The full rule is in the repos
    under the stub is reported unknown rather than guessed at, and an unknown does not fail the
    gate unless you pass `--strict`. A clean tree exits zero, so run it and read the line it
    prints naming your tool before you commit.
-10. Then use it once, with a real key press. Everything above is structure, and structure has
+10. Load it live once, before anything merges. Take the lock, let the config come up, and ask
+    it a question, `hs -c "return hs.configdir"`. A silent answer, the ipc port refusing you,
+    means the config died before ipc came up and the whole config is down, not only your
+    plugin. Nothing above catches this. The close out of the chooser stage track shipped a
+    branch that passed luac, the reconciler, the dry gate, the unit cases, and a full
+    adversarial review, and still would not load, because it asked the stage for a surface at
+    wiring time and the stage builds that surface at configure time, an ordering no static
+    check in this repository can see. When a load does die, point Hammerspoon at a throwaway
+    init that xpcalls the real one and writes the traceback to a file, which is how that one
+    was found in a minute after an hour of reading.
+11. Then use it once, with a real key press. Everything above is structure, and structure has
     never proven that a key fires.
