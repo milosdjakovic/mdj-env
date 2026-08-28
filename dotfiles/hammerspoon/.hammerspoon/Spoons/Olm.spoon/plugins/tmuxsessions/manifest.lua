@@ -24,16 +24,22 @@ return {
       recency = { from = "recency", policy = "optional" },
     },
 
-    -- One root computed word, the trickle migration onto the shared stage. stagePresent is
+    -- Two root computed words, the trickle migration onto the shared stage and, since,
+    -- contract v3's own child presentations, docs/BRIEF-CONTRACT-V3.md. stagePresent is
     -- the hotkey door this plugin's own show reaches for, the plugin root still delegating
-    -- to the chooser submodule exactly as it always did. Optional, and it degrades to an
-    -- inert press rather than a crash, since a plugin asking before the stage's own
-    -- configure has run is a wiring defect rather than a state a key press should silently
-    -- swallow.
+    -- to the chooser submodule exactly as it always did. stagePop is what the settings
+    -- level's own Back row, and its own choice of terminal, leave or stand through, the one
+    -- thing a child pushed from select cannot express on its own. Both optional, both
+    -- degrading to an inert press rather than a crash, since a plugin asking before the
+    -- stage's own configure has run is a wiring defect rather than a state a key press
+    -- should silently swallow.
     data = {
       stagePresent = { source = "root", policy = "optional",
         breaks = "the leader key opens nothing, since show has no other way to reach the " ..
                  "shared stage" },
+      stagePop = { source = "root", policy = "optional",
+        breaks = "the settings level's own Back row stands on the level it meant to leave " ..
+                 "rather than returning to the window list" },
     },
 
     tools = {
@@ -79,37 +85,42 @@ return {
   surface = {
     context = "tmuxSessions",
     -- insertSelected rather than the retired enter. The rename costs nothing behaviourally,
-    -- this chooser has always gone through the atom's own real completion path via its
-    -- intercept and back hooks rather than a private mechanism, enter having only ever been
-    -- the name a hand rolled surface elsewhere in this tree would have answered to. Stepping
-    -- into Settings still never closes and re shows the list, that is what intercept below
-    -- is for, and host/stage's own surfaceFor now answers insertSelected directly.
+    -- this chooser has always gone through the atom's own real completion path, once by way
+    -- of its own intercept and back hooks, now by way of select answering a child
+    -- presentation, rather than a private mechanism, enter having only ever been the name a
+    -- hand rolled surface elsewhere in this tree would have answered to. Stepping into
+    -- Settings still never closes and re shows the list, host/stage pushing the child in
+    -- place the moment select answers one, and host/stage's own surfaceFor now answers
+    -- insertSelected directly.
     primary = { action = "insertSelected", description = "Select" },
   },
 
-  -- The presentation contract, contract v2, docs/BRIEF-CONTRACT-V2.md. rows and select are
+  -- The presentation contract, contract v3, docs/BRIEF-CONTRACT-V3.md. rows and select are
   -- this plugin's own chooser.rows and chooser.select, plain closures assigned inside the
   -- chooser submodule exactly the way its show, placeholder, and every other public member
   -- already are, so every field below says call = dot, stated outright, never the bare
   -- string shorthand this contract allows everywhere else a member is not a presentation's
-  -- own. placeholder resolves once, at register, to the static field wording. onPresent
-  -- carries the level reset, the fresh read, and the recency prune M.show used to do inline
-  -- before this plugin had a presentation to defer through instead, run on both doors,
-  -- present and push alike. intercept and back are this plugin's own drill down pair,
-  -- unchanged in what they do, migrated in that the atom's own post handler refresh now
-  -- reaches them through host/stage rather than through an instance this file held itself.
+  -- own. placeholder resolves once, at register, to the top level's own static wording, the
+  -- settings child built when its row is chosen carrying its own instead, a plain field on
+  -- a table built at runtime rather than something the registrar ever resolves. onPresent
+  -- carries the fresh read and the recency prune M.show used to do inline before this
+  -- plugin had a presentation to defer through instead, run on both doors, present and push
+  -- alike. No intercept and no back at this level any more. The top level itself never
+  -- mutated a list it stood on or left anywhere by itself, that was always the settings
+  -- level's own business, so choosing Settings now answers a child presentation from select
+  -- instead, and that child carries its own intercept directly rather than through a
+  -- manifest member, host/stage's own Stage:pop already restoring this level on Backspace
+  -- with no back hook needed from either level.
   --
   -- matcher is a real false, unchanged by the migration. The rows are already ordered by
-  -- what was jumped to last and carry a Back row and a Settings row that a second uniform
-  -- pass would rank away, which is the same reason this plugin's own picker always stood
-  -- the shared matcher down.
+  -- what was jumped to last and carry a Settings row that a second uniform pass would rank
+  -- away, which is the same reason this plugin's own picker always stood the shared matcher
+  -- down, the settings child below standing it down again for its own rows.
   presentation = {
     rows = { member = "chooser.rows", call = "dot" },
     select = { member = "chooser.select", call = "dot" },
     placeholder = { member = "chooser.placeholder", call = "dot" },
     onPresent = { member = "chooser.onPresent", call = "dot" },
-    intercept = { member = "chooser.intercept", call = "dot" },
-    back = { member = "chooser.back", call = "dot" },
     matcher = false,
   },
 
