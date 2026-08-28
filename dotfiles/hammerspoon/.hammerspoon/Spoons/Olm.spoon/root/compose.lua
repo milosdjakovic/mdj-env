@@ -373,9 +373,7 @@ function obj.run(olm, cfg)
   ------------------------------------------------------------------------------
 
   overlay = overlayDisplayLib.new({
-    chooser = chooserAtom,
     canvasPanel = canvasPanel,
-    theme = policy.chooserTheme,
     -- The resolved tool rather than a name in a command string, declared by the root in
     -- root/manifest.lua since this lib module is the root's own apparatus and has no manifest of
     -- its own to declare with. It used to run the command by bare name, which worked and was
@@ -393,6 +391,15 @@ function obj.run(olm, cfg)
       end
       return nil
     end,
+    -- Contract v3's own addition, docs/BRIEF-CONTRACT-V3.md, a plain closure over
+    -- stageModule rather than a manifest granted root word, since this lib module has no
+    -- manifest to declare needs.data against at all. stageModule is a forward declared
+    -- upvalue this closure only ever calls long after the ordinary wiring pass has made it
+    -- real, the identical lateness every other root owned closure in this file already
+    -- relies on. Lets the pin level's own Back row, and a pin just written, leave that
+    -- level and restore root, the one thing a child pushed from overlay.select cannot
+    -- express on its own.
+    stagePop = function() if stageModule then stageModule:pop() end end,
   })
   overlay.configure(policy.overlayDisplay or {})
 
@@ -562,7 +569,17 @@ function obj.run(olm, cfg)
   end
 
   ownPredicates.multipleDisplays = function() return #hs.screen.allScreens() > 1 end
-  ownPredicates.overlayDisplayOpen = function() return overlay.isShowing() == true end
+  -- Migrated onto host/stage. overlay owns no picker of its own any more, so this asks
+  -- whichever presentation is actually current, the identical isShowingFor shape every
+  -- presenting plugin's own context predicate already resolves through, named by hand here
+  -- since this tool has no manifest and so builds no context of its own for isShowingFor to
+  -- be asked about. Still referenced by no when anywhere in the tree, consumer map surprise
+  -- 9.2's other half, since building one needs a manifest.surface declaration this lib
+  -- module structurally cannot make, kept correct anyway rather than left answering a
+  -- retired instance that no longer exists.
+  ownPredicates.overlayDisplayOpen = function()
+    return stageModule ~= nil and stageModule:current() == "overlayDisplay" and stageModule:isShowing() == true
+  end
 
   -- Whether the launcher is holding somebody else's list rather than its own catalog, which is
   -- what decides whether the key that steps back out means anything. The launcher already
@@ -1894,7 +1911,25 @@ function obj.run(olm, cfg)
           lock = function() hs.caffeinate.lockScreen() end,
           sleep = function() hs.caffeinate.systemSleep() end,
           searchSettings = function() if kin.focusSettingsSearch then kin.focusSettingsSearch() end end,
-          overlayDisplay = function() if overlay and overlay.show then overlay.show() end end,
+          -- Migrated onto host/stage, contract v3. This tool has no manifest and so no
+          -- registration for stagePresent to look a presentation up by name for, root
+          -- policy over a lib module needing none, so the table Stage:present wants is
+          -- built right here instead, the one place that still reaches both overlay and
+          -- stageModule. Reached the identical way it always was, this special row, since
+          -- overlay was never part of wiredRegistry.presentationFor's own fast path and
+          -- still is not, the whole reason rowIntercept's own presenting branch never
+          -- touches it and this unconditional 0.1 second deferral still applies exactly as
+          -- it always has.
+          overlayDisplay = function()
+            if not (overlay and stageModule) then return end
+            stageModule:present({
+              name = "overlayDisplay",
+              rows = overlay.rows,
+              onSelect = overlay.select,
+              placeholder = "Overlay display",
+              matcher = false,
+            })
+          end,
           aliasDirectory = function()
             if not queryScopeModule then return end
             local query = queryScopeModule:queryFor("aliasDirectory")

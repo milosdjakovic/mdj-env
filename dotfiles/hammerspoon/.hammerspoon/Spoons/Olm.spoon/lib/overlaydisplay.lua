@@ -7,6 +7,34 @@
 -- closure that calls through the instance, and only then starts the plugin
 -- pipeline.
 --
+-- Migrated onto host/stage, contract v3, docs/BRIEF-CONTRACT-V3.md. The mode and pin
+-- picker used to be a fourteenth Chooser.new instance the root itself owned, consumer map
+-- surprise 9.1, unnavigable and with a dead docked panel, surprise 9.2, since nothing ever
+-- put its own hand rolled surface into the nav registry and nothing ever supplied it a
+-- panel triple. Having no manifest, it cannot declare a presentation the ordinary way
+-- either, so root/compose.lua builds the presentation table by hand and hands it to
+-- Stage:present directly from the same launcher special row that always opened this tool,
+-- root policy over a lib module needing no manifest to still reach the shared stage. This
+-- module now exposes self.rows and self.select in exactly the shape a presentation wants,
+-- root and pin views alike, and root/compose.lua is the one file that wraps them into the
+-- table Stage:present takes. The picker mechanically works exactly as before, Return, a
+-- click, and Escape all reach it through the atom's own native behaviour, unrelated to any
+-- manifest, and the docked panel now arms and positions itself for this presentation the
+-- identical way it does for every other one, since host/stage's own panel resolver asks
+-- only Stage:current(), never a manifest. What still does not follow from being on the
+-- stage is j and k, which are bound per Hyper context from plan.contexts, itself built
+-- from a manifest.surface declaration this module has none of, so this migration leaves
+-- that half of surprise 9.2 exactly where it was rather than claiming a fix it cannot
+-- reach without a manifest to declare a context in.
+--
+-- Pin drills into its own presentation, contract v3's child mechanism, decision one,
+-- pushed the moment the Pin row is chosen and popped through cfg.stagePop, decision three's
+-- reserved intercept case, the identical shape displayprofiles' own levels use. A commit,
+-- writing the chosen mode or pin to hs.settings, either completes for real, closing the
+-- whole tool the way choosing a mode always has, or stands on the pin level with the new
+-- choice marked, the identical two outcomes onSelect's own retired commit branches always
+-- gave, reached now through intercept rather than a private reopen timer.
+--
 -- Strategy is the shape of the resolver. A small table maps a mode name to a
 -- function returning an hs.screen, opts.mode names the seed choice, and a runtime
 -- picker can move the live choice from whichever mode was seeded to another one
@@ -43,31 +71,27 @@ M.modes = {
 }
 
 --- M.new(deps) returns instance.
---- deps.chooser        the shared Chooser factory, deps.chooser.new(config) builds the
----                      picker. Optional. Without it the mode and pin picker is never
----                      built and self.show, self.isShowing, and self.surface stay
----                      safe no ops, while self.screen keeps resolving a screen
----                      regardless, since the picker and the resolver are two
----                      separate things sharing one store.
 --- deps.canvasPanel     the shared CanvasPanel atom. Accepted for parity with the
 ---                      deps shape every shared collaborator arrives through, and
 ---                      held on the instance for whatever a caller may want it for
----                      later. The ported picker below has no call site for it, its
+---                      later. Nothing in this file has a call site for it, its
 ---                      row icons are plain hs.canvas glyphs rather than a docked
 ---                      surface, so this file does not invent one.
---- deps.theme           the shared chooser theme, handed straight to deps.chooser.new.
---- deps.panel           the docked shortcut panel triple for this picker's own
----                      context, onPositioned, onActivity, onClose, built by the
----                      composition root the same way every other picker's is.
 --- deps.currentProfile  a function with no arguments answering the active display
 ---                      arrangement's name, or nil when nothing matches. Read fresh
----                      every time a screen is resolved or the picker is opened,
----                      never cached, since the arrangement changes under both.
+---                      every time a screen is resolved or a row is built, never
+---                      cached, since the arrangement changes under both.
 --- deps.displayplacer   the resolved absolute path to displayplacer, or nil when the machine
 ---                      has none. Passed in rather than named in a command here, because this
 ---                      module is not a dependency door and the composition root declares the
 ---                      tool on its behalf. Only fixed mode needs it, so nil costs the serial
 ---                      id bridge and nothing else.
+--- deps.stagePop        contract v3's own addition, docs/BRIEF-CONTRACT-V3.md, a function of
+---                      no arguments asking the shared stage to leave the pin level and
+---                      restore root, the one thing a child pushed from self.select cannot
+---                      express on its own. Optional, and its absence leaves the Back row
+---                      inert rather than raising, the identical degradation every other
+---                      root published word this migration reaches for already keeps.
 function M.new(deps)
   deps = deps or {}
 
@@ -225,43 +249,6 @@ function M.new(deps)
     return fn() or hs.screen.primaryScreen()
   end
 
-  -- The picker, built lazily by configure. Declared here, ahead of the surface
-  -- adapter below, so the adapter's closures capture this same upvalue and always
-  -- see whatever the variable currently holds rather than whatever it held when the
-  -- adapter was built.
-  local picker
-  local nav = { view = "root" }
-  local reopenTimer
-
-  -- Dot called navigation adapter over the colon called Chooser instance, so the
-  -- shared navigation routing drives this picker like every other one. Built once,
-  -- since every function inside it reads the picker upvalue at call time rather
-  -- than closing over its current value, it stays correct across a configure that
-  -- rebuilds the picker and it stays safe to call before the first configure at
-  -- all, answering the same as a closed picker would.
-  local surfaceAdapter = {
-    isShowing = function() return (picker ~= nil) and picker:isShowing() or false end,
-    selectNext = function() if picker then picker:selectNext() end end,
-    selectPrev = function() if picker then picker:selectPrev() end end,
-    insertSelected = function() if picker then picker:insertSelected() end end,
-    hide = function() if picker then picker:hide() end end,
-  }
-
-  --- self.surface()
-  --- Returns the navigation adapter above. A function rather than the table
-  --- itself, matching the other lib surfaces, though the table it hands back is
-  --- built once and always the same one.
-  function self.surface()
-    return surfaceAdapter
-  end
-
-  --- self.isShowing()
-  --- Whether the picker is on screen right now. False when no picker has been
-  --- built yet, which is the honest answer rather than an error.
-  function self.isShowing()
-    return surfaceAdapter.isShowing()
-  end
-
   -- Row labels and glyphs for the picker's two views, root and pin. Icons are
   -- emoji rendered to a small image once and cached, matching how the launcher and
   -- the emoji picker build their own row icons, since this Hammerspoon exposes no
@@ -302,50 +289,12 @@ function M.new(deps)
     return "Pinned to " .. displayName(serial)
   end
 
-  -- Build the current view's rows, then filter by the typed query, a plain case
-  -- folded substring test over the title and the subtitle, matching how a filter
-  -- mode field behaves everywhere else this picker opts out of the shared matcher.
-  -- The query is not remembered across a view change, so it clears on every drill.
-  local function buildRows(query)
-    local out = {}
-    if nav.view == "root" then
-      local mode = effectiveMode()
-      for _, m in ipairs({ MODE_CURSOR, MODE_ACTIVE_WINDOW, MODE_FIXED }) do
-        out[#out + 1] = {
-          title = MODE_LABEL[m],
-          image = emojiIcon(mode == m and ICON_SELECTED or MODE_ICON[m]),
-          item = { commit = "mode", mode = m },
-        }
-      end
-      out[#out + 1] = {
-        title = "Pin this display setup…",
-        subTitle = pinStatusLine(),
-        image = emojiIcon(ICON_CONFIG),
-        item = { nav = "pin" },
-      }
-    elseif nav.view == "pin" then
-      out[#out + 1] = { title = "Back", image = emojiIcon(ICON_BACK), item = { nav = "root" } }
-      local profile = deps.currentProfile and deps.currentProfile()
-      if not profile then
-        out[#out + 1] = {
-          title = "No display arrangement recognised",
-          enabled = false,
-          subTitle = "There is nothing to pin a display to right now",
-        }
-      else
-        local chosen = effectiveFixed(profile)
-        if not uuidToSerial then refreshSerialMap() end
-        for _, s in ipairs(hs.screen.allScreens()) do
-          local serial = uuidToSerial[s:getUUID() or ""] or s:getUUID()
-          out[#out + 1] = {
-            title = s:name(),
-            subTitle = serial,
-            image = emojiIcon(chosen == serial and ICON_SELECTED or ICON_DISPLAY),
-            item = { commit = "pin", profile = profile, serial = serial },
-          }
-        end
-      end
-    end
+  -- Filter a built row list by the typed query, a plain case folded substring test over
+  -- the title and the subtitle, matching how a filter mode field behaves everywhere else
+  -- this picker opts out of the shared matcher. Shared by both views' own row builder below
+  -- rather than folded into either, since the two now live as two separate presentations,
+  -- root and pin, contract v3, rather than one supplier switching on a shared nav.view.
+  local function filterRows(out, query)
     local q = (query or ""):lower()
     if q == "" then return out end
     local filtered = {}
@@ -356,48 +305,114 @@ function M.new(deps)
     return filtered
   end
 
-  -- hs.chooser dismisses on every select, so a drill or a commit that should leave
-  -- the picker open records the target view and reopens on a short timer, the same
-  -- idiom menu search uses. The handle lives on the instance rather than a bare
-  -- local, since a Hammerspoon timer nothing refers to can be collected before it
-  -- fires, which is the one rule every timer in this config follows.
-  local function reopen()
-    if self._reopenTimer then self._reopenTimer:stop() end
-    self._reopenTimer = hs.timer.doAfter(0.04, function()
-      self._reopenTimer = nil
-      if picker then picker:show() end
-    end)
+  -- The root view's own rows, the three modes plus the door into pin. Public, named on the
+  -- presentation table root/compose.lua builds by hand, root policy over a lib module
+  -- needing no manifest to declare one the ordinary way.
+  function self.rows(query)
+    local out = {}
+    local mode = effectiveMode()
+    for _, m in ipairs({ MODE_CURSOR, MODE_ACTIVE_WINDOW, MODE_FIXED }) do
+      out[#out + 1] = {
+        title = MODE_LABEL[m],
+        image = emojiIcon(mode == m and ICON_SELECTED or MODE_ICON[m]),
+        item = { commit = "mode", mode = m },
+      }
+    end
+    out[#out + 1] = {
+      title = "Pin this display setup…",
+      subTitle = pinStatusLine(),
+      image = emojiIcon(ICON_CONFIG),
+      item = { nav = "pin" },
+    }
+    return filterRows(out, query)
   end
 
-  local function onSelect(item)
-    if not item then return end
-    if item.nav then
-      nav = { view = item.nav }
-      reopen()
-    elseif item.commit == "mode" then
+  -- The pin view's own rows, the Back row leading per the chooser menu convention, then
+  -- one row per attached display when an arrangement is recognised.
+  local function pinRows(query)
+    local out = { { title = "Back", image = emojiIcon(ICON_BACK), item = { nav = "root" } } }
+    local profile = deps.currentProfile and deps.currentProfile()
+    if not profile then
+      out[#out + 1] = {
+        title = "No display arrangement recognised",
+        enabled = false,
+        subTitle = "There is nothing to pin a display to right now",
+      }
+    else
+      local chosen = effectiveFixed(profile)
+      if not uuidToSerial then refreshSerialMap() end
+      for _, s in ipairs(hs.screen.allScreens()) do
+        local serial = uuidToSerial[s:getUUID() or ""] or s:getUUID()
+        out[#out + 1] = {
+          title = s:name(),
+          subTitle = serial,
+          image = emojiIcon(chosen == serial and ICON_SELECTED or ICON_DISPLAY),
+          item = { commit = "pin", profile = profile, serial = serial },
+        }
+      end
+    end
+    return filterRows(out, query)
+  end
+
+  -- The pin level, a child of root, contract v3, built lazily the moment the Pin row is
+  -- chosen and pushed by host/stage. Back leaves through cfg.stagePop, decision three's
+  -- reserved intercept case, and choosing a display is the identical case, writing the
+  -- pin and standing on the same level with the new choice marked rather than leaving,
+  -- the retired onSelect's own commit == "pin" branch reached the same way Back is now
+  -- rather than through its own private reopen timer.
+  local function buildPinPresentation()
+    return {
+      placeholder = "Overlay display",
+      matcher = false,
+      rows = pinRows,
+      onSelect = function() end,
+      intercept = function(item)
+        if not item then return true end
+        if item.nav == "root" then
+          if deps.stagePop then deps.stagePop() end
+          return true
+        end
+        if item.commit == "pin" then
+          -- Setting a pin is configuration only, it never touches the active mode,
+          -- which is chosen separately from the root view, so pinning a display never
+          -- silently switches where overlays appear.
+          local s = storeValue()
+          s.fixed = s.fixed or {}
+          s.fixed[item.profile] = item.serial
+          hs.settings.set(STORE_KEY, s)
+          return true
+        end
+        return false
+      end,
+    }
+  end
+
+  --- self.select(item) -> presentation or nil
+  --- The root view's own onSelect, public for the identical reason self.rows is. The Pin
+  --- row drills into buildPinPresentation above, a genuine child, decision one, host/stage
+  --- pushing whatever comes back. Choosing a mode is a genuine completion instead, writing
+  --- the choice and answering nothing, the ordinary meaning this contract gives nil, the
+  --- whole tool closing exactly as choosing a mode always has.
+  function self.select(item)
+    if not item then return nil end
+    if item.nav == "pin" then return buildPinPresentation() end
+    if item.commit == "mode" then
       local s = storeValue()
       s.mode = item.mode
       hs.settings.set(STORE_KEY, s)
-      nav = { view = "root" } -- committed, the picker is left to close
-    elseif item.commit == "pin" then
-      -- Setting a pin is configuration only, it never touches the active mode,
-      -- which is chosen separately from the root view, so pinning a display never
-      -- silently switches where overlays appear.
-      local s = storeValue()
-      s.fixed = s.fixed or {}
-      s.fixed[item.profile] = item.serial
-      hs.settings.set(STORE_KEY, s)
-      reopen() -- stay on the pin view so the new highlight is visible
+      return nil
     end
+    return nil
   end
 
   --- self.configure(opts)
   --- opts.mode   the seed mode, one of the M.modes values, defaulting to activeWindow.
   --- opts.fixed  the seed pin map, arrangement name to serial id, defaulting to empty.
-  --- Seeds the fallback policy, arms the screen watcher that invalidates the serial
-  --- cache and refreshes the remembered names on a display change, and builds the
-  --- mode and pin picker when deps.chooser was supplied. Safe to call again, an
-  --- earlier watcher and an earlier picker are torn down first rather than leaked.
+  --- Seeds the fallback policy and arms the screen watcher that invalidates the serial
+  --- cache and refreshes the remembered names on a display change. Safe to call again,
+  --- an earlier watcher is stopped first rather than leaked. Builds no picker any more,
+  --- the trickle migration, root/compose.lua building the one shared instance's own
+  --- presentation table instead of asking this file for a Chooser factory.
   function self.configure(opts)
     opts = opts or {}
     seed.mode = opts.mode or MODE_ACTIVE_WINDOW
@@ -412,55 +427,19 @@ function M.new(deps)
     self._watcher:start()
     rememberAttachedNames() -- seed from whatever is attached right now
 
-    if picker then picker:hide() end
-    if deps.chooser then
-      local triple = deps.panel or {}
-      picker = deps.chooser.new({
-        theme = deps.theme,
-        placeholder = "Overlay display",
-        fieldMode = deps.chooser.fieldModes.filter,
-        -- A drill in menu whose supplier morphs its rows per view and does its own
-        -- substring filter in buildRows, so it opts out of the atom's own matcher.
-        -- Leaving the shared matcher in would rerank the morphing rows and could
-        -- hide the Back row.
-        matcher = false,
-        rows = buildRows,
-        onSelect = onSelect,
-        onPositioned = triple.onPositioned,
-        onActivity = triple.onActivity,
-        onClose = triple.onClose,
-      })
-    else
-      picker = nil
-      log.i("configure received no deps.chooser, the mode and pin picker will not be built")
-    end
-
-    return self
-  end
-
-  --- self.show()
-  --- Opens the picker on its root view. A safe no op when configure was never
-  --- given a chooser factory, since there is nothing to show.
-  function self.show()
-    nav = { view = "root" }
-    if picker then picker:show() end
     return self
   end
 
   --- self.stop()
-  --- Stops the screen watcher and any pending reopen timer, and hides the picker
-  --- if it is open. Both handles are read off the instance, since either being held
-  --- only in a bare local would let it be collected while still needed.
+  --- Stops the screen watcher. Held off the instance, since a bare local would let it be
+  --- collected while still needed. Builds no picker any more, the trickle migration, so
+  --- there is nothing left here to hide, root/compose.lua's own cfg.stageHide reaching the
+  --- shared instance instead on whatever path this tool is ever torn down from.
   function self.stop()
-    if self._reopenTimer then
-      self._reopenTimer:stop()
-      self._reopenTimer = nil
-    end
     if self._watcher then
       self._watcher:stop()
       self._watcher = nil
     end
-    if picker then picker:hide() end
     return self
   end
 
