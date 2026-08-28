@@ -72,6 +72,13 @@ obj._stagePresent = nil    -- root published, the hotkey door onto the shared st
 obj._transforms = nil      -- the ordered catalog loaded from transforms.lua
 obj._rows = nil            -- rows prebuilt for the current open, read by the supplier
 obj._iconCache = nil
+-- Review finding L1, rework, the identical fix applied twice already in a sibling plugin,
+-- plugins/processes/chooser.lua. Held on the instance rather than only as an upvalue of the
+-- read callback below, since a Hammerspoon timer is userdata whose finalizer stops it, so
+-- one nothing refers to can be collected before it fires, and self._read dropping its own
+-- callback would then leave this timer, the one thing arranged to protect against exactly
+-- that, collectable right along with it.
+obj._enterTimeoutTimer = nil
 
 -- How long a preview subtitle may be before it is elided, and the row glyphs. The
 -- preview is display only; the pasted result is always the full untruncated transform.
@@ -204,7 +211,13 @@ end
 ---
 --- Races its own ENTER_TIMEOUT, so a read that never calls back proceeds anyway on the
 --- guidance row rather than stranding a person on a launcher row that silently does
---- nothing, contract v2's own requirement for any presentation declaring enter.
+--- nothing, contract v2's own requirement for any presentation declaring enter. Review
+--- finding L1, rework. The timer is held at self._enterTimeoutTimer, not a bare local, the
+--- same fix already applied twice in plugins/processes/chooser.lua for the identical reason,
+--- a Hammerspoon timer being userdata whose finalizer stops it, so one nothing refers to can
+--- be collected before it fires. self._read dropping its own callback, rather than ever
+--- calling it, would otherwise leave the one thing arranged to protect against exactly that
+--- collectable right along with it.
 function obj:enter(proceed)
   if not self._read then
     self._rows = self:_buildRows(nil)
@@ -213,7 +226,7 @@ function obj:enter(proceed)
   end
   local this = self
   local fired = false
-  local timeoutTimer = hs.timer.doAfter(ENTER_TIMEOUT, function()
+  self._enterTimeoutTimer = hs.timer.doAfter(ENTER_TIMEOUT, function()
     if fired then return end
     fired = true
     this._rows = this:_buildRows(nil)
@@ -222,7 +235,7 @@ function obj:enter(proceed)
   self._read(function(text)
     if fired then return end
     fired = true
-    timeoutTimer:stop()
+    if this._enterTimeoutTimer then this._enterTimeoutTimer:stop() end
     this._rows = this:_buildRows(text)
     proceed()
   end)

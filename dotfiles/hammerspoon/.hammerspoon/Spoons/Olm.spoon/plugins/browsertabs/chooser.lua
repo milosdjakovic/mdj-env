@@ -524,7 +524,12 @@ end
 -- A state the surface cannot act on goes to the console. Since the rows now hide anything that
 -- reads fine, a quiet screen has to mean nothing was wrong rather than nothing was noticed, and
 -- the console is where the detail behind a hidden row belongs.
-local function refreshPermissions()
+--
+-- token, review finding M2, rework, is the settings child's own presentation table, handed
+-- to cfg.redrawPresented so an answer landing here repaints the settings level specifically
+-- rather than whatever the shared name would otherwise match at any depth, docs/BRIEF-
+-- CONTRACT-V3.md's own rule that an async answer lands on its own level or not at all.
+local function refreshPermissions(token)
   for _, s in ipairs(cfg.api.status()) do
     local bundleID, name = s.bundleID, s.name
     cfg.api.permissionStatus(bundleID, function(state)
@@ -534,7 +539,7 @@ local function refreshPermissions()
       elseif state == cfg.api.states.denied then
         log.w(name .. " has refused automation, macOS will not ask again, change it in System Settings")
       end
-      M.refresh()
+      if cfg.redrawPresented then cfg.redrawPresented("browserTabs", nil, token) end
     end)
   end
 end
@@ -553,8 +558,13 @@ end
 -- A browser's own level, a child of settings. bundleID names the browser, frozen at
 -- creation rather than a shared upvalue, since nothing here ever needs to correct which
 -- browser this level is about the way displayprofiles' own rename corrects a shared name.
+-- Self referential, review finding M2, rework, so the permission request handler below can
+-- close over this exact table and hand it to cfg.redrawPresented as its own token, the one
+-- identity precise enough to say "this browser's own level" rather than "browserTabs at any
+-- depth", the shared name every level of this tool still answers to for hints and routing.
 local function buildBrowserChild(bundleID)
-  return {
+  local child
+  child = {
     placeholder = "",
     matcher = false,
     rows = function() return browserRows(bundleID) end,
@@ -572,7 +582,10 @@ local function buildBrowserChild(bundleID)
     -- place and stand, decision three's reserved case, exactly as they always did, reading
     -- fine again on the very next line the moment the async answer they started lands.
     intercept = function(item)
-      if not item or item.noop then return true end
+      -- The disabled row guard once written here by hand is gone, review findings H1 and
+      -- H2, rework, host/stage's own _intercept answering true and doing nothing for any
+      -- disabled row before this is ever asked.
+      if not item then return true end
       if item.nav and item.to == "back" then
         if cfg.stagePop then cfg.stagePop() end
         return true
@@ -582,7 +595,9 @@ local function buildBrowserChild(bundleID)
         -- Switching a browser on is only useful once its tabs appear, and switching one
         -- off should drop them, so the listing is redone straight away rather than on the
         -- next open. Reloads the tab list in the background regardless of which level is
-        -- current, the identical unconditional call the retired applySelection made.
+        -- current, the identical unconditional call the retired applySelection made, and
+        -- M.reload's own landing redraw already targets the tab list alone, review finding
+        -- M2, so it correctly touches nothing while this level is what is showing.
         M.reload()
         return true
       end
@@ -595,25 +610,32 @@ local function buildBrowserChild(bundleID)
           else
             log.w("the automation request for " .. tostring(bundleID) .. " ended as " .. tostring(state))
           end
-          if cfg.redrawPresented then cfg.redrawPresented("browserTabs") end
+          -- token is this level's own table, review finding M2, rework, so the redraw
+          -- lands here specifically, or not at all once the person has moved on.
+          if cfg.redrawPresented then cfg.redrawPresented("browserTabs", nil, child) end
         end)
         return true
       end
       return false
     end,
   }
+  return child
 end
 
 -- The settings level, a child of the tab list. onPresent starts the permission reads the
 -- moment this level becomes current, through either door, present or push, the identical
 -- warmth VPN's own async fetch already gets, replacing the retired applySelection's own
--- special case for entering this one frame.
+-- special case for entering this one frame. Self referential, review finding M2, rework,
+-- the identical reason buildBrowserChild above is, so refreshPermissions can hand its own
+-- landing redraw this exact table as a token rather than the shared name every level of
+-- this tool still answers to.
 local function buildSettingsChild()
-  return {
+  local child
+  child = {
     placeholder = "Browsers",
     matcher = false,
     rows = settingsRows,
-    onPresent = refreshPermissions,
+    onPresent = function() refreshPermissions(child) end,
     -- A browser row is a genuine deeper level, so it answers through select, host/stage
     -- pushing whatever comes back.
     onSelect = function(item)
@@ -626,7 +648,10 @@ local function buildSettingsChild()
     -- reserved case, so it alone answers through intercept, cfg.stagePop leaving the level
     -- the row was pressed on and the parent, the tab list, standing in its place.
     intercept = function(item)
-      if not item or item.noop then return true end
+      -- The disabled row guard once written here by hand is gone, review findings H1 and
+      -- H2, rework, host/stage's own _intercept answering true and doing nothing for any
+      -- disabled row before this is ever asked.
+      if not item then return true end
       if item.nav and item.to == "back" then
         if cfg.stagePop then cfg.stagePop() end
         return true
@@ -634,6 +659,7 @@ local function buildSettingsChild()
       return false
     end,
   }
+  return child
 end
 
 --------------------------------------------------------------------------------
@@ -759,18 +785,13 @@ end
 --- presentation block as the contract's rows.
 M.rows = tabRows
 
---- M.intercept(item) -> bool. Named on the manifest's own presentation block. The tab list's
---- own guidance rows, emptyRows above, answer disabled and carry item.noop, the identical
---- shape every child level already guards against in its own intercept, and this is the
---- guard for this level, since a stray selection reaching one, a click the atom's own
---- enabled gate did not catch among them, must stand exactly as the retired
---- applySelection's own "if not item or item.noop then return stay" already promised rather
---- than falling to select below and answering nil, which would close the whole tool over a
---- row that was never meant to do anything.
-function M.intercept(item)
-  if item and item.noop then return true end
-  return false
-end
+-- M.intercept, the disabled row guard this level once carried by hand, is gone, review
+-- findings H1 and H2, rework. host/stage's own _intercept now answers true and does nothing
+-- for any disabled row, before asking any presentation anything, native.lua passing the
+-- row's own enabled state through as intercept's second argument, so this level, and every
+-- other, gets that guard for free rather than writing one. The stray selection that used to
+-- reach here through a keyboard path the atom's own click guard never covered cannot reach
+-- select below any more either.
 
 --- M.select(item) -> presentation or nil. The tab list's own onSelect, named on the
 --- manifest's own presentation block. Opening a tab is a genuine completion, answering
@@ -827,13 +848,17 @@ function M.isShowing()
   return showing
 end
 
---- M.refresh() - redraw whichever level is current in place, so an async listing or
---- permission read updates the open picker without waiting for a keystroke. Migrated onto
---- host/stage, cfg.redrawPresented replacing the direct chooser:refresh() this used to call
---- on an instance it held itself, already a no op unless this presentation, and no other,
---- is what the stage is actually showing, and already redrawing whichever child is current
---- rather than only the tab list, the identical reach the retired chooser:refresh() always
---- had over whatever frame was on top.
+--- M.refresh() - redraw the tab list in place, so an async listing updates the open picker
+--- without waiting for a keystroke. Migrated onto host/stage, cfg.redrawPresented replacing
+--- the direct chooser:refresh() this used to call on an instance it held itself. Named with
+--- no token, review finding M2, rework, so it targets the tab list specifically, host/stage
+--- comparing by table identity against the registrar's own stored presentation for
+--- "browserTabs" rather than matching the shared name at any depth, and it is a silent no op
+--- while a child, settings or one browser's own level, is what is actually showing, since
+--- the tab list has nothing to say about either. M.reload's own landing callback is the one
+--- caller, so this is never asked to redraw a child's own answer, each child's own async
+--- work redrawing itself through its own token instead, buildSettingsChild and
+--- buildBrowserChild above.
 function M.refresh()
   if cfg.redrawPresented then cfg.redrawPresented("browserTabs") end
 end

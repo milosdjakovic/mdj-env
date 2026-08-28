@@ -163,15 +163,15 @@ return {
   -- with the injected matcher strategy, still read off cfg.matcher inside chooser.lua's own
   -- bestFieldScore, and a uniform pass by the shared instance would rank the Back row away
   -- and pull the Settings row into the tab ranking.
+  -- No intercept at this level any more. It once existed for one narrow reason, standing
+  -- on a stray selection of one of this level's own disabled guidance rows, emptyRows in
+  -- chooser.lua, and that reason is gone, review findings H1 and H2, rework, host/stage's
+  -- own _intercept now answering true and doing nothing for any disabled row before asking
+  -- this level anything at all, native.lua passing the row's own enabled state through for
+  -- exactly that check.
   presentation = {
     rows = { member = "chooser.rows", call = "dot" },
     select = { member = "chooser.select", call = "dot" },
-    -- intercept exists at this level for one narrow reason, standing on a stray selection
-    -- of one of this level's own disabled guidance rows, emptyRows in chooser.lua, rather
-    -- than falling to select and answering nil, which would close the whole tool over a row
-    -- that was never meant to do anything, the identical noop guard the retired
-    -- applySelection always gave every level including this one.
-    intercept = { member = "chooser.intercept", call = "dot" },
     placeholder = { member = "chooser.placeholder", call = "dot" },
     onPresent = { member = "chooser.onPresent", call = "dot" },
     -- onClose exists for one reason beyond the ordinary teardown every presentation may

@@ -745,8 +745,31 @@ function obj.run(olm, cfg)
     -- second argument. A one shot reorder has no row left to preserve, every row having
     -- moved, so it asks for the highlight back at the top the same way a query source
     -- rebuilding what the field means already does.
-    redrawPresented = function(name, resetRow)
-      if stageModule and stageModule:current() == name then stageModule:refresh(resetRow) end
+    --
+    -- token, review finding M2, rework, docs/BRIEF-CONTRACT-V3.md, is a third and optional
+    -- argument, a presentation table, for an answer that belongs to one specific child level
+    -- rather than to name's own top level. Without one, name alone used to match at any
+    -- depth, since a child inherits its parent's own name, decision two, so an async answer
+    -- meant for a tool's top level, VPN and every other still single level presentation
+    -- among them, was already landing on whichever child happened to be current instead, a
+    -- silent wrong target for any plugin whose child rows are expensive or read a status the
+    -- child does not show. Named, no token, now means exactly name's own top level, checked
+    -- by table identity against wiredRegistry.presentationFor(name), the same stable table
+    -- stagePresent already reaches for, since that is the one thing every level of a tool
+    -- can be compared against that a shared name cannot. Given a token, the check is
+    -- Stage:isCurrent(token) instead, table identity against whatever presentation table the
+    -- caller closed over while building the child, so a child's own async answer lands on
+    -- itself specifically, or not at all, browsertabs' own settings and browser children
+    -- passing themselves this way. An async answer lands on its own level or not at all, the
+    -- rule this word now keeps for every caller, token or none.
+    redrawPresented = function(name, resetRow, token)
+      if not stageModule then return end
+      if token ~= nil then
+        if stageModule:isCurrent(token) then stageModule:refresh(resetRow) end
+        return
+      end
+      local top = wiredRegistry.presentationFor and wiredRegistry.presentationFor(name)
+      if top and stageModule:isCurrent(top) then stageModule:refresh(resetRow) end
     end,
 
     -- stageHide, the trickle migration's own addition, Processes' own stopForced. A forced

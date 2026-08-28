@@ -459,6 +459,18 @@ local BACKSPACE_KEYCODE = 51
 -- steps out of a typed scope, where deleting the space hands the list back, so one habit
 -- covers both.
 --
+-- The item and its enabled flag under the highlight right now, together. selectedItem()
+-- alone used to be enough for the keyboard path, back when only _completion asked about
+-- enabled and it read the choice itself. The stage's own contract v3 intercept probe reads
+-- a plugin's own onSelect from inside intercept now, so intercept has to know a row's
+-- enabled state too, the identical fact the click watcher already reads off its own choice
+-- before ever calling _intercept. One lookup, shared by both callers below, so neither drifts
+-- from how the other learns it.
+function Chooser:_highlightedChoice()
+  local c = self.currentChoices[self.chooser and self.chooser:selectedRow() or 0]
+  return c and c._item or nil, c and c._enabled
+end
+
 -- Every other key falls straight through, and so does Return on a row that answers no.
 function Chooser:_startKeyWatcher()
   if not (self.config.onActivity or self.config.intercept or self.config.back) then return end
@@ -467,8 +479,9 @@ function Chooser:_startKeyWatcher()
     if not self.active then return false end
     if self.config.onActivity then self.config.onActivity() end
     local code = e:getKeyCode()
-    if SUBMIT_KEYCODES[code] and self:_intercept(self:selectedItem()) then
-      return true
+    if SUBMIT_KEYCODES[code] then
+      local item, enabled = self:_highlightedChoice()
+      if self:_intercept(item, enabled) then return true end
     end
     if code == BACKSPACE_KEYCODE and self:_back() then
       return true
@@ -486,10 +499,18 @@ end
 -- would only be guessing at it. All the atom does is rebuild from the top afterwards, since
 -- the list now means something else and the highlight should not stay on whatever row number
 -- the previous level left it on.
-function Chooser:_intercept(item)
+--
+-- enabled, a second argument now, review findings H1 and H2, is forwarded straight to ask
+-- rather than judged here, since what a disabled row should do is the consumer's own policy
+-- and this atom already trusts the consumer with the identical question over a plain item.
+-- Every consumer of this atom is the stage today, and the stage answers true and does
+-- nothing for a disabled row, before asking anything else, which is what keeps a guidance
+-- row from being actionable through Return or the insert key the way the click watcher's own
+-- inline check already kept it from being actionable through a click.
+function Chooser:_intercept(item, enabled)
   local ask = self.config.intercept
   if not ask or not item or self.fieldMode ~= obj.fieldModes.filter then return false end
-  if ask(item) ~= true then return false end
+  if ask(item, enabled) ~= true then return false end
   self:refresh(true)
   return true
 end
@@ -856,10 +877,14 @@ function Chooser:selectPrev() self:_move(-1) end
 ---
 --- Including the intercept question, which is what "exactly as Return does" has to mean. This
 --- key is ours and Return is the widget's, so the two reach the same answer only by asking
---- the same thing, and the shared check lives in _intercept for that reason.
+--- the same thing, and the shared check lives in _intercept for that reason. Review finding
+--- H2, rework, reads _highlightedChoice rather than selectedItem alone now, the identical
+--- fix _startKeyWatcher already needed, so a disabled row cannot be actioned through this key
+--- either.
 function Chooser:insertSelected()
   if not self:isShowing() then return end
-  if self:_intercept(self:selectedItem()) then return end
+  local item, enabled = self:_highlightedChoice()
+  if self:_intercept(item, enabled) then return end
   local r = self.chooser:selectedRow()
   if r and r >= 1 then self.chooser:select(r) end
 end

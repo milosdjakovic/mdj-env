@@ -335,10 +335,24 @@ rework following the trickle migrations, which is what let one of them, `stageSe
 be declared, validated, reported satisfied, and delivered nowhere for a whole migration,
 review finding H2. `stagePresent(name)` asks the registry for `name`'s own presentation and
 hands it to `stage.present`, the hotkey door for a plugin whose own leader key no longer
-builds a window itself. `redrawPresented(name, resetRow)` asks the stage to re run the
-current presentation's rows if, and only if, `name` is still the one showing, `resetRow`
-optional and forwarded straight to `Stage:refresh`. `stageHide()` hides the shared window
-outright. `stagePop()`, contract v3's own addition, docs/BRIEF-CONTRACT-V3.md, asks the stage
+builds a window itself. `redrawPresented(name, resetRow, token)` asks the stage to re run
+the current presentation's rows if, and only if, the level the caller belongs to is still
+the one showing, `resetRow` optional and forwarded straight to `Stage:refresh`. An async
+answer lands on its own level or not at all, review finding M2, rework, docs/BRIEF-
+CONTRACT-V3.md, and `token` is what makes that precise rather than approximate. Without one,
+`name` alone means the tool's own top level, checked by table identity against the
+registrar's own stored presentation for that name, `wiredRegistry.presentationFor(name)`,
+the one thing every level of a tool can be compared against that its shared `name` cannot,
+since a child inherits its parent's name for hints and routing, decision two, and so cannot
+be told apart from it by name alone. A tool with no children, which is most of them, never
+notices the difference, its top level is always what `presentationFor` answers and matching
+by name or by that table means the same thing. Given `token`, a presentation table a plugin
+closed over while building a child, the check becomes `Stage:isCurrent(token)` instead,
+identity against whatever is actually current, so a child's own async operation, a
+permission read on browsertabs' own settings and browser levels being the shipped example,
+redraws itself specifically and nothing else, self referential locals, `local child; child =
+{ ... }`, being how a plugin gets a table to close over before that table exists to be
+returned. `stageHide()` hides the shared window outright. `stagePop()`, contract v3's own addition, docs/BRIEF-CONTRACT-V3.md, asks the stage
 to leave the current child the way Backspace on an empty field already does, `Stage:pop`
 restoring the parent and answering false at the bottom exactly as that press does, for a
 row that must leave a level rather than drill into one, the one shape a child returned from

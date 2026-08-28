@@ -243,7 +243,10 @@ local function buildRenameChild(state)
     -- every presentation, host/stage's own isPresentation refusing one without it.
     onSelect = function() end,
     intercept = function(item)
-      if not item or item.noop then return true end
+      -- The disabled row guard once written here by hand is gone, review findings H1 and
+      -- H2, rework, host/stage's own _intercept answering true and doing nothing for any
+      -- disabled row before this is ever asked.
+      if not item then return true end
       if item.nav and item.to == "back" then
         if cfg.stagePop then cfg.stagePop() end
         return true
@@ -287,6 +290,16 @@ local function buildDeleteChild(state)
       if item.act == "delete" then
         local ok, err = cfg.api.remove(item.name)
         if ok then
+          -- Review finding L2, rework, counted honestly rather than left silent. Each
+          -- Stage:pop below runs _show's own swap branch, setQuery("") then refresh(true),
+          -- and this atom's own key watcher runs a further refresh(true) of its own once
+          -- this whole intercept answers true, native.lua:_intercept's documented contract
+          -- for any consumer that answers yes. So landing on top from here costs three
+          -- rebuilds for one keypress, not the two an ordinary single pop already costs
+          -- every other Back row in this file. All three are correct, cheap, and no
+          -- reader would see the difference, so this stays as it is rather than being
+          -- reworked to save microseconds nothing measures, but the true count belongs in
+          -- the comment rather than the two either call would suggest alone.
           if cfg.stagePop then cfg.stagePop() end
           if cfg.stagePop then cfg.stagePop() end
         else
@@ -328,7 +341,10 @@ local function buildProfileChild(name)
     -- three's reserved case, so it alone answers through intercept, cfg.stagePop leaving the
     -- level the row was pressed on and the parent, the top level, standing in its place.
     intercept = function(item)
-      if not item or item.noop then return true end
+      -- The disabled row guard once written here by hand is gone, review findings H1 and
+      -- H2, rework, host/stage's own _intercept answering true and doing nothing for any
+      -- disabled row before this is ever asked.
+      if not item then return true end
       if item.nav and item.to == "back" then
         if cfg.stagePop then cfg.stagePop() end
         return true
@@ -346,7 +362,10 @@ local function buildCaptureChild()
     rows = captureRows,
     onSelect = function() end,
     intercept = function(item)
-      if not item or item.noop then return true end
+      -- The disabled row guard once written here by hand is gone, review findings H1 and
+      -- H2, rework, host/stage's own _intercept answering true and doing nothing for any
+      -- disabled row before this is ever asked.
+      if not item then return true end
       if item.nav and item.to == "back" then
         if cfg.stagePop then cfg.stagePop() end
         return true
@@ -401,11 +420,17 @@ function M.placeholder()
   return "Search profiles"
 end
 
---- M.refresh() - redraw the current level in place, so a screen change that lands while
---- this presentation, and no other, is what the stage is actually showing updates the
---- active marker without waiting for a keystroke. Migrated onto host/stage,
---- cfg.redrawPresented replacing the direct chooser:refresh() this used to call on an
---- instance it held itself, already a no op unless "displayProfiles" is current.
+--- M.refresh() - redraw the top level in place, so a screen change that lands while the
+--- profile list itself is showing updates the active marker without waiting for a
+--- keystroke. Migrated onto host/stage, cfg.redrawPresented replacing the direct
+--- chooser:refresh() this used to call on an instance it held itself. Named with no token,
+--- review finding M2, rework, so it targets the top level specifically, host/stage
+--- comparing by table identity against the registrar's own stored presentation for
+--- "displayProfiles" rather than matching the shared name at any depth, and it is a silent
+--- no op while a child, a profile, rename, delete, or capture screen, is what is actually
+--- showing, narrower than before this rework, since none of those screens reads the marker
+--- this redraw exists to correct, and each is rebuilt fresh the moment it is next shown
+--- regardless.
 function M.refresh()
   if cfg.redrawPresented then cfg.redrawPresented("displayProfiles") end
 end

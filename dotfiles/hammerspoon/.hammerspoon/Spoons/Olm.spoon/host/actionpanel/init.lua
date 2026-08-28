@@ -245,9 +245,10 @@ end
 
 -- The panel's own rows, as decorate's wrapped rows function answers them while the panel is
 -- open, filtered by a plain case insensitive substring against the title when the instance's
--- own supplier owns filtering (config.matcher was false at decoration time, filtersItself
--- below), or answered whole so the instance's own matcher ranks them, exactly the choice the
--- atom already gives every consumer over its ordinary rows. Every panel row's title already
+-- own supplier owns filtering (instance.matcher is false, filtersItself below, read live at
+-- config.rows's own call site, review finding M3, rework, rather than captured once here),
+-- or answered whole so the instance's own matcher ranks them, exactly the choice the atom
+-- already gives every consumer over its ordinary rows. Every panel row's title already
 -- doubles as its filterText, set where rows below builds them, so there is nothing separate to
 -- read here.
 local function filterOwnRows(rows, query, filtersItself)
@@ -401,17 +402,30 @@ function obj:decorate(instance, config)
   local originalOnSelect = config.onSelect
   local originalOnHighlight = config.onHighlight
   local originalOnClose = config.onClose
-  -- Read once, at decoration time, per the atom's own contract: config.matcher false means
-  -- the supplier owns filtering and anything else means the atom's own matcher ranks whatever
-  -- the supplier answers in full. Chooser.new above has already resolved config.matcher from
-  -- nil to the module default by the time decorate ever sees it, so this is never itself nil.
-  local filtersItself = config.matcher == false
 
   -- The swap, and there is no other. While the panel is open on this instance the supplier
   -- answers the panel's rows instead of the tool's; otherwise the tool's own supplier, exactly
   -- as before this module existed.
+  --
+  -- SEAM, review finding M3, rework, the first sanctioned edit to this file in the chooser
+  -- stage track. filtersItself used to be read once here, at decorate time, config.matcher
+  -- false meaning the supplier owns filtering per the atom's own contract. That was correct
+  -- when every consumer built its own instance with its own fixed matcher, and stopped being
+  -- correct the moment contract v2 gave the stage one shared instance whose own matcher
+  -- host/stage/init.lua now writes live, before every show and swap, from whichever
+  -- presentation is current, docs/BRIEF-CONTRACT-V2.md decision one. decorate itself still
+  -- runs exactly once, at the stage's own single construction, long before any presentation,
+  -- or its own matcher, exists to read, so a value captured there answers for nothing real.
+  -- instance.matcher is read live here instead, inside the closure, the identical field
+  -- native.lua's own Chooser:_build already reads fresh on every keystroke rather than once
+  -- at construction, so the panel now filters, or does not, for whichever presentation is
+  -- actually current when a key is actually pressed. Eleven tools across this track declare
+  -- matcher = false today, four before this batch and seven more inside it, and every one of
+  -- them typed into the action panel over their own rows without narrowing anything until
+  -- this line changed.
   config.rows = function(query)
     if self._openInstance == instance then
+      local filtersItself = instance.matcher == false
       return filterOwnRows(self._panelRows or {}, query, filtersItself)
     end
     return originalRows and originalRows(query) or {}

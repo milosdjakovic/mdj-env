@@ -240,7 +240,12 @@ function obj:configure(opts)
     -- construction, and answers for the panel first at runtime, falling through to these
     -- otherwise. Under that, the current presentation's own intercept or back is asked
     -- first, and a back the presentation declines pops the stack instead.
-    intercept = function(item) return self:_intercept(item) end,
+    --
+    -- Review findings H1 and H2, rework. enabled is native.lua's own second argument now,
+    -- the row's own enabled state at the moment intercept was asked, forwarded straight
+    -- through so _intercept's own disabled row guard, the very first thing it checks, has
+    -- something to check.
+    intercept = function(item, enabled) return self:_intercept(item, enabled) end,
     back = function() return self:_back() end,
     onHighlight = function(item) self:_onHighlight(item) end,
     -- Review findings N1 and N2, reverting the construction half of M5. onScroll and
@@ -935,6 +940,21 @@ function obj:current()
   return p and p.name or nil
 end
 
+--- Stage:isCurrent(token) -> bool
+--- Method
+--- Whether token, a presentation table, is the one currently on top of the stack, table
+--- identity rather than name. Review finding M2, rework, docs/BRIEF-CONTRACT-V3.md. A
+--- child's own name is deliberately its parent's, decision two, so two levels of the same
+--- tool cannot be told apart by name, and an async answer that belongs to one specific level
+--- needs a question sharper than "is this tool showing at any depth". The presentation table
+--- itself, or whatever a plugin closed over while building one, is that sharper question,
+--- since nothing else about a presentation is guaranteed unique. token nil always answers
+--- false rather than matching an empty stack, which the bare == below would otherwise do
+--- were _current() and token both nil at once.
+function obj:isCurrent(token)
+  return token ~= nil and self:_current() == token
+end
+
 --- Stage:world() -> hs.application, number
 --- Method
 --- The app this stack covers and the id of this open. The two halves are captured on
@@ -1101,15 +1121,16 @@ function obj:_rows(query)
 end
 
 -- Contract v3's own seam. A presentation whose onSelect already ran once inside _intercept
--- below, and answered no child, leaves _selectHandled true for exactly the one subsequent
--- call this is, the atom's own real completion firing config.onSelect the moment intercept
--- has answered false and Return, insertSelected, or a click has been let through for real.
--- Consuming the flag here rather than checking it inside _intercept is what keeps a STALE
--- true from ever surviving into some later, unrelated row, since this is the only place that
--- clears it and it is asked on the very next call this host receives after _intercept sets
--- it. When a child was pushed instead, this function is never reached at all for that
--- keypress, native.lua's own key watcher swallowing Return outright once intercept answers
--- true, so the flag is never even written down that path and needs no clearing here for it.
+-- below, and did not result in a genuine push, leaves _selectHandled true for exactly the
+-- one subsequent call this is, the atom's own real completion firing config.onSelect the
+-- moment intercept has answered false and Return, insertSelected, or a click has been let
+-- through for real. Consuming the flag here rather than checking it inside _intercept is
+-- what keeps a STALE true from ever surviving into some later, unrelated row, since this is
+-- the only place that clears it and it is asked on the very next call this host receives
+-- after _intercept sets it. When a child was pushed instead, this function is never reached
+-- at all for that keypress, native.lua's own key watcher swallowing Return outright once
+-- intercept answers true, so the flag is never even written down that path and needs no
+-- clearing here for it.
 function obj:_onSelect(item)
   if self._selectHandled then
     self._selectHandled = false
@@ -1119,11 +1140,23 @@ function obj:_onSelect(item)
   if p and p.onSelect then p.onSelect(item) end
 end
 
--- Asked before a row is allowed to complete. The current presentation's own intercept
--- answers first, the plain mutation case contract v3 decision three still reserves for it,
--- a row that acts on the list it is on and stands, exactly as before this revision.
+-- Asked before a row is allowed to complete. Review findings H1 and H2, rework. A disabled
+-- row answers true and does absolutely nothing, before anything else in this chain, no
+-- presentation intercept, no onSelect probe, no flag, no push, matching the guard
+-- native.lua's own click path already kept at its own call site. This has to live here
+-- rather than at each of native.lua's three callers, since it is the stage's own contract v3
+-- addition, the onSelect probe just below, that turned a merely unused disabled selection
+-- into one that runs a plugin's own onSelect and can drill, and disabled rows becoming this
+-- host's own business is what keeps that fix in one place rather than three. enabled arrives
+-- as native.lua's own second argument to config.intercept now, nil for a caller that never
+-- learned a row's state, which this treats the same as true, so an unmigrated caller loses
+-- nothing.
 --
--- Contract v3, docs/BRIEF-CONTRACT-V3.md. Failing that, the current presentation's own
+-- Failing that, the current presentation's own intercept answers next, the plain mutation
+-- case contract v3 decision three still reserves for it, a row that acts on the list it is
+-- on and stands, exactly as before this revision.
+--
+-- Contract v3, docs/BRIEF-CONTRACT-V3.md. Failing both, the current presentation's own
 -- onSelect is asked here, before Return is ever let through, so this is the one place able
 -- to answer the promise decision one makes, that a row drilling into a level of its own
 -- swaps the list in place with no window ever closing. A presentation table answered back
@@ -1131,24 +1164,25 @@ end
 -- root/compose.lua's own rowIntercept already pushes a tool chosen from a launcher row, name
 -- filled in from the parent's own when the child names none itself, decision two, and this
 -- answers true, the atom then rebuilding the shared window from the top exactly as its own
--- contract for intercept already promises. A nil or absent answer is the ordinary case, this row means
--- what it always has, so _selectHandled is set for the one call of _onSelect this triggers
--- and this answers false, letting Return, insertSelected, or the click through to complete
--- for real. A push that refuses, a child missing rows or onSelect, degrades to the ordinary
--- completion path rather than swallowing the press, push's own log line already naming why.
-function obj:_intercept(item)
+-- contract for intercept already promises.
+--
+-- Review finding M1, rework. _selectHandled is now set on every path through this branch
+-- that does NOT end in a genuine push, a nil answer or a child push's own refusal alike,
+-- rather than only the nil case, since both left onSelect already run once and both are
+-- about to see it let through to a real completion that would otherwise run it a second
+-- time. Only the true push, which answers true here and swallows the row for good, skips
+-- setting it.
+function obj:_intercept(item, enabled)
+  if enabled == false then return true end
   local p = self:_current()
   if p and p.intercept and p.intercept(item) then return true end
   if p and p.onSelect then
     local child = p.onSelect(item)
-    if child ~= nil then
-      if type(child) == "table" and (child.name == nil or child.name == "") then
-        child.name = p.name
-      end
-      if self:push(child) then return true end
-    else
-      self._selectHandled = true
+    if type(child) == "table" and (child.name == nil or child.name == "") then
+      child.name = p.name
     end
+    if child ~= nil and self:push(child) then return true end
+    self._selectHandled = true
   end
   return false
 end
