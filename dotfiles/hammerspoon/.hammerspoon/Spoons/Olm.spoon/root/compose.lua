@@ -1521,6 +1521,38 @@ function obj.run(olm, cfg)
     end
   end
 
+  -- THE SEAM. Overlay display has no manifest, being a lib module rather than a plugin, so it
+  -- never appears in plan.order and the loop above, which walks that order looking for a
+  -- context owner, can never find it and can never build it an adapter. Its predicate already
+  -- exists by the identical route, ownPredicates.overlayDisplayOpen above, named by hand for
+  -- the same reason. Two joins, mirroring that precedent rather than inventing a second
+  -- mechanism for one tool. lib/resolve.lua itself is untouched, plan.contexts and
+  -- surfaceAdapters are both plain tables a root is already free to add to, so both joins are
+  -- root policy contributed into the same structures a plugin's own surface would have fed,
+  -- never a plugin pretending to be one and never a change to how either structure is built.
+  --
+  -- One, the context block itself, built through the identical lib/surface.lua a plugin's own
+  -- declared surface already goes through, so the bindings, the when name, and the priority
+  -- read exactly as they would for a real plugin. primary is the only field this needs to
+  -- state, i inserts the highlighted row, matching config/keys.lua's own long standing
+  -- overlayDisplay block, review finding L3, docs/REVIEW-FINAL-BATCH.md. nav defaults true, so
+  -- j and k move the highlight, which is the dead pair this join exists to answer for. close
+  -- defaults to x, and when defaults to "overlayDisplayOpen", the exact name ownPredicates
+  -- already installs above, so the binding this produces is gated correctly with nothing
+  -- further to wire.
+  plan.contexts.overlayDisplay = surfaceLib.context("overlayDisplay", {
+    primary = { action = "insertSelected", description = "Select" },
+  })
+
+  -- Two, the adapter. Stage:surfaceFor already answers the five generic verbs scoped to
+  -- whether THIS name is current, the identical call every presenting plugin's own adapter
+  -- makes inside surfaceAdapterFor above, so overlay display asks for the same thing by hand
+  -- rather than through the loop that can never reach it. Appended after the loop rather than
+  -- inside it, since it owns no plan.order entry to be found at.
+  if stageModule then
+    surfaceAdapters[#surfaceAdapters + 1] = stageModule:surfaceFor("overlayDisplay")
+  end
+
   ------------------------------------------------------------------------------
   -- STEP J. Drive the eight fixed stages, in their own order, unchanged.
   ------------------------------------------------------------------------------
