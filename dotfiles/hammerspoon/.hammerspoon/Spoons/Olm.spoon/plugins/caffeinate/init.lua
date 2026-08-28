@@ -20,17 +20,25 @@
 --- engine already supports by replacing the running session.
 ---
 --- This file is the composition root and the command policy. It loads the engine, the keep
---- awake mechanism, and receives the Chooser factory injected by the main root, the shared
---- native picker the menu search and the VPN list also use. It parses the query into rows,
---- turns a chosen row into an engine call, and forwards the deferred shortcut hint panel
---- callbacks straight through without learning what they drive. It is module style with
---- plain functions, so it exposes the same small control surface the clipboard does,
---- isShowing and hide, which the shared control in the main root calls on whichever tool
---- is open.
+--- awake mechanism, and parses the query into rows, turning a chosen row into an engine
+--- call. It is module style with plain functions.
 ---
 --- The value entry folds into the search field, one morphing row, so keep awake needs no
---- inline form fields and rides the same native chooser as the clipboard, the VPN list, and
---- menu search.
+--- inline form fields and rides the same shared window every presenting tool now shows
+--- into.
+---
+--- Migrated onto host/stage, the trickle migration. This file owns no Chooser instance and
+--- builds no window any more. Its rows and its selection dispatch are exactly what they
+--- always were, now named on the manifest's own presentation block instead of handed to a
+--- Chooser.new call this file no longer makes, and rowCount there is what asks the stage
+--- for the two row window this tool has always needed, since the larger row font clips a
+--- single row at one. The plugin root's own three function surface, isShowing, hide, and
+--- insertSelected, is gone too, deleted along with the Chooser.new block that gave it
+--- something to answer for, host/stage's own surfaceFor answering all five generic nav
+--- verbs now that a presentation exists to find. surface.nav stays false in the manifest,
+--- unrelated to any of this since lib/surface.lua reads it at the binding layer to decide
+--- whether j and k are ever added to this context's own bindings at all, independent of
+--- what any surface answers, so the single morphing row still has nothing to move between.
 ---
 --- This is the olm side copy of Caffeinate, phase six of the olm build plan, and the
 --- original this was copied from lived at Spoons/Caffeinate.spoon.
@@ -53,8 +61,7 @@ local function load(name)
 end
 local engine = load("engine.lua")
 
-local cfg = nil       -- injected: the shared theme, the Chooser factory, and the panel callbacks
-local chooser = nil   -- the one native Chooser instance
+local cfg = nil       -- injected: stagePresent and redrawPresented, the root published words
 
 --------------------------------------------------------------------------------
 -- Status wording, time parsing, and spans (command policy)
@@ -278,52 +285,55 @@ local function onSelect(sel)
   end
 end
 
--- The engine changed while the chooser may be open, a timed session expired. Redraw so the
--- primary row's title and status follow the live state.
+-- The engine changed while this presentation may be current, a timed session expired.
+-- Redraw so the primary row's title and status follow the live state. Migrated onto
+-- host/stage, cfg.redrawPresented replacing the direct chooser:refresh() this used to call
+-- on an instance it held itself, already a no op unless this presentation, and no other,
+-- is what the stage is actually showing.
 local function onChange()
-  if chooser and chooser:isShowing() then chooser:refresh() end
+  if cfg.redrawPresented then cfg.redrawPresented("caffeinate") end
 end
 
 --------------------------------------------------------------------------------
 -- Public control surface (dot-called, matching the clipboard and the VPN list)
 --------------------------------------------------------------------------------
 
---- M.show() - open the keep awake chooser. The list reads the live state itself, so there
---- is nothing to fetch first.
+--- M.show() - present through the shared stage. cfg.stagePresent asks the registry for
+--- this plugin's own presentation and hands it to Stage:present, exactly what opening keep
+--- awake from cold has always meant. The list reads the live state itself, so there is
+--- nothing to fetch first, and this plugin declares no onPresent for that reason.
 function M.show()
-  if chooser then chooser:show() end
+  if cfg.stagePresent then cfg.stagePresent("caffeinate") end
 end
 
---- M.rows(query) -> list. The morphing row for a query, the same data this spoon's own
---- chooser is built from, exposed so another surface can present it instead. Handing out the
---- data rather than a second copy of the parse is what keeps the two from disagreeing about
---- what a value means. It says nothing about where it is shown, so it stays a list of rows
---- and this spoon still never learns which surfaces exist.
+--- M.rows(query) -> list. The morphing row for a query, named on the manifest's own
+--- presentation block as the contract's rows, and exposed here under this plain name so a
+--- scope can ask for the identical data through provides.rows without a second copy to
+--- disagree with. Says nothing about where it is shown.
 M.rows = rows
 
 --- M.select(item) - apply one of those rows, taking the descriptor its own rows produced.
---- Paired with M.rows on purpose, since rows without a way to apply one would only invite a
---- caller to reimplement the dispatch and drift from it.
+--- Named on the manifest's own presentation block as the contract's onSelect.
 M.select = onSelect
 
-function M.isShowing()
-  return chooser ~= nil and chooser:isShowing()
+--- M.placeholder() -> string. The field hint while this plugin's own presentation is
+--- current, named on the manifest's own presentation block. Resolved once, at register,
+--- since the presentation contract wants a plain string a presentation carries rather than
+--- a function to call again later.
+function M.placeholder()
+  return "Time or duration"
 end
 
-function M.hide()
-  if chooser then chooser:hide() end
-end
+-- isShowing, hide, and insertSelected are gone, the trickle migration, deleted along with
+-- the Chooser.new block that gave them something to answer for. The composition root now
+-- routes this plugin's own navigation through host/stage's own surfaceFor once
+-- wiredRegistry.presentationFor("caffeinate") answers a presentation, which answers all
+-- five generic verbs regardless of surface.nav, that field only ever deciding at the
+-- binding layer whether j and k exist as bindings in this context at all.
 
---- M.insertSelected() - apply the highlighted row, exactly as Return does, routed here from
---- Hyper+i.
-function M.insertSelected()
-  if chooser then chooser:insertSelected() end
-end
-
---- M:configure(opts) - inject the shared theme, the Chooser factory, and the optional
---- docked panel callbacks (onPositioned, onActivity, onClose) the root wires to its
---- deferred shortcut hint panel. The spoon forwards those straight to its chooser without
---- learning what they drive, so the panel stays the root's concern.
+--- M:configure(opts) - inject stagePresent and redrawPresented, the two root published
+--- words phase three's own trickle migration adds. Both optional, both no ops when absent,
+--- M.show and onChange above say what each one degrades to without the other.
 --
 -- Colon here, not dot, because spoon.Caffeinate:configure(opts) is how both the live top
 -- level init.lua and the shared wiring pipeline in lib/wire.lua reach it. self arrives as M
@@ -333,32 +343,16 @@ function M:configure(opts)
   return M
 end
 
---- M:start() - wire the engine and build the one native chooser. Called once by the root.
+--- M:start() - wire the engine. Called once by the root. Builds no chooser any more, the
+--- trickle migration. Whatever this plugin used to hand a Chooser.new call, theme, a field
+--- mode, the matcher, rows, onSelect, the row count, and the panel triple, is now either
+--- read straight off this module by the registrar, rows and select through the manifest's
+--- own presentation block, or owned by the stage as fixed, atom level policy, rowCount and
+--- matcher being contract fields the manifest carries as plain values rather than this file
+--- computing anything.
 function M:start()
   engine.configure({ onChange = onChange })
   engine.start()
-  chooser = cfg.chooser.new({
-    -- The field is a live filter, so the supplier re-parses the query on every keystroke and
-    -- the single row morphs as you type. Two rows tall, since the list only ever holds the
-    -- one morphing row but the larger row font clips it at one, so the extra row of height
-    -- gives the single row room to render fully.
-    theme = cfg.theme,
-    placeholder = "Time or duration",
-    fieldMode = cfg.chooser.fieldModes.filter,
-    -- Opt out of the shared matcher. The field is not a filter over a list, it is a value
-    -- being typed, so the supplier re-parses the query each keystroke and returns the one
-    -- morphing row. Letting the matcher filter that row would drop it whenever the parsed
-    -- value did not fuzzy-match its own label.
-    matcher = false,
-    layout = { rowCount = 2 },
-    rows = rows,
-    onSelect = onSelect,
-    -- The root's deferred shortcut hint panel, wired through the chooser's own seams so the
-    -- spoon stays ignorant of the panel. All optional, nil when no panel is injected.
-    onPositioned = cfg.onPositioned,
-    onActivity = cfg.onActivity,
-    onClose = cfg.onClose,
-  })
   return M
 end
 
