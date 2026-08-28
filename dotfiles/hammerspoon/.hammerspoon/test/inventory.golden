@@ -93,7 +93,7 @@ hypercontexts.context name=processes when=processesOpen priority=100 bindingCoun
 hypercontexts.context name=textCase when=textCaseOpen priority=100 bindingCount=5
 hypercontexts.context name=vpn when=vpnOpen priority=100 bindingCount=5
 hypercontexts.binding context=browserTabs key=. mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
-hypercontexts.binding context=browserTabs key=i mods=- action=enter kind=navigation when=- chord=true needs=- description=Select
+hypercontexts.binding context=browserTabs key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Select
 hypercontexts.binding context=browserTabs key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=browserTabs key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
 hypercontexts.binding context=browserTabs key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
@@ -110,7 +110,7 @@ hypercontexts.binding context=clipboard key=k mods=- action=selectPrev kind=navi
 hypercontexts.binding context=clipboard key=k mods=cmd action=scrollPreviewUp kind=navigation when=- chord=true needs=- description=Scroll preview up
 hypercontexts.binding context=clipboard key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
 hypercontexts.binding context=displayProfiles key=. mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
-hypercontexts.binding context=displayProfiles key=i mods=- action=enter kind=navigation when=- chord=true needs=- description=Select
+hypercontexts.binding context=displayProfiles key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Select
 hypercontexts.binding context=displayProfiles key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=displayProfiles key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
 hypercontexts.binding context=displayProfiles key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
@@ -191,7 +191,7 @@ actionpanel.verb context=processes key=s mods=- action=sortByLoad description=So
 registry panelrows count=12
 panelrows.context name=browserTabs rowCount=1
 panelrows.context name=caffeinate rowCount=1
-panelrows.context name=clipboard rowCount=3
+panelrows.context name=clipboard rowCount=2
 panelrows.context name=displayProfiles rowCount=1
 panelrows.context name=emoji rowCount=1
 panelrows.context name=fileSearch rowCount=6
@@ -204,8 +204,7 @@ panelrows.context name=vpn rowCount=1
 panelrows.row context=browserTabs action=- title=Back chord=⌫ glyph=⬅️
 panelrows.row context=caffeinate action=- title=Back chord=⌫ glyph=⬅️
 panelrows.row context=clipboard action=- title=Back chord=⌫ glyph=⬅️
-panelrows.row context=clipboard action=appendSelected title=Append to batch chord=Hyper A glyph=➕
-panelrows.row context=clipboard action=deleteSelected title=Delete chord=Hyper D glyph=🗑️
+panelrows.row context=clipboard action=manageHistory title=Manage history chord=Hyper M glyph=🧹
 panelrows.row context=displayProfiles action=- title=Back chord=⌫ glyph=⬅️
 panelrows.row context=emoji action=- title=Back chord=⌫ glyph=⬅️
 panelrows.row context=fileSearch action=- title=Back chord=⌫ glyph=⬅️
@@ -251,21 +250,21 @@ hostedrows.row context=overlayDisplay action=- title=Back chord=⌫ glyph=⬅️
 hostedrows.row context=processes action=- title=Back chord=⌫ glyph=⬅️ closes=-
 hostedrows.row context=textCase action=- title=Back chord=⌫ glyph=⬅️ closes=-
 hostedrows.row context=vpn action=- title=Back chord=⌫ glyph=⬅️ closes=-
-registry actionpaneldecorated count=13
+registry actionpaneldecorated count=1
 registry tools count=13
-tools.entry name=browserTabs active=true surface=true hosted=true scope=true
-tools.entry name=caffeinate active=true surface=true hosted=true scope=true
+tools.entry name=browserTabs active=true surface=false hosted=true scope=true
+tools.entry name=caffeinate active=true surface=false hosted=true scope=true
 tools.entry name=clipboard active=true surface=true hosted=false scope=false
 tools.entry name=colorPicker active=true surface=false hosted=false scope=false
-tools.entry name=displayProfiles active=true surface=true hosted=false scope=false
+tools.entry name=displayProfiles active=true surface=false hosted=false scope=false
 tools.entry name=dockAutoHide active=true surface=false hosted=true scope=true
-tools.entry name=emoji active=true surface=true hosted=true scope=true
+tools.entry name=emoji active=true surface=false hosted=true scope=true
 tools.entry name=fileSearch active=true surface=true hosted=true scope=true
-tools.entry name=menuSearch active=true surface=true hosted=false scope=true
+tools.entry name=menuSearch active=true surface=false hosted=false scope=true
 tools.entry name=processes active=true surface=true hosted=false scope=false
-tools.entry name=textCase active=true surface=true hosted=false scope=false
-tools.entry name=tmuxSessions active=true surface=true hosted=true scope=true
-tools.entry name=vpn active=true surface=true hosted=true scope=true
+tools.entry name=textCase active=true surface=false hosted=false scope=false
+tools.entry name=tmuxSessions active=true surface=false hosted=true scope=true
+tools.entry name=vpn active=true surface=false hosted=true scope=true
 registry scopes count=12
 scopes.entry name=aliasDirectory aliases=?
 scopes.entry name=apps aliases=a+app
@@ -279,7 +278,7 @@ scopes.entry name=settingsPanes aliases=s+system
 scopes.entry name=tmuxSessions aliases=u+tmux
 scopes.entry name=vpn aliases=v+vpn
 scopes.entry name=windowActions aliases=w+window
-registry launcherrows count=19
+registry launcherrows count=20
 launcherrows.entry name=aliasDirectory subTitle=Tools · every word that scopes this list (?)
 launcherrows.entry name=appendCopy subTitle=Clipboard · ⌃⌥C
 launcherrows.entry name=browserTabs subTitle=Tools · Hyper W (t, tabs)
@@ -291,6 +290,7 @@ launcherrows.entry name=dockAutoHide subTitle=System · hides or reveals the Doc
 launcherrows.entry name=emoji subTitle=Tools · Hyper J (e, emoji)
 launcherrows.entry name=fileSearch subTitle=Tools · Hyper / (/)
 launcherrows.entry name=lock subTitle=System · Hyper §
+launcherrows.entry name=manageHistory subTitle=Clipboard
 launcherrows.entry name=overlayDisplay subTitle=Displays · where panels and choosers appear
 launcherrows.entry name=pasteNext subTitle=Clipboard · ⌃⌥V
 launcherrows.entry name=processes subTitle=System · stops a dev server, container, or watcher
@@ -332,7 +332,7 @@ hyperkey.key code=42 total=1 base=1
 hyperkey.key code=43 total=1 base=1
 hyperkey.key code=44 total=1 base=1
 hyperkey.key code=45 total=1 base=1
-hyperkey.key code=46 total=1 base=1
+hyperkey.key code=46 total=2 base=1
 hyperkey.key code=47 total=13 base=0
 hyperkey.key code=49 total=2 base=1
 hyperkey.key code=50 total=1 base=1

@@ -293,7 +293,7 @@ local M = {
       -- re-show. Return is intercepted to the same in-place enter, so both keys step the menu
       -- without a flash.
       bindings = {
-        { key = "i", action = "enter",        description = "Select" },
+        { key = "i", action = "insertSelected", description = "Select" },
         { key = "j", action = "selectNext",   description = "Move down" },
         { key = "k", action = "selectPrev",   description = "Move up" },
         { key = "x", action = "closeChooser", description = "Close" },
@@ -356,7 +356,7 @@ local M = {
       when = "browserTabsOpen",
       priority = 100,
       bindings = {
-        { key = "i", action = "enter",        description = "Select" },
+        { key = "i", action = "insertSelected", description = "Select" },
         { key = "j", action = "selectNext",   description = "Move down" },
         { key = "k", action = "selectPrev",   description = "Move up" },
         { key = "x", action = "closeChooser", description = "Close" },
