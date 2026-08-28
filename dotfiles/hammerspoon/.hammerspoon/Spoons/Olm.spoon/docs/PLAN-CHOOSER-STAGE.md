@@ -55,15 +55,14 @@ Track one, unification.
       Landed on main 2026-08-27 at 7206aba after the gate, the first press shows
       the window within a tenth of a second and the second serves from the
       snapshot. Review in the scratchpad review-menusearch doc of that session.
-- [~] 6. The remaining migrations are trickle work, one plugin whenever
-      convenient, old path and new path coexisting by design. filesearch,
-      processes, and clipboard landed 2026-08-28 at 9697bcf together with the
-      contract's second revision, BRIEF-CONTRACT-V2.md, matcher and enter, plus
-      titleLineBreak and paneWidth as member specs, review in
-      docs/REVIEW-TRICKLE.md. Still open, emoji, textcase, tmuxsessions,
-      caffeinate, browsertabs, displayprofiles, and the root's overlay display
-      picker. BrowserTabs suite before its own step merges. Caffeinate
-      exercises the row count path.
+- [x] 6. All migrations complete. filesearch, processes, and clipboard landed
+      2026-08-28 at 9697bcf with contract v2, matcher and enter. The final seven,
+      textcase, emoji, tmuxsessions, caffeinate, displayprofiles, overlaydisplay,
+      and browsertabs, landed 2026-08-28 at bcbf08b with contract v3, a select
+      may answer a child presentation, reviews in docs/REVIEW-TRICKLE.md and
+      docs/REVIEW-FINAL-BATCH.md. BrowserTabs suite green before the merge, 57
+      passed, 0 failed. Every list in the config now presents into the one stage
+      window.
 
 Close.
 
