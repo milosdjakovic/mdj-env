@@ -52,7 +52,6 @@
 --- open across the whole campaign so the shuffle is never recorded.
 
 local E = {}
-E.__index = E
 
 local log = hs.logger.new("Workspaces", "info")
 
@@ -139,16 +138,27 @@ local function sameFrame(a, b, tol)
     and math.abs(a.h - b.h) <= tol
 end
 
+-- The full frame of every attached screen, read once and handed to every question a restore
+-- pass asks about them. Asking hs.screen.allScreens per window turned one cheap read into one
+-- per candidate for no gain, since a screen cannot appear or disappear part way through a
+-- synchronous pass without a screen event that will open a fresh episode anyway.
+local function screenFrames()
+  local out = {}
+  for _, s in ipairs(hs.screen.allScreens()) do
+    out[#out + 1] = s:fullFrame()
+  end
+  return out
+end
+
 -- Whether a remembered frame lands on a screen attached right now, tested by its center. A
 -- frame whose center is on no attached screen means a display that has not finished waking, so
 -- the window is deferred rather than placed onto coordinates macOS would clamp onto the wrong
 -- panel. The containment is done by hand against each screen's full frame, since hs.screen.find
 -- matches a name or an id, never a point.
-local function targetScreenReady(f)
+local function targetScreenReady(f, screens)
   local cx = f.x + f.w / 2
   local cy = f.y + f.h / 2
-  for _, s in ipairs(hs.screen.allScreens()) do
-    local fr = s:fullFrame()
+  for _, fr in ipairs(screens or {}) do
     if cx >= fr.x and cx < fr.x + fr.w and cy >= fr.y and cy < fr.y + fr.h then
       return true
     end
@@ -157,8 +167,12 @@ local function targetScreenReady(f)
 end
 
 -- A window worth placing, standard and neither minimized nor fullscreen, and not one of ours.
+-- The id is asked for first because a window object outliving the window it names answers nil
+-- to everything, which is how a placement scheduled half a second ago finds out that the window
+-- it was waiting for has already closed.
 local function placeable(win)
   if win == nil then return false end
+  if not win:id() then return false end
   if not win:isStandard() then return false end
   if win:isMinimized() or win:isFullScreen() then return false end
   local app = win:application()
@@ -167,11 +181,19 @@ local function placeable(win)
 end
 
 -- Every standard window of one app, which is what the one window rule below is asked about.
-local function standardWindowsOf(app)
+-- Memoized per pass by process id, since a restore pass asks this once per candidate window and
+-- an app with four windows would otherwise walk its own window list four times for one answer
+-- that cannot change mid pass. A count of zero is a real answer and caches like any other, Lua
+-- treating zero as truthy, so a memo hit is never mistaken for a miss.
+local function standardWindowsOf(app, memo)
+  if not app then return 0 end
+  local key = memo and app:pid() or nil
+  if key and memo[key] then return memo[key] end
   local n = 0
-  for _, w in ipairs((app and app:allWindows()) or {}) do
+  for _, w in ipairs(app:allWindows() or {}) do
     if w:isStandard() then n = n + 1 end
   end
+  if key then memo[key] = n end
   return n
 end
 
@@ -384,6 +406,12 @@ end
 -- Make sure a configuration exists in the store, named from its geometry the first time it is
 -- seen. A fingerprint never seen before silently becomes a new configuration, which is the whole
 -- promise, arriving at a new desk should cost nobody a setup step.
+--
+-- THIS IS THE ONLY PLACE A CONFIGURATION IS EVER CREATED, which is what keeps every one of them
+-- named from its geometry. The store used to create one as a side effect of remembering an app
+-- frame, and the only caller that ever reached that path had no name to give, so deleting the
+-- configuration you were standing in and then moving a window resurrected it named by its raw
+-- fingerprint string. The store now refuses to create, so there is one door and it is this one.
 function E:_ensure(fingerprint, rects)
   if not fingerprint or not self._store then return end
   self._store:ensure(fingerprint, generateName(rects or {}))
@@ -555,14 +583,14 @@ end
 -- windows means asking the accessibility layer, which is the expensive half, and most windows on
 -- a machine are not remembered at all, so asking the cheap question first keeps a restore pass
 -- from walking every app's window list for nothing.
-function E:_persistentFrame(win, fingerprint)
+function E:_persistentFrame(win, fingerprint, memo)
   if not self._store then return nil end
   local app = win:application()
   local bundleID = app and app:bundleID()
   if not bundleID then return nil end
   local f = self._store:appFrame(fingerprint, bundleID)
   if not f then return nil end
-  if standardWindowsOf(app) ~= 1 then return nil end
+  if standardWindowsOf(app, memo) ~= 1 then return nil end
   return f
 end
 
@@ -577,26 +605,43 @@ end
 -- on the window id wins, since it is the exact frame of that exact window. Otherwise the
 -- persistent layer answers for an app with one standard window. Returns how many windows were
 -- deferred for a display that was not ready, so the caller can decide whether to retry.
+--
+-- ONE SWEEP OF THE WINDOW LIST PER PASS, AND EVERYTHING BELOW READS OFF IT. hs.window.get is not
+-- a lookup, it walks the whole window list on every call, so pruning the session table with one
+-- get per remembered id cost a full sweep each, thirty of them on a desk with thirty remembered
+-- windows, and a retry campaign multiplied that by seven, all synchronous on the main thread.
+-- The snapshot, the id map built from it, the screen frames, and the per app standard window
+-- count are all taken once here for the same reason. Pruning against the snapshot is exactly
+-- what pruning through hs.window.get already meant, since that is the list it was searching.
 function E:_restoreOnce()
   local fingerprint = self._fingerprint
   if not fingerprint then return 0 end
-  local slot = self._session[fingerprint]
-  local deferred = 0
+
+  local snapshot = hs.window.allWindows()
+  local byId = {}
+  for _, win in ipairs(snapshot) do
+    local id = win:id()
+    if id then byId[id] = win end
+  end
+  local screens = screenFrames()
+  local counts = {}
 
   -- Prune ids whose window is gone, so the session table cannot grow for a whole login.
+  local slot = self._session[fingerprint]
   if slot then
     for id in pairs(slot) do
-      if not hs.window.get(id) then slot[id] = nil end
+      if not byId[id] then slot[id] = nil end
     end
   end
 
-  for _, win in ipairs(hs.window.allWindows()) do
+  local deferred = 0
+  for _, win in ipairs(snapshot) do
     if placeable(win) then
       local id = win:id()
       local f = (slot and id) and slot[id] or nil
-      if not f then f = self:_persistentFrame(win, fingerprint) end
+      if not f then f = self:_persistentFrame(win, fingerprint, counts) end
       if f then
-        if targetScreenReady(f) then
+        if targetScreenReady(f, screens) then
           self:_place(win, f)
         else
           deferred = deferred + 1
@@ -611,8 +656,9 @@ end
 --- Method
 --- Run a restore pass for the configuration attached right now, on purpose rather than because
 --- something changed. Goes through the same episode machinery, so recording stays deaf and the
---- retry campaign still covers a display that is awake but not ready. A no op while an episode
---- is already restoring, since that pass is about to do the same thing.
+--- retry campaign still covers a display that is awake but not ready. A campaign already running
+--- is cancelled and started over, since _disturb treats this exactly as it treats a screen event,
+--- so asking twice in a row costs one restore rather than two overlapping ones.
 function E:restoreNow()
   self:_disturb()
   self:_resolve()
@@ -627,6 +673,19 @@ end
 -- that positions its own window at birth does so within a frame or two and placing immediately
 -- means fighting it. Several apps can be launching at once and a later one must not cancel an
 -- earlier one, so the pending calls are held per window id rather than in one field.
+--
+-- EVERY WINDOW BORN ANYWHERE ON THE MACHINE ARRIVES HERE, and the overwhelming majority belong
+-- to apps this configuration has never remembered, so the store is asked before anything is
+-- scheduled at all. That turns an ordinary window opening into two table lookups instead of a
+-- timer, a wake up, and a window walk half a second later. The one window rule is deliberately
+-- left to _placeNewborn rather than checked here too, since an app opening its second window is
+-- most likely to still be opening it right now, and the honest moment to count is when the
+-- placement would actually happen.
+--
+-- The window object the filter handed us is carried through rather than looked up again by id.
+-- hs.window.get walks the whole window list, so re fetching a window we were already given was
+-- paying a full sweep for something already in hand, and placeable asks the object for its id
+-- first, which is how an object outliving its window is caught.
 function E:_onBorn(win)
   if self._episode then return end
   if not self._store then return end
@@ -634,21 +693,24 @@ function E:_onBorn(win)
   if not id then return end
   local fingerprint = self._fingerprint
   if not fingerprint then return end
+  local app = win:application()
+  local bundleID = app and app:bundleID()
+  if not bundleID then return end
+  if not self._store:appFrame(fingerprint, bundleID) then return end
   if self._births[id] then self._births[id]:stop() end
   self._births[id] = hs.timer.doAfter(BIRTH_DELAY, function()
     self._births[id] = nil
-    self:_placeNewborn(id, fingerprint)
+    self:_placeNewborn(win, fingerprint)
   end)
 end
 
-function E:_placeNewborn(id, fingerprint)
+function E:_placeNewborn(win, fingerprint)
   if self._episode then return end
   if fingerprint ~= self._fingerprint then return end
-  local win = hs.window.get(id)
   if not placeable(win) then return end
   local f = self:_persistentFrame(win, fingerprint)
   if not f then return end
-  if not targetScreenReady(f) then return end
+  if not targetScreenReady(f, screenFrames()) then return end
   self:_mute(MUTE_TAIL)
   self:_place(win, f)
 end
@@ -677,16 +739,40 @@ function E:current()
   return self._fingerprint
 end
 
+--- E:ensureCurrent()
+--- Method
+--- Make sure the configuration attached right now exists, with a generated name. Called after a
+--- delete, because deleting the attached configuration means forget what it remembered rather
+--- than make it cease to exist. Which screens are attached is a fact, not a preference, so the
+--- configuration comes straight back empty and named the way one seen for the first time is.
+--- Routed through the engine rather than done by the caller so that the single creation door
+--- above stays single.
+function E:ensureCurrent()
+  local fingerprint, rects = self:fingerprint()
+  self._fingerprint = fingerprint
+  self:_ensure(fingerprint, rects)
+  return self
+end
+
 --- E:forgetSessionApp(fingerprint, bundleID)
 --- Method
 --- Drop every session entry belonging to one app under one configuration. Forgetting an app in
 --- the store alone would not be forgetting, since the session layer wins on restore and would
 --- put that app's windows back from a memory nobody can see or prune.
+--- One snapshot here too, for the same reason the restore pass takes one. This runs on a key
+--- press rather than in a timer, so the cost is a visible stall rather than a background one,
+--- which is worse to meet and not better. An id the snapshot does not answer for belongs to a
+--- window that is gone, so it is dropped either way.
 function E:forgetSessionApp(fingerprint, bundleID)
   local slot = self._session[fingerprint]
   if not slot or not bundleID then return end
+  local byId = {}
+  for _, win in ipairs(hs.window.allWindows()) do
+    local id = win:id()
+    if id then byId[id] = win end
+  end
   for id in pairs(slot) do
-    local win = hs.window.get(id)
+    local win = byId[id]
     local app = win and win:application()
     if not win or (app and app:bundleID() == bundleID) then
       slot[id] = nil

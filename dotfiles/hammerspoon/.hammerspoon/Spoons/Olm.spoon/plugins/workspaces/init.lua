@@ -21,7 +21,6 @@
 --- that a surface exists.
 
 local obj = {}
-obj.__index = obj
 
 -- Metadata
 obj.name = "Workspaces"
@@ -95,6 +94,10 @@ function obj:_buildApi()
 
     -- One configuration's remembered apps, each with the name a person would recognise, sorted
     -- so the list does not reshuffle between keystrokes.
+    -- The frame is validated through the store's own judgement rather than a second one written
+    -- here, so a hand edited entry the engine would decline to place is also one the surface
+    -- knows it cannot describe. An unreadable frame answers nil and the row says so, which costs
+    -- that row its detail and lets the person find the entry and forget it.
     apps = function(fingerprint)
       local entry = self._store and self._store:get(fingerprint)
       local out = {}
@@ -102,7 +105,7 @@ function obj:_buildApi()
         out[#out + 1] = {
           bundleID = bundleID,
           name = hs.application.nameForBundleID(bundleID) or bundleID,
-          frame = frame,
+          frame = store.validFrame(frame),
         }
       end
       table.sort(out, function(a, b) return a.name:lower() < b.name:lower() end)
@@ -127,6 +130,12 @@ function obj:_buildApi()
       local ok, err = self._store:remove(fingerprint)
       if ok then
         engine:forgetSession(fingerprint)
+        -- Deleting the configuration attached right now means forget what it remembered, never
+        -- make it cease to exist, since which screens are attached is a fact rather than a
+        -- preference. The engine puts it straight back, empty and named from its geometry, and it
+        -- is asked to do that rather than done here so the single creation door stays single. For
+        -- any other configuration this finds the attached one already there and changes nothing.
+        engine:ensureCurrent()
         self._store:flush()
       end
       return ok, err

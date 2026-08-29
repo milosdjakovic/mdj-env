@@ -70,10 +70,10 @@ during development and the fix is easy to undo by accident, so it is commented a
 Not one browser exposes a per tab last access time. Chrome and Arc give a tab an id, a title, a
 URL and a loading flag, Safari does not even give an id, and none of the three carries a
 timestamp. So recency in the sense of what you last looked at cannot be read, and for a long time
-this tool watched for it instead. `recency.lua` was an Observer, the same shape `DisplayMemory`
-forms with `TerminalHandler`, running an application watcher for a browser coming to the front and
-a window filter on title changes for a tab switch inside one already in front, since each of these
-browsers titles its window after its active tab and that is the only signal there is.
+this tool watched for it instead. `recency.lua` was an Observer, running an application watcher
+for a browser coming to the front and a window filter on title changes for a tab switch inside one
+already in front, since each of these browsers titles its window after its active tab and that is
+the only signal there is.
 
 That is gone. What is remembered now is what this tool has opened, written by the activation the
 surface performs and by nothing else. It is the same shape `FileSearch`'s frecency takes, a record

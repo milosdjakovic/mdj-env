@@ -89,6 +89,14 @@ local function trim(s)
   return (s or ""):gsub("^%s+", ""):gsub("%s+$", "")
 end
 
+-- A frame read off a file a person may have edited by hand carries no promise of being whole
+-- numbers, and string.format with a percent d raises on a fraction rather than rounding it, so
+-- every value printed below goes through here first. One row's detail is the most a bad value
+-- may ever cost, never the level it sits on.
+local function whole(v)
+  return math.floor((tonumber(v) or 0) + 0.5)
+end
+
 local function countLabel(n, one, many)
   return n .. " " .. (n == 1 and one or many)
 end
@@ -202,8 +210,11 @@ local function appsRows(fingerprint)
   end
   for _, a in ipairs(apps) do
     local f = a.frame
-    local sub = string.format("%d by %d at %d, %d", f.w or 0, f.h or 0, f.x or 0, f.y or 0)
-    out[#out + 1] = row(a.name, sub, ICON.app, { nav = "app", bundleID = a.bundleID, name = a.name }, true)
+    local detail = "The remembered frame cannot be read, choose this row to forget it"
+    if f then
+      detail = string.format("%d by %d at %d, %d", whole(f.w), whole(f.h), whole(f.x), whole(f.y))
+    end
+    out[#out + 1] = row(a.name, detail, ICON.app, { nav = "app", bundleID = a.bundleID, name = a.name }, true)
   end
   return out
 end
@@ -408,8 +419,23 @@ end
 --- the top level specifically and is a silent no op while any child is what is actually showing,
 --- which is correct, since no child reads the marker this redraw exists to correct and each is
 --- rebuilt fresh the next time it is shown.
+---
+--- A BACKGROUND CORRECTION NEVER REDRAWS UNDER A HAND. The marker moving also reorders the list,
+--- since the attached configuration leads it, so a redraw while the highlight sits part way down
+--- would shuffle rows out from under somebody reading them. cfg.stageSelectedRow is what answers
+--- whether the highlight is still on row one, a plain number read off the live widget, and
+--- anything past row one defers instead. Deferring costs nothing to remember here, unlike the
+--- menu search cache that has to hold its landed answer, because every level is rebuilt from the
+--- api the next time it is shown, so the correction simply arrives with the next open. resetRow is
+--- true on the redraws that do happen, since a reorder means row one may be a different
+--- configuration than it was, and at row one already that reset changes nothing anyway.
 function M.refresh()
-  if cfg.redrawPresented then cfg.redrawPresented("workspaces") end
+  if not cfg.redrawPresented then return end
+  if cfg.stageSelectedRow then
+    local selected = cfg.stageSelectedRow()
+    if selected and selected > 1 then return end
+  end
+  cfg.redrawPresented("workspaces", true)
 end
 
 --- M:configure(opts) - merge injected deps across the two callers. The plugin composition root

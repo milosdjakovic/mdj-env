@@ -180,3 +180,77 @@ DisplayProfiles is.
 
 These files live inside an already symlinked spoon, so they resolve through the existing link. Only
 adding a whole new spoon needs a restow.
+
+## One window sweep per restore pass
+
+`hs.window.get(id)` reads like a lookup and is not one. It walks the whole window list on every
+call, which the shipped `window.lua` says outright. The first version of `_restoreOnce` pruned the
+session table with one `get` per remembered id, so a desk with thirty remembered windows paid
+thirty full sweeps before the pass even started, and a retry campaign multiplied that by seven,
+all synchronous on the main thread during exactly the second when a person has just docked and is
+watching.
+
+So a pass now takes one `hs.window.allWindows()` snapshot, builds an id to window map from it, and
+does both the prune and the placement walk off that map. Pruning against the snapshot is precisely
+what pruning through `hs.window.get` already meant, since that is the list it was searching, so
+nothing about the behaviour changed. The screen frames and the per app standard window count are
+cached per pass for the same reason, the screens because they cannot change mid pass without a
+screen event that opens a fresh episode anyway, and the window count because an app with four
+windows would otherwise walk its own window list once per candidate for an answer that is the same
+every time.
+
+The birth path had the same shape of waste. Every window born anywhere on the machine reached it,
+and it scheduled a timer for each one before asking whether the app was remembered at all. It now
+asks the store first, which turns an ordinary window opening into two table lookups, and it carries
+the window object the filter already handed it rather than paying another sweep to look the same
+window up again by id. `placeable` asks a window for its id first, which is how an object that
+outlived its window is caught half a second later.
+
+## A file a person may edit is a file that may be wrong
+
+Two failures were possible here and both were silent in the worst way.
+
+A single hand edited frame with a missing or non numeric field raised inside the restore timer.
+That raise escaped the pass, so the episode never closed, the flag stayed set, recording never came
+back, and every later episode repeated the same crash. One mistyped number disabled the whole
+plugin until a reload. The store now validates every frame it hands out, all four values present
+and all four numbers, and answers nil otherwise, so a bad entry costs that one window its placement
+and nothing else. The surface asks the store for the same judgement rather than making a second one
+of its own, and prints through a rounding helper besides, since `string.format` with a percent d
+refuses a fraction rather than rounding it.
+
+A file that exists and will not parse was discarded, and then two seconds later the debounced write
+replaced it with a nearly empty table. That is the only copy of everything a person ever remembered,
+gone, with a discovery lag of weeks. The file is now moved aside under a name stamped with the time,
+which can never collide with an earlier rescue, and one line says exactly where it went. When even
+the move fails, the store seals itself, reading as empty for the rest of the session and refusing
+every write, because a memory that stops working is recoverable and one that was overwritten is not.
+
+## One creator of configurations
+
+`setAppFrame` used to reach `ensure` so a move could always be recorded. It had no name to give and
+none of its callers could have one, a window move knowing nothing about screens, so `ensure` fell
+back to the raw fingerprint string. That was invisible until somebody deleted the configuration they
+were standing in, moved a window, and watched it come back named `0,0,1512x982`.
+
+The store now refuses to create. `ensure` is reached from the engine and from nowhere else, so every
+configuration is named from its geometry. Deleting the attached configuration means forget what it
+remembered, never make it cease to exist, since which screens are attached is a fact rather than a
+preference, so the engine puts it straight back, empty and freshly named, through the same one door.
+
+Generated names describe geometry, and two fingerprints can describe the same geometry, two desks
+whose external monitor sits a few points further along being the everyday case. A name already
+taken by a different configuration gets a counter appended rather than being handed out twice, since
+two identical rows are a list nobody can act on. Renaming either one is what makes the counter go
+away.
+
+## The active marker never redraws under a hand
+
+The marker moving also reorders the top level, since the attached configuration leads it. So a
+background redraw while somebody is part way down the list would move rows out from under them,
+which the authoring guide names outright as the thing not to do. `stageSelectedRow` answers whether
+the highlight is still on row one and anything past it defers.
+
+Deferring costs nothing to remember here, unlike the menu search cache which has to hold its landed
+answer until the next open. Every level is rebuilt from the api the next time it is shown, so the
+correction arrives with the next open on its own.

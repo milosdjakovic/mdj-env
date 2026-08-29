@@ -32,14 +32,18 @@ return {
         breaks = "nothing is remembered across a restart, so the memory degrades to the "
           .. "session layer alone and a reboot lands every window wherever macOS puts it" },
 
-      -- The stage seam. This plugin holds no chooser of its own, so the three things a chooser
+      -- The stage seam. This plugin holds no chooser of its own, so the four things a chooser
       -- owner used to do directly arrive as words the composition root publishes.
       -- stagePresent is the door the launcher row opens through. stagePop is what every Back
       -- row, and every successful rename, delete, and forget, leaves a level through, the one
       -- thing a child pushed from select cannot express on its own. redrawPresented is the
       -- async seam, the engine asking for the active marker to be corrected once a
       -- configuration change lands while this list, and no other, is what the stage is showing.
-      -- All three optional, all three degrading to an inert press or a skipped redraw rather
+      -- stageSelectedRow is the gate on that redraw, since the marker moving also reorders the
+      -- list and a correction landing while somebody is part way down it has to defer rather
+      -- than shuffle rows under a hand, which is the discipline the authoring guide states and
+      -- the menu search cache already keeps.
+      -- All four optional, all four degrading to an inert press or a skipped redraw rather
       -- than a crash, since a plugin asking before the stage's own configure has run is a
       -- wiring defect and not a state a key press should swallow loudly.
       stagePresent = { source = "root", policy = "optional",
@@ -48,6 +52,8 @@ return {
         breaks = "every Back row, and a successful rename, delete, or forget, all stand on the level they meant to leave rather than returning to its parent" },
       redrawPresented = { source = "root", policy = "optional",
         breaks = "the active marker stays stale when the display configuration changes while the list is open, since the engine has no other way to reach whatever is on screen" },
+      stageSelectedRow = { source = "root", policy = "optional",
+        breaks = "a correction landing while the list is open can no longer tell whether somebody is part way down it, so it redraws every time and a reorder may move rows under a hand" },
     },
   },
 

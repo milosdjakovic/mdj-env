@@ -58,9 +58,8 @@ the provider's own order below. Choosing a city lifts it to the front, so it sit
 the action row on the next open. This is command policy, so it lives in `init.lua`, the policy
 file, not the engine or the provider, which stay ignorant of ordering. The order is a plain
 list of location ids, newest first, persisted under one `hs.settings` key so it survives a
-reload or a reboot, the same persistence idea `DisplayMemory` uses. It is kept an inline
-closure rather than its own module because it is a single consumer with a little state, so a
-wrapper would be ceremony without a second caller.
+reload or a reboot. It is kept an inline closure rather than its own module because it is a
+single consumer with a little state, so a wrapper would be ceremony without a second caller.
 
 The action row is deliberately outside this. It is added ahead of the list on the empty query
 and always leads, so only the cities reorder and the connect or disconnect control never moves.

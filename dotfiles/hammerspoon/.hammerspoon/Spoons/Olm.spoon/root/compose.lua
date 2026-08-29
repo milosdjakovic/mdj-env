@@ -528,10 +528,16 @@ function obj.run(olm, cfg)
   -- through a table that named each owed plugin outright, so a plugin not written into that
   -- table was validated, reported satisfied, and handed nil.
   --
-  -- Keyed by field name for two reasons. It is what lets one display fingerprint serve every
-  -- plugin that scopes remembered state by arrangement, rather than each getting its own. And
-  -- it is what stops this file, which must never name a plugin under plugins, from having to
-  -- name three of them to pay what it owes.
+  -- Keyed by field name for two reasons. It is what lets one value serve every plugin that
+  -- asked for that name, rather than each getting its own copy of the same answer, which is what
+  -- the whole stage vocabulary below rests on. And it is what stops this file, which must never
+  -- name a plugin under plugins, from having to name each of them to pay what it owes.
+  --
+  -- The worked example of the first reason used to be one display fingerprint serving every
+  -- plugin that scoped remembered state by arrangement. That closure is gone with its two
+  -- consumers, and the plugin that replaced them defines its own notion of a location rather
+  -- than sharing one, so the reason stands on the stage words instead, which genuinely are one
+  -- answer many plugins ask for.
   ------------------------------------------------------------------------------
 
   -- Every predicate this file owns outright, collected once. plan.predicates already
