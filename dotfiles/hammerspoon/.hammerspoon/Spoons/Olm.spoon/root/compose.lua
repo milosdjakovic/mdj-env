@@ -89,6 +89,25 @@ local REGISTRY_API_VERSION = 1
 -- and the path were two separate decisions that had to agree, and a plugin capturing its own
 -- state would then trigger the reload that threw the capture away. A person adding their own
 -- runtime data file under the watched tree extends this list from their own configuration.
+--
+-- THE PATTERN DOES NOT END AT .json ON PURPOSE, AND ANCHORING IT THERE IS A REAL BUG. It used to
+-- read "/config/[^/]+%.json$" and that looked exactly right and was wrong, found only by a live
+-- load. hs.json.write is atomic, so it does not write the file, it writes a sibling temp named
+-- for the target plus an sb suffix, workspaces.json.sb followed by hex and random, and renames
+-- that into place. The temp path ends in the suffix rather than in .json, so it sailed past an
+-- anchored pattern, the watcher saw a path nothing ignored, and every single capture reloaded the
+-- whole configuration about two seconds later. The observed event order was the temp path first
+-- and then the final path twice, so ignoring only the final name could never have been enough.
+--
+-- So the tail is [^/]* rather than nothing and rather than no anchor at all. Both fix the temp,
+-- and this one is the tighter of the two. Dropping the anchor entirely would also ignore a file
+-- inside a directory whose own name happens to end in .json, since anything at all could follow,
+-- while [^/]* allows only a longer last path component. That also covers the store's own rescue
+-- rename, the stamped .corrupt copy it moves a file it cannot parse to, which is another rename
+-- inside this directory that must not throw away the session it is trying to protect.
+--
+-- This was latent for DisplayProfiles too, which writes the same way into the same directory. It
+-- had simply never fired, because no profile has ever been captured on this machine.
 local SHIPPED_POLICY = {
   chord = { holdDelay = 0.6, tapThreshold = 0.2, passthrough = true },
   hyperTrigger = { kind = "leader" },
@@ -97,7 +116,7 @@ local SHIPPED_POLICY = {
   chooserTheme = {},
   cheatSheet = {},
   matcher = "fuzzy",
-  autoReload = { ignore = { "/config/[^/]+%.json$" } },
+  autoReload = { ignore = { "/config/[^/]+%.json[^/]*$" } },
 
   -- The heading drawn over the window leader's rows on the hold overlay. What the leader does
   -- rather than what it is called, since the leader's own name, META, says nothing to anybody

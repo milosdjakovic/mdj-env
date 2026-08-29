@@ -158,8 +158,19 @@ reload. That is the same trade the DisplayProfiles store already documents and i
 data file should not force a code reload.
 
 The file lives inside the watched tree, so a write would ordinarily trip the pathwatcher. The
-composition root's auto reload ignore list already covers any JSON under config by pattern rather
-than by name, so this plugin needed no entry added for it and knows nothing about any of that.
+composition root's auto reload ignore list covers any JSON under config by pattern rather than by
+name, so this plugin needs no entry of its own and knows nothing about any of that.
+
+That sentence was written before it was true, and the correction is the one defect on this build
+that no static check could have caught. `hs.json.write` is atomic, so it does not write the file,
+it writes a sibling temp named for the target plus an sb suffix and renames that into place. The
+shipped pattern was anchored to end at `.json`, so the temp path matched nothing, the watcher saw
+a path nothing ignored, and every captured move reloaded the whole configuration about two seconds
+later. The pattern and the path both read as obviously right, which is exactly why the anchor is
+the thing somebody would put back while tidying, and the comment in `root/compose.lua` now says so
+at length. The same bug was latent in the DisplayProfiles store, which writes the same way into
+the same directory and had simply never fired, because no profile has ever been captured on this
+machine.
 
 There is no host key in the file, unlike the DisplayProfiles store beside it. DisplayProfiles keys
 by host because an arrangement names physical panels that belong to one desk. A fingerprint here is

@@ -39,8 +39,16 @@
 ---
 --- The file lives under the config directory, inside the watched tree, so a write would
 --- ordinarily trip the pathwatcher and reload. The composition root's auto reload ignore list
---- already covers any JSON under config by pattern rather than by name, so this store needed no
---- entry added for it and knows nothing about any of that. It just reads and writes its path.
+--- covers any JSON under config by pattern rather than by name, so this store needs no entry of
+--- its own and knows nothing about any of that. It just reads and writes its path.
+---
+--- That claim was written here before it was true, and the gap is worth leaving on the record.
+--- hs.json.write below is atomic, so it writes a sibling temp named for the target plus an sb
+--- suffix and renames that into place, and the shipped pattern was anchored to end at .json, so
+--- the temp path matched nothing and every capture reloaded the whole configuration two seconds
+--- later. Nothing static could see it, the pattern and the path both read as obviously correct,
+--- and it took a live load with an event spy to find. The pattern now allows a longer last path
+--- component, which covers the temp and the rescue rename below alike.
 
 local S = {}
 S.__index = S
