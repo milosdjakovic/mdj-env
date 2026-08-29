@@ -1,7 +1,7 @@
 # Hammerspoon Configuration
 
 Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
-- `init.lua` - Entry point, orchestrates all Spoons
+- `init.lua` - Entry point, holding this machine's own data and preferences plus the one call into Olm
 - `config/` - User-editable configuration (pure data)
   - `apps.lua` - App bundle ID registry
   - `keys.lua` - All keybinding definitions
@@ -12,6 +12,19 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
   file does not re-list the spoons, because a hand-kept roster drifts the moment one is
   added, renamed, or removed. Each spoon that carries a non-obvious decision has its own
   `CLAUDE.md` beside its `init.lua`.
+
+The composition root is `Spoons/Olm.spoon/root/compose.lua`, not `init.lua`. `init.lua`'s
+own header says so directly, it holds this machine's own data and preferences plus the one
+call into Olm, and everything that used to be three thousand lines of wiring now lives
+inside the spoon, where a second person installing Olm would also need it. Below, wherever
+this file still names `init.lua` for a piece of wiring, configuration, or policy, take the
+true location to be `compose.lua` unless the text says otherwise.
+
+Any work that creates or changes an Olm plugin goes through the `olm-plugin` skill, at
+`.claude/skills/olm-plugin/SKILL.md` in this repository, rather than through this file. The
+skill routes to `Spoons/Olm.spoon/docs/PLUGIN-AUTHORING.md` as the recipe to follow and to
+`Spoons/Olm.spoon/docs/PLUGIN-CONTRACT.md` as the field reference once a manifest is
+underway.
 
 **External tools, and the one door to them.** A plugin that needs something from
 outside Hammerspoon declares it in its own `manifest.lua`, under `needs.tools`, where an
@@ -144,9 +157,10 @@ so each apply is idempotent and frees any dropped key.
 A catalog key is "active" only by being **referenced**. The catalog names no
 consumer, so the dependency points one way, apps and windows name their leader
 and the catalog stays ignorant of both. `config/keys.lua` sets `appLeader =
-"HYPER"` and `windowLeader = "META"`; `init.lua`, the composition root, applies
-the remap for exactly that referenced set, resolves each `fkey` to a keycode via
-`hs.keycodes.map`, and stamps the chosen window leader onto the (leaderless)
+"HYPER"` and `windowLeader = "META"`. `root/compose.lua`
+computes exactly that referenced set and hands it to KeyRemap, whose own `apply` wiring step
+runs the remap, then resolves each `fkey` to a keycode via
+`hs.keycodes.map` and stamps the chosen window leader onto the (leaderless)
 window bindings so `WindowManager` and `WindowCheatSheet` never learn the
 catalog. So moving all of window management to another physical key is one edit,
 `windowLeader = "SUPER"`, which also frees Right Option and claims Right Command
@@ -179,7 +193,7 @@ Hyper+Shift+4 sends it to the clipboard; the leaders use it so a bare arrow can
 differ from Shift+arrow.
 
 Combos the domains do not claim no longer die at the tap. With `passthrough`
-on, a ChordKey `configure` default set once in `init.lua` and inherited by every
+on, a ChordKey `configure` default set once in `root/compose.lua` and inherited by every
 leader (overridable per key), a held leader that resolves to no handler leaks the
 combo downstream as leader+key, so other apps can bind whatever we leave free.
 This is the point of exposing the leaders, a recorder in another app sees F18+G
@@ -262,7 +276,8 @@ an explicit `description` override.
 A binding may also carry an optional `when = "<predicate>"` that gates it on live
 state. When the named predicate returns false the key becomes a no-op (still
 swallowed by the held leader, so no raw character leaks) and its cheat-sheet row
-is hidden. The predicate registry (`windowPredicates` in `init.lua`) is the one
+is hidden. The predicate registry, `ownPredicates` merged in `root/compose.lua` and
+fanned out under the field name `predicates`, is the one
 place the logic lives, injected into both the dispatch gate
 (`WindowManager:bindToLeader`) and the overlay filter (`WindowCheatSheet`), so
 the key and the overlay never disagree, and `config/keys.lua` stays pure data.
@@ -298,7 +313,8 @@ drops out of both together, so the rule still reads the same. A shortcut that
 reaches neither surface is considered unfinished.
 
 Coupling is contained: `HyperKey` is an optional injected dependency of
-`AppToggler` only. If it is not wired up in `init.lua`, `AppToggler` falls back
+`AppToggler` only. If HyperKey is not granted, an optional `needs.lib` entry on
+AppToggler's own manifest resolved by `root/compose.lua`, `AppToggler` falls back
 to binding the literal `HYPER` (⇧⌃⌥⌘) combo from `keys.lua` — so removing the
 Hyper key degrades gracefully, it does not break other spoons. Window management
 has no such fallback: it goes only through `WindowLeader`, so its leader must be
@@ -414,8 +430,10 @@ reapplies the saved arrangement that fits whatever is attached. It is the
 mechanism only, it never names a machine or a layout. `config/displays.lua` holds
 the pure data, a list of profiles per machine keyed by `LocalHostName` (read with
 `scutil --get LocalHostName`), each profile a name plus a full `displayplacer`
-command. `init.lua`, the composition root, resolves this machine's name, the one
-place the per host split is decided, and injects that machine's list. The spoon
+command. `root/compose.lua` resolves this machine's name once, through `scutil`,
+and hands it to every plugin keyed per host. DisplayProfiles' own `configure` is
+where the per host split actually happens, taking its own slice of the curated
+list by that name. The spoon
 stays ignorant of hostnames and of the catalog, and a machine with no entry does
 nothing, logged so the reason shows.
 
@@ -466,9 +484,11 @@ the existing symlink.
 terminal through `TerminalHandler.spoon`, which now is pure mechanism. It no
 longer decides which screen to place on; it depends on one injected contract,
 `targetScreen()` returning an `hs.screen`, and never names how that is chosen. The
-composition root in `init.lua` supplies it. This is Strategy wired through
-injection, fed by an Observer, so the engine stays ignorant of both the default
-and the memory.
+`init.lua` supplies it directly, since TerminalHandler is the one tool this file
+wires outside Olm. This is Strategy wired through injection. Today it is fed only by the
+shared overlay display resolver `root/compose.lua` builds for every overlay, `Olm:screen()`,
+not by a dedicated terminal memory chain, so the engine stays ignorant of wherever that
+resolver's own answer comes from.
 
 Olm's DisplayMemory plugin is the Observer and the only reusable part of the memory. It
 watches one app's windows with an `hs.window.filter` on the terminal's bundle id,
@@ -488,37 +508,41 @@ string, which is the same notion of a location DisplayProfiles matches on, namel
 which displays are plugged in. So the office setup and the home setup each keep
 their own remembered terminal display and switch automatically when displays are
 docked or undocked, and a single per machine slot can no longer clobber itself
-across places. The fingerprint is a small reusable helper in `init.lua`, separate
-from both spoons, so a future per-location app placement scopes on the same value
-with one line. `hs.settings` is per machine, so the built-in panel's
-machine-specific UUID already keeps the fingerprint distinct across Macs without
+across places. The fingerprint is built once in `root/compose.lua` and fanned out to
+every plugin under the field name `scope`, separate from both spoons, so a future
+location aware app placement scopes on the same value by declaring the same need.
+`hs.settings` is per machine, so the machine specific UUID of the built in panel
+already keeps the fingerprint distinct across Macs without
 naming one, which is why the terminal memory needs no `host` while DisplayProfiles
 still does.
 
-The default policy lives in one place in `init.lua`, `defaultTerminalScreen()`,
-the built-in panel if there is one, else the first attached screen. That single
-rule covers every machine, built-in on the MacBook and the iMac, first available
-on the Mac mini which has none, so no per host table is needed, unlike
-DisplayProfiles. Built-in is matched by the screen name containing "Built-in". The
-root chains the two into the injected `targetScreen`, remembered display first
-then default, so the terminal reappears wherever it was last placed on this
-machine and lands built-in the first time on a fresh machine. `host` is resolved
-once in the TerminalHandler block (`scutil --get LocalHostName`) and reused by
-DisplayProfiles later. Dropping the DisplayMemory wiring leaves TerminalHandler on
-the default alone, graceful degradation like HyperKey and AppToggler. Adding
-DisplayMemory needed a restow, since `~/.hammerspoon/Spoons` holds one symlink per
-spoon.
+A dedicated default policy used to live in one place in `init.lua`,
+`defaultTerminalScreen()`, this machine's own internal display if it has one, else the
+first attached screen, chained with the remembered display so the terminal reappeared
+wherever it was last placed and landed on the internal display the first time on a fresh
+machine. That chain, and the
+DisplayMemory wiring feeding it, is not what runs today. `root/compose.lua` never calls
+`DisplayMemory:start()`, since its manifest declares no `wiring` step and it is not among
+the engines the last stage starts, so its window watcher never subscribes and
+`rememberedScreen()` has nothing fresh to answer with. `init.lua`'s own `targetScreen`
+reaches the same shared overlay display resolver every other overlay uses instead,
+`activeWindow` by default, the screen carrying the focused window. DisplayMemory still
+receives its `bundleID` and its `scope` exactly as declared, so reviving the old chain is a
+matter of adding its `start` to a wiring step and reintroducing the chain in `init.lua`'s
+own `targetScreen` closure, not of rebuilding the plugin. Adding DisplayMemory needed a
+restow, since `~/.hammerspoon/Spoons` holds one symlink per spoon.
 
 **Overlay display policy.** One place decides which display every transient
 overlay appears on, every chooser with its docked shortcut panel, both cheat
 sheets, and the colour toast. The list is not enumerated here on purpose, a hand kept
-roster drifts the moment a picker is added, and the `choosers` registry in `init.lua` is
-the authority. This is Strategy wired through injection, the same shape as
-TerminalHandler's `targetScreen`. A small registry in `init.lua` maps a mode name
+roster drifts the moment a picker is added, and the mode to resolver map inside
+`Spoons/Olm.spoon/lib/overlaydisplay.lua` is the authority. This is Strategy wired through
+injection, the same shape as TerminalHandler's `targetScreen`. That map ties a mode name
 to a resolver returning an `hs.screen`, `config/settings.lua` picks the mode in
-the pure-data `overlayDisplay` block, and the chosen resolver is injected into the
+the pure data `overlayDisplay` block, `root/compose.lua` passes it through as policy, and
+the chosen resolver is injected into the
 two atoms, `CanvasPanel.configure({ screen })` and `Chooser.configure({ screen })`.
-Neither atom names the policy or the modes, so both the choosers and the cheat
+Neither atom names the policy or the modes, so every overlay and the cheat
 sheets read one seam and land on the same display.
 
 The live choice is set at runtime, not by editing config. The **Overlay Display**
@@ -561,7 +585,7 @@ working is drawn on the shared `CanvasPanel`, never on `hs.alert`, so the UI sta
 one surface and the message lands on whatever display the policy above chose.
 `hs.alert` is the reason this needs saying, it draws itself with no knowledge of
 that policy, so a stray alert shows up somewhere no other overlay ever does. The
-colour toast in `init.lua` is the worked example, a content function returning
+colour toast in `root/compose.lua` is the worked example, a content function returning
 `preferredSize` and `draw` fed into a single panel that is reused across messages
 and hidden by a timer, with a mutable state table so a burst replaces the message
 rather than stacking a column of panels. A spoon does not name the surface. It
@@ -573,11 +597,11 @@ overlay display screen.
 all. "Terminal not configured" in TerminalHandler, "No focused window!" in
 WindowManager, and the "Color picker unavailable" fallback in Eyedropper are all
 that shape, and they stay as they are. The rule governs the working path, not the
-broken one. One place does not follow it yet, the copy confirmation in Vpn, which
-is routine feedback sitting on an alert because it predates the convention.
+broken one. Vpn carries no `hs.alert` today, so the exception this paragraph used
+to name here no longer applies.
 
 **Spoon lifecycle contract.** Every spoon is created and wired the same way, so
-`init.lua` can treat them uniformly. This is a convention, not a base class,
+`root/compose.lua`'s wiring pipeline can treat them uniformly. This is a convention, not a base class,
 because a Lua contract is structural, a documented set of methods plus validation,
 not an inherited type. Two methods are required. `init()` returns self and does no
 side effects. `configure(opts)` takes a single `opts` table holding every
@@ -599,10 +623,11 @@ configurable mechanism, the bottom layer. When two or more of them are combined
 into one feature, the deciding question is whether the combination carries behavior
 or state of its own. If it is only a choice or an ordering, it stays a closure in
 the composition root, that is still top down configuration and a separate entity
-would be single caller ceremony, which is why `TerminalHandler.targetScreen` and
-the overlay screen strategy are just injected closures in `init.lua`. If it has its
+would be single caller ceremony, which is why `TerminalHandler.targetScreen` in
+`init.lua`, and the overlay screen strategy in `root/compose.lua`, are just injected
+closures. If it has its
 own state or lifecycle it becomes a coordinator, itself a spoon following this same
-contract, instantiated in `init.lua` like any other, which is what Olm's Launcher
+contract, instantiated in `root/compose.lua` like any other, which is what Olm's Launcher
 host is. Most combinations already have a natural owning engine and the glue belongs
 inside it as injected providers, the Capture plugin's layout below, so a standalone
 coordinator is reserved for glue that has no natural owner and holds state.
@@ -662,7 +687,7 @@ not, they resolve through the existing symlink.
 
 **Documenting a spoon, and what this file keeps.** Decision records are split by
 a single seam. This file keeps only what spans spoons, the leader key model, the
-spoon lifecycle contract, the overlay display policy, and how `init.lua` wires
+spoon lifecycle contract, the overlay display policy, and how `root/compose.lua` wires
 everything as the composition root, so it answers where a thing lives and how the
 pieces connect. A spoon that carries a decision not obvious from reading it also
 gets its own `CLAUDE.md` beside its `init.lua`, holding that spoon's internal
@@ -702,9 +727,10 @@ picker wiring below serves, the contexts, the predicates, and the shortcut panel
 assembled in the root, so the spoon exposes only a control surface and its rows and
 learns none of it. The payoff is that rebinding a key, or opening the tool another way,
 touches config alone, and the hint and the binding can never disagree because there is
-one source of truth. The Vpn spoon's unavailable install row is the worked example, it
-shows the install command as plain subtitle data and copies it on selection, and says
-nothing about which key copies it.
+one source of truth. The Vpn plugin's unavailable tool row is the worked example, a
+disabled row that names the missing tool as plain data and does nothing when chosen, and
+says nothing about any key, since the repository root is what answers where the tool
+comes from.
 
 **Wiring a list tool into the Hyper contexts.** The picker atom gives only the
 widget. `Spoons/Olm.spoon/lib/chooser` wraps the native `hs.chooser` and backs every list tool,
@@ -728,15 +754,18 @@ step mirroring what the clipboard already does.
 2. Add a context block in `config/keys.lua` under `hyperContexts`, with a name, a
    `when` predicate name, a priority, and the bindings by action name. This stays
    pure data.
-3. Add the predicate in the registry in `init.lua`, the `when` name mapped to a
-   function returning whether that surface is open.
-4. Register the surface in the `choosers` list in `init.lua`, so `activeChooser`
-   and `routeNav` send the navigation actions to whichever surface is open.
+3. Add the predicate, the `when` name mapped to a function returning whether that
+   surface is open, either on the plugin's own `predicates` table or, for a root owned
+   gate, straight into `ownPredicates` in `root/compose.lua`.
+4. Expose a `surface` function so `root/compose.lua`'s `surfaceAdapterFor` can resolve
+   it into the plan, the live equivalent of the retired `choosers` list, so `lib/nav.lua`'s
+   `activeSurface` and `routeNav` send the navigation actions to whichever surface is open.
 5. Show the shortcuts. Every chooser now runs on the native backend and docks a
    deferred `HelperPanel` (a plain `hs.canvas`) below the list, so the hints stay
    hidden while the field is in use and reveal once the user pauses
-   (`settings.shortcutsPanel.delayMs`). Build one with `shortcutPanelFor(name)` in
-   `init.lua`, which reads the hints from `footerFor(name)` (the same `hyperContexts`
+   (`settings.shortcutsPanel.delayMs`). Build one with `shortcutPanelFor(name)`, defined in
+   `Spoons/Olm.spoon/lib/hints.lua` and called from `root/compose.lua`, which reads the hints
+   from `footerFor(name)` in the same file (the same `hyperContexts`
    bindings) and returns the three callbacks a native chooser is wired with, then
    pass `onPositioned`, `onActivity`, and `onClose` into the chooser. `onPositioned`
    arms the panel at the chooser frame, `onActivity` pokes its idle timer on each
@@ -994,7 +1023,7 @@ file, `Spoons/Olm.spoon/lib/chooser/match.lua`, a pure `match(query, hay) -> sco
 nil drops a row and a number ranks it, higher first with the original order breaking
 ties. `Chooser.matchers` exposes the strategies, `fuzzy`, `substring` (the pre-fuzzy
 behaviour, a plain substring test where every match scores zero so the list keeps its
-natural order), and `words` (a word tokenizer, see the clipboard below). `init.lua`
+natural order), and `words` (a word tokenizer, see the clipboard below). `root/compose.lua`
 injects one through `Chooser.configure({ matcher = ... })`, so switching every list
 between them is one edit. Today the root default is fuzzy, and the clipboard overrides
 its own to `words`.
@@ -1096,7 +1125,7 @@ guessed which options are closed would flag work this rule never meant to reach,
 check gets ignored, which is worse than none. A future set joins that list when its owner
 publishes one and not before. There is deliberately no inventory golden section for any of this,
 since a check that fails the run is stronger than a diff somebody has to notice, and the members
-themselves are pinned by `test/cases/panel-namedvalues.lua` and `test/cases/chooser-fieldmode.lua`.
+themselves are pinned by `test/cases/panel-namedvalues.lua`.
 
 **Clipboard preview.** The clipboard is the third native panel in the pair. Its
 manager reserves a companion pane beside the chooser (`layout.companionWidth`), and

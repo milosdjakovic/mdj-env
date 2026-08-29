@@ -35,12 +35,12 @@ Everything else `init.lua` exposes it must declare.
 **If Olm can derive the need from something the plugin already declared, the plugin
 must not declare it again.**
 
-This is the whole reason the manifest is short. Fifteen plugins need the shared chooser
-factory and the shared theme. None of them declare either, because all fifteen declare
-`surface`, and declaring a surface is what makes a plugin one that opens a list. The
-entitlement follows from the role. Writing `chooser` and `theme` into fifteen manifests
-would be retyping global policy fifteen times, which is the exact defect this design
-exists to remove, and it would give fifteen places for that policy to drift.
+This is the whole reason the manifest is short. Every plugin that opens a list needs the
+shared chooser factory and the shared theme. None of them declare either, because each one
+already declares `surface`, and declaring a surface is what makes a plugin one that opens a
+list. The entitlement follows from the role. Writing `chooser` and `theme` into every one of
+those manifests would be retyping global policy in each, which is the exact defect this
+design exists to remove, and it would give just as many places for that policy to drift.
 
 So the manifest answers what is true about this plugin alone. Olm answers what follows
 from that.
@@ -82,8 +82,8 @@ by convention, the identity often is not, and the two are not the same thing.
 name = "colorPicker",   -- the directory is eyedropper
 ```
 
-Omit it only when the identity is exactly the directory name. Seven of the twelve
-surfaced tools differ, so omitting it is the exception rather than the rule.
+Omit it only when the identity is exactly the directory name. Most surfaced tools differ,
+so omitting it is the exception rather than the rule.
 
 This is also the identity a person's own configuration has to use. `cfg.data` is keyed by
 plugin, and `cfg.globals` says which spoon global a plugin should be mirrored onto, and
@@ -798,9 +798,9 @@ present, push, and pop, before the incoming side is given anything.
 A plugin migrating its own companion pane onto the stage in phase five carries its existing
 `onPositioned` function largely intact, not unchanged. Three things still move. It has to
 become a resolvable module member, since a manifest member spec can only name one, and all
-three of today's pane consumers keep theirs as a file local function instead,
-`plugins/filesearch/chooser.lua:435`, `plugins/processes/chooser.lua:337`,
-`plugins/clipboard/manager/ui.lua:1172`. It drops its own call to `cfg.onPositioned(anchor)`,
+three of today's pane consumers keep theirs as a file local function instead, in
+`plugins/filesearch/chooser.lua`, `plugins/processes/chooser.lua`, and
+`plugins/clipboard/manager/ui.lua`. It drops its own call to `cfg.onPositioned(anchor)`,
 since the docked hint panel is atom level policy the stage now re anchors itself, through
 `paneAnchor` below, on every path that has real frames to report, and a plugin still making
 that call would be a second, competing writer of the identical panel, finding M2's own residue
