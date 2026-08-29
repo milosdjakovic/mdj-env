@@ -178,6 +178,11 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`. See `dotfiles/hammerspoon
 
 Testing a Hammerspoon change live goes through `bin/hs-devlock`, a machine-wide test lock, since only one config can run at a time. Take it only for testing, release it back to main the moment testing stops being the focus, and never hold it across development. The full discipline is in the hammerspoon `CLAUDE.md` under "Testing a change in an isolated worktree, and the test lock", read it before making any Hammerspoon config live.
 
+Any work that creates or changes an Olm plugin goes through the `olm-plugin` skill at
+`.claude/skills/olm-plugin/SKILL.md`. It carries the decision rules and the gates, and it
+routes to the authoring guide and the contract inside the spoon. Do not build or modify a
+plugin from memory of the contract, the skill exists because the contract moves.
+
 BrowserTabs is the one config here with a test suite, in `dotfiles/hammerspoon/.hammerspoon/Spoons/Olm.spoon/plugins/browsertabs/test/`, run through its own `suite.sh` which takes the lock and gives it back. It is an integration harness by necessity rather than by preference, since every fault it guards against lives in Apple Events or the accessibility layer and no test with a fake browser in it could see any of them. Run it before merging a change to that plugin. Its README says what it covers, what it deliberately does not, and why a green run is regression protection rather than proof.
 
 Worktree convention. When you create a git worktree for a feature or fix, put it under a `.worktrees/` directory in the parent of the repo (beside this checkout, so `../.worktrees/` from the repo root), named for the feature, so worktrees stay in one place rather than scattered as bare siblings of the repo. Because that directory is outside the repo, it never shows up in the repo's own status. Never write the absolute path, always reach it relative to the repo.
