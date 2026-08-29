@@ -71,7 +71,12 @@ failed to build. If you add a new kind of need, the delivery is the part to writ
 ## Fields
 
 Every field is optional. A plugin with nothing to claim returns `{}` and that is a
-complete answer, not an omission. KeyRemap and WindowMemory both do.
+complete answer, not an omission. This used to name KeyRemap and WindowMemory as the two
+worked examples of that, and neither is one any more. WindowMemory is gone, replaced by
+Workspaces, and KeyRemap grew a real declaration once it was understood that shipping with
+the system is an origin rather than a reason to stay silent. So the rule stands and the tree
+happens to have no example of it right now, which is worth saying plainly rather than
+citing a plugin that has moved on.
 
 ### name
 

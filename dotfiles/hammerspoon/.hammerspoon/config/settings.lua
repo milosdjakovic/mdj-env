@@ -34,16 +34,10 @@ return {
     minPadding = { x = 40, y = 20 },
   },
 
-  -- Window layout memory. Records every standard window's frame per display
-  -- configuration and restores it automatically on docking, undocking, and waking.
-  -- tolerance is the pixel slack for the compare and skip guard, so a one or two pixel
-  -- nudge from an app snapping a window is not mistaken for a real move. The settle
-  -- timing is shared with DisplayProfiles (displays.settleDelay), so both coalesce the
-  -- same screen event burst, and the spoon adds its own small margin so frames are
-  -- restored only after the display geometry has been reapplied.
-  windowMemory = {
-    tolerance = 5,
-  },
+  -- A windowMemory block used to sit here, holding the pixel tolerance for the retired
+  -- WindowMemory plugin. Nothing ever passed it through, so it was already dead, and the
+  -- plugin it named is gone. Workspaces owns that behaviour now and carries its own tuning
+  -- inside its engine, which is where a constant nobody has ever wanted to change belongs.
 
   -- The shared canvas surface. One source for how every canvas panel looks in
   -- light and dark, the docked shortcut bars, the cheat sheet, the colour toast,

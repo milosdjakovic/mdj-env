@@ -42,7 +42,6 @@ local olm = spoon.Olm:start({
   -- arrangements never arrived, and file search ran with no policy, all three from one letter.
   -- Olm now names any key here that matches no plugin, so the next slip says so.
   data = {
-    displaymemory   = { bundleID = apps[settings.terminal.preferredTerminal] },
     displayProfiles = { profiles = displays.profiles, settleDelay = displays.settleDelay },
     windowmanager   = { settings = settings, margins = margins },
     browserTabs     = { chromeBundleID = apps.GoogleChrome },

@@ -480,7 +480,7 @@ in `Spoons/Olm.spoon/plugins/displayprofiles/CLAUDE.md`. Adding the original spo
 needed a restow, but the new sibling files inside it did not, they resolve through
 the existing symlink.
 
-**Terminal placement, and remembering the display.** Option+\` toggles the
+**Terminal placement.** Option+\` toggles the
 terminal through `TerminalHandler.spoon`, which now is pure mechanism. It no
 longer decides which screen to place on; it depends on one injected contract,
 `targetScreen()` returning an `hs.screen`, and never names how that is chosen. The
@@ -490,47 +490,37 @@ shared overlay display resolver `root/compose.lua` builds for every overlay, `Ol
 not by a dedicated terminal memory chain, so the engine stays ignorant of wherever that
 resolver's own answer comes from.
 
-Olm's DisplayMemory plugin is the Observer and the only reusable part of the memory. It
-watches one app's windows with an `hs.window.filter` on the terminal's bundle id,
-and on every `windowMoved` records the display the window lands on, whether it was
-dragged there or moved by the META leader's prev/next display. Identity is the
-display UUID, stable across reboots, and the memory is a table from scope to
-display UUID stored under one `hs.settings` key, `terminalDisplay`, surviving a
-reload or a reboot. It answers `rememberedScreen()` with the display remembered for
-the current scope while it is attached, else nil, so a caller can fall back. It
-never decides a default and never decides what a location is; the root injects the
-app to watch and a `scope`, a string or a function evaluated live.
+Two plugins used to sit under this heading, DisplayMemory remembering which display the
+terminal was last on and WindowMemory remembering every window's frame for the current set
+of monitors. Both are deleted. Neither declared a `wiring` step and neither is one of the
+fixed leader engines the last stage starts, so `start()` was never called on either of them,
+their watchers never subscribed, and both had been inert for the whole life of the Olm
+build while every check reported a clean wiring run. Workspaces below replaces them, and the
+lesson worth keeping is that a plugin without a `wiring` step declaring how it starts is a
+plugin that does nothing, quietly, forever.
 
-The scope is what makes it location aware, and it is where DisplayMemory and
-DisplayProfiles are mixed without being coupled. The root injects
-`displayFingerprint()`, the sorted UUIDs of the attached displays joined into one
-string, which is the same notion of a location DisplayProfiles matches on, namely
-which displays are plugged in. So the office setup and the home setup each keep
-their own remembered terminal display and switch automatically when displays are
-docked or undocked, and a single per machine slot can no longer clobber itself
-across places. The fingerprint is built once in `root/compose.lua` and fanned out to
-every plugin under the field name `scope`, separate from both spoons, so a future
-location aware app placement scopes on the same value by declaring the same need.
-`hs.settings` is per machine, so the machine specific UUID of the built in panel
-already keeps the fingerprint distinct across Macs without
-naming one, which is why the terminal memory needs no `host` while DisplayProfiles
-still does.
+**Workspaces.** Remembers where windows belong per display configuration and puts them back
+on its own, the replacement for both retired memory plugins in one engine. It lives at
+`Spoons/Olm.spoon/plugins/workspaces/` and its own `CLAUDE.md` there holds the decision
+trail. Two things about it belong here because they cross the config rather than sitting
+inside one plugin.
 
-A dedicated default policy used to live in one place in `init.lua`,
-`defaultTerminalScreen()`, this machine's own internal display if it has one, else the
-first attached screen, chained with the remembered display so the terminal reappeared
-wherever it was last placed and landed on the internal display the first time on a fresh
-machine. That chain, and the
-DisplayMemory wiring feeding it, is not what runs today. `root/compose.lua` never calls
-`DisplayMemory:start()`, since its manifest declares no `wiring` step and it is not among
-the engines the last stage starts, so its window watcher never subscribes and
-`rememberedScreen()` has nothing fresh to answer with. `init.lua`'s own `targetScreen`
-reaches the same shared overlay display resolver every other overlay uses instead,
-`activeWindow` by default, the screen carrying the focused window. DisplayMemory still
-receives its `bundleID` and its `scope` exactly as declared, so reviving the old chain is a
-matter of adding its `start` to a wiring step and reintroducing the chain in `init.lua`'s
-own `targetScreen` closure, not of rebuilding the plugin. Adding DisplayMemory needed a
-restow, since `~/.hammerspoon/Spoons` holds one symlink per spoon.
+A configuration is identified by geometry, never by monitor identity. The fingerprint is
+every screen's `fullFrame()` in points, sorted by origin, joined into one string, so vendor,
+model, pixel resolution, and plug order all stop mattering, two identical panels can never be
+confused because a window is keyed to a position in point space rather than to a panel, and
+two geometrically identical desks in different buildings deliberately share one
+configuration. That is a notion of a location only this plugin defines, so it computes the
+fingerprint itself and the shared root `scope` closure the two retired plugins consumed is
+gone with them.
+
+Workspaces and DisplayProfiles are independent and stay that way. DisplayProfiles owns the
+physical arrangement through displayplacer, Workspaces owns where windows sit inside whatever
+arrangement resulted, and Workspaces never talks to displayplacer. Ordering between them
+emerges rather than being wired. Every change DisplayProfiles makes is itself a screen event,
+and Workspaces waits for screen events to go quiet before it restores, so the arrangement
+always lands first without either plugin naming the other. This is the same argument
+WindowMemory arrived at and it survived the rewrite intact.
 
 **Overlay display policy.** One place decides which display every transient
 overlay appears on, every chooser with its docked shortcut panel, both cheat
@@ -614,7 +604,7 @@ add `start`/`stop` with nothing to do, that is the ceremony the design principle
 reject. Both call styles are allowed, the colon and self spoons that are the norm
 and the dot called module style Vpn and the clipboard submodules use, since the
 contract is a method set and not an object model, so Vpn is not rewritten to
-conform. `DisplayMemory` and `Launcher` are the worked examples of the full set,
+conform. `Workspaces` and `Launcher` are the worked examples of the full set,
 each owns a watcher so each has a real `start` and `stop`, while `TerminalHandler`,
 `WindowManager`, and `AppToggler` correctly stop at `init` and `configure`.
 

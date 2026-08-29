@@ -873,23 +873,15 @@ function obj.run(olm, cfg)
     -- This machine's identity, for anything keyed per host.
     host = localHostName,
 
-    -- Which arrangement of displays is attached right now, as one comparable string, so a
-    -- plugin remembering where a window belongs remembers it per arrangement rather than
-    -- globally. Sorted, so the same set of screens answers the same string whatever order the
-    -- system happens to enumerate them in, and read fresh on every call since the whole point
-    -- is that it changes when a display is plugged in.
-    --
-    -- One closure serving every plugin that asks is exactly why this table is keyed by field
-    -- name. Two plugins scope their memory this way and they have to agree, or the same desk
-    -- is two different places to them.
-    scope = function()
-      local ids = {}
-      for _, screen in ipairs(hs.screen.allScreens()) do
-        ids[#ids + 1] = screen:getUUID() or tostring(screen:id())
-      end
-      table.sort(ids)
-      return table.concat(ids, ",")
-    end,
+    -- A scope closure used to sit here, the attached displays as one sorted string of screen
+    -- UUIDs, published under the field name scope for whichever plugin remembered state per
+    -- arrangement. Its two consumers, DisplayMemory and WindowMemory, are both gone, and the
+    -- plugin that replaced them, Workspaces, keys on the point geometry of the attached screens
+    -- rather than on their identity, so vendor, model, pixel resolution, and plug order all stop
+    -- mattering and two identical panels can no longer be confused. That is a fingerprint only
+    -- the plugin that reads it can define, so it computes its own rather than taking one from
+    -- here, and a root value with no consumer left is a promise nobody is owed. Anything wanting
+    -- a shared notion of a location again should say what it means by one before this comes back.
 
     -- Where a plugin keeps data a person is meant to be able to read, edit and commit. Per
     -- declaring plugin, since two plugins sharing one file would silently overwrite each
