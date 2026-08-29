@@ -1,11 +1,11 @@
 # CLAUDE.md
 
-This file records the decisions behind olm's core libs, the shared mechanisms under `lib/`
-that a plugin reaches through `Olm.lib`. One section per lib, holding what a future reader
-would otherwise have to rediscover by measuring. The interaction rules, the core membership
-test, and the packaging decision live in the design at
-`docs/superpowers/specs/2026-07-27-hammerspoon-olm-core-and-plugins-design.md` until the
-phase that moves them here.
+This file records the decisions and measured findings behind olm's core libs, the shared
+mechanisms under `lib/` that a plugin receives through its own `configure` and never reaches
+for itself. One section per lib, holding what a future reader would otherwise have to
+rediscover by measuring. The authoring rules live in `docs/PLUGIN-AUTHORING.md`, the field
+reference in `docs/PLUGIN-CONTRACT.md`, and the workflow for building or changing a plugin in
+the repository's `olm-plugin` skill.
 
 ## Paste, the insertion primitives
 
@@ -166,375 +166,36 @@ land.
 
 ## Registry, the tool dispatch
 
-`lib/registry.lua`, phase seven of the build plan, all five packets. A registry keyed by name,
-backing dispatch by name, Strategy with the strategy chosen at runtime by a string. It is a
-factory in the same style as `lib/recency.lua`, `M.new(opts)` handing back an independent
-instance whose functions are dot called, never colon called, since there is no metatable and no
-self. It names no tool, reads no configuration, and imports nothing from the tree beyond
-`hs.logger`, which is what makes it the first part of this config testable in the unit runner
-rather than only live, in `test/cases/registry.lua`.
+`lib/registry.lua` is the keyed store behind every launcher row, alias, chord, and open
+predicate, one descriptor per tool, Strategy with the strategy chosen at runtime by a string.
+The store itself reads no configuration and names no tool. A descriptor is built from each
+plugin's manifest by `lib/registrar.lua` and registered exactly once, from inside
+`lib/wire.lua` at the register stage of the pipeline, after every plugin's wiring has run, so
+the module a descriptor is checked against is the real finished one. No hand written
+registration call exists anywhere, and adding a tool costs a manifest, never an edit to a
+composition root. `docs/PLUGIN-CONTRACT.md` is the field by field truth for what a descriptor
+may carry.
 
-**The descriptor.** One table per tool, handed to `register`. `name` is the tool's own key in
-`config/keys.lua`, a string, required. `apiVersion` is the integer the tool was built against,
-required. `open` is a function of no arguments, what running this tool's launcher row does,
-optional, because a tool may exist only as a scope in a later packet. `commands` is a map of name
-to function, extra named actions belonging to this tool rather than tools of their own, optional.
-The clipboard is the one tool using this today, owning append copy and paste next, and putting
-them here rather than registering them as tools of their own is what makes deactivating the
-clipboard take both with it. `surface` and `hosted`, both optional, joined in the second packet
-and are the subject of their own sections below.
+Three decisions from the original build still govern the lib and are worth keeping here.
 
-**Why register refuses rather than raises.** One bad descriptor must not empty the launcher, the
-same reasoning behind a query source that raises being dropped for a keystroke rather than
-crashing the chooser. Every refusal is one log line at warning naming the tool and the reason,
-and `register` answers true when it registered, false when it refused, so a caller can react if
-it ever wants to, though the composition root does not. Eighteen refusals exist by the end of the
-phase, and they are enumerated once, in that module's own header, rather than a second time here.
-This paragraph used to list them and the list went stale twice as later packets added more, which
-is the drift this whole phase was about, so it now says only what shape they take. A name must be
-a string and must not already be taken, a `commands` key must not collide with anything already
-indexed nor with its own tool's name, the `apiVersion` must equal the core's, and every optional
-field a later packet added, `surface`, `row`, `scope` and `shortcut`, is refused when present and
-malformed, always naming the tool and always refusing the whole registration rather than half of
-it.
+**Refusing rather than raising.** One bad descriptor must not empty the launcher, so every
+malformed field is refused with one console line naming the tool and the reason, and the whole
+registration is dropped. The plugin loses its row, its key, and its list rather than getting a
+silently wrong one, and the rest of the config keeps working.
 
-**Why the version check is equality.** The core version is injected at construction, passed in as
-`opts.apiVersion` rather than read from `spoon.Olm`, since the registry must not reach for the
-spoon that contains it. Equality rather than a range, because `obj.apiVersion` is bumped only on
-a breaking change, which makes every difference in either direction a mismatch by definition. The
-composition root writes the literal integer on each registration rather than reading
-`spoon.Olm.apiVersion` into it, since a registration copying the core's own number can never
-mismatch and the check would then be theatre, a defect it could catch only by lying about having
-one.
+**The equality version check.** `apiVersion` is compared for equality, not for at least,
+because the contract has changed meaning without changing shape before. A tool built against a
+different contract is refused loudly rather than run on luck. The registrar stamps the core's
+own value onto every descriptor it builds, so the check cannot fail for a manifest built
+plugin and guards a descriptor assembled anywhere else.
 
-**Why the root registers rather than the plugin.** A plugin here never reaches for `spoon.Olm`
-and only ever receives its slice through its own `configure`, a rule the tree already keeps and
-this file keeps too, so no plugin calls `register` on its own behalf. The composition root calls
-it once for each tool, since the root is the only layer that knows a concrete tool exists at all.
-A third party plugin from the search path would call the same door itself, one door, two callers,
-and the door does not care which one knocked.
+**Identity stays off the descriptor.** The physical key, the activation roster, and the alias
+words live above this spoon in the config tree, `config/keys.lua` and `config/settings.lua`
+under `.hammerspoon`, never on the descriptor, so a tool
+knows what it does and the person's config knows how it is reached. That split is why a
+rebind, a rename, or a deactivation never touches a plugin.
 
-**`all()` and what it is for.** `all()` lists every registered tool name in registration order
-with its active flag, and, since this packet, whether it declared a `surface` and whether it
-declared `hosted`, all for diagnostics only. Both new fields report presence on the descriptor
-rather than a resolved value, so the answer never depends on the moment it was asked, which is
-what lets `test/inventory.lua` read it live and hold the shape of every descriptor in the
-committed golden rather than only its name and its active flag.
-
-**What inactive means, and the one thing it still does not.** `activate(names)` takes a list of
-tool names and is called once after every registration. A registered tool whose name is in the
-list is active, one not in the list is registered and inactive, and a name in the list that
-nothing registered produces one warning line naming it and is otherwise ignored, since a typo in
-a roster should be visible and harmless rather than fatal.
-
-An inactive tool now answers nothing to every read. `run` answers false, `get`, `rowFor` and
-`scopeFor` answer nil, `scopes` skips it, and `shortcuts` offers neither the tool
-nor any of its commands, so its launcher row, its navigation keys, its query scope and its
-keyboard shortcut all go together. The earlier packets each left part of that promise unkept and
-said so in this paragraph while they did, and the fifth closed the last of it.
-
-What activation still does not do is stop a plugin loading. An inactive tool's file is still
-read, its `configure` still runs and its `start` still starts, so an inactive tool is a plugin
-that is present and does nothing rather than one that was never there. Closing that means gating
-the composition root's own per plugin wiring, which is a different kind of change from folding a
-join point, and it was deliberately kept out of this whole phase.
-
-**Why the launcher looks in two places.** `host/launcher/init.lua`'s `_runItem` asks the registry
-first and falls back to the injected `actions.special` table only when the registry did not run
-anything. Two sources is not a leak. A registered name is a tool. What stays in
-`actions.special`, `lock`, `sleep`, and the System Settings search focus, is a bare command with
-no tool behind it, and the design's own rule is to resist making everything a plugin, so one
-lookup for each kind of thing is honest. The order only matters because a name cannot be claimed
-by both, which registration itself already refuses.
-
-**The two fields the second packet adds.** `surface`, optional, a function of no arguments
-returning this tool's navigation adapter, the object answering `isShowing` and whatever
-navigation methods its context binds. `hosted`, optional, a plain boolean, true when choosing
-this tool's launcher row should host its list in place rather than open its own picker. Nothing
-else joined the descriptor with them, not a scope, not a predicate, not a chord, since a field
-with no consumer yet is the indirection the design principles this file already follows reject.
-
-**Why `surface` is a function, and the measurement that forced it.** A scan of the composition
-root found that `spoon.Emoji:surface()` and `spoon.TextCase:surface()` both hand back a field
-their own `configure` built, and both of those `configure` calls run far below the registration
-block. Writing `surface = spoon.Emoji:surface()` at registration time would have called the
-method before that field existed and captured nothing at all, permanently and silently, so the
-tool would simply never receive a navigation key again with no warning anywhere. Wrapping every
-`surface` in a closure and resolving it lazily, rather than at `register` time, is what
-avoids that, the discipline `surfaces(spec)` kept for the life of that accessor and
-`root/compose.lua`'s own `surfaceAdapterFor` still keeps for whatever replaced it, and
-every registration obeys it uniformly, including the seven tools
-whose surface is already a stable module reference and would have survived either spelling,
-because a rule that holds for most of a set and silently fails two members of it is worse than a
-rule with no exceptions to remember.
-
-**The `surfaces` accessor, retired.** `surfaces(spec)` once took an ordered list mixing tool
-names and plain objects and answered an ordered list of navigation adapters, warning by name on
-every hazard, an unregistered name, an active tool declaring no `surface`, and a surface
-resolving to something missing or with no `isShowing`, and staying silent only for the one
-legitimate case, a registered but inactive tool. It fed the retired root's own `choosers` list
-and `activeChooser` walk, both gone along with the standalone pickers they served. The
-composition root building the chooser stage never wired through it, building its own navigation
-adapter list by hand in `root/compose.lua` instead, `surfaceAdapterFor` and the `plan.order` loop
-around it, consumer map surprise 9.10, and it was deleted in the chooser stage close out sweep
-rather than left as a second, unwired mechanism beside the one the root actually uses. Read
-`root/compose.lua`'s own `surfaceAdapterFor` for the live equivalent, the identical lazy
-resolution, closures asked at each key press rather than captured at registration, adapted to a
-registry that no longer builds a `choosers` list at all.
-
-**Why the alias directory is named by hand for now.** The `hosted` bit for nine of the ten
-entries `hostedInPlace` used to hold now lives on the tool's own descriptor, read through
-`registry.get` so an inactive tool answers the same nil it answers every other read. The alias
-directory is the exception. It is not a tool with a picker at all, it is a scope, so it carries no
-descriptor for this registry to ask, and the root's `actions.rowIntercept` still checks its name
-directly with one comment saying so. A later packet in this phase is where scopes join the
-registry too, and that is where this name check moves with them.
-
-**Why the twelve open predicates were left alone.** Twelve predicates exist in the composition
-root, one per chooser entry, and each restates the same fact a surface already states, whether
-that entry's `isShowing` answers true. Folding them into the registry is the obvious next step
-and this packet deliberately does not take it. A predicate that silently always answers false
-disables a tool's navigation with no gate anywhere that would catch it, and stacking that risk on
-top of the ordering hazard `surface` already carries would leave a failure nobody could bisect by
-looking at only one of the two. The predicates stay exactly as written, and the root says so
-beside them.
-
-**The descriptor gains a row, phase seven's third packet.** `row`, optional, is a table
-describing this tool's launcher row, the presentation data the launcher used to hold in thirteen
-hand written calls, its category, its glyph, its detail or its chord, and its keywords. A tool
-with no `row` gets no row on the launcher, which is what a tool reachable only as a scope wants.
-`category` is the one required field once `row` is present at all, the word before the separator
-in the subtitle the launcher renders, `Tools`, `System`, `Network`, `Clipboard`, `Displays`, or
-`Text` today. Everything else inside `row` is opaque to this module and meaningful only to the
-launcher on the other end of `rowFor`.
-
-**Why `keysName` exists, and why only one tool writes it.** `keysName`, optional, names the key in
-`config/keys.lua` a row reads its description and chord from, defaulting to the tool's own name.
-Only `clipboard` writes it, since its row reads `keys.clipboardHistory` while the tool is
-registered under `clipboard`, and every other tool's registered name already is its own key in
-that file, which is the whole reason `name` was chosen to be that key back in the first packet.
-Writing `keysName` anywhere else would paper over a second tool disagreeing with its own key
-rather than fixing the disagreement, so it stays written in exactly the one place that needs it.
-
-**Why `chord` exists for exactly two commands, and must not spread.** `chord`, optional, is either
-absent, which is every tool's row and renders a Hyper chord label, or a string naming a different
-rendering. `appendCopy` and `pasteNext` are the only two rows that carry it, since both are a
-modifier combination rather than a Hyper chord and their subtitle is built from that combination
-directly rather than from the shared chord label helper. A third row reaching for `chord` would be
-a sign that this field grew into a general purpose escape hatch rather than the one narrow
-exception it was written for, and the two rows that have it are named here so that stays checkable.
-
-**A command may carry its own row, the same shape as a tool's.** A `commands` value may be a
-table carrying its function under `fn` plus its own optional `row`, rather than a bare function,
-which is how `appendCopy` and `pasteNext` keep a launcher row while remaining commands of the
-clipboard rather than tools of their own. Both row shapes, a tool's and a command's, are validated
-by the one function inside `register`, and a malformed row anywhere in a descriptor refuses the
-whole registration, naming the owning tool, since a registration commits atomically or not at
-all.
-
-**`rowFor(name)`, the accessor this packet adds.** It answers the row of an active tool or of a
-command of an active tool, or nil, resolved through the same flat index `run` already reads, so a
-command's row is found under the command's own name and an inactive tool answers nil for itself
-and for every command it owns. That last part is what makes an inactive tool's launcher row
-actually disappear, the promise the first packet's header comment deferred, paid here, even
-though nothing is deactivated by default today so there is nothing yet to see disappear.
-
-**Why the launcher's row order was preserved rather than derived.** The thirteen `add` calls
-became thirteen `addTool` calls, each left in the exact position its `add` call held, call for
-call, with nothing regrouped. A used row floats on recency ahead of everything else, so this order
-only governs the untouched rows a fresh install or a fresh reload actually shows, which is
-precisely the list changing it would change. Deriving the order from the registry instead was
-rejected for that reason, not for difficulty, since the registration order the root happens to
-write is not a promise about what a person should see first.
-
-**What this leaves unfinished.** Adding a tool still costs one `addTool` line in the launcher,
-so a row's data left the launcher but the decision of which rows exist and in what order did not,
-this is not yet one registration. Removing that last line would move the whole row order into the
-composition root, which would take the capture loop and the window loop with it since they build
-inside the same function, and that is a decision for a later packet to weigh rather than a thing
-to fold in here without being asked.
-
-**Why the registrations moved, and what that bought, phase seven's fourth packet.** A scope's
-`rows` and `run` are the very functions this file assigns far below the old registration point,
-`scopeMenuRows` and `scopeMenuRun` chief among them, and their own `local` statement sits below
-that point too, so naming them in a closure written there would silently resolve to a nil global
-rather than the function meant. Every earlier packet in this phase solved the same hazard with a
-closure, since `open` and `surface` name something built later but the name itself already
-exists above the registration. A scope cannot be solved that way, because the name does not yet
-exist at all. The answer is to move the registrations rather than add more closure discipline, so
-`registry.register`, `registry.activate`, and `spoon.Olm.registry = registry` all sit immediately
-above `queryScopes` now, where every declaration a tool or a scope could need already exists.
-`registry.new` stays where it stood, since `spoon.Launcher:configure` needs the instance early to
-inject and only stores the reference, ordinary composition root sequencing, building the
-container where a collaborator needs it and filling it once everything it describes exists. The
-move cost nothing at runtime, since nothing reads the registry during load, `rowIntercept` and
-`addTool` both hold it as an upvalue and call it later, and it bought two things beyond removing
-the hazard, the emoji scope's condition, `spoon.Emoji:lists()`, can be asked right at registration
-because that facade has already chosen a backend by then, and menu search stops needing anything
-special to be registered at all.
-
-**The descriptor gains a scope, and why the identity fields are not on it.** `scope`, optional, is
-a table carrying exactly the fields the composition root's own `scope(name, opts)` helper passes
-through, `matcher`, `rows`, `run`, `peek`, `redirect`, and `act`. The identity fields that helper
-adds on top, `name`, `title`, `glyph`, and `aliases`, are deliberately absent, since three of them
-are read out of `config/keys.lua` and this registry reads no configuration at all, the same rule
-that keeps `name` the tool's only identity everywhere else in this file. Validated the way `row`
-already is. A `scope` present and not a table is refused, naming the tool. `rows` and `run` are
-required once a scope is present, since `QueryScope`'s own admissible function requires both and
-would otherwise refuse the assembled scope later with a line naming the scope rather than the
-registration that produced it, a worse place to learn about the same mistake. `matcher` is the one
-field that is not a function when present, false on four scopes today, so false or a function is
-accepted and anything else is refused. `peek`, `redirect`, and `act` each accept only a function
-or absence, every refusal naming the tool and the field that was wrong.
-
-**`scopeFor(name)`, the accessor this packet adds.** It answers the scope table of an active tool
-or nil, in the same shape `rowFor` already answers, resolved through the same flat index, so an
-inactive tool, an unknown name, and a command name all answer nil, a command's answer nil because
-nothing in this packet gives a command its own scope, only a tool's own entry carries one.
-
-**The scope gains `verbs`, phase eight's fourth packet.** Optional, a map from an action name to
-what running it takes, the tool saying once which of its verbs make sense when a hosted list is
-holding its rows rather than its own picker. Each entry is a bare function or a table carrying
-that function under `fn` plus a required `closes`, saying whether running this verb should close
-the list it ran against, the same dual shape a `commands` entry already takes, with one
-difference. A bare command means run it and nothing else needs saying. A bare verb cannot mean
-the whole of what a verb is, because `closes` has no default, the same choice this configuration
-already made for a binding's own `kind`, so a verb that never says whether it closes is refused
-rather than joining whichever side is convenient the day it is added. File search is the only tool
-that declares any today, three entries, `revealInFinder` and `copyPath` closing, `peekPreview` not,
-each calling straight into the plugin's own row taking entry point. Validated two levels deeper
-than the other scope fields, since it holds a table of its own shapes rather than being one, a
-`verbs` present and not a table is refused naming the tool, a `verbs` entry that is neither a bare
-function nor a table with a callable `fn` is refused naming the tool and the action, and a `verbs`
-entry whose `closes` is missing or is not a boolean is refused the same way, naming the tool and
-the action. The composition root's own `scope(name, opts)` helper, which joins the identity fields
-onto whatever a registration's `scope` carries, passes `verbs` straight through the same way it
-already passes the other four, since leaving it out there would mean a declared verb never
-reached the assembled scope `QueryScope` actually holds, a legitimate looking descriptor whose
-`QueryScope:verbFor` answered nil forever with nothing anywhere saying why. See
-`host/queryscope/CLAUDE.md` for `verbFor` itself and `host/actionpanel/CLAUDE.md` for how the
-action panel reaches it.
-
-**Why menu search could not be registered before this packet, and can now.** It has a surface, a
-scope, an open predicate, and a chord, everything a registered tool has except a launcher row,
-which is exactly what a tool that is reachable only as a scope is meant to look like. What blocked
-it was never a missing capability, it was that `openBuiltinMenuSearch`, `menuSearchSurface`,
-`scopeMenuRows`, and `scopeMenuRun` were all still unassigned forward declared locals at the old
-registration point, hundreds of lines above where they are actually filled in. The move above
-puts the registration block below every one of those assignments, so menu search's closures name
-the real functions rather than the nil the forward declared locals would have answered. It is the
-twelfth registered tool now, with no `row`, since it has none today and giving it one would be a
-visible change to the launcher this packet does not make, and no `hosted`, since it is not hosted
-today either.
-
-**`settings.toolActivation` grows to twelve, and why missing this step would fail silently.**
-Menu search joins the other eleven in the default activation list. A registered tool absent from
-that list is inactive, and an inactive tool answers nil to `surfaceFor`, `rowFor`, and `scopeFor`
-alike, so menu search would lose its navigation keys and its scope in the same stroke with nothing
-raising, logging, or failing a gate, since every one of those reads already treats an inactive
-tool's silence as the correct answer everywhere else.
-
-**Why the scope order is preserved rather than derived.** `queryScopes` now builds from an ordered
-spec, the same shape `registry.surfaces` once took before it was retired, a string naming a registered tool and
-anything else an object the registry never heard of. The order is kept entry for entry against the
-table this spec replaces, because `QueryScope` gives a colliding alias to whichever scope claims
-it first, so this order decides who owns a word, and deriving it from registration order instead
-would make that decision depend on where in the root a tool happened to be registered rather than
-on a choice anyone made on purpose. The four that stay as plain objects in the spec are the three
-`launcherCatalogScope` scopes, `apps`, `windowActions`, and `settingsPanes`, which narrow the
-launcher's own catalog rather than reaching a tool, and the alias directory, a scope about scopes
-with no tool behind it, so none of the four has anywhere to register.
-
-**`scopes(spec)`, the same door a second time.** A first pass at the fold read the spec through
-`scopeFor` directly in the root's own loop, which worked but could not tell an unregistered name
-apart from a registered tool that is simply inactive or, for emoji, active but carrying no scope
-this run, so all three answered the same nil and all three stayed equally silent. That is wrong for
-the first of the three, since naming something this registry has never heard of is exactly the
-mistake `surfaces(spec)` already warned about by name, and a reader who learned that this registry
-warned on that mistake in one place and not in the other learned nothing reliable from either.
-`scopes(spec)` resolves inside the registry instead, mirroring the retired `surfaces(spec)` exactly, warning by
-name for an unregistered entry and staying silent for the two legitimate cases, inactive and active
-with no scope declared. A resolved tool answers `{ name = entry, opts = descriptor.scope }` rather
-than a finished scope, since joining the identity fields from `config/keys.lua` is the root's own
-`scope(name, opts)` helper's job and stays there, this module still reading no configuration at
-all. The root's own loop is left with exactly one job, mapping a `{ name, opts }` entry through
-that helper and passing anything else straight through.
-
-**The inventory measures what QueryScope actually assembled, not only what a tool declares.**
-`all()`'s `scope` field, and the cross check below it, both report presence on a descriptor,
-whether a tool says it carries a scope. That is not the same fact as whether the scope actually
-made it into the live list `QueryScope` runs against, since a spec entry naming something the
-registry has never heard of resolves to nothing and is skipped, which a descriptor's own `scope`
-field cannot see happen. `test/inventory.lua` reads `spoon.QueryScope:catalog()` live for exactly
-this reason, one line per scope actually entered, its name and its aliases, so a broken spec entry
-shows up as a missing or a moved alias in a committed file rather than as a snapshot that keeps
-swearing everything is fine.
-
-**The cross check, and why it is a snapshot rather than a warning.** Folding scopes into the
-registry means a tool marked `hosted` with no scope behind it becomes visible for the first time,
-where before this packet those two facts lived in different tables with nothing comparing them and
-the only symptom was a row that opened a picker instead of hosting, which reads as ordinary
-behaviour rather than a defect. A warning at assembly time is the obvious answer and it is wrong,
-because the emoji scope registers only when its backend owns a list, so with the Character Viewer
-fronted, emoji is legitimately hosted with no scope, and a warning would cry wolf on the one case
-this design deliberately built. So `all()` records `scope` presence beside `surface` and `hosted`
-instead, which puts it in `test/inventory.golden` through `test/inventory.lua`. A tool that is
-hosted with no scope then reads as `hosted=true scope=false` in a committed file, so the
-legitimate case is visible and stable and any real drift is a diff against the golden rather than
-a log line nobody reads. This was considered and the warning rejected, written down here so nobody
-adds one later thinking it was merely overlooked.
-
-**The descriptor gains a shortcut, phase seven's fifth and last packet, and why never binding
-beats unbinding.** Since the first packet, deactivating a tool has taken away its launcher row,
-its surface, and its scope, while its keyboard shortcut stayed bound and kept firing, a sentence
-this file's own header used to admit outright. Nothing in this config ever unbinds a key,
-`HyperKey` has no removal and `hs.hotkey` is never asked for one, and inventing teardown here
-would be exactly the single caller ceremony with a silent failure mode the design principles
-reject. So the answer is not to unbind an inactive tool's chord, it is to never bind it, and that
-is possible only because the registrations already sit below every declaration a bind could need,
-which is what the fourth packet's move bought for free. `shortcut`, optional, is one of exactly
-two strings. `leader` means this tool's entry in `config/keys.lua` names a key bound through the
-Hyper leader to this tool's `open`. `global` means the entry names a whole modifier combination
-bound directly, which is what `appendCopy` and `pasteNext` are and the only thing they are, each
-carrying the same field on its own table inside `commands`. Refused when present and neither of
-those two strings, naming the tool or the command and what it said. Refused too when present with
-nothing to bind, no `open` on a tool or no callable `fn` on a command, since a shortcut bound to
-nothing is worse than no shortcut at all, which brings the running count of refusals to eighteen.
-
-**Why the key itself is not on the descriptor.** The same rule `row`, `scope`, and the identity
-fields on `scope` already keep. `config/keys.lua` holds the key, the modifiers, and the
-description, and this registry reads no configuration at all, so a field naming the key here
-would be the same fact stated twice with nothing to keep the two in agreement.
-
-**`shortcuts()`, the accessor this packet adds.** It takes no spec, unlike `scopes` and the
-retired `surfaces`, since it names nothing the composition root already holds a competing object for, and
-answers in registration order one entry per active tool or active tool's command that declares a
-shortcut, each carrying `name`, `kind`, and `fn`, the function to bind. An inactive tool
-contributes nothing, itself or its commands, the same nil-and-false silence every other read in
-this file already answers for it, and that one sentence is the whole feature, the composition
-root can only ever reach a bind call for something active. A tool's own commands are walked
-sorted by their own name rather than in whatever order `pairs` happens to answer for the literal
-table a descriptor wrote them in, since Lua promises nothing about that order and a caller needs
-one it can trust run over run, and which of two commands binds first is otherwise arbitrary, each
-one claiming a different key with nothing to disagree about.
-
-**The composition root's one loop, and the collision check that came before it.** Eight direct
-bind calls, seven `spoon.HyperKey:bind` calls beside each tool's own `configure` plus one
-`spoon.ClipboardHistory:bindHotkeys` call binding the clipboard's open and its two commands, are
-gone, replaced by one loop below the activation call that walks `registry.shortcuts()` and binds
-each entry, resolving the keys entry through the row's `keysName` or the entry's own name exactly
-as the launcher's own `addTool` already does. Before any of that moved, every key bound as a base
-binding, the eight tools plus the launcher plus lock and sleep, was listed and checked for a
-collision, since two bindings on the same key never warn and the first registered would silently
-win forever among equal priorities, which would have made order load bearing rather than an
-implementation detail. All eleven were distinct, so the fold changes the route a key reaches its
-function through and changes nothing else, proven by three runs of `test/inventory.sh --check`
-against the baseline the packet's own instrumentation commit laid down, every section, old and
-new, byte identical.
-
-**What activation means in full, now.** A tool's row, its surface, its scope, and its shortcut
-all answer the same nil, false, or nothing for an inactive tool, resolved through the one flat
-index every accessor in this file reads. That is the promise the first packet's header deferred,
-paid across five packets rather than one, each fold choosing the mechanism its own hazard
-demanded, a closure for `surface`, plain data for `row`, a moved registration for `scope`, and
-never binding at all for `shortcut`.
+An earlier version of this section was the phase by phase build log of the registry before the
+manifest pipeline existed, hand written registration calls, a hand kept predicate list, and a
+launcher whose row order was a list of add calls. That architecture is gone, replaced by the
+registrar and the wiring pipeline, and the log remains readable in this file's git history.
