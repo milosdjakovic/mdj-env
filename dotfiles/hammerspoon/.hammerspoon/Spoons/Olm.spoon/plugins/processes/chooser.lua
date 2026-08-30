@@ -396,6 +396,13 @@ local function onPositioned(chooserFrame, companionFrame)
     -- The atom seeds the highlight before it positions anything, so the first
     -- onHighlight lands with nowhere to draw. This is what fills the pane on open.
     renderHighlighted()
+  else
+    -- host/stage/init.lua's own review finding H2 comment, near present's own handoff, says
+    -- onPositioned is where a pane consumer actually knows to erase its own canvas,
+    -- never onClose, since this nil, nil call is the stage telling the outgoing
+    -- presentation it lost the pair to whatever just became current, a genuine swap
+    -- rather than a close.
+    preview.hide()
   end
 end
 
@@ -775,6 +782,10 @@ end
 function M:start()
   preview.configure({
     surface = cfg.surface,
+    -- The shared empty state, injected alongside surface by the same wiring since a pane
+    -- declaring plugin earns both together. See lib/panel.lua's own header for why a
+    -- frame with nothing to preview now paints this rather than hiding the canvas.
+    emptyState = cfg.emptyState,
     -- The atom's own light and dark resolution, hs.host.interfaceStyle() picking cfg.theme's
     -- dark or light half, lib/chooser/providers/native.lua:178's own arithmetic, reproduced
     -- here rather than reached through an instance this file no longer holds, so the pane

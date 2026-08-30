@@ -63,6 +63,7 @@ local colors = nil       -- the palette, resolved once per open rather than per 
 local model = nil        -- the row on screen, laid out, see buildModel
 local scrollOffset = 0   -- how far down the body, in points, clamped at paint
 local pending = 0        -- the generation of the newest thumbnail request, see requestImage
+local hidden = false     -- set by M.hide, cleared by M.dock, the resurrection guard paint reads
 
 --------------------------------------------------------------------------------
 -- Layout
@@ -569,6 +570,10 @@ end
 -- floor whatever the file is. The run is rebuilt per paint rather than cached, which is
 -- affordable exactly because it is only ever the visible slice.
 local function paint()
+  -- A background tick, a late search result, or a settled thumbnail can all reach this
+  -- point after M.hide has already taken the canvas down for a swap away. hidden is what
+  -- stops any of them from bringing it back up beside a tool that is no longer current.
+  if hidden then return end
   if not (model and frame and cfg.surface) then return end
   ensureCanvas()
   local innerW = frame.w - 2 * PAD_X
@@ -706,6 +711,10 @@ end
 ---                row subtitle reads, so the pane and the row cannot disagree about it.
 --- opts.thumbs    the thumbnail chain. Absent means the image describer declines every
 ---                row and a picture simply never appears, which is a working pane.
+--- opts.emptyState function(w, h, opts) -> canvas elements, the shared CanvasPanel empty
+---                state, painted by clear below for a highlight with nothing to describe.
+---                Absent falls back to hiding the canvas, the old behaviour, so a root that
+---                has not been updated to inject it degrades rather than breaking.
 function M.configure(opts)
   for k, v in pairs(opts or {}) do cfg[k] = v end
   return M
@@ -743,6 +752,10 @@ end
 function M.dock(companionFrame)
   if not (M.available() and companionFrame) then return end
   frame = companionFrame
+  -- A redock is the swap back M.hide guards against, so the pane may paint again from
+  -- here on. The highlight seed the caller runs right after this call is what actually
+  -- fills the pane, cold or not, a nil highlight landing in M.clear same as any other.
+  hidden = false
   local p = (cfg.palette and cfg.palette()) or {}
   colors = {
     fg = hexColor(p.fg or "#dcdcdc"),
@@ -786,12 +799,57 @@ function M.scrollBy(points)
   paint()
 end
 
---- preview.clear() - drop the pane's content and hide it, keeping the canvas.
---- For a highlight with nothing to describe, a status row or a help row, so the picker is
---- not left beside an empty bordered box.
-function M.clear()
+--- preview.clear(text) - the empty state, for a highlight with nothing to describe, a
+--- status row or a help row, or a cold dock before anything has been highlighted yet.
+---
+--- This used to hide the canvas outright, on the reasoning that nothing to describe
+--- means nothing to draw. That reads as a broken layout instead, a bordered rectangle
+--- reserved beside the list with nothing in it, so the pane now stays up and paints the
+--- shared empty state, the same quiet message every other docked pane shows in this
+--- moment, rather than vanishing. The pane genuinely disappears only on the stage's own
+--- swap signal, M.hide below, and on M.destroy.
+---
+--- text is optional and becomes the empty state's own line, so a status row's own
+--- wording, an index still building or a search with nothing found, echoes here instead
+--- of the generic default. Absent text falls back to the shared routine's own default.
+---
+--- Does nothing when called before the first dock, so frame or colors are still nil,
+--- since the dock that follows paints this same empty state on its own.
+function M.clear(text)
   model = nil
   scrollOffset = 0
+  if not (frame and colors and cfg.surface) then return end
+  -- See paint's own note. A swap away must stay down through whatever clear a stray
+  -- highlight event fires while nobody can see it.
+  if hidden then return end
+  if not cfg.emptyState then
+    -- Absent means a misconfigured or partially configured module, so degrade by
+    -- hiding rather than erroring.
+    if canvas then canvas:hide() end
+    return
+  end
+  ensureCanvas()
+  local innerW, innerH = frame.w - 2 * PAD_X, frame.h - 2 * PAD_Y
+  local els = {}
+  for _, el in ipairs(cfg.surface(frame.w, frame.h)) do els[#els + 1] = el end
+  for _, el in ipairs(cfg.emptyState(innerW, innerH, { text = text, color = colors.meta })) do
+    els[#els + 1] = shifted(el, PAD_X, PAD_Y)
+  end
+  canvas:frame(frame)
+  canvas:replaceElements(els)
+  canvas:show()
+end
+
+--- preview.hide() - hide the canvas without destroying it, for the stage's own swap away
+--- signal, onPositioned told nil twice when a different presentation becomes current. The
+--- canvas, the frame, the colors and the model all survive, so a swap back to this
+--- presentation docks again and repaints at once rather than rebuilding from nothing.
+function M.hide()
+  hidden = true
+  -- Bumps the image generation the same way M.destroy does, so a thumbnail already in
+  -- flight for the row this pane was last showing cannot land after the hide and pull
+  -- the canvas back up on its own. The swap back through M.dock repaints properly.
+  pending = pending + 1
   if canvas then canvas:hide() end
 end
 
@@ -805,6 +863,7 @@ function M.destroy()
   colors = nil
   scrollOffset = 0
   pending = pending + 1
+  hidden = false
   images = {}
   if canvas then
     canvas:delete()

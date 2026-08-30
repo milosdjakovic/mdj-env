@@ -200,7 +200,13 @@ function obj.new(deps)
       else
         opts.matcher = services.matcher
       end
-      if decl.pane then opts.surface = services.paneElements end
+      -- A pane declaring plugin earns the empty state alongside the surface itself, the
+      -- same one routine every docked pane paints when its highlight has nothing to
+      -- describe, so the two never arrive one without the other.
+      if decl.pane then
+        opts.surface = services.paneElements
+        opts.emptyState = services.emptyStateElements
+      end
     end
 
     -- Data the plugin declared it cannot derive. Absent required values already blocked it

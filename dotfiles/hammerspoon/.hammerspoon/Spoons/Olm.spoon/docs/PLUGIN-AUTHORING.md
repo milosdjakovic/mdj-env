@@ -99,6 +99,12 @@ an answer that never comes must not strand a person on a row that does nothing.
 to inherit the chooser width, or a member spec resolved once at register when your own wiring
 is what decides whether a pane exists at all. Absent means no pane.
 
+A docked pane is never hidden while its presentation is showing. A highlight with nothing to
+describe paints the shared empty state instead, the injected `emptyState` routine beside the
+`surface` routine every pane already receives, so a reserved rect never sits there with nothing
+drawn in it. The pane genuinely vanishes only when `onPositioned` is told both frames as nil, the
+stage's own swap signal, and when the stage closes.
+
 `rowCount` is a positive whole number, declared only when ten genuinely does not fit. It costs
 a hide and show to resize, so it blinks, which is why almost nothing declares it.
 

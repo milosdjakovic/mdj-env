@@ -684,7 +684,7 @@ end
 -- finding M2. Re anchors the docked shortcut panel through paneAnchor, spanning the pair
 -- rather than the list alone, so the host that claims to own that panel is the one that
 -- actually moves it, and tells the current presentation's own onPositioned the same two
--- frames, so a pane consumer draws into the real rect or clears when this presentation
+-- frames, so a pane consumer draws into the real rect or hides when this presentation
 -- declares none. A presentation with no onPositioned of its own is silently skipped, exactly
 -- as an ordinary missing field already is everywhere else in this file.
 function obj:_onPositioned(chooserFrame, companionFrame)
@@ -853,7 +853,7 @@ end
 --- one that just left kept whatever the departing level last left the window built for, a
 --- caffeinate exit leaving a ten row list rendered into a two row window until some later
 --- present or push happened to self correct it. leaving is handed to _show as the outgoing
---- presentation, finding H2, so a pane it drew is told to clear on the same path present and
+--- presentation, finding H2, so a pane it drew is told to hide on the same path present and
 --- push already use, and the one leaving still hears its own onClose first, exactly as
 --- before, since that is a real dismissal for it and _show's own outgoing notice is not a
 --- substitute for it, the two are told for different reasons and neither replaces the other.

@@ -35,6 +35,12 @@
 ---                                              Callable more than once; each call merges.
 ---   CanvasPanel.surfaceElements(w, h, style?)  the surface elements for a w x h box at
 ---                                              origin (0, 0); style overrides the default.
+---   CanvasPanel.emptyStateElements(w, h, opts?) a quiet empty state for a w x h box,
+---                                              centred and dim text, existing so the
+---                                              several docked panes read as one component
+---                                              in their empty moments the same way
+---                                              surfaceElements already makes them one
+---                                              component in their chrome.
 ---   CanvasPanel.new(config) -> instance        a docked or centered panel.
 ---
 --- style (all optional; omit a field to draw nothing for it):
@@ -194,6 +200,36 @@ function obj.surfaceElements(w, h, style)
       frame = { x = bw / 2, y = bw / 2, w = w - bw, h = h - bw } }
   end
   return els
+end
+
+--- CanvasPanel.emptyStateElements(w, h, opts) - a quiet empty state for a w x h box at
+--- origin (0, 0), one line of centered text. A docked pane used to hide itself the
+--- moment its presentation had nothing to describe, and a reserved rect with nothing
+--- drawn in it reads as a broken layout rather than as an empty one, which is the whole
+--- reason this exists. Drawing the same message from the same place is what lets every
+--- docked pane read as one component in this moment too, the way surfaceElements already
+--- makes them one component in their chrome.
+---
+--- opts, every field optional.
+---   text   the message, default "Nothing to preview".
+---   color  an hs color table for the text, default a dim gray at reduced alpha. The
+---          caller's own resolved color, never a theme this routine reads for itself.
+---   size   the text's point size, default 13.
+---
+--- Kept dumb on purpose. No style resolution and no appearance logic live here, a caller
+--- passes its own color exactly as it already does for the rest of what it draws.
+function obj.emptyStateElements(w, h, opts)
+  opts = opts or {}
+  local text = opts.text or "Nothing to preview"
+  local color = opts.color or { white = 0.6, alpha = 0.55 }
+  local size = opts.size or 13
+  local textH = size * 1.6
+  -- A little above centre rather than exactly on it, which is what makes this read as
+  -- an empty state instead of as a stray line sitting in the middle of the box.
+  local y = h / 2 - textH
+  return { { type = "text", text = text,
+    textSize = size, textAlignment = "center", textColor = color,
+    frame = { x = 0, y = y, w = w, h = textH } } }
 end
 
 local Panel = {}

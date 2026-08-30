@@ -44,6 +44,10 @@ local obj = {}
 ---                     declaration resolves against the real function rather than the word.
 --- deps.paneElements  the shared docked companion pane elements, handed to a plugin whose
 ---                     surface asks for the pane.
+--- deps.emptyStateElements  the shared empty state a docked pane paints when its highlight
+---                     has nothing to describe, handed alongside deps.paneElements to the
+---                     same plugin, so a companion pane never has to invent its own quiet
+---                     message.
 --- deps.log           the shared logger, granted to any plugin whether it declared anything
 ---                     or not, since UNIVERSAL treats every plugin as free to ask for one.
 ---
@@ -75,6 +79,7 @@ function obj.ambient(deps)
     matcher = deps.matcher,
     matchers = deps.matchers,
     paneElements = deps.paneElements,
+    emptyStateElements = deps.emptyStateElements,
     log = deps.log,
     after = after,
   }
