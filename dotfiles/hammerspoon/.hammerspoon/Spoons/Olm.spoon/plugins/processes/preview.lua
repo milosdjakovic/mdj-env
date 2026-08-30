@@ -48,6 +48,7 @@ local canvas = nil -- the docked canvas, built lazily and deleted on every close
 local frame = nil  -- the companion rect the atom reported, where the canvas docks
 local colors = nil -- the palette, resolved once per open rather than per highlight
 local model = nil  -- the cached static half of the row on screen, see buildModel
+local hidden = false -- set by M.hide, cleared by M.dock, the resurrection guard paint reads
 
 --------------------------------------------------------------------------------
 -- Layout
@@ -516,6 +517,10 @@ end
 -- a new highlight and by every sampler tick alike, and the only work it repeats is the
 -- live block, which is two headings and two short polylines.
 local function paint()
+  -- The sampler ticks every 1.5 seconds while the list is showing, live or not. hidden is
+  -- what stops that tick, or any other late redraw, from bringing the canvas back up
+  -- beside a tool that is no longer current once M.hide has taken it down for a swap away.
+  if hidden then return end
   if not (model and frame and cfg.surface) then return end
   ensureCanvas()
   local innerW = frame.w - 2 * PAD_X
@@ -555,6 +560,10 @@ end
 ---                 its own empty history and every sparkline would stay flat.
 --- opts.formatCpu  the row's own percentage formatter, injected so the figure in the
 ---                 pane and the figure on the row can never round differently.
+--- opts.emptyState function(w, h, opts) -> canvas elements, the shared CanvasPanel empty
+---                 state, painted by clear below for a frame with nothing to preview.
+---                 Absent falls back to hiding the canvas, the old behaviour, so a root
+---                 that has not been updated to inject it degrades rather than breaking.
 function M.configure(opts)
   for k, v in pairs(opts or {}) do cfg[k] = v end
   return M
@@ -576,6 +585,10 @@ end
 function M.dock(companionFrame)
   if not (M.isEnabled() and companionFrame) then return end
   frame = companionFrame
+  -- A redock is the swap back M.hide guards against, so the pane may paint again from
+  -- here on. The highlight seed the caller runs right after this call is what actually
+  -- fills the pane, cold or not, a nil highlight landing in M.clear same as any other.
+  hidden = false
   local p = (cfg.palette and cfg.palette()) or {}
   colors = {
     fg = hexColor(p.fg or "#dcdcdc"),
@@ -620,11 +633,45 @@ function M.refresh()
   if model then paint() end
 end
 
---- preview.clear() - drop the pane's content and hide it, keeping the canvas.
---- For a frame that has nothing to preview, so the picker is not left beside an empty
---- bordered box.
+--- preview.clear() - the empty state, for a frame with nothing to preview, the empty
+--- list row or a confirmation screen with no target.
+---
+--- This used to hide the canvas outright, on the reasoning that nothing to preview means
+--- nothing to draw. That reads as a broken layout instead, a bordered rectangle reserved
+--- beside the list with nothing in it, so the pane now stays up and paints the shared
+--- empty state, the same quiet message every other docked pane shows in this moment,
+--- rather than vanishing. The pane genuinely disappears only on the stage's own swap
+--- signal, M.hide below, and on M.destroy.
 function M.clear()
   model = nil
+  if not (frame and colors and cfg.surface) then return end
+  -- See paint's own note. A swap away must stay down through whatever clear the sampler
+  -- or a rescan fires while nobody can see it.
+  if hidden then return end
+  if not cfg.emptyState then
+    -- Absent means a misconfigured or partially configured module, so degrade by
+    -- hiding rather than erroring.
+    if canvas then canvas:hide() end
+    return
+  end
+  ensureCanvas()
+  local innerW, innerH = frame.w - 2 * PAD_X, frame.h - 2 * PAD_Y
+  local els = {}
+  for _, el in ipairs(cfg.surface(frame.w, frame.h)) do els[#els + 1] = el end
+  for _, el in ipairs(cfg.emptyState(innerW, innerH, { color = colors.meta })) do
+    els[#els + 1] = shifted(el, PAD_X, PAD_Y)
+  end
+  canvas:frame(frame)
+  canvas:replaceElements(els)
+  canvas:show()
+end
+
+--- preview.hide() - hide the canvas without destroying it, for the stage's own swap away
+--- signal, onPositioned told nil twice when a different presentation becomes current. The
+--- canvas, the frame, the colors and the model all survive, so a swap back to this
+--- presentation docks again and repaints at once rather than rebuilding from nothing.
+function M.hide()
+  hidden = true
   if canvas then canvas:hide() end
 end
 
@@ -636,6 +683,7 @@ function M.destroy()
   model = nil
   frame = nil
   colors = nil
+  hidden = false
   if canvas then
     canvas:delete()
     canvas = nil

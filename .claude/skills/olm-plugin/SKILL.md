@@ -61,7 +61,11 @@ presentation and reads the stage words off `opts`.
 A glanceable overlay nothing is typed into, a preview, a toast, a status card, is CanvasPanel
 content, never a window of the plugin's own. A companion preview pane beside the rows is
 declared on the surface, `pane = true`, and routine feedback goes out through an injected
-callback the root draws on the shared panel. A
+callback the root draws on the shared panel. A docked pane is never hidden while its
+presentation is showing, a highlight with nothing to describe paints the shared empty state
+instead, the injected `emptyState` routine that arrives beside `surface`, so a reserved rect
+never sits there with nothing drawn in it. The pane genuinely vanishes only when the stage
+tells it `onPositioned(nil, nil)` and on close. A
 grid of key badges under a held leader is the shared cheatsheet lib. Verbs come free, the
 action panel reads them from the registry declaration, so never build a second list to make
 verbs discoverable.

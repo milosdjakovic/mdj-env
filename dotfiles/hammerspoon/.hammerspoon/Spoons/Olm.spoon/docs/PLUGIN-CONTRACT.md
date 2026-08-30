@@ -50,7 +50,7 @@ from that.
 | A plugin gets | when it declares |
 | --- | --- |
 | `chooser`, `theme`, `placeholder`, the panel triple, `matcher` | a `surface` |
-| `surface` elements, the docked companion pane | `surface.pane = true` |
+| `surface` elements and `emptyState`, the docked companion pane and its quiet state | `surface.pane = true` |
 | `deps`, the scoped adapter that turns a tool name into an absolute path | any `needs.tools` |
 | `recency` | `needs.lib.recency` |
 | `after`, the deferred call helper | nothing, every plugin may ask |
@@ -796,7 +796,7 @@ the pair has been repositioned for this presentation, whether the atom placed it
 cold show or the stage placed it by hand on a swap, both converging on the stage's own
 `_onPositioned`, adversarial review finding M2. `companionFrame` is nil both when this
 presentation declared no `paneWidth` and, once, when this presentation is the one a transition
-is leaving, told with both frames nil so its own pane consumer clears rather than sitting drawn
+is leaving, told with both frames nil so its own pane consumer hides rather than sitting drawn
 beside a window that already moved on, adversarial review finding H2, fired on every door,
 present, push, and pop, before the incoming side is given anything.
 

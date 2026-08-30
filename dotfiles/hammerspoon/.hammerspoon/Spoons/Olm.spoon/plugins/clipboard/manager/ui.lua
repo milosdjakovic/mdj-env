@@ -71,6 +71,8 @@ local KIND_PREFIX = {
 -- State
 local preview = nil -- the hs.canvas companion pane, built lazily in ensurePreview
 local previewFrame = nil -- the companion rect the atom reported, where the canvas docks
+local paneHidden = false -- set by the swap away hide, cleared by onPositioned's own dock
+                         -- branch, the resurrection guard paint reads
 local renderToken = 0 -- bumped each render; async results check it to avoid stale writes
 local scrollOffset = 0 -- how far the current preview is scrolled down, in points
 local maxScroll = 0 -- clamp bound for scrollOffset, set by the last render from content height
@@ -630,6 +632,10 @@ end
 -- padding instead of spilling over the border. Records the model for repaint().
 local function paint(contentEls, contentH)
   if not previewFrame then return end
+  -- A late media decode, a store change, or an in flight file read can all reach this
+  -- point after a swap away already hid the canvas. paneHidden is what stops any of them
+  -- from bringing it back up beside a tool that is no longer current.
+  if paneHidden then return end
   ensurePreview()
   lastEls, lastH = contentEls, contentH
   local frame = previewFrame
@@ -1081,7 +1087,15 @@ local function renderPreview(e)
     path = hexColor(p.path), note = hexColor(p.note),
   }
   if not e then
-    paint({}, 0)
+    -- The empty state, for a highlight with nothing to describe. This used to paint the
+    -- bare surface with nothing on it, which reads as a broken layout, a reserved rect
+    -- with nothing drawn in it, rather than as an empty one. Painting the shared routine
+    -- instead is what makes this pane read as one component with the other two docked
+    -- panes in their quiet moments the same way the surface already does in their chrome.
+    -- Absent means a misconfigured or partially configured module, so degrade to the bare
+    -- surface rather than erroring.
+    local w, h = innerWidth(), innerHeight()
+    paint(cfg.emptyState and cfg.emptyState(w, h, { color = colors.meta }) or {}, 0)
     return
   end
   -- A manage history row, whose pane lists what the row would take rather than the content of
@@ -1117,6 +1131,16 @@ local function hidePreview()
   imageCache = {} -- drop decoded preview images between opens
   existCache = {} -- recheck linked-file liveness on the next open
   scrollOffset = 0 -- next open starts at the top
+  paneHidden = false
+end
+
+-- The swap away signal's own hide, lighter than hidePreview above on purpose. A swap back
+-- must repaint at once rather than rebuild from nothing, so this leaves imageCache and
+-- existCache alone, the per open caches hidePreview drops between opens, and only takes
+-- the canvas down and raises the guard paint reads.
+local function hidePreviewForSwap()
+  paneHidden = true
+  if preview then preview:hide() end
 end
 
 --------------------------------------------------------------------------------
@@ -1224,7 +1248,17 @@ end
 local function onPositioned(chooserFrame, companionFrame)
   if companionFrame then
     previewFrame = companionFrame
+    -- A redock is the swap back paneHidden guards against, so the pane may paint again.
+    paneHidden = false
     renderPreview(cfg.stageSelectedItem and cfg.stageSelectedItem())
+  else
+    -- host/stage/init.lua's own review finding H2 comment, near present's own handoff, says
+    -- onPositioned is where a pane consumer actually knows to erase its own canvas,
+    -- never onClose, since this nil, nil call is the stage telling the outgoing
+    -- presentation it lost the pair to whatever just became current, a genuine swap
+    -- rather than a close. hidePreviewForSwap, not hidePreview, since a swap back must
+    -- repaint at once rather than rebuild from the per open caches hidePreview drops.
+    hidePreviewForSwap()
   end
 end
 
@@ -1481,9 +1515,10 @@ end
 --- state rule fileBadge draws on), prune (the manage history page, whose rows and wording this
 --- file only draws), the theme, the shared
 --- surface routine (opts.surface, drawing the preview pane's background and
---- border), and the layout config. stagePresent, redrawPresented, stageHide, stageSetQuery,
---- and stageSetPlaceholder, the trickle migration's own root published words, arrive here too,
---- under needs.data in the manifest.
+--- border), the shared empty state routine (opts.emptyState, painted by renderPreview below
+--- for a highlight with nothing to describe), and the layout config. stagePresent,
+--- redrawPresented, stageHide, stageSetQuery, and stageSetPlaceholder, the trickle migration's
+--- own root published words, arrive here too, under needs.data in the manifest.
 function UI.configure(opts)
   store = opts.store
   paste = opts.paste

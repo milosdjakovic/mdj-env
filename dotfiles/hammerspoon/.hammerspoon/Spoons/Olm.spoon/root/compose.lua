@@ -1355,6 +1355,11 @@ function obj.run(olm, cfg)
     matcher = chooserAtom.matchers and chooserAtom.matchers[policy.matcher],
     matchers = chooserAtom.matchers,
     paneElements = canvasPanel.surfaceElements,
+    -- Handed to the same plugin as paneElements, immediately above, so a docked pane's
+    -- quiet moments and its chrome come from the same one place. See lib/panel.lua's own
+    -- header for why a highlight with nothing to describe now paints this rather than
+    -- hiding the canvas.
+    emptyStateElements = canvasPanel.emptyStateElements,
     log = log,
     -- onPositioned, onActivity and onClose are deliberately never passed here. Each
     -- surfaced plugin needs its OWN docked panel closure, never one shared function every
