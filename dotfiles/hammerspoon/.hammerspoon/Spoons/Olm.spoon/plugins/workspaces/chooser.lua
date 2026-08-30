@@ -57,6 +57,18 @@ local function emojiImage(str)
   return img
 end
 
+-- An app's own icon, cached by bundle id, the same cache and fallback shape browsertabs and
+-- clipboard already use for the same call. A bundle id with nothing installed for it can answer
+-- nil, and the caller falls back to the emoji mark rather than leaving the row blank.
+local appIconCache = {}
+local function appIcon(bundleID)
+  local hit = appIconCache[bundleID]
+  if hit ~= nil then return hit or nil end
+  local img = hs.image.imageFromAppBundle(bundleID)
+  appIconCache[bundleID] = img or false
+  return img
+end
+
 local ICON = {
   active = "🟢",
   config = "🖥️",
@@ -83,6 +95,15 @@ end
 
 local function backRow()
   return row("Back", "", ICON.back, { nav = "back" }, true)
+end
+
+-- One app row, carrying the app's own icon rather than the generic emoji mark, so the Apps list
+-- reads at a glance the way the launcher and the other choosers already do. Every row on every
+-- other level keeps the emoji icon through the ordinary row builder above, this is the one place
+-- an icon is resolved from a bundle id instead of chosen from the fixed table.
+local function appRow(title, subTitle, bundleID, item)
+  local image = appIcon(bundleID) or emojiImage(ICON.app)
+  return { title = title, subTitle = subTitle, image = image, item = item, enabled = true }
 end
 
 local function trim(s)
@@ -214,7 +235,7 @@ local function appsRows(fingerprint)
     if f then
       detail = string.format("%d by %d at %d, %d", whole(f.w), whole(f.h), whole(f.x), whole(f.y))
     end
-    out[#out + 1] = row(a.name, detail, ICON.app, { nav = "app", bundleID = a.bundleID, name = a.name }, true)
+    out[#out + 1] = appRow(a.name, detail, a.bundleID, { nav = "app", bundleID = a.bundleID, name = a.name })
   end
   return out
 end
