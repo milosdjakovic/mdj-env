@@ -181,6 +181,10 @@ end
 -- Flatten the nested AX menu tree into leaf descriptors. An entry's submenu is its
 -- AXChildren[1] (a list); an entry with one is a container recursed into, an entry without is
 -- a runnable leaf. Blank title entries (separators) are skipped, and that is the only filter.
+-- A real item can be nameless too, Preview's Adjust Color on macOS 26 answers nil for its
+-- title in every state except while its menu is physically open, probed 2026-08-31 across
+-- every text attribute the item has, so it is indistinguishable from a separator here and is
+-- skipped. An OS build that titles it eagerly again surfaces it with no change to this file.
 -- Disabled leaves used to be dropped here too and no longer are, because the enabled state
 -- accessibility answers is only honest while the app owns the menu bar, a read of a background
 -- app reports nearly everything disabled, and it flips constantly besides, Undo and Paste,
