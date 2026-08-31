@@ -1,6 +1,6 @@
 --- === MenuSearch ===
 ---
---- Lists every enabled menu bar item of an app and runs the chosen one. macOS exposes each
+--- Lists every menu bar item of an app and runs the chosen one. macOS exposes each
 --- app's menus through the Accessibility API, which hs.application:getMenuItems reads, the
 --- callback form doing the tree walk off the main thread so a large menu never blocks
 --- Hammerspoon. That walk is also the whole of what made this tool feel slow, fifty to five
@@ -180,10 +180,14 @@ end
 
 -- Flatten the nested AX menu tree into leaf descriptors. An entry's submenu is its
 -- AXChildren[1] (a list); an entry with one is a container recursed into, an entry without is
--- a runnable leaf. Blank title entries (separators) are skipped, and disabled items are
--- dropped so the list stays actionable, which is also why enabled state is never part of what
--- either the disk cache or a fresh read carries, only paths and shortcuts, decision one of the
--- cache brief. Every leaf this walk answers was enabled the moment it was asked.
+-- a runnable leaf. Blank title entries (separators) are skipped, and that is the only filter.
+-- Disabled leaves used to be dropped here too and no longer are, because the enabled state
+-- accessibility answers is only honest while the app owns the menu bar, a read of a background
+-- app reports nearly everything disabled, and it flips constantly besides, Undo and Paste,
+-- which is exactly why decision one of the cache brief never let it into the snapshot. So
+-- neither the disk cache nor a fresh read carries it, only paths and shortcuts, every leaf
+-- becomes a row, and a chosen item that is genuinely disabled when it runs simply does
+-- nothing, the same answer the menu bar itself gives a click on a dimmed item.
 local function flattenMenus(entries, path, out)
   for _, e in ipairs(entries) do
     local title = e.AXTitle
@@ -194,7 +198,7 @@ local function flattenMenus(entries, path, out)
       newPath[#newPath + 1] = title
       if type(kids) == "table" and #kids > 0 then
         flattenMenus(kids, newPath, out)
-      elseif e.AXEnabled ~= false then
+      else
         out[#out + 1] = { path = newPath, shortcut = menuShortcutGlyph(e.AXMenuItemCmdChar, e.AXMenuItemCmdModifiers) }
       end
     end
