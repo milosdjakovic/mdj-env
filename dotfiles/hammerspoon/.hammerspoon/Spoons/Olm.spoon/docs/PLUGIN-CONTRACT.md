@@ -775,6 +775,18 @@ Contract v3 decision three names that boundary outright, a plugin needing levels
 `intercept` and returns children from `select` instead, and a plugin needing in place mutation
 keeps `intercept` exactly as before, and the two are not expected to mix on the same row.
 
+Two truthy answers exist for that reserved case, and they differ in what happens to the
+highlight afterward. Answering true rebuilds the list from the top, the historical behavior
+and still the right one for a wholesale swap like the clipboard's own prune page, since the
+rows before and after share no correspondence a held highlight could mean anything by.
+Answering the string "stay" instead rebuilds the list without moving the highlight off the
+row that was chosen, the right one for a row that only mutates what a sibling row shows in
+place rather than swapping to a different list, the OLM settings placement page's own two
+option rows being the shipped example, where choosing an option should leave a person
+looking at the option they just chose rather than jumping them back to the Back row. Any
+answer besides these two, including nil and false, is not an interception at all, and an
+existing plugin that only ever answered true keeps its old behavior with nothing to change.
+
 `onScroll` is a third addition the trickle migrations found rather than either contract brief
 naming, `function(points)` for a trackpad or a wheel scrolled over the companion rect, which a
 canvas cannot report for itself, `lib/chooser/providers/native.lua`'s own reason it exists at

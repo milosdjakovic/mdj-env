@@ -1154,7 +1154,12 @@ end
 --
 -- Failing that, the current presentation's own intercept answers next, the plain mutation
 -- case contract v3 decision three still reserves for it, a row that acts on the list it is
--- on and stands, exactly as before this revision.
+-- on and stands. Its answer, true or the string "stay", is returned exactly as given rather
+-- than normalized to plain true, since native.lua's own Chooser:_intercept is the one place
+-- that actually decides whether to reset the highlight or hold it, and can only tell the two
+-- cases apart if the string survives the trip through here unchanged. true means the row
+-- swapped to a different list and the highlight resets to the top, "stay" means the row
+-- mutated the same list it already stood on and the highlight holds on the row just chosen.
 --
 -- Contract v3, docs/BRIEF-CONTRACT-V3.md. Failing both, the current presentation's own
 -- onSelect is asked here, before Return is ever let through, so this is the one place able
@@ -1175,7 +1180,10 @@ end
 function obj:_intercept(item, enabled)
   if enabled == false then return true end
   local p = self:_current()
-  if p and p.intercept and p.intercept(item) then return true end
+  if p and p.intercept then
+    local answer = p.intercept(item)
+    if answer then return answer end
+  end
   if p and p.onSelect then
     local child = p.onSelect(item)
     if type(child) == "table" and (child.name == nil or child.name == "") then

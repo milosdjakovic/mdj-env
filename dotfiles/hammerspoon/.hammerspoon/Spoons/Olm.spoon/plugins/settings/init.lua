@@ -127,17 +127,24 @@ local function buildPlacementChild()
     onSelect = function() end,
     intercept = function(item)
       if item.nav and item.to == "back" then
+        -- Answers true, not "stay", since leaving this level is a level change, not a
+        -- mutation of the row standing here, and cfg.stagePop already resets the parent
+        -- through the stage's own show, so this level asking to hold a highlight it is
+        -- about to leave would mean nothing.
         if cfg.stagePop then cfg.stagePop() end
         return true
       end
       if item.commit then
         -- Writes through the one path lib/overlaydisplay.lua already keeps for self.setMode,
-        -- so this file never calls hs.settings itself. Answering true keeps the
-        -- page open and rebuilds it from the top, the green circle moving to the row just
-        -- chosen, which is the whole reason this is intercept rather than select, Milos
-        -- switching back and forth and leaving by Backspace or Escape when done.
+        -- so this file never calls hs.settings itself. Answering "stay" rather than true
+        -- keeps the page open, rebuilds the rows so the circles move to the row just
+        -- chosen, and holds the highlight on that row instead of resetting it to the top,
+        -- since this row mutated the policy it already stood on rather than swapping to a
+        -- different list. That is the whole reason this is intercept rather than select,
+        -- Milos switching back and forth and leaving by Backspace or Escape when done,
+        -- looking at the option he just picked rather than back at the top of the page.
         if cfg.setMode then cfg.setMode(item.commit) end
-        return true
+        return "stay"
       end
       return false
     end,

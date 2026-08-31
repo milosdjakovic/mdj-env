@@ -126,10 +126,13 @@ a pane you drew clears rather than sitting beside a window that already moved pa
 stack is told, top down. This is where a timer, an eventtap, or a canvas you own gets torn
 down.
 
-`intercept` is asked for the highlighted row before that row is allowed to complete, and true
-in reply means you already did what the row meant and the list stays open, rebuilt from the
-top. Reserve it for a row that mutates the list it is standing on, the clipboard's prune page
-being the case it exists for.
+`intercept` is asked for the highlighted row before that row is allowed to complete. Answer
+true when you already did what the row meant, and the list stays open, rebuilt from the top,
+the highlight starting over at row one. Answer the string "stay" instead when your row only
+changed what a sibling row shows in place, and you want the highlight to hold on the row the
+person just chose rather than jump away from it, the OLM settings placement page's own two
+option rows being the example. Reserve intercept in general for a row that mutates the list
+it is standing on, the clipboard's prune page being the case it exists for.
 
 `back` is asked on Backspace while the field is empty, and answers first. Only when it declines
 does the stage pop the stack.

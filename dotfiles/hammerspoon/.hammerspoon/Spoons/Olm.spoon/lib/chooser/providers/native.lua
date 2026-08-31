@@ -35,16 +35,21 @@
 ---                the subtitle. A row sets it to fold in hidden keywords or synonyms.
 ---   onSelect     function(item) fired when a row is chosen (Return or the insert
 ---                key). Not fired for a disabled row or an empty dismissal.
----   intercept    function(item) -> true to keep the chooser open. Asked BEFORE a row is
----                allowed to complete, so a row can mean "this list becomes another list"
----                rather than "act and close". The consumer does whatever the row meant,
----                rewriting the field or swapping its whole row supplier, and answers true,
----                and the atom then rebuilds the list from the top and stays open. That is
----                what makes a list you drill through stop flickering. false or nil is the
----                usual answer and the row completes as always. The atom deliberately does
----                not learn what the row meant, only that it was not a completion. Filter
----                mode only, since a field whose Return commits a typed value cannot also
----                mean navigate.
+---   intercept    function(item) -> true or "stay" to keep the chooser open. Asked
+---                BEFORE a row is allowed to complete, so a row can mean "this list
+---                becomes another list" rather than "act and close". The consumer does
+---                whatever the row meant, rewriting the field or swapping its whole row
+---                supplier, and answers true, and the atom then rebuilds the list from
+---                the top and stays open. That is what makes a list you drill through
+---                stop flickering. Answering the string "stay" instead means the row
+---                mutated the list it already stood on in place rather than swapping to
+---                a different one, so the atom rebuilds without resetting the
+---                highlight, keeping the person on the row they just chose. false or
+---                nil is the usual answer and the row completes as always. The atom
+---                deliberately does not learn what the row meant beyond that one
+---                distinction, a different list versus the same list held, never a
+---                completion. Filter mode only, since a field whose Return commits a
+---                typed value cannot also mean navigate.
 ---   back         function() -> true when it went back. Asked on Backspace while the field
 ---                is EMPTY, which is the one press that otherwise does nothing at all, so a
 ---                consumer that swapped its list can step out of it the way deleting a
@@ -491,9 +496,14 @@ end
 -- click agree, since one of them is the widget's and the other two are ours.
 --
 -- The consumer is the one that acts, because what a row meant is its business and the atom
--- would only be guessing at it. All the atom does is rebuild from the top afterwards, since
--- the list now means something else and the highlight should not stay on whatever row number
--- the previous level left it on.
+-- would only be guessing at it. Two truthy answers, and they rebuild differently. Answering
+-- true means the list now means something else, a level was pushed, popped, or swapped
+-- wholesale, so the atom rebuilds from the top, since the highlight should not stay on
+-- whatever row number the previous level left it on. Answering the string "stay" means the
+-- row mutated the list it already stood on in place, a write that changes what a sibling row
+-- shows rather than which list is showing, so the atom rebuilds with the highlight held
+-- instead of reset, keeping the person on the row they just chose. Anything else, including
+-- nil and false, is not an interception at all and the row completes as always.
 --
 -- enabled, a second argument now, review findings H1 and H2, is forwarded straight to ask
 -- rather than judged here, since what a disabled row should do is the consumer's own policy
@@ -505,8 +515,9 @@ end
 function Chooser:_intercept(item, enabled)
   local ask = self.config.intercept
   if not ask or not item then return false end
-  if ask(item, enabled) ~= true then return false end
-  self:refresh(true)
+  local answer = ask(item, enabled)
+  if answer ~= true and answer ~= "stay" then return false end
+  self:refresh(answer ~= "stay")
   return true
 end
 
