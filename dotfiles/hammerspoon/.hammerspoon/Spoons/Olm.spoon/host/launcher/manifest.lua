@@ -171,6 +171,16 @@ return {
     },
   },
 
+  -- configure alone leaves this host with no app watcher, no app directory watchers, and no
+  -- persisted recency loaded, none of which a table of options can start on its own, each is
+  -- live state a real step has to begin owning. A real step beyond configure, so it is named
+  -- here rather than left for the running set to never track the machine and the last pick to
+  -- never float to the top, host/launcher/init.lua's own start doing nothing at all until
+  -- something calls it.
+  wiring = {
+    { method = "start" },
+  },
+
   -- Hyper and Space, and it is the one tool exempt from its own rule about every command
   -- being findable as a launcher row, since listing the finder inside the finder earns
   -- nothing.

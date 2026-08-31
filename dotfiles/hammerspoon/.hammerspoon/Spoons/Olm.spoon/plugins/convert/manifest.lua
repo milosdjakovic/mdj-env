@@ -50,11 +50,19 @@ return {
   -- grammar cannot drift, and it stays short enough for the field, which holds about twenty
   -- eight characters.
   --
+  -- A distance to miles was the first wording here and it was wrong for a reason the field
+  -- itself never shows. Customary length and speed both carry the tool's own mixed unit
+  -- default, feet and inches rather than one decimal number, so that wording answered a sum
+  -- and cost this plugin's own _run a second qalc process on the very first thing a curious
+  -- person tried. A customary speed converted to a metric one resolves to one clean number
+  -- on the first ask instead, the same shape init.lua's own isSingleValue already checks
+  -- for, so the example a person sees costs exactly what the row it inspired will.
+  --
   -- Nothing shows it when the calculator is absent, since a plugin left out for a missing
   -- required tool is left out of the launcher's source list too, and the hints are collected
   -- from that same list. So the field never advertises a conversion this machine cannot do.
   defaults = {
-    example = "Try 20 km to miles",
+    example = "Try 10 mph to kph",
   },
 
   -- queryRows rather than rows, on purpose. rows is what a scopable tool claims, a
