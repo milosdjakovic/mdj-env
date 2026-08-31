@@ -9,7 +9,6 @@
 local overlayModes = {
   activeWindow = "activeWindow",
   cursor = "cursor",
-  fixed = "fixed",
 }
 
 return {
@@ -92,34 +91,22 @@ return {
   },
 
   -- Overlay display policy. Decides which display every transient overlay appears
-  -- on, the five choosers (clipboard, VPN, menu search, launcher, keep awake), their
-  -- docked shortcut panels, both cheat sheets, and the colour toast. init.lua reads
-  -- this into a small strategy registry and injects the chosen resolver into the
-  -- Chooser atom and the CanvasPanel, so one choice moves every overlay together.
-  -- Three modes:
+  -- on, every chooser, its docked shortcut panel, both cheat sheets, and the colour
+  -- toast. init.lua reads this into a small strategy registry and injects the chosen
+  -- resolver into the Chooser atom and the CanvasPanel, so one choice moves every
+  -- overlay together. Two modes.
   --   "activeWindow" the display holding the focused window.
   --   "cursor"       the display the mouse pointer is on, the default, since the launcher
   --                  should land where the eyes already are.
-  --   "fixed"        a chosen display per display arrangement, see fixed below.
-  -- fixed is read only in fixed mode. Its keys are the profile names from
-  -- config/displays.lua (whichever one is currently matched, resolved through
-  -- DisplayProfiles:current), and its values are displayplacer serial ids, the same
-  -- portable ids those profiles already use, so no second identity scheme is needed.
-  -- An arrangement with no entry, or a serial that does not resolve, falls back to
-  -- the activeWindow behaviour.
   --
   -- This block is now only the DEFAULT SEED. The live choice is set at runtime from
-  -- the "Overlay Display" launcher row and persisted under the hs.settings key
-  -- overlayDisplayPolicy, which overrides these values; init.lua reads them through
-  -- effectiveMode/effectiveFixed, seed-then-persisted. So edit here to change the
-  -- fresh-machine default, and use the launcher picker for day to day switching.
+  -- the OLM settings tool in the launcher and persisted under the hs.settings key
+  -- overlayDisplayPolicy, which overrides this value. init.lua reads it through
+  -- effectiveMode, seeded then persisted. So edit here to change the default for a
+  -- fresh machine, and use the OLM settings tool for day to day switching.
   overlayDisplay = {
-    -- overlayModes.activeWindow | overlayModes.cursor | overlayModes.fixed
+    -- overlayModes.activeWindow | overlayModes.cursor
     mode = overlayModes.cursor,
-    fixed = {
-      -- ["home-office"] = "s810891350",
-      -- ["vicert office, built in and two Dell P2318HC"] = "s826888524",
-    },
   },
 
   -- Shortcut hint panel. The docked panel that spells out the Hyper navigation

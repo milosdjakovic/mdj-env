@@ -336,6 +336,13 @@ spoon.SomeSpoon._field"` to read live state. The `hs` CLI talks to the running
 Hammerspoon over `hs.ipc`, so it both reloads and introspects, which is how a
 change should be confirmed rather than assumed.
 
+Reloading is never something to ask about. The moment a build or a fix on the
+live config finishes, reload automatically, standing permission from Milos, and
+he should never have to request it or run it himself. Asking first only stalls
+the loop he already expects to end with the change live. What still needs his
+explicit go ahead is driving the screen or the keyboard for a live test, which
+is a different action with its own rule.
+
 **Testing a change in an isolated worktree, and the test lock.** There is only
 one Hammerspoon app on the machine, with one config directory and one set of
 global event taps, so only one config can be live at a time. Editing files
@@ -462,9 +469,9 @@ watch, match, apply mechanism), `store.lua` (a git tracked JSON file of captured
 profiles), `chooser.lua` (an inspect and manage surface), and `init.lua` (the
 spoon composition root that merges the curated profiles with the captured ones
 and exposes the api the chooser talks through). The public colon contract above
-is unchanged and still delegates to the engine, so the overlay display policy
-that reads `current()` is untouched. The new surface is a nested menu chooser on
-`obj.chooser`, opened from the launcher with no dedicated key, that lists the
+is unchanged and still delegates to the engine, so the main root that starts the
+spoon is untouched. The new surface is a nested menu chooser on `obj.chooser`,
+opened from the launcher with no dedicated key, that lists the
 profiles, marks the active one, captures the current arrangement when it matches
 none, and renames or deletes the captured ones, curated ones staying read only.
 The main root wires it like the other native choosers: the curated profiles and
@@ -535,40 +542,28 @@ two atoms, `CanvasPanel.configure({ screen })` and `Chooser.configure({ screen }
 Neither atom names the policy or the modes, so every overlay and the cheat
 sheets read one seam and land on the same display.
 
-The live choice is set at runtime, not by editing config. The **Overlay Display**
-launcher row (a launcher-only picker, no Hyper key, but on the shared j/k/i/x
-navigation like every chooser) writes the choice to one `hs.settings` key,
-`overlayDisplayPolicy`, and a second key `overlayDisplayNames` remembers each
-display's friendly name so a detached monitor still reads by name. The resolvers
-read through `effectiveMode` and `effectiveFixed`, which return the persisted choice
-first and fall back to the `config/settings.lua` `overlayDisplay` block, so that
-block is now only the fresh-machine seed and a picker choice takes effect on the
-next overlay with no reload. The picker is a drill-in menu, root shows the modes
-plus a Configure door, Configure lists the profiles each with its pinned display,
-and a profile lists its displays to pin, committing straight to the store.
+Milos decided the policy offers exactly two choices, nothing more. The live choice is
+set at runtime, not by editing config, through the OLM settings tool in the launcher,
+which is the one place a person sees or changes it. It writes the choice to one
+`hs.settings` key, `overlayDisplayPolicy`. The resolver reads through `effectiveMode`,
+which returns the persisted choice first and falls back to the `config/settings.lua`
+`overlayDisplay` block, so that block is now only the seed for a fresh machine and a
+choice made in the settings tool takes effect on the next overlay with no reload.
 
-Three modes. `activeWindow` uses the screen with the focused window, the effective
-default and the historical behaviour. `cursor` uses the screen under the mouse.
-`fixed` pins overlays to a chosen display per display arrangement, keyed by the
-`DisplayProfiles` profile name (resolved live through `DisplayProfiles:current()`)
-to a displayplacer serial id, reusing the portable ids `config/displays.lua`
-already holds. Resolvers run at overlay-open time, so they track live state and may
-forward-reference DisplayProfiles, which is configured later in the root. An unknown
-mode, an unmapped arrangement, or a serial that does not resolve all fall back to
-`activeWindow`, logged once per arrangement.
+Two modes. `activeWindow` uses the screen with the focused window, the historical
+default. `cursor` uses the screen under the mouse, the seed for a fresh machine
+today, since the launcher should land where the eyes already are. Resolvers run at
+the moment an overlay opens, so they track live state. A stored or seeded mode
+answering to neither name, left over on a machine that once had a third mode, lands
+on cursor rather than failing the strategy lookup, which is the whole migration such
+a machine needs.
 
-Two mechanics make this reliable. The choosers place authoritatively rather than
+One mechanic makes this reliable. The choosers place authoritatively rather than
 trusting the native `hs.chooser` default: the Chooser atom resolves the target
 screen once at show, before the chooser steals focus (resolving later would see the
 chooser's own window as focused), then `_settleFrames` forces the window onto that
 screen, centered horizontally and top biased, instead of adapting to wherever the
-widget dropped it. Fixed mode needs a serial-id to `hs.screen` bridge because
-`hs.screen` exposes no serial id; `displayplacer list` prints each screen's serial
-id alongside its persistent id, and the persistent id is the CoreGraphics UUID that
-`hs.screen:getUUID` returns, so serial resolves to persistent resolves to screen.
-That parse is cached and cleared on an `hs.screen.watcher` change, the same event
-DisplayProfiles reacts to, so fixed mode costs nothing per open after the first
-resolve on an arrangement.
+widget dropped it.
 
 **Transient feedback surface.** Routine feedback a feature produces while it is
 working is drawn on the shared `CanvasPanel`, never on `hs.alert`, so the UI stays
@@ -1049,21 +1044,24 @@ launcher's recency order and the VPN action row survive until the user types.
 Two knobs sit on the per-instance config, both the single `matcher` field. Omitting it
 inherits the root default. Setting it to `Chooser.matchers.substring` keeps search but
 drops fuzzy for that one tool. Setting it to `false` opts out of the shared matcher
-entirely, for a tool whose query is not a plain filter over a list. Five tools do that.
-Caffeinate's field is a value being typed, a time or a duration, parsed into one morphing
-row, so a matcher would only filter that row against its own label. The DisplayProfiles
-menu is the same shape, a stack of frames whose field filters at the top but is a name
-entry on the rename and capture screens, so its supplier morphs the rows from the query
-and the atom must not second-guess them, which would hide the Back row and the Save row.
-The overlay display picker is the same drill-in shape, a per-view menu that does its own
-substring filter over the current view's rows, so the atom must not rerank or hide its
-Back and commit rows. The emoji picker filters over a hidden haystack, the folded name,
-aliases, tags, and category rather than the visible title and subtitle, and caps its rows
-to bound the glyph icon render, so its own supplier owns the query and the atom filtering
-again would drop a tag only match and undo the cap. The clipboard parses a leading type
-prefix (`img ...`) off its query, so it owns filtering and opts out at its own `new()`,
-and for the free-text part it uses the `words` strategy rather than the shared fuzzy one,
-keeping its rows in recency order rather than reranking.
+entirely, for a tool whose query is not a plain filter over a list. Several tools do
+that, each for its own reason, four of them worth walking through here as examples of the
+shape rather than a complete roster. Caffeinate's field is a value being typed, a time or
+a duration, parsed into one morphing row, so a matcher would only filter that row against
+its own label. The DisplayProfiles menu is the same shape, a stack of frames whose field
+filters at the top but is a name entry on the rename and capture screens, so its supplier
+morphs the rows from the query and the atom must not second-guess them, which would hide
+the Back row and the Save row. The emoji picker filters over a hidden haystack, the folded
+name, aliases, tags, and category rather than the visible title and subtitle, and caps its
+rows to bound the glyph icon render, so its own supplier owns the query and the atom
+filtering again would drop a tag only match and undo the cap. The clipboard parses a
+leading type prefix (`img ...`) off its query, so it owns filtering and opts out at its
+own `new()`, and for the free-text part it uses the `words` strategy rather than the
+shared fuzzy one, keeping its rows in recency order rather than reranking. BrowserTabs,
+FileSearch, TmuxSessions, Workspaces, and the OLM settings page all opt out the same way
+too, each behind its own reason its own file explains, so the count of tools opting out
+keeps growing and is deliberately not enumerated here in full.
+
 So every list chooser is fuzzy by default with no per-tool wiring, and a future list
 chooser inherits it for free, while the structured-query tools opt out in one word.
 

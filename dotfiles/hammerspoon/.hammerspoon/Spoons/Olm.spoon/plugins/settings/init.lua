@@ -1,27 +1,31 @@
---- === Settings ===
+--- === OLM settings ===
 ---
 --- A friendly settings surface, opened from the launcher only, with one nested page today,
---- window placement, deciding which display the launcher and every stage window land on.
---- The mechanism this page controls already lives in lib/overlaydisplay.lua, three modes,
---- activeWindow, cursor, and fixed, and the Overlay Display launcher row already offers all
---- three, fixed included, with its own per arrangement pin. This page offers only the two
---- everyday choices in plainer words, where the mouse cursor is and with the active window,
---- and leaves fixed pinning to that existing picker, since a pin is keyed by display
---- arrangement and this page has no way to name one.
+--- where the OLM launcher appears, deciding which display the launcher and every stage
+--- window land on. The mechanism this page controls already lives in
+--- lib/overlaydisplay.lua, two modes, activeWindow and cursor, and this page is the only
+--- surface a person sees or changes either one through.
 ---
 --- No engine and contract ceremony, this plugin has no moving parts of its own. It reads and
 --- writes the resolver's live mode through two root published words, overlayPlacementMode and
 --- setOverlayPlacementMode, so lib/overlaydisplay.lua stays the one file that ever calls
 --- hs.settings for this policy.
 ---
---- Migrated onto host/stage, contract v3, docs/BRIEF-CONTRACT-V3.md. The top level is one row,
---- Window placement, its subtitle naming the live choice, and choosing it pushes the child
---- below, decision one, host/stage pushing whatever select answers. The child's own rows,
---- Back then the two options, are decided by the same live mode on every rebuild, and the
---- green circle marks whichever option is current, the one marker this codebase uses for that
---- question, never a checkmark. In fixed mode neither option is current, since this page
---- offers only the two everyday choices, so an inert row between Back and the two options
---- names the pin instead of leaving both silently unmarked. Choosing an option is decision
+--- This page names the two modes as the bare literals cursor and activeWindow rather than
+--- reading them off lib/overlaydisplay.lua's own M.modes, since the two closures above are all
+--- this plugin ever receives, not the modes table itself. That coupling by spelling rather
+--- than by shared reference is deliberate, forced by the architecture this plugin is built
+--- against rather than an oversight, and it carries one real failure mode worth knowing. A
+--- mode renamed inside the resolver leaves self.setMode refusing the old literal with a log
+--- line, while this page's own green marker goes quietly blank instead, with nothing here to
+--- raise the mismatch any louder than that.
+---
+--- Migrated onto host/stage, contract v3, docs/BRIEF-CONTRACT-V3.md. The top level is one
+--- row, Where the OLM launcher appears, its subtitle naming the live choice, and choosing
+--- it pushes the child below, decision one, host/stage pushing whatever select answers. The
+--- child's own rows, Back then the two options, are decided by the same live mode on every
+--- rebuild, and the green circle marks whichever option is current, the one marker this
+--- codebase uses for that question, never a checkmark. Choosing an option is decision
 --- three's reserved case, a row that mutates the policy it is standing beside and stays,
 --- reached through intercept and the write path above rather than through select, since a
 --- completion here would close the whole tool on every flip and Milos wants to switch back
@@ -69,10 +73,7 @@ end
 local ICON_PLACEMENT = "🖥️"
 local ICON_BACK = "⬅️"
 -- The green circle marks the active row, never a checkmark, the one marker this codebase
--- uses for "which of these is current right now". The cursor and active window glyphs are
--- the identical two lib/overlaydisplay.lua already draws for the same two modes on its own
--- root row, reused here on purpose so the same choice reads as the same glyph wherever it is
--- met.
+-- uses for "which of these is current right now".
 local ICON_SELECTED = "🟢"
 local ICON_CURSOR = "🖱️"
 local ICON_ACTIVE_WINDOW = "🎯"
@@ -85,13 +86,10 @@ local function backRow()
   return row("Back", nil, ICON_BACK, { nav = true, to = "back" }, true)
 end
 
--- Plain words for the top level's own subtitle, one per mode this resolver knows. fixed has
--- no per arrangement detail here, since naming a pinned display is the Overlay Display
--- picker's own job, and this page only ever says that a pin is what is live.
+-- Plain words for the top level's own subtitle, one per mode this resolver knows.
 local MODE_WORDS = {
   cursor = "where the mouse cursor is",
   activeWindow = "with the active window",
-  fixed = "a pinned display",
 }
 
 local function liveMode()
@@ -99,21 +97,13 @@ local function liveMode()
 end
 
 --------------------------------------------------------------------------------
--- The window placement child, a page of Back plus the two everyday options
+-- The child page for Where the OLM launcher appears, a page of Back plus the two everyday
+-- options
 --------------------------------------------------------------------------------
 
 local function placementRows()
   local mode = liveMode()
   local rows = { backRow() }
-  if mode == "fixed" then
-    -- This machine's live mode is a pin, which this page cannot offer or write, so neither
-    -- option below is the current one and choosing either would silently replace it. An
-    -- inert row says so instead of leaving both unmarked. Inert rows never reach intercept,
-    -- so this needs no guard there.
-    rows[#rows + 1] = row("A pinned display",
-      "Set through the Overlay Display picker, choosing an option below replaces it",
-      ICON_SELECTED, nil, false)
-  end
   rows[#rows + 1] = row("Where the mouse cursor is", nil, mode == "cursor" and ICON_SELECTED or ICON_CURSOR,
     { commit = "cursor" }, true)
   rows[#rows + 1] = row("With the active window", nil, mode == "activeWindow" and ICON_SELECTED or ICON_ACTIVE_WINDOW,
@@ -127,7 +117,7 @@ end
 -- character.
 local function buildPlacementChild()
   return {
-    placeholder = "Window placement",
+    placeholder = "Where the OLM launcher appears",
     matcher = false,
     rows = placementRows,
     -- select never actually answers, both reachable rows on this level are caught by
@@ -140,8 +130,8 @@ local function buildPlacementChild()
         return true
       end
       if item.commit then
-        -- Writes through the one path lib/overlaydisplay.lua already keeps for its own
-        -- picker, so this file never calls hs.settings itself. Answering true keeps the
+        -- Writes through the one path lib/overlaydisplay.lua already keeps for self.setMode,
+        -- so this file never calls hs.settings itself. Answering true keeps the
         -- page open and rebuilds it from the top, the green circle moving to the row just
         -- chosen, which is the whole reason this is intercept rather than select, Milos
         -- switching back and forth and leaving by Backspace or Escape when done.
@@ -158,14 +148,14 @@ end
 --------------------------------------------------------------------------------
 
 --- M.rows() -> rows
---- The top level's own row supplier. One row today, Window placement, its subtitle naming
---- the live choice in words. No matcher declared in the manifest, the shared default fuzzy
---- strategy is more than enough over one row.
+--- The top level's own row supplier. One row today, Where the OLM launcher appears, its
+--- subtitle naming the live choice in words. No matcher declared in the manifest, the shared
+--- default fuzzy strategy is more than enough over one row.
 function M.rows()
   local mode = liveMode()
-  local words = MODE_WORDS[mode] or MODE_WORDS.activeWindow
+  local words = MODE_WORDS[mode] or MODE_WORDS.cursor
   return {
-    row("Window placement", words, ICON_PLACEMENT, { nav = true, to = "placement" }, true),
+    row("Where the OLM launcher appears", words, ICON_PLACEMENT, { nav = true, to = "placement" }, true),
   }
 end
 
@@ -184,7 +174,7 @@ end
 --- block. Resolved once, at register, since the presentation contract wants a plain string a
 --- presentation carries rather than a function to call again later.
 function M.placeholder()
-  return "Settings"
+  return "OLM settings"
 end
 
 --- M.show()
@@ -217,8 +207,8 @@ function M:configure(opts)
   cfg.stagePresent = opts.stagePresent
   cfg.stagePop = opts.stagePop
   if not cfg.readMode or not cfg.setMode then
-    log.w("configured with no overlay placement reader or writer, the window placement page "
-      .. "will show and change nothing")
+    log.w("configured with no overlay placement reader or writer, the Where the OLM "
+      .. "launcher appears page will show and change nothing")
   end
   return self
 end

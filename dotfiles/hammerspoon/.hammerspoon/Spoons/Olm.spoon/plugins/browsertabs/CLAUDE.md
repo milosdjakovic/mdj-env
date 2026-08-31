@@ -498,8 +498,8 @@ It is a stack of frames, not one flat list, so letting the atom filter uniformly
 away the Back row on the settings levels and pull the pinned Settings row into the tab ranking.
 So it opts out and scores its tab rows itself with the matcher the root injects, which keeps
 the one shared matching policy while leaving the pinned rows outside it. That is the same
-reason `DisplayProfiles` and the overlay display picker opt out, with the difference that this
-tool still uses the shared matcher rather than writing its own filter.
+reason `DisplayProfiles` opts out, with the difference that this tool still uses the shared
+matcher rather than writing its own filter.
 
 The Settings row is pinned last rather than ordered, so it never drifts up into the recency
 order and a typed filter targets the tabs, the same reason `Vpn` pins its action row above the

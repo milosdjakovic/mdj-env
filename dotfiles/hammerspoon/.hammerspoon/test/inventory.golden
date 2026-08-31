@@ -79,7 +79,7 @@ hypercheatsheet.item key=V name=Code bundleID=com.microsoft.VSCode
 hypercheatsheet.item key=Z name=Zed bundleID=dev.zed.Zed
 hypercheatsheet.item key=\ name=Activity Monitor bundleID=com.apple.ActivityMonitor
 hypercheatsheet.item key=` name=Ghostty bundleID=com.mitchellh.ghostty
-registry hypercontexts count=12
+registry hypercontexts count=11
 hypercontexts.context name=browserTabs when=browserTabsOpen priority=100 bindingCount=5
 hypercontexts.context name=caffeinate when=caffeinateOpen priority=100 bindingCount=3
 hypercontexts.context name=clipboard when=clipboardOpen priority=100 bindingCount=9
@@ -88,7 +88,6 @@ hypercontexts.context name=emoji when=emojiOpen priority=100 bindingCount=5
 hypercontexts.context name=fileSearch when=fileSearchOpen priority=100 bindingCount=12
 hypercontexts.context name=launcher when=launcherOpen priority=100 bindingCount=6
 hypercontexts.context name=menuSearch when=menuSearchOpen priority=100 bindingCount=5
-hypercontexts.context name=overlayDisplay when=overlayDisplayOpen priority=100 bindingCount=5
 hypercontexts.context name=processes when=processesOpen priority=100 bindingCount=8
 hypercontexts.context name=textCase when=textCaseOpen priority=100 bindingCount=5
 hypercontexts.context name=vpn when=vpnOpen priority=100 bindingCount=5
@@ -142,11 +141,6 @@ hypercontexts.binding context=menuSearch key=i mods=- action=insertSelected kind
 hypercontexts.binding context=menuSearch key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=menuSearch key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
 hypercontexts.binding context=menuSearch key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=overlayDisplay key=. mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
-hypercontexts.binding context=overlayDisplay key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Select
-hypercontexts.binding context=overlayDisplay key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
-hypercontexts.binding context=overlayDisplay key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
-hypercontexts.binding context=overlayDisplay key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
 hypercontexts.binding context=processes key=. mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=processes key=f mods=- action=stopForced kind=verb when=- chord=true needs=- description=Force stop
 hypercontexts.binding context=processes key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Stop
@@ -165,7 +159,7 @@ hypercontexts.binding context=vpn key=i mods=- action=insertSelected kind=naviga
 hypercontexts.binding context=vpn key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=vpn key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
 hypercontexts.binding context=vpn key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-registry actionpanel count=12
+registry actionpanel count=11
 actionpanel.context name=browserTabs verbCount=0
 actionpanel.context name=caffeinate verbCount=0
 actionpanel.context name=clipboard verbCount=2
@@ -174,7 +168,6 @@ actionpanel.context name=emoji verbCount=0
 actionpanel.context name=fileSearch verbCount=5
 actionpanel.context name=launcher verbCount=0
 actionpanel.context name=menuSearch verbCount=0
-actionpanel.context name=overlayDisplay verbCount=0
 actionpanel.context name=processes verbCount=3
 actionpanel.context name=textCase verbCount=0
 actionpanel.context name=vpn verbCount=0
@@ -188,7 +181,7 @@ actionpanel.verb context=fileSearch key=y mods=- action=copyPath description=Cop
 actionpanel.verb context=processes key=f mods=- action=stopForced description=Force stop
 actionpanel.verb context=processes key=r mods=- action=refreshList description=Rescan
 actionpanel.verb context=processes key=s mods=- action=sortByLoad description=Sort by load
-registry panelrows count=12
+registry panelrows count=11
 panelrows.context name=browserTabs rowCount=1
 panelrows.context name=caffeinate rowCount=1
 panelrows.context name=clipboard rowCount=2
@@ -197,7 +190,6 @@ panelrows.context name=emoji rowCount=1
 panelrows.context name=fileSearch rowCount=6
 panelrows.context name=launcher rowCount=1
 panelrows.context name=menuSearch rowCount=1
-panelrows.context name=overlayDisplay rowCount=1
 panelrows.context name=processes rowCount=4
 panelrows.context name=textCase rowCount=1
 panelrows.context name=vpn rowCount=1
@@ -215,14 +207,13 @@ panelrows.row context=fileSearch action=peekPreview title=Quick Look chord=Hyper
 panelrows.row context=fileSearch action=revealInFinder title=Reveal in Finder chord=Hyper O glyph=🔍
 panelrows.row context=launcher action=- title=Back chord=⌫ glyph=⬅️
 panelrows.row context=menuSearch action=- title=Back chord=⌫ glyph=⬅️
-panelrows.row context=overlayDisplay action=- title=Back chord=⌫ glyph=⬅️
 panelrows.row context=processes action=- title=Back chord=⌫ glyph=⬅️
 panelrows.row context=processes action=refreshList title=Rescan chord=Hyper R glyph=🔄
 panelrows.row context=processes action=sortByLoad title=Sort by load chord=Hyper S glyph=🔥
 panelrows.row context=processes action=stopForced title=Force stop chord=Hyper F glyph=⛔
 panelrows.row context=textCase action=- title=Back chord=⌫ glyph=⬅️
 panelrows.row context=vpn action=- title=Back chord=⌫ glyph=⬅️
-registry hostedrows count=12
+registry hostedrows count=11
 hostedrows.context name=browserTabs rowCount=1
 hostedrows.context name=caffeinate rowCount=1
 hostedrows.context name=clipboard rowCount=1
@@ -231,7 +222,6 @@ hostedrows.context name=emoji rowCount=1
 hostedrows.context name=fileSearch rowCount=4
 hostedrows.context name=launcher rowCount=1
 hostedrows.context name=menuSearch rowCount=1
-hostedrows.context name=overlayDisplay rowCount=1
 hostedrows.context name=processes rowCount=1
 hostedrows.context name=textCase rowCount=1
 hostedrows.context name=vpn rowCount=1
@@ -246,12 +236,11 @@ hostedrows.row context=fileSearch action=peekPreview title=Quick Look chord=Hype
 hostedrows.row context=fileSearch action=revealInFinder title=Reveal in Finder chord=Hyper O in File search glyph=🔍 closes=true
 hostedrows.row context=launcher action=- title=Back chord=⌫ glyph=⬅️ closes=-
 hostedrows.row context=menuSearch action=- title=Back chord=⌫ glyph=⬅️ closes=-
-hostedrows.row context=overlayDisplay action=- title=Back chord=⌫ glyph=⬅️ closes=-
 hostedrows.row context=processes action=- title=Back chord=⌫ glyph=⬅️ closes=-
 hostedrows.row context=textCase action=- title=Back chord=⌫ glyph=⬅️ closes=-
 hostedrows.row context=vpn action=- title=Back chord=⌫ glyph=⬅️ closes=-
 registry actionpaneldecorated count=1
-registry tools count=13
+registry tools count=15
 tools.entry name=browserTabs active=true surface=false hosted=true scope=true
 tools.entry name=caffeinate active=true surface=false hosted=true scope=true
 tools.entry name=clipboard active=true surface=true hosted=false scope=false
@@ -262,9 +251,11 @@ tools.entry name=emoji active=true surface=false hosted=true scope=true
 tools.entry name=fileSearch active=true surface=true hosted=true scope=true
 tools.entry name=menuSearch active=true surface=false hosted=false scope=true
 tools.entry name=processes active=true surface=true hosted=false scope=false
+tools.entry name=settings active=true surface=false hosted=false scope=false
 tools.entry name=textCase active=true surface=false hosted=false scope=false
 tools.entry name=tmuxSessions active=true surface=false hosted=true scope=true
 tools.entry name=vpn active=true surface=false hosted=true scope=true
+tools.entry name=workspaces active=true surface=false hosted=false scope=false
 registry scopes count=12
 scopes.entry name=aliasDirectory aliases=?
 scopes.entry name=apps aliases=a+app
@@ -278,7 +269,7 @@ scopes.entry name=settingsPanes aliases=s+system
 scopes.entry name=tmuxSessions aliases=u+tmux
 scopes.entry name=vpn aliases=v+vpn
 scopes.entry name=windowActions aliases=w+window
-registry launcherrows count=20
+registry launcherrows count=21
 launcherrows.entry name=aliasDirectory subTitle=Tools · every word that scopes this list (?)
 launcherrows.entry name=appendCopy subTitle=Clipboard · ⌃⌥C
 launcherrows.entry name=browserTabs subTitle=Tools · Hyper W (t, tabs)
@@ -291,14 +282,15 @@ launcherrows.entry name=emoji subTitle=Tools · Hyper J (e, emoji)
 launcherrows.entry name=fileSearch subTitle=Tools · Hyper / (/)
 launcherrows.entry name=lock subTitle=System · Hyper §
 launcherrows.entry name=manageHistory subTitle=Clipboard
-launcherrows.entry name=overlayDisplay subTitle=Displays · where panels and choosers appear
 launcherrows.entry name=pasteNext subTitle=Clipboard · ⌃⌥V
 launcherrows.entry name=processes subTitle=System · stops a dev server, container, or watcher
 launcherrows.entry name=searchSettings subTitle=System · opens the System Settings search field
+launcherrows.entry name=settings subTitle=System · where the OLM launcher appears and other preferences
 launcherrows.entry name=sleep subTitle=System · Hyper esc
 launcherrows.entry name=textCase subTitle=Text · recase the selection in place
 launcherrows.entry name=tmuxSessions subTitle=Tools · Hyper U (u, tmux)
 launcherrows.entry name=vpn subTitle=Network · Hyper P (v, vpn)
+launcherrows.entry name=workspaces subTitle=Displays · window layouts remembered per display configuration
 registry hyperkey count=37
 hyperkey.key code=0 total=2 base=1
 hyperkey.key code=1 total=2 base=1
@@ -306,7 +298,7 @@ hyperkey.key code=2 total=2 base=1
 hyperkey.key code=3 total=2 base=1
 hyperkey.key code=4 total=1 base=0
 hyperkey.key code=6 total=1 base=1
-hyperkey.key code=7 total=13 base=1
+hyperkey.key code=7 total=14 base=1
 hyperkey.key code=8 total=1 base=1
 hyperkey.key code=9 total=1 base=1
 hyperkey.key code=10 total=1 base=1
@@ -323,17 +315,17 @@ hyperkey.key code=21 total=2 base=2
 hyperkey.key code=23 total=1 base=1
 hyperkey.key code=31 total=2 base=1
 hyperkey.key code=32 total=1 base=1
-hyperkey.key code=34 total=14 base=1
+hyperkey.key code=34 total=15 base=1
 hyperkey.key code=35 total=1 base=1
 hyperkey.key code=37 total=2 base=1
-hyperkey.key code=38 total=15 base=1
-hyperkey.key code=40 total=15 base=1
+hyperkey.key code=38 total=16 base=1
+hyperkey.key code=40 total=16 base=1
 hyperkey.key code=42 total=1 base=1
 hyperkey.key code=43 total=1 base=1
 hyperkey.key code=44 total=1 base=1
 hyperkey.key code=45 total=1 base=1
 hyperkey.key code=46 total=2 base=1
-hyperkey.key code=47 total=13 base=0
+hyperkey.key code=47 total=14 base=0
 hyperkey.key code=49 total=2 base=1
 hyperkey.key code=50 total=1 base=1
 hyperkey.key code=53 total=1 base=1

@@ -605,14 +605,11 @@ instance every presenting plugin shows into, rather than calling `Chooser.new` a
 a window of its own. VPN was the first plugin to declare it, phase three's own proving
 consumer, and it no longer stands alone. The trickle and final batch migrations,
 docs/PLAN-CHOOSER-STAGE.md, moved every remaining list in this configuration onto the shared
-stage, so eleven of the twenty four manifests under `plugins/` carry this block today rather
-than building a picker of their own, every list bar the ones that were never a chooser to
-begin with, an app toggle or a window action among them. The launcher is the one presenting
-consumer with no manifest at all,
-being a host rather than a plugin, and builds its presentation table directly in
-`host/launcher/init.lua`. The overlay display picker is presented the identical way for the
-identical reason, `lib/overlaydisplay.lua` carrying no manifest to declare a block in,
-`root/compose.lua` building its presentation by hand and handing it to the stage directly.
+stage, so thirteen of the twenty four manifests under `plugins/` carry this block today
+rather than building a picker of their own, every list bar the ones that were never a chooser
+to begin with, an app toggle or a window action among them. The launcher is the one
+presenting consumer with no manifest at all, being a host rather than a plugin, and builds
+its presentation table directly in `host/launcher/init.lua`.
 
 ```lua
 presentation = {

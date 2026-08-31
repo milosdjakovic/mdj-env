@@ -187,17 +187,14 @@ return {
     -- with nothing behind it that a descriptor could describe, so each is stated here as plain
     -- data rather than written into the row builder, which is what keeps that builder naming
     -- nothing. lock and sleep are system calls, searchSettings focuses a field inside a pane
-    -- and belongs to no plugin, overlayDisplay is a picker the composition root itself owns,
-    -- and aliasDirectory is a scope about scopes.
+    -- and belongs to no plugin, and aliasDirectory is a scope about scopes.
     --
     -- A key here is a default this person may move. Where one is given the subtitle names the
     -- chord, and where none is the subtitle says what the row is for instead, which is right
-    -- for the three that open from this list and nowhere else.
+    -- for the two that open from this list and nowhere else.
     specialRows = {
       { name = "searchSettings", description = "Search Settings",
         subTitle = "System · opens the System Settings search field", glyph = "🔍" },
-      { name = "overlayDisplay", description = "Overlay Display",
-        subTitle = "Displays · where panels and choosers appear", glyph = "🖥️" },
       { name = "aliasDirectory", description = "Aliases",
         subTitle = "Tools · every word that scopes this list", glyph = "🏷️",
         keywords = "alias aliases scope scopes shortcut words prefix" },
