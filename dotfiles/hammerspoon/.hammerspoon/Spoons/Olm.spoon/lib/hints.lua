@@ -525,8 +525,12 @@ function obj.sections(registry, plan, deps)
       -- that states no leader is left in rather than guessed at.
       if role == nil or eff.leader == nil or eff.leader == role then
         local row = registry.rowFor(entry.name)
+        -- A detail may be a resolved function rather than a string for a row whose subtitle
+        -- is computed at open time, and an overlay label wants the stable words, so only a
+        -- plain string is borrowed here.
+        local detail = row and type(row.detail) == "string" and row.detail or nil
         add(eff.key, eff.mods, entry.name,
-          eff.description or (row and row.detail) or entry.name)
+          eff.description or detail or entry.name)
       end
     end
   end

@@ -493,6 +493,17 @@ may be `true` to mean the plugin root itself.
 `description`, `glyph`, `aliases`, `key` and `leader` come from `defaults` rather than being
 retyped here, so one answer serves the row, the key binding and the scope directory.
 
+`row.detail` is display text when it is a string, which is nearly every row. It may instead
+be a member spec, the table form only, and the registrar then resolves it lazily exactly as
+it resolves `open`, so the launcher asks the plugin for the words at read time and the row's
+subtitle can depend on the world at open time. The member answers the detail string, and any
+answer that is not a plain string falls back to the row's static subtitle. The launcher asks
+on every keystroke, so such a member caches its answer per launcher open, keyed by the open
+id the launcher hands over beside the covered app. A bare string here is never read as a
+member name, since a string detail already means words a person reads, which is also why the
+dry gate checks only the table form against the real module. TextCase is the consumer, its
+row saying up front that nothing is selected.
+
 `commands` are named actions that belong to a tool but are not tools themselves. A command
 has no plugin directory, so nothing can resolve a key for it through the plan, which is why
 its key and mods ride on the command itself. Both clipboard commands bound nothing at all

@@ -355,7 +355,7 @@ function obj:_buildActionRows()
   -- the injected rows already carry. It exists so a row can answer to a word its title
   -- and subtitle have no room for, rather than that word being padded into the visible
   -- subtitle where it would cost a reader something to buy a searcher something.
-  local function add(title, subTitle, item, glyph, when, keywords)
+  local function add(title, subTitle, item, glyph, when, keywords, subTitleFn)
     -- A tool reachable by typing a word says so on its own row, and it says it here rather
     -- than at each call site. That is the difference between a hint a row can be forgotten
     -- from, which is how file search ended up advertising nothing, and one that cannot be,
@@ -370,7 +370,7 @@ function obj:_buildActionRows()
       subTitle = (subTitle or "") .. self._aliasHint(item.name)
     end
     rows[#rows + 1] = { title = title, subTitle = subTitle, image = self:_glyphIcon(glyph),
-                        item = item, when = when, keywords = keywords }
+                        item = item, when = when, keywords = keywords, subTitleFn = subTitleFn }
   end
   -- addTool(name) asks the injected registry for this name's row and, when there is one,
   -- builds it exactly as the thirteen hand written calls this replaced built theirs,
@@ -413,8 +413,15 @@ function obj:_buildActionRows()
       log.w(string.format("Launcher skipped the row for '%s', its registration carries no description", name))
       return
     end
+    -- A detail may arrive as a function rather than a string, the registrar having resolved
+    -- a member spec the manifest declared, for a row whose subtitle depends on the world at
+    -- open time. Such a row still bakes a static subtitle through the branches below, the
+    -- answer shown whenever the live one declines, and carries a closure the per keystroke
+    -- copy reads through _rowSubTitle, so these cached rows stay built once while their text
+    -- stays honest per open.
+    local detailFn = type(row.detail) == "function" and row.detail or nil
     local subTitle
-    if row.detail then
+    if row.detail and not detailFn then
       subTitle = row.category .. " · " .. row.detail
     elseif row.chord then
       -- A global combination rather than a leader chord, so the subtitle spells the whole
@@ -427,8 +434,21 @@ function obj:_buildActionRows()
       -- else, so the subtitle carries only what kind of thing they are.
       subTitle = row.category
     end
+    local subTitleFn
+    if detailFn then
+      -- The alias hint is appended here exactly as add appends it to the static subtitle,
+      -- since a live subtitle replacing the static one must not cost the row its typed word.
+      local category, hint = row.category, self._aliasHint(name)
+      subTitleFn = function()
+        local d = detailFn()
+        if type(d) == "string" and d ~= "" then
+          return category .. " · " .. d .. hint
+        end
+        return nil
+      end
+    end
     add(row.description, subTitle, { kind = "special", name = name },
-      row.glyph, nil, row.keywords)
+      row.glyph, nil, row.keywords, subTitleFn)
   end
   -- One row per registered tool, and one per registered command, asked of the registry in the
   -- order it holds rather than listed here by hand. This is what the thirteen addTool calls
@@ -672,6 +692,21 @@ function obj:_queryRows(query)
   return out, false
 end
 
+--- Launcher:_rowSubTitle(row)
+--- Method
+--- The subtitle one cached row shows right now. Almost every row answers its baked string.
+--- A row carrying a live closure, built in addTool from a registry detail that resolved to
+--- a function, is asked fresh instead, and falls back to the baked string when the closure
+--- declines or raises, so a broken plugin answer costs that one row its hint rather than
+--- costing the launcher its list. The plugin behind the closure caches per open, so this
+--- being read on every keystroke stays a table lookup rather than repeated work.
+function obj:_rowSubTitle(row)
+  if not row.subTitleFn then return row.subTitle end
+  local ok, live = pcall(row.subTitleFn)
+  if ok and type(live) == "string" then return live end
+  return row.subTitle
+end
+
 --- Launcher:_commandRows(query)
 --- Method
 --- The row supplier. Any rows the query sources computed lead, then the full
@@ -700,9 +735,10 @@ function obj:_commandRows(query)
   local preds = self._predicates
   for _, row in ipairs(self:_orderedRows()) do
     if not (row.when and not (preds[row.when] and preds[row.when]())) then
-      local filterText = row.title .. " " .. row.subTitle
+      local subTitle = self:_rowSubTitle(row)
+      local filterText = row.title .. " " .. subTitle
       if row.keywords then filterText = filterText .. " " .. row.keywords end
-      out[#out + 1] = { title = row.title, subTitle = row.subTitle, image = row.image,
+      out[#out + 1] = { title = row.title, subTitle = subTitle, image = row.image,
                         item = row.item, filterText = filterText }
     end
   end
@@ -723,9 +759,10 @@ function obj:rowsOfKind(kind)
     local it = row.item
     if it and it.kind == kind
       and not (row.when and not (preds[row.when] and preds[row.when]())) then
-      local filterText = row.title .. " " .. row.subTitle
+      local subTitle = self:_rowSubTitle(row)
+      local filterText = row.title .. " " .. subTitle
       if row.keywords then filterText = filterText .. " " .. row.keywords end
-      out[#out + 1] = { title = row.title, subTitle = row.subTitle, image = row.image,
+      out[#out + 1] = { title = row.title, subTitle = subTitle, image = row.image,
                         item = it, filterText = filterText }
     end
   end
