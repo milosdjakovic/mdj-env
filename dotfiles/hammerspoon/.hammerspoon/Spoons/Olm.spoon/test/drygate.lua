@@ -403,6 +403,13 @@ local function checkRegistryMembers(dir, identity, manifest, mod)
   local reg = manifest.registry
   if type(reg) ~= "table" then return end
   checkMember(dir, identity, "registry.open", reg.open, mod)
+  -- A row's detail is display text when it is a string and a lazily resolved member when it
+  -- is a table, so only the table form is checked, a bare string here being words and never
+  -- a member name. A typo in the table form otherwise costs a live subtitle silently, the
+  -- launcher falling back to the static one with no line anywhere.
+  if type(reg.row) == "table" and type(reg.row.detail) == "table" then
+    checkMember(dir, identity, "registry.row.detail", reg.row.detail, mod)
+  end
   if type(reg.commands) == "table" then
     for cmdName, cmdSpec in pairs(reg.commands) do
       if type(cmdSpec) == "table" then

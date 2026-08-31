@@ -666,6 +666,33 @@ function M.readSelection()
   return text
 end
 
+--- M.selectionPresence(app) -> "present", "absent", or "unknown"
+--- Whether the given application has a non empty text selection right now, read through its
+--- own accessibility element rather than the system wide focused one, so it answers about
+--- that app even while something else, a chooser panel among the real cases, holds the
+--- keyboard. This is a glance, not a read, and it deliberately answers three ways where
+--- readSelection above collapses to two, because its one caller shows a hint on "absent" and
+--- must never show it on a guess. "absent" is claimed only when the app's focused element
+--- affirmatively exposes AXSelectedText and that selection is empty or whitespace. An app
+--- with no focused element, or one whose focused element does not expose the attribute at
+--- all, answers "unknown", since plenty of views hold a perfectly real selection they never
+--- report, and calling that absent would tell a person to select text they already selected.
+function M.selectionPresence(app)
+  local ax = app and hs.axuielement.applicationElement(app)
+  local focused = ax and ax:attributeValue("AXFocusedUIElement")
+  if not focused then
+    return "unknown"
+  end
+  local text = focused:attributeValue("AXSelectedText")
+  if type(text) ~= "string" then
+    return "unknown"
+  end
+  if text:match("^%s*$") then
+    return "absent"
+  end
+  return "present"
+end
+
 --- M.snapshotClipboard() - the current pasteboard across every type, for a caller that will
 --- hand it back to paste as restoreTo. Every pasteboard read and write goes through this
 --- module, so the snapshot is taken here too rather than reached for directly.

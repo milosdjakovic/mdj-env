@@ -553,9 +553,18 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
   local rowSpec = info.row
   local row = nil
   if type(rowSpec) == "table" and rowSpec.category ~= nil then
+    -- detail is a plain display string for nearly every tool, and may instead be a member
+    -- spec, the table form only, resolved through the same lazy shape open takes below, for
+    -- a row whose subtitle depends on the world at open time. TextCase is the one consumer,
+    -- its subtitle saying up front that nothing is selected. A bare string here always means
+    -- display text and never a member name, which is why only the table form resolves.
+    local detail = rowSpec.detail
+    if type(detail) == "table" then
+      detail = obj.action(modules, identity, name, detail, nil)
+    end
     row = {
       category = rowSpec.category,
-      detail = rowSpec.detail,
+      detail = detail,
       keywords = rowSpec.keywords,
       glyph = rowSpec.glyph or eff.glyph,
       aliases = eff.aliases,

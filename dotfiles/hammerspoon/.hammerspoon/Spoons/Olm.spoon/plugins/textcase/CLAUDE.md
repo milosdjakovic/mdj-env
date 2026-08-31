@@ -107,6 +107,31 @@ open, so the shared fuzzy matcher filters them over title and subtitle with no p
 wiring, unlike the structured-query tools that opt out. Like the other native choosers it
 docks the deferred shortcut panel through the three chooser callbacks.
 
+## The last applied case leads, and the launcher row tells the truth early
+
+Two later additions, both riding existing seams rather than adding machinery of their own.
+
+The rows lead with the cases applied before, most recently applied first, through the
+shared recency service the per plugin grant injects under `olm.recency.textCase`. The
+reorder happens at row build time for one open, so the list a person is reading never
+shuffles and the highlight rules stay untouched. Each row carries its transform id beside
+its result text, which is how `select` tells the service what was just applied. Without the
+service the list is simply catalog order again.
+
+The launcher row's subtitle is computed rather than static, the one `registry.row.detail`
+in the tree declared as a member spec, which the registrar resolves lazily the way it
+resolves `open`. `launcherDetail` answers the ordinary words unless the app the launcher
+covers affirmatively has no selection, read through `lib/paste.lua`'s `selectionPresence`,
+an accessibility glance at that app's own focused element that works from the background
+while the chooser holds the keyboard. Three answers on purpose, and the hint shows only on
+"absent", never on "unknown", because plenty of views hold a real selection they never
+report through accessibility, and a row that nags a person to select text they already
+selected would be worse than one that says nothing. The copy based read the picker itself
+uses works everywhere, so opening on the ordinary words with no selection still lands on
+the guidance row, the same answer as before. The glance runs once per launcher open behind
+the open id cache, menu search's own pattern over the same `coveredApp` sibling closure,
+since the launcher reads the detail on every keystroke.
+
 ## What it does not do
 
 It recases one selection per open, it does not follow multiple carets or transform without a

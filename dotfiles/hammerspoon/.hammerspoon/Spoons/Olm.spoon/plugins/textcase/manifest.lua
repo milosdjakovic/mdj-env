@@ -30,6 +30,30 @@ return {
     lib = {
       read  = { from = "paste", member = "copySelection", call = "dot", policy = "optional" },
       apply = { from = "paste", member = "pasteText",     call = "dot", policy = "optional" },
+
+      -- The glance behind the launcher row's live subtitle, answering whether the covered
+      -- app has a selection at all without reading it, three valued so the hint is shown
+      -- only on an affirmative absence and never on a guess. Same module as read and apply,
+      -- same dot discipline, and optional for the same reason, only the hint degrades, the
+      -- row falling back to its ordinary subtitle.
+      presence = { from = "paste", member = "selectionPresence", call = "dot", policy = "optional" },
+
+      -- The shared lift to front ordering, the automatic per plugin grant keyed to this
+      -- plugin's own settings slot, so the case a person last applied leads the list on the
+      -- next open. No limit, the catalog is a fixed dozen. Optional, the list degrading to
+      -- catalog order.
+      recency = { from = "recency", policy = "optional" },
+    },
+
+    siblings = {
+      -- Which application the launcher opened over, the same declaration menu search
+      -- carries and for the same reason, the selection this plugin's launcher subtitle asks
+      -- about belongs to that app and not to the chooser holding the keyboard. A closure
+      -- reaching into the launcher only at call time, so no wiring edge, ordering false.
+      -- Optional where menu search says required, since only the live subtitle asks, and
+      -- without an answer the row simply keeps its static words.
+      coveredApp = { plugin = "launcher", member = "coveredApp", call = "method",
+        policy = "optional", ordering = false },
     },
 
     -- One root computed word, the trickle migration onto the shared stage. stagePresent is
@@ -85,7 +109,14 @@ return {
   -- longer declared, host/stage's own surfaceFor(identity) answering the five generic nav
   -- verbs now that presentation above exists, and this plugin binds no verb beyond them.
   registry = {
-    row = { category = "Text", detail = "recase the selection in place", glyph = "🔠" },
+    -- detail is the one member spec detail in the tree rather than a plain string, resolved
+    -- lazily by the registrar exactly as open is. The launcher asks it per open, through a
+    -- per keystroke read the plugin caches per open id, so the row can say up front that
+    -- nothing is selected, the answer a person otherwise only learns after opening a tool
+    -- whose whole point is the selection. The plugin answers the ordinary words, recase the
+    -- selection in place, whenever it cannot tell, so the row never nags on a guess.
+    row = { category = "Text", detail = { member = "launcherDetail", call = "method" },
+            glyph = "🔠" },
     open = "show",
   },
 }

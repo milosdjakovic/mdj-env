@@ -42,6 +42,13 @@
 --- never comes, which the original synchronous-looking call never needed to state because
 --- nothing was deferring around it.
 ---
+--- The rows lead with the cases applied before, most recently applied first, through the
+--- shared recency service the per plugin grant injects, and the catalog order is the
+--- resting order for the rest. The reorder lands at build time for one open, never under
+--- an open list. And the launcher row's subtitle is live, launcherDetail below, saying up
+--- front when nothing is selected in the app the launcher covers, so a person learns the
+--- one precondition of this tool before opening it rather than after.
+---
 --- This is the olm side copy of TextCase, phase six of the olm build plan, and the
 --- original this was copied from lived at Spoons/TextCase.spoon.
 
@@ -67,6 +74,9 @@ end
 obj._read = nil            -- function(cb) -> yields the selection text, or nil
 obj._apply = nil           -- function(text) -> writes text in place
 obj._stagePresent = nil    -- root published, the hotkey door onto the shared stage
+obj._recency = nil         -- shared lift to front instance, the last applied case leads
+obj._presence = nil        -- function(app) -> "present", "absent", or "unknown"
+obj._coveredApp = nil      -- function() -> the app the launcher opened over, and the open id
 
 -- Owned state
 obj._transforms = nil      -- the ordered catalog loaded from transforms.lua
@@ -79,6 +89,12 @@ obj._iconCache = nil
 -- callback would then leave this timer, the one thing arranged to protect against exactly
 -- that, collectable right along with it.
 obj._enterTimeoutTimer = nil
+-- The launcher detail answer for one launcher open, keyed by the open id the launcher hands
+-- over beside the covered app. The launcher reads the detail on every keystroke, and the
+-- glance behind it is an accessibility round trip that must run once per open, not once per
+-- key, the identical per open cache menu search keeps over the same two values.
+obj._detailOpenId = nil
+obj._detailAnswer = nil
 
 -- How long a preview subtitle may be before it is elided, and the row glyphs. The
 -- preview is display only; the pasted result is always the full untruncated transform.
@@ -99,6 +115,13 @@ local EMPTY_ICON = "🚫" -- the no-selection guidance row
 -- round trip ever takes, since the read this guards is a single pasteboard snapshot rather
 -- than a shelled out process.
 local ENTER_TIMEOUT = 3
+
+-- The two answers the launcher row's live subtitle can give. The ordinary words whenever a
+-- selection exists or nothing can tell, and the guidance only on an affirmative absence, so
+-- the row never tells a person to select text they already selected in an app whose views
+-- keep their selection to themselves.
+local DETAIL = "recase the selection in place"
+local DETAIL_NO_SELECTION = "no text selected, select some first"
 
 -- Collapse whitespace to single spaces and elide, so a multi-line or long selection
 -- still reads as one tidy row. Bytes, not codepoints, so an elided multibyte tail is
@@ -151,14 +174,23 @@ function obj:_buildRows(text)
     return { { title = "No text selected", subTitle = "Select some text, then open Text Case",
               image = self:_glyphIcon(EMPTY_ICON), enabled = false } }
   end
+  -- The catalog order is the resting order, and the cases applied before lead in the order
+  -- they were last applied, the shared lift to front service deciding which is which. The
+  -- reorder happens here, at build time for one open, never under an open list, so the
+  -- highlight rules are untouched and the list a person is reading never shuffles. The id
+  -- rides on the row so select below can tell the service which case was just applied.
+  local transforms = self._transforms
+  if self._recency then
+    transforms = self._recency.order(transforms, function(t) return t.id end)
+  end
   local rows = {}
-  for _, t in ipairs(self._transforms) do
+  for _, t in ipairs(transforms) do
     local result = t.fn(text)
     rows[#rows + 1] = {
       title = t.name,
       subTitle = preview(result),
       image = self:_icon(t.id),
-      item = { text = result },
+      item = { text = result, id = t.id },
     }
   end
   return rows
@@ -168,13 +200,21 @@ end
 --- Method
 --- Wire the collaborators. opts.read captures the selection, opts.apply writes text in
 --- place, and opts.stagePresent is the root published hotkey door onto the shared stage.
---- The chooser factory, the theme, and the docked panel triple no longer arrive here, this
---- plugin owning no instance of its own to hand any of them to any more.
+--- opts.recency is the shared lift to front instance the per plugin grant builds, so the
+--- last applied case leads the next open. opts.presence and opts.coveredApp together feed
+--- the launcher row's live subtitle, the first a glance at whether an app holds a selection
+--- and the second which app the launcher opened over. Every one of them is optional and
+--- each degrades alone. The chooser factory, the theme, and the docked panel triple no
+--- longer arrive here, this plugin owning no instance of its own to hand any of them to
+--- any more.
 function obj:configure(opts)
   opts = opts or {}
   self._read = opts.read
   self._apply = opts.apply
   self._stagePresent = opts.stagePresent
+  self._recency = opts.recency
+  self._presence = opts.presence
+  self._coveredApp = opts.coveredApp
   return self
 end
 
@@ -197,8 +237,32 @@ end
 --- text, so it is a no-op.
 function obj:select(item)
   if item and item.text and self._apply then
+    -- Lifted before the paste rather than after, since the paste settles on its own clock
+    -- and the lift is what makes the next open lead with this case either way.
+    if self._recency and item.id then self._recency.touch(item.id) end
     self._apply(item.text)
   end
+end
+
+--- TextCase:launcherDetail()
+--- Method
+--- The launcher row's live subtitle words, named on the manifest's registry row as a member
+--- spec the registrar resolves the way it resolves open. Answers the ordinary description
+--- unless the app the launcher opened over affirmatively has no selection, in which case it
+--- says so, the answer a person otherwise only learns after opening a tool whose whole
+--- point is the selection. The glance is an accessibility read of that app, honest from the
+--- background, and it runs once per launcher open behind the open id cache, the launcher
+--- asking again on every keystroke. Anything unwired or unknowable answers the ordinary
+--- words, so the hint appears only on certainty.
+function obj:launcherDetail()
+  if not (self._presence and self._coveredApp) then return DETAIL end
+  local app, openId = self._coveredApp()
+  if not app then return DETAIL end
+  if openId ~= self._detailOpenId then
+    self._detailOpenId = openId
+    self._detailAnswer = self._presence(app) == "absent" and DETAIL_NO_SELECTION or DETAIL
+  end
+  return self._detailAnswer
 end
 
 --- TextCase:enter(proceed)
