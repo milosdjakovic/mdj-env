@@ -70,6 +70,7 @@ obj._appRowsCache = nil          -- app rows only, invalidated on running-set ch
 obj._orderedRowsCache = nil      -- all rows, recency-sorted, invalidated on any promote or a directory change
 obj._appRowsWatcher = nil
 obj._appDirWatchers = nil        -- hs.pathwatcher list, one per watched app directory
+obj._chordWarned = nil           -- one shot flag, so a missing chord speller warns once, at the first open
 obj._mru = nil              -- most-recently-used item keys, front is most recent
 obj._selfKey = nil          -- our own app key, never promoted
 obj._page = nil             -- an opaque query prefix while somebody else's list is hosted
@@ -1052,12 +1053,16 @@ end
 -- includes a write inside an app bundle that is already installed, a self updating app
 -- rewriting its own files being the ordinary case, and that must not throw away the scan on
 -- every one of those. Only a path ending in .app, an app bundle itself arriving, leaving, or
--- being renamed, or a path with no further slash past the watched directory, a direct child
--- of it, answers yes. Anything nested deeper than that is a change inside a bundle that
--- already exists, which the installed set does not care about.
+-- being renamed, a path with no further slash past the watched directory, a direct child of
+-- it, or the watched directory's own bare path, which is what FSEvents reports instead of
+-- any real path once its queue overflows during a very large copy and it falls back to
+-- saying only that something under here changed, answers yes. Anything nested deeper than
+-- a direct child is a change inside a bundle that already exists, which the installed set
+-- does not care about.
 local function isTopLevelAppChange(path, dir)
   if not path then return false end
   if path:sub(-1) == "/" then path = path:sub(1, -2) end
+  if path == dir then return true end
   if path:sub(-4) == ".app" then return true end
   local prefix = dir .. "/"
   if path:sub(1, #prefix) ~= prefix then return false end
@@ -1092,13 +1097,6 @@ end
 --- nothing, so none of this waits for the bursts to settle.
 function obj:start()
   if self._appRowsWatcher or self._appDirWatchers then return self end
-  -- Asked here rather than in configure, since configure runs twice and the first of those
-  -- two legitimately carries no chord speller, so complaining there printed a warning about
-  -- a gap that the second call was about to fill. By the time anything starts, whatever is
-  -- missing is really missing.
-  if not self._chordLabel then
-    log.w("no chord wording was injected, so every row that would name a shortcut reads its bare category instead")
-  end
   self._mru = hs.settings.get(MRU_SETTINGS_KEY) or {}
   self._orderedRowsCache = nil
   self._appRowsWatcher = hs.application.watcher.new(function(_, event, app)
@@ -1220,6 +1218,17 @@ end
 --- field reading one thing and the list showing another exactly as the sentence above warns
 --- against.
 function obj:show(query)
+  -- Asked here rather than in start, and only once. start now runs at wire stage three,
+  -- long before the composition root's own late configure call sets self._chordLabel
+  -- hundreds of lines further into compose.lua, so asking there reported a gap that had
+  -- not opened yet on every single load. By a person's first open every configure this
+  -- host will ever receive has already run, which is the earliest moment the claim can
+  -- honestly be made, and the flag is what keeps a launcher opened many times a day from
+  -- printing the same line every time rather than the once a genuine gap deserves.
+  if not self._chordLabel and not self._chordWarned then
+    self._chordWarned = true
+    log.w("no chord wording was injected, so every row that would name a shortcut reads its bare category instead")
+  end
   self._openId = (self._openId or 0) + 1
   -- The app this launcher covers, which can never be this app. macOS answers with ourselves
   -- when our own chooser already holds focus, which is what happens when one open follows
