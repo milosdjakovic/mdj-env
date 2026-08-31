@@ -43,6 +43,20 @@ return {
     },
   },
 
+  -- The only thing this plugin proposes, and the first defaults block it has ever had. One
+  -- short line for the launcher's empty field, saying that a quantity typed with a target
+  -- after the word to answers here, which is otherwise discoverable only by a person who
+  -- already knows it. It names the same operator the row builder accepts, so the hint and the
+  -- grammar cannot drift, and it stays short enough for the field, which holds about twenty
+  -- eight characters.
+  --
+  -- Nothing shows it when the calculator is absent, since a plugin left out for a missing
+  -- required tool is left out of the launcher's source list too, and the hints are collected
+  -- from that same list. So the field never advertises a conversion this machine cannot do.
+  defaults = {
+    example = "Try 20 km to miles",
+  },
+
   -- queryRows rather than rows, on purpose. rows is what a scopable tool claims, a
   -- browsable list an alias can enter, and this plugin has none of that, no key, no
   -- launcher row, no alias. What it claims instead is the typed query itself, the

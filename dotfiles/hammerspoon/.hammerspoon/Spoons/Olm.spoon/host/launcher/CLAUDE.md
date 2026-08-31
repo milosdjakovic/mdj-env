@@ -92,6 +92,20 @@ last thing a fresh open should show. It is also exempt from the two discoverabil
 mandates, since it is not a bound shortcut and typing is the only way a computed row
 could be found at all.
 
+That exemption is why the empty field rotates. Each source may propose one short
+example line in its own `defaults.example`, the root collects them on the same walk
+that assembles the sources, and this host holds a pool of its own base wording
+followed by whatever arrived. `_nextPlaceholder` steps one place around that pool per
+open and `show` writes the answer onto the presentation before handing it to the
+stage, so the wording changes only between opens and never under a person reading
+it, and no timer exists. The position is a plain counter in memory, so a reload
+starts the cycle again at the base wording, which costs nothing worth a settings key.
+
+This host writes no example and knows no source by name. A pool of one is the whole
+feature absent, which is exactly what an install with no computed source, or one
+whose calculator tool is missing, already gets. Adding a fourth hint is a line in
+some other plugin's own manifest and no edit here.
+
 ## A source may claim the query, which is the whole of scoping
 
 A source can return a second value saying its rows are the entire list, and the

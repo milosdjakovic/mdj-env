@@ -160,6 +160,14 @@ return {
       -- itself, which does not appear in that answer since it claims rather than provides.
       queryProviders = { source = "root", policy = "optional",
         breaks = "no typed calculation, unit conversion, or scoped alias ever appears in the list, since nothing supplies the sources that turn what was typed into rows" },
+      -- One example field hint per computed row source that proposes one, assembled by the
+      -- root on the same walk that assembles the sources themselves. This host writes none of
+      -- them, which is the whole point, a list of what the computed sources can do kept here
+      -- would be a roster of other plugins' capabilities and would go stale the day one of
+      -- them changed. Root computed, since only the root may read another plugin's own
+      -- effective defaults.
+      placeholderExamples = { source = "root", policy = "optional",
+        breaks = "the empty field only ever says it searches apps and commands, so a person is never told that a typed sum or a unit conversion is answered here at all" },
     },
   },
 

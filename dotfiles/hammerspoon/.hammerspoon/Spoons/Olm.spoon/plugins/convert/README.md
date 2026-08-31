@@ -13,3 +13,8 @@ Arithmetic keeps answering plain sums regardless.
 It is not a picker and opens nothing of its own, there is no chord and no
 launcher alias, it only ever shows up as a row while typing in the ordinary
 unscoped launcher list.
+
+Since typing is the only way to find it, it proposes one short example line for the
+launcher's empty field, which the launcher shows on some of its opens in place of its
+own wording. A machine without the calculator tool never sees that line either, so the
+field advertises nothing it cannot answer.

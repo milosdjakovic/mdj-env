@@ -23,5 +23,13 @@ return {
   defaults = {
     glyph = "🧮",
     category = "Arithmetic",
+
+    -- One short line for the launcher's empty field, proposed here rather than written into
+    -- the launcher, since a list of what the computed sources can do, kept anywhere but
+    -- beside the source itself, is a roster that goes stale the day one of them changes. The
+    -- whole sentence rather than only the expression, for the same reason category is a whole
+    -- word here, this plugin owns its own wording and whoever shows it decides nothing about
+    -- how it reads. Short enough for the field, which holds about twenty eight characters.
+    example = "Try 128 * 4",
   },
 }

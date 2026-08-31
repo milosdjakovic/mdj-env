@@ -439,7 +439,9 @@ provides = { rows = "rows", select = "select" },
 
 `rows` and `select` together mean a browsable list that a host may scope. `queryRows`
 means a computed source that claims the whole query, which arithmetic and convert do.
-The split is not cosmetic. A query for `rows` alone returns every scopable tool too.
+The split is not cosmetic. A query for `rows` alone returns every scopable tool too. A
+computed source may also propose `defaults.example`, one short line the launcher's empty
+field can wear, which is the only way a person finds out a typed sum answers at all.
 
 Two more are answered today. `profile` means this plugin can say which display arrangement
 is current, which the overlay resolver asks for without knowing any plugin manages
@@ -555,6 +557,24 @@ table was expected, and the picker crashed instead of opening. Naming a default 
 therefore not only a question of what a fresh install should propose, it is a question of
 whether that name collides with something one of this plugin's own submodules already
 reads off opts, and nothing checks that for you, so it has to be asked by hand every time.
+
+`example` is the one default read by a host rather than by the plugin proposing it, and it
+belongs to a computed row source. It is one short line for the launcher's empty field, `Try
+128 * 4` from arithmetic, and the launcher rotates one hint per open through its own base
+wording plus every example that arrived, deterministically, so each is seen and none repeats
+back to back. That is what a computed row has instead of the discoverability a bound key and
+a launcher row give every other tool, since typing is the only way one could ever be found.
+
+Declare the whole line rather than the expression alone, for the reason `category` is a whole
+word here, the source owns how it reads and the host decides nothing about its wording. Keep
+it at or under twenty eight characters, about what the field holds, since nothing truncates it
+and nothing drops it for being too long, a clipped hint being visible and fixable where a
+silently discarded one would look like a feature that never arrived. A source proposing none
+contributes none and the field keeps saying exactly what it said before. No host names a
+source, the composition root reads this field off each source's own effective defaults on the
+same walk that assembles the sources themselves, so a computed source added later joins the
+rotation with no edit anywhere, and one left out for a missing tool takes its hint with it
+rather than advertising something this machine cannot do.
 
 ### surface
 

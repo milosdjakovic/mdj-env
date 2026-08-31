@@ -43,6 +43,7 @@ local log = hs.logger.new("Launcher", "info")
 -- Injected via configure
 obj._stage = nil            -- host/stage, the one host owning the live chooser instance
 obj._placeholder = nil
+obj._placeholderExamples = nil  -- example field hints, one per computed row source that proposes one
 obj._keys = nil
 obj._apps = nil
 obj._windowActions = nil
@@ -58,6 +59,8 @@ obj._icons = nil            -- the shared glyph icon drawer, Olm.spoon/lib/glyph
 
 -- Owned state
 obj._presentation = nil     -- this host's one presentation, handed to the stage, never rebuilt
+obj._placeholders = nil     -- the rotation pool, this host's own placeholder first
+obj._placeholderTurn = nil  -- how far around that pool the last open got
 obj._surface = nil          -- the stage's own nav adapter, delegated to rather than built here
 obj._actionRows = nil
 obj._settingsPaneRows = nil
@@ -146,6 +149,16 @@ function obj:configure(opts)
   opts = opts or {}
   self._stage = opts.stage
   self._placeholder = opts.placeholder or "Search apps and commands"
+  -- One example field hint per computed row source that proposes one, in the order the root
+  -- assembled the sources themselves, so a source that computes rows from what is typed can
+  -- say so in the empty field rather than being findable only by a person who already knows
+  -- it exists. This host names none of them and reads none of their manifests, it receives
+  -- whatever arrived and rotates it.
+  --
+  -- Kept rather than overwritten when a later call arrives without one, for the reason the
+  -- chord speller below already documents, this host is configured twice and only the root's
+  -- own call can compute this.
+  self._placeholderExamples = opts.placeholderExamples or self._placeholderExamples
   -- The per app toggle list, the same one the app toggler and the Hyper cheat sheet already
   -- receive under this name. This host used to take the whole key catalog and reach into it
   -- for this one field, which meant the person had to hand over a table of everything to give
@@ -203,6 +216,7 @@ function obj:configure(opts)
   self._icons = opts.glyphIcon
 
   self._configuredApps = self:_buildConfiguredApps()
+  self._placeholders = self:_buildPlaceholders()
 
   -- The one presentation this host hands the stage, built once here and reused for the life
   -- of this spoon, never rebuilt, mirroring decision one of the stage design brief that the
@@ -217,6 +231,9 @@ function obj:configure(opts)
   -- stage, before the stage is ever handed to this host.
   self._presentation = {
     name = "launcher",
+    -- The opening value only. Every show replaces this field before handing the table to the
+    -- stage, see _nextPlaceholder, so what a person actually reads is whichever hint this
+    -- open's turn landed on.
     placeholder = self._placeholder,
     rows = function(query) return self:_commandRows(query) end,
     onSelect = function(item)
@@ -927,7 +944,11 @@ function obj:leavePage()
   self._page = nil
   if self._stage then
     self._stage:setQuery("")
-    self._stage:setPlaceholder(self._placeholder)
+    -- Whatever this open is wearing rather than the base wording, since the hint was chosen
+    -- for the open and leaving a hosted list is not a new open. Reading it off the
+    -- presentation is what keeps the two answers one answer.
+    self._stage:setPlaceholder(self._presentation and self._presentation.placeholder
+      or self._placeholder)
   end
   return true
 end
@@ -1107,6 +1128,47 @@ function obj:stop()
   return self
 end
 
+--- Launcher:_buildPlaceholders() -> list of strings
+--- Method
+--- The pool the empty field rotates through, this host's own wording first and then every
+--- example a computed row source proposed, in source order.
+---
+--- The launcher writes no example of its own and holds no list of what the sources can do. A
+--- source that proposes nothing simply contributes nothing and the pool falls back to the one
+--- string this host has always shown, which is why an install with no computed source at all
+--- still reads exactly as it did before this existed.
+---
+--- Nothing is dropped for being too long. A hint wider than the field clips visibly and the
+--- plugin that wrote it can then shorten it, while a hint silently discarded here would look
+--- to its author like a feature that never arrived.
+function obj:_buildPlaceholders()
+  local pool = { self._placeholder }
+  local seen = { [self._placeholder] = true }
+  for _, hint in ipairs(self._placeholderExamples or {}) do
+    if type(hint) == "string" and hint ~= "" and not seen[hint] then
+      seen[hint] = true
+      pool[#pool + 1] = hint
+    end
+  end
+  return pool
+end
+
+--- Launcher:_nextPlaceholder() -> string
+--- Method
+--- The hint this open wears, one step further around the pool than the last open took.
+---
+--- A cycle rather than a random pick, so every hint is seen, none repeats back to back, and a
+--- person who opens the launcher twice in a row is told two different things. The position is
+--- a plain counter in memory, deliberately not persisted, since where a reload restarts the
+--- cycle is not worth a settings key and starting from the plain wording after one is if
+--- anything the friendlier answer.
+function obj:_nextPlaceholder()
+  local pool = self._placeholders
+  if not pool or #pool == 0 then return self._placeholder end
+  self._placeholderTurn = ((self._placeholderTurn or 0) % #pool) + 1
+  return pool[self._placeholderTurn]
+end
+
 --- Launcher:show(query)
 --- Method
 --- Open the launcher. The app that was frontmost is captured first, before the chooser takes
@@ -1145,9 +1207,15 @@ function obj:show(query)
     self._coveredApp = front
   end
   if not self._stage then return end
-  -- Every open starts on this catalog with this placeholder, whatever list the previous open was
-  -- left hosting when it closed. Done before the show, since showing builds the first rows.
+  -- Every open starts on this catalog, whatever list the previous open was left hosting when it
+  -- closed. Done before the show, since showing builds the first rows, and before the hint just
+  -- below, which is what settles what the field says for this open.
   self:leavePage()
+  -- The hint for this open, chosen here and never while a list is up, so the field can only
+  -- change wording between opens and never under somebody reading it. Stage:present sets a
+  -- presentation's own placeholder before every show, so writing the field on the table this
+  -- line hands over is the whole of it and no second call is wanted.
+  self._presentation.placeholder = self:_nextPlaceholder()
   self._stage:present(self._presentation)
   if query and query ~= "" then
     self._stage:setQuery(query)

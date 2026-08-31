@@ -9,3 +9,7 @@ division by a hundred rather than as the modulo operator.
 It is not a picker and opens nothing of its own. There is no chord and no launcher
 alias, it only ever shows up as a row while typing in the ordinary unscoped
 launcher list, alongside Convert's unit and currency answers.
+
+Since typing is the only way to find it, it proposes one short example line for the
+launcher's empty field, which the launcher shows on some of its opens in place of its
+own wording.
