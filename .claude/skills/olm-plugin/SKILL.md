@@ -41,9 +41,11 @@ consistent, and more discoverable than the one below it.
 2. A typed word. When the thing beneath a row can be reached by typing, prefer a scope, the
    alias and a space in the launcher, declared through `provides` or `registry.scope`. A
    scope needs no Back row because deleting the text is the way back. A row is only worth
-   adding where there is no text to delete. A scoped tool may also declare `hosted` in its
-   registry block, so choosing its launcher row holds its scope rows in the list already
-   open rather than opening the tool standalone.
+   adding where there is no text to delete. Choosing a scoped tool's launcher row holds its
+   scope rows in the list already open rather than opening the tool standalone, and that
+   comes from the tool declaring a presentation, never from `registry.hosted`, which is a
+   diagnostics flag a listing reads and nothing the stage or the launcher's own row
+   intercept ever consults.
 3. A child level. When choosing a row means showing another list, the row's `select` answers
    a presentation table and the stage pushes it in place. BrowserTabs and DisplayProfiles are
    the settled examples.
