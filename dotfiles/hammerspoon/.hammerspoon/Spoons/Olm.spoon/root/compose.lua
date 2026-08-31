@@ -1793,10 +1793,26 @@ function obj.run(olm, cfg)
     -- The ordered query row sources. QueryScope leads, since it is the one that CLAIMS a
     -- query outright rather than only computing a row for it, then every plugin the plan's
     -- own set answer says provides queryRows, in the order the plan already settled on.
+    --
+    -- The example field hints ride along on the same walk, each one a source's own proposal
+    -- for what the launcher's empty field may say about it, read off that plugin's effective
+    -- defaults so a person may reword one. Gathered here and not in the launcher because the
+    -- launcher must never learn which plugins compute rows, and gathered inside this loop and
+    -- not beside it because a source excluded for a missing tool has no module, and a hint
+    -- advertising a capability this machine does not have is worse than no hint. A source
+    -- proposing nothing contributes nothing, which is the feature degrading rather than
+    -- breaking, and a source added later joins the rotation with no edit here or there.
     local queryProviders = {}
+    local placeholderExamples = {}
     if queryScopeModule then queryProviders[#queryProviders + 1] = queryScopeModule end
     for _, identity in ipairs((plan.sets.launcher or {}).queryRows or {}) do
-      if modules[identity] then queryProviders[#queryProviders + 1] = modules[identity] end
+      if modules[identity] then
+        queryProviders[#queryProviders + 1] = modules[identity]
+        local example = ((plan.effective or {})[identity] or {}).example
+        if type(example) == "string" and example ~= "" then
+          placeholderExamples[#placeholderExamples + 1] = example
+        end
+      end
     end
 
     -- Every leaf this catalogue dispatches to, resolved from its OWN manifest's sibling
@@ -1857,6 +1873,7 @@ function obj.run(olm, cfg)
       apps = sharedData and sharedData.apps,
       predicates = ownPredicates,
       queryProviders = queryProviders,
+      placeholderExamples = placeholderExamples,
       -- The drawer itself, not its icon function. This host stores what it is given and then
       -- calls .icon on it, so handing over the function alone made every row build raise the
       -- moment it asked for an icon, which is every row.
