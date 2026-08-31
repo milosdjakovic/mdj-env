@@ -321,12 +321,6 @@ local STATUS = {
 local STATUS_FALLBACK = { icon = "⚠️", title = "Nothing to show" }
 
 -- A single inert row explaining why the list is empty, so the picker never looks broken.
---
--- The title rides on the item subtable too, not only on the row, because onHighlight and
--- stageSelectedItem both only ever see the item, chooser:selectedItem() answering the
--- choice's own private `_item` key, `it.item` from the supplier, never the row's title or
--- subTitle. So a status row's own wording has nowhere else to travel from if the pane
--- beside the list is going to echo it.
 local function statusRow(status)
   local look = STATUS[status] or STATUS_FALLBACK
   return { {
@@ -334,7 +328,7 @@ local function statusRow(status)
     subTitle = look.detail or status,
     image = glyph(look.icon),
     enabled = false,
-    item = { status = true, title = look.title },
+    item = { status = true },
   } }
 end
 
@@ -457,14 +451,11 @@ local function onHighlight(item)
   if not viewer.followsHighlight then return end
   if item and item.path and not (item.status or item.help) then
     viewer.show(item)
-  elseif item and item.status then
-    -- The pane echoes what the list already says, an index still building or a search
-    -- with nothing found, rather than a generic empty message disagreeing with the row
-    -- sitting right beside it. item.title is what statusRow above carries for exactly
-    -- this, since the item subtable is all onHighlight ever sees of a row.
-    viewer.clear(item.title)
   else
-    -- A help row, or no highlight at all, gets the plain default.
+    -- A status row, a help row, or no highlight at all, all land here. The pane no
+    -- longer echoes a status row's own wording, Recent files painted as the empty
+    -- state read as a content label rather than as guidance, so this is the one plain
+    -- default every non file highlight gets, cfg.emptyText below.
     viewer.clear()
   end
 end
@@ -554,6 +545,10 @@ function M:start()
     -- declaring plugin earns both together. See lib/panel.lua's own header for why a
     -- highlight with nothing to describe now paints this rather than hiding the canvas.
     emptyState = cfg.emptyState,
+    -- This pane's own guidance, painted rather than any row's own wording, since a
+    -- highlight with nothing to describe should read as something to do next rather
+    -- than as a label borrowed from whatever the list happened to be showing.
+    emptyText = "Highlight a file to preview it",
     -- The atom's own light and dark resolution, hs.host.interfaceStyle() picking cfg.theme's
     -- dark or light half, lib/chooser/providers/native.lua:178's own arithmetic, reproduced
     -- here rather than reached through an instance this file no longer holds, so a provider

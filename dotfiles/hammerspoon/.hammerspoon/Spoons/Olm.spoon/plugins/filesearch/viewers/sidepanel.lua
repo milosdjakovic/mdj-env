@@ -715,6 +715,10 @@ end
 ---                state, painted by clear below for a highlight with nothing to describe.
 ---                Absent falls back to hiding the canvas, the old behaviour, so a root that
 ---                has not been updated to inject it degrades rather than breaking.
+--- opts.emptyText  the line clear below paints into the shared empty state, this pane's
+---                own guidance rather than a content label, so a person reads what to do
+---                next instead of the wording off whatever row happened to be highlighted.
+---                Absent falls back to the shared routine's own generic default.
 function M.configure(opts)
   for k, v in pairs(opts or {}) do cfg[k] = v end
   return M
@@ -799,7 +803,7 @@ function M.scrollBy(points)
   paint()
 end
 
---- preview.clear(text) - the empty state, for a highlight with nothing to describe, a
+--- preview.clear() - the empty state, for a highlight with nothing to describe, a
 --- status row or a help row, or a cold dock before anything has been highlighted yet.
 ---
 --- This used to hide the canvas outright, on the reasoning that nothing to describe
@@ -809,13 +813,15 @@ end
 --- moment, rather than vanishing. The pane genuinely disappears only on the stage's own
 --- swap signal, M.hide below, and on M.destroy.
 ---
---- text is optional and becomes the empty state's own line, so a status row's own
---- wording, an index still building or a search with nothing found, echoes here instead
---- of the generic default. Absent text falls back to the shared routine's own default.
+--- The line is cfg.emptyText, this pane's own guidance, falling back to the shared
+--- routine's own default when configure never set one. It used to echo the highlighted
+--- row's own wording instead, a status row's title standing in for the empty state, and
+--- that read as a content label rather than as guidance, Recent files painted where a
+--- person expects to be told what to do next.
 ---
 --- Does nothing when called before the first dock, so frame or colors are still nil,
 --- since the dock that follows paints this same empty state on its own.
-function M.clear(text)
+function M.clear()
   model = nil
   scrollOffset = 0
   if not (frame and colors and cfg.surface) then return end
@@ -832,7 +838,7 @@ function M.clear(text)
   local innerW, innerH = frame.w - 2 * PAD_X, frame.h - 2 * PAD_Y
   local els = {}
   for _, el in ipairs(cfg.surface(frame.w, frame.h)) do els[#els + 1] = el end
-  for _, el in ipairs(cfg.emptyState(innerW, innerH, { text = text, color = colors.meta })) do
+  for _, el in ipairs(cfg.emptyState(innerW, innerH, { text = cfg.emptyText, color = colors.meta })) do
     els[#els + 1] = shifted(el, PAD_X, PAD_Y)
   end
   canvas:frame(frame)
