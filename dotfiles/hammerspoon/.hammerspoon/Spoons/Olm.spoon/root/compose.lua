@@ -915,6 +915,17 @@ function obj.run(olm, cfg)
     storePath = servicesLib.perName(function(name)
       return hs.configdir .. "/config/" .. name .. ".json"
     end),
+
+    -- The settings plugin's own two words, a reader and a writer over the overlay display
+    -- resolver's live mode, backed by the one instance step E already built. Both are thin
+    -- closures over overlay's own public self.mode and self.setMode, added there rather than
+    -- duplicated here, so this file still never calls hs.settings for this policy itself.
+    overlayPlacementMode = function()
+      return overlay and overlay.mode and overlay.mode() or nil
+    end,
+    setOverlayPlacementMode = function(mode)
+      if overlay and overlay.setMode then overlay.setMode(mode) end
+    end,
   }
 
   local rootFanned = servicesLib.fanOut(manifests, rootValues, "root")

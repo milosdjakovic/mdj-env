@@ -97,8 +97,9 @@ return {
   -- this into a small strategy registry and injects the chosen resolver into the
   -- Chooser atom and the CanvasPanel, so one choice moves every overlay together.
   -- Three modes:
-  --   "activeWindow" the display holding the focused window (today's behaviour).
-  --   "cursor"       the display the mouse pointer is on.
+  --   "activeWindow" the display holding the focused window.
+  --   "cursor"       the display the mouse pointer is on, the default, since the launcher
+  --                  should land where the eyes already are.
   --   "fixed"        a chosen display per display arrangement, see fixed below.
   -- fixed is read only in fixed mode. Its keys are the profile names from
   -- config/displays.lua (whichever one is currently matched, resolved through
@@ -114,7 +115,7 @@ return {
   -- fresh-machine default, and use the launcher picker for day to day switching.
   overlayDisplay = {
     -- overlayModes.activeWindow | overlayModes.cursor | overlayModes.fixed
-    mode = overlayModes.activeWindow,
+    mode = overlayModes.cursor,
     fixed = {
       -- ["home-office"] = "s810891350",
       -- ["vicert office, built in and two Dell P2318HC"] = "s826888524",

@@ -387,19 +387,47 @@ function M.new(deps)
     }
   end
 
+  --- self.mode() -> string
+  --- The effective placement mode right now, one of M.modes, the persisted picker choice
+  --- when there is one, else the seed. Public so a caller outside this picker, the settings
+  --- plugin's own placement page, can describe the live choice in words without keeping a
+  --- second read of effectiveMode.
+  function self.mode()
+    return effectiveMode()
+  end
+
+  --- self.setMode(mode) -> bool
+  --- Writes the placement mode through the one write path this file already keeps for its
+  --- own root view, so a friendlier surface over the same choice never touches hs.settings
+  --- on its own. A mode not among M.modes is refused with a log line and leaves the stored
+  --- choice untouched, since writing an unrecognised name here would silently hand the
+  --- resolver a strategy table lookup that answers nothing.
+  function self.setMode(mode)
+    local known = false
+    for _, m in pairs(M.modes) do
+      if m == mode then known = true end
+    end
+    if not known then
+      log.w(string.format("setMode refused '%s', not one of the modes this resolver knows", tostring(mode)))
+      return false
+    end
+    local s = storeValue()
+    s.mode = mode
+    hs.settings.set(STORE_KEY, s)
+    return true
+  end
+
   --- self.select(item) -> presentation or nil
   --- The root view's own onSelect, public for the identical reason self.rows is. The Pin
   --- row drills into buildPinPresentation above, a genuine child, decision one, host/stage
   --- pushing whatever comes back. Choosing a mode is a genuine completion instead, writing
-  --- the choice and answering nothing, the ordinary meaning this contract gives nil, the
-  --- whole tool closing exactly as choosing a mode always has.
+  --- the choice through self.setMode and answering nothing, the ordinary meaning this
+  --- contract gives nil, the whole tool closing exactly as choosing a mode always has.
   function self.select(item)
     if not item then return nil end
     if item.nav == "pin" then return buildPinPresentation() end
     if item.commit == "mode" then
-      local s = storeValue()
-      s.mode = item.mode
-      hs.settings.set(STORE_KEY, s)
+      self.setMode(item.mode)
       return nil
     end
     return nil
