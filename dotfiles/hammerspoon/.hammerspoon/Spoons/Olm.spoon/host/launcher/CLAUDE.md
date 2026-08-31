@@ -323,9 +323,11 @@ fires for any file event anywhere beneath the root it watches, which includes a
 write inside an app bundle that is already installed, a self updating app
 rewriting its own files being the ordinary case, and that must not throw away
 the scan on every one of those. `isTopLevelAppChange` keeps only a path ending
-in `.app`, an app bundle itself arriving, leaving, or being renamed, or a path
-with no further slash past the watched directory, a direct child of it.
-Anything nested deeper than that is a change inside a bundle that already
+in `.app`, an app bundle itself arriving, leaving, or being renamed, a path
+with no further slash past the watched directory, a direct child of it, or the
+watched directory's own bare path, which is what FSEvents reports instead of
+any real path once its queue overflows during a very large copy. Anything
+nested deeper than a direct child is a change inside a bundle that already
 exists, which the installed set does not care about. Nothing rescans inside the
 watcher callback itself either way, the whole point is that the cost lands on
 the person's next open rather than on the filesystem event, and a burst of
