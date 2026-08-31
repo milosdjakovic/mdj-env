@@ -14,8 +14,8 @@ launcher only, no dedicated key.
 
 ## Why a spoon and not inline
 
-A picker that is only policy over the Chooser atom can live inline in the root, the way
-the overlay display picker does. This one owns something of its own, the transform
+A picker that is only policy over the Chooser atom could live inline in the composition
+root instead of as its own spoon. This one owns something of its own, the transform
 catalog and the word tokenizer in `transforms.lua`, so folding it into the root would
 bloat the composition root with algorithms that are not wiring, the same reasoning that
 makes Emoji a spoon. It is a lean coordinator, it owns no watcher, timer, or eventtap, so

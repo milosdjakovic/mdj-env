@@ -16,9 +16,9 @@
 ---
 --- The public contract stays what the rest of the config already calls, the colon methods
 --- current, reconcile, apply, capture, configure, start, and stop, all delegating to the
---- engine, so the overlay display policy that reads current() and the main root that starts
---- the spoon are untouched. The new surface hangs off obj.chooser, dot called, a shape the
---- main root can register and gate like the other list tools.
+--- engine, so the main root that starts the spoon is untouched. The new surface hangs off
+--- obj.chooser, dot called, a shape the main root can register and gate like the other list
+--- tools.
 ---
 --- A profile matches when the number of screens it names equals the number attached and
 --- every id it names is attached, comparing persistent and serial ids, so a profile written
@@ -217,8 +217,10 @@ end
 
 --- DisplayProfiles:current()
 --- Method
---- The name of the profile matching the displays attached right now, or nil. Read by the
---- overlay display policy in the main root, so this contract is kept.
+--- The name of the profile matching the displays attached right now, or nil. Part of this
+--- spoon's own stable public contract, kept even though the overlay display policy that
+--- once read it for its per arrangement pin is gone, since a future consumer may still want
+--- the active arrangement's name.
 function obj:current()
   return engine:current()
 end
@@ -226,10 +228,10 @@ end
 --- DisplayProfiles:profiles()
 --- Method
 --- The merged profiles as an ordered list of { name, ids }, curated first then captured,
---- where ids are the displayplacer id tokens in the profile's command order, deduped. Read
---- by the overlay display picker in the main root so it can offer each setup's displays to
---- pin, without re-detecting anything. Reuses the engine's command parse rather than adding
---- a second one, and returns fresh tables so a caller cannot mutate any internal state.
+--- where ids are the displayplacer id tokens in the profile's command order, deduped. Public
+--- for a future caller wanting each setup's displays without detecting anything again,
+--- reuses the engine's command parse rather than adding a second one, and returns fresh
+--- tables so a caller cannot mutate any internal state.
 function obj:profiles()
   local out = {}
   for _, p in ipairs(self:_merged()) do

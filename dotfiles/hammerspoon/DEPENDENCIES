@@ -53,4 +53,3 @@ tmux | path | tmux | required | tmuxsessions/engine | querying and switching eve
 open | system | /usr/bin/open | optional | tmuxsessions | launching Alacritty or WezTerm already attached to a session | macos | ships with the system
 mullvad | path | mullvad | optional | vpn/mullvad | the relay CLI behind every VPN control and location | cask | mullvad-vpn
 scutil | system | /usr/sbin/scutil | optional | root/compose | reading this machine's own short name, the key every per host answer a plugin asks the root for is stored under | macos | ships with the system
-displayplacer | path | displayplacer | optional | root/overlaydisplay | turning a display serial id into a live screen, so an overlay can be pinned to one physical display | brew | displayplacer

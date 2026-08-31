@@ -315,21 +315,6 @@ local M = {
         { key = "x", action = "closeChooser",   description = "Close" },
       },
     },
-    -- The overlay display picker (launcher-only). A drill-in menu, so i selects the
-    -- highlighted row (drilling into Configure or a profile, or committing a mode or
-    -- a display), j and k navigate vim style, and x closes it. Same shared nav as the
-    -- other choosers; it just has no Hyper open key of its own.
-    {
-      name = "overlayDisplay",
-      when = "overlayDisplayOpen",
-      priority = 100,
-      bindings = {
-        { key = "i", action = "insertSelected", description = "Select" },
-        { key = "j", action = "selectNext",     description = "Move down" },
-        { key = "k", action = "selectPrev",     description = "Move up" },
-        { key = "x", action = "closeChooser",   description = "Close" },
-      },
-    },
     -- The text case picker (launcher-only). A flat list of cases, so i applies the
     -- highlighted case to the selection the same as Return, j and k navigate vim style,
     -- and x closes it. Same shared nav as the other choosers, it just has no Hyper open
@@ -609,10 +594,10 @@ local M = {
 }
 
 -- THE SEAM. The action panel's own chord, Hyper and period, folded into every context here
--- rather than written twelve times above, so it is declared once and every context, including
--- a thirteenth added later, carries it for free. This is the one exception to this file's own
+-- rather than written eleven times above, so it is declared once and every context, including
+-- a twelfth added later, carries it for free. This is the one exception to this file's own
 -- pure data claim, a loop rather than a value, and it earns that by being the alternative to
--- twelve copies of the same table drifting the day one of them is edited and the others are
+-- eleven copies of the same table drifting the day one of them is edited and the others are
 -- not. openActionPanel is a name this file invents and hands to the root the same way any
 -- other action name here already does; the root maps it to spoon.ActionPanel:toggle and
 -- classifies it as navigation, since the panel must never list its own way in among the verbs

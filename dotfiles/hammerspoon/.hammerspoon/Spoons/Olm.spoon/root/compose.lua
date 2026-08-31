@@ -391,35 +391,7 @@ function obj.run(olm, cfg)
   -- step B call through now that it exists.
   ------------------------------------------------------------------------------
 
-  overlay = overlayDisplayLib.new({
-    canvasPanel = canvasPanel,
-    -- The resolved tool rather than a name in a command string, declared by the root in
-    -- root/manifest.lua since this lib module is the root's own apparatus and has no manifest of
-    -- its own to declare with. It used to run the command by bare name, which worked and was
-    -- still a second door, and an absent tool there was a silent empty answer.
-    displayplacer = sharedDepsScope.path("displayplacer"),
-    -- currentProfile answers a set question rather than naming a plugin, so a portable
-    -- install with no display arrangement plugin simply always answers nil here, and fixed
-    -- mode falls back to the active window the same way an unpinned arrangement already does.
-    currentProfile = function()
-      for identity, m in pairs(manifests) do
-        if (m.provides or {}).profile and modules[identity] and type(modules[identity].current) == "function" then
-          local ok, name = pcall(modules[identity].current, modules[identity])
-          if ok then return name end
-        end
-      end
-      return nil
-    end,
-    -- Contract v3's own addition, docs/BRIEF-CONTRACT-V3.md, a plain closure over
-    -- stageModule rather than a manifest granted root word, since this lib module has no
-    -- manifest to declare needs.data against at all. stageModule is a forward declared
-    -- upvalue this closure only ever calls long after the ordinary wiring pass has made it
-    -- real, the identical lateness every other root owned closure in this file already
-    -- relies on. Lets the pin level's own Back row, and a pin just written, leave that
-    -- level and restore root, the one thing a child pushed from overlay.select cannot
-    -- express on its own.
-    stagePop = function() return (stageModule and stageModule:pop()) or false end,
-  })
+  overlay = overlayDisplayLib.new()
   overlay.configure(policy.overlayDisplay or {})
 
   ------------------------------------------------------------------------------
@@ -594,21 +566,6 @@ function obj.run(olm, cfg)
   end
 
   ownPredicates.multipleDisplays = function() return #hs.screen.allScreens() > 1 end
-  -- Migrated onto host/stage. overlay owns no picker of its own any more, so this asks
-  -- whichever presentation is actually current, the identical isShowingFor shape every
-  -- presenting plugin's own context predicate already resolves through, named by hand here
-  -- since this tool has no manifest and so builds no context of its own for isShowingFor to
-  -- be asked about. Referenced by a when now, consumer map surprise 9.2's other half closed
-  -- in the chooser stage close out, a root contributed context block below building exactly
-  -- the manifest.surface declaration this lib module cannot make itself, docs/REVIEW-FINAL-
-  -- BATCH.md's own recommended shape, "a root contributed context block plus a root
-  -- contributed adapter". Named "overlayDisplayOpen" here first regardless, since it was kept
-  -- correct even while nothing referenced it, so surfaceLib.context's own default when name
-  -- for this context, name .. "Open", would find this predicate already installed rather than
-  -- the two drifting apart.
-  ownPredicates.overlayDisplayOpen = function()
-    return stageModule ~= nil and stageModule:current() == "overlayDisplay" and stageModule:isShowing() == true
-  end
 
   -- Whether the launcher is holding somebody else's list rather than its own catalog, which is
   -- what decides whether the key that steps back out means anything. The launcher already
@@ -1558,73 +1515,6 @@ function obj.run(olm, cfg)
     end
   end
 
-  -- THE SEAM. Overlay display has no manifest, being a lib module rather than a plugin, so it
-  -- never appears in plan.order and the loop above, which walks that order looking for a
-  -- context owner, can never find it and can never build it an adapter. Its predicate already
-  -- exists by the identical route, ownPredicates.overlayDisplayOpen above, named by hand for
-  -- the same reason. Two joins, mirroring that precedent rather than inventing a second
-  -- mechanism for one tool. lib/resolve.lua itself is untouched, plan.contexts and
-  -- surfaceAdapters are both plain tables a root is already free to add to, so both joins are
-  -- root policy contributed into the same structures a plugin's own surface would have fed,
-  -- never a plugin pretending to be one and never a change to how either structure is built.
-  --
-  -- One, the context block itself, built through the identical lib/surface.lua a plugin's own
-  -- declared surface already goes through, so the bindings, the when name, and the priority
-  -- read exactly as they would for a real plugin. primary is the only field this needs to
-  -- state, i inserts the highlighted row, matching config/keys.lua's own long standing
-  -- overlayDisplay block, review finding L3, docs/REVIEW-FINAL-BATCH.md. nav defaults true, so
-  -- j and k move the highlight, which is the dead pair this join exists to answer for. close
-  -- defaults to x, and when defaults to "overlayDisplayOpen", the exact name ownPredicates
-  -- already installs above, so the binding this produces is gated correctly with nothing
-  -- further to wire.
-  --
-  -- surfaceLib.context also appends ACTION_PANEL_BINDING, Hyper and period, to every block it
-  -- builds, unconditionally, so this join newly binds that key here too, not only i, j, k, and
-  -- x. It is newly bound and inert, both true at once rather than the second standing in for
-  -- the first. root/compose.lua's own isShowingFor requires a contextOwners entry to recognise
-  -- a context as showing, contextOwners is built from plan.order and manifest.surface, and
-  -- overlay display is in neither, so openActionPanel's own scan finds no match and does
-  -- nothing. That gap predates this join and this join does not close it, but the key itself is
-  -- new, where before nothing bound Hyper and period in this context at all.
-  plan.contexts.overlayDisplay = surfaceLib.context("overlayDisplay", {
-    primary = { action = "insertSelected", description = "Select" },
-  })
-
-  -- Two, the adapter. Stage:surfaceFor already answers the five generic verbs scoped to
-  -- whether THIS name is current, the identical call every presenting plugin's own adapter
-  -- makes inside surfaceAdapterFor above, so overlay display asks for the same thing by hand
-  -- rather than through the loop that can never reach it. Appended after the loop rather than
-  -- inside it, since it owns no plan.order entry to be found at.
-  --
-  -- THE SEAM. Laziness here is mandatory, not stylistic, the exact defect a live probe found,
-  -- the config dying before ipc ever came up. stageModule:surfaceFor("overlayDisplay") reads
-  -- self.surface, host/stage/init.lua's own field built inside Stage:configure, stage two of
-  -- the eight fixed stages below, w.configure(modules, manifests), which has not run yet at
-  -- the point this line executes, this whole join sitting well before STEP J even starts.
-  -- Calling surfaceFor here, eagerly, at wire time, indexes a nil self.surface and crashes the
-  -- whole config load. The identical class of defect phase three review finding one already
-  -- named for the ordinary presenting plugin path above, resolved eagerly before the thing
-  -- being resolved existed, and surfaceAdapterFor's own lazy __index immediately above this
-  -- is the fix that was already written for it, so this mirrors that precedent rather than
-  -- inventing a second shape. The whole call is deferred, not only the field read after it,
-  -- since Stage:surfaceFor itself indexes self.surface the moment IT runs, so a proxy that
-  -- resolved surfaceFor eagerly and only deferred the methodName lookup would still crash at
-  -- the same line. Nav asking whether this context is showing, lib/nav.lua's own
-  -- activeSurface, is what triggers resolution now, which never happens before every stage
-  -- has run, since nothing dispatches a key until w.start, the very last one.
-  if stageModule then
-    surfaceAdapters[#surfaceAdapters + 1] = setmetatable({}, {
-      __index = function(_, methodName)
-        local fn = stageModule:surfaceFor("overlayDisplay")[methodName]
-        if not fn then return nil end
-        return function(...)
-          local ok, result = pcall(fn, ...)
-          return ok and result
-        end
-      end,
-    })
-  end
-
   ------------------------------------------------------------------------------
   -- STEP J. Drive the eight fixed stages, in their own order, unchanged.
   ------------------------------------------------------------------------------
@@ -2038,25 +1928,6 @@ function obj.run(olm, cfg)
           lock = function() hs.caffeinate.lockScreen() end,
           sleep = function() hs.caffeinate.systemSleep() end,
           searchSettings = function() if kin.focusSettingsSearch then kin.focusSettingsSearch() end end,
-          -- Migrated onto host/stage, contract v3. This tool has no manifest and so no
-          -- registration for stagePresent to look a presentation up by name for, root
-          -- policy over a lib module needing none, so the table Stage:present wants is
-          -- built right here instead, the one place that still reaches both overlay and
-          -- stageModule. Reached the identical way it always was, this special row, since
-          -- overlay was never part of wiredRegistry.presentationFor's own fast path and
-          -- still is not, the whole reason rowIntercept's own presenting branch never
-          -- touches it and this unconditional 0.1 second deferral still applies exactly as
-          -- it always has.
-          overlayDisplay = function()
-            if not (overlay and stageModule) then return end
-            stageModule:present({
-              name = "overlayDisplay",
-              rows = overlay.rows,
-              onSelect = overlay.select,
-              placeholder = "Overlay display",
-              matcher = false,
-            })
-          end,
           aliasDirectory = function()
             if not queryScopeModule then return end
             local query = queryScopeModule:queryFor("aliasDirectory")
@@ -2120,9 +1991,10 @@ function obj.run(olm, cfg)
   -- accounting rather than a fresh run. modules is loader.lua's own table, keyed by plugin
   -- identity, the exact table Olm:module indexes. screen is the overlay display resolver's
   -- own resolving function, handed over unpicked rather than called here, because the
-  -- resolver watches for display changes and a screen taken now would go stale the moment
-  -- one is attached or removed, so every caller must call it fresh at its own time, which
-  -- Olm:screen is what actually does.
+  -- resolver resolves its effective mode fresh on every call rather than caching a screen
+  -- once, so a screen taken now would go stale the moment the focused window, the cursor
+  -- position, or the stored mode changes, and every caller must call it fresh at its own
+  -- time, which Olm:screen is what actually does.
   record.report = w.report
   record.modules = modules
   record.screen = overlay.screen

@@ -626,10 +626,10 @@ end
 -- Guarded against a stale call landing after a newer presentation already took over, which
 -- the settle wait above makes possible, a present, push, or pop racing ahead of the timer
 -- before it ever fires. Also guarded, adversarial review finding L1, against a foreign
--- window also titled "Chooser", the overlay display picker or any of the twelve still
--- unmigrated consumers among them, being the one the loop above happens to find while this
--- instance's own window is not actually up, the same self.active guard _settleFrames itself
--- opens with before running the identical search.
+-- window also titled "Chooser", any of the twelve still unmigrated consumers among them,
+-- being the one the loop above happens to find while this instance's own window is not
+-- actually up, the same self.active guard _settleFrames itself opens with before running
+-- the identical search.
 function obj:_positionPane(p)
   if self:_current() ~= p then return end
   if not (self._instance and self._instance.active) then return end

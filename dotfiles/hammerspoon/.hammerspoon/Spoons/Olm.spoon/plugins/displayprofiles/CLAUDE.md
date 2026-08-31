@@ -11,10 +11,12 @@ public face stays the colon methods the rest of the config already calls, `curre
 `reconcile`, `apply`, `capture`, `profiles`, `configure`, `start`, `stop`, the read and
 lifecycle methods delegating to the engine while `profiles` returns the merged curated and
 captured view the chooser lists.
-A consumer in the main root reads `current()` to resolve the active arrangement, so that
-contract could not change. The new surface hangs off `obj.chooser`, dot called, the same dot
-called shape a manager surface uses, so the main root registers and gates it alongside its
-list surfaces without the spoon growing a second object model.
+`current` and `profiles` stay part of the stable public contract even though the overlay
+display policy that once read both, for its per arrangement pin, is gone, since a future
+consumer may still want the active arrangement's name or its displays. The new surface hangs
+off `obj.chooser`, dot called, the same dot called shape a manager surface uses, so the main
+root registers and gates it alongside its list surfaces without the spoon growing a second
+object model.
 
 ## The composition root, engine, provider layout
 
