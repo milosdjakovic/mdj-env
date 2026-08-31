@@ -93,18 +93,38 @@ mandates, since it is not a bound shortcut and typing is the only way a computed
 could be found at all.
 
 That exemption is why the empty field rotates. Each source may propose one short
-example line in its own `defaults.example`, the root collects them on the same walk
-that assembles the sources, and this host holds a pool of its own base wording
-followed by whatever arrived. `_nextPlaceholder` steps one place around that pool per
-open and `show` writes the answer onto the presentation before handing it to the
-stage, so the wording changes only between opens and never under a person reading
-it, and no timer exists. The position is a plain counter in memory, so a reload
-starts the cycle again at the base wording, which costs nothing worth a settings key.
+example line in its own `defaults.example`, or a list of several when one plugin
+covers more than one capability worth teaching, and the root collects and flattens
+whatever arrived on the same walk that assembles the sources. This host holds a pool
+of its own base wording followed by every line that arrived. `_nextPlaceholder` picks
+a uniformly random entry from that pool per open, never the entry `_placeholderLast`
+remembers as the immediately previous open's own pick, and `show` writes the answer
+onto the presentation before handing it to the stage, so the wording changes only
+between opens and never under a person reading it, and no timer exists.
+
+Random rather than a fixed cycle on purpose, and the reason is what the fixed cycle
+actually did in practice rather than what it promised. A cycle answers its first
+position after every single reload, which was always the plain base wording, and a
+reload is frequent enough here that a person could go a long time without ever
+seeing a computed source's own line. Random means the very first open after a
+reload is as likely to land on `Try 100 eur to usd` as on the base wording, the base
+wording being one ordinary entry in the pool rather than a guaranteed opener. The one
+thing kept from the old cycle is that two opens in a row still never repeat, `math.random`
+is asked again until it disagrees with `_placeholderLast` rather than being trusted on
+the first draw, which is cheap since the pool is a handful of strings and a person would
+read an accidental repeat as the feature doing nothing. `start` seeds `math.random` once
+with `math.randomseed(os.time())`, the same call `plugins/clipboard/manager/init.lua`'s
+own `start` already makes, so the sequence is not identical after every single reload.
+`_placeholderLast` is deliberately not persisted, a reload forgetting the previous pick
+costing nothing since the very next open draws fresh regardless. A pool of one, the
+ordinary shape when no computed source is present, has nothing to avoid repeating and
+answers itself every time, reading exactly as this field always did before any of this
+existed.
 
 This host writes no example and knows no source by name. A pool of one is the whole
 feature absent, which is exactly what an install with no computed source, or one
-whose calculator tool is missing, already gets. Adding a fourth hint is a line in
-some other plugin's own manifest and no edit here.
+whose calculator tool is missing, already gets. Adding another hint, or a whole new
+source, is a line in some other plugin's own manifest and no edit here.
 
 ## A source may claim the query, which is the whole of scoping
 

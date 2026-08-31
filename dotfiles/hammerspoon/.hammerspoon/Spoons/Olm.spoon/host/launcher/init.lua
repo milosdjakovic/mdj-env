@@ -60,7 +60,7 @@ obj._icons = nil            -- the shared glyph icon drawer, Olm.spoon/lib/glyph
 -- Owned state
 obj._presentation = nil     -- this host's one presentation, handed to the stage, never rebuilt
 obj._placeholders = nil     -- the rotation pool, this host's own placeholder first
-obj._placeholderTurn = nil  -- how far around that pool the last open got
+obj._placeholderLast = nil  -- the previous open's own pick, never repeated immediately
 obj._surface = nil          -- the stage's own nav adapter, delegated to rather than built here
 obj._actionRows = nil
 obj._settingsPaneRows = nil
@@ -234,7 +234,7 @@ function obj:configure(opts)
     name = "launcher",
     -- The opening value only. Every show replaces this field before handing the table to the
     -- stage, see _nextPlaceholder, so what a person actually reads is whichever hint this
-    -- open's turn landed on.
+    -- open's random pick landed on.
     placeholder = self._placeholder,
     rows = function(query) return self:_commandRows(query) end,
     onSelect = function(item)
@@ -1097,6 +1097,11 @@ end
 --- nothing, so none of this waits for the bursts to settle.
 function obj:start()
   if self._appRowsWatcher or self._appDirWatchers then return self end
+  -- Seeded once here rather than left to whatever Lua state Hammerspoon happens to start
+  -- with, the same call plugins/clipboard/manager/init.lua's own start already makes for
+  -- the identical reason, so the empty field's random pick does not run the same sequence
+  -- after every single reload.
+  math.randomseed(os.time())
   self._mru = hs.settings.get(MRU_SETTINGS_KEY) or {}
   self._orderedRowsCache = nil
   self._appRowsWatcher = hs.application.watcher.new(function(_, event, app)
@@ -1181,18 +1186,32 @@ end
 
 --- Launcher:_nextPlaceholder() -> string
 --- Method
---- The hint this open wears, one step further around the pool than the last open took.
+--- The hint this open wears, a uniformly random pick from the pool that is never the same
+--- string the previous open just showed.
 ---
---- A cycle rather than a random pick, so every hint is seen, none repeats back to back, and a
---- person who opens the launcher twice in a row is told two different things. The position is
---- a plain counter in memory, deliberately not persisted, since where a reload restarts the
---- cycle is not worth a settings key and starting from the plain wording after one is if
---- anything the friendlier answer.
+--- Random rather than a fixed cycle now, since a cycle answers the same first hint after
+--- every single reload, the plain base wording, and reload is frequent enough here that a
+--- person almost never saw anything else. Random fixes that for free, the very first open
+--- after a reload is as likely to land on a computed source's own line as on the base
+--- wording, which is still one entry in the pool rather than a guaranteed opener. Never
+--- repeating the immediately previous pick is the one constraint kept from the old cycle, so
+--- two opens in a row still read two different things rather than risking the same line
+--- twice by chance, which a person would read as the feature doing nothing. _placeholderLast
+--- remembers only that one previous pick, deliberately not persisted, a reload forgetting it
+--- being no loss since the very next open picks fresh anyway. A pool of one, the ordinary
+--- shape when no computed source is present, has nothing to avoid repeating and answers
+--- itself every time, which reads exactly as this field always did before any of this
+--- existed.
 function obj:_nextPlaceholder()
   local pool = self._placeholders
   if not pool or #pool == 0 then return self._placeholder end
-  self._placeholderTurn = ((self._placeholderTurn or 0) % #pool) + 1
-  return pool[self._placeholderTurn]
+  if #pool == 1 then return pool[1] end
+  local pick
+  repeat
+    pick = pool[math.random(#pool)]
+  until pick ~= self._placeholderLast
+  self._placeholderLast = pick
+  return pick
 end
 
 --- Launcher:show(query)

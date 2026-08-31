@@ -24,12 +24,15 @@ return {
     glyph = "🧮",
     category = "Arithmetic",
 
-    -- One short line for the launcher's empty field, proposed here rather than written into
-    -- the launcher, since a list of what the computed sources can do, kept anywhere but
-    -- beside the source itself, is a roster that goes stale the day one of them changes. The
-    -- whole sentence rather than only the expression, for the same reason category is a whole
-    -- word here, this plugin owns its own wording and whoever shows it decides nothing about
-    -- how it reads. Short enough for the field, which holds about twenty eight characters.
-    example = "Try 128 * 4",
+    -- Short lines for the launcher's empty field, a list rather than the one line this used
+    -- to be, proposed here rather than written into the launcher, since a list of what the
+    -- computed sources can do, kept anywhere but beside the source itself, is a roster that
+    -- goes stale the day one of them changes. Each is a whole sentence rather than only the
+    -- expression, for the same reason category is a whole word here, this plugin owns its
+    -- own wording and whoever shows it decides nothing about how it reads. Short enough for
+    -- the field, which holds about twenty eight characters. Both lines were checked against
+    -- this plugin's own grammar and whitelist above before they shipped, a plain product and
+    -- an exponent, so the field never invites a person to type something this parser refuses.
+    example = { "Try 128 * 4", "Try 2^10" },
   },
 }
