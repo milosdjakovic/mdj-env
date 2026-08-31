@@ -562,23 +562,28 @@ reads off opts, and nothing checks that for you, so it has to be asked by hand e
 it, and it belongs to a computed row source. It still arrives as `opts.example` on the
 proposing plugin's own `configure`, exactly as the rule above says every default does,
 simply unread there, since neither arithmetic's nor convert's own configure asks for it. It
-is one short line for the launcher's empty field, `Try 128 * 4` from arithmetic, and the
-launcher rotates one hint per open through its own base wording plus every example that
-arrived, deterministically, so each is seen and none repeats back to back. That is what a
-computed row has instead of the discoverability a bound key and a launcher row give every
-other tool, since typing is the only way one could ever be found.
+is one short line for the launcher's empty field, `Try 128 * 4` from arithmetic, or a list of
+several lines when one plugin covers more than one capability worth teaching, convert's own
+four lines for currency, temperature, weight, and speed being the case that needed the list
+form. The launcher rotates through its own base wording plus every line that arrived, a
+uniformly random pick each open that is never the one the immediately previous open just
+showed, so two opens in a row still read two different things without any hint being locked
+into a fixed position in the pool. That is what a computed row has instead of the
+discoverability a bound key and a launcher row give every other tool, since typing is the
+only way one could ever be found.
 
-Declare the whole line rather than the expression alone, for the reason `category` is a whole
-word here, the source owns how it reads and the host decides nothing about its wording. Keep
-it at or under twenty eight characters, about what the field holds, since nothing truncates it
-and nothing drops it for being too long, a clipped hint being visible and fixable where a
-silently discarded one would look like a feature that never arrived. A source proposing none
-contributes none and the field keeps saying exactly what it said before. No host names a
-source, the composition root reads this field off each source's own effective defaults on the
-same walk that assembles the sources that declare `queryRows`, so a plugin declaring
-`queryRows` and added later joins the rotation with no edit anywhere, and one left out for a
-missing tool takes its hint with it rather than advertising something this machine cannot do.
-A claiming source is a different case. QueryScope is prepended to the launcher's own
+Declare each line whole rather than the expression alone, for the reason `category` is a
+whole word here, the source owns how it reads and the host decides nothing about its wording.
+Keep every line at or under twenty eight characters, about what the field holds, since
+nothing truncates it and nothing drops it for being too long, a clipped hint being visible
+and fixable where a silently discarded one would look like a feature that never arrived. A
+source proposing nothing contributes nothing and the field keeps saying exactly what it said
+before. No host names a source, the composition root reads this field off each source's own
+effective defaults on the same walk that assembles the sources that declare `queryRows`,
+flattening a list into as many pool entries as it carries, so a plugin declaring `queryRows`
+and added later joins the rotation with no edit anywhere, and one left out for a missing tool
+takes every line it proposed with it rather than advertising something this machine cannot
+do. A claiming source is a different case. QueryScope is prepended to the launcher's own
 `queryProviders` outside that same walk, since it claims the whole query rather than
 proposing a row for it, so it is never asked for an example and could not join the rotation
 by declaring one.

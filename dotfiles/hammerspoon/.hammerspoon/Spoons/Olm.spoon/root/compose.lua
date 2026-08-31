@@ -1802,6 +1802,11 @@ function obj.run(olm, cfg)
     -- advertising a capability this machine does not have is worse than no hint. A source
     -- proposing nothing contributes nothing, which is the feature degrading rather than
     -- breaking, and a source added later joins the rotation with no edit here or there.
+    --
+    -- example may be one string or a list of strings, a plugin with several capabilities
+    -- worth teaching having no reason to pick just one, and this flattens either shape into
+    -- the same flat list the launcher receives, so the launcher still only ever sees strings
+    -- and never learns that a source offered more than one.
     local queryProviders = {}
     local placeholderExamples = {}
     if queryScopeModule then queryProviders[#queryProviders + 1] = queryScopeModule end
@@ -1809,8 +1814,11 @@ function obj.run(olm, cfg)
       if modules[identity] then
         queryProviders[#queryProviders + 1] = modules[identity]
         local example = ((plan.effective or {})[identity] or {}).example
-        if type(example) == "string" and example ~= "" then
-          placeholderExamples[#placeholderExamples + 1] = example
+        local hints = type(example) == "table" and example or { example }
+        for _, hint in ipairs(hints) do
+          if type(hint) == "string" and hint ~= "" then
+            placeholderExamples[#placeholderExamples + 1] = hint
+          end
         end
       end
     end

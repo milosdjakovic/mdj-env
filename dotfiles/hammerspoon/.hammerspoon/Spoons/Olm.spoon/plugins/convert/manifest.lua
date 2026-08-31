@@ -43,26 +43,40 @@ return {
     },
   },
 
-  -- The only thing this plugin proposes, and the first defaults block it has ever had. One
-  -- short line for the launcher's empty field, saying that a quantity typed with a target
-  -- after the word to answers here, which is otherwise discoverable only by a person who
-  -- already knows it. It names the same operator the row builder accepts, so the hint and the
-  -- grammar cannot drift, and it stays short enough for the field, which holds about twenty
-  -- eight characters.
+  -- The only thing this plugin proposes, and the first defaults block it has ever had. A
+  -- list now rather than the one line this used to be, since one plugin covers several kinds
+  -- of conversion and a single example could only ever teach one of them. Each line says
+  -- that a quantity typed with a target after the word to answers here, which is otherwise
+  -- discoverable only by a person who already knows it. Every line names the same operator
+  -- the row builder accepts, so a hint and the grammar cannot drift, and each stays short
+  -- enough for the field, which holds about twenty eight characters.
   --
   -- A distance to miles was the first wording here and it was wrong for a reason the field
   -- itself never shows. Customary length and speed both carry the tool's own mixed unit
   -- default, feet and inches rather than one decimal number, so that wording answered a sum
   -- and cost this plugin's own _run a second qalc process on the very first thing a curious
-  -- person tried. A customary speed converted to a metric one resolves to one clean number
-  -- on the first ask instead, the same shape init.lua's own isSingleValue already checks
-  -- for, so the example a person sees costs exactly what the row it inspired will.
+  -- person tried. Every line below was run against the real tool with this plugin's own
+  -- flags before it shipped, and answers one clean value with no retry.
   --
-  -- Nothing shows it when the calculator is absent, since a plugin left out for a missing
-  -- required tool is left out of the launcher's source list too, and the hints are collected
-  -- from that same list. So the field never advertises a conversion this machine cannot do.
+  -- Temperature needed respelling to get there. 72 f to c and 72 F to degC both parse as
+  -- farads and coulombs rather than degrees, since the tool's short unit names collide with
+  -- electrical ones, and the fix is spelling both sides out, fahrenheit and celsius, which
+  -- costs nothing this field cannot afford. Currency was checked carefully rather than
+  -- assumed, since this plugin's own flags freeze the exchange rate file rather than fetch
+  -- one, and qalc's own bundled rate snapshot answered offline with no network involved, so
+  -- the hint is honest about what a fresh install can already do without a refresh.
+  --
+  -- Nothing shows any of it when the calculator is absent, since a plugin left out for a
+  -- missing required tool is left out of the launcher's source list too, and the hints are
+  -- collected from that same list. So the field never advertises a conversion this machine
+  -- cannot do.
   defaults = {
-    example = "Try 10 mph to kph",
+    example = {
+      "Try 100 eur to usd",
+      "Try 72 fahrenheit to celsius",
+      "Try 5 lb to kg",
+      "Try 10 mph to kph",
+    },
   },
 
   -- queryRows rather than rows, on purpose. rows is what a scopable tool claims, a
