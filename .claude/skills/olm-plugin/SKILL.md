@@ -88,7 +88,9 @@ its own `intercept`, since a child can only ever push.
 The highlight belongs to the person. A plugin never moves it, never caches the selected row,
 and reads it only through the stage words. An async answer lands on its own level via the
 token discipline in the authoring guide, or not at all. A redraw that resets to the top is
-sanctioned only when a reorder left no row worth preserving.
+sanctioned only when a reorder left no row worth preserving. A row that mutates the list it
+stands on and stays should answer "stay" from intercept rather than true, so the highlight
+never leaves the row the person chose.
 
 The placeholder names the list, never a key, and no user visible text anywhere names a
 physical key, since bindings live in `config/keys.lua` and the hint surfaces already say them.
