@@ -300,17 +300,37 @@ helpers.
 
 `start` also installs an `hs.pathwatcher` on `/Applications` and on
 `HOME/Applications`, the two directories in the scan that can change without a
-reboot. A change under either one drops the disk scan along with both row
-caches, so an app installed or removed while Hammerspoon is already running is
-picked up on the next launcher open rather than waiting for a config reload,
-which used to be the only way to see it unless the app happened to already be
+reboot, and only for a root that actually exists on this machine, the same
+guard the disk scan itself already puts in front of a directory, since
+`HOME/Applications` is common enough to be absent that asking to watch it
+anyway would be asking for a defect nobody would see until the day it mattered.
+`start` is declared wiring, `manifest.lua`'s own `wiring = { { method = "start"
+} }`, and reading only this file's own comments once said so without it being
+true. Nothing beyond `configure` runs a plugin whose manifest never says a
+step exists, so this host owned no live state at all, no app watcher, no
+directory watchers, and no persisted recency, until that line existed. A change
+under either watched directory drops the disk scan along with both row caches,
+so an app installed or removed while Hammerspoon is already running is picked
+up on the next launcher open rather than waiting for a config reload, which
+used to be the only way to see it unless the app happened to already be
 running. `/System/Applications` is left unwatched on purpose, since it only
 changes as part of an OS update, and an OS update always brings a reboot and a
 fresh Hammerspoon load, so a watcher there would never see anything the reload
-was not about to show anyway. Nothing rescans inside the watcher callback
-itself, the whole point is that the cost lands on the person's next open rather
-than on the filesystem event, and a burst of several changes from one install
-just clears an already empty cache a few extra times for free. `stop` tears
+was not about to show anyway.
+
+Not every change under a watched directory earns a cache drop. `hs.pathwatcher`
+fires for any file event anywhere beneath the root it watches, which includes a
+write inside an app bundle that is already installed, a self updating app
+rewriting its own files being the ordinary case, and that must not throw away
+the scan on every one of those. `isTopLevelAppChange` keeps only a path ending
+in `.app`, an app bundle itself arriving, leaving, or being renamed, or a path
+with no further slash past the watched directory, a direct child of it.
+Anything nested deeper than that is a change inside a bundle that already
+exists, which the installed set does not care about. Nothing rescans inside the
+watcher callback itself either way, the whole point is that the cost lands on
+the person's next open rather than on the filesystem event, and a burst of
+several relevant changes from one install just clears an already empty cache a
+few extra times for free, which costs nothing worth debouncing. `stop` tears
 both watchers down and drops the disk scan cache with them, so a stopped
 launcher never holds a scan that nothing is left to keep honest.
 

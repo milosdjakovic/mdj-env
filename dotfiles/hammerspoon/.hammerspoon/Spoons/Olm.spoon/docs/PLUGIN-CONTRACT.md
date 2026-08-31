@@ -558,12 +558,15 @@ therefore not only a question of what a fresh install should propose, it is a qu
 whether that name collides with something one of this plugin's own submodules already
 reads off opts, and nothing checks that for you, so it has to be asked by hand every time.
 
-`example` is the one default read by a host rather than by the plugin proposing it, and it
-belongs to a computed row source. It is one short line for the launcher's empty field, `Try
-128 * 4` from arithmetic, and the launcher rotates one hint per open through its own base
-wording plus every example that arrived, deterministically, so each is seen and none repeats
-back to back. That is what a computed row has instead of the discoverability a bound key and
-a launcher row give every other tool, since typing is the only way one could ever be found.
+`example` is a default whose only actual reader is a host rather than the plugin proposing
+it, and it belongs to a computed row source. It still arrives as `opts.example` on the
+proposing plugin's own `configure`, exactly as the rule above says every default does,
+simply unread there, since neither arithmetic's nor convert's own configure asks for it. It
+is one short line for the launcher's empty field, `Try 128 * 4` from arithmetic, and the
+launcher rotates one hint per open through its own base wording plus every example that
+arrived, deterministically, so each is seen and none repeats back to back. That is what a
+computed row has instead of the discoverability a bound key and a launcher row give every
+other tool, since typing is the only way one could ever be found.
 
 Declare the whole line rather than the expression alone, for the reason `category` is a whole
 word here, the source owns how it reads and the host decides nothing about its wording. Keep
@@ -572,9 +575,13 @@ and nothing drops it for being too long, a clipped hint being visible and fixabl
 silently discarded one would look like a feature that never arrived. A source proposing none
 contributes none and the field keeps saying exactly what it said before. No host names a
 source, the composition root reads this field off each source's own effective defaults on the
-same walk that assembles the sources themselves, so a computed source added later joins the
-rotation with no edit anywhere, and one left out for a missing tool takes its hint with it
-rather than advertising something this machine cannot do.
+same walk that assembles the sources that declare `queryRows`, so a plugin declaring
+`queryRows` and added later joins the rotation with no edit anywhere, and one left out for a
+missing tool takes its hint with it rather than advertising something this machine cannot do.
+A claiming source is a different case. QueryScope is prepended to the launcher's own
+`queryProviders` outside that same walk, since it claims the whole query rather than
+proposing a row for it, so it is never asked for an example and could not join the rotation
+by declaring one.
 
 ### surface
 

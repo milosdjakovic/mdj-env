@@ -1047,6 +1047,24 @@ function obj:_runItem(it)
   end
 end
 
+-- Whether a changed path under a watched app directory is worth dropping the disk scan for.
+-- hs.pathwatcher fires for every file event anywhere beneath the root it watches, which
+-- includes a write inside an app bundle that is already installed, a self updating app
+-- rewriting its own files being the ordinary case, and that must not throw away the scan on
+-- every one of those. Only a path ending in .app, an app bundle itself arriving, leaving, or
+-- being renamed, or a path with no further slash past the watched directory, a direct child
+-- of it, answers yes. Anything nested deeper than that is a change inside a bundle that
+-- already exists, which the installed set does not care about.
+local function isTopLevelAppChange(path, dir)
+  if not path then return false end
+  if path:sub(-1) == "/" then path = path:sub(1, -2) end
+  if path:sub(-4) == ".app" then return true end
+  local prefix = dir .. "/"
+  if path:sub(1, #prefix) ~= prefix then return false end
+  local rest = path:sub(#prefix + 1)
+  return rest ~= "" and not rest:find("/", 1, true)
+end
+
 --- Launcher:start()
 --- Method
 --- Begin owning live state. Load the persisted recency order, fed only by
@@ -1059,17 +1077,21 @@ end
 --- _appRows runs once and is cached in _installedApps forever, so an app installed
 --- after this scan ran, or removed after it ran, was invisible until the next config
 --- reload unless it happened to be running, since only the running set was ever
---- refreshed. Each watcher drops _installedApps along with both row caches on any
---- change under its directory, so the next open rescans lazily rather than the
---- watcher paying for a scan nobody asked to see yet. /System/Applications is left
---- unwatched, since it only changes with an OS update, and an OS update always
---- brings a reboot and a fresh Hammerspoon load with it, so nothing here would ever
---- catch a change there without also seeing everything else start clean first.
---- A directory watcher can fire several times in a row while an installer writes an
---- app bundle, and clearing an already nil cache costs nothing, so none of this
---- waits for the bursts to settle.
+--- refreshed. Each watcher drops _installedApps along with both row caches when
+--- isTopLevelAppChange says a path it was told about is a real arrival, departure, or
+--- rename rather than noise from inside a bundle that already exists, so the next open
+--- rescans lazily rather than the watcher paying for a scan nobody asked to see yet.
+--- /System/Applications is left unwatched, since it only changes with an OS update, and
+--- an OS update always brings a reboot and a fresh Hammerspoon load with it, so nothing
+--- here would ever catch a change there without also seeing everything else start clean
+--- first. A watcher is built only for a root that is genuinely a directory on this
+--- machine, the same guard scanInstalledApps already puts in front of a scan, since
+--- HOME/Applications is common enough to not exist that hs.pathwatcher.new should never
+--- be asked to watch it anyway. A directory watcher can still fire several times in a
+--- row while an installer writes an app bundle, and clearing an already nil cache costs
+--- nothing, so none of this waits for the bursts to settle.
 function obj:start()
-  if self._appRowsWatcher then return self end
+  if self._appRowsWatcher or self._appDirWatchers then return self end
   -- Asked here rather than in configure, since configure runs twice and the first of those
   -- two legitimately carries no chord speller, so complaining there printed a warning about
   -- a gap that the second call was about to fill. By the time anything starts, whatever is
@@ -1089,19 +1111,25 @@ function obj:start()
   end)
   self._appRowsWatcher:start()
 
-  local function onAppDirChanged()
-    self._installedApps = nil
-    self._appRowsCache = nil
-    self._orderedRowsCache = nil
-  end
   self._appDirWatchers = {}
   -- APP_DIRS holds all three roots in scan order, so this reaches into it by index rather
   -- than repeating the paths, and skips index two, /System/Applications, by the reasoning
   -- above.
   for _, dir in ipairs({ APP_DIRS[1], APP_DIRS[3] }) do
-    local watcher = hs.pathwatcher.new(dir, onAppDirChanged)
-    watcher:start()
-    self._appDirWatchers[#self._appDirWatchers + 1] = watcher
+    if hs.fs.attributes(dir, "mode") == "directory" then
+      local watcher = hs.pathwatcher.new(dir, function(paths)
+        for _, p in ipairs(paths or {}) do
+          if isTopLevelAppChange(p, dir) then
+            self._installedApps = nil
+            self._appRowsCache = nil
+            self._orderedRowsCache = nil
+            break
+          end
+        end
+      end)
+      watcher:start()
+      self._appDirWatchers[#self._appDirWatchers + 1] = watcher
+    end
   end
   return self
 end
@@ -1207,15 +1235,17 @@ function obj:show(query)
     self._coveredApp = front
   end
   if not self._stage then return end
-  -- Every open starts on this catalog, whatever list the previous open was left hosting when it
-  -- closed. Done before the show, since showing builds the first rows, and before the hint just
-  -- below, which is what settles what the field says for this open.
-  self:leavePage()
   -- The hint for this open, chosen here and never while a list is up, so the field can only
-  -- change wording between opens and never under somebody reading it. Stage:present sets a
-  -- presentation's own placeholder before every show, so writing the field on the table this
-  -- line hands over is the whole of it and no second call is wanted.
+  -- change wording between opens and never under somebody reading it. Chosen before leaving
+  -- any hosted list on purpose, since leavePage writes straight onto the field's presentation
+  -- when a page was left open, and that write must already carry this open's own wording
+  -- rather than whatever turn the previous open landed on.
   self._presentation.placeholder = self:_nextPlaceholder()
+  -- Every open starts on this catalog, whatever list the previous open was left hosting when it
+  -- closed. Done before the show, since showing builds the first rows.
+  self:leavePage()
+  -- Stage:present sets a presentation's own placeholder before every show, so writing the
+  -- field on the table above is the whole of it and no second call is wanted here.
   self._stage:present(self._presentation)
   if query and query ~= "" then
     self._stage:setQuery(query)
