@@ -1060,6 +1060,18 @@ function obj.run(olm, cfg)
     return dotOk and dotAnswer == true
   end
 
+  -- Whether any list is open right now, the launcher and every plugin picker alike, asked by
+  -- walking the same contextOwners table the predicates already route through, so this gate
+  -- and the modal suppression inside the hyper engine can never disagree about what an open
+  -- list is. Built once here because two leaders consult it, the hyper hold reveal below and
+  -- the window leader's own suppression, and two separate walks would be two answers.
+  local function anyListShowing()
+    for contextName in pairs(contextOwners) do
+      if isShowingFor(contextName) then return true end
+    end
+    return false
+  end
+
   ------------------------------------------------------------------------------
   -- STEP H. The engines.
   ------------------------------------------------------------------------------
@@ -1067,10 +1079,15 @@ function obj.run(olm, cfg)
   -- Ported from the live root's onHold and onHoldEnd. contextOverlays stays the same empty
   -- seam the live root still carries, a modal context reveals nothing of its own here, its
   -- hints already live on the docked panel, and the base layer alone reveals the apps sheet.
+  --
+  -- The open list test is anyListShowing above. It used to be hintsLib.activeContext handed
+  -- isShowingFor, which was a shape mismatch, activeContext feeds its test when names like
+  -- launcherOpen while isShowingFor answers context names like launcher, so the test never
+  -- matched anything, no context ever read as live, and the apps sheet revealed over every
+  -- open list.
   local heldHyperLayer = nil
   local function revealHyperLayer()
-    local activeCtx = hintsLib.activeContext(plan, isShowingFor)
-    if activeCtx then
+    if anyListShowing() then
       heldHyperLayer = "none"
     else
       -- THE SEAM. HyperCheatSheet is one of the five host modules this file may name.
@@ -1116,11 +1133,15 @@ function obj.run(olm, cfg)
   -- resolved above from windowleader's own declared sibling need rather than looked up here
   -- by name, and windowleader/init.lua builds the actual hold and release closures itself
   -- now, this file only ever hands over the collaborator.
+  -- suppressWhen is anyListShowing, the same gate the hyper hold reveal reads, so while any
+  -- list is open the window leader neither reveals its sheet nor moves a window, and the two
+  -- leaders go quiet on the same evidence.
   if windowLeaderModule then
     windowLeaderModule:configure({
       chord = chordKeyAtom,
       holdDelay = policy.chord.holdDelay,
       windowCheatSheet = windowCheatSheetForLeader,
+      suppressWhen = anyListShowing,
     })
   end
 

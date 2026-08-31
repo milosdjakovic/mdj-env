@@ -268,7 +268,13 @@ app bindings split into open vs not-running (uninstalled/unresolvable apps
 filtered out; names+icons cached at load, only the running split recomputed per
 show). Holding a leader shows `WindowCheatSheet` — just that leader's bindings
 (META's resizes on the bare arrows and moves on WASD);
-pressing any bound key cancels it. It reads
+pressing any bound key cancels it. While any Olm list is open, the launcher or
+any plugin picker, both holds go quiet and the window leader's bound keys are
+inert though still swallowed, so neither sheet appears over an open list and no
+window action fires underneath one. One gate answers it, `anyListShowing` in
+`root/compose.lua`, walking the same `contextOwners` table the predicates route
+through, consulted by the hyper hold reveal directly and injected into
+`WindowLeader` as `suppressWhen`. It reads
 the same `keys.windowManagement` config, so it never drifts; each row's label is
 the action name humanized (`nextDisplay` → "Next Display") unless the entry sets
 an explicit `description` override.

@@ -231,21 +231,13 @@ function obj.rowsFor(contextName, plan, deps, hosted)
   return rows
 end
 
--- Which context is live right now, the highest priority one whose own when name answers
--- true, or one carrying no when at all. isActive is a function of a predicate name rather
--- than the predicates table itself, so a caller may hand this the exact same test the chord
--- engine runs, or a stand in for a test run, with this file never touching the table shape
--- either way.
-function obj.activeContext(plan, isActive)
-  local best
-  for _, ctx in pairs(plan.contexts or {}) do
-    local live = (not ctx.when) or (isActive and isActive(ctx.when))
-    if live and (not best or (ctx.priority or 0) > (best.priority or 0)) then
-      best = ctx
-    end
-  end
-  return best
-end
+-- activeContext used to live here, answering which context is live right now off each
+-- block's own when name. Its one caller, the hyper hold reveal in the composition root,
+-- handed it a test of context names while this fed that test when names, so it never found
+-- anything and the apps sheet revealed over every open list. The root asks its own
+-- contextOwners walk now, and the function is removed rather than repaired because a helper
+-- whose argument shape its only caller got wrong once is a helper the next caller gets
+-- wrong the same way.
 
 -- The kind every action carries, derived from the plan rather than hand kept, since a hand
 -- kept table is exactly what went stale in the live root, missing one plugin's chord by its
