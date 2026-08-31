@@ -59,6 +59,19 @@ obj._repeatMode = "driven"
 obj._onHold = nil
 obj._onHoldEnd = nil
 obj._windowCheatSheet = nil
+-- An injected gate that answers true while the window leader must stay quiet, which today
+-- means while any Olm list is open. The leaders exist to drive window management, and a
+-- window action fired over an open chooser moves or resizes whatever sits underneath the
+-- list a person is reading, so the whole leader goes inert rather than any one binding
+-- carrying its own guard. Policy arrives from the composition root, this plugin never asks
+-- what the gate actually watches, and absent means never suppressed, the original behaviour.
+obj._suppressWhen = nil
+
+-- What a suppressed key resolves to. A bound handler that does nothing, rather than nil,
+-- because the shared engine treats an unresolved key as unbound, and with passthrough on it
+-- would synthesize the pressed key downstream, where the open list's own field would receive
+-- it as typed text. Bound and inert is the only answer that both runs nothing and swallows.
+local function noop() end
 
 --- WindowLeader:init()
 --- Method
@@ -79,12 +92,16 @@ end
 ---                         calls show(leaderKeyCode) on it and its own release calls hide(),
 ---                         absent on an install carrying no such plugin, which only costs
 ---                         the reveal itself, every leader and every bound key keeps working
+--- opts.suppressWhen    - a function answering true while every leader must stay quiet, no
+---                        reveal on hold and every bound key inert though still swallowed,
+---                        consulted live at each hold and each press, absent means never
 function obj:configure(opts)
   opts = opts or {}
   self._chord = opts.chord or self._chord
   self._holdDelay = opts.holdDelay or self._holdDelay
   self._repeatMode = opts.repeatMode or self._repeatMode
   self._windowCheatSheet = opts.windowCheatSheet or self._windowCheatSheet
+  self._suppressWhen = opts.suppressWhen or self._suppressWhen
 
   -- Built here rather than accepted as opts.onHold and opts.onHoldEnd, so the composition
   -- root only ever hands over the collaborator and never the callback. The earlier shape
@@ -92,6 +109,7 @@ function obj:configure(opts)
   -- name, which is the exact coupling this plugin's own manifest.lua now declares instead,
   -- and a plugin owning its own callback is what a needs.siblings declaration is for.
   self._onHold = function(leaderKeyCode)
+    if self._suppressWhen and self._suppressWhen() then return end
     local sheet = self._windowCheatSheet
     if sheet then sheet:show(leaderKeyCode) end
   end
@@ -203,6 +221,7 @@ function obj:start()
       onHoldEnd = self._onHoldEnd,
       -- No onTap: leaders have no tap fallback.
       onKey = function(code, flags)
+        if self._suppressWhen and self._suppressWhen() then return noop end
         return self:_resolve(leader.bindings[code], flags)
       end,
     })
