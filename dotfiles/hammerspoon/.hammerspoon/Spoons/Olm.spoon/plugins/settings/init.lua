@@ -72,11 +72,12 @@ end
 
 local ICON_PLACEMENT = "🖥️"
 local ICON_BACK = "⬅️"
--- The green circle marks the active row, never a checkmark, the one marker this codebase
--- uses for "which of these is current right now".
+-- The two option rows carry only a circle each, never a checkmark, the one marker
+-- convention this codebase uses for "which of these is current right now". Green marks
+-- whichever option is current and red marks the other one, so the pair together says which
+-- is live without either row needing a glyph of its own to describe what it does.
 local ICON_SELECTED = "🟢"
-local ICON_CURSOR = "🖱️"
-local ICON_ACTIVE_WINDOW = "🎯"
+local ICON_NOT_SELECTED = "🔴"
 
 local function row(title, subTitle, icon, item, enabled)
   return { title = title, subTitle = subTitle, image = emojiImage(icon), item = item, enabled = enabled }
@@ -104,10 +105,10 @@ end
 local function placementRows()
   local mode = liveMode()
   local rows = { backRow() }
-  rows[#rows + 1] = row("Where the mouse cursor is", nil, mode == "cursor" and ICON_SELECTED or ICON_CURSOR,
-    { commit = "cursor" }, true)
-  rows[#rows + 1] = row("With the active window", nil, mode == "activeWindow" and ICON_SELECTED or ICON_ACTIVE_WINDOW,
-    { commit = "activeWindow" }, true)
+  rows[#rows + 1] = row("Where the mouse cursor is", nil,
+    mode == "cursor" and ICON_SELECTED or ICON_NOT_SELECTED, { commit = "cursor" }, true)
+  rows[#rows + 1] = row("With the active window", nil,
+    mode == "activeWindow" and ICON_SELECTED or ICON_NOT_SELECTED, { commit = "activeWindow" }, true)
   return rows
 end
 
