@@ -191,9 +191,11 @@ end
 --
 -- Back leaves, decision three's reserved case, a row that mutates nothing and simply
 -- stands aside, reached through cfg.stagePop, which restores the top level the settings
--- child sits above. Choosing a terminal is the other half of that same reserved case, it
--- persists the choice and stays open so the moved green circle is what confirms it, rather
--- than a reopen, standing exactly as it always did before this migration.
+-- child sits above, so it still answers true, a level change rather than a mutation.
+-- Choosing a terminal is the other half of that same reserved case, and answers "stay"
+-- rather than true, the mandate for a row that mutates the list it is standing on, so it
+-- persists the choice and the moved green circle is what confirms it, the highlight held
+-- on the row just chosen rather than reset to the top the way a reopen would leave it.
 function buildSettingsChild()
   return {
     placeholder = "Search sessions and windows",
@@ -208,7 +210,7 @@ function buildSettingsChild()
       end
       if item.setProvider then
         cfg.api:setProviderName(item.setProvider)
-        return true
+        return "stay"
       end
       return false
     end,

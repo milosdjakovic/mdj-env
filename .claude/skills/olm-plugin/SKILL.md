@@ -89,8 +89,10 @@ The highlight belongs to the person. A plugin never moves it, never caches the s
 and reads it only through the stage words. An async answer lands on its own level via the
 token discipline in the authoring guide, or not at all. A redraw that resets to the top is
 sanctioned only when a reorder left no row worth preserving. A row that mutates the list it
-stands on and stays should answer "stay" from intercept rather than true, so the highlight
-never leaves the row the person chose.
+is standing on answers "stay" from intercept, never plain true, so the highlight never
+leaves the row the person chose, and a page of options a person flips never pops or closes
+on selection, leaving is always the person's own key. Plain true from intercept is for a
+wholesale swap of the list and nothing else.
 
 The placeholder names the list, never a key, and no user visible text anywhere names a
 physical key, since bindings live in `config/keys.lua` and the hint surfaces already say them.

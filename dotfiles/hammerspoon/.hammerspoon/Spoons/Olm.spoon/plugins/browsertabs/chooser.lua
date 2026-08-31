@@ -578,9 +578,12 @@ local function buildBrowserChild(bundleID)
       end
       return nil
     end,
-    -- Back leaves. The switch and the permission request both mutate this same level in
-    -- place and stand, decision three's reserved case, exactly as they always did, reading
-    -- fine again on the very next line the moment the async answer they started lands.
+    -- Back leaves, decision three's reserved case, a row that mutates nothing, and answers
+    -- true, a level change. The switch and the permission request both mutate this same
+    -- level in place and stand instead, the mandate's own reserved case, so both answer
+    -- "stay" rather than true, the highlight holding on the row that was pressed rather
+    -- than resetting to the top, reading fine again on the very next line the moment the
+    -- async answer they started lands.
     intercept = function(item)
       -- The disabled row guard once written here by hand is gone, review findings H1 and
       -- H2, rework, host/stage's own _intercept answering true and doing nothing for any
@@ -599,7 +602,7 @@ local function buildBrowserChild(bundleID)
         -- M.reload's own landing redraw already targets the tab list alone, review finding
         -- M2, so it correctly touches nothing while this level is what is showing.
         M.reload()
-        return true
+        return "stay"
       end
       if item.act == "request" then
         cfg.api.permissionRequest(bundleID, function(state)
@@ -614,7 +617,11 @@ local function buildBrowserChild(bundleID)
           -- lands here specifically, or not at all once the person has moved on.
           if cfg.redrawPresented then cfg.redrawPresented("browserTabs", nil, child) end
         end)
-        return true
+        -- Answers "stay" immediately even though the mutation itself is asynchronous and has
+        -- not landed yet, since the person just acted on this row and belongs on it while the
+        -- request is outstanding, the redraw above catching up once cfg.api.permissionRequest's
+        -- own callback fires.
+        return "stay"
       end
       return false
     end,

@@ -1186,12 +1186,20 @@ end
 -- than moving to a new one. manifest.lua's own presentation comment carries the fuller
 -- reasoning, including why the page switch below stays on this same pair for a second, separate
 -- reason.
+--
+-- Answers "stay" now, the mandate for this reserved case, rather than true, since a delete is
+-- exactly the mutation in place stay exists for, the row itself gone but the highlight
+-- staying at the row number it sat on rather than jumping back to the top of the page. The
+-- door into this page, UI.manageHistory, and the door out, UI.leaveManageHistory reached
+-- through back() below, both run outside this function entirely, calling
+-- cfg.redrawPresented(name, true) directly rather than answering through intercept at all, so
+-- neither is a branch here that would need to keep answering true, and neither does.
 local function intercept(item)
   if page ~= "prune" or not item or not item.side or item.side == "hint" then return false end
   local removed = prune.apply(item)
   local left = #store.all()
   if cfg.notify then cfg.notify(prune.message(item, removed, left)) end
-  return true
+  return "stay"
 end
 
 -- Backspace on an empty field, the way out of the page. It is the same press that steps out of

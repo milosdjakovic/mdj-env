@@ -762,30 +762,30 @@ launcher. A child answering nil from its own `select`, the ordinary case at any 
 what a completion has always meant on this contract, the whole stack tears down, since nothing
 about `onClose`'s own unconditional clear on a real dismissal changes for this.
 
-The mechanism rides the existing `intercept` chain inside `host/stage` rather than adding a second
-hook, since `intercept` is already the one gate every selection path, Return, `insertSelected`, and
-a click alike, passes through before `hs.chooser` is ever allowed to complete a row natively, and a
-child pushed there never lets that native completion happen at all, which is the only way the
-window can stay open through the swap. A plugin writes no `intercept` of its own to get this,
-`select` returning a table is the whole of what it does. `intercept` itself, when a presentation
-still declares one, keeps meaning exactly what it always has, a row that mutates the list it is on
-and stands, the clipboard's own prune page being the case neither a child nor a completion could
-express, since the row does not want a new list, it wants the same list with a different count.
-Contract v3 decision three names that boundary outright, a plugin needing levels declares no
-`intercept` and returns children from `select` instead, and a plugin needing in place mutation
-keeps `intercept` exactly as before, and the two are not expected to mix on the same row.
+The mechanism rides the existing `intercept` chain inside `host/stage` rather than adding a
+second hook, since `intercept` is already the one gate every selection path, Return,
+`insertSelected`, and a click alike, passes through before `hs.chooser` is ever allowed to
+complete a row natively, and a child pushed there never lets that native completion happen
+at all, which is the only way the window can stay open through the swap. A plugin writes no
+`intercept` of its own to get this, `select` returning a table is the whole of what it does.
+`intercept` itself, when a presentation still declares one, keeps meaning exactly what it
+always has, a row that mutates the list it is on and stands, the reserved case neither a
+child nor a completion could express, since the row does not want a new list, it wants the
+same list with a different count. Contract v3 decision three names that boundary outright, a
+plugin needing levels declares no `intercept` and returns children from `select` instead,
+and a plugin needing in place mutation keeps `intercept` exactly as before, and the two are
+not expected to mix on the same row.
 
-Two truthy answers exist for that reserved case, and they differ in what happens to the
-highlight afterward. Answering true rebuilds the list from the top, the historical behavior
-and still the right one for a wholesale swap like the clipboard's own prune page, since the
-rows before and after share no correspondence a held highlight could mean anything by.
-Answering the string "stay" instead rebuilds the list without moving the highlight off the
-row that was chosen, the right one for a row that only mutates what a sibling row shows in
-place rather than swapping to a different list, the OLM settings placement page's own two
-option rows being the shipped example, where choosing an option should leave a person
-looking at the option they just chose rather than jumping them back to the Back row. Any
-answer besides these two, including nil and false, is not an interception at all, and an
-existing plugin that only ever answered true keeps its old behavior with nothing to change.
+The mandate for that reserved case is answering the string "stay", not true. Answering
+"stay" rebuilds the list without moving the highlight off the row that was chosen, which is
+what a mutation in place owes the person, the clipboard's own prune page and the OLM
+settings placement page's own two option rows both being shipped examples, a delete
+redrawing counts in place and a choice moving a marker in place respectively. Answering
+plain true is reserved for a wholesale swap of the list, where the rows before and after
+share no correspondence a held highlight could mean anything by, and the atom rebuilds from
+the top instead. Any answer besides these two, including nil and false, is not an
+interception at all, and a row that mutates the list it stands on and only ever answers true
+is the wrong shape now, not merely an older style.
 
 `onScroll` is a third addition the trickle migrations found rather than either contract brief
 naming, `function(points)` for a trackpad or a wheel scrolled over the companion rect, which a
