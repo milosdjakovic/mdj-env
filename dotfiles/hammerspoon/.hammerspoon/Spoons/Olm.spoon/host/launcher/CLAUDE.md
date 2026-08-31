@@ -279,11 +279,26 @@ dispatcher gains no case and learns nothing new.
 ## App enumeration and caching
 
 The installed app list is scanned once, lazily on first open, from the standard
-app directories and cached, so config load stays fast and a newly installed app
-appears after the next reload, which is automatic on file change. Running state
-is recomputed per open so open apps sort first, and a running app not on disk in
+app directories and cached, so config load stays fast. Running state is
+recomputed per open so open apps sort first, and a running app not on disk in
 the scanned dirs is included when it has a dock presence, to skip background
 helpers.
+
+`start` also installs an `hs.pathwatcher` on `/Applications` and on
+`HOME/Applications`, the two directories in the scan that can change without a
+reboot. A change under either one drops the disk scan along with both row
+caches, so an app installed or removed while Hammerspoon is already running is
+picked up on the next launcher open rather than waiting for a config reload,
+which used to be the only way to see it unless the app happened to already be
+running. `/System/Applications` is left unwatched on purpose, since it only
+changes as part of an OS update, and an OS update always brings a reboot and a
+fresh Hammerspoon load, so a watcher there would never see anything the reload
+was not about to show anyway. Nothing rescans inside the watcher callback
+itself, the whole point is that the cost lands on the person's next open rather
+than on the filesystem event, and a burst of several changes from one install
+just clears an already empty cache a few extra times for free. `stop` tears
+both watchers down and drops the disk scan cache with them, so a stopped
+launcher never holds a scan that nothing is left to keep honest.
 
 ## Recency ordering, one timeline across every row kind
 

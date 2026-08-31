@@ -62,10 +62,11 @@ obj._surface = nil          -- the stage's own nav adapter, delegated to rather 
 obj._actionRows = nil
 obj._settingsPaneRows = nil
 obj._configuredApps = nil
-obj._installedApps = nil
-obj._appRowsCache = nil          -- app rows only, invalidated on running-set change or activation
-obj._orderedRowsCache = nil      -- all rows, recency-sorted, invalidated on any promote
+obj._installedApps = nil         -- the disk scan, cached until a watched app directory changes
+obj._appRowsCache = nil          -- app rows only, invalidated on running-set change, activation, or a directory change
+obj._orderedRowsCache = nil      -- all rows, recency-sorted, invalidated on any promote or a directory change
 obj._appRowsWatcher = nil
+obj._appDirWatchers = nil        -- hs.pathwatcher list, one per watched app directory
 obj._mru = nil              -- most-recently-used item keys, front is most recent
 obj._selfKey = nil          -- our own app key, never promoted
 obj._page = nil             -- an opaque query prefix while somebody else's list is hosted
@@ -567,7 +568,9 @@ end
 --- order only, open apps first then alphabetical; the recency interleaving across
 --- all row kinds happens once in _orderedRows. The disk scan is cached, and the
 --- assembled rows are cached too, rebuilt when the running set changes, so the
---- recency re-sort on a selection never rescans apps.
+--- recency re-sort on a selection never rescans apps. start installs its own
+--- directory watchers that drop the disk scan cache too, so installing or
+--- removing an app rescans on the next open rather than waiting for a reload.
 function obj:_appRows()
   if self._appRowsCache then return self._appRowsCache end
   self._installedApps = self._installedApps or scanInstalledApps()
@@ -1026,9 +1029,24 @@ end
 --- Launcher:start()
 --- Method
 --- Begin owning live state. Load the persisted recency order, fed only by
---- launcher picks. The watcher refreshes the running set on activation,
+--- launcher picks. The app watcher refreshes the running set on activation,
 --- launch, and termination, and invalidates the cached rows, so app rows
 --- track the machine without rescanning on every open. Idempotent.
+---
+--- A second pair of watchers, one per directory the disk scan itself reads except
+--- System's own, sits beside it for a different staleness. The disk scan that feeds
+--- _appRows runs once and is cached in _installedApps forever, so an app installed
+--- after this scan ran, or removed after it ran, was invisible until the next config
+--- reload unless it happened to be running, since only the running set was ever
+--- refreshed. Each watcher drops _installedApps along with both row caches on any
+--- change under its directory, so the next open rescans lazily rather than the
+--- watcher paying for a scan nobody asked to see yet. /System/Applications is left
+--- unwatched, since it only changes with an OS update, and an OS update always
+--- brings a reboot and a fresh Hammerspoon load with it, so nothing here would ever
+--- catch a change there without also seeing everything else start clean first.
+--- A directory watcher can fire several times in a row while an installer writes an
+--- app bundle, and clearing an already nil cache costs nothing, so none of this
+--- waits for the bursts to settle.
 function obj:start()
   if self._appRowsWatcher then return self end
   -- Asked here rather than in configure, since configure runs twice and the first of those
@@ -1049,19 +1067,43 @@ function obj:start()
     end
   end)
   self._appRowsWatcher:start()
+
+  local function onAppDirChanged()
+    self._installedApps = nil
+    self._appRowsCache = nil
+    self._orderedRowsCache = nil
+  end
+  self._appDirWatchers = {}
+  -- APP_DIRS holds all three roots in scan order, so this reaches into it by index rather
+  -- than repeating the paths, and skips index two, /System/Applications, by the reasoning
+  -- above.
+  for _, dir in ipairs({ APP_DIRS[1], APP_DIRS[3] }) do
+    local watcher = hs.pathwatcher.new(dir, onAppDirChanged)
+    watcher:start()
+    self._appDirWatchers[#self._appDirWatchers + 1] = watcher
+  end
   return self
 end
 
 --- Launcher:stop()
 --- Method
---- Stop the app watcher and drop the caches.
+--- Stop the app watcher and the directory watchers, and drop every cache they were
+--- keeping honest. _installedApps goes too, for symmetry with the watchers that
+--- stopped guarding it, a stopped launcher holding onto an old scan across to the
+--- next start would reintroduce the same staleness this spoon just closed, only
+--- through stop and start instead of through a missing watcher.
 function obj:stop()
   if self._appRowsWatcher then
     self._appRowsWatcher:stop()
     self._appRowsWatcher = nil
   end
+  if self._appDirWatchers then
+    for _, watcher in ipairs(self._appDirWatchers) do watcher:stop() end
+    self._appDirWatchers = nil
+  end
   self._appRowsCache = nil
   self._orderedRowsCache = nil
+  self._installedApps = nil
   return self
 end
 
