@@ -305,6 +305,11 @@ return {
     rows = { member = "chooser.rowsForQuery", call = "dot" },
     select = { member = "chooser.choose", call = "dot" },
     placeholder = { member = "chooser.placeholder", call = "dot" },
+    -- The member existed on chooser.onPresent from the day of the migration and was never
+    -- named here, so the stage never announced a present, no session ever began, the recent
+    -- list never fetched, and the showing gate kept every async repaint off, the exact class
+    -- of silent loss this migration's own review comments keep warning about.
+    onPresent = { member = "chooser.onPresent", call = "dot" },
     intercept = { member = "chooser.intercept", call = "dot" },
     onHighlight = { member = "chooser.onHighlight", call = "dot" },
     onScroll = { member = "chooser.onScroll", call = "dot" },
