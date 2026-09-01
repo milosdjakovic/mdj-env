@@ -312,11 +312,24 @@ dispatcher gains no case and learns nothing new.
 
 ## App enumeration and caching
 
-The installed app list is scanned once, lazily on first open, from the standard
-app directories and cached, so config load stays fast. Running state is
-recomputed per open so open apps sort first, and a running app not on disk in
-the scanned dirs is included when it has a dock presence, to skip background
-helpers.
+The installed app list is scanned from the standard app directories and cached.
+Running state is recomputed per open so open apps sort first, and a running app
+not on disk in the scanned dirs is included when it has a dock presence, to skip
+background helpers.
+
+The scan is the launcher's one genuinely expensive step, measured at 356ms warm
+over 146 apps and worse on a cold filesystem, almost all of it reading a plist
+per bundle and rendering an icon per bundle. It used to run lazily inside the
+first `_appRows`, which is inside the first row build, which is inside `show`,
+ahead of the window being placed, so the first open after every load stalled the
+main thread for the whole scan before anything appeared. `_warmAppScan` moves
+that cost onto a timer instead. `start` schedules one a few seconds after the
+load, by which point nothing is racing it, and the first real open finds the
+cache already filled. The lazy read in `_appRows` is untouched and still scans
+for itself when it finds no cache, so a warm up that has not fired yet, or one
+whose result was dropped a moment ago, costs correctness nothing and only costs
+that one open its old speed. The warm up is a head start, not a second source of
+truth.
 
 `start` also installs an `hs.pathwatcher` on `/Applications` and on
 `HOME/Applications`, the two directories in the scan that can change without a
@@ -342,19 +355,37 @@ Not every change under a watched directory earns a cache drop. `hs.pathwatcher`
 fires for any file event anywhere beneath the root it watches, which includes a
 write inside an app bundle that is already installed, a self updating app
 rewriting its own files being the ordinary case, and that must not throw away
-the scan on every one of those. `isTopLevelAppChange` keeps only a path ending
-in `.app`, an app bundle itself arriving, leaving, or being renamed, a path
-with no further slash past the watched directory, a direct child of it, or the
-watched directory's own bare path, which is what FSEvents reports instead of
-any real path once its queue overflows during a very large copy. Anything
-nested deeper than a direct child is a change inside a bundle that already
-exists, which the installed set does not care about. Nothing rescans inside the
-watcher callback itself either way, the whole point is that the cost lands on
-the person's next open rather than on the filesystem event, and a burst of
-several relevant changes from one install just clears an already empty cache a
-few extra times for free, which costs nothing worth debouncing. `stop` tears
-both watchers down and drops the disk scan cache with them, so a stopped
-launcher never holds a scan that nothing is left to keep honest.
+the scan on every one of those.
+
+`isTopLevelAppChange` is what draws that line, and its first version drew it
+wrong in a way worth recording. It asked whether the path ended in `.app`
+before it asked anything about depth, and answered yes when it did, at any
+depth. That reads as an app bundle itself arriving, leaving, or being renamed,
+and it is not what it says, because an app bundle contains other app bundles.
+`/Applications` on this machine holds 217 of them, Xcode carrying thirty,
+Chrome twelve, Docker, 1Password, Arc, Figma and Claude their own handful each.
+So a self updating app rewriting its own helpers, the single most ordinary
+event under this directory, matched the very check written to exclude it,
+dropped the whole disk scan, and handed the next open a 299ms rescan on the
+main thread inside `show`.
+
+Depth is asked first now. A path is noise the moment any ancestor component is
+an `.app`, which is what a change inside a bundle that already exists actually
+means. A `.app` that is not inside another `.app` still counts at any depth,
+since the scan descends into vendor subfolders and an app one level down in one
+of those is a real arrival. A direct child that is not a bundle counts too,
+since an installer commonly writes a temporary name and renames it into place.
+The watched directory's own bare path counts as well, which is what FSEvents
+reports instead of any real path once its queue overflows during a very large
+copy. The watcher callback itself
+still never scans, it drops the caches and then asks `_warmAppScan` for a
+rebuild on a longer delay than `start` uses, because an installer writing an app
+bundle fires many times while that bundle is still half written and a scan taken
+mid write reads a bundle that is not there yet. One timer, restarted on every
+call, is what turns a whole install's burst into a single scan after the writing
+stops. `stop` tears both watchers down, stops any pending warm up, and drops the
+disk scan cache with them, so a stopped launcher never holds a scan that nothing
+is left to keep honest and never has one land on it afterwards.
 
 ## Recency ordering, one timeline across every row kind
 

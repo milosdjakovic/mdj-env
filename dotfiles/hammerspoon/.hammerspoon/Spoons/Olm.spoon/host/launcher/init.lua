@@ -70,6 +70,7 @@ obj._appRowsCache = nil          -- app rows only, invalidated on running-set ch
 obj._orderedRowsCache = nil      -- all rows, recency-sorted, invalidated on any promote or a directory change
 obj._appRowsWatcher = nil
 obj._appDirWatchers = nil        -- hs.pathwatcher list, one per watched app directory
+obj._warmTimer = nil             -- the debounced disk scan warm up, see _warmAppScan
 obj._chordWarned = nil           -- one shot flag, so a missing chord speller warns once, at the first open
 obj._mru = nil              -- most-recently-used item keys, front is most recent
 obj._selfKey = nil          -- our own app key, never promoted
@@ -1052,22 +1053,46 @@ end
 -- hs.pathwatcher fires for every file event anywhere beneath the root it watches, which
 -- includes a write inside an app bundle that is already installed, a self updating app
 -- rewriting its own files being the ordinary case, and that must not throw away the scan on
--- every one of those. Only a path ending in .app, an app bundle itself arriving, leaving, or
--- being renamed, a path with no further slash past the watched directory, a direct child of
--- it, or the watched directory's own bare path, which is what FSEvents reports instead of
--- any real path once its queue overflows during a very large copy and it falls back to
--- saying only that something under here changed, answers yes. Anything nested deeper than
--- a direct child is a change inside a bundle that already exists, which the installed set
--- does not care about.
+-- every one of those.
+--
+-- THE NESTED BUNDLE HOLE, which is what this comment mostly exists to record. The first
+-- version of this asked whether the path ended in .app before it asked anything about depth,
+-- and answered yes when it did, at any depth. That reads as "an app bundle itself arriving,
+-- leaving, or being renamed", and it is not what it says, because an app bundle contains
+-- other app bundles. /Applications on this machine holds 217 of them, Xcode carrying thirty,
+-- Chrome twelve, Docker, 1Password, Arc, Figma and Claude their own handful each, and every
+-- one of those is a helper inside a bundle that is already installed. So a self updating app
+-- rewriting its own helpers, which is the single most ordinary event under this directory,
+-- matched the very check written to exclude it, dropped the whole disk scan, and handed the
+-- next launcher open a 299ms rescan on the main thread inside show, ahead of the window being
+-- placed. That is the sluggish open, and it is also what made hs.chooser's own long standing
+-- placement gap visible, since a stalled main thread is the difference between that gap being
+-- sampled by the compositor and not.
+--
+-- So depth is asked FIRST now, and a path is noise the moment any ANCESTOR component is an
+-- .app, which is exactly what "inside a bundle that already exists" means and what the old
+-- prose already claimed. A .app that is not inside another .app still counts at any depth,
+-- since the scan itself descends into vendor subfolders and an app one level down in one of
+-- those is a real arrival. A direct child that is not a bundle at all counts too, since an
+-- installer commonly writes a temporary name and renames it into place.
+--
+-- The watched directory's own bare path also counts, which is what FSEvents reports instead
+-- of any real path once its queue overflows during a very large copy and it falls back to
+-- saying only that something under here changed.
 local function isTopLevelAppChange(path, dir)
   if not path then return false end
   if path:sub(-1) == "/" then path = path:sub(1, -2) end
   if path == dir then return true end
-  if path:sub(-4) == ".app" then return true end
   local prefix = dir .. "/"
   if path:sub(1, #prefix) ~= prefix then return false end
   local rest = path:sub(#prefix + 1)
-  return rest ~= "" and not rest:find("/", 1, true)
+  if rest == "" then return false end
+  -- An ancestor ending in .app means this write is inside a bundle that already exists.
+  -- Checked on the part BELOW the watched root, so a watched root that itself sat inside
+  -- something ending in .app could not make every path under it unreachable.
+  if rest:find(".app/", 1, true) then return false end
+  if rest:sub(-4) == ".app" then return true end
+  return not rest:find("/", 1, true)
 end
 
 --- Launcher:start()
@@ -1095,6 +1120,49 @@ end
 --- be asked to watch it anyway. A directory watcher can still fire several times in a
 --- row while an installer writes an app bundle, and clearing an already nil cache costs
 --- nothing, so none of this waits for the bursts to settle.
+--- Launcher:_warmAppScan(delay)
+--- Method
+--- Run the disk scan off the first open and onto a timer, so the cost is already paid by
+--- the time anybody presses the key.
+---
+--- The scan is the launcher's one genuinely expensive step, measured at 356ms warm over 146
+--- apps on this machine and worse on a cold filesystem, almost all of it infoForBundlePath
+--- reading a plist per bundle and imageFromAppBundle rendering an icon per bundle. It used
+--- to run lazily inside the first _appRows, which is inside the first row build, which is
+--- inside show, ahead of the window being placed. So the first open after every load stalled
+--- the main thread for the whole scan before anything appeared. That is the sluggish first
+--- open, and it also widens the window in which hs.chooser's own show can be caught drawing
+--- at the wrong position, since that gap is a stalled main thread away from being visible.
+---
+--- Scanning here rather than in the lazy read keeps _appRows exactly as it was, still
+--- scanning for itself when it finds no cache, so a warm up that has not fired yet or was
+--- dropped a moment ago costs correctness nothing and only costs that one open its old
+--- speed. This is a head start, not a new source of truth.
+---
+--- delay is what the caller thinks the scan should wait for. start passes a short one, long
+--- enough that a reload finishes wiring everything else first, since nothing is waiting on
+--- this. The directory watcher passes a longer one, because an installer writing an app
+--- bundle fires many times while the bundle is still half written, and a scan taken mid write
+--- reads a bundle that is not there yet. One timer, restarted on every call, is what turns
+--- that burst into a single scan after the writing stops. The timer is held in a field for
+--- the reason every timer in this config is, a Hammerspoon timer is userdata whose finalizer
+--- stops it, so one nothing refers to can be collected before it fires.
+function obj:_warmAppScan(delay)
+  if self._warmTimer then self._warmTimer:stop() end
+  self._warmTimer = hs.timer.doAfter(delay, function()
+    self._warmTimer = nil
+    -- Asked again here rather than trusted from the call site, since a real open may well
+    -- have run the scan itself in the meantime and there is nothing to warm.
+    if self._installedApps then return end
+    self._installedApps = scanInstalledApps()
+  end)
+end
+
+--- How long each caller of _warmAppScan waits. START is short because nothing is racing it.
+--- SETTLE is long because it is coalescing an installer's write burst, see _warmAppScan.
+local WARM_START_DELAY = 3
+local WARM_SETTLE_DELAY = 5
+
 function obj:start()
   if self._appRowsWatcher or self._appDirWatchers then return self end
   -- Seeded once here rather than left to whatever Lua state Hammerspoon happens to start
@@ -1126,6 +1194,9 @@ function obj:start()
             self._installedApps = nil
             self._appRowsCache = nil
             self._orderedRowsCache = nil
+            -- Dropped and then rebuilt in the background, so installing or removing an app
+            -- does not hand the very next open the full scan it would otherwise inherit.
+            self:_warmAppScan(WARM_SETTLE_DELAY)
             break
           end
         end
@@ -1134,6 +1205,7 @@ function obj:start()
       self._appDirWatchers[#self._appDirWatchers + 1] = watcher
     end
   end
+  self:_warmAppScan(WARM_START_DELAY)
   return self
 end
 
@@ -1144,7 +1216,15 @@ end
 --- stopped guarding it, a stopped launcher holding onto an old scan across to the
 --- next start would reintroduce the same staleness this spoon just closed, only
 --- through stop and start instead of through a missing watcher.
+---
+--- A pending warm up is stopped for the same reason and one more. It would fire into a
+--- launcher nobody is watching any more and put back the very scan the line below drops,
+--- so leaving it running would make stop quietly not mean what it says.
 function obj:stop()
+  if self._warmTimer then
+    self._warmTimer:stop()
+    self._warmTimer = nil
+  end
   if self._appRowsWatcher then
     self._appRowsWatcher:stop()
     self._appRowsWatcher = nil
