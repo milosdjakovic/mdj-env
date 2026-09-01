@@ -115,6 +115,23 @@ local SHIPPED_POLICY = {
   surface = {},
   chooserTheme = {},
   cheatSheet = {},
+
+  -- The docked shortcut hint panel, the bar that spells out the Hyper navigation keys under
+  -- a list. delayMs is an IDLE delay rather than a delay from opening. lib/hints.lua's own
+  -- shortcutPanelFor arms a countdown when the list is placed and restarts it on every
+  -- keypress, so the bar only appears once a person has actually stopped, and once it appears
+  -- it stays until the list closes. Zero, and only zero, means draw it the instant the list
+  -- opens.
+  --
+  -- This ships here rather than only in a person's own config file because a docked panel is
+  -- an ambient entitlement every surfaced plugin earns without asking, so a plugin installed
+  -- tomorrow has to inherit the timing without its author knowing this field exists. It was
+  -- not here at all until 2026-09-01, and the consequence is worth recording. The number lived
+  -- in one machine's config/settings.lua, that file's own comment called itself the one source
+  -- for every chooser that docks the panel, and the root never forwarded the field, so
+  -- deps.settings.shortcutsPanel resolved to nil, CanvasPanel read no delay, and every panel
+  -- in the config drew instantly. The knob read as configured and was doing nothing.
+  shortcutsPanel = { delayMs = 3000 },
   matcher = "fuzzy",
   autoReload = { ignore = { "/config/[^/]+%.json[^/]*$" } },
 

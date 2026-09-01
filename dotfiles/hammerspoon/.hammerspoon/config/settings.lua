@@ -109,16 +109,30 @@ return {
     mode = overlayModes.cursor,
   },
 
-  -- Shortcut hint panel. The docked panel that spells out the Hyper navigation
-  -- shortcuts under a native chooser (the clipboard, menu search, VPN, keep awake,
-  -- launcher). delayMs is the idle delay
-  -- before it appears: the panel stays hidden while the field is being used, and only
-  -- after this many milliseconds with no keypress does it reveal, staying up until the
-  -- chooser closes. One source, so editing it applies to every chooser that docks the
-  -- panel. Set delayMs to nil (or 0) to show it instantly on open.
-  shortcutsPanel = {
-    delayMs = 3000,
-  },
+  -- Shortcut hint panel. The docked bar that spells out the Hyper navigation shortcuts
+  -- under a list, the clipboard, menu search, VPN, keep awake, the launcher and every
+  -- plugin that earns one.
+  --
+  -- delayMs is an IDLE delay, not a delay from opening. The bar stays hidden while the
+  -- field is being used, the countdown restarts on every keypress, and only after this
+  -- many milliseconds with no key does it reveal, staying up until the list closes. Zero
+  -- draws it instantly on open.
+  --
+  -- Olm ships three seconds, so this is an OVERRIDE POINT and is deliberately absent
+  -- rather than empty. The number used to live here and nowhere else, this comment used to
+  -- call itself the one source for every chooser that docks the panel, and init.lua never
+  -- forwarded the field into Olm's policy, so nothing ever read it and every bar drew
+  -- instantly. Restating the shipped number here would put it back in two places, which is
+  -- how that drift started.
+  --
+  -- Absent rather than an empty table on purpose, and this is not a style choice.
+  -- lib/defaults.lua's own merge treats a table with no keys as a LIST, and a list REPLACES
+  -- the default instead of merging into it, so writing `shortcutsPanel = {}` here would wipe
+  -- the shipped three seconds and put every bar back to drawing instantly, with the config
+  -- still looking like it said nothing at all. To differ from what Olm ships, uncomment the
+  -- whole block below with a real value in it.
+  --
+  -- shortcutsPanel = { delayMs = 3000 },
 
   -- Window sizing defaults. A move or resize key travels one of two amounts and never anything
   -- in between. stepPixels is what a press on its own does, kept small because a press is how
