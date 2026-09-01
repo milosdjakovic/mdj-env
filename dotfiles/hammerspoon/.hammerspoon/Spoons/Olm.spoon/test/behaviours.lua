@@ -269,23 +269,6 @@ return {
   },
 
   --------------------------------------------------------------------------------
-  -- The tool kept deliberately outside Olm
-  --------------------------------------------------------------------------------
-
-  {
-    scenario = "the terminal handler is configured and can be toggled",
-    tier = "behaviour",
-    expect = function(w)
-      local th = w.role("terminalhandler")
-      if not th then return false, "the terminal handler is not loaded at all" end
-      if type(th.toggle) ~= "function" then
-        return false, "it exposes no toggle, so its key has nothing to call"
-      end
-      return true
-    end,
-  },
-
-  --------------------------------------------------------------------------------
   -- The clipboard, which a person noticed had gone back to the native one
   --------------------------------------------------------------------------------
 

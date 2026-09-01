@@ -1,9 +1,12 @@
 -- Hammerspoon configuration.
 --
--- This file holds this person's own data, one call into Olm, and the one tool deliberately
--- kept outside it. It names no atom, no wiring order, and no plugin's collaborators. All of
--- that lives inside Olm.spoon now, in root/compose.lua, because Olm is portable and this file
--- is not, so anything a second person would also need belongs on that side of the line.
+-- This file holds this person's own data and one call into Olm. It names no atom, no
+-- wiring order, and no plugin's collaborators. All of that lives inside Olm.spoon now, in
+-- root/compose.lua, because Olm is portable and this file is not, so anything a second
+-- person would also need belongs on that side of the line. TerminalHandler.spoon used to
+-- be the one tool kept outside that line, its own placement mechanism reaching in through
+-- Olm's escape hatches, and it is gone now, absorbed into AppToggler as a plain per entry
+-- field any toggle may declare, so this file has nothing left to load outside Olm at all.
 --
 -- Everything below is either a value only this machine could know or a preference that
 -- differs from what Olm ships. Delete any of it and Olm still comes up working.
@@ -88,31 +91,5 @@ local olm = spoon.Olm:start({
 })
 
 print(olm:report())
-
--- TerminalHandler stays outside Olm, this person's own decision of 2026-08-07.
---
--- It used to reach in through both escape hatches Olm exposes, a plugin it does not manage
--- and the shared display policy, so its terminal landed on the same screen every managed
--- surface does. That second reach is gone as of 2026-09-01. The shared policy resolves to
--- the cursor's screen here, which is right for a chooser or an overlay that has to appear
--- under the eye and wrong for a terminal, since it moved the window to a different display
--- on every summon. The terminal now stays on whichever display it is already on and is only
--- centered and sized there, so neither targetScreen nor windowManager is passed any more.
---
--- terminalBundleID rather than bundleID, which is the name this spoon actually reads. Written
--- as bundleID it arrived as nil, so the toggle had no application to look for and the key did
--- nothing on a spoon that was otherwise wired correctly.
---
--- And bindHotkeys is what gives it a key at all. Being outside Olm means nothing binds this
--- one for it, so leaving the call out left the whole tool reachable only from the console.
-hs.loadSpoon("TerminalHandler")
-spoon.TerminalHandler:configure({
-  appToggler       = olm:module("apptoggler"),
-  terminalBundleID = apps[settings.terminal.preferredTerminal],
-  timing           = settings.terminal,
-  size             = settings.terminal.size,
-  minPadding       = settings.terminal.minPadding,
-})
-spoon.TerminalHandler:bindHotkeys({ terminal = keys.terminal })
 
 require("hs.ipc")

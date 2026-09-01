@@ -76,17 +76,22 @@ function obj:configure(opts)
   -- (no bundle path) are dropped here so they never appear in the overlay.
   self._items = {}
   for _, t in ipairs(self._toggles) do
-    local bundleID = self._apps[t.app]
-    -- pathForBundleID returns "" (not nil) when the app is not installed, and
-    -- "" is truthy in Lua -- so test for a non-empty path explicitly.
-    local path = bundleID and hs.application.pathForBundleID(bundleID)
-    if path and path ~= "" then
-      self._items[#self._items + 1] = {
-        key = tostring(t.key),
-        name = hs.application.nameForBundleID(bundleID) or t.app,
-        bundleID = bundleID,
-        icon = hs.image.imageFromAppBundle(bundleID),
-      }
+    -- An entry that states its own modifiers binds as a literal global combo rather than
+    -- into the Hyper modal, so it never fires while this overlay's own key is held and
+    -- does not belong on a grid of everything that does.
+    if not t.modifiers then
+      local bundleID = self._apps[t.app]
+      -- pathForBundleID returns "" (not nil) when the app is not installed, and
+      -- "" is truthy in Lua -- so test for a non-empty path explicitly.
+      local path = bundleID and hs.application.pathForBundleID(bundleID)
+      if path and path ~= "" then
+        self._items[#self._items + 1] = {
+          key = tostring(t.key),
+          name = hs.application.nameForBundleID(bundleID) or t.app,
+          bundleID = bundleID,
+          icon = hs.image.imageFromAppBundle(bundleID),
+        }
+      end
     end
   end
   -- Order by key: alphanumeric first (0-9, a-z), then non-alphanumeric symbols

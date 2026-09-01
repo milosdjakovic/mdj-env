@@ -127,10 +127,10 @@ function obj:start(cfg)
 
   -- Stored on the spoon rather than kept only in this closure, because obj:report,
   -- obj:module and obj:screen are reached long after start returns, on the caller's own
-  -- schedule rather than this one. TerminalHandler is that caller, kept outside Olm's
-  -- own management by the user's own decision on 2026-08-07, and it still reaches
-  -- obj:module for a plugin it does not manage. It stopped reaching obj:screen on
-  -- 2026-09-01, see that method's own note.
+  -- schedule rather than this one. TerminalHandler used to be that caller, kept outside
+  -- Olm's own management by the user's own decision on 2026-08-07, and reaching obj:module
+  -- for a plugin it did not manage. It is gone now, absorbed into AppToggler, see
+  -- obj:module's own note.
   --
   -- report, modules and screen, read off this below by the three methods beneath it, are
   -- the seam between this file and root/compose.lua, since compose.lua is the one file
@@ -160,9 +160,16 @@ end
 
 --- Olm:module(name)
 --- Answers the loaded module for a plugin identity, or nil before start has run or
---- after a name nothing wired. The escape hatch TerminalHandler uses to reach a plugin
---- it does not manage itself, since compose.lua already resolved identity to module
---- once and a second resolution anywhere else would only repeat that work.
+--- after a name nothing wired. The escape hatch a caller outside Olm's own wiring reaches
+--- a plugin it does not manage itself through, since compose.lua already resolved identity
+--- to module once and a second resolution anywhere else would only repeat that work.
+---
+--- This is an escape hatch with no caller left in this config, the same standing obj:screen
+--- carries and for the same reason. TerminalHandler was the one caller, and it is gone now,
+--- its own placement behaviour absorbed into AppToggler as a field any toggle may declare
+--- rather than a plugin it does not manage. The method stays for the next tool this config
+--- ever again keeps outside Olm's own management, should one exist, and is deliberately not
+--- a claim that something uses it today.
 function obj:module(name)
   local composed = self._composed
   return composed and composed.modules and composed.modules[name]

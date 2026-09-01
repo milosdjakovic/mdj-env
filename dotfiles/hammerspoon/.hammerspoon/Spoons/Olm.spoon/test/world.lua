@@ -45,7 +45,6 @@ local ROLES = {
   apptoggler      = "AppToggler",
   windowmanager   = "WindowManager",
   clipboard       = "ClipboardHistory",
-  terminalhandler = "TerminalHandler",
   queryscope      = "QueryScope",
 }
 

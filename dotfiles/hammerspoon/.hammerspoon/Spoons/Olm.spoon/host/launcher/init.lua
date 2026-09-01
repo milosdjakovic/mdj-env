@@ -531,13 +531,33 @@ end
 
 --- Launcher:_buildConfiguredApps()
 --- Method
---- The configured Hyper toggle for each app, keyed by bundle id, so an app row can
---- show its shortcut and reuse its url-pane behavior.
+--- The configured toggle for each app, keyed by bundle id, so an app row can show its
+--- shortcut and reuse its url-pane behavior.
+---
+--- Two toggles may name the same app, one living in the Hyper modal for the ordinary
+--- focus and cycle behaviour and one stating its own modifiers for something like a
+--- placed summon. The one with modifiers wins the chord this row displays, since it has
+--- nowhere else to be found, the Hyper cheat sheet only ever draws an entry that actually
+--- lives in the modal, while the modal entry keeps that grid as its own discoverability
+--- surface regardless of what this row says. A url from either belongs to the row no
+--- matter which one is shown, since selecting the row always opens it.
 function obj:_buildConfiguredApps()
   local out = {}
   for _, t in ipairs(self._toggles) do
     local bundleID = self._apps[t.app]
-    if bundleID then out[bundleID] = { key = t.key, url = t.url } end
+    if bundleID then
+      local existing = out[bundleID]
+      if not existing then
+        out[bundleID] = { key = t.key, url = t.url, modifiers = t.modifiers, description = t.description }
+      else
+        if t.modifiers and not existing.modifiers then
+          existing.key = t.key
+          existing.modifiers = t.modifiers
+          existing.description = t.description
+        end
+        existing.url = existing.url or t.url
+      end
+    end
   end
   return out
 end
@@ -621,7 +641,18 @@ function obj:_appRows()
   for _, e in ipairs(list) do
     local cfg = self._configuredApps[e.bundleID]
     local status = e.running and "Open" or "Not running"
-    local subTitle = cfg and (status .. " · Hyper " .. cfg.key) or status
+    local subTitle = status
+    if cfg then
+      if cfg.modifiers then
+        -- A literal combo never appears on the Hyper cheat sheet, so this row is its only
+        -- discoverability surface, and it names its own chord and description rather than
+        -- the word Hyper, which would describe a modal it was never bound into.
+        local chord = self._glyphFor and self._glyphFor(cfg.key, cfg.modifiers) or cfg.key
+        subTitle = status .. " · " .. chord .. (cfg.description and (" " .. cfg.description) or "")
+      else
+        subTitle = status .. " · Hyper " .. cfg.key
+      end
+    end
     rows[#rows + 1] = {
       title = e.name,
       subTitle = subTitle,

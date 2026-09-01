@@ -23,15 +23,10 @@ return {
   -- Window animation (0 = instant)
   windowAnimationDuration = 0,
 
-  -- Terminal handler timing
-  terminal = {
-    initialDelay = 0.1,       -- Wait before checking if app is ready
-    checkInterval = 0.25,     -- How often to poll for readiness
-    maxAttempts = 20,         -- Maximum polls before giving up
-    preferredTerminal = "Ghostty",  -- App name from config/apps.lua
-    size = { width = 2400, height = 1350 },
-    minPadding = { x = 40, y = 20 },
-  },
+  -- A terminal block used to sit here, the timing and the size and padding the retired
+  -- TerminalHandler spoon read. AppToggler owns the behaviour now, through the placement
+  -- field the Ghostty entry in config/keys.lua's appToggles carries, and the timing that
+  -- block held is internal to that plugin, nobody has ever tuned it.
 
   -- A windowMemory block used to sit here, holding the pixel tolerance for the retired
   -- WindowMemory plugin. Nothing ever passed it through, so it was already dead, and the
