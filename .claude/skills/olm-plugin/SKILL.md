@@ -150,6 +150,15 @@ aliases, a glyph, and a person overrides them outside the plugin, rebinding a ph
 in `config/keys.lua`, so no other file ever names one. Person supplied policy arrives as `needs.data` with `source = "user"`,
 always optional, always with a `breaks` sentence and a working fallback.
 
+A field on that configuration surface prefers a structural value over a loose quoted word, a
+number, a boolean, a table, or a function rather than a string a plugin then matches against a
+set of meanings only its own source code knows. A bare string is unchecked vocabulary, and
+`config/keys.lua` requires nothing, so no plugin vocabulary can ever reach it and catch a typo
+on the way in. AppToggler's own `hides` and `placement` fields are the settled example, a
+boolean and a table or a function rather than a word like `"showAndHide"` naming a behaviour
+from a set nothing validates. Where an enumeration genuinely cannot be avoided, validate it
+loudly at bind time rather than letting an unrecognised word fail silently by matching nothing.
+
 ## Dependencies end to end
 
 Declare the tool in `needs.tools` and nowhere else, the authoring guide holds the field detail

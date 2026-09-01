@@ -300,6 +300,16 @@ Settings on the General pane, and pressing it again while frontmost hides it.
 These toggles still show in the cheat sheet like any other app, resolved by
 bundle id, so the overlay stays complete without extra wiring.
 
+A toggle may also carry `modifiers` of its own, `hides`, and `placement`, three fields
+AppToggler's own README documents in full. `modifiers` opts a toggle out of the Hyper modal
+entirely and into a literal global combo, live all the time rather than only while Hyper is
+held, which is what the terminal's own placed summon on Option+\` wants, since it is pressed
+mid work rather than reached through a leader, and such a toggle never reaches the cheat
+sheet above, resolved by bundle id off toggles that live in the modal alone. `hides` swaps
+focus-or-cycle for show and hide. `placement` centers and sizes the window once the press
+actually showed, launched, or focused the app, and is where the retired TerminalHandler
+spoon's own behaviour lives now.
+
 **Two discoverability mandates, and a binding is not finished until both hold.**
 Every shortcut must be reachable two ways. First, a shortcut bound on a leader
 appears in that leader's held cheat sheet, HYPER in `HyperCheatSheet`, a window
@@ -321,8 +331,10 @@ reaches neither surface is considered unfinished.
 Coupling is contained: `HyperKey` is an optional injected dependency of
 `AppToggler` only. If HyperKey is not granted, an optional `needs.lib` entry on
 AppToggler's own manifest resolved by `root/compose.lua`, `AppToggler` falls back
-to binding the literal `HYPER` (⇧⌃⌥⌘) combo from `keys.lua` — so removing the
-Hyper key degrades gracefully, it does not break other spoons. Window management
+to binding the literal `HYPER` (⇧⌃⌥⌘) combo it holds as its own internal constant,
+so removing the Hyper key degrades gracefully, it does not break other spoons. A
+toggle that states its own `modifiers` skips this fallback question entirely,
+since it was never headed into the modal to begin with. Window management
 has no such fallback: it goes only through `WindowLeader`, so its leader must be
 referenced in `config/keys.lua` (which is what applies its remap). Trade-offs:
 the remaps are machine-wide, so each referenced physical key loses its normal
@@ -493,15 +505,17 @@ in `Spoons/Olm.spoon/plugins/displayprofiles/CLAUDE.md`. Adding the original spo
 needed a restow, but the new sibling files inside it did not, they resolve through
 the existing symlink.
 
-**Terminal placement.** Option+\` toggles the
-terminal through `TerminalHandler.spoon`, which now is pure mechanism. It no
-longer decides which screen to place on; it depends on one injected contract,
-`targetScreen()` returning an `hs.screen`, and never names how that is chosen. The
-`init.lua` supplies it directly, since TerminalHandler is the one tool this file
-wires outside Olm. This is Strategy wired through injection. Today it is fed only by the
-shared overlay display resolver `root/compose.lua` builds for every overlay, `Olm:screen()`,
-not by a dedicated terminal memory chain, so the engine stays ignorant of wherever that
-resolver's own answer comes from.
+**Terminal placement.** Option+\` toggles the terminal, and the centering and sizing that
+follows lives inside `AppToggler` now, a `placement` field any `appToggles` entry in
+`config/keys.lua` may declare, the Ghostty entry stating the same width, height, and padding
+a retired `TerminalHandler.spoon` used to hold. That whole spoon is gone, absorbed
+into AppToggler as one entry among the app toggles it already served rather than a tool kept
+outside Olm for one app's sake. It operates on the display the window is already on,
+`win:screen()`, and never chooses one, the decision TerminalHandler recorded before the
+absorption and this engine kept rather than revisited, since the shared overlay display
+policy resolves to the cursor's screen, right for a chooser or an overlay that has to appear
+under the eye, wrong for a window meant to sit still. Choosing a display at all is the
+workspaces plugin's job, never AppToggler's.
 
 Two plugins used to sit under this heading, DisplayMemory remembering which display the
 terminal was last on and WindowMemory remembering every window's frame for the current set
@@ -540,7 +554,7 @@ overlay appears on, every chooser with its docked shortcut panel, both cheat
 sheets, and the colour toast. The list is not enumerated here on purpose, a hand kept
 roster drifts the moment a picker is added, and the mode to resolver map inside
 `Spoons/Olm.spoon/lib/overlaydisplay.lua` is the authority. This is Strategy wired through
-injection, the same shape as TerminalHandler's `targetScreen`. That map ties a mode name
+injection. That map ties a mode name
 to a resolver returning an `hs.screen`, `config/settings.lua` picks the mode in
 the pure data `overlayDisplay` block, `root/compose.lua` passes it through as policy, and
 the chosen resolver is injected into the
@@ -585,9 +599,8 @@ takes an injected callback, the way Eyedropper hands its confirmation out throug
 overlay display screen.
 
 `hs.alert` stays right for one case, a failure that stopped the feature running at
-all. "Terminal not configured" in TerminalHandler, "No focused window!" in
-WindowManager, and the "Color picker unavailable" fallback in Eyedropper are all
-that shape, and they stay as they are. The rule governs the working path, not the
+all. "No focused window!" in WindowManager and the "Color picker unavailable" fallback
+in Eyedropper are that shape, and they stay as they are. The rule governs the working path, not the
 broken one. Vpn carries no `hs.alert` today, so the exception this paragraph used
 to name here no longer applies.
 
@@ -606,17 +619,17 @@ reject. Both call styles are allowed, the colon and self spoons that are the nor
 and the dot called module style Vpn and the clipboard submodules use, since the
 contract is a method set and not an object model, so Vpn is not rewritten to
 conform. `Workspaces` and `Launcher` are the worked examples of the full set,
-each owns a watcher so each has a real `start` and `stop`, while `TerminalHandler`,
-`WindowManager`, and `AppToggler` correctly stop at `init` and `configure`.
+each owns a watcher so each has a real `start` and `stop`, while `WindowManager`
+and `AppToggler` correctly stop at `init` and `configure`.
 
 Layered composition follows from this. A plain spoon is a self sufficient
 configurable mechanism, the bottom layer. When two or more of them are combined
 into one feature, the deciding question is whether the combination carries behavior
 or state of its own. If it is only a choice or an ordering, it stays a closure in
 the composition root, that is still top down configuration and a separate entity
-would be single caller ceremony, which is why `TerminalHandler.targetScreen` in
-`init.lua`, and the overlay screen strategy in `root/compose.lua`, are just injected
-closures. If it has its
+would be single caller ceremony, which is why the overlay screen strategy in
+`root/compose.lua` is just an injected closure rather than a coordinator of its own.
+If it has its
 own state or lifecycle it becomes a coordinator, itself a spoon following this same
 contract, instantiated in `root/compose.lua` like any other, which is what Olm's Launcher
 host is. Most combinations already have a natural owning engine and the glue belongs

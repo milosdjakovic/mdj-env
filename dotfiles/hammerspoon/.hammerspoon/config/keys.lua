@@ -40,45 +40,68 @@ local M = {
 
   -- App toggle bindings (for Olm's AppToggler plugin)
   -- Uses app names from config/apps.lua.
-  -- These fire by holding the Hyper key (Caps Lock, remapped to F18 and driven
-  -- by HyperKey, now Olm's lib/hyperkey.lua) plus the letter. A quick Caps Lock tap toggles real Caps
-  -- Lock instead. The `modifiers = HYPER` field is the FALLBACK: if HyperKey is
-  -- not wired up in init.lua, AppToggler binds these to the literal ⇧⌃⌥⌘ combo
-  -- instead. So it is not dead data -- remove HyperKey and the combo comes back.
+  -- An entry with no `modifiers` field binds into the Hyper modal, fired by holding the
+  -- Hyper key (Caps Lock, remapped to F18 and driven by HyperKey, now Olm's
+  -- lib/hyperkey.lua) plus the letter. A quick Caps Lock tap toggles real Caps Lock
+  -- instead. When HyperKey is not wired up in init.lua, AppToggler falls back to
+  -- binding such an entry to the literal ⇧⌃⌥⌘ combo it holds internally, so losing
+  -- HyperKey degrades the chord rather than the toggle.
+  --
+  -- An entry that DOES state `modifiers` means the opposite of that fallback. It asks
+  -- for a literal global combo through hs.hotkey.bind, live all the time rather than
+  -- only while Hyper is held, which is what a placement toggle like the terminal's
+  -- below needs, since it is pressed mid work rather than reached through a leader.
+  --
+  -- `hides` turns an entry from focus-or-cycle into show-and-hide, a second press on
+  -- an already frontmost app hiding it instead of walking its windows. `placement`
+  -- centers and sizes the window once showing, launching, or focusing is the actual
+  -- outcome of the press, never when the press only cycled to another window of an
+  -- app already in front. Both are AppToggler's own fields, read in full in that
+  -- plugin's own README.
   appToggles = {
     -- First character
-    { app = "Books",            modifiers = HYPER, key = "B" },
-    { app = "GoogleChrome",     modifiers = HYPER, key = "C" },
-    { app = "Docker",           modifiers = HYPER, key = "D" },
-    { app = "Finder",           modifiers = HYPER, key = "F" },
-    { app = "Mail",             modifiers = HYPER, key = "M" },
-    { app = "Obsidian",         modifiers = HYPER, key = "O" },
-    { app = "Safari",           modifiers = HYPER, key = "S" },
-    { app = "VisualStudioCode", modifiers = HYPER, key = "V" },
-    { app = "Notes",            modifiers = HYPER, key = "N" },
-    { app = "iPhoneMirroring",  modifiers = HYPER, key = "I" },
-    { app = "Zed",              modifiers = HYPER, key = "Z" },
-    { app = "Preview",          modifiers = HYPER, key = "R" },
+    { app = "Books",            key = "B" },
+    { app = "GoogleChrome",     key = "C" },
+    { app = "Docker",           key = "D" },
+    { app = "Finder",           key = "F" },
+    { app = "Mail",             key = "M" },
+    { app = "Obsidian",         key = "O" },
+    { app = "Safari",           key = "S" },
+    { app = "VisualStudioCode", key = "V" },
+    { app = "Notes",            key = "N" },
+    { app = "iPhoneMirroring",  key = "I" },
+    { app = "Zed",              key = "Z" },
+    { app = "Preview",          key = "R" },
     -- Second character
-    { app = "Stickies",         modifiers = HYPER, key = "T" },
-    { app = "Slack",            modifiers = HYPER, key = "L" },
+    { app = "Stickies",         key = "T" },
+    { app = "Slack",            key = "L" },
     -- Third character
-    { app = "Claude",           modifiers = HYPER, key = "A" },
-    -- Default terminal: plain focus/cycle. (alt+` summons it placed via TerminalHandler)
-    { app = "Ghostty",          modifiers = HYPER, key = "`" },
+    { app = "Claude",           key = "A" },
+    -- Default terminal: plain focus/cycle, still on the Hyper modal.
+    { app = "Ghostty",          key = "`" },
+    -- The terminal's own placed summon, a literal combo rather than a Hyper chord since
+    -- it is pressed mid work, show-and-hide rather than cycle since a second press while
+    -- it is frontmost should get it out of the way, and centered at a fixed size on
+    -- whichever display it is already on. This is what TerminalHandler.spoon used to be,
+    -- absorbed into AppToggler as one entry rather than a whole spoon kept outside Olm,
+    -- since the behaviour it needed turned out to be a handful of fields every toggle
+    -- can now ask for rather than a tool of its own.
+    { app = "Ghostty", key = "`", modifiers = { "alt" }, hides = true,
+      description = "Terminal placed",
+      placement = { width = 2400, height = 1350, padding = { x = 40, y = 20 } } },
     -- Activity Monitor. On backslash rather than slash, because slash now opens file search,
     -- and the two read as a pair on adjacent keys, one for what the machine is doing and one
     -- for what is on it.
-    { app = "ActivityMonitor",  modifiers = HYPER, key = "\\" },
+    { app = "ActivityMonitor",  key = "\\" },
     -- System Settings, opened straight to the General pane. The url field makes
     -- AppToggler open (and navigate) to that pane instead of a plain focus.
-    { app = "SystemSettings",   modifiers = HYPER, key = ",", url = "x-apple.systempreferences:com.apple.systempreferences.GeneralSettings" },
+    { app = "SystemSettings",   key = ",", url = "x-apple.systempreferences:com.apple.systempreferences.GeneralSettings" },
     -- Disabled (uncomment to enable)
-    -- { app = "ChatGPTAtlas",   modifiers = HYPER, key = "A" },
-    -- { app = "AndroidStudio",  modifiers = HYPER, key = "A" },
-    -- { app = "Hammerspoon",    modifiers = HYPER, key = "H" },
-    -- { app = "TablePlus",      modifiers = HYPER, key = "P" },
-    -- { app = "Xcode",          modifiers = HYPER, key = "X" },
+    -- { app = "ChatGPTAtlas",   key = "A" },
+    -- { app = "AndroidStudio",  key = "A" },
+    -- { app = "Hammerspoon",    key = "H" },
+    -- { app = "TablePlus",      key = "P" },
+    -- { app = "Xcode",          key = "X" },
   },
 
   -- Clipboard history (for Olm's ClipboardHistory plugin). Hyper+X opens it; the backend
@@ -588,9 +611,6 @@ local M = {
   -- is changed the same way, and a tool that ever wants `?` collides with it loudly in the
   -- console instead of quietly losing to it.
   aliasDirectory = { description = "Aliases", glyph = "🏷️", aliases = { "?" } },
-
-  -- Terminal handler
-  terminal = { modifiers = { "alt" }, key = "`" },
 }
 
 -- THE SEAM. The action panel's own chord, Hyper and period, folded into every context here
