@@ -128,8 +128,9 @@ function obj:start(cfg)
   -- Stored on the spoon rather than kept only in this closure, because obj:report,
   -- obj:module and obj:screen are reached long after start returns, on the caller's own
   -- schedule rather than this one. TerminalHandler is that caller, kept outside Olm's
-  -- own management by the user's own decision on 2026-08-07, while still needing to
-  -- reach an Olm managed plugin and the shared display policy.
+  -- own management by the user's own decision on 2026-08-07, and it still reaches
+  -- obj:module for a plugin it does not manage. It stopped reaching obj:screen on
+  -- 2026-09-01, see that method's own note.
   --
   -- report, modules and screen, read off this below by the three methods beneath it, are
   -- the seam between this file and root/compose.lua, since compose.lua is the one file
@@ -174,10 +175,15 @@ end
 --- its own cache, and a value taken early would not see a display attached or removed
 --- afterwards. composed.screen itself is the resolver's own resolving function, kept
 --- unpicked all the way from root/compose.lua for exactly that reason, and this method
---- is the one place that finally calls it, at the moment a caller actually asks. The
---- other escape hatch TerminalHandler uses, so its own canvas draws against the same
---- display policy every managed surface does rather than picking one of its own and
---- drifting from it.
+--- is the one place that finally calls it, at the moment a caller actually asks.
+---
+--- This is an escape hatch with no caller left in this config. TerminalHandler was the
+--- one, and it stopped asking on 2026-09-01, because the policy this answers resolves to
+--- the cursor's screen and a terminal window that changes display on every summon is
+--- worse than one that stays put. The method stays because it is the public way any
+--- future surface outside Olm's own wiring reads the same display policy every managed
+--- surface reads, which is the whole reason a policy is shared rather than copied. It is
+--- deliberately not a claim that something uses it today.
 function obj:screen()
   local composed = self._composed
   local resolve = composed and composed.screen

@@ -85,10 +85,15 @@ local olm = spoon.Olm:start({
 
 print(olm:report())
 
--- TerminalHandler stays outside Olm, this person's own decision of 2026-08-07. It reaches in
--- through the two escape hatches Olm exposes for exactly this, a plugin it does not manage
--- and the shared display policy, so its terminal lands on the same screen every managed
--- surface does rather than picking one of its own.
+-- TerminalHandler stays outside Olm, this person's own decision of 2026-08-07.
+--
+-- It used to reach in through both escape hatches Olm exposes, a plugin it does not manage
+-- and the shared display policy, so its terminal landed on the same screen every managed
+-- surface does. That second reach is gone as of 2026-09-01. The shared policy resolves to
+-- the cursor's screen here, which is right for a chooser or an overlay that has to appear
+-- under the eye and wrong for a terminal, since it moved the window to a different display
+-- on every summon. The terminal now stays on whichever display it is already on and is only
+-- centered and sized there, so neither targetScreen nor windowManager is passed any more.
 --
 -- terminalBundleID rather than bundleID, which is the name this spoon actually reads. Written
 -- as bundleID it arrived as nil, so the toggle had no application to look for and the key did
@@ -99,12 +104,10 @@ print(olm:report())
 hs.loadSpoon("TerminalHandler")
 spoon.TerminalHandler:configure({
   appToggler       = olm:module("apptoggler"),
-  windowManager    = olm:module("windowmanager"),
   terminalBundleID = apps[settings.terminal.preferredTerminal],
   timing           = settings.terminal,
   size             = settings.terminal.size,
   minPadding       = settings.terminal.minPadding,
-  targetScreen     = function() return olm:screen() end,
 })
 spoon.TerminalHandler:bindHotkeys({ terminal = keys.terminal })
 
