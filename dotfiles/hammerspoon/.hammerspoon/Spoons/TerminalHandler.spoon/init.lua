@@ -14,15 +14,10 @@ obj.license = "MIT"
 
 -- Dependencies (injected via configure)
 obj._appToggler = nil
-obj._windowManager = nil
 obj._terminalBundleID = nil
 obj._timing = nil
 obj._size = nil
 obj._minPadding = nil
--- targetScreen() returns the hs.screen to place the terminal on. Injected from
--- the composition root, so the engine never decides where itself. Optional; when
--- absent the engine falls back to the first attached screen.
-obj._targetScreen = nil
 
 --- TerminalHandler:init()
 --- Method
@@ -37,7 +32,6 @@ end
 function obj:configure(opts)
   opts = opts or {}
   self._appToggler = opts.appToggler
-  self._windowManager = opts.windowManager
   self._terminalBundleID = opts.terminalBundleID
   self._timing = opts.timing or {
     initialDelay = 0.1,
@@ -46,7 +40,6 @@ function obj:configure(opts)
   }
   self._size = opts.size or { width = 2400, height = 1350 }
   self._minPadding = opts.minPadding or { x = 20, y = 20 }
-  self._targetScreen = opts.targetScreen
   return self
 end
 
@@ -73,12 +66,21 @@ end
 --- Handle window placement for terminal with padding-aware sizing.
 --- Uses frame (below menu bar, above dock) with minimum padding on
 --- all sides.
+---
+--- The terminal is centered and sized on the display it is ALREADY on, and this
+--- engine never moves it to another one. It used to, through an injected
+--- targetScreen closure the composition root filled with Olm's shared overlay
+--- display policy, and that policy is the cursor's screen, so summoning the
+--- terminal dragged its window to whichever display the mouse happened to be on
+--- and back again on the next summon. That policy exists for surfaces that are
+--- transient and have to appear under the eye, a chooser or an overlay panel. A
+--- terminal window is neither. It is long lived, it is where work sits, and a
+--- window that changes display every time it is summoned loses the one thing a
+--- person relies on, knowing where it is without looking. So the whole target
+--- screen seam is gone rather than pointed somewhere else, this person's own
+--- decision of 2026-09-01, and with it the windowManager dependency, whose only
+--- use here was the move.
 function obj:_handleWindowPlacement(app)
-  local screenToMove = self._targetScreen and self._targetScreen()
-  screenToMove = screenToMove or hs.screen.allScreens()[1]
-
-  self._windowManager:moveToScreen(screenToMove)
-
   local win = hs.window.focusedWindow()
   if not win then return end
 
