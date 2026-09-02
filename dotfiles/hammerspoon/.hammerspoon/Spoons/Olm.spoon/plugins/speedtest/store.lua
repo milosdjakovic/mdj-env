@@ -24,11 +24,16 @@ local state = nil
 -- What a settings page starts from before anybody changes anything. Ten seconds is short
 -- enough that taking a reading is not a thing to plan around, and the tool reaches a stable
 -- figure well inside it, so the longer runs are there for when a number is being argued over
--- rather than for ordinary use. Parallel is the realistic case rather than the flattering one,
--- and fifty runs per network is well over a year for a person who tests a few times a month.
+-- rather than for ordinary use. One direction at a time is the default, so a capacity figure
+-- reads as this line's ceiling, comparable to a number from any other test of the same
+-- connection, rather than a downlink taken while the upload was saturating the link, which on
+-- an asymmetric line reads at a small fraction of capacity. Responsiveness is still measured
+-- under load, per direction, and both directions at once remain available in settings, for
+-- reading how the link behaves when it is genuinely busy in both directions. Fifty runs per
+-- network is well over a year for a person who tests a few times a month.
 local DEFAULTS = {
   direction = "both",
-  sequential = false,
+  sequential = true,
   maxSeconds = 10,
   protocol = "auto",
   privateRelay = false,

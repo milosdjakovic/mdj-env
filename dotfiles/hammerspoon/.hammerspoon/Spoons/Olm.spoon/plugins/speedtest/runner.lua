@@ -218,13 +218,61 @@ end
 -- that decides how the network feels. The foreign samples are new connections opened during the
 -- load, so they model a page opened while something else is downloading, which is the case a
 -- person actually notices. The self samples are the test's own already open connections and are
--- the fallback when a direction was skipped and no foreign samples exist.
+-- the fallback when a direction was skipped and no foreign samples exist. A sequential run, or
+-- one limited to a single direction, reports these per direction instead of combined, foreign
+-- and self each split into a dl list and a ul list rather than one, so the parse has to read
+-- both spellings to find them.
+local function combinedSamples(dl, ul)
+  local out = {}
+  if type(dl) == "table" then
+    for _, v in ipairs(dl) do out[#out + 1] = v end
+  end
+  if type(ul) == "table" then
+    for _, v in ipairs(ul) do out[#out + 1] = v end
+  end
+  return out
+end
+
 local function loadedSamples(parsed)
   local foreign = parsed.lud_foreign_h2_req_resp
   if type(foreign) == "table" and #foreign > 0 then return foreign end
+  local foreignDl = parsed.lud_foreign_dl_h2_req_resp
+  local foreignUl = parsed.lud_foreign_ul_h2_req_resp
+  if (type(foreignDl) == "table" and #foreignDl > 0) or (type(foreignUl) == "table" and #foreignUl > 0) then
+    return combinedSamples(foreignDl, foreignUl)
+  end
   local own = parsed.lud_self_h2_req_resp
   if type(own) == "table" and #own > 0 then return own end
+  local ownDl = parsed.lud_self_dl_h2_req_resp
+  local ownUl = parsed.lud_self_ul_h2_req_resp
+  if (type(ownDl) == "table" and #ownDl > 0) or (type(ownUl) == "table" and #ownUl > 0) then
+    return combinedSamples(ownDl, ownUl)
+  end
   return nil
+end
+
+-- The headline responsiveness figure, kept as one number however the run was shaped. A parallel
+-- run reports it directly. A sequential or single direction run reports it once per direction
+-- instead, and the smaller of the two is kept, since the headline figure is the honest worst
+-- case of the directions this run actually measured. The tool itself reports whole RPM figures,
+-- so the result is rounded to match.
+local function rpmOf(parsed)
+  if type(parsed.responsiveness) == "number" then return parsed.responsiveness end
+  local dl = type(parsed.dl_responsiveness) == "number" and parsed.dl_responsiveness or nil
+  local ul = type(parsed.ul_responsiveness) == "number" and parsed.ul_responsiveness or nil
+  if not dl and not ul then return nil end
+  local lower = math.min(dl or ul, ul or dl)
+  return math.floor(lower + 0.5)
+end
+
+-- The seconds actually spent measuring. A parallel run has only one of these fields and the sum
+-- reads the same as that one field. A sequential run spends both phases in turn, so reporting
+-- only the first would halve the truth.
+local function secsOf(parsed)
+  local dl = type(parsed.dl_phase_duration) == "number" and parsed.dl_phase_duration or nil
+  local ul = type(parsed.ul_phase_duration) == "number" and parsed.ul_phase_duration or nil
+  if not dl and not ul then return nil end
+  return (dl or 0) + (ul or 0)
 end
 
 -- The live trail as a finished run keeps it, three fixed width series rather than a list of
@@ -272,7 +320,7 @@ function M.parse(text, net, settings, trail)
 
     down = parsed.dl_throughput,
     up = parsed.ul_throughput,
-    rpm = parsed.responsiveness,
+    rpm = rpmOf(parsed),
     idleMs = parsed.base_rtt,
 
     lat = cfg.util.summarise(latency),
@@ -285,7 +333,7 @@ function M.parse(text, net, settings, trail)
     l4s = dominant(other.l4s_enablement),
     proxied = dominant(other.proxy_state),
     endpoint = shortEndpoint(parsed.test_endpoint),
-    secs = parsed.dl_phase_duration or parsed.ul_phase_duration,
+    secs = secsOf(parsed),
     direction = settings.direction,
     sequential = settings.sequential and true or false,
   }
