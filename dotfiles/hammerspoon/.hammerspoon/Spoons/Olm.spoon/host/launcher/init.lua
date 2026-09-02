@@ -375,7 +375,7 @@ function obj:_buildActionRows()
   -- the injected rows already carry. It exists so a row can answer to a word its title
   -- and subtitle have no room for, rather than that word being padded into the visible
   -- subtitle where it would cost a reader something to buy a searcher something.
-  local function add(title, subTitle, item, glyph, when, keywords, subTitleFn)
+  local function add(title, subTitle, item, glyph, when, keywords, subTitleFn, image)
     -- A tool reachable by typing a word says so on its own row, and it says it here rather
     -- than at each call site. That is the difference between a hint a row can be forgotten
     -- from, which is how file search ended up advertising nothing, and one that cannot be,
@@ -389,7 +389,10 @@ function obj:_buildActionRows()
     if item and item.kind == "special" then
       subTitle = (subTitle or "") .. self._aliasHint(item.name)
     end
-    rows[#rows + 1] = { title = title, subTitle = subTitle, image = self:_glyphIcon(glyph),
+    -- An image handed in outright wins over the drawn glyph, the one caller today being
+    -- a registered tool whose row declares the bundle it fronts, so the row wears the
+    -- real application icon the way the app rows below already do.
+    rows[#rows + 1] = { title = title, subTitle = subTitle, image = image or self:_glyphIcon(glyph),
                         item = item, when = when, keywords = keywords, subTitleFn = subTitleFn }
   end
   -- addTool(name) asks the injected registry for this name's row and, when there is one,
@@ -467,8 +470,12 @@ function obj:_buildActionRows()
         return nil
       end
     end
+    -- A row declaring the bundle it fronts wears that application's real icon, resolved
+    -- here once per cache build rather than per keystroke, with the glyph standing in
+    -- whenever the bundle resolves to nothing on this machine.
+    local image = row.bundle and hs.image.imageFromAppBundle(row.bundle) or nil
     add(row.description, subTitle, { kind = "special", name = name },
-      row.glyph, nil, row.keywords, subTitleFn)
+      row.glyph, nil, row.keywords, subTitleFn, image)
   end
   -- One row per registered tool, and one per registered command, asked of the registry in the
   -- order it holds rather than listed here by hand. This is what the thirteen addTool calls

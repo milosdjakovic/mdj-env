@@ -567,6 +567,11 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
       detail = detail,
       keywords = rowSpec.keywords,
       glyph = rowSpec.glyph or eff.glyph,
+      -- A bundle id for a tool that fronts exactly one application, so its launcher row
+      -- may wear that application's real icon in place of the drawn glyph. Pure data
+      -- passed through untouched, the launcher resolves it to an image at row build,
+      -- and the glyph above stays the fallback everywhere an app icon cannot go.
+      bundle = rowSpec.bundle,
       aliases = eff.aliases,
       description = eff.description,
       key = eff.key,

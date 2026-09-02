@@ -495,6 +495,11 @@ may be `true` to mean the plugin root itself.
 `description`, `glyph`, `aliases`, `key` and `leader` come from `defaults` rather than being
 retyped here, so one answer serves the row, the key binding and the scope directory.
 
+`row.bundle` is a bundle id for a tool that fronts exactly one application, and it puts that
+application's real icon on the launcher row in place of the drawn glyph, resolved by the
+launcher at row build. The glyph stays declared as the fallback for every other surface and
+for a machine where the bundle resolves to nothing. Obsidian is the consumer.
+
 `row.detail` is display text when it is a string, which is nearly every row. It may instead
 be a member spec, the table form only, and the registrar then resolves it lazily exactly as
 it resolves `open`, so the launcher asks the plugin for the words at read time and the row's
