@@ -68,6 +68,7 @@ qalc          | brew      | libqalculate
 ocr           | tap       | schappim/ocr/ocr
 mullvad       | cask      | mullvad-vpn
 docker        | cask      | docker-desktop
+macshot       | cask      | macshot
 
 # Packages that ship files rather than a command, loaded by path from a configuration.
 tpm                      | brew | tpm
@@ -80,7 +81,6 @@ zsh-autosuggestions      | manual    | installed by src/install-ohmyzsh-plugins.
 fast-syntax-highlighting | manual    | installed by src/install-ohmyzsh-plugins.sh
 fzf-tab                  | manual    | installed by src/install-ohmyzsh-plugins.sh
 brew                     | manual    | installed by src/install-homebrew.sh from the upstream installer
-macshot                  | manual    | install the macshot app, then enable its URL scheme in its settings
 swiftc                   | xcode-clt | xcode-select --install
 cc                       | xcode-clt | xcode-select --install
 caffeinate               | macos     | ships with macOS

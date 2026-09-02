@@ -20,9 +20,12 @@ return {
       { name = "ocr", kind = "path", locator = "ocr", policy = "optional", unit = "macocr",
         reason = "the OCR backend, the sole handler of text capture",
         origin = { tap = "schappim/ocr/ocr" } },
+      -- Installing the cask is not the whole story, the URL scheme still has to be enabled
+      -- once in macshot's own settings, and the provider says exactly that at runtime when
+      -- the scheme is off, so the instruction lives where the failure is seen.
       { name = "macshot", kind = "app", locator = "com.sw33tlie.macshot.macshot", policy = "optional", unit = "macshot",
         reason = "the preferred screenshot backend, native is the fallback",
-        origin = { manual = "install the macshot app, then enable its URL scheme in its settings" } },
+        origin = { cask = "macshot" } },
       -- Delivering a macshot URL without bringing macshot to the front, the -g flag reaches
       -- through open rather than through hs.urlevent.openURL. Optional, and its absence
       -- costs only this one backend, native still handles a screenshot or a recording.
