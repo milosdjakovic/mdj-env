@@ -18,7 +18,7 @@ osascript | system | /usr/bin/osascript | optional | browsertabs/test/harness | 
 ioreg | system | /usr/sbin/ioreg | optional | browsertabs/test/harness | asks the window server whether the screen is locked, which the accessibility layer cannot be trusted to report about itself | macos | ships with the system
 caffeinate | system | /usr/bin/caffeinate | optional | browsertabs/test/harness | holds the display awake for a run, since a suite drives the machine with synthesised events and the idle timer does not count those | macos | ships with the system
 ocr | path | ocr | optional | capture/macocr | the OCR backend, the sole handler of text capture | tap | schappim/ocr/ocr
-macshot | app | com.sw33tlie.macshot.macshot | optional | capture/macshot | the preferred screenshot backend, native is the fallback | manual | install the macshot app, then enable its URL scheme in its settings
+macshot | app | com.sw33tlie.macshot.macshot | optional | capture/macshot | the preferred screenshot backend, native is the fallback | cask | macshot
 open | system | /usr/bin/open | optional | capture/macshot | delivering the macshot url in the background, without raising macshot | macos | ships with the system
 ffmpeg | path | ffmpeg | optional | clipboard/preview | video clipboard previews | brew | ffmpeg
 ffprobe | path | ffprobe | optional | clipboard/preview | reading a video duration so a preview frame is picked mid clip | brew | ffmpeg
