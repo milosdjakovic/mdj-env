@@ -58,7 +58,9 @@ answer and it needs a CanvasPanel grant this plugin does not have, so the honest
 now is silence rather than an alert, which is reserved in this configuration for a failure that
 stopped an action outright.
 
-There is no absolute capacity number here. `networkQuality` talks to whichever Apple CDN edge
-DNS hands it and cannot be pointed anywhere else, so it reads lower than a tuned test client
-would on a fast link. That costs this plugin nothing, since every figure it shows is compared
-against other figures taken the same way, but it is the wrong tool for arguing with an ISP.
+There is no absolute capacity number here. The default run measures one direction at a time, so
+a capacity figure reads close to this line's ceiling and is comparable to a number from any other
+test of the same connection. `networkQuality` still talks to whichever Apple CDN edge DNS hands
+it and cannot be pointed anywhere else, so it remains the wrong tool for arguing with an ISP. A
+setting measures both directions at once instead, which is what real use looks like and reads
+lower on purpose.
