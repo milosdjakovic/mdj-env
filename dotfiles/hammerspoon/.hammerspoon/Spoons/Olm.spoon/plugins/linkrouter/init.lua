@@ -83,6 +83,7 @@ local ICON_ON = "🟢"
 local ICON_OFF = "🔴"
 local ICON_MORE = "➕"
 local ICON_RESET = "↩️"
+local ICON_LINK = "🔗"
 
 --- row(...) -> a chooser row
 --- item must contain plain data only. See the file header for what putting an entry in one
@@ -94,6 +95,30 @@ end
 local function appIcon(bundle)
   local ok, img = pcall(hs.image.imageFromAppBundle, bundle)
   if ok then return img end
+  return nil
+end
+
+--------------------------------------------------------------------------------
+-- The launcher's own pinned row for a pasted or typed url
+--------------------------------------------------------------------------------
+
+local function trim(s)
+  return (s:gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
+--- urlFromQuery(trimmed) -> string or nil
+--- The whole trimmed string only, never a substring inside ordinary text, since a partial
+--- match would turn every sentence mentioning a site into a pinned row nobody asked for. The
+--- scheme is matched without regard to case, since a pasted url is not always typed in
+--- lowercase, and whatever matches is returned exactly as typed either way. www without a
+--- scheme is the one shorthand a person actually pastes without typing it out, and it is
+--- spelled https here since that is the scheme every destination already opens.
+local function urlFromQuery(trimmed)
+  local scheme = trimmed:match("^(%a+)://%S+$")
+  if scheme and (scheme:lower() == "http" or scheme:lower() == "https") then
+    return trimmed
+  end
+  if trimmed:match("^www%.%S+$") then return "https://" .. trimmed end
   return nil
 end
 
@@ -339,9 +364,38 @@ end
 -- The presentation
 --------------------------------------------------------------------------------
 
-function M.rows()
+--- M.presentationRows() -> rows
+--- The presentation's own rows, renamed off the bare word rows so it stops colliding with
+--- M:rows below, which the launcher's own query door asks for by that exact hardcoded name
+--- and cannot be told to ask for anything else. A presentation member carries no such rule,
+--- the manifest states whatever name it likes and lib/registrar.lua resolves it, which is
+--- why this one is free to be presentationRows instead.
+function M.presentationRows()
   if pending then return routerRows() end
   return configRows()
+end
+
+--- M:rows(query) -> rows, exclusive
+--- The launcher's own query door, resolved by the bare name convert and arithmetic already
+--- answer through, provider:rows(query), so this member is the one place in this file that
+--- keeps the name rows no matter what else it collides with. Answered only for a whole
+--- pasted or typed url. Exclusive, since a catalog match against a full url is noise once
+--- the person has already typed the answer they want. filterText carries the raw query
+--- rather than the built url, so the shared matcher pins this row instead of scoring it
+--- against text the person never typed verbatim, the same reason convert's own answer row
+--- does it.
+function M:rows(query)
+  local url = urlFromQuery(trim(query or ""))
+  if not url then return {} end
+  return {
+    {
+      title = "Open link in browser",
+      subTitle = url,
+      glyph = ICON_LINK,
+      filterText = query,
+      item = { kind = "route", url = url },
+    },
+  }, true
 end
 
 --- M.intercept(item) -> "stay", true, or false
@@ -414,6 +468,25 @@ function M.show()
   pending = nil
   pendingApp = nil
   if cfg.stagePresent then cfg.stagePresent("linkRouter") end
+end
+
+--- M.routeURL(url)
+--- Told by the composition root when the launcher's own pinned row is chosen, so a pasted or
+--- typed link has somewhere to land before the presentation this module cannot reach on its
+--- own gets pushed there. engine.routeFor is deliberately never consulted here. A clicked
+--- link asks the stored rules first because nobody standing at that click typed anything, but
+--- typing or pasting a url already IS the person choosing where it goes by hand, so asking
+--- the rules again would second guess a choice already made in front of them. Opening nothing
+--- here is deliberate too, this module has no way to reach its own registered presentation,
+--- only the composition root does, which is why the push itself lives there rather than here.
+--- Nothing extra clears pending later, onClose already does, the same one moment that already
+--- stops a clicked link outliving the window it was offered in. Also accepts a bare nil, which
+--- the composition root sends when the stage refuses to push, a link would otherwise sit in
+--- pending with no onClose ever coming to clear it, since linkRouter never joined the stack at
+--- all.
+function M.routeURL(url)
+  pending = url
+  pendingApp = nil
 end
 
 --------------------------------------------------------------------------------

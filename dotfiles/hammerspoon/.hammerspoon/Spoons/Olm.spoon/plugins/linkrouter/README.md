@@ -24,6 +24,10 @@ typed word, because the thing that opens it lives outside Hammerspoon entirely.
 
 The configuration page is a launcher row, Link routing, under System.
 
+A url pasted or typed straight into the launcher shows one row, Open link in browser. Choosing
+it pushes this same list one level down in the same window, with that url waiting to be routed,
+so you see exactly what a clicked link shows, your ordered destinations, More, and Copy link.
+
 ## The main list, and More
 
 The router shows your main list, then a More row, then Copy link. Everything not in the main

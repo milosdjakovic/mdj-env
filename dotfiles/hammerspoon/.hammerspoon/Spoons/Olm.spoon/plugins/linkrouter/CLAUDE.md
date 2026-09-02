@@ -204,6 +204,39 @@ dry gate loads these modules under a permissive stub where `hs.processInfo` auto
 table, and a bundle id concatenated at module scope raises there and reports the plugin unknown
 instead of checking it.
 
+## Why a pasted url bypasses the stored rules
+
+A clicked link asks the rules first, since nobody standing at that click typed anything and a
+rule is how they said in advance what should happen without being asked again. A url pasted or
+typed into the launcher is the opposite case, the person is standing right there choosing to
+route it by hand, so `routeURL` sets the pending link directly and never calls `engine.routeFor`.
+Asking the rules on this path would let a rule silently override a choice the person is making at
+that very moment, which is a worse surprise than a rule never firing here at all.
+
+## Why the pinned row pushes the shared presentation rather than building its own rows
+
+The pinned row's whole point is to hand a person exactly what a clicked link already shows,
+their ordered destinations, More, Copy link, all of it, rather than a second, thinner list built
+to look similar. Rebuilding that shape in the launcher would be a second copy of every row this
+file already knows how to build, drifting from the real one the moment either changes. So the
+row's own choosing is not answered by this module at all, `M:rows` answers a plain data item and
+the composition root pushes this plugin's own registered presentation the identical way it
+already pushes one for a `special` row, `routeURL` handing over the url first since this module
+has no way to reach its own presentation to push it itself.
+
+## Why the presentation's own rows member was renamed
+
+The launcher's own query door is hardcoded to ask a source for a member literally named `rows`,
+`host/launcher/init.lua`'s own `provider:rows(query)`, and no string written in any manifest
+changes that. A presentation's own member carries no such rule, `lib/registrar.lua`'s own
+`callMember` resolves whatever name the manifest states, which is why filesearch answers
+through `chooser.rowsForQuery`, browsertabs through `chooser.rows`, and clipboard through
+`manager.rows`, three different names for the identical contract. So the collision here was
+never structural, it was this plugin's own presentation happening to be called `rows` too, the
+one name the query door cannot be talked out of wanting. The fix is renaming the side that is
+free to be renamed, the presentation's own member is now `presentationRows`, and the query door
+keeps the bare name, since that is the only name it is ever asked by.
+
 ## A trap for other plugins in this spoon
 
 `hs.urlevent.openURL` resolves the system default handler and opens the url through it. Once

@@ -73,8 +73,17 @@ return {
     },
   },
 
-  -- No provides. There is no useful typed scope here, since the router is never reached by
-  -- typing, it is reached by clicking a link in another application entirely.
+  -- A whole pasted or typed url is now a query this plugin answers itself, so a person never
+  -- has to open Link routing first just to send a link somewhere. Named rows because
+  -- host/launcher/init.lua's own query door is hardcoded to ask a source for a member of
+  -- that exact name, provider:rows(query), never the string written here, which only says
+  -- whether the capability exists at all to the plugin set question the launcher asks. rows
+  -- collided with this plugin's own presentation member of the same name, so the
+  -- presentation's own member moved to presentationRows below instead, since a manifest is
+  -- free to name a presentation member anything it likes and only this one door is not.
+  provides = {
+    queryRows = "rows",
+  },
 
   -- Opened from the launcher only, and deliberately so. The router itself must never need a
   -- key, because the thing that opens it is a link click somewhere else, and the configuration
@@ -111,7 +120,7 @@ return {
   -- fastest this interaction can be, and neither list carries a Back row that filtering could
   -- hide.
   presentation = {
-    rows = { member = "rows", call = "dot" },
+    rows = { member = "presentationRows", call = "dot" },
     select = { member = "select", call = "dot" },
     placeholder = { member = "placeholder", call = "dot" },
     intercept = { member = "intercept", call = "dot" },
