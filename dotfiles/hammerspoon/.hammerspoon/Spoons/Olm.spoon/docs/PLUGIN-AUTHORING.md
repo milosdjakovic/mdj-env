@@ -21,6 +21,14 @@ broken the contract even when it happens to work.
 `wiring` steps that stand in for it. Everything else `init.lua` exposes, the manifest
 declares.
 
+Write `configure` as a colon method, `function M:configure(opts)`. The wiring layer's
+default call for configure is a method call, so a plain dot function receives the module
+table where opts belongs, every granted service lands one argument to the right, and the
+plugin reads nil for all of them while the wiring report says no problems. Obsidian
+shipped exactly that for a day, every grant silently false, and nothing anywhere raised.
+A plugin that wants a dot called configure declares it as a wiring step with `call =
+"dot"` instead of relying on the default.
+
 ## Declare three things
 
 If your plugin shows a list, it shows that list through the shared stage. You do not build a

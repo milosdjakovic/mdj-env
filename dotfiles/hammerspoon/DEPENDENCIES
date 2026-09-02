@@ -41,6 +41,7 @@ open | system | /usr/bin/open | optional | filesearch/chooser | opening a found 
 fd | path | fd | optional | filesearch/walk | walking a named directory, which is faster than the index once a scope is given and is the only way to see dotfiles | brew | fd
 hidutil | system | /usr/bin/hidutil | required | keyremap | applying the one HID mapping every leader key depends on, and clearing it again on quit | macos | ships with the system
 open | system | /usr/bin/open | optional | linkrouter/providers/chromium | opening a link in one named profile of a Chromium browser, which the bundle level door cannot address | macos | ships with the system
+obsidian | app | md.obsidian | required | obsidian | the application every chosen note opens in, and the owner of the vault registry this plugin reads to find notes at all | cask | obsidian
 ps | system | /bin/ps | optional | processes/metrics | samples cpu and memory for the rows the picker is showing | macos | ships with the system
 lsof | system | /usr/sbin/lsof | optional | processes/ports | finds which process holds a listening port | macos | ships with the system
 ps | system | /bin/ps | optional | processes/ports | reads the command, start time, and working directory of a holder | macos | ships with the system

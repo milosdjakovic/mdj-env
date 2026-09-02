@@ -69,6 +69,7 @@ ocr           | tap       | schappim/ocr/ocr
 mullvad       | cask      | mullvad-vpn
 docker        | cask      | docker-desktop
 macshot       | cask      | macshot
+obsidian      | cask      | obsidian
 
 # Packages that ship files rather than a command, loaded by path from a configuration.
 tpm                      | brew | tpm
