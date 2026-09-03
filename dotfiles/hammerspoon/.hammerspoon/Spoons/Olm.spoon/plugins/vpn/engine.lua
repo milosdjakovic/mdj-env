@@ -24,10 +24,17 @@ local function refresh()
   fire()
 end
 
+-- Configure is also the switch. A provider swapped in here brings none of the previous
+-- one's state with it, so the cached status is dropped rather than left standing, since a
+-- state read from one backend says nothing about another. Reporting the old backend's
+-- Connected while the new one has not been asked yet would be confidently wrong in exactly
+-- the moment a person is watching the list redraw. Unavailable is the honest starting
+-- answer, and start below reads the truth immediately afterwards.
 function M.configure(opts)
   opts = opts or {}
   provider = opts.provider
   onChange = opts.onChange
+  last = { state = "unavailable" }
   return M
 end
 
@@ -77,8 +84,13 @@ end
 
 -- The relay the tunnel would use on connect, read live from the provider so the disconnected
 -- label can name where a connect would go. Synchronous, kept for a caller off the hot path.
+--
+-- Probed for rather than called outright, since the contract stopped requiring it. A backend
+-- that holds no readable selection omits the method entirely, and nil here is the same answer
+-- a backend that holds one but has nothing set already gives, so a caller needs no third
+-- branch for the difference.
 function M.selectedLocation()
-  if provider then return provider.selectedLocation() end
+  if provider and provider.selectedLocation then return provider.selectedLocation() end
   return nil
 end
 

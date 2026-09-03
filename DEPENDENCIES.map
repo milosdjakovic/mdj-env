@@ -67,6 +67,7 @@ displayplacer | brew      | displayplacer
 qalc          | brew      | libqalculate
 ocr           | tap       | schappim/ocr/ocr
 mullvad       | cask      | mullvad-vpn
+ivpn          | cask      | ivpn
 docker        | cask      | docker-desktop
 macshot       | cask      | macshot
 obsidian      | cask      | obsidian
