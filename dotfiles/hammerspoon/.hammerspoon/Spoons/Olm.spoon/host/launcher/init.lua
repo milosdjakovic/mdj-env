@@ -110,10 +110,8 @@ local function recencyKey(item)
   -- of an empty launcher, which is the last thing a fresh open should show.
   -- A scoped row is the same case for the same reason. It belongs to the tool the query
   -- named and exists only for that query, so remembering it would float a stale answer to
-  -- the top of the next fresh open. A routed url is the same case again, it carries a url
-  -- rather than a name, so without this exclusion it would write the junk key route:nil
-  -- into the persisted timeline instead of nothing.
-  if item.kind == "calc" or item.kind == "scope" or item.kind == "route" then return nil end
+  -- the top of the next fresh open.
+  if item.kind == "calc" or item.kind == "scope" then return nil end
   if item.kind == "app" then return "app:" .. tostring(item.bundleID) end
   if item.kind == "settingsPane" then return "settingsPane:" .. tostring(item.url) end
   return item.kind .. ":" .. tostring(item.name)

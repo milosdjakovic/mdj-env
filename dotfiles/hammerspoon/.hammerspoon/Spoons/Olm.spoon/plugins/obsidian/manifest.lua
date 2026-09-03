@@ -70,8 +70,8 @@ return {
 
   -- No leader and no key, deliberately. This tool is reached by typing, the launcher row
   -- or the ob alias, which is rung two of the interaction ladder, and a chord would spend
-  -- a scarce key on something a typed word already reaches. LinkRouter is the precedent
-  -- for a rowed tool with no chord of its own.
+  -- a scarce key on something a typed word already reaches. A rowed tool with no chord of
+  -- its own is an established shape here rather than a first.
   defaults = {
     description = "Search Obsidian",
     glyph = "💎",
