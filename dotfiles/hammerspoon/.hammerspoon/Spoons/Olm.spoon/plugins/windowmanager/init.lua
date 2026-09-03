@@ -507,6 +507,41 @@ function obj:resizeByPixels(dimensions)
   win:setFrame(hs.geometry.rect(newX, newY, newWidth, newHeight))
 end
 
+--- WindowManager:exactSizePlan(width, height, screen)
+--- Method
+--- What an exact size request WOULD do, without doing any of it, so a surface can say so
+--- before a person commits to it. Answers the size that would land plus whether anything was
+--- taken off it, and nothing else, since a caller wording a row needs those two facts and no
+--- geometry. Nil for a request that is not two usable numbers.
+---
+--- The ceiling is the screen's visible frame, which is the same frame resizeByPixels applies
+--- against, so the answer and the action agree by reading one thing. A request taller than the
+--- space under the menu bar is therefore reported as trimmed rather than quietly placing a
+--- window edge behind it, which is the honest answer even though a person asking for a round
+--- number rarely expects the menu bar to come out of it.
+---
+--- The screen is resolved the way every other method here resolves it, the focused window's
+--- own and the main screen otherwise. A LIST ASKING THIS WHILE IT IS SHOWING has no ordinary
+--- focused window, so it reads the main screen, while the resize that follows runs once focus
+--- is back and reads the real one. The two disagree only on a multiple display desk whose
+--- screens are different sizes, where a row's trim wording can name a ceiling the action does
+--- not use, which is why the caller is expected to hand the action the size as it was asked
+--- for and let it trim against the screen it actually finds.
+function obj:exactSizePlan(width, height, screen)
+  local w, h = tonumber(width), tonumber(height)
+  if not w or not h or w <= 0 or h <= 0 then return nil end
+
+  screen = screen or (hs.window.focusedWindow() and hs.window.focusedWindow():screen()) or hs.screen.mainScreen()
+  if not screen then return nil end
+  local f = screen:frame()
+
+  -- To whole pixels, since a window edge on a half pixel lines up with nothing beside it and a
+  -- size read off a row should be a number a person recognises.
+  local fitW = math.floor(math.min(w, f.w))
+  local fitH = math.floor(math.min(h, f.h))
+  return { width = fitW, height = fitH, clamped = fitW < w or fitH < h }
+end
+
 --- WindowManager:smallSize()
 --- Method
 --- Resize window to small size
@@ -534,6 +569,29 @@ function obj:actions()
     previousDisplay =      function() self:moveToDisplay("previous") end,
     hideAllExceptFocused = function() self:hideAllExceptFocused() end,
     screenRecording =      function() self:screenRecording() end,
+    -- An exact size a surface parsed, sizing the window to it and centring it. The argument
+    -- is a table and never the hold depth the repeating actions below take, so a non table is
+    -- refused rather than read as a width. Nothing binds a key to this, since a size has to
+    -- come from somewhere and a key carries none, and a person who bound one anyway would be
+    -- handing it that depth, which is exactly the case the guard exists for.
+    --
+    -- The size arrives as it was ASKED FOR rather than already trimmed, so the trim happens
+    -- against the screen the window is actually on at the moment of the press. exactSizePlan
+    -- is the same answer computed ahead of time for a row to read, and it says why the two
+    -- can differ.
+    exactSize =            function(size)
+      if type(size) ~= "table" then return end
+      local w, h = tonumber(size.width), tonumber(size.height)
+      if not w or not h then return end
+      -- The one hard failure worth an alert, the same shape adjustSize already uses. A chosen
+      -- row that silently does nothing reads as a broken feature, and the ordinary way to get
+      -- here with nothing focused is a desktop with no window on it.
+      if not hs.window.focusedWindow() then
+        hs.alert.show("No focused window!")
+        return
+      end
+      self:resizeByPixels({ width = w, height = h })
+    end,
     -- The four moves and the two resizes above take the hold depth the leader calls a
     -- repeating action with, and read their step off it, the press amount or the held one.
     -- Every other action here ignores the argument, since none of them repeats and a
