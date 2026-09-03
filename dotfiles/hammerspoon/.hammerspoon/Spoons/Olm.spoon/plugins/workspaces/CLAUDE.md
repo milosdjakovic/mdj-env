@@ -90,17 +90,26 @@ runs, so a missed signal can never wedge recording off permanently.
 
 ## The focused window rule
 
-A move is recorded only when the moved window is the focused window. This is the one guard that
-is new rather than harvested, and it exists because the two old guards do not separate a person
-dragging a window from macOS moving one. The episode flag covers the display change case, but a
-window can be shoved around outside an episode too, by an app repositioning itself, by a Space
-switch, or by another tool. A person moving a window is holding it, so it is focused. That single
-condition removes most of what would otherwise be recorded as intent.
+A move reaches the persistent layer only when the moved window was the focused window. This is
+the one guard that is new rather than harvested, and it exists because the two old guards do not
+separate a person dragging a window from macOS moving one. The episode flag covers the display
+change case, but a window can be shoved around outside an episode too, by an app repositioning
+itself, by a Space switch, or by another tool. A person moving a window is holding it, so it is
+focused. That single condition removes most of what would otherwise be recorded as intent, and
+one frame per app should reflect what a person actually chose rather than whatever an app or a
+script last put there.
+
+The session layer does not ask this question at all. Its job is putting a window back exactly
+where it last sat, whether a person dragged it there or an app placed itself, so every placeable
+window's move is recorded there regardless of focus. Leaving out the windows nobody ever touched
+was the gap that let a Chrome window sit at the wrong frame after an unplug, recorded below, so
+the rule that used to gate both layers now gates only the one that needs it.
 
 It also has a consequence worth knowing. A window moved by a script, by a window manager
-binding, or by any means that does not focus it first is not recorded. Within this config the
-window manager's own moves do focus the window they act on, so they are recorded, which is what
-was wanted.
+binding, or by any means that does not focus it first is never recorded into the persistent
+layer. Within this config the window manager's own moves do focus the window they act on, so
+they are recorded there too, which is what was wanted. The session layer has no such gap any
+more, and records that window's move either way.
 
 ## The compare and skip tolerance, and the episode flag
 
@@ -134,6 +143,135 @@ number. The retries are safe to repeat because compare and skip makes a pass tha
 a no op, and the episode stays open across the whole campaign so the shuffle is never recorded.
 A fresh disturbance arriving mid campaign cancels it, since that campaign belongs to geometry that
 has just changed again.
+
+The center test alone was not enough. A display already connected is already sitting in the
+attached list well before it is actually displaying, so a placement onto it passes the center
+test and macOS still clamps it onto whatever panel is awake, and nothing about that pass ever
+found out. The readback is what actually detects that refusal, asking the window for its frame
+again right after setting it and counting a placement as landed only when the answer matches, so
+a display that never wakes and a display that flatly refuses a placement now share the identical
+retry rather than only the first of them ever being caught.
+
+## Three weaknesses one Chrome frame exposed
+
+An unplug and a replug left some windows on the built in panel instead of back on the external
+display, and the stored file showed why. Under the two display configuration, Chrome was
+remembered at exactly the built in panel's full visible frame, which is what a window looks like
+once macOS has clamped it there. A shuffle frame had been recorded under the wrong geometry, and
+three separate weaknesses could each produce that on their own.
+
+A placement macOS refuses was invisible. Setting a frame and never asking whether it landed meant
+a display that reports as connected before it is actually displaying, already sitting in the
+attached list, could take a placement that macOS then clamped onto the built in panel, and
+nothing about that pass ever knew. The fix asks the window for its frame back right after setting
+it and only counts a placement as landed when the answer matches, so a refusal now behaves
+exactly like a display that was merely slow, and both share the same retry. The trade is one
+extra read per placement, which is cheap next to walking the whole window list the pass already
+pays for.
+
+Capture had no look behind. A move was written the instant it arrived, and the screen watcher
+usually opens an episode before the filter's own half second delay hands a shuffled move onward,
+but the watcher is documented as unreliable across sleep, so a shuffle that beat the episode to
+the filter was written under the stale fingerprint with a built in frame, which could well have
+been the Chrome entry above, though any of the three weaknesses here could equally have written
+it. The fix stages a move for a short grace and commits it only once nothing has changed
+underneath it, checked by recomputing the fingerprint live rather than trusting a cached one only
+an episode ever refreshes, dropping the stage instead when a disturbance arrives first or the live
+geometry no longer matches what was staged. The trade is that every ordinary drag now waits a
+second before its own memory is final, which is not a delay anybody dragging a window would ever
+notice.
+
+Windows that were never dragged had no memory. Both layers recorded moves alone, and only of the
+focused window, so a window an app placed itself, or one nobody ever touched under a
+configuration, was unknown there and stayed wherever macOS threw it. The fix records every
+placeable window's move into the session layer regardless of focus, and fills whatever gap is
+still left the moment an episode closes, from wherever that window actually sits. The persistent
+layer keeps the focused window rule as its own definition of intent, since one frame per app
+should reflect what a person chose rather than whatever an app last put there, so the trade sits
+entirely inside the session layer, which was already the layer with the least to lose.
+
+The first shape of that fill had a hole of its own. A window whose only memory came from the
+store, never the session, has no session entry either, so if its placement was refused or
+deferred for the whole campaign, the fill would have written its wrong current frame as if that
+were the memory, and a wrong session entry wins over a correct store one on every later dock
+under that fingerprint, silently undoing the very frame the store was right about. The fix has
+the last restore pass remember which ids it could not place, refused or deferred, and the fill
+skips every one of them, so a window only ever earns a filled entry by resting in a frame nothing
+was still trying to change.
+
+## A second review found six more holes
+
+Six more weaknesses surfaced once the first three fixes were read adversarially against the code,
+each closed in the same file.
+
+The fill was not the only place _unplaced needed to matter. A stage that commits after the
+campaign closes can carry the exact same wrong frame the fill was already refusing to write, since
+a window stuck in the wrong frame by a refused or deferred placement keeps producing frame events
+of its own once recording resumes, an echo of the campaign rather than a person. _commit now drops
+a stage for an id still in _unplaced unless the stage carried intent, since a person actually
+dragging that window afterward is real and worth believing over a campaign that already gave up,
+while an echo or a small nudge is not. This is also why the fill no longer clears the set when it
+finishes, only the next disturb does, since the protection has to last through the steady state
+that follows, not only through the moment the campaign closes.
+
+Deciding landed by tolerance alone was still wrong even with the readback in place. An app with a
+grid of its own, a terminal snapping to cell boundaries or a window enforcing a minimum size,
+answers every readback outside the five point tolerance forever, and nothing about that is macOS
+refusing anything, it is the app being exactly the size or position it always insists on. A retry
+campaign that could not tell the difference fought a window like that across the whole worst case
+span with recording deaf the entire time, for a placement nothing was ever going to change. _place
+now asks which screen holds the center of the frame it asked for and which screen holds the center
+of what it actually got, and counts the two as landed together whenever they agree, refused only
+when they land on different screens or the readback lands on none at all.
+
+A newborn's placement is no longer fire and forget. When _place answers refused, the id goes into
+_unplaced exactly the way a restore pass refusal does, so a newborn's clamped frame is never
+mistaken for its memory either. There is deliberately no retry campaign for a newborn the way a
+restore pass has one, since a person is more likely to be watching a window they just opened than
+one already settled, and a silent multi second fight is a worse thing to be visible during than a
+placement that simply did not happen. Separately, MUTE_TAIL was too short to do its own job. The
+window filter delays every move event by half a second and restarts that delay on each further
+notification before handing one onward, so the old three tenths of a second mute had already
+expired before the very event it existed to suppress could ever arrive. It is a full second now.
+
+The safety backstop used to be able to fire in the middle of a live campaign and force close an
+episode a retry or a closing tail was already about to finish properly, racing whichever one got
+there first. It now checks for exactly that, a pending retry or a pending tail, and re arms itself
+for another full span instead of closing anything when either is found. When it does force close,
+because nothing is pending, it stops and clears every timer this episode owns, the ceiling, the
+retry, and the tail, so nothing is inherited by whatever opens next and this same close can never
+fire twice. The one exception is the idle timer, stopped but kept, since it is the one timer
+created once in start and reused for the engine's whole life rather than one this episode owns
+outright, and clearing it would leave nothing able to ever restart quiescence detection again.
+
+A doAfter timer does not run while the machine is asleep, it fires as soon as the machine wakes
+with however much wall clock time has actually passed, so a ceiling or a safety armed just before
+a long sleep can fire long after the interval it was given ever intended to measure, and resolving
+or force closing on that basis would be acting on a timeout that went stale during sleep rather
+than one that ever meaningfully expired. Both timers now record their own due time in wall clock
+seconds when armed, and a firing more than five seconds late is treated as exactly that, sleep
+having intervened, re arming a fresh span and, for the ceiling, bumping instead of resolving, so
+the wait for quiet or the backstop simply starts over rather than acting on a stale clock.
+
+A window born mid episode used to be ignored outright, which meant it was never placed at all
+rather than merely waited on, silently joining the pile of things the shuffle disturbs and staying
+wherever it happened to open. _onBorn no longer checks for an open episode, it always schedules,
+and _placeNewborn is the one that waits, re arming its own timer a quiet beat plus a birth delay
+later, up to a bounded number of times, until the episode it found open has closed. The fill knows
+about this too, skipping any id still waiting in _births, since pinning a newborn at whatever frame
+it happened to open with, before its own placement ever ran, would teach the session the wrong
+thing a moment before the right one was about to arrive.
+
+## Windows on another Space are invisible to this, and that is open
+
+hs.window.allWindows() answers only the windows on the current Space, so a window sitting on
+another Space is invisible to every pass here. The restore pass's own prune drops its session
+entry as if the window had closed, since nothing distinguishes a window on another Space from one
+actually gone, and the baseline fill cannot put it back either, since it walks the exact same
+list. A window kept on a Space nobody is looking at when a dock or an unplug happens quietly loses
+whatever this engine ever remembered for it. This is named rather than fixed, since asking
+hs.window.allWindows to answer for every Space is not a switch this build can flip, and the honest
+fix needs a different way of enumerating windows that does not exist here yet.
 
 ## Deliberately independent of DisplayProfiles
 

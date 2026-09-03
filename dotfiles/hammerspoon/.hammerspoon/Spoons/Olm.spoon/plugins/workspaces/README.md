@@ -4,9 +4,11 @@ Remembers where windows belong for each display configuration and puts them back
 its own. A configuration is the geometry of the attached screens, so the same desk is
 the same desk however the monitors are plugged in, and two different desks that happen
 to present the same rectangles are treated as one. Moving a window teaches it where
-that window goes. Docking, undocking, waking, and restarting all put the windows back
-once the display geometry has stopped moving. An app launched fresh lands where it was
-last left, as long as it has one window.
+that window goes, and within a login every window on the current Space is remembered
+where it was last seen under a configuration, whether it was dragged there or not.
+Docking, undocking, waking, and restarting all put the windows back once the display
+geometry has stopped moving. An app launched fresh lands where it was last left, as
+long as it has one window.
 
 Two layers of memory sit behind that. Within one login every individual window is
 restored to its exact frame, multi window apps included. Across a restart one frame per
