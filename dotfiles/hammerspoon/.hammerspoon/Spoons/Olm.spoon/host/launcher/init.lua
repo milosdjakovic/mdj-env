@@ -112,6 +112,11 @@ local function recencyKey(item)
   -- named and exists only for that query, so remembering it would float a stale answer to
   -- the top of the next fresh open.
   if item.kind == "calc" or item.kind == "scope" then return nil end
+  -- A window row that carries its OWN dimensions is the same case a third time. It was
+  -- computed from a typed size rather than named by a binding, so it exists only for that
+  -- query and there is no identity to remember, where every other window row names one of
+  -- the bound actions this catalog lists and recency legitimately orders those.
+  if item.kind == "window" and item.size then return nil end
   if item.kind == "app" then return "app:" .. tostring(item.bundleID) end
   if item.kind == "settingsPane" then return "settingsPane:" .. tostring(item.url) end
   return item.kind .. ":" .. tostring(item.name)
@@ -1043,9 +1048,13 @@ function obj:_runItem(it)
       if a.app then a.app(it.bundleID, it.url) end
     end)
   elseif it.kind == "window" then
+    -- A window row may carry the size it means, which a computed row from a typed pair of
+    -- dimensions does and a row named by a binding does not. Every action that ignores the
+    -- argument is unaffected, and the repeating ones already read an absent first argument as
+    -- the press itself, so passing nil for a catalog row is what they always received.
     self._runTimer = hs.timer.doAfter(0.1, function()
       local fn = self._windowActions[it.name]
-      if fn then fn() end
+      if fn then fn(it.size) end
     end)
   elseif it.kind == "capture" then
     self._runTimer = hs.timer.doAfter(0.1, function()
