@@ -12,19 +12,27 @@
 --- the relay and connects. It never names the keys that open or drive it, those live in
 --- config and the root.
 ---
---- This file is the composition root and the command policy. It loads the engine and the
---- Mullvad provider, names them, and validates the provider against the contract. When the
---- CLI is not installed it logs the reason and still presents, to a single row naming the
---- missing backend and what provides it, both read from the provider's own install metadata
---- so the panel never learns the concrete tool. The engine is left unstarted in that state,
---- so a machine without Mullvad degrades to a self explaining row rather than a dead key.
---- That row is a label and not an action, since how to obtain a tool is the concern of the
---- layer above this config and no file here may answer it.
+--- This file is the composition root and the command policy. It loads the engine, loads
+--- every provider, names them, and validates each one against the contract. One provider is
+--- active at a time, chosen on a page reached from the list's own last row and remembered
+--- across reloads. When the active provider's CLI is not installed it logs the reason and
+--- still presents, to a row naming the missing backend and what provides it, both read from
+--- that provider's own install metadata so the panel never learns the concrete tool, with
+--- the provider page still beside it so the choice can be taken back. The engine is left
+--- unwired in that state, so a machine missing a backend degrades to a self explaining row
+--- rather than a dead key. That row is a label and not an action, since how to obtain a tool
+--- is the concern of the layer above this config and no file here may answer it.
 ---
---- One flat list, not a drill down. The controls and the locations live in the same list,
---- so there is no mode to switch and no second level to re-show. The location list is
---- fetched on each open so a relay update is reflected, and the list is refreshed once it
---- lands. The navigation shortcuts are wired from the main root, this spoon never names them.
+--- One backend at a time, not every backend merged. Two VPN daemons cannot usefully both
+--- hold the routes, a single action row cannot carry two tunnel states, and choosing a
+--- foreign city would then flip the daemon underneath somebody as a side effect of picking a
+--- place. So the providers are a choice rather than a union.
+---
+--- One flat list, not a drill down, with the single exception of that page. The controls and
+--- the locations live in the same list, so there is no mode to switch and no second level to
+--- re-show. The location list is fetched on each open so a relay update is reflected, and
+--- the list is refreshed once it lands. The navigation shortcuts are wired from the main
+--- root, this spoon never names them.
 ---
 --- Migrated onto host/stage, phase three of the chooser stage build, docs/BRIEF-HANDOFF.md
 --- decision eight. This file owns no chooser instance and builds no window any more. Its
@@ -57,25 +65,66 @@ end
 
 local engine = load("engine.lua")
 local contract = load("contract.lua")
--- The provider line is the one place the concrete backend is named. It is validated
--- against the contract at load, and since the single provider is not optional a gap is
--- a hard failure here rather than graceful degradation.
-local provider = load("providers/mullvad.lua")
-do
-  local ok, missing = contract.validate(provider)
+
+--------------------------------------------------------------------------------
+-- The backends (composition)
+--------------------------------------------------------------------------------
+
+-- The one place the concrete backends are named, in the order a machine with no stored
+-- choice should prefer them. Adding a backend is a new file beside these two and one line
+-- here, and nothing else in this plugin is touched.
+--
+-- A scan of the providers directory was considered and rejected. It would have made a
+-- forgotten line here impossible, which is this list's only remaining failure, but the dry
+-- contract gate loads this module against a permissive hs stub where hs.fs.dir answers
+-- another stub rather than an iterator, so the scan would hang the one gate that exists to
+-- catch mistakes of this kind. The provider page below covers most of what the scan would
+-- have, since a file that never got a line here is a row that never appears in the one
+-- place a person goes to look for it.
+local PROVIDER_FILES = { "mullvad", "ivpn" }
+
+-- The chosen backend, persisted so it survives a reload and a reboot. The provider's own
+-- file stem is what is stored, not its display name, since the name is presentation and can
+-- be reworded while the stem is the identity everything else here joins on.
+local PROVIDER_KEY = "olm.vpn.provider"
+
+-- Every provider is loaded and validated at load, and a gap is a hard failure rather than
+-- graceful degradation, since a file that cannot answer the contract is not a backend this
+-- engine can drive at all. A missing tool is an entirely different thing, answered per
+-- provider by available() and shown as a state on the page rather than raised here.
+local providers = {}
+for _, id in ipairs(PROVIDER_FILES) do
+  local module = load("providers/" .. id .. ".lua")
+  local ok, missing = contract.validate(module)
   if not ok then
-    error("Vpn: mullvad provider does not implement " .. missing .. "()")
+    error("Vpn: " .. id .. " provider does not implement " .. missing .. "()")
   end
+  providers[#providers + 1] = { id = id, module = module }
 end
 
-local cfg = nil       -- injected: opts.recency required, stagePresent and redrawPresented optional
-local available = false -- whether the provider's CLI was found at start
+local cfg = nil       -- injected: opts.recency required, the stage words optional
+local provider = nil  -- the active backend, one of the modules loaded above
+local activeId = nil  -- its file stem, the identity the page and the stored choice join on
+local available = false -- whether the active provider's CLI was found
 local cache = {}      -- the last fetched location list, filtered by the supplier
 local current = { state = "unavailable" } -- status snapshot, refreshed on open and change
 local target = nil    -- the selected relay to connect to, { countryCode, cityCode }
 local fetching = false -- status, the selected relay, and the location list are all in
                         -- flight together, so a second ask does not start any of them again
 local pending = {}    -- callbacks waiting on that fetch, so none of them is dropped
+
+-- Bumped on every switch, and checked by every async answer before it writes anything. The
+-- three reads prepare starts do not know which backend asked for them, so without this a
+-- switch mid flight lets one provider's location list land in another's cache, and lets a
+-- finished round's own countdown clear the fetching guard the new round is relying on. This
+-- is the same fence the plugin contract already describes for an async answer landing on the
+-- level that asked for it, applied to backends instead of levels.
+local generation = 0
+
+-- Defined further down, once onChange exists for them to wire, and forward declared here
+-- because the provider page's own intercept closes over switchTo while being built above
+-- the point where it can be written.
+local activate, switchTo
 
 -- The bound M.prepare gives each of its three reads before treating a leg that has not
 -- answered as gone rather than merely slow. The phase three verification rider: none of the
@@ -190,10 +239,19 @@ local function flagImage(cc)
   return emojiImage(utf8.char(base + c1, base + c2))
 end
 
--- The action glyphs. A green circle reads as go, a red one as stop.
+-- The action glyphs. A green circle reads as go, a red one as stop. The rest are the
+-- shared vocabulary the other pages in this config already use for the same meanings, so a
+-- page here reads the way the settings and browser pages do rather than inventing its own
+-- marks. Green is the live one, an empty circle is a choice that is there to be made, and
+-- the warning triangle is something this machine cannot currently reach.
 local ICON = {
   connect = "🟢",
   disconnect = "🔴",
+  back = "⬅️",
+  settings = "⚙️",
+  active = "🟢",
+  idle = "⚪",
+  warn = "⚠️",
 }
 
 --------------------------------------------------------------------------------
@@ -223,10 +281,106 @@ local function actionRow()
   return { title = title, subTitle = statusText(current), image = emojiImage(icon), item = { id = id } }
 end
 
--- The single row shown when the provider's CLI was not found at start. It names the
--- missing backend and what provides it, both read from the provider's install metadata,
--- so the panel explains the gap instead of opening empty and never names the concrete
--- tool or the platform.
+--------------------------------------------------------------------------------
+-- The provider page (a child level)
+--------------------------------------------------------------------------------
+
+-- The row that opens the provider page, and the only way into it. Last in the list on
+-- purpose. The city directly under the action row is the one used most recently, which is
+-- the whole point of that ordering, so a settings row in second place would push the thing
+-- a person actually came for down by one every single time. At the bottom it costs that
+-- nothing, and it carries the words somebody would really type when looking for it, so any
+-- of settings, config, or provider ranks it straight to the top and the placement stops
+-- mattering the moment it is wanted.
+local function settingsRow()
+  return {
+    title = "VPN provider",
+    subTitle = (provider and provider.name) or "none",
+    image = emojiImage(ICON.settings),
+    item = { id = "providers" },
+    filterText = "VPN provider providers backend settings config",
+  }
+end
+
+-- The page's own rows, Back and then one per loaded provider.
+--
+-- Three states rather than two. Active is the one driving. Installed is present and one
+-- press from driving. Not installed is a provider this config knows about and this machine
+-- cannot reach, and it is shown rather than hidden because the difference between a backend
+-- that was never written and one whose app is missing is worth being able to see. That row
+-- is built disabled, so the stage never dispatches it and it reads as a label, which means
+-- a person cannot switch to something that is not there.
+local function providerRows()
+  local out = {
+    { title = "Back", subTitle = "", image = emojiImage(ICON.back),
+      item = { nav = true, to = "back" } },
+  }
+  for _, entry in ipairs(providers) do
+    local usable = entry.module.available()
+    local mark, detail
+    if entry.id == activeId then
+      mark, detail = ICON.active, "Active"
+    elseif usable then
+      mark, detail = ICON.idle, "Installed"
+    else
+      local note = (entry.module.install or {}).note
+      mark = ICON.warn
+      detail = note and ("Not installed. " .. note) or "Not installed"
+    end
+    out[#out + 1] = {
+      title = entry.module.name or entry.id,
+      subTitle = detail,
+      image = emojiImage(mark),
+      enabled = usable,
+      item = { provider = entry.id },
+    }
+  end
+  return out
+end
+
+-- The page itself, a child presentation the stage pushes in place when the settings row is
+-- chosen, so the list swaps without a second window and Backspace pops back to the
+-- locations.
+--
+-- Choosing a provider answers "stay", so the page does not close and the highlight holds on
+-- the row that was just pressed. A page of options a person flips is not somewhere they
+-- should be ejected from, leaving is their own Backspace. Back is the one row that really is
+-- a level change, so it pops and answers plain true.
+--
+-- The matcher is off because this is a short fixed menu rather than a list to search
+-- through, and a filter here could rank the Back row away.
+local function buildProviderChild()
+  return {
+    placeholder = "Which backend drives the VPN controls",
+    matcher = false,
+    rows = providerRows,
+    -- Required on every presentation even though nothing reaches it, since both kinds of
+    -- reachable row on this level are caught by intercept below and the disabled ones are
+    -- never dispatched at all.
+    onSelect = function() end,
+    intercept = function(item)
+      if item.nav and item.to == "back" then
+        if cfg.stagePop then cfg.stagePop() end
+        return true
+      end
+      if item.provider then
+        switchTo(item.provider)
+        return "stay"
+      end
+      return false
+    end,
+  }
+end
+
+-- The single row shown when the active provider's CLI was not found. It names the missing
+-- backend and what provides it, both read from the provider's install metadata, so the
+-- panel explains the gap instead of opening empty and never names the concrete tool or the
+-- platform.
+--
+-- This used to be the whole list and therefore a dead end. It is not one any more, because
+-- the settings row is shown beside it, so a person who switches to a backend they have not
+-- installed can always reach the page again and switch back. Making that reachable is the
+-- reason this row is allowed to stay a label rather than having to grow an action.
 --
 -- Disabled on purpose, so it reads as a label rather than an action. It deliberately does
 -- not offer to install anything, because how a tool is obtained belongs to the layer above
@@ -253,18 +407,23 @@ end
 -- row appears only when the field is empty, so a query never has to filter it out. Each
 -- city row carries its country flag as the icon.
 local function rows(query)
-  if not available then return { unavailableRow() } end
+  if not available then return { unavailableRow(), settingsRow() } end
   local out = {}
   if (query or "") == "" then out[#out + 1] = actionRow() end
   for _, loc in ipairs(cache) do
     out[#out + 1] = {
       title = loc.label,
-      subTitle = loc.countryCode .. " " .. loc.cityCode,
+      -- The provider's own description of the location when it offers one, since the two
+      -- backends do not spell a place the same way and neither spelling is the general
+      -- case. One names a country and a city code, the other a gateway host, so a caller
+      -- assuming either shape would be reading one backend's vocabulary into every other.
+      subTitle = loc.detail or (loc.countryCode .. " " .. loc.cityCode),
       image = flagImage(loc.countryCode),
       item = loc,
       filterText = loc.label .. " " .. loc.countryCode,
     }
   end
+  out[#out + 1] = settingsRow()
   return out
 end
 
@@ -272,17 +431,20 @@ end
 -- Selection dispatch (command policy)
 --------------------------------------------------------------------------------
 
--- A row was chosen. Connect and Disconnect delegate to the engine, and any other row is
--- a city, so set that relay and connect. None of the three is a presentation swap, this
--- plugin's own presentation declares no intercept, so the shared stage has already closed
--- the whole way down to whatever was below it, exactly as VPN's own standalone chooser used
--- to close on any of these three before the migration.
+-- A row was chosen. Connect and Disconnect delegate to the engine, the provider row answers
+-- a child presentation the stage pushes, and any other row is a city, so set that relay and
+-- connect. Only the provider row is a level change. The other three close the stage the
+-- whole way down to whatever was below it, exactly as this tool's own standalone chooser
+-- used to close on any of them before the migration.
 local function onSelect(sel)
   if not sel then return end
   -- The unavailable row is built disabled, so this never dispatches it and there is no
   -- branch for it here. Guarded anyway, since a row arriving without a live engine would
   -- otherwise reach an engine call.
   if sel.id == "unavailable" then return end
+  -- Answering a table is what pushes a level, so this returns the page rather than opening
+  -- anything itself.
+  if sel.id == "providers" then return buildProviderChild() end
   if sel.id == "connect" then
     engine.connect()
   elseif sel.id == "disconnect" then
@@ -349,8 +511,15 @@ M.select = onSelect
 --- registers, since the presentation contract wants a plain string rather than something to
 --- call again later, and by then this plugin's own start has already resolved available, so
 --- the answer already reflects it.
+--- It names no backend and no availability any more, deliberately. This resolves once, when
+--- the plugin registers, and the presentation contract wants a plain string rather than
+--- something to call again later, so anything it said about which provider is driving or
+--- whether that provider is installed would be frozen at the moment of registration and
+--- would then quietly contradict the list the first time somebody switched. The rows say
+--- both of those things and are rebuilt every time they are asked, which is where a claim
+--- that can change belongs.
 function M.placeholder()
-  return available and "Search locations" or ((provider.name or "VPN") .. " not installed")
+  return "Search locations"
 end
 
 --- M.ready() -> boolean. Whether any locations have landed. They arrive from a process, so a
@@ -368,11 +537,20 @@ end
 --- stays exactly as is. The typed text rides along as the filter text on the one placeholder
 --- row below, so the matcher can never rank away the only row there is while the real list
 --- is still in flight.
+--- The provider page is deliberately not among these rows. A scope's own run door discards
+--- whatever select answers, so the one row whose entire job is to answer a child
+--- presentation would look live in the launcher and then do nothing at all when chosen. The
+--- page stays reachable from this tool's own list, which is the surface that can actually
+--- push a level.
 function M.scopeRows(rest, redraw)
   if rest == "" or not M.ready() then
     M.prepare(redraw)
   end
   local out = rows(rest)
+  for i = #out, 1, -1 do
+    local item = out[i].item
+    if item and item.id == "providers" then table.remove(out, i) end
+  end
   if #out == 0 and not M.ready() then
     return { { title = "Reading the locations", subTitle = "one moment",
                image = emojiImage("⏳"), enabled = false, filterText = rest } }
@@ -426,8 +604,16 @@ function M.prepare(onReady)
   if onReady then pending[#pending + 1] = onReady end
   if fetching then return end
   fetching = true
+  -- The backend this round belongs to. Every landing below is fenced against it, so a round
+  -- whose provider has since been switched away from writes nothing and counts nothing.
+  -- Both halves of that matter. Without the write fence one backend's locations land in
+  -- another's cache, and without the count fence the old round's own countdown reaches zero
+  -- and clears the fetching guard and flushes the pending list while the new round is still
+  -- in flight, which would leave the new round unable to ever finish its own bookkeeping.
+  local gen = generation
   local remaining = 3
   local function landed()
+    if gen ~= generation then return end
     remaining = remaining - 1
     if remaining > 0 then return end
     fetching = false
@@ -456,6 +642,9 @@ function M.prepare(onReady)
     local function onAnswer(...)
       if fired then return end
       fired = true
+      -- A leg answering for a backend that is no longer the active one is dropped whole,
+      -- neither applied nor counted, since landed() is fenced on the same generation.
+      if gen ~= generation then return end
       local ok, err = pcall(apply, ...)
       if not ok then
         log.w(string.format("Vpn.prepare's own apply raised for one leg of a fetch round, %s, the round still completes with whatever this leg last held", tostring(err)))
@@ -506,23 +695,138 @@ local function onChange()
   if cfg.redrawPresented then cfg.redrawPresented("vpn") end
 end
 
+--------------------------------------------------------------------------------
+-- Activation and switching
+--------------------------------------------------------------------------------
+
+-- Hand every provider the path the shared resolver found for it, by the name each provider
+-- itself declares, so this file learns neither where a tool lives nor how it is obtained.
+--
+-- Every provider, not only the active one, and that distinction is load bearing. A provider
+-- reports itself unavailable until it has been given a path, and both the provider page and
+-- the initial choice ask each provider whether it can drive. Resolving only the active one
+-- meant every other provider answered a confident false however installed it actually was,
+-- so the page read Not installed for a working backend and the initial choice fell through
+-- to the first entry in the roster rather than to the stored one. Resolving all of them once
+-- here is what makes both of those questions answerable.
+local function resolveAll()
+  for _, entry in ipairs(providers) do
+    local module = entry.module
+    module.configure({ path = cfg.deps and cfg.deps.path(module.tool) or nil })
+  end
+end
+
+-- Point everything at one backend. The paths are already resolved by the time this runs, so
+-- this only decides which provider is driving and wires the engine to it. The engine is
+-- wired only when that provider's tool is actually present, so an absent backend makes no
+-- provider calls at all and cannot stall.
+--
+-- The engine is configured but not started here, and the caller decides whether to read
+-- immediately. At load that read is wanted and costs nothing anyone is waiting on. On a
+-- switch it would be a blocking CLI spawn on the keypress that flipped the row, and the
+-- async round the switch already starts answers the same question without holding the page.
+activate = function(entry)
+  provider = entry.module
+  activeId = entry.id
+  available = provider.available()
+  if available then
+    engine.configure({ provider = provider, onChange = onChange })
+  else
+    local info = provider.install or {}
+    local name = provider.name or entry.id
+    local parts = { name .. " CLI not found, VPN controls disabled" }
+    if info.note then parts[#parts + 1] = info.note end
+    log.w(table.concat(parts, ". "))
+  end
+end
+
+-- The backend to drive at load. The stored choice when it still names a provider that can
+-- actually drive, otherwise the first one in the roster that can.
+--
+-- A fallback is deliberately not persisted. A stored choice whose app has since been
+-- removed keeps standing, so reinstalling that app puts the tool back where the person left
+-- it rather than silently making a temporary fallback permanent. When nothing at all is
+-- available the first provider is still returned, so the list opens to that one's own
+-- missing tool row with the provider page beside it rather than to nothing.
+local function chooseInitial()
+  local stored = hs.settings.get(PROVIDER_KEY)
+  for _, entry in ipairs(providers) do
+    if entry.id == stored and entry.module.available() then return entry end
+  end
+  for _, entry in ipairs(providers) do
+    if entry.module.available() then return entry end
+  end
+  return providers[1]
+end
+
+-- Switch the active backend, from the provider page and nowhere else.
+--
+-- Everything the previous backend answered is dropped, the status snapshot, the selected
+-- relay, and the whole location list, because none of it means anything under a different
+-- daemon and showing one backend's cities under another one's name would be wrong rather
+-- than merely stale. The generation bump is what makes dropping them safe while reads are
+-- still in flight, and the fence itself is documented on prepare.
+--
+-- The waiting callbacks are dropped with the rest. Each one was asking to be told when the
+-- previous backend's data landed, which is a question that no longer has an answer worth
+-- giving, and the fresh round started here carries its own redraw, so nothing is left
+-- waiting on a callback that will never come.
+switchTo = function(id)
+  if id == activeId then return end
+  local entry
+  for _, candidate in ipairs(providers) do
+    if candidate.id == id then entry = candidate end
+  end
+  -- Both guards are unreachable through the page, which never builds a row for a provider
+  -- it did not load and builds an unusable one disabled so the stage cannot dispatch it.
+  -- Kept because this function is the seam a future caller would reach for.
+  if not entry or not entry.module.available() then return end
+
+  generation = generation + 1
+  fetching = false
+  pending = {}
+  cache = {}
+  current = { state = "unavailable" }
+  target = nil
+
+  activate(entry)
+  hs.settings.set(PROVIDER_KEY, id)
+
+  -- The redraw names the top level, so it lands once the person has left the page and does
+  -- nothing while they are still on it. Nothing is lost either way, since popping back
+  -- re-asks for the rows and by then this round has already written the cache.
+  M.prepare(function()
+    if cfg.redrawPresented then cfg.redrawPresented("vpn") end
+  end)
+end
+
 --- M:configure(opts) - inject the shared theme, the ambient grant a surfaced plugin still
 --- earns even though this file no longer reads chooser or theme from it, having no
 --- Chooser.new call left to hand either to. Kept as the single wiring seam so the main root
 --- stays the one place the atoms are handed in.
 ---
---- opts.deps is the per consumer dependency adapter, also from the root. start passes the
---- path it holds to the provider, which is why nothing under this spoon probes for a CLI
---- or names a location.
+--- opts.deps is the per consumer dependency adapter, also from the root. Every activation
+--- passes the path it holds to whichever provider is becoming active, by that provider's own
+--- declared tool name, which is why nothing under this spoon probes for a CLI or names a
+--- location.
 ---
 --- opts.recency is an instance of the shared lift to front ordering service from
 --- Olm.spoon, already built against this tool's own settings key. It is required, since
 --- this copy no longer carries a recency block of its own, and a missing one is rejected
 --- loudly rather than quietly ordering nothing.
 ---
---- opts.stagePresent and opts.redrawPresented are the two root published words phase three
---- adds, both optional, both no ops when absent, M.show and onChange above say what each
---- one degrades to without the other.
+--- One instance is shared across every backend rather than one per backend, which is safe
+--- because the service partitions on whether a key is remembered and leaves everything else
+--- in arrival order, and because no two backends spell a location the same way. One says
+--- us/lax and the other says gb.wg.ivpn.net, so a key stored by one is simply never matched
+--- while the other is ordering its own list. Sharing it also means the order somebody
+--- already built up survives this change, which a per backend key would have discarded.
+--- Nothing here may call the service's own prune, which would read one backend's ids as the
+--- complete set and forget every other backend's.
+---
+--- opts.stagePresent, opts.redrawPresented, and opts.stagePop are root published words, all
+--- optional, all no ops when absent. M.show, onChange, and the provider page's own Back row
+--- say what each one degrades to without the other.
 -- Colon here, not dot, because the composition root and the live top level init.lua both
 -- reach this through the ordinary method call spoon.Vpn:configure(opts), and the shared
 -- wiring pipeline in lib/wire.lua calls every plugin's configure the same way. self arrives
@@ -547,20 +851,13 @@ end
 --- presentation block, or owned by the stage as fixed, atom level policy that never varied
 --- per presentation in the first place.
 function M:start()
-  -- Hand the provider the path the shared resolver found, by the name the provider itself
-  -- declares, so this spoon learns neither the tool's location nor how it is obtained.
-  provider.configure({ path = cfg.deps and cfg.deps.path(provider.tool) or nil })
-  available = provider.available()
-  if available then
-    engine.configure({ provider = provider, onChange = onChange })
-    engine.start()
-  else
-    local info = provider.install or {}
-    local name = provider.name or "VPN"
-    local parts = { name .. " CLI not found, VPN controls disabled" }
-    if info.note then parts[#parts + 1] = info.note end
-    log.w(table.concat(parts, ". "))
-  end
+  -- Before chooseInitial, since choosing reads every provider's own availability and a
+  -- provider that has not been handed its path yet cannot answer that honestly.
+  resolveAll()
+  activate(chooseInitial())
+  -- The one read worth doing synchronously, since nothing is waiting on it at config load
+  -- and it leaves the status line correct before the first open rather than on it.
+  if available then engine.start() end
   return M
 end
 

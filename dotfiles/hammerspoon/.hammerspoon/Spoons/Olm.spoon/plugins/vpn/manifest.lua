@@ -23,10 +23,18 @@ return {
     lib = {
       recency = { from = "recency", policy = "required" },
     },
+    -- One entry per backend, each naming its own provider as the unit, which is what keeps
+    -- a missing tool reporting the provider that wanted it rather than the whole plugin.
+    -- Both are optional for the same reason, since a person is expected to have whichever
+    -- VPN they actually pay for and not the other, and the plugin's own provider page shows
+    -- an absent one as a state rather than failing over it.
     tools = {
       { name = "mullvad", kind = "path", policy = "optional", unit = "mullvad",
         reason = "the relay CLI behind every VPN control and location",
         origin = { cask = "mullvad-vpn" } },
+      { name = "ivpn", kind = "path", policy = "optional", unit = "ivpn",
+        reason = "the CLI behind every VPN control and location on the IVPN backend",
+        origin = { cask = "ivpn" } },
     },
 
     -- Two root computed words, phase three, both published for every presenting plugin to
@@ -39,6 +47,12 @@ return {
         breaks = "this plugin's own leader key opens nothing, since M.show has no other way to reach the shared stage" },
       redrawPresented = { source = "root", policy = "optional",
         breaks = "the list stays on its last read status and location until the field is touched, since the daemon changing state no longer redraws whatever is on screen" },
+      -- The provider page is a child level, and a child returned from select can only ever
+      -- push, so its own Back row needs this to leave. Optional like the other two, and
+      -- absent it degrades to a row that stands on the level it meant to leave, with
+      -- Backspace still the way out since the stage owns that key regardless.
+      stagePop = { source = "root", policy = "optional",
+        breaks = "the provider page's own Back row stands on the page rather than returning to the locations" },
     },
   },
 

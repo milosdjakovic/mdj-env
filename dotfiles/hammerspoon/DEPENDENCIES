@@ -56,4 +56,5 @@ open | system | /usr/bin/open | optional | systemsettings/panes | opening a Syst
 tmux | path | tmux | required | tmuxsessions/engine | querying and switching every session and window, the whole reason this tool exists | brew | tmux
 open | system | /usr/bin/open | optional | tmuxsessions | launching Alacritty or WezTerm already attached to a session | macos | ships with the system
 mullvad | path | mullvad | optional | vpn/mullvad | the relay CLI behind every VPN control and location | cask | mullvad-vpn
+ivpn | path | ivpn | optional | vpn/ivpn | the CLI behind every VPN control and location on the IVPN backend | cask | ivpn
 scutil | system | /usr/sbin/scutil | optional | root/compose | reading this machine's own short name, the key every per host answer a plugin asks the root for is stored under | macos | ships with the system
