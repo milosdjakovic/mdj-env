@@ -70,7 +70,7 @@ end
 
 -- A row for the picker. The payload under item is plain data only, strings and nothing
 -- else, since a function or userdata anywhere in a row makes LuaSkin reject the whole
--- choices table, the defect LinkRouter shipped and documented. The image is the one
+-- choices table, a defect this tree has shipped once and paid for. The image is the one
 -- sanctioned userdata a row carries, drawn by the shared glyph drawer and cached there,
 -- so every row of a glyph shares one object rather than paying one drawing per row.
 local function row(title, subTitle, item, enabled, glyph)

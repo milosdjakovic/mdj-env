@@ -1977,32 +1977,6 @@ function obj.run(olm, cfg)
               return function() stageModule:push(presentation) end
             end
           end
-          -- A pasted or typed url's own pinned row, resolved the identical way the branch
-          -- above resolves a special row, by identity rather than by a name this file would
-          -- otherwise have to keep in step with the plugin's own. linkRouter.routeURL is
-          -- Change two's own door for handing the url over, and presentationFor is what
-          -- answers the same list a clicked link already shows, so choosing this row pushes
-          -- exactly that list one level down rather than this file rebuilding it by hand.
-          -- Unlike a special row, a route row has no fallback of its own inside runItem's own
-          -- kind switch, so when either name fails to resolve here the choice is a genuinely
-          -- silent no operation, the chooser has already closed and nothing runs at all,
-          -- rather than a graceful fallthrough onto some other working path.
-          if item.kind == "route" and wiredRegistry.presentationFor then
-            local linkRouterModule = modules[plan.identity.linkRouter or "linkRouter"]
-            local presentation = wiredRegistry.presentationFor("linkRouter")
-            if linkRouterModule and linkRouterModule.routeURL and presentation then
-              return function()
-                linkRouterModule.routeURL(item.url)
-                -- A refused push means linkRouter never actually joined the stack, so its own
-                -- onClose, the ordinary place pending gets cleared, is never coming. Clearing
-                -- it by hand here is what stops a refused url from sitting in pending forever,
-                -- waiting to be answered by some later, unrelated window.
-                if not stageModule:push(presentation) then
-                  linkRouterModule.routeURL(nil)
-                end
-              end
-            end
-          end
           if item.kind ~= "scope" or not queryScopeModule then return nil end
           local act = queryScopeModule:actFor(item)
           if act then return act end
