@@ -123,6 +123,38 @@ local function urlFromQuery(trimmed)
 end
 
 --------------------------------------------------------------------------------
+-- Acting on a chosen destination
+--------------------------------------------------------------------------------
+
+--- openLink(entry, url)
+--- The one door every path sends a link through, and it defers, which is the whole reason it
+--- exists rather than each caller asking the engine straight. A surface hands focus back to the
+--- application it was opened over as it hides, and that restore is queued the moment the widget
+--- is told to go. An open sent while the list is still on screen lands, the destination comes
+--- forward, and the restore takes the front away again immediately after, so the tab is there
+--- and the browser is not, which is exactly what it looked like. Sent past the teardown it
+--- holds. The launcher's own dispatcher waits the same tenth of a second for the same reason,
+--- and so does menu search before it clicks a menu.
+---
+--- The url arrives as an argument rather than being read from pending inside the deferred call,
+--- because onClose clears the waiting link as the window goes and that happens first.
+---
+--- A link a rule routes has no list open and pays a wait it does not need. That is a tenth of a
+--- second nobody can see, and one door no future path can pick wrongly is worth more than
+--- saving it.
+local function openLink(entry, url)
+  if not (entry and url) then return end
+  local send = function()
+    if not engine.open(entry, url) then
+      hs.alert.show("Could not open the link in " .. tostring(entry.label))
+    end
+  end
+  -- Every plugin is granted after, so its absence means this was never configured, and a link
+  -- is worth far more than the raise it would go out without.
+  if cfg.after then cfg.after(0.1, send) else send() end
+end
+
+--------------------------------------------------------------------------------
 -- The router, the list a waiting link is answered from
 --------------------------------------------------------------------------------
 
@@ -180,10 +212,7 @@ local function buildMoreChild()
     onSelect = function(item)
       if not item then return nil end
       if item.open then
-        local entry = engine.entryById(item.open)
-        if entry and pending and not engine.open(entry, pending) then
-          hs.alert.show("Could not open the link in " .. tostring(entry.label))
-        end
+        openLink(engine.entryById(item.open), pending)
       end
       return nil
     end,
@@ -230,9 +259,7 @@ local function buildRuleTargetChild()
         local entry = engine.entryById(item.rule)
         if host and entry then
           engine.addRule("host", host, item.rule)
-          if not engine.open(entry, pending) then
-            hs.alert.show("Could not open the link in " .. tostring(entry.label))
-          end
+          openLink(entry, pending)
         end
         if cfg.stageHide then cfg.stageHide() end
         return true
@@ -431,12 +458,7 @@ function M.select(item)
   if item.nav == "ruleTarget" then return buildRuleTargetChild() end
   if item.nav == "more" then return buildMoreChild() end
   if item.open then
-    local entry = engine.entryById(item.open)
-    if entry and pending then
-      if not engine.open(entry, pending) then
-        hs.alert.show("Could not open the link in " .. tostring(entry.label))
-      end
-    end
+    openLink(engine.entryById(item.open), pending)
   end
   if item.copy and pending then
     hs.pasteboard.setContents(pending)
@@ -512,6 +534,7 @@ function M:configure(opts)
   cfg.stageHide = opts.stageHide
   cfg.redrawPresented = opts.redrawPresented
   cfg.stagePop = opts.stagePop
+  cfg.after = opts.after
   engine.configure({ providers = providers, contract = contract, deps = opts.deps })
   return self
 end
@@ -539,9 +562,7 @@ function M:start()
     -- The rules are asked before anything is shown, which is the whole point of a rule.
     local routed = engine.routeFor(fullURL, sender)
     if routed then
-      if not engine.open(routed, fullURL) then
-        hs.alert.show("Could not open the link in " .. tostring(routed.label))
-      end
+      openLink(routed, fullURL)
       return
     end
 

@@ -237,6 +237,34 @@ one name the query door cannot be talked out of wanting. The fix is renaming the
 free to be renamed, the presentation's own member is now `presentationRows`, and the query door
 keeps the bare name, since that is the only name it is ever asked by.
 
+## Why the link goes out a tenth of a second late
+
+Choosing a destination opened the tab and left the browser behind whatever was in front, so the
+link had plainly worked and nothing had come forward to show it. The open was not the problem
+and neither was the destination. A chooser hands focus back to the application it was opened
+over when it hides, and `lib/chooser/providers/native.lua` says so in its own dismissal path,
+the hide queues that restore first. So an open sent from inside a selection lands, the browser
+becomes frontmost, and the restore that was already queued takes the front straight back. The
+tab is real and the raise is undone.
+
+This is the same finding browsertabs' own `CLAUDE.md` records for a raise sent before its
+provider answered, and it is why `host/launcher/init.lua` waits a tenth of a second in every
+branch of its dispatcher and why menu search waits before clicking a menu item. Here the wait
+sits in one place, `openLink` in `init.lua`, which every path now goes through, the router's own
+rows, the More level, a rule being made, and a rule already stored. The url is handed to it as
+an argument rather than read from `pending` inside the deferred call, because `onClose` clears
+the waiting link as the window goes and that happens first.
+
+The rule path has no list open and waits for nothing, which was the one argument for a second
+undeferred door. A tenth of a second nobody can see is cheaper than a door a future path can
+pick wrongly, so there is one door.
+
+Nothing here raises the destination itself. The open already asks for the front, measured
+elsewhere in this tree, the capture plugin passes `-g` specifically to stop `open` foregrounding
+macshot and system settings names the same behavior. So the front was never missing, it was
+being taken back, and an explicit raise on top would be a second answer to a question already
+answered.
+
 ## A trap for other plugins in this spoon
 
 `hs.urlevent.openURL` resolves the system default handler and opens the url through it. Once
