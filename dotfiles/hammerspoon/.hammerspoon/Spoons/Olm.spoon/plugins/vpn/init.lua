@@ -13,10 +13,10 @@
 ---
 --- The connect row names a place on either backend, and it does so because the place is an
 --- argument this file hands to connect rather than something it reads back off a daemon. Where
---- that argument comes from is this file's own policy, the backend's own published selection
---- when it has one and this tool's own record of the last place it was asked for when it does
---- not, so the wording no longer depends on a backend happening to publish a reader that only
---- one of them has.
+--- that argument comes from is this file's own policy, three sources in order, the backend's
+--- own published selection when it has one, this tool's own record of the last place it was
+--- asked for, then the recency order it has always kept, so the wording no longer depends on a
+--- backend happening to publish a reader that only one of them has.
 ---
 --- This file is the composition root and the command policy. It loads the engine, loads
 --- every provider, names them, and validates each one against the contract. One provider is
@@ -205,14 +205,41 @@ local function rememberTarget(loc)
   hs.settings.set(TARGET_KEY, all)
 end
 
--- Where a connect goes, from the two sources in order. A backend that publishes its own
+-- The last place chosen on this backend, recovered from the recency order rather than from the
+-- store above. The two hold the same fact, a place this tool was asked for, and they differ
+-- only in what they keep of it, an ordering of ids against a whole descriptor, so reading this
+-- one is not a guess about the daemon any more than reading the other is.
+--
+-- It is filtered through the loaded locations, which is what keeps one backend's history out of
+-- another's answer. The recency instance is shared across backends and no two of them spell a
+-- location the same way, so a key stored by one simply never matches while the other is looking
+-- at its own list, the same property the shared instance already relied on to be safe.
+--
+-- Answers nothing until the list has landed, since a remembered id is only a place once there
+-- is something to match it against, which is why the list leg asks again when it arrives.
+local function recentTarget()
+  if not cfg.recency or #cache == 0 then return nil end
+  local best, bestRank
+  for _, loc in ipairs(cache) do
+    local rank = cfg.recency.rankOf(loc.id)
+    if rank and (not bestRank or rank < bestRank) then best, bestRank = loc, rank end
+  end
+  if not best then return nil end
+  return { countryCode = best.countryCode, cityCode = best.cityCode, label = best.label }
+end
+
+-- Where a connect goes, from the three sources in order. A backend that publishes its own
 -- selection wins, since that one is read live and follows a change made in the backend's own
--- app, and the remembered choice answers for a backend that publishes none. Nil from both is
--- a machine that has never connected to a place through this tool, which is the one case left
--- where the row cannot name one.
+-- app. The remembered choice answers for a backend that publishes none. The recency order
+-- answers when neither does, which is a machine that used this tool before the store existed,
+-- since the order it kept is a record of the same choices and there is no reason to make
+-- somebody teach the tool a place it already knows.
+--
+-- Nil from all three is a machine that has never chosen a place here at all, which is the one
+-- case left where the row cannot name one.
 local function targetFrom(read)
   if read then return read end
-  return storedTarget()
+  return storedTarget() or recentTarget()
 end
 
 --------------------------------------------------------------------------------
@@ -750,6 +777,12 @@ function M.prepare(onReady)
   local onTarget, targetTimeout = landedGate(function(loc) target = targetFrom(loc) end)
   local onList, listTimeout = landedGate(function(list)
     cache = cfg.recency.order(list or {}, function(loc) return loc.id end)
+    -- The recency rung of the target can only answer once the list is here, since it recovers a
+    -- place by matching a remembered id against this backend's own locations. The target leg
+    -- races this one and may well land first, so a target still empty at this point is asked
+    -- again now that there is something to match against. Guarded on being empty, so a real
+    -- answer from either rung above is never overwritten by this one.
+    if not target then target = recentTarget() end
   end)
   fetchTimers[1] = hs.timer.doAfter(FETCH_TIMEOUT, statusTimeout)
   fetchTimers[2] = hs.timer.doAfter(FETCH_TIMEOUT, targetTimeout)
