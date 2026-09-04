@@ -24,6 +24,21 @@ beyond them. `selectedLocation` is worth adding only when the backend really doe
 readable selection, and leaving it out costs the tool nothing it cannot recover, since the
 target it would have answered is remembered here anyway.
 
+Nothing about naming a place is the new backend's job. It implements `connect(target, cb)` like
+the others and the row names where it is going, because the target comes from this plugin's own
+policy rather than from anything the provider reports. No file here names a backend except the
+roster line above, so there is no per backend wording to write and no branch to add.
+
+`contract.validate` checks arity as well as existence, and that is there for one specific
+mistake. `connect` used to take the callback first, so a provider written that way, or a new one
+copied from an older example, declares `connect(cb)` and passes every existence check there is.
+Nothing then goes wrong loudly, the provider reads the target as its callback and the whole
+connect goes quietly sideways. A method that takes a callback and declares no parameters is the
+same silence, it simply never reports. What arity cannot prove is that a provider HONOURS the
+target it accepts, so one that takes the argument and ignores it is still possible and no load
+time check will find it. That is the real remaining gap and it is named rather than papered
+over.
+
 A scan of `providers/` was considered instead of that roster line, so a forgotten line would
 be impossible. It was rejected because the dry contract gate loads this module against a
 permissive `hs` stub where `hs.fs.dir` answers another stub rather than an iterator, so the

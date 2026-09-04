@@ -3,7 +3,7 @@
 --- init.lua. It is added now because the engine is a real consumer, not up front. In
 --- a dynamic language a contract is a documented set of required methods plus a
 --- validation step, not a compiled interface, so validate checks the shape once at
---- load. It returns (ok, missing) rather than throwing, a soft shape the composition root
+--- load. It returns (ok, gap) rather than throwing, a soft shape the composition root
 --- in init.lua acts on to decide what a gap means. There a gap is a hard load time failure,
 --- since a provider that cannot answer the five required methods is not a backend this
 --- engine can drive at all.
@@ -68,15 +68,53 @@ local M = {}
 
 M.requiredMethods = { "available", "status", "connect", "disconnect", "listLocations" }
 
---- contract.validate(provider) -> ok, missing
---- Return true when the provider is a table carrying every required method, or false
---- and the name of the first gap (or "not a table"). Never throws, so the caller owns
---- the failure policy.
+-- How many arguments a required method must accept, for the ones that take any. A name absent
+-- from this table takes none and is checked for existence alone.
+--
+-- Arity is checked because existence alone let the one mistake that matters through silently.
+-- connect used to take the callback first, and a provider still written that way, or a new one
+-- copied from an older example, declares connect(cb) and passes every existence check there is.
+-- Nothing then goes wrong loudly. The caller hands it a target and a callback, the provider
+-- reads the target as its callback, and a connect either aims at a callback or calls a place,
+-- with no error and nothing in the console. The same silence applies to a callback taking method
+-- declared with no parameters at all, which simply never reports and leaves the status line
+-- standing on whatever it last read.
+--
+-- This is what a contract can actually enforce in a dynamic language, the shape of the call
+-- rather than the meaning of it. It cannot prove a provider HONOURS the target it accepts, only
+-- that it accepts one, so a provider that takes the argument and ignores it is still possible
+-- and is a defect no load time check will find. What is checkable is checked, and the gap is
+-- named here rather than left to be discovered.
+M.requiredArity = {
+  connect = 2,        -- target, cb
+  disconnect = 1,     -- cb
+  listLocations = 1,  -- cb
+}
+
+--- contract.validate(provider) -> ok, gap
+--- Return true when the provider is a table carrying every required method at the arity that
+--- method is stated to take, or false and one phrase naming the first gap, written to read as
+--- the tail of a sentence the caller opens. Never throws, so the caller owns the failure policy.
+---
+--- A variadic method is accepted whatever it declares, since a provider forwarding its
+--- arguments cannot state a count, and a method declaring MORE parameters than required is
+--- accepted too, since ignoring a trailing argument is that provider's own business. Only
+--- declaring too few is refused, which is the one shape that reads a caller's arguments in the
+--- wrong slots.
 function M.validate(provider)
-  if type(provider) ~= "table" then return false, "not a table" end
+  if type(provider) ~= "table" then return false, "the provider is not a table" end
   for _, name in ipairs(M.requiredMethods) do
-    if type(provider[name]) ~= "function" then
-      return false, name
+    local fn = provider[name]
+    if type(fn) ~= "function" then
+      return false, name .. "() is missing"
+    end
+    local wanted = M.requiredArity[name]
+    if wanted then
+      local info = debug.getinfo(fn, "u")
+      if info and not info.isvararg and (info.nparams or 0) < wanted then
+        return false, string.format("%s() must accept %d argument(s) and declares %d",
+                                    name, wanted, info.nparams or 0)
+      end
     end
   end
   return true
