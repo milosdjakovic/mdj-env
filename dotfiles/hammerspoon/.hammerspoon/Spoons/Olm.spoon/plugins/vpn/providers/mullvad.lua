@@ -12,7 +12,7 @@
 --- swap read as the swap stalling rather than as the tool opening, since the window that
 --- used to hide the cost by already being closed no longer closes first. Both pairs share
 --- one parse function each, so the synchronous and the asynchronous reads can never answer
---- the identical CLI output two different ways. connect, disconnect, setLocation, and the
+--- the identical CLI output two different ways. connect, disconnect, and the
 --- relay list were already off the main thread, through hs.task, and still are.
 ---
 --- Every hs.task spawn in this file now checks its own start() return, the phase three
@@ -124,11 +124,12 @@ end
 -- the task object it got back from hs.task.new regardless, so a launch failure left the
 -- callback never called at all, silently.
 --
--- Adversarial review finding L3. None of connect, disconnect, or setLocation in
--- plugins/vpn/init.lua pass a callback at their three call sites today, so cb is nil at every
--- one of them and this branch answers nobody in practice yet. The guard is written for a
--- future caller that does pass one, and it is correct and worth keeping, but nothing in this
--- tree currently reads what it answers.
+-- Adversarial review finding L3. Neither connect nor disconnect in plugins/vpn/init.lua passes
+-- a callback at any of its call sites today, so cb is nil at every one of them and this branch
+-- answers nobody in practice yet. The guard is written for a future caller that does pass one,
+-- and it is correct and worth keeping, but nothing in this tree currently reads what it
+-- answers. The engine does hand its own refresh thunk down as cb, so the branch is reached,
+-- it just has nothing to report to.
 local function runAsync(args, cb)
   if not cli then
     if cb then cb(false, "mullvad not installed") end
@@ -181,22 +182,31 @@ function M.selectedLocationAsync(cb)
   end
 end
 
-function M.connect(cb) runAsync({ "connect" }, cb) end
 function M.disconnect(cb) runAsync({ "disconnect" }, cb) end
 
--- Select a relay and go there. Setting the location constraint alone does not
--- connect when the tunnel is down, so this sets the location and then connects, which
--- also switches an already connected tunnel to the new place. The callback reports the
--- connect result.
-function M.setLocation(country, city, cb)
-  local args = { "relay", "set", "location", country }
-  if city and city ~= "" then args[#args + 1] = city end
+-- Bring the tunnel up at target, which for this backend is two commands rather than one.
+-- Setting the location constraint alone does not connect while the tunnel is down, and
+-- connecting alone goes to whatever constraint is already stored, so a target is written
+-- first and then the connect is issued, which is also how an already connected tunnel is
+-- switched to a new place. The callback reports the connect result.
+--
+-- A nil target skips the write and connects on the stored constraint, this backend's own
+-- answer to go wherever you would go on your own. That is the same command the target path
+-- ends with, so both branches share it rather than spelling the connect twice.
+function M.connect(target, cb)
+  local function connectNow() runAsync({ "connect" }, cb) end
+  if not (target and target.countryCode) then
+    connectNow()
+    return
+  end
+  local args = { "relay", "set", "location", target.countryCode }
+  if target.cityCode and target.cityCode ~= "" then args[#args + 1] = target.cityCode end
   runAsync(args, function(ok, err)
     if not ok then
       if cb then cb(false, err) end
       return
     end
-    M.connect(cb)
+    connectNow()
   end)
 end
 

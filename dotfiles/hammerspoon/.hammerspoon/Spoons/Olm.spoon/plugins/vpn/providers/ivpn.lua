@@ -14,15 +14,17 @@
 --- contract stopped requiring it. Mullvad holds a persistent location constraint that can
 --- be read back while disconnected, so it can say where a connect would go. IVPN holds no
 --- such thing. Its own answer to that question lives in a root owned settings file this
---- layer may not read, and the CLI exposes no reader for it. Faking one would mean
---- guessing, so the honest result is that the action row reads a bare Connect while
---- disconnected rather than naming a place it cannot actually know.
+--- layer may not read, and the CLI exposes no reader for it, which was rechecked against the
+--- tool rather than assumed. Its status prints nothing about a location while the tunnel is
+--- down, and no subcommand reports the last used parameters that connect -last acts on.
+--- Faking one would mean guessing, so the method stays absent.
 ---
---- What the missing constraint costs connect is that a bare connect has nothing to aim at,
---- so connect asks the CLI for the last used parameters instead. On a machine that has
---- never connected there are none and the command reports that, which is correct and
---- self limiting, since choosing a city is the normal first move anyway and every connect
---- after it has a last to return to.
+--- What that absence used to cost is gone, and it went by moving the question rather than by
+--- answering it. connect takes the target as an argument now, so where a connect is going is
+--- something the caller states rather than something this file has to read back, and a caller
+--- holding its own record of the last place it was asked for gets a named connect on this
+--- backend exactly as it does on the other one. The nil target path below is what remains of
+--- the old behaviour, the fallback now rather than the only thing available.
 
 local M = {}
 
@@ -190,31 +192,34 @@ local function runAsync(args, cb)
   end
 end
 
--- Connect with the last used parameters, since this backend keeps no readable selection to
--- aim a bare connect at. The header of this file says what that costs and why the
--- alternative was rejected.
-function M.connect(cb) runAsync({ "connect", "-last" }, cb) end
-
-function M.disconnect(cb) runAsync({ "disconnect" }, cb) end
-
---- M.setLocation(countryCode, cityCode, cb) - go to that location. The plugin hands back
---- the two codes off the row this provider itself produced, so cityCode is the full gateway
---- hostname this provider put there. It is matched against the server hostname rather than
---- against a city or a country name, because those are ambiguous in this CLI's own
---- vocabulary and a hostname is not. A country filter of us matches every American city, and
---- even a gateway prefix is ambiguous, us-ca being a prefix of both us-ca and us-ca-sjc, so
---- the full hostname is the only filter that names exactly one server.
+--- M.connect(target, cb) - bring the tunnel up at target. The caller hands back the two codes
+--- off the row this provider itself produced, so cityCode is the full gateway hostname this
+--- provider put there. It is matched against the server hostname rather than against a city or
+--- a country name, because those are ambiguous in this CLI's own vocabulary and a hostname is
+--- not. A country filter of us matches every American city, and even a gateway prefix is
+--- ambiguous, us-ca being a prefix of both us-ca and us-ca-sjc, so the full hostname is the
+--- only filter that names exactly one server.
 ---
 --- One command, not two. Unlike the other backend there is no separate constraint to set
---- before connecting, connect takes the location directly and switching an already
---- connected tunnel is the same command.
-function M.setLocation(_, cityCode, cb)
-  if not cityCode or cityCode == "" then
-    if cb then cb(false, "no location given") end
+--- before connecting, connect takes the location directly and switching an already connected
+--- tunnel is the same command.
+---
+--- A nil target falls back to the last used parameters the daemon itself holds, which is all
+--- this backend can offer for go wherever you would go on your own, since it exposes no reader
+--- for what those parameters are. It is reached only when the caller has never named a place
+--- through this tool, and on a machine that has never connected at all the CLI reports that it
+--- has no last, which is correct and self limiting, since choosing a location is the normal
+--- first move anyway.
+function M.connect(target, cb)
+  local host = target and target.cityCode
+  if host and host ~= "" then
+    runAsync({ "connect", "-l", host }, cb)
     return
   end
-  runAsync({ "connect", "-l", cityCode }, cb)
+  runAsync({ "connect", "-last" }, cb)
 end
+
+function M.disconnect(cb) runAsync({ "disconnect" }, cb) end
 
 --------------------------------------------------------------------------------
 -- Locations
@@ -234,8 +239,8 @@ end
 -- joining the whole city text to the country name rather than by splitting on commas.
 --
 -- The id is the gateway hostname, which is stable, unique, and the same thing the connect
--- filter takes. cityCode carries it too, since that is the argument setLocation above needs
--- and the plugin passes exactly those two codes back. detail carries it a third time as the
+-- filter takes. cityCode carries it too, since that is what connect above reads off a target
+-- and the caller hands exactly those two codes back. detail carries it a third time as the
 -- row's own subtitle text, which is the provider describing its location in its own
 -- vocabulary rather than the plugin assuming every backend spells one the same way.
 local function parseServers(output)

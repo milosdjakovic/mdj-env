@@ -3,14 +3,20 @@
 --- A VPN control tool. It presents a single merged list of the controls and the location
 --- search as one flat list, into the shared stage every presenting tool now shows through.
 --- The first row is the action that fits the live state, its title naming the place,
---- Disconnect from where the tunnel is when it is up and Connect to the selected relay when
---- it is down, with the live state word and the provider in its subtitle. Every city the
---- provider offers follows below it, ordered most recently used first so the last place you
---- connected to leads and the action row stays pinned above them all. Typing filters the
---- cities, and once a filter is present the action row drops out so selecting the top row
---- connects to the top matching city rather than toggling the tunnel. Choosing a city sets
---- the relay and connects. It never names the keys that open or drive it, those live in
---- config and the root.
+--- Disconnect from where the tunnel is when it is up and Connect to where it would go when it
+--- is down, with the live state word and the provider in its subtitle. Every city the provider
+--- offers follows below it, ordered most recently used first so the last place you connected
+--- to leads and the action row stays pinned above them all. Typing filters the cities, and
+--- once a filter is present the action row drops out so selecting the top row connects to the
+--- top matching city rather than toggling the tunnel. Choosing a city connects to it. It never
+--- names the keys that open or drive it, those live in config and the root.
+---
+--- The connect row names a place on either backend, and it does so because the place is an
+--- argument this file hands to connect rather than something it reads back off a daemon. Where
+--- that argument comes from is this file's own policy, the backend's own published selection
+--- when it has one and this tool's own record of the last place it was asked for when it does
+--- not, so the wording no longer depends on a backend happening to publish a reader that only
+--- one of them has.
 ---
 --- This file is the composition root and the command policy. It loads the engine, loads
 --- every provider, names them, and validates each one against the contract. One provider is
@@ -88,6 +94,19 @@ local PROVIDER_FILES = { "mullvad", "ivpn" }
 -- be reworded while the stem is the identity everything else here joins on.
 local PROVIDER_KEY = "olm.vpn.provider"
 
+-- Where the last place this tool was asked to connect to is remembered, per backend, so a
+-- backend that cannot say where a bare connect would go still has a place to name. One key
+-- holding a table under each provider's own file stem rather than a key per provider, since
+-- the stems are whatever the roster happens to hold and this file mints no name for them.
+--
+-- This is the plugin's own record of what it did, not a read of the daemon, and the two are
+-- worth keeping apart. A backend that publishes a selection of its own is still asked first,
+-- since that one is authoritative and follows a change made in the backend's own app. This is
+-- what answers when there is no such reader, and it is honest for a different reason, the row
+-- hands its target to connect rather than hoping the daemon agrees, so what the title says is
+-- what the action does.
+local TARGET_KEY = "olm.vpn.target"
+
 -- Every provider is loaded and validated at load, and a gap is a hard failure rather than
 -- graceful degradation, since a file that cannot answer the contract is not a backend this
 -- engine can drive at all. A missing tool is an entirely different thing, answered per
@@ -108,7 +127,7 @@ local activeId = nil  -- its file stem, the identity the page and the stored cho
 local available = false -- whether the active provider's CLI was found
 local cache = {}      -- the last fetched location list, filtered by the supplier
 local current = { state = "unavailable" } -- status snapshot, refreshed on open and change
-local target = nil    -- the selected relay to connect to, { countryCode, cityCode }
+local target = nil    -- where a connect goes, { countryCode, cityCode }, nil for nowhere named
 local fetching = false -- status, the selected relay, and the location list are all in
                         -- flight together, so a second ask does not start any of them again
 local pending = {}    -- callbacks waiting on that fetch, so none of them is dropped
@@ -160,6 +179,43 @@ local fetchTimers = {}
 -- with nothing else to say.
 
 --------------------------------------------------------------------------------
+-- The connect target (command policy)
+--------------------------------------------------------------------------------
+
+-- The remembered target for whichever backend is active, or nil when this tool has never
+-- connected to a place on it. Shape checked rather than trusted, since a settings file is
+-- editable by hand and a table with no countryCode would reach the label and the action as a
+-- target that names nothing.
+local function storedTarget()
+  local all = hs.settings.get(TARGET_KEY)
+  if type(all) ~= "table" then return nil end
+  local t = all[activeId]
+  if type(t) ~= "table" or not t.countryCode then return nil end
+  return t
+end
+
+-- Remember a chosen location as the active backend's target. The label is kept beside the two
+-- codes on purpose, since it was produced by the very row the person chose and the codes on
+-- their own cannot be turned back into words until the location list has landed, which is
+-- exactly the moment the action row is first drawn.
+local function rememberTarget(loc)
+  local all = hs.settings.get(TARGET_KEY)
+  if type(all) ~= "table" then all = {} end
+  all[activeId] = { countryCode = loc.countryCode, cityCode = loc.cityCode, label = loc.label }
+  hs.settings.set(TARGET_KEY, all)
+end
+
+-- Where a connect goes, from the two sources in order. A backend that publishes its own
+-- selection wins, since that one is read live and follows a change made in the backend's own
+-- app, and the remembered choice answers for a backend that publishes none. Nil from both is
+-- a machine that has never connected to a place through this tool, which is the one case left
+-- where the row cannot name one.
+local function targetFrom(read)
+  if read then return read end
+  return storedTarget()
+end
+
+--------------------------------------------------------------------------------
 -- Status wording and location labels (command policy)
 --------------------------------------------------------------------------------
 
@@ -187,10 +243,16 @@ local function connectedLabel(s)
   return s.hostname
 end
 
--- The selected relay resolved to a human label. The constraint gives only codes, so it is
--- matched against the loaded city list to recover the City, Country name, a country only
--- constraint resolving to the country name. Before the list lands, or when no match is
--- found, the raw codes stand in so the title is never blank. Nil when nothing is selected.
+-- The target resolved to a human label, from three sources in that order. The loaded city
+-- list first, since a live match is the freshest wording and a country only target resolves
+-- there to the country name. Then a label the target carries, which a remembered one does,
+-- since it was taken off the very row that was chosen. Then the raw codes, so the title is
+-- never blank. Nil only when there is no target at all.
+--
+-- The carried label is what makes this read properly before the city list has landed, which
+-- is exactly when the action row is first drawn. Without it a backend whose cityCode is a
+-- gateway host would spell that host into the title for the first moment of every open, and
+-- upper cased at that, so the row would read as gibberish and then quietly correct itself.
 local function targetLabel(t)
   if not t then return nil end
   for _, loc in ipairs(cache) do
@@ -198,6 +260,7 @@ local function targetLabel(t)
       return t.cityCode and loc.label or loc.country
     end
   end
+  if t.label then return t.label end
   if t.cityCode then return t.cityCode:upper() .. ", " .. t.countryCode:upper() end
   return t.countryCode:upper()
 end
@@ -268,17 +331,28 @@ local ICON = {
 -- top match rather than toggling the tunnel.
 local function actionRow()
   local up = current.state == "connected" or current.state == "connecting"
-  local title, id, icon
   if up then
     local where = connectedLabel(current)
-    title = where and ("Disconnect from " .. where) or "Disconnect"
-    id, icon = "disconnect", ICON.disconnect
-  else
-    local where = targetLabel(target)
-    title = where and ("Connect to " .. where) or "Connect"
-    id, icon = "connect", ICON.connect
+    return {
+      title = where and ("Disconnect from " .. where) or "Disconnect",
+      subTitle = statusText(current),
+      image = emojiImage(ICON.disconnect),
+      item = { id = "disconnect" },
+    }
   end
-  return { title = title, subTitle = statusText(current), image = emojiImage(icon), item = { id = id } }
+  -- The connect row carries the target it just named, so the place in the title and the place
+  -- the action goes are one value rather than two reads of it. A live status change redraws
+  -- this row anyway, so nothing goes stale, but reading the target a second time at the press
+  -- would leave a window, however small, where the row promised one place and delivered
+  -- another. Nil rides along as an absent field, which connect already reads as go wherever
+  -- this backend would go on its own.
+  local where = targetLabel(target)
+  return {
+    title = where and ("Connect to " .. where) or "Connect",
+    subTitle = statusText(current),
+    image = emojiImage(ICON.connect),
+    item = { id = "connect", target = target },
+  }
 end
 
 --------------------------------------------------------------------------------
@@ -432,10 +506,16 @@ end
 --------------------------------------------------------------------------------
 
 -- A row was chosen. Connect and Disconnect delegate to the engine, the provider row answers
--- a child presentation the stage pushes, and any other row is a city, so set that relay and
--- connect. Only the provider row is a level change. The other three close the stage the
--- whole way down to whatever was below it, exactly as this tool's own standalone chooser
--- used to close on any of them before the migration.
+-- a child presentation the stage pushes, and any other row is a city, so connect to it. Only
+-- the provider row is a level change. The other three close the stage the whole way down to
+-- whatever was below it, exactly as this tool's own standalone chooser used to close on any of
+-- them before the migration.
+--
+-- Both connecting rows go through the one door and differ only in the target they hand it, the
+-- action row passing the place it named and a city row passing itself. Choosing a city is also
+-- what teaches this tool where a later bare connect should go, which is why the remember sits
+-- beside the recency lift rather than inside the engine or a provider, both of which stay
+-- ignorant of what was chosen last.
 local function onSelect(sel)
   if not sel then return end
   -- The unavailable row is built disabled, so this never dispatches it and there is no
@@ -446,14 +526,15 @@ local function onSelect(sel)
   -- anything itself.
   if sel.id == "providers" then return buildProviderChild() end
   if sel.id == "connect" then
-    engine.connect()
+    engine.connect(sel.target)
   elseif sel.id == "disconnect" then
     engine.disconnect()
   else
-    -- A city was chosen, so lift it to the front of the recency order before connecting,
-    -- so it leads the cities on the next open.
+    -- A city was chosen, so lift it to the front of the recency order before connecting, so it
+    -- leads the cities on the next open, and record it as where a bare connect goes from now on.
     cfg.recency.touch(sel.id)
-    engine.setLocation(sel.countryCode, sel.cityCode)
+    rememberTarget(sel)
+    engine.connect({ countryCode = sel.countryCode, cityCode = sel.cityCode })
   end
 end
 
@@ -666,7 +747,7 @@ function M.prepare(onReady)
   -- for a wrong and confident one. Stale beats hanging, which is the whole rider, and stale
   -- beats confidently wrong too.
   local onStatus, statusTimeout = landedGate(function(status) current = status end)
-  local onTarget, targetTimeout = landedGate(function(loc) target = loc end)
+  local onTarget, targetTimeout = landedGate(function(loc) target = targetFrom(loc) end)
   local onList, listTimeout = landedGate(function(list)
     cache = cfg.recency.order(list or {}, function(loc) return loc.id end)
   end)
@@ -691,7 +772,7 @@ end
 -- eight of the handoff brief.
 local function onChange()
   current = engine.status()
-  target = engine.selectedLocation()
+  target = targetFrom(engine.selectedLocation())
   if cfg.redrawPresented then cfg.redrawPresented("vpn") end
 end
 

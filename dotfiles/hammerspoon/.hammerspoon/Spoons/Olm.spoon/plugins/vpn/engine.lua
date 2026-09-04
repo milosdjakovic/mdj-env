@@ -64,26 +64,31 @@ function M.statusAsync(cb)
   provider.statusAsync(function(status) if cb then cb(status or { state = "unavailable" }) end end)
 end
 
--- An action runs through the provider off the main thread, then refreshes when it
--- lands so the status line follows. The provider appends its own completion callback,
--- so this passes the leading arguments and one refresh thunk.
-local function run(method, ...)
+-- The two actions. Each delegates and then refreshes when it lands, so the status line
+-- follows what the daemon actually did rather than what was asked of it.
+--
+-- Written out rather than driven through one varargs helper, which is what used to sit here.
+-- A nil target is an ordinary argument now, go wherever this backend would go on its own, and
+-- a nil in a varargs table is invisible to the length operator, so the helper would have
+-- packed no arguments at all and handed the refresh thunk to connect as its target. Two
+-- explicit lines cost nothing and cannot do that.
+function M.connect(target)
   if not provider then return end
-  local args = { ... }
-  args[#args + 1] = function() refresh() end
-  provider[method](table.unpack(args))
+  provider.connect(target, function() refresh() end)
 end
 
-function M.connect() run("connect") end
-function M.disconnect() run("disconnect") end
-function M.setLocation(country, city) run("setLocation", country, city) end
+function M.disconnect()
+  if not provider then return end
+  provider.disconnect(function() refresh() end)
+end
 
 function M.listLocations(cb)
   if provider then provider.listLocations(cb) end
 end
 
--- The relay the tunnel would use on connect, read live from the provider so the disconnected
--- label can name where a connect would go. Synchronous, kept for a caller off the hot path.
+-- The relay this backend would use for a connect with no target, read live from the provider
+-- so a caller with no target of its own can still name where a connect would go. Synchronous,
+-- kept for a caller off the hot path.
 --
 -- Probed for rather than called outright, since the contract stopped requiring it. A backend
 -- that holds no readable selection omits the method entirely, and nil here is the same answer

@@ -19,6 +19,11 @@ A new file in `providers/`, one line in `PROVIDER_FILES` in `init.lua`, one entr
 half, a `DEPENDENCIES.map` line and a `Brewfile` entry. Nothing else in the plugin is
 touched, and the page picks the new backend up on its own.
 
+The five required methods are the ones every VPN genuinely has, and a new backend owes nothing
+beyond them. `selectedLocation` is worth adding only when the backend really does publish a
+readable selection, and leaving it out costs the tool nothing it cannot recover, since the
+target it would have answered is remembered here anyway.
+
 A scan of `providers/` was considered instead of that roster line, so a forgotten line would
 be impossible. It was rejected because the dry contract gate loads this module against a
 permissive `hs` stub where `hs.fs.dir` answers another stub rather than an iterator, so the
@@ -59,18 +64,59 @@ CLI exposes no reader for it. A method only one backend can answer is not a cont
 an interface extracted from a single implementation, so requiring it would force every future
 provider to invent an answer it does not have.
 
-What that costs is visible and was accepted rather than hidden. On IVPN the disconnected
-action row reads a bare `Connect` instead of naming a place. Falling back to the top of the
-recency list was rejected, since that is a guess rather than a read and it goes wrong the
-moment somebody connects from IVPN's own app. For the same reason IVPN's own `connect` asks
-the CLI for the last used parameters, which is the honest equivalent and is self limiting,
-because choosing a location is the normal first move anyway and every connect after it has a
-last to return to.
-
 The other shape change is `detail` on a location entry, optional, the provider's own subtitle
 text for a location. The two backends do not spell a place the same way, one naming a country
 and a city code and the other a gateway host, and neither spelling is the general case, so a
 caller assuming either would be reading one backend's vocabulary into every other.
+
+## Where a connect goes is stated, not read back
+
+An earlier version of this file recorded that a bare `Connect` on IVPN was an accepted cost of
+the shrunken contract, since only one backend could say where a connect would go. That cost is
+gone, and the way it went is worth knowing, because the obvious fix was the wrong one and was
+correctly rejected at the time.
+
+The rejected fix was to guess the missing read, falling back to the top of the recency list and
+calling it the selection. That is wrong for the reason it was refused. It claims to know
+something about the daemon that it does not, and it goes wrong the moment somebody connects
+from the backend's own app. Asking the CLI harder is not available either, which was rechecked
+against the tool rather than taken from this file. `ivpn status` prints no location while the
+tunnel is down and no subcommand reports the last used parameters that `connect -last` acts on.
+
+What changed instead is the direction the question runs. `setLocation` is gone and `connect`
+takes the target, so both backends implement one door that takes a where. Mullvad writes its
+constraint and then connects, exactly what its `setLocation` did, and IVPN connects to the
+gateway host directly, exactly what its `setLocation` did. A nil target is the remaining bare
+connect, each backend's own answer to go wherever you would go on your own, and it is now a
+fallback rather than the only thing one backend could offer.
+
+That makes the row's title honest without any new read, and the honesty comes from a different
+place than before. The title is no longer a claim about what the daemon remembers, it is a
+description of what pressing the row will do, and it is true by construction because the row
+carries the target it named and hands that exact value to the action. The descriptor carries it
+for that reason rather than the dispatch reading `target` again, which would leave a window
+where the row promised one place and delivered another. The drift the old note worried about,
+somebody connecting from IVPN's own app, cannot make the label wrong any more, because nothing
+relies on `-last` once a place has been chosen here.
+
+Where the target comes from is this file's own policy, two rungs in order. A backend's own
+published selection wins, since it is read live and follows a change made in that backend's own
+app, which is why `selectedLocation` is still asked first and still worth having. The plugin's
+own record of the last place it was asked for answers when there is no such reader. That record
+is a fact about what this tool did rather than a guess about the daemon, which is the whole
+difference from the rejected fallback, and it is persisted per backend under one settings key
+holding a table keyed by provider stem, the same identity the stored provider choice joins on.
+
+It keeps the row's own label beside the two codes, which looks redundant next to the city list
+and is not. The codes cannot be turned back into words until the location list has landed, and
+the action row is drawn before that on every open, so without the carried label a backend whose
+`cityCode` is a gateway host would spell that host into the title, upper cased, for the first
+moment of every open and then quietly correct itself.
+
+Both rungs answering nil is a machine that has never connected to a place through this tool, on
+a backend that publishes nothing, and that is the one case where the row still reads a bare
+`Connect`. It is self limiting for the reason the old note gave, since choosing a location is
+the normal first move anyway and every connect after it has a place to name.
 
 ## Switching is a generation, not an assignment
 
