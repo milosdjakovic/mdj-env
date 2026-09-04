@@ -114,9 +114,9 @@ local TARGET_KEY = "olm.vpn.target"
 local providers = {}
 for _, id in ipairs(PROVIDER_FILES) do
   local module = load("providers/" .. id .. ".lua")
-  local ok, missing = contract.validate(module)
+  local ok, gap = contract.validate(module)
   if not ok then
-    error("Vpn: " .. id .. " provider does not implement " .. missing .. "()")
+    error("Vpn: the " .. id .. " provider does not satisfy the contract, " .. tostring(gap))
   end
   providers[#providers + 1] = { id = id, module = module }
 end
