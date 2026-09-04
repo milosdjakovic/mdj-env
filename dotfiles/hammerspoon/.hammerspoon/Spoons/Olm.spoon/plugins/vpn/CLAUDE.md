@@ -99,13 +99,35 @@ where the row promised one place and delivered another. The drift the old note w
 somebody connecting from IVPN's own app, cannot make the label wrong any more, because nothing
 relies on `-last` once a place has been chosen here.
 
-Where the target comes from is this file's own policy, two rungs in order. A backend's own
+Where the target comes from is this file's own policy, three rungs in order. A backend's own
 published selection wins, since it is read live and follows a change made in that backend's own
 app, which is why `selectedLocation` is still asked first and still worth having. The plugin's
-own record of the last place it was asked for answers when there is no such reader. That record
-is a fact about what this tool did rather than a guess about the daemon, which is the whole
-difference from the rejected fallback, and it is persisted per backend under one settings key
-holding a table keyed by provider stem, the same identity the stored provider choice joins on.
+own record of the last place it was asked for answers when there is no such reader, persisted
+per backend under one settings key holding a table keyed by provider stem, the same identity the
+stored provider choice joins on. That record is a fact about what this tool did rather than a
+guess about the daemon, which is the whole difference from the rejected fallback.
+
+The recency order is the third rung, and adding it is the second time this file has had to be
+careful about that store. The old rejection stands where it was aimed, at using the recency top
+to CLAIM what the daemon would do on a bare connect, which it cannot know. It does not reach
+this, because the target is no longer a claim about the daemon at all. The recency order and the
+target store hold the same fact, a place this tool was asked for, and differ only in what they
+keep of it, an ordering of ids against a whole descriptor, so reading one is exactly as much of a
+guess as reading the other.
+
+What earned it was a real machine. The first open after this change read a bare `Connect` on a
+backend whose recency order already held the last place chosen there, because the pick happened
+before the store existed, so the tool was making somebody teach it a place it already knew. That
+is not only a migration, it is what any store added after the fact costs on every machine that
+was already in use.
+
+It is filtered through the loaded locations, which is what keeps one backend's history out of
+another's answer, since the shared recency instance holds keys from both and no two backends
+spell a location the same way. That is the same property the shared instance already relied on
+to be safe rather than a new assumption. It also cannot answer until the location list has
+landed, since a remembered id is only a place once there is something to match it against, so
+the list leg asks again when it arrives, guarded on the target still being empty so a real answer
+from either rung above is never overwritten.
 
 It keeps the row's own label beside the two codes, which looks redundant next to the city list
 and is not. The codes cannot be turned back into words until the location list has landed, and
