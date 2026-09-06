@@ -34,6 +34,16 @@
 --- the engine knows how deep into the hold each repeat is and can tell the handler, which an
 --- OS autorepeat event gives no way to know.
 ---
+--- A held key is remembered rather than queried, since a leader is a plain key and nothing can
+--- be asked whether one is down, so the whole model rests on seeing a key-up for every key-down.
+--- That stream is not reliable. macOS secure input blanks every tap on the machine while it is
+--- on, the system disables a tap whose callback overruns its timeout, and a consumer callback
+--- that throws abandons the rest of the callback. A leader left held by a lost key-up then
+--- swallows every later keystroke into the chord path, so ordinary typing fires actions and
+--- nothing in the stream can put it right. So a staleness watchdog rides on the autorepeat of
+--- the held key itself, the one piece of positive evidence there is, and releases a leader that
+--- has gone silent for longer than a real hold ever could. See _armStale and _release.
+---
 --- This is only the MECHANISM. The domain policy -- which keys map to what, and
 --- how sub-modifiers resolve -- lives in the callers, which register their key(s)
 --- here via addKey() and supply an onKey() lookup.
@@ -64,6 +74,15 @@ obj._deferred = nil    -- pending handler timers, held until they fire, see _def
 -- a consumer's synthesized paste (Cmd+V), carry a private id instead, so this
 -- tells the two apart. See start(), which ignores everything that is not physical.
 local HID_SYSTEM_STATE = 1
+
+-- The one thing this engine says out loud, and only when the staleness watchdog releases a
+-- leader whose key-up never arrived, which is a fault worth a line rather than a silence. It
+-- is guarded because the unit cases load this file into an environment carrying a fake hs
+-- with no logger in it, the same guard and the same reason as lib/nav.lua and lib/surface.lua.
+local log = nil
+if hs and hs.logger then
+  log = hs.logger.new("ChordKey", "info")
+end
 
 -- The modifier universe, most to least common. Used to turn a live flags table
 -- (from getFlags()) into the list form newKeyEvent wants, so a passed-through key
@@ -190,6 +209,7 @@ function obj:addKey(keyCode, opts)
     repeatTimer = nil,       -- the pending tick of a driven repeat, see _startRepeat
     repeatCode = nil,        -- which key that repeat belongs to
     repeatFired = 0,         -- how many repeats it has already sent
+    staleTimer = nil,        -- the pending staleness watchdog, see _armStale
   }
   return self
 end
@@ -293,6 +313,103 @@ function obj:_startRepeat(k, code, fn)
   k.repeatTimer = hs.timer.doAfter(repeatDelay(timing, 0), tick)
 end
 
+--- The seconds of silence from a held leader after which it is no longer believed to be held.
+---
+--- A physically held key autorepeats its own key-down for as long as the finger stays on it,
+--- and those repeats already arrive at this tap, so the largest gap a genuine hold can produce
+--- is the machine's delay until the first repeat. Twice that plus a beat is the window, read
+--- off the machine rather than written down here, so a person who moves that slider moves this
+--- with it. A repeat is the only positive evidence available either way, since a leader is a
+--- plain key rather than a modifier and nothing can be asked whether it is down.
+---
+--- The cap is what makes a machine with key repeat switched off degrade safely instead of
+--- wrongly. Such a machine reports an enormous delay, which alone would arm a timer that never
+--- fires and quietly give the recovery up, and thirty seconds is past any deliberate hold while
+--- still being a bounded wait rather than none at all.
+local function staleWindow()
+  local delay = hs.eventtap.keyRepeatDelay and hs.eventtap.keyRepeatDelay() or 0.5
+  return math.min(30, delay * 2 + 0.5)
+end
+
+--- ChordKey:_cancelStale(k)
+--- Method
+--- Drop this key's staleness window, which a real release and a stop both do.
+function obj:_cancelStale(k)
+  if k.staleTimer then
+    k.staleTimer:stop()
+    k.staleTimer = nil
+  end
+end
+
+--- ChordKey:_armStale(k)
+--- Method
+--- Push this key's staleness window out, because its key-down just proved it is still held.
+---
+--- Losing a key-up is not hypothetical and it has three separate causes, none of which this
+--- engine can prevent. The tap is blind for as long as macOS secure input is on, which any app
+--- turns on by focusing a password field. The system disables a tap outright when its callback
+--- overruns a timeout, and this callback posts synthesized events and tears a canvas down. And
+--- a consumer callback that throws abandons the rest of the callback.
+---
+--- Any one of those drops the single event that clears `active`, and the cost of that is out of
+--- all proportion to the cause, because a leader left active swallows every later keystroke into
+--- the chord path. Ordinary typing then fires actions, with nothing in the event stream able to
+--- put it right, and the only cure was pressing the leader again, which a person had to already
+--- know. Believing a remembered flag over the evidence was the actual defect. This asks instead.
+function obj:_armStale(k)
+  self:_cancelStale(k)
+  local window = staleWindow()
+  k.staleTimer = hs.timer.doAfter(window, function()
+    k.staleTimer = nil
+    if not k.active then return end
+    if log then
+      log.w("leader " .. tostring(k.code) .. " saw no key-down for " .. tostring(window)
+        .. "s while still held, so its key-up was lost, releasing it")
+    end
+    self:_release(k, { stale = true })
+  end)
+end
+
+--- ChordKey:_release(k, opts)
+--- Method
+--- End a hold and put the key back to rest. The real key-up runs this and so does the staleness
+--- watchdog above when the real key-up never came, which is exactly why it is one method rather
+--- than a branch inside the tap. A recovery that reset only part of what a release resets would
+--- leave the passthrough's synthesized leader held down across the whole machine, or a cheat
+--- sheet on screen with nothing left that could ever take it down.
+---
+--- The order here is deliberate and it is half the fix. Everything this engine owns is read and
+--- then cleared BEFORE any consumer callback runs, because onHoldEnd tears a canvas down while
+--- still on the event tap thread and the reset used to sit underneath that call. A throw in the
+--- teardown, or the system disabling the tap for overrunning inside it, left `active` standing
+--- with the key already physically up. Nothing a consumer does can strand the engine now.
+---
+--- opts.stale says this is the watchdog's release rather than a real key-up, which suppresses
+--- onTap. A tap is a deliberate quick press and release, so a hold nobody was seen to release is
+--- by definition neither, and toggling Caps Lock off the back of a recovery would be inventing a
+--- keystroke the person never made. The elapsed guard below already excludes it at any realistic
+--- timing, and this states it rather than leaning on that.
+function obj:_release(k, opts)
+  opts = opts or {}
+  self:_cancelHold(k)
+  self:_stopRepeat(k)
+  self:_cancelStale(k)
+
+  local wasShown = k.shown
+  local wasUsed = k.used
+  local heldFor = hs.timer.secondsSinceEpoch() - k.downTime
+  k.shown = false
+  k.active = false
+  if k.passthrough then self:_endPassthrough(k) end
+
+  if not opts.stale and k.onTap and not wasUsed and heldFor < k.tapThreshold then
+    self:_defer(0, k.onTap)
+  end
+  if wasShown and k.onHoldEnd then
+    k.onHoldEnd(k.code)
+  end
+end
+
 --- ChordKey:_passDown(k)
 --- Method
 --- Synthesize this leader's key-down for downstream apps, once per hold. The real
@@ -361,23 +478,15 @@ function obj:start()
             end)
           end
         end
+        -- Every key-down for this leader refreshes the staleness window, and the OS autorepeats
+        -- of a held key are deliberately included rather than filtered out here, since they are
+        -- the only thing that keeps saying the finger is still down. See _armStale.
+        self:_armStale(k)
       else -- keyUp
-        self:_cancelHold(k)
-        -- The leader going up ends everything held under it, the repeat included. The
-        -- repeating key's own up is no longer seen here once no leader is active, so this
-        -- is the only place a lifted leader can stop it.
-        self:_stopRepeat(k)
-        if k.shown and k.onHoldEnd then
-          k.onHoldEnd(k.code)
-        end
-        k.shown = false
-        local heldFor = hs.timer.secondsSinceEpoch() - k.downTime
-        local wasUsed = k.used
-        k.active = false
-        if k.onTap and not wasUsed and heldFor < k.tapThreshold then
-          self:_defer(0, k.onTap)
-        end
-        if k.passthrough then self:_endPassthrough(k) end
+        -- The leader going up ends everything held under it, the repeat and the staleness
+        -- window included, and the watchdog reaches the same place when this event never
+        -- arrives at all. See _release.
+        self:_release(k)
       end
       return true, {} -- swallow the chord key entirely
     end
@@ -483,6 +592,7 @@ function obj:stop()
   for _, k in pairs(self._keys or {}) do
     self:_cancelHold(k)
     self:_stopRepeat(k)
+    self:_cancelStale(k)
     k.active = false
     k.shown = false
     k.passthroughDown = false
