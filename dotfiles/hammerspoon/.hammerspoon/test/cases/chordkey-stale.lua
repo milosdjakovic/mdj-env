@@ -54,7 +54,8 @@ local function freshModule(opts)
     },
     eventtap = {
       -- The machine's own two beats, fixed here so the case reads the same on any keyboard.
-      -- A delay of 0.5 makes the staleness window 1.5, which every check below names.
+      -- The staleness window no longer reads either of them, which one check below states
+      -- outright by moving this delay and finding the window unmoved.
       keyRepeatDelay = function() return opts.repeatDelay or 0.5 end,
       keyRepeatInterval = function() return 0.1 end,
       new = function(_, fn)
@@ -139,28 +140,52 @@ local function leaderEngine(opts)
   return engine, world, seen
 end
 
--- The window comes off the machine rather than being written down, because the gap it has to
--- outlast is the machine's own delay before a held key starts repeating.
+-- The window is a flat thirty seconds, past any deliberate pause a person takes mid hold. It
+-- used to be derived from the machine's repeat delay, on the reasoning that a held key keeps
+-- repeating so the largest gap a real hold can produce is the delay before the first repeat.
+-- macOS repeats only the key pressed MOST RECENTLY, so the leader stops repeating the instant a
+-- chord key is pressed and never resumes, which turned that derivation into a one and a half
+-- second limit on any hold in which anything had been pressed.
 do
   local engine, world = leaderEngine()
   world.callback(event(KEY_DOWN, 79))
-  check("a leader key-down arms a staleness window twice the machine's repeat delay plus a beat",
-    world.liveWithDelay(1.5) == 1,
-    "live windows at 1.5s " .. tostring(world.liveWithDelay(1.5)))
+  check("a leader key down arms a staleness window of thirty seconds",
+    world.liveWithDelay(30) == 1,
+    "live windows at 30s " .. tostring(world.liveWithDelay(30)))
   check("the hold overlay timer is still armed beside it and untouched",
     world.liveWithDelay(0.6) == 1,
     "live timers at 0.6s " .. tostring(world.liveWithDelay(0.6)))
   check("the engine has the leader held", engine:isActive(79))
 end
 
--- A machine with key repeat switched off reports an enormous delay and would otherwise arm a
--- window that never fires, so the cap is what keeps the recovery bounded there.
+-- The machine's key repeat setting no longer reaches this at all, which is what stops a person
+-- moving that slider, or switching repeat off entirely, from moving how long a hold may pause.
 do
   local _, world = leaderEngine({ repeatDelay = 5000 })
   world.callback(event(KEY_DOWN, 79))
-  check("a machine reporting no key repeat still gets a bounded window, capped at thirty seconds",
+  check("a machine reporting no key repeat gets the same thirty second window",
     world.liveWithDelay(30) == 1,
     "live windows at 30s " .. tostring(world.liveWithDelay(30)))
+end
+
+-- The regression this window was widened for. A chord key down is evidence the leader is still
+-- down, because the branch it arrives on is reached only while the leader is believed held, and
+-- it is the ONLY evidence left once the leader has stopped repeating. Without this the watchdog
+-- counts from a clock that stopped at the first chord press, and pressing j over an open list
+-- after a pause found the leader already released and typed the letter.
+do
+  local engine, world = leaderEngine()
+  world.callback(event(KEY_DOWN, 79))
+  local armedByLeader = #world.timers
+  world.now = world.now + 5
+  world.callback(event(KEY_DOWN, 4))
+  check("a chord key down pushes the staleness window out",
+    #world.timers > armedByLeader,
+    "timers " .. tostring(#world.timers) .. " against " .. tostring(armedByLeader))
+  check("it replaces the window rather than adding one",
+    world.liveWithDelay(30) == 1,
+    "live windows at 30s " .. tostring(world.liveWithDelay(30)))
+  check("the leader is still held through it", engine:isActive(79))
 end
 
 -- The autorepeat of a held key is the only positive evidence the finger is still down, so it
@@ -171,8 +196,8 @@ do
   world.callback(event(KEY_DOWN, 79, true))
   world.callback(event(KEY_DOWN, 79, true))
   check("each autorepeat of the held leader replaces the window rather than adding one",
-    world.liveWithDelay(1.5) == 1,
-    "live windows at 1.5s " .. tostring(world.liveWithDelay(1.5)))
+    world.liveWithDelay(30) == 1,
+    "live windows at 30s " .. tostring(world.liveWithDelay(30)))
   check("the windows it replaced were stopped", #world.timers >= 4)
 end
 
@@ -184,8 +209,8 @@ do
   world.fireDelay(0.6)
   check("holding past the delay shows the overlay", seen.hold == 1)
 
-  world.now = world.now + 1.5
-  world.fireDelay(1.5)
+  world.now = world.now + 30
+  world.fireDelay(30)
   check("a leader that went silent while still held is released", not engine:isActive(79))
   check("releasing it takes the overlay down", seen.holdEnd == 1,
     "onHoldEnd ran " .. tostring(seen.holdEnd) .. " times")
@@ -205,8 +230,8 @@ end
 do
   local engine, world = leaderEngine()
   world.callback(event(KEY_DOWN, 79))
-  world.now = world.now + 1.5
-  world.fireDelay(1.5)
+  world.now = world.now + 30
+  world.fireDelay(30)
   local swallowed = world.callback(event(KEY_DOWN, 4))
   check("an ordinary key after the recovery is no longer swallowed into the chord path",
     swallowed == false, "the tap answered " .. tostring(swallowed))
@@ -220,8 +245,8 @@ do
   world.now = world.now + 0.1
   world.callback(event(KEY_UP, 79))
   check("a real key-up releases the leader", not engine:isActive(79))
-  check("a real key-up leaves no staleness window armed", world.liveWithDelay(1.5) == 0,
-    "live windows at 1.5s " .. tostring(world.liveWithDelay(1.5)))
+  check("a real key-up leaves no staleness window armed", world.liveWithDelay(30) == 0,
+    "live windows at 30s " .. tostring(world.liveWithDelay(30)))
   -- onTap is handed to the next tick rather than run here, so that the key-up is fully
   -- processed before a consumer that synthesizes keystrokes gets to run. See _defer.
   world.fireDelay(0)
@@ -237,7 +262,7 @@ do
   world.now = world.now + 0.1
   world.callback(event(KEY_UP, 79))
   local before = seen.tap
-  world.fireDelay(1.5)
+  world.fireDelay(30)
   check("a window that lands after a real release does nothing", seen.tap == before,
     "onTap ran " .. tostring(seen.tap) .. " against " .. tostring(before))
 end
@@ -267,7 +292,7 @@ do
   local engine, world = leaderEngine()
   world.callback(event(KEY_DOWN, 79, false, 2))
   check("a keystroke this config posted itself neither holds the leader nor arms a window",
-    not engine:isActive(79) and world.liveWithDelay(1.5) == 0)
+    not engine:isActive(79) and world.liveWithDelay(30) == 0)
 end
 
 -- A stop is a teardown, so it must take the windows with it rather than leaving one to fire
@@ -276,7 +301,7 @@ do
   local engine, world = leaderEngine()
   world.callback(event(KEY_DOWN, 79))
   engine:stop()
-  check("stopping the engine disarms the staleness window", world.liveWithDelay(1.5) == 0,
-    "live windows at 1.5s " .. tostring(world.liveWithDelay(1.5)))
+  check("stopping the engine disarms the staleness window", world.liveWithDelay(30) == 0,
+    "live windows at 30s " .. tostring(world.liveWithDelay(30)))
   check("stopping the engine clears the held state", not engine:isActive(79))
 end

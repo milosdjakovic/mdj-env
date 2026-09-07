@@ -315,21 +315,21 @@ end
 
 --- The seconds of silence from a held leader after which it is no longer believed to be held.
 ---
---- A physically held key autorepeats its own key-down for as long as the finger stays on it,
---- and those repeats already arrive at this tap, so the largest gap a genuine hold can produce
---- is the machine's delay until the first repeat. Twice that plus a beat is the window, read
---- off the machine rather than written down here, so a person who moves that slider moves this
---- with it. A repeat is the only positive evidence available either way, since a leader is a
---- plain key rather than a modifier and nothing can be asked whether it is down.
+--- Thirty seconds, a flat number, past any deliberate pause a person takes mid hold while still
+--- being a bounded wait rather than none at all.
 ---
---- The cap is what makes a machine with key repeat switched off degrade safely instead of
---- wrongly. Such a machine reports an enormous delay, which alone would arm a timer that never
---- fires and quietly give the recovery up, and thirty seconds is past any deliberate hold while
---- still being a bounded wait rather than none at all.
-local function staleWindow()
-  local delay = hs.eventtap.keyRepeatDelay and hs.eventtap.keyRepeatDelay() or 0.5
-  return math.min(30, delay * 2 + 0.5)
-end
+--- It used to be read off the machine's key repeat delay, on the reasoning that a physically
+--- held key autorepeats its own key down for as long as the finger stays on it, so the largest
+--- gap a genuine hold could produce was the delay until the first repeat. The first half of that
+--- is true and the second half is not. macOS autorepeats only the key pressed MOST RECENTLY, so
+--- the leader repeats while it is held alone and stops the instant any chord key is pressed, and
+--- it never resumes, because releasing the newer key does not hand the repeat back. So from the
+--- first chord press onward the leader emits nothing at all, and a window derived from a repeat
+--- that is never coming became a fixed one and a half second limit on any hold in which anything
+--- had been pressed. Holding the leader over an open list, pausing to read it, and then pressing
+--- j found the leader already released and typed the letter instead. That is the ordinary path
+--- through every list in this configuration rather than a corner of it.
+local STALE_WINDOW = 30
 
 --- ChordKey:_cancelStale(k)
 --- Method
@@ -358,7 +358,7 @@ end
 --- know. Believing a remembered flag over the evidence was the actual defect. This asks instead.
 function obj:_armStale(k)
   self:_cancelStale(k)
-  local window = staleWindow()
+  local window = STALE_WINDOW
   k.staleTimer = hs.timer.doAfter(window, function()
     k.staleTimer = nil
     if not k.active then return end
@@ -494,6 +494,13 @@ function obj:start()
     -- Other keys, only while some chord key is held.
     for _, held in pairs(self._keys) do
       if held.active then
+        -- Any key down reaching this branch is evidence the leader is still down, because this
+        -- branch is only reached while it is believed held, so the staleness window is pushed
+        -- out here as well as on the leader's own repeats. This is the second half of the
+        -- correction above. Once a chord key is pressed the leader stops repeating for good, so
+        -- without this the watchdog is counting from a clock that has already stopped and the
+        -- chord presses it is watching for are invisible to it.
+        if t == types.keyDown then self:_armStale(held) end
         -- A held key auto-repeats its key-down, but a chord is one discrete
         -- press, so dispatch only on the first. Firing on each repeat re-runs
         -- the handler, which for a toggle consumer opens and closes it
