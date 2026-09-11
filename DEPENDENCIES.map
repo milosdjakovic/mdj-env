@@ -46,6 +46,7 @@ tmux          | brew      | tmux
 nvim          | brew      | neovim
 lf            | brew      | lf
 lazygit       | brew      | lazygit
+herdr         | brew      | herdr
 
 # Command line tools the configurations call.
 fzf           | brew      | fzf
