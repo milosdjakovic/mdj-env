@@ -26,6 +26,6 @@ mkdir -p "$HOME/.claude/skills"
 # and relinks the current tree, giving the same result on a fresh or an already
 # set up machine. Package docs named CLAUDE.md are kept out of $HOME by each
 # package's own .stow-local-ignore.
-stow -R -t "$HOME" ghostty tmux nvim zsh hammerspoon claude lf lazygit
+stow -R -t "$HOME" ghostty tmux nvim zsh hammerspoon claude lf lazygit herdr
 
 echo "Dotfiles stowed successfully"
