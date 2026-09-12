@@ -3,3 +3,10 @@
 # tools and never how to install one, since that mapping is DEPENDENCIES.map one layer up.
 # Written by hand, because this module has no sub units to fold declarations from.
 herdr | path | herdr | required | config | the multiplexer this entire module configures | brew | herdr
+lazygit | path | lazygit | optional | tools/lazygit.sh | the lazygit popup binding, the binding is dead without it | brew | lazygit
+git | path | git | required | tools/lazygit.sh | deciding whether the calling pane sits in a repository | brew | git
+fzf | path | fzf | required | tools/find.sh, tools/lazygit.sh | the picker in both popups | brew | fzf
+fd | path | fd | required | tools/find.sh | listing the folders and files the picker ranks | brew | fd
+nvim | path | nvim | optional | tools/find.sh | opening a chosen file, choosing a folder still works without it | brew | neovim
+lf | path | lf | optional | tools/browse.sh | the file browser popup, the binding is dead without it | brew | lf
+jq | path | jq | required | tools/context.sh, tools/find.sh | reading whether the calling pane is free before typing into it | brew | jq
