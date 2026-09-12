@@ -885,7 +885,9 @@ function obj.run(olm, cfg)
     -- Where a plugin keeps data a person is meant to be able to read, edit and commit. Per
     -- declaring plugin, since two plugins sharing one file would silently overwrite each
     -- other. Inside the live config directory on purpose rather than under the storage atom's
-    -- own roots, because this is the tracked layer a person edits by hand.
+    -- own roots, because this is the tracked layer a person edits by hand. A plugin that
+    -- writes its own store rather than reading one a person wrote opts out by name in
+    -- .gitignore, which workspaces does, since that file is one machine's session.
     storePath = servicesLib.perName(function(name)
       return hs.configdir .. "/config/" .. name .. ".json"
     end),
