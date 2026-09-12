@@ -40,6 +40,9 @@ echo ""
 # Wire the statusline script into Claude Code's settings.json
 "$SRC_DIR/setup-claude-settings.sh"
 
+# Register the herdr module's local plugin, which stow places but cannot register
+"$SRC_DIR/setup-herdr-plugins.sh"
+
 # Reconcile what every module declares it needs against what this repo knows how to install
 # and what actually landed on the machine. It only reports, it never installs, so it runs
 # last once everything above has had its chance. A structural gap fails the setup, since that
