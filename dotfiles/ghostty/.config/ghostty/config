@@ -2,7 +2,7 @@
 #font-family = "Hack Nerd Font"
 font-family = "MesloLGS NF"
 font-size = 18
-theme = light:Catppuccin Latte,dark:Catppuccin Mocha
+theme = light:light-owl,dark:night-owl
 
 # === Window settings ===
 # window-decoration = false
