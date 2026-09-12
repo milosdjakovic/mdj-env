@@ -16,9 +16,10 @@ dark_name = "catppuccin"
 [keys]
 prefix = "alt+z"
 
-# The built in session navigator is redundant beside the herdr-navigator plugin
-# on prefix+t, so its key is freed for lazygit, which is what g means here.
-goto = ""
+# Stated rather than left to the default. An earlier empty value unbound this, and
+# deleting that line did not hand the key back, which a reload proves by accepting a
+# custom command on prefix+g without reporting the conflict it reports when goto holds it.
+goto = "prefix+g"
 
 [[keys.command]]
 key = "prefix+t"
@@ -33,7 +34,7 @@ command = "alonz.command-palette.open"
 description = "command palette"
 
 [[keys.command]]
-key = "prefix+g"
+key = "prefix+alt+g"
 type = "shell"
 command = "\"$HERDR_BIN_PATH\" plugin pane open --plugin mdj-tools --entrypoint git"
 description = "lazygit here, or pick a recent repository"
@@ -45,7 +46,7 @@ command = "\"$HERDR_BIN_PATH\" plugin pane open --plugin mdj-tools --entrypoint 
 description = "find a folder or file under home"
 
 [[keys.command]]
-key = "prefix+shift+f"
+key = "prefix+alt+f"
 type = "shell"
 command = "\"$HERDR_BIN_PATH\" plugin pane open --plugin mdj-tools --entrypoint browse"
 description = "browse files with lf"
