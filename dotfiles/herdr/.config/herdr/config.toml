@@ -16,6 +16,10 @@ dark_name = "catppuccin"
 [keys]
 prefix = "alt+z"
 
+# The built in session navigator is redundant beside the herdr-navigator plugin
+# on prefix+t, so its key is freed for lazygit, which is what g means here.
+goto = ""
+
 [[keys.command]]
 key = "prefix+t"
 type = "plugin_action"
@@ -27,3 +31,21 @@ key = "prefix+space"
 type = "plugin_action"
 command = "alonz.command-palette.open"
 description = "command palette"
+
+[[keys.command]]
+key = "prefix+g"
+type = "shell"
+command = "\"$HERDR_BIN_PATH\" plugin pane open --plugin mdj-tools --entrypoint git"
+description = "lazygit here, or pick a recent repository"
+
+[[keys.command]]
+key = "prefix+f"
+type = "shell"
+command = "\"$HERDR_BIN_PATH\" plugin pane open --plugin mdj-tools --entrypoint find"
+description = "find a folder or file under home"
+
+[[keys.command]]
+key = "prefix+shift+f"
+type = "shell"
+command = "\"$HERDR_BIN_PATH\" plugin pane open --plugin mdj-tools --entrypoint browse"
+description = "browse files with lf"

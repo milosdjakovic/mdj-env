@@ -1,0 +1,34 @@
+# A local plugin exists here for one reason. A keybinding popup carries no title, so
+# Herdr labels its border with the literal word popup, and a plugin pane is the only
+# popup that takes a name. Everything below is three named windows around scripts that
+# would otherwise run exactly the same way.
+id = "mdj-tools"
+name = "Local tools"
+version = "1.0.0"
+min_herdr_version = "0.9.0"
+description = "Fuzzy search, lazygit and a file browser as named popups."
+platforms = ["macos"]
+
+[[panes]]
+id = "find"
+title = "fuzzy search"
+placement = "popup"
+width = "80%"
+height = "80%"
+command = ["./find.sh"]
+
+[[panes]]
+id = "git"
+title = "git"
+placement = "popup"
+width = "90%"
+height = "90%"
+command = ["./lazygit.sh"]
+
+[[panes]]
+id = "browse"
+title = "files"
+placement = "popup"
+width = "90%"
+height = "90%"
+command = ["./browse.sh"]
