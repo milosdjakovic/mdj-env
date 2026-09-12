@@ -8,6 +8,17 @@ HERDR="${HERDR_BIN_PATH:-herdr}"
 
 cd "$(herdr_pane_cwd)" 2>/dev/null || cd "$HOME" || exit 1
 
+# Lazygit resolves its own config directory per platform, so it is asked rather than
+# guessed. The overlay goes last because the later file in the list wins, and the real
+# config goes first so nothing in it is lost by loading a second one.
+overlay="$(dirname "$0")/lazygit-popup.yml"
+config_dir="$(lazygit --print-config-dir 2>/dev/null)"
+if [ -n "$config_dir" ] && [ -f "$config_dir/config.yml" ]; then
+  export LG_CONFIG_FILE="$config_dir/config.yml,$overlay"
+else
+  export LG_CONFIG_FILE="$overlay"
+fi
+
 if root=$(git rev-parse --show-toplevel 2>/dev/null) && [ -n "$root" ]; then
   cd "$root" || exit 1
   exec lazygit

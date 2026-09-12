@@ -1,0 +1,5 @@
+# Escape closes this popup. Lazygit reads escape as go back one level, which does nothing
+# once you are at the top, so lazygit is the one tool here that cannot be dismissed the way
+# every other popup can. This layer is loaded for the herdr popup alone, on top of the real
+# config rather than instead of it, so lazygit in tmux and in a plain terminal is untouched.
+quitOnTopLevelReturn: true
