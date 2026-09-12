@@ -10,3 +10,4 @@ git   | path   | git            | required | install-ohmyzsh-plugins.sh   | clon
 duti  | path   | duti           | required | set-dev-defaults.sh          | setting the default application for development file types
 jq    | path   | jq             | required | setup-claude-settings.sh     | merging the status line key into the Claude settings without losing the others
 curl  | system | /usr/bin/curl  | required | install-ohmyzsh.sh           | fetching the upstream installer
+herdr | path   | herdr          | optional | setup-herdr-plugins.sh       | registering the local plugin that stow places but cannot register, the popups are nameless without it
