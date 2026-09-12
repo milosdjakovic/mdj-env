@@ -291,6 +291,13 @@ mutation marking the cache dirty and the engine deciding when to flush. That is 
 of window moves during a drag coalesce into one write instead of rewriting the whole file on every
 event.
 
+That file is machine state and git ignores it. The config directory is the tracked layer for
+every other plugin store, DisplayProfiles included, and this one is the exception because the
+plugin writes it rather than a person. It was tracked once so layouts could travel between
+machines, and it grew from forty one lines to a hundred and sixty six in twelve days of ordinary
+use, none of it typed. Two machines cannot merge it either, since the whole file is one machine's
+session. A store a person curates belongs in git. A store a tool accumulates does not.
+
 The cost is that a hand edit to the file, or one arriving through git, is not seen until the next
 reload. That is the same trade the DisplayProfiles store already documents and it is correct, a
 data file should not force a code reload.
