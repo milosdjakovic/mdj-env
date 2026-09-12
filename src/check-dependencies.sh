@@ -523,6 +523,14 @@ say "==> Named values assigned by reference"
 # along with it, so a watched key with no owning set to answer for it does not linger here.
 named_keys=(placement align)
 
+# The sets these keys name are published by CanvasPanel, so the rule reaches only the
+# module that owns them. Read repository wide it fires on any config format that happens
+# to spell a key the same way, which is how it first read herdr's plugin manifest, where
+# placement is herdr's own closed set, the file is TOML with no way to name a value, and
+# herdr rejects a wrong one when the plugin is linked. A consumer that validates its own
+# input is not the drift this rule was written for.
+named_scope="$DOTFILES/hammerspoon"
+
 named_bad=0
 for key in "${named_keys[@]}"; do
     while IFS= read -r hit; do
@@ -535,7 +543,7 @@ for key in "${named_keys[@]}"; do
             | head -1 | sed -E "s/^${key}[[:space:]]*=[[:space:]]*//")"
         err "${path#"$ROOT"/} line $lineno gives $key the bare string $value, hand it the owning module's named value"
         named_bad=$((named_bad + 1))
-    done < <(grep -rnE "\b${key}[[:space:]]*=[[:space:]]*[\"']" "$DOTFILES" 2>/dev/null)
+    done < <(grep -rnE "\b${key}[[:space:]]*=[[:space:]]*[\"']" "$named_scope" 2>/dev/null)
 done
 [[ $named_bad -eq 0 ]] && say "  every named value is assigned by reference"
 
