@@ -43,8 +43,6 @@ next_hidden=$((1 - FIND_HIDDEN))
 
 pick=$(fd "${fd_args[@]}" 2>/dev/null | fzf \
   --reverse \
-  --border sharp \
-  --border-label ' fuzzy search ' \
   --query "$FIND_QUERY" \
   --prompt "$HOME/" \
   --header "ctrl-f $files_state, ctrl-h $hidden_state" \

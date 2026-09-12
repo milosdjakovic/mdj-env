@@ -38,8 +38,7 @@ if [ -z "$repos" ]; then
   exit 0
 fi
 
-pick=$(printf '%s\n' "$repos" | fzf --reverse --border sharp \
-  --border-label ' lazygit, recent repositories ' --prompt 'repo> ' \
+pick=$(printf '%s\n' "$repos" | fzf --reverse --prompt 'repo> ' \
   --header 'this directory is not a repository, pick a recent one') || exit 0
 
 if [ ! -d "$pick" ]; then

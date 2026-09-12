@@ -187,6 +187,14 @@ BrowserTabs is the one config here with a test suite, in `dotfiles/hammerspoon/.
 
 Worktree convention. When you create a git worktree for a feature or fix, put it under a `.worktrees/` directory in the parent of the repo (beside this checkout, so `../.worktrees/` from the repo root), named for the feature, so worktrees stay in one place rather than scattered as bare siblings of the repo. Because that directory is outside the repo, it never shows up in the repo's own status. Never write the absolute path, always reach it relative to the repo.
 
+### Herdr
+
+Configuration in `dotfiles/herdr/`. See `dotfiles/herdr/CLAUDE.md` for the popup surface and its
+one frame one name rule, why the three tools are a linked plugin rather than keybindings, the
+requirement that escape closes everything, never typing into a busy pane, the two ways context
+arrives, why registration needs its own setup script, how to read a reload's diagnostics as a
+test, and the current keys.
+
 ### Tmux
 
 Configuration in `dotfiles/tmux/`. See `dotfiles/tmux/CLAUDE.md` for binding conventions, priority system, scoped fzf switchers, popup workarounds, and status bar details.
