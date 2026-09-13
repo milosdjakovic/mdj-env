@@ -14,12 +14,19 @@ set -euo pipefail
 # So every timer started under this module keeps its handle for as long as it is pending,
 # either in a field on the object that owns it or in a table of pending calls when several
 # can be outstanding and a later one must not cancel an earlier one. This check enforces
-# exactly that, that the constructor's result is assigned somewhere, which is the one
-# textual property that distinguishes a held timer from a lost one.
+# exactly that, that the constructor's result goes somewhere rather than nowhere, which is the
+# one textual property that distinguishes a held timer from a lost one.
 #
-# It deliberately does not care where the result is assigned. Judging whether a given holder
-# actually outlives the wait is beyond a grep, and the interesting mistake is the value being
-# thrown away entirely rather than being held in a slightly wrong place.
+# It deliberately does not care where the result goes. Judging whether a given holder actually
+# outlives the wait is beyond a grep, and the interesting mistake is the value being thrown
+# away entirely rather than being held in a slightly wrong place.
+#
+# So the test is whether the value is handed anywhere at all, not whether it is assigned. It
+# used to be assignment alone, which failed the second of the two shapes this check's own
+# error message recommends. The test runner collects its timers by passing each one to a
+# helper that appends it to a table, the table is kept on the object, and the check called all
+# four of those dropped. Four false positives at the end of setup.sh, which is the last thing
+# that runs, so setup exited one on every machine over timers that were held correctly.
 #
 # This lives beside the module it checks rather than in src, because the rule is a property of
 # the Hammerspoon runtime and means nothing to the rest of the repository. It is a sibling of
@@ -42,9 +49,12 @@ while IFS= read -r hit; do
     rest="${hit#*:}"
     line="${rest%%:*}"
     code="${rest#*:}"
-    # An assignment immediately before the call is the whole test, so a field, a local, or a
-    # table slot all pass and a bare statement does not.
-    printf '%s' "$code" | grep -qE '=[[:space:]]*hs\.timer\.' && continue
+    # What sits immediately before the call is the whole test. An equals sign covers a field, a
+    # local and a table slot. An open bracket or a comma covers being passed to something, a
+    # brace covers a table literal, and return covers handing it to the caller. A bare
+    # statement has none of them, and neither does a constructor buried inside a closure that
+    # is itself the argument, which is still a dropped timer and still reported.
+    printf '%s' "$code" | grep -qE '[=(,{][[:space:]]*hs\.timer\.|return[[:space:]]+hs\.timer\.' && continue
     printf '  %s:%s starts a timer without keeping it\n' "${path#"$MODULE_DIR"/}" "$line" >&2
     printf '    %s\n' "$(printf '%s' "$code" | sed 's/^[[:space:]]*//')" >&2
     errors=$((errors + 1))
