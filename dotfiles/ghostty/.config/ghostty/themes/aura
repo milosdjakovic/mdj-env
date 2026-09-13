@@ -1,30 +1,58 @@
 # Ghostty Theme: Aura
+#
+# Aura ships no Ghostty package. The repository was searched in full and the word appears
+# nowhere, so this is a port, and the thirteen terminal packages it does ship disagree with
+# each other badly enough that copying any one of them is a choice rather than a default.
+#
+# The palette table in packages/color-palettes names six chromatic accents, purple #a277ff
+# primary, green #61ffca secondary, orange #ffca85 tertiary, pink #f694ff quaternary, blue
+# #82e2ff quinary and red #ff6767 senary. ANSI has six chromatic slots, so each one is
+# placed once, at the slot nearest its hue. Purple lands on blue and pink lands on magenta,
+# which frees the cyan slot for the actual blue.
+#
+# That is not an invention. Slots 1 through 7 below are byte identical to the normal
+# register of the upstream Termux package, which is the one package of the thirteen that
+# reaches all seven accents. Most of the others, Alacritty and Kitty included, repeat
+# purple across blue and magenta and repeat green across green and cyan, which leaves pink
+# and blue unreachable from a terminal entirely.
+#
+# Three deliberate departures from Termux. Slot 0 is #110f18, the value eleven of the
+# thirteen packages use, rather than the background. The brights repeat the main accents,
+# where Termux fills them with the documented Dark Soft register, which is dimmer than the
+# normal one and would make bold text fade rather than stand out. And slot 8 is #949494
+# rather than the theme's own accent8 #6d6d6d, a repo wide decision taken in 9424044 for
+# contrast that nvim and kitty also carry. Most packages use #4d4d4d there, which is
+# dimmer still and is not the palette table's answer either.
 
 # Set the background and foreground colors
-background = 15141b
-foreground = edecee
+background = #15141b
+foreground = #edecee
 
 # Set the cursor color
-cursor-color = a277ff
+cursor-color = #a277ff
+cursor-text = #15141b
 
 # Set the selection colors
-selection-background = 29263c
-selection-foreground = edecee
+selection-background = #29263c
+selection-foreground = #edecee
 
 # Define the color palette
-palette = 0=110f18
-palette = 1=ff6767
-palette = 2=61ffca
-palette = 3=ffca85
-palette = 4=a277ff
-palette = 5=a277ff
-palette = 6=61ffca
-palette = 7=edecee
-palette = 8=949494
-palette = 9=ff6767
-palette = 10=61ffca
-palette = 11=ffca85
-palette = 12=a277ff
-palette = 13=a277ff
-palette = 14=61ffca
-palette = 15=edecee
+palette = 0=#110f18
+palette = 1=#ff6767
+palette = 2=#61ffca
+palette = 3=#ffca85
+palette = 4=#a277ff
+palette = 5=#f694ff
+palette = 6=#82e2ff
+palette = 7=#edecee
+
+# Bright black is #949494 rather than the theme's own #6d6d6d. That is a deliberate repo
+# wide decision taken in 9424044 for contrast, and nvim and kitty carry the same value.
+palette = 8=#949494
+palette = 9=#ff6767
+palette = 10=#61ffca
+palette = 11=#ffca85
+palette = 12=#a277ff
+palette = 13=#f694ff
+palette = 14=#82e2ff
+palette = 15=#edecee
