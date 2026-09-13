@@ -8,17 +8,23 @@ status_indicators = "symbols"
 [ui.toast]
 delivery = "terminal"
 
-# The agent's second row carries a dim flag by default, so the agent name rendered lighter
-# than the git branch on the matching row under spaces, even though both read overlay0. That
-# is a render attribute rather than a colour, which is why no amount of token setting could
-# level them, and it took a probe to see, since the two lines look like different colours and
-# are in fact the same colour with one of them faded.
+# Two entries in the default agent layout carry a dim flag, and dim here is the terminal's
+# own faint attribute rather than a colour. herdr is a ratatui program and its binary carries
+# crossterm's literal SGR 2, so the faded text is the same colour drawn at Ghostty's
+# faint-opacity, which is why no value set on any token could ever level it.
 #
-# Only the agents row is restated. The spaces rows keep their default, so the line being
-# matched to is untouched.
+# The two are the agent name on the second row and the tab name on the first. Both read
+# overlay0 and both sat lighter than the git branch under spaces, which reads the same token
+# undimmed. Which entry was the faded one on the first row came from herdr api snapshot rather
+# than from looking, since the row is state_icon, machine, workspace, tab, machine is blank on
+# a local agent, and the snapshot shows the bold half is the workspace label and the faded half
+# is the tab label.
+#
+# Only the agents rows are restated. The spaces rows keep their default, so the lines being
+# matched to are untouched.
 [ui.sidebar.agents]
 rows = [
-  ["state_icon", "machine", "workspace", "tab"],
+  ["state_icon", "machine", "workspace", { token = "tab", dim = false }],
   [{ token = "agent", dim = false }],
 ]
 

@@ -147,18 +147,44 @@ and why the focused sidebar row follows it rather than staying a quiet lift.
 `surface1` painted nothing visible in either of the two layouts it has been probed against,
 and `blue`, `red` and `peach` likewise, so those four are free.
 
-Some of this is a render attribute rather than a colour, and that is the trap. The agent
-name under an agent row and the branch under a space row both read `overlay0`, yet the
-agent one is visibly lighter, because its row entry carries a `dim` flag. No value set
-anywhere will level them. The fix is `ui.sidebar.agents.rows`, where each entry may be a
-bare token name or a style table of `token`, `fg`, `bold`, `dim` and `rules`, so the default
-`"agent"` string becomes `{ token = "agent", dim = false }`. `ui.sidebar.spaces.rows` is the
-matching key for the other section. The same dimming is why an unfocused tab showing only
-its number looks fainter than a renamed one.
+## Dim is not a colour, and it is not herdr's either
 
-That trap is also why this map is worth probing rather than reasoning about. Two rounds of
-reasoning about which token painted the agent line were both wrong, because the premise that
-a difference in appearance means a difference in token is false here.
+Three separate complaints about text being too light turned out to be one thing. herdr is a
+ratatui program, its binary carries crossterm's literal `\x1b[2m`, and a row entry marked
+`dim` is drawn in its ordinary token colour with the terminal's faint attribute set. Ghostty
+then renders that at `faint-opacity`, which defaults to 0.5, so the text is the right colour
+blended halfway into the background. No value assigned to any token can level it, because
+both halves of the pair already hold the same value.
+
+The light half proves this on its own without a probe. `overlay0` and `overlay1` are both
+`#727276` there, so any two pieces of chrome that differ in lightness under the light theme
+differ by attribute and not by colour.
+
+Two entries in the default agent layout carry the flag, the agent name on the second row and
+the tab name on the first. Both are levelled through `ui.sidebar.agents.rows`, where an entry
+may be a bare token name or a style table of `token`, `fg`, `bold`, `dim` and `rules`, so
+`"agent"` becomes `{ token = "agent", dim = false }` and likewise for `"tab"`.
+`ui.sidebar.spaces.rows` is the matching key for the other section, and leaving it alone is
+what keeps the line being matched to untouched.
+
+Which entry on that first row was the faded one came from `herdr api snapshot` rather than
+from looking at it. The row is `state_icon, machine, workspace, tab`, `machine` renders empty
+for a local agent, so only two labels appear and either could be either. The snapshot names
+the workspace and tab labels for every agent, and matching those strings against what is on
+screen settles it in one command. Two earlier rounds of reasoning about this row were both
+wrong, so prefer the snapshot.
+
+The tab bar is dimmed the same way and has no config lever at all. herdr styles it nowhere,
+the config reference has thirty three `ui` keys and not one of them reaches a tab label, and
+Ghostty's `faint-opacity` is the only other control, global to the terminal and certain to
+flatten faint text in every program running in it.
+
+It does not need one, because the dim there is not about the number. `herdr tab rename` with
+the label the tab already has clears it, so what herdr tracks is whether a name was ever set
+and not what the name says. A tab created by accepting the prompt's proposed number counts as
+unnamed even though the proposal is stored as its label, which is why `herdr tab get` shows a
+label of `4` on a tab whose number is 8 and still draws it faint. Renaming it to `4` changes
+no visible text and settles it.
 
 Two more things worth knowing before changing any of this. `sidebar_bg` is not the
 highlighted row, it is the whole sidebar, and omitting it leaves the sidebar on the terminal
