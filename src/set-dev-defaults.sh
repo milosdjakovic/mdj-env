@@ -195,21 +195,58 @@ EXTENSIONS=(
     .log
 )
 
-SUCCESS=0
-FAILED=0
+# Three outcomes, not two, and the middle one is why this used to claim fifty five failures
+# while exiting zero and saying nothing about any of them.
+#
+# duti resolves an extension to a uniform type identifier and asks Launch Services to bind the
+# handler to that type. macOS only has a real identifier for an extension when some installed
+# application declares one, .py to public.python-script and .json to public.json. Where
+# nothing declares one it invents a placeholder instead, dyn.ah62d4 and a hash of the
+# extension, and Launch Services refuses to attach a default handler to an invented type,
+# returning error -50.
+#
+# That is not this script failing and it is not fixable from here. The type has to come from
+# an application declaring it, and an editor listing extensions under CFBundleTypeExtensions,
+# which is the legacy mechanism, earns a place in the Open With menu without creating a type
+# at all. Zed does exactly that for rs, go and the rest, declaring no UTImportedType or
+# UTExportedType of its own, which is why those extensions have nothing to bind to.
+#
+# So the error is kept rather than sent to /dev/null, since these three cases are only
+# distinguishable by reading it, and only the third is a real failure.
+BOUND=0
+UNTYPED=0
+REFUSED=0
+UNTYPED_LIST=""
 
 for ext in "${EXTENSIONS[@]}"; do
-    if duti -s "$BUNDLE_ID" "$ext" all 2>/dev/null; then
+    if error="$(duti -s "$BUNDLE_ID" "$ext" all 2>&1)" && [ -z "$error" ]; then
         echo "  ✓ $ext"
-        ((SUCCESS++))
+        BOUND=$((BOUND + 1))
+    elif printf '%s' "$error" | grep -q 'for dyn\.'; then
+        echo "  · $ext, no registered type on this machine"
+        UNTYPED=$((UNTYPED + 1))
+        UNTYPED_LIST="$UNTYPED_LIST $ext"
     else
-        echo "  ✗ $ext (failed)"
-        ((FAILED++))
+        echo "  ✗ $ext, $error"
+        REFUSED=$((REFUSED + 1))
     fi
 done
 
 echo
-echo "Done! Set $SUCCESS extensions to open with $APP_NAME"
-if [ $FAILED -gt 0 ]; then
-    echo "($FAILED extensions failed)"
+echo "Bound $BOUND extension(s) to $APP_NAME"
+
+if [ "$UNTYPED" -gt 0 ]; then
+    echo
+    echo "$UNTYPED extension(s) have no type for a handler to attach to, which is not a failure:"
+    echo "  $(printf '%s' "$UNTYPED_LIST" | sed 's/^ //')"
+    echo
+    echo "  macOS invents a placeholder type for an extension no installed application"
+    echo "  declares, and will not bind a default handler to an invented one. Nothing here"
+    echo "  can change that, and installing something that declares the type would."
+fi
+
+if [ "$REFUSED" -gt 0 ]; then
+    echo
+    echo "$REFUSED extension(s) failed for some other reason, listed above" >&2
+    exit 1
 fi
