@@ -4,14 +4,73 @@ onboarding = false
 agent_panel_sort = "spaces"
 show_agent_labels_on_pane_borders = false
 
+status_indicators = "symbols"
 [ui.toast]
 delivery = "terminal"
 
 [theme]
-name = "catppuccin"
+# terminal, so the sixteen palette slots, the background and the foreground all come from
+# Ghostty and nothing here restates them. Aura answers dark and Night Owl Light answers
+# light, and herdr follows the switch because it reads what the terminal hands it.
+#
+# The overrides below exist because a terminal palette has no surfaces. It is sixteen
+# colours meant to be drawn as letters on the background, since nothing in a terminal is
+# ever painted on one. herdr's tabs and rows are painted on surfaces, so the terminal theme
+# has to invent them out of text colours, and the one it picks for the focused row is
+# palette slot 8, the comment grey. Under Aura that is #949494, a light slab on a #15141b
+# page, and that single choice is what has made this chrome look wrong under every theme
+# tried here.
+#
+# So these are not hand tuned. Every value is lifted from the same theme's own interface
+# specification, where the author already answered the question a palette cannot. Aura's
+# comes from packages/vscode/themes/aura-dark-color-theme.json and Night Owl Light's from
+# the sdras/night-owl-vscode-theme repository. The role each value plays there is named on
+# its line, so a value can be checked against its source rather than taken on trust.
+#
+# Left alone deliberately. accent is the active tab fill and the terminal theme already
+# sets it to palette slot 4, which is Aura's purple and Night Owl Light's blue. Aura's own
+# badge is that same purple carrying a #15141b label, and the active tab's label here is
+# panel_bg, which under this theme is the terminal background. So the terminal theme
+# arrives at the theme's own badge on its own and there is nothing to correct. sidebar_bg
+# is also left alone, since it is the whole sidebar rather than any highlighted row, and
+# omitting it keeps the sidebar on the terminal background.
+#
+# The full token map, including which ones paint nothing, is in this package's CLAUDE.md.
 auto_switch = true
-light_name = "catppuccin-latte"
-dark_name = "catppuccin"
+dark_name = "terminal"
+light_name = "terminal"
+
+[theme.custom.dark]
+active_row_bg = "#2e2b38"  # list.activeSelectionBackground
+selection_bg = "#3b334b"   # list.hoverBackground
+surface_dim = "#2d2d2d"    # editorWidget.border
+text = "#edecee"           # editor.foreground
+subtext0 = "#cdccce"       # sideBar.foreground
+overlay0 = "#adacae"       # sideBarTitle.foreground
+overlay1 = "#6d6d6d"       # tab.inactiveForeground
+mauve = "#a277ff"          # list.activeSelectionForeground
+green = "#61ffca"          # accent2, the secondary
+yellow = "#ffca85"         # accent3, the tertiary
+red = "#ff6767"            # accent5, the senary
+blue = "#82e2ff"           # accent32, the quinary
+teal = "#61ffca"           # accent2 again, Aura has no separate teal
+peach = "#ffca85"          # accent3 again, Aura has no separate peach
+
+[theme.custom.light]
+active_row_bg = "#d3e8f8"  # list.activeSelectionBackground
+selection_bg = "#e0e7ea"   # list.inactiveSelectionBackground
+surface_dim = "#d9d9d9"    # panel.border
+text = "#403f53"           # editor.foreground
+subtext0 = "#403f53"       # sideBar.foreground
+overlay0 = "#989fb1"       # the palette's own muted grey
+overlay1 = "#989fb1"       # the palette's own muted grey
+mauve = "#288ed7"          # the palette's blue, standing in for the secondary line
+green = "#08916a"
+yellow = "#daaa01"
+red = "#de3d3b"
+blue = "#288ed7"
+teal = "#2aa298"
+peach = "#e0af02"
 
 [keys]
 prefix = "alt+z"
