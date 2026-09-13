@@ -37,7 +37,7 @@ result=$(~/.tmux/scripts/explorer.sh --tags | \
           fi
         fi
       ' \
-      --color='preview-border:#949494' \
+      --color='preview-border:8' \
       --preview-window='right:50%:hidden:border-left' \
       --bind 'ctrl-p:toggle-preview' \
       --bind "ctrl-j:down,ctrl-k:up" \

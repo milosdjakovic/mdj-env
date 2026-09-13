@@ -223,11 +223,12 @@ BORDER_LABEL=$(fzf_label "↵ copy" "^v nvim" "alt-v nvim ${ICON_NVIM_WIN}" "^b 
 # alt-j / alt-k shortcuts tied to the preview half and hides them when ^p
 # closes the pane. The rule line sits one row under the hint and lines up
 # vertically with fzf's own separator on the list side, giving symmetric
-# chrome on both halves. ANSI 246 matches the #949494 used for the rest of
-# the popup chrome. The rule is made wide enough to fill any reasonable
+# chrome on both halves. Slot 8 is the same grey the rest of the popup chrome
+# uses, and unlike the 256 cube index this sat on before, it is repainted by
+# whatever theme the terminal loads. The rule is made wide enough to fill any reasonable
 # preview pane width, fzf clips overrun at the preview edge.
-PREVIEW_HINT_LINE=$(printf '\033[38;5;246malt-j ↓ | alt-k ↑\033[0m')
-PREVIEW_RULE=$(printf '\033[38;5;246m'; printf '─%.0s' {1..200}; printf '\033[0m')
+PREVIEW_HINT_LINE=$(printf '\033[38;5;8malt-j ↓ | alt-k ↑\033[0m')
+PREVIEW_RULE=$(printf '\033[38;5;8m'; printf '─%.0s' {1..200}; printf '\033[0m')
 export PREVIEW_HINT_LINE PREVIEW_RULE
 
 
@@ -259,7 +260,7 @@ result=$(cd "$SEARCH_DIR" && fzf "${FZF_BASE_OPTS[@]}" \
       bat --color=always --style=numbers --line-range=:200 "$abs" 2>/dev/null
     fi
   ' \
-  --color='preview-border:#949494' \
+  --color='preview-border:8' \
   --preview-window="$PREVIEW_WINDOW" \
   --bind "ctrl-p:toggle-preview+execute-silent($SCRIPT --toggle-preview-state $PREVIEW_STATE_FILE)" \
   --bind "ctrl-f:become($SCRIPT $TOGGLE_TYPE {q})" \

@@ -39,8 +39,13 @@ MSG_FILE="${TMPDIR:-/tmp}/tmux-caffeinate.msg"
 # row is re-rendered with the dark hint on every focus change.
 WHITE=$'\033[97m'
 RED=$'\033[91m'
-DIM=$'\033[38;2;148;148;148m'
-FOCUSFG=$'\033[38;2;21;20;27m'
+DIM=$'\033[38;5;8m'
+# The focused row is drawn by fzf as reverse video of slot 2, so a hint written
+# into that row has to be reversed the same way or it keeps the unfocused
+# background and shows as a gap in the bar. Naming only the accent lets the
+# terminal supply the contrasting text colour, which is what makes this correct
+# under a light palette as well as a dark one.
+FOCUSFG=$'\033[7;38;5;2m'
 RESET=$'\033[0m'
 # Trailing marker on the currently active mode row.
 MARK=' <'
