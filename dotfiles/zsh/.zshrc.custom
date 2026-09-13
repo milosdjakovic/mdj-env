@@ -17,17 +17,17 @@ alias rm='rm -iv'
 # Editor
 export EDITOR=nvim
 
-# fzf colors via ANSI references so they track the terminal palette (aura).
+# fzf colors via ANSI references so they track whatever palette the terminal paints.
 # fzf's defaults reach into xterm-256 spec indices (108, 151, ...) which sit
 # outside the 16-color range that themes paint, so matches and prompts render
-# in the standard cube colors instead of aura. Mapping to 0-15 routes them
-# through ghostty's palette so anything you re-theme later carries over.
+# in the standard cube colors instead of the theme's own. Mapping to 0-15 routes
+# them through ghostty's palette, so a theme change carries over with no edit here.
 export FZF_DEFAULT_OPTS='
   --color=fg:-1,bg:-1,fg+:-1,bg+:-1
   --color=hl:2,hl+:10
   --color=prompt:2,pointer:2,marker:3,spinner:3
-  --color=info:#949494,header:#949494,border:#949494
-  --color=separator:#949494,scrollbar:#949494,gutter:#15141b
+  --color=info:8,header:8,border:8
+  --color=separator:8,scrollbar:8,gutter:-1
 '
 
 # Tool initializers
