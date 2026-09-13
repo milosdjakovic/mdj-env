@@ -17,9 +17,9 @@
 # repeat green across green and cyan, which drops pink and blue the same way the main files
 # do.
 #
-# Slot 8 is the palette table's own #6d6d6d rather than the #949494 the plain aura file
-# carries. That deviation was taken for contrast, and contrast is the one thing this
-# variant exists to give up, so applying it here would work against the point.
+# Slot 8 is the palette's own #6d6d6d, the same as every file here. It used to be the one
+# thing this variant shared with nothing else, back when the plain file carried #949494,
+# and reading the palette properly removed that split rather than resolving it.
 
 # Set the background and foreground colors
 background = #15141b

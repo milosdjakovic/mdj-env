@@ -1,21 +1,32 @@
--- The Aura palette, in the shape its Neovim package reads.
+-- The Aura palette, in the shape its Neovim package reads, plus the two chrome greys the
+-- package has no slot for.
 --
 -- That package defines 357 highlight groups across three files, and every one of them
 -- resolves to one of ten slots. So a variant is ten values rather than 357 overrides, which
 -- is why the light half below is small. The slot names are semantic rather than literal,
 -- white is the foreground and black is the background, so they invert without renaming.
 --
--- Two values are ours rather than Aura's.
+-- Aura publishes exactly one grey. The palette in packages/color-palettes names three
+-- neutrals, --white #edecee, --gray #6d6d6d and --black #15141b, and it calls the grey
+-- --muted-color. Its job is comments, and 3.54 to 1 against the background is deliberately
+-- low, because a comment is meant to recede behind the code. That is the value this file's
+-- gray slot carries, and the nine groups reading it are all comment shaped, Comment,
+-- SpecialComment, TSComment, doc tags, markdown rules and blockquotes, Folded and FoldColumn.
 --
--- dark.gray is #949494 where Aura says #6d6d6d, the repo wide decision from 9424044 that
--- Ghostty and kitty also carry. Setting it here replaces five separate highlight overrides
--- the old config carried, since thirteen groups read this slot.
+-- It carried #949494 until the palette was read properly. That value came from 9424044,
+-- long before Aura, and it appears in neither the published palette nor any file Aura ships.
+--
+-- overlay is not a package slot and nothing upstream reads it. It exists because chrome is a
+-- different job from comments and the palette names no colour for it, while Aura's own VS
+-- Code theme does. #adacae is what that theme puts on statusBar.foreground, sideBarTitle and
+-- sideBarSectionHeader, and it is the same value herdr's overlay0 carries, which is what
+-- makes the sidebar, the lualine bar and the Claude statusline agree rather than merely look
+-- similar. Aura has a fourth neutral for secondary body text, #cdccce, and it is left out
+-- here because nothing in this config has that job yet.
 --
 -- light is derived, because Aura publishes no light edition. Every value is the one already
--- committed in the Ghostty aura-light theme, so Neovim and the terminal agree. The #949494
--- bump deliberately does not carry over. It existed to rescue #6d6d6d from 3.0 to 1 on a
--- dark page, and the light comment grey already measures 3.92, in line with Catppuccin
--- Latte at 4.1.
+-- committed in the Ghostty aura-light theme or, for the two chrome greys, in herdr's light
+-- half, so no layer invents a number of its own.
 --
 -- purple_faded is stored without its alpha byte on purpose. The package truncates hex to
 -- seven characters, so Aura's own #3d375e7f becomes #3d375e before it is ever used, and
@@ -31,11 +42,12 @@ local M = {
     red = "#ff6767",
     pink = "#f694ff",
     white = "#edecee",
-    gray = "#949494",
+    gray = "#6d6d6d",
     black = "#15141b",
     purple_faded = "#3d375e",
     blue = "#82e2ff",
     surface = "#1c1b22",
+    overlay = "#adacae",
   },
   light = {
     purple = "#7e54d1",
@@ -49,6 +61,7 @@ local M = {
     purple_faded = "#dfdaf2",
     blue = "#005669",
     surface = "#e8e7ed",
+    overlay = "#727276",
   },
 }
 

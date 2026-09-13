@@ -24,7 +24,24 @@ fi
 
 used=$(echo "$input" | jq -r '.context_window.used_percentage // empty')
 
-gray="\033[38;2;148;148;148m"
+# Aura's statusBar.foreground, because that is literally what this is. The published palette
+# names one grey, #6d6d6d, and calls it muted, but its job there is comments and it sits at
+# 3.54 to 1 on purpose so that comments recede. A status bar is the one thing that must not.
+# #adacae is the value Aura's own VS Code theme puts on statusBar.foreground, and #727276 is
+# the light half of it, the same pair herdr's overlay0 carries.
+#
+# This is a truecolour literal rather than an ANSI slot because no slot holds a chrome grey.
+# Slot 8 is the comment grey, which is the wrong job, so the appearance has to be read by
+# hand. Claude Code offers nothing for that. Its statusline payload carries no theme,
+# appearance or background field and it sets only COLUMNS and LINES, so the macOS setting
+# Ghostty itself resolves its theme pair from is the only source. The read costs about 5 ms
+# against the four processes this script already spawns per refresh.
+if [ "$(/usr/bin/defaults read -g AppleInterfaceStyle 2>/dev/null)" = "Dark" ]; then
+  gray="\033[38;2;173;172;174m"
+else
+  gray="\033[38;2;114;114;118m"
+fi
+
 yellow="\033[0;33m"
 red="\033[0;31m"
 reset="\033[0m"

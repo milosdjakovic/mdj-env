@@ -4,9 +4,9 @@
 # #1c1b22, and soft text mutes every accent to the Dark Soft register and drops the
 # foreground from #edecee to #bdbdbd. This is the quietest of the four.
 #
-# Slot 8 is the palette table's own #6d6d6d rather than the #949494 the full contrast files
-# carry, for the same reason the other soft text file gives. That deviation exists to buy
-# contrast, and contrast is what this variant is deliberately spending.
+# Slot 8 is the palette's own #6d6d6d, the same as every file here. It reads 3.1 to 1 on
+# this background, the lowest of the four, which is what a variant that spends contrast
+# twice over is meant to look like.
 #
 # The slot mapping is the same reasoning as the other aura files beside this one. Each
 # chromatic accent is placed once, at the slot nearest its hue, so purple takes blue, pink
