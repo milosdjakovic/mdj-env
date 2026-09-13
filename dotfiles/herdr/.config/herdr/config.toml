@@ -8,6 +8,20 @@ status_indicators = "symbols"
 [ui.toast]
 delivery = "terminal"
 
+# The agent's second row carries a dim flag by default, so the agent name rendered lighter
+# than the git branch on the matching row under spaces, even though both read overlay0. That
+# is a render attribute rather than a colour, which is why no amount of token setting could
+# level them, and it took a probe to see, since the two lines look like different colours and
+# are in fact the same colour with one of them faded.
+#
+# Only the agents row is restated. The spaces rows keep their default, so the line being
+# matched to is untouched.
+[ui.sidebar.agents]
+rows = [
+  ["state_icon", "machine", "workspace", "tab"],
+  [{ token = "agent", dim = false }],
+]
+
 [theme]
 # Aura, expressed in herdr's own tokens. herdr's eighteen built in themes are compiled into
 # the binary and there is no way to add a nineteenth, so a theme here is a full override set
