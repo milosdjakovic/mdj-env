@@ -13,6 +13,10 @@ export MDJ_BACKUP_STAMP="$(date +%Y%m%d-%H%M%S)"
 echo "==> Starting dotfiles setup..."
 echo ""
 
+# Make sure a developer toolchain exists, before anything that compiles or wants one. The
+# Homebrew installer below asks for it too, so doing it here is what stops that step waiting.
+"$SRC_DIR/install-xcode-clt.sh"
+
 # Install Homebrew package manager
 "$SRC_DIR/install-homebrew.sh"
 

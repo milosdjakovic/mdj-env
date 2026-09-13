@@ -14,7 +14,7 @@
 #   cask       a Homebrew cask, detail is the cask name. Used when a GUI application ships
 #              the command line tool we actually depend on
 #   tap        a formula from a third party tap, detail is the full tap qualified name
-#   xcode-clt  ships with the Xcode command line tools, detail is how to install those
+#   xcode-clt  ships with the Xcode command line tools, detail says how those arrive
 #   macos      ships with the operating system, detail says so and there is nothing to install
 #   manual     installed by hand, detail says how, for anything no package manager covers
 #
@@ -85,8 +85,9 @@ zsh-autosuggestions      | manual    | installed by src/install-ohmyzsh-plugins.
 fast-syntax-highlighting | manual    | installed by src/install-ohmyzsh-plugins.sh
 fzf-tab                  | manual    | installed by src/install-ohmyzsh-plugins.sh
 brew                     | manual    | installed by src/install-homebrew.sh from the upstream installer
-swiftc                   | xcode-clt | xcode-select --install
-cc                       | xcode-clt | xcode-select --install
+swiftc                   | xcode-clt | installed by src/install-xcode-clt.sh, which raises Apple's installer and waits for it
+cc                       | xcode-clt | installed by src/install-xcode-clt.sh, which raises Apple's installer and waits for it
+xcode-select             | macos     | ships with macOS
 caffeinate               | macos     | ships with macOS
 curl                     | macos     | ships with macOS
 perl                     | macos     | ships with macOS

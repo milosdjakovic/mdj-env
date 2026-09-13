@@ -13,6 +13,7 @@ macOS development environment bootstrap and dotfiles management using GNU Stow. 
 ./setup.sh
 
 # Run individual setup scripts
+./src/install-xcode-clt.sh
 ./src/install-homebrew.sh
 ./src/install-homebrew-packages.sh
 ./src/install-ohmyzsh.sh
@@ -212,11 +213,20 @@ the good one rather than roll it back, which is
 `nvim --headless -c 'lua require("lazy.manage.lock").update()' -c qa` followed by committing
 the result. That is lazy.nvim's own writer, so the format cannot drift.
 
-What no script can do is the part macOS will not allow. Xcode command line tools
-(`xcode-select --install`), which Neovim's treesitter genuinely needs. The Accessibility grant
-for Hammerspoon, which the whole module depends on. Per browser Automation grants for
-BrowserTabs. VPN logins, Docker's first launch, and opening Obsidian once so its vault registry
-exists. `DEPENDENCIES.map` names each of these with the detail needed to do it.
+**The developer toolchain is installed rather than described.** Neovim's treesitter compiles
+every parser on first open, and the Hammerspoon module compiles two small Swift helpers, the
+eyedropper's colour sampler and the browser permission probe. So a machine without a compiler
+loses all of that quietly and late, long after setup has said it was done. `DEPENDENCIES.map`
+named `xcode-select --install` as the detail for `cc` and `swiftc` for a long time and nothing
+ever ran it, which made it the one dependency this repository described instead of installing.
+It is a command rather than a checkbox, so `src/install-xcode-clt.sh` runs it, first in
+`setup.sh` because everything later that compiles wants it and because Homebrew's own installer
+otherwise stops to ask for it. The guard asks `xcode-select -p` rather than testing a path,
+since `/usr/bin/cc` is a stub present on every Mac whether or not a toolchain exists, and the
+two real layouts keep the compiler in different places, so the stub proves nothing and only the
+active developer directory answers for both. The dialog is somebody's to click, so the step
+waits, bounded, and only when a terminal is attached, and a machine that never finishes gets a
+warning rather than a failed run.
 
 The `hs` CLI used to be listed here as a manual step too, and it never was one. The Hammerspoon
 cask declares the copy inside the app bundle as a binary artifact, so Homebrew symlinks it into
@@ -226,6 +236,12 @@ better, since it defaults to `/usr/local`, which is root owned, and pointed at t
 prefix instead it finds a bin link it did not make and no man page beside it, calls that broken,
 and declines to repair it while saying so on every load. The map calls it a cask now, like every
 other command a cask ships.
+
+What no script can do is the part macOS will not allow. The Accessibility grant for Hammerspoon,
+which the whole module depends on. Per browser Automation grants for BrowserTabs. VPN logins,
+Docker's first launch, and opening Obsidian once so its vault registry exists. None of these is
+written down anywhere yet, which is the next thing owed here, since a gate nothing states and
+nothing checks is a gate you find by watching a feature fail.
 
 ### Claude Code
 
