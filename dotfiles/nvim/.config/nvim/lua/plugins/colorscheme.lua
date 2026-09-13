@@ -15,6 +15,10 @@ return {
     -- sets the colorscheme from its own config at priority 10000.
     init = function(plugin)
       vim.opt.rtp:append(plugin.dir .. "/packages/neovim")
+      -- Started here, not in colors/aura.lua, because that file is re-sourced on every
+      -- appearance change and would leave a timer behind each time. init runs once and runs
+      -- eagerly, which is exactly what a watcher wants.
+      require("aura.appearance").start()
     end,
   },
   {
