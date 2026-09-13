@@ -1,0 +1,46 @@
+# Aura Dark for Alacritty, the upstream file from packages/alacritty/aura-theme.toml,
+# copied unchanged. alacritty.toml has imported this path since it was written and the
+# file was never here, so the import was a silent failure waiting for the day Alacritty
+# got installed.
+#
+# It differs from this repo's Ghostty theme in three ways, all of them upstream's choices.
+# Purple is repeated across blue and magenta and green across green and cyan, so pink
+# #f694ff and blue #82e2ff appear nowhere in the sixteen. Bright black is #4d4d4d rather
+# than the #949494 taken in 9424044. And selection foreground is the CellForeground
+# keyword rather than a fixed colour.
+
+# Colors (Aura Theme)
+
+# Default colors
+[colors.primary]
+background = '#15141b'
+foreground = '#edecee'
+
+# Normal colors
+[colors.normal]
+black   = '#110f18'
+red     = '#ff6767'
+green   = '#61ffca'
+yellow  = '#ffca85'
+blue    = '#a277ff'
+magenta = '#a277ff'
+cyan    = '#61ffca'
+white   = '#edecee'
+
+# Bright colors
+[colors.bright]
+black   = '#4d4d4d'
+red     = '#ff6767'
+green   = '#61ffca'
+yellow  = '#ffca85'
+blue    = '#a277ff'
+magenta = '#a277ff'
+cyan    = '#61ffca'
+white   = '#edecee'
+
+[colors.selection]
+text       = 'CellForeground'
+background = '#29263c'
+
+[colors.cursor]
+cursor = '#a277ff'
