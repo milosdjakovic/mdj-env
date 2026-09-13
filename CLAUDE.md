@@ -213,11 +213,19 @@ the good one rather than roll it back, which is
 the result. That is lazy.nvim's own writer, so the format cannot drift.
 
 What no script can do is the part macOS will not allow. Xcode command line tools
-(`xcode-select --install`), which Neovim's treesitter genuinely needs. `hs.ipc.cliInstall()`
-typed once into the Hammerspoon console. The Accessibility grant for Hammerspoon, which the
-whole module depends on. Per browser Automation grants for BrowserTabs. VPN logins, Docker's
-first launch, and opening Obsidian once so its vault registry exists. `DEPENDENCIES.map` names
-each of these with the detail needed to do it.
+(`xcode-select --install`), which Neovim's treesitter genuinely needs. The Accessibility grant
+for Hammerspoon, which the whole module depends on. Per browser Automation grants for
+BrowserTabs. VPN logins, Docker's first launch, and opening Obsidian once so its vault registry
+exists. `DEPENDENCIES.map` names each of these with the detail needed to do it.
+
+The `hs` CLI used to be listed here as a manual step too, and it never was one. The Hammerspoon
+cask declares the copy inside the app bundle as a binary artifact, so Homebrew symlinks it into
+the prefix as it installs the app, which is where the one on this machine came from, to the
+second. Calling `hs.ipc.cliInstall()` from the config would have made that worse rather than
+better, since it defaults to `/usr/local`, which is root owned, and pointed at the Homebrew
+prefix instead it finds a bin link it did not make and no man page beside it, calls that broken,
+and declines to repair it while saying so on every load. The map calls it a cask now, like every
+other command a cask ships.
 
 ### Claude Code
 
