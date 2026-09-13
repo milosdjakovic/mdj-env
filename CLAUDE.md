@@ -130,11 +130,21 @@ ordinary code and names no prefix and no installer. It found three tools this re
 had never heard of, so the layer meant to guarantee they were present had no idea they
 were needed.
 
-The install command check matches every file type under `dotfiles`, not only the scripted
-ones, because the two real leaks it was written for were both help text, a chooser row
-offering to copy a `brew install` line and a generator script telling you to run one. Help
-text is not exempt, since it duplicates an answer the map already holds and the two then
-drift apart with nothing watching.
+The install command check matches every file type under `dotfiles` and under `src`, not only
+the scripted ones, because the two real leaks it was written for were both help text, a
+chooser row offering to copy a `brew install` line and a generator script telling you to run
+one. Help text is not exempt, since it duplicates an answer the map already holds and the two
+then drift apart with nothing watching.
+
+It covers `src` because for a long time it did not, and the layer that owns the answer turned
+out to be the likeliest place to reach for an installer. `set-dev-defaults.sh` probed for
+`duti` and then installed it, three lines away from a declaration in `src/DEPENDENCIES`, a
+mapping in `DEPENDENCIES.map` and a line in the Brewfile, and the check written to catch
+exactly that had a blind spot over the whole directory. A rule this layer enforces on every
+module and exempts itself from is not a rule. Widening it needed a left edge on the verb as
+well, since `install-homebrew.sh` ends by reporting "Homebrew installed successfully" and
+`brew installed` sits inside `Homebrew`. The reconciler excludes only itself, by path, because
+it is the one file that has to write the verbs out in full.
 
 Three things are only warnings. A declared tool not installed here, since an optional one
 may legitimately not be wanted on this machine. A Brewfile entry nothing declares, since
