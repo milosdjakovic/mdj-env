@@ -9,53 +9,92 @@ status_indicators = "symbols"
 delivery = "terminal"
 
 [theme]
-# terminal, so the sixteen palette slots, the background and the foreground all come from
-# Ghostty and nothing here restates them. Aura answers dark and Night Owl Light answers
-# light, and herdr follows the switch because it reads what the terminal hands it.
+# Aura, expressed in herdr's own tokens. herdr's eighteen built in themes are compiled into
+# the binary and there is no way to add a nineteenth, so a theme here is a full override set
+# rather than a file, and the base stays terminal so anything not named below still falls
+# back to the palette Ghostty is painting.
 #
-# Three overrides, and the test for what belongs here is strict. A token stays out if the
-# palette can express it, because anything left alone follows a theme change for free. That
-# is what lets one config serve all four Aura variants. The soft text pair mutes every
-# accent and drops the foreground, the soft dark pair moves the background, and herdr picks
-# all of it up without an edit, since the accents, the text and the tab fills are read from
-# the palette rather than written down here.
+# The finding that made this possible. herdr's token names are Catppuccin's palette
+# vocabulary, surface0, surface1, overlay0, overlay1, subtext0, text, mauve, teal, peach.
+# The default config's own comment block proves the mapping by filling each token with the
+# matching Catppuccin value, sidebar_bg with mantle #181825, active_row_bg with base
+# #1e1e2e, selection_bg with surface0 #313244, text with #cdd6f4. So every built in theme is
+# that same vocabulary filled from the named theme's ramp, and Aura can join them because
+# Aura publishes a ramp of exactly that shape in packages/vscode.
 #
-# What is left is the part a palette genuinely cannot describe. Sixteen colours meant to be
-# drawn as letters on the background contain no surfaces, because nothing in a terminal is
-# ever painted on one. herdr's rows are, so the terminal theme has to invent them out of
-# text colours, and the one it reaches for on the focused row is slot 8, the comment grey.
-# Under Aura that is a light slab on a near black page, and that single token is what made
-# this chrome look broken under every theme tried here.
+# The dark values are Aura's own, read from aura-dark-color-theme.json. The light values are
+# derived, because Aura publishes no light edition. Rather than import Catppuccin's
+# proportions, the derivation uses Aura's own. Each ramp step is measured as a fraction of
+# Aura Dark's distance from its background to its foreground, and the same fractions are
+# applied between the light page and its ink, so the theme keeps its own character on both
+# halves instead of borrowing someone else's. Catppuccin's Latte and Mocha were checked
+# first and hold their proportions across the switch the same way, which is what made this
+# a reasonable thing to do rather than a guess.
 #
-# So the three values below are lifted from each theme's own interface specification, where
-# the author already answered the question the palette cannot. Aura's come from
-# packages/vscode/themes/aura-dark-color-theme.json and Night Owl Light's from the
-# sdras/night-owl-vscode-theme repository, and each line names the role it came from. The
-# dark three sit above both Aura backgrounds, #15141b and the soft dark #21202e, so the
-# lift survives that variant too.
+# Four places the derivation was overruled on purpose, each from looking at it on screen.
 #
-# Left alone deliberately. accent is the active tab fill and the terminal theme already
-# sets it to palette slot 4, which is Aura's purple and Night Owl Light's blue. Aura's own
-# badge is that same purple carrying a #15141b label, and the active tab's label here is
-# panel_bg, which under this theme is the terminal background. So the terminal theme
-# arrives at the theme's own badge on its own and there is nothing to correct, and it keeps
-# doing so when the purple softens to #8464c6. sidebar_bg is also left alone, since it is
-# the whole sidebar rather than any highlighted row.
+# Light surfaces are near neutral rather than page tinted. Aura's surfaces carry the
+# background's purple, which is a whisper at L* 18 and a lilac slab at L* 93.
 #
-# The full token map, including which ones paint nothing, is in this package's CLAUDE.md.
+# Light muted text is floored at 4.5 to 1. Aura's proportions put it near 2.4 there, because
+# the light ramp spans less than the dark one, and headings and inactive tab labels were
+# close to invisible.
+#
+# mauve is the secondary line on a highlighted space and it carries the ramp colour, not the
+# purple. Aura's own answer is #a277ff, and it is one line from here if you want it, but it
+# made that single line the only secondary text on the page wearing a different colour.
+#
+# accent is darker than palette slot 4 on the light half. Slot 4 is solved for 4.5 to 1 as
+# text, and this fill carries a label painted in panel_bg, where a block wants more room
+# than a letter. It reads 6.08 to 1 rather than 4.54.
+# sidebar_bg is deliberately absent. Omitting it leaves the spaces and agents panel on the
+# terminal background, level with everything else. It was set to the ramp's mantle, which is
+# correct on the dark half and was inverted on the light one, since mantle sits below the
+# background and the light ramp runs downward, so the same offset lifted it instead. Both
+# Catppuccin halves keep mantle below base, so lighter was wrong either way.
 auto_switch = true
 dark_name = "terminal"
 light_name = "terminal"
 
 [theme.custom.dark]
-active_row_bg = "#2e2b38"  # list.activeSelectionBackground
-selection_bg = "#3b334b"   # list.hoverBackground
-surface_dim = "#2d2d2d"    # editorWidget.border
+accent = "#a277ff"
+panel_bg = "#15141b"
+active_row_bg = "#2f2b42"
+selection_bg = "#3b3552"
+surface0 = "#15141b"
+surface1 = "#3b334b"
+surface_dim = "#2d2d2d"
+overlay0 = "#adacae"
+overlay1 = "#97949f"
+text = "#edecee"
+subtext0 = "#cdccce"
+mauve = "#adacae"
+green = "#61ffca"
+yellow = "#ffca85"
+red = "#ff6767"
+blue = "#82e2ff"
+teal = "#61ffca"
+peach = "#ffca85"
 
 [theme.custom.light]
-active_row_bg = "#d3e8f8"  # list.activeSelectionBackground
-selection_bg = "#e0e7ea"   # list.inactiveSelectionBackground
-surface_dim = "#d9d9d9"    # panel.border
+accent = "#5e36ee"
+panel_bg = "#f8f7fb"
+active_row_bg = "#e8e7ed"
+selection_bg = "#dcdbe1"
+surface0 = "#f8f7fb"
+surface1 = "#d3d2d8"
+surface_dim = "#bdbdc3"
+overlay0 = "#727276"
+overlay1 = "#727276"
+text = "#474556"
+subtext0 = "#5c5c5f"
+mauve = "#727276"
+green = "#00805f"
+yellow = "#6b4400"
+red = "#bf3239"
+blue = "#005669"
+teal = "#00805f"
+peach = "#6b4400"
 
 [keys]
 prefix = "alt+z"
