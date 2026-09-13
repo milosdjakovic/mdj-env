@@ -113,3 +113,42 @@ Anything new that scans broadly owes the same measurement before it ships.
 sits in, falling back to the recent list lazygit keeps for itself. `f` the fuzzy search. `alt+f`
 lf, viewing only, since every interactive key lf binds opens a tmux popup and there is no tmux
 session inside a herdr popup to open one into.
+
+## Which theme token paints what
+
+The config reference lists nineteen colour tokens and writes a real description for three of
+them. The other sixteen get the same sentence about accepting hex, and none mentions the tab
+bar at all. So this map came from three rounds of probe, each one setting a handful of tokens
+to unmistakable colours and reading the result off the screen, after several rounds of
+guessing at values had produced nothing.
+
+Surfaces. `accent` is the active tab background. `surface0` is the inactive tab background,
+and `reset` there gives it the terminal background so it reads as no fill. `surface_dim` is
+the borders, the left edge and the divider between agents and spaces. `active_row_bg` is the
+active space and focused agent row. `selection_bg` is the Navigate-mode cursor row.
+
+Text. `text` is the selected sidebar row's label. `subtext0` is the primary label on
+unselected space and agent rows. `mauve` is the secondary line, and only on a highlighted
+space, not on an agent. `overlay0` is the muted headings, the words new, menu, agents and
+grouped. `overlay1` is the inactive tab label and the plus.
+
+Status. `green` is the idle agent's empty circle and `yellow` is the working agent's.
+
+`panel_bg` is two things, and this is the one that governs the whole design. It is the panel
+background, it backs the popup border, and it is also the active tab's label. So no token
+sets that text. It is the background colour painted onto the accent fill, which means a fill
+close to the background hides its own label, and the way to make the active tab readable is
+to push the fill away from the background rather than to look for a text token. That is why
+the active tab is an inverted chip here, dark under a light theme and light under a dark one,
+and why the focused sidebar row follows it rather than staying a quiet lift.
+
+`surface1`, `overlay1` aside, `blue`, `red` and `peach` painted nothing visible in a normal
+layout, so they are free.
+
+Two more things worth knowing before changing any of this. `sidebar_bg` is not the
+highlighted row, it is the whole sidebar, and omitting it leaves the sidebar on the terminal
+background, which is almost always what is wanted. And the theme is client local, so
+`herdr server reload-config` reports applied and repaints nothing. A theme change needs a
+detach and reattach, `prefix+q` then `herdr`, which keeps every pane since panes live in the
+server. Reading an applied status as proof of a theme change is a mistake this section exists
+to stop being repeated.
