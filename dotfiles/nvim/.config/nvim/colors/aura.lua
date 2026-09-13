@@ -67,9 +67,13 @@ hl("DiffText", { bg = p.purple_faded, fg = p.orange })
 
 -- mini.icons colours every filetype separately, which turns the file tree into a rainbow.
 -- These are LazyVim's groups, not Aura's, so this is an addition rather than a correction.
+--
+-- They read overlay rather than gray. A file tree is chrome and gray is the comment colour,
+-- which Aura keeps deliberately low at 3.54 to 1 so that comments recede behind code. An
+-- icon beside a filename is not receding behind anything.
 for _, name in ipairs({
   "MiniIconsAzure", "MiniIconsBlue", "MiniIconsCyan", "MiniIconsGreen", "MiniIconsGrey",
   "MiniIconsOrange", "MiniIconsPurple", "MiniIconsRed", "MiniIconsYellow",
 }) do
-  hl(name, { fg = p.gray })
+  hl(name, { fg = p.overlay })
 end

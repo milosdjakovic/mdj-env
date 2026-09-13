@@ -30,9 +30,11 @@
 # since a dark orange is a brown and there is no way around that, which is the same wall
 # every light theme meets.
 #
-# Slot 0 is the ink and slots 7 and 15 are light greys, the light theme convention. The
-# #949494 rule from 9424044 is a value for a dark page and does not apply, so the comment
-# grey is solved the same way as the accents.
+# Slot 0 is the ink and slots 7 and 15 are light greys, the light theme convention. Slot 8
+# is the comment grey and is solved the same way as the accents, which lands it at 3.92 to 1
+# against 3.54 for the palette's own #6d6d6d on the dark page. Aura publishes one grey and
+# calls it muted, its job is comments, and low contrast there is the point rather than a
+# defect, so the light half mirrors the job and not the number.
 
 # Set the background and foreground colors
 background = #f8f7fb

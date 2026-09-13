@@ -7,8 +7,10 @@
 # description exact, soft dark moves thirty three of a hundred and thirty four interface
 # values and not one of the twelve syntax scopes.
 #
-# Slot 8 keeps the #949494 the plain file carries, since this variant gives up nothing in
-# contrast and the reason for that deviation, taken in 9424044, still applies.
+# Slot 8 is the palette's one grey, #6d6d6d, the same as every other file here. Soft dark
+# lifts the paper toward it, so it reads 3.1 to 1 here against 3.54 on the plain file. That
+# is the cost of this variant rather than a fault in the value, and the same squeeze applies
+# to every muted thing on this background.
 #
 # The slot mapping is the same reasoning as the other aura files beside this one. Each
 # chromatic accent is placed once, at the slot nearest its hue, so purple takes blue, pink
@@ -37,7 +39,7 @@ palette = 4=#a277ff
 palette = 5=#f694ff
 palette = 6=#82e2ff
 palette = 7=#edecee
-palette = 8=#949494
+palette = 8=#6d6d6d
 palette = 9=#ff6767
 palette = 10=#61ffca
 palette = 11=#ffca85

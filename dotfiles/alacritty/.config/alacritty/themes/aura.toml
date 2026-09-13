@@ -5,9 +5,10 @@
 #
 # It differs from this repo's Ghostty theme in three ways, all of them upstream's choices.
 # Purple is repeated across blue and magenta and green across green and cyan, so pink
-# #f694ff and blue #82e2ff appear nowhere in the sixteen. Bright black is #4d4d4d rather
-# than the #949494 taken in 9424044. And selection foreground is the CellForeground
-# keyword rather than a fixed colour.
+# #f694ff and blue #82e2ff appear nowhere in the sixteen. Bright black is #4d4d4d, where
+# the Ghostty files use the palette's own #6d6d6d, which is the value upstream's own Termux
+# package puts in that slot. And selection foreground is the CellForeground keyword rather
+# than a fixed colour.
 
 # Colors (Aura Theme)
 

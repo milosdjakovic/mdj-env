@@ -4,3 +4,4 @@
 # Written by hand, because this module has no sub units to fold declarations from.
 jq  | path | jq  | required | statusline-command.sh | parsing the session json the status line is built from
 git | path | git | optional | statusline-command.sh | the branch shown in the status line
+defaults | system | /usr/bin/defaults | optional | statusline-command.sh | reading the macOS appearance, since Claude Code passes the status line no theme and the grey has a light half and a dark one

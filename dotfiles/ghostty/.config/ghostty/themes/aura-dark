@@ -16,13 +16,16 @@
 # purple across blue and magenta and repeat green across green and cyan, which leaves pink
 # and blue unreachable from a terminal entirely.
 #
-# Three deliberate departures from Termux. Slot 0 is #110f18, the value eleven of the
-# thirteen packages use, rather than the background. The brights repeat the main accents,
-# where Termux fills them with the documented Dark Soft register, which is dimmer than the
-# normal one and would make bold text fade rather than stand out. And slot 8 is #949494
-# rather than the theme's own accent8 #6d6d6d, a repo wide decision taken in 9424044 for
-# contrast that nvim and kitty also carry. Most packages use #4d4d4d there, which is
-# dimmer still and is not the palette table's answer either.
+# Two deliberate departures from Termux. Slot 0 is #110f18, the value eleven of the
+# thirteen packages use, rather than the background. And the brights repeat the main
+# accents, where Termux fills them with the documented Dark Soft register, which is dimmer
+# than the normal one and would make bold text fade rather than stand out.
+#
+# Slot 8 is no longer one of them. It carried #949494 from 9424044 until the palette was
+# read properly, and #949494 is in neither the published palette nor any file Aura ships.
+# The palette names exactly one grey, #6d6d6d, and calls it muted. Its job there is
+# comments, which is also slot 8's job in a terminal, so the palette answers this slot
+# directly and Termux already spells out the same value.
 
 # Set the background and foreground colors
 background = #15141b
@@ -46,9 +49,10 @@ palette = 5=#f694ff
 palette = 6=#82e2ff
 palette = 7=#edecee
 
-# Bright black is #949494 rather than the theme's own #6d6d6d. That is a deliberate repo
-# wide decision taken in 9424044 for contrast, and nvim and kitty carry the same value.
-palette = 8=#949494
+# Bright black is the palette's one grey, --muted-color, which Aura uses for comments. It
+# reads 3.54 to 1 against the background, low on purpose, because a comment is meant to
+# recede behind the code it annotates.
+palette = 8=#6d6d6d
 palette = 9=#ff6767
 palette = 10=#61ffca
 palette = 11=#ffca85
