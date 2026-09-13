@@ -45,13 +45,14 @@ return {
       { name = "perl", kind = "path", policy = "optional", stage = "dev", unit = "regenerate",
         reason = "parsing the Unicode Character Database into candidate rows",
         origin = { macos = "ships with the system" } },
-      -- hs is the Hammerspoon CLI itself, which does not arrive on PATH the way a brew
-      -- formula does. The cask ships it inside the app bundle, and cliInstall is the one
-      -- step that symlinks it out, so the origin says that rather than naming a package
-      -- manager that never touches this tool.
+      -- hs is the Hammerspoon CLI itself, and it arrives on PATH the way every other cask
+      -- shipped command here does. The cask declares the copy inside the app bundle as a
+      -- binary artifact, so Homebrew symlinks it into the prefix as it installs the app. This
+      -- said manual for a long time, and named cliInstall as the step that puts it there,
+      -- which nobody had ever run on the machine that claim described.
       { name = "hs", kind = "path", policy = "optional", stage = "dev", unit = "regenerate",
         reason = "rendering every candidate glyph to drop the ones that draw as a box, and writing the dataset",
-        origin = { manual = "the Hammerspoon cask ships the CLI inside the app, run hs.ipc.cliInstall() once from the Hammerspoon console to symlink it onto the PATH" } },
+        origin = { cask = "hammerspoon" } },
     },
   },
 

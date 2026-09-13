@@ -71,6 +71,7 @@ mullvad       | cask      | mullvad-vpn
 ivpn          | cask      | ivpn
 docker        | cask      | docker-desktop
 macshot       | cask      | macshot
+hs            | cask      | hammerspoon
 obsidian      | cask      | obsidian
 
 # Packages that ship files rather than a command, loaded by path from a configuration.
@@ -104,7 +105,6 @@ sips                     | macos     | ships with macOS
 head                     | macos     | ships with macOS
 networkQuality           | macos     | ships with macOS
 script                   | macos     | ships with macOS
-hs                       | manual    | the Hammerspoon cask ships the CLI inside the app, run hs.ipc.cliInstall() once from the Hammerspoon console to symlink it onto the PATH
 
 # Tools a module's own tooling needs rather than its running configuration. A generated
 # manifest is built by reading the declarations inside the module, and the Hammerspoon module
