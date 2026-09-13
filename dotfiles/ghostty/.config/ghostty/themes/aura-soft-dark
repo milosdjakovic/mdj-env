@@ -1,0 +1,47 @@
+# Ghostty Theme: Aura Soft Dark
+#
+# Soft dark moves the paper and leaves the ink alone. The background goes from #15141b to
+# #21202e and ANSI black follows it from #110f18 to #1c1b22, which is the pairing the
+# upstream Kitty and Windows Terminal soft files use. Every accent is the full strength
+# register, identical to the plain aura-dark file. The VS Code package is what makes that
+# description exact, soft dark moves thirty three of a hundred and thirty four interface
+# values and not one of the twelve syntax scopes.
+#
+# Slot 8 keeps the #949494 the plain file carries, since this variant gives up nothing in
+# contrast and the reason for that deviation, taken in 9424044, still applies.
+#
+# The slot mapping is the same reasoning as the other aura files beside this one. Each
+# chromatic accent is placed once, at the slot nearest its hue, so purple takes blue, pink
+# takes magenta and the actual blue takes cyan. That comes from the palette table in
+# packages/color-palettes rather than from any of the thirteen terminal packages, eleven of
+# which drop pink and blue entirely.
+
+# Set the background and foreground colors
+background = #21202e
+foreground = #edecee
+
+# Set the cursor color
+cursor-color = #a277ff
+cursor-text = #21202e
+
+# Set the selection colors
+selection-background = #29263c
+selection-foreground = #edecee
+
+# Define the color palette
+palette = 0=#1c1b22
+palette = 1=#ff6767
+palette = 2=#61ffca
+palette = 3=#ffca85
+palette = 4=#a277ff
+palette = 5=#f694ff
+palette = 6=#82e2ff
+palette = 7=#edecee
+palette = 8=#949494
+palette = 9=#ff6767
+palette = 10=#61ffca
+palette = 11=#ffca85
+palette = 12=#a277ff
+palette = 13=#f694ff
+palette = 14=#82e2ff
+palette = 15=#edecee
