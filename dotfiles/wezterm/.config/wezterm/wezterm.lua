@@ -2,6 +2,11 @@ local wezterm = require("wezterm")
 
 local config = wezterm.config_builder()
 
+-- Aura ships no WezTerm package, so this stays on the scheme WezTerm bundles rather than
+-- a port. It comes from the Gogh collection, which is a third party derivative, so it is
+-- Aura at one remove and will not match the Ghostty theme value for value. It is still the
+-- right answer here, since the alternative is writing the palette out a fourth time by hand
+-- and then keeping it in step with nothing watching.
 config.color_scheme = 'Aura (Gogh)'
 
 config.font = wezterm.font("MesloLGS NF")
