@@ -22,6 +22,10 @@ macOS development environment bootstrap and dotfiles management using GNU Stow. 
 ./src/setup-zshrc.sh
 ./src/bootstrap-nvim.sh
 ./src/setup-dev-defaults.sh
+./src/setup-capslock-hyper.sh
+./src/setup-claude-settings.sh
+./src/setup-herdr-plugins.sh
+./src/check-dependencies.sh
 
 # Set default editor for dev file types manually (setup-dev-defaults.sh defaults to Zed)
 ./src/set-dev-defaults.sh "Zed"
@@ -157,6 +161,53 @@ to drift unnoticed.
 **Available but not stowed:** alacritty, kitty, wezterm
 
 Each package mirrors the home directory structure (e.g., `dotfiles/nvim/.config/nvim/` → `~/.config/nvim/`)
+
+### Putting this on another machine
+
+`./setup.sh` is the whole answer and it is meant to be run on a machine that is already in
+use, not only on a blank one. Three things make that true, and each of them replaced a
+behaviour that quietly did not.
+
+**This repository wins, and what it displaces is kept.** Stow refuses to write over a real
+file, and it aborts every package in the same invocation when it hits one, so a single stale
+`~/.tmux.conf` used to stop the run before Neovim, the status line or the herdr plugin were
+ever reached. `setup-stow-dotfiles.sh` now reads stow's own dry run, moves every path stow
+names into `~/.mdj-env-backup/<timestamp>/` keeping its position under the home directory, and
+then stows. It loops because clearing one conflict can uncover another under a folded
+directory, and it is bounded so a loop that cannot converge says so. All three of stow's
+conflict messages are handled, a plain file in the way, a symlink stow does not own, and a
+symlink belonging to another package. Nothing is deleted. `setup-zshrc.sh` displaces the same
+way, since `~/.zshrc` is generated rather than stowed and there is no symlink to make.
+
+Restowing also clears links to files this repository used to have and no longer does, which is
+the other half of overriding an outdated machine. That was verified rather than assumed, both
+folded and unfolded.
+
+**Neovim is pinned, and the pin is now actually used.** `lazy-lock.json` names an exact commit
+per plugin, and `bootstrap-nvim.sh` used to run `Lazy! sync`, which is install, clean and
+*update*, where update moves every plugin to its newest revision and then rewrites the
+lockfile. So the second machine got whatever was newest that day rather than what this
+repository pins, and because `~/.config/nvim` is a symlink into the repo, the rewrite landed
+on a tracked file. It now runs install, clean and `restore`, which is lazy.nvim's own
+documented answer for a config used on more than one machine. Updating stays a deliberate act,
+performed here, recorded by committing the lockfile.
+
+The same script also reconciles rather than guessing. It compares every name and every commit
+in the lockfile against what is on disk, before and after, and fails with the list when
+something does not converge. The old check looked for one directory, LazyVim's, and called the
+job done, so a first run that died partway through was never retried.
+
+**The lockfile records this machine.** When the two machines disagree, the fix is to capture
+the good one rather than roll it back, which is
+`nvim --headless -c 'lua require("lazy.manage.lock").update()' -c qa` followed by committing
+the result. That is lazy.nvim's own writer, so the format cannot drift.
+
+What no script can do is the part macOS will not allow. Xcode command line tools
+(`xcode-select --install`), which Neovim's treesitter genuinely needs. `hs.ipc.cliInstall()`
+typed once into the Hammerspoon console. The Accessibility grant for Hammerspoon, which the
+whole module depends on. Per browser Automation grants for BrowserTabs. VPN logins, Docker's
+first launch, and opening Obsidian once so its vault registry exists. `DEPENDENCIES.map` names
+each of these with the detail needed to do it.
 
 ### Claude Code
 
