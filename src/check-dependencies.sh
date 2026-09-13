@@ -22,6 +22,10 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# This file is the one place the install verbs are written out in full, so it matches its own
+# pattern and has to sit the scan out. Excluded by path rather than by a marker comment, since
+# a marker is something a future leak could copy.
+SELF="$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")"
 MAP="$ROOT/DEPENDENCIES.map"
 BREWFILE="$ROOT/Brewfile"
 DOTFILES="$ROOT/dotfiles"
@@ -415,7 +419,11 @@ done < <(grep -rnE '(hs\.execute|hs\.task\.new)\("[^"]' "$DOTFILES" --include='*
 # Only an install verb is matched. `brew --prefix` is a location read rather than an install,
 # and two modules legitimately use it to find a file inside a package whose prefix they must
 # not know, which tmux/CLAUDE.md records.
-INSTALL_VERB='(brew|port) (install|tap )|npm install -g|pip3? install'
+#
+# The verb has to begin a word, or a line that merely reports success reads as an instruction.
+# src/install-homebrew.sh ends with "Homebrew installed successfully", where brew installed
+# sits inside Homebrew and matched a pattern with no left edge on it.
+INSTALL_VERB='(^|[^[:alnum:]])((brew|port) (install|tap )|npm install -g|pip3? install)'
 while IFS= read -r hit; do
     [[ -z "$hit" ]] && continue
     path="${hit%%:*}"
@@ -428,7 +436,7 @@ while IFS= read -r hit; do
     printf '%s' "$content" | sed 's/`[^`]*`//g' | grep -qE "$INSTALL_VERB" || continue
     err "${path#"$ROOT"/} names an install command, only DEPENDENCIES.map and the Brewfile may"
     bypass=$((bypass + 1))
-done < <(grep -rnE "$INSTALL_VERB" "$DOTFILES" 2>/dev/null)
+done < <(grep -rnE "$INSTALL_VERB" "$DOTFILES" "$SCRIPT_DIR" 2>/dev/null | grep -v "^$SELF:")
 [[ $bypass -eq 0 && $reached -eq 0 ]] && say "  no code reaches around a declared door"
 [[ $bypass -eq 0 && $reached -gt 0 ]] && say "  every tool that is run is declared, and $reached of those runs reach around the door"
 
