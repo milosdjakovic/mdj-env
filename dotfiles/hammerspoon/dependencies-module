@@ -18,3 +18,15 @@ hammerspoon | app | org.hammerspoon.Hammerspoon | required | the application thi
 # module's contract with the layer above stops working, which is a maintenance task rather than
 # a feature, and the reconciler above says so plainly when it cannot run.
 lua | path | lua | optional | reading every plugin manifest so the collector can build this module's generated manifest
+
+# The Accessibility grant, which is the gate this entire module stands on. Every leader key,
+# every chord, and every window action goes through the accessibility layer, and without the
+# grant the config loads cleanly and then does nothing at all, which is the worst shape a
+# failure can take. It belongs to the module rather than to any plugin for the same reason the
+# application does, nothing inside would be running without it.
+#
+# It is a gate rather than a tool, so nothing installs it and the door inside the config never
+# sees it. The grants-probe beside this file answers for it, by asking the running config,
+# since macOS reports a permission for whoever is asking and only Hammerspoon can answer about
+# Hammerspoon.
+accessibility | grant | accessibility | required | every leader key, every chord, and every window action goes through the accessibility layer, and the config does nothing at all without it

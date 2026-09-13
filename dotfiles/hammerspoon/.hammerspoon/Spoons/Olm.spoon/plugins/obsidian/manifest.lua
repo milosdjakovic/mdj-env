@@ -59,6 +59,22 @@ return {
         reason = "the application every chosen note opens in, and the owner of the vault registry this plugin reads to find notes at all",
         origin = { cask = "obsidian" } },
     },
+
+    -- The registry Obsidian writes the first time a vault is opened, and the only way this
+    -- plugin finds a note at all. A gate rather than a tool, since no package manager ships
+    -- it and no script can create it, somebody has to open the application once.
+    --
+    -- It is declared here even though the plugin already handles its absence, showing one
+    -- disabled row saying a vault has never been opened. That row is the right answer for
+    -- somebody who opened the picker. This line is the answer for somebody who has just set
+    -- up a machine and has not opened anything yet, which is when it is cheapest to fix.
+    gates = {
+      { name = "obsidian-vaults", kind = "manual",
+        locator = "~/Library/Application Support/obsidian/obsidian.json",
+        policy = "optional",
+        reason = "the vault registry every note is found through, which nothing here can create",
+        origin = { manual = "open a vault in Obsidian once, which is what writes the registry this plugin reads" } },
+    },
   },
 
   -- Both halves of what makes this tool reachable by typing its word, so ob and a space

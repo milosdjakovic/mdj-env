@@ -17,6 +17,7 @@
 #   xcode-clt  ships with the Xcode command line tools, detail says how those arrive
 #   macos      ships with the operating system, detail says so and there is nothing to install
 #   manual     installed by hand, detail says how, for anything no package manager covers
+#   grant      a permission only a person can give, detail names the pane that gives it
 #
 # A declaration may also state its own origin, in the two trailing columns of a module's
 # generated manifest, and some do. A plugin built to travel to another machine has to carry
@@ -106,6 +107,13 @@ sips                     | macos     | ships with macOS
 head                     | macos     | ships with macOS
 networkQuality           | macos     | ships with macOS
 script                   | macos     | ships with macOS
+
+# Gates rather than tools. Nothing here can be installed, and no script can open one. A module
+# declares a gate the way it declares a tool, the reconciler proves it the way it proves a tool,
+# and these lines say what a person has to do. Which is the whole point of moving them here,
+# since a gate that lives only in prose is one you find by watching a feature fail quietly.
+accessibility            | grant     | System Settings, Privacy and Security, Accessibility, turn Hammerspoon on
+obsidian-vaults          | manual    | open a vault in Obsidian once, which is what writes the registry this plugin reads
 
 # Tools a module's own tooling needs rather than its running configuration. A generated
 # manifest is built by reading the declarations inside the module, and the Hammerspoon module

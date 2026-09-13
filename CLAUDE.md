@@ -105,6 +105,38 @@ asking the package manager instead of by probing a path, because the prefix diff
 between machines and no module may know it. `policy` is `required` when the module is
 broken without it and `optional` when only part of it degrades.
 
+A gate is the sixth thing a module may declare and the one nothing can install. It lives in
+its own list, `needs.gates` beside `needs.tools` in a plugin manifest, or a line in a module's
+own hand written declaration, and the split is about who reads it rather than about tidiness.
+A tool is a request to the resolver inside the running config, which probes for it and hands
+back a path. A gate is not, so the door never sees one, which is why the two are separate lists
+instead of one list with a flag on it. Two kinds are gates. `manual` is a marker path, proving
+that a program has been opened once and written a file something here depends on, which is how
+the Obsidian vault registry is declared. `grant` is a macOS permission.
+
+A permission cannot be probed from the layer above, and the reason is worth stating rather than
+rediscovering. macOS reports a permission for the process that asks, so a check run from a
+setup script answers about the terminal it runs in, and would report granted on a machine where
+the application in question is refused. A check that lies is worse than no check. Reading the
+TCC database is the only other route and it needs Full Disk Access, which is another grant of
+exactly the kind being checked, so that trades one gate for another.
+
+So the reconciler delegates, the same way it already delegates manifest regeneration. A module
+that declares a grant ships a `grants-probe` at its own package root, which the reconciler finds
+by name rather than by knowing the module. It takes the locator the declaration carries, prints
+one word, and exits zero. Exit 2 means this machine cannot answer right now, a machine fact and
+a warning. Any other nonzero means the locator is not one that module understands, a repository
+defect and an error. The vocabulary is three words, `granted`, `notDetermined`, and `denied`,
+which is the distinction BrowserTabs settled on first. The last one matters most, since macOS
+remembers a refusal forever and never prompts a second time, so the only route back is the pane
+in System Settings. Which pane is not the prober's business either. That comes from
+`DEPENDENCIES.map`, where every other answer to where something comes from already lives.
+
+The Hammerspoon module's prober answers by asking the running config, because only Hammerspoon
+can be asked about Hammerspoon. It is bounded, since the reply can go missing, and a setup step
+that blocks forever is worse than one that says it could not answer. Every grant outcome is a
+warning and never an error, because a grant is a fact about one machine.
+
 This layer's own setup scripts declare too, in `src/DEPENDENCIES`, because tools like
 stow and duti would otherwise be the one category nothing checks.
 
@@ -237,11 +269,20 @@ prefix instead it finds a bin link it did not make and no man page beside it, ca
 and declines to repair it while saying so on every load. The map calls it a cask now, like every
 other command a cask ships.
 
-What no script can do is the part macOS will not allow. The Accessibility grant for Hammerspoon,
-which the whole module depends on. Per browser Automation grants for BrowserTabs. VPN logins,
-Docker's first launch, and opening Obsidian once so its vault registry exists. None of these is
-written down anywhere yet, which is the next thing owed here, since a gate nothing states and
-nothing checks is a gate you find by watching a feature fail.
+What no script can do is the part macOS will not allow, and two of those are now declared
+gates rather than prose. The Accessibility grant, which the whole Hammerspoon module stands on,
+is declared at that module's root and answered by its `grants-probe`. Obsidian's vault registry
+is declared by the Obsidian plugin as a marker path, so a fresh machine is told to open the
+application once rather than finding out later that the picker lists nothing.
+
+Three are still only prose. Per browser Automation grants belong to BrowserTabs, and wiring them
+into the same mechanism needs a seam inside Olm so a plugin can answer for its own grant, since
+the only thing that can read one is the plugin's own compiled helper and the module level prober
+must not reach into a plugin's cache to find it. Docker's first launch is deliberately not
+probed, because asking the daemon is the call that hangs while Docker Desktop is starting, which
+is why the processes plugin already refuses to ask it. And a VPN login is not readable at all on
+the Mullvad side, which reports unavailable rather than logged out, so there is nothing to check
+short of trying to connect.
 
 ### Claude Code
 
