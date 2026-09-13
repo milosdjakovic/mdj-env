@@ -62,8 +62,22 @@ EXTENSIONS=(
     .cjs
     
     # Web
-    .html
-    .htm
+    #
+    # .html and .htm are deliberately absent, and they are the one exclusion in this list.
+    # Both resolve to public.html, and on macOS the handler for public.html is not merely
+    # related to your default browser, it is one of the three records that define it, along
+    # with the http and https URL schemes, all written together as a group. So asking for it
+    # here is asking to become the browser, and macOS stops and asks the user, which is why
+    # this step used to raise a change your default browser dialog on every single run.
+    #
+    # There is no way around it, which was tested rather than assumed. Setting only the
+    # viewer role, touching neither scheme, still raised the prompt. No role, flag or
+    # ordering avoids it, because the guard is on the setting rather than on how it is
+    # reached, and it is deliberate, since silently repointing public.html is how browser
+    # hijacking worked.
+    #
+    # Nothing is lost. Opening an HTML file in an editor never needed the default handler,
+    # a path on the command line, a drag onto the dock, or Open With all work untouched.
     .css
     .scss
     .sass
