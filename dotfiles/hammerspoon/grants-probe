@@ -1,0 +1,108 @@
+#!/bin/bash
+set -uo pipefail
+
+# Answer for one permission this module needs, which no script can grant and nothing else can
+# read on its behalf.
+#
+# The contract with the layer above is deliberately tiny, the same shape dependencies-collect
+# already has. It takes one locator, prints one word, and exits zero. What that word means for
+# the setup, and what a person should do about it, is not this file's business. The reconciler
+# above reads the word and DEPENDENCIES.map says where the grant is given, so this half stays
+# ignorant of System Settings and that half stays ignorant of Hammerspoon.
+#
+# The vocabulary is the one BrowserTabs already settled on, in plugins/browsertabs/probe.swift,
+# because the distinction it draws is the one that matters everywhere. granted needs nothing.
+# notDetermined can still be turned into granted by asking. denied cannot, since macOS
+# remembers a refusal forever and never prompts again, so the only honest offer left is a trip
+# to System Settings.
+#
+# Exit 2 means this machine cannot answer right now, which is a machine fact and a warning
+# above. Any other nonzero means the locator is not one this module understands, which is a
+# repository defect and identical on every machine, so it is an error above.
+#
+# Why it asks Hammerspoon rather than looking for itself. macOS reports a permission for the
+# process asking, so a check run from a terminal answers about the terminal. Run from a shell
+# during setup, a permission probe would report the grants Ghostty happens to hold and say
+# granted on a machine where Hammerspoon is refused, which is worse than no check at all. The
+# TCC database is the only other route and reading it needs Full Disk Access, which is another
+# grant of exactly the kind this file exists to report, so that trades one gate for another.
+# Asking the running config is the only answer that is about Hammerspoon.
+
+CANNOT_ANSWER_HERE=2
+
+locator="${1:-}"
+if [[ -z "$locator" ]]; then
+    echo "grants-probe: takes one locator, and was given none" >&2
+    exit 1
+fi
+
+# The CLI is declared by this module and the map above says it ships with the cask, so this
+# names it and never goes looking for it anywhere else.
+if ! command -v hs >/dev/null 2>&1; then
+    echo "grants-probe: hs is not on PATH, and only the running config can answer for its own" >&2
+    echo "  permissions. It is declared in this module's DEPENDENCIES, so" >&2
+    echo "  ./src/check-dependencies.sh names where it comes from." >&2
+    exit $CANNOT_ANSWER_HERE
+fi
+
+# One question to the running config, bounded, with the answer taken from the last line. The
+# CLI prints a loading notice of its own the first time it reaches an extension, so the reply
+# is the end of the output rather than the whole of it.
+#
+# Bounded because the reply can go missing. The call answered three times in a row while this
+# was being written and hung once before that, which is the known shape of this CLI, a request
+# that reaches the config and a reply that never comes back. A setup step that can block
+# forever is worse than one that says it could not answer, so a lost reply costs this a few
+# seconds and then reads as a machine that cannot answer right now.
+ASK_SECONDS=10
+
+ask() {
+    local answer_file reply waited=0 hs_pid
+    answer_file="$(mktemp)"
+    hs -c "$1" >"$answer_file" 2>/dev/null &
+    hs_pid=$!
+    while kill -0 "$hs_pid" 2>/dev/null; do
+        if (( waited >= ASK_SECONDS )); then
+            kill -9 "$hs_pid" 2>/dev/null
+            wait "$hs_pid" 2>/dev/null
+            rm -f "$answer_file"
+            return 1
+        fi
+        sleep 1
+        waited=$(( waited + 1 ))
+    done
+    wait "$hs_pid" 2>/dev/null
+    reply="$(grep -v '^[[:space:]]*$' "$answer_file" | tail -1)"
+    rm -f "$answer_file"
+    [[ -z "$reply" ]] && return 1
+    printf '%s' "$reply"
+}
+
+case "$locator" in
+    accessibility)
+        # hs.accessibilityState with no argument reads without asking, which is the whole point
+        # of separating the two. Passing true raises the prompt, and this file never does.
+        #
+        # Two states rather than four, and that is the permission rather than a simplification.
+        # Accessibility is a switch a person can turn on at any time and the prompt can be
+        # raised again, so it has no permanent refusal to report. Automation is the one that
+        # remembers a no forever.
+        if ! answer="$(ask 'return tostring(hs.accessibilityState())')"; then
+            echo "grants-probe: Hammerspoon is not running, or is not answering, so it cannot" >&2
+            echo "  be asked about its own Accessibility grant." >&2
+            exit $CANNOT_ANSWER_HERE
+        fi
+        case "$answer" in
+            true)  echo "granted" ;;
+            false) echo "notDetermined" ;;
+            *)
+                echo "grants-probe: the config answered '$answer', which is neither true nor false" >&2
+                exit $CANNOT_ANSWER_HERE
+                ;;
+        esac
+        ;;
+    *)
+        echo "grants-probe: '$locator' is not a grant this module knows how to answer for" >&2
+        exit 1
+        ;;
+esac

@@ -2,6 +2,8 @@
 # manifest, the module level declaration, and the collector with the reader beside it are the
 # module's contract with the layer above, so they belong to the repository rather than to the
 # running config, and check-timers is a check on the source the running config has no use for.
+# grants-probe is the same kind of thing, the module's answer to a question only the layer above
+# asks, which happens to work by asking the running config rather than by reading a file.
 #
 # Nothing inside .hammerspoon is listed. It used to hold declaration files that both the running
 # config and the collector read, so they had to be stowed. A plugin declares in its own
@@ -11,4 +13,5 @@ DEPENDENCIES
 dependencies-module
 dependencies-collect
 dependencies-collect.lua
+grants-probe
 check-timers

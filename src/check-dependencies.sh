@@ -150,6 +150,7 @@ done < <(records "$MAP")
 # What the map says provides a name. Used by the package kind below, which cannot be proven by
 # a filesystem probe and has to ask the package manager this layer owns.
 map_detail() { records "$MAP" | awk -F'|' -v n="$1" '$1 == n { print $3; exit }'; }
+map_origin() { records "$MAP" | awk -F'|' -v n="$1" '$1 == n { print $2; exit }'; }
 
 #-------------------------------------------------------------------------------
 # Check one, a declared tool with no entry in the install map
@@ -488,6 +489,9 @@ for line in "${declared_lines[@]}"; do
     consumer="$(field "$line" 6)"
     ok=1
     case "$kind" in
+        # Answered in its own section below, by the module that declared it, since nothing
+        # at this layer can read a permission and no module may be known by name here.
+        grant)  continue ;;
         path)   command -v "$locator" >/dev/null 2>&1 || ok=0 ;;
         system) [[ -x "$locator" ]] || ok=0 ;;
         app)    [[ -n "$(mdfind -count "kMDItemCFBundleIdentifier == '$locator'" 2>/dev/null | grep -v '^0$')" ]] || ok=0 ;;
@@ -503,11 +507,116 @@ for line in "${declared_lines[@]}"; do
         *)      err "$name in $module declares unknown kind '$kind'" ;;
     esac
     if [[ $ok -eq 0 ]]; then
-        warn "$name is not installed, $module/$consumer runs without it ($policy)"
+        if [[ "$(map_origin "$name")" == "manual" ]]; then
+            warn "$name is not here yet, $module/$consumer runs without it ($policy), $(map_detail "$name")"
+        else
+            warn "$name is not installed, $module/$consumer runs without it ($policy)"
+        fi
         absent=$((absent + 1))
     fi
 done
 [[ $absent -eq 0 ]] && say "  every declared tool is installed"
+
+#-------------------------------------------------------------------------------
+# Check six and a half, the grants no script can give. A warning, not an error
+#-------------------------------------------------------------------------------
+
+# A permission is a dependency like any other, and until now it was the one category this
+# layer described in prose and never checked. It cannot be probed from here, for a reason
+# worth stating rather than rediscovering. macOS reports a permission for the process that
+# asks, so a check run from a setup script answers about the terminal it runs in, and would
+# say granted on a machine where the application in question is refused. A check that lies is
+# worse than no check.
+#
+# So this delegates, the same way manifest regeneration already does. A module that declares a
+# grant ships a grants-probe at its own root, found by name rather than by this layer knowing
+# any module, handed the locator the declaration carries, and answering one word. Adding a
+# module with grants of its own needs no change here.
+#
+# The vocabulary is three words. granted needs nothing. notDetermined can still become granted
+# by asking. denied cannot, since macOS remembers a refusal forever and never asks again, so
+# the only route left is the pane. A prober may draw finer distinctions for its own surface,
+# BrowserTabs separates an application that is not running from one that does not exist, but
+# what reaches this layer is one of the three.
+#
+# Every outcome is a warning, never an error, because a grant is a fact about this machine and
+# the same repository on another machine answers differently. What IS an error is a repository
+# defect, a declared grant whose module ships nothing to answer for it, a locator the module
+# does not recognise, or a word outside the vocabulary.
+#
+# The pane to open is not this layer's to know either. It comes from DEPENDENCIES.map, which is
+# where every other "where does this come from" answer already lives.
+
+say ""
+say "==> Grants a person has to give"
+grants_declared=0
+grants_open=0
+# A grant that could not be answered, for any reason, is counted apart from one that answered
+# no. Without this the closing line below reads "every declared grant is given" after an error,
+# which is a reassurance rather than a check, the same distinction the manifest refresh above
+# already draws when a module could not be regenerated.
+grants_unanswered=0
+for line in "${declared_lines[@]}"; do
+    kind="$(field "$line" 3)"
+    [[ "$kind" == "grant" ]] || continue
+    grants_declared=$((grants_declared + 1))
+    module="$(field "$line" 1)"
+    name="$(field "$line" 2)"
+    locator="$(field "$line" 4)"
+    policy="$(field "$line" 5)"
+    consumer="$(field "$line" 6)"
+
+    prober="$DOTFILES/$module/grants-probe"
+    [[ -x "$prober" ]] || prober="$ROOT/$module/grants-probe"
+    if [[ ! -x "$prober" ]]; then
+        err "$module declares the grant $name but ships no grants-probe to answer for it"
+        grants_unanswered=$((grants_unanswered + 1))
+        continue
+    fi
+
+    complaint="$(mktemp)"
+    state="$("$prober" "$locator" 2>"$complaint")"
+    status=$?
+    case "$status" in
+        0) ;;
+        "$CANNOT_RUN_HERE")
+            warn "$name could not be read on this machine, so whether $module has it is unknown"
+            while IFS= read -r detail_line; do say "         $detail_line"; done <"$complaint"
+            rm -f "$complaint"
+            grants_unanswered=$((grants_unanswered + 1))
+            continue
+            ;;
+        *)
+            err "$module/grants-probe does not understand the locator '$locator' that $name declares"
+            while IFS= read -r detail_line; do say "         $detail_line"; done <"$complaint"
+            rm -f "$complaint"
+            grants_unanswered=$((grants_unanswered + 1))
+            continue
+            ;;
+    esac
+    rm -f "$complaint"
+
+    case "$state" in
+        granted) ;;
+        notDetermined)
+            warn "$name has not been given, $module/$consumer needs it ($policy), $(map_detail "$name")"
+            grants_open=$((grants_open + 1))
+            ;;
+        denied)
+            warn "$name was refused, and macOS never asks twice, so the only way back is $(map_detail "$name")"
+            grants_open=$((grants_open + 1))
+            ;;
+        *)
+            err "$module/grants-probe answered '$state' for $name, which is not granted, notDetermined, or denied"
+            grants_unanswered=$((grants_unanswered + 1))
+            ;;
+    esac
+done
+if [[ $grants_declared -eq 0 ]]; then
+    say "  nothing declares a grant"
+elif [[ $grants_open -eq 0 && $grants_unanswered -eq 0 ]]; then
+    say "  every declared grant is given"
+fi
 
 #-------------------------------------------------------------------------------
 # Check seven, a closed set option handed a bare string instead of a named value

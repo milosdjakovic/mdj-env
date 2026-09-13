@@ -29,11 +29,42 @@ local KINDS = {
   package = true,  -- ships files rather than a command, so the package manager is asked
 }
 
+-- What a gate may be, which is a shorter list because a gate is not a tool. grant is a macOS
+-- permission, answered by the module's own grants-probe since only the running config can be
+-- asked about its own. manual is a marker path, which proves a program has been opened once
+-- and written the file another part of this config reads.
+local GATE_KINDS = {
+  grant = true,
+  manual = true,
+}
+
+local function kindList(kinds)
+  local names = {}
+  for name in pairs(kinds) do names[#names + 1] = name end
+  table.sort(names)
+  return table.concat(names, ", ")
+end
+
+-- The two lists a manifest may carry, and the difference is who reads them. needs.tools is a
+-- request to the door inside the running config, which probes for the tool and hands back a
+-- path. needs.gates is neither a request nor a tool, it is something a person has to do once
+-- that no script can do, and nothing inside the config resolves one. Keeping them apart is
+-- what stops a gate reaching the door at all, rather than reaching it and being refused there
+-- for a kind it was never meant to understand.
+local SOURCES = {
+  { key = "tools", noun = "tool", kinds = KINDS },
+  { key = "gates", noun = "gate", kinds = GATE_KINDS },
+}
+
 -- The origins the map one layer up understands. Checked here because an origin key nobody
 -- recognises would otherwise pass through as an empty column and read as a tool that simply
 -- states no origin, which is the one thing this field exists to distinguish.
 local ORIGINS = {
   brew = true, cask = true, tap = true, ["xcode-clt"] = true, macos = true, manual = true,
+  -- A permission, where the detail names the pane in System Settings that gives it. Added
+  -- here in the same change that taught the map the word, since an origin this file does not
+  -- know reads as a declaration that states none, which is the one thing the column is for.
+  grant = true,
 }
 
 local failures = {}
@@ -62,8 +93,17 @@ for _, path in ipairs(arg) do
       fail(path, "returned " .. type(manifest) .. " rather than a table")
     else
       local consumer = consumerOf(path)
-      for index, tool in ipairs(((manifest.needs or {}).tools or {})) do
-        local where = consumer .. " tool " .. index
+      -- Both lists flattened into one pass, each entry remembering which list it came from,
+      -- so every check below reads the same whichever it is reading.
+      local declaredHere = {}
+      for _, source in ipairs(SOURCES) do
+        for index, entry in ipairs(((manifest.needs or {})[source.key] or {})) do
+          declaredHere[#declaredHere + 1] = { tool = entry, source = source, index = index }
+        end
+      end
+      for _, each in ipairs(declaredHere) do
+        local tool, source, index = each.tool, each.source, each.index
+        local where = consumer .. " " .. source.noun .. " " .. index
         if type(tool) ~= "table" then
           fail(where, "is a " .. type(tool) .. " rather than a table")
         else
@@ -92,9 +132,9 @@ for _, path in ipairs(arg) do
           end
           local owner = (type(tool.unit) == "string") and (consumer .. "/" .. tool.unit)
             or consumer
-          if not KINDS[kind] then
+          if not source.kinds[kind] then
             fail(where .. " (" .. tostring(name) .. ")", "has kind " .. tostring(kind)
-              .. ", which is not one of path, system, app, manual, or package")
+              .. ", and a " .. source.noun .. " is one of " .. kindList(source.kinds))
           end
           if policy ~= "required" and policy ~= "optional" then
             fail(where .. " (" .. tostring(name) .. ")", "has policy " .. tostring(policy)
