@@ -129,8 +129,10 @@ active space and focused agent row. `selection_bg` is the Navigate-mode cursor r
 
 Text. `text` is the selected sidebar row's label. `subtext0` is the primary label on
 unselected space and agent rows. `mauve` is the secondary line, and only on a highlighted
-space, not on an agent. `overlay0` is the muted headings, the words new, menu, agents and
-grouped. `overlay1` is the inactive tab label and the plus.
+space, not on an agent. `overlay0` is the muted headings, the words new, menu, agents,
+grouped and spaces, and it is also the secondary line on a space that is not highlighted.
+`overlay1` is the plus and the label of an unfocused tab, but only one that has been
+renamed.
 
 Status. `green` is the idle agent's empty circle and `yellow` is the working agent's.
 
@@ -142,8 +144,21 @@ to push the fill away from the background rather than to look for a text token. 
 the active tab is an inverted chip here, dark under a light theme and light under a dark one,
 and why the focused sidebar row follows it rather than staying a quiet lift.
 
-`surface1`, `overlay1` aside, `blue`, `red` and `peach` painted nothing visible in a normal
-layout, so they are free.
+`surface1` painted nothing visible in either of the two layouts it has been probed against,
+and `blue`, `red` and `peach` likewise, so those four are free.
+
+Some of this is a render attribute rather than a colour, and that is the trap. The agent
+name under an agent row and the branch under a space row both read `overlay0`, yet the
+agent one is visibly lighter, because its row entry carries a `dim` flag. No value set
+anywhere will level them. The fix is `ui.sidebar.agents.rows`, where each entry may be a
+bare token name or a style table of `token`, `fg`, `bold`, `dim` and `rules`, so the default
+`"agent"` string becomes `{ token = "agent", dim = false }`. `ui.sidebar.spaces.rows` is the
+matching key for the other section. The same dimming is why an unfocused tab showing only
+its number looks fainter than a renamed one.
+
+That trap is also why this map is worth probing rather than reasoning about. Two rounds of
+reasoning about which token painted the agent line were both wrong, because the premise that
+a difference in appearance means a difference in token is false here.
 
 Two more things worth knowing before changing any of this. `sidebar_bg` is not the
 highlighted row, it is the whole sidebar, and omitting it leaves the sidebar on the terminal
