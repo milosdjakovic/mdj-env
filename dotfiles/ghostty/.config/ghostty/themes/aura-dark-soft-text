@@ -1,0 +1,52 @@
+# Ghostty Theme: Aura Dark (Soft Text)
+#
+# Aura documents four schemes across two independent axes, and this file is one corner of
+# that grid. Soft text keeps the paper and mutes the ink. Soft dark keeps the ink and
+# lightens the paper to #21202e. This is the first of those, so the background stays
+# #15141b and every accent drops to the Dark Soft register in packages/color-palettes,
+# purple #8464c6, green #54c59f, orange #c7a06f, pink #c17ac8, blue #6cb2c7, red #c55858
+# and white #bdbdbd. The measurement behind that description is the VS Code package, where
+# soft text moves fifty three of the hundred and thirty four interface values and eight of
+# the twelve syntax scopes, while soft dark moves thirty three interface values and not one
+# syntax scope.
+#
+# The slot mapping is the same reasoning as the plain aura file beside this one. Each
+# chromatic accent is placed once, at the slot nearest its hue, so purple takes blue, pink
+# takes magenta and the actual blue takes cyan. The upstream soft files for iTerm, Konsole
+# and Windows Terminal do not do this. They repeat purple across blue and magenta and
+# repeat green across green and cyan, which drops pink and blue the same way the main files
+# do.
+#
+# Slot 8 is the palette table's own #6d6d6d rather than the #949494 the plain aura file
+# carries. That deviation was taken for contrast, and contrast is the one thing this
+# variant exists to give up, so applying it here would work against the point.
+
+# Set the background and foreground colors
+background = #15141b
+foreground = #bdbdbd
+
+# Set the cursor color
+cursor-color = #8464c6
+cursor-text = #15141b
+
+# Set the selection colors
+selection-background = #29263c
+selection-foreground = #bdbdbd
+
+# Define the color palette
+palette = 0=#110f18
+palette = 1=#c55858
+palette = 2=#54c59f
+palette = 3=#c7a06f
+palette = 4=#8464c6
+palette = 5=#c17ac8
+palette = 6=#6cb2c7
+palette = 7=#bdbdbd
+palette = 8=#6d6d6d
+palette = 9=#c55858
+palette = 10=#54c59f
+palette = 11=#c7a06f
+palette = 12=#8464c6
+palette = 13=#c17ac8
+palette = 14=#6cb2c7
+palette = 15=#bdbdbd
