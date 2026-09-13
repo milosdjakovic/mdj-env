@@ -4,6 +4,12 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_DIR="$SCRIPT_DIR/src"
 
+# One stamp for the whole run, so every step that has to move something out of this
+# repository's way puts it in the same directory. Exported rather than passed, because the
+# steps are separate processes and each one also has to work when it is run on its own, which
+# src/lib/backup.sh handles by making its own stamp when this is absent.
+export MDJ_BACKUP_STAMP="$(date +%Y%m%d-%H%M%S)"
+
 echo "==> Starting dotfiles setup..."
 echo ""
 
@@ -60,3 +66,15 @@ echo "==> Module checks"
 echo ""
 echo "==> Setup complete!"
 echo "    Restart your terminal to apply all changes."
+
+# Said at the end rather than as it happens, because the steps that displace a file are spread
+# through the run and a line buried in the middle of the output is a line nobody reads. This
+# repository takes precedence over whatever it finds, which is the point of running it, so the
+# only thing owed is telling you plainly where the old copies went.
+BACKUP_DIR="$HOME/.mdj-env-backup/$MDJ_BACKUP_STAMP"
+if [[ -d "$BACKUP_DIR" ]]; then
+    echo ""
+    echo "    Files this run replaced were kept, not deleted:"
+    echo "      $BACKUP_DIR"
+    ( cd "$BACKUP_DIR" && find . -type f | sed 's|^\./|        |' )
+fi
