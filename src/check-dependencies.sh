@@ -59,6 +59,17 @@ records() {
 
 field() { echo "$1" | cut -d'|' -f"$2"; }
 
+# True when git ignores a path, used to keep every recursive scan below on files this
+# repository actually tracks. A plugin manager such as tpm installs third party files into a
+# gitignored folder inside a module, a vendored README that names a brew command or a script
+# that hardcodes a package manager path, and those are machine state rather than this
+# repository's source. Every rule below reports a defect meant to be identical on every
+# machine, which a runtime install is not, so a scan must not read one. git is the one
+# authority on what is ours, and it is a declared dependency of this repository anyway. When
+# git cannot answer, outside a checkout say, check-ignore exits nonzero and the path counts as
+# ours, which only ever restores the older unfiltered behaviour and never hides a tracked file.
+ignored() { git -C "$ROOT" check-ignore -q "$1" 2>/dev/null; }
+
 #-------------------------------------------------------------------------------
 # Regenerate every module manifest, so a stale one cannot pass unnoticed
 #-------------------------------------------------------------------------------
@@ -332,6 +343,7 @@ while IFS= read -r hit; do
     [[ -z "$hit" ]] && continue
     path="${hit%%:*}"
     is_door "$path" && continue
+    ignored "$path" && continue
     # A hardcoded package manager prefix is always a bypass, since a resolved path is what
     # the door hands out and that path differs between Apple Silicon and Intel machines.
     locator="$(echo "$hit" | grep -oE '/(opt/homebrew|usr/local)/bin/[A-Za-z0-9._-]+' | head -1)"
@@ -348,6 +360,7 @@ while IFS= read -r hit; do
     [[ -z "$hit" ]] && continue
     path="${hit%%:*}"
     is_door "$path" && continue
+    ignored "$path" && continue
     err "${path#"$ROOT"/} probes for a tool with command -v, which is its module's door's job"
     bypass=$((bypass + 1))
 done < <(grep -rnE 'hs\.execute\("command -v' "$DOTFILES" --include='*.lua' 2>/dev/null)
@@ -384,6 +397,7 @@ while IFS= read -r hit; do
     [[ -z "$hit" ]] && continue
     path="${hit%%:*}"
     is_door "$path" && continue
+    ignored "$path" && continue
     content="${hit#*:}"; content="${content#*:}"
     # A commented out call is not an invocation. Without this, an example in a comment is reported
     # as a defect, and a check that cries wolf gets ignored on the day it is right.
@@ -428,6 +442,7 @@ INSTALL_VERB='(^|[^[:alnum:]])((brew|port) (install|tap )|npm install -g|pip3? i
 while IFS= read -r hit; do
     [[ -z "$hit" ]] && continue
     path="${hit%%:*}"
+    ignored "$path" && continue
     content="${hit#*:}"; content="${content#*:}"
     # A backtick span is how prose names a command instead of telling anyone to run it, which
     # is what lets a module's own CLAUDE.md explain this rule by quoting it. Strip every span
@@ -653,6 +668,7 @@ for key in "${named_keys[@]}"; do
     while IFS= read -r hit; do
         [[ -z "$hit" ]] && continue
         path="${hit%%:*}"
+        ignored "$path" && continue
         rest="${hit#*:}"
         lineno="${rest%%:*}"
         content="${rest#*:}"
