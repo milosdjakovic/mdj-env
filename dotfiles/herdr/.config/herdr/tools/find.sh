@@ -16,24 +16,42 @@ cd "$HOME" || exit 1
 
 # A plain walk of the home directory reports a hundred and sixty thousand folders and
 # takes seven seconds, which is not a picker. Almost all of it is machine chatter, so
-# the noisy trees are cut and the walk drops to about a second. Library itself is kept
-# rather than cut whole, because the Obsidian vault lives under Mobile Documents.
-fd_args=(
-  --strip-cwd-prefix
-  --exclude 'Library/Caches'
-  --exclude 'Library/Containers'
-  --exclude 'Library/Group Containers'
-  --exclude 'Library/Application Support'
-  --exclude 'Library/Developer'
-  --exclude 'Library/CloudStorage'
-  --exclude node_modules
-  --exclude .git
-  --exclude .Trash
-  --exclude .cache
-  --exclude Applications
-)
+# the noisy trees are cut and the walk drops to a quarter of a second.
+#
+# What is cut and what is reached back into lives in find-scope beside this file rather
+# than here, because the answer differs per machine while this logic does not. The file
+# says why each line is there, including the cloud rule that is the reason this picker
+# was unusable before, and adding a tree is then an edit to data rather than to code.
+fd_args=()
+extra_roots=()
+scope="$(dirname "$0")/find-scope"
+while IFS= read -r line || [ -n "$line" ]; do
+  case "$line" in ''|'#'*) continue ;; esac
+  verb="${line%% *}"
+  path="${line#* }"
+  case "$verb" in
+    exclude) fd_args+=(--exclude "$path") ;;
+    # A root that is not on this machine is skipped rather than refused, which is what lets
+    # one file serve every machine. fd exits nonzero when every search path it was given is
+    # missing, so an unfiltered list would turn a machine without the vault into an error.
+    include) [ -d "$HOME/$path" ] && extra_roots+=("$path") ;;
+  esac
+done < "$scope"
+
 [ "$FIND_FILES" = 1 ] || fd_args+=(--type d)
 [ "$FIND_HIDDEN" = 1 ] && fd_args+=(--hidden)
+
+# The home walk and each reached in root, as one stream. The first carries
+# --strip-cwd-prefix and the rest cannot, since fd prints an explicit search path as it was
+# given and the flag makes it print nothing at all. Both halves come out relative to the home
+# directory anyway, which is what the pick below expects, because the walk starts there and
+# every included path is written relative to it.
+scan() {
+  fd --strip-cwd-prefix "${fd_args[@]}"
+  for root in ${extra_roots[@]+"${extra_roots[@]}"}; do
+    fd "${fd_args[@]}" . "$root"
+  done
+}
 
 if [ "$FIND_FILES" = 1 ]; then files_state="files and folders"; else files_state="folders only"; fi
 if [ "$FIND_HIDDEN" = 1 ]; then hidden_state="hidden shown"; else hidden_state="hidden skipped"; fi
@@ -41,7 +59,7 @@ if [ "$FIND_HIDDEN" = 1 ]; then hidden_state="hidden shown"; else hidden_state="
 next_files=$((1 - FIND_FILES))
 next_hidden=$((1 - FIND_HIDDEN))
 
-pick=$(fd "${fd_args[@]}" 2>/dev/null | fzf \
+pick=$(scan 2>/dev/null | fzf \
   --reverse \
   --query "$FIND_QUERY" \
   --prompt "$HOME/" \

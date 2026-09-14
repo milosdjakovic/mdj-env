@@ -111,9 +111,37 @@ with the probe above.
 
 The finder starts at `$HOME`. A plain walk from there reports a hundred and sixty three thousand
 folders and takes seven and a half seconds, which is not a picker. `tools/find.sh` cuts the
-machine chatter and answers in about a second. Library is kept rather than dropped whole, since
-the Obsidian vault lives under Mobile Documents, so the exclusions name the noisy trees inside
-Library instead.
+machine chatter and answers in about a quarter of a second.
+
+What it cuts and what it reaches back into lives in `tools/find-scope`, not in the script, because
+that answer differs between machines while the logic does not. Two verbs, `exclude` and `include`,
+everything after the first space is the path so a space needs no quoting, and an `include` that
+does not exist here is skipped rather than refused, which is what lets one file serve every
+machine. That file carries the reasoning for each line.
+
+**Never traverse cloud provider storage.** macOS puts all of it under exactly two fixed roots,
+`Library/CloudStorage` for every third party provider through the File Provider API and
+`Library/Mobile Documents` for iCloud. They are the same on every Mac and independent of which
+accounts exist, so excluding the pair is a rule rather than a patch. Only the first was here
+once, and the missing twin is what made this picker unusable: evicted files are dataless
+placeholders and enumerating one blocks on the network, so with Optimize Mac Storage on the walk
+never finished and the first two thousand rows alone took a minute and a half at zero percent CPU.
+
+That is not one machine's bad luck, which is the reason it is written down. Eviction follows disk
+pressure, so a machine where everything is downloaded today starts blocking months later and the
+picker looks like it broke by itself.
+
+Do not try to detect it, it was checked and it cannot be done. Evicted files sit on the same
+device and the same filesystem as everything else, so `--one-file-system`, mount type tests and
+any "is this remote" predicate are blind to them. A deadline fails too, since fd buffers when its
+output is a pipe and the blocked threads starve the stream. Spotlight does answer without
+blocking, because it reads its own index, and it is ten times slower and returns everything, so it
+needs this same list anyway.
+
+The Obsidian vault is the one thing reached back out of iCloud, one container out of a hundred and
+ninety four, which costs 0.025s rather than the whole tree. Its own files are evicted too and it
+is quick only because the walk reads directories and those are still materialised, so if that ever
+changes this is the line that will block.
 
 Anything new that scans broadly owes the same measurement before it ships.
 

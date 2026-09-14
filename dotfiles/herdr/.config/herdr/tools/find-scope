@@ -1,0 +1,57 @@
+# What the fuzzy finder walks, as data rather than as a list buried in the script.
+#
+# Two verbs, and everything after the first space is the path, so a path with a space in it
+# needs no quoting. Paths are relative to the home directory, which is where the walk starts.
+#
+#   exclude  a tree the walk does not descend into
+#   include  a tree walked in its own right, for reaching inside something excluded above.
+#            A path that does not exist on this machine is skipped rather than being an error,
+#            so one file can serve every machine and each uses the subset it has.
+#
+# The rule the cloud lines follow, because it is a category macOS defines rather than a list
+# of this machine's junk. A picker must not traverse cloud provider storage. macOS puts all of
+# it under exactly two fixed roots, identical on every Mac and independent of which accounts
+# exist, so naming the pair is a rule rather than a patch.
+#
+# Library/CloudStorage is every third party provider, Google Drive, Dropbox, OneDrive, through
+# the File Provider API. Library/Mobile Documents is iCloud. Only the first was here, and the
+# missing twin is what made this picker unusable.
+#
+# What it costs to traverse one. Files macOS has evicted are dataless placeholders, and
+# enumerating them blocks on the network rather than on the disk. Measured on one machine with
+# Optimize Mac Storage on, the walk never finished, and the first two thousand rows alone took
+# a minute and a half at zero percent CPU. Excluding the pair takes the whole scan to 0.27s.
+#
+# This is not one machine's misfortune, which is why it is written down here. Eviction follows
+# disk pressure, so a machine where everything is downloaded today starts blocking later, and
+# the picker appears to break on its own with nothing to point at.
+#
+# No detection is possible, checked rather than assumed. Evicted files sit on the same device
+# and the same filesystem as everything else, so one file system check, a mount type test and
+# --one-file-system are all blind to them. A deadline does not work either, since fd buffers
+# when its output is a pipe and the blocked threads starve the stream. Spotlight answers
+# without blocking, because it reads its own index, and is ten times slower and returns
+# everything, so it needs this list anyway.
+exclude Library/Caches
+exclude Library/Containers
+exclude Library/Group Containers
+exclude Library/Application Support
+exclude Library/Developer
+exclude Library/CloudStorage
+exclude Library/Mobile Documents
+exclude node_modules
+exclude .git
+exclude .Trash
+exclude .cache
+exclude Applications
+
+# The one thing wanted back out of iCloud, and the reason Mobile Documents was kept whole
+# before. It is one container out of the hundred and ninety four there, so reaching it this way
+# costs 0.025s instead of the whole tree. The path is the same on every Mac signed into this
+# iCloud account, so it is account stable rather than machine specific.
+#
+# Its own files are evicted too, two thousand of them, and it is fast only because the walk
+# reads directories and those are still materialised. If macOS ever evicts the directories as
+# well this line is what will block, and the answer then is to drop it and reach notes through
+# Obsidian instead of the finder.
+include Library/Mobile Documents/iCloud~md~obsidian
