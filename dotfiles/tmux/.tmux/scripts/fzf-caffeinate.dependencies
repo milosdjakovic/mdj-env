@@ -3,3 +3,7 @@
 # The system kind because this one ships with macOS at a fixed absolute path rather than
 # arriving through a package manager.
 caffeinate | system | /usr/bin/caffeinate | required | holding the machine awake, the whole point of that picker
+# Backgrounding the caffeinate process so it outlives this popup. system for the same reason as
+# the line above, it ships with macOS at a fixed absolute path. Required rather than optional
+# because there is no fallback path here, without it the hold is tied to a popup that closes.
+nohup | system | /usr/bin/nohup | required | detaching caffeinate so the hold survives the popup that started it

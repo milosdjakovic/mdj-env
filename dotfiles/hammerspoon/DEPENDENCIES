@@ -10,6 +10,7 @@
 hammerspoon | app | org.hammerspoon.Hammerspoon | required | hammerspoon | the application this entire module configures
 lua | path | lua | optional | hammerspoon | reading every plugin manifest so the collector can build this module's generated manifest
 accessibility | grant | accessibility | required | hammerspoon | every leader key, every chord, and every window action goes through the accessibility layer, and the config does nothing at all without it
+diff | system | /usr/bin/diff | optional | hammerspoon | showing what moved when the inventory snapshot stops matching its golden file
 open | system | /usr/bin/open | optional | apptoggler | opening a pane URL for a toggle whose target is a settings pane rather than an application | macos | ships with the system
 osascript | system | /usr/bin/osascript | optional | browsertabs/jxa | runs the JXA that asks each browser for its open tabs | macos | ships with the system
 swiftc | system | /usr/bin/swiftc | optional | browsertabs/permissions | builds the helper that asks for automation permission per browser | xcode-clt | xcode-select --install

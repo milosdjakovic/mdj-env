@@ -10,3 +10,9 @@ bat   | path | bat  | optional | lfrc       | the paged file preview bound to i
 nvim  | path | nvim | optional | lfrc       | the edit popup bound to o
 trash | path | trash | optional | lfrc      | moving selections to the trash rather than deleting them
 git   | path | git  | optional | lfrc       | repository aware actions
+
+# Two that ship with macOS at fixed absolute paths, which is what the system kind is for. They
+# were run by these scripts long before anything declared them, and nothing noticed because the
+# reconciler's undeclared tool check reads Lua and is blind to shell.
+tput  | system | /usr/bin/tput | required | copy-menu.sh, tag-clear-confirm.sh, trash-confirm.sh | drawing the confirm and menu overlays, every cursor move and the hiding and showing of it
+file  | system | /usr/bin/file | required | preview.sh | reading a file's mime type, which is what the preview dispatches on
