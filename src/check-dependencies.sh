@@ -732,6 +732,51 @@ fi
 [[ $herdr_poisoned -eq 0 && $herdr_unwired -eq 0 ]] && say "  every agent can still announce its pane"
 
 #-------------------------------------------------------------------------------
+# Check nine, the decisions record keeps its shape
+#-------------------------------------------------------------------------------
+
+say ""
+say "==> Decisions record"
+
+# decisions/ is the one place a rejected approach or a corrected belief is written down, and
+# its value is that a reader can trust every file to have the same four parts and to be
+# reachable from the index. A file missing from the index is never read, a file without a
+# Rejected section cannot stop a regression, and both are repository defects the same on every
+# machine, so they are errors. The contract itself is in decisions/README.md.
+decisions_dir="$ROOT/decisions"
+decisions_index="$decisions_dir/README.md"
+decisions_bad=0
+if [[ -d "$decisions_dir" ]]; then
+    for file in "$decisions_dir"/*.md; do
+        name="$(basename "$file" .md)"
+        [[ "$name" == "README" ]] && continue
+        if ! grep -qF "]($name.md)" "$decisions_index"; then
+            err "decisions/$name.md is not listed in decisions/README.md"
+            decisions_bad=$((decisions_bad + 1))
+        fi
+        for part in "^Status\. " "^## Now$" "^## Rejected$" "^## Log$"; do
+            if ! grep -qE "$part" "$file"; then
+                err "decisions/$name.md is missing the part matching $part"
+                decisions_bad=$((decisions_bad + 1))
+            fi
+        done
+        while IFS= read -r heading; do
+            if ! [[ "$heading" =~ ^###\ [0-9]{4}-[0-9]{2}-[0-9]{2} ]]; then
+                err "decisions/$name.md log entry does not start with a date, $heading"
+                decisions_bad=$((decisions_bad + 1))
+            fi
+        done < <(sed -n '/^## Log$/,$p' "$file" | grep -E '^### ')
+    done
+    while IFS= read -r linked; do
+        if [[ ! -f "$decisions_dir/$linked" ]]; then
+            err "decisions/README.md lists $linked, which does not exist"
+            decisions_bad=$((decisions_bad + 1))
+        fi
+    done < <(grep -oE '\]\([a-z0-9-]+\.md\)' "$decisions_index" | tr -d '()]')
+fi
+[[ $decisions_bad -eq 0 ]] && say "  every decision file is indexed and carries its four parts"
+
+#-------------------------------------------------------------------------------
 
 say ""
 if [[ $errors -gt 0 ]]; then
