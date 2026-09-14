@@ -10,6 +10,7 @@ fast-syntax-highlighting | manual  | ~/.oh-my-zsh/custom/plugins/fast-syntax-hig
 fzf-tab                  | manual  | ~/.oh-my-zsh/custom/plugins/fzf-tab             | optional | .zshrc.custom | fzf driven tab completion
 zoxide                   | path    | zoxide                                          | required | .zshrc.custom | the cd alias is zoxide, so plain cd stops working without it
 atuin                    | path    | atuin                                           | required | .zshrc.custom | shell history, initialised on every shell start
+fnm                      | path    | fnm                                             | required | .zshrc.custom | the node version switcher, eval'd unconditionally on every shell start, so an absent one is an error on every prompt
 eza                      | path    | eza                                             | required | .zshrc.custom | the ls alias
 bat                      | path    | bat                                             | required | .zshrc.custom | the cat alias
 nvim                     | path    | nvim                                            | required | .zshrc.custom | the EDITOR every tool opens
