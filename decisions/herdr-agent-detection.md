@@ -171,3 +171,12 @@ Two bug drafts and one discussion draft written, not filed, pending Milos. This 
 `decisions/` directory and its README, the CLAUDE.md section and the reconciler check nine
 were all created in this same sitting, and this entry is the first one written under the
 contract rather than reconstructed for it.
+Corrected 2026-09-15 00:17, see below.
+
+### 2026-09-15 00:17
+
+Correction. The entry above was written at about 00:12, not 00:30. The estimate came from a
+sense of how much had happened rather than from a clock, and the two commits either side of it,
+c82178d at 00:08 and c90ff87 at 00:15, bound it. An estimated time is anchored to the nearest
+commit or file timestamp before it is written, and the README now says so. This is the first
+correction made under the contract, on the first entry written under it.
