@@ -414,6 +414,15 @@ the key handling sees it, otherwise it is printed onto the prompt as text. Only 
 are recognised, since holding back a partial escape sequence would delay the arrow keys, which
 begin the same way.
 
+Reloading the half is only part of it, because the box also has to be drawn again, and for a
+while it was not. A terminal that changes appearance repaints its own palette, so every part
+of the box drawn in a slot follows along with no help from iris, which made the switch look
+like it worked. The selection bar is hex, for the reason the paragraph above gives, so it
+stayed in the old appearance while everything around it changed, and closing the menu and
+opening it again put it right. That is what proved the detection was already correct and only
+the repaint was missing. It is asked for directly rather than through the usual render path,
+which declines while the user is navigating the menu, the moment a stale bar shows most.
+
 Two mistakes in that detection are worth not repeating, since both produced a terminal being
 served the wrong half while plainly saying which it was. `IRIS_TERM_BACKGROUND` carries the
 answer down to the process that draws, and it reaches the shell too, so an iris started from
