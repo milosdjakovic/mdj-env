@@ -29,7 +29,7 @@ WORKTREE="$HOME/.cache/mdj-env/iris-build"
 DEST="$HOME/.local/bin/iris"
 
 IRIS_REPO="https://github.com/milosdjakovic/IRIS.git"
-IRIS_COMMIT="fb49697dc8bf3f31f879f55467113a1cef6ee5ee"
+IRIS_COMMIT="b8b7ac8bf801eb8a0ca47db2d1c93aa1337bc9b9"
 IRIS_VERSION="0.7.0+mdj.${IRIS_COMMIT:0:7}"
 
 echo "==> Building iris from the fork..."

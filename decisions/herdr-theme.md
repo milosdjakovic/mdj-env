@@ -61,3 +61,13 @@ a colour problem. Same token, one carries a dim render attribute.
 921fbe5. The tab name beside an agent's workspace stops being faint, same cause, and the reason
 is written down once for all three places it showed up. Which entry was the faded one came from
 `herdr api snapshot` rather than from looking.
+
+### 2026-09-15 about 01:35
+
+Herdr stopped following the appearance a day after this was proven, and it was never herdr's
+fault. Iris arrived under it on 2026-09-14 and consumed the one report Ghostty sends on a
+switch, so herdr, with `auto_switch = true` and both halves configured correctly, was deaf.
+Everything inside herdr asks herdr, so the whole tree froze with it. The cause, the tests that
+confirmed it and the fix on the iris fork are in the iris appearance file. Nothing here changed.
+`herdr server reload-config` does not re-ask the terminal, it reapplies config to the appearance
+last heard, which is worth knowing before reaching for it again.
