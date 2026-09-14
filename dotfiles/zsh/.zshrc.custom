@@ -47,3 +47,14 @@ export FZF_DEFAULT_OPTS='
 eval "$(atuin init zsh)"
 eval "$(zoxide init zsh)"
 source "$(brew --prefix)/opt/fzf/shell/key-bindings.zsh"
+
+# ctrl+r goes back to atuin, which fzf had been taking by accident. atuin binds ^r during
+# its init above, fzf's key-bindings.zsh is sourced after it and binds ^r to its own history
+# widget, so the later file silently won and atuin's search was unreachable. The two are not
+# equivalent. fzf greps the plain text of .zsh_history, atuin queries the database that is
+# actually recording every command, with filters for session, directory and host, and with
+# exit codes and durations attached. These two lines mirror atuin's own bindings exactly.
+#
+# fzf keeps ^T and alt+c, which put a file or a directory on the line and duplicate nothing.
+bindkey -M emacs '^r' atuin-search
+bindkey -M viins '^r' atuin-search-viins
