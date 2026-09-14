@@ -47,6 +47,7 @@ export FZF_DEFAULT_OPTS='
 eval "$(atuin init zsh)"
 eval "$(zoxide init zsh)"
 source "$(brew --prefix)/opt/fzf/shell/key-bindings.zsh"
+eval "$(fnm env --use-on-cd --version-file-strategy=recursive)"
 
 # ctrl+r goes back to atuin, which fzf had been taking by accident. atuin binds ^r during
 # its init above, fzf's key-bindings.zsh is sourced after it and binds ^r to its own history
