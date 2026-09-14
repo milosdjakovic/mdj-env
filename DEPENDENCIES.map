@@ -72,6 +72,12 @@ qalc          | brew      | libqalculate
 ocr           | tap       | schappim/ocr/ocr
 iris          | manual    | built by src/build-iris.sh from the fork at github.com/milosdjakovic/IRIS, pinned to one commit and landing in ~/.local/bin. A fork rather than the tap because upstream renders an expanded alias in its suggestions, issue 158, and because a theme there cannot know whether the terminal is light or dark. Both fixes sit on their own branches. When upstream takes them this goes back to a tap line and the script and the go dependency both go away
 mullvad       | cask      | mullvad-vpn
+# The cask alone leaves ivpn broken, so it is one of the few entries here where installing is
+# not the whole answer. It ships only the App artifact, copied out of a DMG, and that copy
+# normalizes three files inside the bundle to 644. IVPN's daemon refuses to start unless they
+# are unreadable by group and other, and IVPN's own .pkg installer is what would have set
+# them to 600. A dead daemon also means no ivpn command, since the agent is what symlinks it
+# onto the PATH. src/setup-ivpn-permissions.sh restores the modes and setup.sh runs it.
 ivpn          | cask      | ivpn
 docker        | cask      | docker-desktop
 macshot       | cask      | macshot

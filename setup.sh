@@ -50,6 +50,12 @@ echo ""
 # Remap Caps Lock -> F18 for the Hammerspoon Hyper key
 "$SRC_DIR/setup-capslock-hyper.sh"
 
+# Restore the file modes IVPN's daemon requires inside its own bundle, which the Homebrew
+# cask does not set because it copies the app rather than running IVPN's installer. Without
+# this the daemon cannot start at all on a freshly bootstrapped machine. Prompts for sudo
+# only when there is something to repair, and does nothing when IVPN is not installed.
+"$SRC_DIR/setup-ivpn-permissions.sh"
+
 # Wire the statusline script into Claude Code's settings.json
 "$SRC_DIR/setup-claude-settings.sh"
 
