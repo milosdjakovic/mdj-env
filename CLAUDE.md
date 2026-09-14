@@ -55,6 +55,30 @@ stow -D -t ~ <package>        # Unlink a package
 - `DEPENDENCIES.map` - where each tool a module declares comes from
 - `src/` - Modular setup scripts (all idempotent, support Apple Silicon and Intel)
 - `dotfiles/` - Stow-managed configurations, each subdirectory is a stow package
+- `decisions/` - What was tried, rejected and corrected, one dated file per topic
+
+### Decisions, and when to read them
+
+`decisions/` holds the record that neither the commit log nor this file can. A commit says
+what changed at the moment it changed. This file and the module ones say what is true now and
+why. Neither says what was already tried here and turned down, because a rejected approach
+never reaches a commit and a current truth file has no room for history. That is what
+`decisions/` is for, one file per topic, each with the current stance, every rejected approach
+with its date and reason, and a dated log that is only ever appended to. A wrong entry keeps
+its text, gains a line saying when it was corrected, and a new entry says what is true instead.
+The wrong belief and the date it was held are part of the record.
+
+Two rules follow, and `decisions/README.md` carries the full contract.
+
+Read before proposing. Any change in an area that has a file there starts by reading that
+file, the Rejected section first. Proposing something already listed there without saying why
+the rejection no longer holds is the failure the directory exists to prevent.
+
+Write in the same change that moves behaviour. A decision, a rejection, a bug found, a belief
+corrected, each is recorded as it happens, with the date and the time, since afterwards the
+reasoning is gone. A topic with no file gets one the first time it produces a decision worth
+keeping. `check-dependencies.sh` verifies the index and the shape of every file, so a file
+that drifts from the contract is reported rather than discovered.
 
 ### Dependencies, and which layer knows what
 
