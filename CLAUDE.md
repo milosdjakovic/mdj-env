@@ -28,6 +28,10 @@ macOS development environment bootstrap and dotfiles management using GNU Stow. 
 ./src/setup-herdr-plugins.sh
 ./src/check-dependencies.sh
 
+# Ask what upstream iris has done since the fork branched, and whether either patch is
+# still needed. Reports only, it never moves the pin.
+./src/check-iris-upstream.sh
+
 # Set default editor for dev file types manually (setup-dev-defaults.sh defaults to Zed)
 ./src/set-dev-defaults.sh "Zed"
 ./src/set-dev-defaults.sh "Visual Studio Code"
@@ -343,6 +347,29 @@ lockfile, so two machines build the same binary.
 
 The fork carries the two fixes on their own branches, each a single commit above upstream so
 either can be offered back without being rewritten first.
+
+Staying current is the thing a fork is bad at, so `src/check-iris-upstream.sh` keeps asking the
+question a fork stops asking. It reports what upstream has released since the pin, reading the
+changelog rather than the log because upstream writes one line per thing that changed where the
+log writes one per merge, and then it answers for each patch whether vanilla upstream still
+needs it. That answer is measured rather than guessed. It lays the branch's own tests onto an
+unmodified upstream checkout and runs them there, so a branch whose tests pass on vanilla is
+describing behaviour upstream now has and the branch can go, while one that fails or does not
+compile is still earning its place. It also rebases each patch onto the new upstream in a
+throwaway worktree, so a conflict is known before anyone commits to resolving it.
+
+It reports and changes nothing, the same split `check-dependencies.sh` keeps, because every
+answer it gives leads to a decision. Taking an update means rebasing the patches still needed,
+merging them into the fork's main, moving `IRIS_COMMIT` and rebuilding. Dropping a patch means
+deleting the branch and reverting its merge, not only leaving it unbuilt. If both patches ever
+go, the fork goes with them and iris becomes an ordinary tap line again.
+
+The only hand written part is the list of patches at the top of the script. Which test files
+prove a patch, and which packages they live in, are read out of the branch itself, so a third
+patch is one line and nothing else. Which branch to watch was also worth settling once.
+Upstream has a `dev` branch that reads like where new work lands and is not, it forked in May
+2026 and carries four commits nobody merged, while every release since has been cut from `main`
+through pull requests. The script says so in a comment, so the guess is not made twice.
 
 `fix/alias-display-preserves-typed-command` is upstream issue 158. Iris expands a shell alias
 so the target's spec can answer, which it has to do, and then never puts the typed word back,

@@ -7,9 +7,9 @@
 xcode-select | system | /usr/bin/xcode-select | required | install-xcode-clt.sh | asking whether a developer toolchain is active, and raising Apple's installer when none is
 brew         | path   | brew                  | required | install-homebrew-packages.sh | every package install in this repository runs through it
 stow         | path   | stow                  | required | setup-stow-dotfiles.sh | symlinking every module into the home directory
-git          | path   | git                   | required | install-ohmyzsh-plugins.sh, bootstrap-nvim.sh | cloning the framework and its plugins, and reading each installed plugin's revision to compare it against the lockfile
+git          | path   | git                   | required | install-ohmyzsh-plugins.sh, bootstrap-nvim.sh, build-iris.sh, check-iris-upstream.sh | cloning the framework and its plugins, reading each installed plugin's revision to compare it against the lockfile, checking out the pinned iris commit, and reading what upstream iris has done since the fork branched
 duti         | path   | duti                  | required | set-dev-defaults.sh | setting the default application for development file types
-go           | path   | go                    | required | build-iris.sh | compiling iris from the fork that carries the two fixes upstream has not taken
+go           | path   | go                    | required | build-iris.sh, check-iris-upstream.sh | compiling iris from the fork that carries the two fixes upstream has not taken, and running each fix's own tests against unmodified upstream to ask whether it is still needed
 jq           | path   | jq                    | required | setup-claude-settings.sh, bootstrap-nvim.sh | merging the status line key into the Claude settings without losing the others, and reading the names and commits out of lazy-lock.json
 curl         | system | /usr/bin/curl         | required | install-ohmyzsh.sh | fetching the upstream installer
 herdr        | path   | herdr                 | optional | setup-herdr-plugins.sh | registering the local plugin that stow places but cannot register, the popups are nameless without it
