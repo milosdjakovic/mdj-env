@@ -1,6 +1,7 @@
 # Terminal tools
 brew "duti"
 brew "git"
+brew "go"
 brew "stow"
 brew "tmux"
 brew "tpm"

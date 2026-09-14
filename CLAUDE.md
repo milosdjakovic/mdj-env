@@ -199,7 +199,7 @@ to drift unnoticed.
 
 ### Stow Packages
 
-**Stowed by default:** ghostty, tmux, nvim, zsh, hammerspoon, claude, lf, lazygit, herdr
+**Stowed by default:** ghostty, tmux, nvim, zsh, hammerspoon, claude, lf, lazygit, herdr, iris
 
 **Available but not stowed:** alacritty, kitty, wezterm
 
@@ -332,3 +332,97 @@ Configuration in `dotfiles/lf/`. See `dotfiles/lf/CLAUDE.md` for why lf was chos
 ### Neovim
 
 LazyVim-based configuration. Run `nvim` after setup to bootstrap plugins.
+
+### Iris
+
+Shell autocomplete, configured in `dotfiles/iris/.config/iris/` and built rather than
+installed, because the released binary has two defects this repository does not want to live
+with. `src/build-iris.sh` compiles it from `github.com/milosdjakovic/IRIS`, pinned to one
+commit, into `~/.local/bin`. Updating means moving the pin, the same ritual as the Neovim
+lockfile, so two machines build the same binary.
+
+The fork carries the two fixes on their own branches, each a single commit above upstream so
+either can be offered back without being rewritten first.
+
+`fix/alias-display-preserves-typed-command` is upstream issue 158. Iris expands a shell alias
+so the target's spec can answer, which it has to do, and then never puts the typed word back,
+so with `cd` aliased to zoxide the rows read `z /path`. Ghost text dies from the same cause,
+since it only draws when the top result has the literal buffer as a prefix and `z ` never has
+`cd ` as one. One bug, two symptoms, and no configuration option touches it. `expand-alias`
+governs something else entirely, whether iris rewrites your literal prompt text on space.
+
+`feat/appearance-aware-theme` gives `theme.toml` optional `[dark]` and `[light]` tables over
+its flat keys, and asks the terminal which it is in. Stock iris has one flat set of colours
+and no idea what is behind them.
+
+The hook `iris init zsh` emits ends in `exec iris`, replacing the shell with one running
+behind a PTY proxy. That is why it sits at the very top of the generated `.zshrc` above the
+Powerlevel10k instant prompt, and why the PATH line is hoisted above it. Painting a prompt
+into a process about to be replaced leaves a screen p10k never gets to tear down. `~/.local/bin`
+comes first on that line so the built binary wins over any package manager copy left behind.
+
+Because iris reads every keystroke before the shell does, a key it claims never reaches zle at
+all, whether its menu is open or not. That was measured rather than assumed. So `toggle-mode`
+is moved to ctrl+o, leaving ctrl+r for atuin, and `navigate-closed` is `shell` so a bare up
+arrow reaches atuin too. `atuin-history` is 1, so iris reads atuin's database rather than
+keeping a second history of its own. `ghost-text` is 1, so the menu opens as you type and
+Shift+Tab toggles it away again when the ghost text alone is enough. Setting it to 2 inverts
+that, ghost text only until Shift+Tab asks for the menu, and 0 turns both off.
+
+#### The theme
+
+Almost every value is an ANSI palette slot rather than a hex colour, so Ghostty stays the one
+owner of the palette. Slots work because lipgloss v2 turns `"4"` into `ansi.BasicColor(4)` at
+`color.go:66-85`, which goes out as SGR `34` and lands on the terminal's slot 4. An earlier
+version of this file claimed the opposite, on the strength of a measurement that only matched
+`38;2` and `38;5` sequences and never looked at the `30` to `37` range, so it reported zero
+colours while the menu was drawing in palette colours the whole time. A detector that can only
+see one encoding reports the absence of every other one, and that mistake cost several rounds.
+
+Slots are worth it because `aura-dark` and `aura-light` mirror each other by role, so slot 4 is
+the primary accent on both and slot 8 is the comment grey on both. Slot 4 reads 5.77 to 1 on
+the dark half and 4.83 on the light one, against 4.14 for the hand picked mid tone it replaced.
+Change the Ghostty theme and the menu follows with no edit here.
+
+`text` and the three idle tag backgrounds are deliberately unparseable rather than any colour,
+because lipgloss renders an unparseable foreground unstyled, which inherits whatever the
+terminal is painting, and does not draw an unparseable background at all. The second half is
+what leaves a tag as a word on the page instead of a chip stamped onto it. Those chips were
+dark blocks on a white page for a while, and fixing that is what the second half of this file
+is for.
+
+The `[dark]` and `[light]` tables exist for the selection bar and almost nothing else. A bar
+has to be a tint of the page under it, and no slot is dark on the dark palette and light on the
+light one. Every single file alternative was measured. Keeping the bar fixed forces `match`
+fixed with it, since `match` is drawn on the page on every other row and inside the bar on this
+one, and a fixed `match` only clears a bar that is very dark or nearly white. Letting the bar
+inherit forces `match` to inherit, and then the bar has to be dark enough for the dark half's
+`#ffca85` and light enough for the light half's `#6b4400` at once, which lands at 2.05 on slot
+8, 1.08 on slot 4 and 1.27 on slot 7. There is no single bar, which is why the feature exists.
+
+The bars are herdr's `selection_bg` and the secondary text its `subtext0`, so the two surfaces
+agree rather than each inventing a highlight. `text_sel` and `sel_text` also flip, because each
+palette keeps its ink in a different slot and because one palette's accents are the bright ones
+where the other's are the dark ones.
+
+The appearance is asked for once by OSC 11 in the watchdog, which is the only moment iris holds
+the tty with nothing else reading it, and after that the terminal reports changes on its own.
+The wrapper turns on DEC private mode 2031, so a switch arrives as `CSI ? 997 ; 1 n` for dark
+or `; 2 n` for light and the half follows without opening a new shell. That report lands on the
+same stream as keystrokes, so the wrapper takes it out of the input before the shell or any of
+the key handling sees it, otherwise it is printed onto the prompt as text. Only whole sequences
+are recognised, since holding back a partial escape sequence would delay the arrow keys, which
+begin the same way.
+
+Two mistakes in that detection are worth not repeating, since both produced a terminal being
+served the wrong half while plainly saying which it was. `IRIS_TERM_BACKGROUND` carries the
+answer down to the process that draws, and it reaches the shell too, so an iris started from
+that shell inherits it. Treating it as an override meant a decision made about an earlier
+terminal outlived it and beat the one in front of you. It is rewritten on every start now, and
+a value set by hand survives only when the terminal declines to answer, which keeps it useful
+as a fallback for a terminal with no OSC 11 without letting it go stale. Separately, the query
+paired the input tty with `os.Stdout`, and lipgloss refuses unless both handles are terminals,
+which the watchdog's stdout is not always. That failure was invisible because
+`HasDarkBackground` answers true for any error, so a query that never worked read as a terminal
+that said dark. Asking through the tty iris already holds, and going through `BackgroundColor`
+so a failure stays distinguishable from an answer, fixes both.

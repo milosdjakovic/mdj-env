@@ -54,6 +54,7 @@ fzf           | brew      | fzf
 fd            | brew      | fd
 ripgrep       | brew      | ripgrep
 git           | brew      | git
+go            | brew      | go
 bat           | brew      | bat
 eza           | brew      | eza
 chafa         | brew      | chafa
@@ -68,6 +69,7 @@ ffprobe       | brew      | ffmpeg
 displayplacer | brew      | displayplacer
 qalc          | brew      | libqalculate
 ocr           | tap       | schappim/ocr/ocr
+iris          | manual    | built by src/build-iris.sh from the fork at github.com/milosdjakovic/IRIS, pinned to one commit and landing in ~/.local/bin. A fork rather than the tap because upstream renders an expanded alias in its suggestions, issue 158, and because a theme there cannot know whether the terminal is light or dark. Both fixes sit on their own branches. When upstream takes them this goes back to a tap line and the script and the go dependency both go away
 mullvad       | cask      | mullvad-vpn
 ivpn          | cask      | ivpn
 docker        | cask      | docker-desktop

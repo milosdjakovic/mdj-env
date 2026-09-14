@@ -1,0 +1,102 @@
+# ~/.config/iris/config.toml
+# iris configuration file
+
+[core]
+# schema version
+# do not edit this field manually
+version = 1
+
+# override shell: "bash", "zsh", "fish", keep empty for auto detection
+shell = ""
+
+# run the selected shell as a login shell
+shell-login = false
+
+# startup mode: "last", "spec", "history"
+# "last" = remember last mode used
+mode = "last"
+
+# enable debug logging
+debug = false
+
+# automatically expand aliases on space
+# Off. This governs only whether iris rewrites your literal prompt text when you press
+# space, turning cd into z on the line. It has no effect on what the menu displays, which
+# is a separate path and is upstream issue 158.
+expand-alias = false
+
+# automatically execute command after accepting suggestion
+auto-execute = false
+
+# 0 = off, 1 = atuin history only, 2 = atuin history + default history
+atuin-history = 1
+
+# custom atuin database path (leave empty for default)
+atuin-db-path = ""
+
+# probe unknown binaries with `__complete` for Cobra-based CLI suggestions.
+cobra-probe-enabled = true
+
+# what navigate-up/navigate-down do while the menu is closed:
+# "history" = browse iris history, "shell" = leave the key to the shell (e.g. atuin)
+navigate-closed = "shell"
+
+[ui]
+# visual style: "modern" (icons, category pills, shortcut footer) or "classic" (minimalist, centered number, no icons)
+style = "modern"
+
+# enable Nerd Fonts icons in overlay menu
+nerd-fonts = true
+
+# show hidden files with dot prefix
+hidden-files = false
+
+# 0 = off, 1 = on, 2 = ghost text only (menu opens on toggle key)
+# legacy true/false still accepted
+ghost-text = 1
+
+# maximum suggestions to display
+max-suggestions = 100
+
+# maximum suggestion rows shown in the menu
+max-height = 6
+
+# overlay width, as columns (80) or a share of the terminal ("80%")
+# 0 keeps the built-in default width
+max-width = 0
+
+[git]
+# hide current branch in checkout/switch list
+filter-active-branch = true
+
+# merge remote and local branches with same name
+deduplicate-branches = true
+
+[updater]
+# check for updates on startup
+# Off, because Homebrew owns this binary. iris updating itself would write over the file
+# the tap put there, leaving the two disagreeing about what is on the machine.
+check-on-startup = false
+
+# update channel: "stable", "nightly"
+channel = "stable"
+
+# interval between update checks, e.g. "24h", "6h", "30m"
+check-interval = "24h"
+
+# 0 = off (default, notify only), 1 = auto-install, 2 = always confirm first
+auto-update = 0
+
+[zoxide]
+# also complete cd from zoxide's frecency database, not just the
+# children of the current directory (requires zoxide on PATH)
+extend-cd = true
+
+[keybindings]
+toggle-mode = "ctrl+o"
+toggle-menu = "shift+tab"
+select = "tab"
+navigate-up = "up"
+navigate-down = "down"
+navigate-right = "right"
+

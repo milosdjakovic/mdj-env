@@ -81,14 +81,17 @@ stow -t ~ alacritty # Alternative terminal
 ### Homebrew Packages
 
 - **Terminal tools:** git, stow, tmux, tpm, neovim, duti
-- **Modern CLI:** zoxide, atuin, eza, bat, fzf, fd, ripgrep, yazi, lazygit
+- **Modern CLI:** zoxide, atuin, eza, bat, fzf, fd, ripgrep, yazi, lazygit, iris
+  - iris is built from a fork rather than installed, since the released build renders an
+    expanded alias in its suggestions and its theme cannot tell a light terminal from a
+    dark one. `src/build-iris.sh` compiles it, pinned to one commit.
 - **Shell:** powerlevel10k
 - **Fonts:** MesloLGS Nerd Font
 - **Apps:** Ghostty, Hammerspoon
 
 ### Stowed by Default
 
-- ghostty, tmux, nvim, zsh, hammerspoon, claude
+- ghostty, tmux, nvim, zsh, hammerspoon, claude, lf, lazygit, herdr, iris
 
 ### Available but Not Stowed
 
