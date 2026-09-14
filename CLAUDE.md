@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 macOS development environment bootstrap and dotfiles management using GNU Stow. All dotfiles are symlinked from `dotfiles/` to `$HOME` via stow.
 
+**Per-module CLAUDE.md convention.** Before touching any module under `dotfiles/` (nvim, kitty, ghostty, hammerspoon, tmux, lf, …), first read that module's own `CLAUDE.md` if it has one — it holds the reload/apply steps, gotchas, and conventions specific to that tool, and the section below links to it. If the module has no `CLAUDE.md` yet, propose adding one (and offer to write it) so the knowledge you just used or discovered is captured for next time; if it has one, keep it current as you change things. Treat a missing or stale module `CLAUDE.md` as part of the work, not an afterthought.
+
 ## Commands
 
 ```bash
@@ -24,6 +26,7 @@ macOS development environment bootstrap and dotfiles management using GNU Stow. 
 ./src/bootstrap-nvim.sh
 ./src/setup-dev-defaults.sh
 ./src/setup-capslock-hyper.sh
+./src/setup-ivpn-permissions.sh   # repairs bundle modes the ivpn cask leaves wrong; needs sudo only when repairing
 ./src/setup-claude-settings.sh
 ./src/setup-herdr-plugins.sh
 ./src/check-dependencies.sh
@@ -303,6 +306,8 @@ statusline script and this merge both depend on it (macOS ships `jq` since 15,
 but the Brewfile guarantees it).
 
 ### Hammerspoon
+
+Before changing any Hammerspoon file, read `dotfiles/hammerspoon/.hammerspoon/CLAUDE.md` first — it holds the mandatory reload step (`hs -c "hs.reload()"` — note the parentheses; without them the command only references the reload function and silently no-ops) and the test-lock discipline, both easy to get wrong from memory.
 
 Configuration in `dotfiles/hammerspoon/.hammerspoon/`. See `dotfiles/hammerspoon/.hammerspoon/CLAUDE.md` for the leader-key model (META / SUPER / HYPER), the shared ChordKey hold/tap engine, the Chooser-based list tools and the checklist for wiring a new picker, the shared CheatSheet and HelperPanel canvas overlays, the launcher, menu search, clipboard preview, VPN, keep awake, the eyedropper colour picker, DisplayProfiles, and the conventions for structuring a spoon.
 
