@@ -5,3 +5,4 @@
 jq  | path | jq  | required | statusline-command.sh | parsing the session json the status line is built from
 git | path | git | optional | statusline-command.sh | the branch shown in the status line
 defaults | system | /usr/bin/defaults | optional | statusline-command.sh | reading the macOS appearance, since Claude Code passes the status line no theme and the grey has a light half and a dark one
+herdr | path | herdr | optional | hooks/herdr-agent-pane.sh | reporting the session to the agents panel, since herdr cannot see a process running behind the iris proxy, the hook is a no op on a machine with no herdr
