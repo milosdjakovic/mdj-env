@@ -5,6 +5,10 @@ dotfiles/tmux/.tmux/plugins/
 
 # lazygit runtime state (not configuration)
 dotfiles/lazygit/Library/Application Support/lazygit/state.yml
+# The same category as state.yml above. lazygit writes it per repository it has opened, keyed
+# by absolute path, so it is a record of one machine's checkouts and can never be right on
+# another.
+dotfiles/lazygit/Library/Application Support/lazygit/github_pull_requests.json
 
 # LLVM coverage profiling artifacts
 *.profraw
@@ -14,3 +18,13 @@ dotfiles/lazygit/Library/Application Support/lazygit/state.yml
 # It was tracked once so layouts could travel, and grew from 41 lines to 166 in twelve days
 # of ordinary use, with nothing in it typed by a person and no way to merge two machines.
 dotfiles/hammerspoon/.hammerspoon/config/workspaces.json
+
+# Herdr's own state, which lands in the tracked tree only because ~/.config/herdr is a stow
+# symlink back into this package, so anything herdr writes beside its config is written here.
+# plugins.json is the registration src/setup-herdr-plugins.sh creates, and it records the
+# absolute path of this checkout, so it is the one file guaranteed to be wrong on the next
+# machine and the script exists precisely to regenerate it there. The lock and the log are a
+# running server's leavings. Nothing in the three was typed by a person.
+dotfiles/herdr/.config/herdr/plugins.json
+dotfiles/herdr/.config/herdr/.plugins.lock
+dotfiles/herdr/.config/herdr/herdr-server.log

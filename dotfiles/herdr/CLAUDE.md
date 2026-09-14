@@ -81,6 +81,16 @@ asking herdr what is registered.
 Link, never install. Install is for GitHub sources and copies the files into a herdr managed
 checkout, which forks them away from this repository and makes every later edit a reinstall.
 
+Linking has one consequence worth knowing before the first bootstrap on a machine, which is
+that `~/.config/herdr` is a single stow symlink into this package, so everything herdr writes
+beside its config is written into the repository. Registering the plugin produces
+`plugins.json` there, and it records the absolute path of this checkout, which makes it the
+one file certain to be wrong on the next machine and the reason the script regenerates it
+rather than the repository carrying it. A running server adds `.plugins.lock` and
+`herdr-server.log` the same way. All three are in `.gitignore`, and `.stow-local-ignore` is
+the wrong lever for them, since that keeps repository files out of the home directory and
+these travel in the opposite direction.
+
 ## Reading a reload
 
 `herdr server reload-config` reports diagnostics and they are the proof, not decoration. A key
