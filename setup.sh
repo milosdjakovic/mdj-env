@@ -32,6 +32,9 @@ echo ""
 # Stow dotfiles to home directory
 "$SRC_DIR/setup-stow-dotfiles.sh"
 
+# Build iris from the fork, since the two fixes it carries are not in any released build
+"$SRC_DIR/build-iris.sh"
+
 # Install tmux plugins via TPM
 "$SRC_DIR/install-tmux-plugins.sh"
 

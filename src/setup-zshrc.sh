@@ -25,13 +25,23 @@ BREW_PREFIX="$(brew --prefix)"
 mdj_displace "$HOME/.zshrc" || true
 
 cat > "$HOME/.zshrc" << EOF
+# PATH, hoisted above everything else because the iris hook below is the first thing that
+# runs and has to find the binary. macOS does not put the Homebrew prefix on the PATH it
+# hands a login shell, so nothing here may assume it, and ~/.local/bin comes first because
+# that is where src/build-iris.sh puts iris and it has to win over any package manager copy
+# still lying around.
+export PATH="\$HOME/.local/bin:$BREW_PREFIX/bin:$BREW_PREFIX/sbin:\$PATH"
+
+# IRIS autocomplete. The hook execs iris as a PTY proxy, replacing this shell with one
+# running behind it, so it belongs above the Powerlevel10k instant prompt rather than
+# below. Painting a prompt into a process that is about to be replaced leaves a screen
+# p10k never gets to tear down.
+eval "\$(iris init zsh)"
+
 # Powerlevel10k instant prompt
 if [[ -r "\${XDG_CACHE_HOME:-\$HOME/.cache}/p10k-instant-prompt-\${(%):-%n}.zsh" ]]; then
   source "\${XDG_CACHE_HOME:-\$HOME/.cache}/p10k-instant-prompt-\${(%):-%n}.zsh"
 fi
-
-# Homebrew PATH
-export PATH="$BREW_PREFIX/bin:$BREW_PREFIX/sbin:\$PATH"
 
 # Load dotfiles config
 source ~/.zshrc.custom
