@@ -29,12 +29,17 @@ return {
     -- VPN they actually pay for and not the other, and the plugin's own provider page shows
     -- an absent one as a state rather than failing over it.
     tools = {
+      -- Both origins are manual rather than cask, because a VPN client is the clearest case
+      -- of something a default install of this repository has no business putting on a
+      -- machine. Whichever one a person pays for is the one they install, and the plugin
+      -- already treats an absent backend as a state rather than failing over it, so the cost
+      -- of not having either is a picker with nothing in it rather than an error.
       { name = "mullvad", kind = "path", policy = "optional", unit = "mullvad",
         reason = "the relay CLI behind every VPN control and location",
-        origin = { cask = "mullvad-vpn" } },
+        origin = { manual = "the mullvad-vpn cask, installed by hand when this backend is wanted" } },
       { name = "ivpn", kind = "path", policy = "optional", unit = "ivpn",
         reason = "the CLI behind every VPN control and location on the IVPN backend",
-        origin = { cask = "ivpn" } },
+        origin = { manual = "the ivpn cask, then src/setup-ivpn-permissions.sh so its daemon can start" } },
     },
 
     -- Two root computed words, phase three, both published for every presenting plugin to

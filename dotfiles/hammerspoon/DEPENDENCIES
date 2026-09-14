@@ -19,7 +19,7 @@ osascript | system | /usr/bin/osascript | optional | browsertabs/test/harness | 
 ioreg | system | /usr/sbin/ioreg | optional | browsertabs/test/harness | asks the window server whether the screen is locked, which the accessibility layer cannot be trusted to report about itself | macos | ships with the system
 caffeinate | system | /usr/bin/caffeinate | optional | browsertabs/test/harness | holds the display awake for a run, since a suite drives the machine with synthesised events and the idle timer does not count those | macos | ships with the system
 ocr | path | ocr | optional | capture/macocr | the OCR backend, the sole handler of text capture | tap | schappim/ocr/ocr
-macshot | app | com.sw33tlie.macshot.macshot | optional | capture/macshot | the preferred screenshot backend, native is the fallback | cask | macshot
+macshot | app | com.sw33tlie.macshot.macshot | optional | capture/macshot | the preferred screenshot backend, native is the fallback | manual | the macshot cask, installed by hand when this backend is wanted
 open | system | /usr/bin/open | optional | capture/macshot | delivering the macshot url in the background, without raising macshot | macos | ships with the system
 ffmpeg | path | ffmpeg | optional | clipboard/preview | video clipboard previews | brew | ffmpeg
 ffprobe | path | ffprobe | optional | clipboard/preview | reading a video duration so a preview frame is picked mid clip | brew | ffmpeg
@@ -56,6 +56,6 @@ script | system | /usr/bin/script | optional | speedtest/runner | gives networkQ
 open | system | /usr/bin/open | optional | systemsettings/panes | opening a System Settings pane by its url scheme | macos | ships with the system
 tmux | path | tmux | required | tmuxsessions/engine | querying and switching every session and window, the whole reason this tool exists | brew | tmux
 open | system | /usr/bin/open | optional | tmuxsessions | launching Alacritty or WezTerm already attached to a session | macos | ships with the system
-mullvad | path | mullvad | optional | vpn/mullvad | the relay CLI behind every VPN control and location | cask | mullvad-vpn
-ivpn | path | ivpn | optional | vpn/ivpn | the CLI behind every VPN control and location on the IVPN backend | cask | ivpn
+mullvad | path | mullvad | optional | vpn/mullvad | the relay CLI behind every VPN control and location | manual | the mullvad-vpn cask, installed by hand when this backend is wanted
+ivpn | path | ivpn | optional | vpn/ivpn | the CLI behind every VPN control and location on the IVPN backend | manual | the ivpn cask, then src/setup-ivpn-permissions.sh so its daemon can start
 scutil | system | /usr/sbin/scutil | optional | root/compose | reading this machine's own short name, the key every per host answer a plugin asks the root for is stored under | macos | ships with the system
