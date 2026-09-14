@@ -11,7 +11,11 @@
       "Bash(tmux set *)",
       "Bash(tmux display-popup *)",
       "Bash(echo \"exit: $?\")",
-      "Bash(tmux -V)"
+      "Bash(tmux -V)",
+      "Read(//Users/milosdjakovic/.ssh/**)",
+      "Bash(ssh-add -l)",
+      "Read(//Users/milosdjakovic/Development/redburst/**)",
+      "Bash(ssh -o BatchMode=yes -T git@gitea.redburst.com)"
     ]
   }
 }
