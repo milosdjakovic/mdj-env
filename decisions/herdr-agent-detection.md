@@ -1,7 +1,7 @@
 # Herdr agent detection behind a terminal wrapper
 
-Status. Solved by a Claude Code hook that announces its own pane, committed as c82178d, with
-an upstream issue to file and one limit recorded.
+Status. Solved by a Claude Code hook that announces its own pane, committed as c82178d and
+confirmed in ordinary use on 2026-09-15, with upstream issues drafted and one limit recorded.
 
 ## Now
 
@@ -197,3 +197,11 @@ regression. The block is on the pane rather than the session, so resuming inside
 help, and closing the pane and opening a new one is the only recovery. That was in the record
 and was not in what Milos had been told to expect, so the Now section now says it plainly and
 check eight in the reconciler names any pane in this state. On this machine it names wA:pR.
+
+### 2026-09-15 00:24
+
+Confirmed in ordinary use. Milos opened a new herdr tab and started a fresh session there,
+behind iris as every pane here is, and it appeared in the agents panel with nothing done by
+hand. That is the first confirmation from normal use rather than from a throwaway pane driven
+by the assistant, and it is the one that counts. The poisoned pane wA:pR stays the single
+exception, and the reconciler names it.
