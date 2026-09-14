@@ -139,3 +139,13 @@ Confirmed by Milos in ordinary use. A new Ghostty window, so the outer iris is t
 herdr inside it, appearance switched each way. Everything followed. The status line, the herdr
 theme and the Neovim theme were never wrong, each of them was answered by a herdr that could not
 hear, and the fix touched nothing but the layer that was eating the report.
+
+### 2026-09-15 01:57
+
+Committed locally as 48ed0c4 and deliberately not pushed, on Milos's instruction. The fork
+branches are on GitHub already, since the build script pulls from there, so another machine
+running setup gets the new binary only once this repository's pin lands upstream too. Two things
+to remember until then. A window or pane opened before the rebuild keeps the old iris until its
+shell restarts, so a stuck surface in an old pane is not a regression, and only new windows and
+new panes prove anything. And the pin move and the fork are two pushes, not one, so pushing the
+fork alone leaves a second machine building the old commit.
