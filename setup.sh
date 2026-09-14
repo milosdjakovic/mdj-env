@@ -10,71 +10,113 @@ SRC_DIR="$SCRIPT_DIR/src"
 # src/lib/backup.sh handles by making its own stamp when this is absent.
 export MDJ_BACKUP_STAMP="$(date +%Y%m%d-%H%M%S)"
 
+# Why a trap, when set -e is already doing the right thing.
+#
+# This script is a flat list of calls under set -e and that shape is correct. A step that fails
+# should stop the run, since carrying on to stow and Neovim against a half installed machine is
+# worse than stopping, and every step is idempotent so fixing the cause and running again costs
+# nothing.
+#
+# What stopping does not do on its own is say what it cost. The failing step's own error is the
+# last thing printed, usually under a hundred lines of package manager output, and every call
+# below it is never reached rather than skipped, so a run that died a third of the way through
+# ends up looking much like one that finished. That is not hypothetical, an outdated cask
+# wanting a password did exactly this and took the remaining thirteen steps with it, silently.
+#
+# The trap changes no behaviour at all. It names the step that stopped the run and counts the
+# ones that never ran, on stderr, so the consequence is visible without reading back up the log.
+#
+# The total is read out of this file rather than written down, so adding a step below cannot
+# leave a hardcoded number behind to go quietly wrong.
+STEP_TOTAL="$(grep -c '^step "' "${BASH_SOURCE[0]}")"
+STEP_DONE=0
+STEP_NOW=""
+
+step() {
+    STEP_NOW="$(basename "${1%.sh}")"
+    "$@"
+    STEP_DONE=$((STEP_DONE + 1))
+}
+
+on_exit() {
+    local code=$?
+    [[ $code -eq 0 ]] && return 0
+    local remaining=$(( STEP_TOTAL - STEP_DONE - 1 ))
+    [[ $remaining -lt 0 ]] && remaining=0
+    {
+        echo ""
+        echo "==> Setup ABORTED at step $((STEP_DONE + 1)) of $STEP_TOTAL, ${STEP_NOW:-startup}, exit $code"
+        [[ $remaining -gt 0 ]] && echo "    $remaining later step(s) never ran, so this machine is part configured."
+        echo "    The cause is above. Every step is idempotent, so fix it and run this again."
+    } >&2
+}
+trap on_exit EXIT
+
 echo "==> Starting dotfiles setup..."
 echo ""
 
 # Make sure a developer toolchain exists, before anything that compiles or wants one. The
 # Homebrew installer below asks for it too, so doing it here is what stops that step waiting.
-"$SRC_DIR/install-xcode-clt.sh"
+step "$SRC_DIR/install-xcode-clt.sh"
 
 # Install Homebrew package manager
-"$SRC_DIR/install-homebrew.sh"
+step "$SRC_DIR/install-homebrew.sh"
 
 # Install packages from Brewfile
-"$SRC_DIR/install-homebrew-packages.sh"
+step "$SRC_DIR/install-homebrew-packages.sh"
 
 # Install oh-my-zsh framework
-"$SRC_DIR/install-ohmyzsh.sh"
+step "$SRC_DIR/install-ohmyzsh.sh"
 
 # Install oh-my-zsh plugins (autosuggestions, syntax highlighting, fzf-tab)
-"$SRC_DIR/install-ohmyzsh-plugins.sh"
+step "$SRC_DIR/install-ohmyzsh-plugins.sh"
 
 # Stow dotfiles to home directory
-"$SRC_DIR/setup-stow-dotfiles.sh"
+step "$SRC_DIR/setup-stow-dotfiles.sh"
 
 # Build iris from the fork, since the two fixes it carries are not in any released build
-"$SRC_DIR/build-iris.sh"
+step "$SRC_DIR/build-iris.sh"
 
 # Install tmux plugins via TPM
-"$SRC_DIR/install-tmux-plugins.sh"
+step "$SRC_DIR/install-tmux-plugins.sh"
 
 # Setup .zshrc with Powerlevel10k
-"$SRC_DIR/setup-zshrc.sh"
+step "$SRC_DIR/setup-zshrc.sh"
 
 # Bootstrap Neovim plugins
-"$SRC_DIR/bootstrap-nvim.sh"
+step "$SRC_DIR/bootstrap-nvim.sh"
 
 # Set Zed as default for development file types
-"$SRC_DIR/setup-dev-defaults.sh"
+step "$SRC_DIR/setup-dev-defaults.sh"
 
 # Remap Caps Lock -> F18 for the Hammerspoon Hyper key
-"$SRC_DIR/setup-capslock-hyper.sh"
+step "$SRC_DIR/setup-capslock-hyper.sh"
 
 # Restore the file modes IVPN's daemon requires inside its own bundle, which the Homebrew
 # cask does not set because it copies the app rather than running IVPN's installer. Without
 # this the daemon cannot start at all on a freshly bootstrapped machine. Prompts for sudo
 # only when there is something to repair, and does nothing when IVPN is not installed.
-"$SRC_DIR/setup-ivpn-permissions.sh"
+step "$SRC_DIR/setup-ivpn-permissions.sh"
 
 # Wire the statusline script into Claude Code's settings.json
-"$SRC_DIR/setup-claude-settings.sh"
+step "$SRC_DIR/setup-claude-settings.sh"
 
 # Register the herdr module's local plugin, which stow places but cannot register
-"$SRC_DIR/setup-herdr-plugins.sh"
+step "$SRC_DIR/setup-herdr-plugins.sh"
 
 # Reconcile what every module declares it needs against what this repo knows how to install
 # and what actually landed on the machine. It only reports, it never installs, so it runs
 # last once everything above has had its chance. A structural gap fails the setup, since that
 # is a defect in the repository and the same on every machine, while a tool merely absent
 # here is a warning. Run it alone any time with src/check-dependencies.sh.
-"$SRC_DIR/check-dependencies.sh"
+step "$SRC_DIR/check-dependencies.sh"
 
 # A module may also own checks that only make sense inside it, kept beside the module rather
 # than here because the rest of the repository has no use for the rule. They report on the
 # repository rather than on this machine, so a failure is the same everywhere and fails setup.
 echo ""
 echo "==> Module checks"
-"$SCRIPT_DIR/dotfiles/hammerspoon/check-timers"
+step "$SCRIPT_DIR/dotfiles/hammerspoon/check-timers"
 
 echo ""
 echo "==> Setup complete!"
