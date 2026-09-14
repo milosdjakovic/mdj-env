@@ -47,10 +47,32 @@ MACOS_BUNDLES=(
 )
 
 # macOS Library subdirs that hold pure system noise. Library itself
-# stays searchable because Mobile Documents and CloudStorage live there.
+# stays searchable, so the two cloud roots below are named explicitly.
 MACOS_LIBRARY=(
   Caches Containers WebKit Cookies
   'Saved Application State'
+)
+
+# Cloud provider storage, which a picker must never walk. macOS keeps all of
+# it under exactly two fixed roots, the same on every Mac and independent of
+# which accounts exist, so naming the pair is a rule rather than a list of
+# this machine's junk. CloudStorage is every third party provider through the
+# File Provider API, Google Drive, Dropbox, OneDrive. Mobile Documents is
+# iCloud.
+#
+# Keeping them was deliberate once, to reach the Obsidian vault, and it cost
+# this picker everything. Files macOS has evicted are dataless placeholders
+# and enumerating one blocks on the network rather than on the disk, so with
+# Optimize Mac Storage on this scan never finished at all, measured past four
+# minutes at zero percent CPU. The first few hundred rows arrive instantly
+# from the fast part of the tree, which is what made it look like it worked.
+#
+# The failure is also delayed, which is why it is written down. Eviction
+# follows disk pressure, so a machine where everything is downloaded scans
+# fine and starts hanging months later with nothing to point at.
+CLOUD_ROOTS=(
+  'Library/CloudStorage'
+  'Library/Mobile Documents'
 )
 
 # Language toolchain homes in the user home directory. Hold downloaded
@@ -70,9 +92,19 @@ EXCLUDE=(
   "${DEV_DIRS[@]}"
   "${MACOS_BUNDLES[@]}"
   "${MACOS_LIBRARY[@]}"
+  "${CLOUD_ROOTS[@]}"
   "${TOOLCHAIN_HOMES[@]}"
   "${TRASH_DIRS[@]}"
 )
+
+# The one thing wanted back out of the excluded pair, one container out of the
+# hundred and ninety four under Mobile Documents, which costs 0.025s rather
+# than the whole tree. Reached only from a home scoped search, since anywhere
+# else the user has already said where to look and a second root would put
+# rows in the list that are not under it. Skipped when it is not on this
+# machine, so one script serves every machine. The path is the same on every
+# Mac signed into the same iCloud account.
+VAULT_ROOT='Library/Mobile Documents/iCloud~md~obsidian'
 
 # Handle --down: resolve selected path against SEARCH_DIR. If it resolves
 # to a file, use its parent directory. Preserves the requested type.
@@ -154,6 +186,17 @@ FD_ARGS=(--no-ignore)
 for pattern in "${EXCLUDE[@]}"; do
   FD_ARGS+=(--exclude "$pattern")
 done
+
+# The walk, plus the vault when this is a home scoped search and it is there.
+# fd prints an explicit search path as it was given, and the caller runs this
+# from SEARCH_DIR, so a relative root keeps both halves relative to the same
+# base the rest of the list already uses.
+list_entries() {
+  fd "${FD_ARGS[@]}"
+  if [ "$SEARCH_DIR" = "$HOME" ] && [ -d "$HOME/$VAULT_ROOT" ]; then
+    fd "${FD_ARGS[@]}" . "$VAULT_ROOT"
+  fi
+}
 
 ICON_NVIM_WIN=$(printf '\xef\x82\x8e')   # nf-fa-external_link (nvim in new window)
 ICON_HOME=$(printf '\xef\x80\x95')       # nf-fa-home
@@ -271,7 +314,7 @@ result=$(cd "$SEARCH_DIR" && fzf "${FZF_BASE_OPTS[@]}" \
   --bind "ctrl-h:become($SCRIPT --up $TYPE)" \
   --bind "ctrl-j:down,ctrl-k:up" \
   --bind "alt-j:preview-half-page-down,alt-k:preview-half-page-up" \
-  < <(fd "${FD_ARGS[@]}" | classify_entries))
+  < <(list_entries | classify_entries))
 
 key=$(printf '%s' "$result" | head -n1)
 sel=$(printf '%s' "$result" | tail -n +2 | cut -f1)
