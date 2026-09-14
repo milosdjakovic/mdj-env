@@ -24,6 +24,12 @@ even after it is named, because they check the real foreground process. Pane lev
 and `send-keys` work, so the agents panel and scripting are unaffected and only herdr's own
 agent automation is not.
 
+A pane that has ever carried a session under `herdr:claude` stays unnameable for the life of
+the herdr server. Resuming the session in that pane with `claude --resume` does not help,
+because the block is on the pane and not on the session. The only recovery is to close that
+pane and open a new one, and `check-dependencies.sh` names such a pane so nobody has to work
+that out from an empty panel.
+
 ## Rejected
 
 - **Global `HERDR_AGENT=claude` before `exec iris`.** 2026-09-14 about 21:50. Herdr's documented
@@ -180,3 +186,14 @@ sense of how much had happened rather than from a clock, and the two commits eit
 c82178d at 00:08 and c90ff87 at 00:15, bound it. An estimated time is anchored to the nearest
 commit or file timestamp before it is written, and the README now says so. This is the first
 correction made under the contract, on the first entry written under it.
+
+### 2026-09-15 00:23
+
+Milos closed this session and ran `claude --resume 5e1b0941-75f6-4cbe-ba3b-82ead2894d06` in
+the same pane, wA:pR, and it was still not listed. Checked. Same pane, the `herdr:claude`
+session record from the 21:40 probe is still on it, the hook is wired and fired on resume, and
+a manual `start` changes nothing either. This is the poisoned pane behaving as recorded, not a
+regression. The block is on the pane rather than the session, so resuming inside it cannot
+help, and closing the pane and opening a new one is the only recovery. That was in the record
+and was not in what Milos had been told to expect, so the Now section now says it plainly and
+check eight in the reconciler names any pane in this state. On this machine it names wA:pR.
