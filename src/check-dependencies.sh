@@ -729,6 +729,20 @@ if [[ -f "$claude_settings" ]] && command -v jq >/dev/null 2>&1; then
     done
 fi
 
+# A pane already carrying a session under one of herdr's own source ids is the third way,
+# and the one that survives uninstalling the integration. The record lives for the life of
+# the server and blocks every other source, so from the outside the pane looks like one the
+# hook never reached. Naming it is what turns an empty panel into an instruction, close this
+# pane and open a new one, since nothing else recovers it.
+if command -v herdr >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+    while IFS= read -r pane; do
+        [[ -z "$pane" ]] && continue
+        warn "herdr pane $pane carries a session record from a herdr integration and cannot be named by the hook, close it and open a new pane"
+        herdr_poisoned=$((herdr_poisoned + 1))
+    done < <(herdr pane list 2>/dev/null \
+        | jq -r '.result.panes[]? | select(.agent_status == "unknown" and ((.agent_session.source // "") | startswith("herdr:"))) | .pane_id')
+fi
+
 [[ $herdr_poisoned -eq 0 && $herdr_unwired -eq 0 ]] && say "  every agent can still announce its pane"
 
 #-------------------------------------------------------------------------------
