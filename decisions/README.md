@@ -43,7 +43,9 @@ line at its end, `Corrected <date>, see below`, and a new entry records what was
 was found out and what is true instead. Both stay. The wrong belief and the date it was held
 are part of the history, and a reader who finds the old entry alone must not be misled by it.
 
-Dates carry the time, local, to the minute, `2026-09-14 22:01`. An estimated time says so.
+Dates carry the time, local, to the minute, `2026-09-14 22:01`. An estimated time says so, and
+is anchored to the nearest commit or file timestamp rather than to a sense of elapsed time,
+since the first estimate written here was fifteen minutes out.
 Entries that reconstruct history from commits cite the commit hash and take its timestamp.
 
 ## When to read and when to write
