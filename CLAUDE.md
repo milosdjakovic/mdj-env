@@ -547,6 +547,18 @@ the key handling sees it, otherwise it is printed onto the prompt as text. Only 
 are recognised, since holding back a partial escape sequence would delay the arrow keys, which
 begin the same way.
 
+Taking it out is right for the shell and was wrong for everything else, and that cost a day of
+every layer above iris being stuck. A program behind iris that asks for the same reports never
+received one, because the terminal sends a single copy and iris consumed it. Herdr was the worst
+case, since Neovim, Claude Code and the iris inside each pane all ask herdr rather than Ghostty,
+so one report lost in front of herdr left the whole tree on the old half while iris itself, the
+layer that ate it, switched perfectly. So the wrapper now reads the child's own `2031` switch
+off the pty, the same way it reads the alternate screen switch, and relays each report to the
+child verbatim while the child has asked for them. Zsh never asks, so the prompt stays clean.
+Iris keeps the terminal's copy of the mode on regardless, answering a child's withdrawal by
+turning it straight back on, and drops the child's request at every new prompt so a program
+killed before it could withdraw cannot leave the line editor receiving reports.
+
 Reloading the half is only part of it, because the box also has to be drawn again, and for a
 while it was not. A terminal that changes appearance repaints its own palette, so every part
 of the box drawn in a slot follows along with no help from iris, which made the switch look
