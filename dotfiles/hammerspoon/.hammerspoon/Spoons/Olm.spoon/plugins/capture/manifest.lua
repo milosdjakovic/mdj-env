@@ -25,7 +25,10 @@ return {
       -- the scheme is off, so the instruction lives where the failure is seen.
       { name = "macshot", kind = "app", locator = "com.sw33tlie.macshot.macshot", policy = "optional", unit = "macshot",
         reason = "the preferred screenshot backend, native is the fallback",
-        origin = { cask = "macshot" } },
+        -- Manual rather than cask, because this is an opt in extra the Brewfile deliberately
+        -- does not carry. A default install should not put a screenshot app on a machine that
+        -- never asked for one, and native already answers here.
+        origin = { manual = "the macshot cask, installed by hand when this backend is wanted" } },
       -- Delivering a macshot URL without bringing macshot to the front, the -g flag reaches
       -- through open rather than through hs.urlevent.openURL. Optional, and its absence
       -- costs only this one backend, native still handles a screenshot or a recording.

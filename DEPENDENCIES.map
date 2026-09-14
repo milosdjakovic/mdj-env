@@ -60,7 +60,6 @@ eza           | brew      | eza
 chafa         | brew      | chafa
 zoxide        | brew      | zoxide
 atuin         | brew      | atuin
-fnm           | brew      | fnm
 trash         | brew      | trash
 jq            | brew      | jq
 stow          | brew      | stow
@@ -71,16 +70,7 @@ displayplacer | brew      | displayplacer
 qalc          | brew      | libqalculate
 ocr           | tap       | schappim/ocr/ocr
 iris          | manual    | built by src/build-iris.sh from the fork at github.com/milosdjakovic/IRIS, pinned to one commit and landing in ~/.local/bin. A fork rather than the tap because upstream renders an expanded alias in its suggestions, issue 158, and because a theme there cannot know whether the terminal is light or dark. Both fixes sit on their own branches. When upstream takes them this goes back to a tap line and the script and the go dependency both go away
-mullvad       | cask      | mullvad-vpn
-# The cask alone leaves ivpn broken, so it is one of the few entries here where installing is
-# not the whole answer. It ships only the App artifact, copied out of a DMG, and that copy
-# normalizes three files inside the bundle to 644. IVPN's daemon refuses to start unless they
-# are unreadable by group and other, and IVPN's own .pkg installer is what would have set
-# them to 600. A dead daemon also means no ivpn command, since the agent is what symlinks it
-# onto the PATH. src/setup-ivpn-permissions.sh restores the modes and setup.sh runs it.
-ivpn          | cask      | ivpn
 docker        | cask      | docker-desktop
-macshot       | cask      | macshot
 hs            | cask      | hammerspoon
 obsidian      | cask      | obsidian
 
@@ -116,6 +106,35 @@ sips                     | macos     | ships with macOS
 head                     | macos     | ships with macOS
 networkQuality           | macos     | ships with macOS
 script                   | macos     | ships with macOS
+
+# Opt in extras, deliberately absent from the Brewfile.
+#
+# Every one of these is optional, every one is the backend of a feature rather than the
+# feature itself, and a default install of this repository should not put a VPN client, a
+# screenshot app or a node version manager on a machine that never asked for one. The Brewfile
+# is what a fresh machine installs, so keeping these out of it is the only thing that actually
+# decides that, which is why the origin here is manual rather than cask or brew. The reconciler
+# requires a Brewfile line for a brew, cask or tap origin and requires nothing for a manual
+# one, so this is the supported way to say wanted but not by default rather than a way around
+# the rule.
+#
+# Nothing is uninstalled by moving a line here. The declarations stay, the plugins still work
+# on a machine that has the tool, and the reconciler still reports an absent one as a warning
+# so the answer to why is this row missing is one command away rather than a mystery.
+#
+# The detail names the package rather than a command to run, which is the same line the rest of
+# this file walks, so a person knows what to install without this file turning into a script.
+fnm           | manual    | the fnm formula, for node version switching. .zshrc.custom guards its hook, so an absent fnm costs a shell nothing
+mullvad       | manual    | the mullvad-vpn cask, wanted only on a machine that uses Mullvad. Without it the VPN picker simply has one fewer backend
+macshot       | manual    | the macshot cask, the preferred screenshot backend. The capture plugin falls back to the native one without it
+# ivpn is the one entry here where installing is not the whole answer, so this is worth
+# reading before installing it. The cask ships only the App artifact, copied out of a DMG, and
+# that copy normalizes three files inside the bundle to 644. IVPN's daemon refuses to start
+# unless they are unreadable by group and other, and IVPN's own pkg installer is what would
+# have set them to 600. A dead daemon also means no ivpn command, since the agent is what
+# symlinks it onto the PATH. src/setup-ivpn-permissions.sh restores the modes, setup.sh runs
+# it on every run, and it exits cleanly on a machine that does not have IVPN at all.
+ivpn          | manual    | the ivpn cask, wanted only on a machine that uses IVPN, and then src/setup-ivpn-permissions.sh to make its daemon able to start
 
 # Gates rather than tools. Nothing here can be installed, and no script can open one. A module
 # declares a gate the way it declares a tool, the reconciler proves it the way it proves a tool,
