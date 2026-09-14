@@ -11,10 +11,12 @@ tpm | package | share/tpm/tpm | required | .tmux.conf | the plugin manager every
 lazygit | path | lazygit | optional | .tmux.conf | the lazygit popup binding, and its state file feeds the recent repos picker
 lf | path | lf | optional | explorer/lf.sh | the explorer behind the file explorer popup and its tag picker
 caffeinate | system | /usr/bin/caffeinate | required | fzf-caffeinate.sh | holding the machine awake, the whole point of that picker
+nohup | system | /usr/bin/nohup | required | fzf-caffeinate.sh | detaching caffeinate so the hold survives the popup that started it
 fd | path | fd | required | fzf-files.sh | listing files, and finding repositories by their .git directory
 bat | path | bat | optional | fzf-files.sh | syntax highlighted file previews, the pane shows an error without it
 eza | path | eza | optional | fzf-files.sh | tree previews of a directory, the pane shows an error without it
 chafa | path | chafa | optional | fzf-files.sh | image previews in the terminal, the pane shows an error without it
 nvim | path | nvim | optional | fzf-files.sh | opening a chosen file, the copy action still works without it
+file | system | /usr/bin/file | optional | fzf-files.sh | reading a file's mime type so the preview picks a renderer
 git | path | git | required | fzf-repos.sh | reading the branch or short sha shown beside a repository
 mullvad | path | mullvad | optional | vpn/mullvad.sh | the relay CLI behind the VPN picker

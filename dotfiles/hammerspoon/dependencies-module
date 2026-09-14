@@ -30,3 +30,8 @@ lua | path | lua | optional | reading every plugin manifest so the collector can
 # since macOS reports a permission for whoever is asking and only Hammerspoon can answer about
 # Hammerspoon.
 accessibility | grant | accessibility | required | every leader key, every chord, and every window action goes through the accessibility layer, and the config does nothing at all without it
+
+# Comparing a fresh inventory snapshot against the committed golden one. Optional and declared at
+# module level rather than in any plugin, for the same reason lua is above, it belongs to this
+# module's own tooling and the running configuration never touches it.
+diff | system | /usr/bin/diff | optional | showing what moved when the inventory snapshot stops matching its golden file

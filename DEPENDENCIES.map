@@ -104,6 +104,10 @@ scutil                   | macos     | ships with macOS
 hidutil                  | macos     | ships with macOS
 sips                     | macos     | ships with macOS
 head                     | macos     | ships with macOS
+tput                     | macos     | ships with macOS
+file                     | macos     | ships with macOS
+diff                     | macos     | ships with macOS
+nohup                    | macos     | ships with macOS
 networkQuality           | macos     | ships with macOS
 script                   | macos     | ships with macOS
 

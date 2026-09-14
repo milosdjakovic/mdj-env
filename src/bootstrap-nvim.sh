@@ -89,7 +89,7 @@ if [[ -z "$BEFORE" ]]; then
     exit 0
 fi
 
-echo "Bootstrapping Neovim plugins, $(count_lines "$BEFORE") of them off the lockfile..."
+echo "Bootstrapping Neovim plugins, $(count_lines "$BEFORE") of them off the pinned revisions..."
 printf '%s\n' "$BEFORE" | head -5 | sed 's/^/    /'
 [[ "$(count_lines "$BEFORE")" -gt 5 ]] && echo "    and more"
 
