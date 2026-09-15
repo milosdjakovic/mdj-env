@@ -56,6 +56,19 @@ selection  = { color = "purple", alpha = 0.14 }
 surface    = { color = "white",  alpha = 0.03 }
 dim        = { color = "white",  alpha = 0.28 }
 overlay    = { mix = ["gray", "white"], amount = 0.50 }
+# highlight is the row a list's cursor sits on, herdr's navigate row, the iris menu bar and
+# fzf's, and it is a stronger purple than selection because a bar has to be found at a glance
+# where a span only has to be seen. subtext is the ink stepped back, and 0.85 lands on herdr's
+# unselected row label to the unit. fill is the accent as a block under a label painted in the
+# page colour, and on the dark half the purple has room enough as it is.
+highlight  = { color = "purple", alpha = 0.26 }
+subtext    = { color = "white",  alpha = 0.85 }
+fill       = "purple"
+
+[roles.dark]
+# dim on this half is where herdr's border sits, the faintest rule the page can carry. Nothing
+# else paints with the dark dim, so this is the one value that defines it.
+dim        = { color = "white",  alpha = 0.11 }
 
 [roles.light]
 # The light ramp spans less than the dark one, so the same fractions read too faint, and
@@ -67,3 +80,11 @@ overlay    = { mix = ["gray", "white"], amount = 0.50 }
 selection  = { color = "purple", alpha = 0.20 }
 surface    = { color = "white",  alpha = 0.09 }
 overlay    = { mix = ["gray", "white"], amount = 0.19 }
+# highlight is neutral on this half rather than purple, since a tinted bar on the light page
+# reads as a lilac slab, the same reason the light surfaces are near neutral, and 0.16 is
+# herdr's grey to the unit. subtext follows the light ramp reason above. fill is the purple
+# darkened, because slot 4 is solved for a letter at 4.5 to 1 and a block carrying a label in
+# the page colour wants more room, 6.2 to 1 here where herdr's hand picked value read 6.1.
+highlight  = { color = "white",  alpha = 0.16 }
+subtext    = { color = "white",  alpha = 0.88 }
+fill       = { color = "purple", darken = 0.15 }

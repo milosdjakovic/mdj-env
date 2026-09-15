@@ -1,0 +1,45 @@
+# herdr's theme tokens, each pointing at a role from theme/VOCABULARY. This file knows
+# herdr's vocabulary, which is Catppuccin's palette vocabulary, surface0, overlay1,
+# subtext0, mauve, and the palette knows nothing about it. Which token paints what on screen
+# was found by probe and is written down in this package's CLAUDE.md under "Which theme
+# token paints what", read that before moving a token to another role.
+#
+# The base theme stays terminal, so anything not named here falls back to the palette Ghostty
+# is painting, and sidebar_bg is deliberately not a token here, since omitting it leaves the
+# panel on the terminal background level with everything else.
+#
+# accent is the active tab chip and the focused sidebar row, and it takes fill rather than
+# primary because it carries a label painted in panel_bg, the page colour, and a block wants
+# more room than a letter. mauve is the secondary line on a highlighted space and takes the
+# same grey as overlay0 on purpose, because painting that one line purple made it the only
+# secondary text on the page wearing a different colour. surface1 paints nothing visible in
+# either layout it was probed against and takes surface so that it holds a sane value if a
+# layout ever reaches it. yellow and peach are both the tertiary accent and teal the secondary,
+# because Aura publishes one shade of each.
+accent = fill
+panel_bg = background
+selection_bg = highlight
+surface0 = background
+surface1 = surface
+surface_dim = dim
+overlay0 = overlay
+overlay1 = overlay
+text = foreground
+subtext0 = subtext
+mauve = overlay
+green = secondary
+yellow = tertiary
+red = senary
+blue = quinary
+teal = secondary
+peach = tertiary
+
+# The focused row lifts in purple on the dark half and in neutral on the light one, which is
+# herdr's own recorded decision, the light surfaces are near neutral because a tinted slab on
+# the light page reads as lilac. selection on dark is one step under highlight, and surface
+# on light is the exact grey the row already carried.
+[dark]
+active_row_bg = selection
+
+[light]
+active_row_bg = surface
