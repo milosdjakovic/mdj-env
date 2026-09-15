@@ -449,6 +449,13 @@ LazyVim-based configuration. Run `nvim` after setup to bootstrap plugins.
 
 ### Iris
 
+**Disabled since 2026-09-16.** The `.zshrc` template no longer execs it, because a PTY proxy
+hides every session from herdr's agents panel and the panel won. The package stays stowed and
+built so re-enabling is one line, and the shell now runs zsh-autosuggestions, fzf-tab and
+carapace instead. `decisions/shell-autocomplete.md` carries both guides, the versions, and
+the herdr change that would let iris come back. Everything below describes iris as it was
+built and still applies the day it is re-enabled.
+
 Shell autocomplete, configured in `dotfiles/iris/.config/iris/` and built rather than
 installed, because the released binary has two defects this repository does not want to live
 with. `src/build-iris.sh` compiles it from `github.com/milosdjakovic/IRIS`, pinned to one

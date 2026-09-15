@@ -60,6 +60,7 @@ eza           | brew      | eza
 chafa         | brew      | chafa
 zoxide        | brew      | zoxide
 atuin         | brew      | atuin
+carapace      | brew      | carapace
 trash         | brew      | trash
 jq            | brew      | jq
 stow          | brew      | stow

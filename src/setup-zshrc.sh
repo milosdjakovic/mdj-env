@@ -25,18 +25,16 @@ BREW_PREFIX="$(brew --prefix)"
 # stale the way a grep for one line does, because the thing it tests is the thing it writes, so
 # any future edit to this template is picked up with no matching edit to the guard.
 GENERATED="$(cat << EOF
-# PATH, hoisted above everything else because the iris hook below is the first thing that
-# runs and has to find the binary. macOS does not put the Homebrew prefix on the PATH it
-# hands a login shell, so nothing here may assume it, and ~/.local/bin comes first because
-# that is where src/build-iris.sh puts iris and it has to win over any package manager copy
-# still lying around.
+# PATH, hoisted above everything else. macOS does not put the Homebrew prefix on the PATH
+# it hands a login shell, so nothing here may assume it, and ~/.local/bin comes first so a
+# binary built by this repository wins over any package manager copy still lying around.
 export PATH="\$HOME/.local/bin:$BREW_PREFIX/bin:$BREW_PREFIX/sbin:\$PATH"
 
-# IRIS autocomplete. The hook execs iris as a PTY proxy, replacing this shell with one
-# running behind it, so it belongs above the Powerlevel10k instant prompt rather than
-# below. Painting a prompt into a process that is about to be replaced leaves a screen
-# p10k never gets to tear down.
-eval "\$(iris init zsh)"
+# No iris here. The hook was eval "\$(iris init zsh)" on this line, above the instant
+# prompt because it execs iris as a PTY proxy and a prompt painted into a process about to
+# be replaced is never torn down. It is disabled since 2026-09-16 because a proxy hides every
+# session from the herdr agents panel, and decisions/shell-autocomplete.md holds the guide for
+# putting it back. The package stays stowed and built so that is one line.
 
 # Powerlevel10k instant prompt
 if [[ -r "\${XDG_CACHE_HOME:-\$HOME/.cache}/p10k-instant-prompt-\${(%):-%n}.zsh" ]]; then

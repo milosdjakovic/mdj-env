@@ -8,6 +8,17 @@ if [[ -n "$TMUX" ]]; then
   zstyle ':fzf-tab:*' fzf-command ftb-tmux-popup
 fi
 
+# carapace is the completion dictionary, roughly a thousand commands with flag and value
+# descriptions that zsh's own completion mostly lacks, aws and gcloud among them. It only
+# supplies candidates, fzf-tab above still draws them, and it registers completion functions
+# so it has to come after oh-my-zsh has run compinit. The format line labels each group the
+# way carapace's own zsh setup does. It replaces zsh's completion for every command it knows,
+# git included, and decisions/shell-autocomplete.md says why it is here instead of iris.
+if command -v carapace >/dev/null 2>&1; then
+  zstyle ':completion:*' format $'\e[2;37mCompleting %d\e[m'
+  source <(carapace _carapace)
+fi
+
 # Aliases
 alias cd='z'
 alias ls='eza'
