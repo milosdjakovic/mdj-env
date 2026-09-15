@@ -689,6 +689,43 @@ function obj.run(olm, cfg)
     colorTimer = hs.timer.doAfter(1.1, function() colorPanel:hide() end)
   end
 
+  -- A titled list, for an action that touched several things at once and owes a line per thing,
+  -- the workspaces apply naming the apps in a layout that were not open. Sized like the Hyper
+  -- cheat sheet so the two read as one instrument. It stays up five seconds with the count
+  -- shown in its footer, a Dismiss chip takes it down early, and the panel is reused so a
+  -- second apply replaces the first rather than stacking. The countdown redraws the panel once
+  -- a second through its own show, since the number is content and nothing else on the panel
+  -- changes while it sits there.
+  local reportState = { title = "", rows = {}, secondsLeft = 0 }
+  local reportPanel
+  local reportTimer
+  local function dismissReport()
+    if reportTimer then reportTimer:stop() end
+    reportTimer = nil
+    if reportPanel then reportPanel:hide() end
+  end
+  reportPanel = canvasPanel.new({
+    placement = canvasPanel.placements.center,
+    content = toastContent.list(reportState, dismissReport),
+  })
+  local REPORT_SECONDS = 5
+  local function report(model)
+    model = model or {}
+    reportState.title = tostring(model.title or "")
+    reportState.rows = type(model.rows) == "table" and model.rows or {}
+    reportState.secondsLeft = REPORT_SECONDS
+    reportPanel:show()
+    if reportTimer then reportTimer:stop() end
+    reportTimer = hs.timer.doEvery(1, function()
+      reportState.secondsLeft = reportState.secondsLeft - 1
+      if reportState.secondsLeft <= 0 then
+        dismissReport()
+      else
+        reportPanel:show()
+      end
+    end)
+  end
+
   local rootValues = {
     -- Which leader names are actually live on this keyboard, KeyRemap's own contract.
     activeNames = activeLeaderNames,
@@ -864,10 +901,11 @@ function obj.run(olm, cfg)
       return stageModule and stageModule:selectedRow() or nil
     end,
 
-    -- One line of feedback, and one sampled colour, both on the shared overlay so they read as
-    -- part of the same interface as the cheat sheet and the docked hint bars.
+    -- One line of feedback, one sampled colour, and one titled list, all on the shared overlay
+    -- so they read as part of the same interface as the cheat sheet and the docked hint bars.
     notify = notify,
     showColor = showColor,
+    report = report,
 
     -- This machine's identity, for anything keyed per host.
     host = localHostName,
@@ -886,8 +924,9 @@ function obj.run(olm, cfg)
     -- declaring plugin, since two plugins sharing one file would silently overwrite each
     -- other. Inside the live config directory on purpose rather than under the storage atom's
     -- own roots, because this is the tracked layer a person edits by hand. A plugin that
-    -- writes its own store rather than reading one a person wrote opts out by name in
-    -- .gitignore, which workspaces does, since that file is one machine's session.
+    -- writes its own store on its own, rather than when a person acts, would opt out by name
+    -- in .gitignore, which workspaces did while it recorded every window move by itself and
+    -- no longer does now that a layout is only ever written when a person takes one.
     storePath = servicesLib.perName(function(name)
       return hs.configdir .. "/config/" .. name .. ".json"
     end),

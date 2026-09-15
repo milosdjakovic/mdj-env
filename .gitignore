@@ -13,11 +13,13 @@ dotfiles/lazygit/Library/Application Support/lazygit/github_pull_requests.json
 # LLVM coverage profiling artifacts
 *.profraw
 
-# Workspaces remembered window frames. The plugin writes this file itself, a couple of
-# seconds after any window move, so it is one machine's session rather than configuration.
-# It was tracked once so layouts could travel, and grew from 41 lines to 166 in twelve days
-# of ordinary use, with nothing in it typed by a person and no way to merge two machines.
-dotfiles/hammerspoon/.hammerspoon/config/workspaces.json
+# The stamped copies a plugin store moves a file aside to when it cannot read it, or when it
+# finds the shape an earlier version wrote. workspaces.json itself is tracked again. It was
+# ignored while the plugin wrote it on its own after every window move, when it grew from 41
+# lines to 166 in twelve days with nothing in it typed by a person, and it is written only when
+# a person takes, updates, prunes, renames, or deletes a layout now, so it is curated rather
+# than accumulated and it travels between machines by design.
+dotfiles/hammerspoon/.hammerspoon/config/*.json.*
 
 # Herdr's own state, which lands in the tracked tree only because ~/.config/herdr is a stow
 # symlink back into this package, so anything herdr writes beside its config is written here.

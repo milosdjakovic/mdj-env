@@ -1,40 +1,38 @@
 --- === Workspaces ===
 ---
---- Remember where windows belong per display configuration, and put them back automatically.
---- One plugin replacing both DisplayMemory and WindowMemory, which each remembered half of this
---- and neither of which was ever started.
+--- Layouts a person takes and puts back. Take a snapshot of where every window sits, give it a
+--- name, prune the apps it should not speak for, and later apply it to place the windows that
+--- are open now. Nothing here launches, closes, or hides an app, and nothing here watches or
+--- records on its own. An app that is closed when a layout is applied stays closed and the
+--- report says so.
 ---
---- A configuration is identified by the point geometry of the attached screens rather than by
---- monitor identity, so vendor, model, pixel resolution, and plug order all stop mattering.
---- Capture is automatic and continuous, restore is automatic on a configuration change and on a
---- fresh app launch. DisplayProfiles owns the physical arrangement through displayplacer and
---- this plugin never talks to displayplacer, the two staying independent and ordering themselves
---- through the shared screen event rather than through any coupling.
+--- A layout remembers which display each window was on by role, the built in panel or the
+--- first, second, or third external, never which monitor, and each frame as a fraction of that
+--- display, so the same layout applies in front of a different external monitor. A layout is
+--- available when every display it places on is attached, and the list says which are and
+--- which are not.
 ---
 --- This file is the plugin composition root, following the composition root, engine, store,
---- chooser layout the settled plugins use. It loads three siblings by loadfile and wires them,
---- and names no policy of its own beyond building the seam between them. engine.lua is the
---- mechanism, it watches, remembers, and restores, and knows nothing about a chooser.
---- store.lua persists the durable half in one JSON file. chooser.lua is the inspect and prune
---- surface, pure command policy over an injected api. The api this root builds is that one seam,
---- so the chooser never reaches the engine or the store directly and the engine never learns
---- that a surface exists.
+--- chooser layout the settled plugins use. engine.lua reads displays and windows, takes a
+--- snapshot, and applies one, and knows nothing about a chooser or a file. store.lua persists
+--- the layouts in one JSON file. chooser.lua is the surface, pure command policy over an
+--- injected api. The api this root builds is that one seam, and the report an apply produces
+--- goes out through the injected report word rather than through any surface of this plugin's
+--- own, since the root decides how a message is drawn and where it lands.
 
 local obj = {}
 
 -- Metadata
 obj.name = "Workspaces"
-obj.version = "1.0"
+obj.version = "2.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
 local log = hs.logger.new("Workspaces", "info")
 
 -- Load the siblings by absolute path off this file's own location, loadfile rather than require
--- since a spoon directory is not on package.path. The helper wraps loadfile so a broken sibling
--- fails with a Workspaces prefixed message rather than a bare Lua error. The chooser is exposed
--- so the wiring layer can reach its own configure step and the registrar can resolve its
--- presentation members.
+-- since a spoon directory is not on package.path. The chooser is exposed so the wiring layer can
+-- reach its own configure step and the registrar can resolve its presentation members.
 local pluginPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local function load(name)
   local chunk, err = loadfile(pluginPath .. name)
@@ -48,7 +46,21 @@ local store = load("store.lua")
 obj.chooser = load("chooser.lua")
 
 -- Owned state
-obj._store = nil  -- the persistent layer, or nil when no path arrived
+obj._store = nil    -- the layouts on disk, or nil when no path arrived
+obj._report = nil   -- the root's report word, or nil when the root published none
+
+-- An app's own icon, cached by bundle id, the same cache and fallback shape browsertabs and
+-- clipboard already use for the same call. A bundle id with nothing installed for it answers
+-- nil, and every caller falls back to a generic mark rather than leaving the row blank.
+local iconCache = {}
+local function appIcon(bundleID)
+  if not bundleID then return nil end
+  local hit = iconCache[bundleID]
+  if hit ~= nil then return hit or nil end
+  local img = hs.image.imageFromAppBundle(bundleID)
+  iconCache[bundleID] = img or false
+  return img
+end
 
 --- Workspaces:init()
 --- Method
@@ -57,98 +69,158 @@ function obj:init()
   return self
 end
 
+-- What each apply outcome says on the report, one short phrase per app.
+local function statusDetail(row)
+  if row.status == "placed" then
+    return row.recorded == 1 and "placed" or (row.recorded .. " windows placed")
+  elseif row.status == "partial" then
+    return row.placed .. " of " .. row.recorded .. " windows placed"
+  elseif row.status == "notOpen" then
+    return "not open"
+  elseif row.status == "noWindow" then
+    return "open, no window"
+  elseif row.status == "noDisplay" then
+    return "its display is not attached"
+  elseif row.status == "refused" then
+    return "would not move"
+  end
+  return ""
+end
+
 -- Everything the chooser is allowed to know, and the one place the engine and the store are
--- joined. Read methods are cheap, both layers are already in memory. Every write goes through
--- here so the two layers can never disagree, which is why forgetting an app drops it from the
--- session layer as well, and deleting a configuration drops its whole session slot. Forgetting
--- only the durable half would not be forgetting, since the session layer wins on restore and
--- would put the app back from a memory nobody can see.
+-- joined. Every write flushes at once, since each is a person's own act, and the answer to a
+-- write is true or false plus a message the chooser logs.
 function obj:_buildApi()
+  local function withStore(fn)
+    return function(...)
+      if not self._store then return false, "nothing is stored, so there is nothing to change" end
+      local ok, err = fn(...)
+      if ok then self._store:flush() end
+      return ok, err
+    end
+  end
+
+  -- Every layout, available ones first, each carrying what the top level row needs.
+  local function list()
+    local attached = engine.attached()
+    local out = {}
+    for _, layout in ipairs(self._store and self._store:list() or {}) do
+      local included, excluded = 0, 0
+      for _, app in ipairs(layout.apps or {}) do
+        if app.excluded then excluded = excluded + 1 else included = included + 1 end
+      end
+      local available, reason = engine.availability(layout, attached)
+      out[#out + 1] = {
+        id = layout.id,
+        name = layout.name,
+        taken = layout.taken,
+        topology = engine.topologyLabel(layout.topology),
+        apps = included,
+        excluded = excluded,
+        available = available,
+        reason = reason,
+      }
+    end
+    table.sort(out, function(a, b)
+      if a.available ~= b.available then return a.available end
+      return a.name:lower() < b.name:lower()
+    end)
+    return out
+  end
+
   return {
-    -- Every configuration, active first and marked, each carrying how many apps it remembers.
-    list = function()
-      local active = engine:current()
+    list = list,
+
+    -- One layout by id, in the same shape a list row has, or nil once it is gone.
+    get = function(id)
+      for _, row in ipairs(list()) do
+        if row.id == id then return row end
+      end
+      return nil
+    end,
+
+    -- Whether there is a file at all, so the surface can say what is missing rather than showing
+    -- an empty list that looks like nothing was ever taken.
+    persists = function() return self._store ~= nil end,
+
+    -- The displays attached right now, in words, for the new snapshot row.
+    here = function()
+      local attached = engine.attached()
+      return engine.topologyLabel({ internal = attached.internal, externals = attached.externals })
+    end,
+
+    -- One layout's apps, each with the app's name, its icon, whether it is excluded, and where
+    -- its windows sit, sorted with the included ones first so the excluded read as a tail.
+    apps = function(id)
+      local layout = self._store and self._store:get(id)
       local out = {}
-      for _, entry in ipairs(self._store and self._store:list() or {}) do
-        local apps = 0
-        for _ in pairs(entry.apps or {}) do apps = apps + 1 end
+      for _, app in ipairs((layout or {}).apps or {}) do
+        local displays, seen = {}, {}
+        for _, w in ipairs(app.windows or {}) do
+          if type(w.display) == "string" and not seen[w.display] then
+            seen[w.display] = true
+            displays[#displays + 1] = engine.roleLabel(w.display)
+          end
+        end
         out[#out + 1] = {
-          fingerprint = entry.fingerprint,
-          name = entry.name,
-          apps = apps,
-          active = entry.fingerprint == active,
+          bundle = app.bundle,
+          name = app.name or app.bundle,
+          icon = appIcon(app.bundle),
+          excluded = app.excluded == true,
+          windows = #(app.windows or {}),
+          displays = table.concat(displays, " and "),
         }
       end
       table.sort(out, function(a, b)
-        if a.active ~= b.active then return a.active end
-        return a.name < b.name
+        if a.excluded ~= b.excluded then return b.excluded end
+        return a.name:lower() < b.name:lower()
       end)
       return out
     end,
 
-    -- Whether there is a durable layer at all, so the surface can say what is missing rather
-    -- than showing an empty list that looks like nothing was ever remembered.
-    persists = function() return self._store ~= nil end,
-
-    active = function() return engine:current() end,
-
-    -- One configuration's remembered apps, each with the name a person would recognise, sorted
-    -- so the list does not reshuffle between keystrokes.
-    -- The frame is validated through the store's own judgement rather than a second one written
-    -- here, so a hand edited entry the engine would decline to place is also one the surface
-    -- knows it cannot describe. An unreadable frame answers nil and the row says so, which costs
-    -- that row its detail and lets the person find the entry and forget it.
-    apps = function(fingerprint)
-      local entry = self._store and self._store:get(fingerprint)
-      local out = {}
-      for bundleID, frame in pairs((entry or {}).apps or {}) do
-        out[#out + 1] = {
-          bundleID = bundleID,
-          name = hs.application.nameForBundleID(bundleID) or bundleID,
-          frame = store.validFrame(frame),
-        }
-      end
-      table.sort(out, function(a, b) return a.name:lower() < b.name:lower() end)
-      return out
-    end,
-
-    -- Whether a name is taken, so a rename never produces two configurations a person cannot
-    -- tell apart in a list.
     exists = function(name) return self._store ~= nil and self._store:nameExists(name) end,
 
-    restore = function() engine:restoreNow() end,
-
-    rename = function(fingerprint, newName)
-      if not self._store then return false, "nothing is persisted, so there is no name to change" end
-      local ok, err = self._store:rename(fingerprint, newName)
-      if ok then self._store:flush() end
-      return ok, err
+    -- Take a snapshot of what is open now under the given name. Answers the new id.
+    create = function(name)
+      if not self._store then return nil, "nothing is stored, so a snapshot has nowhere to go" end
+      local id, err = self._store:add(name, engine.snapshot())
+      if id then self._store:flush() end
+      return id, err
     end,
 
-    remove = function(fingerprint)
-      if not self._store then return false, "nothing is persisted, so there is nothing to remove" end
-      local ok, err = self._store:remove(fingerprint)
-      if ok then
-        engine:forgetSession(fingerprint)
-        -- Deleting the configuration attached right now means forget what it remembered, never
-        -- make it cease to exist, since which screens are attached is a fact rather than a
-        -- preference. The engine puts it straight back, empty and named from its geometry, and it
-        -- is asked to do that rather than done here so the single creation door stays single. For
-        -- any other configuration this finds the attached one already there and changes nothing.
-        engine:ensureCurrent()
-        self._store:flush()
-      end
-      return ok, err
-    end,
+    update = withStore(function(id) return self._store:update(id, engine.snapshot()) end),
+    rename = withStore(function(id, newName) return self._store:rename(id, newName) end),
+    remove = withStore(function(id) return self._store:remove(id) end),
+    exclude = withStore(function(id, bundle) return self._store:setExcluded(id, bundle, true) end),
+    include = withStore(function(id, bundle) return self._store:setExcluded(id, bundle, false) end),
 
-    forget = function(fingerprint, bundleID)
-      if not self._store then return false, "nothing is persisted, so there is nothing to forget" end
-      local ok, err = self._store:forgetApp(fingerprint, bundleID)
-      if ok then
-        engine:forgetSessionApp(fingerprint, bundleID)
-        self._store:flush()
+    -- Place the windows a layout records and report what did not happen, through the root's
+    -- report word when it published one and on the console regardless. Only the apps that were
+    -- not placed in full are reported, since a window that moved is its own feedback and the
+    -- panel exists to say which apps the layout could not reach, closed ones above all. An
+    -- apply where everything landed shows nothing.
+    apply = function(id)
+      local layout = self._store and self._store:get(id)
+      if not layout then return false, "layout not found" end
+      local available, reason = engine.availability(layout)
+      if not available then return false, reason end
+      local report = engine.apply(layout)
+      local rows = {}
+      for _, r in ipairs(report) do
+        log.i(string.format("apply '%s', %s, %s", layout.name, r.name, statusDetail(r)))
+        if r.status ~= "placed" then
+          rows[#rows + 1] = {
+            icon = appIcon(r.bundle),
+            label = r.name,
+            detail = statusDetail(r),
+            dim = r.status == "notOpen",
+          }
+        end
       end
-      return ok, err
+      if #rows > 0 and self._report then
+        self._report({ title = layout.name .. ", not placed", rows = rows })
+      end
+      return true
     end,
   }
 end
@@ -156,11 +228,10 @@ end
 --- Workspaces:configure(opts)
 --- Method
 --- opts.storePath  absolute path to the JSON file, supplied by the root since only it knows
----                 where a person's own editable data lives. Without it the durable layer is
----                 disabled and the plugin runs on the session layer alone, which still covers
----                 docking and undocking within one login.
---- Builds the store, injects it into the engine along with the callback that lets a
---- configuration change correct whatever the chooser is showing, and hands the chooser its api.
+---                 where a person's own editable data lives. Without it nothing is kept.
+--- opts.report     the root's report word, a function of { title, rows } that draws the list
+---                 on the shared overlay. Without it an apply says what it did on the console
+---                 only.
 --- The chooser's stage words arrive separately, through its own wiring step, so this is safe to
 --- call before or after that.
 function obj:configure(opts)
@@ -168,42 +239,11 @@ function obj:configure(opts)
   if opts.storePath then
     self._store = store.new({ path = opts.storePath })
   end
-  engine:configure({
-    store = self._store,
-    onChange = function() self.chooser.refresh() end,
-  })
+  self._report = opts.report
   self.chooser:configure({ api = self:_buildApi() })
+  local layouts = self._store and #self._store:list() or 0
+  log.i(string.format("%d layout(s) stored, persistence %s", layouts, self._store and "on" or "off"))
   return self
-end
-
---- Workspaces:start()
---- Method
---- Start watching and run the first restore pass. THIS IS THE STEP THE TWO PLUGINS THIS ONE
---- REPLACES BOTH LACKED. Configure alone builds an engine that watches nothing, so the manifest
---- declares this as a wiring step and that declaration is the whole difference between a plugin
---- that works and one that loads, reports success, and does nothing for a year.
-function obj:start()
-  engine:start()
-  local configurations = self._store and #self._store:list() or 0
-  log.i(string.format("%d configuration(s) remembered, persistence %s",
-    configurations, self._store and "on" or "off"))
-  return self
-end
-
---- Workspaces:stop()
---- Method
---- Stop watching and flush whatever was pending. Whatever is remembered is kept.
-function obj:stop()
-  engine:stop()
-  return self
-end
-
---- Workspaces:current()
---- Method
---- The fingerprint of the configuration attached right now, for the console and for anything
---- that later wants to ask.
-function obj:current()
-  return engine:current()
 end
 
 return obj

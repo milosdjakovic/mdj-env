@@ -407,8 +407,8 @@ function obj.shortcutPanelFor(contextName, plan, deps)
   }
 end
 
--- Two small CanvasPanel content strategies over a mutable state table, folded into one
--- factory because both are the same shape, routine feedback a feature cannot show any other
+-- Three small CanvasPanel content strategies over a mutable state table, folded into one
+-- factory because all are the same shape, routine feedback a feature cannot show any other
 -- way, drawn once and reused across messages rather than stacking a column of panels. A
 -- plugin never builds one of these itself, it is handed the mutable state table by whoever
 -- wires it and only ever writes into it.
@@ -467,6 +467,91 @@ function obj.toast(deps)
             textColor = fg, textAlignment = "left",
             frame = { x = swatch + gap, y = (h - hexSize) / 2 - 1, w = w - swatch - gap, h = hexSize + 6 } },
         }
+      end,
+    }
+  end
+
+  -- A titled list of rows, each an optional icon, a label, and a short detail, with a footer
+  -- carrying a countdown and a Dismiss button, for a plugin whose feedback is what happened
+  -- to several things at once, the workspaces apply naming the apps in a layout that were not
+  -- open. Sized like the Hyper cheat sheet, the same font size, row height, and icon size, so
+  -- the two overlays read as one instrument. state.title, state.rows, and state.secondsLeft
+  -- are the fields a caller mutates, a row being { icon, label, detail, dim }. deps.onDismiss
+  -- is told when the button is clicked, the caller owning the hide and the countdown alike.
+  function toast.list(state, onDismiss)
+    local font = ".AppleSystemUIFont"
+    local size, detailSize = 16, 14
+    local rowH, icon, gap, titleH, footerH = 48, 32, 10, 36, 40
+    local minW, maxW = 320, 640
+    local function textW(str, sz)
+      local measured = hs.drawing.getTextDrawingSize(
+        hs.styledtext.new(tostring(str or ""), { font = { name = font, size = sz } }))
+      return math.ceil((measured and measured.w) or 0)
+    end
+    local function rows() return state.rows or {} end
+    local function footerText()
+      local n = tonumber(state.secondsLeft)
+      if not n or n <= 0 then return "" end
+      return "Closing in " .. math.floor(n)
+    end
+    return {
+      preferredSize = function()
+        local w = textW(state.title, size)
+        for _, r in ipairs(rows()) do
+          local rw = icon + gap + textW(r.label, size) + gap * 2 + textW(r.detail, detailSize)
+          if rw > w then w = rw end
+        end
+        return { w = math.min(math.max(w, minW), maxW), h = titleH + #rows() * rowH + footerH }
+      end,
+      onClick = function(id)
+        if (id == "dismiss" or id == "dismissLabel") and onDismiss then onDismiss() end
+      end,
+      draw = function(w, h)
+        local dark = hs.host.interfaceStyle() == "Dark"
+        local side = (dark and theme.dark) or theme.light or theme.dark or {}
+        local fg = side.titleColor or { white = dark and 0.92 or 0.15 }
+        local meta = side.subColor or { white = dark and 0.55 or 0.42 }
+        local chip = { white = dark and 1 or 0, alpha = dark and 0.12 or 0.06 }
+        local function withAlpha(c, a)
+          return { red = c.red, green = c.green, blue = c.blue, white = c.white, alpha = a }
+        end
+        local els = {
+          { type = "text", text = tostring(state.title or ""), textFont = font, textSize = size,
+            textColor = meta, textAlignment = "left",
+            frame = { x = 0, y = (titleH - size) / 2 - 2, w = w, h = size + 6 } },
+        }
+        for i, r in ipairs(rows()) do
+          local y = titleH + (i - 1) * rowH
+          local alpha = r.dim and 0.5 or 1
+          local x = 0
+          if r.icon then
+            els[#els + 1] = { type = "image", image = r.icon, imageScaling = "scaleProportionally",
+              imageAlpha = alpha, frame = { x = x, y = y + (rowH - icon) / 2, w = icon, h = icon } }
+          end
+          x = x + icon + gap
+          local detailW = textW(r.detail, detailSize)
+          els[#els + 1] = { type = "text", text = tostring(r.label or ""), textFont = font, textSize = size,
+            textColor = withAlpha(fg, alpha), textAlignment = "left", textLineBreak = "truncateTail",
+            frame = { x = x, y = y + (rowH - size) / 2 - 2, w = w - x - detailW - gap, h = size + 6 } }
+          els[#els + 1] = { type = "text", text = tostring(r.detail or ""), textFont = font, textSize = detailSize,
+            textColor = withAlpha(meta, alpha), textAlignment = "right",
+            frame = { x = w - detailW, y = y + (rowH - detailSize) / 2 - 1, w = detailW, h = detailSize + 6 } }
+        end
+        -- The footer, the countdown on the left and Dismiss as a chip on the right, the chip
+        -- being the element that carries the id the panel reports a click on.
+        local fy = h - footerH
+        local label = "Dismiss"
+        local chipW, chipH = textW(label, detailSize) + 24, 28
+        els[#els + 1] = { type = "text", text = footerText(), textFont = font, textSize = detailSize,
+          textColor = meta, textAlignment = "left",
+          frame = { x = 0, y = fy + (footerH - detailSize) / 2 - 1, w = w - chipW - gap, h = detailSize + 6 } }
+        els[#els + 1] = { type = "rectangle", action = "fill", fillColor = chip,
+          roundedRectRadii = { xRadius = 6, yRadius = 6 }, id = "dismiss", trackMouseUp = true,
+          frame = { x = w - chipW, y = fy + (footerH - chipH) / 2, w = chipW, h = chipH } }
+        els[#els + 1] = { type = "text", text = label, textFont = font, textSize = detailSize,
+          textColor = fg, textAlignment = "center", id = "dismissLabel", trackMouseUp = true,
+          frame = { x = w - chipW, y = fy + (footerH - detailSize) / 2 - 1, w = chipW, h = detailSize + 6 } }
+        return els
       end,
     }
   end

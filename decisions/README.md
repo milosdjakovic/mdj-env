@@ -74,3 +74,4 @@ than discovered.
 - [ghostty-aura-theme](ghostty-aura-theme.md), how the terminal palette settled on Aura for both halves after three other pairings
 - [claude-code-theme](claude-code-theme.md), Claude Code draws hex colours per theme and only `auto` asks the terminal, so setup merges it
 - [neovim-lockfile-pin](neovim-lockfile-pin.md), the lockfile is the pin and the bootstrap restores it rather than updating past it
+- [olm-workspaces](olm-workspaces.md), window layouts are snapshots a person takes and applies, keyed by display role, after the automatic version was pulled out

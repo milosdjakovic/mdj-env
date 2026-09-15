@@ -1,28 +1,27 @@
 --- === Workspaces.chooser ===
 ---
---- The inspect and prune surface, the command policy over the engine and the store. It is not
---- how windows get restored, the engine does that unasked, so this list exists to show what was
---- remembered and to let a person correct it. Look at the configurations, see which one you are
---- standing in, give one a name that means something, forget an app that is remembered somewhere
---- silly, drop a whole configuration you will never be at again, and force a restore on the
---- active one for the rare case where the geometry never changed so no episode ever opened.
+--- The surface, the command policy over the engine and the store. Take a new snapshot, look at
+--- the layouts and see which apply here, go into one to apply it, update it from what is open
+--- now, prune the apps it should not speak for, rename it, or delete it.
 ---
 --- Every level is a presentation table, built lazily and pushed the moment a row drills into it,
---- and the shared stage owns the one window all of them show into. Choosing a configuration,
---- Rename, Delete, Apps, or an app returns the level it leads to from select and the stage pushes
---- it, swapping the list in place with no window ever closing. Leaving a level, every Back row,
---- the confirm's own Keep, and the pop a successful rename, delete, or forget lands on, all ride
---- each level's own intercept instead, since a child returned from select can only ever push,
---- never pop, and cfg.stagePop is the one word that expresses leaving.
+--- and the shared stage owns the one window all of them show into. Choosing New snapshot, a
+--- layout, Apps, an app, Rename, or Delete returns the level it leads to from select and the
+--- stage pushes it, swapping the list in place with no window ever closing. Leaving a level,
+--- every Back row, the confirm's own Keep, and the pop a successful rename, delete, remove, or
+--- include lands on, all ride each level's own intercept, since a child returned from select can
+--- only ever push, never pop, and cfg.stagePop is the one word that expresses leaving.
 ---
---- Delete pops twice in the same press, because a removed configuration leaves both the confirm
---- level and the configuration level naming it behind, stale, and a single pop would clear only
---- half of that. Forget pops once, landing back on the apps list, which rebuilds without the app
---- that was just dropped.
+--- Saving a new snapshot is the one row that both leaves and arrives. It pops the name level
+--- from inside select and then answers the new layout's own level, so the stage lands on the
+--- layout just taken with its apps one row away, ready to prune, and Backspace from there goes
+--- to the list rather than back to a name field for a snapshot that already exists.
+---
+--- Apply is a completion rather than a level. It places the windows and answers nothing, so the
+--- window goes away and the report drawn by the root is what is left on screen.
 ---
 --- This file talks to the engine and the store only through the injected api table, so it is pure
---- policy. The plugin composition root in init.lua builds that api and owns everything the two
---- layers have to agree about.
+--- policy. The plugin composition root in init.lua builds that api.
 
 local M = { name = "Workspaces.chooser" }
 
@@ -57,27 +56,18 @@ local function emojiImage(str)
   return img
 end
 
--- An app's own icon, cached by bundle id, the same cache and fallback shape browsertabs and
--- clipboard already use for the same call. A bundle id with nothing installed for it can answer
--- nil, and the caller falls back to the emoji mark rather than leaving the row blank.
-local appIconCache = {}
-local function appIcon(bundleID)
-  local hit = appIconCache[bundleID]
-  if hit ~= nil then return hit or nil end
-  local img = hs.image.imageFromAppBundle(bundleID)
-  appIconCache[bundleID] = img or false
-  return img
-end
-
 local ICON = {
-  active = "🟢",
-  config = "🖥️",
+  available = "🟢",
+  unavailable = "⚪",
+  new = "📸",
+  apply = "🪟",
   apps = "📦",
   app = "🪟",
-  restore = "🔄",
+  update = "🔄",
   rename = "✏️",
   delete = "🗑️",
-  forget = "🚫",
+  remove = "🚫",
+  include = "✅",
   save = "💾",
   no = "↩️",
   back = "⬅️",
@@ -97,106 +87,160 @@ local function backRow()
   return row("Back", "", ICON.back, { nav = "back" }, true)
 end
 
--- One app row, carrying the app's own icon rather than the generic emoji mark, so the Apps list
--- reads at a glance the way the launcher and the other choosers already do. Every row on every
--- other level keeps the emoji icon through the ordinary row builder above, this is the one place
--- an icon is resolved from a bundle id instead of chosen from the fixed table.
-local function appRow(title, subTitle, bundleID, item)
-  local image = appIcon(bundleID) or emojiImage(ICON.app)
-  return { title = title, subTitle = subTitle, image = image, item = item, enabled = true }
+-- One app row, carrying the app's own icon from the api rather than the generic emoji mark, so
+-- the Apps list reads at a glance the way the launcher and the other choosers already do.
+local function appRow(title, subTitle, icon, item)
+  return { title = title, subTitle = subTitle, image = icon or emojiImage(ICON.app), item = item, enabled = true }
 end
 
 local function trim(s)
   return (s or ""):gsub("^%s+", ""):gsub("%s+$", "")
 end
 
--- A frame read off a file a person may have edited by hand carries no promise of being whole
--- numbers, and string.format with a percent d raises on a fraction rather than rounding it, so
--- every value printed below goes through here first. One row's detail is the most a bad value
--- may ever cost, never the level it sits on.
-local function whole(v)
-  return math.floor((tonumber(v) or 0) + 0.5)
-end
-
 local function countLabel(n, one, many)
   return n .. " " .. (n == 1 and one or many)
 end
 
--- One configuration by fingerprint, read live off the api rather than carried as a stale copy, so
--- a rename lands on every level that names it without any of them being rebuilt.
-local function configByFingerprint(fingerprint)
-  for _, c in ipairs(cfg.api.list()) do
-    if c.fingerprint == fingerprint then return c end
-  end
-  return nil
+local function matches(text, q)
+  return q == "" or text:lower():find(q, 1, true) ~= nil
+end
+
+local function pop()
+  if cfg.stagePop then cfg.stagePop() end
 end
 
 --------------------------------------------------------------------------------
 -- Per level row suppliers
 --------------------------------------------------------------------------------
 
--- The top level, the configurations. The active one leads and is marked, since it is the one
--- every other level's actions are most likely meant for. A typed query filters by a case
--- insensitive substring on the name.
+-- The top level. New snapshot leads, since taking one is the reason to open this at all on a
+-- fresh machine, then every layout, the ones that apply here first. A typed query filters by a
+-- case insensitive substring on the name, and the snapshot row stays while it matches too.
 local function topRows(query)
-  local q = (query or ""):lower()
+  local q = trim(query):lower()
   local out = {}
   if not cfg.api.persists() then
-    out[#out + 1] = row("Nothing is being remembered across restarts",
-      "Windows still return to place while this login lasts", ICON.warn, { noop = true }, false)
+    out[#out + 1] = row("Nothing can be stored", "No file was given for layouts to live in",
+      ICON.warn, { noop = true }, false)
     return out
   end
-  local list = cfg.api.list()
-  if #list == 0 then
-    out[#out + 1] = row("No configuration yet",
-      "The first one appears once the displays have been read", ICON.hint, { noop = true }, false)
-    return out
+  if matches("New snapshot", q) then
+    out[#out + 1] = row("New snapshot", "Record where every window sits on " .. cfg.api.here(),
+      ICON.new, { nav = "new" }, true)
   end
-  for _, c in ipairs(list) do
-    if q == "" or c.name:lower():find(q, 1, true) then
-      local sub = (c.active and "Attached now, " or "") .. countLabel(c.apps, "app remembered", "apps remembered")
-      out[#out + 1] = row(c.name, sub, c.active and ICON.active or ICON.config,
-        { nav = "configuration", fingerprint = c.fingerprint }, true)
+  for _, l in ipairs(cfg.api.list()) do
+    if matches(l.name, q) then
+      local sub
+      if l.available then
+        sub = "Applies here, " .. countLabel(l.apps, "app", "apps") .. ", taken on " .. l.topology
+      else
+        sub = "Not here, it " .. l.reason .. ", taken on " .. l.topology
+      end
+      out[#out + 1] = row(l.name, sub, l.available and ICON.available or ICON.unavailable,
+        { nav = "layout", id = l.id }, true)
     end
   end
+  if #out == 0 then
+    out[#out + 1] = row("No layout matches", "", ICON.hint, { noop = true }, false)
+  end
   return out
 end
 
--- A configuration. Back leads, per the chooser menu convention, so stepping out is the default and
--- a stray confirm on the fresh highlight steps back rather than doing anything. Restore now appears
--- only on the configuration attached right now, since replaying frames measured for a different
--- geometry onto this one would place windows nowhere useful.
-local function configurationRows(fingerprint)
-  local c = configByFingerprint(fingerprint)
-  if not c then
-    return { backRow(), row("Configuration is gone", "It may have been removed", ICON.warn, { noop = true }, false) }
+-- The name level for a new snapshot. The search field is the name, and the top row morphs to
+-- Save as the typed name, disabled while the name is empty or already used so a confirm can never
+-- write a bad one. Then Back.
+local function newRows(query)
+  local name = trim(query)
+  local out = {}
+  if name == "" then
+    out[#out + 1] = row("Type a name for this snapshot", "Everything open now on " .. cfg.api.here(),
+      ICON.hint, { noop = true }, false)
+  elseif cfg.api.exists(name) then
+    out[#out + 1] = row("Name already used", "Choose a name no other layout has", ICON.warn,
+      { noop = true }, false)
+  else
+    out[#out + 1] = row("Save as '" .. name .. "'", "Record where every window sits now", ICON.save,
+      { act = "create", name = name }, true)
+  end
+  out[#out + 1] = backRow()
+  return out
+end
+
+-- A layout. Back leads, per the chooser menu convention, so a stray confirm on the fresh
+-- highlight steps back rather than doing anything. Apply is next, since that is what a layout is
+-- for, and it is a disabled row saying why when the displays it needs are not attached.
+local function layoutRows(id)
+  local l = cfg.api.get(id)
+  if not l then
+    return { backRow(), row("Layout is gone", "It may have been deleted", ICON.warn, { noop = true }, false) }
   end
   local out = { backRow() }
-  out[#out + 1] = row("Rename", "Give this configuration a name you will recognise", ICON.rename,
-    { nav = "rename" }, true)
-  out[#out + 1] = row("Delete", "Forget this configuration and everything remembered for it", ICON.delete,
-    { nav = "delete" }, true)
-  out[#out + 1] = row("Apps", countLabel(c.apps, "app remembered here", "apps remembered here"), ICON.apps,
-    { nav = "apps" }, true)
-  if c.active then
-    out[#out + 1] = row("Restore now", "Put every window back where this configuration remembers it",
-      ICON.restore, { act = "restore" }, true)
+  if l.available then
+    out[#out + 1] = row("Apply", "Place the windows that are open now, closed apps stay closed",
+      ICON.apply, { act = "apply" }, true)
+  else
+    out[#out + 1] = row("Cannot apply here", "It " .. l.reason .. ", taken on " .. l.topology,
+      ICON.warn, { noop = true }, false)
+  end
+  local appsSub = countLabel(l.apps, "app", "apps")
+  if l.excluded > 0 then appsSub = appsSub .. ", " .. countLabel(l.excluded, "excluded", "excluded") end
+  out[#out + 1] = row("Apps", appsSub, ICON.apps, { nav = "apps" }, true)
+  out[#out + 1] = row("Update snapshot", "Replace what is recorded with the windows open now, taken " .. (l.taken or "?"),
+    ICON.update, { act = "update" }, true)
+  out[#out + 1] = row("Rename", "Give this layout a different name", ICON.rename, { nav = "rename" }, true)
+  out[#out + 1] = row("Delete", "Remove this layout for good", ICON.delete, { nav = "delete" }, true)
+  return out
+end
+
+-- The apps of one layout, included first and the excluded as a tail, each saying where its
+-- windows sit so an app recorded somewhere silly is visible as such before anybody prunes it.
+local function appsRows(id)
+  local out = { backRow() }
+  local apps = cfg.api.apps(id)
+  if #apps == 0 then
+    out[#out + 1] = row("Nothing recorded here", "Update the snapshot with some windows open",
+      ICON.hint, { noop = true }, false)
+    return out
+  end
+  for _, a in ipairs(apps) do
+    local detail
+    if a.excluded then
+      detail = "Excluded, this layout leaves it alone"
+    else
+      detail = countLabel(a.windows, "window", "windows") .. " on " .. a.displays
+    end
+    out[#out + 1] = appRow(a.name, detail, a.icon, { nav = "app", bundle = a.bundle, name = a.name, excluded = a.excluded })
   end
   return out
 end
 
--- The rename level. The search field is the new name, and the top row morphs to Save as the typed
--- name, disabled while the name is empty or already used so a confirm can never write a bad one.
--- Then Back.
-local function renameRows(fingerprint, query)
-  local c = configByFingerprint(fingerprint)
-  local current = c and c.name or ""
+-- One app. Back leads, so this level is safe to land on, and the one action it offers flips
+-- whether the layout speaks for this app.
+local function appRows(name, excluded)
+  if excluded then
+    return {
+      backRow(),
+      row("Include '" .. name .. "' again", "Place its windows when this layout is applied",
+        ICON.include, { act = "include" }, true),
+    }
+  end
+  return {
+    backRow(),
+    row("Remove '" .. name .. "'", "Leave this app alone when this layout is applied",
+      ICON.remove, { act = "exclude" }, true),
+  }
+end
+
+-- The rename level. Same shape as the name level for a new snapshot.
+local function renameRows(id, query)
+  local l = cfg.api.get(id)
+  local current = l and l.name or ""
   local newName = trim(query)
   local out = {}
   if newName == "" then
     out[#out + 1] = row("Type a new name", "Rename '" .. current .. "'", ICON.hint, { noop = true }, false)
   elseif newName ~= current and cfg.api.exists(newName) then
-    out[#out + 1] = row("Name already used", "Choose a name no other configuration has", ICON.warn,
+    out[#out + 1] = row("Name already used", "Choose a name no other layout has", ICON.warn,
       { noop = true }, false)
   else
     out[#out + 1] = row("Save as '" .. newName .. "'", "Rename '" .. current .. "'", ICON.save,
@@ -206,47 +250,14 @@ local function renameRows(fingerprint, query)
   return out
 end
 
--- The delete confirm. The safe choice leads, so the default highlight and a stray confirm keep the
--- configuration rather than remove it, and deleting takes a deliberate move down. Both names ride
--- in the titles, since a disabled header at the top would only be another row to move past.
-local function deleteRows(fingerprint)
-  local c = configByFingerprint(fingerprint)
-  local name = c and c.name or ""
+-- The delete confirm. The safe choice leads, so the default highlight and a stray confirm keep
+-- the layout rather than remove it, and deleting takes a deliberate move down.
+local function deleteRows(id)
+  local l = cfg.api.get(id)
+  local name = l and l.name or ""
   return {
     row("Keep '" .. name .. "'", "Leave it as it is", ICON.no, { nav = "back" }, true),
-    row("Delete '" .. name .. "'", "Forget this configuration and every app remembered for it",
-      ICON.delete, { act = "delete" }, true),
-  }
-end
-
--- The apps of one configuration, each with the frame it is remembered at, so a window remembered
--- somewhere silly is visible as such before anybody decides to forget it.
-local function appsRows(fingerprint)
-  local out = { backRow() }
-  local apps = cfg.api.apps(fingerprint)
-  if #apps == 0 then
-    out[#out + 1] = row("Nothing remembered here yet",
-      "Move a window while this configuration is attached", ICON.hint, { noop = true }, false)
-    return out
-  end
-  for _, a in ipairs(apps) do
-    local f = a.frame
-    local detail = "The remembered frame cannot be read, choose this row to forget it"
-    if f then
-      detail = string.format("%d by %d at %d, %d", whole(f.w), whole(f.h), whole(f.x), whole(f.y))
-    end
-    out[#out + 1] = appRow(a.name, detail, a.bundleID, { nav = "app", bundleID = a.bundleID, name = a.name })
-  end
-  return out
-end
-
--- One app. Back leads, so this level is safe to land on, and the one action it offers is the
--- destructive one, which is why it is a level of its own rather than a row on the list above.
-local function appRows(name)
-  return {
-    backRow(),
-    row("Forget '" .. name .. "'", "Stop remembering where this app's window goes here",
-      ICON.forget, { act = "forget" }, true),
+    row("Delete '" .. name .. "'", "Remove this layout for good", ICON.delete, { act = "delete" }, true),
   }
 end
 
@@ -260,32 +271,139 @@ end
 -- disabled row guard is never written by hand, the stage's own gate answering for any row built
 -- with enabled false before a presentation is ever asked.
 
-local buildRenameChild, buildDeleteChild, buildAppsChild, buildAppChild
+local buildLayoutChild, buildAppsChild, buildAppChild, buildRenameChild, buildDeleteChild
 
--- The rename level, a child of a configuration. Keyed on the fingerprint rather than on a name
--- frozen when it was built, so nothing has to be corrected after a successful rename, the level
--- it pops back onto reads the new name off the api on its next rows call.
-buildRenameChild = function(fingerprint)
+-- The name level for a new snapshot, a child of the top level. Save is answered from select
+-- rather than intercept, because it is the one row that leaves this level and arrives at another
+-- in the same press. The pop happens first, so the layout child returned below stacks on the top
+-- level rather than on a name field that no longer has a purpose.
+local function buildNewChild()
   return {
-    placeholder = "New name for this configuration",
+    placeholder = "Name for this snapshot",
     matcher = false,
-    rows = function(query) return renameRows(fingerprint, query) end,
-    -- select never actually answers here, every reachable row on this level is caught by
-    -- intercept below, but the field is required on every presentation.
+    rows = newRows,
+    onSelect = function(item)
+      if item and item.act == "create" then
+        local id, err = cfg.api.create(item.name)
+        if not id then
+          log.e("snapshot failed, " .. tostring(err))
+          return nil
+        end
+        pop()
+        return buildLayoutChild(id)
+      end
+      return nil
+    end,
+    intercept = function(item)
+      if item and item.nav == "back" then
+        pop()
+        return true
+      end
+      return false
+    end,
+  }
+end
+
+-- A layout, a child of the top level. Apps, Rename, and Delete are genuine levels, so each
+-- answers through select and the stage pushes whatever comes back. Apply is a completion, it
+-- places the windows and returns nothing, so the window goes away and the report is what is
+-- left. Update mutates the list it stands on, the app count and the taken time both change, so
+-- it answers stay from intercept and the highlight holds on the row just chosen.
+buildLayoutChild = function(id)
+  return {
+    placeholder = "",
+    matcher = false,
+    rows = function() return layoutRows(id) end,
+    onSelect = function(item)
+      if not item then return nil end
+      if item.act == "apply" then
+        local ok, err = cfg.api.apply(id)
+        if not ok then log.e("apply failed, " .. tostring(err)) end
+        return nil
+      end
+      if item.nav == "apps" then return buildAppsChild(id) end
+      if item.nav == "rename" then return buildRenameChild(id) end
+      if item.nav == "delete" then return buildDeleteChild(id) end
+      return nil
+    end,
+    intercept = function(item)
+      if not item then return true end
+      if item.nav == "back" then
+        pop()
+        return true
+      end
+      if item.act == "update" then
+        local ok, err = cfg.api.update(id)
+        if not ok then log.e("update failed, " .. tostring(err)) end
+        return "stay"
+      end
+      return false
+    end,
+  }
+end
+
+-- The apps list, a child of a layout. Nothing here mutates, so an app row is an ordinary push
+-- through select and only Back rides the intercept.
+buildAppsChild = function(id)
+  return {
+    placeholder = "Search apps in this layout",
+    matcher = false,
+    rows = function() return appsRows(id) end,
+    onSelect = function(item)
+      if item and item.nav == "app" then return buildAppChild(id, item.bundle, item.name, item.excluded) end
+      return nil
+    end,
+    intercept = function(item)
+      if item and item.nav == "back" then
+        pop()
+        return true
+      end
+      return false
+    end,
+  }
+end
+
+-- One app, a child of the apps list. A successful remove or include pops once, landing back on
+-- the apps list, which rebuilds with the app moved to or from the excluded tail.
+buildAppChild = function(id, bundle, name, excluded)
+  return {
+    placeholder = "",
+    matcher = false,
+    rows = function() return appRows(name, excluded) end,
     onSelect = function() end,
     intercept = function(item)
       if not item then return true end
       if item.nav == "back" then
-        if cfg.stagePop then cfg.stagePop() end
+        pop()
+        return true
+      end
+      if item.act == "exclude" or item.act == "include" then
+        local ok, err = cfg.api[item.act](id, bundle)
+        if ok then pop() else log.e(item.act .. " failed, " .. tostring(err)) end
+        return true
+      end
+      return false
+    end,
+  }
+end
+
+-- The rename level, a child of a layout. Keyed on the id rather than on a name frozen when it was
+-- built, so the level it pops back onto reads the new name off the api on its next rows call.
+buildRenameChild = function(id)
+  return {
+    placeholder = "New name for this layout",
+    matcher = false,
+    rows = function(query) return renameRows(id, query) end,
+    onSelect = function() end,
+    intercept = function(item)
+      if not item then return true end
+      if item.nav == "back" then
+        pop()
         return true
       end
       if item.act == "saveRename" then
-        local ok, err = cfg.api.rename(fingerprint, item.newName)
-        if ok then
-          if cfg.stagePop then cfg.stagePop() end
-        else
-          log.e("rename failed, " .. tostring(err))
-        end
+        local ok, err = cfg.api.rename(id, item.newName)
+        if ok then pop() else log.e("rename failed, " .. tostring(err)) end
         return true
       end
       return false
@@ -293,111 +411,29 @@ buildRenameChild = function(fingerprint)
   }
 end
 
--- The delete confirm, a child of a configuration. Keep leaves exactly like Back, both being the
--- same item, so one branch answers both. A successful delete pops twice in the same press, past
--- the confirm and past the configuration level naming something that no longer exists, landing on
--- the top level.
-buildDeleteChild = function(fingerprint)
+-- The delete confirm, a child of a layout. Keep leaves exactly like Back. A successful delete
+-- pops twice in the same press, past the confirm and past the layout level naming something that
+-- no longer exists, landing on the top level.
+buildDeleteChild = function(id)
   return {
     placeholder = "",
     matcher = false,
-    rows = function() return deleteRows(fingerprint) end,
+    rows = function() return deleteRows(id) end,
     onSelect = function() end,
     intercept = function(item)
       if not item then return true end
       if item.nav == "back" then
-        if cfg.stagePop then cfg.stagePop() end
+        pop()
         return true
       end
       if item.act == "delete" then
-        local ok, err = cfg.api.remove(fingerprint)
+        local ok, err = cfg.api.remove(id)
         if ok then
-          if cfg.stagePop then cfg.stagePop() end
-          if cfg.stagePop then cfg.stagePop() end
+          pop()
+          pop()
         else
           log.e("delete failed, " .. tostring(err))
         end
-        return true
-      end
-      return false
-    end,
-  }
-end
-
--- The apps list, a child of a configuration. Nothing here mutates, so an app row is an ordinary
--- push through select and only Back rides the intercept.
-buildAppsChild = function(fingerprint)
-  return {
-    placeholder = "Search remembered apps",
-    matcher = false,
-    rows = function() return appsRows(fingerprint) end,
-    onSelect = function(item)
-      if item and item.nav == "app" then return buildAppChild(fingerprint, item.bundleID, item.name) end
-      return nil
-    end,
-    intercept = function(item)
-      if not item then return true end
-      if item.nav == "back" then
-        if cfg.stagePop then cfg.stagePop() end
-        return true
-      end
-      return false
-    end,
-  }
-end
-
--- One app, a child of the apps list. A successful forget pops once, landing back on the apps list,
--- which rebuilds without the app that was just dropped.
-buildAppChild = function(fingerprint, bundleID, name)
-  return {
-    placeholder = "",
-    matcher = false,
-    rows = function() return appRows(name) end,
-    onSelect = function() end,
-    intercept = function(item)
-      if not item then return true end
-      if item.nav == "back" then
-        if cfg.stagePop then cfg.stagePop() end
-        return true
-      end
-      if item.act == "forget" then
-        local ok, err = cfg.api.forget(fingerprint, bundleID)
-        if ok then
-          if cfg.stagePop then cfg.stagePop() end
-        else
-          log.e("forget failed, " .. tostring(err))
-        end
-        return true
-      end
-      return false
-    end,
-  }
-end
-
--- A configuration, a child of the top level. Rename, Delete, and Apps are genuine levels, so each
--- answers through select and the stage pushes whatever comes back. Restore now is a completion
--- rather than a level, calling the engine and returning nothing, which is the meaning nil has
--- always had here, the whole stack tears down and the window goes away.
-local function buildConfigurationChild(fingerprint)
-  return {
-    placeholder = "",
-    matcher = false,
-    rows = function() return configurationRows(fingerprint) end,
-    onSelect = function(item)
-      if not item then return nil end
-      if item.act == "restore" then
-        cfg.api.restore()
-        return nil
-      end
-      if item.nav == "rename" then return buildRenameChild(fingerprint) end
-      if item.nav == "delete" then return buildDeleteChild(fingerprint) end
-      if item.nav == "apps" then return buildAppsChild(fingerprint) end
-      return nil
-    end,
-    intercept = function(item)
-      if not item then return true end
-      if item.nav == "back" then
-        if cfg.stagePop then cfg.stagePop() end
         return true
       end
       return false
@@ -420,48 +456,23 @@ end
 --- block as the contract's rows.
 M.rows = topRows
 
---- M.select(item) -> presentation or nil. The top level's own onSelect. A configuration row drills
---- into a child of its own and every other row at this level, all of them disabled status rows,
---- never reaches here at all.
+--- M.select(item) -> presentation or nil. The top level's own onSelect. New snapshot and each
+--- layout row drill into a child of their own, and the disabled status rows never reach here.
 function M.select(item)
-  if item and item.nav == "configuration" then return buildConfigurationChild(item.fingerprint) end
+  if not item then return nil end
+  if item.nav == "new" then return buildNewChild() end
+  if item.nav == "layout" then return buildLayoutChild(item.id) end
   return nil
 end
 
---- M.placeholder() -> string. The field hint while the top level is current. Resolved once, at
---- register, since the presentation contract wants a plain string. Every child carries its own
---- instead, a plain field on a table built at runtime.
+--- M.placeholder() -> string. The field hint while the top level is current.
 function M.placeholder()
-  return "Search configurations"
-end
-
---- M.refresh() - redraw the top level in place, so a configuration change landing while the list is
---- showing corrects the marker without waiting for a keystroke. Named with no token, so it targets
---- the top level specifically and is a silent no op while any child is what is actually showing,
---- which is correct, since no child reads the marker this redraw exists to correct and each is
---- rebuilt fresh the next time it is shown.
----
---- A BACKGROUND CORRECTION NEVER REDRAWS UNDER A HAND. The marker moving also reorders the list,
---- since the attached configuration leads it, so a redraw while the highlight sits part way down
---- would shuffle rows out from under somebody reading them. cfg.stageSelectedRow is what answers
---- whether the highlight is still on row one, a plain number read off the live widget, and
---- anything past row one defers instead. Deferring costs nothing to remember here, unlike the
---- menu search cache that has to hold its landed answer, because every level is rebuilt from the
---- api the next time it is shown, so the correction simply arrives with the next open. resetRow is
---- true on the redraws that do happen, since a reorder means row one may be a different
---- configuration than it was, and at row one already that reset changes nothing anyway.
-function M.refresh()
-  if not cfg.redrawPresented then return end
-  if cfg.stageSelectedRow then
-    local selected = cfg.stageSelectedRow()
-    if selected and selected > 1 then return end
-  end
-  cfg.redrawPresented("workspaces", true)
+  return "Search layouts"
 end
 
 --- M:configure(opts) - merge injected deps across the two callers. The plugin composition root
 --- injects api, the one seam over the engine and the store. The wiring step injects the whole
---- options table, which is where stagePresent, stagePop, and redrawPresented arrive.
+--- options table, which is where stagePresent and stagePop arrive.
 --
 -- Colon here, not dot, because both callers reach this submodule as chooser:configure(opts), the
 -- plugin root directly and lib/wire.lua through the declared step. self arrives as M and the body

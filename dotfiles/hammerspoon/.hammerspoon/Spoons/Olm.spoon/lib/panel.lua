@@ -84,6 +84,9 @@
 ---                  draw into a w x h box with its origin at (0, 0); the panel
 ---                  offsets the elements by its padding and draws the surface behind
 ---                  them.
+---                onClick(id), OPTIONAL. Told the id of an element the content built with
+---                  id and trackMouseUp when it is clicked, so a button on the panel is an
+---                  element plus this one function and no consumer reads the mouse itself.
 ---                state() -> string, OPTIONAL. What is being said right now, as one
 ---                  comparable value. Content that can go stale while the panel sits
 ---                  there offers it, and the panel then polls while visible and redraws
@@ -325,6 +328,16 @@ function Panel:show(anchor)
   if not self.canvas then
     self.canvas = hs.canvas.new(frame)
     self.canvas:level(self.config.level or hs.canvas.windowLevels.popUpMenu)
+    -- Content that answers a click declares onClick, and the canvas then reports a mouse up
+    -- on any element the content built with an id and trackMouseUp. Nothing else here reads
+    -- the mouse, so a panel with plain content stays click through to whatever is under it.
+    local onClick = self.config.content.onClick
+    if type(onClick) == "function" then
+      self.canvas:canvasMouseEvents(false, true)
+      self.canvas:mouseCallback(function(_, event, id)
+        if event == "mouseUp" and id then onClick(id) end
+      end)
+    end
   else
     self.canvas:frame(frame)
   end

@@ -327,9 +327,10 @@ that acts on it can never be allowed to disagree. `predicates`, the shared when 
 predicate table every gated binding is resolved against. `leaders`, what the window
 leader's own overlay section is called, since the leader's own name says nothing to
 somebody reading a list of window actions. `redraw`, repaint whichever list is on screen,
-for a plugin whose own answer lands after the keystroke that asked for it. `notify` and
-`showColor`, one line of feedback and one sampled colour, both drawn on the shared overlay
-so they read as part of the same interface as the cheat sheet and the docked hint bars.
+for a plugin whose own answer lands after the keystroke that asked for it. `notify`,
+`showColor`, and `report`, one line of feedback, one sampled colour, and one titled list of
+rows each with an icon, a label, and a detail, all drawn on the shared overlay so they read
+as part of the same interface as the cheat sheet and the docked hint bars.
 `host`, this machine's own identity, for anything a plugin keys per host. `scope`, which
 arrangement of displays is attached right now, as one comparable string, so two plugins
 that both scope memory to the desk agree on what the desk currently is. `storePath`, where
