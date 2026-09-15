@@ -4,3 +4,7 @@
 # repository rather than anything herdr loads.
 CLAUDE.md
 DEPENDENCIES
+# The map and the emitter are this module's half of the theme contract, read by
+# src/check-theme.sh and by nothing herdr loads.
+theme-map
+theme-emit

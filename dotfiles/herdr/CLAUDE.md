@@ -198,205 +198,38 @@ script.
 
 Which half to read comes from `defaults read -g AppleInterfaceStyle`, which prints Dark on a dark
 system and fails with the key absent on a light one. Ghostty is set to
-`light:aura-light,dark:aura-dark`, so it follows the same system answer and the two cannot
+`light:mdj-light,dark:mdj-dark`, so it follows the same system answer and the two cannot
 disagree. Asking the system is also the only route open from inside a popup here, because the
 process is a child of the herdr server rather than of a shell, so anything an interactive shell
 exported about the appearance arrives frozen at whatever it was when the server started, which is
 the same trap as the section above. A missing config or a renamed token leaves the bar off
 entirely rather than inventing a tint, since fzf still marks the row with its pointer.
 
-## Do not walk the home directory
+## Where the colours come from, and how to reload them
 
-The finder starts at `$HOME`. A plain walk from there reports a hundred and sixty three thousand
-folders and takes seven and a half seconds, which is not a picker. `tools/find.sh` cuts the
-machine chatter and answers in about a quarter of a second.
+The two `[theme.custom.*]` tables in `config.toml` are generated and must not be edited by hand.
+The colours live in `theme/palettes` at the repository root, and `theme-map` at this package
+root says which herdr token takes which role, with the reason beside each one that is not
+obvious. `theme-emit` beside it rewrites the span from the `[theme.custom.dark]` header to the
+`[keys]` header in place and copies every other byte of the config through, because herdr has
+no include and the tables have to sit inside a file that is otherwise hand written. Run
+`src/check-theme.sh` after changing a colour or a role, review the regenerated tables, and
+commit them. `theme/CLAUDE.md` has the whole contract.
 
-What it cuts and what it reaches back into lives in `tools/find-scope`, not in the script, because
-that answer differs between machines while the logic does not. Two verbs, `exclude` and `include`,
-everything after the first space is the path so a space needs no quoting, and an `include` that
-does not exist here is skipped rather than refused, which is what lets one file serve every
-machine. That file carries the reasoning for each line.
+Three roles exist because of this module and every palette answers them. `highlight` is
+`selection_bg`, the navigate cursor row, and it is what iris's menu bar and fzf's bar will read
+too, purple on the dark half and a neutral grey on the light one because a tinted bar on the
+light page reads as a lilac slab. `subtext` is `subtext0`, the ink stepped back for a row that
+is not selected. `fill` is `accent`, the primary purple on dark and that purple darkened on
+light, because the chip carries a label painted in `panel_bg` and a block wants more room than
+a letter. `active_row_bg` takes `selection` on dark and `surface` on light, which is the same
+purple against neutral split, and the map says so beside it.
 
-**Never traverse cloud provider storage.** macOS puts all of it under exactly two fixed roots,
-`Library/CloudStorage` for every third party provider through the File Provider API and
-`Library/Mobile Documents` for iCloud. They are the same on every Mac and independent of which
-accounts exist, so excluding the pair is a rule rather than a patch. Only the first was here
-once, and the missing twin is what made this picker unusable: evicted files are dataless
-placeholders and enumerating one blocks on the network, so with Optimize Mac Storage on the walk
-never finished and the first two thousand rows alone took a minute and a half at zero percent CPU.
-
-That is not one machine's bad luck, which is the reason it is written down. Eviction follows disk
-pressure, so a machine where everything is downloaded today starts blocking months later and the
-picker looks like it broke by itself.
-
-Do not try to detect it, it was checked and it cannot be done. Evicted files sit on the same
-device and the same filesystem as everything else, so `--one-file-system`, mount type tests and
-any "is this remote" predicate are blind to them. A deadline fails too, since fd buffers when its
-output is a pipe and the blocked threads starve the stream. Spotlight does answer without
-blocking, because it reads its own index, and it is ten times slower and returns everything, so it
-needs this same list anyway.
-
-The Obsidian vault is the one thing reached back out of iCloud, one container out of a hundred and
-ninety four, which costs 0.025s rather than the whole tree. Its own files are evicted too and it
-is quick only because the walk reads directories and those are still materialised, so if that ever
-changes this is the line that will block.
-
-Anything new that scans broadly owes the same measurement before it ships.
-
-## Current keys
-
-`g` the built in session navigator, herdr's `goto`. `alt+g` lazygit, in the repository the pane
-sits in, falling back to the recent list lazygit keeps for itself. `f` the fuzzy search. `alt+f`
-lf, viewing only, since every interactive key lf binds opens a tmux popup and there is no tmux
-session inside a herdr popup to open one into.
-
-Inside the fuzzy search, enter opens the chosen place and `ctrl-y` leaves with its absolute path
-on the clipboard instead. It is `--expect` rather than a binding that copies in place, because a
-picker that has answered should close, and fzf then prints the key it left on first and the
-selection after, so both endings share one parse. The key itself is the one fzf allows. Shift and
-enter reads more naturally and fzf rejects the name outright, and `ctrl-c` is how fzf aborts, so
-taking it would cost an exit. Nothing on screen says a copy happened once the popup is gone, so
-the notification is the only confirmation there is and it names the path it took.
-
-The keys and the toggle states are a `--footer`, so they sit pinned to the bottom edge rather
-than riding above the list where a header puts them. fzf rules the footer off with the same
-horizontal line it already draws under the match counter, which leaves the window ruled at both
-ends and is a separator rather than a second frame, so the one border rule above still holds. A
-line that explains why a picker appeared at all is different and stays a header, which is where
-the lazygit fallback keeps its own, since that is read before anything else rather than referred
-back to while picking.
-
-## A palette edit needs the server restarted
-
-The colours in these pickers come from `FZF_DEFAULT_OPTS`, which the zsh package exports and
-which no tool here sets. A popup command is a child of the herdr server rather than of a login
-shell, so it inherits the copy the server froze when the interactive shell that started it handed
-it its environment. `herdr server reload-config` rereads the config file and touches no process
-environment, so an edit to the palette reaches these popups only after the server itself is
-restarted, however many times the config is reloaded in between. Reading an applied status as
-proof of a colour change is the same mistake the theme section below warns about, arriving
-through a different door.
-
-One consequence caught the footer. fzf gives `footer` its own colour name and its own default of
-cube index 109, a pale blue green outside the sixteen slots a theme paints, and it does not
-follow `header`, so the line drew in fzf's colour until `footer:4` was named alongside it.
-
-## The one colour the exported palette cannot hold
-
-Everything in these pickers is a palette slot except the selection bar, and that one cannot be.
-A bar has to be a tint of the page under it, and no slot is dark on the dark palette and light
-on the light one. It is the same wall the iris menu hit, and the reason that grew appearance
-aware tables rather than picking a slot.
-
-No tool here resolves it. Olm's FzfTheme plugin watches the system appearance and writes
-`~/.config/fzf/colors.conf`, the shell points fzf at that path with `FZF_DEFAULT_OPTS_FILE`, and
-fzf rereads the file at every launch. So the environment this popup inherits carries only a
-path, which never goes stale, and the colour behind it is rewritten on every light and dark
-switch. That is what makes the frozen environment above harmless for this one thing rather than
-fatal.
-
-The colour is herdr's own `selection_bg`, read straight out of `config.toml` by that plugin, so
-the picker and the sidebar carry one highlight between them. `find.sh` resolved it inline for a
-short while and no longer does, because two owners of one colour is exactly the drift this
-repository spends its effort avoiding.
-
-## Do not walk the home directory
-
-The finder starts at `$HOME`. A plain walk from there reports a hundred and sixty three thousand
-folders and takes seven and a half seconds, which is not a picker. `tools/find.sh` cuts the
-machine chatter and answers in about a quarter of a second.
-
-What it cuts and what it reaches back into lives in `tools/find-scope`, not in the script, because
-that answer differs between machines while the logic does not. Two verbs, `exclude` and `include`,
-everything after the first space is the path so a space needs no quoting, and an `include` that
-does not exist here is skipped rather than refused, which is what lets one file serve every
-machine. That file carries the reasoning for each line.
-
-**Never traverse cloud provider storage.** macOS puts all of it under exactly two fixed roots,
-`Library/CloudStorage` for every third party provider through the File Provider API and
-`Library/Mobile Documents` for iCloud. They are the same on every Mac and independent of which
-accounts exist, so excluding the pair is a rule rather than a patch. Only the first was here
-once, and the missing twin is what made this picker unusable: evicted files are dataless
-placeholders and enumerating one blocks on the network, so with Optimize Mac Storage on the walk
-never finished and the first two thousand rows alone took a minute and a half at zero percent CPU.
-
-That is not one machine's bad luck, which is the reason it is written down. Eviction follows disk
-pressure, so a machine where everything is downloaded today starts blocking months later and the
-picker looks like it broke by itself.
-
-Do not try to detect it, it was checked and it cannot be done. Evicted files sit on the same
-device and the same filesystem as everything else, so `--one-file-system`, mount type tests and
-any "is this remote" predicate are blind to them. A deadline fails too, since fd buffers when its
-output is a pipe and the blocked threads starve the stream. Spotlight does answer without
-blocking, because it reads its own index, and it is ten times slower and returns everything, so it
-needs this same list anyway.
-
-The Obsidian vault is the one thing reached back out of iCloud, one container out of a hundred and
-ninety four, which costs 0.025s rather than the whole tree. Its own files are evicted too and it
-is quick only because the walk reads directories and those are still materialised, so if that ever
-changes this is the line that will block.
-
-Anything new that scans broadly owes the same measurement before it ships.
-
-## Current keys
-
-`g` the built in session navigator, herdr's `goto`. `alt+g` lazygit, in the repository the pane
-sits in, falling back to the recent list lazygit keeps for itself. `f` the fuzzy search. `alt+f`
-lf, viewing only, since every interactive key lf binds opens a tmux popup and there is no tmux
-session inside a herdr popup to open one into.
-
-Inside the fuzzy search, enter opens the chosen place and `ctrl-y` leaves with its absolute path
-on the clipboard instead. It is `--expect` rather than a binding that copies in place, because a
-picker that has answered should close, and fzf then prints the key it left on first and the
-selection after, so both endings share one parse. The key itself is the one fzf allows. Shift and
-enter reads more naturally and fzf rejects the name outright, and `ctrl-c` is how fzf aborts, so
-taking it would cost an exit. Nothing on screen says a copy happened once the popup is gone, so
-the notification is the only confirmation there is and it names the path it took.
-
-The keys and the toggle states are a `--footer`, so they sit pinned to the bottom edge rather
-than riding above the list where a header puts them. fzf rules the footer off with the same
-horizontal line it already draws under the match counter, which leaves the window ruled at both
-ends and is a separator rather than a second frame, so the one border rule above still holds. A
-line that explains why a picker appeared at all is different and stays a header, which is where
-the lazygit fallback keeps its own, since that is read before anything else rather than referred
-back to while picking.
-
-## A palette edit needs the server restarted
-
-The colours in these pickers come from `FZF_DEFAULT_OPTS`, which the zsh package exports and
-which no tool here sets. A popup command is a child of the herdr server rather than of a login
-shell, so it inherits the copy the server froze when the interactive shell that started it handed
-it its environment. `herdr server reload-config` rereads the config file and touches no process
-environment, so an edit to the palette reaches these popups only after the server itself is
-restarted, however many times the config is reloaded in between. Reading an applied status as
-proof of a colour change is the same mistake the theme section below warns about, arriving
-through a different door.
-
-One consequence caught the footer. fzf gives `footer` its own colour name and its own default of
-cube index 109, a pale blue green outside the sixteen slots a theme paints, and it does not
-follow `header`, so the line drew in fzf's colour until `footer:4` was named alongside it.
-
-## The one colour the exported palette cannot hold
-
-Everything in these pickers is a palette slot except the selection bar, and that one cannot be.
-A bar has to be a tint of the page under it, and no slot is dark on the dark palette and light on
-the light one. It is the same wall the iris menu hit, and the reason that grew appearance aware
-tables rather than picking a slot.
-
-So `find.sh` resolves it as it draws. The value is herdr's own `selection_bg`, read straight out
-of `config.toml` rather than copied into the script, so the picker and the sidebar carry one
-highlight between them and changing the theme changes both. `active_row_bg` is the other
-candidate, the lighter lift the sidebar puts under a focused row, and swapping is one word in the
-script.
-
-Which half to read comes from `defaults read -g AppleInterfaceStyle`, which prints Dark on a dark
-system and fails with the key absent on a light one. Ghostty is set to
-`light:aura-light,dark:aura-dark`, so it follows the same system answer and the two cannot
-disagree. Asking the system is also the only route open from inside a popup here, because the
-process is a child of the herdr server rather than of a shell, so anything an interactive shell
-exported about the appearance arrives frozen at whatever it was when the server started, which is
-the same trap as the section above. A missing config or a renamed token leaves the bar off
-entirely rather than inventing a tint, since fzf still marks the row with its pointer.
+The theme is client local, so `herdr server reload-config` reports applied and repaints
+nothing. A theme change needs a detach and reattach, `prefix+q` then `herdr`, which keeps every
+pane since panes live in the server. The full explanation is at the end of the dim section
+below, and reading an applied status as proof of a theme change is the mistake it exists to
+stop.
 
 ## Which theme token paints what
 
@@ -440,9 +273,9 @@ then renders that at `faint-opacity`, which defaults to 0.5, so the text is the 
 blended halfway into the background. No value assigned to any token can level it, because
 both halves of the pair already hold the same value.
 
-The light half proves this on its own without a probe. `overlay0` and `overlay1` are both
-`#727276` there, so any two pieces of chrome that differ in lightness under the light theme
-differ by attribute and not by colour.
+The light half proves this on its own without a probe. `overlay0` and `overlay1` both take
+the `overlay` role there, so any two pieces of chrome that differ in lightness under the light
+theme differ by attribute and not by colour.
 
 Two entries in the default agent layout carry the flag, the agent name on the second row and
 the tab name on the first. Both are levelled through `ui.sidebar.agents.rows`, where an entry

@@ -18,6 +18,9 @@ foreground      required    the ink
 background      required    the page
 comment         required    muted text that is still meant to be read
 selection       required    the tint under a selected row or a selected span
+highlight       required    the bar under the row a list has its cursor on, stronger than selection
+subtext         required    the ink stepped back, a label on a row that is not selected
+fill            required    the primary accent as a fill under a label painted in the page colour
 surface         required    one step off the page, a panel or a raised row
 overlay         required    secondary text, quieter than the ink and louder than a comment
 dim             required    a neutral quieter than a comment, a rule or a faint label
