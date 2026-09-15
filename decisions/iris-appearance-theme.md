@@ -30,14 +30,14 @@ Full reasoning is in the root CLAUDE.md under Iris, The theme.
 
 ## Rejected
 
-- **A fixed hex selection bar with a fixed `match`.** 2026-09-14, before b74c212. Only clears a
+- **A fixed hex selection bar with a fixed `match`.** 2026-09-14, before 8f21edf. Only clears a
   bar that is very dark or nearly white, since `match` is drawn on the page on every other row
   and inside the bar on this one.
-- **An inherited bar with inherited `match`.** 2026-09-14, before b74c212. Then the bar must be
+- **An inherited bar with inherited `match`.** 2026-09-14, before 8f21edf. Then the bar must be
   dark enough for the dark half's `#ffca85` and light enough for the light half's `#6b4400` at
   once, which lands at 2.05 on slot 8, 1.08 on slot 4 and 1.27 on slot 7. Measured, every single
   file alternative. There is no single bar, which is why the feature exists.
-- **Treating `IRIS_TERM_BACKGROUND` as an override.** 2026-09-14, before b74c212. It reaches the
+- **Treating `IRIS_TERM_BACKGROUND` as an override.** 2026-09-14, before 8f21edf. It reaches the
   shell too, so an iris started from that shell inherits it, and a decision about an earlier
   terminal outlived it and beat the one in front of you. Rewritten on every start now, a hand
   set value surviving only when the terminal declines to answer.
@@ -77,11 +77,11 @@ stays distinguishable from an answer, fixed it.
 
 ### 2026-09-14 14:02
 
-b74c212. Iris arrives from the fork with this branch merged.
+8f21edf. Iris arrives from the fork with this branch merged.
 
 ### 2026-09-14 14:12
 
-50a17d5. Switching appearance with the menu open updated everything except the selection bar,
+c705467. Switching appearance with the menu open updated everything except the selection bar,
 and closing and reopening the menu put it right. The terminal repaints its own palette, so
 every slot coloured part followed the switch without iris doing anything, which made the switch
 look like it worked. The bar is hex, so it stayed in the old appearance until something drew
@@ -154,7 +154,7 @@ fork alone leaves a second machine building the old commit.
 
 Pushed, so the entry above is now stale in two ways and keeps its text under the contract. The
 commit is no longer 48ed0c4, because integrating twelve commits from the other machine rebased
-the seven local ones and 48ed0c4 became 69d11a1. And it is no longer unpushed, since Milos asked
+the seven local ones and 48ed0c4 became 88e2bc0. And it is no longer unpushed, since Milos asked
 for it to go up once the integration was verified. The fork was already on GitHub throughout,
 which was never optional, because the build script clones the fork from there rather than from
 anything on this machine. So a second machine now gets both halves, the pin and the binary it

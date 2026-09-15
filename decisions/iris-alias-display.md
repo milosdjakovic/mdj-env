@@ -17,10 +17,10 @@ branch whose tests pass on vanilla describes behaviour upstream now has and can 
 
 ## Rejected
 
-- **Configuring around it with `expand-alias`.** 2026-09-14, before b74c212. That option governs
+- **Configuring around it with `expand-alias`.** 2026-09-14, before 8f21edf. That option governs
   something else entirely, whether iris rewrites the literal prompt text on space. No
   configuration option touches the display bug.
-- **Carrying the fix as a loose diff over the release binary.** 2026-09-14, before b74c212.
+- **Carrying the fix as a loose diff over the release binary.** 2026-09-14, before 8f21edf.
   A fork with one commit per patch on its own branch is what lets each patch be offered back
   and measured against upstream independently.
 
@@ -28,13 +28,13 @@ branch whose tests pass on vanilla describes behaviour upstream now has and can 
 
 ### 2026-09-14 14:02
 
-b74c212. Iris arrives, built from the fork rather than installed, because the released binary
+8f21edf. Iris arrives, built from the fork rather than installed, because the released binary
 has this defect and the appearance one and neither can be configured around. The build pins one
 commit into `~/.local/bin`, so two machines build the same binary.
 
 ### 2026-09-14 14:35
 
-5e76c85. `src/check-iris-upstream.sh` added, because a fork stops asking whether upstream has
+4361b76. `src/check-iris-upstream.sh` added, because a fork stops asking whether upstream has
 moved. It reads the changelog rather than the log, tests each patch against vanilla upstream,
 and rebases each in a throwaway worktree so a conflict is known before anyone commits to it.
 It reports and changes nothing. Which branch to watch was settled once, `main`, since `dev`

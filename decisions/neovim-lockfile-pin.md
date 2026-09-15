@@ -15,7 +15,7 @@ which is lazy.nvim's own writer so the format cannot drift.
 
 ## Rejected
 
-- **`Lazy! sync` in the bootstrap.** 2026-05-03 to 2026-09-13, 743a43d until 2644ba2. Sync is
+- **`Lazy! sync` in the bootstrap.** 2026-05-03 to 2026-09-13, 743a43d until ec4a298. Sync is
   install, clean and update, and update moves every plugin to its newest revision and rewrites
   the lockfile. So the second machine got whatever was newest that day rather than what this
   repository pins, and because `~/.config/nvim` is a symlink into the repo the rewrite landed on
@@ -31,7 +31,7 @@ which is lazy.nvim's own writer so the format cannot drift.
 
 ### 2026-09-13 19:23
 
-2644ba2. The replication commit. Sync becomes restore, the bootstrap reconciles the lockfile
+ec4a298. The replication commit. Sync becomes restore, the bootstrap reconciles the lockfile
 against disk, and the lockfile becomes the record of this machine. Verified rather than
 assumed, both folded and unfolded, alongside the stow displacement and the Xcode command line
 tools changes in the same commit.

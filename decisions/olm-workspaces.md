@@ -34,11 +34,11 @@ record and the hammerspoon module `CLAUDE.md` holds what crosses the config.
   then for the geometry key, and turned down again 2026-09-15 for roles, for the same reason on
   both dates, a window does not belong to a panel, and a person who buys a different monitor
   should not lose every layout.
-- **Ignoring `config/workspaces.json` in git.** 2026-09-12, b583908, and right on that date, since
+- **Ignoring `config/workspaces.json` in git.** 2026-09-12, 966abd0, and right on that date, since
   the plugin wrote the file itself after every window move and two machines could never merge
   one. Reopened 2026-09-15 for one evening, then moot from 2026-09-16, since the file left the
   config tree altogether.
-- **Tracking the layouts in git as configuration.** 2026-09-15, b6bc5f0, for one evening. The
+- **Tracking the layouts in git as configuration.** 2026-09-15, dd18d5c, for one evening. The
   reasoning was that a hand taken snapshot holding roles and fractions belongs to no one
   machine and so travels. Milos turned it down the same night, a layout named after his laptop
   is his own record and not configuration, and the tree already has a place for a plugin's own
@@ -62,17 +62,19 @@ been started. Geometry keyed configurations, two layers of memory, restore on qu
 
 ### 2026-08-30 22:12
 
-688dee8. `config/workspaces.json` is committed so layouts can travel between machines.
+`config/workspaces.json` is committed so layouts can travel between machines. That commit
+touched nothing but the file, so purging the file from history on 2026-09-16 removed the commit
+itself and it has no hash to cite.
 
 ### 2026-09-03 15:58
 
-9a0eb74. An unplug and a replug left Chrome on the built in panel and the file showed a frame
+118cb16. An unplug and a replug left Chrome on the built in panel and the file showed a frame
 recorded under the wrong geometry. Three weaknesses fixed, then six more from a second review.
 The engine is at its most elaborate here.
 
 ### 2026-09-12 16:09
 
-b583908. The file is taken out of git, forty one lines grown to a hundred and sixty six in twelve
+966abd0. The file is taken out of git, forty one lines grown to a hundred and sixty six in twelve
 days with nothing typed by a person.
 
 ### 2026-09-15 20:54
@@ -123,3 +125,11 @@ window without raising it and the focused window id was the same before and afte
 Storing fractions as whole numbers to hide float noise was dropped once the file left git, and
 enumerating windows on other Spaces stays open, since `hs.spaces` is not reliable enough to
 build on without measuring first.
+
+### 2026-09-16 00:35
+
+The store is purged from history as well, `git filter-repo` dropping
+`config/workspaces.json` from every commit and main force pushed, since two spans of commits
+still carried one machine's window titles. Every commit since 2026-08-30 has a new hash, so
+every decisions file that cited one was rewritten to the new value in the same push, and the
+one commit that held nothing but the file no longer exists.
