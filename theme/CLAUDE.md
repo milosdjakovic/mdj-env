@@ -92,8 +92,9 @@ Sections as `[name]` or `[name.sub]`. A key is letters, digits, underscore, dash
 value is a quoted string, a number, a bare word, or one inline table `{ k = v, k = v }` whose
 values are quoted strings, numbers, or an array of quoted strings. A comment is a hash at the
 start of a line or after whitespace, and a hash inside quotes is not one, which matters because
-every colour is a quoted string starting with one. Multi line tables, nested tables, dotted keys,
-and everything else TOML allows are outside the subset.
+every colour is a quoted string starting with one. A quoted string inside an inline table may
+not hold a comma, since the field reader splits a table on commas. Multi line tables, nested
+tables, dotted keys, and everything else TOML allows are outside the subset.
 
 ## Adding a tool
 

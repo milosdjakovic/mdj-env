@@ -59,6 +59,18 @@ CANNOT_RUN_HERE=2
 # without anyone being told.
 toml_records() {
     awk '
+        # A comma inside quotes inside an inline table. The field reader splits a table on
+        # commas and rejoins only the halves of an array, so a quoted value holding one would
+        # be cut in two and read wrong with nothing said. The subset stops here instead.
+        function quoted_comma(v,    i, c, q) {
+            q = 0
+            for (i = 1; i <= length(v); i++) {
+                c = substr(v, i, 1)
+                if (c == "\"") q = !q
+                else if (c == "," && q) return 1
+            }
+            return 0
+        }
         {
             # Strip a trailing comment, respecting quotes.
             line = $0; out = ""; inq = 0
@@ -85,6 +97,8 @@ toml_records() {
                 # the thing the field reader cannot read, so it is refused here rather than misread there.
                 if (val ~ /^\{.*\}$/ && val ~ /^\{.*\{/) {
                     why = "a nested inline table, which is outside the subset"
+                } else if (val ~ /^\{.*\}$/ && quoted_comma(val)) {
+                    why = "a quoted value inside an inline table holds a comma, which is outside the subset"
                 } else if (val ~ /^"[^"]*"$/ || val ~ /^-?[0-9]+(\.[0-9]+)?$/ || val ~ /^\{.*\}$/ || val ~ /^[A-Za-z0-9_-]+$/) {
                     printf("%s\t%s\t%s\n", section, key, val)
                     next

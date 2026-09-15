@@ -285,3 +285,14 @@ the read skips its emitter, where before the emitter was handed an empty map and
 generated file from it, which is how a duplicate key used to cost a stale error on top of its
 own. The duplicate list is sorted so the order is the same on every run. `--show` and every
 generated file still byte identical.
+
+**2026-09-15 23:43.** Third, a comma inside quotes inside an inline table. The field reader
+splits a table on commas and rejoins only the halves of an array, so a quoted value holding
+one was cut in two with nothing said. Measured on three cases in a clone. `{ color = "purple,
+alpha = 0.90", alpha = 0.14 }` resolved `selection` to `#946de8` and reported nothing, the
+0.90 read out of the quotes. `{ mix = ["gray, white"], amount = 0.50 }` resolved right by
+accident, the split and the strip landing on the two names. `{ color = "pur,ple", alpha =
+0.14 }` reported a colour named `pur` that the palette does not define, which is true and
+misleading. The reader refuses all three now with the line number, the way it refuses a nested
+table, since refusing is the smaller change and nothing here has ever needed a comma inside a
+value. The subset paragraph in `theme/CLAUDE.md` says so.
