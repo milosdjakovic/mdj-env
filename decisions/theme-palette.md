@@ -1,7 +1,8 @@
 # One palette, every tool painted from it
 
 Status. `theme/` is the source of colour, Ghostty, Neovim, herdr and iris are generated from
-it, fzf, tmux and the Claude statusline still carry their own copies and are next.
+it and fzf draws in slots Ghostty declares, tmux and the Claude statusline still carry their
+own copies and are next.
 
 ## Now
 
@@ -185,3 +186,47 @@ so a new pane is the test. `dotfiles/iris/CLAUDE.md` is new and carries that, an
 `CLAUDE.md` iris section now points at the roles rather than at herdr's tokens.
 
 **2026-09-15 18:48.** Confirmed in a new pane, the iris selected row looks right.
+
+**2026-09-15 18:55.** fzf. No map and no emitter, because once the bar is a slot nothing fzf
+draws is a hex. Ghostty's map declares `palette16 = highlight`, the first slot no ANSI name
+claims, since Ghostty paints all 256 and the finding that every slot fails was only ever
+measured on the sixteen. The options string lived in `.zshrc.custom` and `.tmux.conf` and now
+lives once in `dotfiles/zsh/.config/fzf/fzfrc`, which fzf rereads at every launch through
+`FZF_DEFAULT_OPTS_FILE`, guarded in both places because a missing file is a hard error. That
+also ends the herdr rule that a palette edit needs the server restarted, since what the server
+freezes is now a constant path. `find.sh` lost its draw time bar. `fzf-appearance-colour.md` is
+closed and its slot rejection corrected rather than deleted.
+
+**2026-09-15 19:23.** Asked for the greens out of fzf and the selected row on herdr's
+grey. The bar already was, slot 16 is the highlight role, and what was on screen was Ghostty
+not yet reloaded, so slot 16 still held the stock cube black, and the herdr finder running on
+the server's frozen old string. The greens were real, slot 2 on the matched text, the prompt
+and the pointer, and all three moved to slot 4 so the picker leads with the one accent the way
+herdr's panel does. marker and spinner keep slot 3.
+ Corrected 19:36, the greens asked about were fzf's own
+defaults showing through a stale variable, not Aura's, and the move to slot 4 is undone below.
+**2026-09-15 19:36.** Three things, all from one screenshot pair on the light half. The stale
+picture was a pane whose environment still carried the old `FZF_DEFAULT_OPTS` string beside the
+new path, and fzf applies the file first and the variable after, so the inherited string won and
+fzf's own cube greens showed. `.zshrc.custom` now unsets the variable before exporting the path,
+because the file is the declared owner and an inherited copy has no standing. The earlier reading
+that the greens themselves were unwanted was wrong, the pale ones were cube 108 and 109, and the
+prompt, pointer and matched text are back on slot 2, Aura's green. Two asks by eye. The footer
+should read in the grey of herdr's secondary line, which is the overlay role, and no slot among
+the sixteen holds it on both halves, so slot 17 is declared for it the way 16 was. And the bar on
+the light half should be the grey of herdr's focused row rather than its navigate row, so slot
+16 is declared per half in Ghostty's map, `surface` on light and `highlight` on dark, which is a
+tool's exception pointing at a role and exactly what the per half sections are for. Ghostty needs
+another reload for slot 17.
+
+**2026-09-15 19:56.** Two more by eye on fzf. The left bar on every ordinary row is
+fzf's gutter, a ▌ glyph since 0.6x painted in the gutter colour as a foreground, so `gutter:-1`
+left it in the ink, dark on light and light on dark, found by reading the frame off a pty
+where each row began `ESC[0m▌`. It reads slot 18 now, declared as `dim`, the rule herdr's
+borders take. And the bar under the current row is a neutral on both halves, `surface` on
+light as before and `dim` on dark instead of `highlight`, because a purple bar read as an
+accent rather than a lift and dark `surface` at 0.03 is too faint to carry a row.
+
+**2026-09-15 20:54.** Confirmed by eye on both halves after the Ghostty reload, fzf is
+satisfactory. The navy gutter seen on light before that reload was Ghostty's stock cube value
+for slot 18, and on dark the same stock navy had passed for a quiet bar by accident.

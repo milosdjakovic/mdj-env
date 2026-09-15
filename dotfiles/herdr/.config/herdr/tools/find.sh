@@ -53,43 +53,11 @@ scan() {
   done
 }
 
-# The selection bar is the one colour in this popup that cannot be a palette slot and cannot
-# live in FZF_DEFAULT_OPTS beside the rest. A bar has to be a tint of the page under it, and no
-# slot is dark on the dark palette and light on the light one, which is the same wall the iris
-# menu hit and the reason that grew appearance aware tables. So it is hex, and a hex value has
-# to be chosen at the moment of drawing rather than baked into a string a shell exported once.
-#
-# The value is herdr's own selection_bg, read out of its config rather than copied here, so the
-# picker and the sidebar agree and there is one place to change either. active_row_bg is the
-# other candidate and is one word away if the lighter lift is wanted instead.
-#
-# Ghostty is set to light:aura-light,dark:aura-dark, so it follows the macOS appearance and the
-# system answer and the terminal's cannot disagree. defaults prints Dark when the system is dark
-# and fails with the key absent when it is light, which is the whole test. Asking the system is
-# also the only route open from inside a herdr popup, since this process is a child of the herdr
-# server rather than of a shell, so anything an interactive shell exported about the appearance
-# reaches here as whatever it was when the server started.
-theme_colour() {
-  awk -v section="[theme.custom.$1]" -v key="$2" '
-    $0 == section { inside = 1; next }
-    /^\[/ { inside = 0 }
-    inside && $1 == key { gsub(/"/, "", $3); print $3; exit }
-  ' "$(dirname "$0")/../config.toml" 2>/dev/null
-}
-
-if [ "$(defaults read -g AppleInterfaceStyle 2>/dev/null)" = Dark ]; then
-  selection_bg=$(theme_colour dark selection_bg)
-else
-  selection_bg=$(theme_colour light selection_bg)
-fi
-
-# A missing config or a renamed token leaves the bar off rather than guessing at a colour, since
-# fzf still marks the current row with its pointer and an invented tint is worse than none.
-if [ -n "$selection_bg" ]; then
-  bar_opts=(--highlight-line --color "bg+:$selection_bg")
-else
-  bar_opts=()
-fi
+# The selection bar is not resolved here any more. It is slot 16, declared as the highlight
+# role in Ghostty's theme-map, and it reaches this popup through the fzf options file every
+# fzf on the machine reads at launch, the same way the rest of the colours do. This script
+# resolved it from herdr's config at draw time for a while, because no slot among the sixteen
+# is dark on one half and light on the other, and a seventeenth slot is what ended that.
 
 if [ "$FIND_FILES" = 1 ]; then files_state="files and folders"; else files_state="folders only"; fi
 if [ "$FIND_HIDDEN" = 1 ]; then hidden_state="hidden shown"; else hidden_state="hidden skipped"; fi
@@ -110,7 +78,6 @@ next_hidden=$((1 - FIND_HIDDEN))
 # aborts.
 result=$(scan 2>/dev/null | fzf \
   --reverse \
-  ${bar_opts[@]+"${bar_opts[@]}"} \
   --query "$FIND_QUERY" \
   --prompt "$HOME/" \
   --footer "ctrl-f $files_state, ctrl-h $hidden_state, ctrl-y copy path" \

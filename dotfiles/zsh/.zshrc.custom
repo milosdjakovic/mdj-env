@@ -17,38 +17,16 @@ alias rm='rm -iv'
 # Editor
 export EDITOR=nvim
 
-# fzf colors via ANSI references so they track whatever palette the terminal paints.
-# fzf's defaults reach into xterm-256 spec indices (108, 151, ...) which sit
-# outside the 16-color range that themes paint, so matches and prompts render
-# in the standard cube colors instead of the theme's own. Mapping to 0-15 routes
-# them through ghostty's palette, so a theme change carries over with no edit here.
-#
-# info and header are text and read slot 4, the theme's primary accent. They used
-# to sit on slot 8 with the lines, which was fine while slot 8 held a grey picked
-# for contrast and stopped being fine when it became Aura's own muted grey, whose
-# job is comments and which is deliberately quiet at 3.54 to 1. The palette has no
-# second grey to move them to. Slot 8 is the only neutral that works on both
-# halves at all, since 7 and 15 collapse to 1.59 and 1.09 against a light page and
-# 0 collapses to 1.04 against a dark one. So the answer is an accent rather than a
-# grey, which is also what Catppuccin's own fzf theme does, putting info on mauve.
-# Slot 4 reads 5.77 to 1 on the dark half and 4.83 on the light one.
-#
-# footer is the same kind of text and takes the same slot, and it needs saying
-# separately because it does not follow header. It is its own colour name with its
-# own default of cube index 109, which is a pale blue green no theme repaints, and
-# setting header alone leaves it there. That was measured rather than assumed, by
-# drawing both lines at once with header on slot 4 and reading the escapes back,
-# where the header came out as 34 and the footer as 38;5;109 beside it.
-#
-# border, separator and scrollbar stay on slot 8. They are lines rather than text
-# and a quiet grey is what they want.
-export FZF_DEFAULT_OPTS='
-  --color=fg:-1,bg:-1,fg+:-1,bg+:-1
-  --color=hl:2,hl+:10
-  --color=prompt:2,pointer:2,marker:3,spinner:3
-  --color=info:4,header:4,footer:4
-  --color=border:8,separator:8,scrollbar:8,gutter:-1
-'
+# fzf's options live in one file that fzf rereads at every launch, so the string is written
+# once for this shell, for tmux and for herdr's popups, and a change reaches a picker inside a
+# server without restarting it. The file carries the reasons for every colour. The export is
+# guarded on the file being readable, because fzf treats a file it cannot open as a hard
+# error, exit 2 with no output, rather than as an absent default. The variable is unset first,
+# because fzf applies the file and then the variable, so a string inherited from a server or a
+# shell older than this file would silently win over it, which is exactly what happened on the
+# day the string moved.
+unset FZF_DEFAULT_OPTS
+[[ -r "$HOME/.config/fzf/fzfrc" ]] && export FZF_DEFAULT_OPTS_FILE="$HOME/.config/fzf/fzfrc"
 
 
 # Tool initializers
