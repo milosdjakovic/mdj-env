@@ -1,8 +1,8 @@
 # fzf's colour, and the one part of it that follows the appearance
 
 Status. Closed. Every colour including the selection bar is a slot, in one options file every
-fzf rereads at launch, and the bar is slot 16, declared as the `highlight` role in Ghostty's
-map. Nothing watches anything.
+fzf rereads at launch, and the bar is slot 16, a neutral declared per half in Ghostty's map.
+Nothing watches anything.
 
 ## Now
 
@@ -16,8 +16,9 @@ restart, which the string in `FZF_DEFAULT_OPTS` never could.
 The selection bar is slot 16 and the footer is slot 17. A bar is a tint of the page and no slot
 among the sixteen is dark on the dark palette and light on the light one, because each is
 claimed by a role that differs by half. Ghostty paints all 256, so the slots beyond them are
-free, and `dotfiles/ghostty/theme-map` declares 16 per half, the purple of herdr's navigate row
-on dark and the grey of its focused row on light, both set by eye, and 17 as `overlay`, the grey
+free, and `dotfiles/ghostty/theme-map` declares 16 per half, `surface` on light, the grey of
+herdr's focused row, and `dim` on dark, the grey of its border, both set by eye after the
+navigate purple read as an accent, and 17 as `overlay`, the grey
 of herdr's secondary line. Nothing under `dotfiles` names either index, checked against p10k's
 forty indexes and every colour a script here writes. Anything new that draws with fzf names a
 slot and nothing else.
