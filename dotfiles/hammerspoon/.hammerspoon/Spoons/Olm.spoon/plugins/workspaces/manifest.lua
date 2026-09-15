@@ -4,62 +4,55 @@
 -- in this tree answers to.
 --
 -- No needs.tools at all, and that is a real answer rather than an omission. This plugin
--- shells out to nothing. It reads screens, watches windows, and writes one JSON file, all of
--- it through Hammerspoon itself, so there is no external binary or bundle for the layer above
--- to guarantee. The one program it could be said to configure is the window server, which is
--- not a thing a package manager installs.
+-- shells out to nothing. It reads screens and windows and writes one JSON file, all of it
+-- through Hammerspoon itself, so there is no external binary or bundle for the layer above to
+-- guarantee.
 --
 -- No provides and no registry.scope either, so no alias, and that is a decision worth stating
 -- rather than a field forgotten. An alias only becomes a typed word through a scope, and a
 -- scope row completes rather than pushing a level, since QueryScope discards whatever run
--- answers. Every row this tool has at its top level means go into this configuration and look
--- at it, which is a push, so there is no honest thing a scope row could complete with here.
--- An alias declared without a scope behind it is a word that resolves to nothing, which is the
--- class of declaration this contract exists to refuse, so it is left out.
+-- answers. Every row this tool has at its top level means go into this layout and look at it,
+-- which is a push, so there is no honest thing a scope row could complete with here. An alias
+-- declared without a scope behind it is a word that resolves to nothing, which is the class of
+-- declaration this contract exists to refuse, so it is left out.
 return {
   -- The identity is exactly the directory, one lowercase word, so no name field. That is
   -- load bearing rather than incidental, since the root hands storePath per declaring plugin
   -- as the config directory plus this identity plus .json. Renaming the identity renames the
-  -- file and orphans whatever is already remembered in it.
+  -- file and orphans every layout already in it.
 
   needs = {
     data = {
       -- The one file this plugin owns, supplied by the root because only it knows where a
-      -- person's own editable data lives. The session layer is untouched by its absence, which
-      -- is why this is optional rather than required, docking and undocking within one login
-      -- still work with nothing on disk.
+      -- person's own editable data lives. Optional rather than required, since the list still
+      -- opens without it and says so on its one row.
       storePath = { source = "root", policy = "optional",
-        breaks = "nothing is remembered across a restart, so the memory degrades to the "
-          .. "session layer alone and a reboot lands every window wherever macOS puts it" },
+        breaks = "nothing can be stored, so the list opens with one row saying so and no snapshot can be taken" },
 
-      -- The stage seam. This plugin holds no chooser of its own, so the four things a chooser
-      -- owner used to do directly arrive as words the composition root publishes.
-      -- stagePresent is the door the launcher row opens through. stagePop is what every Back
-      -- row, and every successful rename, delete, and forget, leaves a level through, the one
-      -- thing a child pushed from select cannot express on its own. redrawPresented is the
-      -- async seam, the engine asking for the active marker to be corrected once a
-      -- configuration change lands while this list, and no other, is what the stage is showing.
-      -- stageSelectedRow is the gate on that redraw, since the marker moving also reorders the
-      -- list and a correction landing while somebody is part way down it has to defer rather
-      -- than shuffle rows under a hand, which is the discipline the authoring guide states and
-      -- the menu search cache already keeps.
-      -- All four optional, all four degrading to an inert press or a skipped redraw rather
-      -- than a crash, since a plugin asking before the stage's own configure has run is a
-      -- wiring defect and not a state a key press should swallow loudly.
+      -- How an apply says what it did. A list of apps with their icons and one phrase each,
+      -- drawn by the root on the shared overlay, since a plugin never builds a window of its
+      -- own and the root decides how a message is drawn and where it lands. Optional, because
+      -- the windows are placed either way and the console carries the same lines.
+      report = { source = "root", policy = "optional",
+        breaks = "an apply places the windows and says nothing on screen, the console alone carries what happened to each app" },
+
+      -- The stage seam. This plugin holds no chooser of its own, so the two things a chooser
+      -- owner used to do directly arrive as words the composition root publishes. stagePresent
+      -- is the door the launcher row opens through. stagePop is what every Back row, a saved
+      -- snapshot, and every successful rename, delete, remove, and include leaves a level
+      -- through, the one thing a child pushed from select cannot express on its own. Both
+      -- optional, both degrading to an inert press rather than a crash, since a plugin asking
+      -- before the stage's own configure has run is a wiring defect and not a state a key
+      -- press should swallow loudly.
       stagePresent = { source = "root", policy = "optional",
         breaks = "the launcher row opens nothing, since the chooser has no other way to reach the shared stage" },
       stagePop = { source = "root", policy = "optional",
-        breaks = "every Back row, and a successful rename, delete, or forget, all stand on the level they meant to leave rather than returning to its parent" },
-      redrawPresented = { source = "root", policy = "optional",
-        breaks = "the active marker stays stale when the display configuration changes while the list is open, since the engine has no other way to reach whatever is on screen" },
-      stageSelectedRow = { source = "root", policy = "optional",
-        breaks = "a correction landing while the list is open can no longer tell whether somebody is part way down it, so it redraws every time and a reorder may move rows under a hand" },
+        breaks = "every Back row, and every successful rename, delete, remove, and include, all stand on the level they meant to leave rather than returning to its parent" },
     },
   },
 
-  -- Opened from the launcher only, so it proposes no key at all. Nothing about window layout
-  -- memory is urgent enough to spend a chord on, the engine does its work unasked and this
-  -- surface exists to inspect and prune what it remembered.
+  -- Opened from the launcher only, so it proposes no key at all. Taking or applying a layout
+  -- is a deliberate act a few times a day, not something worth a chord.
   defaults = {
     description = "Workspaces",
     launcherRow = true,
@@ -68,8 +61,8 @@ return {
   -- A nested menu you navigate, so the primary verb is insertSelected, the atom's real
   -- completion path, which every level's own intercept is asked ahead of. No pane, no level
   -- here reserves a companion, and matcher is false because each level's own supplier either
-  -- filters the list itself or morphs its rows from the query, which is what a rename field
-  -- is, so the shared strategy would be filtering a list that is already the answer.
+  -- filters the list itself or morphs its rows from the query, which is what a name field is,
+  -- so the shared strategy would be filtering a list that is already the answer.
   surface = {
     context = "workspaces",
     primary = { action = "insertSelected", description = "Select" },
@@ -87,15 +80,12 @@ return {
     matcher = false,
   },
 
-  -- THIS BLOCK IS WHY THIS PLUGIN RUNS AT ALL, and it is the exact field whose absence killed
-  -- the two plugins this one replaces. Configure alone leaves the engine built and watching
-  -- nothing. start is what subscribes the window filter, the screen watcher, and the wake
-  -- watcher, and runs the first restore pass. The chooser step hands the submodule the same
-  -- options table, which is where its three stage words arrive, on top of the api the plugin's
-  -- own configure already gave it. There is no chooser start step, the chooser owns no live
-  -- resource and an empty start would be ceremony.
+  -- The plugin root's own configure runs by default and builds the store and the api. The one
+  -- declared step hands the chooser submodule the same options table, which is where its stage
+  -- words arrive, on top of the api the root already gave it. No start step, since nothing here
+  -- watches anything. The earlier plugin in this directory lived or died by a start step that
+  -- subscribed its watchers, and this one deliberately has none to subscribe.
   wiring = {
-    { method = "start" },
     { target = "chooser", method = "configure" },
   },
 
@@ -104,8 +94,8 @@ return {
   -- answers the five generic nav verbs once the presentation above exists and this tool binds
   -- nothing past them.
   registry = {
-    row = { category = "Displays", detail = "window layouts remembered per display configuration",
-      glyph = "🪟", keywords = "workspace workspaces layout window windows remember restore" },
+    row = { category = "Displays", detail = "window layouts you snapshot and put back",
+      glyph = "🪟", keywords = "workspace workspaces layout layouts window windows snapshot arrange" },
     open = { member = "chooser.show", call = "dot" },
   },
 }

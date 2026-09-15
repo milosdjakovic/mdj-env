@@ -526,28 +526,32 @@ build while every check reported a clean wiring run. Workspaces below replaces t
 lesson worth keeping is that a plugin without a `wiring` step declaring how it starts is a
 plugin that does nothing, quietly, forever.
 
-**Workspaces.** Remembers where windows belong per display configuration and puts them back
-on its own, the replacement for both retired memory plugins in one engine. It lives at
-`Spoons/Olm.spoon/plugins/workspaces/` and its own `CLAUDE.md` there holds the decision
-trail. Two things about it belong here because they cross the config rather than sitting
-inside one plugin.
+**Workspaces.** Layouts a person takes and puts back, and nothing automatic. A snapshot
+records where every window on the current Space sits, becomes a named layout, and applying it
+places the windows of the apps that are open now, leaving closed apps closed and reporting
+every app on the shared overlay with its icon. It lives at
+`Spoons/Olm.spoon/plugins/workspaces/` and its own `CLAUDE.md` there holds the decision trail,
+with the full history of the automatic version it replaced in `decisions/olm-workspaces.md` at
+the repository root. Two things about it belong here because they cross the config.
 
-A configuration is identified by geometry, never by monitor identity. The fingerprint is
-every screen's `fullFrame()` in points, sorted by origin, joined into one string, so vendor,
-model, pixel resolution, and plug order all stop mattering, two identical panels can never be
-confused because a window is keyed to a position in point space rather than to a panel, and
-two geometrically identical desks in different buildings deliberately share one
-configuration. That is a notion of a location only this plugin defines, so it computes the
-fingerprint itself and the shared root `scope` closure the two retired plugins consumed is
-gone with them.
+A window is remembered by the role of its display, the built in panel or the first, second, or
+third external counted left to right, and by its frame as a fraction of that display, never by
+monitor identity or by points. That is what lets one layout apply in front of a different
+external monitor, what makes a layout available whenever the displays it needs are attached
+rather than only under the exact topology it was taken on, and what makes
+`config/workspaces.json` worth tracking in git again, since nothing in it belongs to one
+machine and it is written only when a person acts.
 
-Workspaces and DisplayProfiles are independent and stay that way. DisplayProfiles owns the
-physical arrangement through displayplacer, Workspaces owns where windows sit inside whatever
-arrangement resulted, and Workspaces never talks to displayplacer. Ordering between them
-emerges rather than being wired. Every change DisplayProfiles makes is itself a screen event,
-and Workspaces waits for screen events to go quiet before it restores, so the arrangement
-always lands first without either plugin naming the other. This is the same argument
-WindowMemory arrived at and it survived the rewrite intact.
+Workspaces and DisplayProfiles stay independent. DisplayProfiles owns the physical arrangement
+through displayplacer, Workspaces owns where windows sit inside whatever arrangement is
+attached when a person applies a layout, and neither names the other. The earlier version
+ordered itself after DisplayProfiles by waiting for screen events to go quiet, and with nothing
+automatic left there is no ordering to keep.
+
+The two plugins that preceded both of those, DisplayMemory and WindowMemory, are the reason the
+wiring lesson above is worth keeping. Neither declared a `wiring` step and neither ever ran.
+The automatic Workspaces that replaced them ran, and was replaced in turn because remembering
+on its own meant remembering whatever macOS or an app last did.
 
 **Overlay display policy.** One place decides which display every transient
 overlay appears on, every chooser with its docked shortcut panel, both cheat
