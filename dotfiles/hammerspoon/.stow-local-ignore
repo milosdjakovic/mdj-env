@@ -15,3 +15,6 @@ dependencies-collect
 dependencies-collect.lua
 grants-probe
 check-timers
+# theme-exempt is this package's word to src/check-theme.sh that its chrome is not painted
+# from the palette yet, and why.
+theme-exempt

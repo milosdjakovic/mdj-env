@@ -1,0 +1,3 @@
+# Repo only files at this package root, kept out of the home directory. theme-exempt is this
+# package's word to src/check-theme.sh that it is not painted from the palette yet, and why.
+theme-exempt

@@ -123,6 +123,20 @@ Copy `palettes/aura.toml` to a new name, fill both `[colors]` halves with the th
 values, answer every required role under `[roles]`, and name it in `active.toml`. The checker
 says which role is unanswered or which colour a role points at that does not exist.
 
+## Declaring what is not painted from here
+
+The checker reads every file under `dotfiles` for a hex value and reports each file that
+carries one, since a hand copy sits in a tool's own config or a script and never in a map. A
+generated file is exempt by its banner. Two declarations exempt anything else, both found by
+name, and the checker keeps no list of paths. A package that is not painted from the palette
+says so in a `theme-exempt` file at its root, beside its `DEPENDENCIES`, whose whole content is
+the reason. It is repo only, so it goes in that package's `.stow-local-ignore`. kitty and
+alacritty wait that way until they run again, and Hammerspoon until its chrome has a map and
+emitter. A single file whose colours belong to someone else, brand colours or a palette for
+another medium, carries a line reading `theme-exempt`, a comma, and the reason, in whatever
+comment syntax the file has. Every exemption is printed on every run with its reason, so none
+leaves view, and one with no reason is an error. A package cannot both emit and exempt.
+
 ## Changing a colour, and reloading
 
 Edit the palette or the map, run `./src/check-theme.sh`, commit what it regenerated. Then
@@ -139,5 +153,8 @@ three roles `highlight`, `subtext` and `fill` joined the vocabulary for it. iris
 keys of its selected row, the rest being slots. fzf, tmux and the Claude statusline, entirely
 through slots, since Ghostty paints all 256 and its map declares 16 to 19 for the bar under a
 current row, the secondary grey, the quiet rule and the page, so none of the three has a map
-of its own. Nothing under `dotfiles` that is stowed carries its own copy any more. kitty and
-wezterm are not stowed and still do.
+of its own. Nothing stowed carries a hand copy, and the checker proves it across every file
+rather than the maps alone. Three packages are declared exemptions, kitty and alacritty, both
+unstowed, and Hammerspoon's chrome, and the html-reports skill's document palette is exempt in
+its two files. wezterm names WezTerm's bundled Aura scheme and carries no hex, so it is Aura at
+one remove until it has an emitter.

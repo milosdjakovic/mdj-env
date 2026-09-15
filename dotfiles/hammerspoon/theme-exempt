@@ -1,0 +1,5 @@
+Not painted from the palette yet. The panel chrome in config/settings.lua and the preview
+defaults it carries wait for a map and emitter at this root, and the four literal fallbacks
+that repeat them inside plugins go when that lands, each asked for on its own. The icon
+colours in the processes plugin are the brand colours of the languages they stand for and
+will never be the palette's, decided 2026-09-16 in decisions/theme-palette.md.

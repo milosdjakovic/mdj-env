@@ -2,7 +2,8 @@
 
 Status. `theme/` is the source of colour, Ghostty, Neovim, herdr and iris are generated from
 it, fzf, tmux and the Claude statusline draw in slots Ghostty declares. Every stowed tool is
-painted from it. kitty and wezterm are not stowed and still carry their own copies.
+painted from it, and the checker proves it across every file under `dotfiles`. kitty,
+alacritty and Hammerspoon's chrome are declared exemptions waiting for a map and emitter.
 
 ## Now
 
@@ -27,6 +28,12 @@ stepped back, and `fill`, the accent as a block under a label in the page colour
 rule over a named colour, so a different palette answers them by the same arithmetic.
 herdr's emitter owns one span of a hand written config and copies the rest through, which is
 the shape for any tool with no include.
+
+Every file under `dotfiles` is read for a hex value. A generated file is exempt by its banner.
+A package not painted from the palette says so in a `theme-exempt` file at its root, whose
+content is the reason, and a lone file whose colours are someone else's carries a
+`theme-exempt` line with the reason. Every exemption is printed on every run, none has no
+reason, and the checker keeps no list of paths.
 
 ## Rejected
 
@@ -90,6 +97,23 @@ value `#cdccce` is the ink at 0.85 over the page to the unit, and iris's seconda
 the same value, so it is a real step on the ladder between the ink and `overlay` rather than
 either neighbour. `subtext` is the role, 0.85 on dark and 0.88 on light by the usual light ramp
 reason, and the light value moves from a neutral `#5c5c5f` to `#5c5a6a`, a cast nothing sees.
+
+**A list of exempt paths in the checker, 2026-09-16.** The one place that must know no file by
+name. A declaration in the file or at the package root is the same inversion the banner and
+`DEPENDENCIES` already use, the thing speaks for itself and the checker reads a contract.
+
+**Exempting comment lines from the hex scan, 2026-09-16.** A hand copy in a comment is how
+the three Ghostty variant files drifted, each opening with a paragraph of values. A comment
+that needs a value names the role and the ratio instead, which is what the lualine comment
+does now.
+
+**Exempting kitty and alacritty by their stow status, 2026-09-16.** The checker would have to
+read the stow list out of `setup-stow-dotfiles.sh`, coupling it to stow, and stowed is not
+painted, Hammerspoon is stowed and not painted. The package says so itself instead.
+
+**Exempting the whole claude package for the html-reports skill, 2026-09-16.** The claude
+package is stowed and its statusline draws in a declared slot, so a package level exemption
+there would hide any future hand copy beside it. The two skill files carry their own line.
 
 ## Log
 
@@ -316,3 +340,21 @@ not the palette's. The Claude `html-reports` skill carries a monochrome report p
 Neovim's `lualine.lua` cites two hex values in prose. Brought before any exemption or map is
 decided. The Status line here and the last paragraph of `theme/CLAUDE.md` wait on that
 decision, since both say kitty and wezterm are the only holdouts.
+
+**2026-09-16 00:23.** The fifteen settled, with Milos's three answers, kitty and alacritty might run
+again so they are deferred with the reason recorded, the cleanup as judged best, and commit
+only what is meaningful. The three Ghostty variants are deleted, stowed, hand written,
+referenced by nothing since the generated files, and a soft Aura is a second palette file in
+`active.toml` if it is ever wanted. kitty and alacritty are package declarations, because a map
+and emitter for a tool nobody runs is guesswork and each states it gets one the day it runs.
+Hammerspoon is a package declaration too, since its map and emitter at the package root is
+real design and the four plugin fallbacks are a plugin change, each to be asked for on its
+own, and the same declaration covers the brand colours in `icons.lua`, which will never be the
+palette's. The html-reports skill carries a file line in `SKILL.md` and its template, a
+document palette rather than a tool theme. The lualine comment names the page on the primary
+rather than two hex values. The contract is two declarations rather than one because they
+answer different questions, a package that is not painted at all speaks once where it already
+speaks, and a lone file inside a painted package speaks in place. Four checker refusals were
+proved on fixtures in a clone, a package reason left empty, a file line with no reason, a
+package that both emits and exempts, and a markdown closer that the first version failed to
+strip because BSD sed has no alternation in a basic expression.

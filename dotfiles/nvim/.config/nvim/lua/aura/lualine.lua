@@ -5,7 +5,7 @@
 -- the same definition serves both appearances and a palette change reaches it for free.
 --
 -- The mode block carries the background colour as its text, which is the same trick Aura's
--- own badge uses. On the light half that is #f8f7fb on #7e54d1, 6.08 to 1.
+-- own badge uses. On the light half that is the page on the primary, 6.08 to 1.
 --
 -- Section c reads overlay, which is Aura's own statusBar.foreground. Not gray, which is the
 -- comment colour and is meant to recede, and a status bar is the one thing that must not.

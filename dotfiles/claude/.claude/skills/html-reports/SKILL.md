@@ -5,6 +5,8 @@ description: Build any standalone HTML report, analysis writeup, findings docume
 
 # HTML Reports
 
+<!-- theme-exempt, a monochrome palette for a document, not a tool on this machine's screen, so theme/ has no say in it -->
+
 This skill reproduces one fixed visual language for self contained HTML deliverables. Read it, then start from the bundled template at `assets/report-template.html` and pour the content into it rather than restyling from memory. The template already carries every token and component described here.
 
 ## The look in one breath
