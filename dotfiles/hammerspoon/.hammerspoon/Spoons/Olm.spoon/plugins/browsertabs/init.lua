@@ -233,7 +233,7 @@ function obj:configure(opts)
   -- root's own wiring table, so nothing carried opts.deps to it before now. Its own
   -- configure resolves swiftc and open through the adapter this plugin was already granted,
   -- since both are declared under this manifest's unit permissions.
-  permissions.configure({ deps = opts.deps })
+  permissions.configure({ deps = opts.deps, storage = opts.storage })
 
   -- The ordered list is BUILT HERE from names, rather than arriving already built.
   --

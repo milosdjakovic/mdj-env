@@ -45,8 +45,9 @@ local SWIFTC = "/usr/bin/swiftc"
 --- config tree on purpose, since Hammerspoon watches this tree and a compile landing in it would
 --- reload the config every time the helper is built.
 local SOURCE = viewerPath .. "quicklook.swift"
-local CACHE_DIR = os.getenv("HOME") .. "/Library/Caches/Hammerspoon-FileSearch"
-local BINARY = CACHE_DIR .. "/quicklook"
+-- Under the storage lib's cache root, filled by configure since only the injected lib knows it.
+local CACHE_DIR = nil
+local BINARY = nil
 
 --- viewer.name - for the console line when a provider steps aside.
 M.name = "quicklook"
@@ -155,6 +156,10 @@ end
 --- a no op once the binary is current, which it is on every run after the first.
 function M.configure(opts)
   for k, v in pairs(opts or {}) do cfg[k] = v end
+  if cfg.storage then
+    CACHE_DIR = cfg.storage.cacheDir("filesearch")
+    BINARY = CACHE_DIR .. "/quicklook"
+  end
   ensureBinary(function() end)
   return M
 end

@@ -270,12 +270,14 @@ return {
 
   -- The two storage roots every plugin's data lives under, pure data with the
   -- join done elsewhere, in Olm.spoon's storage module. cacheRoot holds
-  -- regenerable data, safe to delete since it only costs a rebuild. olmRoot
-  -- holds durable data, visible in the home directory since deleting it
-  -- loses something. Changing either is one line here, since the root is
-  -- the only place either name is written.
+  -- regenerable data, safe to delete since it only costs a rebuild, compiled
+  -- helpers, menu snapshots, preview renders. olmRoot holds durable data,
+  -- clipboard history, layouts, speed test runs. Both sit under one hidden
+  -- directory so everything Olm writes on this machine is in one place and
+  -- none of it is in the config tree or in git. Changing either is one line
+  -- here, since the root is the only place either name is written.
   paths = {
-    cacheRoot = "~/.cache/hammerspoon",
-    olmRoot = "~/Olm",
+    cacheRoot = "~/.olm/cache",
+    olmRoot = "~/.olm/data",
   },
 }

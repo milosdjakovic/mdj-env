@@ -111,7 +111,7 @@ local REGISTRY_API_VERSION = 1
 local SHIPPED_POLICY = {
   chord = { holdDelay = 0.6, tapThreshold = 0.2, passthrough = true },
   hyperTrigger = { kind = "leader" },
-  storage = { cacheRoot = "~/Library/Caches/Hammerspoon Olm", olmRoot = "~/.olm" },
+  storage = { cacheRoot = "~/.olm/cache", olmRoot = "~/.olm/data" },
   surface = {},
   chooserTheme = {},
   cheatSheet = {},

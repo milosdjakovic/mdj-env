@@ -26,8 +26,9 @@ local log = hs.logger.new("BrowserTabs", "info")
 
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local SOURCE = spoonPath .. "probe.swift"
-local CACHE_DIR = os.getenv("HOME") .. "/Library/Caches/Hammerspoon-BrowserTabs"
-local BINARY = CACHE_DIR .. "/probe"
+-- Under the storage lib's cache root, filled by configure since only the injected lib knows it.
+local CACHE_DIR = nil
+local BINARY = nil
 
 -- The Automation pane, the only route left once a browser has been refused.
 local SETTINGS_URL = "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation"
@@ -105,6 +106,10 @@ function M.configure(opts)
   if deps then
     swiftcPath = deps.path("swiftc")
     openPath = deps.path("open")
+  end
+  if opts.storage then
+    CACHE_DIR = opts.storage.cacheDir("browsertabs")
+    BINARY = CACHE_DIR .. "/probe"
   end
   return M
 end

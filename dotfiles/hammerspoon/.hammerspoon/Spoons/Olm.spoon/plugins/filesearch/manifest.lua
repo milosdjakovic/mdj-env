@@ -11,6 +11,13 @@ return {
   name = "fileSearch",
 
   needs = {
+    -- Where the compiled Quick Look helper and the hidden files index are kept,
+    -- lib/storage.lua's own cache root, handed down to the viewer through the surface's deps
+    -- and to the hidden source directly, since both are regenerable and no file here may name
+    -- a directory under HOME of its own.
+    lib = {
+      storage = { from = "storage", policy = "required" },
+    },
     tools = {
       { name = "qlmanage", kind = "system", locator = "/usr/bin/qlmanage", policy = "optional", unit = "thumbs",
         reason = "drawing a preview of a pdf, a video, or anything else only Quick Look can render",
@@ -134,7 +141,7 @@ return {
                      folderEntries = 100,
                      imageEdge = 600,
                      nativeMaxBytes = 20 * 1024 * 1024,
-                     cacheDir = "~/.cache/hammerspoon/filesearch-previews",
+                     cacheDir = "~/.olm/cache/filesearch/previews",
                      cacheFiles = 400,
                    },
                    -- limits is deliberately NOT here. engine.lua already merges it against its

@@ -207,6 +207,7 @@ function obj:configure(opts)
   obj.sources.hidden.configure({
     fdPath = toolPath("fd"),
     fzfPath = toolPath("fzf"),
+    storage = opts.storage,
     prune = policy.prune,
     pruneLocal = policy.pruneLocal,
     maxAgeSeconds = limits.hiddenMaxAgeSeconds,
@@ -303,6 +304,10 @@ function obj:configure(opts)
     -- surface owns the provider and the thumbnail chain, so it is the layer that knows which of
     -- these numbers belongs to which, and this root stays the only place that reads the config.
     preview = policy.preview,
+    -- The storage lib, carried through to whichever viewer builds a helper binary, the Quick
+    -- Look one, since the surface is the layer that configures a viewer and the lib is the
+    -- only thing that knows where a cache goes.
+    storage = opts.storage,
     -- The provider, and the side panel behind it as the fallback, which is what turns an
     -- unavailable first choice into a working picker with a console line rather than into no
     -- preview at all. This is the only place in the spoon that names a concrete one, and it

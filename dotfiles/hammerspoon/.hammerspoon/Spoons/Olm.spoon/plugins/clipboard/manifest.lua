@@ -22,6 +22,12 @@ return {
     lib = {
       paste = { from = "paste", policy = "required" },
       hyperKey = { from = "hyperkey", policy = "optional" },
+      -- Where the history, the frozen files, and the thumbnails live, lib/storage.lua's own
+      -- durable root, so this plugin no longer names a directory under HOME of its own. It
+      -- did for a long time, ~/.cache/hs-clipboard, which predated the storage lib and put
+      -- the one store here that is genuinely durable under a cache name. Required, since a
+      -- history with nowhere to go is not a clipboard manager.
+      storage = { from = "storage", policy = "required" },
     },
     tools = {
       { name = "ffmpeg", kind = "path", policy = "optional", unit = "preview",

@@ -40,12 +40,13 @@ obj.license = "MIT"
 local log = hs.logger.new("Eyedropper", "info")
 
 -- The Swift source beside this file, resolved by absolute path off this file since a spoon dir is
--- not on package.path. The compiled binary is cached under Library Caches, outside
--- the watched config tree so building it never reloads Hammerspoon.
+-- not on package.path. The compiled binary is cached under the storage lib's cache root,
+-- outside the watched config tree so building it never reloads Hammerspoon. The directory and
+-- the binary path are filled by configure, since only the injected lib knows the root.
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local SOURCE = spoonPath .. "sampler.swift"
-local CACHE_DIR = os.getenv("HOME") .. "/Library/Caches/Hammerspoon-Eyedropper"
-local BINARY = CACHE_DIR .. "/sampler"
+local CACHE_DIR = nil
+local BINARY = nil
 
 -- Injected policy and live state.
 obj._onPick = nil    -- optional showColor(hex), handed the sampled result to be shown
@@ -141,6 +142,10 @@ end
 function obj:configure(opts)
   opts = opts or {}
   self._onPick = opts.showColor
+  if opts.storage then
+    CACHE_DIR = opts.storage.cacheDir("eyedropper")
+    BINARY = CACHE_DIR .. "/sampler"
+  end
   -- Asked of the scope adapter rather than read off opts.compiler, which nothing fills.
   --
   -- Declaring a tool entitles a plugin to the ADAPTER, under opts.deps, never to a resolved path

@@ -15,6 +15,12 @@ return {
   name = "colorPicker",
 
   needs = {
+    -- Where the compiled sampler is kept, lib/storage.lua's own cache root, since a build is
+    -- regenerable and this plugin may not name a directory under HOME of its own. Required,
+    -- because without somewhere to put the binary there is nothing to run.
+    lib = {
+      storage = { from = "storage", policy = "required" },
+    },
     tools = {
       { name = "swiftc", kind = "system", locator = "/usr/bin/swiftc", policy = "optional",
         reason = "compiles the native colour sampler helper",

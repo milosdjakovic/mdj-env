@@ -66,18 +66,19 @@ local monitor = load("monitor.lua")
 local session = load("session.lua")
 local ui = load("ui.lua")
 
-local HOME = os.getenv("HOME")
-local DATA_DIR = HOME .. "/.cache/hs-clipboard"
-
 -- Defaults. The outer composition root may override any of these via configure()
--- before start(). Stored outside the git-tracked config dir.
+-- before start(). The five directory fields are filled in by configure from the storage
+-- lib's durable root, this plugin's own directory under it, since nothing here may name a
+-- location under HOME by itself. They are nil until then on purpose, so a start with no
+-- storage fails on the first mkdir with a path in the message rather than writing
+-- somewhere a hand typed default happened to say.
 local config = {
-  cacheParent = HOME .. "/.cache",
-  dataDir = DATA_DIR,
-  thumbDir = DATA_DIR .. "/thumbs",
-  filesDir = DATA_DIR .. "/files",
-  stageDir = DATA_DIR .. "/stage", -- files staged under a free name for a paste into a folder that already holds that name
-  storePath = DATA_DIR .. "/history.json",
+  cacheParent = nil,
+  dataDir = nil,
+  thumbDir = nil,
+  filesDir = nil,
+  stageDir = nil, -- files staged under a free name for a paste into a folder that already holds that name
+  storePath = nil,
 
   -- The one adapter that knows Finder or AppleScript, answering only where a paste
   -- would land. A paste presents the right name regardless of this setting, that part is
@@ -310,6 +311,19 @@ function M:configure(opts)
     for k, v in pairs(opts) do
       config[k] = v
     end
+  end
+  -- The directories, derived from the storage lib rather than named here. An explicit dataDir
+  -- handed in wins, so a test or a second composition can still point the manager anywhere,
+  -- and the four inside it follow whichever answer was taken.
+  if config.storage and not config.dataDir then
+    config.dataDir = config.storage.dataDir("clipboard")
+  end
+  if config.dataDir then
+    config.cacheParent = config.cacheParent or config.dataDir:match("^(.*)/[^/]+$")
+    config.thumbDir = config.thumbDir or config.dataDir .. "/thumbs"
+    config.filesDir = config.filesDir or config.dataDir .. "/files"
+    config.stageDir = config.stageDir or config.dataDir .. "/stage"
+    config.storePath = config.storePath or config.dataDir .. "/history.json"
   end
   return M
 end

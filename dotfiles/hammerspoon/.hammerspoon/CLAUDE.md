@@ -1706,7 +1706,7 @@ Swift helper, `sampler.swift` beside the spoon, that shows it and prints the
 picked hex. The spoon compiles that helper once with `swiftc` into a cached
 binary and runs it per pick through `hs.task`, so there is no per frame screen
 snapshot and no custom loupe, the magnifier is the real native one and there is
-no lag. The cached binary lives under `~/Library/Caches`, deliberately outside the
+no lag. The cached binary lives under the storage lib's cache root, deliberately outside the
 watched `~/.hammerspoon` tree so compiling it never triggers a config reload, and
 it is rebuilt only when the Swift source is newer than the binary. `init` warms
 that build in the background so the first pick stays instant. The spoon exposes a

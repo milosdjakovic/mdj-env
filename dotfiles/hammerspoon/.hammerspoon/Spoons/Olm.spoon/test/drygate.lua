@@ -277,6 +277,14 @@ local function loadLib(modName)
     local okRun, result = pcall(modOrErr)
     if okRun then mod = result end
   end
+  -- The storage lib refuses every path question until its roots are configured, and the live
+  -- composition root configures them before any plugin's configure runs, so a plugin that
+  -- asks for its directory at configure is correct and would still read here as one this
+  -- gate cannot check. Two throwaway roots stand in, pure string work in that lib and no disk,
+  -- which is exactly the part of the root every plugin declaring storage is entitled to.
+  if modName == "storage" and mod and type(mod.configure) == "function" then
+    pcall(mod.configure, { cacheRoot = "/tmp/olm-drygate/cache", olmRoot = "/tmp/olm-drygate/data" })
+  end
   libCache[modName] = mod or false
   return mod
 end
