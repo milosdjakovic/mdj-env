@@ -18,10 +18,11 @@ palette11 = tertiary
 palette12 = primary
 palette13 = quaternary
 palette14 = quinary
-# Slots 16 to 19 are declared for fzf and tmux and are the first four no ANSI name claims.
+# Slots 16 to 19 are declared for fzf, tmux and the Claude statusline, the first four no ANSI
+# name claims.
 # Ghostty paints all 256, and nothing under dotfiles names any of them, checked against
 # p10k's forty indexes and every colour a script here writes. Slot 17 is the grey of herdr's
-# secondary line, which fzf's footer reads, and slot 18 is the quiet rule herdr's borders
+# secondary line, which fzf's footer and the Claude statusline read, and slot 18 is the quiet rule herdr's borders
 # take, which fzf's gutter glyph reads, since no slot among the sixteen holds either neutral
 # on both halves. Slot 19 is the page, for text painted onto a signal colour, since slot 0 is
 # the page only on dark and slot 15 only sits near it on light. Slot 16 is the bar under the

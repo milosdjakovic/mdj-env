@@ -24,23 +24,15 @@ fi
 
 used=$(echo "$input" | jq -r '.context_window.used_percentage // empty')
 
-# Aura's statusBar.foreground, because that is literally what this is. The published palette
-# names one grey, #6d6d6d, and calls it muted, but its job there is comments and it sits at
-# 3.54 to 1 on purpose so that comments recede. A status bar is the one thing that must not.
-# #adacae is the value Aura's own VS Code theme puts on statusBar.foreground, and #727276 is
-# the light half of it, the same pair herdr's overlay0 carries.
-#
-# This is a truecolour literal rather than an ANSI slot because no slot holds a chrome grey.
-# Slot 8 is the comment grey, which is the wrong job, so the appearance has to be read by
-# hand. Claude Code offers nothing for that. Its statusline payload carries no theme,
-# appearance or background field and it sets only COLUMNS and LINES, so the macOS setting
-# Ghostty itself resolves its theme pair from is the only source. The read costs about 5 ms
-# against the four processes this script already spawns per refresh.
-if [ "$(/usr/bin/defaults read -g AppleInterfaceStyle 2>/dev/null)" = "Dark" ]; then
-  gray="\033[38;2;173;172;174m"
-else
-  gray="\033[38;2;114;114;118m"
-fi
+# The chrome grey is slot 17, which dotfiles/ghostty/theme-map declares as the overlay role,
+# Aura's statusBar.foreground on the dark half and the light grey herdr's secondary line
+# carries on the light one. A slot is right here because Claude Code passes the escape
+# through to the terminal and the terminal paints it from whichever half it is on, so the
+# script never has to ask which that is. It used to, with two truecolour literals chosen by
+# reading AppleInterfaceStyle, because no slot among the sixteen holds a chrome grey, slot 8
+# being the comment grey at 3.54 to 1 on purpose so that comments recede, and a status bar is
+# the one thing that must not. Ghostty paints all 256, which is what ended that.
+gray="\033[38;5;17m"
 
 yellow="\033[0;33m"
 red="\033[0;31m"

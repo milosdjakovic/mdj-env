@@ -34,3 +34,7 @@ day, so the iris repaint fix was never in question here, Claude was simply never
 Set to `auto` by `jq`, then made `setup-claude-settings.sh` merge the same key so the next
 machine gets it from `setup.sh`. Running the script after the hand edit reported already
 configured, which is the convergence the script is built for.
+
+**2026-09-15 23:16.** The statusline grey is slot 17 rather than a truecolour pair chosen by
+reading the macOS appearance. `theme-palette.md` has it. `theme = auto` is unchanged and still
+the reason the rest of the UI follows the terminal.

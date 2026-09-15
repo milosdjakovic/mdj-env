@@ -1,8 +1,8 @@
 # One palette, every tool painted from it
 
 Status. `theme/` is the source of colour, Ghostty, Neovim, herdr and iris are generated from
-it, fzf and tmux draw in slots Ghostty declares, and the Claude statusline still carries its
-own copy and is next.
+it, fzf, tmux and the Claude statusline draw in slots Ghostty declares. Every stowed tool is
+painted from it. kitty and wezterm are not stowed and still carry their own copies.
 
 ## Now
 
@@ -248,3 +248,12 @@ when no slot could carry a bar. The override is gone and only the frame and labe
 there, so every tmux popup draws the same grey bar and green matches the herdr finder does.
 
 **2026-09-15 23:14.** Confirmed by eye, the tmux bar and its pickers are acceptable.
+
+**2026-09-15 23:16.** The Claude statusline. Its two truecolour greys, chosen by reading
+AppleInterfaceStyle because no slot among the sixteen held a chrome grey, are one escape now,
+slot 17, the overlay role the fzf footer already reads. The script no longer asks which half it
+is on, the terminal paints the slot from whichever half it holds, and the `defaults`
+declaration in the claude package went with the call. That was the last hand copy in any
+stowed package.
+
+**2026-09-15 23:28.** Confirmed by eye, the statusline grey looks right.
