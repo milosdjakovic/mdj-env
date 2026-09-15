@@ -149,3 +149,13 @@ to remember until then. A window or pane opened before the rebuild keeps the old
 shell restarts, so a stuck surface in an old pane is not a regression, and only new windows and
 new panes prove anything. And the pin move and the fork are two pushes, not one, so pushing the
 fork alone leaves a second machine building the old commit.
+
+### 2026-09-15 09:31
+
+Pushed, so the entry above is now stale in two ways and keeps its text under the contract. The
+commit is no longer 48ed0c4, because integrating twelve commits from the other machine rebased
+the seven local ones and 48ed0c4 became 69d11a1. And it is no longer unpushed, since Milos asked
+for it to go up once the integration was verified. The fork was already on GitHub throughout,
+which was never optional, because the build script clones the fork from there rather than from
+anything on this machine. So a second machine now gets both halves, the pin and the binary it
+names.
