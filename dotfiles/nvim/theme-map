@@ -1,0 +1,24 @@
+# Neovim's palette slots, each pointing at a role from theme/VOCABULARY. The left hand
+# names are the ten slots Aura's Neovim package resolves its 357 highlight groups through,
+# plus two of ours, and they are semantic rather than literal, white is the ink and black is
+# the page, which is what lets them invert between halves without renaming.
+#
+# purple_faded is what the package paints Visual, Search and the diff groups with, and it
+# takes the selection role, the composited tint. It used to carry Aura's alpha form with the
+# alpha byte cut off, which painted the un-blended source as if it were final and left
+# Neovim's selection a different purple from Ghostty's on the same screen.
+#
+# surface is ours, for the lualine theme upstream does not ship. overlay is ours too, for
+# chrome, which is a different job from comments and the package has no slot for it.
+purple       = primary
+green        = secondary
+orange       = tertiary
+red          = senary
+pink         = quaternary
+blue         = quinary
+white        = foreground
+gray         = comment
+black        = background
+purple_faded = selection
+surface      = surface
+overlay      = overlay

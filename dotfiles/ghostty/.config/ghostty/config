@@ -2,7 +2,11 @@
 #font-family = "Hack Nerd Font"
 font-family = "MesloLGS NF"
 font-size = 18
-theme = light:aura-light,dark:aura-dark
+# Both theme files are generated from theme/palettes by src/check-theme.sh and named for the
+# half they fill rather than for a palette, so this line never changes. Which palette paints
+# each half, and whether the machine follows the system or is held to one half, is decided
+# in theme/active.toml. Edit a colour there, never in the themes directory.
+theme = light:mdj-light,dark:mdj-dark
 
 # === Window settings ===
 # window-decoration = false

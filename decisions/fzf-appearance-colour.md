@@ -111,3 +111,9 @@ once per process, which is the only known way to reach a program inside a server
 environment. And fzf treats a file it cannot open as a hard error, exiting 2 with no output, so
 any future use of that variable has to be guarded on the file existing. Whoever solves the
 global version next needs both and should not have to rediscover either.
+
+**2026-09-15 16:15.** The global answer now has a home. `theme/` declares the palette and
+`theme-palette.md` carries the design. fzf is not painted from it yet, and when it joins, the
+selection bar becomes a slot the palette declares rather than a hex anything watches, which
+closes this file's open question without a watcher.
+

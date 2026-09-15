@@ -1,0 +1,40 @@
+# Ghostty's keys, each pointing at a role from theme/VOCABULARY. This file knows Ghostty's
+# vocabulary, the sixteen palette slots and the six special colours, and the palette knows
+# nothing about it. A slot number is Ghostty's idea and lives here for that reason.
+#
+# Slots 9 to 14 are the bright accents and repeat 1 to 6, which is how Aura's own port does
+# it, since Aura publishes one shade of each accent. Slot 10 is what fzf's hl+ reads, so it
+# stays the secondary.
+palette1  = senary
+palette2  = secondary
+palette3  = tertiary
+palette4  = primary
+palette5  = quaternary
+palette6  = quinary
+palette8  = comment
+palette9  = senary
+palette10 = secondary
+palette11 = tertiary
+palette12 = primary
+palette13 = quaternary
+palette14 = quinary
+background           = background
+foreground           = foreground
+cursor-color         = primary
+cursor-text          = background
+selection-background = selection
+selection-foreground = foreground
+
+# The neutral slots swap by half, because ANSI black is the page on a dark theme and the
+# ink on a light one, and white the other way round. Bright white and plain white are the
+# ink on the dark half. On the light half plain white is the faint neutral Aura's port uses
+# and bright white sits just off the page.
+[dark]
+palette0  = background
+palette7  = foreground
+palette15 = foreground
+
+[light]
+palette0  = foreground
+palette7  = dim
+palette15 = surface

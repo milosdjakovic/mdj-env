@@ -1,0 +1,11 @@
+# Which palette paints each half, and whether the machine follows the system or is held.
+#
+# mode is system, dark or light. On system the light half takes the light palette and the
+# dark half the dark one, and every tool keeps asking the terminal or macOS which it is on.
+# On dark both halves are written from the dark palette, so every tool keeps asking exactly
+# as before and both answers look the same. Nothing that runs ever reads this word, it is
+# resolved when the files are generated, which is why holding a half costs no watcher and no
+# new dependency anywhere.
+mode  = "system"
+dark  = "aura"
+light = "aura"

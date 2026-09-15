@@ -1,0 +1,23 @@
+# The contract between a palette and every tool that paints with one.
+#
+# A map inside a tool's package names one of these roles and never a colour, so a palette
+# that answers every required role can be dropped in and every tool follows. A palette
+# answers a role with one of its own colour names or with a rule over them, and a tool never
+# learns which. The ranking words are Aura's own, its published table calls accent1 the
+# Primary colour and counts up from there, and they are kept rather than replaced with
+# meanings like error or success that a palette never promised.
+#
+# role          policy      what it is
+primary         required    the accent a tool leads with
+secondary       required    the second accent
+tertiary        required    the third accent
+quaternary      required    the fourth accent
+quinary         required    the fifth accent
+senary          required    the sixth accent
+foreground      required    the ink
+background      required    the page
+comment         required    muted text that is still meant to be read
+selection       required    the tint under a selected row or a selected span
+surface         required    one step off the page, a panel or a raised row
+overlay         required    secondary text, quieter than the ink and louder than a comment
+dim             required    a neutral quieter than a comment, a rule or a faint label

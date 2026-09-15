@@ -1,0 +1,69 @@
+# Aura, as a palette this repository's tools can share.
+#
+# The colours are Aura's own published table, nine plain colours, and nothing here names a
+# tool, a terminal slot, or a role. Every use of a colour is decided in [roles] below, by a
+# name from theme/VOCABULARY, and a tool's own map names only those roles. So changing a
+# colour here moves every tool that paints with it, and changing which colour a role points
+# at moves every tool that leads with that role, and neither edit touches a tool.
+#
+# Aura publishes no light edition. The light half is the derivation this repository settled
+# on in herdr's config, each ramp step measured as a fraction of the dark half's distance
+# from page to ink and the same fraction applied to the light page, then overruled by eye in
+# a few places that herdr's comment names. Those values are carried here as literals so the
+# eye's decisions are kept, and a role that had to differ per half says so under
+# [roles.light] with the reason.
+
+[colors.dark]
+# Aura's table, row for row. The token column is Aura's id for the row.
+purple = "#a277ff"   # accent1,  Primary color
+green  = "#61ffca"   # accent2,  Secondary color
+orange = "#ffca85"   # accent3,  Tertiary color
+pink   = "#f694ff"   # accent6,  Quaternary color
+blue   = "#82e2ff"   # accent32, Quinary color
+red    = "#ff6767"   # accent5,  Senary color
+white  = "#edecee"   # accent7,  Foregrounds
+gray   = "#6d6d6d"   # accent8,  Comments
+black  = "#15141b"   # accent12, Backgrounds
+# Not carried, and why. accent20 #3d375e7f and accent38 #29263c are Aura's selection tint,
+# the first with alpha and the second already composited onto the page. Nothing here can
+# blend a cell, so the tint is a rule over purple in [roles] rather than a tenth colour.
+
+[colors.light]
+purple = "#7e54d1"
+green  = "#00805f"
+orange = "#6b4400"
+pink   = "#872f90"
+blue   = "#005669"
+red    = "#bf3239"
+white  = "#474556"   # the ink, Aura keeps the role name across halves
+gray   = "#7c7b85"
+black  = "#f8f7fb"   # the page
+
+[roles]
+primary    = "purple"
+secondary  = "green"
+tertiary   = "orange"
+quaternary = "pink"
+quinary    = "blue"
+senary     = "red"
+foreground = "white"
+background = "black"
+comment    = "gray"
+# alpha is over the background of the same half, the same arithmetic as compositing, so
+# selection at 0.14 is purple at fourteen percent over the page, which lands on Aura's own
+# accent38 to within four units of green. mix is between two named colours.
+selection  = { color = "purple", alpha = 0.14 }
+surface    = { color = "white",  alpha = 0.03 }
+dim        = { color = "white",  alpha = 0.28 }
+overlay    = { mix = ["gray", "white"], amount = 0.50 }
+
+[roles.light]
+# The light ramp spans less than the dark one, so the same fractions read too faint, and
+# these three were set by eye when herdr's theme was made. selection at 0.20 lands on the
+# tint Aura's own light port uses for Ghostty and Neovim. surface at 0.09 is the raised row
+# herdr and Neovim already agree on. overlay is pulled toward the ink rather than the page,
+# because muted text on the light half was floored at 4.5 to 1 and the symmetric mix reads
+# near 2.4.
+selection  = { color = "purple", alpha = 0.20 }
+surface    = { color = "white",  alpha = 0.09 }
+overlay    = { mix = ["gray", "white"], amount = 0.19 }

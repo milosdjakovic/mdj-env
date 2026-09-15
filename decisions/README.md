@@ -70,6 +70,7 @@ than discovered.
 - [herdr-agent-detection](herdr-agent-detection.md), a session behind a terminal wrapper announces its own pane, since herdr cannot see it and neither side can be asked to change
 - [iris-alias-display](iris-alias-display.md), iris expands an alias and never puts the typed word back, fixed on a fork branch and tracked against upstream
 - [iris-appearance-theme](iris-appearance-theme.md), the menu follows the terminal's appearance, a fork feature, with four measurement mistakes recorded on the way
+- [theme-palette](theme-palette.md), one palette in theme/, every tool painted from it by a generator that lives with the tool, Ghostty and Neovim first
 - [fzf-appearance-colour](fzf-appearance-colour.md), slots for everything fzf draws except the selection bar, which a watcher rewrites into a file because it cannot be a slot
 - [herdr-finder-keys](herdr-finder-keys.md), the fuzzy search copies a path on `ctrl-y`, and why it is not shift and enter or `ctrl-c`
 - [herdr-theme](herdr-theme.md), Aura in herdr's own tokens on both appearances, and the faint agent line that was never a colour

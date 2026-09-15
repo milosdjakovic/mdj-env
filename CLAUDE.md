@@ -31,6 +31,11 @@ macOS development environment bootstrap and dotfiles management using GNU Stow. 
 ./src/setup-herdr-plugins.sh
 ./src/check-dependencies.sh
 
+# Rewrite every tool's theme file from the one palette, and report any that had drifted.
+# Run after changing a colour, then commit what it regenerated. --show prints every role.
+./src/check-theme.sh
+./src/check-theme.sh --show
+
 # Ask what upstream iris has done since the fork branched, and whether either patch is
 # still needed. Reports only, it never moves the pin.
 ./src/check-iris-upstream.sh
@@ -56,6 +61,7 @@ stow -D -t ~ <package>        # Unlink a package
 - `src/` - Modular setup scripts (all idempotent, support Apple Silicon and Intel)
 - `dotfiles/` - Stow-managed configurations, each subdirectory is a stow package
 - `decisions/` - What was tried, rejected and corrected, one dated file per topic
+- `theme/` - The one palette every tool is painted from, and the contract for adding a tool
 
 ### Decisions, and when to read them
 
@@ -79,6 +85,24 @@ corrected, each is recorded as it happens, with the date and the time, since aft
 reasoning is gone. A topic with no file gets one the first time it produces a decision worth
 keeping. `check-dependencies.sh` verifies the index and the shape of every file, so a file
 that drifts from the contract is reported rather than discovered.
+
+### Colour, and the one place it is declared
+
+`theme/` holds the palette, and every tool that has a theme is painted from it by a generator
+that lives with the tool. Read `theme/CLAUDE.md` before adding or changing a colour anywhere
+under `dotfiles`, and before adding a tool that has a theme. The short version is three
+layers. The palette knows nobody, plain colours by name plus which colour answers each role.
+A map at a tool's package root knows only that tool's keys and points each at a role, never a
+colour. An emitter beside it knows only that tool's file syntax and writes the generated file.
+`src/check-theme.sh` is the root that ties them, module agnostic the same way
+`check-dependencies.sh` is, and it regenerates every file and reports any that had drifted.
+
+The generated files are committed, so a fresh machine generates nothing and stow puts them
+where each tool reads them. `theme/active.toml` says which palette paints each half and
+whether the machine follows the system or is held to dark or light, and that word never
+reaches a running tool, it decides what is written into both halves when the files are
+generated, so holding a half adds no watcher and no dependency. A hex value written into a
+tool's config by hand is the drift this exists to end, and the checker names it.
 
 ### Dependencies, and which layer knows what
 
