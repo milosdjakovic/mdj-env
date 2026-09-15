@@ -24,8 +24,7 @@ A window is recorded on `internal`, `external`, `external2`, and so on, the buil
 the externals counted left to right by position. Not the monitor, not its serial, not its size.
 The frame is a unit rect of that display's visible frame. Together those make a layout taken in
 front of one monitor apply in front of another of a different size, a different dock, or a
-different menu bar height, and they make the file worth committing, since nothing in it belongs
-to one machine.
+different menu bar height.
 
 The built in panel is recognised by its display UUID, which Apple gives every Apple silicon
 built in panel as one constant rather than a per machine value, with the display name as the
@@ -71,16 +70,16 @@ the windows are placed regardless and the console carries the same lines.
 
 ## Storage
 
-The file is `config/workspaces.json`, handed in as `storePath`, and it is tracked in git again.
-It was ignored while the earlier plugin wrote it on its own after every window move. It is
-written only when a person takes, updates, prunes, renames, or deletes a layout now, so it is
-curated rather than accumulated. A file that will not parse is moved aside under a stamped name
-rather than replaced, and a file in the earlier automatic shape is moved aside the same way as
-`.legacy.`, since its absolute frames on one desk cannot be converted to roles and fractions.
-Both stamped copies are git ignored by pattern.
-
-The pathwatcher ignore covers the file, the atomic write's sibling temp, and the stamped copies
-by one pattern, so nothing here reloads the config.
+The file is `layouts.json` in this plugin's own directory under the olm data root, asked for
+through `lib/storage.lua`'s `dataDir`, the same door speedtest's history goes through, and the
+directory is made on the first write so a plugin that never stores anything leaves nothing
+behind. A layout is this machine's own record of its desk and its apps, taken by hand but
+personal all the same, so it is not configuration and never reaches git. It sat inside the
+config tree for one evening as a tracked file, and the earlier automatic store sat there git
+ignored for two weeks before that, and both were the same mistake, a machine's own record
+inside the configuration tree. A file that will not parse or is not this shape is moved aside
+under a stamped name rather than replaced. Being outside the config tree, a write never touches
+the pathwatcher.
 
 ## Windows on another Space are invisible, and that is open
 

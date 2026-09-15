@@ -25,12 +25,15 @@
 ---
 --- A window is remembered by the display it was on, named by role rather than by monitor, and
 --- by its frame as a fraction of that display's visible frame. That is what lets a layout taken
---- in front of one external monitor apply in front of another of a different size, and what
---- makes the file worth committing, since nothing in it belongs to one machine. The earlier
---- store here keyed on the point geometry of the attached screens and was written by the plugin
---- a couple of seconds after every window move, so it was one machine's session and git ignored.
---- This file is written only when a person takes, updates, prunes, renames, or deletes a layout,
---- so it is curated rather than accumulated and it is tracked again.
+--- in front of one external monitor apply in front of another of a different size.
+---
+--- The file lives under the olm data root in the home directory, layouts.json in this plugin's
+--- own directory there, beside the speed test history and away from the config tree. A layout
+--- is this machine's own record of its desk and its apps, taken by hand but personal all the
+--- same, so it is not configuration and never reaches git. It was inside the config tree for
+--- one evening, and the earlier automatic store sat there git ignored for two weeks before
+--- that, so the lesson is that a store a plugin writes belongs under the storage root however
+--- it is written.
 ---
 --- An app that was removed from a layout stays in the file with excluded set, keeping its
 --- windows, so an update does not resurrect it and including it again does not need a fresh
@@ -41,10 +44,8 @@
 --- of events worth coalescing. A hand edit to the file is not seen until the next reload, the
 --- same trade the DisplayProfiles store documents.
 ---
---- The file lives under the config directory, inside the watched tree. The composition root's
---- auto reload ignore list covers any JSON under config by pattern, including the sibling temp
---- hs.json.write renames into place and the stamped copies the rescue below moves a file to, so
---- this store needs no entry of its own.
+--- Being outside the config tree, a write here never touches the pathwatcher, so nothing about
+--- the auto reload ignore list applies to this file.
 
 local S = {}
 S.__index = S
@@ -58,13 +59,27 @@ local function trim(s)
 end
 
 --- store.new(opts)
---- opts.path  absolute path to the JSON file, resolved by the composition root from the live
----            config directory, so nothing here hardcodes a location. A nil path makes every
----            read answer empty and every write a no op, which is how the plugin degrades to
----            a list that forgets everything on reload rather than failing.
+--- opts.storage  lib/storage.lua, which owns the roots and the join, so nothing here assembles
+---               a path from a root by hand.
+--- opts.dir      this plugin's own directory name under the durable root.
+--- opts.file     the file name inside it.
+--- Without storage every read answers empty and every write is a no op, which is how the
+--- plugin degrades to a list that forgets everything on reload rather than failing.
 function S.new(opts)
   opts = opts or {}
-  return setmetatable({ path = opts.path, cache = nil, dirty = false, sealed = false }, S)
+  return setmetatable({ storage = opts.storage, dirName = opts.dir, file = opts.file,
+                        dir = nil, path = nil, cache = nil, dirty = false, sealed = false }, S)
+end
+
+-- The directory and the file, joined on first use rather than at configure. The storage lib
+-- refuses to answer before the composition root has configured its roots, and the dry gate
+-- loads and configures this plugin under a stub where nothing has, so a store that asked at
+-- configure would read as a plugin the gate cannot check. Asking on the first read or write
+-- keeps configure pure and the gate answering.
+function S:_resolve()
+  if self.path or not self.storage then return end
+  self.dir = self.storage.dataDir(self.dirName)
+  self.path = self.dir .. "/" .. self.file
 end
 
 -- Move the file aside under a stamped name that can never collide with an earlier rescue, and
@@ -87,19 +102,14 @@ end
 -- logs a noisy error on a missing file.
 function S:_all()
   if self.cache then return self.cache end
+  self:_resolve()
   local all = { version = VERSION, layouts = {} }
   if self.path and hs.fs.attributes(self.path) then
     local read = hs.json.read(self.path)
-    if type(read) ~= "table" then
-      -- A FILE THAT IS THERE AND WILL NOT PARSE IS NEVER SILENTLY REPLACED, it is the only copy
-      -- of every layout a person ever took.
+    if type(read) ~= "table" or type(read.layouts) ~= "table" then
+      -- A FILE THAT IS THERE AND WILL NOT PARSE, OR IS NOT THIS SHAPE, IS NEVER SILENTLY
+      -- REPLACED, it is the only copy of every layout a person ever took.
       self:_setAside("could not read the layouts file", "corrupt")
-    elseif type(read.layouts) ~= "table" then
-      -- The shape the earlier store wrote, a map from screen geometry to remembered frames that
-      -- the plugin accumulated on its own. Nothing in it is a layout a person took, and its
-      -- frames are absolute points on one desk, so it cannot be converted. It is kept aside
-      -- rather than deleted, since it is still a record of where windows sat.
-      self:_setAside("the layouts file has the earlier automatic shape", "legacy")
     else
       all = read
       if type(all.version) ~= "number" then all.version = VERSION end
@@ -115,10 +125,14 @@ end
 --- actually happened.
 function S:flush()
   if not self.dirty then return true end
+  self:_resolve()
   if self.sealed or not self.path then
     self.dirty = false
     return false
   end
+  -- The directory is made on the first write rather than at configure, since a fresh machine
+  -- has no olm root yet and a plugin that never stores anything should leave none behind.
+  self.storage.ensure(self.dir)
   local ok = hs.json.write(self:_all(), self.path, true, true) == true
   if ok then self.dirty = false else log.e("could not write " .. tostring(self.path)) end
   return ok
