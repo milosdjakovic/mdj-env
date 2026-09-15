@@ -470,6 +470,42 @@ function M.placeholder()
   return "Search layouts"
 end
 
+--- M.scopeRows(rest) -> list. The launcher scoped to the layouts, the alias and a space, one
+--- row per layout and choosing one applies it. This is the fast path, since applying is what a
+--- layout is for and the manager above exists for everything else. A layout that cannot apply
+--- here is still listed, disabled and saying what it needs, so the answer to why is it not
+--- here is on the row rather than in a silence.
+function M.scopeRows(rest)
+  local q = trim(rest):lower()
+  local out = {}
+  if not cfg.api.persists() then
+    return { row("Nothing can be stored", "No place was given for layouts to live in", ICON.warn, { noop = true }, false) }
+  end
+  for _, l in ipairs(cfg.api.list()) do
+    if matches(l.name, q) then
+      if l.available then
+        out[#out + 1] = row(l.name, "Apply, " .. countLabel(l.apps, "app", "apps") .. ", taken on " .. l.topology,
+          ICON.available, { id = l.id }, true)
+      else
+        out[#out + 1] = row(l.name, "Not here, it " .. l.reason, ICON.unavailable, { noop = true }, false)
+      end
+    end
+  end
+  if #out == 0 then
+    out[#out + 1] = row("No layout to apply", "Open Workspaces and take a snapshot", ICON.hint, { noop = true }, false)
+  end
+  return out
+end
+
+--- M.applyScoped(item) - the launcher's own scope.run, handed the item a scope row carries.
+--- Identical to choosing Apply inside the manager, since a layout chosen through the scoped
+--- list means exactly what Apply means there.
+function M.applyScoped(item)
+  if not item or not item.id then return end
+  local ok, err = cfg.api.apply(item.id)
+  if not ok then log.e("apply failed, " .. tostring(err)) end
+end
+
 --- M:configure(opts) - merge injected deps across the two callers. The plugin composition root
 --- injects api, the one seam over the engine and the store. The wiring step injects the whole
 --- options table, which is where stagePresent and stagePop arrive.

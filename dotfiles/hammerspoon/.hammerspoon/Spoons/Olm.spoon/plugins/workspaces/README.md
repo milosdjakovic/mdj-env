@@ -12,7 +12,9 @@ frame as a fraction of that display. So a layout taken in front of one external 
 applies in front of a different one, and the list says which layouts apply here, given the
 displays attached right now, and what a layout that does not would need.
 
-Opens from the launcher as Workspaces, with no dedicated chord and no alias. New snapshot
+Opens from the launcher as Workspaces, with no dedicated chord. Typing `ws` and a space in
+the launcher lists the layouts instead, and choosing one applies it, which is the fast path.
+In the manager, New snapshot
 leads the list, then every layout, the ones that apply here first. Inside a layout, Apply
 places the windows, Apps lists what it recorded with Remove on each and Include again on the
 removed, Update snapshot replaces the record with what is open now while keeping the removals,

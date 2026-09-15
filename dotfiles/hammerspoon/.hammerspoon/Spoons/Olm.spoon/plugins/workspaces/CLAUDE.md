@@ -61,6 +61,15 @@ already exists. `Stage:_intercept` runs `onSelect` and pushes whatever comes bac
 before the return simply changes what the child stacks on. Every other leaving row rides its
 level's `intercept` and `stagePop`, the shape DisplayProfiles settled.
 
+## The typed word applies, the row manages
+
+`ws` and a space scopes the launcher to the layouts and choosing one applies it, the second rung
+of the plugin skill's ladder, a typed word before a level. The launcher row still opens the
+manager, since taking, pruning, renaming, and deleting are levels and a scope row can only
+complete. The earlier plugin declared no scope because none of its rows could honestly
+complete, and that reasoning still stands for the manager's own top level, which is why the
+scope lists layouts to apply rather than mirroring it.
+
 ## The report is the root's, not this plugin's
 
 An apply reports through the `report` word the composition root publishes, a titled list of
