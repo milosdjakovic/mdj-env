@@ -1,0 +1,46 @@
+# fzf's default options, read by fzf itself at every launch through FZF_DEFAULT_OPTS_FILE,
+# which the zsh package exports and the tmux config sets in the server's environment. One
+# file rather than a string in each, because the string used to live in both and drift
+# between them, and because fzf reads a variable once per process where it reads this file
+# every time it starts. That reaches a picker inside the tmux or herdr server, which froze
+# its environment when it started, without restarting either.
+#
+# Every colour is an ANSI slot so it tracks whatever palette the terminal paints, which
+# Ghostty paints from theme/ at the repository root. fzf's own defaults reach into xterm-256
+# indexes like 108 and 151 that no theme repaints, so each one is routed through a slot here.
+#
+# info and header are text and read slot 4, the primary accent. They used to sit on slot 8
+# with the lines, which stopped working when slot 8 became Aura's comment grey, quiet at 3.54
+# to 1 on purpose. Slot 8 is the only neutral among the sixteen that works on both halves at
+# all, since 7 and 15 collapse against a light page and 0 against a dark one, so the answer
+# was an accent rather than a grey, which is what Catppuccin's own fzf theme does too.
+#
+# footer is slot 17, which Ghostty's theme-map declares as the overlay role, the grey of the
+# secondary line in herdr's panel, so the key hints under a picker read like the line under a
+# space rather than like a heading. It needs naming on its own because it does not follow
+# header, it has its own default of cube index 109, a pale blue green no theme repaints,
+# measured by drawing both lines and reading the escapes back. The prompt, the pointer and the
+# matched text read slot 2, Aura's green, which fzf's own defaults approximate with cube
+# indexes 108 and 151 that no theme repaints either, so a pale green in any of those three
+# means this file is not being read.
+#
+# The bar under the current row is slot 16, which Ghostty's theme-map declares per half, the
+# grey of herdr's focused row on light and the purple of its navigate row on dark. A bar has
+# to be a tint of the page and no slot among the sixteen is dark on one half and light on the
+# other, which is why it used to be a hex resolved inside one popup at draw time and every
+# other fzf drew no bar. --highlight-line runs the tint across the whole row rather than under
+# the text alone.
+#
+# The gutter is a glyph on every ordinary row, ▌ since fzf 0.6x, painted in the gutter colour
+# as a foreground, so -1 left it in the ink, a dark bar on the light page and a light one on
+# the dark page. It reads slot 18, which Ghostty's theme-map declares as dim, the quiet rule
+# herdr's own borders take, so the column sits back the way a border does.
+#
+# border, separator and scrollbar stay on slot 8. They are lines rather than text and a quiet
+# grey is what they want.
+--color=fg:-1,bg:-1,fg+:-1,bg+:16
+--color=hl:2,hl+:10
+--color=prompt:2,pointer:2,marker:3,spinner:3
+--color=info:4,header:4,footer:17
+--color=border:8,separator:8,scrollbar:8,gutter:18
+--highlight-line

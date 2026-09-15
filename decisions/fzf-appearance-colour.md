@@ -1,34 +1,39 @@
 # fzf's colour, and the one part of it that follows the appearance
 
-Status. Slots in `FZF_DEFAULT_OPTS`, and the selection bar resolved inside the herdr finder
-alone. Global to every fzf is wanted and not built.
+Status. Closed. Every colour including the selection bar is a slot, in one options file every
+fzf rereads at launch, and the bar is slot 16, declared as the `highlight` role in Ghostty's
+map. Nothing watches anything.
 
 ## Now
 
-Every colour fzf draws on this machine is an ANSI palette slot, exported once in
-`FZF_DEFAULT_OPTS` from the zsh package, so Ghostty repaints all of it on a theme change and
-nothing watches anything. That covers the matches, the prompt, the pointer, the counter, the
-header, the footer, the borders and the scrollbar.
+Every colour fzf draws on this machine is an ANSI palette slot, written once in
+`~/.config/fzf/fzfrc` in the zsh package and reached through `FZF_DEFAULT_OPTS_FILE`, which
+zsh exports and the tmux config sets in its server, both guarded on the file being readable.
+Ghostty repaints all of it on a theme change and nothing watches anything. fzf rereads the
+file at every launch, so an edit reaches a picker inside the tmux or herdr server without a
+restart, which the string in `FZF_DEFAULT_OPTS` never could.
 
-The selection bar is the exception and cannot join them. A bar is a tint of the page under it
-and no slot is dark on the dark palette and light on the light one, so it has to be hex, and a
-hex value has to be chosen at the moment of drawing rather than when a shell starts.
+The selection bar is slot 16 and the footer is slot 17. A bar is a tint of the page and no slot
+among the sixteen is dark on the dark palette and light on the light one, because each is
+claimed by a role that differs by half. Ghostty paints all 256, so the slots beyond them are
+free, and `dotfiles/ghostty/theme-map` declares 16 per half, the purple of herdr's navigate row
+on dark and the grey of its focused row on light, both set by eye, and 17 as `overlay`, the grey
+of herdr's secondary line. Nothing under `dotfiles` names either index, checked against p10k's
+forty indexes and every colour a script here writes. Anything new that draws with fzf names a
+slot and nothing else.
 
-Only `tools/find.sh` in the herdr package does that today. It asks
-`defaults read -g AppleInterfaceStyle` and lifts herdr's own `selection_bg` out of `config.toml`
-for the matching half. Every other fzf on the machine draws no bar.
-
-Making that global was asked for and the attempt was reverted, so the question is open. What is
-settled is how it cannot be done, which is the Rejected list below, and it now includes the
-approach that was built. Anything new here belongs in the shell, in a config file, or in a
-script, and never in Hammerspoon.
+fzf applies the file first and `FZF_DEFAULT_OPTS` after, so a string inherited from a shell or a
+server older than the file silently wins over it. `.zshrc.custom` unsets the variable before
+exporting the path for that reason.
 
 ## Rejected
 
 **A palette slot for the bar, 2026-09-15.** What every other colour here uses, and it would need
 no detection, no file and no plugin. It cannot work, and iris measured why in full when its own
 menu hit this, landing at 2.05 on slot 8, 1.08 on slot 4 and 1.27 on slot 7. That measurement is
-why this went straight to hex without repeating it.
+why this went straight to hex without repeating it. Corrected 2026-09-15 18:55, the
+rejection holds for the sixteen ANSI slots and never held for the other 240, which Ghostty
+paints too and which no theme here had claimed. A declared seventeenth slot is what was built.
 
 **Ghostty's own `selection-background`, 2026-09-15.** The tidiest possible source, since Ghostty
 already owns the palette and its aura themes publish a selection colour beside it. Not used,
@@ -117,3 +122,16 @@ global version next needs both and should not have to rediscover either.
 selection bar becomes a slot the palette declares rather than a hex anything watches, which
 closes this file's open question without a watcher.
 
+
+**2026-09-15 18:55.** Closed. The measurement that every slot fails was true of the sixteen and
+was read as true of all of them, and Ghostty paints 256. Slot 16 is declared as `highlight` in
+Ghostty's map, the options string moved out of both `.zshrc.custom` and `.tmux.conf` into one
+file fzf rereads at launch, guarded in both places as the 10:33 entry said it had to be, and
+`find.sh` lost its draw time resolution. The two measurements kept at 11:14 were both used.
+Confirmed on this machine, the path reaches tmux's global and session environment, a new shell,
+and a tmux child. The herdr server predates the file and needs one restart to see the path,
+after which no colour change needs another.
+
+**2026-09-15 19:36.** Slot 17 joins for the footer, slot 16 is declared per half, and the
+variable is unset before the path is exported, after a pane carrying both showed the old string
+winning. `theme-palette.md` has the full entry.

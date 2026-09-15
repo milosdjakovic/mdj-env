@@ -168,42 +168,38 @@ line that explains why a picker appeared at all is different and stays a header,
 the lazygit fallback keeps its own, since that is read before anything else rather than referred
 back to while picking.
 
-## A palette edit needs the server restarted
+## The picker colours come from one file fzf rereads
 
-The colours in these pickers come from `FZF_DEFAULT_OPTS`, which the zsh package exports and
-which no tool here sets. A popup command is a child of the herdr server rather than of a login
-shell, so it inherits the copy the server froze when the interactive shell that started it handed
-it its environment. `herdr server reload-config` rereads the config file and touches no process
-environment, so an edit to the palette reaches these popups only after the server itself is
-restarted, however many times the config is reloaded in between. Reading an applied status as
-proof of a colour change is the same mistake the theme section below warns about, arriving
-through a different door.
+The colours in these pickers come from `~/.config/fzf/fzfrc`, the one options file every fzf
+on the machine reads at launch through `FZF_DEFAULT_OPTS_FILE`, which the zsh package exports
+and the tmux config sets in its server. A popup command is a child of the herdr server rather
+than of a login shell, so it inherits the environment the server froze when it started, and
+that used to matter, because the colours were a string in that environment and an edit reached
+these popups only after the server itself was restarted. What is frozen now is a path that
+never changes, and fzf reads the file behind it every time it starts, so an edit to the file
+reaches the next popup with no restart. The server does have to have started with the path in
+its environment at all, which is a one time restart on a machine that predates the file.
 
 One consequence caught the footer. fzf gives `footer` its own colour name and its own default of
 cube index 109, a pale blue green outside the sixteen slots a theme paints, and it does not
 follow `header`, so the line drew in fzf's colour until `footer:4` was named alongside it.
 
-## The one colour the exported palette cannot hold
+## The selection bar is a declared slot
 
-Everything in these pickers is a palette slot except the selection bar, and that one cannot be.
-A bar has to be a tint of the page under it, and no slot is dark on the dark palette and light on
-the light one. It is the same wall the iris menu hit, and the reason that grew appearance aware
-tables rather than picking a slot.
+Everything in these pickers is a palette slot, including the selection bar, which for a while
+could not be one. A bar has to be a tint of the page under it, and no slot among the sixteen is
+dark on the dark palette and light on the light one, because each is claimed by a role that
+differs by half. It is the same wall the iris menu hit, and the reason that grew appearance
+aware tables there.
 
-So `find.sh` resolves it as it draws. The value is herdr's own `selection_bg`, read straight out
-of `config.toml` rather than copied into the script, so the picker and the sidebar carry one
-highlight between them and changing the theme changes both. `active_row_bg` is the other
-candidate, the lighter lift the sidebar puts under a focused row, and swapping is one word in the
-script.
-
-Which half to read comes from `defaults read -g AppleInterfaceStyle`, which prints Dark on a dark
-system and fails with the key absent on a light one. Ghostty is set to
-`light:mdj-light,dark:mdj-dark`, so it follows the same system answer and the two cannot
-disagree. Asking the system is also the only route open from inside a popup here, because the
-process is a child of the herdr server rather than of a shell, so anything an interactive shell
-exported about the appearance arrives frozen at whatever it was when the server started, which is
-the same trap as the section above. A missing config or a renamed token leaves the bar off
-entirely rather than inventing a tint, since fzf still marks the row with its pointer.
+Ghostty paints all 256 slots, so slot 16, the first one no ANSI name claims, is declared in
+Ghostty's `theme-map` per half, the purple of this module's navigate row on dark and the grey
+of its focused row on light, and the options file names `bg+:16` like every other colour.
+Slot 17 is the grey of the secondary line here, which the footer reads. A theme switch
+repaints it with everything else and nothing watches anything. `find.sh` resolved the bar from
+this module's `config.toml` at draw time for a while, asking the system which half it was on,
+and that code is gone. `decisions/fzf-appearance-colour.md` holds every approach that was tried
+before this one.
 
 ## Where the colours come from, and how to reload them
 
@@ -217,9 +213,9 @@ no include and the tables have to sit inside a file that is otherwise hand writt
 commit them. `theme/CLAUDE.md` has the whole contract.
 
 Three roles exist because of this module and every palette answers them. `highlight` is
-`selection_bg`, the navigate cursor row, and it is what iris's menu bar and fzf's bar will read
-too, purple on the dark half and a neutral grey on the light one because a tinted bar on the
-light page reads as a lilac slab. `subtext` is `subtext0`, the ink stepped back for a row that
+`selection_bg`, the navigate cursor row, and it is what iris's menu bar reads too and what
+fzf's bar reads on the dark half, purple there and a neutral grey on the light one because a
+tinted bar on the light page reads as a lilac slab. `subtext` is `subtext0`, the ink stepped back for a row that
 is not selected. `fill` is `accent`, the primary purple on dark and that purple darkened on
 light, because the chip carries a label painted in `panel_bg` and a block wants more room than
 a letter. `active_row_bg` takes `selection` on dark and `surface` on light, which is the same

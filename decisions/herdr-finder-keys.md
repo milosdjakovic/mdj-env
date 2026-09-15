@@ -127,3 +127,7 @@ colour at all. The finder looks identical and owns one less thing. The topic liv
 `find.sh` resolves the colour inline again, exactly as it did before, and `fzf-appearance-colour.md`
 carries why the global version is still open.
 
+
+**2026-09-15 18:55.** The bar left this file for good. It is slot 16, declared as the `highlight`
+role in Ghostty's map, and every fzf reads it from one options file, so `find.sh` carries no
+colour and no appearance check. `fzf-appearance-colour.md` has the close.
