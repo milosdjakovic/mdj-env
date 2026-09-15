@@ -16,19 +16,20 @@
 -- declared without a scope behind it is a word that resolves to nothing, which is the class of
 -- declaration this contract exists to refuse, so it is left out.
 return {
-  -- The identity is exactly the directory, one lowercase word, so no name field. That is
-  -- load bearing rather than incidental, since the root hands storePath per declaring plugin
-  -- as the config directory plus this identity plus .json. Renaming the identity renames the
-  -- file and orphans every layout already in it.
+  -- The identity is exactly the directory, one lowercase word, so no name field.
 
   needs = {
-    data = {
-      -- The one file this plugin owns, supplied by the root because only it knows where a
-      -- person's own editable data lives. Optional rather than required, since the list still
-      -- opens without it and says so on its one row.
-      storePath = { source = "root", policy = "optional",
-        breaks = "nothing can be stored, so the list opens with one row saying so and no snapshot can be taken" },
+    -- Where the layouts live. lib/storage.lua's own dataDir, the durable root under the home
+    -- directory every plugin's own data goes to, speedtest's history being the settled example,
+    -- rather than a file inside the config tree. A layout is this machine's own record of its
+    -- desk and its apps, so it belongs beside the clipboard history and the speed test runs,
+    -- never in git. Required, since every environment this config runs in configures storage
+    -- at start and a list with nowhere to write would be a list that lies.
+    lib = {
+      storage = { from = "storage", policy = "required" },
+    },
 
+    data = {
       -- How an apply says what it did. A list of apps with their icons and one phrase each,
       -- drawn by the root on the shared overlay, since a plugin never builds a window of its
       -- own and the root decides how a message is drawn and where it lands. Optional, because

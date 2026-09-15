@@ -537,10 +537,10 @@ the repository root. Two things about it belong here because they cross the conf
 A window is remembered by the role of its display, the built in panel or the first, second, or
 third external counted left to right, and by its frame as a fraction of that display, never by
 monitor identity or by points. That is what lets one layout apply in front of a different
-external monitor, what makes a layout available whenever the displays it needs are attached
-rather than only under the exact topology it was taken on, and what makes
-`config/workspaces.json` worth tracking in git again, since nothing in it belongs to one
-machine and it is written only when a person acts.
+external monitor and what makes a layout available whenever the displays it needs are attached
+rather than only under the exact topology it was taken on. The layouts live under the olm data
+root in the home directory through `lib/storage.lua`, beside the speed test history, never in
+the config tree and never in git, since a layout is this machine's own record of its desk.
 
 Workspaces and DisplayProfiles stay independent. DisplayProfiles owns the physical arrangement
 through displayplacer, Workspaces owns where windows sit inside whatever arrangement is

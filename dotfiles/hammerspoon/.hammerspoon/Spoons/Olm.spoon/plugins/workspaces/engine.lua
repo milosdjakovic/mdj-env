@@ -218,15 +218,18 @@ local function validUnit(u)
   return type(u.x) == "number" and type(u.y) == "number" and type(u.w) == "number" and type(u.h) == "number"
 end
 
--- The standard windows of every running instance of a bundle, front to back.
+-- The standard windows of every running instance of a bundle, front to back, and whether the
+-- bundle is running at all, since an app with no window and an app that is closed are two
+-- different answers on the report and one lookup answers both.
 local function liveWindows(bundle)
   local out = {}
-  for _, app in ipairs(hs.application.applicationsForBundleID(bundle) or {}) do
+  local running = hs.application.applicationsForBundleID(bundle) or {}
+  for _, app in ipairs(running) do
     for _, win in ipairs(app:allWindows() or {}) do
       if placeable(win) then out[#out + 1] = win end
     end
   end
-  return out
+  return out, #running > 0
 end
 
 -- Pair recorded windows with live ones. A title that matches exactly wins first, so two Chrome
@@ -278,8 +281,8 @@ function E.apply(layout)
         if validUnit(w.unit) and type(w.display) == "string" then recorded[#recorded + 1] = w end
       end
       local row = { bundle = app.bundle, name = app.name or app.bundle, placed = 0, recorded = #recorded }
-      local live = liveWindows(app.bundle)
-      if #hs.application.applicationsForBundleID(app.bundle) == 0 then
+      local live, running = liveWindows(app.bundle)
+      if not running then
         row.status = "notOpen"
       elseif #live == 0 then
         row.status = "noWindow"

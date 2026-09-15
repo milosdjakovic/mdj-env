@@ -1,7 +1,7 @@
 # Olm workspaces
 
 Status. Layouts are snapshots a person takes and applies by hand, keyed by display role and
-unit frame, tracked in git. Nothing automatic remains.
+unit frame, stored under the olm data root in the home directory. Nothing automatic remains.
 
 ## Now
 
@@ -36,9 +36,14 @@ record and the hammerspoon module `CLAUDE.md` holds what crosses the config.
   should not lose every layout.
 - **Ignoring `config/workspaces.json` in git.** 2026-09-12, b583908, and right on that date, since
   the plugin wrote the file itself after every window move and two machines could never merge
-  one. Reopened 2026-09-15. The file is written only by a person's own act now and holds roles
-  and fractions rather than one desk's points, so it travels, and it is tracked again. The
-  stamped copies the store moves an unreadable or legacy file aside to stay ignored by pattern.
+  one. Reopened 2026-09-15 for one evening, then moot from 2026-09-16, since the file left the
+  config tree altogether.
+- **Tracking the layouts in git as configuration.** 2026-09-15, b6bc5f0, for one evening. The
+  reasoning was that a hand taken snapshot holding roles and fractions belongs to no one
+  machine and so travels. Milos turned it down the same night, a layout named after his laptop
+  is his own record and not configuration, and the tree already has a place for a plugin's own
+  data, `lib/storage.lua`'s durable root in the home directory, which is where speedtest keeps
+  its runs. The file lives there now and nothing of it is in the tree.
 - **Exact topology match for availability.** Considered 2026-09-15 and turned down. A layout
   taken on the built in display alone would read as unavailable the moment an external was
   plugged in, though the built in display is still there. Availability asks whether every display
@@ -82,6 +87,7 @@ and no watcher. The built in display is recognised by the Apple silicon built in
 display name as the Intel fallback, since `hs.screen` has no built in flag and `getInfo` answers
 nil on this machine. The report goes out through a new `report` root word drawn by a new
 `toast.list` in `lib/hints.lua`, the same seam as `notify`.
+Corrected 2026-09-16, see below, on where the file lives.
 
 ### 2026-09-15 23:40
 
@@ -92,3 +98,15 @@ a Dismiss button. So an apply where everything landed shows nothing, the windows
 the feedback, and the panel exists for the closed apps alone. The Dismiss chip is the first
 clickable thing on a CanvasPanel, so the atom gained an optional `onClick` on its content
 rather than the plugin or the root reading the mouse. Merged to main the same evening.
+Corrected 2026-09-16, see below, on where the file lives.
+
+### 2026-09-16 00:05
+
+The merge landed `config/workspaces.json` in git with the `macbook-pro-13` layout in it, and
+Milos asked why a machine's own layout was committed when Olm already keeps per plugin data
+under a root in the home directory. It does, `lib/storage.lua` with `dataDir`, configured to
+`~/Olm` in `config/settings.lua`, and speedtest already writes there. The tracking decision was
+wrong for the reason the earlier ignore decision was right, a record of one desk is not
+configuration whoever wrote it. The plugin now declares the storage lib and writes
+`~/Olm/workspaces/layouts.json`, the file is removed from git, and the layout taken during
+testing was moved to the new path by hand rather than retaken.

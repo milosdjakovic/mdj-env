@@ -227,22 +227,21 @@ end
 
 --- Workspaces:configure(opts)
 --- Method
---- opts.storePath  absolute path to the JSON file, supplied by the root since only it knows
----                 where a person's own editable data lives. Without it nothing is kept.
---- opts.report     the root's report word, a function of { title, rows } that draws the list
----                 on the shared overlay. Without it an apply says what it did on the console
----                 only.
+--- opts.storage  lib/storage.lua, the declared lib grant, asked for this plugin's own data
+---               directory under the olm root. The file is layouts.json inside it.
+--- opts.report   the root's report word, a function of { title, rows } that draws the list
+---               on the shared overlay. Without it an apply says what it did on the console
+---               only.
 --- The chooser's stage words arrive separately, through its own wiring step, so this is safe to
 --- call before or after that.
 function obj:configure(opts)
   opts = opts or {}
-  if opts.storePath then
-    self._store = store.new({ path = opts.storePath })
+  if opts.storage then
+    self._store = store.new({ storage = opts.storage, dir = "workspaces", file = "layouts.json" })
   end
   self._report = opts.report
   self.chooser:configure({ api = self:_buildApi() })
-  local layouts = self._store and #self._store:list() or 0
-  log.i(string.format("%d layout(s) stored, persistence %s", layouts, self._store and "on" or "off"))
+  log.i("persistence " .. (self._store and "on" or "off"))
   return self
 end
 

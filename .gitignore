@@ -13,12 +13,10 @@ dotfiles/lazygit/Library/Application Support/lazygit/github_pull_requests.json
 # LLVM coverage profiling artifacts
 *.profraw
 
-# The stamped copies a plugin store moves a file aside to when it cannot read it, or when it
-# finds the shape an earlier version wrote. workspaces.json itself is tracked again. It was
-# ignored while the plugin wrote it on its own after every window move, when it grew from 41
-# lines to 166 in twelve days with nothing in it typed by a person, and it is written only when
-# a person takes, updates, prunes, renames, or deletes a layout now, so it is curated rather
-# than accumulated and it travels between machines by design.
+# The stamped copies a plugin store under config moves a file aside to when it cannot read it,
+# DisplayProfiles being the store that writes there. Workspaces used to keep its file here too,
+# and it lives under the olm data root in the home directory now, so nothing of it is in the
+# tree to ignore.
 dotfiles/hammerspoon/.hammerspoon/config/*.json.*
 
 # Herdr's own state, which lands in the tracked tree only because ~/.config/herdr is a stow
