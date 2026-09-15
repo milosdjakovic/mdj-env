@@ -72,4 +72,5 @@ than discovered.
 - [iris-appearance-theme](iris-appearance-theme.md), the menu follows the terminal's appearance, a fork feature, with four measurement mistakes recorded on the way
 - [herdr-theme](herdr-theme.md), Aura in herdr's own tokens on both appearances, and the faint agent line that was never a colour
 - [ghostty-aura-theme](ghostty-aura-theme.md), how the terminal palette settled on Aura for both halves after three other pairings
+- [claude-code-theme](claude-code-theme.md), Claude Code draws hex colours per theme and only `auto` asks the terminal, so setup merges it
 - [neovim-lockfile-pin](neovim-lockfile-pin.md), the lockfile is the pin and the bootstrap restores it rather than updating past it
