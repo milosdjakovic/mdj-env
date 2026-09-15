@@ -33,15 +33,23 @@ export EDITOR=nvim
 # grey, which is also what Catppuccin's own fzf theme does, putting info on mauve.
 # Slot 4 reads 5.77 to 1 on the dark half and 4.83 on the light one.
 #
+# footer is the same kind of text and takes the same slot, and it needs saying
+# separately because it does not follow header. It is its own colour name with its
+# own default of cube index 109, which is a pale blue green no theme repaints, and
+# setting header alone leaves it there. That was measured rather than assumed, by
+# drawing both lines at once with header on slot 4 and reading the escapes back,
+# where the header came out as 34 and the footer as 38;5;109 beside it.
+#
 # border, separator and scrollbar stay on slot 8. They are lines rather than text
 # and a quiet grey is what they want.
 export FZF_DEFAULT_OPTS='
   --color=fg:-1,bg:-1,fg+:-1,bg+:-1
   --color=hl:2,hl+:10
   --color=prompt:2,pointer:2,marker:3,spinner:3
-  --color=info:4,header:4
+  --color=info:4,header:4,footer:4
   --color=border:8,separator:8,scrollbar:8,gutter:-1
 '
+
 
 # Tool initializers
 eval "$(atuin init zsh)"
