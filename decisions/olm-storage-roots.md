@@ -57,3 +57,12 @@ existing data to be moved. `~/.olm/data` and `~/.olm/cache` are chosen over a di
 naming a path, the dry gate configures the lib with throwaway roots so a plugin asking for its
 directory at configure still reads as checked, and the files on disk are moved by hand with the
 clipboard history's absolute paths rewritten to the new prefix.
+
+### 2026-09-16 01:05
+
+Milos asked why `~/.hammerspoon/olm` was turned down and `~/.olm` taken instead, and agreed
+with the two reasons once stated, the pathwatcher and the stow target. The one honest caveat
+is that the cost of the rejected layout is avoidable rather than fundamental, an ignore
+pattern in `root/compose.lua` would make it work, so if the one directory feel ever outweighs
+the two reasons it is two lines in `config/settings.lua` plus that pattern and a second move
+of the files. Settled as `~/.olm` with that understood.
