@@ -169,7 +169,7 @@ return {
     -- Where rendered pictures are kept between opens, so a pdf costs a Quick Look render
     -- once rather than on every open. Outside the git tracked config, beside the other
     -- caches, and written with a tilde since nothing here names an absolute location.
-    cacheDir = "~/.cache/hammerspoon/filesearch-previews",
+    cacheDir = "~/.olm/cache/filesearch/previews",
 
     -- How many renders are kept before the oldest are dropped. Each is a small PNG, so
     -- this is about not growing without bound over months rather than about space.

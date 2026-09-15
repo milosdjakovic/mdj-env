@@ -18,6 +18,9 @@ return {
       -- mean something. The retired root passed two thousand and nothing carried it over, so
       -- the remembered order was left to grow with no ceiling at all.
       recency = { from = "recency", policy = "optional", limit = 2000 },
+      -- Where the compiled permission probe is kept, lib/storage.lua's own cache root, since
+      -- a build is regenerable and this plugin may not name a directory under HOME itself.
+      storage = { from = "storage", policy = "required" },
     },
     tools = {
       { name = "osascript", kind = "system", locator = "/usr/bin/osascript", policy = "optional", unit = "jxa",

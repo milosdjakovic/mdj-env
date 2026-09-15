@@ -15,8 +15,8 @@
 ---
 --- THE CACHE LIVES OUTSIDE ~/.hammerspoon, and that is not tidiness. The config directory is
 --- watched for changes and writing 33 megabytes into it would trigger a reload of the whole
---- config on every rebuild. It goes under ~/Library/Caches, the same place the Eyedropper
---- helper binary is cached and for the same reason.
+--- config on every rebuild. It goes under the storage lib's cache root, the same place the
+--- Quick Look helper binary is cached and for the same reason.
 ---
 --- WHY THE MATCHER IS fzf AND NOT ripgrep, which is the one place in this spoon a second tool
 --- genuinely earns its keep. Measured over the full index, ripgrep is faster, zero to 20
@@ -47,15 +47,19 @@ local cfg = {
   prune = {},
   pruneLocal = {},
   maxAgeSeconds = 300,
+  storage = nil,
 }
 
 local building = false
 local pendingAfterBuild = {}
 
--- The index file, deliberately outside the watched config tree.
+-- The index file, deliberately outside the watched config tree, under the storage lib's cache
+-- root. Nil with no storage, which the manifest declares as required so it never is in a
+-- wired plugin, and supports below declines every query in that case so nothing here is
+-- ever asked to read a path it does not have.
 local function indexPath()
-  local home = os.getenv("HOME") or ""
-  return home .. "/Library/Caches/mdj-hammerspoon/filesearch-hidden.txt"
+  if not cfg.storage then return nil end
+  return cfg.storage.cacheDir("filesearch") .. "/hidden-index.txt"
 end
 
 --- hidden.configure(opts)
@@ -69,6 +73,7 @@ function M.configure(opts)
   cfg.prune = opts.prune or {}
   cfg.pruneLocal = opts.pruneLocal or {}
   cfg.maxAgeSeconds = opts.maxAgeSeconds or 300
+  cfg.storage = opts.storage
   return M
 end
 
@@ -81,6 +86,7 @@ end
 --- Claims an unscoped hidden search only. A scope goes to the walk source, which sees the
 --- same files live, so the index is never consulted when there is something better.
 function M.supports(parsed)
+  if not indexPath() then return false end
   if parsed.scope then return false end
   return parsed.hidden == true
 end
@@ -147,6 +153,7 @@ end
 --- cache while it is at it. Called when the picker opens, so the first hidden query pays no
 --- cold read. Measured, a cold read of the index costs 240 milliseconds against 6 warm.
 function M.warm()
+  if not indexPath() then return end
   local age = indexAgeSeconds()
   if not age or age > cfg.maxAgeSeconds then
     rebuild(nil)

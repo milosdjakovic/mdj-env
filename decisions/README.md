@@ -78,3 +78,4 @@ than discovered.
 - [claude-code-theme](claude-code-theme.md), Claude Code draws hex colours per theme and only `auto` asks the terminal, so setup merges it
 - [neovim-lockfile-pin](neovim-lockfile-pin.md), the lockfile is the pin and the bootstrap restores it rather than updating past it
 - [olm-workspaces](olm-workspaces.md), window layouts are snapshots a person takes and applies, keyed by display role, after the automatic version was pulled out
+- [olm-storage-roots](olm-storage-roots.md), everything Olm writes lives under `~/.olm`, data and cache apart, after five plugins each kept their own path

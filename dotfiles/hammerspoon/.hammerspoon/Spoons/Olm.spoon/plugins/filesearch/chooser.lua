@@ -565,6 +565,7 @@ function M:start()
     usedAt = cfg.usedAt,
     thumbs = thumbs,
     log = util.log,
+    storage = cfg.storage,
   }
   viewer = NO_VIEWER
   for _, candidate in ipairs(cfg.viewers or {}) do
