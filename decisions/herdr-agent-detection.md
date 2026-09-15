@@ -1,8 +1,8 @@
 # Herdr agent detection behind a terminal wrapper
 
-Status. Open. The hook from c82178d was removed on 2026-09-16 because it owned the state it
-announced and froze every session at idle. A session behind iris is not listed, the fix lives
-in herdr's identification, and whether iris earns that cost is being reconsidered.
+Status. Settled on vanilla, 2026-09-16. Nothing announces a session to herdr, no integration
+is installed, and the panel is blind behind iris by design. Which autocomplete to run, and
+so whether the panel stays blind, is the open decision, and it is not this file's.
 
 ## Now
 
@@ -270,3 +270,19 @@ why no hook can fix this and where the fix is.
   itself needs reevaluating. Listed in the log rather than under Rejected because it was not
   turned down on its merits, only not taken. The upstream issue with the `script`
   reproduction is still the cheapest thing to do and is still unfiled.
+
+### 2026-09-16 01:15
+
+Milos chose vanilla. Herdr and Claude Code as shipped, with the panel blind behind iris
+rather than patched around it. Checked what was still not vanilla. No integration installed,
+no hook in `settings.json`, but five panes still carried the old hook's naming with its frozen
+idle, this one among them. Released each from `custom:mdj-env`, the panel emptied, and the
+pane the integration poisoned on the 14th had already been closed. So the live state matches
+the repository at 7e7020a and nothing is left to undo.
+
+The autocomplete question is being decided separately. inshellisense is out because it
+excludes the aws, gcloud and az specs by design. ghost-complete is a PTY proxy like iris and
+blinds the panel the same way, so it is only a candidate if the panel loses. carapace behind
+the fzf-tab already loaded, or zsh-autocomplete, are the in shell shapes that keep the panel
+whole. Whatever is chosen, nothing here needs changing, since the proxies only affect the
+panel and the in shell tools affect nothing herdr sees.
