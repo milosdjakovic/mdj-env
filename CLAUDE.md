@@ -345,13 +345,12 @@ Configuration in `dotfiles/claude/.claude/` (stow managed):
 - `commands/` - Custom slash commands (e.g., `/commit`)
 - `skills/` - Skills scoped to this package
 - `statusline-command.sh` - Custom status line script
-- `hooks/herdr-agent-pane.sh` - Tells herdr this pane is running a session
 
 `settings.json` is not tracked in the repo because Claude Code modifies it
 directly. Since it is not stowed, the keys that point at the stowed scripts cannot be
 symlinked in, so `src/setup-claude-settings.sh` merges them into `~/.claude/settings.json`
-with `jq` and runs from `setup.sh` after stow. It writes three things, the `statusLine`
-command, the two hook entries below, and `theme = "auto"`, because Claude Code paints hex
+with `jq` and runs from `setup.sh` after stow. It writes two things, the `statusLine`
+command and `theme = "auto"`, because Claude Code paints hex
 colours per theme rather than palette slots and only `auto` makes it ask the terminal which
 half it is on. A fresh install defaults to `dark`, which is why the second machine showed the
 dark half's slash command blue on a light terminal. `decisions/claude-code-theme.md` has it.
@@ -359,69 +358,43 @@ dark half's slash command blue on a light terminal. `decisions/claude-code-theme
 ships `jq` since 15, but the Brewfile guarantees it).
 
 That merge used to exit the moment it found a `statusLine` key already set, which made it a
-script that could configure a machine exactly once and never again. Adding the hooks under
+script that could configure a machine exactly once and never again. Anything added under
 that guard would have reached every new machine and no existing one, so it now builds the
-settings it wants, compares, and writes only on a difference. Foreign keys survive, and a
-hook group of ours is dropped and re-appended rather than stacked, matched on the script
-path, so Claude Code's own writes and anything added by hand are left alone. The same trap
-still sits in `setup-zshrc.sh`, which is worth knowing before changing what it generates.
+settings it wants, compares, and writes only on a difference. Foreign keys survive, so Claude
+Code's own writes and anything added by hand are left alone. It also prunes a retired hook of
+ours from every event it was wired into, so a machine that carries it is repaired by the same
+run. The same trap still sits in `setup-zshrc.sh`, which is worth knowing before changing
+what it generates.
 
-### Why a session needs a hook to be visible to herdr
+### Why a session behind iris is invisible to herdr, and why no hook fixes it
 
-The rule is about wrappers rather than about any one of them. Herdr decides what an agent pane
-is by reading the pane's foreground process, so anything that holds the pane's terminal and
-runs the shell behind it on a pty of its own hides whatever is really running, forever. A pane
-that fails that first check never has a title rule or a screen rule evaluated against it, so
-the whole detection stack below is unreachable rather than wrong. Everything else already
-worked. The OSC title a session sets matches herdr's claude manifest exactly, and once the pane
-is identified that manifest takes over and reports working, idle and blocked correctly. Only
-identification was ever missing.
+Herdr names an agent pane by listing one process group, the foreground group of the pane's
+own pty, and matching names in it. Iris holds that pty and runs the shell on a pty of its own
+in its own session, so the group herdr lists reads iris and iris and claude is never in it.
+That is a kernel fact rather than an iris choice. A controlling terminal belongs to one
+session, iris has to keep the outer one to read keys, so the shell needs a new session on a
+new pty, and no process in it can ever be the outer tty's foreground group. Herdr never walks
+parents or children, though it already fetches each process's parent pid and never reads it,
+so the one fix that costs nothing downstream is a descendant walk in herdr's `foreground_job`.
+That is upstream's to make. `decisions/herdr-agent-detection.md` has the source lines and the
+measurements.
 
-Iris is the wrapper that happens to be here, which is why the panes that predate it are listed
-and no pane created since is, and it is deliberately not what the fix is built around. Nothing
-below reads an iris variable, asks whether iris is running, or changes if iris is replaced by
-something else or removed entirely. That was measured rather than hoped for. On a pane built
-with `IRIS_RESCUE=1`, where the shell is bare zsh and herdr names the agent by itself, the hook
-firing changes nothing. The pane stays named, the manifest keeps deciding the state, and the
-release at the end does not evict a session that is still running. So the hook is the answer
-whenever a wrapper hides the process and a harmless no op whenever nothing does.
+A hook that reported the pane to herdr was the answer here from 2026-09-14 to 2026-09-16, and
+it was a hotfix that made things worse. In herdr a state reported by any source becomes the
+pane's state authority until released. Screen detection keeps running and `herdr agent
+explain` keeps showing its answer, but the sidebar reads the authority, so a hook that
+reports idle at session start leaves the pane idle for the life of the session, no working,
+no blocked, no done notification. It does the same to a pane herdr identifies by itself, so
+it was not a harmless no op without iris either. Reporting every state from Claude Code's
+events would be rebuilding what herdr's own claude integration deliberately stopped doing in
+0.6.7, when hook driven state kept going stale, and it would still miss what the screen
+manifest already handles. So there is no hook here, `setup-claude-settings.sh` prunes the old
+one, and nothing in this repository announces a session to herdr.
 
-The general principle is worth keeping separate from this instance. Do not ask herdr to see
-through a wrapper, and do not ask the wrapper to step aside, because the first is not in your
-gift and the second costs the wrapper its reason to exist. Have the program that already knows
-say so. Anything else added here that hides a process from the pane it runs in wants the same
-shape, one hook belonging to the thing being hidden, announcing itself at its own boundaries.
-
-`hooks/herdr-agent-pane.sh` runs `herdr pane report-agent` on `SessionStart` and
-`herdr pane release-agent` on `SessionEnd`. Those two commands are documented as the way a
-custom hook reports an agent, and the source id carries the `custom:` prefix the socket API
-documents for a reporter that is not one of herdr's own integrations, so this is the
-supported interface rather than a way around one. The hook is a no op anywhere the herdr
-environment variables are absent, it never fails, and it reports nothing about state beyond a
-seed, because herdr's own manifest is better at that than a hook can be.
-
-Three things about it were measured rather than assumed, and each one cost a wrong turn.
-
-The `HERDR_AGENT` hint that herdr's documentation gives for wrapper processes does work here,
-and it is still the wrong tool. It is read from the foreground process environment, which is
-fixed when iris is exec'd from the zshrc, long before anyone knows whether that pane will run
-an agent. Scoping it means marking panes by hand, and setting it globally means every plain
-shell pane claims to be a claude pane and joins the agents panel as an idle row.
-
-Herdr's own claude integration, `herdr integration install claude`, installs a hook of very
-nearly this shape and does not fix any of it. All it reports is session identity, and session
-identity does not identify a pane. It is worse than useless here. Once a pane carries a
-session recorded under the source id `herdr:claude`, herdr treats that pane as owned by its
-own integration and refuses every other source, so installing it permanently blocks the thing
-that does work. Nothing clears that claim short of closing the pane. So the source id in the
-hook is this repository's name on purpose, and the integration must stay uninstalled.
-
-The pane id is a positional argument and it comes first. Both commands reject it when it
-trails the options, which reads exactly like a broken parser and is not one. Believing that
-is what sent the first version of this hook off to hand write JSON onto the socket with `nc`,
-carrying a paragraph here explaining why the CLI could not be used. The CLI could be used.
-The lesson is narrow and worth keeping, which is that a nonzero exit from a compound shell
-command belongs to the last command in it, not to the interesting one earlier in the line.
+Two facts about herdr's CLI are worth keeping from that episode. `herdr integration install
+claude` reports session identity only, for `claude --resume` after a server restart, and
+never state. And the pane id is a positional argument that comes first for every `herdr pane`
+command, which reads exactly like a broken parser when it trails the options and is not one.
 
 ### Hammerspoon
 
@@ -535,13 +508,10 @@ that, ghost text only until Shift+Tab asks for the menu, and 0 turns both off.
 
 Holding the tty has one consequence that reaches outside iris entirely. Anything that
 identifies a program by reading a pane's foreground process sees iris and never sees what is
-running behind it, and herdr's agents panel is exactly that, which is why a Claude session
-now announces itself through a hook. That hook is written for the class rather than for iris,
-so replacing iris or dropping it changes nothing about it. The mechanism, the proof that it is
-a no op without a wrapper, and the three wrong turns are under Claude Code above. Anything else
-added here that expects to be recognised by the process it runs will need the same kind of
-answer, and `check-dependencies.sh` now warns when the two things that silently break it
-happen.
+running behind it, and herdr's agents panel is exactly that, so a Claude session behind iris
+is not listed there. Nothing in iris can change that, and a hook that announced the session
+was tried and removed because it froze the state it announced. The section under Claude Code
+above says why, and the only fix that costs nothing downstream lives in herdr.
 
 #### The theme
 

@@ -681,72 +681,7 @@ done
 [[ $named_bad -eq 0 ]] && say "  every named value is assigned by reference"
 
 #-------------------------------------------------------------------------------
-# Check eight, the two ways an agent stops announcing itself to herdr
-#-------------------------------------------------------------------------------
-
-say ""
-say "==> Agents announcing themselves to herdr"
-
-# Herdr names an agent pane by reading the pane's foreground process, so any wrapper that
-# holds the pane's terminal and runs the shell behind it hides whatever is really running.
-# The answer is not to fight the wrapper, it is for the program that knows to say so, which
-# is what dotfiles/claude ships a SessionStart and SessionEnd hook for. That hook is the
-# whole mechanism, and it fails silently in both directions, so both ways it can stop
-# working are checked here rather than found by noticing an empty panel days later.
-#
-# Both are facts about this machine rather than repository defects, so both are warnings,
-# the same reasoning the grants check already rests on.
-
-# Herdr's own integration for an agent is the first way. It reports session identity and
-# never identifies a pane, and once it has recorded a session the pane belongs to it and no
-# other source may name that pane again, which neither release-agent nor
-# clear-agent-authority undoes. So installing one does not help and permanently prevents the
-# thing that does. The rule generalises past claude, since every agent herdr ships an
-# integration for would poison its own pane the same way.
-herdr_poisoned=0
-if command -v herdr >/dev/null 2>&1; then
-    while IFS= read -r line; do
-        [[ -z "$line" ]] && continue
-        agent="${line%%:*}"
-        warn "herdr's $agent integration is installed, which permanently stops a pane behind a wrapper from being named, run herdr integration uninstall $agent"
-        herdr_poisoned=$((herdr_poisoned + 1))
-    done < <(herdr integration status 2>/dev/null | grep -v "not installed")
-fi
-
-# The hook going missing from settings.json is the second way. That file is not tracked here
-# because Claude Code writes to it, so nothing stops it or a person from dropping the entry,
-# and src/setup-claude-settings.sh putting it back is only as good as somebody running it.
-herdr_unwired=0
-claude_settings="$HOME/.claude/settings.json"
-if [[ -f "$claude_settings" ]] && command -v jq >/dev/null 2>&1; then
-    for event in SessionStart SessionEnd; do
-        if ! jq -e --arg e "$event" \
-            'any(.hooks[$e][]?.hooks[]?.command // ""; contains("herdr-agent-pane.sh"))' \
-            "$claude_settings" >/dev/null 2>&1; then
-            warn "the herdr agent pane hook is not wired into $event in ~/.claude/settings.json, run src/setup-claude-settings.sh"
-            herdr_unwired=$((herdr_unwired + 1))
-        fi
-    done
-fi
-
-# A pane already carrying a session under one of herdr's own source ids is the third way,
-# and the one that survives uninstalling the integration. The record lives for the life of
-# the server and blocks every other source, so from the outside the pane looks like one the
-# hook never reached. Naming it is what turns an empty panel into an instruction, close this
-# pane and open a new one, since nothing else recovers it.
-if command -v herdr >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
-    while IFS= read -r pane; do
-        [[ -z "$pane" ]] && continue
-        warn "herdr pane $pane carries a session record from a herdr integration and cannot be named by the hook, close it and open a new pane"
-        herdr_poisoned=$((herdr_poisoned + 1))
-    done < <(herdr pane list 2>/dev/null \
-        | jq -r '.result.panes[]? | select(.agent_status == "unknown" and ((.agent_session.source // "") | startswith("herdr:"))) | .pane_id')
-fi
-
-[[ $herdr_poisoned -eq 0 && $herdr_unwired -eq 0 ]] && say "  every agent can still announce its pane"
-
-#-------------------------------------------------------------------------------
-# Check nine, the decisions record keeps its shape
+# Check eight, the decisions record keeps its shape
 #-------------------------------------------------------------------------------
 
 say ""

@@ -5,9 +5,12 @@ set -e
 # settings.json is intentionally not tracked/stowed (Claude Code writes to it
 # directly), so these keys must be merged in here rather than symlinked.
 #
-# Three things are merged. The statusLine command, the herdr agent pane hook, which
-# reports a session to herdr on the way in and releases it on the way out, and the theme.
-# The hook explains itself at dotfiles/claude/.claude/hooks/herdr-agent-pane.sh.
+# Two things are merged, the statusLine command and the theme. A third, a SessionStart and
+# SessionEnd hook that reported the session to herdr's agents panel, was removed on
+# 2026-09-16 because a reported state becomes the pane's state authority in herdr and froze
+# every session at idle. decisions/herdr-agent-detection.md has the record. Any copy of that
+# hook still wired into settings.json on a machine is pruned here, so an outdated machine is
+# repaired by the same run that configures a fresh one.
 #
 # The theme is `auto` because Claude Code paints its own hex colours per theme rather than
 # palette slots, so a fixed `dark` keeps the dark half's slash command blue and yellow on a
@@ -17,7 +20,7 @@ set -e
 # in a light one until this was set by hand. decisions/claude-code-theme.md has the record.
 #
 # This used to exit early when the statusLine key was already present, which made it a
-# script that could only ever configure a machine once. Adding the hooks would then have
+# script that could only ever configure a machine once. Anything added later would then have
 # reached every new machine and no existing one, which is the same trap setup-zshrc.sh still
 # carries. So it builds the settings it wants, compares, and writes only on a difference.
 # Running it twice changes nothing and says so.
@@ -25,38 +28,34 @@ set -e
 SETTINGS="$HOME/.claude/settings.json"
 STATUSLINE_COMMAND="~/.claude/statusline-command.sh"
 STATUSLINE_SCRIPT="$HOME/.claude/statusline-command.sh"
-HOOK_COMMAND="~/.claude/hooks/herdr-agent-pane.sh"
-HOOK_SCRIPT="$HOME/.claude/hooks/herdr-agent-pane.sh"
+RETIRED_HOOK="herdr-agent-pane.sh"
 
-# Claude Code runs both of these as commands, so they must be executable or they fail with
-# "permission denied", silently in the hook's case. The bit is tracked in git (100755), but
-# ensure it here too in case it is ever lost. chmod follows the stow symlink to the repo file
-# (idempotent).
+# Claude Code runs the status line as a command, so it must be executable or it fails with
+# "permission denied". The bit is tracked in git (100755), but ensure it here too in case it
+# is ever lost. chmod follows the stow symlink to the repo file (idempotent).
 [ -e "$STATUSLINE_SCRIPT" ] && chmod +x "$STATUSLINE_SCRIPT"
-[ -e "$HOOK_SCRIPT" ] && chmod +x "$HOOK_SCRIPT"
 
 mkdir -p "$HOME/.claude"
 [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
 
-# Any hook group of ours is dropped before ours is appended, matched on the script path, so
-# re-running replaces rather than stacks. A group belonging to anything else is untouched,
-# since Claude Code writes to this file and so does the person using it.
+# The retired hook is pruned from every event it was ever wired into, matched on the script
+# name, and an event or a hooks table left empty by that is dropped rather than kept as an
+# empty list. A group belonging to anything else is untouched, since Claude Code writes to
+# this file and so does the person using it.
 tmp="$(mktemp)"
 jq \
     --arg statusline "$STATUSLINE_COMMAND" \
-    --arg hook "$HOOK_COMMAND" '
+    --arg retired "$RETIRED_HOOK" '
       def prune($cmd):
         map(.hooks |= map(select((.command // "") | contains($cmd) | not)))
         | map(select((.hooks | length) > 0));
 
-      def entry($cmd; $arg):
-        { matcher: "*", hooks: [ { type: "command", command: ($cmd + " " + $arg), timeout: 5 } ] };
-
       .statusLine = { type: "command", command: $statusline }
       | .theme = "auto"
-      | .hooks = (.hooks // {})
-      | .hooks.SessionStart = ((.hooks.SessionStart // []) | prune($hook)) + [ entry($hook; "start") ]
-      | .hooks.SessionEnd   = ((.hooks.SessionEnd   // []) | prune($hook)) + [ entry($hook; "end")   ]
+      | (if .hooks then
+          .hooks |= (with_entries(.value |= prune($retired)) | with_entries(select((.value | length) > 0)))
+          | (if (.hooks | length) == 0 then del(.hooks) else . end)
+        else . end)
     ' "$SETTINGS" > "$tmp"
 
 if cmp -s "$tmp" "$SETTINGS"; then

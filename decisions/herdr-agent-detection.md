@@ -1,7 +1,8 @@
 # Herdr agent detection behind a terminal wrapper
 
-Status. Solved by a Claude Code hook that announces its own pane, committed as c82178d and
-confirmed in ordinary use on 2026-09-15, with upstream issues drafted and one limit recorded.
+Status. Open. The hook from c82178d was removed on 2026-09-16 because it owned the state it
+announced and froze every session at idle. A session behind iris is not listed, the fix lives
+in herdr's identification, and whether iris earns that cost is being reconsidered.
 
 ## Now
 
@@ -11,10 +12,18 @@ running, and a pane that fails that first check never has a title rule or a scre
 evaluated against it. Iris is the wrapper that happens to be here.
 
 `dotfiles/claude/.claude/hooks/herdr-agent-pane.sh` runs `herdr pane report-agent` on
-`SessionStart` and `herdr pane release-agent` on `SessionEnd`, both documented as how a custom
-hook reports an agent, with the source id `custom:mdj-env`. Once the pane is named, herdr's own
-claude manifest decides the state. The hook reads nothing of iris and is a measured no op on a
-pane where herdr can see the agent by itself, so replacing or removing iris changes nothing.
+`SessionStart` and `herdr pane release-agent` on `SessionEnd` with the source id
+`custom:mdj-env`. That names the pane, and it also makes the hook the pane's state authority.
+Herdr keeps one authority slot per pane, and a reported state from any source that is not one
+of herdr's own full lifecycle integrations is effective until released or until the process
+exits. Screen detection keeps running and `herdr agent explain` keeps showing its answer, but
+the sidebar reads the authority, so the pane shows the one state the hook reported, idle, for
+the life of the session. The same happens on a pane herdr identifies by itself, so the hook is
+not a no op without iris either. It is gone, the hook file, its declaration, the reconciler
+check that watched it, and the settings merge now prunes it from any machine that still
+carries it. Nothing in this repository announces a session to herdr, so a session behind iris
+is not listed, and a pane herdr sees by itself works fully. The measured detail and the
+source lines are in the 2026-09-16 log entries.
 `src/setup-claude-settings.sh` wires it, `src/check-dependencies.sh` warns when it is unwired
 or when any herdr integration is installed, and the reasoning is in the root CLAUDE.md under
 Claude Code.
@@ -51,6 +60,8 @@ that out from an empty panel.
   why that pane never recovered. It also gives the one thing our source cannot, conversation
   resume after a herdr server restart, so on this machine it is detection or resume, never
   both. Never install it. The reconciler warns if it is.
+  Reopened 2026-09-16 00:55. The reason was that it blocked our hook, and the hook is gone.
+  It is no longer forbidden and the reconciler no longer warns. Not tried since.
 - **Fixing it inside iris.** 2026-09-14 about 23:05. Read `root/wrapper.go`. The shell is
   started with `Setsid` and `Setctty` at line 247, so it lives in its own session, and the outer
   terminal goes raw at line 274 so iris can read every key. A terminal can only have a
@@ -87,6 +98,7 @@ state on a pane already named, and the second was never needed.
 `herdr pane report-agent` from a made up source names the pane, and `herdr agent explain`
 immediately shows `rule: osc_title_working` driving the state from the title. That is the whole
 finding. Only identification was missing and everything downstream already worked.
+Corrected 2026-09-16 00:43, see below.
 
 ### 2026-09-14 about 21:40
 
@@ -147,6 +159,7 @@ Rewrote the CLAUDE.md prose to state the rule before the instance. Added a secti
 `check-dependencies.sh` warning when any herdr integration is installed or the hook is unwired
 from either event, proved both by breaking and repairing them. The first version of the jq
 test warned when the hook was present, fixed before it landed.
+Corrected 2026-09-16 00:43, see below.
 
 ### 2026-09-14 about 23:55
 
@@ -205,3 +218,55 @@ behind iris as every pane here is, and it appeared in the agents panel with noth
 hand. That is the first confirmation from normal use rather than from a throwaway pane driven
 by the assistant, and it is the one that counts. The poisoned pane wA:pR stays the single
 exception, and the reconciler names it.
+
+### 2026-09-16 00:43
+
+Milos reports that agents appear in the panel and never change state, no working, no blocked,
+no done notification. Measured on this session's pane, wA:pY. Title `◐ ...`, `herdr agent
+explain` says working by `osc_title_working`, `herdr agent get` says idle. Reproduced on a
+throwaway pane. Named idle from a custom source, then held a working title for forty seconds,
+status stayed idle while explain said working. Reported unknown, status became unknown while
+explain still said working. So the 21:30 belief was wrong. `explain` shows what detection
+would say, not what the pane shows, and a `report-agent` from any source takes the state.
+
+The 23:15 belief was wrong too. On a pane with no iris and a process named claude holding a
+working title, herdr showed working by itself. One `report-agent --state idle` from
+`custom:mdj-env`, the exact call the hook makes, and the status was idle while the title still
+said working. A release afterwards left it unknown. So the hook damages native detection as
+well, and removing iris does not make the hook harmless.
+
+Read herdr 0.9.0's source to see why. `src/terminal/state.rs` keeps one `hook_authority` per
+terminal, `recompute_effective_state` takes the authority's state whenever
+`hook_authority_is_effective`, and that is true for every source that is not in the six
+entry allowlist in `src/detect/mod.rs` `full_lifecycle_hook_authority`. Screen results land
+in `fallback_state` and are used only with no effective authority. A visible blocker can
+override a hook, but only when the process probe also identified the agent, which behind iris
+it never does. Herdr's own claude hook never calls `report_agent` at all, only
+`report_agent_session`, because upstream moved claude to screen detection in 0.6.7 after
+hook driven state proved stale. The docs say so in the integrations table.
+
+Identification itself is `proc_listpids(PROC_PGRP_ONLY, tcgetpgrp(tty))` in
+`src/platform/macos.rs` `foreground_job`, one process group on one tty, no parent walk, and
+`HERDR_AGENT` is read from the environment of members of that same group. Nothing in herdr
+can reach a process on a pty a child opened. `process_bsdinfo` already fetches `pbi_ppid` and
+nothing reads it. So the fix that costs nothing downstream is a descendant walk in
+`foreground_job`, folding a child pty's foreground group into the job, after which
+`identify_agent_in_job` and the whole state engine work unchanged. Nothing in this repository
+can do that. Recorded as the answer, and the hook as something to remove rather than extend.
+
+### 2026-09-16 00:55
+
+Milos asked for the hook out. Removed `hooks/herdr-agent-pane.sh`, its line in
+`dotfiles/claude/DEPENDENCIES`, and check eight in the reconciler, which watched a mechanism
+that no longer exists. `setup-claude-settings.sh` now prunes the hook from every event in
+`settings.json` rather than appending it, ran it on this machine, everything but the hooks
+table is byte identical. The stow link in `~/.claude/hooks` was dangling after the restow and
+was removed by hand with the empty directory. The root CLAUDE.md section is rewritten to say
+why no hook can fix this and where the fix is.
+
+- **A patched herdr built here, pinned the way iris is.** 2026-09-16 01:05. Offered as the
+  one fix that costs nothing downstream, a descendant walk in `foreground_job`. Milos declined
+  it for now, unsure of the route, and said the gymnastics were for iris's sake and iris
+  itself needs reevaluating. Listed in the log rather than under Rejected because it was not
+  turned down on its merits, only not taken. The upstream issue with the `script`
+  reproduction is still the cheapest thing to do and is still unfiled.
