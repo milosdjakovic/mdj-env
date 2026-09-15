@@ -407,6 +407,14 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`. See `dotfiles/hammerspoon
 
 Testing a Hammerspoon change live goes through `bin/hs-devlock`, a machine-wide test lock, since only one config can run at a time. Take it only for testing, release it back to main the moment testing stops being the focus, and never hold it across development. The full discipline is in the hammerspoon `CLAUDE.md` under "Testing a change in an isolated worktree, and the test lock", read it before making any Hammerspoon config live.
 
+**Never propose an Olm plugin. Only build one when explicitly asked for one.** This is
+strict and it has no exceptions. Offering a plugin as one option among several is still
+proposing it, and a choice made from a menu somebody else wrote is not a request. Work that
+belongs to a shell, a config file, or a script is solved in that layer, and if there is no way
+to solve it there, say so plainly and let the person decide rather than reaching up into the
+layer that runs everything else on the machine. The rule exists because a shell colour problem
+became a new plugin this way, built, gated, loaded, and then reverted in full.
+
 Any work that creates or changes an Olm plugin goes through the `olm-plugin` skill at
 `.claude/skills/olm-plugin/SKILL.md`. It carries the decision rules and the gates, and it
 routes to the authoring guide and the contract inside the spoon. Do not build or modify a
