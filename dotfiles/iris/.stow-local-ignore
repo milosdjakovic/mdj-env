@@ -2,3 +2,8 @@
 # module's contract with the layer above, so it belongs to the repository rather than to the
 # running configuration.
 DEPENDENCIES
+# The map and the emitter are this module's half of the theme contract, read by
+# src/check-theme.sh and by nothing iris loads. The module guidance is the same.
+theme-map
+theme-emit
+CLAUDE.md

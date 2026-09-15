@@ -1,7 +1,7 @@
 # One palette, every tool painted from it
 
-Status. `theme/` is the source of colour, Ghostty, Neovim and herdr are generated from it,
-iris, fzf, tmux and the Claude statusline still carry their own copies and are next.
+Status. `theme/` is the source of colour, Ghostty, Neovim, herdr and iris are generated from
+it, fzf, tmux and the Claude statusline still carry their own copies and are next.
 
 ## Now
 
@@ -168,3 +168,20 @@ the theme section with the reload step.
 
 **2026-09-15 18:24.** Reattached and confirmed by eye, herdr looks right on the generated
 tables.
+
+**2026-09-15 18:29.** iris is painted from the palette, on herdr's shape. Its `theme.toml` is
+two things, flat keys that are ANSI slots and two per half tables, and only the tables are
+generated, since a slot is not a role and the slot keys follow the terminal, which is painted
+from the same source. The emitter owns the span from the `[dark]` header to the end of the
+file. Two calls made here rather than brought, both small and both reversible in the map.
+`text_sel` and `sel_text` were slots that differed by half only because the ink and the page
+sit in different slots on each half, so they now name `foreground` and `background` and come
+out as hex. `sel_text` on light was slot 15, which is `surface`, and it is `background` now
+because it is a label painted over the tag's own fill, the same answer herdr's chip gives, and
+the two neutrals are a step apart. `sel_bg` is `highlight` and `desc_sel` is `subtext`, so the
+dark bar moved from `#3b3552` to `#3a2e56` and light `desc_sel` from `#5c5c5f` to `#5c5a6a`,
+both within the units herdr already moved by. iris has no reload, it reads the file at start,
+so a new pane is the test. `dotfiles/iris/CLAUDE.md` is new and carries that, and the root
+`CLAUDE.md` iris section now points at the roles rather than at herdr's tokens.
+
+**2026-09-15 18:48.** Confirmed in a new pane, the iris selected row looks right.

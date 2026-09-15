@@ -568,10 +568,11 @@ inherit forces `match` to inherit, and then the bar has to be dark enough for th
 `#ffca85` and light enough for the light half's `#6b4400` at once, which lands at 2.05 on slot
 8, 1.08 on slot 4 and 1.27 on slot 7. There is no single bar, which is why the feature exists.
 
-The bars are herdr's `selection_bg` and the secondary text its `subtext0`, so the two surfaces
-agree rather than each inventing a highlight. `text_sel` and `sel_text` also flip, because each
-palette keeps its ink in a different slot and because one palette's accents are the bright ones
-where the other's are the dark ones.
+The two tables are generated from `theme/` by the emitter at the package root. The bar is
+the `highlight` role, the same bar herdr's navigate row carries, and the secondary text is
+`subtext`, so the two surfaces agree rather than each inventing a highlight. `text_sel` and
+`sel_text` are the ink and the page by role, which is what their flipping slots always meant.
+`dotfiles/iris/CLAUDE.md` has the reload step.
 
 The appearance is asked for once by OSC 11 in the watchdog, which is the only moment iris holds
 the tty with nothing else reading it, and after that the terminal reports changes on its own.

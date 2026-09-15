@@ -1,0 +1,15 @@
+# iris's keys that the palette answers, each pointing at a role from theme/VOCABULARY. This
+# file knows iris's vocabulary for the selected row and the palette knows nothing about it.
+#
+# Only the selected row is here. Everything drawn on the page in theme.toml is an ANSI slot
+# written by hand, since a slot is not a role, and those keys follow the terminal's palette,
+# which Ghostty paints from this same source. The four keys below are the ones a slot cannot
+# carry. sel_bg is the bar, which has to be a tint of the page and no slot is dark on one half
+# and light on the other. The other three used to be slots that differed by half only because
+# the ink and the page sit in different slots on each half, and naming the role says what
+# they always meant. sel_text is the tag label painted over the tag's own fill once the row is
+# selected, so it is the page, the same answer herdr's chip label gives.
+sel_bg = highlight
+text_sel = foreground
+desc_sel = subtext
+sel_text = background
