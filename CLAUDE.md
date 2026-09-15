@@ -326,10 +326,13 @@ Configuration in `dotfiles/claude/.claude/` (stow managed):
 `settings.json` is not tracked in the repo because Claude Code modifies it
 directly. Since it is not stowed, the keys that point at the stowed scripts cannot be
 symlinked in, so `src/setup-claude-settings.sh` merges them into `~/.claude/settings.json`
-with `jq` and runs from `setup.sh` after stow. It writes two things, the `statusLine`
-command and the two hook entries below. `jq` is in the Brewfile because the statusline
-script and this merge both depend on it (macOS ships `jq` since 15, but the Brewfile
-guarantees it).
+with `jq` and runs from `setup.sh` after stow. It writes three things, the `statusLine`
+command, the two hook entries below, and `theme = "auto"`, because Claude Code paints hex
+colours per theme rather than palette slots and only `auto` makes it ask the terminal which
+half it is on. A fresh install defaults to `dark`, which is why the second machine showed the
+dark half's slash command blue on a light terminal. `decisions/claude-code-theme.md` has it.
+`jq` is in the Brewfile because the statusline script and this merge both depend on it (macOS
+ships `jq` since 15, but the Brewfile guarantees it).
 
 That merge used to exit the moment it found a `statusLine` key already set, which made it a
 script that could configure a machine exactly once and never again. Adding the hooks under

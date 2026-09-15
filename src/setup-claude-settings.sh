@@ -5,9 +5,16 @@ set -e
 # settings.json is intentionally not tracked/stowed (Claude Code writes to it
 # directly), so these keys must be merged in here rather than symlinked.
 #
-# Two things are merged. The statusLine command, and the herdr agent pane hook, which
-# reports a session to herdr on the way in and releases it on the way out. The hook explains
-# itself at dotfiles/claude/.claude/hooks/herdr-agent-pane.sh.
+# Three things are merged. The statusLine command, the herdr agent pane hook, which
+# reports a session to herdr on the way in and releases it on the way out, and the theme.
+# The hook explains itself at dotfiles/claude/.claude/hooks/herdr-agent-pane.sh.
+#
+# The theme is `auto` because Claude Code paints its own hex colours per theme rather than
+# palette slots, so a fixed `dark` keeps the dark half's slash command blue and yellow on a
+# light terminal. `auto` is what makes it ask the terminal which half it is on, through herdr
+# and through iris, which is the chain decisions/iris-appearance-theme.md exists for. A fresh
+# install defaults to `dark`, so the second machine looked right in a dark terminal and wrong
+# in a light one until this was set by hand. decisions/claude-code-theme.md has the record.
 #
 # This used to exit early when the statusLine key was already present, which made it a
 # script that could only ever configure a machine once. Adding the hooks would then have
@@ -46,6 +53,7 @@ jq \
         { matcher: "*", hooks: [ { type: "command", command: ($cmd + " " + $arg), timeout: 5 } ] };
 
       .statusLine = { type: "command", command: $statusline }
+      | .theme = "auto"
       | .hooks = (.hooks // {})
       | .hooks.SessionStart = ((.hooks.SessionStart // []) | prune($hook)) + [ entry($hook; "start") ]
       | .hooks.SessionEnd   = ((.hooks.SessionEnd   // []) | prune($hook)) + [ entry($hook; "end")   ]
