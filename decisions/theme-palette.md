@@ -296,3 +296,23 @@ accident, the split and the strip landing on the two names. `{ color = "pur,ple"
 misleading. The reader refuses all three now with the line number, the way it refuses a nested
 table, since refusing is the smaller change and nothing here has ever needed a comma inside a
 value. The subset paragraph in `theme/CLAUDE.md` says so.
+
+**2026-09-15 23:45.** Fourth, hex outside the palette checked in every file under `dotfiles`,
+not only in the maps, the emitters, `VOCABULARY` and `active.toml`. A file carrying the
+generated banner is exempt, which also exempts the hand written part of a file an emitter
+owns only in part, herdr's and iris's, a known limit of exempting by file. A file is reported
+once with its count and its first line, since a whole hand written theme is one finding.
+Fifteen files fail it, and the expectation that kitty and wezterm would be the two was half
+right. wezterm names WezTerm's bundled `Aura (Gogh)` scheme and carries no hex at all. kitty
+fails twice, its theme file, and its `kitty.conf` where all thirty one hits sit inside kitty's
+own commented documentation. alacritty, also unstowed, carries a full hand written Aura.
+Three Ghostty variant files, `aura-soft-dark`, `aura-dark-soft-text` and
+`aura-soft-dark-soft-text`, are stowed, hand written, and nothing references them, which
+contradicts the claim in `theme/CLAUDE.md` that nothing stowed carries a copy. Hammerspoon has
+six, the panel chrome in `settings.lua`, the same four preview defaults repeated in four
+files, and forty one brand colours for language and framework icons in `icons.lua`, which are
+not the palette's. The Claude `html-reports` skill carries a monochrome report palette in its
+`SKILL.md` and its template, a document style rather than a tool theme. And one comment in
+Neovim's `lualine.lua` cites two hex values in prose. Brought before any exemption or map is
+decided. The Status line here and the last paragraph of `theme/CLAUDE.md` wait on that
+decision, since both say kitty and wezterm are the only holdouts.
