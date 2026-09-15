@@ -319,28 +319,35 @@ fi
 # Every tool that paints
 #-------------------------------------------------------------------------------
 
-# A tool's map resolved to its own keys, key TAB hex, for one half. A map names roles and
-# nothing else, and a key under [dark] or [light] answers only that half. The map may not
-# carry a hex, a colour name, or anything that is not a role in the vocabulary, and each of
-# those is named with the file and the key.
-resolve_map() {
-    local map="$1" half="$2" roles="$3" out="$4" pkg="$5"
-    : >"$out"
-    local rec; rec="$(mktemp)"
+# A tool's map read once, into one record per line, and checked before either half resolves
+# from it. A key written twice in one section is an error rather than a silent pick, since
+# which one won would depend on sort order. The check covers every section in one pass, so a
+# duplicate is reported once rather than once per half, and a duplicate under the section of
+# a half a held mode is not reading is still reported, where the per half check skipped it.
+read_map() {
+    local map="$1" rec="$2" pkg="$3"
     if ! toml_records "$map" >"$rec" 2>"$rec.err"; then
         err "$pkg/theme-map has a line outside the subset this reader accepts"
         while IFS= read -r line; do say "         $line"; done <"$rec.err"
-        rm -f "$rec" "$rec.err"; return 1
+        return 1
     fi
-    # A key under the half's own section overrides the same key at top level, the way
-    # [roles.light] overrides [roles] in a palette. A key written twice in one section is an
-    # error rather than a silent pick, since which one won would depend on sort order.
     local dup
-    dup="$(awk -F'\t' -v h="$half" '($1 == "" || $1 == h) { c[$1 "\t" $2]++ } END { for (k in c) if (c[k] > 1) { split(k, p, "\t"); print p[2] " under [" (p[1] == "" ? "top level" : p[1]) "]" } }' "$rec")"
+    dup="$(awk -F'\t' '{ c[$1 "\t" $2]++ } END { for (k in c) if (c[k] > 1) { split(k, p, "\t"); print p[2] " under [" (p[1] == "" ? "top level" : p[1]) "]" } }' "$rec" | sort)"
     if [[ -n "$dup" ]]; then
         while IFS= read -r line; do err "$pkg/theme-map, $line is written twice"; done <<<"$dup"
-        rm -f "$rec" "$rec.err"; return 1
+        return 1
     fi
+    return 0
+}
+
+# A tool's map resolved to its own keys, key TAB hex, for one half. A map names roles and
+# nothing else, and a key under [dark] or [light] answers only that half, overriding the same
+# key at top level the way [roles.light] overrides [roles] in a palette. The map may not
+# carry a hex, a colour name, or anything that is not a role in the vocabulary, and each of
+# those is named with the file and the key.
+resolve_map() {
+    local rec="$1" half="$2" roles="$3" out="$4" pkg="$5"
+    : >"$out"
     # The half's own section over the top level, sorted, then every key answered from the
     # resolved roles in one pass, for the same reason resolve_half is one pass. The sort sits
     # between the two so the order a key reaches the emitter in is decided by the key alone.
@@ -369,7 +376,7 @@ resolve_map() {
         ' "$roles" "$VOCABULARY" - >"$out" 2>"$complaint"
     local line
     while IFS= read -r line; do err "$line"; done <"$complaint"
-    rm -f "$rec" "$rec.err" "$complaint"
+    rm -f "$complaint"
 }
 
 say "==> Writing every tool's theme"
@@ -390,9 +397,14 @@ while IFS= read -r emit; do
     # written from the dark palette has to read the dark section too, or ANSI black lands on
     # the ink because the map's light section said so. Found by holding the mode and
     # diffing the two Ghostty files, which should have been identical and were not.
+    mrec="$(mktemp)"
+    if ! read_map "$map" "$mrec" "$pkg"; then
+        rm -f "$mrec" "$mrec.err"; continue
+    fi
     dmap="$(mktemp)"; lmap="$(mktemp)"
-    resolve_map "$map" "${dark_src##*:}"  "$dark_roles"  "$dmap" "$pkg"
-    resolve_map "$map" "${light_src##*:}" "$light_roles" "$lmap" "$pkg"
+    resolve_map "$mrec" "${dark_src##*:}"  "$dark_roles"  "$dmap" "$pkg"
+    resolve_map "$mrec" "${light_src##*:}" "$light_roles" "$lmap" "$pkg"
+    rm -f "$mrec" "$mrec.err"
 
     # The emitter lists what it owns, the files are snapshotted, it writes, and any file that
     # came out different is stale, exactly how a regenerated DEPENDENCIES is reported.

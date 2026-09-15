@@ -274,3 +274,14 @@ identical too, once a first comparison that ran the old script and the new one o
 tree was redone with the generated file restored between them, since the first run had
 regenerated it and the second found it current. `lookup` stays for the three keys of
 `active.toml`, which are not per half.
+
+**2026-09-15 23:41.** Second, a duplicate map key reported once. The check ran inside the per
+half resolver over the top level and that half's section, so a top level duplicate was
+reported twice, and on a held mode a duplicate under the section of the half not being read
+was never reported at all, proved by holding dark with `palette0` written twice under
+`[light]`, where the old check said nothing and the new one names it. The map is now read once
+per tool and checked across every section before either half resolves, and a map that fails
+the read skips its emitter, where before the emitter was handed an empty map and rewrote the
+generated file from it, which is how a duplicate key used to cost a stale error on top of its
+own. The duplicate list is sorted so the order is the same on every run. `--show` and every
+generated file still byte identical.
