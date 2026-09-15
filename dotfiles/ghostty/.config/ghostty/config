@@ -13,7 +13,6 @@ theme = light:mdj-light,dark:mdj-dark
 macos-titlebar-style = hidden
 window-save-state = never
 window-inherit-working-directory = true
-window-save-state = never
 window-padding-y = 8
 window-padding-x = 8
 window-padding-balance = true

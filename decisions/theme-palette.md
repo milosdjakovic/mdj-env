@@ -376,3 +376,9 @@ above. `decisions/ghostty-aura-theme.md` still said all four variants were carri
 Status, Now and log say what is true. And the rule that a map, an emitter and an exemption go in
 `.stow-local-ignore` was a line in `theme/CLAUDE.md` that nothing checked, so the checker now
 refuses a theme file at a package root that stow would carry home.
+
+**2026-09-16 00:44.** `dotfiles/ghostty/CLAUDE.md` is written, the per module convention
+having been skipped for the one tool every slot painter follows. It carries the reload
+keystroke, the four declared slots, and the swap of the neutral slots by half, each of which
+cost a round earlier in this track. A `window-save-state` line written twice in `config` went
+with it, found while reading the file to write the guide.

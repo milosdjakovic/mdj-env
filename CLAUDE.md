@@ -448,6 +448,12 @@ BrowserTabs is the one config here with a test suite, in `dotfiles/hammerspoon/.
 
 Worktree convention. When you create a git worktree for a feature or fix, put it under a `.worktrees/` directory in the parent of the repo (beside this checkout, so `../.worktrees/` from the repo root), named for the feature, so worktrees stay in one place rather than scattered as bare siblings of the repo. Because that directory is outside the repo, it never shows up in the repo's own status. Never write the absolute path, always reach it relative to the repo.
 
+### Ghostty
+
+Configuration in `dotfiles/ghostty/`. See `dotfiles/ghostty/CLAUDE.md` for the generated theme
+pair and the reload keystroke, the four slots it declares for fzf, tmux and the Claude
+statusline, and why ANSI black and white swap by half.
+
 ### Herdr
 
 Configuration in `dotfiles/herdr/`. See `dotfiles/herdr/CLAUDE.md` for the popup surface and its
