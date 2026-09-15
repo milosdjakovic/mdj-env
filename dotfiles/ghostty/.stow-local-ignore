@@ -1,6 +1,9 @@
 # Repo only files at this package root, kept out of the home directory. The manifest is this
 # module's contract with the layer above, so it belongs to the repository rather than to the
-# running configuration.
+# running configuration. The guide is for a person and for Claude working in this repository,
+# and stowed it would land as ~/CLAUDE.md, which is what happened on the dry run that added
+# this line.
+CLAUDE.md
 DEPENDENCIES
 # The map and the emitter are this module's half of the theme contract, read by
 # src/check-theme.sh and by nothing Ghostty loads.
