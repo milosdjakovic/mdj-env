@@ -18,17 +18,20 @@ palette11 = tertiary
 palette12 = primary
 palette13 = quaternary
 palette14 = quinary
-# Slots 16, 17 and 18 are declared for fzf and are the first three no ANSI name claims.
+# Slots 16 to 19 are declared for fzf and tmux and are the first four no ANSI name claims.
 # Ghostty paints all 256, and nothing under dotfiles names any of them, checked against
 # p10k's forty indexes and every colour a script here writes. Slot 17 is the grey of herdr's
 # secondary line, which fzf's footer reads, and slot 18 is the quiet rule herdr's borders
 # take, which fzf's gutter glyph reads, since no slot among the sixteen holds either neutral
-# on both halves. Slot 16 is the bar under the current row and is declared per half below,
-# because a bar has to be a tint of the page and every one of the sixteen is claimed by a
-# role that differs by half, the page on one and the ink on the other. A theme switch
-# repaints all three with everything else and nothing watches anything.
+# on both halves. Slot 19 is the page, for text painted onto a signal colour, since slot 0 is
+# the page only on dark and slot 15 only sits near it on light. Slot 16 is the bar under the
+# current row, fzf's and the current window and session on the tmux bar, and is declared per
+# half below, because a bar has to be a tint of the page and every one of the sixteen is
+# claimed by a role that differs by half, the page on one and the ink on the other. A theme
+# switch repaints all four with everything else and nothing watches anything.
 palette17 = overlay
 palette18 = dim
+palette19 = background
 background           = background
 foreground           = foreground
 cursor-color         = primary

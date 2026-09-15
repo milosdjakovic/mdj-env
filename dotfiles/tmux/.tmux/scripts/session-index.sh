@@ -223,9 +223,9 @@ render() {
             # Underlined rather than marked with a leading character, matching the
             # window row. The rule ends with the name because the trailing space that
             # separates two entries is printed outside the styled run.
-            printf '#[range=session|%s]#[fg=white,underscore]%s:%s#[default]#[norange] ' "$sid" "$idx" "$name"
+            printf '#[range=session|%s]#[fg=default,underscore]%s:%s#[default]#[norange] ' "$sid" "$idx" "$name"
         else
-            printf '#[range=session|%s]#[fg=white]%s:%s#[default]#[norange] ' "$sid" "$idx" "$name"
+            printf '#[range=session|%s]#[fg=default]%s:%s#[default]#[norange] ' "$sid" "$idx" "$name"
         fi
     done
 }

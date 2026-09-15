@@ -1,8 +1,8 @@
 # One palette, every tool painted from it
 
 Status. `theme/` is the source of colour, Ghostty, Neovim, herdr and iris are generated from
-it and fzf draws in slots Ghostty declares, tmux and the Claude statusline still carry their
-own copies and are next.
+it, fzf and tmux draw in slots Ghostty declares, and the Claude statusline still carries its
+own copy and is next.
 
 ## Now
 
@@ -230,3 +230,21 @@ accent rather than a lift and dark `surface` at 0.03 is too faint to carry a row
 **2026-09-15 20:54.** Confirmed by eye on both halves after the Ghostty reload, fzf is
 satisfactory. The navy gutter seen on light before that reload was Ghostty's stock cube value
 for slot 18, and on dark the same stock navy had passed for a quiet bar by accident.
+
+**2026-09-15 23:08.** tmux. Its one hex, `@pill_grey '#3d3949'`, becomes `colour16`,
+the same declared slot fzf's current row reads, on the reasoning that the current window and
+session are the row the cursor is on. That forced the text on the block to change, since
+`white` is slot 7 and slot 7 on the light half is the faint `dim` grey, so it is `default`
+at rest, and on a signal colour it is `colour19`, a new slot declared as `background`,
+because `black` is the page on dark and the ink on light and no slot among the sixteen is the
+page on both. The bar's plain entries and the session strip were `white` too and are
+`default` now, the same defect in the same place. Brought as two questions and answered by
+proceed. Ghostty needs a reload for slot 19, the tmux server was not running so nothing to
+reload there.
+
+**2026-09-15 23:11.** The tmux pickers did not follow the file, because `fzf-base.sh`
+overrode the current row as reverse green, `bg+:-1,fg+:2:reverse,hl+:2:reverse:bold`, from
+when no slot could carry a bar. The override is gone and only the frame and label remain
+there, so every tmux popup draws the same grey bar and green matches the herdr finder does.
+
+**2026-09-15 23:14.** Confirmed by eye, the tmux bar and its pickers are acceptable.

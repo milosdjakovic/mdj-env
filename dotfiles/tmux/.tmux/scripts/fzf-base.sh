@@ -6,13 +6,12 @@ FZF_BASE_OPTS=(
   --no-mouse
   --border=bottom
   --border-label-pos=1
-  --highlight-line
-  # Slots rather than hex, so the terminal decides what these mean at paint time.
-  # The current row is the one thing a slot pair cannot express, because a light
-  # palette has no bright pastel to put dark text on. reverse names only the accent
-  # and lets the terminal supply the contrasting side, which renders as dark text on
-  # a bright bar under a dark theme and light text on a dark bar under a light one.
-  --color='border:-1,label:8,separator:8,bg+:-1,fg+:2:reverse,hl+:2:reverse:bold'
+  # Only what a tmux popup needs on top of ~/.config/fzf/fzfrc, which every fzf reads at
+  # launch and which owns the colours, the bar under the current row included. The frame
+  # is the popup's own, so fzf draws none, and the label rides slot 8 with the lines. The
+  # current row used to be overridden here as reverse green, because no slot among the
+  # sixteen could carry a bar, and slot 16 in Ghostty's theme-map is what ended that.
+  --color='border:-1,label:8'
   # --header-first  # uncomment to pin header above the list
 )
 
