@@ -82,7 +82,7 @@ toml_records() {
                 key = line; sub(/[ \t]*=.*$/, "", key)
                 val = line; sub(/^[^=]*=[ \t]*/, "", val)
                 # An inline table may not hold another one. That is the edge of the subset and
-                # the thing table_field cannot read, so it is refused here rather than misread there.
+                # the thing the field reader cannot read, so it is refused here rather than misread there.
                 if (val ~ /^\{.*\}$/ && val ~ /^\{.*\{/) {
                     why = "a nested inline table, which is outside the subset"
                 } else if (val ~ /^"[^"]*"$/ || val ~ /^-?[0-9]+(\.[0-9]+)?$/ || val ~ /^\{.*\}$/ || val ~ /^[A-Za-z0-9_-]+$/) {
@@ -111,16 +111,34 @@ unquote() {
     printf '%s' "$v"
 }
 
-# One field out of an inline table, { color = "purple", alpha = 0.14 }, by key. Arrays come
-# back as their items separated by spaces, so ["gray", "white"] reads as gray white.
-table_field() {
-    printf '%s' "$1" | awk -v k="$2" '
-        {
-            s = $0
+#-------------------------------------------------------------------------------
+# Resolving a half
+#-------------------------------------------------------------------------------
+
+# Every role in the vocabulary as role TAB hex, for one palette and one half. A role is
+# answered under [roles.<half>] first and [roles] second, by a colour name or by a rule over
+# colour names. Errors are named with the palette and the role so the fix is one line away.
+#
+# It is one awk pass. The palette's records are loaded into a lookup once and every role is
+# answered from it, with the arithmetic in the same program. The first version spawned awk
+# for every lookup, every field of every rule and every blend, three hundred and forty
+# processes for four tools and growing with each one. The output is byte identical to that
+# version, proved by diffing --show and every generated file across the change.
+resolve_half() {
+    local records="$1" palette="$2" half="$3" out="$4"
+    local complaint; complaint="$(mktemp)"
+    awk -v palette="$palette" -v half="$half" '
+        # A quoted string with its quotes removed, or the bare value as it was.
+        function unquote(v) { sub(/^"/, "", v); sub(/"$/, "", v); return v }
+
+        # One field out of an inline table, { color = "purple", alpha = 0.14 }, by key. Arrays
+        # come back as their items separated by spaces, so ["gray", "white"] reads as gray white.
+        function field(tbl, k,    s, n, parts, i, cur, o, c, m, items, f, name, v) {
+            s = tbl
             sub(/^\{[ \t]*/, "", s); sub(/[ \t]*\}$/, "", s)
             # Split on commas, then rejoin any array an inner comma cut in half.
             n = split(s, parts, ",")
-            joined = ""; depth = 0; cur = ""
+            cur = ""; m = 0
             for (i = 1; i <= n; i++) {
                 cur = (cur == "" ? parts[i] : cur "," parts[i])
                 o = gsub(/\[/, "[", cur); c = gsub(/\]/, "]", cur)
@@ -132,19 +150,11 @@ table_field() {
                 if (name != k) continue
                 v = f; sub(/^[^=]*=[ \t]*/, "", v)
                 gsub(/[\[\]"]/, "", v); gsub(/,[ \t]*/, " ", v)
-                print v; exit
+                return v
             }
-        }'
-}
+            return ""
+        }
 
-#-------------------------------------------------------------------------------
-# Colour arithmetic
-#-------------------------------------------------------------------------------
-
-# a*top + (1-a)*under, per channel, which is compositing and is also mixing. Every operation
-# below is this one line with different arguments, which is why alpha and mix are one thing.
-blend() {
-    awk -v top="$1" -v under="$2" -v a="$3" '
         # BSD awk has no strtonum, so a hex pair is read by position in the digit string.
         function ch(h, i,    d, hi, lo) {
             d = "0123456789abcdef"
@@ -152,78 +162,82 @@ blend() {
             lo = index(d, substr(h, i + 1, 1)) - 1
             return hi * 16 + lo
         }
-        BEGIN {
+
+        # a*top + (1-a)*under, per channel, which is compositing and is also mixing. Every
+        # rule below is this one line with different arguments, which is why alpha and mix
+        # are one thing.
+        function blend(top, under, a,    t, u) {
             t = substr(top, 2); u = substr(under, 2)
-            printf("#%02x%02x%02x\n",
+            return sprintf("#%02x%02x%02x",
                 int(a * ch(t, 1) + (1 - a) * ch(u, 1) + 0.5),
                 int(a * ch(t, 3) + (1 - a) * ch(u, 3) + 0.5),
                 int(a * ch(t, 5) + (1 - a) * ch(u, 5) + 0.5))
-        }'
+        }
+
+        function fail(msg) { print msg > "/dev/stderr" }
+
+        # The palette, one record per line, section TAB key TAB value, the first one wins.
+        FILENAME == ARGV[1] {
+            split($0, r, "\t")
+            if (!((r[1] "\t" r[2]) in rec)) rec[r[1] "\t" r[2]] = r[3]
+            next
+        }
+
+        # The vocabulary, role and policy, resolved in the order it lists them.
+        {
+            if ($1 == "" || $1 ~ /^#/) next
+            role = $1; policy = $2
+            raw = rec["roles." half "\t" role]
+            if (raw == "") raw = rec["roles\t" role]
+            if (raw == "") {
+                if (policy == "required") fail(palette " does not answer the required role " role)
+                next
+            }
+            if (raw ~ /^\{/) {
+                # darken and lighten are tested before alpha, because all three name a color
+                # and only the first two carry their own amount. Tested the other way round, a
+                # darken rule was read as alpha with no amount, and the branch was never reached.
+                if (field(raw, "darken") != "" || field(raw, "lighten") != "") {
+                    colour = field(raw, "color")
+                    under = unquote(rec["colors." half "\t" colour])
+                    if (under == "") { fail(palette ", role " role " names a colour " colour " that [colors." half "] does not define"); next }
+                    if (field(raw, "darken") != "") hex = blend("#000000", under, field(raw, "darken") + 0)
+                    else hex = blend("#ffffff", under, field(raw, "lighten") + 0)
+                } else if (field(raw, "color") != "") {
+                    colour = field(raw, "color")
+                    amount = field(raw, "alpha")
+                    top = unquote(rec["colors." half "\t" colour])
+                    under = res["background"]
+                    if (top == "") { fail(palette ", role " role " names a colour " colour " that [colors." half "] does not define"); next }
+                    if (under == "") { fail(palette ", role " role " uses alpha but background is not resolved before it, list background earlier in the vocabulary"); next }
+                    if (amount == "") { fail(palette ", role " role " names a colour and no alpha, darken or lighten amount"); next }
+                    hex = blend(top, under, amount + 0)
+                } else if (field(raw, "mix") != "") {
+                    split(field(raw, "mix"), ab, " ")
+                    a = ab[1]; b = ab[2]
+                    amount = field(raw, "amount")
+                    top = unquote(rec["colors." half "\t" b])
+                    under = unquote(rec["colors." half "\t" a])
+                    if (top == "" || under == "") { fail(palette ", role " role " mixes " a " and " b " and [colors." half "] does not define both"); next }
+                    hex = blend(top, under, amount + 0)
+                } else {
+                    fail(palette ", role " role " is a rule this reader does not know, it knows color with alpha, mix with amount, and darken or lighten")
+                    next
+                }
+            } else {
+                colour = unquote(raw)
+                hex = unquote(rec["colors." half "\t" colour])
+                if (hex == "") { fail(palette ", role " role " points at " colour ", which [colors." half "] does not define"); next }
+            }
+            if (hex !~ /^#[0-9a-f]{6}$/) { fail(palette ", role " role " resolved to " hex ", which is not a six digit hex"); next }
+            print role "\t" hex
+            res[role] = hex
+        }
+    ' "$records" "$VOCABULARY" >"$out" 2>"$complaint"
+    local line
+    while IFS= read -r line; do err "$line"; done <"$complaint"
+    rm -f "$complaint"
 }
-
-#-------------------------------------------------------------------------------
-# Resolving a half
-#-------------------------------------------------------------------------------
-
-# Every role in the vocabulary as role TAB hex, for one palette and one half. A role is
-# answered under [roles.<half>] first and [roles] second, by a colour name or by a rule over
-# colour names. Errors are named with the palette and the role so the fix is one line away.
-resolve_half() {
-    local records="$1" palette="$2" half="$3" out="$4"
-    : >"$out"
-    local role policy raw colour hex top under amount a b
-    while read -r role policy _; do
-        [[ -z "$role" || "$role" == \#* ]] && continue
-        raw="$(lookup "$records" "roles.$half" "$role")"
-        [[ -z "$raw" ]] && raw="$(lookup "$records" "roles" "$role")"
-        if [[ -z "$raw" ]]; then
-            [[ "$policy" == required ]] && err "$palette does not answer the required role $role"
-            continue
-        fi
-        if [[ "$raw" == \{* ]]; then
-            # darken and lighten are tested before alpha, because all three name a color and
-            # only the first two carry their own amount. Tested the other way round, a darken
-            # rule was read as alpha with no amount, and the branch was never reached.
-            if [[ -n "$(table_field "$raw" darken)" || -n "$(table_field "$raw" lighten)" ]]; then
-                colour="$(table_field "$raw" color)"
-                under="$(unquote "$(lookup "$records" "colors.$half" "$colour")")"
-                [[ -z "$under" ]] && { err "$palette, role $role names a colour $colour that [colors.$half] does not define"; continue; }
-                if [[ -n "$(table_field "$raw" darken)" ]]; then
-                    hex="$(blend "#000000" "$under" "$(table_field "$raw" darken)")"
-                else
-                    hex="$(blend "#ffffff" "$under" "$(table_field "$raw" lighten)")"
-                fi
-            elif [[ -n "$(table_field "$raw" color)" ]]; then
-                colour="$(table_field "$raw" color)"
-                amount="$(table_field "$raw" alpha)"
-                top="$(unquote "$(lookup "$records" "colors.$half" "$colour")")"
-                under="$(resolved_role "$out" background)"
-                [[ -z "$top" ]] && { err "$palette, role $role names a colour $colour that [colors.$half] does not define"; continue; }
-                [[ -z "$under" ]] && { err "$palette, role $role uses alpha but background is not resolved before it, list background earlier in the vocabulary"; continue; }
-                [[ -z "$amount" ]] && { err "$palette, role $role names a colour and no alpha, darken or lighten amount"; continue; }
-                hex="$(blend "$top" "$under" "$amount")"
-            elif [[ -n "$(table_field "$raw" mix)" ]]; then
-                read -r a b <<<"$(table_field "$raw" mix)"
-                amount="$(table_field "$raw" amount)"
-                top="$(unquote "$(lookup "$records" "colors.$half" "$b")")"
-                under="$(unquote "$(lookup "$records" "colors.$half" "$a")")"
-                [[ -z "$top" || -z "$under" ]] && { err "$palette, role $role mixes $a and $b and [colors.$half] does not define both"; continue; }
-                hex="$(blend "$top" "$under" "$amount")"
-            else
-                err "$palette, role $role is a rule this reader does not know, it knows color with alpha, mix with amount, and darken or lighten"
-                continue
-            fi
-        else
-            colour="$(unquote "$raw")"
-            hex="$(unquote "$(lookup "$records" "colors.$half" "$colour")")"
-            [[ -z "$hex" ]] && { err "$palette, role $role points at $colour, which [colors.$half] does not define"; continue; }
-        fi
-        [[ "$hex" =~ ^#[0-9a-f]{6}$ ]] || { err "$palette, role $role resolved to $hex, which is not a six digit hex"; continue; }
-        printf '%s\t%s\n' "$role" "$hex" >>"$out"
-    done <"$VOCABULARY"
-}
-
-resolved_role() { awk -F'\t' -v r="$2" '$1 == r { print $2; exit }' "$1"; }
 
 #-------------------------------------------------------------------------------
 # The active selection
@@ -293,9 +307,10 @@ say "  $(wc -l <"$dark_roles" | tr -d ' ') roles resolved for each half"
 if [[ "${1:-}" == "--show" ]]; then
     say ""
     printf '  %-12s %-9s %-9s\n' role dark light
-    while IFS=$'\t' read -r role dhex; do
-        printf '  %-12s %-9s %-9s\n' "$role" "$dhex" "$(resolved_role "$light_roles" "$role")"
-    done <"$dark_roles"
+    awk -F'\t' -v lf="$light_roles" '
+        BEGIN { while ((getline line < lf) > 0) { split(line, f, "\t"); if (!(f[1] in light)) light[f[1]] = f[2] } }
+        { printf("  %-12s %-9s %-9s\n", $1, $2, light[$1]) }
+    ' "$dark_roles"
     rm -f "$active" "$active.err" "$dark_pal" "$dark_pal.err" "$light_pal" "$light_pal.err" "$dark_roles" "$light_roles"
     exit 0
 fi
@@ -326,25 +341,35 @@ resolve_map() {
         while IFS= read -r line; do err "$pkg/theme-map, $line is written twice"; done <<<"$dup"
         rm -f "$rec" "$rec.err"; return 1
     fi
-    local key role hex
-    while IFS=$'\t' read -r key role; do
-        role="$(unquote "$role")"
-        if [[ "$role" =~ ^# ]]; then
-            err "$pkg/theme-map, $key is a hex value, and a map may only name a role"
-            continue
-        fi
-        hex="$(resolved_role "$roles" "$role")"
-        if [[ -z "$hex" ]]; then
-            if grep -q "^$role[[:space:]]" "$VOCABULARY"; then
-                err "$pkg/theme-map, $key names the role $role, which the active palette does not answer"
-            else
-                err "$pkg/theme-map, $key names $role, which is not a role in theme/VOCABULARY"
-            fi
-            continue
-        fi
-        printf '%s\t%s\n' "$key" "$hex" >>"$out"
-    done < <(awk -F'\t' -v h="$half" '$1 == h { v[$2] = $3; seen[$2] = 1 } $1 == "" && !seen[$2] { v[$2] = $3 } END { for (k in v) print k "\t" v[k] }' "$rec" | sort)
-    rm -f "$rec" "$rec.err"
+    # The half's own section over the top level, sorted, then every key answered from the
+    # resolved roles in one pass, for the same reason resolve_half is one pass. The sort sits
+    # between the two so the order a key reaches the emitter in is decided by the key alone.
+    local complaint; complaint="$(mktemp)"
+    awk -F'\t' -v h="$half" '$1 == h { v[$2] = $3; seen[$2] = 1 } $1 == "" && !seen[$2] { v[$2] = $3 } END { for (k in v) print k "\t" v[k] }' "$rec" \
+        | sort \
+        | awk -F'\t' -v pkg="$pkg" '
+            function unquote(v) { sub(/^"/, "", v); sub(/"$/, "", v); return v }
+            function fail(msg) { print msg > "/dev/stderr" }
+            # The resolved roles, role TAB hex, the first one wins.
+            FILENAME == ARGV[1] { if (!($1 in roles)) roles[$1] = $2; next }
+            # The vocabulary, where a role is the first word of a line that goes on to say more.
+            FILENAME == ARGV[2] { if (match($0, /^[^ \t#][^ \t]*[ \t]/)) vocab[substr($0, 1, RLENGTH - 1)] = 1; next }
+            # The map, key TAB value, on stdin.
+            {
+                key = $1; role = unquote($2)
+                if (role ~ /^#/) { fail(pkg "/theme-map, " key " is a hex value, and a map may only name a role"); next }
+                hex = roles[role]
+                if (hex == "") {
+                    if (role in vocab) fail(pkg "/theme-map, " key " names the role " role ", which the active palette does not answer")
+                    else fail(pkg "/theme-map, " key " names " role ", which is not a role in theme/VOCABULARY")
+                    next
+                }
+                print key "\t" hex
+            }
+        ' "$roles" "$VOCABULARY" - >"$out" 2>"$complaint"
+    local line
+    while IFS= read -r line; do err "$line"; done <"$complaint"
+    rm -f "$rec" "$rec.err" "$complaint"
 }
 
 say "==> Writing every tool's theme"

@@ -257,3 +257,20 @@ declaration in the claude package went with the call. That was the last hand cop
 stowed package.
 
 **2026-09-15 23:28.** Confirmed by eye, the statusline grey looks right.
+
+**2026-09-15 23:40.** Checker hardening begins, no visible change. First, one awk pass per
+half. The checker spawned awk for every role lookup, every field of every rule, every blend
+and every map key, 340 processes in a full run and 204 for `--show`, growing with each tool.
+Bash 3.2 has no associative arrays, so the lookup could not be built in the shell, and the
+whole resolution of a half moved into one awk program that loads the palette's records once
+and carries the field reader and the blend arithmetic with it. A map is answered the same
+way, the merge, the sort and one resolving pass, with the sort kept between the two so the
+order a key reaches the emitter in is unchanged. `--show` joins the two halves in one pass. 50
+processes in a full run now and 11 for `--show`, the rest being the readers, the per map
+duplicate check, and the emitters' own. Proved byte identical by diffing `--show` and all five
+generated files before and after, in a clone under the scratchpad. The error output was
+compared the same way, on a palette broken five ways and a map broken three ways, and was
+identical too, once a first comparison that ran the old script and the new one on the same
+tree was redone with the generated file restored between them, since the first run had
+regenerated it and the second found it current. `lookup` stays for the three keys of
+`active.toml`, which are not per half.
