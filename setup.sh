@@ -111,6 +111,13 @@ step "$SRC_DIR/setup-herdr-plugins.sh"
 # here is a warning. Run it alone any time with src/check-dependencies.sh.
 step "$SRC_DIR/check-dependencies.sh"
 
+# Prove every generated theme file matches the palette it was generated from. On a fresh
+# machine this regenerates nothing, since the files are committed, and it fails only when a
+# committed file disagrees with the palette, which is a repository defect. Run it alone any
+# time with src/check-theme.sh, and after any colour change, since it is what rewrites the
+# files. theme/CLAUDE.md has the whole contract.
+step "$SRC_DIR/check-theme.sh"
+
 # A module may also own checks that only make sense inside it, kept beside the module rather
 # than here because the rest of the repository has no use for the rule. They report on the
 # repository rather than on this machine, so a failure is the same everywhere and fails setup.
