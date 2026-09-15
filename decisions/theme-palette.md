@@ -115,6 +115,17 @@ painted, Hammerspoon is stowed and not painted. The package says so itself inste
 package is stowed and its statusline draws in a declared slot, so a package level exemption
 there would hide any future hand copy beside it. The two skill files carry their own line.
 
+**This file as the exemption, with no declaration in the package, 2026-09-16 00:36.** A decision
+file is a record for a person, and a checker that decided behaviour by reading prose would be
+coupled to the wording of a paragraph, which is worse than a list of paths. The machine readable
+word has to sit where the checker already finds things by name, so `theme-exempt` at the package
+root is the declaration and this file is the history, the same split Status and Log already
+make. Each declaration cites this file and the date, and this file names the mechanism.
+
+**A one line declaration pointing here, with the reason written once, 2026-09-16 00:36.** The
+checker prints every exemption's reason on every run, so a deferral never leaves view. A pointer
+would print a date where a reason should be, and the reason is worth carrying twice for that.
+
 ## Log
 
 **2026-09-15 15:20, estimated from the conversation, anchored to the 16:06 commit that preceded the build.** Asked for one place to change a colour and have every tool follow, on
@@ -358,3 +369,10 @@ speaks, and a lone file inside a painted package speaks in place. Four checker r
 proved on fixtures in a clone, a package reason left empty, a file line with no reason, a
 package that both emits and exempts, and a markdown closer that the first version failed to
 strip because BSD sed has no alternation in a basic expression.
+
+**2026-09-16 00:36.** Asked what else was missed. Three things. The split between the
+declaration and this file was deliberate and unrecorded, and is now the two Rejected entries
+above. `decisions/ghostty-aura-theme.md` still said all four variants were carried, and its
+Status, Now and log say what is true. And the rule that a map, an emitter and an exemption go in
+`.stow-local-ignore` was a line in `theme/CLAUDE.md` that nothing checked, so the checker now
+refuses a theme file at a package root that stow would carry home.

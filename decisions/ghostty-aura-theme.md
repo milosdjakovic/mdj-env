@@ -1,6 +1,6 @@
 # Ghostty theme and the Aura pairing
 
-Status. Aura on both halves, the light half derived, all four upstream variants carried.
+Status. Aura on both halves, generated from theme/ since 2026-09-15, the three soft variants deleted 2026-09-16.
 
 ## Now
 
@@ -9,8 +9,9 @@ so no watcher is needed. Aura Dark answers dark and Aura Light answers light, an
 derived arithmetically from Aura Dark because upstream publishes no light edition. The file
 carries the method so it can be rerun or argued with. Aura is ported from its palette table
 rather than from any terminal package, which is what restored pink and blue, since the package
-repeated purple across two slots and green across two more. The four variants, plain, soft
-dark, soft text and both, are carried under their upstream names.
+repeated purple across two slots and green across two more. Both files are generated from
+`theme/` by the emitter at the package root and named for the half they fill, `mdj-dark` and
+`mdj-light`, and the three soft variants are gone. `decisions/theme-palette.md` has the palette.
 
 ## Rejected
 
@@ -54,3 +55,11 @@ about.
 
 b234bd4, f532aa8. Neovim follows the same switch, the last layer still pinned to dark and pinned
 twice over, then follows it while running rather than only at startup.
+
+### 2026-09-16 00:36
+
+The three soft variants, `aura-soft-dark`, `aura-dark-soft-text` and `aura-soft-dark-soft-text`,
+are deleted. They were hand written copies stowed beside the generated pair, referenced by
+nothing since the `theme` line moved to `mdj-light` and `mdj-dark` on 2026-09-15, and the
+widened hex scan in `check-theme.sh` named them. A soft Aura is a second palette file named in
+`theme/active.toml` if it is ever wanted, and nothing under `dotfiles` would change for it.

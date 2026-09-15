@@ -113,7 +113,8 @@ tables, dotted keys, and everything else TOML allows are outside the subset.
    for a file of `key = value` lines, Neovim's for a file that is code, and herdr's for a tool
    with no include, where the emitter rewrites one span of a hand written config in place and
    copies every other byte through.
-5. Add both to that package's `.stow-local-ignore`, they are repo only.
+5. Add both to that package's `.stow-local-ignore`, they are repo only, and the checker refuses
+   one that is not listed there.
 6. Run `./src/check-theme.sh`, review the generated file it names, and commit it.
 7. Put the tool's reload step in that package's own `CLAUDE.md`.
 

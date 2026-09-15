@@ -393,6 +393,21 @@ resolve_map() {
     rm -f "$complaint"
 }
 
+# The map, the emitter and an exemption are repo only, read by this script and by nothing a
+# tool loads, so each has to be in its package's .stow-local-ignore or stow carries it into
+# the home directory. That step was a line in theme/CLAUDE.md and nothing checked it.
+say "==> Theme files kept out of the home directory"
+kept=0
+while IFS= read -r f; do
+    pkg_dir="$(dirname "$f")"; name="$(basename "$f")"; pkg="$(basename "$pkg_dir")"
+    if [[ ! -f "$pkg_dir/.stow-local-ignore" ]] || ! grep -qx "$name" "$pkg_dir/.stow-local-ignore"; then
+        err "$pkg/$name is repo only and $pkg/.stow-local-ignore does not list it, so stow would carry it into the home directory"
+    else
+        kept=$((kept + 1))
+    fi
+done < <(find "$DOTFILES" -maxdepth 2 \( -name theme-map -o -name theme-emit -o -name theme-exempt \) -type f | sort)
+[[ $kept -gt 0 ]] && say "  $kept file(s) listed in their package's .stow-local-ignore"
+
 say "==> Writing every tool's theme"
 stale=0
 unchecked=0
