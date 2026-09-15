@@ -8,13 +8,11 @@
 -- through Hammerspoon itself, so there is no external binary or bundle for the layer above to
 -- guarantee.
 --
--- No provides and no registry.scope either, so no alias, and that is a decision worth stating
--- rather than a field forgotten. An alias only becomes a typed word through a scope, and a
--- scope row completes rather than pushing a level, since QueryScope discards whatever run
--- answers. Every row this tool has at its top level means go into this layout and look at it,
--- which is a push, so there is no honest thing a scope row could complete with here. An alias
--- declared without a scope behind it is a word that resolves to nothing, which is the class of
--- declaration this contract exists to refuse, so it is left out.
+-- A scope, so the alias and a space lists the layouts in the launcher and choosing one applies
+-- it. The earlier plugin here declared none, since every one of its top level rows was a push
+-- into a configuration and a scope row completes rather than pushes. This one has an honest
+-- completion, apply, which is also the thing a layout is for, so the typed word is the fast
+-- path and the launcher row still opens the manager for taking, pruning, and the rest.
 return {
   -- The identity is exactly the directory, one lowercase word, so no name field.
 
@@ -52,11 +50,22 @@ return {
     },
   },
 
+  -- What enrols this plugin in the launcher's scope set. The queryscope host asks which
+  -- plugins provide both rows and select, never a roster, and registry.scope below is what
+  -- the typed word then actually runs. Both name the scope's own members, since the scope
+  -- lists layouts to apply and the presentation's own top level is the manager.
+  provides = {
+    rows = "chooser.scopeRows",
+    select = "chooser.applyScoped",
+  },
+
   -- Opened from the launcher only, so it proposes no key at all. Taking or applying a layout
-  -- is a deliberate act a few times a day, not something worth a chord.
+  -- is a deliberate act a few times a day, not something worth a chord. The aliases are the
+  -- typed word that scopes the launcher to the layouts.
   defaults = {
     description = "Workspaces",
     launcherRow = true,
+    aliases = { "ws", "layout" },
   },
 
   -- A nested menu you navigate, so the primary verb is insertSelected, the atom's real
@@ -94,9 +103,18 @@ return {
   -- colon method, so open says so. No surface member is declared, host/stage's own surfaceFor
   -- answers the five generic nav verbs once the presentation above exists and this tool binds
   -- nothing past them.
+  --
+  -- The scope's two members live on the chooser submodule, reached through it by the dotted
+  -- name, since a bare name is walked against the plugin root and answers nil in silence.
+  -- matcher is false because scopeRows filters by the typed rest itself.
   registry = {
     row = { category = "Displays", detail = "window layouts you snapshot and put back",
       glyph = "🪟", keywords = "workspace workspaces layout layouts window windows snapshot arrange" },
     open = { member = "chooser.show", call = "dot" },
+    scope = {
+      matcher = false,
+      rows = { member = "chooser.scopeRows", call = "dot" },
+      run = { member = "chooser.applyScoped", call = "dot" },
+    },
   },
 }

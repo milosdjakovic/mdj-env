@@ -110,3 +110,16 @@ wrong for the reason the earlier ignore decision was right, a record of one desk
 configuration whoever wrote it. The plugin now declares the storage lib and writes
 `~/Olm/workspaces/layouts.json`, the file is removed from git, and the layout taken during
 testing was moved to the new path by hand rather than retaken.
+
+### 2026-09-16 00:22
+
+Three improvements were offered after the move and two were taken. `ws` and a space in the
+launcher lists the layouts and choosing one applies it, which needed both `provides` and
+`registry.scope`, since the queryscope host enrols a plugin by asking who provides rows and
+select and the scope block is what the word then runs, and a manifest with only the second
+registered a scope nobody could type. Apply asks whether an app is running once rather than
+twice. Restoring focus after an apply was offered and measured unnecessary, `setFrame` moves a
+window without raising it and the focused window id was the same before and after a full apply.
+Storing fractions as whole numbers to hide float noise was dropped once the file left git, and
+enumerating windows on other Spaces stays open, since `hs.spaces` is not reliable enough to
+build on without measuring first.
