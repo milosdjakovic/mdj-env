@@ -29,6 +29,22 @@ plugin written from a stale mental model registers, reports success, and shows n
    still says that. The settled examples named below are worth reading beside the docs, since
    an example that loads today proves more than prose.
 
+## Never propose a plugin, only build one that was asked for
+
+Strict, stated 2026-09-15, and it comes before every rule below. Nothing in this skill is a
+reason to suggest that a plugin is the answer to anything. Offering one as an option among
+several is proposing it, and a choice picked from a menu somebody else wrote is not a request.
+
+If a problem looks like it wants a watcher, a picker, or anything under Olm, and Milos has not
+asked for one, do not name that as a possibility at all. Solve it in the layer the problem
+lives in, the shell, a config file, a script, or say plainly that there is no way to do it
+there and let him decide. Reaching up into Hammerspoon turns a small change into a new moving
+part in the layer that runs everything else on the machine.
+
+The rule exists because a shell colour problem became a plugin exactly this way. It was put on
+a menu of three options, picked, built, gated, loaded live, and reverted in full the same hour.
+Everything below applies once he has asked, and never before.
+
 ## Choosing the shape of the interaction
 
 Work down this ladder and stop at the first rung that fits. Each rung is cheaper, more
