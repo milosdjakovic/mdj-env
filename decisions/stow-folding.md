@@ -88,4 +88,13 @@ directory a program writes into.
   sides are null delimited now and neither quotes. Names with spaces were always fine. Proved
   by putting an accented tracked file and an accented untracked one in the same directory in
   the throwaway repository, where the first stays and is linked and only the second moves.
+- **2026-09-17 01:01.** Ran on the machine that was actually folded, first contact, and it did what the
+  synthetic proof said it would. It found `~/.config/herdr` as one symlink into the checkout,
+  unfolded it, and moved the eight things herdr had written into a real directory, the session
+  file, both logs, both sockets, the plugin folder, the registration and its lock. The checkout
+  was left holding only `config.toml` and `tools`, both linked per file, and `git status` came
+  back clean. herdr answered `agent list` afterwards without a restart and still saw both
+  sessions. Every later step reported already current, so the change costs an idempotent run
+  nothing. The three transitional `.gitignore` lines come out in this entry's change, since the
+  path they covered can no longer be written on any machine that has run `setup.sh`.
 

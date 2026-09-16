@@ -104,8 +104,8 @@ state stays in the home directory and only `config.toml` and `tools` are links b
 Registration still produces `plugins.json`, and it still records the absolute path of this
 checkout, which is why `src/setup-herdr-plugins.sh` regenerates it on each machine rather than
 the repository carrying it. It simply lands beside the sockets in the home directory now. The
-three `.gitignore` lines that covered the leak are transitional and cover a machine that has
-not yet run `setup.sh`. `decisions/stow-folding.md` has the whole of it.
+three `.gitignore` lines that covered the leak are gone, since the directory they guarded can
+no longer be written. `decisions/stow-folding.md` has the whole of it.
 
 ## Reading a reload
 

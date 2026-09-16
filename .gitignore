@@ -18,13 +18,3 @@ dotfiles/lazygit/Library/Application Support/lazygit/github_pull_requests.json
 # and it lives under the olm data root in the home directory now, so nothing of it is in the
 # tree to ignore.
 dotfiles/hammerspoon/.hammerspoon/config/*.json.*
-
-# Herdr's own state, which used to land in the tracked tree because ~/.config/herdr was a
-# single stow symlink back into this package, so everything herdr wrote beside its config was
-# written here. The stow step now declares that directory must stay a real one and unfolds a
-# machine where it is not, so nothing can be written here again once setup.sh has run. These
-# three lines are transitional, they cover the machine that has not run it yet and they come
-# out when every machine has. decisions/stow-folding.md carries the reasoning.
-dotfiles/herdr/.config/herdr/plugins.json
-dotfiles/herdr/.config/herdr/.plugins.lock
-dotfiles/herdr/.config/herdr/herdr-server.log
