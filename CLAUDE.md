@@ -254,7 +254,7 @@ to drift unnoticed.
 
 ### Stow Packages
 
-**Stowed by default:** ghostty, tmux, nvim, zsh, hammerspoon, claude, lf, lazygit, herdr, iris, carapace
+**Stowed by default:** ghostty, tmux, nvim, zsh, hammerspoon, claude, lf, lazygit, herdr, iris
 
 **Available but not stowed:** alacritty, kitty, wezterm
 

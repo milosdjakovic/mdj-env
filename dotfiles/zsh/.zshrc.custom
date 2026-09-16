@@ -12,19 +12,28 @@ fi
 # candidate and its description, which with carapace's descriptions meant typing git into a
 # list of git subcommands kept every row whose description says Git, sixty eight of them.
 # The flag lands after fzf-tab's own and fzf takes the last one it is given.
-zstyle ':fzf-tab:*' fzf-flags --nth=2
-# No group headers and no coloured bullet in front of each row. Carapace names a dozen groups
-# for git alone, low-level interrogator commands among them, and the headers took four lines
-# of the picker before the first candidate.
-zstyle ':fzf-tab:*' show-group none
-zstyle ':fzf-tab:*' prefix ''
+#
+# Descriptions sit in one column. Carapace hands zsh one group of candidates at a time, ten
+# for git alone, and zsh pads each group to its own longest name and never across groups, so
+# the merged list came out ragged. A tab in front of the separator lets fzf do the aligning
+# instead, since fzf expands a tab to the next multiple of its tab stop counted from the start
+# of the row. Twenty four columns clears every git subcommand, and a longer name moves only its
+# own description to the next stop.
+zstyle ':completion:*' list-separator $'\t--'
+zstyle ':fzf-tab:*' fzf-flags --nth=2 --tabstop=24
+#
+# No format style is set for completion descriptions, and that is deliberate. The style is
+# what makes zsh hand fzf-tab a group name, and with a group name fzf-tab paints every row in
+# its group's colour and stacks the group names at the top as a legend for the colours, four
+# lines and four colours for git. Without it the rows are one alphabetical list in the
+# terminal's own foreground.
 
 # carapace is the completion dictionary, roughly a thousand commands with flag and value
 # descriptions that zsh's own completion mostly lacks, aws and gcloud among them. It only
 # supplies candidates, fzf-tab above still draws them, and it registers completion functions
 # so it has to come after oh-my-zsh has run compinit. It replaces zsh's completion for every
 # command it knows, git included, and decisions/shell-autocomplete.md says why it is here
-# instead of iris. Its colours are cleared by the stowed dotfiles/carapace/styles.json.
+# instead of iris. Its own colours never reach the picker, fzf-tab colours files only.
 if command -v carapace >/dev/null 2>&1; then
   source <(carapace _carapace)
 fi

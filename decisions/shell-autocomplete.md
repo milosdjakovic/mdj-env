@@ -134,7 +134,8 @@ magenta, yellow and cyan down one list, with a coloured bullet in front of each 
 and bullets are off through `show-group none` and an empty `prefix`. The colours are
 carapace's own, emitted as `list-colors` for every group and every flag arity, so they are
 cleared at the source through the file `carapace --style` writes, stowed as a new `carapace`
-package. On macOS that file is under `Library/Application Support`, not `~/.config`, because
+package. Corrected 2026-09-16 11:35, see below, the colours were fzf-tab's and the style file
+changed nothing visible. On macOS that file is under `Library/Application Support`, not `~/.config`, because
 carapace asks Go for the user config directory, which was measured after a first copy under
 `.config` changed nothing. Every key is `default`, so the row takes the terminal foreground
 and only the description keeps carapace's faint attribute.
@@ -145,3 +146,44 @@ nothing here rebinds it, and the ghost text comes from atuin first, because atui
 the autosuggestions strategy to `atuin history`. An inline atuin, `style = "compact"` with
 `inline_height` set in its config, would put that list under the prompt the way iris did, and
 atuin's config is not managed here yet.
+
+### 2026-09-16 11:35
+
+Two more screenshots from Milos. The descriptions were ragged, the order looked odd, and Tab
+on an empty line listed files where iris had listed history. The first two have one cause.
+Carapace calls `_describe` once per group, ten times for git, and zsh's `compdescribe` pads
+each call to its own longest name, capped by `max-matches-width` and never widened across
+calls, read in `Src/Zle/computil.c`. The 11:05 change removed the `format` style for
+descriptions, and that style is the only thing that makes `_description` pass `-X`, which is
+the only thing fzf-tab reads a group from. So ten blocks, each aligned to itself, merged into
+one alphabetical list and the padding showed. Restoring the groups was measured against and
+turned down, carapace orders its tags by name, so main commands would sit eighth behind
+external and low-level ones, and without the colour legend nothing would say where one block
+ends.
+
+The fix is a tab in front of the separator, `list-separator` set to a tab and `--`, and
+`--tabstop=24` on fzf. fzf expands a tab to the next multiple of the stop counted from the
+start of the row, in `util.StringsWidth`, so every row lands on column twenty four whatever
+its group padded to. Every git subcommand is under that, and a longer name moves only its own
+description to the next stop. It is two documented options and the whole of what is needed.
+The lasting fix belongs in carapace, one `_describe` call for all groups, and is not filed.
+
+Correction to 11:05. The colours in the first screenshot were fzf-tab's group colours, not
+carapace's. fzf-tab writes each group's colour in front of its rows with no reset and stacks
+the group names at the top as a legend for those colours, which is where the four coloured
+header lines and the coloured bullets came from. fzf-tab applies `list-colors` to files only,
+so carapace's per group `list-colors` never reached the picker and the styles file stowed at
+11:05 changed nothing anyone saw. The colours went at 11:05 because the format style went and
+the groups with it. The carapace stow package is removed, carapace's own styles stay at their
+defaults, and `show-group` and `prefix` are gone too since with no groups they had nothing to
+act on. What keeps the picker plain is the absence of a format style, and `.zshrc.custom` now
+says so.
+
+A scripted zsh under zpty never accepted a keystroke in this session, with Powerlevel10k's
+gitstatus unable to start under the tool sandbox, so this change is verified by reading the
+three sources rather than by a captured picker, and the next Tab in a new pane is the test.
+
+History is not a Tab thing here. Tab on an empty line is completion and lists files, which is
+what zsh has always done. The up arrow is atuin seeded with what is typed, ctrl+r is atuin's
+full search, and the grey ghost text is atuin's best match. Iris folded history into the same
+menu as commands and that is the one thing this stack does not reproduce.

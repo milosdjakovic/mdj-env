@@ -9,7 +9,7 @@ DOTFILES="$SCRIPT_DIR/../dotfiles"
 # shellcheck source=lib/backup.sh
 source "$SCRIPT_DIR/lib/backup.sh"
 
-PACKAGES=(ghostty tmux nvim zsh hammerspoon claude lf lazygit herdr iris carapace)
+PACKAGES=(ghostty tmux nvim zsh hammerspoon claude lf lazygit herdr iris)
 
 if [[ ! -d "$DOTFILES" ]]; then
     echo "Error: dotfiles directory not found at $DOTFILES"
