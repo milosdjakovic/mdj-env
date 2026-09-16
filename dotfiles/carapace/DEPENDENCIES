@@ -1,0 +1,14 @@
+# What this module needs on the machine, name | kind | locator | policy | consumer | reason.
+# The format and the kinds are documented in the repository root CLAUDE.md. This file names
+# tools and never how to install one, since that mapping is DEPENDENCIES.map one layer up.
+# Written by hand, because this module has no sub units to fold declarations from.
+#
+# styles.json is the file carapace --style writes, under Library/Application Support on macOS
+# because carapace asks Go for the user config directory and never reads ~/.config unless
+# XDG_CONFIG_HOME is set, which was measured. It is here for one reason. Carapace
+# paints every completion group in its own ANSI slot and every flag by its arity, blue, magenta,
+# yellow and cyan on one list, and fzf-tab carries those colours into the picker. Each key set to
+# default hands the row back to the terminal foreground, and only the description keeps its
+# faint attribute, which is carapace's own default and is not a colour. No hex, no slot, so the
+# theme layer has nothing to paint here.
+carapace | path | carapace | required | styles.json | the completer this file styles

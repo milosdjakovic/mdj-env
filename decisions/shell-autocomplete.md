@@ -121,3 +121,27 @@ with versions and the date, since herdr may fix identification or the pull reque
 opened later. File created with the two guides and the version table. The change that follows
 removes the iris line from the `.zshrc` template, adds carapace to the Brewfile, the map and
 the zsh declarations, and sources it in `.zshrc.custom`.
+
+### 2026-09-16 11:05
+
+First real use, two screenshots from Milos. Typing `git` into the picker for git's own
+subcommands kept sixty eight of a hundred and fifty nine rows, because fzf-tab matches the
+query against the candidate and its description by default and carapace's descriptions all
+say Git. Fixed with `--nth=2` in fzf-tab's `fzf-flags`, which lands after its own `--nth=2,3`
+and fzf keeps the last. The picker also opened with four lines of group headers, since
+carapace names a dozen groups for git alone, and every group in its own colour, blue,
+magenta, yellow and cyan down one list, with a coloured bullet in front of each row. Headers
+and bullets are off through `show-group none` and an empty `prefix`. The colours are
+carapace's own, emitted as `list-colors` for every group and every flag arity, so they are
+cleared at the source through the file `carapace --style` writes, stowed as a new `carapace`
+package. On macOS that file is under `Library/Application Support`, not `~/.config`, because
+carapace asks Go for the user config directory, which was measured after a first copy under
+`.config` changed nothing. Every key is `default`, so the row takes the terminal foreground
+and only the description keeps carapace's faint attribute.
+
+History matching, the other half of what iris gave, was already there and is worth naming.
+The up arrow is atuin's search seeded with what is typed, since atuin binds it during init and
+nothing here rebinds it, and the ghost text comes from atuin first, because atuin's init sets
+the autosuggestions strategy to `atuin history`. An inline atuin, `style = "compact"` with
+`inline_height` set in its config, would put that list under the prompt the way iris did, and
+atuin's config is not managed here yet.
