@@ -74,8 +74,8 @@ step "$SRC_DIR/install-ohmyzsh-plugins.sh"
 # Stow dotfiles to home directory
 step "$SRC_DIR/setup-stow-dotfiles.sh"
 
-# Build iris from the fork, since the two fixes it carries are not in any released build
-step "$SRC_DIR/build-iris.sh"
+# Build every carried fork, since each carries a patch no released build has
+step "$SRC_DIR/build-forks.sh"
 
 # Install tmux plugins via TPM
 step "$SRC_DIR/install-tmux-plugins.sh"

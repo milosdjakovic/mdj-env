@@ -1,7 +1,7 @@
 # Iris alias display
 
 Status. Fixed on the fork branch `fix/alias-display-preserves-typed-command`, built into the
-pinned binary, tracked against upstream by `src/check-iris-upstream.sh`.
+pinned binary, tracked against upstream by `src/check-forks.sh`.
 
 ## Now
 
@@ -11,7 +11,7 @@ dies from the same cause, since it only draws when the top result has the litera
 prefix and `z ` never has `cd ` as one. One bug, two symptoms. Upstream issue 158. The fork
 carries the fix as a single commit above upstream so it can be offered back unrewritten.
 
-`src/check-iris-upstream.sh` answers on each run whether upstream still needs the patch, by
+`src/check-forks.sh` answers on each run whether upstream still needs the patch, by
 laying the branch's own tests onto an unmodified upstream checkout and running them there. A
 branch whose tests pass on vanilla describes behaviour upstream now has and can go.
 
@@ -34,7 +34,7 @@ commit into `~/.local/bin`, so two machines build the same binary.
 
 ### 2026-09-14 14:35
 
-4361b76. `src/check-iris-upstream.sh` added, because a fork stops asking whether upstream has
+4361b76. `src/check-forks.sh` added, because a fork stops asking whether upstream has
 moved. It reads the changelog rather than the log, tests each patch against vanilla upstream,
 and rebases each in a throwaway worktree so a conflict is known before anyone commits to it.
 It reports and changes nothing. Which branch to watch was settled once, `main`, since `dev`

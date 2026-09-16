@@ -126,12 +126,20 @@ manifests=()
 while IFS= read -r found_manifest; do
     manifests+=("$found_manifest")
 done < <(find "$DOTFILES" -maxdepth 2 -name DEPENDENCIES -type f | sort)
+# A carried fork declares what building it needs, the same way a module declares what running
+# it needs, so forks/ is read here too rather than being the one directory nothing checks.
+while IFS= read -r found_manifest; do
+    manifests+=("$found_manifest")
+done < <(find "$ROOT/forks" -maxdepth 2 -name DEPENDENCIES -type f 2>/dev/null | sort)
 [[ -f "$ROOT/src/DEPENDENCIES" ]] && manifests+=("$ROOT/src/DEPENDENCIES")
 
 declared_names=()
 declared_lines=()
 for manifest in "${manifests[@]}"; do
     module="$(basename "$(dirname "$manifest")")"
+    # A fork and the module that configures the same tool would otherwise carry the same name,
+    # and a message naming one of them would be ambiguous about which had declared what.
+    [[ "$manifest" == "$ROOT/forks/"* ]] && module="forks/$module"
     while IFS= read -r record; do
         [[ -z "$record" ]] && continue
         declared_names+=("$(field "$record" 1)")

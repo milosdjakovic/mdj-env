@@ -9,6 +9,35 @@ fingers is worth more than avoiding the overlap. tmux is never modified to suit 
 Every change to `config.toml` needs `herdr server reload-config`. The running client does not
 notice an edit on its own.
 
+## The binary is a fork, and why
+
+herdr names the agent in a pane by listing one process group, the foreground group of the
+pane's own terminal, and matching known names in it. It never walks parents or children,
+though it already fetches each process's parent pid and never reads it. A pty proxy holds the
+pane's terminal and runs the shell on a second terminal in a session of its own, so the agent
+is a descendant of the pane process and can never be a member of the group herdr lists. The
+shell autocomplete on this machine is exactly that, so every session behind it was missing
+from the agents panel.
+
+That is a kernel fact rather than a choice either program made. A controlling terminal belongs
+to one session, a proxy has to keep the outer one to read keys, so the shell needs a new
+session on a new terminal and nothing in it can ever be the outer terminal's foreground group.
+No setting in either program changes it, and a hook that announced the pane made it worse,
+which `decisions/herdr-agent-detection.md` records in full.
+
+So the binary here is built from a fork that adds the walk, declared at `forks/herdr`, and
+`forks/CLAUDE.md` carries the rule for when that fork can go. Two consequences matter when
+changing anything here. The update check is off in `config.toml`, because taking an update
+would replace the patched binary with an unpatched release and the panel would go blind again.
+And `~/.local/bin` comes before the Homebrew prefix on the PATH, so the built binary wins over
+any copy left there.
+
+Two facts about the CLI are worth keeping. `herdr integration install claude` reports session
+identity only, for resuming a conversation after a server restart, and never state, so it is
+not an answer to detection. And the pane id is a positional argument that comes first for
+every `herdr pane` command, which reads exactly like a broken parser when it trails the
+options and is not one.
+
 ## The popup surface, and its one rule
 
 A popup is session modal. It takes every key including escape, it does not disturb the tiled

@@ -36,9 +36,15 @@ macOS development environment bootstrap and dotfiles management using GNU Stow. 
 ./src/check-theme.sh
 ./src/check-theme.sh --show
 
-# Ask what upstream iris has done since the fork branched, and whether either patch is
-# still needed. Reports only, it never moves the pin.
-./src/check-iris-upstream.sh
+# Ask what upstream has released since each carried fork branched, whether every patch is
+# still needed, and whether the links a decision rests on have moved. Reports only, it never
+# moves a pin. A name limits it to one fork.
+./src/check-forks.sh
+./src/check-forks.sh <fork>
+
+# Build every carried fork at its pinned commit and install it. Idempotent, and it rebuilds
+# when something has replaced an installed binary.
+./src/build-forks.sh
 
 # Set default editor for dev file types manually (setup-dev-defaults.sh defaults to Zed)
 ./src/set-dev-defaults.sh "Zed"
@@ -61,6 +67,7 @@ stow -D -t ~ <package>        # Unlink a package
 - `src/` - Modular setup scripts (all idempotent, support Apple Silicon and Intel)
 - `dotfiles/` - Stow-managed configurations, each subdirectory is a stow package
 - `decisions/` - What was tried, rejected and corrected, one dated file per topic
+- `forks/` - One directory per carried fork, its declaration and how to build and prove it
 - `theme/` - The one palette every tool is painted from, and the contract for adding a tool
 
 ### Decisions, and when to read them
@@ -366,35 +373,34 @@ ours from every event it was wired into, so a machine that carries it is repaire
 run. The same trap still sits in `setup-zshrc.sh`, which is worth knowing before changing
 what it generates.
 
-### Why a session behind iris is invisible to herdr, and why no hook fixes it
+Nothing here announces a session to anything else. A hook that told another program which
+pane a session was running in was tried and removed, because the program it told treats a
+reported state as the pane's authority and the session then never moved off the state the
+hook announced. `decisions/herdr-agent-detection.md` has the measurements.
 
-Herdr names an agent pane by listing one process group, the foreground group of the pane's
-own pty, and matching names in it. Iris holds that pty and runs the shell on a pty of its own
-in its own session, so the group herdr lists reads iris and iris and claude is never in it.
-That is a kernel fact rather than an iris choice. A controlling terminal belongs to one
-session, iris has to keep the outer one to read keys, so the shell needs a new session on a
-new pty, and no process in it can ever be the outer tty's foreground group. Herdr never walks
-parents or children, though it already fetches each process's parent pid and never reads it,
-so the one fix that costs nothing downstream is a descendant walk in herdr's `foreground_job`.
-That is upstream's to make. `decisions/herdr-agent-detection.md` has the source lines and the
-measurements.
+### Carried forks, and the rule that ends one
 
-A hook that reported the pane to herdr was the answer here from 2026-09-14 to 2026-09-16, and
-it was a hotfix that made things worse. In herdr a state reported by any source becomes the
-pane's state authority until released. Screen detection keeps running and `herdr agent
-explain` keeps showing its answer, but the sidebar reads the authority, so a hook that
-reports idle at session start leaves the pane idle for the life of the session, no working,
-no blocked, no done notification. It does the same to a pane herdr identifies by itself, so
-it was not a harmless no op without iris either. Reporting every state from Claude Code's
-events would be rebuilding what herdr's own claude integration deliberately stopped doing in
-0.6.7, when hook driven state kept going stale, and it would still miss what the screen
-manifest already handles. So there is no hook here, `setup-claude-settings.sh` prunes the old
-one, and nothing in this repository announces a session to herdr.
+Some tools here run from a fork rather than from a package, because they carry a patch this
+machine needs and upstream has not taken. Each is declared in its own directory under
+`forks/`, and `src/build-forks.sh` and `src/check-forks.sh` read those declarations without
+knowing which forks exist. Adding one is a directory and no edit to either script.
 
-Two facts about herdr's CLI are worth keeping from that episode. `herdr integration install
-claude` reports session identity only, for `claude --resume` after a server restart, and
-never state. And the pane id is a positional argument that comes first for every `herdr pane`
-command, which reads exactly like a broken parser when it trails the options and is not one.
+`forks/CLAUDE.md` is the contract and is read before adding a fork, before moving a pin, and
+before deciding a patch can go. The short version is that a fork is a cost rather than a fix.
+It stops taking upstream's releases the moment it is pinned, so it sits between this machine
+and everything released after it, and the only honest test of whether it is still earning that
+is whether unmodified upstream now passes the patch's own tests. A patch that passes is
+dropped and its branch deleted. A patch that fails is rebased and carried one more cycle. When
+the last patch goes, the fork goes and the tool becomes an ordinary package line again.
+
+Every declaration names the file in `decisions/` that holds its reasoning, and the upstream
+links whose state would change something here. Those are read before proposing anything in
+that area, the Rejected section first, and the reporter is what says when one has moved.
+
+Any work on a fork, checking one, updating it, rebasing, dropping a patch or adding a new
+fork, goes through the `carried-forks` skill at `.claude/skills/carried-forks/SKILL.md`. It
+carries the procedure and the gates, including the one thing that is never this repository's
+to do, which is restarting or handing off something the person is working inside.
 
 ### Hammerspoon
 
@@ -449,153 +455,9 @@ LazyVim-based configuration. Run `nvim` after setup to bootstrap plugins.
 
 ### Iris
 
-**Running, and it costs the herdr agents panel.** A PTY proxy hides every session behind it
-from the panel, so iris was disabled for half a day on 2026-09-16 in favour of fzf-tab with
-carapace as its dictionary, and came back the same day because a Tab picker with its own
-query row and no history was nowhere near it. fzf-tab and carapace stay underneath as what
-Tab does when the iris menu is closed. `decisions/shell-autocomplete.md` carries both
-routes, the versions, and the herdr change that would let the panel see through a proxy.
-
-Shell autocomplete, configured in `dotfiles/iris/.config/iris/` and built rather than
-installed, because the released binary has two defects this repository does not want to live
-with. `src/build-iris.sh` compiles it from `github.com/milosdjakovic/IRIS`, pinned to one
-commit, into `~/.local/bin`. Updating means moving the pin, the same ritual as the Neovim
-lockfile, so two machines build the same binary.
-
-The fork carries the two fixes on their own branches, each a single commit above upstream so
-either can be offered back without being rewritten first.
-
-Staying current is the thing a fork is bad at, so `src/check-iris-upstream.sh` keeps asking the
-question a fork stops asking. It reports what upstream has released since the pin, reading the
-changelog rather than the log because upstream writes one line per thing that changed where the
-log writes one per merge, and then it answers for each patch whether vanilla upstream still
-needs it. That answer is measured rather than guessed. It lays the branch's own tests onto an
-unmodified upstream checkout and runs them there, so a branch whose tests pass on vanilla is
-describing behaviour upstream now has and the branch can go, while one that fails or does not
-compile is still earning its place. It also rebases each patch onto the new upstream in a
-throwaway worktree, so a conflict is known before anyone commits to resolving it.
-
-It reports and changes nothing, the same split `check-dependencies.sh` keeps, because every
-answer it gives leads to a decision. Taking an update means rebasing the patches still needed,
-merging them into the fork's main, moving `IRIS_COMMIT` and rebuilding. Dropping a patch means
-deleting the branch and reverting its merge, not only leaving it unbuilt. If both patches ever
-go, the fork goes with them and iris becomes an ordinary tap line again.
-
-The only hand written part is the list of patches at the top of the script. Which test files
-prove a patch, and which packages they live in, are read out of the branch itself, so a third
-patch is one line and nothing else. Which branch to watch was also worth settling once.
-Upstream has a `dev` branch that reads like where new work lands and is not, it forked in May
-2026 and carries four commits nobody merged, while every release since has been cut from `main`
-through pull requests. The script says so in a comment, so the guess is not made twice.
-
-`fix/alias-display-preserves-typed-command` is upstream issue 158. Iris expands a shell alias
-so the target's spec can answer, which it has to do, and then never puts the typed word back,
-so with `cd` aliased to zoxide the rows read `z /path`. Ghost text dies from the same cause,
-since it only draws when the top result has the literal buffer as a prefix and `z ` never has
-`cd ` as one. One bug, two symptoms, and no configuration option touches it. `expand-alias`
-governs something else entirely, whether iris rewrites your literal prompt text on space.
-
-`feat/appearance-aware-theme` gives `theme.toml` optional `[dark]` and `[light]` tables over
-its flat keys, and asks the terminal which it is in. Stock iris has one flat set of colours
-and no idea what is behind them.
-
-The hook `iris init zsh` emits ends in `exec iris`, replacing the shell with one running
-behind a PTY proxy. That is why it sits at the very top of the generated `.zshrc` above the
-Powerlevel10k instant prompt, and why the PATH line is hoisted above it. Painting a prompt
-into a process about to be replaced leaves a screen p10k never gets to tear down. `~/.local/bin`
-comes first on that line so the built binary wins over any package manager copy left behind.
-
-Because iris reads every keystroke before the shell does, a key it claims never reaches zle at
-all, whether its menu is open or not. That was measured rather than assumed. So `toggle-mode`
-is moved to ctrl+o, leaving ctrl+r for atuin, and `navigate-closed` is `shell` so a bare up
-arrow reaches atuin too. `atuin-history` is 1, so iris reads atuin's database rather than
-keeping a second history of its own. `ghost-text` is 1, so the menu opens as you type and
-Shift+Tab toggles it away again when the ghost text alone is enough. Setting it to 2 inverts
-that, ghost text only until Shift+Tab asks for the menu, and 0 turns both off.
-
-Holding the tty has one consequence that reaches outside iris entirely. Anything that
-identifies a program by reading a pane's foreground process sees iris and never sees what is
-running behind it, and herdr's agents panel is exactly that, so a Claude session behind iris
-is not listed there. Nothing in iris can change that, and a hook that announced the session
-was tried and removed because it froze the state it announced. The section under Claude Code
-above says why, and the only fix that costs nothing downstream lives in herdr.
-
-#### The theme
-
-Almost every value is an ANSI palette slot rather than a hex colour, so Ghostty stays the one
-owner of the palette. Slots work because lipgloss v2 turns `"4"` into `ansi.BasicColor(4)` at
-`color.go:66-85`, which goes out as SGR `34` and lands on the terminal's slot 4. An earlier
-version of this file claimed the opposite, on the strength of a measurement that only matched
-`38;2` and `38;5` sequences and never looked at the `30` to `37` range, so it reported zero
-colours while the menu was drawing in palette colours the whole time. A detector that can only
-see one encoding reports the absence of every other one, and that mistake cost several rounds.
-
-Slots are worth it because `aura-dark` and `aura-light` mirror each other by role, so slot 4 is
-the primary accent on both and slot 8 is the comment grey on both. Slot 4 reads 5.77 to 1 on
-the dark half and 4.83 on the light one, against 4.14 for the hand picked mid tone it replaced.
-Change the Ghostty theme and the menu follows with no edit here.
-
-`text` and the three idle tag backgrounds are deliberately unparseable rather than any colour,
-because lipgloss renders an unparseable foreground unstyled, which inherits whatever the
-terminal is painting, and does not draw an unparseable background at all. The second half is
-what leaves a tag as a word on the page instead of a chip stamped onto it. Those chips were
-dark blocks on a white page for a while, and fixing that is what the second half of this file
-is for.
-
-The `[dark]` and `[light]` tables exist for the selection bar and almost nothing else. A bar
-has to be a tint of the page under it, and no slot is dark on the dark palette and light on the
-light one. Every single file alternative was measured. Keeping the bar fixed forces `match`
-fixed with it, since `match` is drawn on the page on every other row and inside the bar on this
-one, and a fixed `match` only clears a bar that is very dark or nearly white. Letting the bar
-inherit forces `match` to inherit, and then the bar has to be dark enough for the dark half's
-`#ffca85` and light enough for the light half's `#6b4400` at once, which lands at 2.05 on slot
-8, 1.08 on slot 4 and 1.27 on slot 7. There is no single bar, which is why the feature exists.
-
-The two tables are generated from `theme/` by the emitter at the package root. The bar is
-the `highlight` role, the same bar herdr's navigate row carries, and the secondary text is
-`subtext`, so the two surfaces agree rather than each inventing a highlight. `text_sel` and
-`sel_text` are the ink and the page by role, which is what their flipping slots always meant.
-`dotfiles/iris/CLAUDE.md` has the reload step.
-
-The appearance is asked for once by OSC 11 in the watchdog, which is the only moment iris holds
-the tty with nothing else reading it, and after that the terminal reports changes on its own.
-The wrapper turns on DEC private mode 2031, so a switch arrives as `CSI ? 997 ; 1 n` for dark
-or `; 2 n` for light and the half follows without opening a new shell. That report lands on the
-same stream as keystrokes, so the wrapper takes it out of the input before the shell or any of
-the key handling sees it, otherwise it is printed onto the prompt as text. Only whole sequences
-are recognised, since holding back a partial escape sequence would delay the arrow keys, which
-begin the same way.
-
-Taking it out is right for the shell and was wrong for everything else, and that cost a day of
-every layer above iris being stuck. A program behind iris that asks for the same reports never
-received one, because the terminal sends a single copy and iris consumed it. Herdr was the worst
-case, since Neovim, Claude Code and the iris inside each pane all ask herdr rather than Ghostty,
-so one report lost in front of herdr left the whole tree on the old half while iris itself, the
-layer that ate it, switched perfectly. So the wrapper now reads the child's own `2031` switch
-off the pty, the same way it reads the alternate screen switch, and relays each report to the
-child verbatim while the child has asked for them. Zsh never asks, so the prompt stays clean.
-Iris keeps the terminal's copy of the mode on regardless, answering a child's withdrawal by
-turning it straight back on, and drops the child's request at every new prompt so a program
-killed before it could withdraw cannot leave the line editor receiving reports.
-
-Reloading the half is only part of it, because the box also has to be drawn again, and for a
-while it was not. A terminal that changes appearance repaints its own palette, so every part
-of the box drawn in a slot follows along with no help from iris, which made the switch look
-like it worked. The selection bar is hex, for the reason the paragraph above gives, so it
-stayed in the old appearance while everything around it changed, and closing the menu and
-opening it again put it right. That is what proved the detection was already correct and only
-the repaint was missing. It is asked for directly rather than through the usual render path,
-which declines while the user is navigating the menu, the moment a stale bar shows most.
-
-Two mistakes in that detection are worth not repeating, since both produced a terminal being
-served the wrong half while plainly saying which it was. `IRIS_TERM_BACKGROUND` carries the
-answer down to the process that draws, and it reaches the shell too, so an iris started from
-that shell inherits it. Treating it as an override meant a decision made about an earlier
-terminal outlived it and beat the one in front of you. It is rewritten on every start now, and
-a value set by hand survives only when the terminal declines to answer, which keeps it useful
-as a fallback for a terminal with no OSC 11 without letting it go stale. Separately, the query
-paired the input tty with `os.Stdout`, and lipgloss refuses unless both handles are terminals,
-which the watchdog's stdout is not always. That failure was invisible because
-`HasDarkBackground` answers true for any error, so a query that never worked read as a terminal
-that said dark. Asking through the tty iris already holds, and going through `BackgroundColor`
-so a failure stays distinguishable from an answer, fixes both.
+Shell autocomplete, configured in `dotfiles/iris/` and built from a fork rather than
+installed. See `dotfiles/iris/CLAUDE.md` for why the fork exists, the two patches it
+carries, the keys it takes before the shell sees them, the appearance detection, and the
+generated theme pair. It holds the pane terminal, which has a consequence for anything that
+identifies a program by reading one, and `forks/CLAUDE.md` plus the decisions it names carry
+that.

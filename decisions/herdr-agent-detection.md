@@ -1,43 +1,60 @@
 # Herdr agent detection behind a terminal wrapper
 
-Status. Settled on vanilla, 2026-09-16. Nothing announces a session to herdr, no integration
-is installed, and the panel is blind behind iris by design. Which autocomplete to run, and
-so whether the panel stays blind, is the open decision, and it is not this file's.
+Status. Fixed in herdr, 2026-09-16, by a fork this repository builds and pins. Nothing
+announces a session to herdr, no integration is installed, and the panel sees through the
+shell autocomplete because herdr now walks descendants when the pane's own foreground group
+holds no agent. The fork is declared at `forks/herdr` and is a cost paid weekly until upstream
+takes the walk, which it has given no sign of doing.
 
 ## Now
 
-Herdr names an agent pane by reading the pane's foreground process. Any wrapper that holds the
-pane's terminal and runs the shell behind it on a pty of its own hides whatever is really
-running, and a pane that fails that first check never has a title rule or a screen rule
-evaluated against it. Iris is the wrapper that happens to be here.
+Herdr names an agent pane by listing one process group, the foreground group of the pane's own
+terminal, and matching known names in it. It never walks parents or children, though
+`process_bsdinfo` already fetches each process's parent pid and nothing reads it. A pty proxy
+holds the pane's terminal and runs the shell on a second terminal in a session of its own, so
+the agent is a descendant of the pane process and can never be in the group herdr lists. Iris
+is the proxy that happens to be here, and the same is true of every other one.
 
-`dotfiles/claude/.claude/hooks/herdr-agent-pane.sh` runs `herdr pane report-agent` on
-`SessionStart` and `herdr pane release-agent` on `SessionEnd` with the source id
-`custom:mdj-env`. That names the pane, and it also makes the hook the pane's state authority.
-Herdr keeps one authority slot per pane, and a reported state from any source that is not one
-of herdr's own full lifecycle integrations is effective until released or until the process
-exits. Screen detection keeps running and `herdr agent explain` keeps showing its answer, but
-the sidebar reads the authority, so the pane shows the one state the hook reported, idle, for
-the life of the session. The same happens on a pane herdr identifies by itself, so the hook is
-not a no op without iris either. It is gone, the hook file, its declaration, the reconciler
-check that watched it, and the settings merge now prunes it from any machine that still
-carries it. Nothing in this repository announces a session to herdr, so a session behind iris
-is not listed, and a pane herdr sees by itself works fully. The measured detail and the
-source lines are in the 2026-09-16 log entries.
-`src/setup-claude-settings.sh` wires it, `src/check-dependencies.sh` warns when it is unwired
-or when any herdr integration is installed, and the reasoning is in the root CLAUDE.md under
-Claude Code.
+That is a kernel fact rather than a choice either program made. A controlling terminal belongs
+to one session, a proxy has to keep the outer one to read keys, so the shell needs a new
+session on a new terminal and no process in it can ever be the outer terminal's foreground
+group. Nothing in the proxy can change it and no configuration option in either program
+touches it.
 
-One limit stands. `herdr agent prompt` and `herdr agent send-keys` refuse on a wrapped pane
-even after it is named, because they check the real foreground process. Pane level `send-text`
-and `send-keys` work, so the agents panel and scripting are unaffected and only herdr's own
-agent automation is not.
+So the fix is a descendant walk in herdr, and since 2026-09-16 this machine runs it. When the
+pane's own foreground group yields no agent, herdr indexes every process by parent pid, walks
+the children of the pane process breadth first, and identifies the first agent it finds, with
+a scan limit so a deep tree cannot cost the poll. A pane whose foreground group already holds
+an agent never reaches the walk, so every pane that worked before behaves exactly as it did,
+which was the objection upstream raised when it closed the idea. A pane running no agent at
+all finds nothing, so an ordinary helper process is never promoted into an agent, and there is
+a test for each of those three cases.
 
-A pane that has ever carried a session under `herdr:claude` stays unnameable for the life of
-the herdr server. Resuming the session in that pane with `claude --resume` does not help,
-because the block is on the pane and not on the session. The only recovery is to close that
-pane and open a new one, and `check-dependencies.sh` names such a pane so nobody has to work
-that out from an empty panel.
+The branch is `feat/detect-agents-in-descendant-process-groups` on `milosdjakovic/herdr`, two
+commits above the v0.9.0 tag. The first is another user's work, cherry picked with their
+authorship intact under Apache 2.0, from a pull request upstream closed unread. The second is
+the test it lacked, because the only wrapper test upstream had spawns its agent as a
+background job of the same shell, which never leaves the pane's process group and so passed
+before the walk existed and proves nothing about it. The new one puts the agent behind
+`script`, which is a new session on a new terminal, the shape a proxy makes.
+
+`forks/herdr` declares it and `forks/CLAUDE.md` carries the rule for when it can go. The
+update check is off in the stowed herdr config, because an update never installs on its own
+but does offer a command that would replace the patched binary with an unpatched release.
+
+Nothing in this repository announces a session to herdr and nothing should. A state reported
+by any source becomes the pane's authority until released, so a hook that reports idle at
+session start leaves the pane idle for the life of the session, with no working, no blocked
+and no done notification. It does that to a pane herdr identifies by itself too, so it was
+never a harmless no op. The hook is gone and `setup-claude-settings.sh` prunes it from any
+machine that still carries one.
+
+Two limits stand, both unchanged by the walk. `herdr agent prompt` and `herdr agent send-keys`
+refuse on a wrapped pane, because they check the real foreground process rather than the
+identified agent. Pane level `send-text` and `send-keys` work, so the panel and scripting are
+unaffected and only herdr's own agent automation is not. And a pane that has ever carried a
+session under `herdr:claude` stays unnameable for the life of the herdr server, because the
+block is on the pane rather than the session, so the only recovery is a new pane.
 
 ## Rejected
 
@@ -286,3 +303,82 @@ blinds the panel the same way, so it is only a candidate if the panel loses. car
 the fzf-tab already loaded, or zsh-autocomplete, are the in shell shapes that keep the panel
 whole. Whatever is chosen, nothing here needs changing, since the proxies only affect the
 panel and the in shell tools affect nothing herdr sees.
+
+### 2026-09-16 14:50
+
+The fork exists and the walk is in it. Milos asked for it as a feature branch offerable
+upstream rather than a patch, with the whole upstream picture written down, and for a rule
+that makes both forks answerable when he asks about them.
+
+What upstream is, measured rather than assumed. herdr does not take outside pull requests.
+`CONTRIBUTING.md` says so outright, only accounts listed in `.github/APPROVED_CONTRIBUTORS`
+may open one, the list is curated and explicitly not an application program, and a workflow
+closes everyone else's automatically. It also instructs any agent reading it to refuse to open
+an implementation pull request from an account not on those lists, which is why none was
+opened and why none should be.
+
+The walk had already been written by another user.
+[PR 3176](https://github.com/herdrdev/herdr/pull/3176), "fix: detect agents in descendant
+process groups", 322 lines across six files with unit tests, closed by the gate bot nine
+seconds after it opened and never read. Their issue
+[3179](https://github.com/herdrdev/herdr/issues/3179) was closed by a maintainer bot with
+"Walking arbitrary descendant groups would change detection behavior and can select background
+or helper processes, so this needs product design rather than a bug fix", pointing at the
+Ideas discussions. [Issue 803](https://github.com/herdrdev/herdr/issues/803) is the open
+umbrella every wrapper report is consolidated into, community diagnosis through August, no
+maintainer plan attached. Same shape, different wrapper, in issues
+[2360](https://github.com/herdrdev/herdr/issues/2360),
+[2481](https://github.com/herdrdev/herdr/issues/2481),
+[1998](https://github.com/herdrdev/herdr/issues/1998),
+[2999](https://github.com/herdrdev/herdr/issues/2999) and
+[2617](https://github.com/herdrdev/herdr/issues/2617), all closed.
+
+The discussions board is where the maintainers point and it is not a door. Thirteen hundred
+discussions, eleven hundred of them ideas, and the ten newest, all from the last thirty hours
+when this was written, carry no maintainer reply at all. Ours is already there several times
+and unanswered since August.
+[2237](https://github.com/herdrdev/herdr/discussions/2237) describes a front end that owns the
+pane terminal and runs the shell on an inner one, word for word this problem, zero comments.
+[2136](https://github.com/herdrdev/herdr/discussions/2136) asks for configurable wrapper
+support, [699](https://github.com/herdrdev/herdr/discussions/699) and
+[2473](https://github.com/herdrdev/herdr/discussions/2473) for containers,
+[3180](https://github.com/herdrdev/herdr/discussions/3180) and
+[2607](https://github.com/herdrdev/herdr/discussions/2607) for editor terminals,
+[3347](https://github.com/herdrdev/herdr/discussions/3347) for WSL. None answered. herdr's own
+`docs/agents.mdx` states the limit plainly for the tmux case, so it is acknowledged rather
+than unknown.
+
+So a pull request was not opened and posting an eighth discussion was not worth doing. The
+fork is the answer, and the watched links in `forks/herdr/FORK` are what will say if that ever
+changes.
+
+What was built. The branch from the v0.9.0 tag, the other user's commit cherry picked clean,
+then a commit adding two tests and a formatting fix the current toolchain wants. Both new
+tests pass on macOS. The whole binary test suite passes except two plugin tests that share a
+global config directory and fail in parallel whichever pair happens to race, which was proved
+pre existing by running that module serially, where all fifty three pass, and by the branch
+touching no plugin file. The build needs Zig 0.15 for a vendored terminal parser, which is a
+keg only formula now declared and mapped, and cargo through rustup, which has no shim on this
+machine so it is asked for by name.
+
+The general mechanism. `forks/` with one directory per fork, each holding a declaration and
+two executables the engines find by name, `build` and `prove`. `src/build-forks.sh` builds
+each fork at its pin and installs it, keeping a stamp of the pin and a checksum so a binary
+something else replaced is rebuilt rather than trusted, which matters because herdr offers its
+own updates and Homebrew owns a copy of the same name. `src/check-forks.sh` reports releases
+since the pin, whether each patch is still needed, whether it still rebases, and which watched
+links have moved. Iris moved onto the same mechanism and `src/build-iris.sh` and
+`src/check-iris-upstream.sh` are gone, their logic now living in `forks/iris/build` and
+`forks/iris/prove`. Verified by rebuilding iris through the engine to the same version string
+it reported before, and by running its prove against unmodified upstream, where both patches
+correctly answer still needed and the alias one quotes the real upstream failure.
+
+Two defects found in the reporter while testing it, both fixed. It counted upstream's preview
+tags as releases, which would have reported movement on nearly every run until nobody read it.
+And it mapped a pull request URL to the issues endpoint, which answers 404, which it then
+printed as though 404 were a state.
+
+Left undone on purpose. The running herdr server is still the Homebrew binary, since handing
+live panes to a new server is Milos's to run rather than mine. The Homebrew formula is still
+installed and now unlisted in the Brewfile, harmless because `~/.local/bin` comes first on the
+PATH.

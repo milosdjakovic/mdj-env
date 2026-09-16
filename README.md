@@ -84,7 +84,7 @@ stow -t ~ alacritty # Alternative terminal
 - **Modern CLI:** zoxide, atuin, eza, bat, fzf, fd, ripgrep, yazi, lazygit, iris
   - iris is built from a fork rather than installed, since the released build renders an
     expanded alias in its suggestions and its theme cannot tell a light terminal from a
-    dark one. `src/build-iris.sh` compiles it, pinned to one commit.
+    dark one. `src/build-forks.sh` compiles it, pinned to one commit.
 - **Shell:** powerlevel10k
 - **Fonts:** MesloLGS Nerd Font
 - **Apps:** Ghostty, Hammerspoon

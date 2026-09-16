@@ -1,0 +1,3 @@
+# What building this fork needs on the machine, in the six fields a module uses,
+# name | kind | locator | policy | consumer | reason, then origin and origin detail.
+go | path | go | required | forks/iris/build | iris is Go, and this fork is compiled here rather than installed because upstream has not taken either fix | brew | go

@@ -1,0 +1,8 @@
+# What building this fork needs on the machine, in the six fields a module uses,
+# name | kind | locator | policy | consumer | reason, then origin and origin detail.
+#
+# A fork declares like any module. Neither tool is needed to run herdr, only to build it, but
+# a machine that cannot build it cannot have the patch, so both are required rather than
+# optional.
+rustup   | path    | rustup   | required | forks/herdr/build | herdr is Rust and rustup is where cargo comes from here, asked for by name because this machine has no cargo on the path | brew | rustup
+zig@0.15 | package | zig@0.15 | required | forks/herdr/build | herdr vendors a terminal parser that its own build script compiles with Zig, pinned to one minor version, and the formula is keg only so presence is proven by asking rather than by probing a path | brew | zig@0.15

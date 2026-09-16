@@ -1,0 +1,60 @@
+#!/bin/bash
+set -e
+
+# Build herdr from the fork checkout, at whatever commit the caller has already checked out,
+# and install it at the destination.
+#
+#   build <checkout> <destination>
+#
+# The engine owns the clone, the pin and the reporting. This script owns everything that is
+# specific to herdr being a Rust program with a vendored Zig component, and it is the only
+# file here that knows either of those words.
+
+CHECKOUT="$1"
+DEST="$2"
+
+if [[ -z "$CHECKOUT" || -z "$DEST" ]]; then
+    echo "  usage: build <checkout> <destination>" >&2
+    exit 2
+fi
+
+# Rust arrives through rustup rather than as a formula, and the shim directory on this machine
+# does not carry a cargo of its own, so asking rustup where cargo is beats trusting the PATH.
+# The whole toolchain directory goes on the PATH rather than only cargo, because cargo runs
+# rustc by name and fails with a message about rustc that reads like a missing toolchain.
+if ! command -v rustup >/dev/null 2>&1; then
+    echo "  rustup is not on PATH. It is declared in forks/herdr/DEPENDENCIES and mapped in" >&2
+    echo "  DEPENDENCIES.map, so the setup layer is what provides it." >&2
+    exit 1
+fi
+CARGO="$(rustup which cargo 2>/dev/null || true)"
+if [[ -z "$CARGO" ]]; then
+    echo "  rustup has no cargo for the default toolchain." >&2
+    exit 1
+fi
+export PATH="$(dirname "$CARGO"):$PATH"
+
+# The vendored terminal parser is built by Zig, pinned to one minor version by herdr's own
+# build script, which reads the ZIG variable before it falls back to the PATH. The formula is
+# keg only, so there is nothing on the PATH to find and the prefix has to be asked for rather
+# than written down, since it differs between machines.
+if ! command -v brew >/dev/null 2>&1; then
+    echo "  brew is not on PATH, so the keg only zig prefix cannot be resolved." >&2
+    exit 1
+fi
+ZIG_PREFIX="$(brew --prefix zig@0.15 2>/dev/null || true)"
+if [[ -z "$ZIG_PREFIX" || ! -x "$ZIG_PREFIX/bin/zig" ]]; then
+    echo "  zig@0.15 is not present. It is declared in forks/herdr/DEPENDENCIES and mapped in" >&2
+    echo "  DEPENDENCIES.map, so the setup layer is what provides it." >&2
+    exit 1
+fi
+export ZIG="$ZIG_PREFIX/bin/zig"
+
+mkdir -p "$(dirname "$DEST")"
+
+# The Zig step fetches its own dependencies on a cold cache, so a first build needs the network
+# and says so plainly rather than failing with a hostname error nobody can place.
+echo "  compiling, the first build fetches the zig dependencies and takes a few minutes"
+( cd "$CHECKOUT" && cargo build --release --locked )
+
+install -m 0755 "$CHECKOUT/target/release/herdr" "$DEST"

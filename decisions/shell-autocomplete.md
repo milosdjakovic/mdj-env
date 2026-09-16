@@ -1,9 +1,10 @@
 # Shell autocomplete, and what it costs the herdr agents panel
 
-Status. Iris runs again as of 2026-09-16 12:10, after half a day on fzf-tab with carapace,
-and the herdr agents panel stays blind to sessions behind it. The in shell stack stays
-underneath as what Tab does when the iris menu is closed. The way to get the panel back is
-the herdr change in guide two, still unfiled.
+Status. Iris runs, and so does the agents panel, as of 2026-09-16 14:50. Iris came back at
+12:10 after half a day on fzf-tab with carapace, and the panel came back with a forked herdr
+that walks descendants, guide two below, declared at `forks/herdr`. The in shell stack stays
+underneath as what Tab does when the iris menu is closed. Nothing was given up in the end,
+and the price is a fork rebased for as long as upstream does not take the walk.
 
 ## Now
 
@@ -64,7 +65,7 @@ The two guides below are the whole of what a future change needs.
    removed, so it is a template change rather than a plugin list change. Carapace and
    autosuggestions stay. Never run fzf-tab and zsh-autocomplete together, both own Tab.
 
-### Guide two, keep a proxy and teach herdr to see through it
+### Guide two, keep a proxy and teach herdr to see through it, which is what runs now
 
 The change is one function. In herdr's `src/platform/macos.rs`, `foreground_job` lists one
 process group with `proc_listpids(PROC_PGRP_ONLY, ...)`. Add a descendant walk. When the
@@ -77,6 +78,12 @@ state engine and the notifications take an identity in and never ask how it was 
 the proxy relays the child's screen verbatim, so nothing downstream changes. Mirror the walk
 in `src/platform/linux.rs`. Add a test beside `foreground_job_detects_agent_behind_shell_wrapper`
 that starts the agent behind `script -q /dev/null`.
+
+Done on 2026-09-16, and what actually happened differs from the plan below in one way worth
+keeping. Steps 1 and 2 assumed an upstream that takes pull requests, and it does not, so no
+pull request was opened and none should be. `decisions/herdr-agent-detection.md` carries the
+contributor policy, the earlier pull request a bot closed unread, and the seven unanswered
+discussions that describe this exact problem. The rest went as written.
 
 1. Fork `github.com/herdrdev/herdr`, branch from the tag Homebrew installs, one commit with
    the walk and its test.
@@ -211,3 +218,22 @@ again, by choice this time, and guide two is the way to get it back.
 
 zsh-autocomplete is not tried and not rejected. It is the next thing to try if the panel is
 ever wanted more than the iris feel, and it is a template change since it owns compinit.
+
+### 2026-09-16 14:50
+
+Guide two is no longer hypothetical. herdr is built from a fork carrying the descendant walk,
+so a session behind iris reaches the agents panel and iris keeps its menu. The whole record,
+the upstream contributor policy, the earlier pull request closed unread, the unanswered
+discussions, what was built and what was measured, is in
+`decisions/herdr-agent-detection.md` under the same date rather than repeated here.
+
+What changes on this side. Nothing about the shell. The trio stays exactly where it was, under
+iris, answering Tab whenever the iris menu is closed. `src/build-iris.sh` and
+`src/check-iris-upstream.sh` are gone, replaced by the general fork mechanism in `forks/`, so
+the iris pin now lives in `forks/iris/FORK` and the two patches are declared there with the
+upstream issue the first one answers. Both were reproved against unmodified upstream on the
+way, and both are still needed.
+
+Guide one stands unchanged as the route to take if the fork ever becomes not worth rebasing.
+zsh-autocomplete is still the untried thing in it, and the reason to reach for it would be
+wanting the panel without a fork rather than anything about the shell.

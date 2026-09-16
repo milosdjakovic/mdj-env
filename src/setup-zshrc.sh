@@ -28,7 +28,7 @@ GENERATED="$(cat << EOF
 # PATH, hoisted above everything else because the iris hook below is the first thing that
 # runs and has to find the binary. macOS does not put the Homebrew prefix on the PATH it
 # hands a login shell, so nothing here may assume it, and ~/.local/bin comes first because
-# that is where src/build-iris.sh puts iris and it has to win over any package manager copy
+# that is where src/build-forks.sh puts iris and it has to win over any package manager copy
 # still lying around.
 export PATH="\$HOME/.local/bin:$BREW_PREFIX/bin:$BREW_PREFIX/sbin:\$PATH"
 
