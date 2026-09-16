@@ -1,0 +1,5 @@
+# Home paths that must stay real directories rather than becoming one stow symlink, as
+# path | reason, the path written relative to the home directory. The rule and the mechanism
+# are in the repository root CLAUDE.md and in decisions/stow-folding.md, and this file is read
+# by src/setup-stow-dotfiles.sh, which finds it by name and knows nothing about this module.
+.claude/skills | Claude Code installs skills of its own into this folder, so a fold sends them into this checkout

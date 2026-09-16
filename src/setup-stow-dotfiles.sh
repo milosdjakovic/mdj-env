@@ -3,8 +3,9 @@ set -e
 
 # Stow dotfiles to home directory using GNU Stow
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DOTFILES="$SCRIPT_DIR/../dotfiles"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+DOTFILES="$ROOT/dotfiles"
 
 # shellcheck source=lib/backup.sh
 source "$SCRIPT_DIR/lib/backup.sh"
@@ -19,13 +20,119 @@ fi
 echo "Stowing dotfiles..."
 cd "$DOTFILES"
 
-# Keep ~/.claude/skills a real directory before stowing. Claude Code writes its
-# own skills into this folder, so it must stay a real folder that stow links into
-# per skill. Missing on a fresh machine, stow would fold the whole folder into one
-# symlink and later runtime skills would be written into this repo. Every other
-# folder is left to fold as normal, which is deliberate, so a new file inside an
-# already linked package, a config file or a spoon file, appears without restowing.
-mkdir -p "$HOME/.claude/skills"
+# A directory the configured program also writes into must stay a real directory.
+#
+# Stow folds a whole directory into a single symlink when nothing is there yet and one package
+# supplies it. That is what every other folder here wants, since a new config file or a new
+# spoon file then appears without restowing. It is wrong for a directory the program writes
+# into as it runs, because the fold points the program's own state at this checkout, and its
+# sockets, logs and caches land in the repository instead of in the home directory. A folded
+# directory is also invisible until it happens, so two machines differ by nothing more than
+# whether the program or stow reached the path first.
+#
+# Which directories those are is a module fact, so each module declares its own in a NO-FOLD
+# file at its package root and this script never names one. Found by name, the way the
+# reconciler finds a collector or a prober.
+#
+# Two things happen per declared path. The guard makes the real directory before stow runs so
+# the fold cannot happen, and does nothing where the directory is already there. The repair is
+# for a machine that folded before any of this existed, where the path is already a symlink
+# into this checkout. It takes the link off, makes the real directory in its place, and moves
+# everything the repository does not track out of the package and into it. Tracked is the test
+# because which files a program writes is that program's own detail and a list of them here
+# would go stale. Nothing is deleted, every move is printed, and the directory in the checkout
+# stays exactly where it was.
+trim() {
+    local value="$1"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+    printf '%s' "$value"
+}
+
+# Every declared path, as module and path separated by a tab, so both passes read one source.
+declarations() {
+    local file module line relative
+
+    while IFS= read -r file; do
+        module="$(basename "$(dirname "$file")")"
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            line="${line%%#*}"
+            relative="$(trim "${line%%|*}")"
+            [[ -n "$relative" ]] || continue
+            printf '%s\t%s\n' "$module" "$relative"
+        done < "$file"
+    done < <(find "$DOTFILES" -maxdepth 2 -name NO-FOLD -type f | sort)
+}
+
+unfold() {
+    local relative="$1" target="$2" source="$3" source_real="$4"
+    local inside name entry candidate owned
+    local -a tracked=()
+
+    echo "  $relative is one symlink into this checkout, unfolding it"
+
+    inside="${source_real#"$ROOT"/}"
+    while IFS= read -r name; do
+        [[ -n "$name" ]] && tracked+=("$name")
+    done < <(git -C "$ROOT" ls-files -- "$inside" | sed "s|^${inside}/||" | cut -d/ -f1 | sort -u)
+
+    rm "$target"
+    mkdir -p "$target"
+
+    while IFS= read -r entry; do
+        name="$(basename "$entry")"
+        owned=0
+        for candidate in "${tracked[@]}"; do
+            [[ "$candidate" == "$name" ]] && owned=1 && break
+        done
+        (( owned )) && continue
+        mv "$entry" "$target/$name"
+        echo "    moved $relative/$name into the home directory, the repository does not track it"
+    done < <(find "$source" -mindepth 1 -maxdepth 1 | sort)
+}
+
+keep_real_directories() {
+    local module relative target source resolved source_real
+
+    while IFS=$'\t' read -r module relative; do
+        target="$HOME/$relative"
+        source="$DOTFILES/$module/$relative"
+
+        if [[ -L "$target" ]]; then
+            resolved="$(cd -P "$target" 2>/dev/null && pwd -P || true)"
+            source_real="$(cd -P "$source" 2>/dev/null && pwd -P || true)"
+            if [[ -n "$resolved" && "$resolved" == "$source_real" ]]; then
+                unfold "$relative" "$target" "$source" "$source_real"
+            fi
+        fi
+
+        # A link somewhere else, a dangling link, or a plain file, all of them keep the real
+        # directory from existing and none of them is this repository's to overwrite.
+        if [[ -L "$target" || ( -e "$target" && ! -d "$target" ) ]]; then
+            mdj_displace "$target" || true
+        fi
+
+        mkdir -p "$target"
+    done < <(declarations)
+}
+
+# A declared path that is a symlink again after stowing means the guard did not hold, which is
+# a defect worth failing on rather than one found later in a git status.
+verify_real_directories() {
+    local module relative target broken=0
+
+    while IFS=$'\t' read -r module relative; do
+        target="$HOME/$relative"
+        if [[ -L "$target" || ! -d "$target" ]]; then
+            echo "Error: $module declares $relative must stay a real directory and it is not" >&2
+            broken=1
+        fi
+    done < <(declarations)
+
+    return "$broken"
+}
+
+keep_real_directories
 
 # This repository wins, and the thing it wins against is kept.
 #
@@ -79,5 +186,7 @@ resolve_conflicts
 # set up machine. Package docs named CLAUDE.md are kept out of $HOME by each
 # package's own .stow-local-ignore.
 stow -R -t "$HOME" "${PACKAGES[@]}"
+
+verify_real_directories
 
 echo "Dotfiles stowed successfully"

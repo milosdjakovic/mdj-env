@@ -93,15 +93,19 @@ asking herdr what is registered.
 Link, never install. Install is for GitHub sources and copies the files into a herdr managed
 checkout, which forks them away from this repository and makes every later edit a reinstall.
 
-Linking has one consequence worth knowing before the first bootstrap on a machine, which is
-that `~/.config/herdr` is a single stow symlink into this package, so everything herdr writes
-beside its config is written into the repository. Registering the plugin produces
-`plugins.json` there, and it records the absolute path of this checkout, which makes it the
-one file certain to be wrong on the next machine and the reason the script regenerates it
-rather than the repository carrying it. A running server adds `.plugins.lock` and
-`herdr-server.log` the same way. All three are in `.gitignore`, and `.stow-local-ignore` is
-the wrong lever for them, since that keeps repository files out of the home directory and
-these travel in the opposite direction.
+Linking used to have one consequence worth knowing, and it is now handled rather than
+described. `~/.config/herdr` was a single stow symlink into this package on a machine where
+the directory did not exist before stow ran, so everything herdr wrote beside its config, the
+sockets, the logs, the session state and the registration, was written into the repository.
+This module declares that directory in its `NO-FOLD` file now, and the stow step makes it a
+real directory before linking and unfolds a machine where it is already a symlink, so herdr's
+state stays in the home directory and only `config.toml` and `tools` are links back here.
+
+Registration still produces `plugins.json`, and it still records the absolute path of this
+checkout, which is why `src/setup-herdr-plugins.sh` regenerates it on each machine rather than
+the repository carrying it. It simply lands beside the sockets in the home directory now. The
+three `.gitignore` lines that covered the leak are transitional and cover a machine that has
+not yet run `setup.sh`. `decisions/stow-folding.md` has the whole of it.
 
 ## Reading a reload
 

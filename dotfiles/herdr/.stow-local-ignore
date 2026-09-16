@@ -8,3 +8,6 @@ DEPENDENCIES
 # src/check-theme.sh and by nothing herdr loads.
 theme-map
 theme-emit
+# The fold declaration is read by the stow step one layer up, before anything is linked, so it
+# belongs to the repository rather than to the running configuration.
+NO-FOLD

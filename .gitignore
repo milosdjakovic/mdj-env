@@ -19,12 +19,12 @@ dotfiles/lazygit/Library/Application Support/lazygit/github_pull_requests.json
 # tree to ignore.
 dotfiles/hammerspoon/.hammerspoon/config/*.json.*
 
-# Herdr's own state, which lands in the tracked tree only because ~/.config/herdr is a stow
-# symlink back into this package, so anything herdr writes beside its config is written here.
-# plugins.json is the registration src/setup-herdr-plugins.sh creates, and it records the
-# absolute path of this checkout, so it is the one file guaranteed to be wrong on the next
-# machine and the script exists precisely to regenerate it there. The lock and the log are a
-# running server's leavings. Nothing in the three was typed by a person.
+# Herdr's own state, which used to land in the tracked tree because ~/.config/herdr was a
+# single stow symlink back into this package, so everything herdr wrote beside its config was
+# written here. The stow step now declares that directory must stay a real one and unfolds a
+# machine where it is not, so nothing can be written here again once setup.sh has run. These
+# three lines are transitional, they cover the machine that has not run it yet and they come
+# out when every machine has. decisions/stow-folding.md carries the reasoning.
 dotfiles/herdr/.config/herdr/plugins.json
 dotfiles/herdr/.config/herdr/.plugins.lock
 dotfiles/herdr/.config/herdr/herdr-server.log

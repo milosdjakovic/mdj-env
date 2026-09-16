@@ -2,3 +2,6 @@
 # module's contract with the layer above, so it belongs to the repository rather than to the
 # running configuration.
 DEPENDENCIES
+# The fold declaration is read by the stow step one layer up, before anything is linked, so it
+# belongs to the repository rather than to the running configuration.
+NO-FOLD

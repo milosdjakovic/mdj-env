@@ -273,6 +273,19 @@ conflict messages are handled, a plain file in the way, a symlink stow does not 
 symlink belonging to another package. Nothing is deleted. `setup-zshrc.sh` displaces the same
 way, since `~/.zshrc` is generated rather than stowed and there is no symlink to make.
 
+**A directory the configured program writes into stays a real directory.** Stow folds a whole
+directory into one symlink when the path is not there yet and one package supplies it, which is
+wanted everywhere else, since a file added inside an already linked package then appears without
+restowing. It is wrong where the program writes its own state beside its config, because the
+fold points that state at this checkout and the program's sockets, logs and caches land in the
+repository. Which directories those are is a module fact, so a module declares its own in a
+`NO-FOLD` file at its package root and the stow step finds them by name, the way the reconciler
+finds a collector or a prober. It makes each one real before linking, unfolds a machine where
+one is already a symlink into this checkout and moves the untracked files back to the home
+directory, and fails after stowing if any of them is a symlink again. Declaring is opt in,
+because one folded directory here is deliberate. `decisions/stow-folding.md` has the whole of
+it, the rejections first.
+
 Restowing also clears links to files this repository used to have and no longer does, which is
 the other half of overriding an outdated machine. That was verified rather than assumed, both
 folded and unfolded.
