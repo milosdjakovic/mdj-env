@@ -77,3 +77,7 @@ directory a program writes into.
   it a typo made a real directory nobody asked for, passed the check after stowing because that
   directory was real, and left the one that was meant folded anyway. Proved by misspelling a
   declaration in the throwaway repository, where the run fails and touches nothing.
+- **2026-09-17 00:35.** The repair says to restart. A program running through the old link
+  keeps whatever it opened there, so a socket or a log it goes on writing is a path nothing answers on, and
+  the unfold was silent about it. The line names the directory rather than the program, since
+  which program writes there is the module's own fact and this step names no module.
