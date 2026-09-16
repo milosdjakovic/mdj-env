@@ -150,8 +150,7 @@ program drawing in palette slots follows. Neovim re-sources its colorscheme on t
 
 Ghostty, both halves, sixteen slots and the six specials. Neovim, the twelve slots of
 `lua/aura/palette.lua`. herdr, its eighteen tokens in both `[theme.custom.*]` tables, and the
-three roles `highlight`, `subtext` and `fill` joined the vocabulary for it. iris, the four
-keys of its selected row, the rest being slots. fzf, tmux and the Claude statusline, entirely
+three roles `highlight`, `subtext` and `fill` joined the vocabulary for it. fzf, tmux and the Claude statusline, entirely
 through slots, since Ghostty paints all 256 and its map declares 16 to 19 for the bar under a
 current row, the secondary grey, the quiet rule and the page, so none of the three has a map
 of its own. Nothing stowed carries a hand copy, and the checker proves it across every file

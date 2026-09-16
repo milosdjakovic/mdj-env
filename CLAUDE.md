@@ -36,16 +36,6 @@ macOS development environment bootstrap and dotfiles management using GNU Stow. 
 ./src/check-theme.sh
 ./src/check-theme.sh --show
 
-# Ask what upstream has released since each carried fork branched, whether every patch is
-# still needed, and whether the links a decision rests on have moved. Reports only, it never
-# moves a pin. A name limits it to one fork.
-./src/check-forks.sh
-./src/check-forks.sh <fork>
-
-# Build every carried fork at its pinned commit and install it. Idempotent, and it rebuilds
-# when something has replaced an installed binary.
-./src/build-forks.sh
-
 # Set default editor for dev file types manually (setup-dev-defaults.sh defaults to Zed)
 ./src/set-dev-defaults.sh "Zed"
 ./src/set-dev-defaults.sh "Visual Studio Code"
@@ -67,7 +57,6 @@ stow -D -t ~ <package>        # Unlink a package
 - `src/` - Modular setup scripts (all idempotent, support Apple Silicon and Intel)
 - `dotfiles/` - Stow-managed configurations, each subdirectory is a stow package
 - `decisions/` - What was tried, rejected and corrected, one dated file per topic
-- `forks/` - One directory per carried fork, its declaration and how to build and prove it
 - `theme/` - The one palette every tool is painted from, and the contract for adding a tool
 
 ### Decisions, and when to read them
@@ -261,7 +250,7 @@ to drift unnoticed.
 
 ### Stow Packages
 
-**Stowed by default:** ghostty, tmux, nvim, zsh, hammerspoon, claude, lf, lazygit, herdr, iris
+**Stowed by default:** ghostty, tmux, nvim, zsh, hammerspoon, claude, lf, lazygit, herdr
 
 **Available but not stowed:** alacritty, kitty, wezterm
 
@@ -376,31 +365,23 @@ what it generates.
 Nothing here announces a session to anything else. A hook that told another program which
 pane a session was running in was tried and removed, because the program it told treats a
 reported state as the pane's authority and the session then never moved off the state the
-hook announced. `decisions/herdr-agent-detection.md` has the measurements.
+hook announced. `decisions/iris.md` has the measurements.
 
-### Carried forks, and the rule that ends one
+### Upstream defects, and what this repository does about one
 
-Some tools here run from a fork rather than from a package, because they carry a patch this
-machine needs and upstream has not taken. Each is declared in its own directory under
-`forks/`, and `src/build-forks.sh` and `src/check-forks.sh` read those declarations without
-knowing which forks exist. Adding one is a directory and no edit to either script.
+Nothing here is built from a fork, pinned to a commit, or patched around a defect upstream has
+not fixed. That was tried in September 2026 for two tools at once and undone the same day,
+because a pin stops taking upstream's releases the moment it is set and the price is a rebase
+every week for as long as upstream declines, which for a project that refuses outside pull
+requests is forever. `decisions/iris.md` is the record and the reason, and it is written so
+each fix can be rebuilt from the description alone if that is ever wanted again.
 
-`forks/CLAUDE.md` is the contract and is read before adding a fork, before moving a pin, and
-before deciding a patch can go. The short version is that a fork is a cost rather than a fix.
-It stops taking upstream's releases the moment it is pinned, so it sits between this machine
-and everything released after it, and the only honest test of whether it is still earning that
-is whether unmodified upstream now passes the patch's own tests. A patch that passes is
-dropped and its branch deleted. A patch that fails is rebased and carried one more cycle. When
-the last patch goes, the fork goes and the tool becomes an ordinary package line again.
-
-Every declaration names the file in `decisions/` that holds its reasoning, and the upstream
-links whose state would change something here. Those are read before proposing anything in
-that area, the Rejected section first, and the reporter is what says when one has moved.
-
-Any work on a fork, checking one, updating it, rebasing, dropping a patch or adding a new
-fork, goes through the `carried-forks` skill at `.claude/skills/carried-forks/SKILL.md`. It
-carries the procedure and the gates, including the one thing that is never this repository's
-to do, which is restarting or handing off something the person is working inside.
+What is done instead is to write the defect down where it can be rechecked. The tool, its
+version, the mechanism in the tool's own source, a reproduction anyone can run, the upstream
+links where it is reported, and the date. A tool that is more trouble than it is worth at that
+version is removed rather than carried, and the record says what would have to change upstream
+for it to come back. Any question about whether upstream has since fixed something starts from
+that record, the reproduction first, and never from a script that watches for it.
 
 ### Hammerspoon
 
@@ -452,12 +433,3 @@ Configuration in `dotfiles/lf/`. See `dotfiles/lf/CLAUDE.md` for why lf was chos
 ### Neovim
 
 LazyVim-based configuration. Run `nvim` after setup to bootstrap plugins.
-
-### Iris
-
-Shell autocomplete, configured in `dotfiles/iris/` and built from a fork rather than
-installed. See `dotfiles/iris/CLAUDE.md` for why the fork exists, the two patches it
-carries, the keys it takes before the shell sees them, the appearance detection, and the
-generated theme pair. It holds the pane terminal, which has a consequence for anything that
-identifies a program by reading one, and `forks/CLAUDE.md` plus the decisions it names carry
-that.

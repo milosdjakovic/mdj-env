@@ -9,34 +9,17 @@ fingers is worth more than avoiding the overlap. tmux is never modified to suit 
 Every change to `config.toml` needs `herdr server reload-config`. The running client does not
 notice an edit on its own.
 
-## The binary is a fork, and why
+## A session behind a pty proxy is invisible, and that is upstream's
 
 herdr names the agent in a pane by listing one process group, the foreground group of the
-pane's own terminal, and matching known names in it. It never walks parents or children,
-though it already fetches each process's parent pid and never reads it. A pty proxy holds the
-pane's terminal and runs the shell on a second terminal in a session of its own, so the agent
-is a descendant of the pane process and can never be a member of the group herdr lists. The
-shell autocomplete on this machine is exactly that, so every session behind it was missing
-from the agents panel.
-
-That is a kernel fact rather than a choice either program made. A controlling terminal belongs
-to one session, a proxy has to keep the outer one to read keys, so the shell needs a new
-session on a new terminal and nothing in it can ever be the outer terminal's foreground group.
-No setting in either program changes it, and a hook that announced the pane made it worse,
-which `decisions/herdr-agent-detection.md` records in full.
-
-So the binary here is built from a fork that adds the walk, declared at `forks/herdr`, and
-`forks/CLAUDE.md` carries the rule for when that fork can go. Two consequences matter when
-changing anything here. The update check is off in `config.toml`, because taking an update
-would replace the patched binary with an unpatched release and the panel would go blind again.
-And `~/.local/bin` comes before the Homebrew prefix on the PATH, so the built binary wins over
-any copy left there.
-
-Two facts about the CLI are worth keeping. `herdr integration install claude` reports session
-identity only, for resuming a conversation after a server restart, and never state, so it is
-not an answer to detection. And the pane id is a positional argument that comes first for
-every `herdr pane` command, which reads exactly like a broken parser when it trails the
-options and is not one.
+pane's own terminal. A program that owns that terminal and runs the shell on a second one in
+a session of its own, a shell front end, a tmux started inside the pane, anything of that
+shape, leaves the agent in a group herdr never lists, and the pane never appears in the agents
+panel. Nothing in the config here changes that, and a hook that announced the pane was tried
+and made things worse. The whole record, the herdr version it was measured at, the upstream
+pull request that was closed unread, and how to recheck it after an upgrade, is
+`decisions/iris.md`. Read it before touching detection or before adding anything to the shell
+that holds the terminal.
 
 ## The popup surface, and its one rule
 
@@ -218,7 +201,7 @@ follow `header`, so the line drew in fzf's colour until `footer:4` was named alo
 Everything in these pickers is a palette slot, including the selection bar, which for a while
 could not be one. A bar has to be a tint of the page under it, and no slot among the sixteen is
 dark on the dark palette and light on the light one, because each is claimed by a role that
-differs by half. It is the same wall the iris menu hit, and the reason that grew appearance
+differs by half. It is the same wall the iris menu hit while it was here, and the reason that grew appearance
 aware tables there.
 
 Ghostty paints all 256 slots, so slot 16, the first one no ANSI name claims, is declared in
@@ -242,7 +225,7 @@ no include and the tables have to sit inside a file that is otherwise hand writt
 commit them. `theme/CLAUDE.md` has the whole contract.
 
 Three roles exist because of this module and every palette answers them. `highlight` is
-`selection_bg`, the navigate cursor row, and it is what iris's menu bar reads too, purple on
+`selection_bg`, the navigate cursor row, and it is what the iris menu bar read too while iris was here, purple on
 the dark half and a neutral grey on the light one because a tinted bar on the light page reads
 as a lilac slab. fzf's bar is a neutral on both halves instead, slot 16 in Ghostty's map. `subtext` is `subtext0`, the ink stepped back for a row that
 is not selected. `fill` is `accent`, the primary purple on dark and that purple darkened on

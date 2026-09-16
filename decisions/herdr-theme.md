@@ -68,6 +68,6 @@ Herdr stopped following the appearance a day after this was proven, and it was n
 fault. Iris arrived under it on 2026-09-14 and consumed the one report Ghostty sends on a
 switch, so herdr, with `auto_switch = true` and both halves configured correctly, was deaf.
 Everything inside herdr asks herdr, so the whole tree froze with it. The cause, the tests that
-confirmed it and the fix on the iris fork are in the iris appearance file. Nothing here changed.
+confirmed it and the fix on the iris fork are in the iris appearance file, now merged into `iris.md`. Nothing here changed.
 `herdr server reload-config` does not re-ask the terminal, it reapplies config to the appearance
 last heard, which is worth knowing before reaching for it again.

@@ -16,7 +16,7 @@ checker, and commit what it regenerated.
 
 Ghostty reloads with `Cmd+Shift+,` and nothing outside Ghostty can send that reliably, so
 after regenerating, press it. Once Ghostty repaints, every program drawing in palette slots
-follows on its own, fzf, tmux, the Claude statusline, the iris menu and herdr, because none of
+follows on its own, fzf, tmux, the Claude statusline and herdr, because none of
 them carries a colour, only a slot number. That is why a wrong colour in one of those is
 usually Ghostty not yet reloaded, and the record of that mistake is in the theme decisions.
 

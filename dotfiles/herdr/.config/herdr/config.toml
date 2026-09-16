@@ -1,13 +1,5 @@
 onboarding = false
 
-# The binary this machine runs is built from a fork, forks/herdr, so herdr must not offer to
-# replace it. An update here never installs on its own, it raises a toast carrying an install
-# command, and taking that command would overwrite the fork with an unpatched release and the
-# agents panel would go blind again behind the shell autocomplete. Moving the pin in the
-# declaration is the way a release is taken, and src/check-forks.sh is what says one exists.
-[update]
-version_check = false
-
 [ui]
 agent_panel_sort = "spaces"
 show_agent_labels_on_pane_borders = false

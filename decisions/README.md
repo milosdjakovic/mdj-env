@@ -67,10 +67,7 @@ than discovered.
 
 ## Index
 
-- [herdr-agent-detection](herdr-agent-detection.md), herdr cannot see a session behind a pty proxy, the hook that announced it froze the state it announced, and a forked herdr that walks descendants is the stance
-- [shell-autocomplete](shell-autocomplete.md), iris runs and so does the agents panel, the in shell trio was tried for half a day and lost on feel, both routes and the versions kept
-- [iris-alias-display](iris-alias-display.md), iris expands an alias and never puts the typed word back, fixed on a fork branch and tracked against upstream
-- [iris-appearance-theme](iris-appearance-theme.md), the menu follows the terminal's appearance, a fork feature, with four measurement mistakes recorded on the way
+- [iris](iris.md), the shell autocomplete that was built from a fork for a theme and an alias fix, then removed because a pty proxy hides every session from the herdr agents panel, with the herdr version, the mechanism, the upstream record and how to recheck it
 - [theme-palette](theme-palette.md), one palette in theme/, every stowed tool painted from it by a generator that lives with the tool, and the checker proves it across every file
 - [fzf-appearance-colour](fzf-appearance-colour.md), slots for everything fzf draws except the selection bar, which a watcher rewrites into a file because it cannot be a slot
 - [herdr-finder-keys](herdr-finder-keys.md), the fuzzy search copies a path on `ctrl-y`, and why it is not shift and enter or `ctrl-c`
