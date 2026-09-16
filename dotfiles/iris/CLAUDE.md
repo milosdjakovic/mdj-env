@@ -1,8 +1,7 @@
 # Iris
 
-Disabled since 2026-09-16, the `.zshrc` template no longer execs it. `decisions/shell-autocomplete.md`
-says why and how it comes back. The package is still stowed and built, so everything below
-still applies when it does.
+Running. It was disabled for half a day on 2026-09-16 so the herdr agents panel could see
+sessions, and came back the same day. `decisions/shell-autocomplete.md` has both routes.
 
 The long form, why iris is built from a fork, its two patches, the keys it claims before the
 shell sees them, and the appearance detection, is the Iris section of the repository

@@ -68,7 +68,7 @@ than discovered.
 ## Index
 
 - [herdr-agent-detection](herdr-agent-detection.md), herdr cannot see a session behind a pty proxy, the hook that announced it froze the state it announced, and vanilla is the stance
-- [shell-autocomplete](shell-autocomplete.md), iris disabled for the in shell trio so the agents panel works, with both guides and the versions kept for a later return
+- [shell-autocomplete](shell-autocomplete.md), iris runs and the agents panel stays blind behind it, the in shell trio was tried for half a day and lost on feel, both guides and the versions kept
 - [iris-alias-display](iris-alias-display.md), iris expands an alias and never puts the typed word back, fixed on a fork branch and tracked against upstream
 - [iris-appearance-theme](iris-appearance-theme.md), the menu follows the terminal's appearance, a fork feature, with four measurement mistakes recorded on the way
 - [theme-palette](theme-palette.md), one palette in theme/, every stowed tool painted from it by a generator that lives with the tool, and the checker proves it across every file

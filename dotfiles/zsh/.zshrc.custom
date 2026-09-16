@@ -33,7 +33,7 @@ zstyle ':fzf-tab:*' fzf-flags --nth=2 --tabstop=24
 # supplies candidates, fzf-tab above still draws them, and it registers completion functions
 # so it has to come after oh-my-zsh has run compinit. It replaces zsh's completion for every
 # command it knows, git included, and decisions/shell-autocomplete.md says why it is here
-# instead of iris. Its own colours never reach the picker, fzf-tab colours files only.
+# under iris, whose menu takes Tab while it is open. Its own colours never reach the picker.
 if command -v carapace >/dev/null 2>&1; then
   source <(carapace _carapace)
 fi

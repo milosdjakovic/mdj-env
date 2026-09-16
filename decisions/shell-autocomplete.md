@@ -1,8 +1,9 @@
 # Shell autocomplete, and what it costs the herdr agents panel
 
-Status. Iris is disabled as of 2026-09-16 and the shell runs zsh-autosuggestions, fzf-tab and
-carapace, all inside zsh, so herdr sees every session. Iris stays built and stowed so it can
-be re-enabled with one line if herdr ever learns to see through a pty proxy.
+Status. Iris runs again as of 2026-09-16 12:10, after half a day on fzf-tab with carapace,
+and the herdr agents panel stays blind to sessions behind it. The in shell stack stays
+underneath as what Tab does when the iris menu is closed. The way to get the panel back is
+the herdr change in guide two, still unfiled.
 
 ## Now
 
@@ -15,7 +16,8 @@ from a Claude Code hook does not fix it, since a reported state becomes the pane
 and freezes it, which `herdr-agent-detection.md` records.
 
 So the choice is between an autocomplete that draws its own menu and a panel that works,
-and the panel won. The stack is zsh-autosuggestions for grey ghost text from history, fzf-tab
+and the panel won. Corrected 2026-09-16 12:10, see below, the menu won after half a day. The
+stack under it is zsh-autosuggestions for grey ghost text from history, fzf-tab
 for an fzf picker on Tab, and carapace underneath as the dictionary, roughly a thousand
 commands with flag and value descriptions, including git, aws, gcloud, az, docker, kubectl,
 gh, npm and nvim, and live values such as branch names, container names and cloud profiles.
@@ -40,12 +42,13 @@ Versions at the time of the decision, 2026-09-16.
 
 The two guides below are the whole of what a future change needs.
 
-### Guide one, the in shell stack, which is what runs now
+### Guide one, the in shell stack, which ran for half a day and now sits under iris
 
-1. The iris hook line is absent from the `.zshrc` template in `src/setup-zshrc.sh`. The iris
-   package stays stowed, `src/build-iris.sh` still builds it and `src/check-iris-upstream.sh`
-   still watches upstream, so re-enabling is putting `eval "$(iris init zsh)"` back above the
-   Powerlevel10k instant prompt and rerunning the script.
+1. Disabling iris is removing `eval "$(iris init zsh)"` from the `.zshrc` template in
+   `src/setup-zshrc.sh` and rerunning the script. The iris package stays stowed,
+   `src/build-iris.sh` still builds it and `src/check-iris-upstream.sh` still watches
+   upstream, so putting it back is the same one line above the Powerlevel10k instant prompt.
+   Since 12:10 on 2026-09-16 the line is in.
 2. carapace is `brew "carapace"` in the Brewfile, `carapace | brew | carapace` in
    `DEPENDENCIES.map`, and a line in `dotfiles/zsh/DEPENDENCIES` naming `.zshrc.custom`.
 3. `.zshrc.custom` sources it after `oh-my-zsh.sh`, since carapace registers completion
@@ -187,3 +190,24 @@ History is not a Tab thing here. Tab on an empty line is completion and lists fi
 what zsh has always done. The up arrow is atuin seeded with what is typed, ctrl+r is atuin's
 full search, and the grey ghost text is atuin's best match. Iris folded history into the same
 menu as commands and that is the one thing this stack does not reproduce.
+
+### 2026-09-16 12:10
+
+Iris is back. After the tab stop fix Milos tried the stack in a herdr pane and rejected it
+outright. `cd home-` and Tab inserted the one match with no menu, the picker has a search
+row of its own under the prompt instead of filtering on the command line, it opens large
+outside tmux where there is no popup, and typing `herdr` and Tab listed the command and six
+environment variables with none of the history that iris would have shown first. He had been
+satisfied with iris and said so. None of that is a setting. fzf-tab is a Tab picker with its
+own query line and no history, and no amount of tuning makes it the inline menu iris draws.
+
+Offered three ways, iris back, zsh-autocomplete as the closest in shell feel with the list
+under the prompt filtered by the line itself and ctrl+r flipping it to history, or a smaller
+fzf-tab that would not have answered the complaint. Milos chose iris back. The template line
+is restored with a note on why it was out, `~/.zshrc` regenerated, and fzf-tab with carapace
+stays underneath since Tab reaches the shell whenever the iris menu is closed and the aligned
+picker is better than zsh's own listing there. The herdr agents panel is blind behind iris
+again, by choice this time, and guide two is the way to get it back.
+
+zsh-autocomplete is not tried and not rejected. It is the next thing to try if the panel is
+ever wanted more than the iris feel, and it is a template change since it owns compinit.
