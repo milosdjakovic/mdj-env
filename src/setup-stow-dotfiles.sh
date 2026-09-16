@@ -91,6 +91,22 @@ unfold() {
     done < <(find "$source" -mindepth 1 -maxdepth 1 | sort)
 }
 
+# A declared path has to be a directory the package actually supplies, since that is the only
+# kind stow can fold. A typo would otherwise make a real directory nobody asked for, pass the
+# check after stowing because that directory is real, and leave the one that was meant folded.
+check_declarations() {
+    local module relative broken=0
+
+    while IFS=$'\t' read -r module relative; do
+        if [[ ! -d "$DOTFILES/$module/$relative" ]]; then
+            echo "Error: $module declares $relative in NO-FOLD and supplies no such directory" >&2
+            broken=1
+        fi
+    done < <(declarations)
+
+    return "$broken"
+}
+
 keep_real_directories() {
     local module relative target source resolved source_real
 
@@ -132,6 +148,7 @@ verify_real_directories() {
     return "$broken"
 }
 
+check_declarations
 keep_real_directories
 
 # This repository wins, and the thing it wins against is kept.

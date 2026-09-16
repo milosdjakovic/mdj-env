@@ -72,3 +72,8 @@ directory a program writes into.
   fresh empty home gets a real directory with the two links inside it, and a plain file in the
   way is displaced into the backup directory rather than deleted. Ran it on this machine, where
   it is a no op and the stow result is unchanged.
+- **2026-09-17 00:29.** Added a shape check ahead of everything the step touches. A declared path has to
+  be a directory the package actually supplies, which is the only kind stow can fold. Without
+  it a typo made a real directory nobody asked for, passed the check after stowing because that
+  directory was real, and left the one that was meant folded anyway. Proved by misspelling a
+  declaration in the throwaway repository, where the run fails and touches nothing.

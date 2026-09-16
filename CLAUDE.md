@@ -280,9 +280,10 @@ restowing. It is wrong where the program writes its own state beside its config,
 fold points that state at this checkout and the program's sockets, logs and caches land in the
 repository. Which directories those are is a module fact, so a module declares its own in a
 `NO-FOLD` file at its package root and the stow step finds them by name, the way the reconciler
-finds a collector or a prober. It makes each one real before linking, unfolds a machine where
-one is already a symlink into this checkout and moves the untracked files back to the home
-directory, and fails after stowing if any of them is a symlink again. Declaring is opt in,
+finds a collector or a prober. It refuses a declaration the package supplies no directory for,
+makes each one real before linking, unfolds a machine where one is already a symlink into this
+checkout and moves the untracked files back to the home directory, and fails after stowing if
+any of them is a symlink again. Declaring is opt in,
 because one folded directory here is deliberate. `decisions/stow-folding.md` has the whole of
 it, the rejections first.
 
@@ -372,8 +373,9 @@ that guard would have reached every new machine and no existing one, so it now b
 settings it wants, compares, and writes only on a difference. Foreign keys survive, so Claude
 Code's own writes and anything added by hand are left alone. It also prunes a retired hook of
 ours from every event it was wired into, so a machine that carries it is repaired by the same
-run. The same trap still sits in `setup-zshrc.sh`, which is worth knowing before changing
-what it generates.
+run. `setup-zshrc.sh` carried the same trap and was rebuilt on the same pattern, comparing the
+whole file it would write rather than grepping for one line, so both steps now reach a machine
+that was set up before the change.
 
 Nothing here announces a session to anything else. A hook that told another program which
 pane a session was running in was tried and removed, because the program it told treats a
