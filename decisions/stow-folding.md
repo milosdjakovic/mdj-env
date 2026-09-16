@@ -81,3 +81,11 @@ directory a program writes into.
   keeps whatever it opened there, so a socket or a log it goes on writing is a path nothing answers on, and
   the unfold was silent about it. The line names the directory rather than the program, since
   which program writes there is the module's own fact and this step names no module.
+- **2026-09-17 00:53.** The ownership test was wrong for a name outside ASCII, found by asking whether it
+  was rather than by assuming it was fine. Plain `git ls-files` quotes such a path and returns
+  it with a leading quote, so the prefix strip missed, the name never matched anything, and a
+  tracked file would have been carried out of the repository as though nothing owned it. Both
+  sides are null delimited now and neither quotes. Names with spaces were always fine. Proved
+  by putting an accented tracked file and an accented untracked one in the same directory in
+  the throwaway repository, where the first stays and is linked and only the second moves.
+

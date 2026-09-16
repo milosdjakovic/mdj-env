@@ -71,15 +71,20 @@ unfold() {
 
     echo "  $relative is one symlink into this checkout, unfolding it"
 
+    # Null delimited on both sides. Plain ls-files quotes any path carrying a character outside
+    # ASCII, so a tracked file with an accent in its name came back unrecognisable and would
+    # have been carried out of the repository as though nothing owned it.
     inside="${source_real#"$ROOT"/}"
-    while IFS= read -r name; do
+    while IFS= read -r -d '' name; do
+        name="${name#"$inside"/}"
+        name="${name%%/*}"
         [[ -n "$name" ]] && tracked+=("$name")
-    done < <(git -C "$ROOT" ls-files -- "$inside" | sed "s|^${inside}/||" | cut -d/ -f1 | sort -u)
+    done < <(git -C "$ROOT" ls-files -z -- "$inside")
 
     rm "$target"
     mkdir -p "$target"
 
-    while IFS= read -r entry; do
+    while IFS= read -r -d '' entry; do
         name="$(basename "$entry")"
         owned=0
         for candidate in "${tracked[@]}"; do
@@ -88,7 +93,7 @@ unfold() {
         (( owned )) && continue
         mv "$entry" "$target/$name"
         echo "    moved $relative/$name into the home directory, the repository does not track it"
-    done < <(find "$source" -mindepth 1 -maxdepth 1 | sort)
+    done < <(find "$source" -mindepth 1 -maxdepth 1 -print0 | sort -z)
 
     # A program that was running through the old link still holds whatever it opened there, so
     # a socket or a log it keeps writing is now a path nothing answers on. Which program that
