@@ -373,7 +373,14 @@ Spoons run without touching the stowed main config or its per spoon symlinks. On
 release it restores whatever was live before, which is always main, and
 relaunches. The resting state is main. The lock is a directory created
 atomically, held outside `~/.hammerspoon` so it never trips the pathwatcher, and
-its holder file records who took it and what to restore.
+its holder file records who took it and what to restore. Every relaunch it does
+is `env -i open`, never a plain `open`, because `open` hands the calling shell's
+environment to Hammerspoon and Hammerspoon hands it to everything it launches.
+Called from a Claude tool shell in a herdr pane, a plain `open` gave Hammerspoon
+that pane's `HERDR_*` and `CLAUDE_CODE_*` identity, and every Ghostty
+opened through the launcher afterwards refused herdr as nested. With nothing
+passed, LaunchServices supplies the Dock launch environment, which is also the
+one the config really runs in. `decisions/ghostty-relaunch-env-leak.md` has it.
 
 The discipline every session must follow. Ask before you start, and wait to be
 told to. Nothing that seizes the screen or the keyboard begins on an announcement,

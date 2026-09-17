@@ -90,12 +90,25 @@ restore_mj() {
 # ipc is not yet up, which would hang the whole command. Every wait is bounded, so
 # this can never stall. A caller that runs hs right after should tolerate a brief
 # unavailability and retry.
+#
+# The relaunch runs with an empty environment on purpose. `open` hands the calling
+# shell's whole exported environment to the application it launches, and this is
+# almost always called from a Claude Code tool shell inside a herdr pane, so a
+# plain `open -a` gave Hammerspoon that pane's HERDR_* and CLAUDE_CODE_* identity, and
+# Hammerspoon passed it on to every app it launched afterwards. A Ghostty opened from
+# the launcher then refused herdr as nested and marked every Claude session inside it
+# a child of one long gone. Given nothing, LaunchServices
+# fills in the same session environment launchd gives a Dock launch, HOME, USER,
+# SHELL, TMPDIR and the system PATH, which was measured rather than assumed, and
+# is also the environment the config actually runs in for real, so a test here
+# stops passing on a PATH the Dock launch will not have.
+# decisions/ghostty-relaunch-env-leak.md has the history.
 relaunch_hs() {
   if pgrep -x "$APP" >/dev/null 2>&1; then
     osascript -e "tell application \"$APP\" to quit" >/dev/null 2>&1 || true
     for _ in $(seq 1 40); do pgrep -x "$APP" >/dev/null 2>&1 || break; sleep 0.25; done
   fi
-  open -a "$APP"
+  env -i open -a "$APP"
   for _ in $(seq 1 40); do pgrep -x "$APP" >/dev/null 2>&1 && break; sleep 0.25; done
   sleep 1.5
 }

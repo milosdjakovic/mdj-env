@@ -44,6 +44,19 @@ alias ls='eza'
 alias cat='bat'
 alias rm='rm -iv'
 
+# `open -na Ghostty` hands the new process this shell's exported environment, which includes
+# every HERDR_* and CLAUDE_CODE_* variable set for THIS pane and session. The new
+# window has none of its own yet, so herdr inside it sees HERDR_ENV=1 already set and refuses
+# itself as nested, and a Claude Code session started inside it sees CLAUDE_CODE_CHILD_SESSION
+# already set and treats itself as a child of the session in the launching pane. Handed an
+# empty environment, LaunchServices fills in what launchd gives a Dock launch and nothing
+# else, so there is no list of variables to keep current. Anything the new instance should
+# carry goes through open's own flag, `ghostty-new --env NAME=value`.
+# decisions/ghostty-relaunch-env-leak.md has the history.
+ghostty-new() {
+  env -i open -na Ghostty "$@"
+}
+
 # Editor
 export EDITOR=nvim
 
