@@ -10,6 +10,11 @@ SRC_DIR="$SCRIPT_DIR/src"
 # src/lib/backup.sh handles by making its own stamp when this is absent.
 export MDJ_BACKUP_STAMP="$(date +%Y%m%d-%H%M%S)"
 
+# Where a step leaves a line the closing block below has to repeat. Exported for the same
+# reason as the stamp, and removed at the end, so nothing of it outlives the run. A step run
+# alone finds it unset and only says its line where it happens. src/lib/backup.sh has mdj_note.
+export MDJ_RUN_NOTES="$(mktemp -t mdj-env-notes)"
+
 # Why a trap, when set -e is already doing the right thing.
 #
 # This script is a flat list of calls under set -e and that shape is correct. A step that fails
@@ -38,6 +43,21 @@ step() {
     STEP_DONE=$((STEP_DONE + 1))
 }
 
+# Anything a step asked of you on the way past, said again at the end where it is read. It is
+# the same argument as the backup listing in the closing block, and the same failure it was
+# written against. The stow step's restart line, the one time a machine needed it, went by at
+# line twenty of two hundred and was found by reading the log back afterwards. Printed by the
+# closing block on a run that finishes and by the trap on one that does not, since a note a
+# step left before the abort is still owed, and the file goes either way.
+say_notes() {
+    if [[ -s "$MDJ_RUN_NOTES" ]]; then
+        echo ""
+        echo "    Things this run asks of you, said again here so they are not lost above:"
+        sed 's|^|      |' "$MDJ_RUN_NOTES"
+    fi
+    rm -f "$MDJ_RUN_NOTES"
+}
+
 on_exit() {
     local code=$?
     [[ $code -eq 0 ]] && return 0
@@ -48,6 +68,7 @@ on_exit() {
         echo "==> Setup ABORTED at step $((STEP_DONE + 1)) of $STEP_TOTAL, ${STEP_NOW:-startup}, exit $code"
         [[ $remaining -gt 0 ]] && echo "    $remaining later step(s) never ran, so this machine is part configured."
         echo "    The cause is above. Every step is idempotent, so fix it and run this again."
+        say_notes
     } >&2
 }
 trap on_exit EXIT
@@ -138,3 +159,5 @@ if [[ -d "$BACKUP_DIR" ]]; then
     echo "      $BACKUP_DIR"
     ( cd "$BACKUP_DIR" && find . -type f | sed 's|^\./|        |' )
 fi
+
+say_notes

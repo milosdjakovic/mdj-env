@@ -26,3 +26,19 @@ mdj_displace() {
     echo "    kept $relative in $MDJ_BACKUP_DIR"
     return 0
 }
+
+# Something a step has to tell the person and the run is the wrong place to say it.
+#
+# The stow step, when it unfolds a directory a program was writing into, owes one line, that
+# the program has to be restarted. Printed where it happens, that line sits a fifth of the way
+# into a run whose other two hundred lines are a listing of file extensions, which is exactly
+# the burial the backup listing at the end of setup.sh exists to avoid. So a step says it
+# twice. Once here, so a script run alone still says it, and once into the notes file when
+# setup.sh has named one, so the run repeats every note in its closing block where it is read.
+# Only setup.sh names the file, so a lone run leaves nothing behind.
+mdj_note() {
+    local line="$1"
+    echo "    $line"
+    [[ -n "${MDJ_RUN_NOTES:-}" ]] && printf '%s\n' "$line" >> "$MDJ_RUN_NOTES"
+    return 0
+}

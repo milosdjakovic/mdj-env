@@ -98,7 +98,7 @@ unfold() {
     # A program that was running through the old link still holds whatever it opened there, so
     # a socket or a log it keeps writing is now a path nothing answers on. Which program that
     # is belongs to the module, so the line says where rather than what to restart.
-    echo "    restart whatever writes into $relative, it was running while the path moved"
+    mdj_note "restart whatever writes into $relative, it was running while the path moved"
 }
 
 # A declared path has to be a directory the package actually supplies, since that is the only

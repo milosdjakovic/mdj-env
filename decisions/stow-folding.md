@@ -97,4 +97,12 @@ directory a program writes into.
   sessions. Every later step reported already current, so the change costs an idempotent run
   nothing. The three transitional `.gitignore` lines come out in this entry's change, since the
   path they covered can no longer be written on any machine that has run `setup.sh`.
-
+- **2026-09-17 15:35.** The restart line the unfold prints, the one time a machine needed it, went
+  by at line twenty of a two hundred line run and was found by reading the log back. That is the
+  burial the backup listing at the end of `setup.sh` was written against, so the unfold now says
+  its line through `mdj_note` in `src/lib/backup.sh`, which prints it where it happens and, when
+  `setup.sh` has exported `MDJ_RUN_NOTES`, appends it to that file. `setup.sh` repeats every
+  note in its closing block, and in the abort trap too, since a note left by step six is still
+  owed when step nine stops the run, and removes the file either way. A step run alone finds
+  the variable unset and leaves nothing behind. Verified by running the unfold's message
+  through a run with the variable set and one without.

@@ -293,6 +293,15 @@ any of them is a symlink again. Declaring is opt in,
 because one folded directory here is deliberate. `decisions/stow-folding.md` has the whole of
 it, the rejections first.
 
+**What a step asks of you is said again at the end.** An unfold owes one line, that the program
+writing into that directory has to be restarted, and printed where it happens that line sits at
+line twenty of a two hundred line run, which is how it was missed the one time a machine needed
+it. So a step says such a line through `mdj_note` in `src/lib/backup.sh`, which prints it in
+place and, inside `setup.sh`, also into a notes file the run repeats in its closing block, on an
+abort as well as on a finish. A step run alone finds no notes file and says its line once. This
+is the same argument as the backup listing, and it is the channel for anything else a step
+cannot finish by itself.
+
 Restowing also clears links to files this repository used to have and no longer does, which is
 the other half of overriding an outdated machine. That was verified rather than assumed, both
 folded and unfolded.
