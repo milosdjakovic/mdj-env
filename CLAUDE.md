@@ -201,6 +201,12 @@ to configure it, since an installed tool that is unconfigured is still a broken
 dependency. Never answer a missing tool by writing an install command into a module,
 which is the leak this split exists to prevent.
 
+What this layer guarantees is that everything declared is present, and only that. It does not
+move a thing already present to a newer version, because nothing here is pinned to a version
+and a setup run has no reason to change one on the way past. Upgrading is a deliberate act
+taken on its own, the same way the Neovim lockfile is. `decisions/homebrew-upgrades.md` has
+the reasoning and what it cost to learn.
+
 `src/check-dependencies.sh` reconciles all of it, and runs at the end of `setup.sh` or
 alone at any time. It regenerates every generated manifest so a stale one cannot be
 committed, then reports these as errors, since each is a repository defect and identical
