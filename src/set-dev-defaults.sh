@@ -36,8 +36,21 @@ if [ -z "$BUNDLE_ID" ]; then
     exit 1
 fi
 
-echo "Setting $APP_NAME ($BUNDLE_ID) as default for development files..."
-echo
+# The handler of one extension as Launch Services will actually use it, as a bundle id, or
+# nothing when duti cannot say. Read before and after every binding, because duti's exit code
+# is not the answer. On macOS 27 a change of default handler is something the person is asked
+# about, a dialog naming the old application and the new one, and `duti -s` returns zero the
+# moment it has asked, before anybody has answered. That was measured by pointing .md and .log
+# at TextEdit, which returned success, changed nothing, and put two dialogs on the screen. So
+# the only report this script can stand behind is what the handler is once the call has
+# returned, and an extension still on its old handler then is one with a dialog waiting, not
+# a failure. One caveat. duti answers this from what Launch Services would open the file with,
+# which is wider than which handler is bound to the type, so it says Zed for .rs on this
+# machine, an extension the binding cannot attach to at all. That is why the untyped case is
+# still read off the binding's own error, before this answer is consulted.
+current_handler() {
+    duti -x "$1" 2>/dev/null | sed -n 3p
+}
 
 # Common development file extensions
 EXTENSIONS=(
@@ -229,27 +242,61 @@ EXTENSIONS=(
 #
 # So the error is kept rather than sent to /dev/null, since these three cases are only
 # distinguishable by reading it, and only the third is a real failure.
+#
+# The report is a line per extension only on a run that changed something or could not.
+# Every other step in setup.sh says "already current" in one line when there is nothing to do,
+# and this one used to print a hundred, the same hundred every run, which was half the log of a
+# run whose point is to be read. So the loop keeps its per extension lines back, and prints
+# them all when at least one extension was moved to this handler, is waiting on a dialog, or
+# was refused, and one line when none of that happened. What it asks for does not change, only what it says about it.
 BOUND=0
+CHANGED=0
 UNTYPED=0
 REFUSED=0
 UNTYPED_LIST=""
+PENDING=0
+REPORT=""
 
 for ext in "${EXTENSIONS[@]}"; do
-    if error="$(duti -s "$BUNDLE_ID" "$ext" all 2>&1)" && [ -z "$error" ]; then
-        echo "  ✓ $ext"
-        BOUND=$((BOUND + 1))
-    elif printf '%s' "$error" | grep -q 'for dyn\.'; then
-        echo "  · $ext, no registered type on this machine"
+    before="$(current_handler "$ext")"
+    error="$(duti -s "$BUNDLE_ID" "$ext" all 2>&1)" || true
+    after="$(current_handler "$ext")"
+    if printf '%s' "$error" | grep -q 'for dyn\.'; then
+        REPORT="$REPORT  · $ext, no registered type on this machine
+"
         UNTYPED=$((UNTYPED + 1))
         UNTYPED_LIST="$UNTYPED_LIST $ext"
-    else
-        echo "  ✗ $ext, $error"
+    elif [ "$after" = "$BUNDLE_ID" ]; then
+        BOUND=$((BOUND + 1))
+        if [ "$before" = "$BUNDLE_ID" ]; then
+            REPORT="$REPORT  ✓ $ext, already
+"
+        else
+            REPORT="$REPORT  ✓ $ext, was ${before:-unset}
+"
+            CHANGED=$((CHANGED + 1))
+        fi
+    elif [ -n "$error" ]; then
+        REPORT="$REPORT  ✗ $ext, $error
+"
         REFUSED=$((REFUSED + 1))
+    else
+        REPORT="$REPORT  ? $ext, still ${before:-unset}, macOS is asking on screen
+"
+        PENDING=$((PENDING + 1))
     fi
 done
 
+if [ "$CHANGED" -eq 0 ] && [ "$REFUSED" -eq 0 ] && [ "$PENDING" -eq 0 ]; then
+    echo "$APP_NAME is already the default for $BOUND extension(s), $UNTYPED have no type to bind to"
+    exit 0
+fi
+
+echo "Setting $APP_NAME ($BUNDLE_ID) as default for development files..."
 echo
-echo "Bound $BOUND extension(s) to $APP_NAME"
+printf '%s' "$REPORT"
+echo
+echo "Bound $BOUND extension(s) to $APP_NAME, $CHANGED of them newly"
 
 if [ "$UNTYPED" -gt 0 ]; then
     echo
@@ -261,8 +308,17 @@ if [ "$UNTYPED" -gt 0 ]; then
     echo "  can change that, and installing something that declares the type would."
 fi
 
+# Not a failure and not counted as one, since it is a fact about this machine's screen rather
+# than about the repository, the same line the dependency check draws for a grant.
+if [ "$PENDING" -gt 0 ]; then
+    echo
+    echo "$PENDING extension(s) are waiting on a dialog. macOS asks before a default handler"
+    echo "  changes and duti does not wait for the answer, so choose $APP_NAME in each one and"
+    echo "  run this again to see them bound."
+fi
+
 if [ "$REFUSED" -gt 0 ]; then
     echo
-    echo "$REFUSED extension(s) failed for some other reason, listed above" >&2
+    echo "$REFUSED extension(s) are not bound to $APP_NAME, listed above" >&2
     exit 1
 fi

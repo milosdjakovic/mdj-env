@@ -349,8 +349,15 @@ prefix instead it finds a bin link it did not make and no man page beside it, ca
 and declines to repair it while saying so on every load. The map calls it a cask now, like every
 other command a cask ships.
 
-What no script can do is the part macOS will not allow, and two of those are now declared
-gates rather than prose. The Accessibility grant, which the whole Hammerspoon module stands on,
+What no script can do is the part macOS will not allow, and the default editor is the newest
+of those. On macOS 27 changing a file type's default handler raises a dialog for the person to
+answer, and `duti` returns success the moment it has asked, so `set-dev-defaults.sh` reads
+every handler back rather than trusting that answer, reports an extension still on its old
+handler as pending rather than as bound or failed, and exits zero on it. A fresh machine where
+Zed is not yet the default will see one dialog per typed extension on its first run, up to
+thirty three, and the step says to run it again once they are answered. On a machine already
+on Zed it says one line. `decisions/dev-defaults.md` has the measurement. Two others are now
+declared gates rather than prose. The Accessibility grant, which the whole Hammerspoon module stands on,
 is declared at that module's root and answered by its `grants-probe`. Obsidian's vault registry
 is declared by the Obsidian plugin as a marker path, so a fresh machine is told to open the
 application once rather than finding out later that the picker lists nothing.

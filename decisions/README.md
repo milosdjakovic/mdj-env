@@ -79,3 +79,4 @@ than discovered.
 - [olm-workspaces](olm-workspaces.md), window layouts are snapshots a person takes and applies, keyed by display role, after the automatic version was pulled out
 - [stow-folding](stow-folding.md), a module declares the home directories that must stay real, and the stow step makes them real and unfolds a machine that is already wrong
 - [olm-storage-roots](olm-storage-roots.md), everything Olm writes lives under `~/.olm`, data and cache apart, after five plugins each kept their own path
+- [dev-defaults](dev-defaults.md), the default editor step reads each handler back rather than trusting duti, since on macOS 27 a change is a dialog the person answers, and says one line when nothing moved
