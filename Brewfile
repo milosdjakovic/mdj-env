@@ -23,6 +23,11 @@ brew "displayplacer"
 brew "ffmpeg"
 brew "libqalculate"
 brew "lua"
+brew "mise"
+# A personal utility rather than a module dependency, so nothing declares it and the
+# reconciler asks about it once per run. That question is the designed state for this
+# section, not a defect.
+brew "mole"
 
 # Third party taps, for a tool with no formula in core
 tap "schappim/ocr"

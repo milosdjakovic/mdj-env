@@ -61,6 +61,7 @@ chafa         | brew      | chafa
 zoxide        | brew      | zoxide
 atuin         | brew      | atuin
 carapace      | brew      | carapace
+mise          | brew      | mise
 trash         | brew      | trash
 jq            | brew      | jq
 stow          | brew      | stow
@@ -128,7 +129,6 @@ script                   | macos     | ships with macOS
 #
 # The detail names the package rather than a command to run, which is the same line the rest of
 # this file walks, so a person knows what to install without this file turning into a script.
-fnm           | manual    | the fnm formula, for node version switching. .zshrc.custom guards its hook, so an absent fnm costs a shell nothing
 mullvad       | manual    | the mullvad-vpn cask, wanted only on a machine that uses Mullvad. Without it the VPN picker simply has one fewer backend
 macshot       | manual    | the macshot cask, the preferred screenshot backend. The capture plugin falls back to the native one without it
 # ivpn is the one entry here where installing is not the whole answer, so this is worth

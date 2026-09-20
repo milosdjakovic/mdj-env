@@ -76,11 +76,13 @@ unset FZF_DEFAULT_OPTS
 eval "$(atuin init zsh)"
 eval "$(zoxide init zsh)"
 source "$(brew --prefix)/opt/fzf/shell/key-bindings.zsh"
-# Guarded, unlike the three above it, because fnm is deliberately not in the Brewfile. It is
-# a node version switcher and a machine that writes no node has no use for one, so a default
-# install does not get it and this line has to survive its absence. Unguarded it printed
-# command not found before every prompt on any machine without it, which is how it was found.
-command -v fnm >/dev/null 2>&1 && eval "$(fnm env --use-on-cd --version-file-strategy=recursive)"
+# Guarded, unlike the three above it, and the guard is the point rather than caution. An
+# unguarded initializer for a tool this module only optionally needs prints command not found
+# before every prompt on a machine without it, which is a thing that happened here rather than
+# a thing to worry about. mise's own documentation gives this line unguarded, so the failure is
+# one copied line away. Anything eval'd here that this module does not also require gets the
+# same wrapper. decisions/runtime-versions.md has the history.
+command -v mise >/dev/null 2>&1 && eval "$(mise activate zsh)"
 
 # ctrl+r goes back to atuin, which fzf had been taking by accident. atuin binds ^r during
 # its init above, fzf's key-bindings.zsh is sourced after it and binds ^r to its own history

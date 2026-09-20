@@ -11,7 +11,7 @@ fzf-tab                  | manual  | ~/.oh-my-zsh/custom/plugins/fzf-tab        
 carapace                 | path    | carapace                                        | optional | .zshrc.custom | the completion dictionary fzf-tab draws from, guarded, so only descriptions for aws, gcloud and the like are lost without it
 zoxide                   | path    | zoxide                                          | required | .zshrc.custom | the cd alias is zoxide, so plain cd stops working without it
 atuin                    | path    | atuin                                           | required | .zshrc.custom | shell history, initialised on every shell start
-fnm                      | path    | fnm                                             | optional | .zshrc.custom | the node version switcher, kept out of the Brewfile on purpose, so its hook is guarded and only node version switching is lost without it
+mise                     | path    | mise                                            | optional | .zshrc.custom | the runtime version switcher for node, ruby, python and java, guarded, so a machine without it loses version switching and nothing else
 eza                      | path    | eza                                             | required | .zshrc.custom | the ls alias
 bat                      | path    | bat                                             | required | .zshrc.custom | the cat alias
 nvim                     | path    | nvim                                            | required | .zshrc.custom | the EDITOR every tool opens
