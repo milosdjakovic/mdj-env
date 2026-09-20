@@ -258,7 +258,15 @@ to drift unnoticed.
 
 **Stowed by default:** ghostty, tmux, nvim, zsh, hammerspoon, claude, lf, lazygit, herdr
 
-**Available but not stowed:** alacritty, kitty, wezterm
+**Available but not stowed:** alacritty, kitty, wezterm, fut
+
+fut is the odd one there. It is installed on every machine because its module declares it, and it is
+kept out of the stow list on purpose, since herdr is the multiplexer in use and fut's config would
+otherwise sit in the home directory configuring something nothing runs. It is carried because it learns
+agent state from the agent rather than by inferring it, which is the defect `decisions/iris.md`
+records, and it is not adopted because its prefix cannot be `alt+z` and it can neither tell whether a
+pane is busy nor raise a notification. `decisions/fut-vs-herdr.md` has the measurements and
+`dotfiles/fut/CLAUDE.md` the module guidance.
 
 Each package mirrors the home directory structure (e.g., `dotfiles/nvim/.config/nvim/` → `~/.config/nvim/`)
 

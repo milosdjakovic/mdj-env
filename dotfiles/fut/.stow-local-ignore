@@ -1,0 +1,6 @@
+# Repo only files at this package root, kept out of the home directory. The manifest is this
+# module's contract with the layer above, so it belongs to the repository rather than to the
+# running configuration. The module guidance is the same, notes for a person reading the
+# repository rather than anything fut loads.
+CLAUDE.md
+DEPENDENCIES

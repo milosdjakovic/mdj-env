@@ -48,6 +48,7 @@ nvim          | brew      | neovim
 lf            | brew      | lf
 lazygit       | brew      | lazygit
 herdr         | brew      | herdr
+fut           | tap       | mikker/tap/fut
 
 # Command line tools the configurations call.
 fzf           | brew      | fzf

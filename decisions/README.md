@@ -78,6 +78,7 @@ than discovered.
 - [neovim-lockfile-pin](neovim-lockfile-pin.md), the lockfile is the pin and the bootstrap restores it rather than updating past it
 - [olm-workspaces](olm-workspaces.md), window layouts are snapshots a person takes and applies, keyed by display role, after the automatic version was pulled out
 - [stow-folding](stow-folding.md), a module declares the home directories that must stay real, and the stow step makes them real and unfolds a machine that is already wrong
+- [fut-vs-herdr](fut-vs-herdr.md), fut is installed and declared and not stowed, since its agent state comes from the agent and its colour needs no generator, but the prefix cannot be `alt+z` and it can neither tell whether a pane is busy nor raise a notification
 - [olm-storage-roots](olm-storage-roots.md), everything Olm writes lives under `~/.olm`, data and cache apart, after five plugins each kept their own path
 - [ghostty-relaunch-env-leak](ghostty-relaunch-env-leak.md), `open` from a pane hands the pane's `HERDR_` and `CLAUDE_CODE_` identity to the app it launches, Hammerspoon passed it on to every Ghostty, so both launch sites use `env -i open`
 - [dev-defaults](dev-defaults.md), the default editor step reads each handler back rather than trusting duti, since on macOS 27 a change is a dialog the person answers, and says one line when nothing moved
