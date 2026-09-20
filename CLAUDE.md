@@ -258,7 +258,7 @@ to drift unnoticed.
 
 **Stowed by default:** ghostty, tmux, nvim, zsh, hammerspoon, claude, lf, lazygit, herdr
 
-**Available but not stowed:** alacritty, kitty, wezterm, fut
+**Available but not stowed:** alacritty, kitty, wezterm, fut, mole
 
 fut is the odd one there. It is installed on every machine because its module declares it, and it is
 kept out of the stow list on purpose, since herdr is the multiplexer in use and fut's config would
@@ -267,6 +267,13 @@ agent state from the agent rather than by inferring it, which is the defect `dec
 records, and it is not adopted because its prefix cannot be `alt+z` and it can neither tell whether a
 pane is busy nor raise a notification. `decisions/fut-vs-herdr.md` has the measurements and
 `dotfiles/fut/CLAUDE.md` the module guidance.
+
+mole is the other odd one, and for a different reason. It declares a tool and ships no
+configuration at all, because mole writes its own two config files through its own interactive
+commands and neither has ever been written on this machine. The module exists so the layer
+knows a fresh machine needs the tool, which it did not before, and it joins the stow list the
+day there is a whitelist worth keeping. `dotfiles/mole/CLAUDE.md` says what has to happen then,
+starting with a `NO-FOLD` declaration, since mole writes a debug log beside its config.
 
 Each package mirrors the home directory structure (e.g., `dotfiles/nvim/.config/nvim/` → `~/.config/nvim/`)
 
