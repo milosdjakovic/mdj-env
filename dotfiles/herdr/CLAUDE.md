@@ -76,6 +76,20 @@ Herdr reports a free pane by giving the foreground process group the same id as 
 `pane process-info` answers the question and that comparison gates every write. A busy pane is
 left alone and the work opens as a new tab instead, with a notification saying why.
 
+## Where a notification actually appears
+
+`[ui.toast] delivery` decides that, and the tools here depend on the answer rather than being
+indifferent to it. herdr's own default config names four values, `off` disables pop ups,
+`herdr` draws an in app toast, `terminal` asks the outer terminal for a desktop notification,
+and `system` asks the OS notification service directly.
+
+It is `herdr` here, so a notification is drawn inside the terminal by herdr itself. That is the
+value the tools are written for. The finder's `ctrl-y` ending copies a path and says so, and
+its busy pane fallback explains why the work opened in a new tab, and in both cases the popup
+is already gone by the time the message arrives, so the toast is the only confirmation there
+is. A desktop notification would work too and would arrive outside the window the work happened
+in, and `off` would silently remove the only feedback those two endings have.
+
 ## Context arrives two different ways
 
 A keybinding popup is handed `HERDR_ACTIVE_PANE_ID` and `HERDR_ACTIVE_PANE_CWD` as environment
