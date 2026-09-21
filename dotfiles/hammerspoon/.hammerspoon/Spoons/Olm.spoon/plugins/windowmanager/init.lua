@@ -33,10 +33,20 @@ end
 obj._margins = {}
 obj._settings = nil
 
+-- The round trip memory for _placeOnScreen, declared here as well as reset in init, since
+-- init runs inside loader.lua's own pcall and a failure anywhere else inside it would
+-- otherwise leave this field nil, turning the next display switch into a crash rather than
+-- only a lost memory.
+obj._lastFrames = {}
+
 --- WindowManager:init()
 --- Method
 --- Initialize the spoon
 function obj:init()
+  -- The round trip memory lives only in this table, plain, with no timer and no watcher,
+  -- since its whole job is answering the one place that reads and writes it, and it starts
+  -- over on every reload the same way every other field on this object does.
+  self._lastFrames = {}
   return self
 end
 
@@ -239,6 +249,145 @@ function obj:rightHalf()
   win:setFrame(frame)
 end
 
+--- WindowManager:_placeOnScreen(win, targetScreen)
+--- Method
+--- Moves a window onto another screen keeping its size and its place, in place of the
+--- proportional rescaling hs.window's own moveToScreen applies with no flags, which stretches
+--- or shrinks a window by the ratio of the two screens' shapes, a terminal moved from the
+--- built in panel to an ultrawide arriving stretched by that ratio and the same window moved
+--- back arriving shrunk by it. Both moveToDisplay and moveToScreen call this one method, so
+--- the two ways a window reaches another screen can never disagree about how it lands.
+---
+--- The window keeps its current pixel width and height, each clamped down to the target
+--- canvas only on the axis that genuinely does not fit, so an axis with room keeps its exact
+--- pixel count and only a real mismatch shrinks anything. Its place is carried across as the
+--- centre expressed as a fraction of the source canvas, so a window sitting a third of the way
+--- across a small screen lands a third of the way across the target one too, which keeps the
+--- window's felt position on screen rather than its proportions.
+---
+--- A window returning to a screen it has already visited lands back on exactly the frame it
+--- had there, for as long as this config has been running, through the round trip memory this
+--- method is the only writer and the only reader of. The remembered rect holds absolute screen
+--- coordinates rather than anything relative, so a size that still fits says nothing on its
+--- own about whether the position still does, an origin can move under it whenever a display
+--- is unplugged and replugged or whenever DisplayProfiles applies a new arrangement, which
+--- this config already does on every screen change. So the remembered rect is only trusted
+--- once every one of its four edges is checked against the target canvas, never its size
+--- alone.
+function obj:_placeOnScreen(win, targetScreen)
+  local sourceScreen = win:screen()
+  local frame = win:frame()
+
+  -- The memory only ever learns of a placement through this one method, so recording the
+  -- frame the window is leaving happens here, before it moves, and nowhere else. A window
+  -- or a screen with no id is skipped rather than ever letting a nil key reach the table.
+  local windowId = win:id()
+  local sourceUUID = sourceScreen and sourceScreen:getUUID()
+  if windowId and sourceUUID then
+    self._lastFrames[windowId] = self._lastFrames[windowId] or {}
+    self._lastFrames[windowId][sourceUUID] = { x = frame.x, y = frame.y, w = frame.w, h = frame.h }
+    self:_pruneLastFrames()
+  end
+
+  local targetCanvas = self:getScreenFrame(targetScreen)
+  local targetUUID = targetScreen and targetScreen:getUUID()
+  local remembered = windowId and targetUUID and self._lastFrames[windowId] and self._lastFrames[windowId][targetUUID]
+
+  -- A remembered frame for the exact target answers the placement outright, but only once
+  -- every edge of it, left, top, right and bottom, is checked to still lie inside the target
+  -- canvas. The rect is absolute, so a canvas whose origin moved since the frame was recorded
+  -- can leave a rect the right size sitting fully off screen, and checking only the width and
+  -- height would miss exactly that.
+  local fits = remembered
+    and remembered.x >= targetCanvas.x
+    and remembered.y >= targetCanvas.y
+    and remembered.x + remembered.w <= targetCanvas.x + targetCanvas.w
+    and remembered.y + remembered.h <= targetCanvas.y + targetCanvas.h
+
+  if fits then
+    win:setFrame({
+      x = math.floor(remembered.x),
+      y = math.floor(remembered.y),
+      w = math.floor(remembered.w),
+      h = math.floor(remembered.h),
+    })
+    return
+  end
+
+  local sourceCanvas = self:getScreenFrame(sourceScreen)
+
+  local newW = math.min(frame.w, targetCanvas.w)
+  local newH = math.min(frame.h, targetCanvas.h)
+
+  -- The centre as a fraction of the source canvas, guarded against a canvas with no real
+  -- width or height, where the middle is as good an answer as any and nothing sized like
+  -- that is worth locating exactly.
+  local cx, cy = 0.5, 0.5
+  if sourceCanvas.w > 0 then
+    cx = (frame.x + frame.w / 2 - sourceCanvas.x) / sourceCanvas.w
+  end
+  if sourceCanvas.h > 0 then
+    cy = (frame.y + frame.h / 2 - sourceCanvas.y) / sourceCanvas.h
+  end
+
+  local newX = targetCanvas.x + cx * targetCanvas.w - newW / 2
+  local newY = targetCanvas.y + cy * targetCanvas.h - newH / 2
+
+  -- clampBetween orders its own pair, so a window wider or taller than the target canvas
+  -- still gets a real range to slide along rather than being pinned to one edge.
+  newX = clampBetween(newX, targetCanvas.x, targetCanvas.x + targetCanvas.w - newW)
+  newY = clampBetween(newY, targetCanvas.y, targetCanvas.y + targetCanvas.h - newH)
+
+  win:setFrame({
+    x = math.floor(newX),
+    y = math.floor(newY),
+    w = math.floor(newW),
+    h = math.floor(newH),
+  })
+end
+
+--- WindowManager:_pruneLastFrames()
+--- Method
+--- Drops a stored window id once its window is gone, so the round trip memory cannot grow
+--- without bound across a long session. Walking the whole table costs a pass over every
+--- entry, so it only runs once there is enough in it for that pass to be worth it rather than
+--- on every placement.
+---
+--- The window enumeration happens exactly once here, through hs.window.allWindows(), and every
+--- stored id is then only tested against the set that call produced. hs.window.get(id) looks
+--- like the cheap way to ask about one id, and is not, since it is window.find(hint, true),
+--- and window.find runs wins = wins or window.allWindows() whenever it has no list of its own
+--- to search, so a per id call to hs.window.get repeats that same full accessibility
+--- enumeration of every running application's windows once per stored id, forty of them on a
+--- single keypress, on the main thread. Building the live set once and testing membership in
+--- it is what keeps this an occasional single enumeration rather than dozens of them.
+---
+--- window.lua's own comment near its id accessor notes that a minimized window can also
+--- report no id, so this prune can occasionally forget a window that only stepped out of view
+--- rather than closing. That cost is acceptable here, since the whole table starts over on
+--- every config reload regardless of anything a prune did or did not catch.
+function obj:_pruneLastFrames()
+  local count = 0
+  for _ in pairs(self._lastFrames) do
+    count = count + 1
+  end
+  if count <= 40 then return end
+
+  local live = {}
+  for _, w in ipairs(hs.window.allWindows()) do
+    local id = w:id()
+    if id then
+      live[id] = true
+    end
+  end
+
+  for windowId in pairs(self._lastFrames) do
+    if not live[windowId] then
+      self._lastFrames[windowId] = nil
+    end
+  end
+end
+
 --- WindowManager:moveToDisplay(direction)
 --- Method
 --- Move window to next or previous display
@@ -256,7 +405,7 @@ function obj:moveToDisplay(direction)
   end
 
   if nextScreen then
-    window:moveToScreen(nextScreen)
+    self:_placeOnScreen(window, nextScreen)
   end
 end
 
@@ -266,7 +415,7 @@ end
 function obj:moveToScreen(screen)
   local window = hs.window.focusedWindow()
   if window and screen then
-    window:moveToScreen(screen, true, true, 0)
+    self:_placeOnScreen(window, screen)
   end
 end
 
