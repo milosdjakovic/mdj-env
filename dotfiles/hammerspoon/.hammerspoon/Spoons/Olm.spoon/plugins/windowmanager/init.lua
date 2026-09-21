@@ -33,10 +33,20 @@ end
 obj._margins = {}
 obj._settings = nil
 
+-- The round trip memory for _placeOnScreen, declared here as well as reset in init, since
+-- init runs inside loader.lua's own pcall and a failure anywhere else inside it would
+-- otherwise leave this field nil, turning the next display switch into a crash rather than
+-- only a lost memory.
+obj._lastFrames = {}
+
 --- WindowManager:init()
 --- Method
 --- Initialize the spoon
 function obj:init()
+  -- The round trip memory lives only in this table, plain, with no timer and no watcher,
+  -- since its whole job is answering the one place that reads and writes it, and it starts
+  -- over on every reload the same way every other field on this object does.
+  self._lastFrames = {}
   return self
 end
 
@@ -239,6 +249,191 @@ function obj:rightHalf()
   win:setFrame(frame)
 end
 
+--- WindowManager:_applyFrame(win, rect)
+--- Method
+--- Writes a frame to a window, escalating to hs.window's own workaround only when a plain
+--- write did not actually land. setFrame with the default setFrameCorrectness writes the
+--- frame in one call, hs/window.lua:360, and macOS evaluates that write against whatever
+--- screen the window is still considered to be on at the instant it arrives, so growing a
+--- window while it crosses from a small screen to a large one gets its size clamped to the
+--- screen it is leaving rather than the one it is headed to. A round trip from an ultrawide
+--- to the built in panel and back once restored a width of about 1985 rather than the
+--- remembered 2400, and the arithmetic named the cause, the remembered x of negative 471 plus
+--- the observed 1985 lands at 1514, which is the built in panel's own right edge at 1512, the
+--- size cut exactly at the boundary of the screen being left.
+---
+--- hs.window's own setFrameWithWorkarounds answers this, hs/window.lua:343, its zero duration
+--- path writing the size, then the top left, then the size again, and it is that second size
+--- write, landing once the window is already considered to be on the target screen, that
+--- escapes the clamp. It is not used for every placement, because it parks the window inside
+--- the screen it starts on to learn what size that screen will actually allow, which shows up
+--- as a visible wiggle on every single display switch, and the plain write already lands
+--- exactly whenever a window is shrinking rather than growing across the boundary. So the
+--- plain write runs first and the workaround only follows once a readback shows it did not
+--- take.
+---
+--- The tolerance below is not a fitted number. A terminal such as Ghostty only resizes in
+--- whole rows and columns, hs/window.lua:388, so an exact match can never be expected of one,
+--- and the allowance is roughly one cell on each axis with room to spare, while the failure
+--- this escalation exists to catch was four hundred points out on one axis. Neither number is
+--- delicate against the other.
+function obj:_applyFrame(win, rect)
+  local escalateTolerance = 20
+
+  win:setFrame(rect)
+
+  local landed = win:frame()
+  local offW = math.abs(landed.w - rect.w)
+  local offH = math.abs(landed.h - rect.h)
+  if offW <= escalateTolerance and offH <= escalateTolerance then
+    return
+  end
+
+  win:setFrameWithWorkarounds(rect, 0)
+end
+
+--- WindowManager:_placeOnScreen(win, targetScreen)
+--- Method
+--- Moves a window onto another screen keeping its size and its place, in place of the
+--- proportional rescaling hs.window's own moveToScreen applies with no flags, which stretches
+--- or shrinks a window by the ratio of the two screens' shapes, a terminal moved from the
+--- built in panel to an ultrawide arriving stretched by that ratio and the same window moved
+--- back arriving shrunk by it. Both moveToDisplay and moveToScreen call this one method, so
+--- the two ways a window reaches another screen can never disagree about how it lands.
+---
+--- The window keeps its current pixel width and height, each clamped down to the target
+--- canvas only on the axis that genuinely does not fit, so an axis with room keeps its exact
+--- pixel count and only a real mismatch shrinks anything. Its place is carried across as the
+--- centre expressed as a fraction of the source canvas, so a window sitting a third of the way
+--- across a small screen lands a third of the way across the target one too, which keeps the
+--- window's felt position on screen rather than its proportions.
+---
+--- A window returning to a screen it has already visited lands back on exactly the frame it
+--- had there, for as long as this config has been running, through the round trip memory this
+--- method is the only writer and the only reader of. The remembered rect holds absolute screen
+--- coordinates rather than anything relative, so a size that still fits says nothing on its
+--- own about whether the position still does, an origin can move under it whenever a display
+--- is unplugged and replugged or whenever DisplayProfiles applies a new arrangement, which
+--- this config already does on every screen change. So the remembered rect is only trusted
+--- once every one of its four edges is checked against the target canvas, never its size
+--- alone. Placing either the remembered frame or the layer 1 fit goes through _applyFrame
+--- above rather than through hs.window's own setFrame directly, since a plain write can land
+--- short of a growing window's true size and this method's whole job is landing on the frame
+--- it just computed or remembered.
+function obj:_placeOnScreen(win, targetScreen)
+  local sourceScreen = win:screen()
+  local frame = win:frame()
+
+  -- The memory only ever learns of a placement through this one method, so recording the
+  -- frame the window is leaving happens here, before it moves, and nowhere else. A window
+  -- or a screen with no id is skipped rather than ever letting a nil key reach the table.
+  local windowId = win:id()
+  local sourceUUID = sourceScreen and sourceScreen:getUUID()
+  if windowId and sourceUUID then
+    self._lastFrames[windowId] = self._lastFrames[windowId] or {}
+    self._lastFrames[windowId][sourceUUID] = { x = frame.x, y = frame.y, w = frame.w, h = frame.h }
+    self:_pruneLastFrames()
+  end
+
+  local targetCanvas = self:getScreenFrame(targetScreen)
+  local targetUUID = targetScreen and targetScreen:getUUID()
+  local remembered = windowId and targetUUID and self._lastFrames[windowId] and self._lastFrames[windowId][targetUUID]
+
+  -- A remembered frame for the exact target answers the placement outright, but only once
+  -- every edge of it, left, top, right and bottom, is checked to still lie inside the target
+  -- canvas. The rect is absolute, so a canvas whose origin moved since the frame was recorded
+  -- can leave a rect the right size sitting fully off screen, and checking only the width and
+  -- height would miss exactly that.
+  local fits = remembered
+    and remembered.x >= targetCanvas.x
+    and remembered.y >= targetCanvas.y
+    and remembered.x + remembered.w <= targetCanvas.x + targetCanvas.w
+    and remembered.y + remembered.h <= targetCanvas.y + targetCanvas.h
+
+  if fits then
+    self:_applyFrame(win, {
+      x = math.floor(remembered.x),
+      y = math.floor(remembered.y),
+      w = math.floor(remembered.w),
+      h = math.floor(remembered.h),
+    })
+    return
+  end
+
+  local sourceCanvas = self:getScreenFrame(sourceScreen)
+
+  local newW = math.min(frame.w, targetCanvas.w)
+  local newH = math.min(frame.h, targetCanvas.h)
+
+  -- The centre as a fraction of the source canvas, guarded against a canvas with no real
+  -- width or height, where the middle is as good an answer as any and nothing sized like
+  -- that is worth locating exactly.
+  local cx, cy = 0.5, 0.5
+  if sourceCanvas.w > 0 then
+    cx = (frame.x + frame.w / 2 - sourceCanvas.x) / sourceCanvas.w
+  end
+  if sourceCanvas.h > 0 then
+    cy = (frame.y + frame.h / 2 - sourceCanvas.y) / sourceCanvas.h
+  end
+
+  local newX = targetCanvas.x + cx * targetCanvas.w - newW / 2
+  local newY = targetCanvas.y + cy * targetCanvas.h - newH / 2
+
+  -- clampBetween orders its own pair, so a window wider or taller than the target canvas
+  -- still gets a real range to slide along rather than being pinned to one edge.
+  newX = clampBetween(newX, targetCanvas.x, targetCanvas.x + targetCanvas.w - newW)
+  newY = clampBetween(newY, targetCanvas.y, targetCanvas.y + targetCanvas.h - newH)
+
+  self:_applyFrame(win, {
+    x = math.floor(newX),
+    y = math.floor(newY),
+    w = math.floor(newW),
+    h = math.floor(newH),
+  })
+end
+
+--- WindowManager:_pruneLastFrames()
+--- Method
+--- Drops a stored window id once its window is gone, so the round trip memory cannot grow
+--- without bound across a long session. Walking the whole table costs a pass over every
+--- entry, so it only runs once there is enough in it for that pass to be worth it rather than
+--- on every placement.
+---
+--- The window enumeration happens exactly once here, through hs.window.allWindows(), and every
+--- stored id is then only tested against the set that call produced. hs.window.get(id) looks
+--- like the cheap way to ask about one id, and is not, since it is window.find(hint, true),
+--- and window.find runs wins = wins or window.allWindows() whenever it has no list of its own
+--- to search, so a per id call to hs.window.get repeats that same full accessibility
+--- enumeration of every running application's windows once per stored id, forty of them on a
+--- single keypress, on the main thread. Building the live set once and testing membership in
+--- it is what keeps this an occasional single enumeration rather than dozens of them.
+---
+--- window.lua's own comment near its id accessor notes that a minimized window can also
+--- report no id, so this prune can occasionally forget a window that only stepped out of view
+--- rather than closing. That cost is acceptable here, since the whole table starts over on
+--- every config reload regardless of anything a prune did or did not catch.
+function obj:_pruneLastFrames()
+  local count = 0
+  for _ in pairs(self._lastFrames) do
+    count = count + 1
+  end
+  if count <= 40 then return end
+
+  local live = {}
+  for _, w in ipairs(hs.window.allWindows()) do
+    local id = w:id()
+    if id then
+      live[id] = true
+    end
+  end
+
+  for windowId in pairs(self._lastFrames) do
+    if not live[windowId] then
+      self._lastFrames[windowId] = nil
+    end
+  end
+end
+
 --- WindowManager:moveToDisplay(direction)
 --- Method
 --- Move window to next or previous display
@@ -256,7 +451,7 @@ function obj:moveToDisplay(direction)
   end
 
   if nextScreen then
-    window:moveToScreen(nextScreen)
+    self:_placeOnScreen(window, nextScreen)
   end
 end
 
@@ -266,7 +461,7 @@ end
 function obj:moveToScreen(screen)
   local window = hs.window.focusedWindow()
   if window and screen then
-    window:moveToScreen(screen, true, true, 0)
+    self:_placeOnScreen(window, screen)
   end
 end
 
