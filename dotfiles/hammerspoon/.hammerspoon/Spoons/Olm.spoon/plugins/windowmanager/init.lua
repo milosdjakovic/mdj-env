@@ -249,6 +249,49 @@ function obj:rightHalf()
   win:setFrame(frame)
 end
 
+--- WindowManager:_applyFrame(win, rect)
+--- Method
+--- Writes a frame to a window, escalating to hs.window's own workaround only when a plain
+--- write did not actually land. setFrame with the default setFrameCorrectness writes the
+--- frame in one call, hs/window.lua:360, and macOS evaluates that write against whatever
+--- screen the window is still considered to be on at the instant it arrives, so growing a
+--- window while it crosses from a small screen to a large one gets its size clamped to the
+--- screen it is leaving rather than the one it is headed to. A round trip from an ultrawide
+--- to the built in panel and back once restored a width of about 1985 rather than the
+--- remembered 2400, and the arithmetic named the cause, the remembered x of negative 471 plus
+--- the observed 1985 lands at 1514, which is the built in panel's own right edge at 1512, the
+--- size cut exactly at the boundary of the screen being left.
+---
+--- hs.window's own setFrameWithWorkarounds answers this, hs/window.lua:343, its zero duration
+--- path writing the size, then the top left, then the size again, and it is that second size
+--- write, landing once the window is already considered to be on the target screen, that
+--- escapes the clamp. It is not used for every placement, because it parks the window inside
+--- the screen it starts on to learn what size that screen will actually allow, which shows up
+--- as a visible wiggle on every single display switch, and the plain write already lands
+--- exactly whenever a window is shrinking rather than growing across the boundary. So the
+--- plain write runs first and the workaround only follows once a readback shows it did not
+--- take.
+---
+--- The tolerance below is not a fitted number. A terminal such as Ghostty only resizes in
+--- whole rows and columns, hs/window.lua:388, so an exact match can never be expected of one,
+--- and the allowance is roughly one cell on each axis with room to spare, while the failure
+--- this escalation exists to catch was four hundred points out on one axis. Neither number is
+--- delicate against the other.
+function obj:_applyFrame(win, rect)
+  local escalateTolerance = 20
+
+  win:setFrame(rect)
+
+  local landed = win:frame()
+  local offW = math.abs(landed.w - rect.w)
+  local offH = math.abs(landed.h - rect.h)
+  if offW <= escalateTolerance and offH <= escalateTolerance then
+    return
+  end
+
+  win:setFrameWithWorkarounds(rect, 0)
+end
+
 --- WindowManager:_placeOnScreen(win, targetScreen)
 --- Method
 --- Moves a window onto another screen keeping its size and its place, in place of the
@@ -273,7 +316,10 @@ end
 --- is unplugged and replugged or whenever DisplayProfiles applies a new arrangement, which
 --- this config already does on every screen change. So the remembered rect is only trusted
 --- once every one of its four edges is checked against the target canvas, never its size
---- alone.
+--- alone. Placing either the remembered frame or the layer 1 fit goes through _applyFrame
+--- above rather than through hs.window's own setFrame directly, since a plain write can land
+--- short of a growing window's true size and this method's whole job is landing on the frame
+--- it just computed or remembered.
 function obj:_placeOnScreen(win, targetScreen)
   local sourceScreen = win:screen()
   local frame = win:frame()
@@ -305,7 +351,7 @@ function obj:_placeOnScreen(win, targetScreen)
     and remembered.y + remembered.h <= targetCanvas.y + targetCanvas.h
 
   if fits then
-    win:setFrame({
+    self:_applyFrame(win, {
       x = math.floor(remembered.x),
       y = math.floor(remembered.y),
       w = math.floor(remembered.w),
@@ -338,7 +384,7 @@ function obj:_placeOnScreen(win, targetScreen)
   newX = clampBetween(newX, targetCanvas.x, targetCanvas.x + targetCanvas.w - newW)
   newY = clampBetween(newY, targetCanvas.y, targetCanvas.y + targetCanvas.h - newH)
 
-  win:setFrame({
+  self:_applyFrame(win, {
     x = math.floor(newX),
     y = math.floor(newY),
     w = math.floor(newW),

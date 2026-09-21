@@ -57,6 +57,13 @@ and a closed window is a stranger when it reopens.
   window had on a 34 inch ultrawide means nothing on a 23 inch panel. Nothing is stored and
   nothing travels, so the objection does not reach it.
 
+- **Writing every placement through `setFrameWithWorkarounds`.** Considered 2026-09-21 and
+  turned down. It is the correct write and it is not free, since it parks the window inside the
+  screen it starts on to learn what size that screen will allow, which reads as a wiggle on
+  every display switch. A plain write already lands exactly whenever a window is shrinking, so
+  the plain write runs first and the workaround follows only when a readback shows it did not
+  take.
+
 ## Log
 
 ### 2026-09-21 12:01
@@ -75,3 +82,26 @@ recorder and a restore after a display change. The third was proposed without re
 `decisions/olm-workspaces.md` first, where the same thing sits in the Rejected list from six
 days earlier. Milos asked for the first two, which is what landed, and the third is recorded
 above as rejected rather than as pending.
+
+### 2026-09-21 12:42
+
+The first live round trip failed and named its own cause. The terminal was remembered on the
+ultrawide at `2400x1350 at -471,-1380`, a live read of the table confirmed exactly that, and the
+window came back at `1983x1350 at -471,-1380`. The position and the height are exact and only
+the width is short, and `-471` plus `1983` is `1512`, which is the built in panel's own right
+edge to the pixel. So the frame being remembered was right and the frame being written was
+being clamped.
+
+The mechanism is `hs.window`'s own. `setFrame` with the default `setFrameCorrectness` writes
+the whole frame in one call, and macOS evaluates that size against whatever screen the window
+is still considered to be on, so a window growing as it crosses from a small screen to a large
+one is cut at the boundary of the one it is leaving. Hammerspoon documents both this and the
+separate fact that a terminal only resizes in whole rows and columns, and ships
+`setFrameWithWorkarounds`, whose zero duration path writes the size, then the top left, then
+the size again. That second write lands once the window is already on the target screen, which
+is what escapes the clamp.
+
+`_applyFrame` is the answer taken. It writes plainly, reads the frame back, and escalates to
+the workaround only when an axis landed more than twenty points off what was asked. Twenty
+points is about one terminal cell with room to spare and the failure it catches was four
+hundred points out, so neither number is delicate against the other.
