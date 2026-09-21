@@ -400,6 +400,7 @@ function obj.run(olm, cfg)
     chordkey = chordKeyAtom,
     hyperkey = hyperKeyAtom,
     recency = atoms.recency,
+    queryassoc = atoms.queryassoc,
     storage = atoms.storage,
   }
 

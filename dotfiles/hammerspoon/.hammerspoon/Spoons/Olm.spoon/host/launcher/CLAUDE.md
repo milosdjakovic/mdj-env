@@ -441,6 +441,75 @@ Window rows carry their live `when` predicate, so the display switch rows drop
 out on a single display, staying consistent with wherever else those bindings
 appear.
 
+## What orders the list once something is typed
+
+The timeline above is what an untouched list opens on and it ends there. The
+moment a character is typed a second memory takes over, and the two answer
+different questions on purpose. The timeline says what was picked last. The
+association store, `lib/queryassoc.lua` under the settings key
+`launcherQueryAssoc`, says what a particular query has come to mean.
+
+The reason there is a second memory at all is that the first one was invisible
+here. This list used to let the chooser atom score and sort it, and the atom
+breaks a tie on arrival order, which is exactly the timeline order. That tie
+never happened. Two rows matching equally well still differ by hundredths of a
+point over incidental things, chiefly how long a subtitle is, since the scorer
+charges a fraction for every character after the last one it matched. Typing
+`ma` scores Mail at 21.86 and Maps at 21.72, identical matches separated only by
+`Not running` being nine characters longer than `Open`. So the order you saw
+while typing was the text score alone and nothing you did ever changed it.
+
+`_rankCatalog` now does that work. On an empty query it hands the rows straight
+back, untouched, which is what keeps the resting list exactly as it was. Once
+something is typed it scores every row with the shared strategy and drops the
+misses, exactly as the atom did, and then orders the survivors with anything
+this query has been used to pick before leading, the rest on match alone, and
+the resting position breaking a tie so the timeline still shows through
+underneath. The presentation therefore carries `matcher = false`, which is the
+presentation's own field and not the manifest's, the manifest naming which
+strategy to inject rather than whether the atom should use it.
+
+A pick is recorded against the query that was in the field and against every
+prefix of it two characters or longer, so the shorter searches improve on the
+way to the longer ones. A single character is recorded only when it was the
+whole query, never taught from a longer one, so typing a long distinctive name
+cannot quietly take over `a`, `s` or `w`, which the catalog scopes answer to.
+Recording uses the same `recencyKey` the timeline does, so a computed row, a
+scope row and a typed window size are never recorded, and nothing is recorded
+while a page is hosted since the rows on screen are then another tool's.
+
+Strength is one decaying number per pair rather than a count, on an event clock
+counted per query rather than a wall clock. A count cannot tell a preference
+apart from a change of habit and makes a long history impossible to overturn.
+Here a score converges on a ceiling, so the picks needed to overturn a settled
+favourite are the same handful whatever its history, four at the shipped decay.
+The leader is sticky by a margin, which costs nothing in speed and roughly
+halves how often the top row changes where two rows are used about equally. The
+three numbers are `ranking` in the manifest defaults and each carries its own
+note there.
+
+The guard worth knowing about is `nearness`. Because every remembered spelling
+answers for the longer queries it begins, a pick made at `ma` is consulted when
+you type `mail` too, and Maps really does match `mail` by spending the scorer's
+typo allowance on the letter it cannot place. Left unconditional, that ordered
+Maps above Mail while Mail was spelled out in full. So a remembered pick decides
+only among rows that scored close to the best one, as a proportion rather than a
+number of points since the score grows with every character. Measured, `mail`
+puts Maps at 28.6% of Mail, `map` puts Mail at 65% of Maps, and `ma` puts them
+at 99.4% of each other, so the default of 0.9 sits a long way from both edges.
+
+Pruning is deliberately partial. An application that has gone is proven gone by
+the disk scan, so its pairs are dropped in `_pruneAssociations`, hung off the
+same warm scan timer that already knows. Everything else is left alone, because
+a row can disappear because its tool was switched off rather than removed and
+this host cannot tell those apart, and deleting a year of history on that
+ambiguity is worse than carrying a number no row will ever claim. The decay
+forgets it anyway within a couple of dozen picks of that query.
+
+`test/ranking.lua` proves all of it in plain Lua with no Hammerspoon and no
+lock, which matters here more than elsewhere because this host is the dry gate's
+permanent unknown and nothing else checks any of it before a live load.
+
 ## Icons
 
 App rows show the real app icon. The action rows have none of their own, so each

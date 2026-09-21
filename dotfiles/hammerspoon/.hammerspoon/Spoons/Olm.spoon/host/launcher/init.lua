@@ -73,6 +73,9 @@ obj._appDirWatchers = nil        -- hs.pathwatcher list, one per watched app dir
 obj._warmTimer = nil             -- the debounced disk scan warm up, see _warmAppScan
 obj._chordWarned = nil           -- one shot flag, so a missing chord speller warns once, at the first open
 obj._mru = nil              -- most-recently-used item keys, front is most recent
+obj._assoc = nil            -- the query association store, what each typed query has come to mean
+obj._matcher = nil          -- the shared fuzzy strategy, since this host scores its own rows now
+obj._ranking = nil          -- the two numbers the association store is built with
 obj._selfKey = nil          -- our own app key, never promoted
 obj._page = nil             -- an opaque query prefix while somebody else's list is hosted
 
@@ -96,6 +99,16 @@ local APP_SCAN_MAX_DEPTH = 4
 -- under "launcherAppMRU"), so old data is ignored and the order relearns at once.
 local MRU_SETTINGS_KEY = "launcherRecency"
 local MRU_MAX = 50
+-- Where the query associations persist, separate from the timeline above because they answer
+-- a different question. The timeline says what was picked last, which is what an untouched
+-- list opens on. This says what a particular query has come to mean, which is what orders the
+-- list once something has been typed, and the two are wanted at different moments.
+local ASSOC_SETTINGS_KEY = "launcherQueryAssoc"
+-- How close to the best match a row must score before what was picked before is allowed to
+-- decide, as a proportion of that best score rather than a number of points, since the score
+-- grows with every character typed. See _rankCatalog for the measurements this sits between.
+-- Overridable through the ranking defaults beside the other two numbers.
+local DEFAULT_NEARNESS = 0.9
 -- Our own activations must not reorder the list, else opening the launcher would
 -- float Hammerspoon to the top instead of the app the user was just in.
 local SELF_BUNDLE = hs.processInfo and hs.processInfo.bundleID
@@ -198,6 +211,27 @@ function obj:configure(opts)
   -- silently erased the speller whenever it happened to run second, which is a landmine
   -- rather than a bug today only because of the order those two stages happen to run in.
   self._chordLabel = opts.chordLabel or self._chordLabel
+  -- The two numbers the association store is built with, and the store itself. Built here
+  -- rather than by lib/services.lua, whose per plugin instance is keyed to a field literally
+  -- named recency, and building it in the consumer also means the dry gate and the live root
+  -- hand this host the same thing, the raw module, rather than one shape each.
+  --
+  -- Kept rather than rebuilt, for the reason the chord speller above documents. This host is
+  -- configured twice and only the generic wiring stage carries a lib grant, so a plain
+  -- assignment would throw the store away whenever the root's own call happened to run second.
+  self._ranking = opts.ranking or self._ranking or {}
+  if not self._assoc and opts.queryassoc then
+    self._assoc = opts.queryassoc.new({
+      settingsKey = ASSOC_SETTINGS_KEY,
+      decay = self._ranking.decay,
+      margin = self._ranking.margin,
+    })
+  end
+  -- The shared matching strategy. This host has always been handed one and never read it,
+  -- because the chooser atom underneath did the scoring itself. It scores its own rows now,
+  -- see _rankCatalog, so this is the function that does it, and the same keep rather than
+  -- overwrite rule applies since only the generic stage supplies it.
+  self._matcher = opts.matcher or self._matcher
   self._settingsPanes = opts.settingsPanes or {}
   self._predicates = opts.predicates or {}
   self._actions = opts.actions or {}
@@ -249,6 +283,7 @@ function obj:configure(opts)
         -- persists at once even though a kind that acts on the world still defers its own
         -- run below. Any kind counts.
         self:_promote(recencyKey(item))
+        self:_noteAssociation(item)
         -- _runItem is called straight, not deferred here any more. Decision four of the
         -- handoff brief, the deferral moves inside the dispatcher's own branches, since a
         -- presenting tool's row never reaches onSelect at all, decision two, it completes
@@ -279,6 +314,7 @@ function obj:configure(opts)
       if not replace then return false end
       replace()
       self:_promote(recencyKey(item))
+      self:_noteAssociation(item)
       return true
     end,
     -- Backspace on an empty field, which is how you leave a hosted list. The stage asks only
@@ -291,6 +327,19 @@ function obj:configure(opts)
     -- of its own in the root. See host/stage's own surface, which delegates it to whichever
     -- presentation is current when one answers it.
     peekPreview = function() self:peekSelected() end,
+    -- The atom does no scoring and no sorting for this list. _commandRows below hands back
+    -- rows already filtered and already in their final order, because the order depends on
+    -- something the atom cannot see, what this query has come to mean. Left to the atom, the
+    -- text score decides outright and the arrival order it falls back to for a tie never gets
+    -- a chance, since two rows matching equally well still differ by hundredths of a point
+    -- over incidental things like how long their subtitle happens to be.
+    --
+    -- This is the presentation's own field and not the manifest's. The manifest states which
+    -- STRATEGY to inject and this host wants the shared one, so its surface names no matcher
+    -- and receives the real function on opts. Writing false there instead would inject
+    -- nothing and leave this host with no way to score anything at all, which is the exact
+    -- trap that once degraded BrowserTabs to an unranked list.
+    matcher = false,
   }
 
   -- The stage's own nav adapter, scoped to this presentation's own name rather than the
@@ -798,16 +847,119 @@ function obj:_commandRows(query)
   -- skipped. This one line is the whole of what the launcher knows about being scoped.
   if exclusive then return out end
   local preds = self._predicates
+  local catalog = {}
   for _, row in ipairs(self:_orderedRows()) do
     if not (row.when and not (preds[row.when] and preds[row.when]())) then
       local subTitle = self:_rowSubTitle(row)
       local filterText = row.title .. " " .. subTitle
       if row.keywords then filterText = filterText .. " " .. row.keywords end
-      out[#out + 1] = { title = row.title, subTitle = subTitle, image = row.image,
-                        item = row.item, filterText = filterText }
+      catalog[#catalog + 1] = { title = row.title, subTitle = subTitle, image = row.image,
+                                item = row.item, filterText = filterText }
     end
   end
+  for _, row in ipairs(self:_rankCatalog(query, catalog)) do out[#out + 1] = row end
   return out
+end
+
+--- Launcher:_rankCatalog(query, rows) -> rows
+--- Method
+--- The catalog rows that match what was typed, in the order they should be read. The work the
+--- chooser atom used to do for this list, taken over here because the answer depends on
+--- something the atom has no way to know.
+---
+--- An empty query is returned untouched, which is the whole of what the resting list is. The
+--- recency order _orderedRows decided stands, nothing is scored, and nothing is dropped.
+---
+--- Once something is typed the shared strategy scores every row and the misses go, exactly as
+--- the atom did it. What differs is the order of the survivors. A row this query has been used
+--- to pick before leads, in the order the store puts them, and everything else follows on match
+--- alone with the resting position breaking a tie so recency still shows through underneath.
+---
+--- An association leads outright rather than adding points to the score, and that is a
+--- deliberate departure from plugins/browsertabs/chooser.lua, whose own recency bonus is capped
+--- so that it reorders and never overturns. That cap is right there, because general recency is
+--- a guess about what is probably wanted. It is wrong here, because an association is not a
+--- guess. It is a record that this exact query was typed and this exact row was chosen, which
+--- is a statement of intent and the one thing that should be allowed to beat a better spelled
+--- match.
+---
+--- BUT ONLY AMONG ROWS THAT MATCHED COMPARABLY, and the guard is not a refinement, it is what
+--- keeps the feature from being an obvious bug. Every remembered spelling of a query answers
+--- for the longer queries it begins, which is what makes the memory fill in as you type. So a
+--- pick made at "ma" is also consulted when you type "mail", and Maps does match "mail",
+--- weakly, by spending the scorer's own typo allowance on the letter it cannot place. Measured
+--- against the real strategy, "mail" scores Mail at 43.90 and Maps at 12.56, while "ma" scores
+--- them 21.86 and 21.72. Letting a remembered pick lead unconditionally puts Maps above Mail
+--- when Mail is spelled out in full, which nobody would read as anything but broken.
+---
+--- So an association decides only where the scores are near each other, and near is a
+--- proportion rather than a number of points, because the score grows with every character
+--- typed and a fixed distance would mean something different on every query. The three cases
+--- above sit at 99.4%, 65%, and 28.6% of their own best, so the two that must not be bridged
+--- are nowhere close to the one that must, and the default leaves a wide margin either side.
+---
+--- Nothing is ever added to the list this way. A row must have matched to be ordered at all, so
+--- a remembered pick that does not match what is typed now is simply not here.
+function obj:_rankCatalog(query, rows)
+  local matcher = self._matcher
+  if query == "" or type(matcher) ~= "function" then return rows end
+
+  -- Where each remembered key sits for this query, one being what it has most come to mean.
+  local place = {}
+  if self._assoc then
+    for i, key in ipairs(self._assoc.orderFor(query)) do
+      if place[key] == nil then place[key] = i end
+    end
+  end
+
+  local scored = {}
+  local best = nil
+  for i, row in ipairs(rows) do
+    local score = matcher(query, row.filterText)
+    if score ~= nil then
+      if best == nil or score > best then best = score end
+      scored[#scored + 1] = {
+        row = row, score = score, n = i, assoc = place[recencyKey(row.item)],
+      }
+    end
+  end
+
+  -- What was picked before only decides between rows that matched about as well as the best
+  -- one did, see the note above. A row further away than that keeps its place on the match
+  -- alone, however often it has been chosen for some shorter spelling of this query.
+  local near = (best or 0) * (tonumber((self._ranking or {}).nearness) or DEFAULT_NEARNESS)
+  for _, entry in ipairs(scored) do
+    if entry.assoc and entry.score < near then entry.assoc = nil end
+  end
+
+  -- Lua's sort is not stable, so the resting position is folded in as the last comparison
+  -- rather than relied on, the same trick lib/recency.lua's own order already uses.
+  table.sort(scored, function(a, b)
+    if (a.assoc ~= nil) ~= (b.assoc ~= nil) then return a.assoc ~= nil end
+    if a.assoc and b.assoc then return a.assoc < b.assoc end
+    if a.score ~= b.score then return a.score > b.score end
+    return a.n < b.n
+  end)
+  local out = {}
+  for i = 1, #scored do out[i] = scored[i].row end
+  return out
+end
+
+--- Launcher:_noteAssociation(item)
+--- Method
+--- Record that this row was chosen while this query was in the field, which is what makes the
+--- next search for the same thing land on it. Keyed by the same recencyKey the timeline uses,
+--- so a row with no identity to remember, a calculation, a scope, a typed window size, answers
+--- nil and is never recorded, and the two memories can never disagree about what a row is.
+---
+--- Nothing is recorded while a page is hosted, because this host's own catalog is not the list
+--- being shown then. The rows on screen belong to whichever tool the page reached, they are
+--- built by that tool rather than ranked here, and the query carries that tool's own prefix.
+function obj:_noteAssociation(item)
+  if not self._assoc or self._page then return end
+  local key = recencyKey(item)
+  if not key then return end
+  self._assoc.note(self:currentQuery(), key)
 end
 
 --- Launcher:rowsOfKind(kind) -> rows
@@ -1200,9 +1352,33 @@ function obj:_warmAppScan(delay)
     self._warmTimer = nil
     -- Asked again here rather than trusted from the call site, since a real open may well
     -- have run the scan itself in the meantime and there is nothing to warm.
-    if self._installedApps then return end
-    self._installedApps = scanInstalledApps()
+    if not self._installedApps then self._installedApps = scanInstalledApps() end
+    -- The one moment this host actually knows which applications exist, so it is where a
+    -- remembered pick for one that has gone is dropped. Off the critical path already, and
+    -- run whether or not this timer did the scan itself, since a real open may have.
+    self:_pruneAssociations()
   end)
+end
+
+--- Launcher:_pruneAssociations()
+--- Method
+--- Forget what was picked for applications that are no longer here. Only applications, and the
+--- restraint is the point. A row for a registered tool can disappear because that tool was
+--- switched off rather than removed, and this host cannot tell those apart, so deleting a
+--- year of history on that ambiguity is worse than carrying a number no row will ever claim.
+--- A dead key costs nothing, since a bonus is only ever looked up for a row that is in the
+--- list, and the decay forgets it anyway within a couple of dozen picks of that query.
+function obj:_pruneAssociations()
+  if not self._assoc or not self._installedApps then return end
+  local valid = {}
+  for bundleID in pairs(self._installedApps) do valid[#valid + 1] = "app:" .. bundleID end
+  -- A running application outside the scanned roots is a row this catalog builds too, so its
+  -- key is just as valid even though no directory here holds it.
+  for _, app in ipairs(hs.application.runningApplications()) do
+    local bundleID = app:bundleID()
+    if bundleID then valid[#valid + 1] = "app:" .. bundleID end
+  end
+  self._assoc.prune(valid, function(key) return key:sub(1, 4) == "app:" end)
 end
 
 --- How long each caller of _warmAppScan waits. START is short because nothing is racing it.
