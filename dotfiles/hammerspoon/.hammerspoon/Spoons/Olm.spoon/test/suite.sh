@@ -32,8 +32,19 @@ tiers="${1:-all}"
 # says the rest. Answered here, by name, rather than folded into the lock and report
 # dance below, so it stays true that this tier never starts Hammerspoon and never touches
 # the lock, not merely that it happens to finish before either would matter.
+#
+# Two things run under this tier now. The plain Lua checks come first and their failure is
+# the tier's failure, because a wrong number is a broken feature however well formed every
+# manifest is, and because the one host they cover is the one this gate reports unknown on
+# every run and therefore never checks at all.
 if [ "$tiers" = "dry" ]; then
   shift
+  if ! command -v lua >/dev/null 2>&1; then
+    echo "suite.sh: lua is not on PATH, see drygate.sh for where it comes from" >&2
+    exit 2
+  fi
+  lua "$here/ranking.lua" || exit 1
+  echo
   exec "$here/drygate.sh" "$@"
 fi
 

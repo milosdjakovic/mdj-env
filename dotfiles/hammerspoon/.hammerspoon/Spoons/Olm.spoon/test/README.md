@@ -5,6 +5,7 @@ Run it.
 ```
 Spoons/Olm.spoon/test/suite.sh              # everything
 Spoons/Olm.spoon/test/suite.sh dry          # plain lua, no Hammerspoon, no lock, see below
+Spoons/Olm.spoon/test/ranking.lua           # one of the two dry runs, standalone, see below
 Spoons/Olm.spoon/test/suite.sh structure    # no screen needed, fast, safe any time
 Spoons/Olm.spoon/test/suite.sh surface      # opens and closes every picker
 Spoons/Olm.spoon/test/suite.sh behaviour    # the hand written per plugin scenarios

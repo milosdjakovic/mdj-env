@@ -84,3 +84,4 @@ than discovered.
 - [ghostty-relaunch-env-leak](ghostty-relaunch-env-leak.md), `open` from a pane hands the pane's `HERDR_` and `CLAUDE_CODE_` identity to the app it launches, Hammerspoon passed it on to every Ghostty, so both launch sites use `env -i open`
 - [dev-defaults](dev-defaults.md), the default editor step reads each handler back rather than trusting duti, since on macOS 27 a change is a dialog the person answers, and says one line when nothing moved
 - [olm-window-display-move](olm-window-display-move.md), a display switch keeps the window's size and its place rather than its proportions, and a round trip restores the exact frame from a table that lives only in memory
+- [olm-launcher-ranking](olm-launcher-ranking.md), the launcher orders a searched list by what each query has been used to pick, a decaying score per query and row pair with a sticky leader, guarded so it only ever settles rows that matched about equally

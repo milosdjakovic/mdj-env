@@ -72,6 +72,11 @@ end
 obj.lib = {
   storage = load("lib/storage.lua"),
   recency = load("lib/recency.lua"),
+  -- What was chosen the last time a query was typed, a factory in the same style as
+  -- recency, one instance per caller under its own settings key. Distinct from recency
+  -- because it remembers pairs rather than an order, so it answers what a search meant
+  -- rather than what was touched last. See lib/queryassoc.lua.
+  queryassoc = load("lib/queryassoc.lua"),
   paste = load("lib/paste.lua"),
   chooser = load("lib/chooser/init.lua"),
   panel = load("lib/panel.lua"),

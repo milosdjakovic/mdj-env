@@ -50,6 +50,12 @@ return {
       -- the cheat sheet module in the key parameter and the real key in the mods parameter, so
       -- every chord printed in a launcher subtitle was drawn from the wrong two arguments.
       glyphFor  = { from = "cheatsheet", member = "glyphFor", call = "dot", policy = "optional" },
+      -- What was picked the last time a query was typed, which is what orders this list once
+      -- something has been typed into it. The raw module rather than a built instance, since
+      -- lib/services.lua builds one only for a field literally named recency, and configure
+      -- calls new itself against the two numbers under `ranking` below. Optional, because
+      -- without it the list simply orders on the match alone, which is what it did before.
+      queryassoc = { from = "queryassoc", policy = "optional" },
     },
 
     -- A sibling naming clipboard.setContents used to sit here for actions.copy. It named a
@@ -210,6 +216,37 @@ return {
     -- A key here is a default this person may move. Where one is given the subtitle names the
     -- chord, and where none is the subtitle says what the row is for instead, which is right
     -- for the two that open from this list and nowhere else.
+    -- How this list learns from what is picked in it. Both are plain numbers because both
+    -- mean something arguable rather than naming a behaviour from a set, and both were
+    -- chosen against a measurement rather than by feel.
+    --
+    -- `decay` is how much every remembered score under one query shrinks per pick of
+    -- anything under that same query, and the only thing it really sets is how many
+    -- consecutive picks overturn a settled favourite, ln(0.5)/ln(decay), which is 3.11 here
+    -- so the fourth pick takes the top row. That number is the same however long the
+    -- favourite has held, which is the whole reason a decaying score is used rather than a
+    -- count. Lower it to about 0.79 to overturn on the third. A value whose answer lands
+    -- exactly on a whole number is worth avoiding, since the two scores then meet within
+    -- floating point noise on that pick.
+    --
+    -- `margin` is how far a challenger must exceed the current leader rather than merely
+    -- beat it. It costs nothing in speed, the overturn stays on the fourth pick, and it
+    -- roughly halves how often the top row changes where two rows are used about equally.
+    -- Set it to zero for a bare comparison.
+    --
+    -- `nearness` is how close to the best match a row must score before any of this is
+    -- allowed to decide it, as a proportion of that best score rather than a number of
+    -- points, since the score grows with every character typed. It is what stops a pick made
+    -- at a short spelling from outranking a name spelled out in full, and it is the one of
+    -- the three that is a correctness guard rather than a preference. Raising it toward one
+    -- makes the memory apply only to near ties, lowering it lets it reach further, and zero
+    -- removes the guard entirely and is very unlikely to be what anyone wants.
+    ranking = {
+      decay = 0.80,
+      margin = 0.6,
+      nearness = 0.9,
+    },
+
     specialRows = {
       { name = "searchSettings", description = "Search Settings",
         subTitle = "System · opens the System Settings search field", glyph = "🔍" },
