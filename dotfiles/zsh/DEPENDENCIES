@@ -8,7 +8,6 @@ fzf                      | path    | fzf                                        
 zsh-autosuggestions      | manual  | ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions | optional | .zshrc.custom | inline command suggestions
 fast-syntax-highlighting | manual  | ~/.oh-my-zsh/custom/plugins/fast-syntax-highlighting | optional | .zshrc.custom | command line syntax highlighting
 fzf-tab                  | manual  | ~/.oh-my-zsh/custom/plugins/fzf-tab             | optional | .zshrc.custom | fzf driven tab completion
-carapace                 | path    | carapace                                        | optional | .zshrc.custom | the completion dictionary fzf-tab draws from, guarded, so only descriptions for aws, gcloud and the like are lost without it
 zoxide                   | path    | zoxide                                          | required | .zshrc.custom | the cd alias is zoxide, so plain cd stops working without it
 atuin                    | path    | atuin                                           | required | .zshrc.custom | shell history, initialised on every shell start
 mise                     | path    | mise                                            | optional | .zshrc.custom | the runtime version switcher for node, ruby, python and java, guarded, so a machine without it loses version switching and nothing else

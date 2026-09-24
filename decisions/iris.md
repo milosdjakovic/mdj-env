@@ -1,7 +1,7 @@
 # Iris, the shell autocomplete, from its two fixes to its removal
 
-Status. Removed 2026-09-16, about 16:55. The shell runs zsh-autosuggestions, fzf-tab and
-carapace, all inside zsh, and herdr is the Homebrew formula again, 0.9.0, unpatched. This file
+Status. Removed 2026-09-16, about 16:55. The shell runs zsh-autosuggestions and fzf-tab over
+zsh's own completion, all inside zsh, carapace having been dropped on 2026-09-24, and herdr is the Homebrew formula again, 0.9.0, unpatched. This file
 is the whole record of iris here, the two fixes it needed and how each works, the herdr
 limitation that ended it and how that works, what upstream herdr has said and where, the fork
 that was built and given up, and how to recheck any of it later. It is written to stand on its
@@ -10,8 +10,8 @@ own. The fork repositories may be deleted at any time and nothing here relies on
 ## Now
 
 The autocomplete is the in shell trio. zsh-autosuggestions draws grey ghost text from atuin's
-history, fzf-tab opens an fzf picker on Tab, carapace underneath is the dictionary, roughly a
-thousand commands with flag and value descriptions. Tab on an empty line lists files, the up
+history, fzf-tab opens an fzf picker on Tab, and zsh's own completion is the dictionary
+underneath. carapace filled that role until 2026-09-24, see the log. Tab on an empty line lists files, the up
 arrow is atuin's search seeded with what is typed, and ctrl+r is atuin's full search. Iris
 folded history and commands into one inline menu filtered by the line itself, and that feel is
 the one thing this stack does not give. It was tried and rejected on feel once, at 12:10 on
@@ -907,3 +907,9 @@ What to expect in herdr. Nothing on the server side changes, it was never runnin
 Panes opened before this keep their iris until the shell restarts, so a new pane is the test.
 A session started in a new pane appears in the agents panel by itself and its state follows
 the screen, because nothing holds the pane's terminal any more.
+
+- **2026-09-24 14:55.** carapace removed from the Brewfile, the map, the zsh declaration and
+  `.zshrc.custom`, as part of slimming the Brewfile down. Milos asked for it. zsh's own
+  completion takes its place under fzf-tab, which loses the flag and value descriptions for
+  commands zsh does not describe itself, aws and gcloud among them. The fzf-tab column and
+  match settings stay, since zsh's own git completion groups its candidates the same way.
