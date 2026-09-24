@@ -280,7 +280,7 @@ Each package mirrors the home directory structure (e.g., `dotfiles/nvim/.config/
 ### Putting this on another machine
 
 `./setup.sh` is the whole answer and it is meant to be run on a machine that is already in
-use, not only on a blank one. Three things make that true, and each of them replaced a
+use, not only on a blank one. Four things make that true, and each of them replaced a
 behaviour that quietly did not.
 
 **This repository wins, and what it displaces is kept.** Stow refuses to write over a real
@@ -307,6 +307,12 @@ checkout and moves the untracked files back to the home directory, and fails aft
 any of them is a symlink again. Declaring is opt in,
 because one folded directory here is deliberate. `decisions/stow-folding.md` has the whole of
 it, the rejections first.
+
+**An app Homebrew did not install is left alone.** `brew bundle` adopts an existing app into
+a cask install and cannot be told not to, and a cask that then fails, on a password nobody can
+type, rolls back and deletes the app it adopted, which is how a Docker.app was lost. So
+`install-homebrew-packages.sh` skips any cask whose app is already on disk but not Homebrew's,
+and says so at the end. `decisions/homebrew-upgrades.md` has it.
 
 **What a step asks of you is said again at the end.** An unfold owes one line, that the program
 writing into that directory has to be restarted, and printed where it happens that line sits at
