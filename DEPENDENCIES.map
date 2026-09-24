@@ -48,7 +48,6 @@ nvim          | brew      | neovim
 lf            | brew      | lf
 lazygit       | brew      | lazygit
 herdr         | brew      | herdr
-fut           | tap       | mikker/tap/fut
 
 # Command line tools the configurations call.
 fzf           | brew      | fzf
@@ -86,9 +85,12 @@ zsh-autosuggestions      | manual    | installed by src/install-ohmyzsh-plugins.
 fast-syntax-highlighting | manual    | installed by src/install-ohmyzsh-plugins.sh
 fzf-tab                  | manual    | installed by src/install-ohmyzsh-plugins.sh
 brew                     | manual    | installed by src/install-homebrew.sh from the upstream installer
-swiftc                   | xcode-clt | installed by src/install-xcode-clt.sh, which raises Apple's installer and waits for it
-cc                       | xcode-clt | installed by src/install-xcode-clt.sh, which raises Apple's installer and waits for it
+swiftc                   | xcode-clt | installed by src/install-xcode-clt.sh, which makes sure the command line tools carry an SDK for the running macOS
+cc                       | xcode-clt | installed by src/install-xcode-clt.sh, which makes sure the command line tools carry an SDK for the running macOS
 xcode-select             | macos     | ships with macOS
+sw_vers                  | macos     | ships with macOS
+softwareupdate           | macos     | ships with macOS
+sudo                     | macos     | ships with macOS
 caffeinate               | macos     | ships with macOS
 curl                     | macos     | ships with macOS
 perl                     | macos     | ships with macOS

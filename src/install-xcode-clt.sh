@@ -1,76 +1,102 @@
 #!/bin/bash
 set -e
 
-# Make sure this machine has a developer toolchain, since three things in this repository
-# compile something and none of them can say so in time to help.
+# Make sure this machine has the Xcode command line tools, and that they carry an SDK for the
+# macOS it is running.
 #
 # Neovim's treesitter builds every parser from source on first open, and the Hammerspoon
 # module compiles two small Swift helpers, the eyedropper's colour sampler and the browser
-# permission probe. All three fail quietly and late, long after setup has said it was done.
+# permission probe. Homebrew needs the same thing for a reason that is easier to miss. A
+# formula with no bottle counts as a build from source even when its install only copies a
+# downloaded binary, and before any build from source Homebrew refuses to continue unless the
+# toolchain has an SDK for the running macOS. It reads that SDK from the command line tools
+# whenever they are installed, and falls back to Xcode only when they are not, whatever
+# xcode-select points at.
 #
-# DEPENDENCIES.map named xcode-select --install as the detail for cc and swiftc for a long
-# time and nothing ran it, which made it the one dependency this repository described instead
-# of installing. It is a command rather than a checkbox in System Settings, so this layer may
-# run it, and this layer is the only one allowed to.
+# So the condition this step guarantees is exactly the one Homebrew checks. It used to ask
+# xcode-select -p whether any developer directory was active, and an Xcode or a set of command
+# line tools from before the last macOS upgrade answers yes. A second machine passed this
+# step that way and then failed in the Homebrew step, with a message about Xcode that pointed
+# nowhere near the cause.
 #
-# It runs first in setup.sh for two reasons. Everything later in the run that compiles wants
-# it, and Homebrew's own installer wants it too, so having it already done is what keeps that
-# step from stopping to ask.
+# It runs first in setup.sh because everything later that compiles wants it, Homebrew
+# included. It is the one step that stops the run when it cannot finish, since every later
+# step that needs the toolchain would otherwise fail somewhere less legible.
 
-# What macOS uses to find a compiler, so it is also what proves one is reachable. Asking
-# xcode-select rather than testing a path, because there is no single path to test. The
-# command line tools put cc under /Library/Developer/CommandLineTools, a full Xcode puts it
-# under its own bundle in a toolchain folder with a different name again, and /usr/bin/cc is
-# a stub present on every Mac whether or not either of those exists. So the stub proves
-# nothing and only the active developer directory answers for both layouts.
-developer_dir() {
-    local dir
-    dir="$(/usr/bin/xcode-select -p 2>/dev/null)" || return 1
-    [[ -n "$dir" && -d "$dir" ]] || return 1
-    printf '%s' "$dir"
+CLT_DIR="/Library/Developer/CommandLineTools"
+MACOS_MAJOR="$(/usr/bin/sw_vers -productVersion | cut -d. -f1)"
+
+# The command line tools are installed and carry an SDK for this major version of macOS, the
+# name Homebrew's own SDK locator looks for.
+clt_ready() {
+    [[ -x "$CLT_DIR/usr/bin/clang" ]] || return 1
+    compgen -G "$CLT_DIR/SDKs/MacOSX${MACOS_MAJOR}*.sdk" > /dev/null
 }
 
-if dir="$(developer_dir)"; then
-    echo "Developer toolchain already present at $dir"
+if clt_ready; then
+    echo "Command line tools present with the macOS $MACOS_MAJOR SDK"
     exit 0
 fi
 
-echo "Installing the Xcode command line tools, expect a dialog..."
-# Answers non zero when it has nothing to do, which the guard above already rules out, and
-# again if the user closes the dialog. Neither is worth stopping the whole setup for, so the
-# wait below is what decides what actually happened.
-/usr/bin/xcode-select --install 2>/dev/null || true
-
-# The installer is a window someone has to click, and the download that follows is as slow as
-# the connection is. So this waits rather than racing ahead into steps that need a compiler,
-# and it waits only when there is somebody there to click. A run with no terminal attached
-# cannot be answered, and blocking one for a quarter of an hour to find that out helps nobody.
-WAIT_SECONDS=900
-POLL_SECONDS=10
-
-if [[ ! -t 0 ]]; then
-    echo "No terminal attached, so the dialog cannot be answered here."
-    echo "Finish the install by hand, then run src/check-dependencies.sh to confirm."
-    exit 0
+if [[ -x "$CLT_DIR/usr/bin/clang" ]]; then
+    echo "The command line tools here have no macOS $MACOS_MAJOR SDK, updating them..."
+else
+    echo "Installing the Xcode command line tools..."
 fi
 
-echo "Waiting for it to finish, up to $((WAIT_SECONDS / 60)) minutes. Ctrl C stops waiting."
-waited=0
-while (( waited < WAIT_SECONDS )); do
-    if dir="$(developer_dir)"; then
-        echo ""
-        echo "Developer toolchain installed at $dir"
-        exit 0
+# Headless first, which is how Homebrew's own installer does it. The placeholder file is what
+# makes softwareupdate list the command line tools at all, and the newest label it lists is
+# the one for this macOS. Installing needs root, so it is tried only when a password can be
+# typed or sudo already holds one.
+PLACEHOLDER="/tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress"
+if [[ -t 0 ]] || /usr/bin/sudo -n true 2>/dev/null; then
+    touch "$PLACEHOLDER"
+    trap 'rm -f "$PLACEHOLDER"' EXIT
+    label="$(/usr/sbin/softwareupdate -l 2>/dev/null |
+        grep -B 1 -E 'Command Line Tools' |
+        awk -F'*' '/^ *\*/ {print $2}' |
+        sed -e 's/^ *Label: //' -e 's/^ *//' |
+        sort -V |
+        tail -n 1)"
+    rm -f "$PLACEHOLDER"
+
+    if [[ -n "$label" ]]; then
+        echo "Installing $label, which asks for your password..."
+        /usr/bin/sudo /usr/sbin/softwareupdate -i "$label" || true
     fi
-    sleep "$POLL_SECONDS"
-    waited=$(( waited + POLL_SECONDS ))
-    printf '.'
-done
+fi
 
-echo ""
-# Never fatal. Everything after this step in setup.sh is worth running without a compiler,
-# and check-dependencies.sh reports the state of this machine at the end of the run anyway,
-# so stopping here would cost the whole rest of the setup to say something that gets said
-# again in a minute.
-echo "Still no developer toolchain after $((WAIT_SECONDS / 60)) minutes."
-echo "Treesitter parsers and the Hammerspoon Swift helpers will not build until there is one."
+if clt_ready; then
+    echo "Command line tools present with the macOS $MACOS_MAJOR SDK"
+    exit 0
+fi
+
+# Apple's dialog is the fallback, for when softwareupdate lists nothing or the install failed.
+# Someone has to click it, so it is raised and waited for only when there is a terminal.
+if [[ -t 0 ]]; then
+    echo "Falling back to Apple's installer, expect a dialog..."
+    # Answers non zero when the tools are already there in some form, which is the update
+    # case, so the wait below is what decides what actually happened.
+    /usr/bin/xcode-select --install 2>/dev/null || true
+
+    WAIT_SECONDS=900
+    POLL_SECONDS=10
+    echo "Waiting for it to finish, up to $((WAIT_SECONDS / 60)) minutes. Ctrl C stops waiting."
+    waited=0
+    while (( waited < WAIT_SECONDS )); do
+        if clt_ready; then
+            echo ""
+            echo "Command line tools present with the macOS $MACOS_MAJOR SDK"
+            exit 0
+        fi
+        sleep "$POLL_SECONDS"
+        waited=$(( waited + POLL_SECONDS ))
+        printf '.'
+    done
+    echo ""
+fi
+
+echo "Error: the command line tools with the macOS $MACOS_MAJOR SDK are not on this machine."
+echo "       Run ./setup.sh again from a terminal so the install can ask for your password,"
+echo "       or install them from System Settings, General, Software Update."
+exit 1

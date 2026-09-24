@@ -4,7 +4,10 @@
 # This layer is a declarer like any other. It owns DEPENDENCIES.map and the Brewfile, but the
 # tools its own scripts call are not exempt from being declared, otherwise they are the one
 # category nothing checks. Read by src/check-dependencies.sh alongside every module manifest.
-xcode-select | system | /usr/bin/xcode-select | required | install-xcode-clt.sh | asking whether a developer toolchain is active, and raising Apple's installer when none is
+xcode-select | system | /usr/bin/xcode-select | required | install-xcode-clt.sh | raising Apple's installer when the headless install cannot finish
+sw_vers      | system | /usr/bin/sw_vers      | required | install-xcode-clt.sh | reading the running macOS major version, which names the SDK the command line tools must carry
+softwareupdate | system | /usr/sbin/softwareupdate | required | install-xcode-clt.sh | finding and installing the command line tools for this macOS without a dialog
+sudo         | system | /usr/bin/sudo         | required | install-xcode-clt.sh | installing the command line tools, which only root may do
 brew         | path   | brew                  | required | install-homebrew-packages.sh | every package install in this repository runs through it
 stow         | path   | stow                  | required | setup-stow-dotfiles.sh | symlinking every module into the home directory
 git          | path   | git                   | required | install-ohmyzsh-plugins.sh, bootstrap-nvim.sh | cloning the framework and its plugins, and reading each installed plugin's revision to compare it against the lockfile

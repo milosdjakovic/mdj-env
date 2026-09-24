@@ -1,16 +1,17 @@
 # fut beside herdr
 
-Status. fut is installed and declared, its config is written and its package is not stowed.
-herdr stays the multiplexer in use. Three things herdr does have no equivalent in fut 0.24 and
+Status. fut was dropped on 2026-09-24, its module, map line and Brewfile lines removed, since
+nothing ran it. herdr stays the multiplexer in use. The config lives on in git history.
+Three things herdr does have no equivalent in fut 0.24 and
 each one is recorded below with the test that proves it, so a later version can be rechecked
 rather than re-argued.
 
 ## Now
 
-fut reaches every machine the way everything else does, because `dotfiles/fut` declares it and
-`DEPENDENCIES.map` maps it to a tap, with the Brewfile carrying the actual lines. The package carries a config and no tool scripts, and it
-is deliberately absent from the stow list in `src/setup-stow-dotfiles.sh`, so nothing reaches
-the home directory. `dotfiles/fut/CLAUDE.md` is the module guidance.
+Setup no longer installs fut. Until 2026-09-24 `dotfiles/fut` declared it,
+`DEPENDENCIES.map` mapped it to a tap, and the package carried a config that was never stowed.
+The module guidance and the config are in git history before that date, and what follows is
+still the case for bringing it back.
 
 fut is worth carrying for one reason. It learns agent state from the agent, which reports it by
 calling `fut agent report` through a real Claude Code plugin. herdr infers it by listing the
@@ -151,3 +152,8 @@ config without the tool scripts. The reasoning for each is in Rejected. Not test
 lazygit and lf actually running inside a fut popup, and whether herdr's agents sidebar layout,
 `agent_panel_sort`, `show_agent_labels_on_pane_borders` and `status_indicators` have fut
 equivalents.
+- **2026-09-24 15:40.** Dropped fut, removing `dotfiles/fut`, its map line and the tap and
+  formula in the Brewfile. Milos asked for it while slimming the Brewfile. Carrying it had a
+  cost beyond disk, since the tap ships no bottle, so Homebrew runs its build from source checks
+  on it and a machine whose toolchain lacked the running macOS's SDK failed the whole Homebrew
+  step on fut. Nothing ran it, so nothing is lost but the record above, which stays.

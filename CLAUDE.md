@@ -258,17 +258,12 @@ to drift unnoticed.
 
 **Stowed by default:** ghostty, tmux, nvim, zsh, hammerspoon, claude, lf, lazygit, herdr
 
-**Available but not stowed:** alacritty, kitty, wezterm, fut, mole
+**Available but not stowed:** alacritty, kitty, wezterm, mole
 
-fut is the odd one there. It is installed on every machine because its module declares it, and it is
-kept out of the stow list on purpose, since herdr is the multiplexer in use and fut's config would
-otherwise sit in the home directory configuring something nothing runs. It is carried because it learns
-agent state from the agent rather than by inferring it, which is the defect `decisions/iris.md`
-records, and it is not adopted because its prefix cannot be `alt+z` and it can neither tell whether a
-pane is busy nor raise a notification. `decisions/fut-vs-herdr.md` has the measurements and
-`dotfiles/fut/CLAUDE.md` the module guidance.
+fut was carried here too, installed and never stowed, and was dropped on 2026-09-24 since
+nothing ran it. `decisions/fut-vs-herdr.md` keeps what was measured, so it can be rechecked.
 
-mole is the other odd one, and for a different reason. It declares a tool and ships no
+mole is the odd one there. It declares a tool and ships no
 configuration at all, because mole writes its own two config files through its own interactive
 commands and neither has ever been written on this machine. The module exists so the layer
 knows a fresh machine needs the tool, which it did not before, and it joins the stow list the
@@ -354,12 +349,15 @@ named `xcode-select --install` as the detail for `cc` and `swiftc` for a long ti
 ever ran it, which made it the one dependency this repository described instead of installing.
 It is a command rather than a checkbox, so `src/install-xcode-clt.sh` runs it, first in
 `setup.sh` because everything later that compiles wants it and because Homebrew's own installer
-otherwise stops to ask for it. The guard asks `xcode-select -p` rather than testing a path,
-since `/usr/bin/cc` is a stub present on every Mac whether or not a toolchain exists, and the
-two real layouts keep the compiler in different places, so the stub proves nothing and only the
-active developer directory answers for both. The dialog is somebody's to click, so the step
-waits, bounded, and only when a terminal is attached, and a machine that never finishes gets a
-warning rather than a failed run.
+otherwise stops to ask for it. The guard is the condition Homebrew itself checks before any
+formula without a bottle, which is the command line tools installed with an SDK for the running
+macOS. Homebrew reads the SDK from the command line tools whenever they exist, whatever
+`xcode-select` points at, so asking `xcode-select -p` as the guard once did let an old Xcode or
+tools from before a macOS upgrade through, and the Homebrew step then failed. It installs
+headless through `softwareupdate` first, the way Homebrew's own installer does, which asks for a
+password, and falls back to Apple's dialog. It is the one step that stops the run when it cannot
+finish, since the steps after it would fail less legibly. `decisions/developer-toolchain.md`
+has it.
 
 The `hs` CLI used to be listed here as a manual step too, and it never was one. The Hammerspoon
 cask declares the copy inside the app bundle as a binary artifact, so Homebrew symlinks it into

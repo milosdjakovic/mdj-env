@@ -28,8 +28,6 @@ brew "mole"
 # Third party taps, for a tool with no formula in core
 tap "schappim/ocr"
 brew "schappim/ocr/ocr"
-tap "mikker/tap"
-brew "mikker/tap/fut"
 
 # Shell
 brew "powerlevel10k"

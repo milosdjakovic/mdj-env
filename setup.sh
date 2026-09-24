@@ -76,8 +76,8 @@ trap on_exit EXIT
 echo "==> Starting dotfiles setup..."
 echo ""
 
-# Make sure a developer toolchain exists, before anything that compiles or wants one. The
-# Homebrew installer below asks for it too, so doing it here is what stops that step waiting.
+# Make sure the command line tools carry an SDK for this macOS, before anything that compiles
+# or wants one. Homebrew refuses a formula without a bottle otherwise, so this runs first.
 step "$SRC_DIR/install-xcode-clt.sh"
 
 # Install Homebrew package manager
