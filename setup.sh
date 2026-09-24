@@ -105,7 +105,7 @@ step "$SRC_DIR/setup-zshrc.sh"
 # Bootstrap Neovim plugins
 step "$SRC_DIR/bootstrap-nvim.sh"
 
-# Set Zed as default for development file types
+# Ask which editor opens development files from Finder, and make it their default
 step "$SRC_DIR/setup-dev-defaults.sh"
 
 # Remap Caps Lock -> F18 for the Hammerspoon Hyper key

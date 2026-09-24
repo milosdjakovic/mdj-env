@@ -6,7 +6,10 @@ one line when nothing changed. On macOS 27 a change is a dialog the person answe
 
 ## Now
 
-`setup-dev-defaults.sh` runs `set-dev-defaults.sh "Zed"` on every setup. The script asks
+`setup-dev-defaults.sh` asks which app should open development files, names the one that
+opens `.md` now, checks that an app of the typed name exists, and passes it to
+`set-dev-defaults.sh`. Enter skips, and so does a run with no terminal attached, each with a
+note that `setup.sh` repeats at the end. The script asks
 `duti -s` for every extension in its list, then reads the handler back with `duti -x`, and the
 readback is the report. An extension already on Zed is counted as already, one that moved is
 counted as changed, one whose extension resolves to an invented `dyn.` type is counted as
@@ -46,6 +49,11 @@ first, and the readback is consulted only after.
   wider than the binding, so an extension it names as Zed may still have no binding of its own.
   Asking is cheap and idempotent, and the answer is what is read back, so the ask stays.
 
+- **Declaring Zed as a dependency so the hardcoded step cannot fail.** 2026-09-24. The editor
+  is a personal choice rather than something the repository needs, and declaring one would
+  install an app on every machine whether or not it is wanted. Asking costs one Enter on a
+  machine that is already set up.
+
 ## Log
 
 - **2026-09-17 15:40.** Set out to make the step say one line on a no-op run, since it printed
@@ -64,3 +72,14 @@ first, and the readback is consulted only after.
   back after every call, reports pending for one still on its old handler, exits zero on it,
   and says one line when the run changed nothing and nothing waits. Verified on this machine,
   where the line reads thirty three already and sixty two untyped, in under two seconds.
+- **2026-09-24 14:25.** A second machine without Zed failed this step, because it passed "Zed"
+  unconditionally and nothing declared or installed Zed, so `set -e` stopped `setup.sh` there
+  and every later step was skipped. `check-dependencies.sh` could not see it, since an app
+  opened by name through `osascript` is not a command it looks for. The step now asks, as
+  described under Now. Verified on this machine with a pseudo terminal, where an unknown name
+  was refused and asked again and Enter kept Zed, and with no terminal, where it skipped with
+  the note and exited zero.
+- **2026-09-24 14:40.** Enter first kept the current editor. Milos asked for Enter to skip
+  instead, so a manual run of `setup.sh` can pass the question by without changing anything.
+  The current editor is still named in the question. Verified through `setup.sh`'s own stdin
+  path, which it passes to every step untouched.

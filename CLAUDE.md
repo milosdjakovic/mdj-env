@@ -36,7 +36,7 @@ macOS development environment bootstrap and dotfiles management using GNU Stow. 
 ./src/check-theme.sh
 ./src/check-theme.sh --show
 
-# Set default editor for dev file types manually (setup-dev-defaults.sh defaults to Zed)
+# Set default editor for dev file types manually (setup-dev-defaults.sh asks which app, Enter skips)
 ./src/set-dev-defaults.sh "Zed"
 ./src/set-dev-defaults.sh "Visual Studio Code"
 
@@ -368,10 +368,11 @@ What no script can do is the part macOS will not allow, and the default editor i
 of those. On macOS 27 changing a file type's default handler raises a dialog for the person to
 answer, and `duti` returns success the moment it has asked, so `set-dev-defaults.sh` reads
 every handler back rather than trusting that answer, reports an extension still on its old
-handler as pending rather than as bound or failed, and exits zero on it. A fresh machine where
-Zed is not yet the default will see one dialog per typed extension on its first run, up to
-thirty three, and the step says to run it again once they are answered. On a machine already
-on Zed it says one line. `decisions/dev-defaults.md` has the measurement. Two others are now
+handler as pending rather than as bound or failed, and exits zero on it. Which editor is asked
+rather than assumed, since it is a personal choice, and a run with no terminal skips the step
+with a note. A fresh machine will see one dialog per typed extension on its first run, up to
+forty, and the step says to run it again once they are answered. On a machine already on the
+chosen editor it says one line. `decisions/dev-defaults.md` has the measurement. Two others are now
 declared gates rather than prose. The Accessibility grant, which the whole Hammerspoon module stands on,
 is declared at that module's root and answered by its `grants-probe`. Obsidian's vault registry
 is declared by the Obsidian plugin as a marker path, so a fresh machine is told to open the
