@@ -9,3 +9,7 @@ DEPENDENCIES
 # src/check-theme.sh and by nothing Ghostty loads.
 theme-map
 theme-emit
+# The shadow declaration is read by the stow step one layer up and the probe by the
+# reconciler, so both belong to the repository rather than to the running configuration.
+SHADOW-PATHS
+config-probe

@@ -23,6 +23,7 @@ MDJ_EDITOR="Visual Studio Code" ./setup.sh   # the editor step's answer, for a r
 ./src/install-ohmyzsh-plugins.sh
 ./src/install-tmux-plugins.sh
 ./src/setup-stow-dotfiles.sh
+./src/setup-stow-dotfiles.sh --shadows   # files a stowed tool also reads that would override the linked config
 ./src/setup-zshrc.sh
 ./src/bootstrap-nvim.sh
 ./src/setup-dev-defaults.sh
@@ -58,6 +59,9 @@ which the step reports in the closing notes.
 
 - `MDJ_EDITOR`, which app opens development files from Finder. Choices come from
   `./src/setup-dev-defaults.sh --list`.
+- `MDJ_SHADOWS`, `move` or `keep`, whether files that override a linked config go into the
+  backup directory. The files come from `./src/setup-stow-dotfiles.sh --shadows`. Ask only
+  when it prints something, and show the person every path and reason it printed.
 
 ## Architecture
 
@@ -314,6 +318,16 @@ checkout and moves the untracked files back to the home directory, and fails aft
 any of them is a symlink again. Declaring is opt in,
 because one folded directory here is deliberate. `decisions/stow-folding.md` has the whole of
 it, the rejections first.
+
+**A file that overrides a linked config is shown before it moves.** Some tools read a second
+config after the one stow links, and a file left there from before this repository wins
+setting by setting while the linked one looks correct. Stow cannot see such a path, so a module
+declares its own in a `SHADOW-PATHS` file at its package root, found by name like `NO-FOLD`.
+`setup.sh` lists every one present and asks before its first step, `MDJ_SHADOWS` answers for a
+run with no terminal, and Enter keeps them with a closing note. A module whose tool can report
+the settings it resolved also ships a `config-probe`, and the reconciler warns on every setting
+that lost, which catches an override from a path nobody has declared yet.
+`decisions/shadow-paths.md` has it.
 
 **An app Homebrew did not install is left alone.** `brew bundle` adopts an existing app into
 a cask install and cannot be told not to, and a cask that then fails, on a password nobody can

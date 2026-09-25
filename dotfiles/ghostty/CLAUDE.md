@@ -23,6 +23,17 @@ usually Ghostty not yet reloaded, and the record of that mistake is in the theme
 `ghostty +validate-config` checks the config and exits nonzero on a key it does not know, and
 it is worth running after a config edit, since a wrong name otherwise fails quietly at load.
 
+## A second config can override this one
+
+On macOS Ghostty also reads `~/Library/Application Support/com.mitchellh.ghostty/config`, after
+the stowed `~/.config/ghostty/config`, so any key set there wins. A machine that used Ghostty
+before this repository can carry one, and a stale `theme` line in it pinned a second machine to
+the dark half while this config was correct. `SHADOW-PATHS` at this package root declares that
+path, so setup asks to move it, and `config-probe` compares every key the stowed file sets once
+against `ghostty +show-config`, which `check-dependencies.sh` runs. When a colour or setting
+looks wrong and a reload does not fix it, run `ghostty +show-config | grep '^theme'` before
+anything else. `decisions/shadow-paths.md` has the rest.
+
 ## Slots 16 to 19 are declared here for other tools
 
 Ghostty paints all 256 slots, and `theme-map` declares four beyond the sixteen, since no slot
@@ -42,6 +53,6 @@ the tmux bar had, and the answer there was `default` or a declared slot.
 
 ## Repo only files
 
-`theme-map`, `theme-emit` and `DEPENDENCIES` are listed in `.stow-local-ignore` and never reach
-the home directory. The checker refuses one that is not listed. `config` is stowed to
+`theme-map`, `theme-emit`, `DEPENDENCIES`, `SHADOW-PATHS` and `config-probe` are listed in
+`.stow-local-ignore` and never reach the home directory. The checker refuses one that is not listed. `config` is stowed to
 `~/.config/ghostty/config` and the themes directory beside it.

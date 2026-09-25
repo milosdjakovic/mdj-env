@@ -17,9 +17,6 @@ if [[ ! -d "$DOTFILES" ]]; then
     exit 1
 fi
 
-echo "Stowing dotfiles..."
-cd "$DOTFILES"
-
 # A directory the configured program also writes into must stay a real directory.
 #
 # Stow folds a whole directory into a single symlink when nothing is there yet and one package
@@ -49,9 +46,10 @@ trim() {
     printf '%s' "$value"
 }
 
-# Every declared path, as module and path separated by a tab, so both passes read one source.
+# Every path declared in a file of the given name at a package root, as module, path and
+# reason separated by tabs, so every pass reads one source. NO-FOLD and SHADOW-PATHS share it.
 declarations() {
-    local file module line relative
+    local name="${1:-NO-FOLD}" file module line relative reason
 
     while IFS= read -r file; do
         module="$(basename "$(dirname "$file")")"
@@ -59,9 +57,11 @@ declarations() {
             line="${line%%#*}"
             relative="$(trim "${line%%|*}")"
             [[ -n "$relative" ]] || continue
-            printf '%s\t%s\n' "$module" "$relative"
+            reason=""
+            [[ "$line" == *"|"* ]] && reason="$(trim "${line#*|}")"
+            printf '%s\t%s\t%s\n' "$module" "$relative" "$reason"
         done < "$file"
-    done < <(find "$DOTFILES" -maxdepth 2 -name NO-FOLD -type f | sort)
+    done < <(find "$DOTFILES" -maxdepth 2 -name "$name" -type f | sort)
 }
 
 unfold() {
@@ -107,7 +107,7 @@ unfold() {
 check_declarations() {
     local module relative broken=0
 
-    while IFS=$'\t' read -r module relative; do
+    while IFS=$'\t' read -r module relative _; do
         if [[ ! -d "$DOTFILES/$module/$relative" ]]; then
             echo "Error: $module declares $relative in NO-FOLD and supplies no such directory" >&2
             broken=1
@@ -120,7 +120,7 @@ check_declarations() {
 keep_real_directories() {
     local module relative target source resolved source_real
 
-    while IFS=$'\t' read -r module relative; do
+    while IFS=$'\t' read -r module relative _; do
         target="$HOME/$relative"
         source="$DOTFILES/$module/$relative"
 
@@ -147,7 +147,7 @@ keep_real_directories() {
 verify_real_directories() {
     local module relative target broken=0
 
-    while IFS=$'\t' read -r module relative; do
+    while IFS=$'\t' read -r module relative _; do
         target="$HOME/$relative"
         if [[ -L "$target" || ! -d "$target" ]]; then
             echo "Error: $module declares $relative must stay a real directory and it is not" >&2
@@ -158,8 +158,120 @@ verify_real_directories() {
     return "$broken"
 }
 
+# A file the configured program reads besides the stowed config can override it.
+#
+# Ghostty on macOS reads ~/Library/Application Support/com.mitchellh.ghostty/config after the
+# XDG config, so a file a machine carried from before this repository wins over the linked one,
+# setting by setting, while the linked one looks perfectly correct. Stow cannot see such a path,
+# since it lies outside anything a package mirrors, so the conflict handling below never
+# reaches it. That is how a second machine was pinned to the dark half by a theme line written
+# more than a year earlier.
+#
+# Which paths those are is a module fact, so each module declares its own in a SHADOW-PATHS
+# file at its package root, found by name exactly like NO-FOLD, and this script never names
+# one. Only packages this script stows are read, since a shadow can only override a config
+# that has been put in place.
+#
+# Unlike a stow conflict, a shadow is never moved without asking. It can hold settings nobody
+# has carried into this repository yet, and a person should see the list before it goes. The
+# answer arrives the same two ways the editor question does. MDJ_SHADOWS carries it through a
+# run with no terminal, move or keep, and setup.sh asks before its first step and exports the
+# answer, so the question comes before the long part of the run rather than in the middle of
+# it. Otherwise this asks, and with neither the files stay and a note names each one. Enter
+# keeps them.
+#
+#   --shadows       print every shadow present on this machine, one per line as
+#                   module | path | reason, and exit. Anyone asking before a run reads this.
+#   --ask-shadows   ask on the terminal and print the answer, move or keep, or print nothing
+#                   when there is nothing to ask about. setup.sh uses it for its early question.
+stowed() {
+    local module="$1" package
+    for package in "${PACKAGES[@]}"; do
+        [[ "$package" == "$module" ]] && return 0
+    done
+    return 1
+}
+
+# Every declared shadow that is present here, a real file, a directory or a link.
+shadows() {
+    local module relative reason
+
+    while IFS=$'\t' read -r module relative reason; do
+        stowed "$module" || continue
+        [[ -e "$HOME/$relative" || -L "$HOME/$relative" ]] || continue
+        printf '%s\t%s\t%s\n' "$module" "$relative" "$reason"
+    done < <(declarations SHADOW-PATHS)
+}
+
+# The question, on the terminal, with the answer on stdout so setup.sh can capture it. End of
+# input keeps them, the same as Enter, since keeping is the answer that changes nothing.
+ask_shadows() {
+    local found="$1" module relative reason answer
+
+    {
+        echo "These files override config this repository links, and nothing else will move them."
+        while IFS=$'\t' read -r module relative reason; do
+            echo "  ~/$relative"
+            echo "      $module, $reason"
+        done <<< "$found"
+        echo "Moved files go to ~/.mdj-env-backup/ and are never deleted."
+    } > /dev/tty
+
+    if read -r -p "Move them there so this repository's config wins? [y/N] " answer < /dev/tty 2> /dev/tty \
+        && [[ "$answer" =~ ^[Yy] ]]; then
+        echo move
+    else
+        echo keep
+    fi
+}
+
+sweep_shadows() {
+    local found answer module relative reason
+
+    found="$(shadows)"
+    [[ -n "$found" ]] || return 0
+
+    answer="${MDJ_SHADOWS:-}"
+    if [[ -z "$answer" && -t 0 ]]; then
+        answer="$(ask_shadows "$found")"
+    fi
+
+    case "$answer" in
+        move)
+            while IFS=$'\t' read -r module relative reason; do
+                mdj_displace "$HOME/$relative" || true
+            done <<< "$found"
+            ;;
+        keep | "")
+            while IFS=$'\t' read -r module relative reason; do
+                mdj_note "~/$relative still overrides the $module config, run src/setup-stow-dotfiles.sh in a terminal, or with MDJ_SHADOWS=move, to move it"
+            done <<< "$found"
+            ;;
+        *)
+            echo "Error: MDJ_SHADOWS is '$answer', it takes move or keep" >&2
+            return 1
+            ;;
+    esac
+}
+
+case "${1:-}" in
+    --shadows)
+        shadows | sed $'s/\t/ | /g'
+        exit 0
+        ;;
+    --ask-shadows)
+        found="$(shadows)"
+        [[ -n "$found" ]] && ask_shadows "$found"
+        exit 0
+        ;;
+esac
+
+echo "Stowing dotfiles..."
+cd "$DOTFILES"
+
 check_declarations
 keep_real_directories
+sweep_shadows
 
 # This repository wins, and the thing it wins against is kept.
 #

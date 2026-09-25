@@ -1,0 +1,58 @@
+#!/bin/bash
+set -uo pipefail
+
+# Whether Ghostty actually runs with the settings the stowed config gives it.
+#
+# The stowed file can be exactly right and still lose, since Ghostty reads more than one file
+# and the last one to set a key wins. So this asks Ghostty for the configuration it resolved
+# and compares every key the stowed file sets once against it. Asking the resolved value is
+# what makes it catch every override, a file SHADOW-PATHS already names, a hand edit, or a
+# location nobody here knows about yet, rather than only the one instance it was written for.
+#
+# Keys set more than once, keybind and palette among them, accumulate rather than override, so
+# one line cannot be compared against one value and they are left out. A key the resolved
+# listing does not carry at all is left out too, since that is Ghostty renaming a key it still
+# accepts, which validate-config already answers for.
+#
+# The contract with src/check-dependencies.sh, which finds this by name. One line per setting
+# that lost, on stdout, and exit 0, so silence is a pass. Exit 2 when this machine cannot
+# answer, which is a warning there rather than an error.
+
+PACKAGE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+STOWED="$PACKAGE/.config/ghostty/config"
+
+if ! command -v ghostty > /dev/null 2>&1; then
+    echo "the ghostty command is not on PATH, so the resolved configuration cannot be read" >&2
+    exit 2
+fi
+
+resolved="$(ghostty +show-config 2>/dev/null)"
+if [[ -z "$resolved" ]]; then
+    echo "ghostty +show-config printed nothing" >&2
+    exit 2
+fi
+
+printf '%s\n' "$resolved" | awk '
+function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
+function bare(s) { if (s ~ /^".*"$/) s = substr(s, 2, length(s) - 2); return s }
+NR == FNR {
+    if ($0 ~ /^[ \t]*(#|$)/) next
+    i = index($0, "=")
+    if (!i) next
+    key = trim(substr($0, 1, i - 1))
+    count[key]++
+    want[key] = bare(trim(substr($0, i + 1)))
+    next
+}
+{
+    i = index($0, " =")
+    if (!i) next
+    key = substr($0, 1, i - 1)
+    got[key] = bare(trim(substr($0, i + 2)))
+    known[key] = 1
+}
+END {
+    for (key in count)
+        if (count[key] == 1 && (key in known) && got[key] != want[key])
+            printf "%s is %s, the stowed config says %s\n", key, got[key], want[key]
+}' "$STOWED" -

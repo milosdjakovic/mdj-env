@@ -79,6 +79,7 @@ than discovered.
 - [neovim-lockfile-pin](neovim-lockfile-pin.md), the lockfile is the pin and the bootstrap restores it rather than updating past it
 - [olm-workspaces](olm-workspaces.md), window layouts are snapshots a person takes and applies, keyed by display role, after the automatic version was pulled out
 - [stow-folding](stow-folding.md), a module declares the home directories that must stay real, and the stow step makes them real and unfolds a machine that is already wrong
+- [shadow-paths](shadow-paths.md), a module declares the config files its tool reads besides the linked one, setup asks before moving any it finds, and a probe compares what the tool resolved against what is linked
 - [fut-vs-herdr](fut-vs-herdr.md), fut was carried installed and unstowed and then dropped, since nothing ran it, and the measurements stay so it can be rechecked, its prefix cannot be `alt+z` and it can neither tell whether a pane is busy nor raise a notification
 - [runtime-versions](runtime-versions.md), one tool switches node, ruby, python and java after fnm answered only one of them, the activation line is guarded because an unguarded one printed command not found before every prompt, and java waits until a toolchain exists
 - [olm-storage-roots](olm-storage-roots.md), everything Olm writes lives under `~/.olm`, data and cache apart, after five plugins each kept their own path

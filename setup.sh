@@ -76,6 +76,17 @@ trap on_exit EXIT
 echo "==> Starting dotfiles setup..."
 echo ""
 
+# Files a tool reads besides the config this repository links, left on this machine from before
+# it, are asked about here rather than when the stow step reaches them, since that is minutes
+# into the run and a question there holds everything after it until somebody comes back. The
+# stow step owns the scan and the question, this only asks it early and passes the answer on.
+# A run with no terminal takes MDJ_SHADOWS instead, and CLAUDE.md says who asks for it.
+if [[ -z "${MDJ_SHADOWS:-}" && -t 0 ]]; then
+    MDJ_SHADOWS="$("$SRC_DIR/setup-stow-dotfiles.sh" --ask-shadows)"
+    export MDJ_SHADOWS
+    [[ -n "$MDJ_SHADOWS" ]] && echo ""
+fi
+
 # Make sure the command line tools carry an SDK for this macOS, before anything that compiles
 # or wants one. Homebrew refuses a formula without a bottle otherwise, so this runs first.
 step "$SRC_DIR/install-xcode-clt.sh"

@@ -63,3 +63,10 @@ are deleted. They were hand written copies stowed beside the generated pair, ref
 nothing since the `theme` line moved to `mdj-light` and `mdj-dark` on 2026-09-15, and the
 widened hex scan in `check-theme.sh` named them. A soft Aura is a second palette file named in
 `theme/active.toml` if it is ever wanted, and nothing under `dotfiles` would change for it.
+
+### 2026-09-25 15:59
+
+Recorded now, the diagnosis elsewhere was earlier the same day. A second machine resolved `theme = Dark+` from a stale file in
+`~/Library/Application Support/com.mitchellh.ghostty/config`, which Ghostty reads after the
+linked config, so the pair above never reached the screen there. `decisions/shadow-paths.md`
+has the mechanism and what now guards it.

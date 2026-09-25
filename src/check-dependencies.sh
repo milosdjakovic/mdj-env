@@ -726,6 +726,72 @@ fi
 [[ $decisions_bad -eq 0 ]] && say "  every decision file is indexed and carries its four parts"
 
 #-------------------------------------------------------------------------------
+# Check nine, the config a tool runs with is the config this repository links
+#-------------------------------------------------------------------------------
+
+say ""
+say "==> Config the running tools actually use"
+
+# A linked config can be exactly right and still lose, when the tool also reads a file stow
+# cannot see and that file sets the same key later. Two questions answer it, and neither names
+# a module. A module lists the paths it knows about in SHADOW-PATHS, and the stow step reports
+# every one present here, since it owns that scan and the list of what is stowed. A module that
+# can ask its tool for the settings it resolved ships a config-probe at its package root, which
+# prints one line per setting that lost and exits 0, or exits 2 when this machine cannot
+# answer. The probe is the stronger of the two, since it catches an override from anywhere.
+#
+# Both are warnings, since a leftover file is a fact about this machine. What is an error is a
+# repository defect, a probe that breaks its contract, or one of these repo only files missing
+# from its package's .stow-local-ignore, which would link it into the home directory.
+shadow_bad=0
+while IFS= read -r shadow; do
+    [[ -z "$shadow" ]] && continue
+    module="${shadow%% | *}"
+    rest="${shadow#* | }"
+    path="${rest%% | *}"
+    warn "~/$path sits where it can override the $module config, src/setup-stow-dotfiles.sh moves it after asking"
+    shadow_bad=$((shadow_bad + 1))
+done < <("$SCRIPT_DIR/setup-stow-dotfiles.sh" --shadows 2>/dev/null)
+
+while IFS= read -r prober; do
+    module="$(basename "$(dirname "$prober")")"
+    complaint="$(mktemp)"
+    lost="$("$prober" 2>"$complaint")"
+    status=$?
+    case "$status" in
+        0)
+            while IFS= read -r setting; do
+                [[ -z "$setting" ]] && continue
+                warn "$module runs with $setting, something outside the stowed file overrides it"
+                shadow_bad=$((shadow_bad + 1))
+            done <<< "$lost"
+            ;;
+        "$CANNOT_RUN_HERE")
+            warn "$module could not report the config it runs with on this machine"
+            while IFS= read -r detail_line; do say "         $detail_line"; done <"$complaint"
+            shadow_bad=$((shadow_bad + 1))
+            ;;
+        *)
+            err "$module/config-probe exited $status, which is outside its contract"
+            while IFS= read -r detail_line; do say "         $detail_line"; done <"$complaint"
+            shadow_bad=$((shadow_bad + 1))
+            ;;
+    esac
+    rm -f "$complaint"
+done < <(find "$DOTFILES" -maxdepth 2 -name config-probe -type f | sort)
+
+for repo_only in NO-FOLD SHADOW-PATHS config-probe; do
+    while IFS= read -r file; do
+        package="$(dirname "$file")"
+        if ! grep -qx "$repo_only" "$package/.stow-local-ignore" 2>/dev/null; then
+            err "$(basename "$package")/$repo_only is not listed in its .stow-local-ignore, so stow would link it into the home directory"
+            shadow_bad=$((shadow_bad + 1))
+        fi
+    done < <(find "$DOTFILES" -maxdepth 2 -name "$repo_only" -type f | sort)
+done
+[[ $shadow_bad -eq 0 ]] && say "  every tool that can be asked runs with the linked config"
+
+#-------------------------------------------------------------------------------
 
 say ""
 if [[ $errors -gt 0 ]]; then
