@@ -6,10 +6,18 @@ one line when nothing changed. On macOS 27 a change is a dialog the person answe
 
 ## Now
 
-`setup-dev-defaults.sh` asks which app should open development files, names the one that
-opens `.md` now, checks that an app of the typed name exists, and passes it to
-`set-dev-defaults.sh`. Enter skips, and so does a run with no terminal attached, each with a
-note that `setup.sh` repeats at the end. The script asks
+`setup-dev-defaults.sh` takes the editor from `MDJ_EDITOR` when it is set, which is how a run
+with no terminal is answered, since an agent can ask before `setup.sh` starts but not during
+it. Otherwise it asks which app should open development files, as a numbered list of the apps
+Launch Services has registered as an Editor of more than half of a handful of development
+types, ranked by how many each edits and marking the one that opens `.md` now. The role query
+is deprecated since macOS 12 with no replacement that keeps the role, so when it answers
+nothing the list falls back to every app that can open the types. A number or a typed name answers it, and
+`--list` prints the same list one name per line, so the prompt and anyone asking before a run
+read one answer. The list is read through `osascript` and JavaScript for Automation, which
+needs no compiler. Enter skips, and so does a run with no terminal and no
+variable, each with a note that `setup.sh` repeats at the end and that names
+`set-dev-defaults.sh "App Name"` as the route that needs no terminal. The script asks
 `duti -s` for every extension in its list, then reads the handler back with `duti -x`, and the
 readback is the report. An extension already on Zed is counted as already, one that moved is
 counted as changed, one whose extension resolves to an invented `dyn.` type is counted as
@@ -54,6 +62,31 @@ first, and the readback is consulted only after.
   install an app on every machine whether or not it is wanted. Asking costs one Enter on a
   machine that is already set up.
 
+- **Scanning `/Applications` Info.plists for `CFBundleTypeExtensions` to list the editors.**
+  2026-09-25, measured on the second machine. Ten apps there could open a `.md` and the scan
+  found two, because modern apps declare `LSItemContentTypes` instead, so Xcode, TextEdit and
+  every browser were invisible to it. A list that under detects is worse than asking, since the
+  person cannot tell it is incomplete.
+- **A hardcoded list of known editors.** 2026-09-25. It goes stale with nothing reporting it,
+  and the first draft already named an editor that has been discontinued.
+- **A compiled Swift helper to ask Launch Services.** 2026-09-25. Proposed with a cache and a
+  fallback to typing, so the step would survive a broken toolchain. JavaScript for Automation
+  reaches the same `NSWorkspace` call through `osascript`, which the step already used, so the
+  compiler, the cache and the fallback all bought nothing.
+- **Remembering the chosen editor in a file on the machine.** 2026-09-25. Per machine state that
+  can disagree with what Launch Services holds, when the binding already is the memory and a
+  run on a machine already on the editor says one line.
+- **Reapplying the current `.md` handler to every type when nobody can be asked.** 2026-09-25.
+  That is guessing the answer, which is what the step was rebuilt to stop.
+
+- **Ranking every app that can open the types by how many it opens.** 2026-09-25. On this
+  machine Claude, Chrome, Helium and Notes open all seven probe types, tied with the editors,
+  so the list put a chat app first. It stays only as the fallback for a macOS that drops the
+  role query.
+- **Taking the Editor role at its word for any one type.** 2026-09-25. Ghostty registers as an
+  Editor of shell scripts so that double clicking one runs it, and it cannot edit anything.
+  An app now has to edit more than half of the types.
+
 ## Log
 
 - **2026-09-17 15:40.** Set out to make the step say one line on a no-op run, since it printed
@@ -83,3 +116,27 @@ first, and the readback is consulted only after.
   instead, so a manual run of `setup.sh` can pass the question by without changing anything.
   The current editor is still named in the question. Verified through `setup.sh`'s own stdin
   path, which it passes to every step untouched.
+- **2026-09-25 10:30.** A Claude session on the second machine ran `setup.sh` with no terminal,
+  so this step skipped with its note, and the editor it already knew had to be bound by hand.
+  The note named only the interactive route, so nothing said the binder takes the name as an
+  argument. The step now reads `MDJ_EDITOR`, offers a numbered list read from Launch Services,
+  and `--list` prints it, and the root CLAUDE.md tells Claude to ask before a run. Verified on
+  this machine. `--list` answered nine apps in under a second with Instruments left out as
+  nested in Xcode, an unknown `MDJ_EDITOR` exited one, `MDJ_EDITOR=Zed` said its one line, no
+  terminal and no variable noted and exited zero, and under a pseudo terminal an out of range
+  number and an unknown name were refused and asked again, a number bound, and Enter and
+  Ctrl D both skipped with exit zero. End of input used to stop the step with exit one under
+  `set -e`, found by the same test.
+  Corrected 2026-09-25 10:45, see the next entry.
+- **2026-09-25 10:45.** Ctrl D as a skip was wrong. Milos wants it to stop, since Enter already
+  passes the question by and a second way to skip leaves no way to abort. End of input now
+  says the step stopped and exits one, so `setup.sh` stops there and its trap names the step.
+  That is the behaviour the bare `read` had before, now with a line saying why. Verified under
+  a pseudo terminal, Ctrl D exited one with the line and Enter still skipped with exit zero.
+- **2026-09-25 11:05.** The first list ranked by how many probe types an app opens, which could
+  not tell an editor from a viewer, since four viewers opened all seven. Launch Services keeps
+  the role each app registered per type, and asking for Editors answered Zed, Xcode, VS Code
+  and TextEdit for every type, plus Ghostty for shell scripts alone, which Milos pointed out is
+  a terminal. The list now keeps Editors of more than half the types. Verified on this machine,
+  `--list` answered those four in under a second, and with the role query forced absent the
+  fallback answered the eight apps that open the types.

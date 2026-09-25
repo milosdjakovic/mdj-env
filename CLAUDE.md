@@ -13,6 +13,7 @@ macOS development environment bootstrap and dotfiles management using GNU Stow. 
 ```bash
 # Full setup (run once on new machine)
 ./setup.sh
+MDJ_EDITOR="Visual Studio Code" ./setup.sh   # the editor step's answer, for a run with no terminal
 
 # Run individual setup scripts
 ./src/install-xcode-clt.sh
@@ -25,6 +26,7 @@ macOS development environment bootstrap and dotfiles management using GNU Stow. 
 ./src/setup-zshrc.sh
 ./src/bootstrap-nvim.sh
 ./src/setup-dev-defaults.sh
+./src/setup-dev-defaults.sh --list   # the apps that can open development files, one per line
 ./src/setup-capslock-hyper.sh
 ./src/setup-ivpn-permissions.sh   # repairs bundle modes the ivpn cask leaves wrong; needs sudo only when repairing
 ./src/setup-claude-settings.sh
@@ -46,6 +48,16 @@ stow -t ~ <package>           # Symlink a package
 stow -t ~ --adopt <package>   # Adopt existing files and symlink
 stow -D -t ~ <package>        # Unlink a package
 ```
+
+**Before Claude runs `setup.sh`.** Claude's shell has no terminal, so a step that asks a
+question skips it during the run and cannot be answered then. So Claude asks first. Every
+question a step can take from the environment is listed below, with the command that lists the
+choices, and Claude asks each one before starting, with skip as the first option, and passes
+the answers as environment variables on the `setup.sh` command. An unset variable means skip,
+which the step reports in the closing notes.
+
+- `MDJ_EDITOR`, which app opens development files from Finder. Choices come from
+  `./src/setup-dev-defaults.sh --list`.
 
 ## Architecture
 
@@ -373,8 +385,9 @@ of those. On macOS 27 changing a file type's default handler raises a dialog for
 answer, and `duti` returns success the moment it has asked, so `set-dev-defaults.sh` reads
 every handler back rather than trusting that answer, reports an extension still on its old
 handler as pending rather than as bound or failed, and exits zero on it. Which editor is asked
-rather than assumed, since it is a personal choice, and a run with no terminal skips the step
-with a note. A fresh machine will see one dialog per typed extension on its first run, up to
+rather than assumed, since it is a personal choice. The prompt numbers the apps Launch Services
+says can edit the types, `MDJ_EDITOR` answers it for a run with no terminal, and with neither
+the step skips with a note. A fresh machine will see one dialog per typed extension on its first run, up to
 forty, and the step says to run it again once they are answered. On a machine already on the
 chosen editor it says one line. `decisions/dev-defaults.md` has the measurement. Two others are now
 declared gates rather than prose. The Accessibility grant, which the whole Hammerspoon module stands on,
