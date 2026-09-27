@@ -37,8 +37,8 @@ A keybinding popup carries no title. It takes a key, a type, a command, a descri
 sizes, and nothing else, and the description only ever appears in the help panel on `prefix+?`.
 So herdr labels the border with the literal word popup and there is nothing to change.
 
-A plugin pane requires a title. That is the only reason the three tools are a linked plugin
-called `mdj-tools` rather than three keybinding popups. The titles are what the borders read.
+A plugin pane requires a title. That is the only reason the tools are a linked plugin
+called `mdj-tools` rather than keybinding popups. The titles are what the borders read.
 
 The consequence for anything new is direct. Do not draw a border inside a popup and do not
 label one. The frame is already there and it already carries the name, so a second one is the
@@ -177,7 +177,7 @@ Anything new that scans broadly owes the same measurement before it ships.
 
 ## Current keys
 
-`g` the built in session navigator, herdr's `goto`. `alt+g` lazygit, in the repository the pane
+`g` the built in session navigator, herdr's `goto`. `a` the agent picker, `tools/agents.sh`, every agent as one flat row of state, space and tab, and its terminal title, for when goto's tree of spaces, tabs and panes is more than a jump needs. `t` is `last_pane`, back and forth across tabs and spaces. `alt+1..9` is `focus_agent`, which is unset by default and so looked broken. `decisions/herdr-navigation-keys.md` has the reasons. `alt+g` lazygit, in the repository the pane
 sits in, falling back to the recent list lazygit keeps for itself. `f` the fuzzy search. `alt+f`
 lf, viewing only, since every interactive key lf binds opens a tmux popup and there is no tmux
 session inside a herdr popup to open one into.

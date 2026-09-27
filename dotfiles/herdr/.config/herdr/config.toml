@@ -108,6 +108,21 @@ prefix = "alt+z"
 # custom command on prefix+g without reporting the conflict it reports when goto holds it.
 goto = "prefix+g"
 
+# Back and forth between the last two panes, across tabs and spaces, so it is also the
+# last tab and the last space. t for last. Unset by default. Not prefix+shift+d, which
+# closes the workspace.
+last_pane = "prefix+t"
+
+# Agent rows in sidebar order. Unset by default, which is why it looked broken.
+focus_agent = "prefix+alt+1..9"
+
+# goto keeps prefix+g for the whole tree, and this is the flat list of agents alone.
+[[keys.command]]
+key = "prefix+a"
+type = "shell"
+command = "\"$HERDR_BIN_PATH\" plugin pane open --plugin mdj-tools --entrypoint agents"
+description = "every agent, flat, with its state"
+
 [[keys.command]]
 key = "prefix+space"
 type = "plugin_action"

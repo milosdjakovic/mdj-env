@@ -487,7 +487,7 @@ statusline, and why ANSI black and white swap by half.
 ### Herdr
 
 Configuration in `dotfiles/herdr/`. See `dotfiles/herdr/CLAUDE.md` for the popup surface and its
-one frame one name rule, why the three tools are a linked plugin rather than keybindings, the
+one frame one name rule, why the tools are a linked plugin rather than keybindings, the
 requirement that escape closes everything, never typing into a busy pane, the two ways context
 arrives, why registration needs its own setup script, how to read a reload's diagnostics as a
 test, and the current keys.
