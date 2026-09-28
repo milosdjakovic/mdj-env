@@ -19,4 +19,5 @@ chafa | path | chafa | optional | fzf-files.sh | image previews in the terminal,
 nvim | path | nvim | optional | fzf-files.sh | opening a chosen file, the copy action still works without it
 file | system | /usr/bin/file | optional | fzf-files.sh | reading a file's mime type so the preview picks a renderer
 git | path | git | required | fzf-repos.sh | reading the branch or short sha shown beside a repository
+ivpn | path | ivpn | optional | vpn/ivpn.sh | the CLI behind the VPN picker on the IVPN backend
 mullvad | path | mullvad | optional | vpn/mullvad.sh | the relay CLI behind the VPN picker
