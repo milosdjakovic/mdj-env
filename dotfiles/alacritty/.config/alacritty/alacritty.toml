@@ -10,7 +10,7 @@ option_as_alt = "Both"
 [font]
 # Run following command on macOS to fix bold fonts in Alacritty 
 # defaults write org.alacritty AppleFontSmoothing -int 0
-normal.family = "Hack Nerd Font Mono"
+normal.family = "MesloLGS Nerd Font Mono"
 size = 18.0
 
 [cursor]

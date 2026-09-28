@@ -9,7 +9,7 @@ local config = wezterm.config_builder()
 -- and then keeping it in step with nothing watching.
 config.color_scheme = 'Aura (Gogh)'
 
-config.font = wezterm.font("MesloLGS NF")
+config.font = wezterm.font("MesloLGS Nerd Font Mono")
 config.font_size = 18
 
 config.harfbuzz_features = { 'calt=1', 'clig=1', 'liga=1' }

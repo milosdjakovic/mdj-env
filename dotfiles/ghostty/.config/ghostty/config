@@ -1,6 +1,5 @@
 # === Appearance ===
-#font-family = "Hack Nerd Font"
-font-family = "MesloLGS NF"
+font-family = "MesloLGS Nerd Font Mono"
 font-size = 18
 # Both theme files are generated from theme/palettes by src/check-theme.sh and named for the
 # half they fill rather than for a palette, so this line never changes. Which palette paints
