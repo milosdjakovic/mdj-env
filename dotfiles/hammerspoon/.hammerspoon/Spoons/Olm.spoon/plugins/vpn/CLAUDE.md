@@ -101,7 +101,17 @@ tunnel is down and no subcommand reports the last used parameters that `connect 
 What changed instead is the direction the question runs. `setLocation` is gone and `connect`
 takes the target, so both backends implement one door that takes a where. Mullvad writes its
 constraint and then connects, exactly what its `setLocation` did, and IVPN connects to the
-gateway host directly, exactly what its `setLocation` did. A nil target is the remaining bare
+gateway host directly, exactly what its `setLocation` did.
+
+A target may name a country and no city, which the contract states and IVPN did not honour. It
+read `cityCode` alone, so a country only target fell past that filter and left through the nil
+path, connecting to the last used parameters while the row that sent it named a country. The
+row was not lying, `targetLabel` resolves such a target to the country and says so, the connect
+underneath simply went somewhere else and reported success. Nothing caught it, because accepting
+an argument and ignoring it is exactly the defect `contract.lua` says its own arity check cannot
+see, and it is worth knowing that the one hole the contract names out loud is the one that
+opened. The fix is a filter flag rather than a different call, since this CLI always takes the
+location as the positional value and the flag beside it only says which field to match against. A nil target is the remaining bare
 connect, each backend's own answer to go wherever you would go on your own, and it is now a
 fallback rather than the only thing one backend could offer.
 
@@ -154,6 +164,25 @@ Both rungs answering nil is a machine that has never connected to a place throug
 a backend that publishes nothing, and that is the one case where the row still reads a bare
 `Connect`. It is self limiting for the reason the old note gave, since choosing a location is
 the normal first move anyway and every connect after it has a place to name.
+
+## IVPN names the connected server on its own line, not in a labelled field
+
+`parseStatusOutput` reads the hostname two ways and only one of them still answers. It asked for
+a `Server` field, and the CLI prints no such field. What it prints under the state word, and only
+while a tunnel is up, is one unlabelled line naming the server as `gateway [host], City (CC),
+Country`. The labelled read is kept ahead of the new one rather than replaced, since a machine on
+a build that does print it loses nothing, and a pattern that matches nothing costs a match
+attempt.
+
+What the absence cost is worth recording, because it was silent and it looked like the contract
+working as designed. The hostname stayed nil, so `byHost` was never consulted, so a connected
+tunnel could not name where it exits and the row read a bare `Disconnect` while the other backend
+read `Disconnect from` a place. That is indistinguishable from this backend simply knowing less,
+which is a thing this file elsewhere says is true and here was not the reason.
+
+The gateway leading that line is the same value the `servers` listing puts in its own location
+column, which is what makes this worth reading at all. It is already the key `byHost` is built on,
+so the place resolves with no second call and no new vocabulary.
 
 ## Switching is a generation, not an assignment
 

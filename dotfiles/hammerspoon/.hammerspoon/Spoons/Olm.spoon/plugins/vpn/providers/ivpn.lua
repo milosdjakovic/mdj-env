@@ -98,7 +98,17 @@ local function parseStatusOutput(out, ok)
   local word = out:match("VPN%s*:%s*(%u+)")
   if not word then return { state = "unavailable" } end
   local s = { state = STATE[word] or "unknown" }
+  -- Two spellings are accepted because only one of them is still printed. The labelled field
+  -- is tried first and left in place, since a machine running a build that prints it keeps the
+  -- reading it always had. The CLI this was rechecked against prints no such field at all. It
+  -- names the connected server on its own line under the state, as gateway [host], City (CC),
+  -- Country, and the gateway leading that line is the same value the servers listing puts in
+  -- its own location column, so it is already the key byHost is built on and resolves to a
+  -- place without any second lookup. Without the fallback the hostname stayed nil, and a
+  -- connected tunnel could not name where it exits while the other backend could, which is
+  -- the difference this reading exists to remove.
   local host = out:match("Server%s*:%s*(%S+)")
+      or out:match("[\r\n]%s*([%w%.%-]+)%s*%[")
   if host then
     s.hostname = host
     local known = byHost[host]
@@ -204,6 +214,15 @@ end
 --- before connecting, connect takes the location directly and switching an already connected
 --- tunnel is the same command.
 ---
+--- A target naming a country and no city is honoured as a country, which the contract states
+--- is a shape a target may take and this provider used to accept and ignore. It read cityCode
+--- alone, so a country only target fell past the filter and left through the nil path below,
+--- connecting to the last used parameters while the row that sent it named a country. Nothing
+--- reported that, because ignoring an argument is exactly the defect the contract says its own
+--- arity check cannot see. The filter flag is what changes, not the shape of the call, since in
+--- this CLI the location is always the positional value and the flag beside it only says which
+--- field to match the value against, cc for the country code where l means the hostname.
+---
 --- A nil target falls back to the last used parameters the daemon itself holds, which is all
 --- this backend can offer for go wherever you would go on your own, since it exposes no reader
 --- for what those parameters are. It is reached only when the caller has never named a place
@@ -214,6 +233,11 @@ function M.connect(target, cb)
   local host = target and target.cityCode
   if host and host ~= "" then
     runAsync({ "connect", "-l", host }, cb)
+    return
+  end
+  local country = target and target.countryCode
+  if country and country ~= "" then
+    runAsync({ "connect", "-cc", country }, cb)
     return
   end
   runAsync({ "connect", "-last" }, cb)
