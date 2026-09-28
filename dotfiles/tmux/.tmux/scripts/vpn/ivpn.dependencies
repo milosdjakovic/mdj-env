@@ -1,0 +1,4 @@
+# What ivpn.sh needs, declared beside the only file here that knows this CLI, so swapping
+# the VPN provider is one new adapter plus one line in fzf-vpn.sh and nothing else.
+# Format is name | kind | locator | policy | reason, and the collector stamps the consumer.
+ivpn | path | ivpn | optional | the CLI behind the VPN picker on the IVPN backend

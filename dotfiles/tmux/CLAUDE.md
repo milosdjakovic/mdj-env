@@ -350,5 +350,22 @@ preview tools, `bat`, `eza`, and `chafa`, are optional because a missing one onl
 breaks the preview pane of a picker that otherwise works, so the pane shows a shell
 error rather than the picker refusing to open.
 
-The mullvad adapter names the CLI rather than pathing to it, and keeps the `MULLVAD`
-environment override so the adapter contract can be exercised against a stub.
+Both adapters name the CLI rather than pathing to it, and keep an environment override,
+`MULLVAD` and `IVPN`, so the adapter contract can be exercised against a stub.
+
+Two adapters ship, `mullvad` and `ivpn`, and the wording a row carries belongs to the
+interface rather than to either of them. Both print `Country (City)`, so the list reads the
+same whichever one is behind it, and each spells its own vocabulary only into the ID, which
+the interface never reads. Mullvad identifies a location by country and city codes, IVPN by
+the gateway hostname its own connect filter takes.
+
+What the two genuinely differ on is whether a target can be read back while the tunnel is
+down. Mullvad holds a constraint it will state at any time, so its status names a place
+before anything is connected. IVPN holds no such thing and exposes no reader for one, so its
+status leaves the location and the target empty until a tunnel is up, and the list marks no
+active row until then. That is the honest answer rather than a guessed one, and it is the
+same distinction the Hammerspoon plugin's own provider contract settled on.
+
+A Mullvad constraint set as a whole country names an ID no row can match, since every row is
+a city. The label lookup falls back to the country name when nothing matches exactly, which
+is what keeps the header naming a place on a machine resting on a country wide constraint.

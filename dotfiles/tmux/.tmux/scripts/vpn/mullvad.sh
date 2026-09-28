@@ -90,9 +90,26 @@ _vpn_target_id() {
 }
 
 # The human label for an id, resolved from the location list.
+#
+# A country only constraint is resolved to the country, since the list holds no row for one.
+# This CLI states its constraint at whatever depth it was set, so a location chosen here is a
+# country and a city while one set as a whole country stays a country, and the id then names
+# something no row can match exactly. The exact match is still what wins, and the country is
+# read off the first row belonging to it only when nothing matched, so a city keeps its own
+# wording. Without this the status line simply lost its place, naming an id it could not spell,
+# which is what a machine resting on a country wide constraint showed on every open.
 _vpn_label_for_id() {
   [ -z "$1" ] && return 0
-  vpn_locations | awk -F'\t' -v id="$1" '$2==id{print $1; exit}'
+  vpn_locations | awk -F'\t' -v id="$1" '
+    exact == "" && $2 == id { exact = $1 }
+    country == "" {
+      split($2, part, " ")
+      if (part[1] == id) { name = $1; sub(/ *\(.*\)$/, "", name); country = name }
+    }
+    END {
+      if (exact != "") print exact
+      else if (country != "") print country
+    }'
 }
 
 # Waits briefly so status reads accurately right after a connect, since mullvad
