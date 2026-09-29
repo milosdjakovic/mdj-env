@@ -72,7 +72,14 @@ source "$(brew --prefix)/opt/fzf/shell/key-bindings.zsh"
 # a thing to worry about. mise's own documentation gives this line unguarded, so the failure is
 # one copied line away. Anything eval'd here that this module does not also require gets the
 # same wrapper. decisions/runtime-versions.md has the history.
-command -v mise >/dev/null 2>&1 && eval "$(mise activate zsh)"
+#
+# --shims, because plain activation resolves versions for the directory the shell is in and puts
+# that node first on PATH, which every script started from the shell then inherits. A build script
+# that cds into a checkout pinned by .node-version ran on the shell's node instead of the pin; the
+# gau3-web-app-builder release build failed that way. Shims resolve at exec time from the running
+# process's own directory, so the project's .node-version decides. /Users/Shared/dev-env/LEDGER.md
+# log #26 has the measurements.
+command -v mise >/dev/null 2>&1 && eval "$(mise activate zsh --shims)"
 
 # ctrl+r goes back to atuin, which fzf had been taking by accident. atuin binds ^r during
 # its init above, fzf's key-bindings.zsh is sourced after it and binds ^r to its own history
