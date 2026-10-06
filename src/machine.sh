@@ -9,6 +9,7 @@ set -e
 #   machine.sh keys        every key, one per line, which is every optional piece
 #   machine.sh listed      exits 0 when this machine has rows of its own
 #   machine.sh check       reports every row that names a key with no default, exits 1 on any
+#   machine.sh capture     looks at what this machine has and brings its block in MACHINES in line
 #
 # An unknown key is exit 3 from get and on, so a misspelt key in a caller fails loudly rather
 # than reading as off.
@@ -42,6 +43,11 @@ name() {
     fi
 }
 
+# A block is this machine's rows plus one header comment above them, `# NAME, captured DATE`.
+# The header is what keeps a machine that captured every piece at its default from reading as
+# one that was never captured.
+header_of() { grep -E "^# $1, captured " "$FILE" 2>/dev/null | head -1; }
+
 value_for() {
     local machine="$1" key="$2"
     rows | awk -F'|' -v m="$machine" -v k="$key" '$1 == m && $2 == k { print $3; exit }'
@@ -58,12 +64,161 @@ get() {
     echo "${value:-$default}"
 }
 
+# What this machine already has for one piece, as `value|fact`. A probe reports a fact and the
+# value that fact suggests, and the person decides, since whether a machine should take a piece
+# is a judgement and not something a probe can see. A key with no probe answers `?`, so a new
+# piece is reported as unprobed rather than silently proposed off.
+probe() {
+    case "$1" in
+        mise)
+            local own=() tool
+            if [[ "$(cd "$HOME/.config/mise" 2>/dev/null && pwd -P)" == "$ROOT/"* ]]; then
+                echo "on|this repository's mise config is stowed"; return
+            fi
+            for tool in pyenv rbenv nodenv asdf fnm volta jenv; do
+                command -v "$tool" >/dev/null 2>&1 && own+=("$tool")
+            done
+            [[ -d "$HOME/.nvm" ]] && own+=(nvm)
+            [[ -d "$HOME/.pyenv" && ! " ${own[*]} " == *" pyenv "* ]] && own+=(pyenv)
+            if [[ ${#own[@]} -gt 0 ]]; then
+                echo "off|its own runtime setup, ${own[*]}"
+            elif [[ -e "$HOME/.config/mise/config.toml" ]]; then
+                echo "off|mise with a config of its own"
+            else
+                echo "off|no runtime manager"
+            fi
+            ;;
+        hammerspoon) [[ -d /Applications/Hammerspoon.app ]] && echo "on|Hammerspoon installed" || echo "off|no Hammerspoon" ;;
+        herdr)  command -v herdr >/dev/null 2>&1 && echo "on|herdr installed" || echo "off|no herdr" ;;
+        mole)   command -v mole >/dev/null 2>&1 && echo "on|mole installed" || echo "off|no mole" ;;
+        docker) [[ -d /Applications/Docker.app ]] && echo "on|Docker Desktop installed" || echo "off|no Docker Desktop" ;;
+        vpn)
+            if command -v mullvad >/dev/null 2>&1 || [[ -d "/Applications/Mullvad VPN.app" ]]; then
+                echo "mullvad|Mullvad installed"
+            elif [[ -d /Applications/IVPN.app ]]; then
+                echo "ivpn|IVPN installed, no Mullvad"
+            else
+                echo "none|no VPN app"
+            fi
+            ;;
+        *) echo "?|no probe for this piece" ;;
+    esac
+}
+
+ask() {
+    local answer
+    [[ -t 0 ]] || return 1
+    read -r -p "$1 " answer < /dev/tty
+    [[ "$answer" =~ ^[Yy] ]]
+}
+
+# Brings this machine's block in line with what the probes find, and is idempotent. A second run
+# on an unchanged machine writes nothing. A row written by hand that disagrees with what was found
+# is kept unless the person says otherwise, since a hand written row is a decision and a probe is
+# only evidence. Only values that differ from the default become rows, the convention for the
+# whole file, plus any value the person chose against the evidence, which is a decision worth
+# keeping. Without a terminal it reports and writes nothing.
+capture() {
+    local machine key default explicit found fact final current
+    local new=() changes=0 interactive=0
+    machine="$(name)"
+    [[ -t 0 ]] && interactive=1
+
+    if [[ -z "$MDJ_MACHINE" && "$machine" =~ ^(Mac|MacBook|MacBook-Pro|MacBook-Air|iMac|Mac-mini|Mac-Studio|Mac-Pro)(-[0-9]+)?$ ]]; then
+        echo "$machine is a generic name another machine may share. Rename this Mac in System Settings, Sharing,"
+        echo "or set MDJ_MACHINE to a name of its own in this machine's shell profile, then capture again."
+        exit 1
+    fi
+
+    echo "Machine  $machine"
+    if [[ -n "$(header_of "$machine")" ]]; then echo "         $(header_of "$machine" | sed 's/^# //')"; else echo "         not captured before"; fi
+    echo ""
+
+    for key in $(rows | awk -F'|' '$1 == "default" { print $2 }'); do
+        default="$(value_for default "$key")"
+        explicit="$(value_for "$machine" "$key")"
+        current="${explicit:-$default}"
+        IFS='|' read -r found fact <<< "$(probe "$key")"
+        final="$current"
+
+        if [[ "$found" == "?" ]]; then
+            printf '  %-12s %-8s %s\n' "$key" "$current" "unchanged, $fact"
+        elif [[ "$found" == "$current" ]]; then
+            printf '  %-12s %-8s %s\n' "$key" "$current" "unchanged, $fact"
+        elif [[ -n "$explicit" ]]; then
+            printf '  %-12s %-8s %s\n' "$key" "$current" "the row says $current, found $fact, which suggests $found"
+            if ask "    Change $key to $found? [y/N]"; then final="$found"; fi
+        else
+            printf '  %-12s %-8s %s\n' "$key" "$found" "was the default $default, found $fact"
+            if [[ $interactive -eq 1 ]]; then
+                local answer
+                read -r -p "    Write $key = $found? [Y/n] " answer < /dev/tty
+                [[ "$answer" =~ ^[Nn] ]] || final="$found"
+            else
+                final="$found"
+            fi
+        fi
+
+        # A row is written where the value differs from the default, and also where the person
+        # turned down what was found, so the refusal is recorded and the next run does not ask
+        # the same question again.
+        if [[ "$final" != "$default" || ( "$found" != "?" && "$final" != "$found" ) ]]; then
+            if [[ "$final" == "$found" ]]; then
+                new+=("$(printf '%-27s | %-11s | %-9s # %s' "$machine" "$key" "$final" "$fact")")
+            else
+                new+=("$(printf '%-27s | %-11s | %-9s # %s' "$machine" "$key" "$final" "set by hand, capture found $fact")")
+            fi
+        fi
+    done
+
+    # Compare rows only, values and reasons, never the header, so the date alone is not a change.
+    local old_rows new_rows
+    old_rows="$(grep -E "^$machine[[:space:]]*\|" "$FILE" 2>/dev/null | sed 's/[[:space:]]*$//')"
+    new_rows="$(printf '%s\n' "${new[@]+"${new[@]}"}" | sed '/^$/d; s/[[:space:]]*$//')"
+    echo ""
+    if [[ "$old_rows" == "$new_rows" && -n "$(header_of "$machine")" ]]; then
+        echo "Nothing to change, the block for $machine already matches."
+        return 0
+    fi
+    if [[ $interactive -eq 0 ]]; then
+        echo "No terminal, so nothing was written. Run this in a terminal to write the block above."
+        return 0
+    fi
+
+    local block tmp
+    block="# $machine, captured $(date +%Y-%m-%d)"
+    [[ ${#new[@]} -eq 0 ]] && block="$block, every piece on its default"
+    [[ -n "$new_rows" ]] && block="$block"$'\n'"$new_rows"
+    tmp="$(mktemp)"
+    # The block is replaced where it stands, so a machine keeps its place in the file, and it is
+    # appended only when this machine has none yet.
+    BLOCK="$block" awk -v m="$machine" '
+        BEGIN { block = ENVIRON["BLOCK"] }
+        {
+            line = $0
+            first = line; sub(/[ \t]*\|.*/, "", first)
+            if (index(line, "# " m ", captured ") == 1 || first == m) {
+                if (!done) { print block; done = 1 }
+                next
+            }
+            print
+        }
+        END { if (!done) { print ""; print block } }
+    ' "$FILE" > "$tmp"
+    mv "$tmp" "$FILE"
+    echo "Wrote the block for $machine to MACHINES. Commit it so every checkout has it."
+}
+
 case "$1" in
     name)   name ;;
     get)    get "$2" ;;
     on)     [[ "$(get "$2")" == "on" ]] ;;
     keys)   rows | awk -F'|' '$1 == "default" { print $2 }' ;;
-    listed) rows | awk -F'|' -v m="$(name)" '$1 == m { found = 1 } END { exit !found }' ;;
+    listed)
+        [[ -n "$(header_of "$(name)")" ]] && exit 0
+        rows | awk -F'|' -v m="$(name)" '$1 == m { found = 1 } END { exit !found }'
+        ;;
+    capture) capture ;;
     check)
         rows | awk -F'|' '
             $1 == "default" { known[$2] = 1; next }
@@ -79,7 +234,7 @@ case "$1" in
         '
         ;;
     *)
-        echo "usage: machine.sh name | get KEY | on KEY | keys | listed | check" >&2
+        echo "usage: machine.sh name | get KEY | on KEY | keys | listed | check | capture" >&2
         exit 2
         ;;
 esac

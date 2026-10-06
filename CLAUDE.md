@@ -35,6 +35,7 @@ MDJ_EDITOR="Visual Studio Code" ./setup.sh   # the editor step's answer, for a r
 ./src/setup-herdr-plugins.sh
 ./src/check-dependencies.sh
 ./src/machine.sh get mise            # what this machine takes for one optional piece, from MACHINES
+./src/machine.sh capture             # look at this machine and bring its block in MACHINES in line, safe to rerun
 
 # Rewrite every tool's theme file from the one palette, and report any that had drifted.
 # Run after changing a colour, then commit what it regenerated. --show prints every role.
@@ -283,8 +284,11 @@ to drift unnoticed.
 `MACHINES` at the root says which optional pieces each machine takes, keyed by
 `scutil --get LocalHostName`, with a default row per piece for a machine that has no rows.
 `src/machine.sh` is its only reader. The stow step, `setup.sh` through `step_if`, the Brewfile
-through `on?`, and the reconciler all ask it, and nothing else knows the file's shape. Adding a
-piece is a default row plus the lines that ask for it. Switching one off never removes anything.
+through `on?`, and the reconciler all ask it, and nothing else knows the file's shape. On a machine
+that has no block yet, or has changed, run `src/machine.sh capture` in a terminal. It probes each
+piece, proposes rows, asks, and rewrites that machine's block in place, so a second run on an
+unchanged machine writes nothing and a row set by hand is kept unless you say otherwise. Adding a
+piece is a default row, a probe in `capture`, and the lines that ask for it. Switching one off never removes anything.
 Never answer a difference between machines with a branch. `decisions/machine-profiles.md` has
 why, and the rejected alternatives.
 

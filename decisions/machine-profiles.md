@@ -35,6 +35,8 @@ data about machines the user owns or uses, which is the same kind of fact Displa
 already keys by `LocalHostName` in git.
 
 **Asking for each piece on a machine with no rows and writing the answers back, 2026-10-06.**
+Reopened the same day, see the log, as `capture`, a command a person runs rather than a step
+setup runs on the way past.
 Proposed in the same conversation and dropped while building, since a setup run writing into a
 tracked file is a new behaviour with its own failure modes and the defaults already give an
 unlisted machine a safe answer. The run says in its closing block that the machine took every
@@ -59,3 +61,19 @@ an unlisted one. The Brewfile dropped mise for the unlisted machine and dropped 
 when this machine's rows were set off for a moment. The first test passed `MDJ_MACHINE` straight
 to `brew bundle` and mise stayed listed, which is how Homebrew's variable filter was found. The
 reconciler reported a misspelt key as an error. `setup.sh` itself was not run end to end.
+
+**2026-10-06 15:30.** `src/machine.sh capture` added at the user's request, who asked how a
+machine's own setup gets recorded and then that a rerun modify the existing block rather than add
+to it. It probes each piece, reports the fact found and the value it suggests, asks, and rewrites
+that machine's block where it stands, under a `# NAME, captured DATE` header. Rows are compared
+without the header, so a second run on an unchanged machine writes nothing. A proposal the person
+turns down is written as a row too, since otherwise the next run would ask the same question as
+if it were new, which the first version did. A row set by hand that disagrees with the evidence
+is kept unless the person says otherwise, and every run asks with no as the default. A generic
+name such as `MacBook-Pro` stops it, since two machines could share it, and `MDJ_MACHINE` in that
+machine's shell profile is the answer where the Mac cannot be renamed.
+
+Verified with `expect` across six runs on a pretend machine, declining, rerunning, adding a hand
+row, accepting and rerunning, and on this machine, where the first run wrote its block and the
+second reported nothing to change. Piping answers through `script` did not reach the prompt and
+is not a way to test it.
