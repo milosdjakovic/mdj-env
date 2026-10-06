@@ -59,6 +59,11 @@ records() {
 
 field() { echo "$1" | cut -d'|' -f"$2"; }
 
+# A module this machine switched off in MACHINES is not expected here, so what it declares is
+# neither missing nor ungranted. Asked through src/machine.sh, the one reader of that file, and
+# keyed by module name, so only a module that is also a MACHINES key can ever be off.
+module_off() { [[ "$("$SCRIPT_DIR/machine.sh" get "$1" 2>/dev/null)" == "off" ]]; }
+
 # True when git ignores a path, used to keep every recursive scan below on files this
 # repository actually tracks. A plugin manager such as tpm installs third party files into a
 # gitignored folder inside a module, a vendored README that names a brew command or a script
@@ -497,6 +502,7 @@ say "==> Present on this machine"
 absent=0
 for line in "${declared_lines[@]}"; do
     module="$(field "$line" 1)"
+    module_off "$module" && continue
     name="$(field "$line" 2)"
     kind="$(field "$line" 3)"
     locator="$(field "$line" 4)"
@@ -574,8 +580,9 @@ grants_unanswered=0
 for line in "${declared_lines[@]}"; do
     kind="$(field "$line" 3)"
     [[ "$kind" == "grant" ]] || continue
-    grants_declared=$((grants_declared + 1))
     module="$(field "$line" 1)"
+    module_off "$module" && continue
+    grants_declared=$((grants_declared + 1))
     name="$(field "$line" 2)"
     locator="$(field "$line" 4)"
     policy="$(field "$line" 5)"
@@ -724,6 +731,18 @@ if [[ -d "$decisions_dir" ]]; then
     done < <(grep -oE '\]\([a-z0-9-]+\.md\)' "$decisions_index" | tr -d '()]')
 fi
 [[ $decisions_bad -eq 0 ]] && say "  every decision file is indexed and carries its four parts"
+
+#-------------------------------------------------------------------------------
+# Check eight and a half, MACHINES names only pieces it has a default for
+#-------------------------------------------------------------------------------
+
+say ""
+say "==> Machine profiles"
+if machine_gaps="$("$SCRIPT_DIR/machine.sh" check)"; then
+    say "  every machine row names a known piece, $("$SCRIPT_DIR/machine.sh" name) is $("$SCRIPT_DIR/machine.sh" listed && echo listed || echo on the defaults)"
+else
+    while IFS= read -r gap; do err "MACHINES, $gap"; done <<< "$machine_gaps"
+fi
 
 #-------------------------------------------------------------------------------
 # Check nine, the config a tool runs with is the config this repository links

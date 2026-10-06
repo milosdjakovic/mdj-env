@@ -79,7 +79,12 @@ source "$(brew --prefix)/opt/fzf/shell/key-bindings.zsh"
 # gau3-web-app-builder release build failed that way. Shims resolve at exec time from the running
 # process's own directory, so the project's .node-version decides. /Users/Shared/dev-env/LEDGER.md
 # log #26 has the measurements.
-command -v mise >/dev/null 2>&1 && eval "$(mise activate zsh --shims)"
+#
+# The config is the condition, not the binary. mise is optional per machine in MACHINES, and a
+# machine that has it installed without taking this repository's runtimes must not have its own
+# pyenv or nvm overridden by mise acting on every .nvmrc it meets. A stowed config, or one set up
+# by hand, is what says this machine uses mise.
+[[ -e "$HOME/.config/mise/config.toml" ]] && command -v mise >/dev/null 2>&1 && eval "$(mise activate zsh --shims)"
 
 # ctrl+r goes back to atuin, which fzf had been taking by accident. atuin binds ^r during
 # its init above, fzf's key-bindings.zsh is sourced after it and binds ^r to its own history

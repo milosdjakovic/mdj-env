@@ -88,3 +88,4 @@ than discovered.
 - [developer-toolchain](developer-toolchain.md), the first setup step guarantees the command line tools carry an SDK for the running macOS, since that is what Homebrew checks, and stops the run when it cannot
 - [olm-window-display-move](olm-window-display-move.md), a display switch keeps the window's size and its place rather than its proportions, and a round trip restores the exact frame from a table that lives only in memory
 - [olm-launcher-ranking](olm-launcher-ranking.md), the launcher orders a searched list by what each query has been used to pick, a decaying score per query and row pair with a sticky leader, guarded so it only ever settles rows that matched about equally
+- [machine-profiles](machine-profiles.md), one tracked `MACHINES` file says which optional pieces each machine takes, keyed by `LocalHostName`, read only by `src/machine.sh`, after one branch per machine was rejected for drifting

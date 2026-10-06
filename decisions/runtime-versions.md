@@ -1,10 +1,14 @@
 # Runtime versions, and the one tool that switches them
 
-Status. mise manages every language runtime on this machine, python, ruby, node, go and rust,
+Status. On a machine that `MACHINES` turns mise on for, mise manages every language runtime, python, ruby, node, go and rust,
 plus uv itself, from a global config in its own stow package, `dotfiles/mise`. A project
 overrides any of them with its own pin. uv may only use the interpreters mise installed.
 
 ## Now
+
+mise is optional per machine, off by default, and on here. Where it is off nothing is stowed
+or installed for it and the shell does not activate it, since activation keys on the config
+file existing rather than on the binary. `decisions/machine-profiles.md` has the mechanism.
 
 `dotfiles/mise/.config/mise/config.toml` lists one default version per language, and
 `src/install-mise-tools.sh` installs whatever it lists that is missing, after stow and never
@@ -143,3 +147,8 @@ and the venvs of canvas-plugins, fumage, canvas and anthropic-academy point at t
 and would break until each is recreated. poetry exists twice, as a Homebrew leaf and in a pipx
 venv on Homebrew's 3.13, and pipx itself is a Homebrew leaf. Three venvs under
 `personal/education` already point at Homebrew Cellar versions that no longer exist.
+
+**2026-10-06 14:55.** mise became optional per machine through `MACHINES`, off by default,
+because a machine with its own pyenv or nvm must not be taken over. The shell guard moved from
+the binary to `~/.config/mise/config.toml`, since a machine can have mise installed and still
+not want this repository's runtimes acting on every `.nvmrc` it meets.

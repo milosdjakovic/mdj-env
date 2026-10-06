@@ -11,6 +11,10 @@ if [[ ! -f "$BREWFILE" ]]; then
     exit 1
 fi
 
+# The Brewfile asks src/machine.sh which optional pieces this machine takes, and Homebrew hides
+# every variable but its own from it, so the machine name goes across under Homebrew's prefix.
+export HOMEBREW_MDJ_MACHINE="$("$SCRIPT_DIR/machine.sh" name)"
+
 # Present, not newest.
 #
 # This step's guarantee is that everything the Brewfile declares is on the machine, and that is

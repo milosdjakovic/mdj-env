@@ -4,6 +4,13 @@ mise is the one place language runtimes come from on this machine. `.config/mise
 is the global config, stowed to `~/.config/mise/config.toml`, and `decisions/runtime-versions.md`
 holds what was tried and rejected, read it before changing anything here.
 
+## Which machines
+
+This package is optional per machine. `MACHINES` at the repository root turns it on, and it is
+off by default. Where it is off the package is not stowed, the Brewfile skips mise, the install
+step is skipped, and the shell does not activate mise, because `.zshrc.custom` activates it only
+when `~/.config/mise/config.toml` exists. `decisions/machine-profiles.md` has the mechanism.
+
 ## What it manages
 
 python, ruby, node, go, rust and uv, one default version each, written as the major or minor
