@@ -26,3 +26,5 @@ default                     | tools       | none      # the mise tool groups a m
 # Miloss-MacBook-Pro-Vicert, captured 2026-10-06
 Miloss-MacBook-Pro-Vicert   | mise        | on        # this repository's mise config is stowed
 Miloss-MacBook-Pro-Vicert   | tools       | dev,personal,work # commands for dev,personal,work
+
+# Miloss-MacBook-Pro, captured 2026-10-06, every piece on its default
