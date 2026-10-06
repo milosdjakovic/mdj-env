@@ -2,6 +2,7 @@
 # module's contract with the layer above, so it belongs to the repository rather than to the
 # running configuration. The module guidance is the same, notes for a person reading the
 # repository rather than anything herdr loads.
+AGENTS.md
 CLAUDE.md
 DEPENDENCIES
 # The map and the emitter are this module's half of the theme contract, read by

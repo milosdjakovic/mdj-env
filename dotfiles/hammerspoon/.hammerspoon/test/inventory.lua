@@ -346,7 +346,7 @@ add("registry actionpaneldecorated count=" .. actionPanel:decoratedCount())
 -- with no scope behind it reads plainly as hosted=true scope=false in this committed
 -- file, which is legitimate for a tool whose scope registers only under a condition,
 -- emoji today, and stable rather than a warning nobody is watching for. See
--- Spoons/Olm.spoon/CLAUDE.md's Registry section for why a warning was considered and
+-- Spoons/Olm.spoon/AGENTS.md's Registry section for why a warning was considered and
 -- rejected.
 local registryTools = registry.all()
 local toolLines = {}

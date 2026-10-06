@@ -1,0 +1,37 @@
+# The runtimes this machine uses by default, one place for all of them. A project overrides any
+# line with its own mise.toml or an idiomatic version file such as .python-version, and the
+# setup step src/install-mise-tools.sh installs whatever is listed here and is missing.
+#
+# Each version is the major or minor in use when mise took over, so adoption changed nothing a
+# script could notice. A prefix rather than an exact release, so `mise up` moves within it, and a
+# setup run never does, since it only installs what is absent. decisions/runtime-versions.md has
+# the reasoning.
+[tools]
+# The first python is the default. The others are on PATH as python3.13, python3.12 and so on,
+# and serve any project that pins them, which matters because uv may only use what mise
+# installed. 3.11 and 3.9 are here for client projects that require exactly those.
+python = ["3.14", "3.13", "3.12", "3.11", "3.9"]
+ruby = "4.0"
+node = "26"
+go = "1.27"
+rust = "stable"
+uv = "latest"
+
+# Tools run from any directory are not here. They sit in one file per group beside this one,
+# config.dev.toml, config.work.toml and config.personal.toml, and MACHINES says which groups a
+# machine takes. src/install-mise-tools.sh writes that choice into miserc.toml, which mise reads
+# before anything else and which loads config.<group>.toml for each group named.
+
+[settings]
+# A cloned repository's own version file is honoured without a mise.toml. Off by default in mise,
+# per language, and the symptom of leaving it off is a pin that looks like it should work and
+# does not. rust is absent because rustup reads rust-toolchain.toml itself.
+idiomatic_version_file_enable_tools = ["python", "ruby", "node", "go"]
+
+[env]
+# uv uses the python mise selected and never one of its own, so there is one source of
+# interpreters on the machine rather than two that drift. Both are needed. Forbidding downloads
+# alone still lets uv prefer a build it fetched earlier over the one on PATH, which is what
+# happened the first time this was tried.
+UV_PYTHON_DOWNLOADS = "never"
+UV_PYTHON_PREFERENCE = "only-system"

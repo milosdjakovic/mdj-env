@@ -1,24 +1,36 @@
 # Runtime versions, and the one tool that switches them
 
-Status. mise is declared by the zsh module, installed from the Brewfile, and activated by a
-guarded line in `.zshrc.custom`. It replaced fnm, which was a node only switcher and is gone.
-No language is configured through it yet and no version is pinned anywhere, because nothing
-here has asked for one.
+Status. On a machine that `MACHINES` turns mise on for, mise manages every language runtime, python, ruby, node, go and rust,
+plus uv itself, from a global config in its own stow package, `dotfiles/mise`. A project
+overrides any of them with its own pin. uv may only use the interpreters mise installed.
 
 ## Now
 
-`mise` covers node, ruby, python and java in one tool, which is the whole reason it is here
-rather than four tools. It is declared `optional` by the zsh module and its activation line is
-guarded, so a machine without it loses version switching and nothing else. It is in the
-Brewfile, so a default install gets it.
+mise is optional per machine, off by default, and on here. Where it is off nothing is stowed
+or installed for it and the shell does not activate it, since activation keys on the config
+file existing rather than on the binary. `decisions/machine-profiles.md` has the mechanism.
 
-Nothing is pinned. There is no `mise.toml` in this repository and no version file in any
-project on this machine, so mise is present and idle. That is the intended state until a
-project needs a version, at which point the version belongs to that project rather than here.
+`dotfiles/mise/.config/mise/config.toml` lists one default version per language, and
+`src/install-mise-tools.sh` installs whatever it lists that is missing, after stow and never
+moving a version already present. Each default is the major or minor that was in use when mise
+took over, so the switch changed nothing a script could notice. Python lists three versions,
+3.14 as the default and 3.13 and 3.12 beside it, because projects here pin both and uv can only
+reach an interpreter mise put on PATH.
 
-Java is deliberately unconfigured. The tool can install JDKs and that is why it was chosen over
-staying with a node only switcher, but nothing on this machine needs one yet and the Flutter
-side has friction worth knowing before starting. The Rejected section has it.
+Version files that a cloned repository carries, `.python-version`, `.ruby-version`, `.nvmrc` and
+`.node-version`, plus go's, are honoured without a `mise.toml`. Rust is left to rustup, which
+mise drives and which reads `rust-toolchain.toml` itself.
+
+uv keeps every job it had, projects, lockfiles, venvs, `uv run` and `uv tool`. Two environment
+variables in the same config stop it downloading or preferring an interpreter of its own, so the
+machine has one source of Python rather than two.
+
+What macOS ships stays, `/usr/bin/python3` and the `java` stub, and loses only PATH order. What
+Homebrew installs as a dependency of another formula stays too, since that formula keeps using
+it privately, which is why `python@3.13`, `python@3.14`, `node` and `ruby` are still in the
+Cellar. Only the leaves that mise replaced were removed.
+
+Java is still deliberately unconfigured, and the Rejected section says why.
 
 ## Rejected
 
@@ -71,7 +83,8 @@ not found when fetched. React Native is unaffected, it goes through Gradle direc
 `JAVA_HOME` the ordinary way. Android Studio keeps its own separate Gradle JDK setting, so an
 IDE build and a terminal build can quietly disagree.
 
-**Enabling mise's idiomatic version file support now, 2026-09-20.** Rejected as premature. mise
+**Enabling mise's idiomatic version file support now, 2026-09-20.** Reopened 2026-10-06, see
+the log. Rejected as premature. mise
 reads `.nvmrc`, `.node-version`, `.ruby-version` and `.python-version`, but each language has to
 be turned on explicitly and all of them are off by default. There is no such file in any project
 on this machine, so enabling them today configures nothing. It will matter the first time a
@@ -102,3 +115,74 @@ Not tested at any point, mise actually installing a runtime of any language, bec
 wanted yet. The first `mise use` of anything is still owed, and the GraalVM question is open,
 since mise's java page says GraalVM is unsupported while its own metadata crawler lists GraalVM
 distributions. One command settles it when it matters, `mise ls-remote java | grep -i graal`.
+
+**2026-10-06 14:19.** Reversed the stance that versions belong only to projects, at the user's
+request for one place to manage python, ruby, rust and go. The 2026-09-20 reasoning was that no
+project needed a version, and measuring again showed that was no longer true and that the gap
+had been filled by accident instead. Python came from four sources at once, Homebrew's 3.12,
+3.13 and 3.14, uv's own downloads of 3.12.11 and 3.13.7, a pipx venv for poetry, and macOS. go,
+rustup and uv were Homebrew leaves nothing declared, and cargo was not on PATH at all because
+Homebrew's rustup is keg only. `vicert/canvas-medical/canvas-plugins` carries a `.python-version`
+of 3.13, so idiomatic version files were turned on for python, ruby, node and go.
+
+A new `mise` stow package holds the global config, and a setup step installs it. The config
+directory is folded into this checkout on purpose and carries no `NO-FOLD`, since mise keeps its
+state and installs under `~/.local` and the only file it writes here is the config itself, which
+`mise use -g` should land in the repository.
+
+The first attempt set only `UV_PYTHON_DOWNLOADS=never`, and `uv run` still chose uv's own
+3.13.7 over mise's 3.14 on PATH, since uv prefers a build it manages whenever one exists.
+`UV_PYTHON_PREFERENCE=only-system` closed it, verified by `uv run` reporting the mise
+interpreter. That limit in turn means a pinned version has to exist in mise, which is why 3.13
+and 3.12 sit in the global list. Verified that canvas-plugins resolves to 3.13.16 and fumage's
+uv finds 3.12.15.
+
+Installing rust through mise ran rustup, which updated the existing stable toolchain from 1.95.0
+to 1.99.0. That is the one version this change moved, and it was not intended.
+
+Removed from Homebrew, each with no dependents, `go`, `rustup`, `uv`, `python@3.12` and
+`python-tk@3.14`. Not removed and still owed. uv's own interpreters under
+`~/.local/share/uv/python` and the `~/.local/bin/python3.13` link, because the `canvas` uv tool
+and the venvs of canvas-plugins, fumage, canvas and anthropic-academy point at the 3.13.7 build
+and would break until each is recreated. poetry exists twice, as a Homebrew leaf and in a pipx
+venv on Homebrew's 3.13, and pipx itself is a Homebrew leaf. Three venvs under
+`personal/education` already point at Homebrew Cellar versions that no longer exist.
+
+**2026-10-06 14:55.** mise became optional per machine through `MACHINES`, off by default,
+because a machine with its own pyenv or nvm must not be taken over. The shell guard moved from
+the binary to `~/.config/mise/config.toml`, since a machine can have mise installed and still
+not want this repository's runtimes acting on every `.nvmrc` it meets.
+
+**2026-10-06 16:20.** Strict mode chosen by the user. Python 3.11 and 3.9 joined the global list
+for `canvas/science`, which requires 3.9 exactly, and for `ai-scribe`, `nabla-ai-parser` and
+`indigenous_pact`, which require 3.11. The global tools moved into mise, poetry and canvas through
+`pipx:`, yarn through `npm:`, pnpm from the registry and tetro-tui through `cargo:`, and the
+Homebrew poetry, pnpm, yarn and pipx, the pipx poetry venv, the uv tool canvas and the cargo
+tetro-tui were removed. Moving them bumped poetry from 2.4.3 to 2.5.1 and tetro-tui from 3.2.2
+to 3.6.2, since their prefixes allowed it.
+
+mise's supply chain guard refused two npm packages, and both stay on Homebrew's node's global
+packages until the user decides. `@salesforce/cli` failed on a dependency with weaker trust
+evidence than an earlier release, at 2.154.2 and at the 2.137.7 already in use. `groq-code-cli`
+was refused for having 264 weekly downloads against a threshold of 1000.
+
+All 44 venvs under `~/Development` that were not on nix were rebuilt on mise's python of the same
+minor, each moved aside first and compared by its frozen package list afterwards. 38 went through
+at once. Four were already broken before this. `custom-reminders` had a copied interpreter that
+could not load its own library, `home-app` held pydantic beside a typing-extensions it cannot use
+and was rebuilt from its `uv.lock`, `Learn-Python-Programming-Fourth-Edition` held notebook
+beside a jupyterlab it cannot use and was copied exactly with `--no-deps`, and one book chapter's
+interpreter no longer existed and was rebuilt from the names on disk. Two had pip from a wheel
+inside PyCharm's app bundle, which was dropped since a fresh pip is seeded. `demo-pdf-generator`
+lost an editable install of `test-plugins/demo-pdf-generator`, a folder that no longer exists.
+
+Deleting the moved aside venvs and uv's own interpreters was refused by the agent's permission
+check as irreversible, so both are still on disk for the user to remove.
+
+**2026-10-06 17:05.** The global tools left `config.toml` for three groups, dev, work and personal,
+each a `config.<group>.toml`, chosen per machine by the `tools` row in `MACHINES` and loaded
+through a generated `miserc.toml`. Measured in a scratch config directory before choosing, with
+mise 2026.9.11. `env` in `miserc.toml` loads the group files, `.miserc.toml` and `settings.env`
+inside `config.toml` do not, and `conf.d` would also work but would need generated links where
+these are plain tracked files. Verified that a machine with no groups gets runtimes only and its
+tool shims refuse to run, and that restoring the row brings all five tools back.

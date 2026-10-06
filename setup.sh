@@ -33,7 +33,7 @@ export MDJ_RUN_NOTES="$(mktemp -t mdj-env-notes)"
 #
 # The total is read out of this file rather than written down, so adding a step below cannot
 # leave a hardcoded number behind to go quietly wrong.
-STEP_TOTAL="$(grep -c '^step "' "${BASH_SOURCE[0]}")"
+STEP_TOTAL="$(grep -cE '^step(_if [a-z]+ [a-z]+)? "' "${BASH_SOURCE[0]}")"
 STEP_DONE=0
 STEP_NOW=""
 
@@ -41,6 +41,19 @@ step() {
     STEP_NOW="$(basename "${1%.sh}")"
     "$@"
     STEP_DONE=$((STEP_DONE + 1))
+}
+
+# A step that belongs to one optional piece runs only when MACHINES gives this machine that
+# value for it, as in `step_if mise on`. A skip counts as done, since the run did all it should.
+step_if() {
+    local key="$1" want="$2"
+    shift 2
+    if [[ "$("$SRC_DIR/machine.sh" get "$key")" == "$want" ]]; then
+        step "$@"
+    else
+        echo "==> Skipping $(basename "${1%.sh}"), $key is not $want on $("$SRC_DIR/machine.sh" name)"
+        STEP_DONE=$((STEP_DONE + 1))
+    fi
 }
 
 # Anything a step asked of you on the way past, said again at the end where it is read. It is
@@ -76,11 +89,23 @@ trap on_exit EXIT
 echo "==> Starting dotfiles setup..."
 echo ""
 
+# Which optional pieces this machine takes, from MACHINES. A machine with no rows takes the
+# defaults, and the closing block says so, since a new machine is exactly when that is missed.
+MACHINE="$("$SRC_DIR/machine.sh" name)"
+echo "==> Machine $MACHINE"
+for key in $("$SRC_DIR/machine.sh" keys); do
+    echo "    $key = $("$SRC_DIR/machine.sh" get "$key")"
+done
+echo ""
+if ! "$SRC_DIR/machine.sh" listed; then
+    echo "$MACHINE has no rows in MACHINES and took every default, add rows there to change that" >> "$MDJ_RUN_NOTES"
+fi
+
 # Files a tool reads besides the config this repository links, left on this machine from before
 # it, are asked about here rather than when the stow step reaches them, since that is minutes
 # into the run and a question there holds everything after it until somebody comes back. The
 # stow step owns the scan and the question, this only asks it early and passes the answer on.
-# A run with no terminal takes MDJ_SHADOWS instead, and CLAUDE.md says who asks for it.
+# A run with no terminal takes MDJ_SHADOWS instead, and AGENTS.md says who asks for it.
 if [[ -z "${MDJ_SHADOWS:-}" && -t 0 ]]; then
     MDJ_SHADOWS="$("$SRC_DIR/setup-stow-dotfiles.sh" --ask-shadows)"
     export MDJ_SHADOWS
@@ -107,6 +132,9 @@ step "$SRC_DIR/install-ohmyzsh-plugins.sh"
 step "$SRC_DIR/setup-stow-dotfiles.sh"
 
 
+# Install the runtimes the mise module lists, python, ruby, node, go, rust and uv
+step_if mise on "$SRC_DIR/install-mise-tools.sh"
+
 # Install tmux plugins via TPM
 step "$SRC_DIR/install-tmux-plugins.sh"
 
@@ -120,19 +148,19 @@ step "$SRC_DIR/bootstrap-nvim.sh"
 step "$SRC_DIR/setup-dev-defaults.sh"
 
 # Remap Caps Lock -> F18 for the Hammerspoon Hyper key
-step "$SRC_DIR/setup-capslock-hyper.sh"
+step_if hammerspoon on "$SRC_DIR/setup-capslock-hyper.sh"
 
 # Restore the file modes IVPN's daemon requires inside its own bundle, which the Homebrew
 # cask does not set because it copies the app rather than running IVPN's installer. Without
 # this the daemon cannot start at all on a freshly bootstrapped machine. Prompts for sudo
 # only when there is something to repair, and does nothing when IVPN is not installed.
-step "$SRC_DIR/setup-ivpn-permissions.sh"
+step_if vpn ivpn "$SRC_DIR/setup-ivpn-permissions.sh"
 
 # Wire the statusline script into Claude Code's settings.json
 step "$SRC_DIR/setup-claude-settings.sh"
 
 # Register the herdr module's local plugin, which stow places but cannot register
-step "$SRC_DIR/setup-herdr-plugins.sh"
+step_if herdr on "$SRC_DIR/setup-herdr-plugins.sh"
 
 # Reconcile what every module declares it needs against what this repo knows how to install
 # and what actually landed on the machine. It only reports, it never installs, so it runs
@@ -145,7 +173,7 @@ step "$SRC_DIR/check-dependencies.sh"
 # machine this regenerates nothing, since the files are committed, and it fails only when a
 # committed file disagrees with the palette, which is a repository defect. Run it alone any
 # time with src/check-theme.sh, and after any colour change, since it is what rewrites the
-# files. theme/CLAUDE.md has the whole contract.
+# files. theme/AGENTS.md has the whole contract.
 step "$SRC_DIR/check-theme.sh"
 
 # A module may also own checks that only make sense inside it, kept beside the module rather

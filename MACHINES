@@ -1,0 +1,28 @@
+# What each machine takes from this repository, as machine | key | value.
+#
+# Every key is one optional piece. Its default row says what a machine with no rows of its own
+# gets, and the reason after it says what the piece brings. Everything not listed here is core
+# and every machine takes it. A machine row is written only where that machine differs from the
+# default. The machine is named by `scutil --get LocalHostName`, and MDJ_MACHINE answers for it
+# in a run that should pretend to be another machine.
+#
+# README.md, under "Capturing a machine", has the steps to add or update a machine, and
+# `src/machine.sh capture` writes its rows. src/machine.sh is the only reader. setup.sh, the stow step, the Brewfile and the reconciler
+# all ask it, and nothing else knows this file's shape. decisions/machine-profiles.md has why it
+# is one file and not one branch per machine.
+#
+# The defaults keep what every machine got before this file existed, except mise, which stays
+# off unless a machine asks, since a machine with its own pyenv or nvm must not be taken over.
+
+# machine                   | key         | value
+default                     | mise        | off       # the mise package, its Homebrew line, the runtime install step, and the shell activation that follows the stowed config
+default                     | hammerspoon | on        # the Hammerspoon package and cask, and the Caps Lock remap its Hyper key stands on
+default                     | herdr       | on        # the herdr package and formula, and the step that registers its plugin
+default                     | mole        | on        # the mole formula, the package itself is not stowed yet
+default                     | docker      | on        # the Docker Desktop cask
+default                     | vpn         | mullvad   # mullvad, ivpn or none, and only ivpn adds a setup step, the permission repair its daemon needs
+default                     | tools       | none      # the mise tool groups a machine takes, a comma list of dev, personal and work in that order with no spaces, each one a config.<group>.toml in the mise package, or none
+
+# Miloss-MacBook-Pro-Vicert, captured 2026-10-06
+Miloss-MacBook-Pro-Vicert   | mise        | on        # this repository's mise config is stowed
+Miloss-MacBook-Pro-Vicert   | tools       | dev,personal,work # commands for dev,personal,work

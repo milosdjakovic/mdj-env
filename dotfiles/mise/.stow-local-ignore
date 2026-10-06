@@ -1,0 +1,6 @@
+# Repo only files at this package root, kept out of the home directory. The manifest is this
+# module's contract with the layer above, and the module guidance is notes for a person reading
+# the repository rather than anything mise loads.
+AGENTS.md
+CLAUDE.md
+DEPENDENCIES

@@ -3,7 +3,7 @@
 --- capture half stayed behind with the clipboard. The original file still runs whole on the
 --- other side of the composition root's toggle, so every semantic and every measured delay
 --- here is the donor's unchanged. The measurement trail that justifies those numbers travels
---- with the code and lives in this spoon's CLAUDE.md.
+--- with the code and lives in this spoon's AGENTS.md.
 ---
 --- One instance and no factory. The machine has one pasteboard and one guard state, so a
 --- second instance would split the guard and each half would hide only its own writes. That

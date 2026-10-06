@@ -29,7 +29,7 @@
 #
 # A tool macOS already ships may still be mapped to a formula rather than to macos, when the
 # version that ships is too old or too new to rely on. That is why trash is a formula even
-# though this machine has an Apple one, the same reasoning the root CLAUDE.md records for jq.
+# though this machine has an Apple one, the same reasoning the root AGENTS.md records for jq.
 #
 # Two tools may share one origin line's detail, as ffmpeg and ffprobe do, because one
 # formula provides both. The reconciler expects a Brewfile line for every distinct brew,

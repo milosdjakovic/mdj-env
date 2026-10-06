@@ -13,7 +13,7 @@
 ---   running()             -> boolean, is it running right now. Answered through
 ---                            hs.application.applicationsForBundleID rather than
 ---                            hs.application.get, a measured difference rather than a taste,
----                            see this plugin's CLAUDE.md for what get costs when the answer
+---                            see this plugin's AGENTS.md for what get costs when the answer
 ---                            is no.
 ---   activate()            -> bring its frontmost window forward, launching it first when
 ---                            it was not running. No return value.

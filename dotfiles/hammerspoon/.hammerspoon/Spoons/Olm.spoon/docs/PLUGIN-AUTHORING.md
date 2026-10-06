@@ -340,7 +340,7 @@ The repository root holds the answer key. When you declare something new, add it
 `DEPENDENCIES.map` and its matching entry to the `Brewfile`, then run
 `src/check-dependencies.sh`, which regenerates this module's manifest and refuses any
 disagreement between your declaration and the map. The full rule is in the repository root
-`CLAUDE.md`.
+`AGENTS.md`.
 
 ## The build order
 

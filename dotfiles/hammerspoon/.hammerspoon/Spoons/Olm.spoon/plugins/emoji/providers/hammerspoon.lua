@@ -20,7 +20,7 @@
 --- folding its name, its shortcode aliases, its tags, and its category, so a word like
 --- happy or money or a group word like food or animal finds the right glyphs without the
 --- precise Unicode name. The decision trail, the data source, and the tradeoffs live in
---- CLAUDE.md beside this file.
+--- AGENTS.md beside this file.
 ---
 --- Rows are data, never functions. Each row carries only the glyph string as its item,
 --- which the Chooser serialises and hands back to onSelect, and the injected onInsert

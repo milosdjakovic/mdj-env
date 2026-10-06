@@ -10,7 +10,13 @@ DOTFILES="$ROOT/dotfiles"
 # shellcheck source=lib/backup.sh
 source "$SCRIPT_DIR/lib/backup.sh"
 
-PACKAGES=(ghostty tmux nvim zsh hammerspoon claude lf lazygit herdr)
+# Core packages every machine takes, then each optional one this machine's MACHINES row turns
+# on. A package switched off is only not stowed here, never unstowed, since this step removes
+# nothing a machine already has.
+PACKAGES=(ghostty tmux nvim zsh claude lf lazygit)
+for optional in hammerspoon herdr mise; do
+    "$SCRIPT_DIR/machine.sh" on "$optional" && PACKAGES+=("$optional")
+done
 
 if [[ ! -d "$DOTFILES" ]]; then
     echo "Error: dotfiles directory not found at $DOTFILES"
@@ -322,7 +328,7 @@ resolve_conflicts
 
 # Restow (-R) so re-running removes stale links left by renamed or deleted files
 # and relinks the current tree, giving the same result on a fresh or an already
-# set up machine. Package docs named CLAUDE.md are kept out of $HOME by each
+# set up machine. Package docs named AGENTS.md are kept out of $HOME by each
 # package's own .stow-local-ignore.
 stow -R -t "$HOME" "${PACKAGES[@]}"
 

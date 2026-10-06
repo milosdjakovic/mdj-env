@@ -18,7 +18,7 @@ APP_NAME="$1"
 # duti is declared in src/DEPENDENCIES, mapped in DEPENDENCIES.map and carried by the
 # Brewfile, so putting it on the machine is the setup layer's job rather than this script's.
 # This used to probe for it and then run an install command itself, which is the one thing the
-# root CLAUDE.md forbids outright, because it duplicates an answer already held in three other
+# root AGENTS.md forbids outright, because it duplicates an answer already held in three other
 # places and all four then drift apart with nothing watching. Saying it is missing and where
 # the answer lives costs two lines and cannot drift.
 if ! command -v duti > /dev/null 2>&1; then

@@ -3,10 +3,10 @@
 What was decided here, what was tried and turned down, what was believed wrongly and when
 that was found out. One file per topic, each carrying its own dated history.
 
-## Why this exists beside the commit log and CLAUDE.md
+## Why this exists beside the commit log and AGENTS.md
 
 Three records live in this repository and each answers a different question. A commit says
-what changed and why, at the moment it changed. CLAUDE.md says what is true now and the
+what changed and why, at the moment it changed. AGENTS.md says what is true now and the
 reasoning a person needs to work in a module today. Neither answers the question that costs
 the most time, which is what has already been tried here and why it was turned down, because
 a rejected approach never reaches a commit and a current truth file has no room for the
@@ -29,7 +29,7 @@ knows where the topic stands.
 
 **Now.** What is true today, in a few sentences. This is the only section that is rewritten,
 and only when an entry in the log below justifies the rewrite. It should agree with the module
-CLAUDE.md, and when the two disagree that disagreement is itself a defect to fix rather than a
+AGENTS.md, and when the two disagree that disagreement is itself a defect to fix rather than a
 choice to make.
 
 **Rejected.** Every approach considered here and turned down, each with the date and the reason.
@@ -88,3 +88,4 @@ than discovered.
 - [developer-toolchain](developer-toolchain.md), the first setup step guarantees the command line tools carry an SDK for the running macOS, since that is what Homebrew checks, and stops the run when it cannot
 - [olm-window-display-move](olm-window-display-move.md), a display switch keeps the window's size and its place rather than its proportions, and a round trip restores the exact frame from a table that lives only in memory
 - [olm-launcher-ranking](olm-launcher-ranking.md), the launcher orders a searched list by what each query has been used to pick, a decaying score per query and row pair with a sticky leader, guarded so it only ever settles rows that matched about equally
+- [machine-profiles](machine-profiles.md), one tracked `MACHINES` file says which optional pieces each machine takes, keyed by `LocalHostName`, read only by `src/machine.sh`, after one branch per machine was rejected for drifting

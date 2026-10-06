@@ -219,7 +219,7 @@ tool rather than to any branch under test, and it was wrong.
 Resolved on 2026-08-20, and the fault was here. The case touched the fixture FIRST and the other
 tab second, then asserted the fixture was row one, which only holds if something demotes the most
 recently opened tab. That demotion existed once, was found wrong in use and was deliberately
-removed, and the spoon's own `CLAUDE.md` says so under the last tab you opened leads. So the tool
+removed, and the spoon's own `AGENTS.md` says so under the last tab you opened leads. So the tool
 was right every round and this case had been asking for reverted behaviour, which is exactly why it
 failed identically on both browsers and on untouched main. Touching the other tab first and the
 fixture second makes it agree with the one ordering rule the tool has, and it is a stronger check
@@ -244,7 +244,7 @@ having moved at all, the other application still in front and the browser's own 
 unchanged. Ten rounds since have not reproduced it, and the console carries no complaint from the
 engine, which logs a refused activation and a browser it could not bring forward. So it is left
 unexplained rather than called solved. The nearest documented candidate is the discretionary cross
-application raise in the spoon's own `CLAUDE.md`, and it does not fit on its own, since a raise
+application raise in the spoon's own `AGENTS.md`, and it does not fit on its own, since a raise
 macOS declined would still have left the tab selected.
 
 The full run of 2026-08-20 was seventy rounds. Sixty eight passed, none failed, and two reported
@@ -295,7 +295,7 @@ window is a small change worth doing.
 of three rounds each, on both browsers, went as follows. Chrome passed six of six. Safari failed
 the first round of the first run, then the first two rounds of the second, so three of its six
 rounds failed and the failures were not in the same place twice. The full witness trail and
-everything ruled out is in the spoon's own `CLAUDE.md`, under the open defect. Safari
+everything ruled out is in the spoon's own `AGENTS.md`, under the open defect. Safari
 reports the window restored and the right tab selected while the window server reports Safari
 having no windows at all, and it holds that way for the whole settle.
 

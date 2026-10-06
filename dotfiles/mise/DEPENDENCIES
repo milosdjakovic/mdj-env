@@ -1,0 +1,8 @@
+# What this module needs on the machine, name | kind | locator | policy | consumer | reason.
+# The format and the kinds are documented in the repository root AGENTS.md. This file names
+# tools and never how to install one, since that mapping is DEPENDENCIES.map one layer up.
+# Written by hand, because this module has no sub units to fold declarations from.
+#
+# The runtimes themselves are not declared here. config.toml is their declaration, and mise is
+# what installs them, so listing them twice would be two answers to one question.
+mise | path | mise | required | .config/mise/config.toml | the runtime manager this whole module configures, nothing here is read without it

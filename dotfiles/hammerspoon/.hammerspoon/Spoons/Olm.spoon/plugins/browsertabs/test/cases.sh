@@ -770,7 +770,7 @@ case_no_query_arrange() {
   # ordering rule this tool has. It used to be touched first, on the strength of a demotion that
   # swapped the top two rows so the switcher never spent its best position on the tab you were
   # already looking at. That demotion was built, found wrong in use and deliberately removed, and
-  # the reasoning is in the CLAUDE.md beside this suite under the last tab you opened leads. This
+  # the reasoning is in the AGENTS.md beside this suite under the last tab you opened leads. This
   # case kept asserting it for long enough to fail every round on both browsers and on untouched
   # main, and to be mistaken for a defect in the tool rather than a stale expectation here.
   #

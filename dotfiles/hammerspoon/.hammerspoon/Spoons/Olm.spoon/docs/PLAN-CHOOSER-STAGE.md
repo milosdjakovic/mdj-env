@@ -73,5 +73,5 @@ Close.
 
 Probes run against the live instance through the hs CLI with dofile scripts, no
 inline angle brackets, no config reload, no devlock. Live tests of changed config
-follow the worktree and devlock rules in the hammerspoon CLAUDE.md, and the screen
+follow the worktree and devlock rules in the hammerspoon AGENTS.md, and the screen
 is never driven until Milos says start.
