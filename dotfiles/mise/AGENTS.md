@@ -13,7 +13,7 @@ when `~/.config/mise/config.toml` exists. `decisions/machine-profiles.md` has th
 
 ## What it manages
 
-python, ruby, node, go, rust and uv, one default version each, written as the major or minor
+python, ruby, node, go, rust and uv, plus the tool groups below, one default version each, written as the major or minor
 rather than an exact release. Python lists three. The first is the default and the rest are on
 PATH as `python3.13` and `python3.12` for projects that pin them.
 
@@ -22,6 +22,21 @@ resolves its version from the directory the process runs in rather than the one 
 started in. One consequence worth knowing is that `[env]` values reach a program only when it
 is started through a shim, which is why uv is a mise tool rather than a Homebrew one, since
 the uv settings below would otherwise never reach it.
+
+## Tool groups, and which machine takes which
+
+Runtimes are in `config.toml` and every machine that takes mise gets all of them. Commands run
+from any directory are in groups instead, one file each, `config.dev.toml` for package managers
+and project tooling, `config.work.toml` for client work, `config.personal.toml` for personal use.
+The `tools` row in `MACHINES` names the groups a machine takes, alphabetical and comma separated,
+or `none`. `src/install-mise-tools.sh` turns that row into `miserc.toml`, the file mise reads
+before any config, whose `env` list loads `config.<group>.toml` for each group named. miserc.toml
+is generated and ignored by git, since it is one machine's answer and lands in this checkout
+through the fold. Moving a machine between groups is changing its row and running the step again.
+
+A tool goes into the group that says who needs it, and a new group is a new file plus its name in
+the `tools` default row comment. A group a machine does not take leaves its shims refusing to run
+with no version set, rather than running something unlisted.
 
 ## Changing a version
 

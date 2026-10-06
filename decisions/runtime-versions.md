@@ -178,3 +178,11 @@ lost an editable install of `test-plugins/demo-pdf-generator`, a folder that no 
 
 Deleting the moved aside venvs and uv's own interpreters was refused by the agent's permission
 check as irreversible, so both are still on disk for the user to remove.
+
+**2026-10-06 17:05.** The global tools left `config.toml` for three groups, dev, work and personal,
+each a `config.<group>.toml`, chosen per machine by the `tools` row in `MACHINES` and loaded
+through a generated `miserc.toml`. Measured in a scratch config directory before choosing, with
+mise 2026.9.11. `env` in `miserc.toml` loads the group files, `.miserc.toml` and `settings.env`
+inside `config.toml` do not, and `conf.d` would also work but would need generated links where
+these are plain tracked files. Verified that a machine with no groups gets runtimes only and its
+tool shims refuse to run, and that restoring the row brings all five tools back.

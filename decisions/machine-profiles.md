@@ -77,3 +77,9 @@ Verified with `expect` across six runs on a pretend machine, declining, rerunnin
 row, accepting and rerunning, and on this machine, where the first run wrote its block and the
 second reported nothing to change. Piping answers through `script` did not reach the prompt and
 is not a way to test it.
+
+**2026-10-06 17:05.** A seventh piece, `tools`, whose value is a list rather than one word, the
+mise tool groups a machine takes, at the user's request that tools differ between machines and
+that the choice live in `MACHINES`. Its probe in `capture` counts a group as used when any command
+it lists is already on the machine, from anywhere. The list is alphabetical, since the first probe
+reported `dev,personal,work` against a row of `dev,work,personal` and called a match a change.

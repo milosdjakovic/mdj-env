@@ -101,6 +101,28 @@ probe() {
                 echo "none|no VPN app"
             fi
             ;;
+        tools)
+            # A group counts as used when any command it lists is already on this machine, from
+            # mise or from anywhere else, since a machine that runs poetry from Homebrew is a
+            # machine that uses the dev group. The command is the last part of the tool name, the
+            # one after the backend and the scope, which holds for every tool listed today.
+            local file group cmd found=() missing=()
+            for file in "$ROOT"/dotfiles/mise/.config/mise/config.*.toml; do
+                group="${file##*/config.}"; group="${group%.toml}"
+                cmd=""
+                while IFS= read -r tool; do
+                    tool="${tool##*:}"; tool="${tool##*/}"
+                    if command -v "$tool" >/dev/null 2>&1; then cmd="$tool"; break; fi
+                done < <(sed -nE 's/^"?([^"= ]+)"?[[:space:]]*=.*/\1/p' "$file" | grep -v '^\[')
+                if [[ -n "$cmd" ]]; then found+=("$group"); else missing+=("$group"); fi
+            done
+            if [[ ${#found[@]} -eq 0 ]]; then
+                echo "none|no command from any tool group"
+            else
+                local IFS=','
+                echo "${found[*]}|commands for ${found[*]}${missing[*]:+, none for ${missing[*]}}"
+            fi
+            ;;
         *) echo "?|no probe for this piece" ;;
     esac
 }
