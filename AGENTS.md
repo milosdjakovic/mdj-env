@@ -329,7 +329,9 @@ These are rules, not background. Each one exists because the opposite was done o
 `MACHINES` at the root says which optional pieces each machine takes, keyed by
 `scutil --get LocalHostName`, with a default row per piece for a machine that has no rows.
 `src/machine.sh` is its only reader. The stow step, `setup.sh` through `step_if`, the Brewfile
-through `on?`, and the reconciler all ask it, and nothing else knows the file's shape. On a machine
+through `on?`, and the reconciler all ask it, and nothing else knows the file's shape. The steps a
+person follows to capture a machine are in `README.md` under "Capturing a machine", keep them
+current when capture changes. On a machine
 that has no block yet, or has changed, run `src/machine.sh capture` in a terminal. It probes each
 piece, proposes rows, asks, and rewrites that machine's block in place, so a second run on an
 unchanged machine writes nothing and a row set by hand is kept unless you say otherwise. Adding a

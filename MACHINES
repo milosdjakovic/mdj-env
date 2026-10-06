@@ -6,7 +6,8 @@
 # default. The machine is named by `scutil --get LocalHostName`, and MDJ_MACHINE answers for it
 # in a run that should pretend to be another machine.
 #
-# src/machine.sh is the only reader. setup.sh, the stow step, the Brewfile and the reconciler
+# README.md, under "Capturing a machine", has the steps to add or update a machine, and
+# `src/machine.sh capture` writes its rows. src/machine.sh is the only reader. setup.sh, the stow step, the Brewfile and the reconciler
 # all ask it, and nothing else knows this file's shape. decisions/machine-profiles.md has why it
 # is one file and not one branch per machine.
 #
