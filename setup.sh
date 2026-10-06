@@ -105,7 +105,7 @@ fi
 # it, are asked about here rather than when the stow step reaches them, since that is minutes
 # into the run and a question there holds everything after it until somebody comes back. The
 # stow step owns the scan and the question, this only asks it early and passes the answer on.
-# A run with no terminal takes MDJ_SHADOWS instead, and CLAUDE.md says who asks for it.
+# A run with no terminal takes MDJ_SHADOWS instead, and AGENTS.md says who asks for it.
 if [[ -z "${MDJ_SHADOWS:-}" && -t 0 ]]; then
     MDJ_SHADOWS="$("$SRC_DIR/setup-stow-dotfiles.sh" --ask-shadows)"
     export MDJ_SHADOWS
@@ -173,7 +173,7 @@ step "$SRC_DIR/check-dependencies.sh"
 # machine this regenerates nothing, since the files are committed, and it fails only when a
 # committed file disagrees with the palette, which is a repository defect. Run it alone any
 # time with src/check-theme.sh, and after any colour change, since it is what rewrites the
-# files. theme/CLAUDE.md has the whole contract.
+# files. theme/AGENTS.md has the whole contract.
 step "$SRC_DIR/check-theme.sh"
 
 # A module may also own checks that only make sense inside it, kept beside the module rather

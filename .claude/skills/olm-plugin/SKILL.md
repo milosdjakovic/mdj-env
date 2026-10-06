@@ -24,7 +24,7 @@ plugin written from a stale mental model registers, reports success, and shows n
 2. Read `Spoons/Olm.spoon/docs/PLUGIN-CONTRACT.md` only for depth on a field the recipe sent
    you to, never front to back instead of the recipe.
 3. When changing an existing plugin, read that plugin's own `manifest.lua`, its `README.md`,
-   and its `CLAUDE.md` where it has one, and treat its stated design record as binding.
+   and its `AGENTS.md` where it has one, and treat its stated design record as binding.
 4. Before relying on any behavior a doc describes, open the file it cites and confirm the code
    still says that. The settled examples named below are worth reading beside the docs, since
    an example that loads today proves more than prose.
@@ -132,7 +132,7 @@ camelCase being the common case and a genuinely different word the rare one, in 
 declare `name` and spell `surface.context` identically.
 
 Every plugin carries a `README.md` in the house shape, a paragraph on what it does, a line on
-how it opens and where it appears, a line on the in list keys. A plugin earns a `CLAUDE.md`
+how it opens and where it appears, a line on the in list keys. A plugin earns a `AGENTS.md`
 only when it holds decisions or measured findings a future reader would otherwise rediscover
 the hard way, and that file records why, never what.
 
@@ -193,7 +193,7 @@ In order, before anything merges.
    the line naming your tool. It is the only thing that checks `registry.open`, scope members,
    and command functions, so skipping it is how a typo becomes a key that does nothing.
 3. One live load. This is the gate no static check replaces, and the discipline around the
-   devlock, the console read, and the scheduled reload lives in the hammerspoon `CLAUDE.md`.
+   devlock, the console read, and the scheduled reload lives in the hammerspoon `AGENTS.md`.
    Never drive the screen or the keyboard for a test until Milos says start.
 4. One real key press. Structure has never proven that a key fires.
 

@@ -9,7 +9,7 @@
 ---
 --- Safari tabs carry no id at all, which is the reason tab identity across this whole spoon
 --- is the bundle id plus the URL rather than a browser tab id. The consequence and its cost
---- are recorded in the spoon's CLAUDE.md.
+--- are recorded in the spoon's AGENTS.md.
 
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local function loadShared(name)

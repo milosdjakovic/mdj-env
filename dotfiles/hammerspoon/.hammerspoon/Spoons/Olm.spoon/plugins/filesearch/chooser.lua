@@ -438,7 +438,7 @@ end
 -- nothing to describe, a status row or a help row, clears the pane rather than leaving a
 -- stale one beside the list.
 --
--- Review finding H7. This is the atom facing wiring the plugin's own CLAUDE.md records the
+-- Review finding H7. This is the atom facing wiring the plugin's own AGENTS.md records the
 -- followsHighlight gate for, at 995 through 1002, "under Quick Look that meant merely opening
 -- the picker threw a panel onto the screen for whatever row happened to be first, and a
 -- result set landing threw another." A provider that is asked for rather than followed,

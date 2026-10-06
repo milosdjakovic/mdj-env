@@ -6,7 +6,7 @@
 --- here means a bad provider is dropped with a log rather than killing the whole tool.
 ---
 --- This doc comment is the provider spec. It lives here, beside the validation, rather
---- than in the spoon's CLAUDE.md, because a method list copied into prose is a second
+--- than in the spoon's AGENTS.md, because a method list copied into prose is a second
 --- source of truth that drifts the moment the contract changes.
 ---
 --- The metadata a provider must carry.

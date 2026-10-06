@@ -8,7 +8,7 @@
 -- one piece a pure Lua case can prove without a live Hammerspoon driving the rest of it.
 -- Everything else this module does is already exercised live, through
 -- test/inventory.lua's own scopes section and the console notes this module's own
--- CLAUDE.md already records.
+-- AGENTS.md already records.
 --
 -- Two patterns the composition root builds on top of verbFor, preferring a declared verb
 -- over the ordinary action table and keeping only a hosted row whose action the scope

@@ -33,7 +33,7 @@
 --- hashed build worker underneath it, and the whole group travels on the row
 --- because the whole group is what a stop takes.
 ---
---- The order of the three shellouts is where the cost lives, see the CLAUDE.md
+--- The order of the three shellouts is where the cost lives, see the AGENTS.md
 --- beside this spoon for the measurements behind it.
 
 local sourcePath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")

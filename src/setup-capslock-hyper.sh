@@ -4,7 +4,7 @@
 # It now lives inside Hammerspoon (KeyRemap.spoon, driven by the leaderKeys
 # catalog in config/keys.lua), so the remap is applied on launch and cleared on
 # quit, from the same single source of truth as everything else. See the
-# Hammerspoon section of CLAUDE.md.
+# Hammerspoon section of AGENTS.md.
 #
 # This script now only migrates older machines off the legacy LaunchAgent, so a
 # stale login-time mapping cannot fight the Hammerspoon-owned one. It is safe to

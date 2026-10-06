@@ -7,7 +7,7 @@ set -uo pipefail
 # This script is deliberately dumb. It compares sets and reports, and it never guesses, never
 # edits the Brewfile, and never installs anything. Deciding whether something is a real
 # dependency, and how a name maps to an install, is judgment that belongs to a person or to
-# Claude following the rules in CLAUDE.md. This half only makes the result impossible to drift
+# Claude following the rules in AGENTS.md. This half only makes the result impossible to drift
 # without anyone noticing.
 #
 # It is module agnostic on purpose. It reads each module's generated manifest and knows no
@@ -438,7 +438,7 @@ done < <(grep -rnE '(hs\.execute|hs\.task\.new)\("[^"]' "$DOTFILES" --include='*
 #
 # Only an install verb is matched. `brew --prefix` is a location read rather than an install,
 # and two modules legitimately use it to find a file inside a package whose prefix they must
-# not know, which tmux/CLAUDE.md records.
+# not know, which tmux/AGENTS.md records.
 #
 # The verb has to begin a word, or a line that merely reports success reads as an instruction.
 # src/install-homebrew.sh ends with "Homebrew installed successfully", where brew installed
@@ -450,7 +450,7 @@ while IFS= read -r hit; do
     ignored "$path" && continue
     content="${hit#*:}"; content="${content#*:}"
     # A backtick span is how prose names a command instead of telling anyone to run it, which
-    # is what lets a module's own CLAUDE.md explain this rule by quoting it. Strip every span
+    # is what lets a module's own AGENTS.md explain this rule by quoting it. Strip every span
     # and retest, so a mention passes and a bare instruction does not. Filtering here rather
     # than in the pattern keeps the pattern one readable list of verbs, and BSD grep has no
     # lookbehind to express it anyway.

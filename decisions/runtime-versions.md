@@ -152,3 +152,29 @@ venv on Homebrew's 3.13, and pipx itself is a Homebrew leaf. Three venvs under
 because a machine with its own pyenv or nvm must not be taken over. The shell guard moved from
 the binary to `~/.config/mise/config.toml`, since a machine can have mise installed and still
 not want this repository's runtimes acting on every `.nvmrc` it meets.
+
+**2026-10-06 16:20.** Strict mode chosen by the user. Python 3.11 and 3.9 joined the global list
+for `canvas/science`, which requires 3.9 exactly, and for `ai-scribe`, `nabla-ai-parser` and
+`indigenous_pact`, which require 3.11. The global tools moved into mise, poetry and canvas through
+`pipx:`, yarn through `npm:`, pnpm from the registry and tetro-tui through `cargo:`, and the
+Homebrew poetry, pnpm, yarn and pipx, the pipx poetry venv, the uv tool canvas and the cargo
+tetro-tui were removed. Moving them bumped poetry from 2.4.3 to 2.5.1 and tetro-tui from 3.2.2
+to 3.6.2, since their prefixes allowed it.
+
+mise's supply chain guard refused two npm packages, and both stay on Homebrew's node's global
+packages until the user decides. `@salesforce/cli` failed on a dependency with weaker trust
+evidence than an earlier release, at 2.154.2 and at the 2.137.7 already in use. `groq-code-cli`
+was refused for having 264 weekly downloads against a threshold of 1000.
+
+All 44 venvs under `~/Development` that were not on nix were rebuilt on mise's python of the same
+minor, each moved aside first and compared by its frozen package list afterwards. 38 went through
+at once. Four were already broken before this. `custom-reminders` had a copied interpreter that
+could not load its own library, `home-app` held pydantic beside a typing-extensions it cannot use
+and was rebuilt from its `uv.lock`, `Learn-Python-Programming-Fourth-Edition` held notebook
+beside a jupyterlab it cannot use and was copied exactly with `--no-deps`, and one book chapter's
+interpreter no longer existed and was rebuilt from the names on disk. Two had pip from a wheel
+inside PyCharm's app bundle, which was dropped since a fresh pip is seeded. `demo-pdf-generator`
+lost an editable install of `test-plugins/demo-pdf-generator`, a folder that no longer exists.
+
+Deleting the moved aside venvs and uv's own interpreters was refused by the agent's permission
+check as irreversible, so both are still on disk for the user to remove.

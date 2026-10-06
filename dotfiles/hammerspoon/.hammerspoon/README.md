@@ -15,8 +15,8 @@
 The authoritative spoon list is the `Spoons/` directory and the `hs.loadSpoon`
 calls in `init.lua`. This README does not enumerate them, because a hand-kept list
 drifts as spoons are added or renamed. Each spoon with a non-obvious design keeps its
-own `CLAUDE.md` beside its `init.lua`, and the cross-spoon design notes live in the
-top-level `CLAUDE.md`.
+own `AGENTS.md` beside its `init.lua`, and the cross-spoon design notes live in the
+top-level `AGENTS.md`.
 
 ## Adding a New Spoon (re-stow required)
 

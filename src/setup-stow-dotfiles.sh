@@ -328,7 +328,7 @@ resolve_conflicts
 
 # Restow (-R) so re-running removes stale links left by renamed or deleted files
 # and relinks the current tree, giving the same result on a fresh or an already
-# set up machine. Package docs named CLAUDE.md are kept out of $HOME by each
+# set up machine. Package docs named AGENTS.md are kept out of $HOME by each
 # package's own .stow-local-ignore.
 stow -R -t "$HOME" "${PACKAGES[@]}"
 

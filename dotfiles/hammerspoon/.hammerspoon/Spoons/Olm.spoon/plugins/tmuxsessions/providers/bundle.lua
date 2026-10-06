@@ -48,7 +48,7 @@ function M.provider(spec)
   end
 
   --- Running right now. applicationsForBundleID answers exactly this and nothing else, which
-  --- is why it is here rather than hs.application.get, see this plugin's CLAUDE.md for what
+  --- is why it is here rather than hs.application.get, see this plugin's AGENTS.md for what
   --- get costs when the answer is no.
   function P.running()
     return #hs.application.applicationsForBundleID(id) > 0

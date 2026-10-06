@@ -1,6 +1,6 @@
 # Home paths the configured program reads besides the stowed config, where a file left behind
 # would override what this repository links, as path | reason, the path written relative to
-# the home directory. The rule and the mechanism are in the repository root CLAUDE.md and in
+# the home directory. The rule and the mechanism are in the repository root AGENTS.md and in
 # decisions/shadow-paths.md, and this file is read by src/setup-stow-dotfiles.sh, which finds
 # it by name and knows nothing about this module.
 Library/Application Support/com.mitchellh.ghostty/config | Ghostty on macOS reads this after ~/.config/ghostty/config, so any setting in it wins over the stowed one, which is how a stale theme pinned a machine to the dark half

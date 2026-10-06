@@ -253,7 +253,7 @@ already publishes `stageSelectedRow` for the menu search cache. The fix is one m
 published word, `stageSelectedItem`, and deleting the cache, rather than a cache that
 cannot answer the question the widget answers directly.
 
-### H7. FileSearch's `onHighlight` and `onScroll` lost their `followsHighlight` gate, reintroducing a bug the plugin's own CLAUDE.md records as found and fixed. CONFIRMED.
+### H7. FileSearch's `onHighlight` and `onScroll` lost their `followsHighlight` gate, reintroducing a bug the plugin's own AGENTS.md records as found and fixed. CONFIRMED.
 
 Before, in the retired `Chooser.new` block:
 
@@ -273,7 +273,7 @@ is a selectable docked provider, `opts.previewWith`, defaulted to `"sidepanel"` 
 manifest but documented as swappable at `plugins/filesearch/init.lua:128`.
 
 With `previewWith = "quicklook"`, every highlight move now calls `viewer.show(item)`.
-`plugins/filesearch/CLAUDE.md:995` through `:1002` states the consequence in its own
+`plugins/filesearch/AGENTS.md:995` through `:1002` states the consequence in its own
 words, "under Quick Look that meant merely opening the picker threw a panel onto the
 screen for whatever row happened to be first, and a result set landing threw another",
 and `:793` through `:796` records it as one of the two bugs that came out of building
@@ -312,7 +312,7 @@ stationary highlight.
 
 `Chooser:refresh` does clear `self.lastRow`, so the poll corrects it one tick later,
 80 milliseconds. That downgrades this from permanent to a race, but the whole value of
-the direct call, stated in `plugins/filesearch/CLAUDE.md`, is that "it repaints at once
+the direct call, stated in `plugins/filesearch/AGENTS.md`, is that "it repaints at once
 rather than on the next poll tick", and it now repaints the wrong row at once and is
 corrected by the poll it exists to pre empt.
 
@@ -734,7 +734,7 @@ The gate is now inside `onHighlight` itself, `if not viewer.followsHighlight the
 return end`, and inside `M.onScroll`, rather than only at the two call sites the
 migration happened to touch. That covers the atom facing wiring, the
 `onPositioned` seed, and `M.refresh` at one seam, which is what
-`plugins/filesearch/CLAUDE.md:997` asks for. `quicklook.lua`'s
+`plugins/filesearch/AGENTS.md:997` asks for. `quicklook.lua`'s
 `followsHighlight = false` can no longer be handed a highlight event by any path.
 
 ### M1, static `paneWidth`. CLOSED.

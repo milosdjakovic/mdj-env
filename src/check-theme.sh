@@ -22,7 +22,7 @@ set -uo pipefail
 # 3.9 and cannot read TOML, and every other reader is something Homebrew would have to
 # install first, so a palette that needed one would be the one thing on the machine that
 # could not be checked before setup had run. The subset of TOML this reads is small and is
-# written down in theme/CLAUDE.md, and the reader refuses a line outside it rather than
+# written down in theme/AGENTS.md, and the reader refuses a line outside it rather than
 # guessing.
 #
 # Exit codes. 0 clean, 1 at least one error.
@@ -395,7 +395,7 @@ resolve_map() {
 
 # The map, the emitter and an exemption are repo only, read by this script and by nothing a
 # tool loads, so each has to be in its package's .stow-local-ignore or stow carries it into
-# the home directory. That step was a line in theme/CLAUDE.md and nothing checked it.
+# the home directory. That step was a line in theme/AGENTS.md and nothing checked it.
 say "==> Theme files kept out of the home directory"
 kept=0
 while IFS= read -r f; do

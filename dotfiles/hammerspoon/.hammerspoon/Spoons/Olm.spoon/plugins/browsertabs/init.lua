@@ -23,7 +23,7 @@
 --- left is where everything else rests and where the tab you are on belongs, both decided below.
 --- Not one term of it reads the world, so the order is the same at any moment and changes only
 --- when you open a tab through the tool. That is deliberate and the reasoning is in the
---- CLAUDE.md beside this file.
+--- AGENTS.md beside this file.
 ---
 --- This is the olm side copy of BrowserTabs, made in the bundling pass, converted to use the
 --- shared recency service at Olm.spoon/lib/recency.lua instead of the hand rolled recency.lua
@@ -170,7 +170,7 @@ end
 -- built, and building that key from a tab stays this file's own policy, the service only
 -- ever sees the finished key. It cannot be a browser tab id, since Safari has none and the
 -- ids Chrome and Arc give are not stable across a restart, and the full reasoning is in the
--- CLAUDE.md beside this file, in the section on why identity is the bundle id plus the URL.
+-- AGENTS.md beside this file, in the section on why identity is the bundle id plus the URL.
 local function keyFor(bundleID, url)
   return (bundleID or "") .. "\0" .. (url or "")
 end
@@ -394,7 +394,7 @@ function obj:start()
       -- Kept on the spoon rather than dropped, because the harness now reads its command channel
       -- on a timer and a timer lives only as long as something refers to it. Discarding the module
       -- here collected that timer within seconds, so the agent went deaf with nothing logged and
-      -- every command sat unread in the channel. That is the trap the module CLAUDE.md records,
+      -- every command sat unread in the channel. That is the trap the module AGENTS.md records,
       -- and it is no less silent for happening inside a test harness.
       self._testAgent = chunk().start()
     else

@@ -9,7 +9,7 @@
 --- than a style choice. Hiding is felt at once because the running Dock is told about it
 --- through System Events. The delay has no such lever, so a delay change is invisible until
 --- the Dock re reads its preferences, which is what restarting it after a delay change is
---- for. See this plugin's own CLAUDE.md for the finding behind both.
+--- for. See this plugin's own AGENTS.md for the finding behind both.
 ---
 --- Neither tool it shells out to is named as a bare command. `configure` receives the
 --- shared dependency scope and resolves `defaults`, `osascript`, and `killall` through it,
@@ -69,7 +69,7 @@ end
 --- Method
 --- Turn Dock auto hide on. Writes the preference and then tells the running Dock about it
 --- through System Events, both calls kept because either alone was proven insufficient, see
---- this plugin's own CLAUDE.md for the finding.
+--- this plugin's own AGENTS.md for the finding.
 function obj:enable()
   if self._defaults then
     hs.execute('"' .. self._defaults .. '" write com.apple.dock autohide -bool true')
@@ -125,7 +125,7 @@ end
 --- Ask the running Dock to relaunch, so it re reads whatever was just written to its
 --- preferences. macOS brings it straight back, the same way any other agent process
 --- restarts after `killall`. This is the only door the delay has, System Events has no
---- delay property to push through, see this plugin's own CLAUDE.md for the finding.
+--- delay property to push through, see this plugin's own AGENTS.md for the finding.
 function obj:_restartDock()
   if self._killall then
     hs.execute('"' .. self._killall .. '" Dock')

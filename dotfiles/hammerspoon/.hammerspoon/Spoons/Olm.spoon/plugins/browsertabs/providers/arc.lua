@@ -13,7 +13,7 @@
 --- Arc was in the background and while it was frontmost, and a window's `name` is the space
 --- name rather than the active tab title, so there is no route to it. So the `active` flag is
 --- false on every row. That is a real limitation of Arc's dictionary rather than a gap here,
---- and what it costs is recorded in the spoon's CLAUDE.md.
+--- and what it costs is recorded in the spoon's AGENTS.md.
 
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local function loadShared(name)

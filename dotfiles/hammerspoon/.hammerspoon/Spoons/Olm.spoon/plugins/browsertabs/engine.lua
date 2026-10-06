@@ -199,7 +199,7 @@ end
 --- later by that restore, measured as landing on the browser and then losing the front again.
 --- Sent after the answer it lands once the list has already gone. Why a window that is
 --- minimized has to be restored at all, and what still cannot be relied on, are in the
---- CLAUDE.md beside this file.
+--- AGENTS.md beside this file.
 function M.activate(tab, cb)
   cb = cb or function() end
   if not tab or not tab.bundleID then
