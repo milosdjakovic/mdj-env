@@ -107,6 +107,9 @@ step "$SRC_DIR/install-ohmyzsh-plugins.sh"
 step "$SRC_DIR/setup-stow-dotfiles.sh"
 
 
+# Install the runtimes the mise module lists, python, ruby, node, go, rust and uv
+step "$SRC_DIR/install-mise-tools.sh"
+
 # Install tmux plugins via TPM
 step "$SRC_DIR/install-tmux-plugins.sh"
 

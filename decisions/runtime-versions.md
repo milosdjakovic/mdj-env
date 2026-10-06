@@ -1,24 +1,32 @@
 # Runtime versions, and the one tool that switches them
 
-Status. mise is declared by the zsh module, installed from the Brewfile, and activated by a
-guarded line in `.zshrc.custom`. It replaced fnm, which was a node only switcher and is gone.
-No language is configured through it yet and no version is pinned anywhere, because nothing
-here has asked for one.
+Status. mise manages every language runtime on this machine, python, ruby, node, go and rust,
+plus uv itself, from a global config in its own stow package, `dotfiles/mise`. A project
+overrides any of them with its own pin. uv may only use the interpreters mise installed.
 
 ## Now
 
-`mise` covers node, ruby, python and java in one tool, which is the whole reason it is here
-rather than four tools. It is declared `optional` by the zsh module and its activation line is
-guarded, so a machine without it loses version switching and nothing else. It is in the
-Brewfile, so a default install gets it.
+`dotfiles/mise/.config/mise/config.toml` lists one default version per language, and
+`src/install-mise-tools.sh` installs whatever it lists that is missing, after stow and never
+moving a version already present. Each default is the major or minor that was in use when mise
+took over, so the switch changed nothing a script could notice. Python lists three versions,
+3.14 as the default and 3.13 and 3.12 beside it, because projects here pin both and uv can only
+reach an interpreter mise put on PATH.
 
-Nothing is pinned. There is no `mise.toml` in this repository and no version file in any
-project on this machine, so mise is present and idle. That is the intended state until a
-project needs a version, at which point the version belongs to that project rather than here.
+Version files that a cloned repository carries, `.python-version`, `.ruby-version`, `.nvmrc` and
+`.node-version`, plus go's, are honoured without a `mise.toml`. Rust is left to rustup, which
+mise drives and which reads `rust-toolchain.toml` itself.
 
-Java is deliberately unconfigured. The tool can install JDKs and that is why it was chosen over
-staying with a node only switcher, but nothing on this machine needs one yet and the Flutter
-side has friction worth knowing before starting. The Rejected section has it.
+uv keeps every job it had, projects, lockfiles, venvs, `uv run` and `uv tool`. Two environment
+variables in the same config stop it downloading or preferring an interpreter of its own, so the
+machine has one source of Python rather than two.
+
+What macOS ships stays, `/usr/bin/python3` and the `java` stub, and loses only PATH order. What
+Homebrew installs as a dependency of another formula stays too, since that formula keeps using
+it privately, which is why `python@3.13`, `python@3.14`, `node` and `ruby` are still in the
+Cellar. Only the leaves that mise replaced were removed.
+
+Java is still deliberately unconfigured, and the Rejected section says why.
 
 ## Rejected
 
@@ -71,7 +79,8 @@ not found when fetched. React Native is unaffected, it goes through Gradle direc
 `JAVA_HOME` the ordinary way. Android Studio keeps its own separate Gradle JDK setting, so an
 IDE build and a terminal build can quietly disagree.
 
-**Enabling mise's idiomatic version file support now, 2026-09-20.** Rejected as premature. mise
+**Enabling mise's idiomatic version file support now, 2026-09-20.** Reopened 2026-10-06, see
+the log. Rejected as premature. mise
 reads `.nvmrc`, `.node-version`, `.ruby-version` and `.python-version`, but each language has to
 be turned on explicitly and all of them are off by default. There is no such file in any project
 on this machine, so enabling them today configures nothing. It will matter the first time a
@@ -102,3 +111,35 @@ Not tested at any point, mise actually installing a runtime of any language, bec
 wanted yet. The first `mise use` of anything is still owed, and the GraalVM question is open,
 since mise's java page says GraalVM is unsupported while its own metadata crawler lists GraalVM
 distributions. One command settles it when it matters, `mise ls-remote java | grep -i graal`.
+
+**2026-10-06 14:19.** Reversed the stance that versions belong only to projects, at the user's
+request for one place to manage python, ruby, rust and go. The 2026-09-20 reasoning was that no
+project needed a version, and measuring again showed that was no longer true and that the gap
+had been filled by accident instead. Python came from four sources at once, Homebrew's 3.12,
+3.13 and 3.14, uv's own downloads of 3.12.11 and 3.13.7, a pipx venv for poetry, and macOS. go,
+rustup and uv were Homebrew leaves nothing declared, and cargo was not on PATH at all because
+Homebrew's rustup is keg only. `vicert/canvas-medical/canvas-plugins` carries a `.python-version`
+of 3.13, so idiomatic version files were turned on for python, ruby, node and go.
+
+A new `mise` stow package holds the global config, and a setup step installs it. The config
+directory is folded into this checkout on purpose and carries no `NO-FOLD`, since mise keeps its
+state and installs under `~/.local` and the only file it writes here is the config itself, which
+`mise use -g` should land in the repository.
+
+The first attempt set only `UV_PYTHON_DOWNLOADS=never`, and `uv run` still chose uv's own
+3.13.7 over mise's 3.14 on PATH, since uv prefers a build it manages whenever one exists.
+`UV_PYTHON_PREFERENCE=only-system` closed it, verified by `uv run` reporting the mise
+interpreter. That limit in turn means a pinned version has to exist in mise, which is why 3.13
+and 3.12 sit in the global list. Verified that canvas-plugins resolves to 3.13.16 and fumage's
+uv finds 3.12.15.
+
+Installing rust through mise ran rustup, which updated the existing stable toolchain from 1.95.0
+to 1.99.0. That is the one version this change moved, and it was not intended.
+
+Removed from Homebrew, each with no dependents, `go`, `rustup`, `uv`, `python@3.12` and
+`python-tk@3.14`. Not removed and still owed. uv's own interpreters under
+`~/.local/share/uv/python` and the `~/.local/bin/python3.13` link, because the `canvas` uv tool
+and the venvs of canvas-plugins, fumage, canvas and anthropic-academy point at the 3.13.7 build
+and would break until each is recreated. poetry exists twice, as a Homebrew leaf and in a pipx
+venv on Homebrew's 3.13, and pipx itself is a Homebrew leaf. Three venvs under
+`personal/education` already point at Homebrew Cellar versions that no longer exist.

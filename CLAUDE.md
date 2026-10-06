@@ -21,6 +21,7 @@ MDJ_EDITOR="Visual Studio Code" ./setup.sh   # the editor step's answer, for a r
 ./src/install-homebrew-packages.sh
 ./src/install-ohmyzsh.sh
 ./src/install-ohmyzsh-plugins.sh
+./src/install-mise-tools.sh
 ./src/install-tmux-plugins.sh
 ./src/setup-stow-dotfiles.sh
 ./src/setup-stow-dotfiles.sh --shadows   # files a stowed tool also reads that would override the linked config
@@ -272,7 +273,7 @@ to drift unnoticed.
 
 ### Stow Packages
 
-**Stowed by default:** ghostty, tmux, nvim, zsh, hammerspoon, claude, lf, lazygit, herdr
+**Stowed by default:** ghostty, tmux, nvim, zsh, hammerspoon, claude, lf, lazygit, herdr, mise
 
 **Available but not stowed:** alacritty, kitty, wezterm, mole
 
@@ -513,6 +514,12 @@ Configuration in `dotfiles/tmux/`. See `dotfiles/tmux/CLAUDE.md` for binding con
 ### lf
 
 Configuration in `dotfiles/lf/`. See `dotfiles/lf/CLAUDE.md` for why lf was chosen over yazi, the tmux popup nesting limitation, command type differences, and custom keybinding details.
+
+### mise
+
+Configuration in `dotfiles/mise/`. See `dotfiles/mise/CLAUDE.md` for which runtimes are global
+defaults, how a project overrides one, why uv may only use what mise installed, and why the
+config directory is folded on purpose.
 
 ### Neovim
 
