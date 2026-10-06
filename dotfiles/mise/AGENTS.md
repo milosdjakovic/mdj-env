@@ -27,7 +27,7 @@ the uv settings below would otherwise never reach it.
 
 Runtimes are in `config.toml` and every machine that takes mise gets all of them. Commands run
 from any directory are in groups instead, one file each, `config.dev.toml` for package managers
-and project tooling, `config.work.toml` for client work, `config.personal.toml` for personal use.
+and project tooling, and `config.work.toml` for client work.
 The `tools` row in `MACHINES` names the groups a machine takes, alphabetical and comma separated,
 or `none`. `src/install-mise-tools.sh` turns that row into `miserc.toml`, the file mise reads
 before any config, whose `env` list loads `config.<group>.toml` for each group named. miserc.toml

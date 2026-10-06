@@ -18,7 +18,7 @@ rust = "stable"
 uv = "latest"
 
 # Tools run from any directory are not here. They sit in one file per group beside this one,
-# config.dev.toml, config.work.toml and config.personal.toml, and MACHINES says which groups a
+# config.dev.toml and config.work.toml, and MACHINES says which groups a
 # machine takes. src/install-mise-tools.sh writes that choice into miserc.toml, which mise reads
 # before anything else and which loads config.<group>.toml for each group named.
 

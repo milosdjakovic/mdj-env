@@ -186,3 +186,10 @@ mise 2026.9.11. `env` in `miserc.toml` loads the group files, `.miserc.toml` and
 inside `config.toml` do not, and `conf.d` would also work but would need generated links where
 these are plain tracked files. Verified that a machine with no groups gets runtimes only and its
 tool shims refuse to run, and that restoring the row brings all five tools back.
+
+**2026-10-06 17:40.** tetro-tui left the repository at the user's request. It is a terminal game,
+not a tool any machine depends on, and it was only carried into mise because the earlier move
+took every global command along. It was the whole of the personal group, so that group went too.
+Its install under mise stays on this machine until removed by hand, since nothing here removes
+what a machine has.
+
