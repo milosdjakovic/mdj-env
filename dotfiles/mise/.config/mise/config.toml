@@ -7,14 +7,25 @@
 # setup run never does, since it only installs what is absent. decisions/runtime-versions.md has
 # the reasoning.
 [tools]
-# The first python is the default. The others are on PATH as python3.13 and python3.12 and serve
-# any project that pins them, which matters because uv may only use what mise installed.
-python = ["3.14", "3.13", "3.12"]
+# The first python is the default. The others are on PATH as python3.13, python3.12 and so on,
+# and serve any project that pins them, which matters because uv may only use what mise
+# installed. 3.11 and 3.9 are here for client projects that require exactly those.
+python = ["3.14", "3.13", "3.12", "3.11", "3.9"]
 ruby = "4.0"
 node = "26"
 go = "1.27"
 rust = "stable"
 uv = "latest"
+
+# Tools run from any directory. They live here rather than in Homebrew, pipx, a global npm or
+# cargo install, or a uv tool, so they are listed in this repository and follow the runtime they
+# need. Each version is the major or exact release in use when it moved, for the same reason as
+# the runtimes above. A tool one project needs belongs in that project, not here.
+pnpm = "12"
+"npm:yarn" = "1.22"
+"pipx:poetry" = "2"
+"pipx:canvas" = "0.195.2"
+"cargo:tetro-tui" = "3"
 
 [settings]
 # A cloned repository's own version file is honoured without a mise.toml. Off by default in mise,
