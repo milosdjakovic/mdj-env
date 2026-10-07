@@ -21,10 +21,12 @@ default                     | herdr       | on        # the herdr package and fo
 default                     | mole        | on        # the mole formula, the package itself is not stowed yet
 default                     | docker      | on        # the Docker Desktop cask
 default                     | vpn         | mullvad   # mullvad, ivpn or none, and only ivpn adds a setup step, the permission repair its daemon needs
-default                     | tools       | none      # the mise tool groups a machine takes, a comma list of dev and work in that order with no spaces, each one a config.<group>.toml in the mise package, or none
+default                     | tools       | none      # the mise tools a machine takes, names from dotfiles/mise/TOOLS, comma separated, alphabetical, no spaces, or none
 
-# Miloss-MacBook-Pro-Vicert, captured 2026-10-06
+# Miloss-MacBook-Pro-Vicert, captured 2026-10-07
 Miloss-MacBook-Pro-Vicert   | mise        | on        # this repository's mise config is stowed
-Miloss-MacBook-Pro-Vicert   | tools       | dev,work  # commands for dev,work
+Miloss-MacBook-Pro-Vicert   | tools       | canvas,go,node,pnpm,poetry,python,python3.11,python3.12,python3.13,python3.9,ruby,rust,uv,yarn # commands found for canvas,go,node,pnpm,poetry,python,python3.11,python3.12,python3.13,python3.9,ruby,rust,uv,yarn
 
 # Miloss-MacBook-Pro, captured 2026-10-06, every piece on its default
+Miloss-MacBook-Pro          | mise        | on        # set by hand, the user wants python and node from mise here
+Miloss-MacBook-Pro          | tools       | node,python,uv # set by hand, python and node only, uv being how python is used on a strict machine

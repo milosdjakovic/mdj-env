@@ -1,0 +1,27 @@
+# Every tool a machine may take through mise, each defined once, as
+# name | mise tool | version | command | why.
+#
+# The name is what a machine's tools row in MACHINES picks. The mise tool is what mise installs,
+# a registry name or a backend such as pipx:, npm: or cargo:. Rows that share a mise tool merge
+# into one list in the order written here, so the first python row is the default python. The
+# version is a major or minor prefix, or an exact release where a client project needs one. The
+# command is what capture looks for on a machine to propose the name. Nothing here knows about
+# machines, and src/install-mise-tools.sh is the only place that joins this with MACHINES.
+#
+# A tool one project needs belongs in that project, not here. Repo only, never stowed.
+
+python       | python          | 3.14    | python3     | the default python
+python3.13   | python          | 3.13    | python3.13  | canvas-plugins and home-app pin it
+python3.12   | python          | 3.12    | python3.12  | fumage requires it exactly, canvas-core pins it
+python3.11   | python          | 3.11    | python3.11  | ai-scribe, nabla-ai-parser and indigenous_pact require it
+python3.9    | python          | 3.9     | python3.9   | canvas/science requires it exactly
+uv           | uv              | latest  | uv          | python projects, venvs and lockfiles, and the only way python is used on a strict machine
+poetry       | pipx:poetry     | 2       | poetry      | the canvas, canvas-core and msf-canvas projects that lock with poetry
+canvas       | pipx:canvas     | 0.195.2 | canvas      | the Canvas Medical CLI, pinned to the release in use
+node         | node            | 26      | node        | the default node
+bun          | bun             | 1       | bun         | a javascript runtime and package manager, for projects that use it
+pnpm         | pnpm            | 12      | pnpm        | projects that lock with pnpm
+yarn         | npm:yarn        | 1.22    | yarn        | projects that lock with yarn, classic here and newer yarns through the project's own yarnPath
+ruby         | ruby            | 4.0     | ruby        | the default ruby
+go           | go              | 1.27    | go          | the default go
+rust         | rust            | stable  | cargo       | rustup driven by mise, rust-toolchain.toml in a project still decides

@@ -46,8 +46,10 @@ Do this once on every machine, and again whenever a machine changes.
    ```bash
    git diff MACHINES
    ```
-   Edit a row by hand if you want something else. `tools` takes a comma list in alphabetical
-   order with no spaces, such as `dev,work`, or `none`.
+   Edit a row by hand if you want something else. `tools` lists the mise tools this machine
+   takes, names from `dotfiles/mise/TOOLS`, alphabetical, comma separated, no spaces, such as
+   `node,python,uv`, or `none`. A tool that is not in the catalog yet gets one row there first,
+   with its version.
 5. **Commit and push**, so every checkout knows this machine.
    ```bash
    git add MACHINES && git commit -m "machines(<name>) capture" && git push
@@ -57,7 +59,7 @@ Do this once on every machine, and again whenever a machine changes.
    ./setup.sh
    ```
    The first lines it prints are this machine's name and every piece's value. To apply only a
-   change to `tools`, `./src/install-mise-tools.sh` is enough.
+   change to `tools` or to the catalog, `./src/install-mise-tools.sh` is enough.
 
 Running capture again on an unchanged machine says "Nothing to change" and writes nothing. To
 read one value, `./src/machine.sh get <piece>`. Switching a piece off never removes anything a

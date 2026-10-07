@@ -83,3 +83,11 @@ mise tool groups a machine takes, at the user's request that tools differ betwee
 that the choice live in `MACHINES`. Its probe in `capture` counts a group as used when any command
 it lists is already on the machine, from anywhere. The list is alphabetical, since the first probe
 reported `dev,personal,work` against a row of `dev,work,personal` and called a match a change.
+
+**2026-10-07 11:55.** `tools` now names catalog entries rather than groups. Its probe in `capture`
+proposes every catalog name whose command is on the machine, alphabetical. The first version
+found nothing, because capture reads the probe's answer with `IFS='|'` set and the probe's own
+`read` inherited it, so each line came back as one field. The probe sets its own separator now.
+`Miloss-MacBook-Pro` gained `mise` on and `tools` of `node,python,uv`, written by hand from the
+user saying that machine needs python and node only. Its capture had left every piece on its
+default.

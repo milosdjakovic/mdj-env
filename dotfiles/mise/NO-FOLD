@@ -1,0 +1,5 @@
+# Home paths that must stay real directories rather than becoming one stow symlink, as
+# path | reason, the path written relative to the home directory. The rule and the mechanism
+# are in the repository root AGENTS.md and in decisions/stow-folding.md, and this file is read
+# by src/setup-stow-dotfiles.sh, which finds it by name and knows nothing about this module.
+.config/mise | src/install-mise-tools.sh writes conf.d/machine.toml here, one machine's tools, so a fold would send it into this checkout

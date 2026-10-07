@@ -1,26 +1,8 @@
-# The runtimes this machine uses by default, one place for all of them. A project overrides any
-# line with its own mise.toml or an idiomatic version file such as .python-version, and the
-# setup step src/install-mise-tools.sh installs whatever is listed here and is missing.
-#
-# Each version is the major or minor in use when mise took over, so adoption changed nothing a
-# script could notice. A prefix rather than an exact release, so `mise up` moves within it, and a
-# setup run never does, since it only installs what is absent. decisions/runtime-versions.md has
-# the reasoning.
-[tools]
-# The first python is the default. The others are on PATH as python3.13, python3.12 and so on,
-# and serve any project that pins them, which matters because uv may only use what mise
-# installed. 3.11 and 3.9 are here for client projects that require exactly those.
-python = ["3.14", "3.13", "3.12", "3.11", "3.9"]
-ruby = "4.0"
-node = "26"
-go = "1.27"
-rust = "stable"
-uv = "latest"
-
-# Tools run from any directory are not here. They sit in one file per group beside this one,
-# config.dev.toml and config.work.toml, and MACHINES says which groups a
-# machine takes. src/install-mise-tools.sh writes that choice into miserc.toml, which mise reads
-# before anything else and which loads config.<group>.toml for each group named.
+# How mise behaves on every machine that takes it. No tools are listed here. Which tools a
+# machine has is its tools row in MACHINES, picked by name from dotfiles/mise/TOOLS, and
+# src/install-mise-tools.sh writes them to conf.d/machine.toml beside this file. Never add a
+# tool here and never run `mise use -g`, both would give every machine what one asked for.
+# decisions/runtime-versions.md has the reasoning.
 
 [settings]
 # A cloned repository's own version file is honoured without a mise.toml. Off by default in mise,

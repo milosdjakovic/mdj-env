@@ -193,3 +193,17 @@ took every global command along. It was the whole of the personal group, so that
 Its install under mise stays on this machine until removed by hand, since nothing here removes
 what a machine has.
 
+**2026-10-07 11:55.** The tool groups were replaced by a catalog the same day they went in, after
+the user called dev, personal, go and ruby a bad abstraction, since each machine uses its own mix
+of bun, node, yarn, uv and poetry and no grouping holds. `dotfiles/mise/TOOLS` defines every tool
+once with its version, a machine's `tools` row in `MACHINES` names what it takes, and
+`src/install-mise-tools.sh` joins the two into `~/.config/mise/conf.d/machine.toml`. Rows that
+share a mise tool merge in catalog order, so the older pythons are separate picks and the first
+python row stays the default. `config.toml` now holds settings only, and `~/.config/mise` became
+a real directory through `NO-FOLD` so the generated file never lands in the checkout. The stow
+step unfolded it and moved the old `miserc.toml` back to the home directory, and the install step
+deletes it. On this machine all 14 tools were already present and none changed version.
+
+Rejected with it, a mise toml per machine, since every version would be written once per machine
+and the copies would drift, and the catalog as TOML, since a table holds each key once and four
+python rows would need nesting the awk reader `MACHINES` already uses has no need for.

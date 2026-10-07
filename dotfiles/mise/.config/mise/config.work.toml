@@ -1,9 +1,0 @@
-# One group of tools run from any directory, loaded on a machine whose MACHINES row for tools
-# names this group. They live in mise rather than in Homebrew, pipx, a global npm or cargo
-# install, or a uv tool, so they are listed in this repository and follow the runtime they need.
-# Each version is the major or exact release in use when it moved. A tool one project needs
-# belongs in that project, not here.
-
-# Tools for client work. canvas is the Canvas Medical CLI.
-[tools]
-"pipx:canvas" = "0.195.2"

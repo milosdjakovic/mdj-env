@@ -305,10 +305,11 @@ These are rules, not background. Each one exists because the opposite was done o
    one machine, done in the conversation with the person's go ahead, and recorded in the decision
    log. It is never a setup step.
 5. **Each kind of tool has one home, and installing it anywhere else is the drift this prevents.**
-   A language runtime goes in the mise config. A command run from any directory goes in one of the mise
-   tool groups, `config.dev.toml` or `config.work.toml`, through a mise
-   backend, `pipx:`, `npm:`, `cargo:` or the registry, and each machine takes the groups its
-   `tools` row in `MACHINES` names. Never put a tool in `config.toml`, which every machine gets. A tool one project
+   A language runtime, or a command run from any directory, is one row in the mise catalog,
+   `dotfiles/mise/TOOLS`, through a mise backend, `pipx:`, `npm:`, `cargo:` or the registry, and a
+   machine has it only when its `tools` row in `MACHINES` names it. The catalog holds versions and
+   never machines, the row holds names and never versions. Never put a tool in the mise
+   `config.toml`, which every machine gets, and never run `mise use -g`. A tool one project
    needs goes in that project's own dependencies and runs through `uv run`, `uvx` or `npx`. A
    standalone app that happens to be written in Python, Node or Ruby stays in Homebrew. What macOS
    ships and what Neovim's Mason manages are left alone. So never run `npm install -g`,

@@ -18,7 +18,3 @@ dotfiles/lazygit/Library/Application Support/lazygit/github_pull_requests.json
 # and it lives under the olm data root in the home directory now, so nothing of it is in the
 # tree to ignore.
 dotfiles/hammerspoon/.hammerspoon/config/*.json.*
-
-# Written by src/install-mise-tools.sh from this machine's MACHINES row, so it is one machine's
-# answer and can never be right on another. It lands here because ~/.config/mise is folded.
-dotfiles/mise/.config/mise/miserc.toml

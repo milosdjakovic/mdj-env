@@ -72,7 +72,9 @@ probe() {
     case "$1" in
         mise)
             local own=() tool
-            if [[ "$(cd "$HOME/.config/mise" 2>/dev/null && pwd -P)" == "$ROOT/"* ]]; then
+            # The config file itself is asked, not its directory, since the mise package declares
+            # its directory NO-FOLD and only config.toml is a link into this checkout.
+            if [[ "$(realpath "$HOME/.config/mise/config.toml" 2>/dev/null)" == "$ROOT/dotfiles/mise/"* ]]; then
                 echo "on|this repository's mise config is stowed"; return
             fi
             for tool in pyenv rbenv nodenv asdf fnm volta jenv; do
@@ -102,25 +104,21 @@ probe() {
             fi
             ;;
         tools)
-            # A group counts as used when any command it lists is already on this machine, from
-            # mise or from anywhere else, since a machine that runs poetry from Homebrew is a
-            # machine that uses the dev group. The command is the last part of the tool name, the
-            # one after the backend and the scope, which holds for every tool listed today.
-            local file group cmd found=() missing=()
-            for file in "$ROOT"/dotfiles/mise/.config/mise/config.*.toml; do
-                group="${file##*/config.}"; group="${group%.toml}"
-                cmd=""
-                while IFS= read -r tool; do
-                    tool="${tool##*:}"; tool="${tool##*/}"
-                    if command -v "$tool" >/dev/null 2>&1; then cmd="$tool"; break; fi
-                done < <(sed -nE 's/^"?([^"= ]+)"?[[:space:]]*=.*/\1/p' "$file" | grep -v '^\[')
-                if [[ -n "$cmd" ]]; then found+=("$group"); else missing+=("$group"); fi
-            done
-            if [[ ${#found[@]} -eq 0 ]]; then
-                echo "none|no command from any tool group"
+            # A tool counts as used when its catalog command is already on this machine, from
+            # mise or from anywhere else, since a machine running poetry from Homebrew is a machine
+            # that uses poetry. The names come back alphabetical, the order rows are written in.
+            local found
+            found="$(awk -F'|' '
+                { sub(/#.*/, "") }
+                NF < 4 { next }
+                { gsub(/^[ \t]+|[ \t]+$/, "", $1); gsub(/^[ \t]+|[ \t]+$/, "", $4); print $1 " " $4 }
+            ' "$ROOT/dotfiles/mise/TOOLS" | while IFS=' ' read -r tool cmd; do
+                command -v "$cmd" >/dev/null 2>&1 && echo "$tool"
+            done | sort | paste -sd, -)"
+            if [[ -z "$found" ]]; then
+                echo "none|no command from any tool in the catalog"
             else
-                local IFS=','
-                echo "${found[*]}|commands for ${found[*]}${missing[*]:+, none for ${missing[*]}}"
+                echo "$found|commands found for $found"
             fi
             ;;
         *) echo "?|no probe for this piece" ;;
