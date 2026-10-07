@@ -61,6 +61,15 @@ Do this once on every machine, and again whenever a machine changes.
    The first lines it prints are this machine's name and every piece's value. To apply only a
    change to `tools` or to the catalog, `./src/install-mise-tools.sh` is enough.
 
+Capture records what a machine has, not what you want it to have. To give a machine a piece it
+does not have yet, such as mise or a tool from the catalog, write that row by hand in step 4.
+
+When a machine's rows were written somewhere else first, from another machine or by hand, run
+the steps in a different order. Pull, run `./setup.sh` so the machine gets what its rows ask for,
+then capture. Capture then finds the pieces installed and agrees with the rows, and where it
+still finds something else it asks with no as the answer Enter gives, so the rows stay. Commit
+and push only if it wrote anything.
+
 Running capture again on an unchanged machine says "Nothing to change" and writes nothing. To
 read one value, `./src/machine.sh get <piece>`. Switching a piece off never removes anything a
 machine already has, that is always done by hand.
