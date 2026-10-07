@@ -27,6 +27,6 @@ default                     | tools       | none      # the mise tools a machine
 Miloss-MacBook-Pro-Vicert   | mise        | on        # this repository's mise config is stowed
 Miloss-MacBook-Pro-Vicert   | tools       | canvas,go,node,pnpm,poetry,python,python3.11,python3.12,python3.13,python3.9,ruby,rust,uv,yarn # commands found for canvas,go,node,pnpm,poetry,python,python3.11,python3.12,python3.13,python3.9,ruby,rust,uv,yarn
 
-# Miloss-MacBook-Pro, captured 2026-10-06, every piece on its default
-Miloss-MacBook-Pro          | mise        | on        # set by hand, the user wants python and node from mise here
-Miloss-MacBook-Pro          | tools       | node,python,uv # set by hand, python and node only, uv being how python is used on a strict machine
+# Miloss-MacBook-Pro, captured 2026-10-07
+Miloss-MacBook-Pro          | mise        | on        # this repository's mise config is stowed
+Miloss-MacBook-Pro          | tools       | node,python,uv # set by hand, capture found commands found for go,node,python,ruby,uv
