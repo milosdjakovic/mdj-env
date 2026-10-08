@@ -1,13 +1,13 @@
 # Herdr navigation keys, agents and back and forth
 
-Status. `prefix+a` is a flat agent picker beside `goto` on `prefix+g`, `prefix+t` is `last_pane`, `prefix+alt+1..9` is `focus_agent`.
+Status. The flat agent picker on `prefix+a` is gone, the palette's agent rows replaced it, `prefix+t` is `last_pane`, `prefix+alt+1..9` is `focus_agent`.
 
 ## Now
 
-`prefix+a` opens `tools/agents.sh`, a popup in the `mdj-tools` plugin that lists every agent
-from one `herdr api snapshot`, one row each, ordered by space and then tab, as state, space and
-tab, and the agent's terminal title. Enter runs `herdr agent focus` on the row's pane. The
-built in `goto` stays on `prefix+g` for the whole tree.
+The flat list of agents is the first section of the palette on `prefix+space`, each row its
+state, its terminal title and its space and tab, and enter focuses it.
+`decisions/herdr-palette.md` has the palette. `prefix+a` is unbound. The built in `goto` stays
+on `prefix+g` for the whole tree.
 
 `last_pane` is on `prefix+t`, t for last, and it crosses tabs and spaces, so it is also the
 last tab and the last space. herdr 0.9.0 has no separate last tab or last workspace action.
@@ -36,3 +36,9 @@ applied with no diagnostics, so none of the three keys collides with a built in.
 **2026-09-27 17:57.** Rearranged on request the same day. `goto` is back on `prefix+g`, since the tree is
 still wanted beside the flat list, the agent picker moved to `prefix+a`, and `last_pane` moved
 to `prefix+t`. Reload reported applied with no diagnostics.
+
+**2026-10-08 17:37.** `prefix+a` and `tools/agents.sh` removed on request. The palette on
+`prefix+space` lists the same agents first, from the same snapshot, so the picker had become a
+second copy of its first section. The glyph file it shared with the palette went with it,
+folded back into the palette, its only reader.
+

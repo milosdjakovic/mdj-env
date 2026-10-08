@@ -194,8 +194,8 @@ takes an id the client hands out, so a palette row for one can only say which ke
 A custom command and a plugin action may each open a popup of their own, and herdr refuses a
 second popup with `ui_busy`, so the palette starts them detached and gives itself 0.3 seconds
 to close first. Detached means a process group of its own, through `set -m`, because closing a
-popup ends its whole process group and a child that only ignores hangups dies with it. The state glyphs come from `tools/status.sh`, which `tools/agents.sh` reads too, so the
-two lists draw an agent the same way the sidebar does.
+popup ends its whole process group and a child that only ignores hangups dies with it. The
+state glyphs are the ones the sidebar draws, from whichever indicator set the config chooses.
 
 Test a change against a named session started headless, `herdr --session palettetest server`
 with `HERDR_SOCKET_PATH` pointed at its socket, and a stub `fzf` early on the PATH that picks a
@@ -206,7 +206,7 @@ just that, then unlinking it.
 
 ## Current keys
 
-`space` the palette. `g` the built in session navigator, herdr's `goto`. `a` the agent picker, `tools/agents.sh`, every agent as one flat row of state, space and tab, and its terminal title, for when goto's tree of spaces, tabs and panes is more than a jump needs. `t` is `last_pane`, back and forth across tabs and spaces. `alt+1..9` is `focus_agent`, which is unset by default and so looked broken. `decisions/herdr-navigation-keys.md` has the reasons. `alt+g` lazygit, in the repository the pane
+`space` the palette, whose agent rows replaced the flat agent picker that was on `a`. `g` the built in session navigator, herdr's `goto`. `t` is `last_pane`, back and forth across tabs and spaces. `alt+1..9` is `focus_agent`, which is unset by default and so looked broken. `decisions/herdr-navigation-keys.md` has the reasons. `alt+g` lazygit, in the repository the pane
 sits in, falling back to the recent list lazygit keeps for itself. `f` the fuzzy search. `alt+f`
 lf, viewing only, since every interactive key lf binds opens a tmux popup and there is no tmux
 session inside a herdr popup to open one into.

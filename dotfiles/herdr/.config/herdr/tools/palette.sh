@@ -23,8 +23,16 @@ CONFIG="${HERDR_CONFIG_PATH:-$TOOLS/../config.toml}"
 ACTIONS="$TOOLS/palette-actions"
 
 . "$TOOLS/context.sh"
-. "$TOOLS/status.sh"
-herdr_status_style "$CONFIG"
+
+# The glyph herdr's sidebar draws for each agent state, from whichever of its two indicator
+# sets the config chooses, both as herdr's own settings preview lists them, and the ANSI slot
+# the theme paints for it, the same yellow working and green idle the sidebar uses.
+if grep -qE '^[[:space:]]*status_indicators[[:space:]]*=[[:space:]]*"symbols"' "$CONFIG" 2>/dev/null; then
+  STATUS_GLYPHS='{"blocked":"×","working":"◐","done":"✓","idle":"○"}'
+else
+  STATUS_GLYPHS='{"blocked":"●","working":"●","done":"●","idle":"○"}'
+fi
+STATUS_COLOURS='{"blocked":"31","working":"33","done":"34","idle":"32"}'
 
 trim() {
   local s="$1"

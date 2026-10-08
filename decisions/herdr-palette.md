@@ -76,3 +76,7 @@ survives a hangup. `launch` now switches on job control around the one backgroun
 child gets a process group of its own, and the same probe then opened the fuzzy search after
 0.3 seconds. The same change grouped every runnable row as a command, on request, and dropped
 the group column from `palette-actions`, which nothing read any more.
+
+**2026-10-08 17:37.** `tools/agents.sh` and its key were removed, so `tools/status.sh` had one
+reader left and was folded back into `palette.sh`.
+

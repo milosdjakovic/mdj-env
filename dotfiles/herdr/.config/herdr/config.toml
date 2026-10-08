@@ -116,13 +116,6 @@ last_pane = "prefix+t"
 # Agent rows in sidebar order. Unset by default, which is why it looked broken.
 focus_agent = "prefix+alt+1..9"
 
-# goto keeps prefix+g for the whole tree, and this is the flat list of agents alone.
-[[keys.command]]
-key = "prefix+a"
-type = "shell"
-command = "\"$HERDR_BIN_PATH\" plugin pane open --plugin mdj-tools --entrypoint agents"
-description = "every agent, flat, with its state"
-
 # Every agent, space, tab and session, every herdr action with the key that does it, and the
 # custom commands below, in one list. It took a key that pointed at a plugin never installed.
 [[keys.command]]

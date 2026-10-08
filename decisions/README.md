@@ -71,7 +71,7 @@ than discovered.
 - [theme-palette](theme-palette.md), one palette in theme/, every stowed tool painted from it by a generator that lives with the tool, and the checker proves it across every file
 - [fzf-appearance-colour](fzf-appearance-colour.md), slots for everything fzf draws except the selection bar, which a watcher rewrites into a file because it cannot be a slot
 - [herdr-finder-keys](herdr-finder-keys.md), the fuzzy search copies a path on `ctrl-y`, and why it is not shift and enter or `ctrl-c`
-- [herdr-navigation-keys](herdr-navigation-keys.md), `prefix+a` is a flat agent list beside goto, `prefix+t` is last pane and `prefix+alt+1..9` focuses agent rows
+- [herdr-navigation-keys](herdr-navigation-keys.md), the flat agent list moved from `prefix+a` into the palette, `prefix+t` is last pane and `prefix+alt+1..9` focuses agent rows
 - [herdr-palette](herdr-palette.md), `prefix+space` is a palette written here over agents, spaces, tabs, sessions and every action, after four published ones were compared and turned down
 - [herdr-theme](herdr-theme.md), Aura in herdr's own tokens on both appearances, and the faint agent line that was never a colour
 - [ghostty-aura-theme](ghostty-aura-theme.md), how the terminal palette settled on Aura for both halves after three other pairings

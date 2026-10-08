@@ -6,7 +6,7 @@ id = "mdj-tools"
 name = "Local tools"
 version = "1.0.0"
 min_herdr_version = "0.9.0"
-description = "Fuzzy search, lazygit, a file browser, an agent list and a command palette as named popups."
+description = "Fuzzy search, lazygit, a file browser and a command palette as named popups."
 platforms = ["macos"]
 
 [[panes]]
@@ -32,14 +32,6 @@ placement = "popup"
 width = "90%"
 height = "90%"
 command = ["./browse.sh"]
-
-[[panes]]
-id = "agents"
-title = "agents"
-placement = "popup"
-width = "80%"
-height = "60%"
-command = ["./agents.sh"]
 
 [[panes]]
 id = "palette"
