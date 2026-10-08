@@ -1,0 +1,77 @@
+# Every herdr action the palette lists, one per line, id | mode | title | command. The order
+# here is the order they are listed in, so keep each kind of thing together.
+#
+# The id is herdr's own action name wherever herdr has one, because that is the name its
+# [keys] table binds, and the palette shows the key bound to it. An id herdr does not know,
+# such as the swaps, simply has no key to show.
+#
+# The mode says what happens on enter.
+#   run      runs the command as written
+#   ask      asks for one line of text first, which takes the place of {input}
+#   confirm  asks yes or no first, for anything that closes or removes
+#   step     moves to the next or previous space, tab or agent, written as the kind and +1 or -1
+#   key      herdr cannot do this from outside its own window, so enter says which key to press,
+#            and the row is left out while that key is unbound
+#
+# The command is the herdr subcommand without the leading herdr. {pane}, {tab} and
+# {workspace} are the ones the palette was opened over, {cwd} is that pane's directory, and
+# each placeholder becomes exactly one argument, so a name with spaces in it stays whole.
+#
+# Adding an action is one line here and no change to palette.sh.
+
+new_workspace            | run     | New space                 | workspace create --cwd {cwd} --focus
+rename_workspace         | ask     | Rename space              | workspace rename {workspace} {input}
+close_workspace          | confirm | Close space               | workspace close {workspace}
+previous_workspace       | step    | Previous space            | workspace -1
+next_workspace           | step    | Next space                | workspace +1
+workspace_picker         | key     | Space picker              |
+
+new_tab                  | run     | New tab                   | tab create --workspace {workspace} --cwd {cwd} --focus
+rename_tab               | ask     | Rename tab                | tab rename {tab} {input}
+close_tab                | confirm | Close tab                 | tab close {tab}
+previous_tab             | step    | Previous tab              | tab -1
+next_tab                 | step    | Next tab                  | tab +1
+move_tab_previous        | key     | Move tab left             |
+move_tab_next            | key     | Move tab right            |
+
+split_vertical           | run     | Split right               | pane split {pane} --direction right --cwd {cwd} --focus
+split_horizontal         | run     | Split down                | pane split {pane} --direction down --cwd {cwd} --focus
+zoom                     | run     | Zoom pane                 | pane zoom {pane} --toggle
+rename_pane              | ask     | Rename pane               | pane rename {pane} {input}
+clear_pane_name          | run     | Clear pane name           | pane rename {pane} --clear
+close_pane               | confirm | Close pane                | pane close {pane}
+focus_pane_left          | run     | Focus pane left           | pane focus --direction left --pane {pane}
+focus_pane_down          | run     | Focus pane down           | pane focus --direction down --pane {pane}
+focus_pane_up            | run     | Focus pane up             | pane focus --direction up --pane {pane}
+focus_pane_right         | run     | Focus pane right          | pane focus --direction right --pane {pane}
+swap_pane_left           | run     | Swap pane left            | pane swap --direction left --pane {pane}
+swap_pane_down           | run     | Swap pane down            | pane swap --direction down --pane {pane}
+swap_pane_up             | run     | Swap pane up              | pane swap --direction up --pane {pane}
+swap_pane_right          | run     | Swap pane right           | pane swap --direction right --pane {pane}
+resize_pane_left         | run     | Resize pane left          | pane resize --direction left --pane {pane}
+resize_pane_down         | run     | Resize pane down          | pane resize --direction down --pane {pane}
+resize_pane_up           | run     | Resize pane up            | pane resize --direction up --pane {pane}
+resize_pane_right        | run     | Resize pane right         | pane resize --direction right --pane {pane}
+move_pane_new_tab        | run     | Move pane to a new tab    | pane move {pane} --new-tab --focus
+move_pane_new_workspace  | run     | Move pane to a new space  | pane move {pane} --new-workspace --focus
+last_pane                | key     | Last pane                 |
+cycle_pane_next          | key     | Next pane                 |
+cycle_pane_previous      | key     | Previous pane             |
+resize_mode              | key     | Resize mode               |
+clear_pane               | key     | Clear pane                |
+edit_scrollback          | key     | Edit scrollback           |
+
+previous_agent           | step    | Previous agent            | agent -1
+next_agent               | step    | Next agent                | agent +1
+
+new_worktree             | ask     | New worktree from branch  | worktree create --workspace {workspace} --branch {input} --focus
+open_worktree            | ask     | Open worktree of branch   | worktree open --workspace {workspace} --branch {input} --focus
+remove_worktree          | confirm | Remove worktree           | worktree remove --workspace {workspace}
+
+reload_config            | run     | Reload config             | server reload-config
+goto                     | key     | Go to                     |
+open_notification_target | key     | Open notification target  |
+toggle_sidebar           | key     | Toggle sidebar            |
+settings                 | key     | Settings                  |
+help                     | key     | Help                      |
+detach                   | key     | Detach                    |

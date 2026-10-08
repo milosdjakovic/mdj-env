@@ -175,9 +175,38 @@ changes this is the line that will block.
 
 Anything new that scans broadly owes the same measurement before it ships.
 
+## The palette
+
+`prefix+space` opens `tools/palette.sh`, one list of every agent, space, tab and session, every
+herdr action with its key, every custom command here and every action another plugin offers.
+`decisions/herdr-palette.md` has why it was written here rather than installed, and each of the
+four published palettes it was compared against.
+
+The actions are data in `tools/palette-actions`, one line each, and that file's header says how
+a line reads. Adding an action is one line there and no change to the script. The key shown on
+a row is read from herdr's defaults overlaid by `[keys]` here, so a rebinding shows up on the
+next open with nothing else to change.
+
+Some of herdr's actions exist only inside its own window, help, copy mode, detach and the
+sidebar among them. Nothing the CLI or the API offers runs them, and `command.invoke` only
+takes an id the client hands out, so a palette row for one can only say which key to press.
+
+A custom command and a plugin action may each open a popup of their own, and herdr refuses a
+second popup with `ui_busy`, so the palette starts them detached and gives itself 0.3 seconds
+to close first. Detached means a process group of its own, through `set -m`, because closing a
+popup ends its whole process group and a child that only ignores hangups dies with it. The state glyphs come from `tools/status.sh`, which `tools/agents.sh` reads too, so the
+two lists draw an agent the same way the sidebar does.
+
+Test a change against a named session started headless, `herdr --session palettetest server`
+with `HERDR_SOCKET_PATH` pointed at its socket, and a stub `fzf` early on the PATH that picks a
+row by kind and target. That runs every dispatch for real without touching the live session.
+A popup opens there too, `herdr plugin pane open` works with no client attached, so anything
+that has to happen as a popup closes can be probed by linking a throwaway plugin whose pane does
+just that, then unlinking it.
+
 ## Current keys
 
-`g` the built in session navigator, herdr's `goto`. `a` the agent picker, `tools/agents.sh`, every agent as one flat row of state, space and tab, and its terminal title, for when goto's tree of spaces, tabs and panes is more than a jump needs. `t` is `last_pane`, back and forth across tabs and spaces. `alt+1..9` is `focus_agent`, which is unset by default and so looked broken. `decisions/herdr-navigation-keys.md` has the reasons. `alt+g` lazygit, in the repository the pane
+`space` the palette. `g` the built in session navigator, herdr's `goto`. `a` the agent picker, `tools/agents.sh`, every agent as one flat row of state, space and tab, and its terminal title, for when goto's tree of spaces, tabs and panes is more than a jump needs. `t` is `last_pane`, back and forth across tabs and spaces. `alt+1..9` is `focus_agent`, which is unset by default and so looked broken. `decisions/herdr-navigation-keys.md` has the reasons. `alt+g` lazygit, in the repository the pane
 sits in, falling back to the recent list lazygit keeps for itself. `f` the fuzzy search. `alt+f`
 lf, viewing only, since every interactive key lf binds opens a tmux popup and there is no tmux
 session inside a herdr popup to open one into.

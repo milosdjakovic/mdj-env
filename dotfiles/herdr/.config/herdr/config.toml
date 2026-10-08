@@ -123,11 +123,13 @@ type = "shell"
 command = "\"$HERDR_BIN_PATH\" plugin pane open --plugin mdj-tools --entrypoint agents"
 description = "every agent, flat, with its state"
 
+# Every agent, space, tab and session, every herdr action with the key that does it, and the
+# custom commands below, in one list. It took a key that pointed at a plugin never installed.
 [[keys.command]]
 key = "prefix+space"
-type = "plugin_action"
-command = "alonz.command-palette.open"
-description = "command palette"
+type = "shell"
+command = "\"$HERDR_BIN_PATH\" plugin pane open --plugin mdj-tools --entrypoint palette"
+description = "search everything herdr can do"
 
 [[keys.command]]
 key = "prefix+alt+g"

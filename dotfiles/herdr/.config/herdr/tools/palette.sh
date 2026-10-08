@@ -1,0 +1,314 @@
+#!/usr/bin/env bash
+# One searchable list of everything herdr can be asked to do from here. Every agent, space,
+# tab and session, every action herdr has, every custom command in config.toml and every
+# action another plugin offers, each row showing the key that does the same thing, and enter
+# does it.
+#
+# Each row carries a kind and a target in two hidden fields, and one dispatch at the bottom
+# hands each kind to its handler. The actions themselves are data in palette-actions beside
+# this file, so this engine names no herdr action anywhere.
+#
+# There are no group headings. The group is a quiet first column instead, which reads as a
+# heading while the list is in its own order and stays useful once fzf ranks it, and typing a
+# group's name narrows to it. A row that is a thing, an agent, a space, a tab or a session, is
+# grouped by what it is, and every row that does something is a command, since a tab column
+# beside Rename tab read as the tab being renamed rather than the action.
+set -u
+
+HERDR="${HERDR_BIN_PATH:-herdr}"
+# The custom commands in config.toml call herdr through this, and they run as children here.
+export HERDR_BIN_PATH="$HERDR"
+TOOLS="$(cd "$(dirname "$0")" && pwd)"
+CONFIG="${HERDR_CONFIG_PATH:-$TOOLS/../config.toml}"
+ACTIONS="$TOOLS/palette-actions"
+
+. "$TOOLS/context.sh"
+. "$TOOLS/status.sh"
+herdr_status_style "$CONFIG"
+
+trim() {
+  local s="$1"
+  s="${s#"${s%%[![:space:]]*}"}"
+  printf '%s' "${s%"${s##*[![:space:]]}"}"
+}
+
+notify() {
+  "$HERDR" notification show "palette" --body "$1" >/dev/null 2>&1
+}
+
+# Every action's key, herdr's default overlaid by the [keys] table here. Both are flat lines
+# of one name and one quoted value, the defaults commented out in herdr's own template, so a
+# line match reads them without a TOML parser. The [keys] range ends at the first table
+# header, which is the first [[keys.command]].
+shortcuts() {
+  {
+    "$HERDR" --default-config 2>/dev/null \
+      | sed -n '/^\[keys\]/,/^\[[a-z]/p' \
+      | sed -nE 's/^# ([a-z_]+) = "([^"]*)".*/\1	\2/p'
+    sed -n '/^\[keys\]/,/^\[/p' "$CONFIG" \
+      | sed -nE 's/^([a-z_]+)[[:space:]]*=[[:space:]]*"([^"]*)".*/\1	\2/p'
+  } | jq -Rn '[inputs | split("\t") | {(.[0]): .[1]}] | add // {}'
+}
+
+# The [[keys.command]] tables, one tab separated line each, key, type, description and
+# command, with the escaped quotes in a command undone so it runs as written.
+custom_commands() {
+  awk '
+    function val(s) { sub(/^[^=]*=[ \t]*"/, "", s); sub(/"[ \t]*$/, "", s); gsub(/\\"/, "\"", s); return s }
+    function flush() { if (open) print k "\t" t "\t" d "\t" c; open = 0; k = t = d = c = "" }
+    /^\[\[keys\.command\]\]/ { flush(); open = 1; next }
+    /^\[/ { flush(); next }
+    open && /^key[ \t]*=/ { k = val($0) }
+    open && /^type[ \t]*=/ { t = val($0) }
+    open && /^description[ \t]*=/ { d = val($0) }
+    open && /^command[ \t]*=/ { c = val($0) }
+    END { flush() }
+  ' "$CONFIG"
+}
+
+# A key as a person presses it, the prefix spelled out as the key it is bound to.
+press() {
+  local prefix
+  prefix=$(jq -r '.prefix // "ctrl+b"' <<<"$KEYS")
+  case "$1" in
+    prefix+*) printf '%s, then %s' "$prefix" "${1#prefix+}" ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
+# What the palette was opened over. The popup has no pane of its own, so the pane comes from
+# the context herdr hands it, and its tab, space and directory from the snapshot, which is
+# also what every row below is read from, so the two cannot disagree.
+SNAP=$("$HERDR" api snapshot 2>/dev/null | jq -c '.result.snapshot') || exit 0
+[ -n "$SNAP" ] && [ "$SNAP" != null ] || exit 0
+HERE_PANE=$(herdr_pane_id)
+[ -n "$HERE_PANE" ] || HERE_PANE=$(jq -r '.focused_pane_id // empty' <<<"$SNAP")
+IFS=$'\t' read -r HERE_TAB HERE_WS HERE_CWD < <(jq -r --arg p "$HERE_PANE" '
+  .panes[] | select(.pane_id == $p) | [.tab_id, .workspace_id, (.foreground_cwd // .cwd // "")] | @tsv
+' <<<"$SNAP")
+HERE_CWD="${HERE_CWD:-$HOME}"
+KEYS=$(shortcuts)
+
+# Rows as JSON objects, kind, target, group, state, title and right, one source after another
+# in the order they are listed when nothing is typed.
+rows() {
+  jq -c '
+    . as $s
+    | ($s.workspaces | map({key: .workspace_id, value: .}) | from_entries) as $ws
+    | ($s.tabs | map({key: .tab_id, value: .}) | from_entries) as $tabs
+    | ( $s.agents
+        | map(. + {w: $ws[.workspace_id], t: $tabs[.tab_id]})
+        | sort_by(.w.number, .t.number) | .[]
+        | {kind: "agent", target: .pane_id, group: "agent", state: .agent_status,
+           title: (.terminal_title_stripped // .agent), right: "\(.w.label)/\(.t.label)"} ),
+      ( $s.workspaces | sort_by(.number) | .[]
+        | {kind: "space", target: .workspace_id, group: "space", state: .agent_status,
+           title: .label, right: "\(.tab_count) tabs"} ),
+      ( $s.tabs
+        | map(. + {w: $ws[.workspace_id]})
+        | sort_by(.w.number, .number) | .[]
+        | {kind: "tab", target: .tab_id, group: "tab", state: .agent_status,
+           title: .label, right: .w.label} )
+  ' <<<"$SNAP"
+
+  grep -vE '^[[:space:]]*(#|$)' "$ACTIONS" | jq -Rc --argjson keys "$KEYS" '
+    split("|") | map(gsub("^\\s+|\\s+$"; ""))
+    | ($keys[.[0]] // "") as $key
+    | select(.[1] != "key" or $key != "")
+    | {kind: "action", target: .[0], group: "command", title: .[2], right: $key}
+  '
+
+  # The row that opens this palette is left out, since choosing it would only open it again.
+  custom_commands | jq -Rc '
+    split("\t") | [., input_line_number] as [$f, $n]
+    | select(($f[3] // "") | test("--entrypoint palette") | not)
+    | {kind: "command", target: ($n | tostring), group: "command",
+       title: (if ($f[2] // "") != "" then $f[2] else $f[3] end), right: $f[0]}
+  '
+
+  "$HERDR" plugin action list 2>/dev/null | jq -c '
+    .result.actions[]?
+    | {kind: "plugin", target: "\(.plugin_id) \(.action_id)", group: "command",
+       title: .title, right: .plugin_id}
+  '
+
+  "$HERDR" session list --json 2>/dev/null | jq -c --arg sock "${HERDR_SOCKET_PATH:-}" '
+    .sessions[]?
+    | (if $sock != "" then .socket_path == $sock else .default end) as $here
+    | {kind: "session", target: .name, group: "session", title: .name,
+       right: ((if .running then "running" else "stopped" end) + (if $here then ", this one" else "" end))}
+  '
+}
+
+# One display line per row, after the kind and the target, the group quiet on the left, the
+# state glyph, the title cut to fit and the key or the location quiet on the right. Widths are
+# measured in jq, which counts characters rather than bytes, so a title with a glyph in it
+# still lines up.
+format() {
+  local width
+  width=$(( $(tput cols 2>/dev/null || echo 100) - 4 ))
+  jq -rs --argjson width "$width" --argjson glyph "$STATUS_GLYPHS" --argjson colour "$STATUS_COLOURS" '
+    def clean: tostring | gsub("[\t\n]"; " ");
+    def cut($n): if length > $n then .[0:([$n - 1, 0] | max)] + "…" else . end;
+    def pad($n): . + (" " * ([$n - length, 0] | max));
+    def lpad($n): (" " * ([$n - length, 0] | max)) + .;
+    ([.[].right | clean | length] | max // 0 | [., 28] | min) as $rw
+    | ($width - 9 - 2 - 2 - $rw | [., 12] | max) as $tw
+    | .[]
+    | (if .state and $glyph[.state] then "\u001b[\($colour[.state])m\($glyph[.state])\u001b[0m" else " " end) as $g
+    | "\(.kind)\t\(.target)\t\u001b[90m\(.group | pad(8))\u001b[0m \($g) \(.title | clean | cut($tw) | pad($tw))  \u001b[90m\(.right | clean | cut($rw) | lpad($rw))\u001b[0m"
+  '
+}
+
+# Runs one herdr command and reports a failure, since a herdr error is JSON on stderr and the
+# popup is about to close, which leaves the notification as the only place it can appear.
+run() {
+  local err
+  err=$("$HERDR" "$@" 2>&1 >/dev/null) && return 0
+  notify "$(jq -r '.error.message // empty' <<<"$err" 2>/dev/null | grep . || printf '%s' "${err%%$'\n'*}")"
+  return 1
+}
+
+# Starts something that may open a popup of its own. herdr shows one popup at a time and
+# refuses a second with ui_busy, so it runs detached and waits for this one to close first.
+# Closing a popup ends its whole process group, which nohup does not survive, so job control
+# is switched on for the one launch to give the child a process group of its own.
+launch() {
+  set -m
+  nohup sh -c 'sleep 0.3; exec "$@"' sh "$@" >/dev/null 2>&1 &
+  set +m
+}
+
+# Which thing a command acts on, named for the yes or no question and the text prompt, so a
+# close says which tab it closes. Read from the placeholder the command uses.
+describe() {
+  case "$1" in
+    *"{pane}"*) jq -r --arg p "$HERE_PANE" '.panes[] | select(.pane_id == $p) | "pane \(.terminal_title_stripped // .pane_id)"' <<<"$SNAP" ;;
+    *"{tab}"*) jq -r --arg t "$HERE_TAB" '.tabs[] | select(.tab_id == $t) | "tab \(.label)"' <<<"$SNAP" ;;
+    *"{workspace}"*) jq -r --arg w "$HERE_WS" '.workspaces[] | select(.workspace_id == $w) | "space \(.label)"' <<<"$SNAP" ;;
+  esac
+}
+
+# One line of text, or a failure on escape. A picker with no rows is a text prompt, and
+# accept-or-print-query hands back what was typed when there is nothing to accept. fzf says
+# no match as it does so, so only its escape status counts as a cancel.
+ask() {
+  local out
+  out=$(fzf --reverse --prompt "$1 " --header "$2" --footer "enter confirm" \
+    --bind 'enter:accept-or-print-query' </dev/null)
+  [ $? -eq 130 ] && return 1
+  printf '%s' "$out"
+}
+
+confirm() {
+  local pick
+  pick=$(printf '%s\n' "no, keep it" "yes, $(tr '[:upper:]' '[:lower:]' <<<"$1")" \
+    | fzf --reverse --no-input --header "$2" --footer "enter choose") || return 1
+  [ "${pick%%,*}" = yes ]
+}
+
+# The template's words, each placeholder replaced by exactly one argument.
+expand_and_run() {
+  local word words out=()
+  read -ra words <<<"$1"
+  for word in "${words[@]}"; do
+    case "$word" in
+      "{pane}") out+=("$HERE_PANE") ;;
+      "{tab}") out+=("$HERE_TAB") ;;
+      "{workspace}") out+=("$HERE_WS") ;;
+      "{cwd}") out+=("$HERE_CWD") ;;
+      "{input}") out+=("$INPUT") ;;
+      *) out+=("$word") ;;
+    esac
+  done
+  run "${out[@]}"
+}
+
+# The next or previous space, tab or agent, in the order the sidebar numbers them, wrapping
+# at either end.
+step() {
+  local kind="$1" delta="${2#+}" target
+  target=$(jq -r --arg kind "$kind" --argjson d "$delta" \
+    --arg pane "$HERE_PANE" --arg tab "$HERE_TAB" --arg ws "$HERE_WS" '
+    . as $s
+    | ($s.workspaces | map({key: .workspace_id, value: .number}) | from_entries) as $wn
+    | ($s.tabs | map({key: .tab_id, value: .number}) | from_entries) as $tn
+    | ( if $kind == "workspace" then [[$s.workspaces | sort_by(.number)[] | .workspace_id], $ws]
+        elif $kind == "tab" then [[$s.tabs | map(select(.workspace_id == $ws)) | sort_by(.number)[] | .tab_id], $tab]
+        else [[$s.agents | sort_by($wn[.workspace_id], $tn[.tab_id])[] | .pane_id], $pane] end ) as [$list, $here]
+    | ($list | length) as $n
+    | if $n == 0 then empty else
+        ([$list | to_entries[] | select(.value == $here) | .key] | first) as $i
+        | if $i == null then $list[0] else $list[(($i + $d) % $n + $n) % $n] end
+      end
+  ' <<<"$SNAP")
+  [ -n "$target" ] || return 0
+  case "$kind" in
+    workspace) run workspace focus "$target" ;;
+    tab) run tab focus "$target" ;;
+    agent) run agent focus "$target" ;;
+  esac
+}
+
+action() {
+  local id mode title command what
+  IFS='|' read -r id mode title command < <(grep -E "^$1[[:space:]]*\|" "$ACTIONS" | head -n 1)
+  mode=$(trim "$mode") title=$(trim "$title") command=$(trim "$command")
+  case "$mode" in
+    run) expand_and_run "$command" ;;
+    ask)
+      what=$(describe "$command")
+      INPUT=$(ask "$(tr '[:upper:]' '[:lower:]' <<<"$title")" "$what") || return 0
+      [ -n "$INPUT" ] && expand_and_run "$command"
+      ;;
+    confirm)
+      what=$(describe "$command")
+      confirm "$title $what" "$what" && expand_and_run "$command"
+      ;;
+    step) step $command ;;
+    key) notify "$title is $(press "$(jq -r --arg id "$1" '.[$id] // empty' <<<"$KEYS")")" ;;
+  esac
+}
+
+# A custom command runs the way its type says, a plugin action through herdr and anything
+# else through the shell, both detached since either may open a popup.
+custom_run() {
+  local key type desc command
+  IFS=$'\t' read -r key type desc command < <(custom_commands | sed -n "$1p")
+  case "$type" in
+    plugin_action) launch "$HERDR" plugin action invoke "$command" ;;
+    *) launch sh -c "$command" ;;
+  esac
+}
+
+# A client is attached to one session and herdr cannot move it to another from inside, so
+# choosing a session says how to get there.
+session() {
+  if "$HERDR" session list --json 2>/dev/null | jq -e --arg n "$1" --arg sock "${HERDR_SOCKET_PATH:-}" '
+      .sessions[] | select(.name == $n) | if $sock != "" then .socket_path == $sock else .default end
+    ' >/dev/null; then
+    notify "already on session $1"
+  else
+    notify "detach with $(press "$(jq -r '.detach // "prefix+q"' <<<"$KEYS")"), then run herdr --session $1"
+  fi
+}
+
+pick=$(rows | format | fzf \
+  --reverse \
+  --ansi \
+  --delimiter '\t' \
+  --with-nth 3 \
+  --prompt "herdr " \
+  --footer "enter run, type a group to narrow") || exit 0
+
+IFS=$'\t' read -r kind target _ <<<"$pick"
+case "$kind" in
+  agent) run agent focus "$target" ;;
+  space) run workspace focus "$target" ;;
+  tab) run tab focus "$target" ;;
+  action) action "$target" ;;
+  command) custom_run "$target" ;;
+  plugin) set -- $target; launch "$HERDR" plugin action invoke "$2" --plugin "$1" ;;
+  session) session "$target" ;;
+esac
+exit 0

@@ -8,22 +8,15 @@ set -u
 
 HERDR="${HERDR_BIN_PATH:-herdr}"
 
-# The same glyph the sidebar draws for each state, taken from whichever of herdr's two
-# indicator sets the config chooses, so a row here reads like the row there. Both sets
-# are as herdr's own settings preview lists them, blocked, working, done, idle, unknown.
-if grep -qE '^[[:space:]]*status_indicators[[:space:]]*=[[:space:]]*"symbols"' \
-    "$(dirname "$0")/../config.toml" 2>/dev/null; then
-  glyphs='{"blocked":"×","working":"◐","done":"✓","idle":"○"}'
-else
-  glyphs='{"blocked":"●","working":"●","done":"●","idle":"○"}'
-fi
+# The glyph and colour per state are shared with the palette, so both read like the sidebar.
+. "$(dirname "$0")/status.sh"
+herdr_status_style "$(dirname "$0")/../config.toml"
 
 # One snapshot answers everything, the agents and the labels of the spaces and tabs they
 # sit in, so the rows cannot disagree with each other about a rename mid read. The pane id
-# rides along as a hidden first field for the focus below. States take the ANSI slots the
-# theme paints, the same yellow working and green idle the sidebar uses. The location is
-# padded here, since fzf's tab stops cannot line up labels of different lengths.
-rows=$("$HERDR" api snapshot 2>/dev/null | jq -r --argjson glyph "$glyphs" '
+# rides along as a hidden first field for the focus below. The location is padded here,
+# since fzf's tab stops cannot line up labels of different lengths.
+rows=$("$HERDR" api snapshot 2>/dev/null | jq -r --argjson glyph "$STATUS_GLYPHS" --argjson colour "$STATUS_COLOURS" '
   .result.snapshot as $s
   | ($s.workspaces | map({key: .workspace_id, value: .}) | from_entries) as $ws
   | ($s.tabs | map({key: .tab_id, value: .}) | from_entries) as $tabs
@@ -33,7 +26,7 @@ rows=$("$HERDR" api snapshot 2>/dev/null | jq -r --argjson glyph "$glyphs" '
   | sort_by(.w.number, .t.number)
   | (map(.where | length) | max) as $width
   | .[]
-  | ({blocked: "31", working: "33", done: "34", idle: "32"}[.agent_status] // "90") as $c
+  | ($colour[.agent_status] // "90") as $c
   | ($glyph[.agent_status] // "·") as $g
   | "\(.pane_id)\t\u001b[\($c)m\($g)\u001b[0m \(.where + (" " * ($width - (.where | length))))  \u001b[90m\(.terminal_title_stripped // .agent)\u001b[0m"
 ') || exit 0
