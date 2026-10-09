@@ -201,9 +201,13 @@ lists the worktrees of the space's repository when it is reached and takes the o
 opening a worktree is a pick rather than a typed branch name. `{label}` takes text like
 `{input}` and starts the prompt from the current name of what is being renamed.
 
-A pane you name goes by that name everywhere in the palette, its own row, the agent row when
-an agent runs in it and the tab row when it is alone in its tab, with its command or path quiet
-beside it so either finds it. herdr reports `label` on a pane only once it has been named, so a
+Every row that stands for a pane reads the same way, whichever group it is in. The title is
+what you call it, the middle is what it is doing now, an agent's conversation topic or a
+shell's command or path, and the right is where it is, with an agent's state as a word in a
+column of its own before it. The group says whether there is an agent inside, which is what
+decides the state and the order, so `agent` and `pane` stay apart. A pane you name goes by
+that name in all three places, its own row, the agent row when an agent runs in it and the tab
+row when it is alone in its tab, so the name and what it is doing both find it. herdr reports `label` on a pane only once it has been named, so a
 snapshot of unnamed panes shows no such field, which reads as panes having no names at all.
 `decisions/herdr-palette.md` has why it was written here rather than installed, and each of the
 four published palettes it was compared against.

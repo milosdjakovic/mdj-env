@@ -98,16 +98,21 @@ HERE_CWD="${HERE_CWD:-$HOME}"
 KEYS=$(shortcuts)
 
 # Rows as JSON objects, kind, target, group, state, title, detail, right and here, one source
-# after another in the order they are listed when nothing is typed. detail is quiet text after
-# the title, and here marks the space, tab, pane or agent the palette was opened over.
+# after another in the order they are listed when nothing is typed. here marks the space, tab,
+# pane or agent the palette was opened over.
 #
-# Agents come in the order they want you, blocked, then done, then working, then idle, with
-# the state as a word beside the title so typing it narrows to it. A pane with an agent in it
-# is listed once, as the agent. A tab with one pane is listed once too, as the tab, with that
-# pane's command or path beside its name, and its pane gets a row of its own only beside
-# others. A shell's title is its prompt, user, host and path, and only the path tells two
-# apart, so the rest is cut. A pane you named goes by that name, with its command or path
-# quiet beside it, and herdr only reports the label once a pane has one.
+# Every row that stands for a pane reads the same way, whichever group it is in. The title is
+# what you call it, the name you gave the pane, or the best name herdr has when there is none.
+# The detail is what it is doing now, an agent's conversation topic or a shell's command or
+# path. The right is where it is. An agent's state is a word in a column of its own, so typing
+# it narrows to it, and the group says whether there is an agent inside, which is what decides
+# the state and the order.
+#
+# Agents come in the order they want you, blocked, then done, then working, then idle. A pane
+# with an agent in it is listed once, as the agent. A tab with one pane is listed once too, as
+# the tab, and its pane gets a row of its own only beside others. A shell's title is its
+# prompt, user, host and path, and only the path tells two apart, so the rest is cut. herdr
+# only reports a pane's label once the pane has been named.
 rows() {
   jq -c --arg home "$HOME" --arg pane "$HERE_PANE" --arg tab "$HERE_TAB" --arg ws "$HERE_WS" '
     def shown: ((.terminal_title_stripped // "") | sub("^[^@ ]+@[^: ]+:"; "")) as $t
@@ -120,13 +125,14 @@ rows() {
     | ($s.panes | group_by(.tab_id) | map({key: .[0].tab_id, value: .}) | from_entries) as $panes_in
     | {blocked: 0, done: 1, working: 2, idle: 3} as $want
     | ( $s.agents
-        | map(. + {w: $ws_by[.workspace_id], t: $tabs[.tab_id]})
+        | map(. + {w: $ws_by[.workspace_id], t: $tabs[.tab_id],
+                   topic: (((.terminal_title_stripped // "") | sub("^[^@ ]+@[^: ]+:"; "")) as $t
+                           | if $t != "" then $t else .agent end)})
         | sort_by($want[.agent_status] // 4, .w.number, .t.number) | .[]
         | {kind: "agent", target: .pane_id, group: "agent", state: .agent_status,
-           title: (($pane_by[.pane_id] | named)
-                   // (((.terminal_title_stripped // "") | sub("^[^@ ]+@[^: ]+:"; "")) as $t
-                       | if $t != "" then $t else .agent end)),
-           detail: (.agent_status // ""),
+           title: (($pane_by[.pane_id] | named) // .topic),
+           detail: (if ($pane_by[.pane_id].label // "") != "" then .topic else "" end),
+           status: (.agent_status // ""),
            right: "\(.w.label)/\(.t.label)", here: (.pane_id == $pane)} ),
       ( $s.workspaces | sort_by(.number) | .[]
         | {kind: "space", target: .workspace_id, group: "space", state: .agent_status,
@@ -135,7 +141,8 @@ rows() {
         | map(. + {w: $ws_by[.workspace_id], p: ($panes_in[.tab_id] // [])})
         | sort_by(.w.number, .number) | .[]
         | {kind: "tab", target: .tab_id, group: "tab", state: .agent_status, title: .label,
-           detail: (if (.p | length) == 1 and .p[0].agent == null then (.p[0] | named // shown) else "" end),
+           detail: (if (.p | length) == 1 and .p[0].agent == null
+                    then .p[0] | ((named | . + "  ") // "") + shown else "" end),
            right: .w.label, here: (.tab_id == $tab)} ),
       ( $s.panes
         | map(select(.agent == null and (($panes_in[.tab_id] // []) | length) > 1)
@@ -177,10 +184,11 @@ rows() {
 
 # One display line per row, after the kind and the target, the group quiet on the left, the
 # state glyph, the title cut to leave its detail room, at most half the width, the detail
-# quiet beside it, and the key or the location quiet on the right, followed by here on the
-# row the palette was opened over. A path is cut from the left, since its last folder is the
-# part that says which one it is. Widths are measured in jq, which counts characters rather
-# than bytes, so a title with a glyph in it still lines up.
+# quiet beside it, the state word in its own column when any row has one, and the key or the
+# location quiet on the right, followed by here on the row the palette was opened over. A path
+# is cut from the left, since its last folder is the part that says which one it is, and so is
+# a location, whose tab and here say which one. Widths are measured in jq, which counts
+# characters rather than bytes, so a title with a glyph in it still lines up.
 #
 # The last few rows picked come first, most recent at the top, which is where the next pick
 # usually is. A row that is here is passed over, since the place you are in is never where you
@@ -203,13 +211,16 @@ format() {
       else .[0:([$n - 1, 0] | max)] + "…" end;
     def pad($n): . + (" " * ([$n - length, 0] | max));
     def lpad($n): (" " * ([$n - length, 0] | max)) + .;
+    def lcut($n): if length <= $n then . else "…" + .[(length - ([$n - 1, 0] | max)):] end;
     def key: "\(.kind)\t\(.target)";
     def quiet: "\u001b[90m\(.)\u001b[0m";
     (map(select(.here | not) | key)) as $present
     | ([$recent[] | select(. as $k | $present | index([$k]))] | .[:5]) as $top
     | map(. + {right: ((.right // "" | clean) + (if .here then ", here" else "" end))})
-    | ([.[].right | length] | max // 0 | [., 28] | min) as $rw
-    | ($width - 9 - 2 - 2 - $rw | [., 12] | max) as $tw
+    | ([.[].right | length] | max // 0 | [., 30] | min) as $rw
+    | ([.[].status // "" | length] | max // 0) as $sw
+    | (if $sw > 0 then $sw + 2 else 0 end) as $scol
+    | ($width - 9 - 2 - 2 - $scol - $rw | [., 12] | max) as $tw
     | map(. + {rank: (key as $k | if .here then null else ($top | index([$k])) end // 1000)})
     | sort_by(.rank) | .[]
     | (if .state and $glyph[.state] then "\u001b[\($colour[.state])m\($glyph[.state])\u001b[0m" else " " end) as $g
@@ -218,7 +229,8 @@ format() {
     | (.title | clean | cut($tmax)) as $t
     | ($tw - ($t | length) - 2) as $room
     | (if $d == "" or $room < 1 then $t | pad($tw) else "\($t)  \($d | cut($room) | pad($room) | quiet)" end) as $body
-    | "\(key)\t\(.group | pad(8) | quiet) \($g) \($body)  \(.right | cut($rw) | lpad($rw) | quiet)"
+    | (if $sw > 0 then (.status // "" | pad($sw) | quiet) + "  " else "" end) as $st
+    | "\(key)\t\(.group | pad(8) | quiet) \($g) \($body)  \($st)\(.right | lcut($rw) | lpad($rw) | quiet)"
   '
 }
 

@@ -47,6 +47,15 @@ column and Close space in a space column, which read as the row being that tab o
 Every row that does something is grouped as a command now, and only the rows that are a thing
 keep agent, space, tab or session.
 
+**One group for every pane, agent or not, 2026-10-09.** Two named panes in one tab read
+`agent` and `pane`, which looked inconsistent. Turned down because the group is what tells a
+row with a state and a place in the want order from one without, and listing every pane as a
+pane would lose the ordering that answers which agent needs you. The layout was made the same
+instead.
+
+**A pane's name in place of the agent's topic, 2026-10-09.** Built that way first and undone
+the same day, since it dropped the conversation topic from the row and from search.
+
 **Group headings in the list, 2026-10-08.** tuios shows headings while nothing is typed and
 drops them once a query ranks the list. fzf cannot hide a row by query, and a heading left in
 a ranked list splits it into runs. The quiet first column carries the group instead.
@@ -108,4 +117,9 @@ agent states, and the recent file removed afterwards so no test ids were left in
 The earlier entries treated a pane as having no name because the snapshot keys of every pane
 on this machine had no `label`. herdr adds the field only once a pane is renamed, which a
 rename in a headless named session showed in the snapshot, `pane get` and `pane list` alike.
+
+**2026-10-09 12:20.** Rows that stand for a pane share one layout, the name, then what it is doing, then the
+state word in its own column, then where it is. A named agent shows its name and keeps its
+topic beside it rather than losing it. A location too long for its column is cut from the left
+so the tab and here survive.
 
