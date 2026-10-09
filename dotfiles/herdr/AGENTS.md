@@ -179,60 +179,91 @@ Anything new that scans broadly owes the same measurement before it ships.
 
 `prefix+space` opens `tools/palette.sh`, one list of every agent, space, tab, pane and session,
 every herdr action with its key, every custom command here and every action another plugin
-offers. A pane with an agent in it is listed once, as the agent. A tab with one pane is listed
-once too, as the tab with that pane's command or path quiet beside its name, and a pane only
-gets a row of its own beside other panes.
+offers. `decisions/herdr-palette.md` has why it was written here rather than installed, the
+four published palettes it was compared against, and everything turned down since.
 
-Agents are ordered by what they want, blocked, done, working, idle, with the state as a word
-beside the title so typing done narrows to them. The space, tab, pane or agent the palette was
-opened over says here on the right.
+**Rows.** A pane with an agent in it is listed once, as the agent. A tab with one pane is
+listed once too, as the tab with that pane's command or path quiet beside its name, and a pane
+only gets a row of its own beside other panes. Every row that stands for a pane reads the same
+way, whichever group it is in. The title is what you call it, the middle is what it is doing
+now, an agent's conversation topic or a shell's command or path, and the right is where it is,
+with an agent's state as a word in a column of its own before it. The group says whether there
+is an agent inside, which is what decides the state and the order, so `agent` and `pane` stay
+apart. A pane you name goes by that name in all three places. herdr reports `label` on a pane
+only once it has been named, so a snapshot of unnamed panes shows no such field, which reads
+as panes having no names at all.
 
-The last five rows picked come first when nothing is typed, skipping the one you are in, which
-leaves the place you came from on top. The history is `~/.config/herdr/palette-recent`, beside
-herdr's own state. It cannot live next to the script, since herdr runs the script through the
-plugin link, so its folder is this checkout.
+**Order.** Agents come in the order they want you, blocked, done, working, idle. Spaces and
+tabs keep the snapshot's order, which is their order on screen, and never their `number`,
+since a moved tab keeps the number it had. The last five rows picked come first when nothing
+is typed, skipping the one you are in, which leaves the place you came from on top. The row
+the palette was opened over says here.
 
-herdr cannot focus a pane by its id, only step to a neighbour by direction. So a pane row
-focuses the pane's tab and then asks `pane neighbor` which pane in that tab has the target
-beside it, and steps once from there, which leaves herdr's own idea of beside in charge.
+**The history** is `recent-<session>` in the state directory herdr hands every plugin,
+`HERDR_PLUGIN_STATE_DIR`, one file per session since ids belong to one server. It cannot live
+beside the script, since herdr runs the script through the plugin link, so its folder is this
+checkout.
 
-A template placeholder can be a list as well as a value. `{worktree}` in `palette-actions`
-lists the worktrees of the space's repository when it is reached and takes the one chosen, so
-opening a worktree is a pick rather than a typed branch name. `{label}` takes text like
-`{input}` and starts the prompt from the current name of what is being renamed.
+**Actions are data.** `tools/palette-actions` holds one line per action and its header says how
+a line reads, the modes, run, confirm, api, shell, step and key, and the placeholders. Adding an
+action is one line there and no change to the script. The key shown on a row is read from
+herdr's defaults overlaid by `[keys]` here, so a rebinding shows up on the next open.
 
-Every row that stands for a pane reads the same way, whichever group it is in. The title is
-what you call it, the middle is what it is doing now, an agent's conversation topic or a
-shell's command or path, and the right is where it is, with an agent's state as a word in a
-column of its own before it. The group says whether there is an agent inside, which is what
-decides the state and the order, so `agent` and `pane` stay apart. A pane you name goes by
-that name in all three places, its own row, the agent row when an agent runs in it and the tab
-row when it is alone in its tab, so the name and what it is doing both find it. herdr reports `label` on a pane only once it has been named, so a
-snapshot of unnamed panes shows no such field, which reads as panes having no names at all.
-`decisions/herdr-palette.md` has why it was written here rather than installed, and each of the
-four published palettes it was compared against.
+**The subject.** An action acts on the pane, tab and space its placeholders read, which is where
+the palette was opened, or the selected row when a key from `tools/palette-keys` was pressed.
+That file says which key does which action on which kind of row, `ctrl-r` rename, `ctrl-x`
+close and `ctrl-p` prompt an agent, and the footer is built from it as the cursor moves, so it
+only ever lists the keys that work on that row. Placeholders ask for their value when they are
+reached, `{input}` and `{label}` a line of text, `{label}` starting from the current name, and
+`{worktree}` a pick from the space's repository.
 
-The actions are data in `tools/palette-actions`, one line each, and that file's header says how
-a line reads. Adding an action is one line there and no change to the script. The key shown on
-a row is read from herdr's defaults overlaid by `[keys]` here, so a rebinding shows up on the
-next open with nothing else to change.
+**The preview** under the list shows the recent output of the pane a row stands for, an agent,
+a pane, or the focused pane of a tab or space, five hundred lines read with `herdr pane read`
+in under ten milliseconds, following the end, with carriage returns and trailing blank rows
+dropped, and output shorter than the window padded at the top so it sits at the bottom, since
+fzf otherwise draws it from the top and leaves the window empty below, which an agent's screen,
+often shorter than the window, always showed. fzf also lets a preview scroll until its last line
+reaches the top, leaving the window empty beneath it, and neither offers a setting against it
+nor says where the preview is scrolled to. So the wheel over the preview and shift with up and
+down go through `palette.sh --scroll`, which counts the lines below the window in a directory
+the run removes on exit and stops a scroll at either end. Other rows hide it, and `ctrl-/` hides it by hand. A full screen agent such as Claude
+keeps its conversation off herdr's scrollback, so its preview is its screen. `ctrl-o` swaps in
+the whole conversation, which herdr collects only for a plain text read of an idle agent, by
+scrolling the agent and reading page by page, measured at 0.7 to 6 seconds, which is why it
+waits for a key rather than following the cursor. The script answers fzf through flags at its top, `--preview` and `--focus`, which
+return before the snapshot and the rows are built, and that is what keeps them fast.
 
-Some of herdr's actions exist only inside its own window, help, copy mode, detach and the
-sidebar among them. Nothing the CLI or the API offers runs them, and `command.invoke` only
-takes an id the client hands out, so a palette row for one can only say which key to press.
+**What herdr's CLI lacks** goes to its socket. Moving a tab, clearing a pane and editing
+scrollback are API methods with no command, so the `api` mode writes one JSON line to
+`HERDR_SOCKET_PATH` with `nc` and reports a refusal. `tab.move` takes the slot the tab is
+inserted before, counted before it is lifted out, which `{tab_slot_left}` and
+`{tab_slot_right}` work out.
 
-A custom command and a plugin action may each open a popup of their own, and herdr refuses a
-second popup with `ui_busy`, so the palette starts them detached and gives itself 0.3 seconds
-to close first. Detached means a process group of its own, through `set -m`, because closing a
-popup ends its whole process group and a child that only ignores hangups dies with it. The
-state glyphs are the ones the sidebar draws, from whichever indicator set the config chooses.
+**What only herdr's window does** stays a key hint. Help, settings, detach, the space picker,
+go to, resize mode, last pane and cycling panes exist only in the client, and `command.invoke`
+only takes ids herdr hands its own client through a channel the public schema never shows. The
+rule is that this module drives herdr through herdr's CLI and socket alone and never through
+another program pressing keys, so a rename is our prompt and these rows say which key to press.
 
-Test a change against a named session started headless, `herdr --session palettetest server`
-with `HERDR_SOCKET_PATH` pointed at its socket, and a stub `fzf` early on the PATH that picks a
-row by kind and target. That runs every dispatch for real without touching the live session.
-A popup opens there too, `herdr plugin pane open` works with no client attached, so anything
-that has to happen as a popup closes can be probed by linking a throwaway plugin whose pane does
-just that, then unlinking it.
+**Work that outlives the popup.** A custom command, a plugin action, a socket request and a
+shell action all start detached and give the palette 0.3 seconds to close first, since herdr
+refuses a second popup with `ui_busy` and a slow action would hold this one open. Detached
+means a process group of its own, through `set -m`, because closing a popup ends its whole
+process group and a child that only ignores hangups dies with it. A new agent goes through
+`tools/new-agent.sh`, which splits and then retries the start, since a pane split a moment ago
+is not yet the available shell `agent start` requires.
+
+**Pane focus.** herdr cannot focus a pane by its id, only step to a neighbour by direction. So a
+pane row focuses the pane's tab and then asks `pane neighbor` which pane in that tab has the
+target beside it, and steps once from there, which leaves herdr's own idea of beside in charge.
+
+**Testing.** `test/palette-test.sh` runs every kind of pick against a headless server of its
+own, with a scripted fzf and a wrapper that records notifications, and removes the session on
+the way out. Run it after changing the palette and after upgrading herdr, since the palette
+reads the shape of herdr's output. It leaves out new agent, which starts a real agent, and edit
+scrollback, which needs a client to open into. A popup opens in a headless session too, so
+anything that has to happen as a popup closes can be probed by linking a throwaway plugin whose
+pane does just that, then unlinking it.
 
 ## Current keys
 

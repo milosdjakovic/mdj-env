@@ -10,3 +10,4 @@ fd | path | fd | required | tools/find.sh | listing the folders and files the pi
 nvim | path | nvim | optional | tools/find.sh | opening a chosen file, choosing a folder still works without it | brew | neovim
 lf | path | lf | optional | tools/browse.sh | the file browser popup, the binding is dead without it | brew | lf
 jq | path | jq | required | tools/context.sh, tools/find.sh, tools/palette.sh | reading herdr state, the snapshot every list is built from and whether the calling pane is free | brew | jq
+nc | path | nc | optional | tools/palette.sh | the socket requests for what herdr's CLI lacks, moving a tab, clearing a pane and editing scrollback, every other palette row works without it | macos | ships with macOS

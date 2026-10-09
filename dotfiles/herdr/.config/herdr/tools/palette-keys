@@ -1,0 +1,14 @@
+# The keys that act on the selected row rather than on where the palette was opened, one per
+# line, key | kinds | action | label. The kinds are the rows the key works on, separated by
+# spaces, the action is an id from palette-actions, run with the row as its subject, and the
+# label is the word the footer shows beside the key while the cursor is on such a row.
+#
+# A key and a kind belong together once. Adding one is a line here and no change to palette.sh.
+
+ctrl-r | tab        | rename_tab       | rename
+ctrl-r | space      | rename_workspace | rename
+ctrl-r | pane agent | rename_pane      | rename
+ctrl-x | tab        | close_tab        | close
+ctrl-x | space      | close_workspace  | close
+ctrl-x | pane agent | close_pane       | close
+ctrl-p | agent      | prompt_agent     | prompt

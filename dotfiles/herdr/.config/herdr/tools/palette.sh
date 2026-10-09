@@ -6,7 +6,16 @@
 #
 # Each row carries a kind and a target in two hidden fields, and one dispatch at the bottom
 # hands each kind to its handler. The actions themselves are data in palette-actions beside
-# this file, so this engine names no herdr action anywhere.
+# this file, and the keys that act on a selected row are data in palette-keys, so this engine
+# names no herdr action anywhere.
+#
+# An action acts on a subject, the pane, tab and space its placeholders read. The subject is
+# where the palette was opened, or the selected row when a row key was pressed, which is how
+# the same rename and close reach a tab you are not in.
+#
+# The script also answers fzf and itself through a few flags at the top, the preview, the
+# footer and the work that has to wait until the popup is gone. Those return before the
+# snapshot and the rows are built, which is what keeps them fast enough to run on every move.
 #
 # There are no group headings. The group is a quiet first column instead, which reads as a
 # heading while the list is in its own order and stays useful once fzf ranks it, and typing a
@@ -19,8 +28,17 @@ HERDR="${HERDR_BIN_PATH:-herdr}"
 # The custom commands in config.toml call herdr through this, and they run as children here.
 export HERDR_BIN_PATH="$HERDR"
 TOOLS="$(cd "$(dirname "$0")" && pwd)"
+# A shell action reaches the scripts beside this one through this.
+export PALETTE_TOOLS="$TOOLS"
 CONFIG="${HERDR_CONFIG_PATH:-$TOOLS/../config.toml}"
 ACTIONS="$TOOLS/palette-actions"
+KEYMAP="$TOOLS/palette-keys"
+SOCKET="${HERDR_SOCKET_PATH:-$HOME/.config/herdr/herdr.sock}"
+
+# The last fifty rows picked, most recent first, one kind and target per line, kept per session
+# since ids belong to one server. herdr gives every plugin a state directory of its own, and
+# the fallback is the same path for a run outside a plugin pane.
+RECENT="${HERDR_PLUGIN_STATE_DIR:-$HOME/.local/state/herdr/plugins/mdj-tools}/recent-${HERDR_SESSION:-default}"
 
 . "$TOOLS/context.sh"
 
@@ -43,6 +61,139 @@ trim() {
 notify() {
   "$HERDR" notification show "palette" --body "$1" >/dev/null 2>&1
 }
+
+# herdr's own message out of an error, which arrives as JSON, or the first line of whatever
+# else came back.
+error_text() {
+  jq -r '.error.message // empty' <<<"$1" 2>/dev/null | grep . || printf '%s' "${1%%$'\n'*}"
+}
+
+# What the cursor's row shows under the list, the recent output of the pane it stands for. A tab
+# and a space stand for the pane focused in them. Anything else has nothing to show, and the
+# focus binding hides the preview for it.
+#
+# It reads five hundred lines rather than the height of the window, so there is history to
+# scroll up through, and the preview window follows the end, so the latest line is what shows
+# first. Carriage returns are dropped, since nearly every line from a pane ends in one and fzf
+# draws them as space, and so are blank rows after the last line of output, since a full screen
+# program leaves its unused rows blank and scrolling down would otherwise end in them.
+#
+# A full screen agent such as Claude keeps its conversation off herdr's scrollback, so this
+# preview is its current screen. herdr can collect the rest, by scrolling the agent itself and
+# reading page by page, but only for a plain text read of an idle agent, and that took from 0.7
+# to 6 seconds, too slow and too visible to run on every move. So it waits for a key, and
+# history below is what that key shows.
+preview() {
+  local pane
+  case "$1" in
+    agent | pane) pane="$2" ;;
+    tab | space)
+      pane=$("$HERDR" api snapshot 2>/dev/null | jq -r --arg kind "$1" --arg id "$2" '
+        .result.snapshot as $s
+        | (if $kind == "tab" then $id else ($s.workspaces[] | select(.workspace_id == $id) | .active_tab_id) end) as $tab
+        | [$s.panes[] | select(.tab_id == $tab)] | (map(select(.focused)) + .) | first | .pane_id // empty')
+      ;;
+  esac
+  [ -n "${pane:-}" ] || return 0
+  "$HERDR" pane read "$pane" --source recent --lines 500 --format ansi 2>/dev/null | trim_output | shown
+}
+
+# Prints a preview and notes for scroll below how many lines it has, with none of them below the
+# window yet, since the window follows the end. A run outside fzf has nowhere to note it.
+shown() {
+  local out
+  out=$(cat)
+  printf '%s\n' "$out"
+  [ -n "${PALETTE_RUN:-}" ] || return 0
+  printf '%s\n' "$out" | wc -l | tr -d ' ' > "$PALETTE_RUN/lines"
+  echo 0 > "$PALETTE_RUN/below"
+}
+
+# fzf lets a preview scroll until its last line reaches the top of the window, which leaves the
+# window empty beneath it, and it has no setting against that and does not say where the
+# preview is scrolled to. So the wheel over the preview and shift with up and down come here,
+# which counts the lines below the window, lets a scroll down through only while there are some
+# and a scroll up only until the top line shows, and answers fzf with the action or nothing.
+scroll() {
+  local below lines max
+  [ -n "${PALETTE_RUN:-}" ] || return 0
+  below=$(cat "$PALETTE_RUN/below" 2>/dev/null || echo 0)
+  lines=$(cat "$PALETTE_RUN/lines" 2>/dev/null || echo 0)
+  max=$(( lines - ${FZF_PREVIEW_LINES:-0} ))
+  [ "$max" -gt 0 ] || max=0
+  case "$1" in
+    down) [ "$below" -gt 0 ] && { echo $((below - 1)) > "$PALETTE_RUN/below"; printf preview-down; } ;;
+    up) [ "$below" -lt "$max" ] && { echo $((below + 1)) > "$PALETTE_RUN/below"; printf preview-up; } ;;
+  esac
+  return 0
+}
+
+# An agent's whole conversation as plain text, collected by herdr while the agent is idle. A
+# busy agent cannot be scrolled, so it says so above the screen it does have.
+history() {
+  [ "$1" = agent ] || { preview "$1" "$2"; return; }
+  if [ "$("$HERDR" agent get "$2" 2>/dev/null | jq -r '.result.agent.agent_status')" != idle ]; then
+    { printf 'The agent is busy, and only an idle one can be scrolled for its history.\n\n'
+      PALETTE_RUN="" preview "$1" "$2"; } | shown
+    return
+  fi
+  "$HERDR" pane read "$2" --source recent-unwrapped --lines 1000 2>/dev/null | trim_output | shown
+}
+
+# Output shorter than the preview window is padded at the top, so it sits at the bottom the way
+# a terminal shows it. Otherwise fzf draws it from the top and leaves the rest of the window
+# empty below, which an agent's screen, often shorter than the window, always did.
+trim_output() {
+  tr -d '\r' | awk -v height="${FZF_PREVIEW_LINES:-0}" '
+    { line[NR] = $0; plain = $0; gsub(/\033\[[0-9;?]*[A-Za-z]/, "", plain)
+      if (plain ~ /[^[:space:]]/) last = NR }
+    END { for (i = last; i < height; i++) print ""
+          for (i = 1; i <= last; i++) print line[i] }'
+}
+
+# What fzf does as the cursor lands on a row of this kind, the footer listing the keys that
+# work there and the preview shown or hidden. The keys come from palette-keys.
+on_focus() {
+  local verb keys
+  case "$1" in
+    agent | space | tab | pane) verb="enter go" ;;
+    session) verb="enter switch" ;;
+    *) verb="enter run" ;;
+  esac
+  keys=$(grep -vE '^[[:space:]]*(#|$)' "$KEYMAP" | awk -F'|' -v kind="$1" '
+    { gsub(/^[ \t]+|[ \t]+$/, "", $1); gsub(/^[ \t]+|[ \t]+$/, "", $4)
+      if ((" " $2 " ") ~ (" " kind " ")) printf ", %s %s", $1, $4 }')
+  case "$1" in
+    agent) printf 'change-footer(%s%s, ctrl-o history, ctrl-/ preview)+show-preview' "$verb" "$keys" ;;
+    space | tab | pane) printf 'change-footer(%s%s, ctrl-/ preview)+show-preview' "$verb" "$keys" ;;
+    *) printf 'change-footer(%s%s)+hide-preview' "$verb" "$keys" ;;
+  esac
+}
+
+# Sends one request to herdr's socket, for the methods its CLI does not have, and says why
+# when herdr refuses. It runs after the popup has closed, since one of them opens its own.
+api_send() {
+  local reply
+  reply=$(printf '%s\n' "$1" | nc -U -w 2 "$SOCKET" 2>/dev/null)
+  [ -n "$reply" ] || { notify "herdr did not answer"; return; }
+  jq -e '.error' <<<"$reply" >/dev/null 2>&1 && notify "$(error_text "$reply")"
+}
+
+# Runs a shell action after the popup has closed, since the slow ones would hold it open, and
+# reports the herdr error that stopped it.
+shell_run() {
+  local err
+  err=$(bash -c "$1" 2>&1 >/dev/null) || notify "$(error_text "$err")"
+}
+
+case "${1:-}" in
+  --preview) preview "$2" "$3"; exit 0 ;;
+  --history) history "$2" "$3"; exit 0 ;;
+  --scroll) scroll "$2"; exit 0 ;;
+  --focus) on_focus "$2"; exit 0 ;;
+  --after-api) api_send "$2"; exit 0 ;;
+  --after-shell) shell_run "$2"; exit 0 ;;
+esac
 
 # Every action's key, herdr's default overlaid by the [keys] table here. Both are flat lines
 # of one name and one quoted value, the defaults commented out in herdr's own template, so a
@@ -95,7 +246,23 @@ IFS=$'\t' read -r HERE_TAB HERE_WS HERE_CWD < <(jq -r --arg p "$HERE_PANE" '
   .panes[] | select(.pane_id == $p) | [.tab_id, .workspace_id, (.foreground_cwd // .cwd // "")] | @tsv
 ' <<<"$SNAP")
 HERE_CWD="${HERE_CWD:-$HOME}"
+SUBJ_PANE="$HERE_PANE" SUBJ_TAB="$HERE_TAB" SUBJ_WS="$HERE_WS" SUBJ_CWD="$HERE_CWD"
 KEYS=$(shortcuts)
+
+# Makes the selected row the subject. An agent or a pane brings its tab and space, a tab brings
+# its space and its focused pane, and a space brings its active tab and that tab's pane.
+subject_from_row() {
+  IFS=$'\t' read -r SUBJ_PANE SUBJ_TAB SUBJ_WS SUBJ_CWD < <(jq -r --arg kind "$1" --arg id "$2" '
+    . as $s
+    | ( if $kind == "space" then ($s.workspaces[] | select(.workspace_id == $id) | .active_tab_id)
+        elif $kind == "tab" then $id
+        else ($s.panes[] | select(.pane_id == $id) | .tab_id) end ) as $tab
+    | ( if $kind == "agent" or $kind == "pane" then ($s.panes[] | select(.pane_id == $id))
+        else [$s.panes[] | select(.tab_id == $tab)] | (map(select(.focused)) + .) | first end ) as $p
+    | [$p.pane_id, $tab, $p.workspace_id, ($p.foreground_cwd // $p.cwd // "")] | @tsv
+  ' <<<"$SNAP")
+  SUBJ_CWD="${SUBJ_CWD:-$HOME}"
+}
 
 # Rows as JSON objects, kind, target, group, state, title, detail, right and here, one source
 # after another in the order they are listed when nothing is typed. here marks the space, tab,
@@ -107,6 +274,9 @@ KEYS=$(shortcuts)
 # path. The right is where it is. An agent's state is a word in a column of its own, so typing
 # it narrows to it, and the group says whether there is an agent inside, which is what decides
 # the state and the order.
+#
+# Spaces and tabs keep the order of the snapshot, which is their order on screen. Their number
+# is not, since a moved tab keeps the number it had.
 #
 # Agents come in the order they want you, blocked, then done, then working, then idle. A pane
 # with an agent in it is listed once, as the agent. A tab with one pane is listed once too, as
@@ -123,23 +293,25 @@ rows() {
     | ($s.workspaces | map({key: .workspace_id, value: .}) | from_entries) as $ws_by
     | ($s.tabs | map({key: .tab_id, value: .}) | from_entries) as $tabs
     | ($s.panes | group_by(.tab_id) | map({key: .[0].tab_id, value: .}) | from_entries) as $panes_in
+    | ($s.workspaces | to_entries | map({key: .value.workspace_id, value: .key}) | from_entries) as $wpos
+    | ($s.tabs | to_entries | map({key: .value.tab_id, value: .key}) | from_entries) as $tpos
     | {blocked: 0, done: 1, working: 2, idle: 3} as $want
     | ( $s.agents
         | map(. + {w: $ws_by[.workspace_id], t: $tabs[.tab_id],
                    topic: (((.terminal_title_stripped // "") | sub("^[^@ ]+@[^: ]+:"; "")) as $t
                            | if $t != "" then $t else .agent end)})
-        | sort_by($want[.agent_status] // 4, .w.number, .t.number) | .[]
+        | sort_by($want[.agent_status] // 4, $wpos[.workspace_id], $tpos[.tab_id]) | .[]
         | {kind: "agent", target: .pane_id, group: "agent", state: .agent_status,
            title: (($pane_by[.pane_id] | named) // .topic),
            detail: (if ($pane_by[.pane_id].label // "") != "" then .topic else "" end),
            status: (.agent_status // ""),
            right: "\(.w.label)/\(.t.label)", here: (.pane_id == $pane)} ),
-      ( $s.workspaces | sort_by(.number) | .[]
+      ( $s.workspaces | .[]
         | {kind: "space", target: .workspace_id, group: "space", state: .agent_status,
            title: .label, right: "\(.tab_count) tabs", here: (.workspace_id == $ws)} ),
       ( $s.tabs
         | map(. + {w: $ws_by[.workspace_id], p: ($panes_in[.tab_id] // [])})
-        | sort_by(.w.number, .number) | .[]
+        | sort_by($wpos[.workspace_id]) | .[]
         | {kind: "tab", target: .tab_id, group: "tab", state: .agent_status, title: .label,
            detail: (if (.p | length) == 1 and .p[0].agent == null
                     then .p[0] | ((named | . + "  ") // "") + shown else "" end),
@@ -147,7 +319,7 @@ rows() {
       ( $s.panes
         | map(select(.agent == null and (($panes_in[.tab_id] // []) | length) > 1)
               | . + {w: $ws_by[.workspace_id], t: $tabs[.tab_id]})
-        | sort_by(.w.number, .t.number) | .[]
+        | sort_by($wpos[.workspace_id], $tpos[.tab_id]) | .[]
         | {kind: "pane", target: .pane_id, group: "pane", title: (named // shown),
            detail: (if (.label // "") != "" then shown else "" end),
            right: "\(.w.label)/\(.t.label)", here: (.pane_id == $pane)} )
@@ -234,13 +406,9 @@ format() {
   '
 }
 
-# The last fifty rows picked, most recent first, one kind and target per line. It lives beside
-# herdr's own state in the home directory, since the script's folder resolves into this
-# checkout through the plugin link.
-RECENT="$HOME/.config/herdr/palette-recent"
-
 remember() {
   local line="$1"$'\t'"$2"
+  mkdir -p "$(dirname "$RECENT")"
   { printf '%s\n' "$line"; grep -vxF "$line" "$RECENT" 2>/dev/null; } | head -n 50 > "$RECENT.tmp" \
     && mv "$RECENT.tmp" "$RECENT"
 }
@@ -250,7 +418,7 @@ remember() {
 run() {
   local err
   err=$("$HERDR" "$@" 2>&1 >/dev/null) && return 0
-  notify "$(jq -r '.error.message // empty' <<<"$err" 2>/dev/null | grep . || printf '%s' "${err%%$'\n'*}")"
+  notify "$(error_text "$err")"
   return 1
 }
 
@@ -268,7 +436,7 @@ launch() {
 # close says which tab it closes. Read from the placeholder the command uses.
 describe() {
   case "$1" in
-    *"{pane}"*) printf 'pane %s' "$(jq -r --arg p "$HERE_PANE" '.panes[] | select(.pane_id == $p) | .label // .terminal_title_stripped // .pane_id' <<<"$SNAP")" ;;
+    *"{pane}"*) printf 'pane %s' "$(jq -r --arg p "$SUBJ_PANE" '.panes[] | select(.pane_id == $p) | .label // .terminal_title_stripped // .pane_id' <<<"$SNAP")" ;;
     *"{tab}"*) printf 'tab %s' "$(label_of "$1")" ;;
     *"{workspace}"*) printf 'space %s' "$(label_of "$1")" ;;
   esac
@@ -277,9 +445,9 @@ describe() {
 # The current name of the thing a command acts on, empty for a pane nobody has named.
 label_of() {
   case "$1" in
-    *"{pane}"*) jq -r --arg p "$HERE_PANE" '.panes[] | select(.pane_id == $p) | .label // empty' <<<"$SNAP" ;;
-    *"{tab}"*) jq -r --arg t "$HERE_TAB" '.tabs[] | select(.tab_id == $t) | .label' <<<"$SNAP" ;;
-    *"{workspace}"*) jq -r --arg w "$HERE_WS" '.workspaces[] | select(.workspace_id == $w) | .label' <<<"$SNAP" ;;
+    *"{pane}"*) jq -r --arg p "$SUBJ_PANE" '.panes[] | select(.pane_id == $p) | .label // empty' <<<"$SNAP" ;;
+    *"{tab}"*) jq -r --arg t "$SUBJ_TAB" '.tabs[] | select(.tab_id == $t) | .label' <<<"$SNAP" ;;
+    *"{workspace}"*) jq -r --arg w "$SUBJ_WS" '.workspaces[] | select(.workspace_id == $w) | .label' <<<"$SNAP" ;;
   esac
 }
 
@@ -306,7 +474,7 @@ confirm() {
 # on escape or when the space is not in a repository, which herdr's own message explains.
 choose_worktree() {
   local list pick
-  list=$("$HERDR" worktree list --workspace "$HERE_WS" 2>&1)
+  list=$("$HERDR" worktree list --workspace "$SUBJ_WS" 2>&1)
   if ! jq -e '.result.worktrees' <<<"$list" >/dev/null 2>&1; then
     notify "$(jq -r '.error.message // empty' <<<"$list" 2>/dev/null | grep . || printf 'no worktrees here')"
     return 1
@@ -320,23 +488,72 @@ choose_worktree() {
   printf '%s' "${pick%%$'\t'*}"
 }
 
-# The template's words, each placeholder replaced by exactly one argument. {worktree} asks for
-# its value when it is reached, so a template names what it needs and the list comes up then.
-expand_and_run() {
-  local word words choice out=()
+# The value of one placeholder for the subject, or a failure when the person backed out of the
+# prompt or the picker that supplies it. {input} and {label} ask for a line of text when they
+# are reached, {label} starting from the current name of what the template acts on. TEMPLATE
+# and TITLE are the action being expanded, for the prompt's wording.
+value_of() {
+  case "$1" in
+    pane) printf '%s' "$SUBJ_PANE" ;;
+    tab) printf '%s' "$SUBJ_TAB" ;;
+    workspace) printf '%s' "$SUBJ_WS" ;;
+    cwd) printf '%s' "$SUBJ_CWD" ;;
+    input | label)
+      local prefill="" text
+      [ "$1" = label ] && prefill=$(label_of "$TEMPLATE")
+      text=$(ask "$(tr '[:upper:]' '[:lower:]' <<<"$TITLE")" "$(describe "$TEMPLATE")" "$prefill") || return 1
+      [ -n "$text" ] || return 1
+      printf '%s' "$text"
+      ;;
+    worktree) choose_worktree ;;
+    # tab.move takes the slot the tab is inserted before, counted before it is lifted out, so
+    # one place left is its position less one and one place right is its position plus two,
+    # held at either end.
+    tab_slot_left | tab_slot_right)
+      jq -r --arg t "$SUBJ_TAB" --arg w "$SUBJ_WS" --arg side "$1" '
+        [.tabs[] | select(.workspace_id == $w) | .tab_id] as $l
+        | ([$l | to_entries[] | select(.value == $t) | .key] | first) as $i
+        | if $side == "tab_slot_left" then [$i - 1, 0] | max else [$i + 2, ($l | length)] | min end
+      ' <<<"$SNAP"
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+# The template's words into OUT, each placeholder replaced by exactly one argument, so a name
+# with spaces in it stays whole. A word may also be key={placeholder}, for a socket request.
+expand() {
+  local word words key val
+  OUT=()
   read -ra words <<<"$1"
   for word in "${words[@]}"; do
-    case "$word" in
-      "{pane}") out+=("$HERE_PANE") ;;
-      "{tab}") out+=("$HERE_TAB") ;;
-      "{workspace}") out+=("$HERE_WS") ;;
-      "{cwd}") out+=("$HERE_CWD") ;;
-      "{input}" | "{label}") out+=("$INPUT") ;;
-      "{worktree}") choice=$(choose_worktree) || return 0; out+=("$choice") ;;
-      *) out+=("$word") ;;
+    key="" val="$word"
+    case "$word" in *=\{*\}) key="${word%%=*}=" val="${word#*=}" ;; esac
+    case "$val" in
+      \{*\}) val="${val#\{}"; val=$(value_of "${val%\}}") || return 1 ;;
+    esac
+    OUT+=("$key$val")
+  done
+}
+
+# A socket request from method and key=value words, a number where the value is all digits.
+api_json() {
+  jq -nc --arg m "$1" '{id: "palette", method: $m,
+    params: ($ARGS.positional | map(capture("^(?<k>[^=]+)=(?<v>.*)$")
+      | {(.k): (if .v | test("^[0-9]+$") then .v | tonumber else .v end)}) | add // {})}' \
+    --args "${@:2}"
+}
+
+# A shell template with each placeholder it names replaced by that value, quoted for bash.
+shell_expand() {
+  local cmd="$1" ph val
+  for ph in pane tab workspace cwd input label; do
+    case "$cmd" in *"{$ph}"*)
+      val=$(value_of "$ph") || return 1
+      cmd="${cmd//\{$ph\}/$(printf '%q' "$val")}"
     esac
   done
-  run "${out[@]}"
+  printf '%s' "$cmd"
 }
 
 # herdr focuses a pane only by direction, from a pane beside it. So the pane's tab comes first,
@@ -358,17 +575,16 @@ focus_pane() {
   done
 }
 
-# The next or previous space, tab or agent, in the order the sidebar numbers them, wrapping
-# at either end.
+# The next or previous space, tab or agent, in their order on screen, wrapping at either end.
 step() {
   local kind="$1" delta="${2#+}" target
   target=$(jq -r --arg kind "$kind" --argjson d "$delta" \
-    --arg pane "$HERE_PANE" --arg tab "$HERE_TAB" --arg ws "$HERE_WS" '
+    --arg pane "$SUBJ_PANE" --arg tab "$SUBJ_TAB" --arg ws "$SUBJ_WS" '
     . as $s
-    | ($s.workspaces | map({key: .workspace_id, value: .number}) | from_entries) as $wn
-    | ($s.tabs | map({key: .tab_id, value: .number}) | from_entries) as $tn
-    | ( if $kind == "workspace" then [[$s.workspaces | sort_by(.number)[] | .workspace_id], $ws]
-        elif $kind == "tab" then [[$s.tabs | map(select(.workspace_id == $ws)) | sort_by(.number)[] | .tab_id], $tab]
+    | ($s.workspaces | to_entries | map({key: .value.workspace_id, value: .key}) | from_entries) as $wn
+    | ($s.tabs | to_entries | map({key: .value.tab_id, value: .key}) | from_entries) as $tn
+    | ( if $kind == "workspace" then [[$s.workspaces[] | .workspace_id], $ws]
+        elif $kind == "tab" then [[$s.tabs[] | select(.workspace_id == $ws) | .tab_id], $tab]
         else [[$s.agents | sort_by($wn[.workspace_id], $tn[.tab_id])[] | .pane_id], $pane] end ) as [$list, $here]
     | ($list | length) as $n
     | if $n == 0 then empty else
@@ -384,25 +600,42 @@ step() {
   esac
 }
 
+# One line of palette-actions run against the subject. run is a herdr command, confirm is the
+# same after a yes, api is a request to the socket, shell is a short bash script, step moves
+# along the spaces, tabs or agents, and key names the key for what only herdr's window does.
+# The command is everything after the third bar, so a shell action may use pipes.
 action() {
-  local id mode title command what prefill
-  IFS='|' read -r id mode title command < <(grep -E "^$1[[:space:]]*\|" "$ACTIONS" | head -n 1)
-  mode=$(trim "$mode") title=$(trim "$title") command=$(trim "$command")
+  local id mode json
+  IFS='|' read -r id mode TITLE TEMPLATE < <(grep -E "^$1[[:space:]]*\|" "$ACTIONS" | head -n 1)
+  mode=$(trim "$mode") TITLE=$(trim "$TITLE") TEMPLATE=$(trim "$TEMPLATE")
   case "$mode" in
-    run) expand_and_run "$command" ;;
-    ask)
-      what=$(describe "$command")
-      case "$command" in *"{label}"*) prefill=$(label_of "$command") ;; *) prefill="" ;; esac
-      INPUT=$(ask "$(tr '[:upper:]' '[:lower:]' <<<"$title")" "$what" "$prefill") || return 0
-      [ -n "$INPUT" ] && expand_and_run "$command"
-      ;;
+    run) expand "$TEMPLATE" && run "${OUT[@]}" ;;
     confirm)
-      what=$(describe "$command")
-      confirm "$title $what" "$what" && expand_and_run "$command"
+      confirm "$TITLE $(describe "$TEMPLATE")" "$(describe "$TEMPLATE")" || return 0
+      expand "$TEMPLATE" && run "${OUT[@]}"
       ;;
-    step) step $command ;;
-    key) notify "$title is $(press "$(jq -r --arg id "$1" '.[$id] // empty' <<<"$KEYS")")" ;;
+    api)
+      expand "$TEMPLATE" || return 0
+      json=$(api_json "${OUT[@]}") && launch "$0" --after-api "$json"
+      ;;
+    shell)
+      json=$(shell_expand "$TEMPLATE") || return 0
+      launch "$0" --after-shell "$json"
+      ;;
+    step) step $TEMPLATE ;;
+    key) notify "$TITLE is $(press "$(jq -r --arg id "$1" '.[$id] // empty' <<<"$KEYS")")" ;;
   esac
+}
+
+# The action palette-keys gives this key on this kind of row, run with the row as the subject.
+row_key() {
+  local id
+  id=$(grep -vE '^[[:space:]]*(#|$)' "$KEYMAP" | awk -F'|' -v key="$1" -v kind="$2" '
+    { k = $1; gsub(/^[ \t]+|[ \t]+$/, "", k); a = $3; gsub(/^[ \t]+|[ \t]+$/, "", a)
+      if (k == key && (" " $2 " ") ~ (" " kind " ")) { print a; exit } }')
+  [ -n "$id" ] || return 0
+  subject_from_row "$2" "$3"
+  action "$id"
 }
 
 # A custom command runs the way its type says, a plugin action through herdr and anything
@@ -428,17 +661,45 @@ session() {
   fi
 }
 
-pick=$(rows | format | fzf \
+# Where this run keeps the scroll count, removed when the palette closes.
+PALETTE_RUN=$(mktemp -d)
+export PALETTE_RUN
+trap 'rm -rf "$PALETTE_RUN"' EXIT
+
+# The keys a row answers besides enter, every key palette-keys names, for --expect.
+ROW_KEYS=$(grep -vE '^[[:space:]]*(#|$)' "$KEYMAP" | awk -F'|' '{ gsub(/[ \t]/, "", $1); print $1 }' | sort -u | paste -sd, -)
+
+# The preview sits under the list, so a row keeps the full width the format above measured.
+# Moving the cursor rewrites the footer for that row and shows or hides the preview, and
+# ctrl-o swaps in an agent's whole conversation until the cursor moves again.
+result=$(rows | format | fzf \
   --reverse \
   --ansi \
   --delimiter '\t' \
   --with-nth 3 \
   --no-hscroll \
   --prompt "herdr " \
-  --footer "enter run, type a group to narrow") || exit 0
+  --footer "enter run, type a group to narrow" \
+  --expect "$ROW_KEYS" \
+  --preview "'$0' --preview {1} {2}" \
+  --preview-window 'down,45%,border-top,follow' \
+  --bind "focus,load:transform:'$0' --focus {1}" \
+  --bind "ctrl-o:preview('$0' --history {1} {2})" \
+  --bind "preview-scroll-down,shift-down:transform:'$0' --scroll down" \
+  --bind "preview-scroll-up,shift-up:transform:'$0' --scroll up" \
+  --bind 'ctrl-/:toggle-preview') || exit 0
 
+key=$(head -n 1 <<<"$result")
+pick=$(sed -n 2p <<<"$result")
+[ -n "$pick" ] || exit 0
 IFS=$'\t' read -r kind target _ <<<"$pick"
 remember "$kind" "$target"
+
+if [ -n "$key" ]; then
+  row_key "$key" "$kind" "$target"
+  exit 0
+fi
+
 case "$kind" in
   agent) run agent focus "$target" ;;
   space) run workspace focus "$target" ;;

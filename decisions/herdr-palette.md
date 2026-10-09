@@ -56,6 +56,18 @@ instead.
 **A pane's name in place of the agent's topic, 2026-10-09.** Built that way first and undone
 the same day, since it dropped the conversation topic from the row and from search.
 
+**herdr's own rename prompt, and every key only row, through Hammerspoon pressing the keys,
+2026-10-09.** After the palette closed, Hammerspoon would have pressed the prefix and the key in
+Ghostty, which opens herdr's real UI for rename, help, settings and the rest. Turned down by
+Milos as a rule rather than for this case, the herdr module never depends on another program to
+drive herdr, it builds its own commands. So renames stay the palette's own prompt and those
+rows stay key hints.
+
+**`command.invoke` for herdr's own UI, 2026-10-09.** The one API call that runs a client command
+takes an opaque id herdr hands its own client through the client shell projection. Nothing in
+the public schema emits one, and the socket API document does not mention the call, so there
+is no id a plugin could pass.
+
 **Group headings in the list, 2026-10-08.** tuios shows headings while nothing is typed and
 drops them once a query ranks the list. fzf cannot hide a row by query, and a heading left in
 a ranked list splits it into runs. The quiet first column carries the group instead.
@@ -123,3 +135,44 @@ state word in its own column, then where it is. A named agent shows its name and
 topic beside it rather than losing it. A location too long for its column is cut from the left
 so the tab and here survive.
 
+**2026-10-09 12:46.** Five changes in one pass. The preview under the list reads the pane a row stands for
+with `herdr pane read`, measured under ten milliseconds. `ctrl-r`, `ctrl-x` and `ctrl-p` act on
+the selected row through `palette-keys`, by making that row the subject the placeholders read,
+and the footer is rebuilt for each row from the same file, bound to fzf's load event as well as
+focus so the first row has it too. Move tab, clear pane and edit scrollback go to the socket
+through `nc`, measured on a headless session, with `tab.move` counting the slot before the tab
+is lifted out. New agent goes through `tools/new-agent.sh`, which retries the start because a
+pane split a moment ago is refused as not an available shell, the first try failing exactly so.
+`test/palette-test.sh` covers the rest, 28 checks, all passing. Spaces and tabs are ordered by
+the snapshot rather than by `number`, which a moved tab keeps, found while testing the move.
+The history moved to herdr's per plugin state directory, one file per session, after the tests
+had to delete the old one by hand to keep test ids out of it.
+
+
+**2026-10-09 12:54.** The preview could not be scrolled on a shell pane, since it read only as many lines as
+the window held, and on an agent it scrolled into blank rows. It reads five hundred lines now,
+drops blank rows after the last output and follows the end. A full screen program such as
+Claude keeps no history, `recent`, `recent-unwrapped` and `visible` all returned its 28 screen
+rows, so an agent's preview stays its current screen. Corrected 2026-10-09, see below.
+
+**2026-10-09 13:36.** Corrected the entry above, an agent's history is not out of reach. herdr collects a
+full screen agent's transcript by scrolling it, but only for a plain text read of an idle agent,
+and the preview had asked for colour, which herdr always reads passively. Measured on idle
+Claude panes, 300 lines in 0.7 to 6 seconds, with the agent visibly scrolled meanwhile, so
+`ctrl-o` loads it on request instead of every move. Carriage returns, on 451 of 453 lines of a
+shell pane, are now dropped from the preview, the likely source of the space left at its
+bottom.
+
+**2026-10-09 14:02.** The carriage returns were not the space under an agent's preview, the shell pane had
+lost its gap only because it has hundreds of lines. An agent's screen is 25 to 58 lines, often
+shorter than the preview window, and fzf draws short output from the top. It is padded at the
+top now to the window's height, so it sits at the bottom like a terminal. Corrected 2026-10-09, see below.
+
+**2026-10-09 14:10.** The space under the preview was neither carriage returns nor short output. A
+screenshot read `450/452` with three lines at the top of an empty window, and fzf rendered in
+a virtual terminal through `pyte` showed why, it lets a preview scroll until the last line is at
+the top, which the wheel does. Starting the window small and resizing it was ruled out the same
+way. fzf has no setting against it and does not expose the scroll offset, so the palette routes
+the wheel and shift up and down through `--scroll`, which counts the lines below the window and
+stops at either end, replayed at 434/452 after twenty scrolls down. The padding stays, since a
+short screen still sits better at the bottom.

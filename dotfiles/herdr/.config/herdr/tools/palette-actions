@@ -6,40 +6,50 @@
 # such as the swaps, simply has no key to show.
 #
 # The mode says what happens on enter.
-#   run      runs the command as written
-#   ask      asks for one line of text first, which takes the place of {input}, or of {label},
-#            which starts the prompt from the current name of the thing being renamed
-#   confirm  asks yes or no first, for anything that closes or removes
+#   run      runs the command, a herdr subcommand without the leading herdr
+#   confirm  the same after a yes, for anything that closes or removes
+#   api      sends one request to herdr's socket, the method then key={placeholder} words, for
+#            what herdr's API does and its CLI does not
+#   shell    runs the command as a bash script once the popup has closed, for an action that
+#            takes more than one herdr call or long enough to hold the popup open, with herdr
+#            reached through "$HERDR_BIN_PATH" and the scripts beside this file through
+#            "$PALETTE_TOOLS"
 #   step     moves to the next or previous space, tab or agent, written as the kind and +1 or -1
 #   key      herdr cannot do this from outside its own window, so enter says which key to press,
 #            and the row is left out while that key is unbound
 #
-# The command is the herdr subcommand without the leading herdr. {pane}, {tab} and
-# {workspace} are the ones the palette was opened over, {cwd} is that pane's directory,
-# {worktree} lists the worktrees of the space's repository and takes the one chosen, and each
-# placeholder becomes exactly one argument, so a name with spaces in it stays whole.
+# The command is everything after the third bar, so a shell command may use pipes. Every
+# placeholder becomes exactly one value, so a name with spaces in it stays whole.
+#   {pane} {tab} {workspace}  the subject, where the palette was opened, or the selected row
+#                             when a key from palette-keys was pressed
+#   {cwd}                     the subject pane's directory
+#   {input}                   a line of text asked for when it is reached
+#   {label}                   the same, starting from the current name of what is renamed
+#   {worktree}                picked from the worktrees of the subject space's repository
+#   {tab_slot_left}           where the subject tab lands one place left, for tab.move
+#   {tab_slot_right}          and one place right
 #
 # Adding an action is one line here and no change to palette.sh.
 
 new_workspace            | run     | New space                 | workspace create --cwd {cwd} --focus
-rename_workspace         | ask     | Rename space              | workspace rename {workspace} {label}
+rename_workspace         | run     | Rename space              | workspace rename {workspace} {label}
 close_workspace          | confirm | Close space               | workspace close {workspace}
 previous_workspace       | step    | Previous space            | workspace -1
 next_workspace           | step    | Next space                | workspace +1
 workspace_picker         | key     | Space picker              |
 
 new_tab                  | run     | New tab                   | tab create --workspace {workspace} --cwd {cwd} --focus
-rename_tab               | ask     | Rename tab                | tab rename {tab} {label}
+rename_tab               | run     | Rename tab                | tab rename {tab} {label}
 close_tab                | confirm | Close tab                 | tab close {tab}
 previous_tab             | step    | Previous tab              | tab -1
 next_tab                 | step    | Next tab                  | tab +1
-move_tab_previous        | key     | Move tab left             |
-move_tab_next            | key     | Move tab right            |
+move_tab_previous        | api     | Move tab left             | tab.move tab_id={tab} insert_index={tab_slot_left}
+move_tab_next            | api     | Move tab right            | tab.move tab_id={tab} insert_index={tab_slot_right}
 
 split_vertical           | run     | Split right               | pane split {pane} --direction right --cwd {cwd} --focus
 split_horizontal         | run     | Split down                | pane split {pane} --direction down --cwd {cwd} --focus
 zoom                     | run     | Zoom pane                 | pane zoom {pane} --toggle
-rename_pane              | ask     | Rename pane               | pane rename {pane} {label}
+rename_pane              | run     | Rename pane               | pane rename {pane} {label}
 clear_pane_name          | run     | Clear pane name           | pane rename {pane} --clear
 close_pane               | confirm | Close pane                | pane close {pane}
 focus_pane_left          | run     | Focus pane left           | pane focus --direction left --pane {pane}
@@ -60,13 +70,15 @@ last_pane                | key     | Last pane                 |
 cycle_pane_next          | key     | Next pane                 |
 cycle_pane_previous      | key     | Previous pane             |
 resize_mode              | key     | Resize mode               |
-clear_pane               | key     | Clear pane                |
-edit_scrollback          | key     | Edit scrollback           |
+clear_pane               | api     | Clear pane                | pane.clear pane_id={pane}
+edit_scrollback          | api     | Edit scrollback           | pane.edit_scrollback pane_id={pane}
 
 previous_agent           | step    | Previous agent            | agent -1
 next_agent               | step    | Next agent                | agent +1
+prompt_agent             | run     | Prompt agent              | agent prompt {pane} {input}
+new_agent                | shell   | New agent                 | "$PALETTE_TOOLS/new-agent.sh" {pane} {cwd} {input} claude
 
-new_worktree             | ask     | New worktree from branch  | worktree create --workspace {workspace} --branch {input} --focus
+new_worktree             | run     | New worktree from branch  | worktree create --workspace {workspace} --branch {input} --focus
 open_worktree            | run     | Open worktree             | worktree open --workspace {workspace} --path {worktree} --focus
 remove_worktree          | confirm | Remove worktree           | worktree remove --workspace {workspace}
 
