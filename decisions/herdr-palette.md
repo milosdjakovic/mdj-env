@@ -68,6 +68,11 @@ takes an opaque id herdr hands its own client through the client shell projectio
 the public schema emits one, and the socket API document does not mention the call, so there
 is no id a plugin could pass.
 
+**An agent's whole conversation on `ctrl-o`, 2026-10-09.** Built and removed the same day. herdr
+collects a full screen agent's transcript only for a plain text read of an idle agent, by
+scrolling the agent, measured at 0.7 to 6 seconds. On a real screen nothing loaded, and Milos
+chose the plain preview over chasing it.
+
 **Group headings in the list, 2026-10-08.** tuios shows headings while nothing is typed and
 drops them once a query ranks the list. fzf cannot hide a row by query, and a heading left in
 a ranked list splits it into runs. The quiet first column carries the group instead.
@@ -176,3 +181,7 @@ way. fzf has no setting against it and does not expose the scroll offset, so the
 the wheel and shift up and down through `--scroll`, which counts the lines below the window and
 stops at either end, replayed at 434/452 after twenty scrolls down. The padding stays, since a
 short screen still sits better at the bottom.
+
+**2026-10-09 15:09.** Edit scrollback confirmed on a real screen, the socket request `pane.edit_scrollback`
+opened the pane's history in Neovim the same way `prefix+e` does, which a headless session could
+not show.

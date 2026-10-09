@@ -226,12 +226,12 @@ often shorter than the window, always showed. fzf also lets a preview scroll unt
 reaches the top, leaving the window empty beneath it, and neither offers a setting against it
 nor says where the preview is scrolled to. So the wheel over the preview and shift with up and
 down go through `palette.sh --scroll`, which counts the lines below the window in a directory
-the run removes on exit and stops a scroll at either end. Other rows hide it, and `ctrl-/` hides it by hand. A full screen agent such as Claude
-keeps its conversation off herdr's scrollback, so its preview is its screen. `ctrl-o` swaps in
-the whole conversation, which herdr collects only for a plain text read of an idle agent, by
-scrolling the agent and reading page by page, measured at 0.7 to 6 seconds, which is why it
-waits for a key rather than following the cursor. The script answers fzf through flags at its top, `--preview` and `--focus`, which
-return before the snapshot and the rows are built, and that is what keeps them fast.
+the run removes on exit and stops a scroll at either end. Other rows hide the preview, and
+`ctrl-/` hides it by hand. A full screen agent such as Claude keeps its conversation off herdr's
+scrollback and draws for its own pane's size, so its preview is that screen, cut or padded to
+the window, and nothing more. The script answers fzf through flags at its top, `--preview`,
+`--focus` and `--scroll`, which return before the snapshot and the rows are built, and that is
+what keeps them fast.
 
 **What herdr's CLI lacks** goes to its socket. Moving a tab, clearing a pane and editing
 scrollback are API methods with no command, so the `api` mode writes one JSON line to

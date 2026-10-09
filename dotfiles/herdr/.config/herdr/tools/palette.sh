@@ -78,11 +78,8 @@ error_text() {
 # draws them as space, and so are blank rows after the last line of output, since a full screen
 # program leaves its unused rows blank and scrolling down would otherwise end in them.
 #
-# A full screen agent such as Claude keeps its conversation off herdr's scrollback, so this
-# preview is its current screen. herdr can collect the rest, by scrolling the agent itself and
-# reading page by page, but only for a plain text read of an idle agent, and that took from 0.7
-# to 6 seconds, too slow and too visible to run on every move. So it waits for a key, and
-# history below is what that key shows.
+# A full screen agent such as Claude keeps its conversation off herdr's scrollback, so its
+# preview is its current screen. decisions/herdr-palette.md has why it is not more than that.
 preview() {
   local pane
   case "$1" in
@@ -128,18 +125,6 @@ scroll() {
   return 0
 }
 
-# An agent's whole conversation as plain text, collected by herdr while the agent is idle. A
-# busy agent cannot be scrolled, so it says so above the screen it does have.
-history() {
-  [ "$1" = agent ] || { preview "$1" "$2"; return; }
-  if [ "$("$HERDR" agent get "$2" 2>/dev/null | jq -r '.result.agent.agent_status')" != idle ]; then
-    { printf 'The agent is busy, and only an idle one can be scrolled for its history.\n\n'
-      PALETTE_RUN="" preview "$1" "$2"; } | shown
-    return
-  fi
-  "$HERDR" pane read "$2" --source recent-unwrapped --lines 1000 2>/dev/null | trim_output | shown
-}
-
 # Output shorter than the preview window is padded at the top, so it sits at the bottom the way
 # a terminal shows it. Otherwise fzf draws it from the top and leaves the rest of the window
 # empty below, which an agent's screen, often shorter than the window, always did.
@@ -164,8 +149,7 @@ on_focus() {
     { gsub(/^[ \t]+|[ \t]+$/, "", $1); gsub(/^[ \t]+|[ \t]+$/, "", $4)
       if ((" " $2 " ") ~ (" " kind " ")) printf ", %s %s", $1, $4 }')
   case "$1" in
-    agent) printf 'change-footer(%s%s, ctrl-o history, ctrl-/ preview)+show-preview' "$verb" "$keys" ;;
-    space | tab | pane) printf 'change-footer(%s%s, ctrl-/ preview)+show-preview' "$verb" "$keys" ;;
+    agent | space | tab | pane) printf 'change-footer(%s%s, ctrl-/ preview)+show-preview' "$verb" "$keys" ;;
     *) printf 'change-footer(%s%s)+hide-preview' "$verb" "$keys" ;;
   esac
 }
@@ -188,7 +172,6 @@ shell_run() {
 
 case "${1:-}" in
   --preview) preview "$2" "$3"; exit 0 ;;
-  --history) history "$2" "$3"; exit 0 ;;
   --scroll) scroll "$2"; exit 0 ;;
   --focus) on_focus "$2"; exit 0 ;;
   --after-api) api_send "$2"; exit 0 ;;
@@ -670,8 +653,7 @@ trap 'rm -rf "$PALETTE_RUN"' EXIT
 ROW_KEYS=$(grep -vE '^[[:space:]]*(#|$)' "$KEYMAP" | awk -F'|' '{ gsub(/[ \t]/, "", $1); print $1 }' | sort -u | paste -sd, -)
 
 # The preview sits under the list, so a row keeps the full width the format above measured.
-# Moving the cursor rewrites the footer for that row and shows or hides the preview, and
-# ctrl-o swaps in an agent's whole conversation until the cursor moves again.
+# Moving the cursor rewrites the footer for that row and shows or hides the preview.
 result=$(rows | format | fzf \
   --reverse \
   --ansi \
@@ -684,7 +666,6 @@ result=$(rows | format | fzf \
   --preview "'$0' --preview {1} {2}" \
   --preview-window 'down,45%,border-top,follow' \
   --bind "focus,load:transform:'$0' --focus {1}" \
-  --bind "ctrl-o:preview('$0' --history {1} {2})" \
   --bind "preview-scroll-down,shift-down:transform:'$0' --scroll down" \
   --bind "preview-scroll-up,shift-up:transform:'$0' --scroll up" \
   --bind 'ctrl-/:toggle-preview') || exit 0

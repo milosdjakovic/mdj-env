@@ -7,9 +7,8 @@
 # or not. Run it after changing the palette and after upgrading herdr, since the palette reads
 # the shape of herdr's output and an upgrade can move it.
 #
-# Three things are left out. New agent starts a real coding agent, edit scrollback opens into a
-# client, which a headless server does not have, and an agent's history needs a real agent for
-# herdr to scroll. Each was tried by hand when written.
+# Two actions are left out. New agent starts a real coding agent, and edit scrollback opens into
+# a client, which a headless server does not have. Both were tried by hand when written.
 #
 #   dotfiles/herdr/test/palette-test.sh
 set -u
@@ -153,7 +152,6 @@ check "the preview shows the pane's screen" "$("$PALETTE" --preview pane w1:p1 |
 check "no carriage return reaches the preview" "$("$PALETTE" --preview pane w1:p1 | grep -c $'\r')" 0
 check "the preview ends on output, not blank rows" "$("$PALETTE" --preview pane w1:p1 | tail -n 1 | grep -c '[^[:space:]]')" 1
 check "short output fills the window from the bottom" "$(FZF_PREVIEW_LINES=200 "$PALETTE" --preview pane w1:p1 | wc -l | tr -d ' ')" 200
-check "history on a plain pane is its preview" "$("$PALETTE" --history pane w1:p1 | md5)" "$("$PALETTE" --preview pane w1:p1 | md5)"
 run_dir="$WORK/run"; mkdir -p "$run_dir"
 PALETTE_RUN="$run_dir" "$PALETTE" --preview pane w1:p1 >/dev/null
 check "a preview records its length for scrolling" "$(cat "$run_dir/below")" 0
@@ -164,7 +162,6 @@ check "scrolling up from the end moves" "$(scroll up)" preview-up
 for _ in 1 2 3 4 5 6 7 8; do scroll up >/dev/null; done
 check "scrolling up stops once the first line shows" "$(cat "$run_dir/below")" 7
 check "scrolling down comes back" "$(scroll down)" preview-down
-check "an agent row offers its history" "$("$PALETTE" --focus agent | grep -c 'ctrl-o history')" 1
 
 echo "recent picks"
 PICK=$'tab\tw1:t3' palette w2:p1
