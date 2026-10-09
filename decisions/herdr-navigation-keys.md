@@ -1,6 +1,6 @@
 # Herdr navigation keys, agents and back and forth
 
-Status. The flat agent picker on `prefix+a` is gone, the palette's agent rows replaced it, `prefix+t` is `last_pane`, `prefix+alt+1..9` is `focus_agent`.
+Status. The flat agent picker on `prefix+a` is gone, the palette's agent rows replaced it, `prefix+t` is `last_pane`, `prefix+alt+1..9` is `focus_agent`, `prefix+ctrl+1..9` is `switch_workspace`.
 
 ## Now
 
@@ -11,7 +11,8 @@ on `prefix+g` for the whole tree.
 
 `last_pane` is on `prefix+t`, t for last, and it crosses tabs and spaces, so it is also the
 last tab and the last space. herdr 0.9.0 has no separate last tab or last workspace action.
-`focus_agent` is on `prefix+alt+1..9`.
+`focus_agent` is on `prefix+alt+1..9` and `switch_workspace` on `prefix+ctrl+1..9`, so the
+modifier after the prefix picks the level, none for a tab, alt for an agent, ctrl for a space.
 
 ## Rejected
 
@@ -42,3 +43,12 @@ to `prefix+t`. Reload reported applied with no diagnostics.
 second copy of its first section. The glyph file it shared with the palette went with it,
 folded back into the palette, its only reader.
 
+
+**2026-10-09 16:02.** `switch_workspace` bound to `prefix+ctrl+1..9` on request, so the three
+levels share the digits and differ by modifier. `config check` passed and the reload reported
+applied with no diagnostics, so no built in holds the key. Whether Ghostty delivers ctrl and a
+digit as its own key rather than a bare digit is not yet confirmed by a key press. If it arrives
+bare it switches tabs instead, and the fallback is `prefix+shift+1..9`, herdr's own example.
+
+**2026-10-09 16:07.** Confirmed by a key press, `prefix+ctrl+1..9` reaches herdr as its own
+key and switches spaces, so the fallback is not needed.

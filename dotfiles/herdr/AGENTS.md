@@ -267,7 +267,7 @@ pane does just that, then unlinking it.
 
 ## Current keys
 
-`space` the palette, whose agent rows replaced the flat agent picker that was on `a`. `g` the built in session navigator, herdr's `goto`. `t` is `last_pane`, back and forth across tabs and spaces. `alt+1..9` is `focus_agent`, which is unset by default and so looked broken. `decisions/herdr-navigation-keys.md` has the reasons. `alt+g` lazygit, in the repository the pane
+`space` the palette, whose agent rows replaced the flat agent picker that was on `a`. `g` the built in session navigator, herdr's `goto`. `t` is `last_pane`, back and forth across tabs and spaces. `alt+1..9` is `focus_agent`, which is unset by default and so looked broken. `ctrl+1..9` is `switch_workspace`, also unset by default, so a bare digit is a tab, alt an agent and ctrl a space. `decisions/herdr-navigation-keys.md` has the reasons. `alt+g` lazygit, in the repository the pane
 sits in, falling back to the recent list lazygit keeps for itself. `f` the fuzzy search. `alt+f`
 lf, viewing only, since every interactive key lf binds opens a tmux popup and there is no tmux
 session inside a herdr popup to open one into.
