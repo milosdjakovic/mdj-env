@@ -98,9 +98,11 @@ HERE_CWD="${HERE_CWD:-$HOME}"
 KEYS=$(shortcuts)
 
 # Rows as JSON objects, kind, target, group, state, title and right, one source after another
-# in the order they are listed when nothing is typed.
+# in the order they are listed when nothing is typed. A pane with an agent in it is listed once,
+# as the agent. A shell's title is its prompt, user, host and path, and only the path tells two
+# apart, so the rest is cut.
 rows() {
-  jq -c '
+  jq -c --arg home "$HOME" '
     . as $s
     | ($s.workspaces | map({key: .workspace_id, value: .}) | from_entries) as $ws
     | ($s.tabs | map({key: .tab_id, value: .}) | from_entries) as $tabs
@@ -116,7 +118,14 @@ rows() {
         | map(. + {w: $ws[.workspace_id]})
         | sort_by(.w.number, .number) | .[]
         | {kind: "tab", target: .tab_id, group: "tab", state: .agent_status,
-           title: .label, right: .w.label} )
+           title: .label, right: .w.label} ),
+      ( $s.panes
+        | map(select(.agent == null) | . + {w: $ws[.workspace_id], t: $tabs[.tab_id]})
+        | sort_by(.w.number, .t.number) | .[]
+        | ((.label // .terminal_title_stripped // "") | sub("^[^@ ]+@[^: ]+:"; "")) as $title
+        | {kind: "pane", target: .pane_id, group: "pane",
+           title: (if $title != "" then $title else (.foreground_cwd // .cwd // .pane_id) | sub("^" + $home; "~") end),
+           right: "\(.w.label)/\(.t.label)"} )
   ' <<<"$SNAP"
 
   grep -vE '^[[:space:]]*(#|$)' "$ACTIONS" | jq -Rc --argjson keys "$KEYS" '
@@ -149,15 +158,22 @@ rows() {
 }
 
 # One display line per row, after the kind and the target, the group quiet on the left, the
-# state glyph, the title cut to fit and the key or the location quiet on the right. Widths are
+# state glyph, the title cut to fit and the key or the location quiet on the right. A path is
+# cut from the left, since its last folder is the part that says which one it is. Widths are
 # measured in jq, which counts characters rather than bytes, so a title with a glyph in it
 # still lines up.
 format() {
   local width
-  width=$(( $(tput cols 2>/dev/null || echo 100) - 4 ))
+  # fzf takes two columns on the left for its pointer and gutter and keeps a margin on the
+  # right, and a row any wider is cut at the end or scrolled sideways to show the match, both
+  # drawn as two dots over the group or the location. The first width tried here left four and
+  # was two short, so this leaves eight.
+  width=$(( $(tput cols 2>/dev/null || echo 100) - 8 ))
   jq -rs --argjson width "$width" --argjson glyph "$STATUS_GLYPHS" --argjson colour "$STATUS_COLOURS" '
     def clean: tostring | gsub("[\t\n]"; " ");
-    def cut($n): if length > $n then .[0:([$n - 1, 0] | max)] + "…" else . end;
+    def cut($n): if length <= $n then .
+      elif test("^[~/]") then "…" + .[(length - ([$n - 1, 0] | max)):]
+      else .[0:([$n - 1, 0] | max)] + "…" end;
     def pad($n): . + (" " * ([$n - length, 0] | max));
     def lpad($n): (" " * ([$n - length, 0] | max)) + .;
     ([.[].right | clean | length] | max // 0 | [., 28] | min) as $rw
@@ -215,9 +231,28 @@ confirm() {
   [ "${pick%%,*}" = yes ]
 }
 
-# The template's words, each placeholder replaced by exactly one argument.
+# Every worktree of the repository the space sits in, the path of the one chosen, or a failure
+# on escape or when the space is not in a repository, which herdr's own message explains.
+choose_worktree() {
+  local list pick
+  list=$("$HERDR" worktree list --workspace "$HERE_WS" 2>&1)
+  if ! jq -e '.result.worktrees' <<<"$list" >/dev/null 2>&1; then
+    notify "$(jq -r '.error.message // empty' <<<"$list" 2>/dev/null | grep . || printf 'no worktrees here')"
+    return 1
+  fi
+  pick=$(jq -r --arg home "$HOME" '
+    .result.worktrees[] | select(.is_bare | not)
+    | [.path, (.branch // "detached"), (.path | sub("^" + $home; "~")),
+       (if .open_workspace_id then "open" else "" end)] | @tsv
+  ' <<<"$list" | fzf --reverse --ansi --delimiter '\t' --with-nth 2.. --prompt "worktree " \
+    --footer "enter open") || return 1
+  printf '%s' "${pick%%$'\t'*}"
+}
+
+# The template's words, each placeholder replaced by exactly one argument. {worktree} asks for
+# its value when it is reached, so a template names what it needs and the list comes up then.
 expand_and_run() {
-  local word words out=()
+  local word words choice out=()
   read -ra words <<<"$1"
   for word in "${words[@]}"; do
     case "$word" in
@@ -226,10 +261,30 @@ expand_and_run() {
       "{workspace}") out+=("$HERE_WS") ;;
       "{cwd}") out+=("$HERE_CWD") ;;
       "{input}") out+=("$INPUT") ;;
+      "{worktree}") choice=$(choose_worktree) || return 0; out+=("$choice") ;;
       *) out+=("$word") ;;
     esac
   done
   run "${out[@]}"
+}
+
+# herdr focuses a pane only by direction, from a pane beside it. So the pane's tab comes first,
+# then a pane in that tab whose neighbour in some direction is the target takes one step that
+# way, which leaves herdr to decide what beside means. A pane alone in its tab, or already the
+# focused one there, needs only the tab.
+focus_pane() {
+  local target="$1" tab q d
+  tab=$(jq -r --arg p "$target" '.panes[] | select(.pane_id == $p) | .tab_id' <<<"$SNAP")
+  run tab focus "$tab" || return 0
+  [ "$("$HERDR" pane layout --pane "$target" 2>/dev/null | jq -r '.result.layout.focused_pane_id')" = "$target" ] && return 0
+  for q in $(jq -r --arg p "$target" --arg t "$tab" '.panes[] | select(.tab_id == $t and .pane_id != $p) | .pane_id' <<<"$SNAP"); do
+    for d in left right up down; do
+      if [ "$("$HERDR" pane neighbor --direction "$d" --pane "$q" 2>/dev/null | jq -r '.result.neighbor.neighbor_pane_id // empty')" = "$target" ]; then
+        run pane focus --direction "$d" --pane "$q"
+        return 0
+      fi
+    done
+  done
 }
 
 # The next or previous space, tab or agent, in the order the sidebar numbers them, wrapping
@@ -306,6 +361,7 @@ pick=$(rows | format | fzf \
   --ansi \
   --delimiter '\t' \
   --with-nth 3 \
+  --no-hscroll \
   --prompt "herdr " \
   --footer "enter run, type a group to narrow") || exit 0
 
@@ -314,6 +370,7 @@ case "$kind" in
   agent) run agent focus "$target" ;;
   space) run workspace focus "$target" ;;
   tab) run tab focus "$target" ;;
+  pane) focus_pane "$target" ;;
   action) action "$target" ;;
   command) custom_run "$target" ;;
   plugin) set -- $target; launch "$HERDR" plugin action invoke "$2" --plugin "$1" ;;

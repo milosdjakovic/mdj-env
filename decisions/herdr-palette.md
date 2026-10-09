@@ -4,7 +4,7 @@ Status. `prefix+space` opens `tools/palette.sh`, a palette written here, after f
 
 ## Now
 
-The palette is a popup in the `mdj-tools` plugin. It lists every agent, space, tab and
+The palette is a popup in the `mdj-tools` plugin. It lists every agent, space, tab, pane and
 session, every herdr action with the key that does the same thing, every custom command in
 `config.toml` and every action another plugin offers, in that order, and enter does the
 chosen thing. The rows are read from one `herdr api snapshot`, so they cannot disagree with
@@ -80,3 +80,18 @@ the group column from `palette-actions`, which nothing read any more.
 **2026-10-08 17:37.** `tools/agents.sh` and its key were removed, so `tools/status.sh` had one
 reader left and was folded back into `palette.sh`.
 
+**2026-10-08 17:42.** Two of the gaps listed after the first commit closed on request. Panes
+without an agent are rows now, titled by the command they run or by their path when the title
+is a shell prompt, with a path cut from the left so its last folder shows. herdr 0.9.3 has no
+focus by pane id, only `pane focus --direction` from a given pane, so a pane row focuses the
+tab and then steps once from whichever pane `pane neighbor` reports the target beside. Open
+worktree lists the worktrees from `herdr worktree list` through a `{worktree}` placeholder
+instead of asking for a branch. Both were run against a headless named session, a three pane
+tab reached at each pane, and a scratch repository whose second worktree opened as its own
+space.
+
+
+**2026-10-08 20:46.** Rows were two columns wider than the list, so fzf drew two dots over
+the group of a pane row it scrolled sideways to show a match and over the space of a tab row it cut at the
+end, and a search for shell read as the same two results twice. The width now leaves eight
+columns rather than four, and `--no-hscroll` keeps the left edge in place.

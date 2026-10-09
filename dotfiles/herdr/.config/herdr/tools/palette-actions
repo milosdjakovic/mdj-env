@@ -14,8 +14,9 @@
 #            and the row is left out while that key is unbound
 #
 # The command is the herdr subcommand without the leading herdr. {pane}, {tab} and
-# {workspace} are the ones the palette was opened over, {cwd} is that pane's directory, and
-# each placeholder becomes exactly one argument, so a name with spaces in it stays whole.
+# {workspace} are the ones the palette was opened over, {cwd} is that pane's directory,
+# {worktree} lists the worktrees of the space's repository and takes the one chosen, and each
+# placeholder becomes exactly one argument, so a name with spaces in it stays whole.
 #
 # Adding an action is one line here and no change to palette.sh.
 
@@ -65,7 +66,7 @@ previous_agent           | step    | Previous agent            | agent -1
 next_agent               | step    | Next agent                | agent +1
 
 new_worktree             | ask     | New worktree from branch  | worktree create --workspace {workspace} --branch {input} --focus
-open_worktree            | ask     | Open worktree of branch   | worktree open --workspace {workspace} --branch {input} --focus
+open_worktree            | run     | Open worktree             | worktree open --workspace {workspace} --path {worktree} --focus
 remove_worktree          | confirm | Remove worktree           | worktree remove --workspace {workspace}
 
 reload_config            | run     | Reload config             | server reload-config

@@ -177,8 +177,17 @@ Anything new that scans broadly owes the same measurement before it ships.
 
 ## The palette
 
-`prefix+space` opens `tools/palette.sh`, one list of every agent, space, tab and session, every
-herdr action with its key, every custom command here and every action another plugin offers.
+`prefix+space` opens `tools/palette.sh`, one list of every agent, space, tab, pane and session,
+every herdr action with its key, every custom command here and every action another plugin
+offers. A pane with an agent in it is listed once, as the agent.
+
+herdr cannot focus a pane by its id, only step to a neighbour by direction. So a pane row
+focuses the pane's tab and then asks `pane neighbor` which pane in that tab has the target
+beside it, and steps once from there, which leaves herdr's own idea of beside in charge.
+
+A template placeholder can be a list as well as a value. `{worktree}` in `palette-actions`
+lists the worktrees of the space's repository when it is reached and takes the one chosen, so
+opening a worktree is a pick rather than a typed branch name.
 `decisions/herdr-palette.md` has why it was written here rather than installed, and each of the
 four published palettes it was compared against.
 
