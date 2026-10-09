@@ -7,7 +7,8 @@
 #
 # The mode says what happens on enter.
 #   run      runs the command as written
-#   ask      asks for one line of text first, which takes the place of {input}
+#   ask      asks for one line of text first, which takes the place of {input}, or of {label},
+#            which starts the prompt from the current name of the thing being renamed
 #   confirm  asks yes or no first, for anything that closes or removes
 #   step     moves to the next or previous space, tab or agent, written as the kind and +1 or -1
 #   key      herdr cannot do this from outside its own window, so enter says which key to press,
@@ -21,14 +22,14 @@
 # Adding an action is one line here and no change to palette.sh.
 
 new_workspace            | run     | New space                 | workspace create --cwd {cwd} --focus
-rename_workspace         | ask     | Rename space              | workspace rename {workspace} {input}
+rename_workspace         | ask     | Rename space              | workspace rename {workspace} {label}
 close_workspace          | confirm | Close space               | workspace close {workspace}
 previous_workspace       | step    | Previous space            | workspace -1
 next_workspace           | step    | Next space                | workspace +1
 workspace_picker         | key     | Space picker              |
 
 new_tab                  | run     | New tab                   | tab create --workspace {workspace} --cwd {cwd} --focus
-rename_tab               | ask     | Rename tab                | tab rename {tab} {input}
+rename_tab               | ask     | Rename tab                | tab rename {tab} {label}
 close_tab                | confirm | Close tab                 | tab close {tab}
 previous_tab             | step    | Previous tab              | tab -1
 next_tab                 | step    | Next tab                  | tab +1
@@ -38,7 +39,7 @@ move_tab_next            | key     | Move tab right            |
 split_vertical           | run     | Split right               | pane split {pane} --direction right --cwd {cwd} --focus
 split_horizontal         | run     | Split down                | pane split {pane} --direction down --cwd {cwd} --focus
 zoom                     | run     | Zoom pane                 | pane zoom {pane} --toggle
-rename_pane              | ask     | Rename pane               | pane rename {pane} {input}
+rename_pane              | ask     | Rename pane               | pane rename {pane} {label}
 clear_pane_name          | run     | Clear pane name           | pane rename {pane} --clear
 close_pane               | confirm | Close pane                | pane close {pane}
 focus_pane_left          | run     | Focus pane left           | pane focus --direction left --pane {pane}

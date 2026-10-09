@@ -95,3 +95,17 @@ space.
 the group of a pane row it scrolled sideways to show a match and over the space of a tab row it cut at the
 end, and a search for shell read as the same two results twice. The width now leaves eight
 columns rather than four, and `--no-hscroll` keeps the left edge in place.
+
+**2026-10-09 10:03.** Agents ordered blocked, done, working, idle, with the state as searchable text beside
+the title, the last five picks first with the current place skipped, a here marker on the row
+the palette was opened over, a single pane tab listed once as the tab with its pane's path,
+and rename prompts that start from the current name through a `{label}` placeholder. The
+title now leaves room for its detail, since a long agent title had pushed the state word out
+of sight and out of reach of the search. Run against a headless named session with reported
+agent states, and the recent file removed afterwards so no test ids were left in it.
+
+**2026-10-09 11:12.** Panes are searched by the name you give them, and renaming one starts from that name.
+The earlier entries treated a pane as having no name because the snapshot keys of every pane
+on this machine had no `label`. herdr adds the field only once a pane is renamed, which a
+rename in a headless named session showed in the snapshot, `pane get` and `pane list` alike.
+

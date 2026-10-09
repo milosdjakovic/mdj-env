@@ -97,35 +97,53 @@ IFS=$'\t' read -r HERE_TAB HERE_WS HERE_CWD < <(jq -r --arg p "$HERE_PANE" '
 HERE_CWD="${HERE_CWD:-$HOME}"
 KEYS=$(shortcuts)
 
-# Rows as JSON objects, kind, target, group, state, title and right, one source after another
-# in the order they are listed when nothing is typed. A pane with an agent in it is listed once,
-# as the agent. A shell's title is its prompt, user, host and path, and only the path tells two
-# apart, so the rest is cut.
+# Rows as JSON objects, kind, target, group, state, title, detail, right and here, one source
+# after another in the order they are listed when nothing is typed. detail is quiet text after
+# the title, and here marks the space, tab, pane or agent the palette was opened over.
+#
+# Agents come in the order they want you, blocked, then done, then working, then idle, with
+# the state as a word beside the title so typing it narrows to it. A pane with an agent in it
+# is listed once, as the agent. A tab with one pane is listed once too, as the tab, with that
+# pane's command or path beside its name, and its pane gets a row of its own only beside
+# others. A shell's title is its prompt, user, host and path, and only the path tells two
+# apart, so the rest is cut. A pane you named goes by that name, with its command or path
+# quiet beside it, and herdr only reports the label once a pane has one.
 rows() {
-  jq -c --arg home "$HOME" '
+  jq -c --arg home "$HOME" --arg pane "$HERE_PANE" --arg tab "$HERE_TAB" --arg ws "$HERE_WS" '
+    def shown: ((.terminal_title_stripped // "") | sub("^[^@ ]+@[^: ]+:"; "")) as $t
+      | if $t != "" then $t else (.foreground_cwd // .cwd // .pane_id) | sub("^" + $home; "~") end;
+    def named: (.label // "") | select(. != "");
     . as $s
-    | ($s.workspaces | map({key: .workspace_id, value: .}) | from_entries) as $ws
+    | ($s.panes | map({key: .pane_id, value: .}) | from_entries) as $pane_by
+    | ($s.workspaces | map({key: .workspace_id, value: .}) | from_entries) as $ws_by
     | ($s.tabs | map({key: .tab_id, value: .}) | from_entries) as $tabs
+    | ($s.panes | group_by(.tab_id) | map({key: .[0].tab_id, value: .}) | from_entries) as $panes_in
+    | {blocked: 0, done: 1, working: 2, idle: 3} as $want
     | ( $s.agents
-        | map(. + {w: $ws[.workspace_id], t: $tabs[.tab_id]})
-        | sort_by(.w.number, .t.number) | .[]
+        | map(. + {w: $ws_by[.workspace_id], t: $tabs[.tab_id]})
+        | sort_by($want[.agent_status] // 4, .w.number, .t.number) | .[]
         | {kind: "agent", target: .pane_id, group: "agent", state: .agent_status,
-           title: (.terminal_title_stripped // .agent), right: "\(.w.label)/\(.t.label)"} ),
+           title: (($pane_by[.pane_id] | named)
+                   // (((.terminal_title_stripped // "") | sub("^[^@ ]+@[^: ]+:"; "")) as $t
+                       | if $t != "" then $t else .agent end)),
+           detail: (.agent_status // ""),
+           right: "\(.w.label)/\(.t.label)", here: (.pane_id == $pane)} ),
       ( $s.workspaces | sort_by(.number) | .[]
         | {kind: "space", target: .workspace_id, group: "space", state: .agent_status,
-           title: .label, right: "\(.tab_count) tabs"} ),
+           title: .label, right: "\(.tab_count) tabs", here: (.workspace_id == $ws)} ),
       ( $s.tabs
-        | map(. + {w: $ws[.workspace_id]})
+        | map(. + {w: $ws_by[.workspace_id], p: ($panes_in[.tab_id] // [])})
         | sort_by(.w.number, .number) | .[]
-        | {kind: "tab", target: .tab_id, group: "tab", state: .agent_status,
-           title: .label, right: .w.label} ),
+        | {kind: "tab", target: .tab_id, group: "tab", state: .agent_status, title: .label,
+           detail: (if (.p | length) == 1 and .p[0].agent == null then (.p[0] | named // shown) else "" end),
+           right: .w.label, here: (.tab_id == $tab)} ),
       ( $s.panes
-        | map(select(.agent == null) | . + {w: $ws[.workspace_id], t: $tabs[.tab_id]})
+        | map(select(.agent == null and (($panes_in[.tab_id] // []) | length) > 1)
+              | . + {w: $ws_by[.workspace_id], t: $tabs[.tab_id]})
         | sort_by(.w.number, .t.number) | .[]
-        | ((.label // .terminal_title_stripped // "") | sub("^[^@ ]+@[^: ]+:"; "")) as $title
-        | {kind: "pane", target: .pane_id, group: "pane",
-           title: (if $title != "" then $title else (.foreground_cwd // .cwd // .pane_id) | sub("^" + $home; "~") end),
-           right: "\(.w.label)/\(.t.label)"} )
+        | {kind: "pane", target: .pane_id, group: "pane", title: (named // shown),
+           detail: (if (.label // "") != "" then shown else "" end),
+           right: "\(.w.label)/\(.t.label)", here: (.pane_id == $pane)} )
   ' <<<"$SNAP"
 
   grep -vE '^[[:space:]]*(#|$)' "$ACTIONS" | jq -Rc --argjson keys "$KEYS" '
@@ -151,37 +169,68 @@ rows() {
 
   "$HERDR" session list --json 2>/dev/null | jq -c --arg sock "${HERDR_SOCKET_PATH:-}" '
     .sessions[]?
-    | (if $sock != "" then .socket_path == $sock else .default end) as $here
     | {kind: "session", target: .name, group: "session", title: .name,
-       right: ((if .running then "running" else "stopped" end) + (if $here then ", this one" else "" end))}
+       right: (if .running then "running" else "stopped" end),
+       here: (if $sock != "" then .socket_path == $sock else .default end)}
   '
 }
 
 # One display line per row, after the kind and the target, the group quiet on the left, the
-# state glyph, the title cut to fit and the key or the location quiet on the right. A path is
-# cut from the left, since its last folder is the part that says which one it is. Widths are
-# measured in jq, which counts characters rather than bytes, so a title with a glyph in it
-# still lines up.
+# state glyph, the title cut to leave its detail room, at most half the width, the detail
+# quiet beside it, and the key or the location quiet on the right, followed by here on the
+# row the palette was opened over. A path is cut from the left, since its last folder is the
+# part that says which one it is. Widths are measured in jq, which counts characters rather
+# than bytes, so a title with a glyph in it still lines up.
+#
+# The last few rows picked come first, most recent at the top, which is where the next pick
+# usually is. A row that is here is passed over, since the place you are in is never where you
+# are going, and that leaves the place you came from at the top. Below them every source keeps
+# its own order, and fzf's ranking keeps the same order between equal matches.
 format() {
-  local width
+  local width recent
   # fzf takes two columns on the left for its pointer and gutter and keeps a margin on the
   # right, and a row any wider is cut at the end or scrolled sideways to show the match, both
   # drawn as two dots over the group or the location. The first width tried here left four and
   # was two short, so this leaves eight.
   width=$(( $(tput cols 2>/dev/null || echo 100) - 8 ))
-  jq -rs --argjson width "$width" --argjson glyph "$STATUS_GLYPHS" --argjson colour "$STATUS_COLOURS" '
+  recent='[]'
+  [ -r "$RECENT" ] && recent=$(jq -Rsc 'split("\n") | map(select(. != ""))' "$RECENT")
+  jq -rs --argjson width "$width" --argjson recent "${recent:-[]}" \
+    --argjson glyph "$STATUS_GLYPHS" --argjson colour "$STATUS_COLOURS" '
     def clean: tostring | gsub("[\t\n]"; " ");
     def cut($n): if length <= $n then .
       elif test("^[~/]") then "…" + .[(length - ([$n - 1, 0] | max)):]
       else .[0:([$n - 1, 0] | max)] + "…" end;
     def pad($n): . + (" " * ([$n - length, 0] | max));
     def lpad($n): (" " * ([$n - length, 0] | max)) + .;
-    ([.[].right | clean | length] | max // 0 | [., 28] | min) as $rw
+    def key: "\(.kind)\t\(.target)";
+    def quiet: "\u001b[90m\(.)\u001b[0m";
+    (map(select(.here | not) | key)) as $present
+    | ([$recent[] | select(. as $k | $present | index([$k]))] | .[:5]) as $top
+    | map(. + {right: ((.right // "" | clean) + (if .here then ", here" else "" end))})
+    | ([.[].right | length] | max // 0 | [., 28] | min) as $rw
     | ($width - 9 - 2 - 2 - $rw | [., 12] | max) as $tw
-    | .[]
+    | map(. + {rank: (key as $k | if .here then null else ($top | index([$k])) end // 1000)})
+    | sort_by(.rank) | .[]
     | (if .state and $glyph[.state] then "\u001b[\($colour[.state])m\($glyph[.state])\u001b[0m" else " " end) as $g
-    | "\(.kind)\t\(.target)\t\u001b[90m\(.group | pad(8))\u001b[0m \($g) \(.title | clean | cut($tw) | pad($tw))  \u001b[90m\(.right | clean | cut($rw) | lpad($rw))\u001b[0m"
+    | (.detail // "" | clean) as $d
+    | (if $d == "" then $tw else $tw - 2 - ([$d | length, ($tw / 2 | floor)] | min) end) as $tmax
+    | (.title | clean | cut($tmax)) as $t
+    | ($tw - ($t | length) - 2) as $room
+    | (if $d == "" or $room < 1 then $t | pad($tw) else "\($t)  \($d | cut($room) | pad($room) | quiet)" end) as $body
+    | "\(key)\t\(.group | pad(8) | quiet) \($g) \($body)  \(.right | cut($rw) | lpad($rw) | quiet)"
   '
+}
+
+# The last fifty rows picked, most recent first, one kind and target per line. It lives beside
+# herdr's own state in the home directory, since the script's folder resolves into this
+# checkout through the plugin link.
+RECENT="$HOME/.config/herdr/palette-recent"
+
+remember() {
+  local line="$1"$'\t'"$2"
+  { printf '%s\n' "$line"; grep -vxF "$line" "$RECENT" 2>/dev/null; } | head -n 50 > "$RECENT.tmp" \
+    && mv "$RECENT.tmp" "$RECENT"
 }
 
 # Runs one herdr command and reports a failure, since a herdr error is JSON on stderr and the
@@ -207,18 +256,28 @@ launch() {
 # close says which tab it closes. Read from the placeholder the command uses.
 describe() {
   case "$1" in
-    *"{pane}"*) jq -r --arg p "$HERE_PANE" '.panes[] | select(.pane_id == $p) | "pane \(.terminal_title_stripped // .pane_id)"' <<<"$SNAP" ;;
-    *"{tab}"*) jq -r --arg t "$HERE_TAB" '.tabs[] | select(.tab_id == $t) | "tab \(.label)"' <<<"$SNAP" ;;
-    *"{workspace}"*) jq -r --arg w "$HERE_WS" '.workspaces[] | select(.workspace_id == $w) | "space \(.label)"' <<<"$SNAP" ;;
+    *"{pane}"*) printf 'pane %s' "$(jq -r --arg p "$HERE_PANE" '.panes[] | select(.pane_id == $p) | .label // .terminal_title_stripped // .pane_id' <<<"$SNAP")" ;;
+    *"{tab}"*) printf 'tab %s' "$(label_of "$1")" ;;
+    *"{workspace}"*) printf 'space %s' "$(label_of "$1")" ;;
   esac
 }
 
-# One line of text, or a failure on escape. A picker with no rows is a text prompt, and
-# accept-or-print-query hands back what was typed when there is nothing to accept. fzf says
-# no match as it does so, so only its escape status counts as a cancel.
+# The current name of the thing a command acts on, empty for a pane nobody has named.
+label_of() {
+  case "$1" in
+    *"{pane}"*) jq -r --arg p "$HERE_PANE" '.panes[] | select(.pane_id == $p) | .label // empty' <<<"$SNAP" ;;
+    *"{tab}"*) jq -r --arg t "$HERE_TAB" '.tabs[] | select(.tab_id == $t) | .label' <<<"$SNAP" ;;
+    *"{workspace}"*) jq -r --arg w "$HERE_WS" '.workspaces[] | select(.workspace_id == $w) | .label' <<<"$SNAP" ;;
+  esac
+}
+
+# One line of text, starting from the third argument, or a failure on escape. A picker with no
+# rows is a text prompt, and accept-or-print-query hands back what was typed when there is
+# nothing to accept. fzf says no match as it does so, so only its escape status counts as a
+# cancel.
 ask() {
   local out
-  out=$(fzf --reverse --prompt "$1 " --header "$2" --footer "enter confirm" \
+  out=$(fzf --reverse --prompt "$1 " --header "$2" --query "${3:-}" --footer "enter confirm" \
     --bind 'enter:accept-or-print-query' </dev/null)
   [ $? -eq 130 ] && return 1
   printf '%s' "$out"
@@ -260,7 +319,7 @@ expand_and_run() {
       "{tab}") out+=("$HERE_TAB") ;;
       "{workspace}") out+=("$HERE_WS") ;;
       "{cwd}") out+=("$HERE_CWD") ;;
-      "{input}") out+=("$INPUT") ;;
+      "{input}" | "{label}") out+=("$INPUT") ;;
       "{worktree}") choice=$(choose_worktree) || return 0; out+=("$choice") ;;
       *) out+=("$word") ;;
     esac
@@ -314,14 +373,15 @@ step() {
 }
 
 action() {
-  local id mode title command what
+  local id mode title command what prefill
   IFS='|' read -r id mode title command < <(grep -E "^$1[[:space:]]*\|" "$ACTIONS" | head -n 1)
   mode=$(trim "$mode") title=$(trim "$title") command=$(trim "$command")
   case "$mode" in
     run) expand_and_run "$command" ;;
     ask)
       what=$(describe "$command")
-      INPUT=$(ask "$(tr '[:upper:]' '[:lower:]' <<<"$title")" "$what") || return 0
+      case "$command" in *"{label}"*) prefill=$(label_of "$command") ;; *) prefill="" ;; esac
+      INPUT=$(ask "$(tr '[:upper:]' '[:lower:]' <<<"$title")" "$what" "$prefill") || return 0
       [ -n "$INPUT" ] && expand_and_run "$command"
       ;;
     confirm)
@@ -366,6 +426,7 @@ pick=$(rows | format | fzf \
   --footer "enter run, type a group to narrow") || exit 0
 
 IFS=$'\t' read -r kind target _ <<<"$pick"
+remember "$kind" "$target"
 case "$kind" in
   agent) run agent focus "$target" ;;
   space) run workspace focus "$target" ;;

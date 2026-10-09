@@ -179,7 +179,18 @@ Anything new that scans broadly owes the same measurement before it ships.
 
 `prefix+space` opens `tools/palette.sh`, one list of every agent, space, tab, pane and session,
 every herdr action with its key, every custom command here and every action another plugin
-offers. A pane with an agent in it is listed once, as the agent.
+offers. A pane with an agent in it is listed once, as the agent. A tab with one pane is listed
+once too, as the tab with that pane's command or path quiet beside its name, and a pane only
+gets a row of its own beside other panes.
+
+Agents are ordered by what they want, blocked, done, working, idle, with the state as a word
+beside the title so typing done narrows to them. The space, tab, pane or agent the palette was
+opened over says here on the right.
+
+The last five rows picked come first when nothing is typed, skipping the one you are in, which
+leaves the place you came from on top. The history is `~/.config/herdr/palette-recent`, beside
+herdr's own state. It cannot live next to the script, since herdr runs the script through the
+plugin link, so its folder is this checkout.
 
 herdr cannot focus a pane by its id, only step to a neighbour by direction. So a pane row
 focuses the pane's tab and then asks `pane neighbor` which pane in that tab has the target
@@ -187,7 +198,13 @@ beside it, and steps once from there, which leaves herdr's own idea of beside in
 
 A template placeholder can be a list as well as a value. `{worktree}` in `palette-actions`
 lists the worktrees of the space's repository when it is reached and takes the one chosen, so
-opening a worktree is a pick rather than a typed branch name.
+opening a worktree is a pick rather than a typed branch name. `{label}` takes text like
+`{input}` and starts the prompt from the current name of what is being renamed.
+
+A pane you name goes by that name everywhere in the palette, its own row, the agent row when
+an agent runs in it and the tab row when it is alone in its tab, with its command or path quiet
+beside it so either finds it. herdr reports `label` on a pane only once it has been named, so a
+snapshot of unnamed panes shows no such field, which reads as panes having no names at all.
 `decisions/herdr-palette.md` has why it was written here rather than installed, and each of the
 four published palettes it was compared against.
 
