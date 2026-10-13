@@ -93,10 +93,14 @@ function M.new(names)
     }
   end
 
-  --- kit.badge(key, size) -> node, size names cheat, hint or button.
-  function kit.badge(key, size)
+  --- kit.badge(key, size, opts) -> node, size names cheat, hint or button. opts.fill true
+  --- makes the chip as wide as the slot it is laid out in rather than as wide as its glyph,
+  --- which is how the cheat sheet draws a fixed width badge column.
+  function kit.badge(key, size, opts)
+    opts = opts or {}
     return { kind = M.kinds.badge, key = tostring(key or ""),
-             size = member(names.badge, size, "size", "badge") }
+             size = member(names.badge, size, "size", "badge"),
+             fill = opts.fill == true }
   end
 
   --- kit.icon(imageOrGlyph, size) -> node, size names row, list or sheet. A string is a

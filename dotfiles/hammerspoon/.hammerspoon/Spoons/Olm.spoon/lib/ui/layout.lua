@@ -12,7 +12,11 @@
 -- division field/render.lua and lib/cheatsheet.lua already keep.
 --
 -- Text always leaves as hs.styledtext, since only styledtext carries a line break mode and a
--- pinned line height, and both are in use. A glyph icon is drawn to an hs.image the way
+-- pinned line height, and both are in use. A variant with pin set to false leaves the line
+-- height unpinned, which draws exactly what a plain canvas text element draws, measured in
+-- stage two against the plain elements every shared surface used before it moved here. Text
+-- and badges are measured whole through the measurer's exact, falling back to its width
+-- for a measurer that has no exact, such as a test's stub. A glyph icon is drawn to an hs.image the way
 -- lib/glyphicon.lua draws one, and cached here by glyph and size, so iconImage can also feed
 -- a native chooser row the very image a canvas pane would draw.
 
@@ -46,6 +50,12 @@ end
 
 local function spaceOf(T, name)
   return (name and T.space[name]) or 0
+end
+
+-- The natural width of one string, measured whole when the measurer can, see the header.
+local function widthOf(measure, str, font, size)
+  if measure.exact then return measure:exact(str, font, size) end
+  return measure:width(str, font, size)
 end
 
 --- M.new(deps) -> engine
@@ -163,12 +173,13 @@ function M.new(deps)
         local lines = measure:wrap(node.str, v.font, v.size, maxW)
         return maxW, #lines * v.lineHeight
       end
-      return math.min(math.ceil(measure:width(node.str, v.font, v.size)), maxW), v.lineHeight
+      return math.min(math.ceil(widthOf(measure, node.str, v.font, v.size)), maxW), v.lineHeight
     elseif kind == "badge" then
       local b = T.badge[node.size]
+      if node.fill then return maxW, b.height end
       local v = T.text[b.text]
-      local w = math.ceil(measure:width(node.key, v.font, v.size)) + 2 * b.padX
-      return math.max(b.height, w), b.height
+      local w = math.ceil(widthOf(measure, node.key, v.font, v.size)) + 2 * b.padX
+      return math.max(b.minWidth or b.height, w), b.height
     elseif kind == "icon" then
       local s = T.icon[node.size]
       return s, s
@@ -222,15 +233,15 @@ function M.new(deps)
   end
 
   local function textElement(ctx, str, v, colorRole, align, lineBreak, frame)
+    local paragraph = { alignment = align, lineBreak = lineBreak }
+    if v.pin ~= false then
+      paragraph.minimumLineHeight = v.lineHeight
+      paragraph.maximumLineHeight = v.lineHeight
+    end
     local styled = hs.styledtext.new(str, {
       font = { name = v.font, size = v.size },
       color = colorOf(ctx, colorRole),
-      paragraphStyle = {
-        alignment = align,
-        lineBreak = lineBreak,
-        minimumLineHeight = v.lineHeight,
-        maximumLineHeight = v.lineHeight,
-      },
+      paragraphStyle = paragraph,
     })
     return { type = "text", text = styled, frame = frame }
   end
@@ -242,18 +253,23 @@ function M.new(deps)
     if kind == "text" then
       local v = T.text[node.variant]
       local lineBreak = node.lineBreak or (node.wrap and "wordWrap" or "truncateTail")
+      -- frameY and extraW place the frame against the box without taking room in it.
       push(ctx, textElement(ctx, node.str, v, node.color or v.color or "foreground",
-        node.align or "left", lineBreak, { x = x, y = y, w = w, h = h }))
+        node.align or "left", lineBreak,
+        { x = x, y = y + (v.frameY or 0), w = w + (v.extraW or 0), h = h }))
     elseif kind == "badge" then
       local b = T.badge[node.size]
       local v = T.text[b.text]
       local bw = sizeOf(node, w, T)
-      local r = T.radius.badge
+      local r = T.radius[b.radius or "badge"]
       push(ctx, { type = "rectangle", action = "fill", fillColor = colorOf(ctx, "badge"),
         roundedRectRadii = { xRadius = r, yRadius = r },
         frame = { x = x, y = y, w = bw, h = b.height } })
-      push(ctx, textElement(ctx, node.key, v, "foreground", "center", "clip",
-        { x = x, y = y + round((b.height - v.lineHeight) / 2), w = bw, h = v.lineHeight }))
+      -- Centred unrounded, then moved by textY, and wrapped by word, which is what a plain
+      -- canvas text element does and what every badge drew with before stage two.
+      push(ctx, textElement(ctx, node.key, v, "foreground", "center", "wordWrap",
+        { x = x, y = y + (b.height - v.lineHeight) / 2 + (b.textY or 0), w = bw,
+          h = v.lineHeight }))
     elseif kind == "icon" then
       local s = T.icon[node.size]
       local img = engine.iconImage(node.source, s)

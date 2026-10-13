@@ -20,14 +20,15 @@
 --- (column count, badge width, whether rows carry icons), all model fields here,
 --- so one renderer serves both.
 ---
---- Content styling is global, set once via configure(), typically from
---- config/settings.lua. configure(opts) accepts:
----   theme        - the chooser palette ({ dark = {...}, light = {...} }); the chip
----                  and text colours track light and dark from it, matching the
----                  hint bar
----   fontSize     - text size (px); lineHeight follows unless set explicitly
+--- Content styling comes from the UI kit. Every badge, separator, icon, label and
+--- title is a kit node laid out where this file's grid arithmetic puts it, in the
+--- kit's cheat and cheatTitle variants and its cheat badge, so the type, the chip and
+--- the text colours track light and dark through the kit's tokens, matching the hint
+--- bar. The cheat sheet settings block, fontSize, lineHeight and badgeRadius, reaches
+--- those tokens through the spec the composition root builds, root/uispec.lua.
+--- configure(opts) accepts:
+---   ui           - the UI kit, lib/ui, everything here is drawn through it
 ---   padding      - inner panel padding (px), passed to CanvasPanel as padX/padY
----   badgeRadius  - key-badge corner roundness (px)
 ---   canvasPanel  - the CanvasPanel factory (spoon.CanvasPanel) to draw through; it
 ---                  owns the surface, so no fill or border is passed here
 ---
@@ -62,7 +63,7 @@ obj.version = "4.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
-obj._theme = nil          -- effective content styling (DEFAULT_THEME + configure)
+obj._ui = nil             -- injected: the UI kit every element is drawn through
 obj._layoutDefaults = nil -- effective layout defaults (DEFAULTS + configure)
 obj._panelCfg = nil       -- injected: { factory, padding }
 obj._panel = nil          -- the one CanvasPanel instance, built lazily
@@ -83,16 +84,6 @@ local DEFAULTS = {
   groupGap = 20,     -- vertical gap between sections
 }
 
--- Content styling defaults. configure() clones and overrides these. Colours are
--- not here; they come from the chooser palette per light/dark at draw time, the
--- same source and treatment as the shortcut hint bar.
-local DEFAULT_THEME = {
-  fontSize = 16,
-  lineHeight = 20,
-  badge = { radius = 5 },
-}
-
-local FONT = ".AppleSystemUIFont"
 local PANEL_PADDING = 20 -- CanvasPanel padX/padY unless configure sets padding
 
 -- Key names -> display glyph, and sub-modifier names -> glyph prefixed onto it.
@@ -124,29 +115,27 @@ end
 -- separator between, so alternate keys read as distinct boxes rather than one
 -- wide badge. This is opt-in: rows with a plain `badge` string keep the fixed
 -- width path, so the other overlays are unchanged.
-local BADGE_PAD_X = 10 -- horizontal padding inside a content-sized badge
 local BADGE_SEP = "or" -- default word between a row's badges, overridable per row
 local SEP_GAP = 8 -- gap on each side of the separator
 
--- Rendered width of text in the system UI font at `size`, so a box can hug its
--- key. Falls back to a rough estimate if the measurement is unavailable.
-local function measureW(text, size)
-  local sz = hs.drawing.getTextDrawingSize(tostring(text), { font = FONT, size = size })
-  return (sz and sz.w) or (#tostring(text) * size * 0.6)
+-- Rendered width of text in the cheat sheet's type, measured whole through the kit, so a
+-- box can hug its key.
+local function measureW(ui, text, variant)
+  return ui.measure:exact(tostring(text), variant.font, variant.size)
 end
 
 -- Boxes for a `badges` row and the total block width, so labels can align past
 -- the widest block. Each box is at least `minH` wide, so a lone glyph stays
--- square rather than a sliver.
-local function badgeBoxes(r, size, minH)
+-- square rather than a sliver. padX is the cheat badge's own padding token.
+local function badgeBoxes(ui, r, variant, padX, minH)
   local boxes, total = {}, 0
   for _, b in ipairs(r.badges) do
-    local w = math.max(minH, math.floor(measureW(b, size) + 2 * BADGE_PAD_X + 0.5))
+    local w = math.max(minH, math.floor(measureW(ui, b, variant) + 2 * padX + 0.5))
     boxes[#boxes + 1] = { text = b, w = w }
     total = total + w
   end
   local sep = r.sep or BADGE_SEP
-  local sepW = math.floor(measureW(sep, size) + 0.5)
+  local sepW = math.floor(measureW(ui, sep, variant) + 0.5)
   total = total + (#boxes - 1) * (SEP_GAP + sepW + SEP_GAP)
   return boxes, total, sep, sepW
 end
@@ -188,65 +177,42 @@ end
 
 local function px(n) return math.floor(n + 0.5) end
 
--- A copy of a colour with its alpha scaled by `a`, so a section's group alpha
--- fades each element (canvas has no group opacity). Colours are either
--- { white, alpha } or { red, green, blue, alpha }; either shape is copied whole.
-local function faded(color, a)
-  if a >= 1 then return color end
-  local c = shallow(color)
-  c.alpha = (color.alpha or 1) * a
-  return c
-end
-
--- A filled, rounded rectangle element (the badge chip).
-local function chipEl(x, y, w, h, color, radius)
-  return { type = "rectangle", action = "fill", fillColor = color,
-    roundedRectRadii = { xRadius = radius, yRadius = radius },
-    frame = { x = px(x), y = px(y), w = px(w), h = px(h) } }
-end
-
--- A text element. Canvas text is top-aligned in its frame, so callers pass a
--- frame already positioned to sit the glyphs where they want vertically.
-local function textEl(text, x, y, w, h, size, color, align)
-  return { type = "text", text = tostring(text), textFont = FONT, textSize = size,
-    textColor = color, textAlignment = align or "left",
-    frame = { x = px(x), y = px(y), w = px(w), h = px(h) } }
-end
-
--- The chip and text colours for the current appearance, tracking light and dark
--- from the chooser palette exactly as the shortcut hint bar does.
-local function palette(theme)
-  local dark = hs.host.interfaceStyle() == "Dark"
-  local side = (dark and theme.dark) or theme.light or theme.dark or {}
-  return {
-    fg = side.titleColor or { white = dark and 0.92 or 0.15 },       -- labels, badge glyphs
-    meta = side.subColor or { white = dark and 0.55 or 0.42 },       -- section titles, separators
-    badgeBg = { white = dark and 1 or 0, alpha = dark and 0.12 or 0.06 },
-  }
+-- One kit node laid out in one rect, its elements appended to els. The rect is where this
+-- file's own arithmetic put the leaf, rounded to whole points the way every frame here was,
+-- and the group around the node carries the section's fade, which multiplies every colour
+-- and image alpha inside it, since a canvas has no group opacity of its own.
+function obj:_place(els, node, x, y, w, h, alpha, T)
+  local ui = self._ui
+  local rect = { x = px(x), y = px(y), w = px(w), h = px(h) }
+  for _, el in ipairs((ui.layout(ui.group({ node }, { alpha = alpha }), rect, { tokens = T }))) do
+    els[#els + 1] = el
+  end
 end
 
 -- One section's rows appended to `els`, positioned from contentY and filled
--- row-major across L.columns. `alpha` fades the whole group.
-function obj:_rowsElements(els, rows, contentY, L, alpha, C)
-  local sz = self._theme.fontSize
-  local radius = self._theme.badge.radius
-  local fg = faded(C.fg, alpha)
-  local meta = faded(C.meta, alpha)
-  local badgeBg = faded(C.badgeBg, alpha)
+-- row-major across L.columns. `alpha` fades the whole group. Every badge, separator,
+-- icon and label is a kit node in the cheat variant or the cheat badge, so the type, the
+-- colours and the chip come from the tokens.
+function obj:_rowsElements(els, rows, contentY, L, alpha, T)
+  local ui = self._ui
+  local v = T.text.cheat
+  local sz = v.size
+  local wordWrap = ui.lineBreaks.wordWrap
+
+  -- The model owns the badge height and the icon size, so the tokens this section draws
+  -- with carry the model's numbers in the two slots its badges and icons are sized from.
+  -- T is this draw's own fresh copy, so nothing outside it sees the change.
+  T.badge.cheat.height = L.badgeHeight
+  T.icon.sheet = L.iconSize
 
   -- For content-sized `badges` rows, align every label past the widest badge
   -- block in this section, so a short row and a two-box row still line up.
   local maxBlock = 0
   for _, r in ipairs(rows) do
     if r.badges then
-      local _, total = badgeBoxes(r, sz, L.badgeHeight)
+      local _, total = badgeBoxes(ui, r, v, T.badge.cheat.padX, L.badgeHeight)
       if total > maxBlock then maxBlock = total end
     end
-  end
-
-  -- Badge glyph and label text, both sat vertically centred in their box.
-  local function glyphEl(text, x, top, w)
-    return textEl(text, x, top + (L.badgeHeight - sz) / 2 - 1, w, sz + 4, sz, fg, "center")
   end
 
   for i, r in ipairs(rows) do
@@ -258,34 +224,35 @@ function obj:_rowsElements(els, rows, contentY, L, alpha, C)
     local labelX
 
     if r.badges then
-      local boxes, _, sep, sepW = badgeBoxes(r, sz, L.badgeHeight)
+      local boxes, _, sep, sepW = badgeBoxes(ui, r, v, T.badge.cheat.padX, L.badgeHeight)
       local bx = x
       for bi, b in ipairs(boxes) do
-        els[#els + 1] = chipEl(bx, badgeTop, b.w, L.badgeHeight, badgeBg, radius)
-        els[#els + 1] = glyphEl(b.text, bx, badgeTop, b.w)
+        self:_place(els, ui.badge(b.text, "cheat", { fill = true }), bx, badgeTop, b.w,
+          L.badgeHeight, alpha, T)
         bx = bx + b.w
         if bi < #boxes then
-          els[#els + 1] = textEl(sep, bx + SEP_GAP, badgeTop + (L.badgeHeight - sz) / 2 - 1,
-            sepW, sz + 4, sz, meta, "center")
+          self:_place(els, ui.text(sep, "cheat", { color = "subtext", align = ui.aligns.center,
+            lineBreak = wordWrap }), bx + SEP_GAP, badgeTop + (L.badgeHeight - sz) / 2 - 1,
+            sepW, v.lineHeight, alpha, T)
           bx = bx + SEP_GAP + sepW + SEP_GAP
         end
       end
       labelX = x + maxBlock + L.gap
     else
-      els[#els + 1] = chipEl(x, badgeTop, L.badgeWidth, L.badgeHeight, badgeBg, radius)
-      els[#els + 1] = glyphEl(r.badge, x, badgeTop, L.badgeWidth)
+      self:_place(els, ui.badge(r.badge, "cheat", { fill = true }), x, badgeTop, L.badgeWidth,
+        L.badgeHeight, alpha, T)
       labelX = x + L.badgeWidth + L.gap
     end
 
     if L.iconSize > 0 and r.icon then
       local iy = y + (L.rowHeight - L.iconSize) / 2
-      els[#els + 1] = { type = "image", image = r.icon, imageScaling = "scaleProportionally",
-        imageAlpha = alpha, frame = { x = px(labelX), y = px(iy), w = px(L.iconSize), h = px(L.iconSize) } }
+      self:_place(els, ui.icon(r.icon, "sheet"), labelX, iy, L.iconSize, L.iconSize, alpha, T)
       labelX = labelX + L.iconSize + L.gap
     end
 
     local labelW = L.colWidth - (labelX - x) - L.gap
-    els[#els + 1] = textEl(r.label or "", labelX, y + (L.rowHeight - sz) / 2 - 1, labelW, sz + 4, sz, fg, "left")
+    self:_place(els, ui.text(r.label or "", "cheat", { lineBreak = wordWrap }), labelX,
+      y + (L.rowHeight - sz) / 2 - 1, labelW, v.lineHeight, alpha, T)
   end
 end
 
@@ -295,10 +262,9 @@ end
 -- the draw that follows it agree without recomputing.
 function obj:_build()
   local model = self._model or {}
-  local T = self._theme
   local L = layoutOf(self._layoutDefaults, model)
   local sections = nonEmpty(model.sections)
-  if #sections == 0 then
+  if #sections == 0 or not self._ui then
     return { els = {}, w = 0, h = 0 }
   end
 
@@ -323,18 +289,19 @@ function obj:_build()
     h = h + rowsFor(#s.rows, layouts[i].columns) * layouts[i].rowHeight
   end
 
-  local C = palette(T.palette or {})
+  local T = self._ui.tokens()
   local els = {}
   local cursor = 0
   for i, s in ipairs(sections) do
     local SL = layouts[i]
     if i > 1 then cursor = cursor + L.groupGap end
     if s.title then
-      els[#els + 1] = textEl(s.title, 0, cursor, SL.columns * SL.colWidth, T.lineHeight,
-        T.fontSize, faded(C.meta, s.titleAlpha or s.alpha or 1.0), "left")
+      self:_place(els, self._ui.text(s.title, "cheatTitle",
+        { lineBreak = self._ui.lineBreaks.wordWrap }), 0, cursor, SL.columns * SL.colWidth,
+        T.text.cheatTitle.lineHeight, s.titleAlpha or s.alpha or 1.0, T)
       cursor = cursor + SL.titleHeight
     end
-    self:_rowsElements(els, s.rows, cursor, SL, s.alpha or 1.0, C)
+    self:_rowsElements(els, s.rows, cursor, SL, s.alpha or 1.0, T)
     cursor = cursor + rowsFor(#s.rows, SL.columns) * SL.rowHeight
   end
 
@@ -347,30 +314,17 @@ end
 
 --- CheatSheet:init()
 function obj:init()
-  self._theme = DEFAULT_THEME
   self._layoutDefaults = DEFAULTS
   return self
 end
 
 --- CheatSheet:configure(opts)
---- Content styling plus the injected CanvasPanel factory (see the header for the
---- full list). Any omitted field keeps its default, so configure(nil) is valid.
+--- The injected CanvasPanel factory and UI kit plus the panel padding (see the header for
+--- the full list). Any omitted field keeps its default, so configure(nil) is valid.
 function obj:configure(opts)
   opts = opts or {}
 
-  local t = shallow(DEFAULT_THEME)
-  t.badge = shallow(DEFAULT_THEME.badge)
-  if opts.badgeRadius ~= nil then t.badge.radius = opts.badgeRadius end
-  if opts.fontSize ~= nil then
-    t.fontSize = opts.fontSize
-    -- Keep the line box proportional to the font unless caller pins it.
-    t.lineHeight = opts.lineHeight or math.floor(opts.fontSize * 1.25 + 0.5)
-  elseif opts.lineHeight ~= nil then
-    t.lineHeight = opts.lineHeight
-  end
-  t.palette = opts.theme or t.palette
-  self._theme = t
-
+  self._ui = opts.ui or self._ui
   self._layoutDefaults = shallow(DEFAULTS)
 
   -- The panel factory, injected. CanvasPanel owns the surface look, so only the

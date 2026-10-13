@@ -32,6 +32,9 @@
 ---                                              pick its screen (opts.screen() -> hs.screen),
 ---                                              defaulting to hs.screen.mainScreen so the atom
 ---                                              still places itself if nothing is injected.
+---                                              opts.ui is the UI kit, which the empty state
+---                                              draws through and which answers the current
+---                                              half for the surface.
 ---                                              Callable more than once; each call merges.
 ---   CanvasPanel.surfaceElements(w, h, style?)  the surface elements for a w x h box at
 ---                                              origin (0, 0); style overrides the default.
@@ -47,7 +50,8 @@
 ---   cornerRadius  surface rounding in points (0 = square).
 ---   borderWidth   border stroke width (default 1).
 ---   dark, light   each { bg = "#RRGGBB", border = "#RRGGBB" }. The side matching the
----                 live appearance is used; light falls back to dark when absent.
+---                 half the UI kit's tokens name is used. Light falls back to dark when
+---                 absent, and with no kit injected the dark side is drawn.
 ---
 --- Reveal timing. By default the panel draws the instant show/arm is called. Give it a
 --- delay and it becomes idle-timed instead: arm(anchor) starts a countdown rather than
@@ -121,6 +125,11 @@ local DEFAULT_STYLE = nil
 -- live state.
 local SCREEN_PROVIDER = hs.screen.mainScreen
 
+-- The UI kit, injected by the composition root. The empty state draws through it, and the
+-- surface asks its tokens which half the system is on, so the appearance is asked in one
+-- place, lib/ui/style.lua, rather than here as well. Nil until then.
+local UI = nil
+
 --- CanvasPanel.placements - the five placements, and CanvasPanel.aligns the three
 --- alignments, published so a caller writes CanvasPanel.placements.below rather than the
 --- bare string "below". Both are closed sets this atom owns and validates, and both were
@@ -156,18 +165,23 @@ end
 ---   edit restyles them all.
 --- opts.screen sets the function a centered panel uses to pick its screen (opts.screen() ->
 ---   hs.screen), wiring the shared overlay display policy in.
+--- opts.ui sets the UI kit, lib/ui, the one place the current half is asked and the kit the
+---   empty state is drawn with.
 --- Callable more than once, each call merges, so the root can set the surface early and the
 --- screen later once its resolver exists. A field left out is left unchanged.
 function obj.configure(opts)
   opts = opts or {}
   if opts.surface ~= nil then DEFAULT_STYLE = opts.surface end
   if opts.screen ~= nil then SCREEN_PROVIDER = opts.screen end
+  if opts.ui ~= nil then UI = opts.ui end
   return obj
 end
 
--- Pick the side of a style matching the live appearance, falling back to dark.
+-- Pick the side of a style matching the half the kit's tokens name, falling back to dark.
+-- The same answer the appearance check here used to give, with the light side falling back
+-- to the dark one and the dark side to the light one before that.
 local function styleSide(style)
-  local dark = hs.host.interfaceStyle() == "Dark"
+  local dark = UI == nil or UI.tokens().half == "dark"
   return (dark and style.dark) or style.light or style.dark or {}
 end
 
@@ -215,24 +229,33 @@ end
 ---
 --- opts, every field optional.
 ---   text   the message, default "Nothing to preview".
----   color  an hs color table for the text, default a dim gray at reduced alpha. The
----          caller's own resolved color, never a theme this routine reads for itself.
----   size   the text's point size, default 13.
+---   color  an hs color table for the text, default the kit's quiet colour. The caller's
+---          own resolved color, never a theme this routine reads for itself.
+---   size   the text's point size, default the kit's empty variant, 13.
 ---
---- Kept dumb on purpose. No style resolution and no appearance logic live here, a caller
---- passes its own color exactly as it already does for the rest of what it draws.
+--- Drawn through the UI kit as one centred text in the empty variant. A caller's color and
+--- size reach it through a copy of the tokens rather than through the node, since a node
+--- names only roles and variants, so the four plugins that pass their own colour keep the
+--- exact colour they pass. With no kit injected it draws nothing.
 function obj.emptyStateElements(w, h, opts)
   opts = opts or {}
+  if not UI then return {} end
   local text = opts.text or "Nothing to preview"
-  local color = opts.color or { white = 0.6, alpha = 0.55 }
-  local size = opts.size or 13
-  local textH = size * 1.6
+  local tokens = UI.tokens()
+  local variant = tokens.text.empty
+  if opts.color ~= nil then tokens.colors.quiet = opts.color end
+  if opts.size ~= nil then
+    -- The line box keeps its proportion to the size, one point six of it.
+    variant.lineHeight = variant.lineHeight / variant.size * opts.size
+    variant.size = opts.size
+  end
+  local textH = variant.lineHeight
   -- A little above centre rather than exactly on it, which is what makes this read as
   -- an empty state instead of as a stray line sitting in the middle of the box.
   local y = h / 2 - textH
-  return { { type = "text", text = text,
-    textSize = size, textAlignment = "center", textColor = color,
-    frame = { x = 0, y = y, w = w, h = textH } } }
+  return (UI.layout(UI.text(text, "empty", { align = UI.aligns.center,
+    lineBreak = UI.lineBreaks.wordWrap }), { x = 0, y = y, w = w, h = textH },
+    { tokens = tokens }))
 end
 
 local Panel = {}

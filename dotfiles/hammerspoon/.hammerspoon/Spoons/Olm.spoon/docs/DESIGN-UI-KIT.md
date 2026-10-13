@@ -100,3 +100,19 @@ changes.
    by eye against main for visual parity.
 3. The palette step, the new look.
 4. Each plugin pane moves onto the kit, one plugin at a time, and its fallback colours go.
+
+## What stage two added to hold parity
+
+Stage two moved the empty state, the hint bar, the toasts, the cheat sheet and the canvas
+provider onto the kit with nothing a person sees changing, proven by the probes that
+`test/parity.sh` runs. Holding that needed a few additions, each holding a literal a surface
+drew with. Text variants may set `pin` false, which leaves the line height unpinned and draws
+exactly what a plain canvas text element draws, and `frameY` and `extraW`, which place the
+frame against its box without taking room. The variants hintKey, hintLabel, cheat, cheatTitle,
+toast, report, reportDetail and empty hold each surface's old type. Badge geometry may set
+`minWidth`, `textY` and `radius`, and a badge may take `fill`. The colours quiet and outline,
+the space steps sm and lg, the radius swatch, the icon swatch and the alpha muted joined the
+tokens. The layout engine measures each laid out string whole through `measure:exact`.
+`root/uispec.lua` builds the spec from settings for the root and the probes alike.
+`lib/chooser/textwidth.lua` stays for the native provider alone. Stage three replaces the
+parity variants with the new look.

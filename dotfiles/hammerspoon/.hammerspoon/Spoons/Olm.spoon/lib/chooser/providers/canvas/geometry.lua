@@ -84,6 +84,13 @@
 
 local M = {}
 
+-- Stage two of docs/DESIGN-UI-KIT.md made this table the one canvas layout source. The list
+-- renderer used to carry a disagreeing copy of its own and now reads this one, and the
+-- native provider keeps its own because the system draws its rows. The type, the font and
+-- the two text sizes this table used to carry left it then for the UI kit's tokens, the
+-- title and sub variants, which hold the same values, so the provider hands the renderers
+-- one font and one pair of sizes rather than two copies that could drift. caretWidth joined
+-- it from field render's own literal, the one piece of field geometry that had no home.
 M.DEFAULT_LAYOUT = {
   -- Settled by hand across five rounds, read from Spoons/Olm.spoon/test/probe-canvasfield.lua's
   -- own GEOMETRY table. Not this file's own design, this file only carries it.
@@ -91,15 +98,13 @@ M.DEFAULT_LAYOUT = {
   baseH = 38,
   rowH = 38,
   rowCount = 9,
-  font = ".AppleSystemUIFont",
-  textSize = 16,
-  subSize = 12,
   padX = 16,
   iconSize = 28,
   iconGap = 10,
   textTopPad = 5,
   edgeMargin = 12,
   showRowNumbers = true,
+  caretWidth = 2,
   -- Borrowed outright from native.lua's own DEFAULT_LAYOUT, a placement question the
   -- five rounds behind BRIEF-CANVAS-LIST.md never redesigned. Named here so this file's
   -- own header can say plainly that this is a borrow rather than a fresh design.

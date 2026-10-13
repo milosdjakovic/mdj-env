@@ -10,32 +10,19 @@
 --- documents as the second way to use that atom.
 ---
 --- layout and style are the two things a caller passes and this file never invents its
---- own version of either. layout carries the geometry and the row typography. Six of its
---- fields, width, rowH, rowCount, baseH, font and subSize, are names DEFAULT_LAYOUT
---- already carries in lib/chooser/providers/native.lua, so a caller ready to wire the
---- real chooser's own layout table into this list can hand most of it straight in with
---- no renaming. textSize is not one of them on purpose, round four of the canvas list
---- brief withdrew native's own titleSize in favour of one value named for what it is, the
---- whole surface's own text size, shared with the field text sitting above this list
---- rather than kept as a row only number that merely happened to agree with it, and this
---- file reads that single name rather than titleSize now. padX, iconSize, iconGap and
---- textTopPad name what a row needs that the native layout has no word for at all, since
---- a real hs.chooser row is drawn by the operating system's own nib and never asks this
---- configuration to say how far its icon sits from its edge. showRowNumbers is round
---- four's own flag, described in full below where the numbers themselves are drawn. This
---- file falls back to its own default for whichever field a caller omits, so the list
---- still draws something reasonable even when a caller hands in nothing at all, though
---- the probe that drives this file today always states every one of them itself rather
---- than leaning on that fallback, since the whole point of round two of this track's
---- build plan was to stop inheriting the native chooser's own numbers and choose
---- proportions on purpose. style carries only colour, titleColor, subColor,
---- highlightColor and numberColor, since chooserTheme names no highlight colour or row
---- number colour of its own today, a real hs.chooser's own highlight being painted by the
---- system rather than by this configuration, so a caller picks one the same way the field
---- probe already picks its own selection colour rather than reading one from settings
---- that does not exist. This file reads none of settings.chooserTheme itself, the caller
---- resolves the live light or dark side and hands the result in as a plain table,
---- decision six of the original brief stated plainly.
+--- own version of either. layout carries the geometry and the row typography, geometry.lua's
+--- DEFAULT_LAYOUT plus the font, textSize and subSize the provider reads from the UI kit's
+--- tokens, since stage two of docs/DESIGN-UI-KIT.md made that table the one canvas layout
+--- source. textSize is named for what it is, the whole surface's own text size, shared with
+--- the field text sitting above this list, round four's own choice over native's titleSize.
+--- padX, iconSize, iconGap and textTopPad name what a row needs that the native layout has
+--- no word for at all, since a real hs.chooser row is drawn by the operating system's own
+--- nib. showRowNumbers is round four's own flag, described in full below where the numbers
+--- themselves are drawn. A geometry field a caller omits falls back to geometry's own value.
+--- style carries the colours and the dim alpha, titleColor, subColor, highlightColor,
+--- numberColor and dimAlpha, every one resolved by the provider from the kit's tokens, and
+--- this file reads none of settings.chooserTheme, decision six of the original brief
+--- stated plainly. The one set of colours it keeps answers only a caller passing no style.
 ---
 --- A row is drawn from the shape lib/chooser/providers/native.lua's own head already
 --- documents, title, subTitle, image, enabled and item, filterText playing no part once
@@ -121,56 +108,39 @@ local function load(name)
 end
 
 local model = load("model.lua")
+local geometry = load("../geometry.lua")
 
 local M = {}
 
--- Mirrors DEFAULT_LAYOUT in lib/chooser/providers/native.lua at the field names this
--- file shares with that module, restated here rather than loaded from that file since
--- native.lua is the one module this whole track leaves untouched and unread, a caller
--- wiring the real layout table in later hands the very same values back in through the
--- very same names. textSize, padX, iconSize, iconGap, textTopPad and showRowNumbers have
--- no native counterpart at all, so their defaults here are this file's own opinion rather
--- than a borrowed one, chosen to read sanely on their own rather than to match anything
--- else.
-local DEFAULT_LAYOUT = {
-  width = 480,
-  rowH = 42,
-  rowCount = 10,
-  baseH = 94,
-  font = ".AppleSystemUIFont",
-  textSize = 16,
-  subSize = 12,
-  padX = 16,
-  iconSize = 28,
-  iconGap = 10,
-  textTopPad = 5,
-  showRowNumbers = true,
-}
-
--- Plain literals rather than a settings read, the same reasoning field render.lua's own
--- DEFAULT_SELECTION_COLOR rests on, so this file still draws something sane if a caller
--- forgets a colour. highlightColor and numberColor are the two colours chooserTheme has
--- no answer for at all today, a real hs.chooser's own highlight and row hint numbering
--- both coming from the system rather than from this configuration's own palette, so
--- these fallbacks are this file's own opinion rather than a stand in for a setting that
--- exists somewhere else.
-local DEFAULT_TITLE_COLOR = { white = 0.9 }
-local DEFAULT_SUB_COLOR = { white = 0.6 }
-local DEFAULT_HIGHLIGHT_COLOR = { white = 0.5, alpha = 0.28 }
+-- The one canvas layout, geometry.lua's own, since stage two of docs/DESIGN-UI-KIT.md. This
+-- file used to carry a copy of its own that disagreed with it on the width, the row height,
+-- the row count and the field height, and the provider always handed in geometry's values,
+-- so its own copy only ever answered a caller that passed nothing. A field geometry no
+-- longer carries, the font and the two text sizes, arrives from the provider, which reads
+-- them from the UI kit's tokens.
+local DEFAULT_LAYOUT = geometry.DEFAULT_LAYOUT
 
 local function px(n) return math.floor(n + 0.5) end
 
--- A colour dimmed the way native.lua's own dim() dims a disabled row's title, a plain
--- alpha cut rather than a second colour a caller would have to supply, so a disabled row
--- reads as inert with nothing more asked of the style table. The row number reuses this
--- same helper against subColor rather than asking style for a third colour of its own
--- whenever a caller leaves numberColor unset, since a number that is merely a dimmer
--- version of the subtitle already reads as quiet without a fourth palette entry existing
--- only for it.
-local function dim(color)
+-- What this file draws for a caller that hands in no style at all, the unit case among them,
+-- kept from before stage two so such a caller still sees a highlight and readable rows. The
+-- provider never leans on these, it hands in every colour and the dim alpha from the kit's
+-- tokens, so nothing a person sees is drawn from them.
+local NO_STYLE = {
+  titleColor = { white = 0.9 },
+  subColor = { white = 0.6 },
+  highlightColor = { white = 0.5, alpha = 0.28 },
+  dimAlpha = 0.4,
+}
+
+-- A colour dimmed by the dim alpha the provider hands in from the kit's tokens, the way a
+-- disabled row's title has always been dimmed, a plain alpha cut rather than a second colour
+-- a caller would have to supply. A missing colour or alpha answers the colour unchanged.
+local function dim(color, factor)
+  if not color or not factor then return color end
   local c = {}
   for k, v in pairs(color) do c[k] = v end
-  c.alpha = (c.alpha or 1) * 0.4
+  c.alpha = (c.alpha or 1) * factor
   return c
 end
 
@@ -246,10 +216,11 @@ end
 function M.elements(state, rect, layout, style)
   layout = resolveLayout(layout)
   style = style or {}
-  local titleColor = style.titleColor or DEFAULT_TITLE_COLOR
-  local subColor = style.subColor or DEFAULT_SUB_COLOR
-  local highlightColor = style.highlightColor or DEFAULT_HIGHLIGHT_COLOR
-  local numberColor = style.numberColor or dim(subColor)
+  local dimAlpha = style.dimAlpha or NO_STYLE.dimAlpha
+  local titleColor = style.titleColor or NO_STYLE.titleColor
+  local subColor = style.subColor or NO_STYLE.subColor
+  local highlightColor = style.highlightColor or NO_STYLE.highlightColor
+  local numberColor = style.numberColor or dim(subColor, dimAlpha)
 
   local ns = model.normalized(state)
   local visible = model.visibleRows(ns)
@@ -321,14 +292,14 @@ function M.elements(state, rect, layout, style)
       els[#els + 1] = {
         type = "text", text = row.title or "",
         textFont = layout.font, textSize = layout.textSize,
-        textColor = enabled and titleColor or dim(titleColor),
+        textColor = enabled and titleColor or dim(titleColor, dimAlpha),
         textAlignment = "left",
         frame = { x = px(textX), y = px(rowY + layout.textTopPad), w = px(reservedW), h = px(titleH) },
       }
       els[#els + 1] = {
         type = "text", text = row.subTitle,
         textFont = layout.font, textSize = layout.subSize,
-        textColor = enabled and subColor or dim(subColor),
+        textColor = enabled and subColor or dim(subColor, dimAlpha),
         textAlignment = "left",
         frame = {
           x = px(textX), y = px(rowY + layout.textTopPad + titleH), w = px(reservedW),
@@ -343,7 +314,7 @@ function M.elements(state, rect, layout, style)
       els[#els + 1] = {
         type = "text", text = row.title or "",
         textFont = layout.font, textSize = layout.textSize,
-        textColor = enabled and titleColor or dim(titleColor),
+        textColor = enabled and titleColor or dim(titleColor, dimAlpha),
         textAlignment = "left",
         frame = { x = px(textX), y = px(lineTop), w = px(reservedW), h = px(lineH) },
       }

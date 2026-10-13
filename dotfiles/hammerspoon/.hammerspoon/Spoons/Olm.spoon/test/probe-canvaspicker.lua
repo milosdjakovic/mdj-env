@@ -62,7 +62,14 @@ if not panel then
   error("Olm canvas picker probe needs the running Olm instance's lib.panel, spoon.Olm does not appear to be loaded")
 end
 
-canvasProvider.configure({ panel = panel })
+-- The kit the provider reads its colours and type from, the running instance's own for the
+-- same reason as the panel above.
+local ui = spoon.Olm.lib.ui
+if not ui then
+  error("Olm canvas picker probe needs the running Olm instance's lib.ui")
+end
+
+canvasProvider.configure({ panel = panel, ui = ui })
 
 --------------------------------------------------------------------------------
 -- Rows, real running applications carrying real icons, padded out with synthetic ones,

@@ -9,8 +9,8 @@
 --- answers the arithmetic for where every rectangle sits, surface.lua owns the window,
 --- mouse.lua owns the mouse tap, field is a complete text field, list is a complete row
 --- list, lib/chooser/contract.lua says what a provider must offer, lib/chooser/rank.lua
---- answers the ranking policy both providers now share, and lib/chooser/textwidth.lua
---- measures text for both backends. This file is mostly wiring those six pieces
+--- answers the ranking policy both providers now share, and the UI kit's measurer
+--- measures text. This file is mostly wiring those six pieces
 --- together into one instance satisfying the picker contract, and the three places it
 --- is not plain wiring are named where they happen below.
 ---
@@ -55,23 +55,24 @@
 --- outright, and it is called out in the build report as a deliberate reading of
 --- geometry.lua's own groundwork rather than something asked for in so many words.
 ---
---- config.theme carries bgDark, titleColor, subColor and preview and nothing else, no
---- highlight colour and no caret colour, since it was written for a widget that drew
---- its own. The caret is left to field render's own fallback, the text colour standing
---- in for it, since that already reads well, and the field's own selection band and
---- the list's own row highlight are both a translucent tint of titleColor, derived
---- from what the theme gives rather than a literal this file would otherwise have to
---- invent. A hand test may find either tint wrong, which is a finding to report and a
---- candidate for a later settings addition, never something to invent a knob for now.
+--- Colour and type come from the UI kit's tokens since stage two of
+--- docs/DESIGN-UI-KIT.md, resolved for the current half on every show, and config.theme
+--- is no longer read here. The text is foreground and the subtitle subtext, the field's
+--- own selection band and the list's own row highlight are the selection and highlight
+--- tokens, both foreground at a fixed alpha, a disabled row and the placeholder are
+--- dimmed by the dim alpha, and the row numbers are the dim colour. The caret is left to
+--- field render's own fallback, the text colour standing in for it. The font and the two
+--- text sizes are the title and sub variants, handed to both renderers through the draw
+--- layout, and the rest of the layout is geometry.lua's.
 ---
---- M.configure(opts) takes opts.panel, the CanvasPanel module, injected here rather
---- than loaded by path, since lib/panel.lua holds the shared surface style the
---- composition root configures exactly once, and a second copy loaded fresh by path
---- would answer an unconfigured module and draw chrome that does not match every other
---- surface in this configuration. Wiring this at the root is phase four, so for now
---- whatever calls M.new is expected to have called M.configure first, the probe among
---- them, and M.new refuses with a plain reason when nothing has been configured rather
---- than drawing something that looks subtly wrong.
+--- M.configure(opts) takes opts.panel, the CanvasPanel module, and opts.ui, the UI kit,
+--- both injected here rather than loaded by path, since lib/panel.lua holds the shared
+--- surface style and lib/ui the shared style the composition root configures exactly
+--- once, and a second copy loaded fresh by path would answer an unconfigured module and
+--- draw something that does not match every other surface in this configuration.
+--- Whatever calls M.new is expected to have called M.configure first, the probe among
+--- them, and M.new refuses with a plain reason when either is missing rather than
+--- drawing something that looks subtly wrong.
 ---
 --- What this file does not do. It does not touch host/stage/init.lua,
 --- host/actionpanel/init.lua, root/compose.lua, any manifest, or any plugin. It is not
@@ -98,29 +99,20 @@ local fieldRender = load("field/render.lua")
 local listModel = load("list/model.lua")
 local listRender = load("list/render.lua")
 
--- lib/chooser/rank.lua, lib/chooser/contract.lua and lib/chooser/textwidth.lua sit two
--- directories above this file, providers up to chooser, the same three siblings
--- lib/chooser/providers/native.lua already loads by the identical relative path.
+-- lib/chooser/rank.lua and lib/chooser/contract.lua sit two directories above this file,
+-- providers up to chooser, the same siblings lib/chooser/providers/native.lua already
+-- loads by the identical relative path.
 local rank = load("../../rank.lua")
 local contract = load("../../contract.lua")
-local textwidth = load("../../textwidth.lua")
 
 --------------------------------------------------------------------------------
 -- Module level constants
 --------------------------------------------------------------------------------
 
--- The minimal dark palette used only when no theme is injected at all, so an instance
--- still renders something. Mirrors native.lua's own FALLBACK, the one duplicated
--- colour set, kept here as the seam rather than shared, since the two providers are
--- never meant to reach into one another.
-local FALLBACK_THEME = {
-  dark = {
-    bgDark = true,
-    titleColor = { white = 0.92 },
-    subColor = { white = 0.55 },
-    preview = { bg = "#1e1e22", fg = "#dcdcdc", meta = "#8a8a8a", path = "#7a7a7a", note = "#c8a86a" },
-  },
-}
+-- The injected UI kit, lib/ui, nil until M.configure runs. Held at module level rather
+-- than per instance, the same shape the injected panel below takes, since every instance
+-- reads the one configured style. Declared up here because the instance methods read it.
+local UI = nil
 
 -- Return, keypad enter, up and down, the four keys the field's own keymap never
 -- claims, so all four already reach this provider's onKey unclaimed rather than being
@@ -180,23 +172,13 @@ local function rowItem(row)
   return row and row.item or nil
 end
 
--- A colour dimmed the way native.lua's own dim helper dims a disabled row's title, a
--- plain alpha cut rather than a second colour a caller would have to supply.
-local function dim(color)
+-- A colour with its alpha multiplied by factor, how a disabled row's title and the
+-- placeholder are dimmed by the kit's dim alpha, a plain alpha cut rather than a second
+-- colour a caller would have to supply.
+local function faded(color, factor)
   local c = {}
   for k, v in pairs(color) do c[k] = v end
-  c.alpha = (c.alpha or 1) * 0.4
-  return c
-end
-
--- A translucent copy of color, its own alpha replaced outright rather than combined
--- with whatever it already carried, used to derive the field's own selection band and
--- the list's own row highlight from titleColor, since config.theme states neither of
--- those two colours on its own, decision documented in full at the top of this file.
-local function tint(color, alpha)
-  local c = {}
-  for k, v in pairs(color) do c[k] = v end
-  c.alpha = alpha
+  c.alpha = (c.alpha or 1) * factor
   return c
 end
 
@@ -241,39 +223,47 @@ local Provider = {}
 Provider.__index = Provider
 
 --------------------------------------------------------------------------------
--- Theme, screen and the derived styles config.theme does not state on its own
+-- Tokens, screen and the styles both renderers are handed
 --------------------------------------------------------------------------------
 
--- Reselects self.theme against the live system appearance, the same rule
--- native.lua's own Chooser colon underscore selectTheme follows and for the same
--- reason, so a light and dark switch is picked up at the next open rather than mid
--- session.
-function Provider:_selectTheme()
-  local p = self.config.theme or FALLBACK_THEME
-  local dark = hs.host.interfaceStyle() == "Dark"
-  self.theme = (dark and p.dark) or p.light or p.dark or FALLBACK_THEME.dark
+-- The font and the two text sizes every row and the field are drawn in, the kit's title
+-- and sub variants, which hold what geometry.lua carried before stage two.
+local function typeOf(tokens)
+  return {
+    font = tokens.text.title.font,
+    textSize = tokens.text.title.size,
+    subFont = tokens.text.sub.font,
+    subSize = tokens.text.sub.size,
+  }
 end
 
--- Derives the field's own style table and the list's own style table from whatever
--- self.theme currently holds. selectionColor and highlightColor are both a translucent
--- tint of titleColor, the one place this file invents a number rather than reading
--- one, named plainly here so a hand test that finds either tint wrong knows exactly
--- where to look. caretColor is left unset on purpose, field render's own fallback to
--- textColor already reads well and needs no derivation of its own, and numberColor is
--- left unset for the identical reason, list render's own fallback, a dimmed subColor,
--- is already derived from the theme through subColor below.
+-- Resolves the kit's tokens for the half the system is on now, the same moment the old
+-- theme pick ran, so a light and dark switch is picked up at the next open rather than
+-- mid session.
+function Provider:_selectTheme()
+  self._tokens = UI.tokens()
+  self._type = typeOf(self._tokens)
+end
+
+-- Derives the field's own style table and the list's own style table from the tokens.
+-- caretColor is left unset on purpose, field render's own fallback to textColor already
+-- reads well and needs no derivation of its own.
 function Provider:_deriveStyles()
-  local theme = self.theme
+  local T = self._tokens
   self._fieldStyle = {
-    font = self.layout.font,
-    fontSize = self.layout.textSize,
-    textColor = theme.titleColor,
-    selectionColor = tint(theme.titleColor, 0.20),
+    font = self._type.font,
+    fontSize = self._type.textSize,
+    textColor = T.colors.foreground,
+    selectionColor = T.colors.selection,
+    placeholderColor = faded(T.colors.foreground, T.alpha.dim),
+    caretWidth = self.layout.caretWidth,
   }
   self._listStyle = {
-    titleColor = theme.titleColor,
-    subColor = theme.subColor,
-    highlightColor = tint(theme.titleColor, 0.14),
+    titleColor = T.colors.foreground,
+    subColor = T.colors.subtext,
+    highlightColor = T.colors.highlight,
+    numberColor = T.colors.dim,
+    dimAlpha = T.alpha.dim,
   }
 end
 
@@ -304,10 +294,16 @@ end
 -- live while an already built listState and an already sized self._rects still carried
 -- the old number, is closed by this same copy being rebuilt on every show, and costs
 -- nothing today since the stage always hides before it resizes.
+--
+-- The draw layout also carries the font and the two text sizes from the tokens, the three
+-- typography names list render reads off a layout, since geometry.lua no longer holds them.
 function Provider:_updateDrawLayout()
   local L = {}
   for k, v in pairs(self.layout) do L[k] = v end
   L.rowCount = self._rects.rowCount
+  L.font = self._type.font
+  L.textSize = self._type.textSize
+  L.subSize = self._type.subSize
   self._drawLayout = L
 end
 
@@ -324,15 +320,16 @@ end
 -- filterText among them, passes through untouched.
 function Provider:_styleRow(row)
   local L = self.layout
-  local theme = self.theme
+  local T = self._tokens
+  local face = self._type
   local enabled = row.enabled ~= false
-  local titleColor = enabled and theme.titleColor or dim(theme.titleColor)
+  local titleColor = enabled and T.colors.foreground or faded(T.colors.foreground, T.alpha.dim)
   local out = {}
   for k, v in pairs(row) do out[k] = v end
-  out.title = styledText(row.title, L.textSize, titleColor, L.font, L.titleLineBreak)
+  out.title = styledText(row.title, face.textSize, titleColor, face.font, L.titleLineBreak)
   if row.subTitle and row.subTitle ~= "" then
-    local subColor = enabled and theme.subColor or dim(theme.subColor)
-    out.subTitle = styledText(row.subTitle, L.subSize, subColor, L.font, "truncateTail")
+    local subColor = enabled and T.colors.subtext or faded(T.colors.subtext, T.alpha.dim)
+    out.subTitle = styledText(row.subTitle, face.subSize, subColor, face.subFont, "truncateTail")
   end
   return out
 end
@@ -1021,13 +1018,13 @@ function Provider:textBudget()
 end
 
 --- Provider colon textWidth, arity two. The rendered pixel width of str at the title
---- size or the subtitle size which selects, a passthrough onto
---- lib/chooser/textwidth.lua, the shared measuring module both providers now read
---- from rather than each carrying a copy of it.
+--- size or the subtitle size which selects, a passthrough onto the UI kit's measurer,
+--- whose width is the per character sum lib/chooser/textwidth.lua answers too, so a
+--- supplier formatting against it gets the very number it got before stage two.
 function Provider:textWidth(str, which)
-  local L = self.layout
-  local size = (which == "title") and L.textSize or L.subSize
-  return self._textWidth:width(str, L.font, size)
+  local face = self._type
+  if which == "title" then return UI.measure:width(str, face.font, face.textSize) end
+  return UI.measure:width(str, face.subFont, face.subSize)
 end
 
 --- Provider colon reposition, arity one. Recentres the already shown surface for
@@ -1143,13 +1140,13 @@ local M = {}
 -- identical shared chrome.
 local PANEL = nil
 
---- M.configure(opts) takes opts.panel, the CanvasPanel module. Callable more than
---- once, a nil field left unchanged, matching CanvasPanel.configure's own idiom. Wiring
---- this at the composition root is phase four, so for now whatever calls M.new is
---- expected to have called this first.
+--- M.configure(opts) takes opts.panel, the CanvasPanel module, and opts.ui, the UI kit.
+--- Callable more than once, a nil field left unchanged, matching CanvasPanel.configure's
+--- own idiom. Whatever calls M.new is expected to have called this first.
 function M.configure(opts)
   opts = opts or {}
   if opts.panel ~= nil then PANEL = opts.panel end
+  if opts.ui ~= nil then UI = opts.ui end
   return M
 end
 
@@ -1165,6 +1162,10 @@ function M.new(config)
       .. "module, before M.new can build an instance, wiring this at the composition "
       .. "root is phase four and nothing has done it yet")
   end
+  if not UI then
+    error("Canvas provider: M.configure must be called with opts.ui, the UI kit, before "
+      .. "M.new can build an instance, since every colour and the type come from its tokens")
+  end
   config = config or {}
 
   local layout = {}
@@ -1174,10 +1175,10 @@ function M.new(config)
   local self = setmetatable({
     config = config,
     layout = layout,
-    theme = FALLBACK_THEME.dark,
+    _tokens = nil,
+    _type = nil,
     _matcher = config.matcher,
     _paneWidth = nil,
-    _textWidth = textwidth.new(),
     listState = listModel.newState({}, layout, ""),
     active = false,
     _lastQuery = "",
@@ -1186,6 +1187,10 @@ function M.new(config)
     _caretVisible = true,
     _placeholder = config.placeholder or "",
   }, Provider)
+
+  -- Resolved once here as well as on every show, so a row styled or a width measured
+  -- before the first show already has the tokens to read.
+  self:_selectTheme()
 
   self.surface = Surface.new({ panel = PANEL })
   self.mouse = buildMouse(self)

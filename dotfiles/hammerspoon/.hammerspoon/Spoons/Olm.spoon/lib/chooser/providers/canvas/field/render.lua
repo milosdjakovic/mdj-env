@@ -10,12 +10,12 @@
 --- CanvasPanel.surfaceElements for the chrome and this file's own elements for what sits
 --- on top of it, the second documented way to use that atom.
 ---
---- Theming is inherited rather than invented. style carries font, fontSize, textColor,
---- selectionColor and caretColor, all optional, and this file reads none of it from
---- settings.chooserTheme itself, the caller resolves the live light or dark side and
---- hands the result in as a plain table. The one thing this file supplies on its own is
---- a plain fallback for a colour a caller left out, a literal sitting beside the code
---- rather than anything read from a settings block.
+--- Theming is inherited rather than invented. style carries the font, the size, every
+--- colour and the caret width, and this file reads none of it from settings.chooserTheme
+--- or from a literal of its own. The provider resolves them from the UI kit's tokens and
+--- the canvas layout and hands the result in as a plain table, stage two of
+--- docs/DESIGN-UI-KIT.md. The one default left here is the caret colour, which is the text
+--- colour unless a caller names another.
 ---
 --- Caret x position is measured, never summed. hs.drawing.getTextDrawingSize runs once
 --- against the whole prefix up to the caret on every call, rather than a memoised per
@@ -91,49 +91,31 @@ local model = load("model.lua")
 
 local M = {}
 
-local FONT_FALLBACK = ".AppleSystemUIFont"
-local DEFAULT_FONT_SIZE = 14
-local DEFAULT_CARET_WIDTH = 2
-
--- A plain literal, not a settings read, so this file still draws something sane if a
--- caller forgets to pass a selection colour, the same reasoning the fallback in
--- CanvasPanel.emptyStateElements already rests on for its own default text colour.
-local DEFAULT_SELECTION_COLOR = { white = 0.5, alpha = 0.35 }
-
 local function px(n) return math.floor(n + 0.5) end
-
--- A colour dimmed the same plain alpha cut list/render.lua's own dim already applies
--- to a disabled row's title, reused here for the placeholder's own default colour
--- rather than inventing a second dimming rule for one more piece of text.
-local function dim(color)
-  local c = {}
-  for k, v in pairs(color) do c[k] = v end
-  c.alpha = (c.alpha or 1) * 0.4
-  return c
-end
 
 --- render.elements(state, rect, style, caretVisible) answers a list of canvas elements.
 --- rect is { x, y, w, h }, the box this field occupies inside the caller's own canvas,
 --- and every element answered here is already positioned at that origin, nothing above
---- this file needs to shift anything afterward. style is every field below optional.
----   font           text font name, default the system ui font.
----   fontSize       text point size, default 14.
+--- this file needs to shift anything afterward. style carries every field below, the
+--- caret colour alone optional.
+---   font           text font name.
+---   fontSize       text point size.
 ---   textColor      an hs colour table for the buffer and the caret.
 ---   selectionColor an hs colour table for the highlight behind a selection.
 ---   caretColor     an hs colour table for the caret, default textColor.
----   caretWidth     the caret's pixel width, default 2.
----   placeholderColor an hs colour table for the placeholder, default a dimmed textColor.
+---   caretWidth     the caret's pixel width.
+---   placeholderColor an hs colour table for the placeholder.
 --- placeholder is a plain string, drawn in place of the buffer only when the buffer is
 --- empty, on the same baseline the real text uses.
 function M.elements(state, rect, style, caretVisible, placeholder)
   style = style or {}
-  local font = style.font or FONT_FALLBACK
-  local size = style.fontSize or DEFAULT_FONT_SIZE
-  local textColor = style.textColor or { white = 0.9 }
-  local selectionColor = style.selectionColor or DEFAULT_SELECTION_COLOR
+  local font = style.font
+  local size = style.fontSize
+  local textColor = style.textColor
+  local selectionColor = style.selectionColor
   local caretColor = style.caretColor or textColor
-  local caretWidth = style.caretWidth or DEFAULT_CARET_WIDTH
-  local placeholderColor = style.placeholderColor or dim(textColor)
+  local caretWidth = style.caretWidth
+  local placeholderColor = style.placeholderColor
 
   local measureStyle = { font = font, size = size }
 
@@ -150,9 +132,8 @@ function M.elements(state, rect, style, caretVisible, placeholder)
   -- The one baseline every element in this function is placed from. hs.styledtext
   -- fontInfo answers the live metrics for the exact font and size the style names, so
   -- nothing measured on this machine is ever written into this arithmetic, it is read
-  -- fresh for whatever font a caller hands in. A missing field falls back to a plain
-  -- literal rather than this file failing to draw anything, the same reasoning the
-  -- selection colour default above already rests on.
+  -- fresh for whatever font a caller hands in. A metric the system leaves out falls back
+  -- to the size or to zero rather than this file failing to draw anything.
   local metrics = hs.styledtext.fontInfo({ name = font, size = size }) or {}
   local ascender = metrics.ascender or size
   local descender = metrics.descender or 0

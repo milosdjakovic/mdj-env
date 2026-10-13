@@ -28,6 +28,12 @@ M.halves = { dark = "dark", light = "light" }
 -- the cheat sheet chip, white 1 at 0.12 on dark and white 0 at 0.06 on light, which settings
 -- never carried. The light half has no preview fallback of its own, so it inherits the dark
 -- one, the same rule the spec follows.
+--
+-- quiet and outline arrived in stage two, each holding a literal a shared surface drew with
+-- so the move onto the kit changes nothing. quiet is the empty state's own default text
+-- colour, a gray at 0.55 on both halves, which is not dim, since dim is subtext at the dim
+-- alpha and the two have never been equal. outline is the colour toast's swatch stroke,
+-- white 1 at 0.25 on dark and white 0 at 0.2 on light.
 local SHIPPED_COLORS = {
   dark = {
     foreground = { white = 0.92 },
@@ -37,11 +43,14 @@ local SHIPPED_COLORS = {
     path = "#7a7a7a",
     note = "#c8a86a",
     badge = { white = 1, alpha = 0.12 },
+    quiet = { white = 0.6, alpha = 0.55 },
+    outline = { white = 1, alpha = 0.25 },
   },
   light = {
     foreground = { white = 0.15 },
     subtext = { white = 0.42 },
     badge = { white = 0, alpha = 0.06 },
+    outline = { white = 0, alpha = 0.2 },
   },
 }
 
@@ -54,6 +63,15 @@ local SHIPPED = {
   -- it departs from the one rule in lineHeightFor below. heading is the one variant that
   -- names a colour token of its own, subtext, and every other variant draws in foreground
   -- unless the text node names a colour.
+  --
+  -- The second group holds the type the shared surfaces drew with before stage two moved
+  -- them onto the kit, one variant per distinct font, size and box, so each surface draws
+  -- exactly what it drew before. Every one of them sets pin to false, since those surfaces
+  -- drew plain canvas text with no pinned line height, and a pinned one moves the glyphs.
+  -- lineHeight is the frame height each surface gave its text. frameY and extraW say where
+  -- the frame sits against the box the layout reserves, frameY points lower and extraW
+  -- points wider, neither taking any room in the layout, which is how the hint bar label
+  -- was placed. Stage three replaces this group with the new look.
   text = {
     title = { font = "ui", size = 16 },
     body = { font = "ui", size = 14 },
@@ -62,30 +80,53 @@ local SHIPPED = {
     heading = { font = "ui", size = 16, color = "subtext" },
     mono = { font = "mono", size = 12 },
     big = { font = "mono", size = 20 },
+
+    hintKey = { font = "ui", size = 11, lineHeight = 15, pin = false },
+    hintLabel = { font = "ui", size = 12, lineHeight = 16, pin = false, color = "subtext",
+                  frameY = 3, extraW = 4 },
+    cheat = { font = "ui", size = 16, lineHeight = 20, pin = false },
+    cheatTitle = { font = "ui", size = 16, lineHeight = 20, pin = false, color = "subtext" },
+    toast = { font = "mono", size = 18, lineHeight = 24, pin = false },
+    report = { font = "ui", size = 16, lineHeight = 22, pin = false },
+    reportDetail = { font = "ui", size = 14, lineHeight = 20, pin = false },
+    empty = { font = "ui", size = 13, lineHeight = 20.8, pin = false, color = "quiet" },
   },
 
-  space = { xs = 2, s = 6, m = 10, l = 14, xl = 20 },
+  -- sm and lg are the hint bar's two gaps, eight between lines and sixteen between hints,
+  -- added in stage two beside the scale they fall between.
+  space = { xs = 2, s = 6, sm = 8, m = 10, l = 14, lg = 16, xl = 20 },
 
   -- surface and badge are overwritten from settings by the spec, and these two are only what
   -- an unconfigured kit draws, square chrome and the cheat sheet's own default badge radius.
-  radius = { surface = 0, badge = 5, chip = 6 },
+  -- swatch is the colour toast's swatch corner, kept apart from badge since the badge radius
+  -- follows a setting and the swatch never did.
+  radius = { surface = 0, badge = 5, chip = 6, swatch = 5 },
 
-  alpha = { dim = 0.4, fade = 0.55 },
+  -- muted is the report toast's alpha for a row naming something that was not there, added
+  -- in stage two beside the two the design names.
+  alpha = { dim = 0.4, fade = 0.55, muted = 0.5 },
 
-  icon = { row = 28, list = 28, sheet = 32 },
+  -- swatch is the colour toast's square, the one size the toast draws that no icon shares.
+  icon = { row = 28, list = 28, sheet = 32, swatch = 26 },
 
   -- The three badge sizes badge(key, size) names. Not in the design's token list, which
   -- names the sizes but not where their geometry lives, so they sit here beside the other
-  -- geometry rather than as literals inside the layout engine. cheat is the cheat sheet
-  -- chip, 28 high with 10 of padding and its glyph in the cheat sheet's 16 point type, which
-  -- is the title variant. hint is the hint bar chip, 18 high with 6 of padding, drawn in
-  -- label, since the brief names label as mono 11 and the hint bar's own ui 11 is one of the
-  -- literals stage two corrects. button has no consumer yet, so it was chosen as the
-  -- smallest step between the two, 22 high with 10 of padding in sub.
+  -- geometry rather than as literals inside the layout engine. Each holds its height, its
+  -- padding either side of the glyph, and the text variant the glyph is drawn in. Three
+  -- fields are optional. minWidth is the narrowest the chip may be, the height when absent,
+  -- so a lone glyph stays square. textY moves the glyph frame down from where centring its
+  -- line box would put it. radius names the radius token the chip is rounded with, badge
+  -- when absent.
+  --
+  -- Every value is what stage two found each surface drawing. cheat is the cheat sheet chip,
+  -- 28 high with 10 of padding, its glyph in the cheat sheet's own type. hint is the hint bar
+  -- chip, 18 high with 6 of padding, its glyph in the ui font at 11, and with no minimum,
+  -- since the bar never had one. button is the report toast's Dismiss chip, 28 high with 12
+  -- of padding, rounded at the chip radius.
   badge = {
-    cheat = { height = 28, padX = 10, text = "title" },
-    hint = { height = 18, padX = 6, text = "label" },
-    button = { height = 22, padX = 10, text = "sub" },
+    cheat = { height = 28, padX = 10, text = "cheat", textY = 1 },
+    hint = { height = 18, padX = 6, text = "hintKey", minWidth = 0, textY = 1 },
+    button = { height = 28, padX = 12, text = "reportDetail", textY = 2, radius = "chip" },
   },
 }
 
@@ -94,6 +135,7 @@ local SHIPPED = {
 local COLOR_ROLES = {
   "foreground", "subtext", "dim", "overlay", "accent", "note", "path",
   "background", "surface", "border", "selection", "highlight", "badge",
+  "quiet", "outline",
 }
 
 local function keysOf(t)
@@ -226,6 +268,9 @@ function M.new(opts)
         size = variant.size,
         lineHeight = variant.lineHeight or lineHeightFor(variant.size),
         color = variant.color,
+        pin = variant.pin ~= false,
+        frameY = variant.frameY or 0,
+        extraW = variant.extraW or 0,
       }
     end
 

@@ -6,9 +6,17 @@
 -- short, measuring each distinct character once and adding is thirty six times cheaper than
 -- measuring the whole string, and the kerning it cannot see makes it run under one percent
 -- high, which is the safe direction since over counting only shortens a string marginally
--- early. textwidth.lua stays where it is in stage one, since its two providers move onto the
--- kit in stage two and this stage changes nothing a person can see. Until then the two hold
--- the same algorithm, and stage two deletes the older one.
+-- early. The canvas provider measures through this file since stage two. textwidth.lua stays
+-- for the native provider alone, which keeps its own measuring because the system draws its
+-- rows, so the two hold the same algorithm until that provider goes.
+--
+-- exact answers the other question, how wide one string draws, measured whole in a single
+-- call with the kerning the sum cannot see. The layout engine places every text and badge
+-- by it, since one laid out tree measures a handful of strings rather than a page of rows,
+-- and since every shared surface was placed by a whole string measure before it moved onto
+-- the kit, so a sum running a point high would move the next chip along by that point. It is
+-- not cached, since its strings are whatever a surface is saying right now, a toast message
+-- among them, and a cache keyed by them would only grow.
 --
 -- Wrapping is greedy by word, splitting a word wider than the line by character, which is
 -- what the layout needs to know how many lines a wrapped text takes. It is an estimate of
@@ -73,6 +81,13 @@ function M:width(str, font, size)
   local total = 0
   for ch in eachChar(str) do total = total + charWidth(memo, ch, font, size) end
   return total
+end
+
+--- instance:exact(str, font, size) -> points, one string measured whole.
+function M:exact(str, font, size)
+  if not str or str == "" then return 0 end
+  local sz = hs.drawing.getTextDrawingSize(str, { font = font, size = size })
+  return (sz and sz.w) or 0
 end
 
 --- instance:wrap(str, font, size, maxW) -> a list of lines, at least one.

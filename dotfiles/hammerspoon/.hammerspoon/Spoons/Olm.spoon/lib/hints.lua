@@ -30,7 +30,9 @@
 --                  doors must answer the same classification for the same action.
 --   canvasPanel,   the shared docked panel atom's factory, exposing new(opts), used by
 --                  shortcutPanelFor to build one panel per context.
---   theme,         the shared chooser theme table, handed straight to a content builder.
+--   ui,            the UI kit, lib/ui, which every panel and toast this file builds is
+--                  drawn through, its tokens answering the type and the colours for the
+--                  half the system is on.
 --   settings,      may carry settings.shortcutsPanel.delayMs, the idle reveal delay every
 --                  panel this file builds shares.
 --   hideShortcuts, a function of no arguments that hides the shared hold overlay, called
@@ -277,46 +279,32 @@ function obj.actionKinds(plan, kinds)
   return out, conflicts
 end
 
--- Shortcut hints as a docked panel's content strategy, the chord chips measuring and
--- wrapping renderer. It knows nothing about placement, only about the width the panel
--- offers, and it is theme aware per draw so the text tracks light and dark. hints may be a
+-- Shortcut hints as a docked panel's content strategy. It knows nothing about placement,
+-- only about the width the panel offers, and it is drawn through the UI kit, so the text and
+-- the chips track light and dark through the kit's tokens on every draw. hints may be a
 -- function rather than a list, resolved on every draw, which is what lets a binding gated on
 -- live state appear and disappear with the state instead of being printed once and never
 -- revisited.
-local function shortcutsContent(theme, hints)
-  local chipGapX, rowGapY = 16, 8
-  local hintGap = 6
-  local badgeH, badgePadX, badgeR = 18, 6, 5
-  local badgeSize, labelSize = 11, 12
-  local font = ".AppleSystemUIFont"
-
-  local function textW(str, size)
-    local sz = hs.drawing.getTextDrawingSize(hs.styledtext.new(str, { font = { name = font, size = size } }))
-    return math.ceil((sz and sz.w) or 0)
-  end
-  local function chipW(h)
-    local w = textW(h.label or "", labelSize)
-    for _, b in ipairs(h.badges or {}) do w = w + textW(b, badgeSize) + 2 * badgePadX end
-    return w + hintGap * #(h.badges or {})
-  end
+--
+-- The bar is a flow of hints, sixteen apart and eight between lines, and one hint is a row
+-- of its badges and its label, six apart. The hint badge and the hint label are the kit's
+-- hint size and hintLabel variant, which hold what this bar drew before it moved onto the
+-- kit, so the bar reads the same.
+local function shortcutsContent(ui, hints)
   local function current()
     if type(hints) == "function" then return hints() or {} end
     return hints or {}
   end
-  local function wrap(w, list)
-    local rows, cur, curW = {}, {}, 0
+  local function tree(list)
+    local chips = {}
     for _, h in ipairs(list) do
-      local cw = chipW(h)
-      if #cur > 0 and curW + chipGapX + cw > w then rows[#rows + 1] = cur; cur, curW = {}, 0 end
-      local startX = (#cur == 0) and 0 or (curW + chipGapX)
-      cur[#cur + 1] = { h = h, x = startX }
-      curW = startX + cw
+      local parts = {}
+      for _, b in ipairs(h.badges or {}) do parts[#parts + 1] = ui.badge(b, "hint") end
+      parts[#parts + 1] = ui.text(h.label or "", "hintLabel",
+        { lineBreak = ui.lineBreaks.wordWrap })
+      chips[#chips + 1] = ui.row(parts, { gap = "s", fill = false })
     end
-    if #cur > 0 then rows[#rows + 1] = cur end
-    return rows
-  end
-  local function rowsHeight(rows)
-    return #rows * badgeH + math.max(0, #rows - 1) * rowGapY
+    return ui.flow(chips, { gapX = "lg", gapY = "sm" })
   end
 
   return {
@@ -333,36 +321,13 @@ local function shortcutsContent(theme, hints)
     end,
     preferredSize = function(availW)
       local w = availW or 320
-      return { w = w, h = rowsHeight(wrap(w, current())) }
+      if not ui then return { w = w, h = 0 } end
+      local _, h = ui.layout(tree(current()), { x = 0, y = 0, w = w, h = 0 })
+      return { w = w, h = h }
     end,
     draw = function(w)
-      local dark = hs.host.interfaceStyle() == "Dark"
-      local side = (dark and theme.dark) or theme.light or theme.dark or {}
-      local fg = side.titleColor or { white = dark and 0.92 or 0.15 }
-      local meta = side.subColor or { white = dark and 0.55 or 0.42 }
-      local badgeBg = { white = dark and 1 or 0, alpha = dark and 0.12 or 0.06 }
-      local els, rows = {}, wrap(w, current())
-      for ri, row in ipairs(rows) do
-        local rowTop = (ri - 1) * (badgeH + rowGapY)
-        for _, chip in ipairs(row) do
-          local cx = chip.x
-          for _, b in ipairs(chip.h.badges or {}) do
-            local bw = textW(b, badgeSize) + 2 * badgePadX
-            els[#els + 1] = { type = "rectangle", action = "fill", fillColor = badgeBg,
-              roundedRectRadii = { xRadius = badgeR, yRadius = badgeR },
-              frame = { x = cx, y = rowTop, w = bw, h = badgeH } }
-            els[#els + 1] = { type = "text", text = b, textFont = font, textSize = badgeSize,
-              textColor = fg, textAlignment = "center",
-              frame = { x = cx, y = rowTop + (badgeH - badgeSize) / 2 - 1, w = bw, h = badgeSize + 4 } }
-            cx = cx + bw + hintGap
-          end
-          local lw = textW(chip.h.label or "", labelSize)
-          els[#els + 1] = { type = "text", text = chip.h.label or "", textFont = font,
-            textSize = labelSize, textColor = meta, textAlignment = "left",
-            frame = { x = cx, y = rowTop + (badgeH - labelSize) / 2, w = lw + 4, h = labelSize + 4 } }
-        end
-      end
-      return els
+      if not ui then return {} end
+      return (ui.layout(tree(current()), { x = 0, y = 0, w = w, h = 0 }))
     end,
   }
 end
@@ -392,7 +357,7 @@ function obj.shortcutPanelFor(contextName, plan, deps)
     -- Handed as a question rather than as an answer, so a binding whose predicate turns
     -- while the list is open is listed only while it means something, and so a caller naming
     -- a function rather than a string is asked again on every reveal rather than once here.
-    content = shortcutsContent(deps and deps.theme, function()
+    content = shortcutsContent(deps and deps.ui, function()
       local name = type(contextName) == "function" and contextName() or contextName
       return obj.footerFor(name, plan, deps)
     end),
@@ -412,61 +377,73 @@ end
 -- way, drawn once and reused across messages rather than stacking a column of panels. A
 -- plugin never builds one of these itself, it is handed the mutable state table by whoever
 -- wires it and only ever writes into it.
+--
+-- Each is drawn through the UI kit, deps.ui, one node laid out in each rect, so the type,
+-- the colours and the chips come from the kit's tokens. The rects are this file's own
+-- arithmetic, the same each toast placed its text at before it moved onto the kit, and the
+-- toast, report and reportDetail variants hold the type and frame heights it drew with.
 function obj.toast(deps)
-  local theme = deps and deps.theme
+  local ui = deps and deps.ui
   local toast = {}
+
+  -- The whole width of one string in one variant, rounded up, the width every toast sizes
+  -- itself and its columns by.
+  local function textW(str, variant)
+    return math.ceil(ui.measure:exact(tostring(str or ""), variant.font, variant.size))
+  end
+
+  -- One node laid out in one rect, its elements appended to els.
+  local function place(els, node, rect, tokens)
+    for _, el in ipairs((ui.layout(node, rect, { tokens = tokens }))) do els[#els + 1] = el end
+  end
+
+  local wordWrap = ui and ui.lineBreaks.wordWrap
 
   -- A one line text message, centered, for a plugin reporting something the user cannot see
   -- any other way, a clipboard append growing an entry offscreen or a walk moving through a
   -- history. state.text is the one field a caller mutates before showing the panel again.
   function toast.message(state)
-    local font, size = "Menlo", 18
     return {
       preferredSize = function()
-        local measured = hs.drawing.getTextDrawingSize(
-          hs.styledtext.new(state.text, { font = { name = font, size = size } }))
-        return { w = math.ceil((measured and measured.w) or 0), h = size + 4 }
+        local v = ui.tokens().text.toast
+        return { w = textW(state.text, v), h = v.size + 4 }
       end,
       draw = function(w, h)
-        local dark = hs.host.interfaceStyle() == "Dark"
-        local side = (dark and theme.dark) or theme.light or theme.dark or {}
-        local fg = side.titleColor or { white = dark and 0.92 or 0.15 }
-        return {
-          { type = "text", text = state.text, textFont = font, textSize = size,
-            textColor = fg, textAlignment = "center",
-            frame = { x = 0, y = (h - size) / 2 - 1, w = w, h = size + 6 } },
-        }
+        local tokens = ui.tokens()
+        local v = tokens.text.toast
+        local els = {}
+        place(els, ui.text(state.text, "toast", { align = ui.aligns.center, lineBreak = wordWrap }),
+          { x = 0, y = (h - v.size) / 2 - 1, w = w, h = v.lineHeight }, tokens)
+        return els
       end,
     }
   end
 
   -- A colour swatch beside its hex label, for a plugin whose feedback is a sampled colour
   -- rather than a sentence. state.hex and state.color are the two fields a caller mutates.
+  -- The swatch stays a plain rectangle, since no primitive draws a sampled colour, and it
+  -- reads its size, its corner and its stroke from the tokens.
   function toast.color(state)
-    local font = "Menlo"
-    local hexSize, swatch, gap = 18, 26, 12
-    local function textW(str)
-      local sz = hs.drawing.getTextDrawingSize(hs.styledtext.new(str, { font = { name = font, size = hexSize } }))
-      return math.ceil((sz and sz.w) or 0)
-    end
+    local SWATCH_GAP = 12
     return {
       preferredSize = function()
-        return { w = swatch + gap + textW(state.hex), h = swatch }
+        local tokens = ui.tokens()
+        local swatch = tokens.icon.swatch
+        return { w = swatch + SWATCH_GAP + textW(state.hex, tokens.text.toast), h = swatch }
       end,
       draw = function(w, h)
-        local dark = hs.host.interfaceStyle() == "Dark"
-        local side = (dark and theme.dark) or theme.light or theme.dark or {}
-        local fg = side.titleColor or { white = dark and 0.92 or 0.15 }
-        local swStroke = { white = dark and 1 or 0, alpha = dark and 0.25 or 0.2 }
-        return {
+        local tokens = ui.tokens()
+        local swatch, r, v = tokens.icon.swatch, tokens.radius.swatch, tokens.text.toast
+        local els = {
           { type = "rectangle", action = "strokeAndFill", fillColor = state.color,
-            strokeColor = swStroke, strokeWidth = 1,
-            roundedRectRadii = { xRadius = 5, yRadius = 5 },
+            strokeColor = tokens.colors.outline, strokeWidth = 1,
+            roundedRectRadii = { xRadius = r, yRadius = r },
             frame = { x = 0, y = (h - swatch) / 2, w = swatch, h = swatch } },
-          { type = "text", text = state.hex, textFont = font, textSize = hexSize,
-            textColor = fg, textAlignment = "left",
-            frame = { x = swatch + gap, y = (h - hexSize) / 2 - 1, w = w - swatch - gap, h = hexSize + 6 } },
         }
+        place(els, ui.text(state.hex, "toast", { lineBreak = wordWrap }),
+          { x = swatch + SWATCH_GAP, y = (h - v.size) / 2 - 1, w = w - swatch - SWATCH_GAP,
+            h = v.lineHeight }, tokens)
+        return els
       end,
     }
   end
@@ -478,16 +455,11 @@ function obj.toast(deps)
   -- the two overlays read as one instrument. state.title, state.rows, and state.secondsLeft
   -- are the fields a caller mutates, a row being { icon, label, detail, dim }. deps.onDismiss
   -- is told when the button is clicked, the caller owning the hide and the countdown alike.
+  -- The Dismiss chip is the kit's button badge in a group carrying the click id, so the chip
+  -- and its word both report dismiss.
   function toast.list(state, onDismiss)
-    local font = ".AppleSystemUIFont"
-    local size, detailSize = 16, 14
-    local rowH, icon, gap, titleH, footerH = 48, 32, 10, 36, 40
+    local rowH, titleH, footerH = 48, 36, 40
     local minW, maxW = 320, 640
-    local function textW(str, sz)
-      local measured = hs.drawing.getTextDrawingSize(
-        hs.styledtext.new(tostring(str or ""), { font = { name = font, size = sz } }))
-      return math.ceil((measured and measured.w) or 0)
-    end
     local function rows() return state.rows or {} end
     local function footerText()
       local n = tonumber(state.secondsLeft)
@@ -496,61 +468,58 @@ function obj.toast(deps)
     end
     return {
       preferredSize = function()
-        local w = textW(state.title, size)
+        local tokens = ui.tokens()
+        local big, small = tokens.text.report, tokens.text.reportDetail
+        local icon, gap = tokens.icon.sheet, tokens.space.m
+        local w = textW(state.title, big)
         for _, r in ipairs(rows()) do
-          local rw = icon + gap + textW(r.label, size) + gap * 2 + textW(r.detail, detailSize)
+          local rw = icon + gap + textW(r.label, big) + gap * 2 + textW(r.detail, small)
           if rw > w then w = rw end
         end
         return { w = math.min(math.max(w, minW), maxW), h = titleH + #rows() * rowH + footerH }
       end,
       onClick = function(id)
-        if (id == "dismiss" or id == "dismissLabel") and onDismiss then onDismiss() end
+        if id == "dismiss" and onDismiss then onDismiss() end
       end,
       draw = function(w, h)
-        local dark = hs.host.interfaceStyle() == "Dark"
-        local side = (dark and theme.dark) or theme.light or theme.dark or {}
-        local fg = side.titleColor or { white = dark and 0.92 or 0.15 }
-        local meta = side.subColor or { white = dark and 0.55 or 0.42 }
-        local chip = { white = dark and 1 or 0, alpha = dark and 0.12 or 0.06 }
-        local function withAlpha(c, a)
-          return { red = c.red, green = c.green, blue = c.blue, white = c.white, alpha = a }
-        end
-        local els = {
-          { type = "text", text = tostring(state.title or ""), textFont = font, textSize = size,
-            textColor = meta, textAlignment = "left",
-            frame = { x = 0, y = (titleH - size) / 2 - 2, w = w, h = size + 6 } },
-        }
+        local tokens = ui.tokens()
+        local big, small = tokens.text.report, tokens.text.reportDetail
+        local icon, gap = tokens.icon.sheet, tokens.space.m
+        local els = {}
+        place(els, ui.text(tostring(state.title or ""), "report",
+          { color = "subtext", lineBreak = wordWrap }),
+          { x = 0, y = (titleH - big.size) / 2 - 2, w = w, h = big.lineHeight }, tokens)
         for i, r in ipairs(rows()) do
           local y = titleH + (i - 1) * rowH
-          local alpha = r.dim and 0.5 or 1
+          local alpha = r.dim and tokens.alpha.muted or 1
           local x = 0
           if r.icon then
-            els[#els + 1] = { type = "image", image = r.icon, imageScaling = "scaleProportionally",
-              imageAlpha = alpha, frame = { x = x, y = y + (rowH - icon) / 2, w = icon, h = icon } }
+            place(els, ui.group({ ui.icon(r.icon, "sheet") }, { alpha = alpha }),
+              { x = x, y = y + (rowH - icon) / 2, w = icon, h = icon }, tokens)
           end
           x = x + icon + gap
-          local detailW = textW(r.detail, detailSize)
-          els[#els + 1] = { type = "text", text = tostring(r.label or ""), textFont = font, textSize = size,
-            textColor = withAlpha(fg, alpha), textAlignment = "left", textLineBreak = "truncateTail",
-            frame = { x = x, y = y + (rowH - size) / 2 - 2, w = w - x - detailW - gap, h = size + 6 } }
-          els[#els + 1] = { type = "text", text = tostring(r.detail or ""), textFont = font, textSize = detailSize,
-            textColor = withAlpha(meta, alpha), textAlignment = "right",
-            frame = { x = w - detailW, y = y + (rowH - detailSize) / 2 - 1, w = detailW, h = detailSize + 6 } }
+          local detailW = textW(r.detail, small)
+          place(els, ui.group({ ui.text(tostring(r.label or ""), "report",
+            { lineBreak = ui.lineBreaks.truncateTail }) }, { alpha = alpha }),
+            { x = x, y = y + (rowH - big.size) / 2 - 2, w = w - x - detailW - gap,
+              h = big.lineHeight }, tokens)
+          place(els, ui.group({ ui.text(tostring(r.detail or ""), "reportDetail",
+            { color = "subtext", align = ui.aligns.right, lineBreak = wordWrap }) },
+            { alpha = alpha }),
+            { x = w - detailW, y = y + (rowH - small.size) / 2 - 1, w = detailW,
+              h = small.lineHeight }, tokens)
         end
-        -- The footer, the countdown on the left and Dismiss as a chip on the right, the chip
-        -- being the element that carries the id the panel reports a click on.
+        -- The footer, the countdown on the left and Dismiss as a chip on the right.
         local fy = h - footerH
         local label = "Dismiss"
-        local chipW, chipH = textW(label, detailSize) + 24, 28
-        els[#els + 1] = { type = "text", text = footerText(), textFont = font, textSize = detailSize,
-          textColor = meta, textAlignment = "left",
-          frame = { x = 0, y = fy + (footerH - detailSize) / 2 - 1, w = w - chipW - gap, h = detailSize + 6 } }
-        els[#els + 1] = { type = "rectangle", action = "fill", fillColor = chip,
-          roundedRectRadii = { xRadius = 6, yRadius = 6 }, id = "dismiss", trackMouseUp = true,
-          frame = { x = w - chipW, y = fy + (footerH - chipH) / 2, w = chipW, h = chipH } }
-        els[#els + 1] = { type = "text", text = label, textFont = font, textSize = detailSize,
-          textColor = fg, textAlignment = "center", id = "dismissLabel", trackMouseUp = true,
-          frame = { x = w - chipW, y = fy + (footerH - detailSize) / 2 - 1, w = chipW, h = detailSize + 6 } }
+        local button = tokens.badge.button
+        local chipW = textW(label, tokens.text[button.text]) + 2 * button.padX
+        place(els, ui.text(footerText(), "reportDetail", { color = "subtext", lineBreak = wordWrap }),
+          { x = 0, y = fy + (footerH - small.size) / 2 - 1, w = w - chipW - gap,
+            h = small.lineHeight }, tokens)
+        place(els, ui.group({ ui.badge(label, "button") }, { id = "dismiss" }),
+          { x = w - chipW, y = fy + (footerH - button.height) / 2, w = chipW, h = button.height },
+          tokens)
         return els
       end,
     }

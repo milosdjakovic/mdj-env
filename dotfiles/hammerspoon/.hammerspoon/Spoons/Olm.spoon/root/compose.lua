@@ -57,6 +57,7 @@ local hintsLib = load("lib/hints.lua")
 local registrarLib = load("lib/registrar.lua")
 local navLib = load("lib/nav.lua")
 local servicesLib = load("lib/services.lua")
+local uiSpecLib = load("root/uispec.lua")
 
 local log = hs.logger.new("Olm.compose", "info")
 -- Every sibling here has its own opinion about the shape a logger arrives in. Some read an
@@ -233,38 +234,17 @@ function obj.run(olm, cfg)
 
   -- The UI kit's style, built once from the same three settings blocks the chrome, the
   -- chooser rows and the cheat sheet already read, so a pane drawn through the kit matches
-  -- them exactly. Only what policy owns is named here, each half's colours and the two radii
-  -- settings carries. Every other token, and the four colours derived from these, are
-  -- lib/ui/style.lua's own. A half with no light block of its own takes the dark one, the
-  -- same fallback every reader of these settings already applies.
+  -- them exactly. root/uispec.lua holds how those blocks become a spec, a file of its own so
+  -- the stage two parity probes build the very spec this root does. The panel is handed the
+  -- kit straight after, since its empty state draws through it and its surface asks it which
+  -- half the system is on.
   local uiAtom = atoms.ui
   if uiAtom then
-    local function sideOf(t, half) return (t and (t[half] or t.dark)) or {} end
-    local function colorsFor(half)
-      local theme = sideOf(policy.chooserTheme, half)
-      local surface = sideOf(policy.surface, half)
-      local preview = theme.preview or {}
-      return {
-        foreground = theme.titleColor,
-        subtext = theme.subColor,
-        background = surface.bg,
-        border = surface.border,
-        overlay = preview.meta,
-        path = preview.path,
-        note = preview.note,
-        accent = preview.fg,
-      }
-    end
     uiAtom.configure({
-      spec = {
-        colors = { dark = colorsFor("dark"), light = colorsFor("light") },
-        radius = {
-          surface = (policy.surface or {}).cornerRadius,
-          badge = (policy.cheatSheet or {}).badgeRadius,
-        },
-      },
+      spec = uiSpecLib.spec(policy),
       surfaceElements = canvasPanel.surfaceElements,
     })
+    canvasPanel.configure({ ui = uiAtom })
   end
 
   local chooserAtom = atoms.chooser
@@ -292,17 +272,20 @@ function obj.run(olm, cfg)
       end
     end,
   })
-  -- The canvas provider draws through the shared CanvasPanel chrome and refuses to build
-  -- until it is handed that module, so the root gives it the one already configured above.
+  -- The canvas provider draws through the shared CanvasPanel chrome and reads its type and
+  -- colours from the kit's tokens, and refuses to build until it is handed both, so the root
+  -- gives it the ones already configured above.
   if chooserAtom.providers and chooserAtom.providers.canvas then
-    chooserAtom.providers.canvas.configure({ panel = canvasPanel })
+    chooserAtom.providers.canvas.configure({ panel = canvasPanel, ui = uiAtom })
   end
 
+  -- The cheat sheet's type, colours and badge radius reach it through the kit's spec, built
+  -- above from the same cheatSheet block, so only the panel padding and the two
+  -- collaborators are handed over here.
   local cheatSheetAtom = atoms.cheatsheet
   cheatSheetAtom:init()
-  local cheatSheetOpts = { canvasPanel = canvasPanel, theme = policy.chooserTheme }
-  for k, v in pairs(policy.cheatSheet or {}) do cheatSheetOpts[k] = v end
-  cheatSheetAtom:configure(cheatSheetOpts)
+  cheatSheetAtom:configure({ canvasPanel = canvasPanel, ui = uiAtom,
+    padding = (policy.cheatSheet or {}).padding })
 
   local chordKeyAtom = atoms.chordkey
   chordKeyAtom:init()
@@ -700,7 +683,7 @@ function obj.run(olm, cfg)
   -- of these fire in bursts, a walk through history being the obvious one.
   ------------------------------------------------------------------------------
 
-  local toastContent = hintsLib.toast({ theme = policy.chooserTheme })
+  local toastContent = hintsLib.toast({ ui = uiAtom })
 
   local messageState = { text = "" }
   local messagePanel = canvasPanel.new({
@@ -1291,6 +1274,7 @@ function obj.run(olm, cfg)
     glyphFor = cheatSheetAtom.glyphFor,
     owners = contextOwners,
     canvasPanel = canvasPanel,
+    ui = uiAtom,
     theme = policy.chooserTheme,
     settings = policy,
     hideShortcuts = hideSharedOverlay,
