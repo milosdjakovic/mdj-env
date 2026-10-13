@@ -108,6 +108,7 @@ hidutil                  | macos     | ships with macOS
 sips                     | macos     | ships with macOS
 head                     | macos     | ships with macOS
 tput                     | macos     | ships with macOS
+networksetup             | macos     | ships with macOS
 file                     | macos     | ships with macOS
 diff                     | macos     | ships with macOS
 nohup                    | macos     | ships with macOS
@@ -148,6 +149,7 @@ ivpn          | manual    | the ivpn cask, wanted only on a machine that uses IV
 # and these lines say what a person has to do. Which is the whole point of moving them here,
 # since a gate that lives only in prose is one you find by watching a feature fail quietly.
 accessibility            | grant     | System Settings, Privacy and Security, Accessibility, turn Hammerspoon on
+location                 | grant     | System Settings, Privacy and Security, Location Services, turn Hammerspoon on
 obsidian-vaults          | manual    | open a vault in Obsidian once, which is what writes the registry this plugin reads
 
 # Tools a module's own tooling needs rather than its running configuration. A generated

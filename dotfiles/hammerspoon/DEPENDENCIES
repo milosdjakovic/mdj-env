@@ -59,4 +59,6 @@ tmux | path | tmux | required | tmuxsessions/engine | querying and switching eve
 open | system | /usr/bin/open | optional | tmuxsessions | launching Alacritty or WezTerm already attached to a session | macos | ships with the system
 mullvad | path | mullvad | optional | vpn/mullvad | the relay CLI behind every VPN control and location | manual | the mullvad-vpn cask, installed by hand when this backend is wanted
 ivpn | path | ivpn | optional | vpn/ivpn | the CLI behind every VPN control and location on the IVPN backend | manual | the ivpn cask, then src/setup-ivpn-permissions.sh so its daemon can start
+networksetup | system | /usr/sbin/networksetup | optional | wifi | joining a network and reading which networks this Mac has saved, without which the list still shows and disconnects but cannot connect | macos | ships with the system
+location | grant | location | optional | wifi | reading the name of the current network and of every network a scan finds
 scutil | system | /usr/sbin/scutil | optional | root/compose | reading this machine's own short name, the key every per host answer a plugin asks the root for is stored under | macos | ships with the system

@@ -78,6 +78,10 @@ ask() {
     printf '%s' "$reply"
 }
 
+# The one location reading, kept out of the case below because bash 3.2 misreads a closing
+# parenthesis inside a command substitution that sits within a case arm.
+LOCATION_READING='local d = hs.wifi.interfaceDetails() or {} if not (d.power and (d.transmitRate or 0) > 0) then return "unjoined" end local n = hs.wifi.currentNetwork() return (type(n) == "string" and n:find("%S")) and "named" or "blank"'
+
 case "$locator" in
     accessibility)
         # hs.accessibilityState with no argument reads without asking, which is the whole point
@@ -97,6 +101,34 @@ case "$locator" in
             false) echo "notDetermined" ;;
             *)
                 echo "grants-probe: the config answered '$answer', which is neither true nor false" >&2
+                exit $CANNOT_ANSWER_HERE
+                ;;
+        esac
+        ;;
+    location)
+        # Judged from what macOS hands back rather than asked, for two reasons. The status call
+        # says undefined in a fresh process until location updates have been started, however
+        # long ago the grant was given, so it reports a granted machine as never asked. And
+        # starting updates to get a true answer is what raises the prompt, which this file
+        # never does. A joined network whose name comes back means granted. A joined network
+        # whose name comes back blank means not granted, and the blank cannot say whether it
+        # was refused or never asked, so it reads as not yet asked, the softer of the two. Not
+        # joined to anything leaves nothing to judge by, which is a machine fact.
+        if ! answer="$(ask "$LOCATION_READING")"; then
+            echo "grants-probe: Hammerspoon is not running, or is not answering, so it cannot" >&2
+            echo "  be asked about its own Location Services grant." >&2
+            exit $CANNOT_ANSWER_HERE
+        fi
+        case "$answer" in
+            named)    echo "granted" ;;
+            blank)    echo "notDetermined" ;;
+            unjoined)
+                echo "grants-probe: Wi-Fi is not joined to a network, so there is no name to" >&2
+                echo "  judge the Location Services grant by." >&2
+                exit $CANNOT_ANSWER_HERE
+                ;;
+            *)
+                echo "grants-probe: the config answered '$answer', which is not a location reading" >&2
                 exit $CANNOT_ANSWER_HERE
                 ;;
         esac
