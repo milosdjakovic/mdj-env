@@ -183,6 +183,19 @@ lib = { recency = { from = "recency", policy = "optional" } },
 
 A lib name that does not exist is a repository defect and is reported, never ignored.
 
+The names a plugin may ask for are the keys of the root's `libs` table, `paste`, `cheatsheet`,
+`registry`, `glyphicon`, `chordkey`, `hyperkey`, `recency`, `queryassoc`, `storage` and `ui`.
+`ui` is the UI kit, one style and one set of drawing primitives, and arrives as one table
+holding the primitives, `layout`, `tokens()` for the current light or dark half, and
+`measure`. Ask for it whole, with no member.
+
+```lua
+lib = { ui = { from = "ui" } },
+```
+
+docs/DESIGN-UI-KIT.md is the design and docs/PLUGIN-AUTHORING.md has a worked example under
+"Drawing with the kit".
+
 The value is delivered on `opts` under the field name you chose, and a member defined as a
 method arrives already bound to its own module, so you can call it plainly. Both halves
 matter. An earlier version validated these declarations at load and then never handed the

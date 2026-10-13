@@ -94,6 +94,11 @@ obj.lib = {
   -- recency and registry, one instance per caller, each owning its own drawing cache. See
   -- lib/glyphicon.lua for the one function it answers and for the numbers it draws with.
   glyphicon = load("lib/glyphicon.lua"),
+  -- The UI kit, phase 4b of the canvas picker track, one style and one set of drawing
+  -- primitives, a directory like chooser since it is four units and the table that joins
+  -- them. One shared instance, configured once by the root from policy. See
+  -- docs/DESIGN-UI-KIT.md.
+  ui = load("lib/ui/init.lua"),
 }
 
 --- Olm:start(cfg)

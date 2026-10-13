@@ -231,6 +231,42 @@ function obj.run(olm, cfg)
   canvasPanel.configure({ surface = policy.surface })
   canvasPanel.configure({ screen = function() return overlay and overlay.screen() end })
 
+  -- The UI kit's style, built once from the same three settings blocks the chrome, the
+  -- chooser rows and the cheat sheet already read, so a pane drawn through the kit matches
+  -- them exactly. Only what policy owns is named here, each half's colours and the two radii
+  -- settings carries. Every other token, and the four colours derived from these, are
+  -- lib/ui/style.lua's own. A half with no light block of its own takes the dark one, the
+  -- same fallback every reader of these settings already applies.
+  local uiAtom = atoms.ui
+  if uiAtom then
+    local function sideOf(t, half) return (t and (t[half] or t.dark)) or {} end
+    local function colorsFor(half)
+      local theme = sideOf(policy.chooserTheme, half)
+      local surface = sideOf(policy.surface, half)
+      local preview = theme.preview or {}
+      return {
+        foreground = theme.titleColor,
+        subtext = theme.subColor,
+        background = surface.bg,
+        border = surface.border,
+        overlay = preview.meta,
+        path = preview.path,
+        note = preview.note,
+        accent = preview.fg,
+      }
+    end
+    uiAtom.configure({
+      spec = {
+        colors = { dark = colorsFor("dark"), light = colorsFor("light") },
+        radius = {
+          surface = (policy.surface or {}).cornerRadius,
+          badge = (policy.cheatSheet or {}).badgeRadius,
+        },
+      },
+      surfaceElements = canvasPanel.surfaceElements,
+    })
+  end
+
   local chooserAtom = atoms.chooser
   chooserAtom:init()
   local chooserProvider = chooserAtom.providers and chooserAtom.providers[policy.chooserProvider]
@@ -415,7 +451,13 @@ function obj.run(olm, cfg)
     recency = atoms.recency,
     queryassoc = atoms.queryassoc,
     storage = atoms.storage,
+    ui = uiAtom,
   }
+  -- A lib that is a directory rather than a file, lib/ui, is invisible to the scan in step C,
+  -- which reads only lib/*.lua. Every name this table delivers is real by construction, so
+  -- each one joins the existence set too, which admits ui without also admitting chooser, a
+  -- directory whose module no plugin is handed through this door.
+  for name in pairs(libs) do libNames[name] = true end
 
   ------------------------------------------------------------------------------
   -- STEP E. The overlay display resolver, and what the two screen closures in

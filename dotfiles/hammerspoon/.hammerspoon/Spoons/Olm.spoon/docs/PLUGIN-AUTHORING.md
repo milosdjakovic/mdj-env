@@ -325,6 +325,50 @@ Moving the highlight yourself is not forbidden by anything. It is simply wrong.
 `surface.context` and your identity agreeing is a warning, not a refusal, and everything keeps
 working until the hint bar goes quietly empty.
 
+## Drawing with the kit
+
+A pane that draws on its own canvas asks for the UI kit rather than choosing its own colours,
+fonts, sizes and spacing. Declare it whole.
+
+```lua
+needs = { lib = { ui = { from = "ui" } } },
+```
+
+It arrives as `opts.ui`. Build a tree of nodes, each naming a variant and never a colour, a
+font or a size, and hand it to `ui.layout` with the rect you want it in. What comes back is the
+canvas elements and the height the tree wants, and your pane still owns its window and draws
+the elements itself.
+
+```lua
+local ui
+
+function obj.configure(opts)
+  ui = opts.ui
+end
+
+-- Called with the pane's own canvas and its size, on every redraw, so the tokens follow the
+-- light and dark switch with no watcher of yours.
+local function drawPane(canvas, w, h, entry)
+  local tree = ui.stack({
+    ui.text("Details", "heading"),
+    ui.row({ ui.text("SIZE", "label"), ui.text(entry.size, "body") }, { gap = "m" }),
+    ui.text("Measured a moment ago", "sub", { color = "dim" }),
+  }, { gap = "s" })
+  local elements, contentHeight = ui.layout(tree, { x = 14, y = 10, w = w - 28, h = h - 20 })
+  canvas:replaceElements(elements)
+  return contentHeight
+end
+```
+
+`surface()` paints the shared chrome behind the whole rect the tree is laid out in and takes no
+room of its own, for a pane that does not already draw its chrome some other way. A row
+gives its last child the remaining width. A group with `alpha` fades everything inside it, and
+one with `id` makes everything inside it report that id to your canvas's mouse callback. For a
+pane that scrolls, pass `{ scrollY = offset }` as the third argument, and the result is clipped
+to the rect while `contentHeight` tells you where scrolling has to stop. An unknown variant is
+an error naming it, at the line that built the node. `ui.tokens()` answers the resolved table
+when something has to be drawn by hand, and docs/DESIGN-UI-KIT.md lists every name in it.
+
 ## Tools your plugin needs
 
 A plugin declares what it needs on the machine and installs nothing. Every external binary or
