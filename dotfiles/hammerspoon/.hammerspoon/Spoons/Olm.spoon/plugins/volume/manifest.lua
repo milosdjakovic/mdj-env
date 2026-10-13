@@ -49,8 +49,8 @@ return {
   },
 
   registry = {
-    row = { category = "System", detail = "see the volume, set it from 0 to 100, mute or unmute",
-      glyph = "🔊", keywords = "volume sound audio mute unmute speaker loud quiet" },
+    row = { category = "System", detail = "see the volume and set it from 0 to 100",
+      glyph = "🔊", keywords = "volume sound audio speaker loud quiet" },
     open = { member = "show", call = "dot" },
     hosted = true,
     scope = {
