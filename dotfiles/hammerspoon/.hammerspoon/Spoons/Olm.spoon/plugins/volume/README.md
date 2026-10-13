@@ -2,9 +2,11 @@
 
 Shows the volume of the current output device and sets it from one typed field, which shows
 a single row whose subtitle says the level now and whether it is muted. Typing a whole number
-from 0 to 100 sets the volume to that percentage, and a number above zero also unmutes. Only
-numbers are accepted. Anything else, a number above 100, a negative, a decimal or a word, shows
-a disabled row saying what the field accepts, so nothing is applied.
+from 0 to 100 sets the volume to that percentage, and a number above zero also unmutes. Typing
+the start of mute, from m to mute, offers only Mute, and the start of unmute, from u to unmute,
+offers only Unmute. These match by their start and never fuzzily. Anything else, a number above
+100, a negative, a decimal or another word, shows a disabled row saying what the field accepts,
+so nothing is applied.
 
 Opens from the launcher under System, and can be used without leaving the launcher by typing
 vol and a space.
