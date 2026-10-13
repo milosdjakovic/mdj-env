@@ -133,6 +133,8 @@ local SHIPPED_POLICY = {
   -- in the config drew instantly. The knob read as configured and was doing nothing.
   shortcutsPanel = { delayMs = 3000 },
   matcher = "fuzzy",
+  -- Which picker provider every Chooser.new builds, a name from Chooser.providers.
+  chooserProvider = "native",
   autoReload = { ignore = { "/config/[^/]+%.json[^/]*$" } },
 
   -- The heading drawn over the window leader's rows on the hold overlay. What the leader does
@@ -231,9 +233,15 @@ function obj.run(olm, cfg)
 
   local chooserAtom = atoms.chooser
   chooserAtom:init()
+  local chooserProvider = chooserAtom.providers and chooserAtom.providers[policy.chooserProvider]
+  if not chooserProvider then
+    log.w("unknown chooserProvider " .. tostring(policy.chooserProvider) .. ", falling back to native")
+    chooserProvider = chooserAtom.providers and chooserAtom.providers.native
+  end
   chooserAtom.configure({
     screen = function() return overlay and overlay.screen() end,
     matcher = chooserAtom.matchers and chooserAtom.matchers[policy.matcher],
+    provider = chooserProvider,
     -- THE SEAM. ActionPanel is one of the five host modules this file is allowed to name.
     -- decorate has to be installed before the first Chooser.new call anywhere or every
     -- instance keeps its own rows and the panel decorates nothing, which is Fact 2, and
@@ -248,6 +256,11 @@ function obj.run(olm, cfg)
       end
     end,
   })
+  -- The canvas provider draws through the shared CanvasPanel chrome and refuses to build
+  -- until it is handed that module, so the root gives it the one already configured above.
+  if chooserAtom.providers and chooserAtom.providers.canvas then
+    chooserAtom.providers.canvas.configure({ panel = canvasPanel })
+  end
 
   local cheatSheetAtom = atoms.cheatsheet
   cheatSheetAtom:init()

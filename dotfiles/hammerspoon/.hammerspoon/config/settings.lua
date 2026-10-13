@@ -11,8 +11,23 @@ local overlayModes = {
   cursor = "cursor",
 }
 
+-- Picker provider names, the same keys the Chooser facade's providers table uses, named
+-- constants for the same reason as overlayModes.
+local chooserProviders = {
+  native = "native",
+  canvas = "canvas",
+}
+
 return {
   overlayModes = overlayModes,
+  chooserProviders = chooserProviders,
+
+  -- Which picker draws every chooser. native is the built in hs.chooser window and is the
+  -- default. canvas is the hand drawn picker on the shared panel chrome, with its own
+  -- field, list and mouse handling. chooserProviders.native | chooserProviders.canvas
+  chooser = {
+    provider = chooserProviders.native,
+  },
 
   -- Gap around and between managed windows, in pixels. One value drives both the
   -- outer inset (the margins in init.lua) and the gutter between tiled halves, so

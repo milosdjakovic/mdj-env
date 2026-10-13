@@ -51,6 +51,11 @@ local function load(name)
 end
 
 local native = load("providers/native.lua")
+local canvas = load("providers/canvas/init.lua")
+
+--- Chooser.providers - the picker providers, exposed the same way matchers are, so the
+--- composition root names one and injects it through configure. Native is the default.
+obj.providers = { native = native, canvas = canvas }
 
 --- Chooser.matchers - the shared matching strategies, exposed so the composition root
 --- names one and injects it, keeping the concrete policy in one place. Each is a
@@ -76,6 +81,11 @@ local DEFAULT_SCREEN = nil
 -- pre-injection behaviour. A consumer passing matcher = false in its own config opts
 -- out even when a default is set, for a tool whose query is not a plain filter.
 local DEFAULT_MATCHER = nil
+
+-- The provider every new() builds through, injected once at the root so native versus
+-- canvas is decided in a single edit. Nil falls back to native, the same rule the screen
+-- and matcher defaults follow.
+local DEFAULT_PROVIDER = nil
 
 -- The one seam ActionPanel, phase eight of the build plan, installs through, so a
 -- decorator wraps every consumer's config functions without any of the twelve call
@@ -104,17 +114,20 @@ end
 --- after native.new returns and before new hands the instance back, allowed to mutate
 --- config in place (see the note above DEFAULT_DECORATE for why that reaches the
 --- instance's live behaviour). One call at the root wires the overlay display policy,
---- the matching policy, and the panel decorator into every chooser at once.
+--- the matching policy, and the panel decorator into every chooser at once. opts.provider
+--- is a provider module from Chooser.providers, nil meaning native.
 function obj.configure(opts)
   opts = opts or {}
   DEFAULT_SCREEN = opts.screen
   DEFAULT_MATCHER = opts.matcher
+  DEFAULT_PROVIDER = opts.provider
   DEFAULT_DECORATE = opts.decorate
   return obj
 end
 
---- Chooser.new(config) -> picker instance. Dot called, matching the old atom. A
---- config.provider field is accepted and ignored, since native is the only backend.
+--- Chooser.new(config) -> picker instance. Dot called, matching the old atom. The
+--- instance is built by the provider configure injected, native when none was. A
+--- config.provider field is still accepted and ignored.
 --- The configured default screen and matcher policies are folded in unless the config
 --- names its own. config.matcher = false opts out of the default so the supplier keeps
 --- owning filtering; nil inherits the default. When a decorate policy is configured, it
@@ -124,7 +137,7 @@ function obj.new(config)
   config = config or {}
   if config.screen == nil then config.screen = DEFAULT_SCREEN end
   if config.matcher == nil then config.matcher = DEFAULT_MATCHER end
-  local instance = native.new(config)
+  local instance = (DEFAULT_PROVIDER or native).new(config)
   local ok, reason = contract.validate(instance)
   if not ok then
     error("Chooser: the provider does not satisfy the picker contract, " .. tostring(reason))

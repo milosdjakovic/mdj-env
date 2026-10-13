@@ -77,6 +77,7 @@ local olm = spoon.Olm:start({
     -- now, so this line matters only on a machine that wants to differ.
     shortcutsPanel = settings.shortcutsPanel,
     chooserTheme   = settings.chooserTheme,
+    chooserProvider = settings.chooser.provider,
     cheatSheet     = settings.cheatSheet,
     overlayDisplay = settings.overlayDisplay,
     hyperTrigger   = settings.hyperTrigger,

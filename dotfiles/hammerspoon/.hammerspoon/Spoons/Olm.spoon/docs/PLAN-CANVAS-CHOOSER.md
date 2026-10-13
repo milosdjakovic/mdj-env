@@ -127,6 +127,24 @@ at all. That is a new failure mode, not one already guarded.
 6. The field ships and is lived with before the list is built on it, because it is the only
    part of this that can fail on feel rather than on logic.
 
+## The component design, agreed 2026 10 13
+
+One canvas component owns the window, the style, focus, the keyboard and the mouse. Three
+components sit on it, each with a small API of its own. The chooser takes searchable items
+through the frozen picker contract. The side pane is told which item is highlighted and
+answers what to draw for it. The bottom pane draws the hints built from the manifest's key
+bindings. A plugin decides what a pane shows and the pane decides how it is drawn.
+
+Under all three sits a kit of drawing primitives, text in named variants such as title,
+body, sub, dim, mono and heading, a key badge, an icon, a row, a divider, a spacer and a
+stack. A pane answers a list of primitives and the canvas lays them out. Only the kit reads
+the style, so no component picks a font, a size or a colour of its own, and that is what
+makes the chooser and every pane look the same by construction.
+
+This revises decision five. The surface, chooserTheme and the font settings become one style
+block painted from the theme palette, read only by the kit. That lands after phase four and
+before phase five.
+
 ## Roles
 
 The main session orchestrates, writes the briefs, makes the decisions and verifies. Sonnet
@@ -136,23 +154,25 @@ spawned. Milos is architect and QA and says start before any live screen test.
 
 ## Checklist
 
-- [ ] 0. Contract brief. The eighteen names with signatures and semantics, what is read
+- [x] 0. Contract brief. The eighteen names with signatures and semantics, what is read
       live and what is read once, the callback set the config carries, and the validation
       rule. Written from the surveys of 2026-09-06 rather than from a fresh read.
-- [ ] 1. Freeze the contract, no behaviour change. Extract it into a contract module with
+- [x] 1. Freeze the contract, no behaviour change. Extract it into a contract module with
       a validate, make the facade refuse a provider that fails it, and move the stage's own
       window hunting and settle delay back behind the facade per decision three. Native
       passes unchanged. This phase is provable by the dry gate and the existing probes with
       no live test beyond one clean load.
-- [ ] 2. The field alone. A canvas text field on an event tap, no rows, proving typing,
+- [x] 2. The field alone. A canvas text field on an event tap, no rows, proving typing,
       caret blink and position, selection, the editing key set, escape, and swallowing.
       Shipped as its own probe surface rather than wired into anything, so it can be judged
       on feel before anything depends on it.
-- [ ] 3. The canvas provider. Rows, highlight, icons, dimming, truncation, the active row
+- [x] 3. The canvas provider. Rows, highlight, icons, dimming, truncation, the active row
       marker, click and scroll, geometry, drawn on its own canvas with the shared chrome.
       Satisfies the phase one contract and nothing above the facade changes.
 - [ ] 4. Selectable at the root, native still the default. One line naming the provider,
       and a week of real use on canvas before any question of moving the default.
+- [ ] 4b. One style block and the primitive kit, the chooser and today's docked panes
+      drawn through it, per the component design above.
 - [ ] 5. The three pane surface, which is the reason for all of the above and is not
       attempted before phase four has been lived with.
 
