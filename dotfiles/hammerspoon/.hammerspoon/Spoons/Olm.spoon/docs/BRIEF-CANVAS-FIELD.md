@@ -233,3 +233,16 @@ The fix in render.lua only. No new unit case, this is judged by eye at the probe
 the file what the baseline rule is and what was measured, so the next reader does not have to
 rediscover why the arithmetic is shaped this way. Do not touch the model, the keymap or the
 input.
+
+## A known gap, recorded 2026 09 11 during the canvas provider fix round
+
+A left click in the field area is claimed by the mouse tap that owns the whole canvas
+surface and does nothing beyond that, where the native widget places the caret. field/model.lua
+exposes no hit test turning a screen point into a caret position, so a click cannot be
+answered without one, and this is a gap rather than a defect, recorded here rather than
+built in that fix round. Answering it later would mean model.lua exporting a function that
+turns a measured prefix width back into a caret index, the inverse of the measurement
+render.lua already performs to place the caret, and the provider translating a screen point
+into a local offset first, the same translation the list already performs through
+geometry.lua and list/model.lua's own rowAtPoint. Nothing about this is difficult, it is
+simply a piece nobody has built yet.

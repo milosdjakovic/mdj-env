@@ -74,6 +74,18 @@ Field.__index = Field
 --- either way per decision six, a consumer answering nothing simply swallows it.
 --- opts.onDismiss() runs once for escape, which this file always claims and never hands
 --- to onKey instead.
+---
+--- opts.onEmptyBackspace() runs once when a resolved backward delete reaches this file
+--- while the buffer is empty and nothing is selected, added for section one of the
+--- canvas picker provider brief, so a provider can pop a level the way config.back
+--- already does on the native side. This could not be answered through opts.onKey,
+--- since the keymap claims backspace unconditionally as deleteBackward before onKey is
+--- ever asked anything at all, so an empty buffer's own backspace press never reaches
+--- onKey regardless of what the buffer holds. The one place that still knows both facts
+--- together, that the resolved operation is deleteBackward and that the buffer is empty
+--- with nothing selected, is the function below that resolves a key and applies it, in
+--- the gap between those two steps, which is why this callback answers there rather
+--- than through a plain onKey case.
 function Field.new(opts)
   opts = opts or {}
   local self = setmetatable({
@@ -81,7 +93,9 @@ function Field.new(opts)
     onChange = opts.onChange,
     onKey = opts.onKey,
     onDismiss = opts.onDismiss,
+    onEmptyBackspace = opts.onEmptyBackspace,
     tap = nil,
+    _retiredTap = nil,
   }, Field)
   return self
 end
@@ -158,6 +172,19 @@ function Field:_handle(ev)
   local flags = ev:getFlags()
   local opName = keymap.resolve(code, flags)
   if opName then
+    -- Section one of the canvas picker provider brief. An empty buffer's own backward
+    -- delete is a press a provider needs to see for itself, popping a level being
+    -- config.back's own job rather than an edit on this buffer, so this checks for
+    -- exactly that case before the operation is ever applied, and only when a
+    -- consumer actually asked for the callback. Every other path through this
+    -- function, a non empty buffer among them, is untouched.
+    if opName == "deleteBackward" and self.onEmptyBackspace then
+      local lo = model.selectionBounds(self.state)
+      if self.state.text == "" and not lo then
+        self.onEmptyBackspace()
+        return true
+      end
+    end
     self:_apply(opName)
     return true
   end
@@ -183,6 +210,7 @@ end
 --- nothing, so an owner does not have to track whether it already called this once.
 function Field:start()
   if self.tap then return end
+  self._retiredTap = nil
   self.tap = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, function(ev)
     return self:_handle(ev)
   end)
@@ -191,9 +219,22 @@ end
 
 --- stop tears the tap down completely, the tap object itself dropped rather
 --- than merely stopped, so nothing armed is left behind for start to find and skip past.
+---
+--- Fix round item eight, insurance rather than a known failure. escape reaches this
+--- from inside the tap's own callback, on the same Lua stack that callback is still
+--- running on, and the line below used to drop the last reference to that userdata,
+--- self.tap, in that same moment. Lua will not collect it synchronously mid callback,
+--- so nothing here is known to break, but if it ever did the finalizer would disable
+--- and release a tap while its own callback was still on the stack, and Commit 1ccab6f
+--- already carries what a tap left believed torn down costs on this machine. Holding
+--- the retired userdata in self._retiredTap keeps a reference alive past the callback
+--- that dropped it, cleared on the next start so nothing accumulates across opens, and
+--- isRunning still answers exactly what it answered before, self.tap alone, since that
+--- is the field a fresh start replaces.
 function Field:stop()
   if self.tap then
     self.tap:stop()
+    self._retiredTap = self.tap
     self.tap = nil
   end
 end

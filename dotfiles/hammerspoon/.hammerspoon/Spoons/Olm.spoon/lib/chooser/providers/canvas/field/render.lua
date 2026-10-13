@@ -67,6 +67,16 @@
 --- nothing in the brief's decisions asks for a scrolled viewport and this file does not
 --- invent one, which is one of the places noted back to the brief rather than guessed at
 --- quietly.
+---
+--- The placeholder, added during the canvas provider fix round rather than in the
+--- three rounds of hand judgement above, since the gap was found by that later review
+--- and not by a hand test of this file. elements takes a fifth argument, placeholder, a
+--- plain string, drawn dim in place of the buffer only when the buffer itself is empty,
+--- on the identical lineTop and lineH the real text is placed from, so the two can
+--- never drift apart the way two separately measured boxes once did above. Nothing
+--- about a non empty buffer changes in any way, the placeholder element is simply never
+--- added in that case. The caret still draws after it in the element list, so it paints
+--- on top the same way it already does over the real text.
 
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local function load(name)
@@ -92,6 +102,16 @@ local DEFAULT_SELECTION_COLOR = { white = 0.5, alpha = 0.35 }
 
 local function px(n) return math.floor(n + 0.5) end
 
+-- A colour dimmed the same plain alpha cut list/render.lua's own dim already applies
+-- to a disabled row's title, reused here for the placeholder's own default colour
+-- rather than inventing a second dimming rule for one more piece of text.
+local function dim(color)
+  local c = {}
+  for k, v in pairs(color) do c[k] = v end
+  c.alpha = (c.alpha or 1) * 0.4
+  return c
+end
+
 --- render.elements(state, rect, style, caretVisible) answers a list of canvas elements.
 --- rect is { x, y, w, h }, the box this field occupies inside the caller's own canvas,
 --- and every element answered here is already positioned at that origin, nothing above
@@ -102,7 +122,10 @@ local function px(n) return math.floor(n + 0.5) end
 ---   selectionColor an hs colour table for the highlight behind a selection.
 ---   caretColor     an hs colour table for the caret, default textColor.
 ---   caretWidth     the caret's pixel width, default 2.
-function M.elements(state, rect, style, caretVisible)
+---   placeholderColor an hs colour table for the placeholder, default a dimmed textColor.
+--- placeholder is a plain string, drawn in place of the buffer only when the buffer is
+--- empty, on the same baseline the real text uses.
+function M.elements(state, rect, style, caretVisible, placeholder)
   style = style or {}
   local font = style.font or FONT_FALLBACK
   local size = style.fontSize or DEFAULT_FONT_SIZE
@@ -110,6 +133,7 @@ function M.elements(state, rect, style, caretVisible)
   local selectionColor = style.selectionColor or DEFAULT_SELECTION_COLOR
   local caretColor = style.caretColor or textColor
   local caretWidth = style.caretWidth or DEFAULT_CARET_WIDTH
+  local placeholderColor = style.placeholderColor or dim(textColor)
 
   local measureStyle = { font = font, size = size }
 
@@ -169,6 +193,21 @@ function M.elements(state, rect, style, caretVisible)
     textColor = textColor, textAlignment = "left",
     frame = { x = px(rect.x), y = px(lineTop), w = px(rect.w), h = px(lineH) },
   }
+
+  -- Fix round item thirteen. Drawn only when the buffer is empty, so a non empty
+  -- buffer's own text element above is untouched in every way, and placed on the
+  -- identical lineTop and lineH that text element already uses, so the two cannot
+  -- drift apart from each other the way two separately measured boxes once did before
+  -- the fix documented at the top of this file. Added after the real text element and
+  -- before the caret below, so the caret still draws over it exactly as it already
+  -- draws over the real text.
+  if ns.text == "" and placeholder and placeholder ~= "" then
+    els[#els + 1] = {
+      type = "text", text = placeholder, textFont = font, textSize = size,
+      textColor = placeholderColor, textAlignment = "left",
+      frame = { x = px(rect.x), y = px(lineTop), w = px(rect.w), h = px(lineH) },
+    }
+  end
 
   if caretVisible then
     -- The caret shares lineTop and lineH with the text and the highlight too, so all
