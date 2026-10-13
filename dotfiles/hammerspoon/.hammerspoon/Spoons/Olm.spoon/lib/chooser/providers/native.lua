@@ -86,6 +86,26 @@ obj.name = "Chooser"
 obj.version = "1.0"
 obj.author = "mdj-env"
 
+-- Load the shared text measuring module and the shared ranking policy by path, the
+-- same loadfile pattern lib/chooser/init.lua already uses to load this file and
+-- match.lua, since a provider file sitting inside a spoon is not on package.path
+-- either. textwidth.lua was moved out during the contract freeze phase,
+-- docs/BRIEF-CONTRACT-FREEZE.md, moving Chooser:textWidth's own memo and summing logic
+-- so a second provider could share it rather than reimplement it or reach in here to
+-- borrow it. rank.lua was moved out during the canvas provider phase,
+-- docs/BRIEF-CANVAS-PROVIDER.md section zero, taking this file's own _build apart the
+-- same way, for the same reason.
+local herePath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
+local function loadSibling(relPath)
+  local chunk, err = loadfile(herePath .. relPath)
+  if not chunk then
+    error("Chooser native provider: failed to load " .. relPath .. ": " .. tostring(err))
+  end
+  return chunk()
+end
+local textwidth = loadSibling("../textwidth.lua")
+local rank = loadSibling("../rank.lua")
+
 -- Minimal dark palette used only if no theme is injected, so an instance still
 -- renders. The one duplicated color set, kept here as the seam.
 local FALLBACK = {
@@ -141,6 +161,13 @@ local DEFAULT_LAYOUT = {
 -- the same column to the point, which is why one budget answers for both.
 local ROW_TEXT_INSET = 126
 
+-- How long after show() returns this provider's own placement is still moving, the
+-- settle delay _settleFrames waits before it corrects the window's real position. Named
+-- here rather than left as a literal, so settleDelay() below and _settleFrames read the
+-- one number rather than each carrying their own copy of it, the contract freeze phase
+-- collapsing what used to be a duplicated 0.03 in host/stage/init.lua as well.
+local SETTLE_DELAY = 0.03
+
 --------------------------------------------------------------------------------
 -- Instance
 --------------------------------------------------------------------------------
@@ -194,45 +221,20 @@ function Chooser:_toChoice(it)
   }
 end
 
--- The text the matcher searches for a row, the explicit filterText or the title plus
--- the subtitle. Kept here so a supplier that adds no filterText still matches on what
--- it shows, exactly the haystack the old per-consumer substring tests used.
-local function haystackOf(it)
-  return it.filterText or ((it.title or "") .. " " .. (it.subTitle or ""))
-end
-
--- Run the consumer's supplier for the current query and map to chooser choices,
--- keeping the mapped list so navigation and selection can read items back. With a
--- matcher set and a non-empty query the atom owns filtering: score every candidate,
--- drop the misses, and sort by score with the original order breaking ties, so a
--- stable secondary order like the launcher's recency still shows through. The styling
--- in _toChoice then runs only for the survivors, so a heavy list styles a few matched
--- rows per keystroke rather than all of them. Without a matcher, or on an empty query,
--- every returned item is kept in order, the pre-injection behaviour, which is also the
--- path a supplier that owns its own filtering (matcher = false) always takes.
+-- Run the consumer's supplier for the current query, hand the candidates to
+-- lib/chooser/rank.lua for the ranking policy, and style only what that module kept.
+-- Ranking touches nothing that belongs to hs.chooser, which is why it moved out to its
+-- own module during the canvas provider phase, docs/BRIEF-CANVAS-PROVIDER.md section
+-- zero, once a second provider needed the exact same order rather than a shape of its
+-- own. This function now keeps only the styling step, mapping each ranked item through
+-- _toChoice, so a heavy list styles a few matched rows per keystroke rather than all of
+-- them, exactly as before the move.
 function Chooser:_build(query)
   local items = self.config.rows and self.config.rows(query) or {}
-  local matcher = self.matcher
+  local ranked = rank.apply(items, query, self._matcher)
   local out = {}
-  if type(matcher) == "function" and query ~= "" then
-    local ranked = {}
-    for i = 1, #items do
-      local score = matcher(query, haystackOf(items[i]))
-      if score ~= nil then
-        ranked[#ranked + 1] = { it = items[i], score = score, idx = i }
-      end
-    end
-    table.sort(ranked, function(a, b)
-      if a.score ~= b.score then return a.score > b.score end
-      return a.idx < b.idx
-    end)
-    for i = 1, #ranked do
-      out[i] = self:_toChoice(ranked[i].it)
-    end
-  else
-    for i = 1, #items do
-      out[i] = self:_toChoice(items[i])
-    end
+  for i = 1, #ranked do
+    out[i] = self:_toChoice(ranked[i])
   end
   self.currentChoices = out
   return out
@@ -332,7 +334,7 @@ end
 -- no longer exists and the newer one supersedes it.
 function Chooser:_settleFrames()
   if self.settleTimer then self.settleTimer:stop() end
-  self.settleTimer = hs.timer.doAfter(0.03, function()
+  self.settleTimer = hs.timer.doAfter(SETTLE_DELAY, function()
     if not self.active then return end
     local app = hs.application.get("Hammerspoon")
     if not app then return end
@@ -975,54 +977,125 @@ end
 --- Chooser:textWidth(str, which) -> how wide that string renders in a row, in pixels.
 --- `which` is "title" or "sub" and picks the font size the row will actually use.
 ---
---- SUMMED FROM A PER CHARACTER TABLE rather than measured whole, which is the trade the
---- whole feature rests on. Measuring a whole subtitle costs 0.11 ms, so a page of two
---- hundred rows would spend 22 ms per keystroke. Measuring each distinct character once
---- and adding costs 0.003 ms a string, thirty six times less, and a page disappears into
---- the noise. The characters in a row are drawn from a tiny alphabet that repeats across
---- every row, so the table fills in the first few rows and never grows again.
----
---- The price is kerning, which the sum cannot see. Measured against true whole string
---- widths it runs 0.7 percent high on real paths, under two pixels on a 254 pixel string.
---- HIGH is the direction that matters. Over counting shortens marginally early, which
---- looks like nothing, where under counting would let a string through that then gets
---- cut, which is the exact failure this exists to prevent. So there is no fudge factor,
---- the error already leans the safe way.
----
---- Stepped by UTF8 sequence and not by byte, because a path can hold anything and the
---- ellipsis this feeds is itself three bytes. Measuring those bytes one at a time returns
---- nothing for each and would undercount a shortened string to zero.
+--- A passthrough onto lib/chooser/textwidth.lua, the contract freeze phase moving the
+--- memo and the summing logic there so a second provider can share the identical
+--- measuring rather than reimplement it. This file supplies only what is its own
+--- business, the row font and the size which selects, full reasoning for the measuring
+--- itself, the per character memo, the safe direction of the kerning error, and the UTF8
+--- stepping, living in that module now rather than here.
 function Chooser:textWidth(str, which)
-  if not str or str == "" then return 0 end
   local L = self.layout
   local size = (which == "title") and L.titleSize or L.subSize
-  local memo = self._charWidths[size]
-  if not memo then
-    memo = {}
-    self._charWidths[size] = memo
-  end
-  local style = { font = L.font, size = size }
-  local total, i, n = 0, 1, #str
-  while i <= n do
-    -- A plain byte is its own character, so the common path skips utf8.offset entirely.
-    -- Paths and ages are almost all ASCII and this runs on every row of every keystroke.
-    local ch, nxt
-    if str:byte(i) < 0x80 then
-      ch, nxt = str:sub(i, i), i + 1
-    else
-      nxt = utf8.offset(str, 2, i) or (n + 1)
-      ch = str:sub(i, nxt - 1)
+  return self._textWidth:width(str, L.font, size)
+end
+
+--------------------------------------------------------------------------------
+-- The picker contract, docs/CONTRACT-PICKER.md, added by the contract freeze phase to
+-- absorb code that used to reach past the facade, host/stage/init.lua and
+-- host/actionpanel/init.lua touching this instance's own layout, matcher and active
+-- fields directly. Each of these is a move of code that already existed, not a new
+-- capability.
+--------------------------------------------------------------------------------
+
+--- Chooser:isActive() -> whether this provider believes itself up, answering self.active
+--- so nothing outside this file reads that field directly any more.
+function Chooser:isActive()
+  return self.active
+end
+
+--- Chooser:rowCount() -> the row count this instance is currently built for, answering
+--- self.layout.rowCount so a caller learns this provider's own shipped default without
+--- reaching into layout directly.
+function Chooser:rowCount()
+  return self.layout.rowCount
+end
+
+--- Chooser:matcher() -> the current matching strategy, a function, false meaning the
+--- supplier owns filtering, or nil meaning no matching, fronting self._matcher.
+function Chooser:matcher()
+  return self._matcher
+end
+
+--- Chooser:setMatcher(m) -> sets the live matching strategy. false and nil are different
+--- answers and both survive the round trip through self._matcher.
+function Chooser:setMatcher(m)
+  self._matcher = m
+end
+
+--- Chooser:titleLineBreak() -> the truncation mode a title takes, fronting
+--- self.layout.titleLineBreak.
+function Chooser:titleLineBreak()
+  return self.layout.titleLineBreak
+end
+
+--- Chooser:setTitleLineBreak(mode) -> sets the live title truncation mode.
+function Chooser:setTitleLineBreak(mode)
+  self.layout.titleLineBreak = mode
+end
+
+--- Chooser:setPaneWidth(w) -> sets the companion width policy for this instance's next
+--- placement, fronting self.layout.companionWidth. true inherits the chooser's own
+--- resolved width, a number overrides it, nil or zero means no companion, every answer
+--- capped by this provider's own paneMaxW wherever it is actually resolved.
+function Chooser:setPaneWidth(w)
+  self.layout.companionWidth = w
+end
+
+--- Chooser:settleDelay() -> seconds. How long after show() returns this provider's own
+--- placement is still moving, answering the SETTLE_DELAY constant _settleFrames itself
+--- waits on, so a caller timing a manual placement against a recent show reads this
+--- provider's own number rather than carrying a second copy of it.
+function Chooser:settleDelay()
+  return SETTLE_DELAY
+end
+
+--- Chooser:reposition(paneWidth) -> chooserFrame, companionFrame
+---
+--- Recentres the already shown window for the given pane width and answers both frames,
+--- the companion nil when there is none, and nothing at all when this instance is not
+--- up. Moved here from host/stage/init.lua's own _positionPane, since only a provider
+--- knows how its own surface is drawn and moved. Keeps the window hunt by title, the
+--- frame read, the screen read, the recentre and the setTopLeft, all of it this
+--- provider's own legitimate business, and reads paneMaxW and gap from its own layout
+--- rather than from a table handed in. Writes this instance's own paneFrames, the field
+--- the click watcher above already reads for every hit test, so a click on a pane placed
+--- this way keeps testing honestly. What did not move here is the caller's own guard
+--- that the presentation asking is still current, and the caller's own call to report
+--- the frames onward, both of which stay the caller's concern.
+function Chooser:reposition(paneWidth)
+  if not self.active then return nil end
+  local app = hs.application.get("Hammerspoon")
+  if not app then return nil end
+  local w = nil
+  for _, cand in ipairs(app:allWindows()) do
+    if (cand:title() or "") == "Chooser" and cand:isVisible() then
+      w = cand
+      break
     end
-    local w = memo[ch]
-    if not w then
-      local sz = hs.drawing.getTextDrawingSize(ch, style)
-      w = (sz and sz.w) or 0
-      memo[ch] = w
-    end
-    total = total + w
-    i = nxt
   end
-  return total
+  if not w then return nil end
+
+  local L = self.layout
+  local cf = w:frame()
+  local resolved = paneWidth
+  if resolved == true then resolved = cf.w end
+  local paneW = 0
+  if type(resolved) == "number" and resolved > 0 then
+    paneW = math.min(resolved, L.paneMaxW)
+  end
+
+  local sf = (w:screen() or hs.screen.mainScreen()):frame()
+  local total = cf.w + (paneW > 0 and (L.gap + paneW) or 0)
+  local x = sf.x + math.floor((sf.w - total) / 2)
+  w:setTopLeft({ x = x, y = cf.y })
+
+  local chooserFrame = { x = x, y = cf.y, w = cf.w, h = cf.h }
+  local companionFrame = nil
+  if paneW > 0 then
+    companionFrame = { x = x + cf.w + L.gap, y = cf.y, w = paneW, h = cf.h }
+  end
+  self.paneFrames = { chooser = chooserFrame, companion = companionFrame }
+  return chooserFrame, companionFrame
 end
 
 --------------------------------------------------------------------------------
@@ -1040,30 +1113,31 @@ function obj.new(config)
 
   local self = setmetatable({
     config = config,
-    -- Adversarial review finding L4, the geometry phase of the chooser stage build.
-    -- host/stage/init.lua reads layout.rowCount, layout.gap, and layout.paneMaxW, and writes
-    -- layout.companionWidth and paneFrames, directly, on the one instance it owns, the same
-    -- kind of seam decision five of docs/BRIEF-STAGE.md already opened for config, which the
-    -- ActionPanel decorator mutates in place for the identical reason, this atom storing both
-    -- by reference and reading them live rather than copying either at construction. No
-    -- method here exposes either field, so a reader of this file has no way to learn that
-    -- from here alone, and this comment is what closes that gap. Whichever of
-    -- _positionAndShow and
-    -- _settleFrames runs next still overwrites paneFrames on its own terms regardless of what
-    -- a caller last wrote there, since neither reads it back, only companionWidth is ever
-    -- read live by this file's own arithmetic.
+    -- Adversarial review finding L4, the geometry phase of the chooser stage build, noted
+    -- host/stage/init.lua reading layout.rowCount, layout.gap, and layout.paneMaxW, and
+    -- writing layout.companionWidth and paneFrames, directly, on the one instance it owns.
+    -- The contract freeze phase, docs/BRIEF-CONTRACT-FREEZE.md, closed that reach. rowCount(),
+    -- matcher(), setMatcher(), titleLineBreak(), setTitleLineBreak() and setPaneWidth() now
+    -- front these fields for any caller outside this file, and reposition() now owns
+    -- paneFrames entirely, writing it itself rather than a caller reaching in to stamp it.
+    -- Whichever of _positionAndShow and _settleFrames runs next still overwrites paneFrames
+    -- on its own terms regardless of what reposition last wrote there, since neither reads
+    -- it back, only companionWidth is ever read live by this file's own arithmetic.
     layout = layout,
     -- The injected filter strategy, resolved by the facade to the module default when
     -- the consumer named none. A function means the atom filters; false or nil means it
-    -- does not and the supplier owns filtering.
-    matcher = config.matcher,
+    -- does not and the supplier owns filtering. Named with a leading underscore since the
+    -- contract freeze phase adds a matcher() accessor of its own, and a method cannot
+    -- share a name with a plain field on the same table.
+    _matcher = config.matcher,
     currentChoices = {},
     active = false,
     theme = FALLBACK.dark,
-    -- Character widths per font size, kept for the life of the instance rather than the
-    -- open, since a character in a fixed font at a fixed size renders the same forever
-    -- and both are settled here at construction.
-    _charWidths = {},
+    -- The shared text measuring module's own instance, kept for the life of this
+    -- instance rather than the open, since it holds the per character cache that used to
+    -- live here directly as _charWidths before the contract freeze phase moved the
+    -- measuring itself out to lib/chooser/textwidth.lua.
+    _textWidth = textwidth.new(),
   }, Chooser)
 
   self:_selectTheme()

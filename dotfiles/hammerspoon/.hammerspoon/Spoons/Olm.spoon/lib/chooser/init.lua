@@ -1,10 +1,15 @@
 --- === Chooser ===
 ---
 --- The picker facade. One backend, native, wrapping the built in hs.chooser.
---- Every consumer calls the same Chooser.new(config) and gets an instance that
---- honors the picker contract, show, hide, isShowing, refresh, selectNext,
+--- Every consumer calls the same Chooser.new(config) and gets an instance validated
+--- against the picker contract in contract.lua, the full twenty five names documented in
+--- docs/CONTRACT-PICKER.md, show, hide, isShowing, isActive, refresh, selectNext,
 --- selectPrev, insertSelected, selectedItem, selectedRow, selectRow, query,
---- setPlaceholder, setRows, activeTheme, textBudget, textWidth.
+--- setPlaceholder, setRows, rowCount, textBudget, textWidth, reposition,
+--- settleDelay, matcher, setMatcher, titleLineBreak, setTitleLineBreak, setPaneWidth.
+--- activeTheme stays on the native provider for a consumer that still wants it, but a
+--- new provider need not offer it, docs/CONTRACT-PICKER.md's own note that it has no
+--- caller anywhere in the tree.
 --- selectedRow and selectRow, phase eight of the build plan, are the plain public
 --- counterpart of selectedItem, added for ActionPanel, which restores a highlight
 --- by row number rather than by item. setRows, the geometry phase of the chooser
@@ -51,6 +56,12 @@ local native = load("providers/native.lua")
 --- names one and injects it, keeping the concrete policy in one place. Each is a
 --- match(query, hay) -> score or nil. See match.lua.
 obj.matchers = load("match.lua")
+
+-- The picker contract, docs/CONTRACT-PICKER.md, added by the contract freeze phase. Every
+-- instance new below builds is validated against it before decorate ever runs, so a
+-- provider missing a method fails at construction with a reason naming the gap, rather
+-- than surfacing later as a decorator wrapping a broken instance, which would bury it.
+local contract = load("contract.lua")
 
 -- The screen policy every chooser resolves against, injected once by the composition
 -- root so the consumers never thread it through themselves. It is the same seam
@@ -114,6 +125,10 @@ function obj.new(config)
   if config.screen == nil then config.screen = DEFAULT_SCREEN end
   if config.matcher == nil then config.matcher = DEFAULT_MATCHER end
   local instance = native.new(config)
+  local ok, reason = contract.validate(instance)
+  if not ok then
+    error("Chooser: the provider does not satisfy the picker contract, " .. tostring(reason))
+  end
   if DEFAULT_DECORATE then DEFAULT_DECORATE(instance, config) end
   return instance
 end

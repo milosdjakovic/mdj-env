@@ -65,7 +65,10 @@ local NOOP_RUN = function() end
 -- can read back whether and how it was asked to rebuild. query and setQuery are the field the
 -- coordinator's review found missing entirely, so this stands in for it too, a plain string
 -- the fake stores rather than anything the real atom's query changed callback would fire on,
--- since nothing here needs that callback to prove the panel restores what it captured.
+-- since nothing here needs that callback to fire on to prove the panel restores what it
+-- captured. matcher stands in for the contract freeze phase's own accessor, answering nil,
+-- exactly what a fake never given one always answered back when the panel read it as a plain
+-- field, so this file's own known substring failure keeps reading exactly as it did before.
 local function fakeInstance(opts)
   opts = opts or {}
   local instance = {
@@ -78,6 +81,7 @@ local function fakeInstance(opts)
   instance.isShowing = function() return instance.showing end
   instance.selectedItem = function() return instance.item end
   instance.selectedRow = function() return instance.row end
+  instance.matcher = function() return nil end
   instance.selectRow = function(_, n) instance.row = n end
   instance.query = function() return instance.q end
   instance.setQuery = function(_, text) instance.q = text or "" end

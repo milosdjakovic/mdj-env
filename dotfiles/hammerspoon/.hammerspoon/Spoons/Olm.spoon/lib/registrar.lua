@@ -344,8 +344,8 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
   -- take exactly that shape, reached math.min inside the atom's own _positionAndShow with
   -- nothing to stop it, raised there, and left layout.rowCount corrupted on the one instance
   -- the stage never rebuilds, wedging every future show of every presentation until the
-  -- config reloads. paneWidth already survived a bad value, host/stage/init.lua's own
-  -- _resolvePaneWidth refuses anything that is not a positive number or true, but only at
+  -- config reloads. paneWidth already survived a bad value, a provider's own reposition
+  -- refuses anything that is not a positive number or true, but only at
   -- runtime, on every call, with no console line naming the tool, which is a weaker and
   -- quieter protection than refusing the registration once, loudly, here, so it is checked
   -- here too, to close the asymmetry rather than leave one field better protected than the

@@ -55,9 +55,10 @@
 --- finding M1. onPositioned, refired through _positionPane on the manual path and through
 --- the atom's own automatic firing on the native one, converge on one function, _onPositioned,
 --- which is also what re anchors the docked shortcut panel now, finding M2, using paneAnchor,
---- the one true copy of the anchor arithmetic three plugins still carry their own copy of,
---- consumer map sections 7.3 and 9.11, built for phase five's migrations to call rather than
---- inherit a fourth copy. The presentation a transition leaves behind is told its own
+--- the one true copy of the anchor arithmetic three plugins once carried their own copy of,
+--- consumer map sections 7.3 and 9.11, built for phase five's migrations to call instead, and
+--- the survey of 2026-09-11 found every one of those migrations already done. The
+--- presentation a transition leaves behind is told its own
 --- onPositioned with nil frames before the incoming one is given real ones, finding H2, on
 --- every door, present, push, and pop, so a pane consumer never sits drawn beside a window
 --- that already moved past it. pop now routes through the same _show every other door does,
@@ -69,7 +70,7 @@
 --- surfaced by plugins that resisted version one honestly rather than being bent to fit it.
 --- A presentation may now declare matcher, false or a strategy name from the same table
 --- root/compose.lua already resolves this word against for every unmigrated consumer,
---- written onto self._instance.matcher live before every show and swap through
+--- written onto the shared instance live before every show and swap through setMatcher and
 --- _resolveMatcher, the identical discipline paneWidth already keeps for companionWidth. A
 --- presentation may also declare enter, a member handed one function, proceed, instead of
 --- showing immediately, for a tool whose own rows depend on gathering something first and
@@ -125,18 +126,6 @@ local SELF_BUNDLE = hs.processInfo and hs.processInfo.bundleID
 -- placeholder falls back to and silently rewrote five other tools' fields, which is the
 -- damage a value that can actually render would risk again.
 local CONSTRUCTION_PLACEHOLDER = ""
-
--- Mirrors lib/chooser/providers/native.lua's own hardcoded settle delay, the 0.03 seconds
--- _settleFrames waits after Chooser:show returns before it corrects the window's real
--- position. No accessor exposes that number, so this is the one duplicated constant the
--- geometry rework accepts, the alternative being to reach into the atom's own private
--- settleTimer field to ask it directly, which would trade one small duplication for a worse
--- one. Used by _applyPaneGeometry to gate a manual pane placement on the window's own age
--- rather than on the shape of the call that triggered it, adversarial review finding M1, a
--- swap landing inside this window of a recent cold show still races that show's own pending
--- settle correction, which reads layout.companionWidth live and would otherwise place the
--- window against a frame that has not settled yet.
-local ATOM_SETTLE_DELAY = 0.03
 
 -- Injected via configure
 obj._chooser = nil          -- the Chooser factory (has .new), the one door this host builds through
@@ -228,8 +217,8 @@ function obj:configure(opts)
   -- SEED, the matcher a presentation naming none of its own returns to, captured below into
   -- _defaultMatcher the instant construction has resolved it, exactly the way _defaultRowCount
   -- is captured a few lines further down. From the first present onward, _show writes every
-  -- presentation's own matcher onto self._instance.matcher live, before each show and swap,
-  -- the identical discipline layout.companionWidth already follows.
+  -- presentation's own matcher onto the shared instance live, through setMatcher, before
+  -- each show and swap, the identical discipline the pane width already follows.
   self._instance = self._chooser.new({
     theme = self._theme,
     placeholder = CONSTRUCTION_PLACEHOLDER,
@@ -278,30 +267,32 @@ function obj:configure(opts)
   })
 
   -- Decision two of the geometry brief. The row count the window is currently built for is
-  -- read straight off the fresh instance's own layout rather than assumed, so this can never
-  -- drift from whatever lib/chooser/providers/native.lua actually ships as its own default,
-  -- and _defaultRowCount is what a presentation naming no rowCount of its own is asking to
-  -- return to. Read once, right here, before setRows is ever called on this instance, since
-  -- that is the only moment layout.rowCount still holds the atom's own answer rather than
-  -- something this host already asked it to become.
-  self._rowCount = self._instance.layout.rowCount
+  -- read straight off the fresh instance's own rowCount() rather than assumed, so this can
+  -- never drift from whatever lib/chooser/providers/native.lua actually ships as its own
+  -- default, and _defaultRowCount is what a presentation naming no rowCount of its own is
+  -- asking to return to. Read once, right here, before setRows is ever called on this
+  -- instance, since that is the only moment rowCount() still answers the atom's own default
+  -- rather than something this host already asked it to become. Read through the accessor
+  -- rather than off layout directly since the contract freeze phase, docs/BRIEF-CONTRACT-
+  -- FREEZE.md, closed every reach this host used to make into that table.
+  self._rowCount = self._instance:rowCount()
   self._defaultRowCount = self._rowCount
 
-  -- Contract v2 decision one. self._instance.matcher already holds the resolved module wide
-  -- default the instant construction above returns, native.lua's own `matcher = config.matcher`
+  -- Contract v2 decision one. self._instance:matcher() already answers the resolved module
+  -- wide default the instant construction above returns, native.lua's own `matcher = config.matcher`
   -- having already folded DEFAULT_MATCHER in for a config that named none, lib/chooser/init.lua:122.
   -- Read once, right here, before any presentation has ever written to it, the same moment
   -- _defaultRowCount is read for the identical reason, so a presentation naming no matcher of
   -- its own asks to return to exactly what this host would have shown before contract v2 ever
   -- started writing this field on every show.
-  self._defaultMatcher = self._instance.matcher
+  self._defaultMatcher = self._instance:matcher()
 
-  -- Rework rider. self._instance.layout.titleLineBreak already holds the atom's own default,
+  -- Rework rider. self._instance:titleLineBreak() already answers the atom's own default,
   -- "truncateTail", DEFAULT_LAYOUT's own value folded in at construction the identical way
-  -- layout.rowCount is. Read once, right here, for the identical reason _defaultRowCount and
+  -- rowCount() is. Read once, right here, for the identical reason _defaultRowCount and
   -- _defaultMatcher are, so a presentation naming no titleLineBreak of its own asks to return
   -- to exactly what this host would have shown before this field existed.
-  self._defaultTitleLineBreak = self._instance.layout.titleLineBreak
+  self._defaultTitleLineBreak = self._instance:titleLineBreak()
 
   -- The one nav adapter, unscoped, answering isShowing for the shared window itself rather
   -- than for any one presentation. selectNext, selectPrev, insertSelected, and hide are safe
@@ -462,27 +453,30 @@ function obj:_show(p, wasShowing, outgoing)
   -- show's own _positionAndShow computes the pair's centering natively, through the atom's
   -- own arithmetic, rather than painting a lone chooser first and being shifted by hand a
   -- beat later. Just as important on the branch that does NOT show anything this call, since
-  -- a settle timer left pending by an EARLIER cold show reads this field live when it finally
+  -- a settle timer left pending by an EARLIER cold show reads this live when it finally
   -- fires, docs/PROBE-FINDINGS-2026-08-27.md section C3, so writing it here keeps that timer
   -- honest too rather than only the show this call might itself trigger. A presentation
   -- naming no paneWidth writes nil, which the atom's own _resolveCompanionWidth already
-  -- treats as no pane, so the window centres itself alone with nothing else asked.
-  self._instance.layout.companionWidth = p.paneWidth
+  -- treats as no pane, so the window centres itself alone with nothing else asked. Written
+  -- through setPaneWidth() rather than onto layout directly since the contract freeze phase
+  -- closed that reach.
+  self._instance:setPaneWidth(p.paneWidth)
   -- Contract v2 decision one. Written before every show, cold or swap alike, the identical
-  -- placement and the identical reasoning companionWidth just above already carries, since
-  -- native.lua's own Chooser:_build reads self.matcher live on every keystroke rather than
+  -- placement and the identical reasoning the pane width just above already carries, since
+  -- native.lua's own Chooser:_build reads its own matcher live on every keystroke rather than
   -- once at construction, lib/chooser/init.lua's own note on why that reference is safe to
   -- mutate after construction. A presentation naming no matcher of its own resolves back to
   -- _defaultMatcher, the module wide default this host itself inherited at configure, so a
   -- tool that never asks for anything unusual keeps behaving exactly as it did before this
-  -- field existed.
-  self._instance.matcher = self:_resolveMatcher(p.matcher)
+  -- field existed. Written through setMatcher() now, the same accessor rename that also
+  -- closed the equivalent reach for the pane width just above.
+  self._instance:setMatcher(self:_resolveMatcher(p.matcher))
   -- Rework rider, filesearch's own titleLineBreak restored. Written before every show, cold
-  -- or swap alike, the identical placement matcher just above keeps, since a swap's own
-  -- refresh(true) rebuilds every row's styling live off layout.titleLineBreak exactly the
-  -- way it rebuilds off layout.companionWidth. A presentation naming none of its own resolves
-  -- to _defaultTitleLineBreak, the atom's own "truncateTail" this host inherited at configure.
-  self._instance.layout.titleLineBreak = p.titleLineBreak or self._defaultTitleLineBreak
+  -- or swap alike, the identical placement the matcher just above keeps, since a swap's own
+  -- refresh(true) rebuilds every row's styling live off titleLineBreak exactly the way it
+  -- rebuilds off the pane width. A presentation naming none of its own resolves to
+  -- _defaultTitleLineBreak, the atom's own "truncateTail" this host inherited at configure.
+  self._instance:setTitleLineBreak(p.titleLineBreak or self._defaultTitleLineBreak)
   -- Decision two of the geometry brief. A row count change takes the one resize path that
   -- exists, hide, rows(n), show, which the probe found applies on the next show of the same
   -- instance, docs/PROBE-FINDINGS-2026-08-27.md section C2. _applyRowCount below drives that
@@ -585,14 +579,17 @@ end
 -- behaviour the brief's own acceptance asks for costs nothing beyond the comparison below.
 --
 -- Adversarial review finding M1. The deferral that used to gate on whether THIS call was a
--- cold show is replaced with a gate on the window's own age. A swap landing within
--- ATOM_SETTLE_DELAY of this instance's last show still races that show's own pending settle
--- timer, which reads layout.companionWidth live and, now that this host writes it honestly,
--- would confirm rather than corrupt the shift, but the window frame this function reads
--- before that timer fires may not have settled yet, docs/PROBE-FINDINGS-2026-08-27.md's own
--- note that a first show renders taller than its steady state, so this still waits out
--- whatever remains of that window before reading the frame itself. A swap landing later than
--- that, the overwhelming ordinary case, races nothing and runs at once.
+-- cold show is replaced with a gate on the window's own age. A swap landing within the
+-- provider's own settle delay of this instance's last show still races that show's own
+-- pending settle timer, which reads layout.companionWidth live and, now that this host
+-- writes it honestly, would confirm rather than corrupt the shift, but the window frame this
+-- function reads before that timer fires may not have settled yet, docs/PROBE-FINDINGS-
+-- 2026-08-27.md's own note that a first show renders taller than its steady state, so this
+-- still waits out whatever remains of that window before reading the frame itself. A swap
+-- landing later than that, the overwhelming ordinary case, races nothing and runs at once.
+-- The delay itself is asked of the instance through settleDelay() rather than carried here
+-- as a second copy, the contract freeze phase collapsing what used to be a duplicated
+-- literal into the one native.lua already needs for its own _settleFrames.
 function obj:_applyPaneGeometry(p, outgoing)
   -- The unconditional cancel that used to open this function now sits at the top of _show
   -- instead, rider N2 of the geometry review, so every door clears a pending timer before
@@ -600,9 +597,10 @@ function obj:_applyPaneGeometry(p, outgoing)
   -- reached from.
   local hadPane = outgoing and outgoing.paneWidth
   if not p.paneWidth and not hadPane then return end
+  local settleDelay = self._instance:settleDelay()
   local age = hs.timer.secondsSinceEpoch() - (self._lastShowAt or 0)
-  if age < ATOM_SETTLE_DELAY then
-    self._geometryTimer = hs.timer.doAfter(ATOM_SETTLE_DELAY - age, function()
+  if age < settleDelay then
+    self._geometryTimer = hs.timer.doAfter(settleDelay - age, function()
       self._geometryTimer = nil
       self:_positionPane(p)
     end)
@@ -611,71 +609,31 @@ function obj:_applyPaneGeometry(p, outgoing)
   end
 end
 
--- Finds the live window through the same trick lib/chooser/providers/native.lua's own
--- _settleFrames uses, since hs.chooser hands out no window handle of its own, only a title an
--- hs.application can be asked for. Recomputes the pair the way _positionAndShow already
--- centers a chooser and its companion, moves the live window with setTopLeft rather than
--- reopening it, docs/PROBE-FINDINGS-2026-08-27.md section C3 having found that move exact and
--- the widget staying live through it. Stamps self._instance.paneFrames with the result, the
--- field the atom's own click watcher already reads for every hit test, so a click on the new
--- companion keeps testing honestly, and hands the two frames to _onPositioned, the one
--- function that also fires on the atom's own native path, so the panel and this
--- presentation's own onPositioned are told through the identical route regardless of which
--- of the two placed the window, adversarial review finding M2.
+-- Delegates the actual placement to the provider's own reposition, contract freeze phase,
+-- docs/BRIEF-CONTRACT-FREEZE.md, which is the method that replaces this host reaching into
+-- the running application, hunting a window by its own title, and moving it directly.
+-- reposition answers the same two frames this used to compute by hand and stamps the
+-- provider's own paneFrames itself now, the field the atom's own click watcher reads for
+-- every hit test, so a click on the new companion keeps testing honestly. What stays here
+-- is only what this host itself owns, the guard that the presentation asking is still
+-- current, and the report of the two frames onward to _onPositioned, the one function that
+-- also fires on the atom's own native path, so the panel and this presentation's own
+-- onPositioned are told through the identical route regardless of which of the two placed
+-- the window, adversarial review finding M2.
 --
 -- Guarded against a stale call landing after a newer presentation already took over, which
 -- the settle wait above makes possible, a present, push, or pop racing ahead of the timer
--- before it ever fires. Also guarded, adversarial review finding L1, against a foreign
--- window also titled "Chooser", any of the twelve still unmigrated consumers among them,
--- being the one the loop above happens to find while this instance's own window is not
--- actually up, the same self.active guard _settleFrames itself opens with before running
--- the identical search.
+-- before it ever fires. Also guarded, adversarial review finding L1, against reaching a
+-- provider that no longer believes itself active, the identical isActive() question
+-- _settleFrames itself asks before running its own search, so a stale timer finds nothing
+-- to move rather than moving a window that has already torn down.
 function obj:_positionPane(p)
   if self:_current() ~= p then return end
-  if not (self._instance and self._instance.active) then return end
-  local app = hs.application.get("Hammerspoon")
-  if not app then return end
-  local w = nil
-  for _, cand in ipairs(app:allWindows()) do
-    if (cand:title() or "") == "Chooser" and cand:isVisible() then
-      w = cand
-      break
-    end
+  if not (self._instance and self._instance:isActive()) then return end
+  local chooserFrame, companionFrame = self._instance:reposition(p.paneWidth)
+  if chooserFrame then
+    self:_onPositioned(chooserFrame, companionFrame)
   end
-  if not w then return end
-
-  local L = self._instance.layout
-  local cf = w:frame()
-  local paneW = self:_resolvePaneWidth(p.paneWidth, cf.w, L.paneMaxW)
-
-  local sf = (w:screen() or hs.screen.mainScreen()):frame()
-  local total = cf.w + (paneW > 0 and (L.gap + paneW) or 0)
-  local x = sf.x + math.floor((sf.w - total) / 2)
-  w:setTopLeft({ x = x, y = cf.y })
-
-  local chooserFrame = { x = x, y = cf.y, w = cf.w, h = cf.h }
-  local companionFrame = nil
-  if paneW > 0 then
-    companionFrame = { x = x + cf.w + L.gap, y = cf.y, w = paneW, h = cf.h }
-  end
-  self._instance.paneFrames = { chooser = chooserFrame, companion = companionFrame }
-  self:_onPositioned(chooserFrame, companionFrame)
-end
-
--- The atom's own companionWidth semantics, decision one of the geometry brief, reproduced
--- here rather than reached for on the instance, since the shared instance's own
--- _resolveCompanionWidth answers for layout.companionWidth, which by the time this runs
--- already carries this same presentation's own paneWidth, adversarial review finding M6, but
--- _positionPane needs the resolved PIXEL width for its own arithmetic, not the raw value, true
--- or a number or absent, the atom's own field stores. true inherits the chooser's own
--- width for this show, a number is the independent value, and both are capped at paneMaxW
--- exactly as the atom caps its own. Anything else, absent, false, or a non positive number,
--- means no pane.
-function obj:_resolvePaneWidth(paneWidth, chooserW, paneMaxW)
-  local w = paneWidth
-  if w == true then w = chooserW end
-  if type(w) ~= "number" or w <= 0 then return 0 end
-  return math.min(w, paneMaxW)
 end
 
 -- Where every geometry pass that has real frames to report converges, the atom's own
@@ -955,7 +913,7 @@ function obj:isCurrent(token)
   return token ~= nil and self:_current() == token
 end
 
---- Stage:world() -> hs.application, number
+--- Stage:world() -> the covered app, number
 --- Method
 --- The app this stack covers and the id of this open. The two halves are captured on
 --- different terms, phase three review finding five, since decision one made a present over

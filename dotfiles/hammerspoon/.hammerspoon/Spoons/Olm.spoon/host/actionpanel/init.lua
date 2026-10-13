@@ -245,7 +245,7 @@ end
 
 -- The panel's own rows, as decorate's wrapped rows function answers them while the panel is
 -- open, filtered by a plain case insensitive substring against the title when the instance's
--- own supplier owns filtering (instance.matcher is false, filtersItself below, read live at
+-- own supplier owns filtering (instance:matcher() is false, filtersItself below, read live at
 -- config.rows's own call site, review finding M3, rework, rather than captured once here),
 -- or answered whole so the instance's own matcher ranks them, exactly the choice the atom
 -- already gives every consumer over its ordinary rows. Every panel row's title already
@@ -430,16 +430,17 @@ function obj:decorate(instance, config)
   -- presentation is current, docs/BRIEF-CONTRACT-V2.md decision one. decorate itself still
   -- runs exactly once, at the stage's own single construction, long before any presentation,
   -- or its own matcher, exists to read, so a value captured there answers for nothing real.
-  -- instance.matcher is read live here instead, inside the closure, the identical field
+  -- instance:matcher() is read live here instead, inside the closure, the identical value
   -- native.lua's own Chooser:_build already reads fresh on every keystroke rather than once
   -- at construction, so the panel now filters, or does not, for whichever presentation is
   -- actually current when a key is actually pressed. Eleven tools across this track declare
   -- matcher = false today, four before this batch and seven more inside it, and every one of
   -- them typed into the action panel over their own rows without narrowing anything until
-  -- this line changed.
+  -- this line changed. Read through the accessor rather than off the field directly since
+  -- the contract freeze phase closed that reach, docs/BRIEF-CONTRACT-FREEZE.md.
   config.rows = function(query, ...)
     if self._openInstance == instance then
-      local filtersItself = instance.matcher == false
+      local filtersItself = instance:matcher() == false
       return filterOwnRows(self._panelRows or {}, query, filtersItself)
     end
     return originalRows and originalRows(query, ...) or {}
