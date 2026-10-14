@@ -78,6 +78,7 @@ local FONT = resolveFont()
 -- "system" means draw it in the normal UI font, which is how a plain Unicode shape
 -- gets in. Next has no glyph in any Nerd Font block but its actual mark is a filled
 -- triangle, so the ordinary character is not a substitute, it is the right symbol.
+-- theme-exempt, brand colours of the languages and frameworks these icons stand for, never the palette's
 local NERD = {
   -- Runtimes.
   node       = { "\u{e718}", "#6CC24A" },

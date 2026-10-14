@@ -1,10 +1,10 @@
 -- OLM settings, what it declares about itself.
 --
--- A friendly front end onto a policy that already lives elsewhere, one page today, where
--- the OLM launcher appears, over lib/overlaydisplay.lua's own two modes. It owns no data of
--- its own, it
--- only reads and writes the resolver's live choice through the two root words below, so the
--- one place that ever calls hs.settings for this policy stays lib/overlaydisplay.lua.
+-- A friendly front end onto policy that already lives elsewhere, two pages today, where the
+-- OLM launcher appears, over lib/overlaydisplay.lua's own two modes, and the colour theme,
+-- over lib/ui/themes.lua. It owns no data of its own, it only reads and writes the live
+-- choices through the root words below, so the one place that ever calls hs.settings for
+-- each policy stays the lib that owns it.
 return {
   -- No moving parts, so no engine and contract ceremony, one module. The directory is
   -- settings, one lowercase word, and it needs no different spelling, so no name field.
@@ -26,6 +26,22 @@ return {
         breaks = "choosing either option in the Where the OLM launcher appears page changes "
           .. "nothing, since the resolver's own persisted choice has no other way in from "
           .. "this plugin" },
+
+      -- The theme switcher's three words, published by the root over lib/ui/themes.lua. The
+      -- reader answers the live theme's name, the lister the sorted names of every theme file
+      -- found, and the writer takes a name, applies that theme at once and persists it. All
+      -- three are required, since a Theme page that cannot name the live theme, list the
+      -- choices or change one has nothing honest left to show.
+      themeName = { source = "root", policy = "required",
+        breaks = "the Theme row on the OLM settings page cannot say which theme is live, "
+          .. "and the page cannot mark the live one, since the store of themes has no other "
+          .. "door out" },
+      themeNames = { source = "root", policy = "required",
+        breaks = "the Theme page lists no themes, since the files under config/themes are "
+          .. "known only to the store the root built" },
+      setTheme = { source = "root", policy = "required",
+        breaks = "choosing a theme on the Theme page changes nothing, since applying and "
+          .. "persisting a theme has no other way in from this plugin" },
 
       -- Two of the trickle migration's own words, the hotkey door and the child leaving
       -- door, optional and degrading to an inert press rather than a crash, since asking
@@ -67,8 +83,8 @@ return {
   -- DisplayProfiles' own launcher only entry does.
   registry = {
     row = { category = "System", glyph = "🎛️",
-      detail = "where the OLM launcher appears and other preferences",
-      keywords = "olm settings preferences options window placement" },
+      detail = "where the OLM launcher appears, the colour theme and other preferences",
+      keywords = "olm settings preferences options window placement theme colour colors appearance" },
     open = { member = "show", call = "dot" },
   },
 }

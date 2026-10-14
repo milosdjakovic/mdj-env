@@ -39,6 +39,7 @@ function stubMeasure:wrap(str, _, _, maxW)
   return lines
 end
 
+-- theme-exempt, fixture colours for a unit case, not a tool's look
 local SPEC = {
   colors = {
     dark = { foreground = { white = 0.92 }, subtext = { white = 0.55 }, background = "#29292e",

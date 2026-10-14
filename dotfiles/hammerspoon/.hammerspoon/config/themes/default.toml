@@ -1,0 +1,36 @@
+# The default theme, the look Olm had before themes were files. Hand written, and every value
+# is what config/settings.lua held for it.
+#
+# theme-exempt, a hand chosen palette, the look this config has always had, so it is not painted from theme/palettes
+#
+# The chooser used to say this about its colours. One source for how the searchable chooser and
+# its docked preview look in light and dark. The active side is picked per open from the live
+# system appearance, so it tracks the automatic light and dark switch. The two row text colours
+# were styledtext white values, since a styled row must restate its colour, and they are written
+# here as the hex the same grey comes to, white 0.92 as ebebeb, 0.55 as 8c8c8c, 0.15 as 262626
+# and 0.42 as 6b6b6b. The preview colours are CSS hex. Omit the light section to fall back to
+# dark. The bgDark flag the chooser carried is derived from the half and needs no key.
+#
+# text and subtext are the two row text colours, background and border are the shared surface,
+# and accent, meta, path and note are the preview pane's body, metadata, path and note text.
+# highlight and selection are left out, so the kit derives them from text as it always has.
+
+[dark]
+text       = "#ebebeb"
+subtext    = "#8c8c8c"
+background = "#29292e"
+border     = "#59575c"
+accent     = "#dcdcdc"
+meta       = "#8a8a8a"
+path       = "#7a7a7a"
+note       = "#c8a86a"
+
+[light]
+text       = "#262626"
+subtext    = "#6b6b6b"
+background = "#cecace"
+border     = "#a09f9f"
+accent     = "#1c1c1e"
+meta       = "#6b6b70"
+path       = "#88888d"
+note       = "#8a5a12"

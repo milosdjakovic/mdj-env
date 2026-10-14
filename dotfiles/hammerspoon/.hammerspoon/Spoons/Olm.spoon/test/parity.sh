@@ -6,7 +6,10 @@
 #   test/parity.sh <scratch dir> [git ref]
 #
 # The old code is the given ref, HEAD unless named, exported from git into the scratch
-# directory, since the old files load their siblings by relative path. Results are written
+# directory, since the old files load their siblings by relative path. Its config/settings.lua
+# comes with it, since before the theme files that held the colours the old code was drawn
+# with. A colour component may differ by one 8 bit step between the two sides, the white
+# values of the old settings against the hex of the default theme, and each probe prints that. Results are written
 # to files in that directory and printed from there, since a reply through the hs command
 # line tool can go missing. Only a dofile call carrying a path crosses into hs.
 
@@ -24,15 +27,16 @@ WORK=$(cd -- "$WORK" && pwd)
 OLD="$WORK/parity-old"
 rm -rf "$OLD"
 mkdir -p "$OLD"
-git -C "$REPO_ROOT" archive "$REF" "$SPOON_REL/lib" "$SPOON_REL/root" | tar -x -C "$OLD" || exit 1
+CONFIG_REL="${SPOON_REL%/Spoons/Olm.spoon}/config"
+git -C "$REPO_ROOT" archive "$REF" "$SPOON_REL/lib" "$SPOON_REL/root" "$CONFIG_REL/settings.lua" | tar -x -C "$OLD" || exit 1
 
 status=0
 for probe in emptystate hints cheatsheet canvasprovider; do
   out="$WORK/parity-$probe.out"
   args="$WORK/parity-$probe-args.lua"
   rm -f "$out"
-  printf 'PARITY_ARGS = { old = "%s/%s/", out = "%s" }\ndofile("%s/parity-%s.lua")\n' \
-    "$OLD" "$SPOON_REL" "$out" "$SELF_DIR" "$probe" > "$args"
+  printf 'PARITY_ARGS = { old = "%s/%s/", oldSettings = "%s/%s/settings.lua", out = "%s" }\ndofile("%s/parity-%s.lua")\n' \
+    "$OLD" "$SPOON_REL" "$OLD" "$CONFIG_REL" "$out" "$SELF_DIR" "$probe" > "$args"
   hs -c "dofile('$args')" >/dev/null 2>&1 &
   client=$!
   for _ in $(seq 1 120); do

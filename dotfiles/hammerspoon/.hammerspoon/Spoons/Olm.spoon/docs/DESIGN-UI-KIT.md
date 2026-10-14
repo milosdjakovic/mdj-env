@@ -85,11 +85,16 @@ layout call and the current tokens. A plugin never names a colour, a font or a s
 
 ## The style spec, and where colours come from
 
-Until the palette step, the spec is built from today's settings, `surface`, `chooserTheme`
-and `cheatSheet`, plus the literals the survey found, so the first migration changes nothing
-a person can see. The palette step later adds a Hammerspoon `theme-map` and `theme-emit`
-that write the colour half of the spec, removes `theme-exempt`, and is where the look
-changes.
+Colours come from theme files, `config/themes/<name>.toml`, one per theme, each a `[dark]` and
+a `[light]` section of ten keys, read by `lib/ui/toml.lua` and kept by `lib/ui/themes.lua`.
+`default.toml` is hand chosen and holds the look the config had before themes were files, and
+`aura.toml` is generated from the repository palette by the package's `theme-map` and
+`theme-emit`. `root/uispec.lua` builds the spec from the live theme's colours and from the
+`cheatSheet` radius and type settings, and a switch is the store handing the kit a new spec, so
+the next draw shows it. The OLM settings page lists the themes and switches them. Two views
+of the theme, a `chooserTheme` shaped table and a `surface` shaped one, are rewritten in place
+on every switch for the readers outside the kit that still take them, and stage four retires
+both.
 
 ## Stages
 

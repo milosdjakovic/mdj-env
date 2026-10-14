@@ -11,7 +11,9 @@ local lib = dofile(here .. "parity-lib.lua")
 
 local ok, err = pcall(function()
   local policy = lib.policy()
+  local oldPolicy = lib.oldPolicy()
   local ui = lib.newUI(policy)
+  local oldUI = lib.oldUI(oldPolicy)
   local cs = policy.cheatSheet or {}
   local icon = hs.image.imageFromName("NSCaution")
 
@@ -21,9 +23,8 @@ local ok, err = pcall(function()
     obj:configure(opts)
     return obj
   end
-  local old = sheet(lib.old .. "lib/cheatsheet.lua", { theme = policy.chooserTheme,
-    fontSize = cs.fontSize, lineHeight = cs.lineHeight, badgeRadius = cs.badgeRadius,
-    padding = cs.padding, canvasPanel = lib.fakePanel() })
+  local old = sheet(lib.old .. "lib/cheatsheet.lua", { ui = oldUI, padding = cs.padding,
+    canvasPanel = lib.fakePanel() })
   local new = sheet(lib.new .. "lib/cheatsheet.lua", { ui = ui, padding = cs.padding,
     canvasPanel = lib.fakePanel() })
 

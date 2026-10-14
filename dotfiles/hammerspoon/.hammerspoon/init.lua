@@ -76,12 +76,13 @@ local olm = spoon.Olm:start({
     -- delay never reached Olm and every docked bar drew instantly. Olm ships three seconds
     -- now, so this line matters only on a machine that wants to differ.
     shortcutsPanel = settings.shortcutsPanel,
-    chooserTheme   = settings.chooserTheme,
     chooserProvider = settings.chooser.provider,
     cheatSheet     = settings.cheatSheet,
     overlayDisplay = settings.overlayDisplay,
     hyperTrigger   = settings.hyperTrigger,
     storage        = { cacheRoot = settings.paths.cacheRoot, olmRoot = settings.paths.olmRoot },
+    -- The colour theme files, one per theme, which hold every colour the surfaces draw with.
+    themes         = { dir = settings.paths.themes },
   },
 
   -- The BrowserTabs test suite reaches its plugin through a global, so that one name is

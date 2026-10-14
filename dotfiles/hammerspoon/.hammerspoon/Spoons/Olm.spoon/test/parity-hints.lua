@@ -3,6 +3,8 @@
 -- shortcut bar for a fixed context at two widths, and the message, colour and report toasts
 -- for fixed states, through the old file and the new one, which draws through the kit, and
 -- reports every difference, the preferred sizes included since a toast's size places it.
+-- The old side reads the old settings' colours and the new side the default theme's, see
+-- parity-lib.lua. theme-exempt, a fixture colour for the colour toast, not a tool's colour
 
 local source = debug.getinfo(1, "S").source
 local here = (source:match("^@(.*)$") or source):match("^(.*/)")
@@ -10,7 +12,9 @@ local lib = dofile(here .. "parity-lib.lua")
 
 local ok, err = pcall(function()
   local policy = lib.policy()
+  local oldPolicy = lib.oldPolicy()
   local ui = lib.newUI(policy)
+  local oldUI = lib.oldUI(oldPolicy)
   local oldHints = dofile(lib.old .. "lib/hints.lua")
   local newHints = dofile(lib.new .. "lib/hints.lua")
   local glyphFor = dofile(lib.old .. "lib/cheatsheet.lua").glyphFor
@@ -40,7 +44,7 @@ local ok, err = pcall(function()
   for _, half in ipairs(lib.halves) do
     for _, w in ipairs({ 592, 300 }) do
       local oldSize, old = lib.withHalf(half, function()
-        local c = contentFor(oldHints, { theme = policy.chooserTheme })
+        local c = contentFor(oldHints, { ui = oldUI })
         return c.preferredSize(w), c.draw(w)
       end)
       local newSize, new = lib.withHalf(half, function()
@@ -51,7 +55,7 @@ local ok, err = pcall(function()
         { lib.sizeDiff("preferred size", oldSize, newSize) })
     end
 
-    local oldToast = oldHints.toast({ theme = policy.chooserTheme })
+    local oldToast = oldHints.toast({ ui = oldUI })
     local newToast = newHints.toast({ ui = ui })
     local icon = hs.image.imageFromName("NSCaution")
     local function both(name, build)

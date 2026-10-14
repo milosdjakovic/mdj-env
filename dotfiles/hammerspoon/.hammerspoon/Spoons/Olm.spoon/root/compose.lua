@@ -58,6 +58,7 @@ local registrarLib = load("lib/registrar.lua")
 local navLib = load("lib/nav.lua")
 local servicesLib = load("lib/services.lua")
 local uiSpecLib = load("root/uispec.lua")
+local themesLib = load("lib/ui/themes.lua")
 
 local log = hs.logger.new("Olm.compose", "info")
 -- Every sibling here has its own opinion about the shape a logger arrives in. Some read an
@@ -113,6 +114,11 @@ local SHIPPED_POLICY = {
   chord = { holdDelay = 0.6, tapThreshold = 0.2, passthrough = true },
   hyperTrigger = { kind = "leader" },
   storage = { cacheRoot = "~/.olm/cache", olmRoot = "~/.olm/data" },
+  -- Where the colour theme files live, handed in from the person's config. Nothing ships
+  -- here, since a theme is a file and the default one belongs beside the config that names it.
+  -- The surface and chooserTheme tables below are views the root fills from the live theme,
+  -- see the themes store in step B, so a person's config sets only the radius and width.
+  themes = {},
   surface = {},
   chooserTheme = {},
   cheatSheet = {},
@@ -227,21 +233,62 @@ function obj.run(olm, cfg)
   local depsAtom = atoms.deps
   depsAtom:init()
 
+  -- The colour themes, one file each in the directory policy names, and the one that is
+  -- live. The store is built before anything draws so the surface and the kit start from the
+  -- live theme. Everything outside plain Lua is handed to it here, the directory listing, the
+  -- file read, hs.settings for the persisted choice, and the kit with the function that turns
+  -- colours into a spec, so a switch is the store handing the kit a new spec and the root
+  -- rewriting the two views below. A draw asks the kit for its tokens every time, which is why
+  -- the next one shows the switch with no reload.
+  local uiAtom = atoms.ui
+  local themeLog = { w = function(message) log.w(message) end }
+  local themes = themesLib.new({
+    dir = (policy.themes or {}).dir,
+    list = function(dir)
+      local names = {}
+      local ok, iterator, handle = pcall(hs.fs.dir, dir)
+      if ok and iterator then
+        for file in iterator, handle do names[#names + 1] = file end
+      end
+      return names
+    end,
+    read = function(path)
+      local file = io.open(path, "r")
+      if not file then return nil end
+      local text = file:read("a")
+      file:close()
+      return text
+    end,
+    settings = { get = function(key) return hs.settings.get(key) end,
+                 set = function(key, value) hs.settings.set(key, value) end },
+    ui = uiAtom,
+    specFor = function(colors) return uiSpecLib.spec(policy, colors) end,
+    onChange = function(_, colors)
+      uiSpecLib.chooserView(policy.chooserTheme, colors)
+      uiSpecLib.surfaceView(policy.surface, colors)
+    end,
+    log = themeLog,
+  })
+  -- The two views the readers outside the kit still hold, a chooserTheme shaped table for the
+  -- native provider and the plugin panes and a surface shaped one for the panel. Filled in
+  -- place and rewritten in place on every switch, so a reader holding a reference follows
+  -- without a reload. Stage four of the kit retires both once those readers draw through it.
+  uiSpecLib.chooserView(policy.chooserTheme, themes.colors())
+  uiSpecLib.surfaceView(policy.surface, themes.colors())
+
   local canvasPanel = atoms.panel
   canvasPanel:init()
   canvasPanel.configure({ surface = policy.surface })
   canvasPanel.configure({ screen = function() return overlay and overlay.screen() end })
 
-  -- The UI kit's style, built once from the same three settings blocks the chrome, the
-  -- chooser rows and the cheat sheet already read, so a pane drawn through the kit matches
-  -- them exactly. root/uispec.lua holds how those blocks become a spec, a file of its own so
-  -- the stage two parity probes build the very spec this root does. The panel is handed the
-  -- kit straight after, since its empty state draws through it and its surface asks it which
-  -- half the system is on.
-  local uiAtom = atoms.ui
+  -- The UI kit's style, built once from the live theme and the cheat sheet block, so a pane
+  -- drawn through the kit matches the chooser rows and the cheat sheet exactly.
+  -- root/uispec.lua holds how those become a spec, a file of its own so the parity probes
+  -- build the very spec this root does. The panel is handed the kit straight after, since its
+  -- empty state draws through it and its surface asks it which half the system is on.
   if uiAtom then
     uiAtom.configure({
-      spec = uiSpecLib.spec(policy),
+      spec = uiSpecLib.spec(policy, themes.colors()),
       surfaceElements = canvasPanel.surfaceElements,
     })
     canvasPanel.configure({ ui = uiAtom })
@@ -982,6 +1029,13 @@ function obj.run(olm, cfg)
     setOverlayPlacementMode = function(mode)
       if overlay and overlay.setMode then overlay.setMode(mode) end
     end,
+
+    -- The theme switcher's three words over the themes store built in step B, the live name,
+    -- the sorted names, and a writer that applies a theme at once and answers whether the
+    -- name had a file. The store owns the persisted choice under its own hs.settings key.
+    themeName = function() return themes.current() end,
+    themeNames = function() return themes.names() end,
+    setTheme = function(name) return themes.set(name) end,
   }
 
   local rootFanned = servicesLib.fanOut(manifests, rootValues, "root")

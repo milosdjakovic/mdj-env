@@ -12,6 +12,15 @@
 -- not something a person sees. The second pass draws both lists offscreen and compares the
 -- pixels, which is the verdict, since it catches anything the field list cannot name.
 --
+-- Stage three moved the colours into theme files, so the two sides no longer read the same
+-- settings. The old side is the ref it is compared with, drawn through that ref's own kit
+-- over that ref's settings file, colours and all, and the new side is this checkout drawn
+-- through its kit over its default theme, read through the same store and views the
+-- composition root builds. A white value in the old settings and its hex in the theme
+-- file differ by up to half of one 8 bit step, so a colour component is allowed to differ by
+-- one step, in the field pass and in the pixel pass, and the tolerance is printed at the top
+-- of every probe's output beside the largest difference actually found.
+--
 -- The old code is not loaded live. test/parity.sh exports the old tree from git into a
 -- scratch directory and sets PARITY_ARGS before a probe runs, naming that directory and the
 -- file results are written to, since a reply through the hs command line tool can go missing
@@ -29,6 +38,7 @@ M.old = M.args.old
 M.hsDir = M.new .. "../../"
 
 local outFile = assert(io.open(M.args.out, "w"))
+M.STEP = 1 / 255 + 1e-6
 
 function M.out(line)
   outFile:write(line .. "\n")
@@ -41,15 +51,76 @@ function M.done()
   PARITY_ARGS = nil
 end
 
+local uispec = dofile(M.new .. "root/uispec.lua")
+
+-- The colours of the default theme, read through the store the composition root builds, from
+-- this checkout's own theme directory.
+local function loadDefaultColors()
+  local themes = dofile(M.new .. "lib/ui/themes.lua")
+  local dir = M.hsDir .. "config/themes"
+  local store = themes.new({
+    dir = dir,
+    list = function(d)
+      local names = {}
+      for file in hs.fs.dir(d) do names[#names + 1] = file end
+      return names
+    end,
+    read = function(path)
+      local f = io.open(path, "r")
+      if not f then return nil end
+      local text = f:read("a")
+      f:close()
+      return text
+    end,
+    settings = { get = function() return nil end, set = function() end },
+  })
+  return store.colors("default")
+end
+M.colors = loadDefaultColors()
+
+-- The new side's policy, this checkout's settings with the two views filled from the default
+-- theme exactly as the composition root fills them.
 function M.policy()
-  return dofile(M.hsDir .. "config/settings.lua")
+  local policy = dofile(M.hsDir .. "config/settings.lua")
+  policy.chooserTheme = uispec.chooserView({}, M.colors)
+  uispec.surfaceView(policy.surface, M.colors)
+  return policy
+end
+
+-- The old side's policy, the settings file of the ref being compared with, which still holds
+-- every colour itself.
+function M.oldPolicy()
+  return dofile(M.args.oldSettings)
 end
 
 -- A fresh kit from this checkout, configured with the very spec the composition root builds.
 function M.newUI(policy)
   local ui = dofile(M.new .. "lib/ui/init.lua")
-  ui.configure({ spec = dofile(M.new .. "root/uispec.lua").spec(policy) })
+  ui.configure({ spec = uispec.spec(policy, M.colors) })
   return ui
+end
+
+-- A fresh kit from the old tree, configured with the old tree's own spec builder over the old
+-- settings, so the old side draws exactly what the ref drew. The ref is already built on the
+-- kit, so the old side needs its own kit rather than the old direct reads of settings.
+function M.oldUI(oldPolicy)
+  local ui = dofile(M.old .. "lib/ui/init.lua")
+  ui.configure({ spec = dofile(M.old .. "root/uispec.lua").spec(oldPolicy) })
+  return ui
+end
+
+-- The largest difference, in 8 bit steps, between a colour the old settings spelled and the
+-- one the default theme gives, over the two row text colours of both halves. Everything else
+-- the old settings spelled as hex, which converts exactly.
+function M.largestStep()
+  local old, new, largest = M.oldPolicy().chooserTheme, M.policy().chooserTheme, 0
+  for _, half in ipairs({ "dark", "light" }) do
+    for _, key in ipairs({ "titleColor", "subColor" }) do
+      local a, b = old[half][key].white, new[half][key].red
+      largest = math.max(largest, math.abs(a - b) * 255)
+    end
+  end
+  return largest
 end
 
 M.halves = { "dark", "light" }
@@ -76,6 +147,10 @@ function M.fakePanel()
   end
   return fake
 end
+
+M.out(string.format("TOLERANCE a colour component may differ by one 8 bit step, "
+  .. "the largest difference between the old settings and the default theme is %.2f of a step",
+  M.largestStep()))
 
 --------------------------------------------------------------------------------
 -- Reducing an element to what it draws
@@ -172,8 +247,13 @@ function M.reduce(el)
   return out
 end
 
-local function same(a, b)
-  if type(a) == "number" and type(b) == "number" then return math.abs(a - b) < 1e-6 end
+-- A colour component is allowed one 8 bit step, see the note at the top. Every other number
+-- must match to a millionth.
+local function same(a, b, key)
+  if type(a) == "number" and type(b) == "number" then
+    local colour = key ~= nil and key:match("%.[rgb]$") ~= nil
+    return math.abs(a - b) < (colour and M.STEP or 1e-6)
+  end
   return a == b
 end
 
@@ -195,7 +275,7 @@ function M.diff(oldEls, newEls)
       for k in pairs(keys) do sorted[#sorted + 1] = k end
       table.sort(sorted)
       for _, k in ipairs(sorted) do
-        if not same(ro[k], rw[k]) then
+        if not same(ro[k], rw[k], k) then
           local line = "element " .. i .. " " .. k .. " old " .. tostring(ro[k])
             .. " new " .. tostring(rw[k])
           if k:sub(1, 1) == "~" then hidden[#hidden + 1] = line
@@ -207,7 +287,12 @@ function M.diff(oldEls, newEls)
   return visible, hidden
 end
 
--- Both lists drawn offscreen on the same opaque ground, compared as encoded images.
+-- Both lists drawn offscreen on the same opaque ground, compared as encoded images first.
+-- Identical encodings are the verdict when they come. Otherwise the two images are compared
+-- pixel by pixel, every third pixel in both directions since reading one costs a call, and
+-- they match when no component differs by more than one 8 bit step, the tolerance the note
+-- at the top gives. The element pass above has already compared every rectangle and frame
+-- exactly, so the sampling only has to catch what a field cannot name.
 local function render(els, w, h)
   local c = hs.canvas.new({ x = 0, y = 0, w = w, h = h })
   c[1] = { type = "rectangle", action = "fill", fillColor = { white = 0.5 },
@@ -215,11 +300,28 @@ local function render(els, w, h)
   for i, el in ipairs(els) do c[i + 1] = el end
   local img = c:imageFromCanvas()
   c:delete()
-  return img and img:encodeAsURLString() or ""
+  return img
 end
 
+local STRIDE = 3
+
 function M.samePixels(oldEls, newEls, w, h)
-  return render(oldEls, w, h) == render(newEls, w, h)
+  local a, b = render(oldEls, w, h), render(newEls, w, h)
+  if not a or not b then return false, "an image did not render" end
+  if a:encodeAsURLString() == b:encodeAsURLString() then return true, "identical" end
+  local size = a:size()
+  local worst = 0
+  for y = 0, math.floor(size.h) - 1, STRIDE do
+    for x = 0, math.floor(size.w) - 1, STRIDE do
+      local p, q = a:colorAt({ x = x, y = y }), b:colorAt({ x = x, y = y })
+      if p and q then
+        worst = math.max(worst, math.abs(p.red - q.red), math.abs(p.green - q.green),
+                         math.abs(p.blue - q.blue))
+      end
+    end
+  end
+  if worst <= M.STEP then return true, "within one step" end
+  return false, "DIFFERENT, largest component difference " .. string.format("%.2f", worst * 255) .. " steps"
 end
 
 --------------------------------------------------------------------------------
@@ -234,11 +336,11 @@ function M.check(name, oldEls, newEls, w, h, extras)
   totals.cases = totals.cases + 1
   local visible, hidden = M.diff(oldEls, newEls)
   for _, line in ipairs(extras or {}) do visible[#visible + 1] = line end
-  local pixels = M.samePixels(oldEls, newEls, w, h)
+  local pixels, how = M.samePixels(oldEls, newEls, w, h)
   local clean = #visible == 0 and pixels
   if clean then totals.clean = totals.clean + 1 end
   M.out((clean and "SAME " or "DIFF ") .. name .. ", " .. #oldEls .. " elements, "
-    .. #visible .. " visible field differences, pixels " .. (pixels and "identical" or "DIFFERENT")
+    .. #visible .. " visible field differences, pixels " .. how
     .. (#hidden > 0 and (", " .. #hidden .. " non visual") or ""))
   for _, line in ipairs(visible) do M.out("  " .. line) end
   for _, line in ipairs(hidden) do M.out("  non visual, " .. line) end

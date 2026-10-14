@@ -12,6 +12,7 @@ local ok, err = pcall(function()
   local policy = lib.policy()
   local ui = lib.newUI(policy)
   local oldPanel = dofile(lib.old .. "lib/panel.lua")
+  oldPanel.configure({ ui = lib.oldUI(lib.oldPolicy()) })
   local newPanel = dofile(lib.new .. "lib/panel.lua")
   newPanel.configure({ ui = ui })
 

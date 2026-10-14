@@ -7,11 +7,16 @@
 -- When nothing is injected the real call is made, and only at the moment tokens is asked,
 -- never at load.
 --
--- The spec carries what policy knows, the colours of each half and the two radii settings
--- owns, and this file carries everything else as its shipped values below. A spec field
--- always wins over a shipped one. Colours arrive either as "#RRGGBB" strings, which is how
--- the surface and preview settings spell them, or as hs colour tables, which is how the row
--- text colours are spelled, and both come back out as colour tables.
+-- The spec carries the colours of each half, which the current theme file supplies, and the
+-- two radii settings owns, and this file carries everything else as its shipped values
+-- below. A spec field always wins over a shipped one. Colours arrive either as "#RRGGBB" or
+-- "#RRGGBBAA" strings, which is how a theme file spells them, or as hs colour tables, and
+-- both come back out as colour tables.
+--
+-- The shipped colours below are only the fallback for a theme that leaves a role out. Stage
+-- four of the kit retires the preview four once the plugin panes draw through it.
+--
+-- theme-exempt, shipped fallbacks for a role a theme leaves out, retired in stage four
 --
 -- Four colours are derived rather than given, one rule each, so a spec never has to restate
 -- them. dim is subtext at the dim alpha, selection is foreground at 0.20, highlight is
@@ -164,11 +169,12 @@ local function lineHeightFor(size)
   return math.ceil(size * 1.35)
 end
 
+-- A "#rrggbb" string, or "#rrggbbaa" when a theme file gives an alpha, as a colour table.
 local function hexColor(hex)
-  local r, g, b = tostring(hex):match("^#?(%x%x)(%x%x)(%x%x)$")
-  if not r then return nil end
+  local r, g, b, a = tostring(hex):match("^#?(%x%x)(%x%x)(%x%x)(%x?%x?)$")
+  if not r or #a == 1 then return nil end
   return { red = tonumber(r, 16) / 255, green = tonumber(g, 16) / 255,
-           blue = tonumber(b, 16) / 255, alpha = 1.0 }
+           blue = tonumber(b, 16) / 255, alpha = a ~= "" and tonumber(a, 16) / 255 or 1.0 }
 end
 
 local function copy(t)

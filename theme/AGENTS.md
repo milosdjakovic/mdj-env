@@ -132,8 +132,7 @@ generated file is exempt by its banner. Two declarations exempt anything else, b
 name, and the checker keeps no list of paths. A package that is not painted from the palette
 says so in a `theme-exempt` file at its root, beside its `DEPENDENCIES`, whose whole content is
 the reason. It is repo only, so it goes in that package's `.stow-local-ignore`. kitty and
-alacritty wait that way until they run again, and Hammerspoon until its chrome has a map and
-emitter. A single file whose colours belong to someone else, brand colours or a palette for
+alacritty wait that way until they run again. A single file whose colours belong to someone else, brand colours or a palette for
 another medium, carries a line reading `theme-exempt`, a comma, and the reason, in whatever
 comment syntax the file has. Every exemption is printed on every run with its reason, so none
 leaves view, and one with no reason is an error. A package cannot both emit and exempt.
@@ -154,7 +153,8 @@ three roles `highlight`, `subtext` and `fill` joined the vocabulary for it. fzf,
 through slots, since Ghostty paints all 256 and its map declares 16 to 19 for the bar under a
 current row, the secondary grey, the quiet rule and the page, so none of the three has a map
 of its own. Nothing stowed carries a hand copy, and the checker proves it across every file
-rather than the maps alone. Three packages are declared exemptions, kitty and alacritty, both
-unstowed, and Hammerspoon's chrome, and the html-reports skill's document palette is exempt in
+rather than the maps alone. Hammerspoon is painted too, its map and emitter write the aura theme file under `config/themes`,
+beside a hand chosen `default.toml` that carries its own `theme-exempt` line. Two packages are
+declared exemptions, kitty and alacritty, both unstowed, and the html-reports skill's document palette is exempt in
 its two files. wezterm names WezTerm's bundled Aura scheme and carries no hex, so it is Aura at
 one remove until it has an emitter.

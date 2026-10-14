@@ -1,10 +1,12 @@
 --- === OLM settings ===
 ---
---- A friendly settings surface, opened from the launcher only, with one nested page today,
---- where the OLM launcher appears, deciding which display the launcher and every stage
---- window land on. The mechanism this page controls already lives in
---- lib/overlaydisplay.lua, two modes, activeWindow and cursor, and this page is the only
---- surface a person sees or changes either one through.
+--- A friendly settings surface, opened from the launcher only, with two nested pages today.
+--- The first is where the OLM launcher appears, deciding which display the launcher and every
+--- stage window land on. The mechanism it controls already lives in lib/overlaydisplay.lua,
+--- two modes, activeWindow and cursor, and this page is the only surface a person sees or
+--- changes either one through. The second is the colour theme, one row per theme file under
+--- config/themes, applied the moment it is chosen. That mechanism lives in lib/ui/themes.lua
+--- and reaches this plugin as three root published words, themeName, themeNames and setTheme.
 ---
 --- No engine and contract ceremony, this plugin has no moving parts of its own. It reads and
 --- writes the resolver's live mode through two root published words, overlayPlacementMode and
@@ -71,6 +73,7 @@ local function emojiImage(str)
 end
 
 local ICON_PLACEMENT = "🖥️"
+local ICON_THEME = "🎨"
 local ICON_BACK = "⬅️"
 -- The two option rows carry only a circle each, never a checkmark, the one marker
 -- convention this codebase uses for "which of these is current right now". Green marks
@@ -152,28 +155,78 @@ local function buildPlacementChild()
 end
 
 --------------------------------------------------------------------------------
--- The top level, one row, named on the manifest's own presentation block
+-- The child page for Theme, Back plus one row per theme file
+--------------------------------------------------------------------------------
+
+local function liveTheme()
+  return cfg.readTheme and cfg.readTheme()
+end
+
+-- The rows are rebuilt from the store's own names on every redraw, so a theme file that was
+-- added since the page opened shows up on the next one, and the circle follows whichever
+-- name is live. Same circles as the placement page, green for the live one.
+local function themeRows()
+  local live = liveTheme()
+  local rows = { backRow() }
+  for _, name in ipairs((cfg.readThemeNames and cfg.readThemeNames()) or {}) do
+    rows[#rows + 1] = row(name, nil, name == live and ICON_SELECTED or ICON_NOT_SELECTED,
+      { theme = name }, true)
+  end
+  return rows
+end
+
+-- Built exactly as the placement child is, a fixed list that answers the query in full and
+-- so opts out of the shared matcher, and choosing a theme answers stay for the same reason
+-- choosing a placement does. A theme is a mutation of the policy the row stands beside, so
+-- the page keeps the highlight on the row just chosen and only the circle moves.
+local function buildThemeChild()
+  return {
+    placeholder = "Theme",
+    matcher = false,
+    rows = themeRows,
+    -- Every reachable row is caught by intercept below, but the field is required on every
+    -- presentation, host/stage's own isPresentation refusing one without it.
+    onSelect = function() end,
+    intercept = function(item)
+      if item.nav and item.to == "back" then
+        if cfg.stagePop then cfg.stagePop() end
+        return true
+      end
+      if item.theme then
+        if cfg.setTheme then cfg.setTheme(item.theme) end
+        return "stay"
+      end
+      return false
+    end,
+  }
+end
+
+--------------------------------------------------------------------------------
+-- The top level, two rows, named on the manifest's own presentation block
 --------------------------------------------------------------------------------
 
 --- M.rows() -> rows
---- The top level's own row supplier. One row today, Where the OLM launcher appears, its
---- subtitle naming the live choice in words. No matcher declared in the manifest, the shared
---- default fuzzy strategy is more than enough over one row.
+--- The top level's own row supplier. Two rows today, Where the OLM launcher appears, its
+--- subtitle naming the live choice in words, and Theme, its subtitle naming the live theme.
+--- No matcher declared in the manifest, the shared default fuzzy strategy is more than
+--- enough over two rows.
 function M.rows()
   local mode = liveMode()
   local words = MODE_WORDS[mode] or MODE_WORDS.cursor
   return {
     row("Where the OLM launcher appears", words, ICON_PLACEMENT, { nav = true, to = "placement" }, true),
+    row("Theme", liveTheme(), ICON_THEME, { nav = true, to = "theme" }, true),
   }
 end
 
 --- M.select(item) -> presentation or nil
---- The top level's own onSelect. Choosing the one row is a genuine child, decision one,
+--- The top level's own onSelect. Choosing either row is a genuine child, decision one,
 --- host/stage pushing whatever comes back, so this level never completes the whole tool by
 --- itself.
 function M.select(item)
   if not item then return nil end
   if item.nav and item.to == "placement" then return buildPlacementChild() end
+  if item.nav and item.to == "theme" then return buildThemeChild() end
   return nil
 end
 
@@ -205,6 +258,10 @@ end
 --- opts.overlayPlacementMode     required, a function of no arguments answering the live mode.
 --- opts.setOverlayPlacementMode  required, a function of one mode string, writing it through
 ---                               lib/overlaydisplay.lua's own persisted path.
+--- opts.themeName                required, a function of no arguments answering the live theme.
+--- opts.themeNames               required, a function of no arguments answering the sorted names.
+--- opts.setTheme                 required, a function of a theme name, applying it at once and
+---                               persisting it through lib/ui/themes.lua.
 --- opts.stagePresent             optional, the shared stage door M.show asks through.
 --- opts.stagePop                 optional, the door the placement child's own Back row asks
 ---                                through.
@@ -212,11 +269,17 @@ function M:configure(opts)
   opts = opts or {}
   cfg.readMode = opts.overlayPlacementMode
   cfg.setMode = opts.setOverlayPlacementMode
+  cfg.readTheme = opts.themeName
+  cfg.readThemeNames = opts.themeNames
+  cfg.setTheme = opts.setTheme
   cfg.stagePresent = opts.stagePresent
   cfg.stagePop = opts.stagePop
   if not cfg.readMode or not cfg.setMode then
     log.w("configured with no overlay placement reader or writer, the Where the OLM "
       .. "launcher appears page will show and change nothing")
+  end
+  if not cfg.readTheme or not cfg.readThemeNames or not cfg.setTheme then
+    log.w("configured with no theme reader or writer, the Theme page will show and change nothing")
   end
   return self
 end

@@ -1,0 +1,19 @@
+# The keys of a Hammerspoon theme file, each pointing at a role from theme/VOCABULARY. The
+# left hand names are the ten the kit reads from a file under .hammerspoon/config/themes, a
+# colour for the row text, the surface and the preview pane, and they are the kit's own
+# words rather than anything Hammerspoon defines.
+#
+# text is the ink, subtext is the ink stepped back, background and border are the shared
+# surface, and accent is the preview body text, which is the ink as well. meta is the preview
+# metadata, path is the preview path and note is the preview note. highlight is the bar under
+# the list cursor and selection is the tint under a selected span.
+text       = foreground
+subtext    = subtext
+background = background
+border     = dim
+accent     = foreground
+meta       = overlay
+path       = comment
+note       = tertiary
+highlight  = highlight
+selection  = selection

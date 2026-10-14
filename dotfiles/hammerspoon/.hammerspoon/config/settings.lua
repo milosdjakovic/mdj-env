@@ -50,16 +50,12 @@ return {
 
   -- The shared canvas surface. One source for how every canvas panel looks in
   -- light and dark, the docked shortcut bars, the cheat sheet, the colour toast,
-  -- and the clipboard preview pane. Background, border, border width, corner
-  -- radius. The CanvasPanel atom is configured with this once in init.lua and owns
-  -- the look from there, so editing a value here restyles every surface at once.
-  -- Only the surface itself lives here; the chooser preview text colours stay in
-  -- chooserTheme below.
+  -- and the clipboard preview pane. Only the shape lives here, the border width and the
+  -- corner radius. The colours of the surface and of everything drawn on it come from the
+  -- theme files under config/themes, one file per theme, chosen on the OLM settings page.
   surface = {
     cornerRadius = 0,    -- square, the look we have; raise it to round every surface at once
     borderWidth = 1,
-    dark  = { bg = "#29292e", border = "#59575C" },
-    light = { bg = "#cecace", border = "#A09F9F" },
   },
 
   -- Cheat-sheet overlay content (the Hyper and SUPER modals). One place for the
@@ -72,32 +68,6 @@ return {
     badgeRadius = 5,   -- key-badge roundness, matching the hint bar chips
     fontSize = 16,
     padding = 20,      -- inner panel padding (CanvasPanel padX/padY)
-  },
-
-  -- Chooser theme. One source for how the searchable chooser and its docked
-  -- preview look in light and dark. The clipboard reads it today; a future
-  -- chooser based tool (and later the cheat sheets) can read the same source, so
-  -- one edit restyles them all. The active side is picked per open from the live
-  -- system appearance, so it tracks the automatic light and dark switch. Each
-  -- side names the chooser background flag, the two row text colours (styledtext
-  -- white values, since a styled row must restate its colour), and the preview
-  -- webview colours (CSS hex). Omit the light block to fall back to dark.
-  chooserTheme = {
-    -- preview holds only the text colours of the clipboard preview pane. That pane's
-    -- background and border come from the shared surface block above, drawn through
-    -- the CanvasPanel atom, so it reads as one surface with the docked shortcut panel.
-    dark = {
-      bgDark = true,
-      titleColor = { white = 0.92 },
-      subColor = { white = 0.55 },
-      preview = { fg = "#dcdcdc", meta = "#8a8a8a", path = "#7a7a7a", note = "#c8a86a" },
-    },
-    light = {
-      bgDark = false,
-      titleColor = { white = 0.15 },
-      subColor = { white = 0.42 },
-      preview = { fg = "#1c1c1e", meta = "#6b6b70", path = "#88888d", note = "#8a5a12" },
-    },
   },
 
   -- Overlay display policy. Decides which display every transient overlay appears
@@ -294,5 +264,8 @@ return {
   paths = {
     cacheRoot = "~/.olm/cache",
     olmRoot = "~/.olm/data",
+    -- The directory of colour theme files, found from this file's own location so it is the
+    -- one beside this config wherever the config is loaded from. Tracked, unlike the two above.
+    themes = (debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$") or (hs.configdir .. "/config")) .. "/themes",
   },
 }

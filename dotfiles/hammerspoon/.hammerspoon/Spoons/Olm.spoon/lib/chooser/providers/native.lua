@@ -113,6 +113,7 @@ local FALLBACK = {
     bgDark = true,
     titleColor = { white = 0.92 },
     subColor = { white = 0.55 },
+    -- theme-exempt, a literal fallback for a palette the panes are not yet handed, retired in stage four of the kit
     preview = { bg = "#1e1e22", fg = "#dcdcdc", meta = "#8a8a8a", path = "#7a7a7a", note = "#c8a86a" },
   },
 }

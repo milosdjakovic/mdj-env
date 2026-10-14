@@ -12,7 +12,9 @@ local lib = dofile(here .. "parity-lib.lua")
 
 local ok, err = pcall(function()
   local policy = lib.policy()
+  local oldPolicy = lib.oldPolicy()
   local ui = lib.newUI(policy)
+  local oldUI = lib.oldUI(oldPolicy)
   local SCREEN = { x = 0, y = 0, w = 1512, h = 945 }
   local icon = hs.image.imageFromName("NSCaution")
 
@@ -23,9 +25,9 @@ local ok, err = pcall(function()
       image = (i % 2 == 0) and icon or nil, enabled = i ~= 11, item = i }
   end
 
-  local function tree(dir)
+  local function tree(dir, pol)
     local panel = dofile(dir .. "lib/panel.lua")
-    panel.configure({ surface = policy.surface })
+    panel.configure({ surface = pol.surface })
     local canvasDir = dir .. "lib/chooser/providers/canvas/"
     return {
       provider = dofile(canvasDir .. "init.lua"),
@@ -34,13 +36,14 @@ local ok, err = pcall(function()
       panel = panel,
     }
   end
-  local oldTree, newTree = tree(lib.old), tree(lib.new)
-  oldTree.provider.configure({ panel = oldTree.panel })
+  local oldTree, newTree = tree(lib.old, oldPolicy), tree(lib.new, policy)
+  oldTree.panel.configure({ ui = oldUI })
+  oldTree.provider.configure({ panel = oldTree.panel, ui = oldUI })
   newTree.panel.configure({ ui = ui })
   newTree.provider.configure({ panel = newTree.panel, ui = ui })
 
-  local function draw(t, fieldState, steps)
-    local p = t.provider.new({ theme = policy.chooserTheme, placeholder = "Search apps",
+  local function draw(t, pol, fieldState, steps)
+    local p = t.provider.new({ theme = pol.chooserTheme, placeholder = "Search apps",
       rows = function() return rows end })
     p:_selectTheme()
     p:_deriveStyles()
@@ -64,8 +67,8 @@ local ok, err = pcall(function()
   }
   for _, half in ipairs(lib.halves) do
     for _, c in ipairs(cases) do
-      local old, ow, rect = lib.withHalf(half, function() return draw(oldTree, c.field, c.steps) end)
-      local new, nw = lib.withHalf(half, function() return draw(newTree, c.field, c.steps) end)
+      local old, ow, rect = lib.withHalf(half, function() return draw(oldTree, oldPolicy, c.field, c.steps) end)
+      local new, nw = lib.withHalf(half, function() return draw(newTree, policy, c.field, c.steps) end)
       local extras = {}
       if ow[1] ~= nw[1] or ow[2] ~= nw[2] then
         extras[1] = "textWidth old " .. ow[1] .. " " .. ow[2] .. " new " .. nw[1] .. " " .. nw[2]

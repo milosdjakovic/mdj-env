@@ -762,6 +762,7 @@ function M.dock(companionFrame)
   hidden = false
   local p = (cfg.palette and cfg.palette()) or {}
   colors = {
+    -- theme-exempt, a literal fallback for a palette the panes are not yet handed, retired in stage four of the kit
     fg = hexColor(p.fg or "#dcdcdc"),
     meta = hexColor(p.meta or "#8a8a8a"),
     path = hexColor(p.path or "#7a7a7a"),
