@@ -91,3 +91,4 @@ than discovered.
 - [olm-launcher-ranking](olm-launcher-ranking.md), the launcher orders a searched list by what each query has been used to pick, a decaying score per query and row pair with a sticky leader, guarded so it only ever settles rows that matched about equally
 - [machine-profiles](machine-profiles.md), one tracked `MACHINES` file says which optional pieces each machine takes, keyed by `LocalHostName`, read only by `src/machine.sh`, after one branch per machine was rejected for drifting
 - [olm-colour-roles](olm-colour-roles.md), Olm draws with eight colour roles and nothing else, three of them accents taken as ranks, after a larger set, separate path and dim and surface roles, semantic accents and all six Aura accents were turned down
+- [olm-chooser-keys](olm-chooser-keys.md), the canvas picker's field yields Hyper presses through an injected predicate, and the action panel is on Hyper and o with file search reveal on Hyper and f

@@ -114,6 +114,11 @@ local contract = load("../../contract.lua")
 -- reads the one configured style. Declared up here because the instance methods read it.
 local UI = nil
 
+-- The injected predicate over a key down event, answering whether the key belongs to
+-- something downstream of the field's tap and must pass on. Nil until M.configure runs,
+-- and nil means the field claims everything. This file knows only that it is a predicate.
+local YIELDS = nil
+
 -- Return, keypad enter, up and down, the four keys the field's own keymap never
 -- claims, so all four already reach this provider's onKey unclaimed rather than being
 -- typed into the buffer as a stray character.
@@ -1133,6 +1138,9 @@ local function buildField(self)
       self:hide()
     end,
     onEmptyBackspace = function() self:_onEmptyBackspace() end,
+    -- Whatever predicate the composition root injected, read at the moment a key arrives
+    -- so a configure after this instance was built still takes effect.
+    yields = function(ev) return YIELDS ~= nil and YIELDS(ev) end,
   })
 end
 
@@ -1148,13 +1156,15 @@ local M = {}
 -- identical shared chrome.
 local PANEL = nil
 
---- M.configure(opts) takes opts.panel, the CanvasPanel module, and opts.ui, the UI kit.
---- Callable more than once, a nil field left unchanged, matching CanvasPanel.configure's
+--- M.configure(opts) takes opts.panel, the CanvasPanel module, and opts.ui, the UI kit, and
+--- optionally opts.yields, a function(event) answering true for a key down the field's tap
+--- must let through instead of claiming. Callable more than once, a nil field left unchanged, matching CanvasPanel.configure's
 --- own idiom. Whatever calls M.new is expected to have called this first.
 function M.configure(opts)
   opts = opts or {}
   if opts.panel ~= nil then PANEL = opts.panel end
   if opts.ui ~= nil then UI = opts.ui end
+  if opts.yields ~= nil then YIELDS = opts.yields end
   return M
 end
 

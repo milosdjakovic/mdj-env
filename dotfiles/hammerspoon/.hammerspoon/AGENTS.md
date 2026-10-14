@@ -1543,7 +1543,7 @@ matched. So `/ ` lists rows with no pane, exactly as it did before the pane exis
 nothing the alias was for is missing. The same test the text case scope failed and the browser
 tabs scope passed, applied to a pane instead of to a second level.
 
-**ActionPanel.** Hyper and period opens a searchable list of the live chooser's own verbs,
+**ActionPanel.** Hyper and o opens a searchable list of the live chooser's own verbs,
 the things a person forgets the chord for, never its navigation, the shared moving,
 inserting, closing, and scrolling every context already carries. It is a host spoon like
 Launcher and QueryScope, but a decorator rather than a coordinator, installed once at

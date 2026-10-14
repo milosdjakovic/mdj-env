@@ -236,7 +236,7 @@ do
   }
   qs:configure({ scopes = { fileSearchLikeScope(verbs) } })
   local bindings = {
-    { action = "revealInFinder", chord = "Hyper+O" },
+    { action = "revealInFinder", chord = "Hyper+F" },
     { action = "browseInto", chord = "Hyper+L" },
   }
   local function hostedVerbDeclared(action)
@@ -258,7 +258,7 @@ do
   )
   check(
     "a kept row's chord is qualified with the tool's own description",
-    rows[1].chord == "Hyper+O in File search"
+    rows[1].chord == "Hyper+F in File search"
   )
   check("a kept row carries the verb's own closes", rows[1].closes == true)
 

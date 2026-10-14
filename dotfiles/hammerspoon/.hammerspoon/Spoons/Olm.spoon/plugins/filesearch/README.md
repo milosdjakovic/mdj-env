@@ -10,5 +10,5 @@ Opens on Hyper and slash, appears in the launcher under Tools, and can be
 searched without leaving the launcher by typing a slash.
 
 While the list is open, j and k move, i opens the highlighted file, l goes into a
-folder and h comes back up, o reveals it in Finder, y copies its path, q shows a
+folder and h comes back up, f reveals it in Finder, y copies its path, q shows a
 quick preview when one is available, and x closes the list.

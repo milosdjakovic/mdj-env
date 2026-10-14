@@ -40,7 +40,7 @@ return {
     },
   },
 
-  -- Its own chord is Hyper and period, and it is deliberately classified as navigation
+  -- Its own chord is Hyper and o, and it is deliberately classified as navigation
   -- rather than a verb so the panel can never list its own way in among the verbs it offers.
   --
   -- The binding is NOT declared here even so. lib/surface.lua now appends it to every context
@@ -48,7 +48,7 @@ return {
   -- would mean naming it once per context again.
   defaults = {
     leader = "app",
-    key = ".",
+    key = "o",
     description = "Actions",
   },
 }

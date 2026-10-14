@@ -247,10 +247,10 @@ end
 -- thing hs.hotkey cannot see, a chord held with no key pressed at all, is watched for
 -- separately.
 --
--- So the split is a Strategy, and the seam is this table. A strategy answers three functions,
--- start, isActive, and bound, and the three colon methods below are thin delegations to them.
+-- So the split is a Strategy, and the seam is this table. A strategy answers four functions,
+-- start, isActive, owns, and bound, and the four colon methods below are thin delegations to them.
 -- Nothing outside this file learns which strategy is live, since the rest of the config
--- consumes only bind, isActive, and start on this module. The composition root chooses by
+-- consumes only bind, isActive, owns, and start on this module. The composition root chooses by
 -- handing configure a descriptor built from config/settings.lua, so this file names no
 -- setting and that file names no mechanism, and a third shape would be an entry here plus a
 -- kind there with nothing in between moving.
@@ -279,6 +279,13 @@ TRIGGERS.leader = function(host, spec)
   return {
     bound = function() end,
     isActive = function()
+      return host._chord ~= nil and host._chord:isActive(keyCode())
+    end,
+    -- A key down belongs to Hyper when it is the leader key itself or arrives while the
+    -- leader is held. The first covers the press that starts a hold, the second every key
+    -- chorded under it.
+    owns = function(ev)
+      if ev:getKeyCode() == keyCode() then return true end
       return host._chord ~= nil and host._chord:isActive(keyCode())
     end,
     start = function()
@@ -499,17 +506,22 @@ TRIGGERS.chord = function(host, spec)
     return false
   end
 
+  local function chordHeld()
+    local live = hs.eventtap.checkKeyboardModifiers() or {}
+    for _, m in ipairs(chordMods) do
+      if not live[m] then return false end
+    end
+    return true
+  end
+
   return {
     bound = function(code, subMods)
       if started then claim(code, subMods) end
     end,
-    isActive = function()
-      local live = hs.eventtap.checkKeyboardModifiers() or {}
-      for _, m in ipairs(chordMods) do
-        if not live[m] then return false end
-      end
-      return true
-    end,
+    isActive = chordHeld,
+    -- The chord has no key of its own, so a key down belongs to Hyper exactly while every
+    -- chord modifier is held.
+    owns = function() return chordHeld() end,
     start = function()
       started = true
       for code, list in pairs(host._bindings or {}) do
@@ -564,6 +576,17 @@ end
 --- until release, since the engine's tap swallows every key during a hold.
 function obj:isActive()
   return self:_strategy().isActive()
+end
+
+--- HyperKey:owns(ev)
+--- Method
+--- Whether a key down event belongs to Hyper right now, so a consumer that claims every key
+--- for itself, the canvas chooser's text field among them, can let this one through to the
+--- dispatch that sits downstream of it. The consumer is handed a predicate over this and
+--- never names this module. Under the leader shape it is the leader key itself or any key
+--- while the leader is held, under the chord shape it is any key while the chord is held.
+function obj:owns(ev)
+  return self:_strategy().owns(ev) and true or false
 end
 
 --- HyperKey:start()

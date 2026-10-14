@@ -261,7 +261,7 @@ return {
       { key = "q", action = "peekPreview", needs = "askedPreview", description = "Quick Look", glyph = "👁️" },
       { key = "l", action = "browseInto", description = "Into folder", glyph = "📂" },
       { key = "h", action = "browseUp",   description = "Up a level", glyph = "⬆️" },
-      { key = "o", action = "revealInFinder", description = "Reveal in Finder", glyph = "🔍" },
+      { key = "f", action = "revealInFinder", description = "Reveal in Finder", glyph = "🔍" },
       { key = "y", action = "copyPath",   description = "Copy path", glyph = "📋" },
     },
     -- A path is long text searched from the inside with a real remembered fragment,

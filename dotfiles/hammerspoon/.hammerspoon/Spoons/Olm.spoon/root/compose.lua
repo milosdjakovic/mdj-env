@@ -341,7 +341,17 @@ function obj.run(olm, cfg)
   -- colours from the kit's tokens, and refuses to build until it is handed both, so the root
   -- gives it the ones already configured above.
   if chooserAtom.providers and chooserAtom.providers.canvas then
-    chooserAtom.providers.canvas.configure({ panel = canvasPanel, ui = uiAtom })
+    -- The canvas field's tap claims every key down, which would swallow Hyper before its
+    -- dispatch ran, so the field is handed a predicate and told nothing else. The closure
+    -- reads the live HyperKey late, since it is not configured until further down.
+    chooserAtom.providers.canvas.configure({
+      panel = canvasPanel,
+      ui = uiAtom,
+      yields = function(ev)
+        local hyper = atoms.hyperkey
+        return hyper ~= nil and hyper:owns(ev)
+      end,
+    })
   end
 
   -- The cheat sheet's colours and badge radius reach it through the kit's spec, built above

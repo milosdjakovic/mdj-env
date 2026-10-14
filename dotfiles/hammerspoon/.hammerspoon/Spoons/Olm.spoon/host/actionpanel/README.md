@@ -10,4 +10,4 @@ opened over, the moment a verb runs or the panel closes. Its rows, and what runn
 are asked of the composition root, so the panel itself never learns what a verb is called or
 what it does.
 
-Opens on Hyper and the period key, over any list already showing.
+Opens on Hyper and the o key, over any list already showing.

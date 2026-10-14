@@ -36,7 +36,7 @@ local MOVE_PREV = { key = "k", action = "selectPrev", description = "Move up" }
 -- honest about the whole set of keys live while it is open and the chord no longer depends on
 -- a loop somewhere else remembering to add it, or on the action panel plugin declaring a
 -- surface of its own to earn a place in every list.
-local ACTION_PANEL_BINDING = { key = ".", action = "openActionPanel", description = "Actions" }
+local ACTION_PANEL_BINDING = { key = "o", action = "openActionPanel", description = "Actions" }
 
 -- The close binding a context gets unless it says otherwise. A plugin overrides only the
 -- field that differs for it, the launcher's key of space standing in for x, rather than
@@ -169,7 +169,7 @@ end
 -- says so by passing priority through decl rather than this module growing a name based
 -- exception for it.
 --
--- The action panel's own binding, Hyper and period, is appended to every block this module
+-- The action panel's own binding, Hyper and o, is appended to every block this module
 -- builds. Every real context carries that chord today, added by a loop at the bottom of
 -- config/keys.lua, and stating it here once, as plain data naming no plugin, keeps a context
 -- built here honest about the whole set of keys live while it is open with no dependence on a

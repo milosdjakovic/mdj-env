@@ -1,7 +1,6 @@
-registry spoon count=3
+registry spoon count=2
 spoon BrowserTabs
 spoon Olm
-spoon TerminalHandler
 registry chordkey count=2
 chordkey key=79 holdDelay=0.6 tapThreshold=0.2 passthrough=true onTap=true onHold=true onHoldEnd=true onKey=true
 chordkey key=106 holdDelay=0.6 tapThreshold=0.2 passthrough=true onTap=false onHold=true onHoldEnd=true onKey=true
@@ -41,25 +40,26 @@ hypercheatsheet.app name=Xcode bundleID=com.apple.dt.Xcode
 hypercheatsheet.app name=Yomu bundleID=net.cecinestpasparis.yomu
 hypercheatsheet.app name=Zed bundleID=dev.zed.Zed
 hypercheatsheet.app name=iPhoneMirroring bundleID=com.apple.ScreenContinuity
-registry hypercheatsheet.toggles count=18
-hypercheatsheet.toggle app=ActivityMonitor key=\ mods=alt+cmd+ctrl+shift url=-
-hypercheatsheet.toggle app=Books key=B mods=alt+cmd+ctrl+shift url=-
-hypercheatsheet.toggle app=Claude key=A mods=alt+cmd+ctrl+shift url=-
-hypercheatsheet.toggle app=Docker key=D mods=alt+cmd+ctrl+shift url=-
-hypercheatsheet.toggle app=Finder key=F mods=alt+cmd+ctrl+shift url=-
-hypercheatsheet.toggle app=Ghostty key=` mods=alt+cmd+ctrl+shift url=-
-hypercheatsheet.toggle app=GoogleChrome key=C mods=alt+cmd+ctrl+shift url=-
-hypercheatsheet.toggle app=Mail key=M mods=alt+cmd+ctrl+shift url=-
-hypercheatsheet.toggle app=Notes key=N mods=alt+cmd+ctrl+shift url=-
-hypercheatsheet.toggle app=Obsidian key=O mods=alt+cmd+ctrl+shift url=-
-hypercheatsheet.toggle app=Preview key=R mods=alt+cmd+ctrl+shift url=-
-hypercheatsheet.toggle app=Safari key=S mods=alt+cmd+ctrl+shift url=-
-hypercheatsheet.toggle app=Slack key=L mods=alt+cmd+ctrl+shift url=-
-hypercheatsheet.toggle app=Stickies key=T mods=alt+cmd+ctrl+shift url=-
-hypercheatsheet.toggle app=SystemSettings key=, mods=alt+cmd+ctrl+shift url=x-apple.systempreferences:com.apple.systempreferences.GeneralSettings
-hypercheatsheet.toggle app=VisualStudioCode key=V mods=alt+cmd+ctrl+shift url=-
-hypercheatsheet.toggle app=Zed key=Z mods=alt+cmd+ctrl+shift url=-
-hypercheatsheet.toggle app=iPhoneMirroring key=I mods=alt+cmd+ctrl+shift url=-
+registry hypercheatsheet.toggles count=19
+hypercheatsheet.toggle app=ActivityMonitor key=\ mods=- url=-
+hypercheatsheet.toggle app=Books key=B mods=- url=-
+hypercheatsheet.toggle app=Claude key=A mods=- url=-
+hypercheatsheet.toggle app=Docker key=D mods=- url=-
+hypercheatsheet.toggle app=Finder key=F mods=- url=-
+hypercheatsheet.toggle app=Ghostty key=` mods=- url=-
+hypercheatsheet.toggle app=Ghostty key=` mods=alt url=-
+hypercheatsheet.toggle app=GoogleChrome key=C mods=- url=-
+hypercheatsheet.toggle app=Mail key=M mods=- url=-
+hypercheatsheet.toggle app=Notes key=N mods=- url=-
+hypercheatsheet.toggle app=Obsidian key=O mods=- url=-
+hypercheatsheet.toggle app=Preview key=R mods=- url=-
+hypercheatsheet.toggle app=Safari key=S mods=- url=-
+hypercheatsheet.toggle app=Slack key=L mods=- url=-
+hypercheatsheet.toggle app=Stickies key=T mods=- url=-
+hypercheatsheet.toggle app=SystemSettings key=, mods=- url=x-apple.systempreferences:com.apple.systempreferences.GeneralSettings
+hypercheatsheet.toggle app=VisualStudioCode key=V mods=- url=-
+hypercheatsheet.toggle app=Zed key=Z mods=- url=-
+hypercheatsheet.toggle app=iPhoneMirroring key=I mods=- url=-
 registry hypercheatsheet.items count=18
 hypercheatsheet.item key=, name=System Settings bundleID=com.apple.systempreferences
 hypercheatsheet.item key=A name=Claude bundleID=com.anthropic.claudefordesktop
@@ -91,15 +91,14 @@ hypercontexts.context name=menuSearch when=menuSearchOpen priority=100 bindingCo
 hypercontexts.context name=processes when=processesOpen priority=100 bindingCount=8
 hypercontexts.context name=textCase when=textCaseOpen priority=100 bindingCount=5
 hypercontexts.context name=vpn when=vpnOpen priority=100 bindingCount=5
-hypercontexts.binding context=browserTabs key=. mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=browserTabs key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Select
 hypercontexts.binding context=browserTabs key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=browserTabs key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
+hypercontexts.binding context=browserTabs key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=browserTabs key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=caffeinate key=. mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=caffeinate key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Confirm
+hypercontexts.binding context=caffeinate key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=caffeinate key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=clipboard key=. mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=clipboard key=a mods=- action=appendSelected kind=verb when=- chord=true needs=- description=Append to batch
 hypercontexts.binding context=clipboard key=d mods=- action=deleteSelected kind=verb when=- chord=true needs=- description=Delete
 hypercontexts.binding context=clipboard key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Paste
@@ -107,18 +106,19 @@ hypercontexts.binding context=clipboard key=j mods=- action=selectNext kind=navi
 hypercontexts.binding context=clipboard key=j mods=cmd action=scrollPreviewDown kind=navigation when=- chord=true needs=- description=Scroll preview down
 hypercontexts.binding context=clipboard key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
 hypercontexts.binding context=clipboard key=k mods=cmd action=scrollPreviewUp kind=navigation when=- chord=true needs=- description=Scroll preview up
+hypercontexts.binding context=clipboard key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=clipboard key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=displayProfiles key=. mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=displayProfiles key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Select
 hypercontexts.binding context=displayProfiles key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=displayProfiles key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
+hypercontexts.binding context=displayProfiles key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=displayProfiles key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=emoji key=. mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=emoji key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Insert
 hypercontexts.binding context=emoji key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=emoji key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
+hypercontexts.binding context=emoji key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=emoji key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=fileSearch key=. mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
+hypercontexts.binding context=fileSearch key=f mods=- action=revealInFinder kind=verb when=- chord=true needs=- description=Reveal in Finder
 hypercontexts.binding context=fileSearch key=h mods=- action=browseUp kind=verb when=- chord=true needs=- description=Up a level
 hypercontexts.binding context=fileSearch key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Open
 hypercontexts.binding context=fileSearch key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
@@ -126,38 +126,38 @@ hypercontexts.binding context=fileSearch key=j mods=cmd action=scrollPreviewDown
 hypercontexts.binding context=fileSearch key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
 hypercontexts.binding context=fileSearch key=k mods=cmd action=scrollPreviewUp kind=navigation when=- chord=true needs=scrollablePreview description=Scroll preview up
 hypercontexts.binding context=fileSearch key=l mods=- action=browseInto kind=verb when=- chord=true needs=- description=Into folder
-hypercontexts.binding context=fileSearch key=o mods=- action=revealInFinder kind=verb when=- chord=true needs=- description=Reveal in Finder
+hypercontexts.binding context=fileSearch key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=fileSearch key=q mods=- action=peekPreview kind=verb when=- chord=true needs=askedPreview description=Quick Look
 hypercontexts.binding context=fileSearch key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
 hypercontexts.binding context=fileSearch key=y mods=- action=copyPath kind=verb when=- chord=true needs=- description=Copy path
-hypercontexts.binding context=launcher key=. mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=launcher key=delete mods=- action=leavePage kind=navigation when=launcherHostingList chord=false needs=- description=Go back
 hypercontexts.binding context=launcher key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Run
 hypercontexts.binding context=launcher key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=launcher key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
+hypercontexts.binding context=launcher key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=launcher key=space mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=menuSearch key=. mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=menuSearch key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Run
 hypercontexts.binding context=menuSearch key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=menuSearch key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
+hypercontexts.binding context=menuSearch key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=menuSearch key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=processes key=. mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=processes key=f mods=- action=stopForced kind=verb when=- chord=true needs=- description=Force stop
 hypercontexts.binding context=processes key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Stop
 hypercontexts.binding context=processes key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=processes key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
+hypercontexts.binding context=processes key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=processes key=r mods=- action=refreshList kind=verb when=- chord=true needs=- description=Rescan
 hypercontexts.binding context=processes key=s mods=- action=sortByLoad kind=verb when=- chord=true needs=- description=Sort by load
 hypercontexts.binding context=processes key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=textCase key=. mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=textCase key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Apply
 hypercontexts.binding context=textCase key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=textCase key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
+hypercontexts.binding context=textCase key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=textCase key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
-hypercontexts.binding context=vpn key=. mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=vpn key=i mods=- action=insertSelected kind=navigation when=- chord=true needs=- description=Confirm
 hypercontexts.binding context=vpn key=j mods=- action=selectNext kind=navigation when=- chord=true needs=- description=Move down
 hypercontexts.binding context=vpn key=k mods=- action=selectPrev kind=navigation when=- chord=true needs=- description=Move up
+hypercontexts.binding context=vpn key=o mods=- action=openActionPanel kind=navigation when=- chord=true needs=- description=Actions
 hypercontexts.binding context=vpn key=x mods=- action=closeChooser kind=navigation when=- chord=true needs=- description=Close
 registry actionpanel count=11
 actionpanel.context name=browserTabs verbCount=0
@@ -173,9 +173,9 @@ actionpanel.context name=textCase verbCount=0
 actionpanel.context name=vpn verbCount=0
 actionpanel.verb context=clipboard key=a mods=- action=appendSelected description=Append to batch
 actionpanel.verb context=clipboard key=d mods=- action=deleteSelected description=Delete
+actionpanel.verb context=fileSearch key=f mods=- action=revealInFinder description=Reveal in Finder
 actionpanel.verb context=fileSearch key=h mods=- action=browseUp description=Up a level
 actionpanel.verb context=fileSearch key=l mods=- action=browseInto description=Into folder
-actionpanel.verb context=fileSearch key=o mods=- action=revealInFinder description=Reveal in Finder
 actionpanel.verb context=fileSearch key=q mods=- action=peekPreview description=Quick Look
 actionpanel.verb context=fileSearch key=y mods=- action=copyPath description=Copy path
 actionpanel.verb context=processes key=f mods=- action=stopForced description=Force stop
@@ -204,7 +204,7 @@ panelrows.row context=fileSearch action=browseInto title=Into folder chord=Hyper
 panelrows.row context=fileSearch action=browseUp title=Up a level chord=Hyper H glyph=⬆️
 panelrows.row context=fileSearch action=copyPath title=Copy path chord=Hyper Y glyph=📋
 panelrows.row context=fileSearch action=peekPreview title=Quick Look chord=Hyper Q glyph=👁️
-panelrows.row context=fileSearch action=revealInFinder title=Reveal in Finder chord=Hyper O glyph=🔍
+panelrows.row context=fileSearch action=revealInFinder title=Reveal in Finder chord=Hyper F glyph=🔍
 panelrows.row context=launcher action=- title=Back chord=⌫ glyph=⬅️
 panelrows.row context=menuSearch action=- title=Back chord=⌫ glyph=⬅️
 panelrows.row context=processes action=- title=Back chord=⌫ glyph=⬅️
@@ -233,14 +233,15 @@ hostedrows.row context=emoji action=- title=Back chord=⌫ glyph=⬅️ closes=-
 hostedrows.row context=fileSearch action=- title=Back chord=⌫ glyph=⬅️ closes=-
 hostedrows.row context=fileSearch action=copyPath title=Copy path chord=Hyper Y in File search glyph=📋 closes=true
 hostedrows.row context=fileSearch action=peekPreview title=Quick Look chord=Hyper Q in File search glyph=👁️ closes=false
-hostedrows.row context=fileSearch action=revealInFinder title=Reveal in Finder chord=Hyper O in File search glyph=🔍 closes=true
+hostedrows.row context=fileSearch action=revealInFinder title=Reveal in Finder chord=Hyper F in File search glyph=🔍 closes=true
 hostedrows.row context=launcher action=- title=Back chord=⌫ glyph=⬅️ closes=-
 hostedrows.row context=menuSearch action=- title=Back chord=⌫ glyph=⬅️ closes=-
 hostedrows.row context=processes action=- title=Back chord=⌫ glyph=⬅️ closes=-
 hostedrows.row context=textCase action=- title=Back chord=⌫ glyph=⬅️ closes=-
 hostedrows.row context=vpn action=- title=Back chord=⌫ glyph=⬅️ closes=-
 registry actionpaneldecorated count=1
-registry tools count=15
+registry tools count=20
+tools.entry name=audio active=true surface=false hosted=true scope=true
 tools.entry name=browserTabs active=true surface=false hosted=true scope=true
 tools.entry name=caffeinate active=true surface=false hosted=true scope=true
 tools.entry name=clipboard active=true surface=true hosted=false scope=false
@@ -250,28 +251,39 @@ tools.entry name=dockAutoHide active=true surface=false hosted=true scope=true
 tools.entry name=emoji active=true surface=false hosted=true scope=true
 tools.entry name=fileSearch active=true surface=true hosted=true scope=true
 tools.entry name=menuSearch active=true surface=false hosted=false scope=true
+tools.entry name=obsidian active=true surface=false hosted=false scope=true
 tools.entry name=processes active=true surface=true hosted=false scope=false
 tools.entry name=settings active=true surface=false hosted=false scope=false
+tools.entry name=speedtest active=true surface=false hosted=true scope=true
 tools.entry name=textCase active=true surface=false hosted=false scope=false
 tools.entry name=tmuxSessions active=true surface=false hosted=true scope=true
+tools.entry name=volume active=true surface=false hosted=true scope=true
 tools.entry name=vpn active=true surface=false hosted=true scope=true
-tools.entry name=workspaces active=true surface=false hosted=false scope=false
-registry scopes count=12
+tools.entry name=wifi active=true surface=false hosted=true scope=true
+tools.entry name=workspaces active=true surface=false hosted=false scope=true
+registry scopes count=18
 scopes.entry name=aliasDirectory aliases=?
 scopes.entry name=apps aliases=a+app
+scopes.entry name=audio aliases=au+audio
 scopes.entry name=browserTabs aliases=t+tabs
 scopes.entry name=caffeinate aliases=k+awake
 scopes.entry name=dockAutoHide aliases=d+dock
 scopes.entry name=emoji aliases=e+emoji
 scopes.entry name=fileSearch aliases=/
 scopes.entry name=menuSearch aliases=m+menu
+scopes.entry name=obsidian aliases=ob+obsidian
 scopes.entry name=settingsPanes aliases=s+system
+scopes.entry name=speedtest aliases=st+speed
 scopes.entry name=tmuxSessions aliases=u+tmux
+scopes.entry name=volume aliases=vol
 scopes.entry name=vpn aliases=v+vpn
+scopes.entry name=wifi aliases=wi+wifi
 scopes.entry name=windowActions aliases=w+window
-registry launcherrows count=21
+scopes.entry name=workspaces aliases=ws+layout
+registry launcherrows count=26
 launcherrows.entry name=aliasDirectory subTitle=Tools · every word that scopes this list (?)
 launcherrows.entry name=appendCopy subTitle=Clipboard · ⌃⌥C
+launcherrows.entry name=audio subTitle=System · switch the sound output or the microphone (au, audio)
 launcherrows.entry name=browserTabs subTitle=Tools · Hyper W (t, tabs)
 launcherrows.entry name=caffeinate subTitle=System · Hyper K (k, awake)
 launcherrows.entry name=clipboard subTitle=Clipboard · Hyper X
@@ -282,23 +294,27 @@ launcherrows.entry name=emoji subTitle=Tools · Hyper J (e, emoji)
 launcherrows.entry name=fileSearch subTitle=Tools · Hyper / (/)
 launcherrows.entry name=lock subTitle=System · Hyper §
 launcherrows.entry name=manageHistory subTitle=Clipboard
+launcherrows.entry name=obsidian subTitle=Tools · search and open notes (ob, obsidian)
 launcherrows.entry name=pasteNext subTitle=Clipboard · ⌃⌥V
 launcherrows.entry name=processes subTitle=System · stops a dev server, container, or watcher
 launcherrows.entry name=searchSettings subTitle=System · opens the System Settings search field
-launcherrows.entry name=settings subTitle=System · where the OLM launcher appears and other preferences
+launcherrows.entry name=settings subTitle=System · where the OLM launcher appears, the colour theme and other preferences
 launcherrows.entry name=sleep subTitle=System · Hyper esc
+launcherrows.entry name=speedtest subTitle=Network · measure this connection and compare it with its own past (st, speed)
 launcherrows.entry name=textCase subTitle=Text · recase the selection in place
 launcherrows.entry name=tmuxSessions subTitle=Tools · Hyper U (u, tmux)
+launcherrows.entry name=volume subTitle=System · see the volume, set it from 0 to 100, mute or unmute (vol)
 launcherrows.entry name=vpn subTitle=Network · Hyper P (v, vpn)
-launcherrows.entry name=workspaces subTitle=Displays · window layouts remembered per display configuration
-registry hyperkey count=37
+launcherrows.entry name=wifi subTitle=Network · see the current network, disconnect, or join another (wi, wifi)
+launcherrows.entry name=workspaces subTitle=Displays · window layouts you snapshot and put back (ws, layout)
+registry hyperkey count=36
 hyperkey.key code=0 total=2 base=1
 hyperkey.key code=1 total=2 base=1
 hyperkey.key code=2 total=2 base=1
-hyperkey.key code=3 total=2 base=1
+hyperkey.key code=3 total=3 base=1
 hyperkey.key code=4 total=1 base=0
 hyperkey.key code=6 total=1 base=1
-hyperkey.key code=7 total=14 base=1
+hyperkey.key code=7 total=19 base=1
 hyperkey.key code=8 total=1 base=1
 hyperkey.key code=9 total=1 base=1
 hyperkey.key code=10 total=1 base=1
@@ -313,19 +329,18 @@ hyperkey.key code=19 total=1 base=1
 hyperkey.key code=20 total=1 base=1
 hyperkey.key code=21 total=2 base=2
 hyperkey.key code=23 total=1 base=1
-hyperkey.key code=31 total=2 base=1
+hyperkey.key code=31 total=20 base=1
 hyperkey.key code=32 total=1 base=1
-hyperkey.key code=34 total=15 base=1
+hyperkey.key code=34 total=20 base=1
 hyperkey.key code=35 total=1 base=1
 hyperkey.key code=37 total=2 base=1
-hyperkey.key code=38 total=16 base=1
-hyperkey.key code=40 total=16 base=1
+hyperkey.key code=38 total=20 base=1
+hyperkey.key code=40 total=20 base=1
 hyperkey.key code=42 total=1 base=1
 hyperkey.key code=43 total=1 base=1
 hyperkey.key code=44 total=1 base=1
 hyperkey.key code=45 total=1 base=1
 hyperkey.key code=46 total=2 base=1
-hyperkey.key code=47 total=14 base=0
 hyperkey.key code=49 total=2 base=1
 hyperkey.key code=50 total=1 base=1
 hyperkey.key code=53 total=1 base=1

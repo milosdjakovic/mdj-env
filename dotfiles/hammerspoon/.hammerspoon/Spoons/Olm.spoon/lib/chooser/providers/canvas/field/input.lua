@@ -18,6 +18,12 @@
 --- asked, since the way out of a field must not depend on any table below being wired
 --- correctly, and it is the one key this file never hands onward.
 ---
+--- There is one exception to claiming everything, and it is Hyper. Its dispatch sits
+--- downstream of this tap, so a claimed Hyper press never reaches the bindings a list
+--- declares, and confirm, move and the action panel would be dead while a picker is up. The
+--- owner injects opts.yields, a predicate over the event, and a key down it answers true
+--- for is passed on untouched. This file knows only that predicate, never what Hyper is.
+---
 --- The tap starts on start and is torn down completely on stop, never left armed a
 --- moment longer than the field is meant to be up. 1ccab6f is the record of what a
 --- leader believed held rather than checked costs on this machine, a stuck engine
@@ -73,7 +79,10 @@ Field.__index = Field
 --- keymap nor the printable check claims, and its answer is ignored, the key is claimed
 --- either way per decision six, a consumer answering nothing simply swallows it.
 --- opts.onDismiss() runs once for escape, which this file always claims and never hands
---- to onKey instead.
+--- to onKey instead. opts.yields(event) answers true for a key down that belongs to
+--- something downstream of this tap and must pass on unclaimed, which is how Hyper stays
+--- alive while the field is up. It is asked after escape and before the keymap, and an
+--- error in it is reported and counted as false.
 ---
 --- opts.onEmptyBackspace() runs once when a resolved backward delete reaches this file
 --- while the buffer is empty and nothing is selected, added for section one of the
@@ -93,6 +102,7 @@ function Field.new(opts)
     onChange = opts.onChange,
     onKey = opts.onKey,
     onDismiss = opts.onDismiss,
+    yields = opts.yields,
     onEmptyBackspace = opts.onEmptyBackspace,
     tap = nil,
     _retiredTap = nil,
@@ -158,9 +168,23 @@ function Field:_apply(opName, arg)
   self:_notify()
 end
 
+-- Asks the injected predicate whether this key down belongs downstream. A mistake in it
+-- reports itself and counts as no, so a broken predicate falls back to claiming the key,
+-- which is the behaviour this field had before the predicate existed.
+function Field:_yields(ev)
+  if not self.yields then return false end
+  local ok, answer = pcall(self.yields, ev)
+  if not ok then
+    print("Olm canvas field, yields failed and the key was claimed, " .. tostring(answer))
+    return false
+  end
+  return answer == true
+end
+
 -- The tap callback itself. Every path through this function answers true, claiming the
 -- key down, which is decision six stated as code rather than as prose, nothing this
--- field is up for is allowed to reach the app underneath it.
+-- field is up for is allowed to reach the app underneath it. The one exception is a key
+-- the injected yields predicate gives away, which answers false so it passes on.
 function Field:_handle(ev)
   local code = ev:getKeyCode()
 
@@ -168,6 +192,8 @@ function Field:_handle(ev)
     if self.onDismiss then self.onDismiss() end
     return true
   end
+
+  if self:_yields(ev) then return false end
 
   local flags = ev:getFlags()
   local opName = keymap.resolve(code, flags)

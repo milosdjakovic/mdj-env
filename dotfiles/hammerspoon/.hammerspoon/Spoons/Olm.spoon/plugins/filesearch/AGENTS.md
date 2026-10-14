@@ -443,14 +443,17 @@ The atom collapses the caret now, and the main `AGENTS.md` has both details.
 ## Two verbs for a row, after a third was removed
 
 The primary key opens a row with whatever the system considers its default, and a folder opens in
-Finder, which is the same verb rather than a special case. Hyper+O shows it in Finder instead of
-opening it. That is all of it.
+Finder, which is the same verb rather than a special case. Hyper+F shows it in Finder instead of
+opening it, and it was on Hyper+O for a while, see below. That is all of it.
 
 There used to be a third, opening the ENCLOSING folder without selecting anything, on its own key
 while reveal sat on Hyper+F. It was removed because it is a worse version of showing the row, it
 tells you less and costs a key, and reveal moved onto Hyper+O since that is the key that reads as
 open to whoever is pressing it. Hyper+F is now unbound and drops off the hint strip with it, so
 one action does not answer to two keys.
+
+Reveal moved back to Hyper+F on 2026-10-14, because the action panel took Hyper+O in every
+list and F reads as Finder. `decisions/olm-chooser-keys.md` has it.
 
 ## Two mode split on a scope, and why browse is one level
 

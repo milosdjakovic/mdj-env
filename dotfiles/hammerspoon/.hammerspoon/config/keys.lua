@@ -406,7 +406,7 @@ local M = {
     -- no second idea of where it is. h j k l are the whole movement set on one hand, which is
     -- why reveal is f for Finder rather than sitting on one of them. Coming back was on r first
     -- and moved here, because h is where the hand already expects it and two keys for one action
-    -- would put the same row on the helper panel twice. o opens the folder holding the row and y
+    -- would put the same row on the helper panel twice. f shows the row in Finder and y
     -- copies its path. All five are answered only by this surface, so they are no ops anywhere
     -- else. Plain typing filters while Hyper is released, and typing a question mark shows the
     -- query grammar.
@@ -447,8 +447,8 @@ local M = {
         -- considers its default, a folder in Finder, and this one shows it in Finder instead of
         -- opening it. There used to be a third that opened the ENCLOSING folder without selecting
         -- anything, which is a worse version of showing it, so it was dropped rather than kept for
-        -- symmetry. This lives on o, the key that reads as open to whoever is pressing it.
-        { key = "o", action = "revealInFinder", description = "Reveal in Finder", glyph = "🔍" },
+        -- symmetry. This lives on f, the key that reads as Finder, since o belongs to the action panel in every list.
+        { key = "f", action = "revealInFinder", description = "Reveal in Finder", glyph = "🔍" },
         { key = "y", action = "copyPath",       description = "Copy path", glyph = "📋" },
         { key = "x", action = "closeChooser",   description = "Close" },
       },
@@ -613,7 +613,7 @@ local M = {
   aliasDirectory = { description = "Aliases", glyph = "🏷️", aliases = { "?" } },
 }
 
--- THE SEAM. The action panel's own chord, Hyper and period, folded into every context here
+-- THE SEAM. The action panel's own chord, Hyper and o, folded into every context here
 -- rather than written eleven times above, so it is declared once and every context, including
 -- a twelfth added later, carries it for free. This is the one exception to this file's own
 -- pure data claim, a loop rather than a value, and it earns that by being the alternative to
@@ -624,7 +624,7 @@ local M = {
 -- it offers. The three consumers that walk hyperContexts, the binding loop, footerFor, and
 -- test/inventory.lua, all see this binding with no further teaching, exactly like any other.
 for _, ctx in ipairs(M.hyperContexts) do
-  ctx.bindings[#ctx.bindings + 1] = { key = ".", action = "openActionPanel", description = "Actions" }
+  ctx.bindings[#ctx.bindings + 1] = { key = "o", action = "openActionPanel", description = "Actions" }
 end
 
 return M
