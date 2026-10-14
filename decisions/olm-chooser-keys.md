@@ -94,3 +94,17 @@ keys are `providers.default` and `providers.legacy`, and the `chooser.provider` 
 `default` or `legacy`. From here on the word chooser means the default chooser unless legacy is
 named. The legacy chooser is still deprecated and still warns on every load that picks it. The
 earlier entries above keep their old names, canvas and native, since they are records.
+
+### 2026-10-14 23:00
+
+Estimated time, anchored to the commit before this one.
+
+The row boundary snap on keyboard movement is removed at the person's request. The list model
+used to floor scrollTop to a whole row before checking the highlight, so one move up after
+scrolling down past the visible rows realigned the viewport and sent the cut top row to the
+bottom, and the first key after a wheel or trackpad scroll that stopped between rows snapped
+the list. The viewport now moves only when the highlighted row is not fully inside it, and then
+only far enough to show that row at the edge it crossed. A highlight already fully visible
+leaves scrollTop exactly as it was. A wrap still jumps to its row under the same rule. No
+Rejected item or earlier decision owned the snap, it was only written into the model's comments
+and its offline case, both updated in this change.

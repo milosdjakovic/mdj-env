@@ -51,9 +51,9 @@
 --- with two different answers, and keeping them apart is the one design decision this
 --- round actually rests on. moveDown, moveUp, newState and setQuery all move or seed the
 --- highlight, and every one of them recomputes scrollTop afterward so the highlighted
---- row is never left outside the viewport, snapping to whichever row boundary that
---- takes, which is what keeps the keyboard's own movement instant and free of any
---- animation. scrollTo and scrollBy do the opposite, they move scrollTop on their own
+--- row is never left outside the viewport, moving it only when the highlight is not
+--- fully inside and then only far enough to show it, which keeps the keyboard's own
+--- movement instant and free of any animation, and leaves a partly cut row where it was. scrollTo and scrollBy do the opposite, they move scrollTop on their own
 --- and never touch highlight at all, which is what a wheel or a trackpad drives, and
 --- normalizeState, the function every one of these opens by calling, only ever bounds
 --- whatever scrollTop it was handed into the range the filtered set can support, it does
@@ -170,31 +170,15 @@ local function boundScroll(scrollTop, total, rowH, visibleCount)
   return scrollTop
 end
 
--- Moves scrollTop only as far as it must to keep highlight fully inside the viewport,
--- and never past either end of the filtered set, and always lands the answer on a whole
--- row boundary, a multiple of rowH from the top of the list, which is round five's own
--- snap rather than animate rule for every keyboard movement. The scrollTop this function
--- is handed may already sit between two rows, a wheel or a trackpad's own doing, so the
--- first thing this function does is floor it down to the row boundary at or before it,
--- before asking whether the highlight even needs the viewport to move at all. Without
--- that floor a keyboard press arriving while the highlight already sat inside whatever
--- partial view the wheel had left behind would answer that same fractional scrollTop
--- back unchanged, and a keyboard driven list is never supposed to come to rest showing
--- two half rows, which is exactly the case this floor exists for rather than one it only
--- happens to also cover. A highlight whose own row band starts above the floored
--- scrollTop pulls it up to that row's own top, and a highlight whose own row band ends
--- below the bottom of the viewport pulls it down to wherever that row's bottom lands
--- minus the viewport's own height, both of those answers a row's own top or bottom and so
--- themselves already a multiple of rowH, which is what keeps the guarantee whether this
--- function moved the viewport for a genuine reason or only had to floor a fractional one
--- away. A highlight that jumped by more than one row in a single move, the only way that
--- happens here being the wrap decision five of the original brief asks for, pulls
--- scrollTop straight to wherever it must sit to show that row, which reads as the
--- viewport snapping to the far end it wrapped to rather than scrolling through everything
--- between, exactly what a person expects a wrap to look like.
+-- Moves scrollTop only when the highlighted row is not fully inside the viewport, and
+-- then only far enough to show that row fully at the edge it crossed, never past either
+-- end of the list. A highlight already fully visible leaves scrollTop exactly as it was,
+-- fractional or not, so a partly cut row at the top stays cut while the keyboard moves
+-- among the rows below it, and a wheel that stopped between two rows is not snapped by
+-- the next key. A wrap moves the highlight far outside the viewport and falls out of the
+-- same rule, the viewport lands on that row.
 local function scrollToShowHighlight(highlight, scrollTop, total, rowH, visibleCount)
   if total == 0 then return 0 end
-  scrollTop = math.floor(scrollTop / rowH) * rowH
   if highlight then
     local viewportH = rowH * visibleCount
     local topOf = (highlight - 1) * rowH

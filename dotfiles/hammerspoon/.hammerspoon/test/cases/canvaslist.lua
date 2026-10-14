@@ -189,10 +189,10 @@ end
 
 --------------------------------------------------------------------------------
 -- The viewport following the highlight, points rather than a row index as of round five.
--- Every scrollTop below is asserted as a multiple of ROW_H, which is the keyboard's own
--- snap to a row boundary round five asks for, and the row this file's own header already
--- explains, that keeping the highlight visible and following the wheel are two separate
--- questions this file answers with two separate functions.
+-- The keyboard moves the viewport only when the highlight is not fully inside it, and
+-- then only far enough to show that row, so a partly cut row stays cut and a fractional
+-- scrollTop is left alone. Keeping the highlight visible and following the wheel are two
+-- separate questions this file answers with two separate functions.
 --------------------------------------------------------------------------------
 
 do
@@ -238,13 +238,9 @@ do
 end
 
 do
-  -- The case round five's own header names by hand, a keyboard press arriving while the
-  -- highlight already sits fully inside whatever fractional viewport a wheel left
-  -- behind. Row five is fully visible at scrollTop one hundred fifty even though that is
-  -- not a multiple of rowH, so neither the topOf nor the bottomOf branch of
-  -- scrollToShowHighlight would otherwise have any reason to move scrollTop at all, and
-  -- the floor at the top of that function is the only thing left to land the keyboard's
-  -- own answer on a row boundary.
+  -- A keyboard press arriving while the highlight already sits fully inside whatever
+  -- fractional viewport a wheel left behind. Row five is fully visible at scrollTop one
+  -- hundred fifty, so the keyboard has no reason to move scrollTop at all.
   local s = model.newState(rowSet(25), ROWS_10)
   for _ = 1, 4 do s = model.moveDown(s) end
   local scrolled = model.scrollTo(s, 150)
@@ -254,10 +250,30 @@ do
   local movedDown = model.moveDown(scrolled)
   check("the keyboard still steps the highlight forward normally from a fractional viewport",
     movedDown.highlight == 6, "got " .. tostring(movedDown.highlight))
-  check("the keyboard floors that fractional offset to the row boundary at or before it, one hundred twenty six",
-    movedDown.scrollTop == 126, "got " .. tostring(movedDown.scrollTop))
-  check("one hundred twenty six is itself a whole multiple of rowH, the snap round five asks for",
-    movedDown.scrollTop % ROW_H == 0, "got " .. tostring(movedDown.scrollTop))
+  check("the keyboard leaves a fractional scrollTop unchanged while the highlight stays fully visible",
+    movedDown.scrollTop == 150, "got " .. tostring(movedDown.scrollTop))
+end
+
+do
+  -- A viewport that is not a whole number of rows, nine and a half, so scrolling down
+  -- leaves the top row cut. One move up must not realign the viewport, and the viewport
+  -- moves again only once the highlight reaches the cut row.
+  local s = model.newState(rowSet(25), { rowCount = 9.5, rowH = ROW_H })
+  for _ = 1, 10 do s = model.moveDown(s) end
+  local cut = s.scrollTop
+  check("scrolling down past the end of view leaves the top row partly cut",
+    s.highlight == 11 and cut % ROW_H ~= 0, "highlight " .. tostring(s.highlight) .. " scrollTop " .. tostring(cut))
+  s = model.moveUp(s)
+  check("one move up leaves the cut top row where it was",
+    s.highlight == 10 and s.scrollTop == cut, "scrollTop " .. tostring(s.scrollTop) .. " expected " .. tostring(cut))
+  local firstShown = math.floor(cut / ROW_H) + 1
+  while s.highlight > firstShown + 1 do s = model.moveUp(s) end
+  check("moving up through the fully visible rows never moves the viewport",
+    s.scrollTop == cut, "scrollTop " .. tostring(s.scrollTop) .. " expected " .. tostring(cut))
+  s = model.moveUp(s)
+  check("reaching the cut top row sets scrollTop to that row's own top",
+    s.highlight == firstShown and s.scrollTop == (firstShown - 1) * ROW_H,
+    "highlight " .. tostring(s.highlight) .. " scrollTop " .. tostring(s.scrollTop))
 end
 
 do
