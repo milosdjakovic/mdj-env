@@ -287,9 +287,10 @@ end
 -- revisited.
 --
 -- The bar is a flow of hints, sixteen apart and eight between lines, and one hint is a row
--- of its badges and its label, six apart. The hint badge and the hint label are the kit's
--- hint size and hintLabel variant, which hold what this bar drew before it moved onto the
--- kit, so the bar reads the same.
+-- of its badges and its label, six apart, centred on each other since the chip is taller than
+-- the label. The key badge is the kit's hint size, its glyph in the section role, and the
+-- label is the caption role, so the bar's type, its chip height and the centring of both
+-- text lines all come from the kit and nothing here places a frame by hand.
 local function shortcutsContent(ui, hints)
   local function current()
     if type(hints) == "function" then return hints() or {} end
@@ -300,9 +301,9 @@ local function shortcutsContent(ui, hints)
     for _, h in ipairs(list) do
       local parts = {}
       for _, b in ipairs(h.badges or {}) do parts[#parts + 1] = ui.badge(b, "hint") end
-      parts[#parts + 1] = ui.text(h.label or "", "hintLabel",
+      parts[#parts + 1] = ui.text(h.label or "", "caption",
         { lineBreak = ui.lineBreaks.wordWrap })
-      chips[#chips + 1] = ui.row(parts, { gap = "s", fill = false })
+      chips[#chips + 1] = ui.row(parts, { gap = "s", fill = false, align = ui.rowAligns.center })
     end
     return ui.flow(chips, { gapX = "lg", gapY = "sm" })
   end
@@ -380,8 +381,10 @@ end
 --
 -- Each is drawn through the UI kit, deps.ui, one node laid out in each rect, so the type,
 -- the colours and the chips come from the kit's tokens. The rects are this file's own
--- arithmetic, the same each toast placed its text at before it moved onto the kit, and the
--- toast, report and reportDetail variants hold the type and frame heights it drew with.
+-- arithmetic, and every height in it is a role's line height plus a space token, so a size
+-- set in config/typography.toml reflows the toasts. The roles are title for the message and
+-- for the report's heading, code for the colour toast's hex value, body for a report row's
+-- label and caption for its detail, its countdown and the Dismiss chip.
 function obj.toast(deps)
   local ui = deps and deps.ui
   local toast = {}
@@ -402,18 +405,19 @@ function obj.toast(deps)
   -- A one line text message, centered, for a plugin reporting something the user cannot see
   -- any other way, a clipboard append growing an entry offscreen or a walk moving through a
   -- history. state.text is the one field a caller mutates before showing the panel again.
+  -- One title line tall.
   function toast.message(state)
     return {
       preferredSize = function()
-        local v = ui.tokens().text.toast
-        return { w = textW(state.text, v), h = v.size + 4 }
+        local v = ui.tokens().text.title
+        return { w = textW(state.text, v), h = v.lineHeight }
       end,
       draw = function(w, h)
         local tokens = ui.tokens()
-        local v = tokens.text.toast
+        local v = tokens.text.title
         local els = {}
-        place(els, ui.text(state.text, "toast", { align = ui.aligns.center, lineBreak = wordWrap }),
-          { x = 0, y = (h - v.size) / 2 - 1, w = w, h = v.lineHeight }, tokens)
+        place(els, ui.text(state.text, "title", { align = ui.aligns.center, lineBreak = wordWrap }),
+          { x = 0, y = (h - v.lineHeight) / 2, w = w, h = v.lineHeight }, tokens)
         return els
       end,
     }
@@ -422,26 +426,28 @@ function obj.toast(deps)
   -- A colour swatch beside its hex label, for a plugin whose feedback is a sampled colour
   -- rather than a sentence. state.hex and state.color are the two fields a caller mutates.
   -- The swatch stays a plain rectangle, since no primitive draws a sampled colour, and it
-  -- reads its size, its corner and its stroke from the tokens.
+  -- reads its size, its corner and its stroke from the tokens. The hex is code, since it is
+  -- the one thing a person would copy, and the gap is the large space step.
   function toast.color(state)
-    local SWATCH_GAP = 12
     return {
       preferredSize = function()
         local tokens = ui.tokens()
         local swatch = tokens.icon.swatch
-        return { w = swatch + SWATCH_GAP + textW(state.hex, tokens.text.toast), h = swatch }
+        return { w = swatch + tokens.space.l + textW(state.hex, tokens.text.code),
+                 h = math.max(swatch, tokens.text.code.lineHeight) }
       end,
       draw = function(w, h)
         local tokens = ui.tokens()
-        local swatch, r, v = tokens.icon.swatch, tokens.radius.swatch, tokens.text.toast
+        local swatch, r, v = tokens.icon.swatch, tokens.radius.swatch, tokens.text.code
+        local gap = tokens.space.l
         local els = {
           { type = "rectangle", action = "strokeAndFill", fillColor = state.color,
             strokeColor = tokens.colors.outline, strokeWidth = 1,
             roundedRectRadii = { xRadius = r, yRadius = r },
             frame = { x = 0, y = (h - swatch) / 2, w = swatch, h = swatch } },
         }
-        place(els, ui.text(state.hex, "toast", { lineBreak = wordWrap }),
-          { x = swatch + SWATCH_GAP, y = (h - v.size) / 2 - 1, w = w - swatch - SWATCH_GAP,
+        place(els, ui.text(state.hex, "code", { lineBreak = wordWrap }),
+          { x = swatch + gap, y = (h - v.lineHeight) / 2, w = w - swatch - gap,
             h = v.lineHeight }, tokens)
         return els
       end,
@@ -451,15 +457,25 @@ function obj.toast(deps)
   -- A titled list of rows, each an optional icon, a label, and a short detail, with a footer
   -- carrying a countdown and a Dismiss button, for a plugin whose feedback is what happened
   -- to several things at once, the workspaces apply naming the apps in a layout that were not
-  -- open. Sized like the Hyper cheat sheet, the same font size, row height, and icon size, so
-  -- the two overlays read as one instrument. state.title, state.rows, and state.secondsLeft
+  -- open. Sized like the Hyper cheat sheet, the same icon size, so the two overlays read as
+  -- one instrument. state.title, state.rows, and state.secondsLeft
   -- are the fields a caller mutates, a row being { icon, label, detail, dim }. deps.onDismiss
   -- is told when the button is clicked, the caller owning the hide and the countdown alike.
   -- The Dismiss chip is the kit's button badge in a group carrying the click id, so the chip
   -- and its word both report dismiss.
+  --
+  -- The geometry is derived from the roles. The title band is the title line plus the medium
+  -- space, a row is the taller of the sheet icon and a body line with the small space above
+  -- and below, and the footer is the chip height with the small space above and below.
   function toast.list(state, onDismiss)
-    local rowH, titleH, footerH = 48, 36, 40
     local minW, maxW = 320, 640
+    local function geometry(tokens)
+      return {
+        titleH = tokens.text.title.lineHeight + tokens.space.m,
+        rowH = math.max(tokens.icon.sheet, tokens.text.body.lineHeight) + 2 * tokens.space.s,
+        footerH = tokens.badge.button.height + 2 * tokens.space.s,
+      }
+    end
     local function rows() return state.rows or {} end
     local function footerText()
       local n = tonumber(state.secondsLeft)
@@ -469,56 +485,58 @@ function obj.toast(deps)
     return {
       preferredSize = function()
         local tokens = ui.tokens()
-        local big, small = tokens.text.report, tokens.text.reportDetail
+        local g = geometry(tokens)
+        local head, label, detail = tokens.text.title, tokens.text.body, tokens.text.caption
         local icon, gap = tokens.icon.sheet, tokens.space.m
-        local w = textW(state.title, big)
+        local w = textW(state.title, head)
         for _, r in ipairs(rows()) do
-          local rw = icon + gap + textW(r.label, big) + gap * 2 + textW(r.detail, small)
+          local rw = icon + gap + textW(r.label, label) + gap * 2 + textW(r.detail, detail)
           if rw > w then w = rw end
         end
-        return { w = math.min(math.max(w, minW), maxW), h = titleH + #rows() * rowH + footerH }
+        return { w = math.min(math.max(w, minW), maxW),
+                 h = g.titleH + #rows() * g.rowH + g.footerH }
       end,
       onClick = function(id)
         if id == "dismiss" and onDismiss then onDismiss() end
       end,
       draw = function(w, h)
         local tokens = ui.tokens()
-        local big, small = tokens.text.report, tokens.text.reportDetail
+        local g = geometry(tokens)
+        local head, label, detail = tokens.text.title, tokens.text.body, tokens.text.caption
         local icon, gap = tokens.icon.sheet, tokens.space.m
         local els = {}
-        place(els, ui.text(tostring(state.title or ""), "report",
-          { color = "subtext", lineBreak = wordWrap }),
-          { x = 0, y = (titleH - big.size) / 2 - 2, w = w, h = big.lineHeight }, tokens)
+        place(els, ui.text(tostring(state.title or ""), "title", { lineBreak = wordWrap }),
+          { x = 0, y = 0, w = w, h = head.lineHeight }, tokens)
         for i, r in ipairs(rows()) do
-          local y = titleH + (i - 1) * rowH
+          local y = g.titleH + (i - 1) * g.rowH
           local alpha = r.dim and tokens.alpha.muted or 1
           local x = 0
           if r.icon then
             place(els, ui.group({ ui.icon(r.icon, "sheet") }, { alpha = alpha }),
-              { x = x, y = y + (rowH - icon) / 2, w = icon, h = icon }, tokens)
+              { x = x, y = y + (g.rowH - icon) / 2, w = icon, h = icon }, tokens)
           end
           x = x + icon + gap
-          local detailW = textW(r.detail, small)
-          place(els, ui.group({ ui.text(tostring(r.label or ""), "report",
+          local detailW = textW(r.detail, detail)
+          place(els, ui.group({ ui.text(tostring(r.label or ""), "body",
             { lineBreak = ui.lineBreaks.truncateTail }) }, { alpha = alpha }),
-            { x = x, y = y + (rowH - big.size) / 2 - 2, w = w - x - detailW - gap,
-              h = big.lineHeight }, tokens)
-          place(els, ui.group({ ui.text(tostring(r.detail or ""), "reportDetail",
-            { color = "subtext", align = ui.aligns.right, lineBreak = wordWrap }) },
+            { x = x, y = y + (g.rowH - label.lineHeight) / 2, w = w - x - detailW - gap,
+              h = label.lineHeight }, tokens)
+          place(els, ui.group({ ui.text(tostring(r.detail or ""), "caption",
+            { align = ui.aligns.right, lineBreak = wordWrap }) },
             { alpha = alpha }),
-            { x = w - detailW, y = y + (rowH - small.size) / 2 - 1, w = detailW,
-              h = small.lineHeight }, tokens)
+            { x = w - detailW, y = y + (g.rowH - detail.lineHeight) / 2, w = detailW,
+              h = detail.lineHeight }, tokens)
         end
         -- The footer, the countdown on the left and Dismiss as a chip on the right.
-        local fy = h - footerH
-        local label = "Dismiss"
+        local fy = h - g.footerH
+        local word = "Dismiss"
         local button = tokens.badge.button
-        local chipW = textW(label, tokens.text[button.text]) + 2 * button.padX
-        place(els, ui.text(footerText(), "reportDetail", { color = "subtext", lineBreak = wordWrap }),
-          { x = 0, y = fy + (footerH - small.size) / 2 - 1, w = w - chipW - gap,
-            h = small.lineHeight }, tokens)
-        place(els, ui.group({ ui.badge(label, "button") }, { id = "dismiss" }),
-          { x = w - chipW, y = fy + (footerH - button.height) / 2, w = chipW, h = button.height },
+        local chipW = textW(word, tokens.text[button.text]) + 2 * button.padX
+        place(els, ui.text(footerText(), "caption", { lineBreak = wordWrap }),
+          { x = 0, y = fy + (g.footerH - detail.lineHeight) / 2, w = w - chipW - gap,
+            h = detail.lineHeight }, tokens)
+        place(els, ui.group({ ui.badge(word, "button") }, { id = "dismiss" }),
+          { x = w - chipW, y = fy + (g.footerH - button.height) / 2, w = chipW, h = button.height },
           tokens)
         return els
       end,

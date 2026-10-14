@@ -143,3 +143,21 @@ height still counts every line, since every line in the role is the same height.
 `draw(rect, tokens)` returns, in order, with the absolute rect after the scroll offset. The
 tokens are passed so every colour comes from them. Group alpha and the click id do not reach
 raw elements.
+
+## What the typography plan's step three removed
+
+The empty pane state, the hint bar, the toasts and the cheat sheet moved onto the five roles
+and the parity variants went. Every text variant outside title, body, caption, section and
+code is deleted, with the legacy mono font, the pin, frameY and extraW fields, the quiet
+colour, the text override in the spec and `cheatSheet.fontSize`. A badge size is now a rule,
+the line height of the role its glyph is drawn in plus twice a space step, with the padding
+a space step too, so there is no textY and no height literal. The layout engine centres the
+cap height of every text in its line band, from the real font metrics through `measure:metrics`,
+the way the canvas list centres a row, so no caller nudges a frame. The empty state is caption
+and subtext, the hint bar is a section badge beside a caption label, the message toast is
+title, the colour toast's hex is code, the report toast is title, body and caption, and the
+cheat sheet is body for the row label and the key glyph, caption for the separator and section
+for a title. The cheat sheet's row, badge and title heights are derived from the role line
+heights and the space steps unless a model gives its own. The parity probes for these
+surfaces were removed, since they asserted the old look, and `test/cases/surfaces.lua` pins
+the derived geometry instead.

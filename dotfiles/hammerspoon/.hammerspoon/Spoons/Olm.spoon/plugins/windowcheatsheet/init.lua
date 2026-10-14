@@ -31,13 +31,12 @@ obj._byLeader = nil    -- leaderKeyCode -> { name = "SUPER", rows = { {badge,lab
 obj._cheatSheet = nil  -- shared CheatSheet renderer
 obj._predicates = nil  -- name -> function() -> bool, for conditional bindings
 
--- Layout knobs for this overlay: two columns, wide badge (fits "⇧←"), no icons.
+-- Layout knobs for this overlay: two columns, wide badge (fits "⇧←"), no icons. Row and badge
+-- height are not here, the cheat sheet derives them from the type roles.
 local LAYOUT = {
   columns = 2,
   colWidth = 250,
-  rowHeight = 44,
   badgeWidth = 44,
-  badgeHeight = 28,
   gap = 12,
 }
 
@@ -123,9 +122,7 @@ function obj:show(leaderKeyCode)
   self._cheatSheet:show({
     columns = LAYOUT.columns,
     colWidth = LAYOUT.colWidth,
-    rowHeight = LAYOUT.rowHeight,
     badgeWidth = LAYOUT.badgeWidth,
-    badgeHeight = LAYOUT.badgeHeight,
     gap = LAYOUT.gap,
     sections = {
       { title = group.name, alpha = 1.0, rows = rows },

@@ -41,11 +41,8 @@ M.halves = { dark = "dark", light = "light" }
 -- never carried. The light half has no preview fallback of its own, so it inherits the dark
 -- one, the same rule the spec follows.
 --
--- quiet and outline arrived in stage two, each holding a literal a shared surface drew with
--- so the move onto the kit changes nothing. quiet is the empty state's own default text
--- colour, a gray at 0.55 on both halves, which is not dim, since dim is subtext at the dim
--- alpha and the two have never been equal. outline is the colour toast's swatch stroke,
--- white 1 at 0.25 on dark and white 0 at 0.2 on light.
+-- outline is the colour toast's swatch stroke, white 1 at 0.25 on dark and white 0 at 0.2
+-- on light.
 local SHIPPED_COLORS = {
   dark = {
     foreground = { white = 0.92 },
@@ -55,7 +52,6 @@ local SHIPPED_COLORS = {
     path = "#7a7a7a",
     note = "#c8a86a",
     badge = { white = 1, alpha = 0.12 },
-    quiet = { white = 0.6, alpha = 0.55 },
     outline = { white = 1, alpha = 0.25 },
   },
   light = {
@@ -93,52 +89,12 @@ local ROLE_RULES = {
   code = { font = "mono", color = "foreground" },
 }
 
--- Every token that is not a colour. Values come from the brief that settled stage one and
--- are what the tree draws today, where the tree agrees with itself.
+-- Every token that is not a colour. The type is not here, the five roles above are the only
+-- text there is and they are built from the typography when the table is resolved.
 local SHIPPED = {
   -- ui and mono here are the typography fonts, filled from SHIPPED_TYPOGRAPHY and the
-  -- typography file when the table is built. legacyMono is the font the retiring variants
-  -- below drew in before the typography existed, kept apart so they change nothing.
-  fonts = { legacyMono = "Menlo" },
-
-  -- Each variant names a font token rather than a font, and states a lineHeight only when
-  -- it departs from the one rule in lineHeightFor below. heading is the one variant that
-  -- names a colour token of its own, subtext, and every other variant draws in foreground
-  -- unless the text node names a colour.
-  --
-  -- The second group holds the type the shared surfaces drew with before stage two moved
-  -- them onto the kit, one variant per distinct font, size and box, so each surface draws
-  -- exactly what it drew before. Every one of them sets pin to false, since those surfaces
-  -- drew plain canvas text with no pinned line height, and a pinned one moves the glyphs.
-  -- lineHeight is the frame height each surface gave its text. frameY and extraW say where
-  -- the frame sits against the box the layout reserves, frameY points lower and extraW
-  -- points wider, neither taking any room in the layout, which is how the hint bar label
-  -- was placed. Stage three replaces this group with the new look.
-  --
-  -- Every variant in this table is retiring, to be removed as each consumer migrates to the
-  -- five type roles built from the typography below. title and body are already shadowed by
-  -- the roles of the same name, which win, so the two entries here are never what a node
-  -- resolves to, and they stay only so the list reads as it did.
-  text = {
-    title = { font = "ui", size = 16 }, -- retiring, shadowed by the title role
-    body = { font = "ui", size = 14 }, -- retiring, shadowed by the body role
-    sub = { font = "ui", size = 12 }, -- retiring
-    label = { font = "legacyMono", size = 11 }, -- retiring
-    heading = { font = "ui", size = 16, color = "subtext" }, -- retiring
-    mono = { font = "legacyMono", size = 12 }, -- retiring
-    big = { font = "legacyMono", size = 20 }, -- retiring
-
-    hintKey = { font = "ui", size = 11, lineHeight = 15, pin = false },
-    hintLabel = { font = "ui", size = 12, lineHeight = 16, pin = false, color = "subtext",
-                  frameY = 3, extraW = 4 },
-    cheat = { font = "ui", size = 16, lineHeight = 20, pin = false },
-    cheatTitle = { font = "ui", size = 16, lineHeight = 20, pin = false, color = "subtext" },
-    toast = { font = "legacyMono", size = 18, lineHeight = 24, pin = false },
-    report = { font = "ui", size = 16, lineHeight = 22, pin = false },
-    reportDetail = { font = "ui", size = 14, lineHeight = 20, pin = false },
-    empty = { font = "ui", size = 13, lineHeight = 20.8, pin = false, color = "quiet" },
-    -- The parity group above is retiring as well, each variant going with its surface.
-  },
+  -- typography file when the table is built.
+  fonts = {},
 
   -- sm and lg are the hint bar's two gaps, eight between lines and sixteen between hints,
   -- added in stage two beside the scale they fall between.
@@ -156,26 +112,22 @@ local SHIPPED = {
 
   -- swatch is the colour toast's square, the one size the toast draws that no icon shares.
   icon = { row = 28, list = 28, sheet = 32, swatch = 26 },
+}
 
-  -- The three badge sizes badge(key, size) names. Not in the design's token list, which
-  -- names the sizes but not where their geometry lives, so they sit here beside the other
-  -- geometry rather than as literals inside the layout engine. Each holds its height, its
-  -- padding either side of the glyph, and the text variant the glyph is drawn in. Three
-  -- fields are optional. minWidth is the narrowest the chip may be, the height when absent,
-  -- so a lone glyph stays square. textY moves the glyph frame down from where centring its
-  -- line box would put it. radius names the radius token the chip is rounded with, badge
-  -- when absent.
-  --
-  -- Every value is what stage two found each surface drawing. cheat is the cheat sheet chip,
-  -- 28 high with 10 of padding, its glyph in the cheat sheet's own type. hint is the hint bar
-  -- chip, 18 high with 6 of padding, its glyph in the ui font at 11, and with no minimum,
-  -- since the bar never had one. button is the report toast's Dismiss chip, 28 high with 12
-  -- of padding, rounded at the chip radius.
-  badge = {
-    cheat = { height = 28, padX = 10, text = "cheat", textY = 1 },
-    hint = { height = 18, padX = 6, text = "hintKey", minWidth = 0, textY = 1 },
-    button = { height = 28, padX = 12, text = "reportDetail", textY = 2, radius = "chip" },
-  },
+-- The three badge sizes badge(key, size) names, as rules rather than numbers. A badge is its
+-- glyph's line box with space around it, so its height is the line height of the type role
+-- the glyph is drawn in plus twice padY, and the padding either side of the glyph is padX,
+-- both names of the space scale. Nothing here states a point value, so a size changed in
+-- config/typography.toml reflows every chip. cheat is the cheat sheet chip, its glyph in
+-- body. hint is the hint bar chip, its glyph in section, with no minimum width since the bar
+-- never had one. button is the report toast's Dismiss chip, its word in caption, rounded at
+-- the chip radius. minWidth is the narrowest the chip may be, the height when absent, so a
+-- lone glyph stays square. radius names the radius token the chip is rounded with, badge
+-- when absent.
+local BADGE_RULES = {
+  cheat = { role = "body", padY = "s", padX = "m" },
+  hint = { role = "section", padY = "xs", padX = "s", minWidth = 0 },
+  button = { role = "caption", padY = "s", padX = "l", radius = "chip" },
 }
 
 -- Every colour role a resolved table answers, the design's list, kept here because the kit
@@ -183,7 +135,7 @@ local SHIPPED = {
 local COLOR_ROLES = {
   "foreground", "subtext", "dim", "overlay", "accent", "note", "path",
   "background", "surface", "border", "selection", "highlight", "badge",
-  "quiet", "outline",
+  "outline",
 }
 
 local function keysOf(t)
@@ -202,18 +154,17 @@ M.names = {
     return out
   end)(),
   text = (function()
-    local out = keysOf(SHIPPED.text)
+    local out = {}
     for _, role in ipairs(M.roles) do out[role] = true end
     return out
   end)(),
   roles = M.roles,
   space = keysOf(SHIPPED.space),
   icon = keysOf(SHIPPED.icon),
-  badge = keysOf(SHIPPED.badge),
+  badge = keysOf(BADGE_RULES),
 }
 
--- The one line height rule, ceil of size times 1.35, unless a retiring variant states its own.
--- A type role never states one.
+-- The one line height rule, ceil of size times 1.35. A type role never states one.
 local function lineHeightFor(size)
   return math.ceil(size * 1.35)
 end
@@ -344,8 +295,8 @@ function M.new(opts)
   ---   colors   { dark = { role = colour }, light = { role = colour } }, light optional
   ---   typography { fonts = { ui, mono }, sizes = { title ... code } }, validated, see
   ---            M.loadTypography, laid over the shipped fonts and sizes of the type roles
-  ---   fonts, text, space, radius, alpha, icon, badge, each optional and merged over the
-  ---            shipped values one level down
+  ---   fonts, space, radius, alpha, icon, badge, each optional and merged over the
+  ---            shipped or derived values one level down
   function instance.configure(newSpec)
     spec = newSpec or {}
     cache = {}
@@ -396,19 +347,8 @@ function M.new(opts)
     local fonts = mergeGroup(SHIPPED.fonts, typography.fonts)
     fonts = mergeGroup(fonts, spec.fonts)
     local text = {}
-    for name, variant in pairs(mergeGroup(SHIPPED.text, spec.text)) do
-      text[name] = {
-        font = fonts[variant.font] or variant.font,
-        size = variant.size,
-        lineHeight = variant.lineHeight or lineHeightFor(variant.size),
-        color = variant.color,
-        pin = variant.pin ~= false,
-        frameY = variant.frameY or 0,
-        extraW = variant.extraW or 0,
-      }
-    end
-    -- The five type roles are derived from the typography and win over a retiring variant
-    -- of the same name.
+    -- The five type roles are derived from the typography, the font and colour by the rule
+    -- of the role and the line height by the one line height rule.
     for _, role in ipairs(M.roles) do
       local rule = ROLE_RULES[role]
       local size = typography.sizes[role]
@@ -417,9 +357,18 @@ function M.new(opts)
         size = size,
         lineHeight = lineHeightFor(size),
         color = rule.color,
-        pin = true,
-        frameY = 0,
-        extraW = 0,
+      }
+    end
+
+    local space = mergeGroup(SHIPPED.space, spec.space)
+    local badges = {}
+    for name, rule in pairs(BADGE_RULES) do
+      badges[name] = {
+        height = text[rule.role].lineHeight + 2 * space[rule.padY],
+        padX = space[rule.padX],
+        text = rule.role,
+        minWidth = rule.minWidth,
+        radius = rule.radius,
       }
     end
 
@@ -428,11 +377,11 @@ function M.new(opts)
       colors = resolved,
       fonts = fonts,
       text = text,
-      space = mergeGroup(SHIPPED.space, spec.space),
+      space = space,
       radius = mergeGroup(SHIPPED.radius, spec.radius),
       alpha = alpha,
       icon = mergeGroup(SHIPPED.icon, spec.icon),
-      badge = mergeGroup(SHIPPED.badge, spec.badge),
+      badge = mergeGroup(badges, spec.badge),
     }
   end
 

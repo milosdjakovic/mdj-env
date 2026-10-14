@@ -229,42 +229,32 @@ end
 ---
 --- opts, every field optional.
 ---   text   the message, default "Nothing to preview".
----   color  an hs color table for the text, default the kit's quiet colour. The caller's
----          own resolved color, never a theme this routine reads for itself.
----   size   the text's point size, default the kit's empty variant, 13.
+---   color  an hs color table for the text, default the caption role's own colour, subtext.
+---          The caller's own resolved color, never a theme this routine reads for itself.
 ---
---- Drawn through the UI kit as one centred text in the empty variant. A caller's color and
---- size reach it through a copy of the tokens rather than through the node, since a node
---- names only roles and variants, so the four plugins that pass their own colour keep the
---- exact colour they pass. With no kit injected it draws nothing.
+--- Drawn through the UI kit as one centred text in the caption role, whose size, line height
+--- and colour all come from the kit. The quiet grey this once drew in is gone, since a
+--- second grey beside subtext is the drift the five roles end, and subtext reads better on
+--- the light half. A caller's color reaches it through a copy of the tokens rather than
+--- through the node, since a node names only roles, so the four plugins that pass their own
+--- colour keep the exact colour they pass. With no kit injected it draws nothing.
 function obj.emptyStateElements(w, h, opts)
   opts = opts or {}
   if not UI then return {} end
   local text = opts.text or "Nothing to preview"
   local tokens = UI.tokens()
-  -- The groups are shared with the cache, so the two this changes are copied first.
-  local variant = {}
-  for k, v in pairs(tokens.text.empty) do variant[k] = v end
-  local text_ = {}
-  for k, v in pairs(tokens.text) do text_[k] = v end
-  text_.empty = variant
-  tokens.text = text_
   if opts.color ~= nil then
+    -- The group is shared with the cache, so it is copied first.
     local colors = {}
     for k, v in pairs(tokens.colors) do colors[k] = v end
-    colors.quiet = opts.color
+    colors.subtext = opts.color
     tokens.colors = colors
   end
-  if opts.size ~= nil then
-    -- The line box keeps its proportion to the size, one point six of it.
-    variant.lineHeight = variant.lineHeight / variant.size * opts.size
-    variant.size = opts.size
-  end
-  local textH = variant.lineHeight
+  local textH = tokens.text.caption.lineHeight
   -- A little above centre rather than exactly on it, which is what makes this read as
   -- an empty state instead of as a stray line sitting in the middle of the box.
   local y = h / 2 - textH
-  return (UI.layout(UI.text(text, "empty", { align = UI.aligns.center,
+  return (UI.layout(UI.text(text, "caption", { align = UI.aligns.center,
     lineBreak = UI.lineBreaks.wordWrap }), { x = 0, y = y, w = w, h = textH },
     { tokens = tokens }))
 end

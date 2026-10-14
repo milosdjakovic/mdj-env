@@ -66,7 +66,6 @@ return {
   -- Omit any field to keep the default.
   cheatSheet = {
     badgeRadius = 5,   -- key-badge roundness, matching the hint bar chips
-    fontSize = 16,
     padding = 20,      -- inner panel padding (CanvasPanel padX/padY)
   },
 

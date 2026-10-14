@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # Runs the stage two parity probes against the running Hammerspoon, with no reload and no
 # test lock. Each probe builds one shared surface through the old code and the new and
-# compares the two, see parity-lib.lua.
+# compares the two, see parity-lib.lua. Only the canvas provider probe is left. The empty state,
+# the hint bar, the toasts and the cheat sheet moved onto the five type roles on purpose and no
+# longer look like the ref, so their probes were removed, and test/cases/surfaces.lua pins the
+# geometry they derive from the role line heights instead.
 #
 #   test/parity.sh <scratch dir> [git ref]
 #
@@ -31,7 +34,7 @@ CONFIG_REL="${SPOON_REL%/Spoons/Olm.spoon}/config"
 git -C "$REPO_ROOT" archive "$REF" "$SPOON_REL/lib" "$SPOON_REL/root" "$CONFIG_REL/settings.lua" | tar -x -C "$OLD" || exit 1
 
 status=0
-for probe in emptystate hints cheatsheet canvasprovider; do
+for probe in canvasprovider; do
   out="$WORK/parity-$probe.out"
   args="$WORK/parity-$probe-args.lua"
   rm -f "$out"

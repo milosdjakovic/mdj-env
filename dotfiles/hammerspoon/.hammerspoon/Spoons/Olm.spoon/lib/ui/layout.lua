@@ -12,11 +12,14 @@
 -- division field/render.lua and lib/cheatsheet.lua already keep.
 --
 -- Text always leaves as hs.styledtext, since only styledtext carries a line break mode and a
--- pinned line height, and both are in use. A variant with pin set to false leaves the line
--- height unpinned, which draws exactly what a plain canvas text element draws, measured in
--- stage two against the plain elements every shared surface used before it moved here. Text
--- and badges are measured whole through the measurer's exact, falling back to its width
--- for a measurer that has no exact, such as a test's stub. A glyph icon is drawn to an hs.image the way
+-- pinned line height, and both are in use. Every role pins its line height, and a pinned line
+-- puts its extra room above the glyphs, so the text would sit low in its band. The engine
+-- moves the frame up by the difference, which centres the cap height of the font in the
+-- line band, the same rule the canvas list centres a row with, so a caller places a text by
+-- its band and never nudges a frame by hand. Text and badges are measured whole through the
+-- measurer's exact, falling back to its width for a measurer that has no exact, such as a
+-- test's stub, and a measurer with no metrics, the same stub, moves nothing. A glyph icon is
+-- drawn to an hs.image the way
 -- lib/glyphicon.lua draws one, and cached here by glyph and size, so iconImage can also feed
 -- a native chooser row the very image a canvas pane would draw.
 
@@ -251,12 +254,24 @@ function M.new(deps)
     end
   end
 
+  -- How far up a pinned line's frame moves to centre the cap height of its font in the
+  -- line band. A pinned line sets its baseline at the line height less the descender, so
+  -- the cap centre sits half the cap height above that, and the band's centre is half the
+  -- line height down, which leaves this difference. Negative, since the glyphs sit low.
+  -- The bias is a quarter point, what the rule left over when the cap height was measured on
+  -- a rendered canvas at each of the five role sizes, every one within half a point of the
+  -- band centre with it and the glyph a little high without it.
+  local BASELINE_BIAS = 0.25
+  local function glyphShift(v)
+    if not measure.metrics then return 0 end
+    local m = measure:metrics(v.font, v.size)
+    return (m.capHeight + 2 * math.abs(m.descender) - v.lineHeight) / 2 + BASELINE_BIAS
+  end
+
   local function textElement(ctx, str, v, colorRole, align, lineBreak, frame)
-    local paragraph = { alignment = align, lineBreak = lineBreak }
-    if v.pin ~= false then
-      paragraph.minimumLineHeight = v.lineHeight
-      paragraph.maximumLineHeight = v.lineHeight
-    end
+    local paragraph = { alignment = align, lineBreak = lineBreak,
+      minimumLineHeight = v.lineHeight, maximumLineHeight = v.lineHeight }
+    frame.y = frame.y + glyphShift(v)
     local styled = hs.styledtext.new(str, {
       font = { name = v.font, size = v.size },
       color = colorOf(ctx, colorRole),
@@ -272,10 +287,8 @@ function M.new(deps)
     if kind == "text" then
       local v = T.text[node.variant]
       local lineBreak = node.lineBreak or (node.wrap and "wordWrap" or "truncateTail")
-      -- frameY and extraW place the frame against the box without taking room in it.
       push(ctx, textElement(ctx, node.str, v, node.color or v.color or "foreground",
-        node.align or "left", lineBreak,
-        { x = x, y = y + (v.frameY or 0), w = w + (v.extraW or 0), h = h }))
+        node.align or "left", lineBreak, { x = x, y = y, w = w, h = h }))
     elseif kind == "badge" then
       local b = T.badge[node.size]
       local v = T.text[b.text]
@@ -284,11 +297,10 @@ function M.new(deps)
       push(ctx, { type = "rectangle", action = "fill", fillColor = colorOf(ctx, "badge"),
         roundedRectRadii = { xRadius = r, yRadius = r },
         frame = { x = x, y = y, w = bw, h = b.height } })
-      -- Centred unrounded, then moved by textY, and wrapped by word, which is what a plain
-      -- canvas text element does and what every badge drew with before stage two.
+      -- The glyph's line box is centred in the chip, and the cap height of the glyph is
+      -- centred in that box by textElement.
       push(ctx, textElement(ctx, node.key, v, "foreground", "center", "wordWrap",
-        { x = x, y = y + (b.height - v.lineHeight) / 2 + (b.textY or 0), w = bw,
-          h = v.lineHeight }))
+        { x = x, y = y + (b.height - v.lineHeight) / 2, w = bw, h = v.lineHeight }))
     elseif kind == "icon" then
       local s = T.icon[node.size]
       local img = engine.iconImage(node.source, s)

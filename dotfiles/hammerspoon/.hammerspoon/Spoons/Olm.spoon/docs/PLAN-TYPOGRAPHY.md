@@ -58,7 +58,8 @@ Three things the panes need and the kit lacks, each with more than one consumer.
 1. The kit gains the three pieces above, with unit cases.
 2. The canvas chooser and the native chooser, rows, field and geometry. Judged live.
 3. The empty pane state, the hint bar, the toasts and the cheat sheet, then the retiring
-   variants they used are deleted. Judged live.
+   variants they used are deleted. Judged live. Built 2026 10 14, every text variant outside
+   the five roles is gone and none had another consumer.
 4. The four panes, one plugin per step, clipboard, file search, processes, speedtest. Each
    step draws its pane through `ui.layout`, deletes its own fonts, sizes, palette closure and
    fallback colours, drops its theme exemption line, and is judged live before the next.

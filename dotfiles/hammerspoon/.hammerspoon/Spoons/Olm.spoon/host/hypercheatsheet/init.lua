@@ -31,13 +31,11 @@ obj._items = nil           -- precomputed { key, name, bundleID, icon }, built o
 obj._staticSections = nil  -- precomputed service sections { title, rows }, built once
 obj._cheatSheet = nil      -- shared CheatSheet renderer
 
--- Layout knobs for this overlay: four columns, square badge, app icons.
+-- Layout knobs for this overlay: four columns, app icons. The badge is square and its size
+-- and the row height are not here, the cheat sheet derives them from the type roles.
 local LAYOUT = {
   columns = 4,
   colWidth = 215,   -- wide enough for names like "Activity Monitor"
-  rowHeight = 48,
-  badgeWidth = 28,
-  badgeHeight = 28,
   iconSize = 32,
   gap = 10,
   groupGap = 20,
@@ -181,9 +179,6 @@ function obj:show()
   self._cheatSheet:show({
     columns = LAYOUT.columns,
     colWidth = LAYOUT.colWidth,
-    rowHeight = LAYOUT.rowHeight,
-    badgeWidth = LAYOUT.badgeWidth,
-    badgeHeight = LAYOUT.badgeHeight,
     iconSize = LAYOUT.iconSize,
     gap = LAYOUT.gap,
     groupGap = LAYOUT.groupGap,

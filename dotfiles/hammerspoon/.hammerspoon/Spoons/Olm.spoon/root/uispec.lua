@@ -9,7 +9,7 @@
 -- The colours are no longer policy's. They come from the current theme, the colours table
 -- lib/ui/themes.lua answers, a half each of the keys a theme file holds, and each key maps
 -- onto one of the kit's colour roles below. Only what policy owns is read from policy, the
--- two radii settings carries and the cheat sheet's type when settings sets it. Every other
+-- two radii settings carries. Every other
 -- token, and the colours a theme leaves out, are lib/ui/style.lua's own. A half with no
 -- light colours of its own takes the dark one, the same fallback every reader applies.
 --
@@ -43,24 +43,6 @@ local function colorsFor(colors, half)
   return out
 end
 
--- The cheat sheet's two text variants, following the rule lib/cheatsheet.lua's configure
--- applied before stage two. A font size sets both, and the title's line box follows it at
--- one and a quarter, rounded, unless a line height is set too. A line height alone sets only
--- the title's box. The glyph, label and separator box was always the size plus four. Nothing
--- set means the shipped variants stand.
-local function cheatText(cheatSheet)
-  local text = {}
-  if cheatSheet.fontSize ~= nil then
-    local size = cheatSheet.fontSize
-    text.cheat = { size = size, lineHeight = size + 4 }
-    text.cheatTitle = { size = size,
-      lineHeight = cheatSheet.lineHeight or math.floor(size * 1.25 + 0.5) }
-  elseif cheatSheet.lineHeight ~= nil then
-    text.cheatTitle = { lineHeight = cheatSheet.lineHeight }
-  end
-  return text
-end
-
 --- M.spec(policy, colors, typography) -> the style spec for lib/ui/style.lua. colors is the
 --- table lib/ui/themes.lua answers for the current theme, a half each of theme keys.
 --- typography is what style.loadTypography answered, the valid fonts and sizes of the type
@@ -70,7 +52,6 @@ function M.spec(policy, colors, typography)
   local cheatSheet = policy.cheatSheet or {}
   return {
     colors = { dark = colorsFor(colors, "dark"), light = colorsFor(colors, "light") },
-    text = cheatText(cheatSheet),
     typography = typography,
     radius = {
       surface = (policy.surface or {}).cornerRadius,

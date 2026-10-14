@@ -83,10 +83,20 @@ do
       and near(light.colors.badge.white, 0) and near(light.colors.badge.alpha, 0.06))
   check("line height is ceil of size times 1.35",
     dark.text.title.lineHeight == 27 and dark.text.body.lineHeight == 22
-      and dark.text.label.lineHeight == 15 and dark.text.big.lineHeight == 27)
+      and dark.text.caption.lineHeight == 19 and dark.text.section.lineHeight == 17
+      and dark.text.code.lineHeight == 19)
   check("a text variant names its font, not the font token",
-    dark.text.label.font == "Menlo" and dark.text.body.font == ".AppleSystemUIFont")
-  check("heading draws in subtext", dark.text.heading.color == "subtext")
+    dark.text.code.font == ".AppleSystemUIFontMonospaced"
+      and dark.text.body.font == ".AppleSystemUIFont")
+  check("caption draws in subtext", dark.text.caption.color == "subtext")
+  check("a badge is its glyph's line height plus twice its vertical space",
+    dark.badge.hint.height == 17 + 2 * 2 and dark.badge.cheat.height == 22 + 2 * 6
+      and dark.badge.button.height == 19 + 2 * 6,
+    dark.badge.hint.height .. " " .. dark.badge.cheat.height .. " " .. dark.badge.button.height)
+  check("a badge pads its glyph by a space step and draws it in a role",
+    dark.badge.hint.padX == 6 and dark.badge.hint.text == "section"
+      and dark.badge.cheat.padX == 10 and dark.badge.cheat.text == "body"
+      and dark.badge.button.padX == 14 and dark.badge.button.text == "caption")
   check("space, radius, alpha and icon carry the settled values",
     dark.space.xs == 2 and dark.space.xl == 20 and dark.radius.chip == 6
       and dark.radius.badge == 5 and dark.alpha.fade == 0.55 and dark.icon.sheet == 32)
@@ -179,14 +189,14 @@ local function textOf(el) return el.text and el.text.getString and el.text:getSt
 
 do
   local tree = kit.stack({
-    kit.text("one", "title"), kit.text("two", "body"), kit.text("three", "sub"),
+    kit.text("one", "title"), kit.text("two", "body"), kit.text("three", "caption"),
   }, { gap = "s" })
   local els, height = engine.layout(tree, RECT, tokens)
   local order = {}
   for _, el in ipairs(els) do order[#order + 1] = textOf(el) or "?" end
   check("a stack of texts answers its elements in order",
     table.concat(order, ",") == "one,two,three", table.concat(order, ","))
-  local want = 27 + 22 + 17 + 2 * 6
+  local want = 27 + 22 + 19 + 2 * 6
   check("a stack's height is the summed line heights and gaps", height == want,
     "got " .. tostring(height) .. ", wanted " .. want)
   check("each text sits below the last, starting at the rect",
@@ -196,7 +206,7 @@ do
 end
 
 do
-  -- Four hint badges of three characters, each 21 wide plus 12 of padding is 33, with a
+  -- Four hint badges of three characters, each 21 wide plus 12 of padding is 33, 21 high, with a
   -- gap of 6 between, in a width of 80, fit two to a line.
   local tree = kit.flow({
     kit.badge("aaa", "hint"), kit.badge("bbb", "hint"),
@@ -209,9 +219,9 @@ do
   end
   check("a flow wraps at the rect width",
     #chips == 4 and chips[1].y == 0 and chips[2].y == 0 and chips[2].x == 39
-      and chips[3].y == 18 + 6 and chips[3].x == 0,
+      and chips[3].y == 21 + 6 and chips[3].x == 0,
     "chip frames " .. #chips)
-  check("a flow's height is its lines and the gap between them", height == 18 + 6 + 18,
+  check("a flow's height is its lines and the gap between them", height == 21 + 6 + 21,
     "got " .. tostring(height))
 end
 
@@ -250,7 +260,7 @@ do
   end
   check("scrollY offsets every element", shifted)
   check("the clip covers the rect", scrolled[1].frame.x == 10 and scrolled[1].frame.h == 200)
-  check("the content height is answered before scrolling", height == 22 + 28 + 1,
+  check("the content height is answered before scrolling", height == 22 + 34 + 1,
     "got " .. tostring(height))
   local noClip = true
   for _, el in ipairs(plain) do
@@ -275,7 +285,7 @@ do
 end
 
 do
-  local tree = kit.row({ kit.text("label", "label"), kit.text("value", "body") }, { gap = "m" })
+  local tree = kit.row({ kit.text("label", "caption"), kit.text("value", "body") }, { gap = "m" })
   local els, height = engine.layout(tree, RECT, tokens)
   check("a row places its children left to right and the last takes the remaining width",
     els[1].frame.x == 10 and els[1].frame.w == 35 and els[2].frame.x == 10 + 35 + 10
@@ -342,8 +352,8 @@ do
     "missing " .. table.concat(missing, " "))
   check("the joined table carries the measurer", type(ui.measure) == "table"
     and type(ui.measure.width) == "function")
-  local els, height = ui.layout(ui.stack({ ui.text("a", "heading") }), RECT)
-  check("ui.layout lays out with the current tokens", #els == 1 and height == 22)
+  local els, height = ui.layout(ui.stack({ ui.text("a", "section") }), RECT)
+  check("ui.layout lays out with the current tokens", #els == 1 and height == 17)
   local a = ui.iconImage("🔥", "row")
   check("a glyph icon is an image, cached by glyph and size",
     type(a) == "userdata" and rawequal(a, ui.iconImage("🔥", "row"))
@@ -418,4 +428,30 @@ do
     textOf(rawEls[2]) == "above" and rawEls[3].action == "fill" and rawEls[4].action == "stroke"
       and textOf(rawEls[5]) == "below")
   check("raw refuses a non number height", not pcall(kit.raw, "tall", function() end))
+end
+
+--------------------------------------------------------------------------------
+-- text centred in its line band
+--------------------------------------------------------------------------------
+
+do
+  -- A measurer that also answers metrics, cap 10 and descender minus 4 whatever the font, so
+  -- the shift is arithmetic. For the body line height of 22 it is (10 + 2 * 4 - 22) / 2 plus
+  -- the quarter point bias, which is minus 2 plus 0.25, minus 1.75.
+  local withMetrics = setmetatable({}, { __index = stubMeasure })
+  function withMetrics:metrics() return { ascender = 16, descender = -4, capHeight = 10 } end
+  local metricEngine = layoutLib.new({ measure = withMetrics })
+  local els = metricEngine.layout(kit.text("a", "body"), RECT, tokens)
+  check("a text frame moves up so the cap height is centred in its line band",
+    near(els[1].frame.y, 20 - 1.75), "frame y " .. tostring(els[1].frame.y)
+      .. ", wanted " .. (20 - 1.75))
+  check("the frame keeps the line height and the rect width",
+    els[1].frame.h == 22 and els[1].frame.w == 300)
+  local plain = engine.layout(kit.text("a", "body"), RECT, tokens)
+  check("a measurer with no metrics moves nothing", plain[1].frame.y == 20)
+
+  local chip = metricEngine.layout(kit.badge("K", "cheat"), RECT, tokens)
+  -- The chip is 34 high and its glyph box 22, so the box starts 6 down, then the shift.
+  check("a badge glyph is centred in the chip, then by the same cap height rule",
+    near(chip[2].frame.y, 20 + 6 - 1.75), "frame y " .. tostring(chip[2].frame.y))
 end

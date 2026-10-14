@@ -21,11 +21,18 @@
 --- so one renderer serves both.
 ---
 --- Content styling comes from the UI kit. Every badge, separator, icon, label and
---- title is a kit node laid out where this file's grid arithmetic puts it, in the
---- kit's cheat and cheatTitle variants and its cheat badge, so the type, the chip and
---- the text colours track light and dark through the kit's tokens, matching the hint
---- bar. The cheat sheet settings block, fontSize, lineHeight and badgeRadius, reaches
---- those tokens through the spec the composition root builds, root/uispec.lua.
+--- title is a kit node laid out where this file's grid arithmetic puts it. The row label
+--- and the key badge glyph are the body role, the separator word between alternate keys is
+--- caption, and a section title is the section role in its own colour, so the type, the
+--- chip and the text colours track light and dark through the kit's tokens, matching the
+--- hint bar. The cheat sheet settings block, badgeRadius, reaches the tokens through the
+--- spec the composition root builds, root/uispec.lua, and there is no font size setting,
+--- since the roles carry the sizes.
+---
+--- The three heights are derived, never literal. The key badge is a body line with the small
+--- space above and below, a row is a badge with the medium space added, and a title is a
+--- section line with the medium space below it. A host may still pass rowHeight,
+--- badgeHeight or titleHeight in a model, or in one section, and that wins.
 --- configure(opts) accepts:
 ---   ui           - the UI kit, lib/ui, everything here is drawn through it
 ---   padding      - inner panel padding (px), passed to CanvasPanel as padX/padY
@@ -72,17 +79,31 @@ obj._built = nil          -- cached { els, w, h } from the last preferredSize pa
 
 -- Per-overlay layout defaults. Any can be overridden per show(). The inner panel
 -- padding is CanvasPanel's, set globally via configure({ padding = ... }).
+--
+-- rowHeight, badgeHeight, badgeWidth and titleHeight are not here, they are derived from the
+-- kit's tokens by derivedLayout below and a model or section field of the same name still
+-- overrides them.
 local DEFAULTS = {
   columns = 2,
   colWidth = 250,
-  rowHeight = 44,
-  badgeWidth = 44,   -- wide enough for two glyphs like "⇧←"
-  badgeHeight = 28,
   iconSize = 0,      -- 0 = no icons
   gap = 12,          -- horizontal gap around badge/icon
-  titleHeight = 32,  -- section header line + gap below it
   groupGap = 20,     -- vertical gap between sections
 }
+
+-- The sizes the roles decide, as numbers from the resolved tokens. The badge is its glyph's
+-- body line plus the badge token's own padding, which the kit derives, and square unless a
+-- model gives a width, a row is that badge with the medium space added, and the title band is
+-- a section line with the medium space below.
+local function derivedLayout(T)
+  local badge = T.badge.cheat.height
+  return {
+    badgeHeight = badge,
+    badgeWidth = badge,
+    rowHeight = badge + T.space.m,
+    titleHeight = T.text.section.lineHeight + T.space.m,
+  }
+end
 
 local PANEL_PADDING = 20 -- CanvasPanel padX/padY unless configure sets padding
 
@@ -118,24 +139,25 @@ end
 local BADGE_SEP = "or" -- default word between a row's badges, overridable per row
 local SEP_GAP = 8 -- gap on each side of the separator
 
--- Rendered width of text in the cheat sheet's type, measured whole through the kit, so a
--- box can hug its key.
+-- Rendered width of text in one of the kit's text variants, measured whole through the kit,
+-- so a box can hug its key.
 local function measureW(ui, text, variant)
   return ui.measure:exact(tostring(text), variant.font, variant.size)
 end
 
 -- Boxes for a `badges` row and the total block width, so labels can align past
 -- the widest block. Each box is at least `minH` wide, so a lone glyph stays
--- square rather than a sliver. padX is the cheat badge's own padding token.
-local function badgeBoxes(ui, r, variant, padX, minH)
+-- square rather than a sliver. padX is the cheat badge's own padding token, glyph the text
+-- variant the key is drawn in and sepVariant the one the separator word is.
+local function badgeBoxes(ui, r, glyph, sepVariant, padX, minH)
   local boxes, total = {}, 0
   for _, b in ipairs(r.badges) do
-    local w = math.max(minH, math.floor(measureW(ui, b, variant) + 2 * padX + 0.5))
+    local w = math.max(minH, math.floor(measureW(ui, b, glyph) + 2 * padX + 0.5))
     boxes[#boxes + 1] = { text = b, w = w }
     total = total + w
   end
   local sep = r.sep or BADGE_SEP
-  local sepW = math.floor(measureW(ui, sep, variant) + 0.5)
+  local sepW = math.floor(measureW(ui, sep, sepVariant) + 0.5)
   total = total + (#boxes - 1) * (SEP_GAP + sepW + SEP_GAP)
   return boxes, total, sep, sepW
 end
@@ -191,12 +213,13 @@ end
 
 -- One section's rows appended to `els`, positioned from contentY and filled
 -- row-major across L.columns. `alpha` fades the whole group. Every badge, separator,
--- icon and label is a kit node in the cheat variant or the cheat badge, so the type, the
--- colours and the chip come from the tokens.
+-- icon and label is a kit node, the label and the key glyph in the body role and the
+-- separator in caption, so the type, the colours and the chip come from the tokens. Each
+-- text is placed by its line band and the kit centres the glyphs in it.
 function obj:_rowsElements(els, rows, contentY, L, alpha, T)
   local ui = self._ui
-  local v = T.text.cheat
-  local sz = v.size
+  local v = T.text.body
+  local sepV = T.text.caption
   local wordWrap = ui.lineBreaks.wordWrap
 
   -- The model owns the badge height and the icon size, so the tokens this section draws
@@ -220,7 +243,7 @@ function obj:_rowsElements(els, rows, contentY, L, alpha, T)
   local maxBlock = 0
   for _, r in ipairs(rows) do
     if r.badges then
-      local _, total = badgeBoxes(ui, r, v, T.badge.cheat.padX, L.badgeHeight)
+      local _, total = badgeBoxes(ui, r, v, sepV, T.badge.cheat.padX, L.badgeHeight)
       if total > maxBlock then maxBlock = total end
     end
   end
@@ -234,16 +257,16 @@ function obj:_rowsElements(els, rows, contentY, L, alpha, T)
     local labelX
 
     if r.badges then
-      local boxes, _, sep, sepW = badgeBoxes(ui, r, v, T.badge.cheat.padX, L.badgeHeight)
+      local boxes, _, sep, sepW = badgeBoxes(ui, r, v, sepV, T.badge.cheat.padX, L.badgeHeight)
       local bx = x
       for bi, b in ipairs(boxes) do
         self:_place(els, ui.badge(b.text, "cheat", { fill = true }), bx, badgeTop, b.w,
           L.badgeHeight, alpha, T)
         bx = bx + b.w
         if bi < #boxes then
-          self:_place(els, ui.text(sep, "cheat", { color = "subtext", align = ui.aligns.center,
-            lineBreak = wordWrap }), bx + SEP_GAP, badgeTop + (L.badgeHeight - sz) / 2 - 1,
-            sepW, v.lineHeight, alpha, T)
+          self:_place(els, ui.text(sep, "caption", { align = ui.aligns.center,
+            lineBreak = wordWrap }), bx + SEP_GAP,
+            badgeTop + (L.badgeHeight - sepV.lineHeight) / 2, sepW, sepV.lineHeight, alpha, T)
           bx = bx + SEP_GAP + sepW + SEP_GAP
         end
       end
@@ -261,8 +284,8 @@ function obj:_rowsElements(els, rows, contentY, L, alpha, T)
     end
 
     local labelW = L.colWidth - (labelX - x) - L.gap
-    self:_place(els, ui.text(r.label or "", "cheat", { lineBreak = wordWrap }), labelX,
-      y + (L.rowHeight - sz) / 2 - 1, labelW, v.lineHeight, alpha, T)
+    self:_place(els, ui.text(r.label or "", "body", { lineBreak = wordWrap }), labelX,
+      y + (L.rowHeight - v.lineHeight) / 2, labelW, v.lineHeight, alpha, T)
   end
 end
 
@@ -272,11 +295,17 @@ end
 -- the draw that follows it agree without recomputing.
 function obj:_build()
   local model = self._model or {}
-  local L = layoutOf(self._layoutDefaults, model)
   local sections = nonEmpty(model.sections)
   if #sections == 0 or not self._ui then
     return { els = {}, w = 0, h = 0 }
   end
+
+  -- The defaults are the fixed ones with the three derived heights under them, so a model
+  -- or a section that names a height wins over what the roles decide.
+  local T = self._ui.tokens()
+  local base = derivedLayout(T)
+  for k, v in pairs(self._layoutDefaults) do base[k] = v end
+  local L = layoutOf(base, model)
 
   -- Each section may override the panel layout (columns, colWidth, ...) for its
   -- own rows, inheriting the model-level L for anything it omits.
@@ -299,16 +328,15 @@ function obj:_build()
     h = h + rowsFor(#s.rows, layouts[i].columns) * layouts[i].rowHeight
   end
 
-  local T = self._ui.tokens()
   local els = {}
   local cursor = 0
   for i, s in ipairs(sections) do
     local SL = layouts[i]
     if i > 1 then cursor = cursor + L.groupGap end
     if s.title then
-      self:_place(els, self._ui.text(s.title, "cheatTitle",
+      self:_place(els, self._ui.text(s.title, "section",
         { lineBreak = self._ui.lineBreaks.wordWrap }), 0, cursor, SL.columns * SL.colWidth,
-        T.text.cheatTitle.lineHeight, s.titleAlpha or s.alpha or 1.0, T)
+        T.text.section.lineHeight, s.titleAlpha or s.alpha or 1.0, T)
       cursor = cursor + SL.titleHeight
     end
     self:_rowsElements(els, s.rows, cursor, SL, s.alpha or 1.0, T)

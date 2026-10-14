@@ -79,7 +79,6 @@ do
     t.text.title.color == "foreground" and t.text.body.color == "foreground"
       and t.text.code.color == "foreground" and t.text.caption.color == "subtext"
       and t.text.section.color == "overlay")
-  check("a role pins its line height", t.text.title.pin == true and t.text.code.pin == true)
   check("the role colours resolve from the theme",
     t.colors.foreground.red ~= nil and math.abs(t.colors.overlay.red - 0x33 / 255) < 0.001)
   check("roles lists the five names in order",
@@ -89,8 +88,17 @@ do
     pcall(function() for _, role in ipairs(kit.roles) do kit.text("x", role) end end))
   check("a text node may still pass a colour role to override",
     kit.text("x", "section", { color = "accent" }).color == "accent")
-  check("old variants still resolve", t.text.sub.size == 12 and t.text.hintKey.size == 11
-    and t.text.toast.font == "Menlo" and t.text.mono.font == "Menlo")
+  local retired = {}
+  for _, name in ipairs({ "sub", "label", "heading", "mono", "big", "hintKey", "hintLabel",
+                          "cheat", "cheatTitle", "toast", "report", "reportDetail", "empty" }) do
+    if t.text[name] ~= nil then retired[#retired + 1] = name end
+  end
+  local count = 0
+  for _ in pairs(t.text) do count = count + 1 end
+  check("the retired variants are gone and the five roles are all there is",
+    #retired == 0 and count == 5, "still resolving " .. table.concat(retired, ",") .. ", " .. count .. " entries")
+  check("a text variant outside the five roles is refused by the kit",
+    not pcall(kit.text, "x", "heading") and not pcall(kit.text, "x", "toast"))
 end
 
 --------------------------------------------------------------------------------
@@ -106,8 +114,6 @@ do
     t.text.title.size == 30 and t.text.title.lineHeight == 41 and t.text.code.size == 10
       and t.text.code.lineHeight == 14)
   check("a size it leaves out keeps the shipped one", t.text.body.size == 16)
-  check("the retiring variants do not follow the typography fonts",
-    t.text.toast.font == "Menlo" and t.text.sub.font == "Helvetica")
 end
 
 --------------------------------------------------------------------------------

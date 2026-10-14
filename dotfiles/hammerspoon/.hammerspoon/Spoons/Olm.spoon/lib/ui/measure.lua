@@ -28,7 +28,7 @@ M.__index = M
 
 --- M.new() -> an instance holding its own cache, keyed by font and then by size.
 function M.new()
-  return setmetatable({ _cache = {} }, M)
+  return setmetatable({ _cache = {}, _metrics = {} }, M)
 end
 
 local function memoFor(self, font, size)
@@ -88,6 +88,26 @@ function M:exact(str, font, size)
   if not str or str == "" then return 0 end
   local sz = hs.drawing.getTextDrawingSize(str, { font = font, size = size })
   return (sz and sz.w) or 0
+end
+
+--- instance:metrics(font, size) -> { ascender, descender, capHeight }, the real metrics of
+--- the font at the size, asked of the system once and remembered. descender is negative, as
+--- hs.styledtext.fontInfo answers it. The layout engine centres a text in its line band from
+--- these, the way the canvas list centres a row.
+function M:metrics(font, size)
+  local byFont = self._metrics[font]
+  if not byFont then
+    byFont = {}
+    self._metrics[font] = byFont
+  end
+  local m = byFont[size]
+  if not m then
+    local info = hs.styledtext.fontInfo({ name = font, size = size }) or {}
+    m = { ascender = info.ascender or size, descender = info.descender or 0,
+          capHeight = info.capHeight or size }
+    byFont[size] = m
+  end
+  return m
 end
 
 --- instance:wrap(str, font, size, maxW) -> a list of lines, at least one.
