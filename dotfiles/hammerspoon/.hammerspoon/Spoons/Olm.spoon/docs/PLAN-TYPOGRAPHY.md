@@ -129,4 +129,18 @@ Three things the panes need and the kit lacks, each with more than one consumer.
    and is judged live before the next.
 5. Close out. The last retiring variants and lib/chooser/textwidth.lua go, and a check joins
    the dry gate that reports any font name, text size or line height set outside lib/ui, the
-   way the theme checker reports a hex value, so the rule cannot drift again.
+   way the theme checker reports a hex value, so the rule cannot drift again. Built 2026 10 14.
+   No retiring variant was left, step three had removed them all. textwidth.lua is deleted and
+   the native provider measures through the kit's measurer. The check lives in
+   test/drygate-typography.lua and runs in the dry gate.
+
+## Icons are exempted per line
+
+Several sites draw an emoji or a glyph into a small canvas to make an image, a row icon, a
+keycap or a filter glyph, with a size of their own. Those are images and not text, so the check
+exempts them one line at a time, with a `type-exempt, reason` comment on the line or the line
+above, mirroring `theme-exempt`. A per line declaration was chosen over a directory or a file
+allowance because it keeps the exemption beside the size it excuses, and a new hand set size in
+the same file is still reported. The sites are listed by the dry gate as accepted items. Moving
+them onto icon tokens in the kit, so even these sizes come from one place, is left as a separate
+decision, since it changes how every row icon is made and needs a live look.

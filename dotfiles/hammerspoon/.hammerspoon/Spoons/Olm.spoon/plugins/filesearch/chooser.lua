@@ -135,6 +135,7 @@ local function glyph(str)
   cv[1] = {
     type = "text",
     text = str,
+    -- type-exempt, a glyph drawn into a row icon image
     textSize = 21,
     textAlignment = "center",
     frame = { x = 0, y = 0, w = size, h = size },

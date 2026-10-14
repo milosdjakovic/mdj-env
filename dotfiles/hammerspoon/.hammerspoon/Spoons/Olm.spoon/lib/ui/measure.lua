@@ -1,14 +1,11 @@
 -- How wide a piece of text is. The kit's one measurer, cached by font and size, which the
 -- layout engine asks for every text and badge it places.
 --
--- The algorithm is lib/chooser/textwidth.lua's, summed from a per character table rather
--- than measured whole, and that file's header holds the measurements behind the trade. In
--- short, measuring each distinct character once and adding is thirty six times cheaper than
--- measuring the whole string, and the kerning it cannot see makes it run under one percent
+-- The width is summed from a per character table rather than measured whole, the algorithm
+-- lib/chooser/textwidth.lua held until it was deleted. Measuring each distinct character once
+-- and adding is thirty six times cheaper than measuring the whole string, and the kerning it cannot see makes it run under one percent
 -- high, which is the safe direction since over counting only shortens a string marginally
--- early. The canvas provider measures through this file since stage two. textwidth.lua stays
--- for the native provider alone, which keeps its own measuring because the system draws its
--- rows, so the two hold the same algorithm until that provider goes.
+-- early. Both chooser providers measure through this file.
 --
 -- exact answers the other question, how wide one string draws, measured whole in a single
 -- call with the kerning the sum cannot see. The layout engine places every text and badge

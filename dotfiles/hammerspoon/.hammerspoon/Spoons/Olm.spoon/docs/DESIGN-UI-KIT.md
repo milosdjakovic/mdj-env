@@ -14,8 +14,8 @@ Four units under `lib/ui/`, each answering one question.
 answers a resolved token table for the half the system is on now. It is the only file that
 asks `hs.host.interfaceStyle`, and that call is injected so the unit loads in plain Lua.
 
-`measure.lua` answers how wide a piece of text is. It folds in `lib/chooser/textwidth.lua`
-and the copies of `hs.drawing.getTextDrawingSize` the survey found, cached by font and size.
+`measure.lua` answers how wide a piece of text is. It folded in `lib/chooser/textwidth.lua`,
+since deleted, and the copies of `hs.drawing.getTextDrawingSize` the survey found, cached by font and size.
 
 `kit.lua` answers what can be drawn. Every primitive returns a node, a plain table with a
 kind and its fields. Nodes never hold a colour, a font or a size, only a variant name such
@@ -129,8 +129,8 @@ toast, report, reportDetail and empty hold each surface's old type. Badge geomet
 the space steps sm and lg, the radius swatch, the icon swatch and the alpha muted joined the
 tokens. The layout engine measures each laid out string whole through `measure:exact`.
 `root/uispec.lua` builds the spec from settings for the root and the probes alike.
-`lib/chooser/textwidth.lua` stays for the native provider alone. Stage three replaces the
-parity variants with the new look.
+`lib/chooser/textwidth.lua` stayed for the native provider alone then, and the typography plan's
+step five deleted it. Stage three replaces the parity variants with the new look.
 
 ## What the typography plan added, code, the visible slice and raw
 
@@ -208,3 +208,23 @@ for a title. The cheat sheet's row, badge and title heights are derived from the
 heights and the space steps unless a model gives its own. The parity probes for these
 surfaces were removed, since they asserted the old look, and `test/cases/surfaces.lua` pins
 the derived geometry instead.
+
+## The typography check, and how an icon declares itself
+
+The dry gate, `test/drygate.sh`, reports any font name, text size or line height written outside
+`lib/ui`, the way `src/check-theme.sh` reports a hex value, so the five roles cannot drift again.
+`test/drygate-typography.lua` holds the patterns and `test/cases/typographycheck.lua` plants a
+violation and an exempted line to prove it finds one and accepts the other. It reads every Lua
+file under the spoon except `lib/ui` and `test/`, and it looks for a value written by hand. That
+is a numeric or constant `textSize`, a quoted `textFont`, a `font` table naming a literal name or
+size, a quoted font name such as the system or monospace font, and a line height field. A value
+read from a variable the kit filled is the kit's own passing through and is not flagged, so the
+canvas and native providers, which are handed the roles, stay clean. A comment line, and the
+comment at the end of a code line, never count.
+
+An icon is not text. A glyph or an emoji drawn into a small canvas to make a row icon, a keycap
+or a filter glyph is an image, and its size is the box it fills. Such a site declares itself with
+a comment on its line or the line directly above reading `type-exempt`, a comma and the reason,
+the same form as `theme-exempt`. The gate prints every exempted line as an accepted item and
+counts it, and an exemption with no reason is a finding. Moving those sites onto icon tokens in
+the kit is a separate decision, recorded in `docs/PLAN-TYPOGRAPHY.md`.

@@ -566,6 +566,45 @@ for dir, manifest in pairs(manifestsByDir) do
 end
 
 ----------------------------------------------------------------------------------------
+-- Five, the typography rule. A font name, a text size or a line height written by hand
+-- outside lib/ui is drift from the kit's roles, the way a hex value written into a tool's
+-- config is drift from the palette, so every Lua file under the spoon but the kit itself
+-- and test/ is scanned by test/drygate-typography.lua, which holds the patterns and says what
+-- counts. drygate.sh finds the files and hands them over in DRYGATE_SOURCES, one path per
+-- line, since finding files is the shell's half of the split. A line carrying a type-exempt
+-- declaration with a reason, an icon drawn into a small canvas, is not a finding, it is
+-- counted as accepted and still printed, so an exemption is never silent. Run without the
+-- variable, this check has nothing to read and says so as a warning rather than passing
+-- quietly.
+----------------------------------------------------------------------------------------
+
+do
+  local scanner = dofile(scriptDir .. "drygate-typography.lua")
+  local list = os.getenv("DRYGATE_SOURCES")
+  if not list or list == "" then
+    warning("dry gate did not run the typography check, DRYGATE_SOURCES names no files, run it through test/drygate.sh")
+  else
+    for path in list:gmatch("[^\n]+") do
+      local rel = path:sub(1, #spoonDir) == spoonDir and path:sub(#spoonDir + 1) or path
+      local found = scanner.scanFile(path)
+      if not found then
+        warning(string.format("dry gate could not read '%s' for the typography check", rel))
+      else
+        for _, hit in ipairs(found) do
+          if hit.exempt then
+            accepted[#accepted + 1] = string.format("accepted, %s:%d, type-exempt, %s", rel, hit.line, hit.exempt)
+          else
+            findings[#findings + 1] = string.format(
+              "dry gate refused '%s', line %d, %s outside lib/ui, '%s', move it onto a kit role, or if it is an icon drawn into a canvas declare it with a type-exempt comment and a reason",
+              rel, hit.line, hit.what, hit.source)
+          end
+        end
+      end
+    end
+  end
+end
+
+----------------------------------------------------------------------------------------
 -- An accepted line that no longer matches anything this run is itself a finding, appended
 -- straight to the real list rather than through finding() above, so it is never itself
 -- eligible to be accepted away, the one rule that keeps this file from rotting.

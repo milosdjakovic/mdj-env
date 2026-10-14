@@ -39,6 +39,7 @@ function M.new()
     if cache[glyph] == nil then
       local size = 72
       local c = hs.canvas.new({ x = 0, y = 0, w = size, h = size })
+      -- type-exempt, a glyph drawn into a row icon image, sized to its 72 point box
       c[1] = { type = "text", text = glyph, textSize = 52, textAlignment = "center",
                frame = { x = "0%", y = "8%", w = "100%", h = "100%" } }
       cache[glyph] = c:imageFromCanvas() or false

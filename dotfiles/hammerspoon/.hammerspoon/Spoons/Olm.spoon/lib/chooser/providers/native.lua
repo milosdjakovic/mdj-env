@@ -15,8 +15,7 @@
 ---
 --- Config (all optional unless noted):
 ---   theme        palette source { dark = {...}, light = {...} }, each with
----                bgDark, titleColor, subColor, and preview (a color set the
----                consumer reads for a companion). Injected from config.
+---                bgDark, titleColor and subColor. Injected from config.
 ---   screen       function() -> hs.screen, the display the chooser appears on.
 ---                Resolved once per show, before the chooser takes focus, and the
 ---                window is then forced onto that screen. Defaults to
@@ -86,13 +85,10 @@ obj.name = "Chooser"
 obj.version = "1.0"
 obj.author = "mdj-env"
 
--- Load the shared text measuring module and the shared ranking policy by path, the
+-- Load the shared row height rule and the shared ranking policy by path, the
 -- same loadfile pattern lib/chooser/init.lua already uses to load this file and
 -- match.lua, since a provider file sitting inside a spoon is not on package.path
--- either. textwidth.lua was moved out during the contract freeze phase,
--- docs/BRIEF-CONTRACT-FREEZE.md, moving Chooser:textWidth's own memo and summing logic
--- so a second provider could share it rather than reimplement it or reach in here to
--- borrow it. rank.lua was moved out during the canvas provider phase,
+-- either. rank.lua was moved out during the canvas provider phase,
 -- docs/BRIEF-CANVAS-PROVIDER.md section zero, taking this file's own _build apart the
 -- same way, for the same reason.
 local herePath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
@@ -103,7 +99,6 @@ local function loadSibling(relPath)
   end
   return chunk()
 end
-local textwidth = loadSibling("../textwidth.lua")
 local rowHeight = loadSibling("../rowheight.lua")
 local rank = loadSibling("../rank.lua")
 
@@ -114,8 +109,6 @@ local FALLBACK = {
     bgDark = true,
     titleColor = { white = 0.92 },
     subColor = { white = 0.55 },
-    -- theme-exempt, a literal fallback for a palette the panes are not yet handed, retired in stage four of the kit
-    preview = { bg = "#1e1e22", fg = "#dcdcdc", meta = "#8a8a8a", path = "#7a7a7a", note = "#c8a86a" },
   },
 }
 
@@ -136,12 +129,8 @@ local DEFAULT_LAYOUT = {
   -- resolved width for that show. A number overrides it independently, the same as
   -- today. paneMaxW caps both. Zero, nil, and false all mean no pane.
   companionWidth = 0,
-  -- These literals exist only for a portable load with no UI kit injected. With the kit,
-  -- obj.new overwrites font, titleSize, subFont, subSize and rowH from the body and caption
-  -- roles, see kitLayout below, and a consumer's own layout still wins over both.
-  font = ".AppleSystemUIFont",
-  titleSize = 16,
-  subSize = 12,
+  -- font, titleSize, subFont, subSize and rowH are not here. obj.new fills them from the body
+  -- and caption roles, see kitLayout below, and a consumer's own layout still wins.
   -- Where a title too long for its row loses characters. The tail is right for almost
   -- everything, since a name is read left to right and the front is what identifies it.
   -- A consumer whose titles are FILENAMES wants "truncateMiddle" instead, because the last
@@ -163,22 +152,36 @@ function obj.configure(opts)
   return obj
 end
 
+-- What stands in for the kit on a portable load that was handed none, the kit's own shipped
+-- roles read from lib/ui/style.lua held on the dark half, with a measurer of its own. It
+-- exists so no font or size is written in this file, and a running config never reaches it
+-- since the root injects the kit before any instance is built.
+local fallback = nil
+local function fallbackKit()
+  if not fallback then
+    local styleLib = loadSibling("../../ui/style.lua")
+    local dark = styleLib.new({ appearance = function() return "Dark" end })
+    fallback = { tokens = dark.tokens, measure = loadSibling("../../ui/measure.lua").new() }
+  end
+  return fallback
+end
+
 -- The layout fields the kit decides. A row title is the body role and a row subtitle the
 -- caption role, and the row height grows to fit the two by the one rule in
 -- lib/chooser/rowheight.lua. hs.chooser draws its own field, so the field cannot be styled
 -- from here and no baseH is derived. With no kit this answers an empty table, so the
 -- literals in DEFAULT_LAYOUT stand.
 local function kitLayout()
-  if not UI then return {} end
-  local text = UI.tokens().text
+  local kit = UI or fallbackKit()
+  local text = kit.tokens().text
   return {
     font = text.body.font,
     titleSize = text.body.size,
     subFont = text.caption.font,
     subSize = text.caption.size,
-    rowH = rowHeight.rowH(text, UI.measure and function(role)
-      return UI.measure:metrics(text[role].font, text[role].size).capHeight
-    end, UI.tokens().inset or { x = 14, y = 10 }),
+    rowH = rowHeight.rowH(text, kit.measure and function(role)
+      return kit.measure:metrics(text[role].font, text[role].size).capHeight
+    end, kit.tokens().inset or { x = 14, y = 10 }),
   }
 end
 
@@ -973,12 +976,6 @@ function Chooser:setRows(n)
   self.layout.rowCount = n
 end
 
---- Chooser:activeTheme() - the palette selected for this open, so a consumer can
---- style a companion (its preview colors live under .preview).
-function Chooser:activeTheme()
-  return self.theme
-end
-
 --- Chooser:query() - the current field text.
 function Chooser:query()
   return self.chooser and self.chooser:query() or ""
@@ -1012,17 +1009,15 @@ end
 --- Chooser:textWidth(str, which) -> how wide that string renders in a row, in pixels.
 --- `which` is "title" or "sub" and picks the font size the row will actually use.
 ---
---- A passthrough onto lib/chooser/textwidth.lua, the contract freeze phase moving the
---- memo and the summing logic there so a second provider can share the identical
---- measuring rather than reimplement it. This file supplies only what is its own
---- business, the row font and the size which selects, full reasoning for the measuring
---- itself, the per character memo, the safe direction of the kerning error, and the UTF8
---- stepping, living in that module now rather than here.
+--- A passthrough onto the kit's measurer, lib/ui/measure.lua, so both providers share the
+--- identical measuring. This file supplies only what is its own business, the row font and
+--- the size which selects, the per character memo and the safe direction of the kerning
+--- error living in the measurer.
 function Chooser:textWidth(str, which)
   local L = self.layout
   local size = (which == "title") and L.titleSize or L.subSize
   local font = (which == "title") and L.font or (L.subFont or L.font)
-  return self._textWidth:width(str, font, size)
+  return self._measure:width(str, font, size)
 end
 
 --------------------------------------------------------------------------------
@@ -1170,11 +1165,9 @@ function obj.new(config)
     currentChoices = {},
     active = false,
     theme = FALLBACK.dark,
-    -- The shared text measuring module's own instance, kept for the life of this
-    -- instance rather than the open, since it holds the per character cache that used to
-    -- live here directly as _charWidths before the contract freeze phase moved the
-    -- measuring itself out to lib/chooser/textwidth.lua.
-    _textWidth = textwidth.new(),
+    -- The kit's measurer, so one cache serves every surface. A portable load with no kit
+    -- injected still measures, through the stand in kit above.
+    _measure = (UI and UI.measure) or fallbackKit().measure,
   }, Chooser)
 
   self:_selectTheme()

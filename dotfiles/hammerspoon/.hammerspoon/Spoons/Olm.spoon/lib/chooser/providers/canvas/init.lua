@@ -1027,8 +1027,8 @@ end
 
 --- Provider colon textWidth, arity two. The rendered pixel width of str at the title
 --- size or the subtitle size which selects, a passthrough onto the UI kit's measurer,
---- whose width is the per character sum lib/chooser/textwidth.lua answers too, so a
---- supplier formatting against it gets the very number it got before stage two.
+--- whose width is the per character sum, the same number the native provider answers, so a
+--- supplier formatting against it gets one answer from either provider.
 function Provider:textWidth(str, which)
   local face = self._type
   if which == "title" then return UI.measure:width(str, face.font, face.textSize) end

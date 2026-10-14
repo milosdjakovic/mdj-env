@@ -7,9 +7,6 @@
 --- selectPrev, insertSelected, selectedItem, selectedRow, selectRow, query,
 --- setPlaceholder, setRows, rowCount, textBudget, textWidth, reposition,
 --- settleDelay, matcher, setMatcher, titleLineBreak, setTitleLineBreak, setPaneWidth.
---- activeTheme stays on the native provider for a consumer that still wants it, but a
---- new provider need not offer it, docs/CONTRACT-PICKER.md's own note that it has no
---- caller anywhere in the tree.
 --- selectedRow and selectRow, phase eight of the build plan, are the plain public
 --- counterpart of selectedItem, added for ActionPanel, which restores a highlight
 --- by row number rather than by item. setRows, the geometry phase of the chooser

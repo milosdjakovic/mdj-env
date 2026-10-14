@@ -68,11 +68,13 @@ check("a provider breaking the contract is refused before decorate", not okBad a
 
 Chooser.configure({})
 
--- The native provider reads body and caption from an injected kit, and keeps its own literals
--- when none is injected. The facade forwards opts.ui, so this goes through Chooser.configure.
-check("with no kit native keeps its literal row of 42 and sizes 16 and 12",
-  ok and native.layout.rowH == 42 and native.layout.titleSize == 16 and native.layout.subSize == 12,
-  ok and (tostring(native.layout.rowH)) or tostring(native))
+-- The native provider reads body and caption from an injected kit, and takes the kit's own
+-- shipped roles from lib/ui/style.lua when none is injected, so no size is written in it. The
+-- facade forwards opts.ui, so this goes through Chooser.configure.
+check("with no kit native takes the shipped body size for titles and caption size for subtitles",
+  ok and native.layout.titleSize == 16 and native.layout.subSize == 14 and native.layout.font ~= nil,
+  ok and (tostring(native.layout.titleSize)) or tostring(native))
+check("with no kit native still measures a string", ok and native:textWidth("", "title") == 0)
 
 local kit = { tokens = function()
   return { text = {

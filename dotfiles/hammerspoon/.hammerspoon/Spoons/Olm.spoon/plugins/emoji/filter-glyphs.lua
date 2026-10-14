@@ -27,6 +27,7 @@ local ICON_TEXT_SIZE = 52
 -- at this size is a box at every size, and rendering larger here only makes each signature
 -- more distinctive.
 local canvas = hs.canvas.new({ x = 0, y = 0, w = ICON_SIZE, h = ICON_SIZE })
+-- type-exempt, a probe glyph drawn into a canvas to learn the font's box, an image and not text
 canvas[1] = { type = "text", text = "", textSize = ICON_TEXT_SIZE,
   textAlignment = "center", frame = { x = "0%", y = "8%", w = "100%", h = "100%" } }
 

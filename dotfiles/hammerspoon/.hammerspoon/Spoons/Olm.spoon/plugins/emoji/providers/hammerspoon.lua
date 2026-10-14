@@ -332,6 +332,7 @@ function obj:configure(opts)
   -- and the cache keeps each glyph rendered once. See _glyphIcon.
   self._iconCache = {}
   self._iconCanvas = hs.canvas.new({ x = 0, y = 0, w = ICON_SIZE, h = ICON_SIZE })
+  -- type-exempt, an emoji drawn into a row icon image
   self._iconCanvas[1] = { type = "text", text = "", textSize = ICON_TEXT_SIZE,
     textAlignment = "center", frame = { x = "0%", y = "8%", w = "100%", h = "100%" } }
 

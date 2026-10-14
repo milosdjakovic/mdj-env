@@ -219,9 +219,9 @@ comments.
 
 ## What is deliberately not in the contract
 
-`activeTheme()` has no caller anywhere in the tree, confirmed by exhaustive search. It was
+`activeTheme()` had no caller anywhere in the tree, confirmed by exhaustive search. It was
 built so a consumer could style its own companion from `theme.preview` and no consumer ever
-did. It stays defined on the native provider and a new provider need not offer it.
+did. It was deleted from the native provider on 2026 10 14 along with the dead `preview` set.
 
 `close()`, an alias for `hide`, likewise has no caller. The composition root's own close
 binding routes to `hide`. Same treatment.

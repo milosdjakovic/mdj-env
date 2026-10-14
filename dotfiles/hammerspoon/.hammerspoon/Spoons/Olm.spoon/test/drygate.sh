@@ -12,6 +12,10 @@
 #   test/drygate.sh --strict        the harder stance, a module this gate could not verify
 #                                    at all fails the gate too, rather than only printing
 #
+# The typography check rides along, see drygate-typography.lua, every font name, text size or
+# line height written outside lib/ui is a finding unless the line declares type-exempt and a
+# reason, and an exempted line is counted as accepted.
+#
 # Exit status mirrors drygate.lua's own. A clean tree, meaning every finding is either
 # genuinely absent or accepted by test/drygate-accepted.txt, exits zero. An unknown module
 # and a warning both print but do not fail the gate on their own, unless --strict is given.
@@ -46,5 +50,11 @@ if [ "${#manifests[@]}" -eq 0 ]; then
   echo "drygate.sh: found no manifest.lua under $spoon/plugins or $spoon/host" >&2
   exit 2
 fi
+
+# Every Lua file the typography check reads, which is everything under the spoon but the kit
+# itself and the test directory, since the kit is where a font and a size are allowed to be
+# written and a fixture may carry whatever it needs.
+DRYGATE_SOURCES="$(find "$spoon" -type f -name '*.lua' -not -path "$spoon/lib/ui/*" -not -path "$spoon/test/*" 2>/dev/null | sort)"
+export DRYGATE_SOURCES
 
 exec lua "$here/drygate.lua" "$spoon/" "${manifests[@]}"

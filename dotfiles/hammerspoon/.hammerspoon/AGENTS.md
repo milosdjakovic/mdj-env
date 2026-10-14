@@ -635,7 +635,7 @@ colour, never from an extra size. Case is the caller's choice, the kit never upp
 one size per role, and the kit ships the same values as its fallback. A font or size written
 anywhere else is the drift this rule exists to end. Emoji drawn to an image are icons rather
 than text and take an icon size, and `hs.alert` and `hs.dialog` are system drawn and outside
-this rule. The design and the role table live in `Spoons/Olm.spoon/docs/DESIGN-UI-KIT.md`.
+this rule. The Olm dry gate, `Spoons/Olm.spoon/test/drygate.sh`, enforces it by reporting any font name, text size or line height written outside `lib/ui` as a finding, and an icon drawn into a canvas declares itself with a `type-exempt, reason` comment on its line or the line above, which counts as accepted. The design and the role table live in `Spoons/Olm.spoon/docs/DESIGN-UI-KIT.md`.
 
 **Olm colour, eight roles and nothing else.** Every colour Olm draws, in the canvas chooser,
 the panes, the toasts, the cheat sheets and every plugin, is one of eight roles from the UI kit

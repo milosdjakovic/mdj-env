@@ -44,8 +44,8 @@ local M = {}
 -- set falls back to emoji instead. That is the degradation path for a machine this
 -- repo has not set up, and it is why the emoji table below still exists.
 local PREFERRED = {
-  "MesloLGS-NF-Regular", "MesloLGSNF-Regular",
-  "MesloLGLNF-Regular", "MesloLGMNF-Regular",
+  "MesloLGS-NF-Regular", "MesloLGSNF-Regular", -- type-exempt, the patched icon font the glyphs are drawn in, an image and not text
+  "MesloLGLNF-Regular", "MesloLGMNF-Regular", -- type-exempt, the same patched icon font family
 }
 
 local function resolveFont()
@@ -285,6 +285,7 @@ local function render(glyph, tint, font)
   local size = 28
   local cv = hs.canvas.new({ x = 0, y = 0, w = size, h = size })
   local el = {
+    -- type-exempt, a glyph drawn into a row icon image
     type = "text", text = glyph, textSize = 21, textAlignment = "center",
     frame = { x = 0, y = 0, w = size, h = size },
   }

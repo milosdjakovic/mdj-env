@@ -270,6 +270,7 @@ local function keycapImage(pos)
   if hit ~= nil then return hit or nil end
   local S = 48
   local c = hs.canvas.new({ x = 0, y = 0, w = S, h = S })
+  -- type-exempt, a keycap glyph drawn into a row icon image
   c[1] = { type = "text", text = keycapGlyph(pos), textSize = 34,
            textAlignment = "center", frame = { x = 0, y = (S - 40) / 2, w = S, h = 42 } }
   local img = c:imageFromCanvas() or false
@@ -325,6 +326,7 @@ local glyphCache = {}
 
 local function drawEmojiGlyph(glyph)
   local c = hs.canvas.new({ x = 0, y = 0, w = ICON, h = ICON })
+  -- type-exempt, an emoji drawn into a row icon image
   c[1] = { type = "text", text = glyph, textSize = 30,
     textAlignment = "center", frame = { x = 0, y = (ICON - 36) / 2, w = ICON, h = 38 } }
   local img = c:imageFromCanvas() or false
