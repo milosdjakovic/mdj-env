@@ -105,13 +105,14 @@ M.DEFAULT_LAYOUT = {
   -- The list is as wide as the side pane beside it, asked for on 2026 10 14, so the two read
   -- as one surface. paneMaxW below follows this one value rather than repeating it.
   width = 480,
-  -- rowH and baseH come from the one row height rule over the body and caption line heights,
+  -- rowH and baseH come from the one row height rule, the row over the body and caption line
+  -- heights and the field over the title line height,
   -- and the provider recomputes them from the kit's tokens so a size set in
   -- config/typography.toml reflows them. The two numbers here are that same rule applied to
-  -- the shipped sizes, a body line of 22 and a caption line of 19, for a caller that has no
+  -- the shipped sizes, a title line of 27, a body line of 22 and a caption line of 19, for a caller that has no
   -- kit, a unit case among them. rowPad is the one vertical padding value.
   rowPad = rowHeight.PAD,
-  baseH = 22 + 2 * rowHeight.PAD,
+  baseH = 27 + 2 * rowHeight.PAD,
   rowH = 22 + 19 + 2 * rowHeight.PAD,
   rowCount = 9,
   padX = 16,

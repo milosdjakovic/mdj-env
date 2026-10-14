@@ -226,9 +226,9 @@ Provider.__index = Provider
 -- Tokens, screen and the styles both renderers are handed
 --------------------------------------------------------------------------------
 
--- The three roles every row and the field are drawn in, read only from the kit's tokens.
--- Row titles and the field take body, row subtitles caption and row numbers section. A line
--- is the role's own line height, which the row geometry is derived from too.
+-- The four roles the field and every row are drawn in, read only from the kit's tokens. The
+-- field takes title, row titles body, row subtitles caption and row numbers section. A line
+-- is the role's own line height, which the row and field geometry are derived from too.
 local function typeOf(tokens)
   local text = tokens.text
   return {
@@ -240,6 +240,8 @@ local function typeOf(tokens)
     subLine = text.caption.lineHeight,
     numFont = text.section.font,
     numSize = text.section.size,
+    fieldFont = text.title.font,
+    fieldSize = text.title.size,
   }
 end
 
@@ -257,8 +259,8 @@ end
 function Provider:_deriveStyles()
   local T = self._tokens
   self._fieldStyle = {
-    font = self._type.font,
-    fontSize = self._type.textSize,
+    font = self._type.fieldFont,
+    fontSize = self._type.fieldSize,
     textColor = T.colors.foreground,
     selectionColor = T.colors.selection,
     placeholderColor = faded(T.colors.foreground, T.alpha.dim),

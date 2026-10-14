@@ -25,7 +25,9 @@ system drawn. Text is set by hand in exactly these places.
 
 ## Decisions
 
-The field takes body, so the query keeps its size. Row titles take body, subtitles caption,
+The field takes title, changed on 2026 10 14 after the first live look, since the query is
+the one thing on the surface a person is writing, and its height follows the title line.
+Row titles take body, subtitles caption,
 row numbers section. The canvas row grows from 38 to fit body over caption, and the native
 row grows to match.
 

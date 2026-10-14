@@ -176,7 +176,7 @@ local function kitLayout()
     titleSize = text.body.size,
     subFont = text.caption.font,
     subSize = text.caption.size,
-    rowH = rowHeight.heights(text).rowH,
+    rowH = rowHeight.rowH(text),
   }
 end
 

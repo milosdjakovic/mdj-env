@@ -51,7 +51,7 @@ end
 
 do
   -- Short enough that the nine requested rows do not survive. avail works out to three
-  -- hundred eighteen points, 500 less 120 of padding, 38 of field and 24 of margin, which fits
+  -- hundred thirteen points, 500 less 120 of padding, 43 of field and 24 of margin, which fits
   -- five rows of fifty seven, 22 body line plus 19 caption line plus 2 times 8 of padding, and
   -- no more, since six would need 342.
   local shortScreen = { x = 0, y = 0, w = 1440, h = 500 }
@@ -289,18 +289,18 @@ end
 --------------------------------------------------------------------------------
 
 do
-  local text = { body = { lineHeight = 22 }, caption = { lineHeight = 19 } }
+  local text = { title = { lineHeight = 27 }, body = { lineHeight = 22 }, caption = { lineHeight = 19 } }
   local d = geometry.derivedRows(text)
   check("a row is the body line 22 plus the caption line 19 plus twice the padding 8, which is 57",
     d.rowH == 57, "got " .. tostring(d.rowH))
-  check("the field is the body line 22 plus twice the padding 8, which is 38",
-    d.baseH == 38, "got " .. tostring(d.baseH))
-  check("DEFAULT_LAYOUT states the same 57 and 38 for the shipped sizes",
-    geometry.DEFAULT_LAYOUT.rowH == 57 and geometry.DEFAULT_LAYOUT.baseH == 38)
-  local bigger = geometry.derivedRows({ body = { lineHeight = 26 }, caption = { lineHeight = 22 } })
-  check("a larger body 26 and caption 22 reflow the row to 26 plus 22 plus 16, which is 64, and the field to 42",
-    bigger.rowH == 64 and bigger.baseH == 42, "got " .. tostring(bigger.rowH) .. " " .. tostring(bigger.baseH))
+  check("the field is the title line 27 plus twice the padding 8, which is 43",
+    d.baseH == 43, "got " .. tostring(d.baseH))
+  check("DEFAULT_LAYOUT states the same 57 and 43 for the shipped sizes",
+    geometry.DEFAULT_LAYOUT.rowH == 57 and geometry.DEFAULT_LAYOUT.baseH == 43)
+  local bigger = geometry.derivedRows({ title = { lineHeight = 34 }, body = { lineHeight = 26 }, caption = { lineHeight = 22 } })
+  check("a larger body 26 and caption 22 reflow the row to 26 plus 22 plus 16, which is 64, and a title 34 the field to 50",
+    bigger.rowH == 64 and bigger.baseH == 50, "got " .. tostring(bigger.rowH) .. " " .. tostring(bigger.baseH))
   local padded = geometry.derivedRows(text, 10)
-  check("a padding of 10 gives 22 plus 19 plus 20, which is 61, and the field 22 plus 20, which is 42",
-    padded.rowH == 61 and padded.baseH == 42, "got " .. tostring(padded.rowH) .. " " .. tostring(padded.baseH))
+  check("a padding of 10 gives 22 plus 19 plus 20, which is 61, and the field 27 plus 20, which is 47",
+    padded.rowH == 61 and padded.baseH == 47, "got " .. tostring(padded.rowH) .. " " .. tostring(padded.baseH))
 end

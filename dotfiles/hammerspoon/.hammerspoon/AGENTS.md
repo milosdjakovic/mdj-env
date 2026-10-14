@@ -621,8 +621,8 @@ to name here no longer applies.
 
 **Olm typography, five roles and nothing else.** Every piece of text Olm draws, in the
 canvas chooser, the side and bottom panes, the toasts, the cheat sheets and every plugin, uses
-one of five roles from the UI kit in `Spoons/Olm.spoon/lib/ui`. title is the name at the top
-of a pane, a toast headline or a cheat sheet section title. body is a list row title, pane
+one of five roles from the UI kit in `Spoons/Olm.spoon/lib/ui`. title is the chooser's input
+field, the name at the top of a pane, a toast headline or a cheat sheet section title. body is a list row title, pane
 text and a hint label. caption is a row subtitle, metadata, a description or an empty state.
 section is a heading inside a pane and a key badge glyph. code is a path, a command, output,
 or anything a person would copy, and it is the only role in the monospace font. A caller names
