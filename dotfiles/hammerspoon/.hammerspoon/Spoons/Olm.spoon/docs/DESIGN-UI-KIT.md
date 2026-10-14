@@ -66,6 +66,8 @@ spacer(size)
 surface()                     the chrome, CanvasPanel.surfaceElements behind it
 group(children, {alpha, id})  multiplies every child colour and image alpha, and carries
                               the click id
+code(lines, {maxHeight, more}) preformatted block in the code role, see below
+raw(height, draw)             room the caller draws into itself, see below
 ```
 
 Text is always emitted as `hs.styledtext`, since only styledtext carries a line break mode
@@ -121,3 +123,23 @@ tokens. The layout engine measures each laid out string whole through `measure:e
 `root/uispec.lua` builds the spec from settings for the root and the probes alike.
 `lib/chooser/textwidth.lua` stays for the native provider alone. Stage three replaces the
 parity variants with the new look.
+
+## What the typography plan added, code, the visible slice and raw
+
+Three pieces with more than one consumer each, from docs/PLAN-TYPOGRAPHY.md.
+
+`code(lines, {maxHeight, more})` is one text element per line in the code role. Whitespace is
+kept exactly, a tab is expanded to the next multiple of four columns when the node is built,
+nothing wraps, and each line is cut at the rect width with truncateTail. When `maxHeight` is
+given and the lines do not fit, as many lines as fit minus one are drawn and then a closing
+line in the caption role, worded by `more(count)` and defaulting to "N more lines". The
+content height is the drawn height.
+
+The visible slice applies when `ui.layout` gets `scrollY`. A code line wholly outside the
+window, the rect shifted by the scroll, emits no element and is not measured, and the content
+height still counts every line, since every line in the role is the same height.
+
+`raw(height, draw)` reserves `height` points at its position and inserts what
+`draw(rect, tokens)` returns, in order, with the absolute rect after the scroll offset. The
+tokens are passed so every colour comes from them. Group alpha and the click id do not reach
+raw elements.

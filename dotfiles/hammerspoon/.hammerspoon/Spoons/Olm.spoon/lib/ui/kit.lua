@@ -17,7 +17,7 @@ local M = {}
 M.kinds = {
   text = "text", badge = "badge", icon = "icon", row = "row", stack = "stack",
   flow = "flow", grid = "grid", divider = "divider", spacer = "spacer",
-  surface = "surface", group = "group",
+  surface = "surface", group = "group", code = "code", raw = "raw",
 }
 M.aligns = { left = "left", center = "center", right = "right" }
 M.rowAligns = { start = "start", center = "center", ["end"] = "end" }
@@ -67,6 +67,27 @@ local function childList(children, primitive)
     end
   end
   return children
+end
+
+-- A tab is expanded to the next multiple of this many columns, counted in characters, so a
+-- tab after three characters adds one space and after four adds four.
+local TAB_WIDTH = 4
+M.tabWidth = TAB_WIDTH
+
+local function expandTabs(line)
+  if not line:find("\t", 1, true) then return line end
+  local out, col = {}, 0
+  for ch in line:gmatch(utf8.charpattern) do
+    if ch == "\t" then
+      local n = TAB_WIDTH - (col % TAB_WIDTH)
+      out[#out + 1] = string.rep(" ", n)
+      col = col + n
+    else
+      out[#out + 1] = ch
+      col = col + 1
+    end
+  end
+  return table.concat(out)
 end
 
 --- M.new(names) -> the primitives, bound to one vocabulary.
@@ -182,6 +203,43 @@ function M.new(names)
     end
     return { kind = M.kinds.group, children = childList(children, "group"),
              alpha = opts.alpha, id = opts.id }
+  end
+
+  --- kit.code(lines, opts) -> node, a preformatted block in the code role. lines is an
+  --- array of strings, drawn one text element per line with the whitespace kept exactly,
+  --- never collapsed and never wrapped, each line cut at the rect width with truncateTail.
+  --- Tabs are expanded here to the next multiple of TAB_WIDTH columns. opts.maxHeight, when
+  --- the lines do not fit in it, draws as many lines as fit minus one and a closing line in
+  --- the caption role. opts.more is a function of the count of lines left out answering that
+  --- closing line, defaulting to "N more lines". Content height is the drawn height.
+  function kit.code(lines, opts)
+    opts = opts or {}
+    if type(lines) ~= "table" then
+      error("ui.kit code, lines must be an array of strings", 2)
+    end
+    if opts.maxHeight ~= nil and type(opts.maxHeight) ~= "number" then
+      error("ui.kit code, maxHeight must be a number, not " .. tostring(opts.maxHeight), 2)
+    end
+    if opts.more ~= nil and type(opts.more) ~= "function" then
+      error("ui.kit code, more must be a function of the count", 2)
+    end
+    local out = {}
+    for i, line in ipairs(lines) do out[i] = expandTabs(tostring(line)) end
+    return { kind = M.kinds.code, lines = out, maxHeight = opts.maxHeight, more = opts.more }
+  end
+
+  --- kit.raw(height, draw) -> node, room the caller draws into itself. Layout reserves
+  --- height points, a number, at the node's position and calls draw(rect, tokens) with the
+  --- absolute rect it was given after the scroll offset, then inserts the element list draw
+  --- returns at that point, in order.
+  function kit.raw(height, draw)
+    if type(height) ~= "number" or height < 0 then
+      error("ui.kit raw, height must be a number of points, not " .. tostring(height), 2)
+    end
+    if type(draw) ~= "function" then
+      error("ui.kit raw, draw must be a function", 2)
+    end
+    return { kind = M.kinds.raw, height = height, draw = draw }
   end
 
   return kit

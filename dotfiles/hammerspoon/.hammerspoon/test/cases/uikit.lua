@@ -349,3 +349,73 @@ do
     type(a) == "userdata" and rawequal(a, ui.iconImage("🔥", "row"))
       and not rawequal(a, ui.iconImage("🔥", "sheet")))
 end
+
+--------------------------------------------------------------------------------
+-- code, the visible slice and raw
+--------------------------------------------------------------------------------
+
+do
+  local clh = tokens.text.code.lineHeight
+  local plh = tokens.text.caption.lineHeight
+  local R = { x = 10, y = 20, w = 300, h = 200 }
+
+  local els, height = engine.layout(kit.code({ "  indented", "a\tb", "plain" }), R, tokens)
+  check("code keeps leading spaces and expands a tab to the next four columns",
+    #els == 3 and textOf(els[1]) == "  indented" and textOf(els[2]) == "a   b",
+    tostring(textOf(els[1])) .. " | " .. tostring(textOf(els[2])))
+  check("code is one element per line at the code line height",
+    els[2].frame.y == 20 + clh and height == 3 * clh)
+
+  local long = engine.layout(kit.code({ string.rep("x", 200) }), { x = 0, y = 0, w = 70, h = 100 }, tokens)
+  check("code truncates a long line rather than wrapping it",
+    #long == 1 and long[1].frame.w == 70 and long[1].frame.h == clh)
+
+  local lines = {}
+  for i = 1, 10 do lines[i] = "line " .. i end
+  local cutEls, cutH = engine.layout(kit.code(lines, { maxHeight = 4 * clh + 1 }), R, tokens)
+  check("code cuts with a closing line saying how many more",
+    #cutEls == 4 and textOf(cutEls[4]) == "7 more lines" and textOf(cutEls[3]) == "line 3",
+    tostring(#cutEls) .. " " .. tostring(textOf(cutEls[#cutEls])))
+  check("a cut block's height is the drawn height",
+    cutH == 3 * clh + plh, tostring(cutH))
+  local _, whole = engine.layout(kit.code(lines, { maxHeight = 100 * clh }), R, tokens)
+  check("a block that fits has the full height and no closing line", whole == 10 * clh)
+  local custom = engine.layout(kit.code(lines, { maxHeight = 3 * clh,
+    more = function(n) return n .. " left" end }), R, tokens)
+  check("more words the closing line from the count", textOf(custom[#custom]) == "8 left")
+
+  local many = {}
+  for i = 1, 100 do many[i] = "row " .. i end
+  local sliced, fullH = engine.layout(kit.code(many), { x = 0, y = 0, w = 300, h = 5 * clh }, tokens,
+    { scrollY = 40 * clh })
+  local texts = {}
+  for _, el in ipairs(sliced) do if el.text then texts[#texts + 1] = textOf(el) end end
+  check("the visible slice emits only the visible lines", #texts == 5 and texts[1] == "row 41"
+    and texts[5] == "row 45", table.concat(texts, ","))
+  check("the visible slice still answers the full height", fullH == 100 * clh)
+  check("the slice keeps the clip balanced", sliced[1].action == "clip"
+    and sliced[#sliced].type == "resetClip")
+  local unsliced = engine.layout(kit.code(many), { x = 0, y = 0, w = 300, h = 5 * clh }, tokens)
+  check("with no scroll every line is emitted", #unsliced == 100)
+
+  local seen
+  local tree = kit.stack({
+    kit.text("above", "body"),
+    kit.raw(50, function(rect, t)
+      seen = { rect = rect, tokens = t }
+      return { { type = "rectangle", action = "fill", fillColor = t.colors.border, frame = rect },
+               { type = "rectangle", action = "stroke", frame = rect } }
+    end),
+    kit.text("below", "body"),
+  })
+  local rawEls, rawH = engine.layout(tree, R, tokens, { scrollY = 5 })
+  local blh = tokens.text.body.lineHeight
+  check("raw reserves its height", rawH == 2 * blh + 50, tostring(rawH))
+  check("raw receives the scrolled absolute rect and the tokens",
+    seen.rect.x == 10 and seen.rect.y == 20 - 5 + blh and seen.rect.w == 300 and seen.rect.h == 50
+      and rawequal(seen.tokens, tokens))
+  check("raw elements are inserted at its position in order",
+    textOf(rawEls[2]) == "above" and rawEls[3].action == "fill" and rawEls[4].action == "stroke"
+      and textOf(rawEls[5]) == "below")
+  check("raw refuses a non number height", not pcall(kit.raw, "tall", function() end))
+end

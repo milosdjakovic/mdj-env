@@ -371,6 +371,28 @@ to the rect while `contentHeight` tells you where scrolling has to stop. An unkn
 an error naming it, at the line that built the node. `ui.tokens()` answers the resolved table
 when something has to be drawn by hand, and docs/DESIGN-UI-KIT.md lists every name in it.
 
+### Code blocks, long content and drawing your own
+
+`ui.code(lines, { maxHeight, more })` is a preformatted block in the code role. `lines` is an
+array of strings, one text element per line, whitespace kept exactly, never collapsed and
+never wrapped. A tab is expanded to the next multiple of four columns, and each line is cut
+at the rect width with truncateTail. When `maxHeight` is given and the lines do not fit, it
+draws as many lines as fit minus one, then a closing line in the caption role. `more` is a
+function of the count left out and answers that line, defaulting to "N more lines". The
+content height is the drawn height.
+
+When `ui.layout` is given `scrollY`, a code block lays out only the lines inside the visible
+window. A line wholly outside it emits no element and is never measured, while the content
+height still counts every line, since every line in this role has the same height. A long file
+therefore costs the visible lines, not the whole file.
+
+`ui.raw(height, draw)` is room you draw yourself, a graph or a scroll thumb. Layout reserves
+`height` points, a number, at the node's position and calls `draw(rect, tokens)` with the
+absolute rect it was given after the scroll offset. The element list `draw` returns is
+inserted at that point, in order. Every colour in those elements must come from the tokens
+passed in, which is why they are passed. Group alpha and the group click id are not applied to
+raw elements.
+
 ## Tools your plugin needs
 
 A plugin declares what it needs on the machine and installs nothing. Every external binary or

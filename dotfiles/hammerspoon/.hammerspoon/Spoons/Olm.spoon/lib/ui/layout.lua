@@ -91,7 +91,7 @@ function M.new(deps)
     return imageCache[key] or nil
   end
 
-  local sizeOf
+  local sizeOf, codeCut
 
   -- The slots of a row, each child's width and height, and the row's own size. Every child
   -- but the last takes its natural width, and the last takes what remains when fill is on.
@@ -164,6 +164,20 @@ function M.new(deps)
     return w, h
   end
 
+  -- What a code block draws. Every line has the one code line height, so the height of any
+  -- number of lines is arithmetic and nothing is measured. Answers how many lines are
+  -- drawn, how many are left out, and the drawn height. A block that does not fit its
+  -- maxHeight draws as many lines as fit minus one and a closing caption line.
+  codeCut = function(node, T)
+    local lh = T.text.code.lineHeight
+    local total = #node.lines
+    if node.maxHeight and total * lh > node.maxHeight then
+      local shown = math.max(0, math.floor(node.maxHeight / lh) - 1)
+      return shown, total - shown, shown * lh + T.text.caption.lineHeight
+    end
+    return total, 0, total * lh
+  end
+
   -- How much room a node wants inside maxW, as width and height.
   sizeOf = function(node, maxW, T)
     local kind = node.kind
@@ -188,6 +202,11 @@ function M.new(deps)
       return s, s
     elseif kind == "divider" then
       return maxW, 1
+    elseif kind == "code" then
+      local _, _, h = codeCut(node, T)
+      return maxW, h
+    elseif kind == "raw" then
+      return maxW, node.height
     elseif kind == SURFACE then
       return 0, 0
     elseif kind == "row" then
@@ -280,6 +299,34 @@ function M.new(deps)
     elseif kind == "divider" then
       push(ctx, { type = "rectangle", action = "fill", fillColor = colorOf(ctx, "border"),
         frame = { x = x, y = y, w = w, h = 1 } })
+    elseif kind == "code" then
+      -- The visible slice rule. Every line of a code block is the same height, so with a
+      -- window set a line wholly above or below it is skipped, no element is emitted and
+      -- nothing is measured for it, while the content height above still counts every line.
+      local lh = T.text.code.lineHeight
+      local shown, left = codeCut(node, T)
+      local win = ctx.window
+      for i = 1, shown do
+        local ly = y + (i - 1) * lh
+        if not win or (ly + lh > win.top and ly < win.bottom) then
+          emit({ kind = "text", str = node.lines[i], variant = "code", lineBreak = "truncateTail" },
+            x, ly, w, lh, ctx)
+        end
+      end
+      if left > 0 then
+        local ly = y + shown * lh
+        if not win or (ly + T.text.caption.lineHeight > win.top and ly < win.bottom) then
+          local words = node.more and node.more(left) or (left .. " more lines")
+          emit({ kind = "text", str = words, variant = "caption", lineBreak = "truncateTail" },
+            x, ly, w, T.text.caption.lineHeight, ctx)
+        end
+      end
+    elseif kind == "raw" then
+      -- The caller's elements go in as returned and in order. Their colours must come from
+      -- the tokens draw is handed. Group alpha and the click id are not applied to them.
+      for _, el in ipairs(node.draw({ x = x, y = y, w = w, h = h }, T) or {}) do
+        ctx.els[#ctx.els + 1] = el
+      end
     elseif kind == "spacer" or kind == SURFACE then
       -- A spacer is only room, and a surface was already painted behind everything.
       return
@@ -344,6 +391,7 @@ function M.new(deps)
   --- lib/ui/style.lua. opts, every field optional.
   ---   scrollY  points the content is scrolled by. Every element moves up by it and the
   ---            content is clipped to rect, the clip opened once and closed once.
+  ---   a code block lays out only the lines inside the visible window when scrollY is set.
   ---   clip     true to clip to rect without scrolling.
   --- contentHeight is the height the tree wants at rect.w, before any scroll.
   function engine.layout(node, rect, tokens, opts)
@@ -370,6 +418,7 @@ function M.new(deps)
 
     local _, contentH = sizeOf(node, rect.w, tokens)
     local ctx = { T = tokens, els = els, alpha = 1, id = nil }
+    if opts.scrollY ~= nil then ctx.window = { top = rect.y, bottom = rect.y + rect.h } end
     emit(node, rect.x, rect.y - (opts.scrollY or 0), rect.w, contentH, ctx)
 
     if clipped then els[#els + 1] = { type = "resetClip" } end
