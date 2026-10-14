@@ -90,3 +90,4 @@ than discovered.
 - [olm-window-display-move](olm-window-display-move.md), a display switch keeps the window's size and its place rather than its proportions, and a round trip restores the exact frame from a table that lives only in memory
 - [olm-launcher-ranking](olm-launcher-ranking.md), the launcher orders a searched list by what each query has been used to pick, a decaying score per query and row pair with a sticky leader, guarded so it only ever settles rows that matched about equally
 - [machine-profiles](machine-profiles.md), one tracked `MACHINES` file says which optional pieces each machine takes, keyed by `LocalHostName`, read only by `src/machine.sh`, after one branch per machine was rejected for drifting
+- [olm-colour-roles](olm-colour-roles.md), Olm draws with eight colour roles and nothing else, three of them accents taken as ranks, after a larger set, separate path and dim and surface roles, semantic accents and all six Aura accents were turned down

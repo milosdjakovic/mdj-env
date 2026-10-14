@@ -335,7 +335,7 @@ function M.new(deps)
       local v = T.text[b.text]
       local bw = sizeOf(node, w, T)
       local r = T.radius[b.radius or "badge"]
-      push(ctx, { type = "rectangle", action = "fill", fillColor = colorOf(ctx, "badge"),
+      push(ctx, { type = "rectangle", action = "fill", fillColor = colorOf(ctx, "highlight"),
         roundedRectRadii = { xRadius = r, yRadius = r },
         frame = { x = x, y = y, w = bw, h = b.height } })
       -- The glyph's line box is centred in the chip, and the cap height of the glyph is

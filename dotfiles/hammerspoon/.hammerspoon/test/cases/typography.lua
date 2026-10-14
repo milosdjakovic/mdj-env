@@ -28,7 +28,7 @@ local kit = fresh("kit.lua").new(styleLib.names)
 -- theme-exempt, fixture colours for a unit case, not a tool's look
 local SPEC = {
   colors = {
-    dark = { foreground = "#111111", subtext = "#222222", overlay = "#333333", background = "#444444" },
+    dark = { foreground = "#111111", subtext = "#333333", background = "#444444" },
   },
 }
 
@@ -75,19 +75,19 @@ do
   check("line height is ceil of size times 1.35 for every role",
     t.text.title.lineHeight == 27 and t.text.body.lineHeight == 22 and t.text.caption.lineHeight == 19
       and t.text.section.lineHeight == 17 and t.text.code.lineHeight == 19)
-  check("title, body and code take foreground, caption subtext, section overlay",
+  check("title, body and code take foreground, caption and section subtext",
     t.text.title.color == "foreground" and t.text.body.color == "foreground"
       and t.text.code.color == "foreground" and t.text.caption.color == "subtext"
-      and t.text.section.color == "overlay")
+      and t.text.section.color == "subtext")
   check("the role colours resolve from the theme",
-    t.colors.foreground.red ~= nil and math.abs(t.colors.overlay.red - 0x33 / 255) < 0.001)
+    t.colors.foreground.red ~= nil and math.abs(t.colors.subtext.red - 0x33 / 255) < 0.001)
   check("roles lists the five names in order",
     #styleLib.roles == 5 and styleLib.roles[1] == "title" and styleLib.roles[5] == "code"
       and kit.roles == styleLib.roles)
   check("every role is a name a text node accepts",
     pcall(function() for _, role in ipairs(kit.roles) do kit.text("x", role) end end))
   check("a text node may still pass a colour role to override",
-    kit.text("x", "section", { color = "accent" }).color == "accent")
+    kit.text("x", "section", { color = "primary" }).color == "primary")
   local retired = {}
   for _, name in ipairs({ "sub", "label", "heading", "mono", "big", "hintKey", "hintLabel",
                           "cheat", "cheatTitle", "toast", "report", "reportDetail", "empty" }) do

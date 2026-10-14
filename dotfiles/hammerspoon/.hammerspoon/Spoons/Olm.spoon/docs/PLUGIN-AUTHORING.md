@@ -352,9 +352,9 @@ end
 -- light and dark switch with no watcher of yours.
 local function drawPane(canvas, w, h, entry)
   local tree = ui.stack({
-    ui.text("Details", "heading"),
-    ui.row({ ui.text("SIZE", "label"), ui.text(entry.size, "body") }, { gap = "m" }),
-    ui.text("Measured a moment ago", "sub", { color = "dim" }),
+    ui.text("Details", "section"),
+    ui.row({ ui.text("SIZE", "caption"), ui.text(entry.size, "body") }, { gap = "m" }),
+    ui.text("Measured a moment ago", "caption", { color = "subtext" }),
   }, { gap = "s" })
   local elements, contentHeight = ui.layout(tree, { x = 14, y = 10, w = w - 28, h = h - 20 })
   canvas:replaceElements(elements)
@@ -392,6 +392,13 @@ absolute rect it was given after the scroll offset. The element list `draw` retu
 inserted at that point, in order. Every colour in those elements must come from the tokens
 passed in, which is why they are passed. Group alpha and the group click id are not applied to
 raw elements.
+
+Colour follows the same rule as type. There are eight roles, foreground, subtext, background,
+border, highlight, primary, secondary and tertiary, and a node or a raw element names one of
+them and never a hex or a palette colour. A graph takes the accents in order, the first series
+primary, the second secondary and the third tertiary, since accents are ranks and carry no
+meaning. "Olm colour, eight roles and nothing else" in the config's `AGENTS.md` is the rule and
+says what each role is for.
 
 ## Tools your plugin needs
 

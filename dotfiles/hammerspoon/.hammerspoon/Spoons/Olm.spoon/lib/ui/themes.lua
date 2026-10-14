@@ -1,7 +1,7 @@
 -- The colour themes the kit can wear, one file each, and the one that is current.
 --
 -- A theme is a TOML file named for itself, with a [dark] and a [light] section holding the
--- colour keys listed in KEYS below as "#rrggbb" or "#rrggbbaa". This store loads every file
+-- colour keys listed in REQUIRED below as "#rrggbb" or "#rrggbbaa". This store loads every file
 -- in the directory the composition root hands it, answers the sorted names, the current
 -- name and the colours of the current theme, and switches. It decides nothing about how a
 -- colour reaches a surface, that stays root/uispec.lua and lib/ui/style.lua, so a switch is
@@ -34,10 +34,11 @@ local M = {}
 M.DEFAULT = "default"
 M.SETTINGS_KEY = "olmTheme"
 
--- The keys a theme must answer, and the two it may. The optional two are derived by the kit
--- when absent, a list cursor bar and a field selection.
-M.REQUIRED = { "text", "subtext", "background", "border", "accent", "meta", "path", "note" }
-M.OPTIONAL = { "highlight", "selection" }
+-- The keys a theme must answer, the eight colour roles and no others. A key a file carries
+-- beyond these is ignored, so a theme written before the merge still loads, and a role it
+-- leaves out is the default theme's value with one warning.
+M.REQUIRED = { "foreground", "subtext", "background", "border", "highlight",
+               "primary", "secondary", "tertiary" }
 
 local HALVES = { "dark", "light" }
 
@@ -115,14 +116,6 @@ function M.new(opts)
         value = fallback[key]
       end
       out[key] = value
-    end
-    for _, key in ipairs(M.OPTIONAL) do
-      if validHex(given[key]) then
-        out[key] = given[key]
-      elseif given[key] ~= nil then
-        warnOnce(name .. "/" .. half .. "/" .. key .. "/bad", "theme " .. name .. ", " .. half
-          .. " key " .. key .. " is not a #rrggbb or #rrggbbaa colour, so it is derived")
-      end
     end
     return out
   end

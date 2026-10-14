@@ -146,8 +146,11 @@ the scoped `deps` adapter, and anything undeclared answers nothing by design.
 
 Never set a font, a size, a line height or a colour literal. Text goes through the UI kit,
 `needs.lib.ui`, by one of the five typography roles, and the hammerspoon `AGENTS.md` section
-on Olm typography is the rule and says which role fits where. A pane that needs something
-the kit cannot draw is a finding to report, never a reason for a local literal.
+on Olm typography is the rule and says which role fits where. Colour is the same kind of rule.
+A plugin names one of the eight colour roles and never a hex, a colour table or a palette
+colour, accents are ranks that a graph takes in order, and the section of that `AGENTS.md` on Olm
+colour says what each role is for. A pane that needs something the kit cannot draw is a finding
+to report, never a reason for a local literal.
 
 Never write an install command anywhere, not in code, not in a comment, not in help text a
 person reads. The repository root holds the answer key for where every tool comes from.

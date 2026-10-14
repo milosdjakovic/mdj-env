@@ -133,9 +133,9 @@ local text = pane.text(ui, "copied")
 check("a text block is the code role and wraps", text.kind == "text" and text.variant == "code"
   and text.wrap == true and text.color == nil)
 local paths = pane.paths(ui, { "/a/b", "/c/d" })
-check("paths are one code text each in the path colour, wrapping",
+check("paths are one code text each in subtext, wrapping",
   paths.kind == "stack" and #paths.children == 2 and paths.children[1].variant == "code"
-    and paths.children[1].color == "path" and paths.children[1].wrap == true
+    and paths.children[1].color == "subtext" and paths.children[1].wrap == true
     and paths.children[2].str == "/c/d")
 local note = pane.note(ui, "Loading…")
 check("a note is caption in subtext", note.variant == "caption" and note.color == "subtext"

@@ -13,14 +13,19 @@
 -- "#RRGGBBAA" strings, which is how a theme file spells them, or as hs colour tables, and
 -- both come back out as colour tables.
 --
--- The shipped colours below are only the fallback for a theme that leaves a role out. Stage
--- four of the kit retires the preview four once the plugin panes draw through it.
+-- The shipped colours below are only the fallback for a theme that leaves a role out. They
+-- are the default theme's own values, so a theme file that is missing or wrong still draws
+-- the look Olm has always had.
 --
--- theme-exempt, shipped fallbacks for a role a theme leaves out, retired in stage four
+-- theme-exempt, shipped fallbacks for a role a theme leaves out, the default theme's own values
 --
--- Four colours are derived rather than given, one rule each, so a spec never has to restate
--- them. dim is subtext at the dim alpha, selection is foreground at 0.20, highlight is
--- foreground at 0.14, and surface is background until the palette step gives it its own.
+-- There are exactly eight colour roles and nothing derives a ninth. The text pair is
+-- foreground and subtext, the fill of every panel is background, border is every outline and
+-- divider and a graph baseline, highlight is the bar under the list cursor, the tint behind
+-- selected text and the fill of a key chip, and primary, secondary and tertiary are the three
+-- accents, ranks that carry no meaning. An alpha a rule needs, such as the dim alpha of a
+-- disabled row, stays an alpha below and is never a role. See "Olm colour, eight roles and
+-- nothing else" in the config's AGENTS.md.
 
 local tomlLib = (function()
   local here = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or ""
@@ -34,31 +39,29 @@ local M = {}
 -- The half names the resolver answers and the spec is keyed by.
 M.halves = { dark = "dark", light = "light" }
 
--- Shipped colours, used only where the spec says nothing. The foreground and subtext pairs
--- are the literals lib/cheatsheet.lua and lib/hints.lua fall back to, and the preview four
--- are the fallback the chooser providers and three plugins repeat today. The badge pair is
--- the cheat sheet chip, white 1 at 0.12 on dark and white 0 at 0.06 on light, which settings
--- never carried. The light half has no preview fallback of its own, so it inherits the dark
--- one, the same rule the spec follows.
---
--- outline is the colour toast's swatch stroke, white 1 at 0.25 on dark and white 0 at 0.2
--- on light.
+-- Shipped colours, used only where the spec says nothing. They are config/themes/default.toml
+-- written as hex, and the light half carries every role of its own, so no role falls through
+-- to the dark half's value on a light page.
 local SHIPPED_COLORS = {
   dark = {
-    foreground = { white = 0.92 },
-    subtext = { white = 0.55 },
-    accent = "#dcdcdc",
-    overlay = "#8a8a8a",
-    path = "#7a7a7a",
-    note = "#c8a86a",
-    badge = { white = 1, alpha = 0.12 },
-    outline = { white = 1, alpha = 0.25 },
+    foreground = "#ebebeb",
+    subtext = "#8c8c8c",
+    background = "#29292e",
+    border = "#59575c",
+    highlight = "#454549",
+    primary = "#a58be0",
+    secondary = "#6fc7a0",
+    tertiary = "#d9a066",
   },
   light = {
-    foreground = { white = 0.15 },
-    subtext = { white = 0.42 },
-    badge = { white = 0, alpha = 0.06 },
-    outline = { white = 0, alpha = 0.2 },
+    foreground = "#262626",
+    subtext = "#6b6b6b",
+    background = "#cecace",
+    border = "#a09f9f",
+    highlight = "#bbb7bb",
+    primary = "#6a4cb8",
+    secondary = "#2f7d5c",
+    tertiary = "#a35f1a",
   },
 }
 
@@ -76,8 +79,8 @@ local SHIPPED_TYPOGRAPHY = {
 M.roles = { "title", "body", "caption", "section", "code" }
 
 -- Which font token and which colour role each type role is drawn with. code is the mono
--- font and every other role the ui font. title, body and code draw in the foreground,
--- caption in subtext and section in overlay, which is the theme's meta colour. A text node
+-- font and every other role the ui font. title, body and code draw in the foreground, and
+-- caption and section in subtext. A text node
 -- may still pass a colour role of its own to override. No role changes the case of its text,
 -- since the kit applies no text transform of any kind, upper casing a section heading is
 -- the caller's job.
@@ -85,7 +88,7 @@ local ROLE_RULES = {
   title = { font = "ui", color = "foreground" },
   body = { font = "ui", color = "foreground" },
   caption = { font = "ui", color = "subtext" },
-  section = { font = "ui", color = "overlay" },
+  section = { font = "ui", color = "subtext" },
   code = { font = "mono", color = "foreground" },
 }
 
@@ -138,12 +141,12 @@ local BADGE_RULES = {
   button = { role = "caption", padY = "s", padX = "l", radius = "chip" },
 }
 
--- Every colour role a resolved table answers, the design's list, kept here because the kit
--- refuses a colour name outside it at build time and the names are this file's to own.
+-- Every colour role a resolved table answers, the eight and no others, kept here because the
+-- kit refuses a colour name outside it at build time and the names are this file's to own. A
+-- name from before the merge, dim or path or badge and the rest, fails loudly for that reason.
 local COLOR_ROLES = {
-  "foreground", "subtext", "dim", "overlay", "accent", "note", "path",
-  "background", "surface", "border", "selection", "highlight", "badge",
-  "outline",
+  "foreground", "subtext", "background", "border", "highlight",
+  "primary", "secondary", "tertiary",
 }
 
 local function keysOf(t)
@@ -320,7 +323,7 @@ function M.new(opts)
   --- Built once per half after each configure and handed out as a shallow copy, so a caller
   --- may replace a top level field of what it receives. The groups inside are shared, so a
   --- caller that changes one, a colour or a text variant, copies that group first. The light
-  --- half falls back to the dark half role by role when the spec gives no light colours.
+  --- half falls back to the dark half's colours when the spec gives no light colours.
   function instance.tokens()
     local half = instance.half()
     local built = cache[half]
@@ -336,20 +339,15 @@ function M.new(opts)
     local colors = spec.colors or {}
     local given = colors[half] or colors.dark or {}
 
+    -- Each half starts from its own shipped colours, then takes the spec. Only the eight
+    -- roles are read from the spec, so a stray key a caller passes never becomes a colour.
     local resolved = {}
-    -- The light half starts from the dark shipped colours so every role has an answer, then
-    -- takes its own shipped colours, then the spec.
-    for role, value in pairs(SHIPPED_COLORS.dark) do resolved[role] = toColor(value) end
-    if half == M.halves.light then
-      for role, value in pairs(SHIPPED_COLORS.light) do resolved[role] = toColor(value) end
+    local shipped = SHIPPED_COLORS[half] or SHIPPED_COLORS.dark
+    for _, role in ipairs(COLOR_ROLES) do
+      resolved[role] = toColor(given[role]) or toColor(shipped[role])
     end
-    for role, value in pairs(given) do resolved[role] = toColor(value) end
 
     local alpha = mergeGroup(SHIPPED.alpha, spec.alpha)
-    resolved.surface = resolved.surface or toColor(resolved.background)
-    resolved.dim = resolved.dim or M.withAlpha(resolved.subtext, alpha.dim)
-    resolved.selection = resolved.selection or M.withAlpha(resolved.foreground, 0.20)
-    resolved.highlight = resolved.highlight or M.withAlpha(resolved.foreground, 0.14)
 
     local typography = mergeGroup(SHIPPED_TYPOGRAPHY, spec.typography)
     local fonts = mergeGroup(SHIPPED.fonts, typography.fonts)

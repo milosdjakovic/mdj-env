@@ -7,39 +7,30 @@
 -- build every surface through the kit with the spec a running config would get.
 --
 -- The colours are no longer policy's. They come from the current theme, the colours table
--- lib/ui/themes.lua answers, a half each of the keys a theme file holds, and each key maps
--- onto one of the kit's colour roles below. Only what policy owns is read from policy, the
--- two radii settings carries. Every other
--- token, and the colours a theme leaves out, are lib/ui/style.lua's own. A half with no
--- light colours of its own takes the dark one, the same fallback every reader applies.
+-- lib/ui/themes.lua answers, a half each of the eight colour roles a theme file holds. Only
+-- what policy owns is read from policy, the two radii settings carries. Every other token,
+-- and the colours a theme leaves out, are lib/ui/style.lua's own. A half with no light
+-- colours of its own takes the dark one, the same fallback every reader applies.
 --
 -- chooserView and surfaceView are the other two things this file knows. The native provider
--- and the plugin panes still read a table shaped like the old chooserTheme setting, and the
+-- and speedtest's pane still read a table shaped like the old chooserTheme setting, and the
 -- panel still reads one shaped like the surface setting, so the root keeps one table of each
--- and these two fill it in place from the colours of the live theme. Stage four of the kit
--- retires both views once those readers draw through the kit, and these two go with them.
+-- and these two fill it in place from the colours of the live theme. They are rebuilt from the
+-- eight roles and name none of the retired ones. Stage four of the kit retires both views once
+-- those readers draw through the kit, and these two go with them.
 
 local M = {}
 
--- A theme key and the kit colour role it answers. The kit calls the ink foreground and the
--- preview metadata overlay, a theme file uses the plainer words.
-local ROLE_OF = {
-  text = "foreground",
-  subtext = "subtext",
-  background = "background",
-  border = "border",
-  accent = "accent",
-  meta = "overlay",
-  path = "path",
-  note = "note",
-  highlight = "highlight",
-  selection = "selection",
-}
+-- A theme file's keys are the kit's colour roles, word for word, so nothing is renamed here.
+-- Only these eight are copied, which is what keeps a key a file carries beyond them from
+-- reaching the kit.
+local ROLES = { "foreground", "subtext", "background", "border", "highlight",
+                "primary", "secondary", "tertiary" }
 
 local function colorsFor(colors, half)
   local theme = (colors and (colors[half] or colors.dark)) or {}
   local out = {}
-  for key, role in pairs(ROLE_OF) do out[role] = theme[key] end
+  for _, role in ipairs(ROLES) do out[role] = theme[role] end
   return out
 end
 
@@ -79,8 +70,11 @@ end
 --- Rewrites into, in place, as a table shaped like the old chooserTheme setting from the
 --- colours of a theme, so the readers outside the kit that took that setting follow a switch
 --- without a reload. bgDark is the half itself, the row text colours are hs colour tables,
---- and the preview four are the CSS hex strings the preview webviews take, alpha digits cut
---- off since CSS here has never been handed any.
+--- and preview is the four CSS hex strings speedtest's pane still takes, alpha digits cut off
+--- since CSS here has never been handed any. preview is the one place a retired name survives,
+--- as the pane's own keys, and each is answered from a role, fg from foreground, meta and path
+--- from subtext and note from secondary, the second series, which is the upload curve. It goes
+--- when speedtest is migrated to the kit.
 function M.chooserView(into, colors)
   clear(into)
   for _, half in ipairs({ "dark", "light" }) do
@@ -88,10 +82,10 @@ function M.chooserView(into, colors)
     local function six(hex) return hex and hex:sub(1, 7) end
     into[half] = {
       bgDark = half == "dark",
-      titleColor = hexColor(theme.text),
+      titleColor = hexColor(theme.foreground),
       subColor = hexColor(theme.subtext),
-      preview = { fg = six(theme.accent), meta = six(theme.meta), path = six(theme.path),
-                  note = six(theme.note) },
+      preview = { fg = six(theme.foreground), meta = six(theme.subtext), path = six(theme.subtext),
+                  note = six(theme.secondary) },
     }
   end
   return into

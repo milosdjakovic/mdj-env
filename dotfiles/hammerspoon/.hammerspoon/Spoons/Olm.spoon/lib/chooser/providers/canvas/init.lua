@@ -58,9 +58,9 @@
 --- Colour and type come from the UI kit's tokens since stage two of
 --- docs/DESIGN-UI-KIT.md, resolved for the current half on every show, and config.theme
 --- is no longer read here. The text is foreground and the subtitle subtext, the field's
---- own selection band and the list's own row highlight are the selection and highlight
---- tokens, both foreground at a fixed alpha, a disabled row and the placeholder are
---- dimmed by the dim alpha, and the row numbers are the dim colour. The caret is left to
+--- own selection band and the list's own row highlight are both the highlight token, a
+--- disabled row and the placeholder are dimmed by the dim alpha, and the row numbers are
+--- the section role's colour, subtext. The caret is left to
 --- field render's own fallback, the text colour standing in for it. The font and the two
 --- text sizes are the body and caption roles, handed to both renderers through the draw
 --- layout, and the rest of the layout is geometry.lua's.
@@ -262,7 +262,7 @@ function Provider:_deriveStyles()
     font = self._type.fieldFont,
     fontSize = self._type.fieldSize,
     textColor = T.colors.foreground,
-    selectionColor = T.colors.selection,
+    selectionColor = T.colors.highlight,
     placeholderColor = faded(T.colors.foreground, T.alpha.dim),
     caretWidth = self.layout.caretWidth,
   }

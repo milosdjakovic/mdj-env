@@ -76,24 +76,24 @@ local themes = fresh("themes.lua")
 -- theme-exempt, fixture colours for a unit case, not a tool's look
 local DEFAULT_FILE = [[
 [dark]
-text = "#111111"
+foreground = "#111111"
 subtext = "#222222"
 background = "#333333"
 border = "#444444"
-accent = "#555555"
-meta = "#666666"
-path = "#777777"
-note = "#888888"
+highlight = "#555555"
+primary = "#666666"
+secondary = "#777777"
+tertiary = "#888888"
 
 [light]
-text = "#aaaaaa"
+foreground = "#aaaaaa"
 subtext = "#bbbbbb"
 background = "#cccccc"
 border = "#dddddd"
-accent = "#eeeeee"
-meta = "#101010"
-path = "#202020"
-note = "#303030"
+highlight = "#eeeeee"
+primary = "#101010"
+secondary = "#202020"
+tertiary = "#303030"
 ]]
 
 local function store(files, stored, extra)
@@ -117,21 +117,22 @@ do
   check("names are sorted and only the toml files", #names == 3 and names[1] == "alpha"
     and names[2] == "default" and names[3] == "zeta")
   check("the current theme is default when nothing is stored", s.current() == "default")
-  check("colors answers the current theme's halves", s.colors().dark.text == "#111111"
-    and s.colors().light.text == "#aaaaaa")
-  check("an optional key a theme leaves out stays absent", s.colors().dark.highlight == nil)
+  check("colors answers the current theme's halves", s.colors().dark.foreground == "#111111"
+    and s.colors().light.foreground == "#aaaaaa")
+  check("every one of the eight roles is answered", s.colors().dark.primary == "#666666"
+    and s.colors().light.tertiary == "#303030")
 end
 
 do
   local changes, specs = {}, {}
   local ui = { configure = function(c) specs[#specs + 1] = c.spec end }
   local s, _, set = store({ ["default.toml"] = DEFAULT_FILE, ["bright.toml"] = DEFAULT_FILE },
-    nil, { ui = ui, specFor = function(colors) return { text = colors.dark.text } end,
+    nil, { ui = ui, specFor = function(colors) return { foreground = colors.dark.foreground } end,
            onChange = function(name) changes[#changes + 1] = name end })
   check("set answers true for a loaded theme", s.set("bright") == true)
   check("set persists through the injected settings", set.olmTheme == "bright")
   check("set makes the theme current", s.current() == "bright")
-  check("set hands the kit the new spec", #specs == 1 and specs[1].text == "#111111")
+  check("set hands the kit the new spec", #specs == 1 and specs[1].foreground == "#111111")
   check("set calls onChange with the name", #changes == 1 and changes[1] == "bright")
   check("set refuses a name with no file", s.set("nothing") == false and s.current() == "bright"
     and set.olmTheme == "bright")
@@ -153,41 +154,41 @@ end
 do
   local darkOnly = [[
 [dark]
-text = "#010101"
+foreground = "#010101"
 subtext = "#020202"
 background = "#030303"
 border = "#040404"
-accent = "#050505"
-meta = "#060606"
-path = "#070707"
-note = "#080808"
+highlight = "#050505"
+primary = "#060606"
+secondary = "#070707"
+tertiary = "#080808"
 ]]
   local s, warnings = store({ ["default.toml"] = DEFAULT_FILE, ["dim.toml"] = darkOnly }, "dim")
   local c = s.colors()
-  check("a missing light half is the theme's dark half", c.light.text == "#010101" and c.light.note == "#080808")
+  check("a missing light half is the theme's dark half", c.light.foreground == "#010101" and c.light.tertiary == "#080808")
   check("a missing light half is not a warning", #warnings == 0)
 end
 
 do
   local missingKey = [[
 [dark]
-text = "#010101"
+foreground = "#010101"
 background = "#030303"
 border = "#040404"
-accent = "#050505"
-meta = "#060606"
-path = "#070707"
-note = "#080808"
+highlight = "#050505"
+primary = "#060606"
+secondary = "#070707"
+tertiary = "#080808"
 
 [light]
-text = "#0a0a0a"
+foreground = "#0a0a0a"
 subtext = "#0b0b0b"
 background = "#0c0c0c"
 border = "#0d0d0d"
-accent = "#0e0e0e"
-meta = "#0f0f0f"
-path = "#101011"
-note = "#121212"
+highlight = "#0e0e0e"
+primary = "#0f0f0f"
+secondary = "#101011"
+tertiary = "#121212"
 ]]
   local s, warnings = store({ ["default.toml"] = DEFAULT_FILE, ["gap.toml"] = missingKey }, "gap")
   local c = s.colors()
@@ -208,10 +209,12 @@ do
 end
 
 do
-  local withAlpha = DEFAULT_FILE:gsub('note = "#888888"', 'note = "#88888880"\nselection = "#12345678"', 1)
+  local withAlpha = DEFAULT_FILE:gsub('tertiary = "#888888"', 'tertiary = "#88888880"', 1)
   local s = store({ ["default.toml"] = withAlpha })
-  check("an eight digit colour is kept and an optional key is read", s.colors().dark.note == "#88888880"
-    and s.colors().dark.selection == "#12345678")
+  check("an eight digit colour is kept", s.colors().dark.tertiary == "#88888880")
+  local extra = DEFAULT_FILE:gsub('%[light%]', 'meta = "#12345678"\n\n[light]', 1)
+  local old = store({ ["default.toml"] = extra })
+  check("a key beyond the eight is dropped rather than carried", old.colors().dark.meta == nil)
 end
 
 --------------------------------------------------------------------------------

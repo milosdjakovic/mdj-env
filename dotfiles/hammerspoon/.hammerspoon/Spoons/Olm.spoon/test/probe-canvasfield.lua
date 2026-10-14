@@ -192,7 +192,7 @@ local style = {
   font = kitTokens and kitTokens.text.title.font or GEOMETRY.font,
   fontSize = GEOMETRY.textSize,
   textColor = textColor,
-  selectionColor = kitTokens and kitTokens.colors.selection
+  selectionColor = kitTokens and kitTokens.colors.highlight
     or (dark and { white = 1, alpha = 0.20 } or { white = 0, alpha = 0.14 }),
   caretColor = textColor,
   placeholderColor = faded(textColor, kitTokens and kitTokens.alpha.dim or 0.4),

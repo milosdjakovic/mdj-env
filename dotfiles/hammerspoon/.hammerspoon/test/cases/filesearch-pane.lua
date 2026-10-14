@@ -128,17 +128,17 @@ check("a small icon keeps its own height under the heading",
   imageH == tokens.text.section.lineHeight + tokens.space.xs + 20, tostring(imageH))
 
 local header = nodes.header(ui, "main.lua", "~/src", {
-  { label = "KIND", value = "LUA" }, { label = "USED", value = "2d ago", color = "note" } })
+  { label = "KIND", value = "LUA" }, { label = "USED", value = "2d ago", color = "primary" } })
 local identity = header.children[1]
-check("the name is title in the foreground and the folder is code in the path colour, wrapping",
+check("the name is title in the foreground and the folder is code in subtext, wrapping",
   identity.children[1].variant == "title" and identity.children[1].color == "foreground"
-    and identity.children[2].variant == "code" and identity.children[2].color == "path"
+    and identity.children[2].variant == "code" and identity.children[2].color == "subtext"
     and identity.children[2].wrap == true)
 local pair = header.children[2].children[2]
 check("a fact is a row with the label left in subtext and the value flush right",
   pair.kind == "row" and pair.fillIndex == 2 and pair.children[1].str == "USED"
     and pair.children[1].color == "subtext" and pair.children[1].variant == "caption"
-    and pair.children[2].align == "right" and pair.children[2].color == "note")
+    and pair.children[2].align == "right" and pair.children[2].color == "primary")
 check("a fact's value is the foreground unless it names another colour",
   header.children[2].children[1].children[2].color == "foreground")
 local bare = nodes.header(ui, "x", "", { { label = "KIND", value = "File" } })

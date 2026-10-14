@@ -6,7 +6,7 @@
 --- names a font, a size, a line height or a colour literal, every piece of text is one of the
 --- kit's roles and every colour a role name.
 ---
---- The roles. The file name is title, the folder it lives in is code in the path colour, each
+--- The roles. The file name is title, the folder it lives in is code in subtext, each
 --- fact is a caption pair, a heading is section, and a file head or a folder listing is the
 --- code role, the same choice the clipboard pane makes for its own text, so a file looks the
 --- same in both panes.
@@ -64,7 +64,7 @@ end
 local function labelled(ui, label, labelColor, value, valueColor, role)
   return ui.row({
     ui.text(label, role, { color = labelColor }),
-    ui.text(value, role, { color = valueColor, align = "right" }),
+    ui.text(value, role, { color = valueColor, align = ui.aligns.right }),
   }, { fillIndex = 2 })
 end
 
@@ -80,7 +80,7 @@ end
 function M.header(ui, name, dir, pairs)
   local identity = { ui.text(name, "title", { color = "foreground" }) }
   if dir and dir ~= "" then
-    identity[#identity + 1] = ui.text(dir, "code", { wrap = true, color = "path" })
+    identity[#identity + 1] = ui.text(dir, "code", { wrap = true, color = "subtext" })
   end
   local facts = {}
   for i, pair in ipairs(pairs) do facts[i] = M.pair(ui, pair.label, pair.value, pair.color) end

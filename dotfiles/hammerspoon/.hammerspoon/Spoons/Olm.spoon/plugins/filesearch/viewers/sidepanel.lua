@@ -268,7 +268,7 @@ local function headerNode(row, attrs)
   if usedAt then
     -- In the accent tone, because it is the one fact on the pane that is about you rather
     -- than about the file.
-    facts[#facts + 1] = { label = "USED", value = util.humanAge(usedAt), color = "note" }
+    facts[#facts + 1] = { label = "USED", value = util.humanAge(usedAt), color = "subtext" }
   end
   return nodes.header(ui, row.name or row.path, util.shortDir(row.dir), facts)
 end

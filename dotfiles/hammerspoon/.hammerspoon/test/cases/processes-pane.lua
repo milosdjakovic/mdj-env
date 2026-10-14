@@ -79,8 +79,8 @@ check("a server row has ports, directory and command, in that order",
 check("ports are joined by the subtitle's dot and drawn as wrapped code in the foreground",
   listed[1].children[2].str == ":3000 · :3001" and listed[1].children[2].variant == "code"
     and listed[1].children[2].wrap == true and listed[1].children[2].color == "foreground")
-check("the directory is code in the path colour",
-  listed[2].children[2].color == "path" and listed[2].children[2].variant == "code")
+check("the directory is code in subtext",
+  listed[2].children[2].color == "subtext" and listed[2].children[2].variant == "code")
 check("the command prefers the untruncated form",
   listed[3].children[2].str == "node server.js --flag")
 
@@ -201,16 +201,16 @@ local _, emptyH = ui.layout(nodes.live(ui, { pid = 1 }, { cpu = { facts = "", va
   mem = { facts = "9 MB", values = { 1 }, lo = 1, hi = 1 } }), { x = 0, y = 0, w = 300, h = 400 })
 check("the live height does not depend on the readings", emptyH == liveH, tostring(emptyH))
 
-local sparkEls = nodes.spark(ui, { 1, 2, 3 }, 0, 5, "note").draw({ x = 10, y = 100, w = 300, h = 23 }, tokens)
-check("a strip is the baseline in the dim colour then the line in the named colour",
-  #sparkEls == 2 and sparkEls[1].strokeColor == tokens.colors.dim
-    and sparkEls[2].strokeColor == tokens.colors.note)
+local sparkEls = nodes.spark(ui, { 1, 2, 3 }, 0, 5, "primary").draw({ x = 10, y = 100, w = 300, h = 23 }, tokens)
+check("a strip is the baseline in the border colour then the line in the named colour",
+  #sparkEls == 2 and sparkEls[1].strokeColor == tokens.colors.border
+    and sparkEls[2].strokeColor == tokens.colors.primary)
 check("the baseline runs the full width at the bottom of the strip",
   sparkEls[1].coordinates[1].x == 10 and sparkEls[1].coordinates[2].x == 310
     and sparkEls[1].coordinates[1].y == 100 + nodes.SPARK_GAP + nodes.SPARK_H)
 check("the newest sample sits at the right edge",
   sparkEls[2].coordinates[3].x == 310)
-local lone = nodes.spark(ui, { 1 }, 0, 1, "note").draw({ x = 0, y = 0, w = 300, h = 23 }, tokens)
+local lone = nodes.spark(ui, { 1 }, 0, 1, "primary").draw({ x = 0, y = 0, w = 300, h = 23 }, tokens)
 check("a trail of one sample draws only the baseline", #lone == 1)
 local flat = nodes.spark(ui, { 3, 3 }, 3, 3, "subtext").draw({ x = 0, y = 0, w = 300, h = 23 }, tokens)
 check("a collapsed range draws down the middle of the strip",

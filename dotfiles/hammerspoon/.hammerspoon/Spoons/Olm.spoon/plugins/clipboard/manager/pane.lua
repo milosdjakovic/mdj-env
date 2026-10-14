@@ -37,7 +37,7 @@ end
 --- source takes what is left. facts.source is { icon = hs.image or nil, name = string or nil },
 --- and without one only the facts are drawn.
 function M.header(ui, facts)
-  local factsNode = ui.text(M.factsText(facts), "caption", { color = "subtext", align = "right" })
+  local factsNode = ui.text(M.factsText(facts), "caption", { color = "subtext", align = ui.aligns.right })
   local source = facts.source
   local left = {}
   if source and source.icon then
@@ -54,10 +54,10 @@ function M.header(ui, facts)
     left[#left + 1] = ui.text(source.name, "caption", { color = "foreground" })
   end
   if #left == 0 then
-    return ui.row({ factsNode }, { align = "center" })
+    return ui.row({ factsNode }, { align = ui.rowAligns.center })
   end
-  local sourceNode = #left == 1 and left[1] or ui.row(left, { gap = "s", align = "center" })
-  return ui.row({ sourceNode, factsNode }, { gap = M.GAP, align = "center", fillIndex = 1 })
+  local sourceNode = #left == 1 and left[1] or ui.row(left, { gap = "s", align = ui.rowAligns.center })
+  return ui.row({ sourceNode, factsNode }, { gap = M.GAP, align = ui.rowAligns.center, fillIndex = 1 })
 end
 
 --- M.text(ui, str) -> node, copied text, a url, a file head, the three forms of a colour. The
@@ -67,11 +67,11 @@ function M.text(ui, str)
   return ui.text(str, "code", { wrap = true })
 end
 
---- M.paths(ui, list) -> node, one path per line in the path colour, list an array of strings.
+--- M.paths(ui, list) -> node, one path per line in subtext, list an array of strings.
 function M.paths(ui, list)
   local lines = {}
   for i, path in ipairs(list) do
-    lines[i] = ui.text(path, "code", { wrap = true, color = "path" })
+    lines[i] = ui.text(path, "code", { wrap = true, color = "subtext" })
   end
   return ui.stack(lines, { gap = "xs" })
 end

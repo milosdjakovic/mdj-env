@@ -358,7 +358,7 @@ function M.elements(state, rect, layout, style)
       -- Decision four of round four's own consequence, a shortcut nobody can see is a
       -- shortcut nobody presses, so the first nine visible rows quietly name the digit
       -- cmd would choose them with, written as the shortcut itself, the command sign and the
-      -- digit, in the row title's size and the dim colour, on the trailing edge rather than
+      -- digit, in the row title's size and the subtext colour, on the trailing edge rather than
       -- beside the title, the column the native chooser reserves for exactly this,
       -- centred against the same row band the title and the icon both already centre or
       -- align against rather than a fraction of rowH guessed fresh for one more element.

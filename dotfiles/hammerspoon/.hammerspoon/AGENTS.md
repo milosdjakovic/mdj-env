@@ -637,6 +637,24 @@ anywhere else is the drift this rule exists to end. Emoji drawn to an image are 
 than text and take an icon size, and `hs.alert` and `hs.dialog` are system drawn and outside
 this rule. The design and the role table live in `Spoons/Olm.spoon/docs/DESIGN-UI-KIT.md`.
 
+**Olm colour, eight roles and nothing else.** Every colour Olm draws, in the canvas chooser,
+the panes, the toasts, the cheat sheets and every plugin, is one of eight roles from the UI kit
+in `Spoons/Olm.spoon/lib/ui`. foreground is text you read, a row title and pane content.
+subtext is text you glance at, a subtitle, a label, a fact, a note, a path or an empty state.
+background is the fill of every panel. border is a panel outline, a divider and a graph
+baseline. highlight is the bar under the list cursor, the tint behind selected text in the field
+and the fill of a key chip. primary, secondary and tertiary are the three accents, the first,
+second and third. Accents carry no meaning such as success or error, they are ranks, so a graph
+takes its series in that order, the first line primary, the second secondary and the third
+tertiary, and emphasis comes from colour and never from an extra size. A plugin, a pane, a host
+or a component names a role and never a hex, a colour table or a colour of the palette, and the
+kit refuses a name outside the eight at build time, so a retired word such as dim, path, note or
+badge fails where it was written. A disabled or faded look is an alpha laid over a role and is
+not a ninth colour. A theme is a file, `config/themes/<name>.toml`, with exactly these eight
+keys under `[dark]` and `[light]`. The Aura one is generated, so a colour changes in
+`theme/palettes` or in `theme-map` beside this directory, and the hand written default theme
+changes in its own file. `decisions/olm-colour-roles.md` has what was rejected.
+
 **Spoon lifecycle contract.** Every spoon is created and wired the same way, so
 `root/compose.lua`'s wiring pipeline can treat them uniformly. This is a convention, not a base class,
 because a Lua contract is structural, a documented set of methods plus validation,

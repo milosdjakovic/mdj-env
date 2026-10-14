@@ -71,16 +71,22 @@ do
     "half " .. tostring(light.half))
   check("a hex colour comes back as a colour table",
     near(dark.colors.background.red, 0x29 / 255) and near(dark.colors.background.blue, 0x2e / 255))
-  check("surface is background until the palette step",
-    near(light.colors.surface.red, light.colors.background.red))
-  check("dim is subtext at the dim alpha",
-    near(dark.colors.dim.white, 0.55) and near(dark.colors.dim.alpha, 0.4))
-  check("selection and highlight are foreground at 0.20 and 0.14",
-    near(dark.colors.selection.alpha, 0.20) and near(dark.colors.highlight.alpha, 0.14)
-      and near(dark.colors.selection.white, 0.92))
-  check("badge is white 1 at 0.12 on dark and white 0 at 0.06 on light",
-    near(dark.colors.badge.white, 1) and near(dark.colors.badge.alpha, 0.12)
-      and near(light.colors.badge.white, 0) and near(light.colors.badge.alpha, 0.06))
+  check("the shipped colours are the default theme's eight roles, each half carrying its own",
+    near(dark.colors.primary.red, 0xa5 / 255) and near(light.colors.primary.red, 0x6a / 255)
+      and near(light.colors.background.red, 0xce / 255) and near(light.colors.highlight.red, 0xbb / 255)
+      and near(dark.colors.highlight.red, 0x45 / 255) and near(dark.colors.border.red, 0x59 / 255)
+      and near(dark.colors.tertiary.red, 0xd9 / 255) and near(dark.colors.secondary.green, 0xc7 / 255))
+  local roles = 0
+  for _ in pairs(dark.colors) do roles = roles + 1 end
+  check("a resolved table answers exactly eight colour roles and derives no ninth", roles == 8,
+    tostring(roles))
+  check("a role the spec leaves out takes the half's own shipped colour",
+    (function()
+      local sparse = styleFor("Light")
+      sparse.configure({ colors = { dark = { foreground = "#010101" } } })
+      local t = sparse.tokens().colors
+      return near(t.foreground.red, 1 / 255) and near(t.background.red, 0xce / 255)
+    end)())
   check("line height is ceil of size times 1.35",
     dark.text.title.lineHeight == 27 and dark.text.body.lineHeight == 22
       and dark.text.caption.lineHeight == 19 and dark.text.section.lineHeight == 17
@@ -148,10 +154,10 @@ do
 end
 
 do
-  local text = kit.text("hello", "body", { color = "dim" })
+  local text = kit.text("hello", "body", { color = "border" })
   local leaked = text.font or text.size or text.textColor or type(text.color) == "table"
   check("a node holds a variant name and never a colour, font or size",
-    not leaked and text.variant == "body" and text.color == "dim")
+    not leaked and text.variant == "body" and text.color == "border")
 end
 
 do
@@ -227,14 +233,14 @@ end
 
 do
   local tree = kit.group({
-    kit.text("faded", "body", { color = "dim" }),
+    kit.text("faded", "body", { color = "border" }),
     kit.icon(hs.image.imageFromName("NSCaution"), "row"),
     kit.group({ kit.text("deeper", "body") }, { alpha = 0.5 }),
   }, { alpha = 0.5 })
   local els = engine.layout(tree, RECT, tokens)
   local textAlpha = els[1].text:asTable()[2].attributes.color.alpha
   check("a group multiplies a child text colour's alpha",
-    near(textAlpha, 0.4 * 0.5), "alpha " .. tostring(textAlpha))
+    near(textAlpha, 0.5), "alpha " .. tostring(textAlpha))
   check("a group multiplies a child image's alpha",
     els[2].type == "image" and near(els[2].imageAlpha, 0.5))
   local deeper = els[3].text:asTable()[2].attributes.color.alpha
@@ -297,7 +303,7 @@ do
   -- fillIndex, the stub measures seven points a character. The name is 40 characters, 280
   -- points, and the facts 5 characters, 35 points, in a 300 wide row with a gap of 10.
   local name = kit.text(string.rep("n", 40), "body")
-  local facts = kit.text("FACTS", "body", { align = "right" })
+  local facts = kit.text("FACTS", "body", { align = kit.aligns.right })
   local first = kit.row({ name, facts }, { gap = "m", fillIndex = 1 })
   local els = engine.layout(first, RECT, tokens)
   check("fillIndex 1 gives the first child what the others leave and they keep their width",

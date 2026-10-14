@@ -156,7 +156,7 @@ function M.new(names)
     if facts == nil or facts == "" then return kit.text(label, "section") end
     return kit.row({
       kit.text(label, "section"),
-      kit.text(facts, "section", { color = "subtext", align = "right" }),
+      kit.text(facts, "section", { color = "subtext", align = M.aligns.right }),
     }, { fillIndex = 1 })
   end
 

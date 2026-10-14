@@ -19,7 +19,7 @@ and the copies of `hs.drawing.getTextDrawingSize` the survey found, cached by fo
 
 `kit.lua` answers what can be drawn. Every primitive returns a node, a plain table with a
 kind and its fields. Nodes never hold a colour, a font or a size, only a variant name such
-as `title` or `dim`. Containers hold child nodes. This is the Composite pattern, a tree in
+as `title` or `caption`. Containers hold child nodes. This is the Composite pattern, a tree in
 which a stack and a single text answer the same layout call.
 
 `layout.lua` answers where everything goes. `layout(node, rect, tokens, opts)` walks the
@@ -36,8 +36,7 @@ panes keep their own windows and draw what the engine answers, which is the same
 ## The tokens
 
 ```
-colors   foreground subtext dim overlay accent note path
-         background surface border selection highlight badge
+colors   foreground subtext background border highlight primary secondary tertiary
 fonts    ui mono
 text     title body sub label heading mono big       each {font, size, lineHeight}
 space    xs s m l xl                                  points
@@ -46,9 +45,13 @@ alpha    dim fade                                     multipliers, one rule each
 icon     row list sheet                               points
 ```
 
-The colour names are the theme palette's roles where one fits, so the later palette step
-maps them one to one rather than renaming anything. `path` and `note` are the two preview
-colours with no role yet.
+The colours are exactly eight, and nothing derives a ninth. They once numbered fourteen, and
+the merge was path and meta into subtext, dim and overlay and the faint baseline into border,
+surface into background, selection and badge into highlight, accent into foreground, outline
+into border, and note into an accent by rank or into subtext when it was text. The kit refuses
+any other colour name at build time. An alpha a rule needs, such as the dim alpha of a disabled
+row, is in the alpha group and is not a role. The rule and what each role is for are in
+"Olm colour, eight roles and nothing else" in the config's `AGENTS.md`.
 
 ## The primitives
 
@@ -93,15 +96,15 @@ layout call and the current tokens. A plugin never names a colour, a font or a s
 ## The style spec, and where colours come from
 
 Colours come from theme files, `config/themes/<name>.toml`, one per theme, each a `[dark]` and
-a `[light]` section of ten keys, read by `lib/ui/toml.lua` and kept by `lib/ui/themes.lua`.
+a `[light]` section of the eight colour keys, read by `lib/ui/toml.lua` and kept by `lib/ui/themes.lua`.
 `default.toml` is hand chosen and holds the look the config had before themes were files, and
 `aura.toml` is generated from the repository palette by the package's `theme-map` and
 `theme-emit`. `root/uispec.lua` builds the spec from the live theme's colours and from the
 `cheatSheet` radius and type settings, and a switch is the store handing the kit a new spec, so
 the next draw shows it. The OLM settings page lists the themes and switches them. Two views
 of the theme, a `chooserTheme` shaped table and a `surface` shaped one, are rewritten in place
-on every switch for the readers outside the kit that still take them, and stage four retires
-both.
+on every switch from the eight roles, for the readers outside the kit that still take them, the
+native provider, the panel surface and speedtest's pane, and stage four retires both.
 
 ## Stages
 

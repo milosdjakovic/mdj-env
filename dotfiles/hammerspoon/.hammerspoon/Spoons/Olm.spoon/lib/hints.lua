@@ -425,8 +425,9 @@ function obj.toast(deps)
   -- A colour swatch beside its hex label, for a plugin whose feedback is a sampled colour
   -- rather than a sentence. state.hex and state.color are the two fields a caller mutates.
   -- The swatch stays a plain rectangle, since no primitive draws a sampled colour, and it
-  -- reads its size, its corner and its stroke from the tokens. The hex is code, since it is
-  -- the one thing a person would copy, and the gap is the large space step.
+  -- reads its size, its corner and its stroke from the tokens, the stroke being the border
+  -- colour, so a sample close to the panel fill still has an edge. The hex is code, since it
+  -- is the one thing a person would copy, and the gap is the large space step.
   function toast.color(state)
     return {
       preferredSize = function()
@@ -441,7 +442,7 @@ function obj.toast(deps)
         local gap = tokens.space.l
         local els = {
           { type = "rectangle", action = "strokeAndFill", fillColor = state.color,
-            strokeColor = tokens.colors.outline, strokeWidth = 1,
+            strokeColor = tokens.colors.border, strokeWidth = 1,
             roundedRectRadii = { xRadius = r, yRadius = r },
             frame = { x = 0, y = (h - swatch) / 2, w = swatch, h = swatch } },
         }

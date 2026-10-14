@@ -55,14 +55,14 @@ end
 ---
 --- The baseline is always drawn, so a row with no history yet reads as waiting rather than as
 --- a gap in the pane. A range that has collapsed to nothing draws down the middle, which reads
---- as steady rather than as pinned at either edge. The baseline is the dim colour, subtext at
---- the kit's low alpha, so it is a shade of a colour the theme already carries.
+--- as steady rather than as pinned at either edge. The baseline is the border colour, the same
+--- rule colour a divider is drawn in.
 function M.spark(ui, values, lo, hi, color)
   return ui.raw(M.SPARK_GAP + M.SPARK_H, function(rect, tokens)
     local top = rect.y + M.SPARK_GAP
     local base = top + M.SPARK_H
     local els = { { type = "segments", action = "stroke", strokeWidth = 1,
-      strokeColor = tokens.colors.dim,
+      strokeColor = tokens.colors.border,
       coordinates = { { x = rect.x, y = base }, { x = rect.x + rect.w, y = base } } } }
     if #values < 2 then return els end
 
@@ -85,7 +85,8 @@ end
 --- M.live(ui, row, spec) -> node or nil, the live half. Nil for a row with no pid, which is
 --- not sampled and reserves nothing. spec is { cpu = strip, mem = strip }, each strip being
 --- { facts, values, lo, hi }, the text flush right of its heading, the trail and its range.
---- The CPU line is the note colour and the memory line subtext, as they always were.
+--- The CPU line is the primary accent and the memory line the secondary, the first and second
+--- series in the order the accents are taken.
 ---
 --- Its height is M.liveSpan less the closing gap, and it is the same whatever the spec holds.
 function M.live(ui, row, spec)
@@ -97,8 +98,8 @@ function M.live(ui, row, spec)
     }, { gap = M.HEADING_GAP })
   end
   return ui.stack({
-    block("CPU", spec.cpu, "note"),
-    block("MEMORY", spec.mem, "subtext"),
+    block("CPU", spec.cpu, "primary"),
+    block("MEMORY", spec.mem, "secondary"),
   }, { gap = M.GAP })
 end
 
@@ -117,7 +118,7 @@ end
 
 -- What a section's tone is drawn in, a colour name of the kit. The tones are this file's own
 -- words for three emphases, so a section says how loud it is and not which colour.
-local TONES = { fg = "foreground", path = "path", meta = "subtext" }
+local TONES = { fg = "foreground", path = "subtext", meta = "subtext" }
 
 -- The sections, in reading order. Each one names its heading, the tone its value is drawn
 -- in, and a builder that returns the text or nothing at all. Returning nothing drops the

@@ -6,25 +6,21 @@
 # OLM settings page lists it by its file name.
 
 [dark]
-accent     = "#edecee"
 background = "#15141b"
 border     = "#2d2c32"
+foreground = "#edecee"
 highlight  = "#3a2e56"
-meta       = "#adadae"
-note       = "#ffca85"
-path       = "#6d6d6d"
-selection  = "#29223b"
+primary    = "#a277ff"
+secondary  = "#61ffca"
 subtext    = "#cdccce"
-text       = "#edecee"
+tertiary   = "#ffca85"
 
 [light]
-accent     = "#474556"
 background = "#f8f7fb"
 border     = "#c6c5cd"
+foreground = "#474556"
 highlight  = "#dcdbe1"
-meta       = "#72717c"
-note       = "#6b4400"
-path       = "#7c7b85"
-selection  = "#e0d6f3"
+primary    = "#7e54d1"
+secondary  = "#00805f"
 subtext    = "#5c5a6a"
-text       = "#474556"
+tertiary   = "#6b4400"
