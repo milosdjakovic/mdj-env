@@ -15,10 +15,10 @@
 --- from the UI kit's tokens, and elements raises an error naming the first one missing. The
 --- type is three roles. font, textSize and textLine are the body role, the row title. subFont,
 --- subSize and subLine are the caption role, the row subtitle. numFont and numSize are the
---- section role, the row number. A line is the role's line height. Stage two of docs/DESIGN-UI-KIT.md made that table the one canvas layout
+--- body role, the row's shortcut. A line is the role's line height. Stage two of docs/DESIGN-UI-KIT.md made that table the one canvas layout
 --- source. textSize is named for what it is, the whole surface's own text size, shared with
 --- the field text sitting above this list, round four's own choice over native's titleSize.
---- padX, iconSize, iconGap and rowPad name what a row needs that the native layout has
+--- padX, iconSize and iconGap name what a row needs that the native layout has
 --- no word for at all, since a real hs.chooser row is drawn by the operating system's own
 --- nib. showRowNumbers is round four's own flag, described in full below where the numbers
 --- themselves are drawn. Any other geometry field a caller omits falls back to geometry's own value.
@@ -37,11 +37,11 @@
 --- decision seven of the original brief only asks that it cannot be chosen, a question
 --- for whatever reads model.highlightedRow rather than for this file.
 ---
---- Round four's own vertical rule. A row carrying a subTitle keeps the pair stacked
---- with the title's line band starting rowPad below the row's own top and the subtitle's
---- band directly beneath it, each line centred in its own band, so the pair sits with equal
---- padding above and below because geometry.lua grows rowH to the two line heights plus
---- twice rowPad. A row with no subTitle, or an empty one, centres its
+--- The vertical rule. A row carrying a subTitle centres the pair's letters in the row, from
+--- the top of the title's capitals to the subtitle's baseline, the two baselines one caption
+--- line apart, so the space above the title and below the subtitle is equal and is the kit's
+--- inset, since lib/chooser/rowheight.lua sizes rowH to exactly that span plus the inset
+--- twice. The field centres its one line the same way, so the two read alike. A row with no subTitle, or an empty one, centres its
 --- title in the row instead, using the row's own real font metrics rather than a guessed
 --- fraction of rowH, the same reasoning field render.lua's own header already lays out
 --- for why a canvas text element has to be placed from a measured baseline rather than
@@ -167,7 +167,7 @@ local function resolveLayout(layout)
     padX = layout.padX or DEFAULT_LAYOUT.padX,
     iconSize = layout.iconSize or DEFAULT_LAYOUT.iconSize,
     iconGap = layout.iconGap or DEFAULT_LAYOUT.iconGap,
-    rowPad = layout.rowPad or DEFAULT_LAYOUT.rowPad,
+    iconFrame = layout.iconFrame,
     showRowNumbers = (layout.showRowNumbers == nil) and DEFAULT_LAYOUT.showRowNumbers or layout.showRowNumbers,
   }
 end
@@ -176,7 +176,14 @@ end
 -- string both answered as no, matching how row render already treats subTitle
 -- everywhere else it is read in this file.
 local function hasSubTitle(row)
-  return row.subTitle ~= nil and row.subTitle ~= ""
+  local sub = row.subTitle
+  if sub == nil then return false end
+  -- A styled subtitle is asked for its plain string, and one holding only spaces counts as
+  -- none, so such a row centres its title rather than leaving an empty line under it.
+  if type(sub) ~= "string" then
+    sub = (type(sub) == "userdata" and sub.getString) and sub:getString() or tostring(sub)
+  end
+  return sub:match("%S") ~= nil
 end
 
 -- One font metrics lookup, shared by every caller that needs a line centred at the
@@ -292,23 +299,33 @@ function M.elements(state, rect, layout, style)
     end
 
     if row.image then
+      -- iconSize is the artwork's side and iconFrame the image's, larger by the transparent
+      -- margin an icon carries, so the image is centred on the artwork's box and the margin
+      -- falls into the padding around it.
+      local art = layout.iconSize
+      local side = layout.iconFrame or art
+      local artX, artY = rect.x + layout.padX, rowY + (layout.rowH - art) / 2
       els[#els + 1] = {
-        type = "image", image = row.image,
+        type = "image", image = row.image, imageScaling = "scaleProportionally",
         frame = {
-          x = px(rect.x + layout.padX), y = px(rowY + (layout.rowH - layout.iconSize) / 2),
-          w = px(layout.iconSize), h = px(layout.iconSize),
+          x = px(artX - (side - art) / 2), y = px(artY - (side - art) / 2),
+          w = px(side), h = px(side),
         },
       }
     end
 
     if hasSubTitle(row) then
-      -- Two line bands stacked from rowPad below the row's top, the title's as tall as the
-      -- body line height and the subtitle's as tall as the caption line height, each line
-      -- centred in its own band from its real font metrics.
-      local titleBandY = rowY + layout.rowPad
-      local subBandY = titleBandY + layout.textLine
-      local titleTop, titleH = centredLine(titleBandY, layout.textLine, titleMetrics)
-      local subTop, subH = centredLine(subBandY, layout.subLine, subMetrics)
+      -- The letters of the pair, the title's capital height and one caption line down to
+      -- the subtitle's baseline, centred in the row, each text frame placed from its own
+      -- baseline and real font metrics.
+      local inkH = titleMetrics.capHeight + layout.subLine
+      local titleBase = rowY + (layout.rowH - inkH) / 2 + titleMetrics.capHeight
+      local subBase = titleBase + layout.subLine
+      -- Each frame is twice the ascender to descender span tall. The text is anchored at the
+      -- frame's top, so the extra height moves nothing, it only keeps a descender such as g
+      -- from being cut where the canvas lays the line out a little lower than the metrics say.
+      local titleTop, titleH = titleBase - titleMetrics.ascender, 2 * (titleMetrics.ascender - titleMetrics.descender)
+      local subTop, subH = subBase - subMetrics.ascender, 2 * (subMetrics.ascender - subMetrics.descender)
       els[#els + 1] = {
         type = "text", text = row.title or "",
         textFont = layout.font, textSize = layout.textSize,
@@ -333,27 +350,28 @@ function M.elements(state, rect, layout, style)
         textFont = layout.font, textSize = layout.textSize,
         textColor = enabled and titleColor or dim(titleColor, dimAlpha),
         textAlignment = "left",
-        frame = { x = px(textX), y = px(lineTop), w = px(reservedW), h = px(lineH) },
+        frame = { x = px(textX), y = px(lineTop), w = px(reservedW), h = px(2 * lineH) },
       }
     end
 
     if numberMetrics and slot <= 9 then
       -- Decision four of round four's own consequence, a shortcut nobody can see is a
       -- shortcut nobody presses, so the first nine visible rows quietly name the digit
-      -- cmd would choose them with. Small, dim, and on the trailing edge rather than
+      -- cmd would choose them with, written as the shortcut itself, the command sign and the
+      -- digit, in the row title's size and the dim colour, on the trailing edge rather than
       -- beside the title, the column the native chooser reserves for exactly this,
       -- centred against the same row band the title and the icon both already centre or
       -- align against rather than a fraction of rowH guessed fresh for one more element.
       local numTop, numH = centredLine(rowY, layout.rowH, numberMetrics)
-      local numW = layout.iconSize
+      local numW = layout.numW or layout.iconSize
       els[#els + 1] = {
-        type = "text", text = tostring(slot),
+        type = "text", text = "\u{2318}" .. tostring(slot),
         textFont = layout.numFont, textSize = layout.numSize,
         textColor = numberColor,
         textAlignment = "right",
         frame = {
           x = px(rect.x + rect.w - layout.padX - numW), y = px(numTop),
-          w = px(numW), h = px(numH),
+          w = px(numW), h = px(2 * numH),
         },
       }
     end

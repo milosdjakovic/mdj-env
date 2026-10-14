@@ -124,6 +124,14 @@ local SHIPPED = {
 -- the chip radius. minWidth is the narrowest the chip may be, the height when absent, so a
 -- lone glyph stays square. radius names the radius token the chip is rounded with, badge
 -- when absent.
+-- The one inset every surface pads its content by, the chooser's list margin, a row, the field
+-- and every pane, asked for on 2026 10 14 so the space around content is the same everywhere.
+-- x and y are names of the space scale, y the smaller of the two. y is measured to the letters,
+-- from a capital's top and from the last baseline, rather than to a line box, since a line box
+-- carries leading that grows with the size and would make the same inset look different around
+-- a field and a row.
+local INSET_RULE = { x = "l", y = "m" }
+
 local BADGE_RULES = {
   cheat = { role = "body", padY = "s", padX = "m" },
   hint = { role = "section", padY = "xs", padX = "s", minWidth = 0 },
@@ -382,6 +390,7 @@ function M.new(opts)
       alpha = alpha,
       icon = mergeGroup(SHIPPED.icon, spec.icon),
       badge = mergeGroup(badges, spec.badge),
+      inset = { x = space[INSET_RULE.x], y = space[INSET_RULE.y] },
     }
   end
 

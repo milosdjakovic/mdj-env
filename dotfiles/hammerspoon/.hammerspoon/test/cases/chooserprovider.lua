@@ -86,8 +86,10 @@ check("with a kit native takes the body font and size for titles and caption for
   okKit and withKit.layout.font == "BodyFont" and withKit.layout.titleSize == 18
     and withKit.layout.subFont == "CaptionFont" and withKit.layout.subSize == 15,
   okKit and nil or tostring(withKit))
-check("with a kit native grows its row to body 25 plus caption 21 plus twice a padding of 8, which is 62",
-  okKit and withKit.layout.rowH == 62, okKit and tostring(withKit.layout.rowH) or tostring(withKit))
+-- This stub kit has no measurer and no inset, so the rule falls back to a capital of seven
+-- tenths of the body size, 12.6, and the inset of 10, giving 10 plus 12.6 plus 21 plus 10.
+check("with a kit native grows its row to the inset, the body capital, one caption line and the inset, 54",
+  okKit and withKit.layout.rowH == 54, okKit and tostring(withKit.layout.rowH) or tostring(withKit))
 local okOwn, own = pcall(Chooser.new, { layout = { rowH = 70 } })
 check("a consumer's own rowH still wins over the derived one",
   okOwn and own.layout.rowH == 70, okOwn and tostring(own.layout.rowH) or tostring(own))

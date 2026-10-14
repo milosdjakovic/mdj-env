@@ -353,7 +353,6 @@ function obj.shortcutPanelFor(contextName, plan, deps)
   local panel = deps.canvasPanel.new({
     placement = deps.canvasPanel.placements.below,
     gap = 8,
-    padX = 14, padY = 10,
     delay = shortcutsPanel and shortcutsPanel.delayMs,
     -- Handed as a question rather than as an answer, so a binding whose predicate turns
     -- while the list is open is listed only while it means something, and so a caller naming

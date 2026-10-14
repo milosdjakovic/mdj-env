@@ -62,7 +62,7 @@
 --- tokens, both foreground at a fixed alpha, a disabled row and the placeholder are
 --- dimmed by the dim alpha, and the row numbers are the dim colour. The caret is left to
 --- field render's own fallback, the text colour standing in for it. The font and the two
---- text sizes are the body, caption and section roles, handed to both renderers through the draw
+--- text sizes are the body and caption roles, handed to both renderers through the draw
 --- layout, and the rest of the layout is geometry.lua's.
 ---
 --- M.configure(opts) takes opts.panel, the CanvasPanel module, and opts.ui, the UI kit,
@@ -227,7 +227,7 @@ Provider.__index = Provider
 --------------------------------------------------------------------------------
 
 -- The four roles the field and every row are drawn in, read only from the kit's tokens. The
--- field takes title, row titles body, row subtitles caption and row numbers section. A line
+-- field takes title, row titles body, row subtitles caption and the row shortcut body, the size of the title beside it. A line
 -- is the role's own line height, which the row and field geometry are derived from too.
 local function typeOf(tokens)
   local text = tokens.text
@@ -238,8 +238,8 @@ local function typeOf(tokens)
     subFont = text.caption.font,
     subSize = text.caption.size,
     subLine = text.caption.lineHeight,
-    numFont = text.section.font,
-    numSize = text.section.size,
+    numFont = text.body.font,
+    numSize = text.body.size,
     fieldFont = text.title.font,
     fieldSize = text.title.size,
   }
@@ -308,7 +308,9 @@ end
 function Provider:_updateDrawLayout()
   local L = {}
   for k, v in pairs(self.layout) do L[k] = v end
-  L.rowCount = self._rects.rowCount
+  -- The viewport holds the whole rows and the peek of one more, so the model scrolls and the
+  -- renderer clips to that height. A fractional count is fine for both, they work in points.
+  L.rowCount = self._rects.viewRows or self._rects.rowCount
   for k, v in pairs(self._type) do L[k] = v end
   self._drawLayout = L
 end
@@ -1176,10 +1178,25 @@ function M.new(config)
 
   local layout = {}
   for k, v in pairs(geometry.DEFAULT_LAYOUT) do layout[k] = v end
-  -- The row and field heights follow the kit's body and caption line heights and the one
-  -- padding value, so a size change in config/typography.toml reflows them. A consumer's own
-  -- layout still wins over what is derived.
-  local derived = geometry.derivedRows(UI.tokens().text, layout.rowPad)
+  -- Every inset is the kit's one inset and the row and field heights follow it and the type
+  -- roles' real capital heights, so a size change in config/typography.toml or the inset
+  -- reflows them. A consumer's own layout still wins over what is derived.
+  local tokens = UI.tokens()
+  local inset = tokens.inset or { x = layout.padX, y = layout.marginY }
+  layout.padX, layout.iconGap = inset.x, inset.x
+  layout.marginX, layout.marginY = inset.x, inset.y
+  local cap = UI.measure and function(role)
+    local v = tokens.text[role]
+    return UI.measure:metrics(v.font, v.size).capHeight
+  end
+  local derived = geometry.derivedRows(tokens.text, cap, inset)
+  layout.iconSize = derived.iconSize
+  layout.iconFrame = derived.iconFrame
+  -- The shortcut column is as wide as the widest shortcut drawn in it, measured in the body
+  -- role, so the title's budget is exactly what is left.
+  if UI.measure then
+    layout.numW = math.ceil(UI.measure:width("\u{2318}9", tokens.text.body.font, tokens.text.body.size))
+  end
   layout.rowH = derived.rowH
   layout.baseH = derived.baseH
   for k, v in pairs(config.layout or {}) do layout[k] = v end

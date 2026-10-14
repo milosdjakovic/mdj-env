@@ -77,7 +77,7 @@
 ---              height for left/right. nil = match the anchor's size on that axis.
 ---   align      "start" (default) | "center" | "end", along the shared axis when
 ---              breadth is smaller than the anchor.
----   padX, padY inner padding around the content (default 14, 10).
+---   padX, padY inner padding around the content (default the kit's inset).
 ---   style      per-instance surface override; nil inherits the configured default.
 ---   level      canvas window level (default hs.canvas.windowLevels.popUpMenu).
 ---   content    REQUIRED renderer:
@@ -277,7 +277,9 @@ end
 -- Compute the panel frame and the content box from the anchor, placement, and sizes.
 function Panel:_layout(anchor)
   local c = self.config
-  local padX, padY = c.padX or 14, c.padY or 10
+  -- The kit's one inset unless the caller names its own, so every panel pads like the chooser.
+  local inset = UI and UI.tokens().inset or { x = 14, y = 10 }
+  local padX, padY = c.padX or inset.x, c.padY or inset.y
   local gap = c.gap or 8
   local centered = (c.placement == obj.placements.center)
   local horizontal = (c.placement == obj.placements.left

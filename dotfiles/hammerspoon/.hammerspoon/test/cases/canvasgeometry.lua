@@ -50,16 +50,17 @@ do
 end
 
 do
-  -- Short enough that the nine requested rows do not survive. avail works out to three
-  -- hundred thirteen points, 500 less 120 of padding, 43 of field and 24 of margin, which fits
-  -- five rows of fifty seven, 22 body line plus 19 caption line plus 2 times 8 of padding, and
-  -- no more, since six would need 342.
+  -- Short enough that the nine requested rows do not survive. avail is 500 less 120 of
+  -- padding, 61 of field, 10 of margin below the list and the peek of a row, which fits five
+  -- rows of fifty one and no more.
   local shortScreen = { x = 0, y = 0, w = 1440, h = 500 }
   local rects = geometry.resolve(shortScreen, geometry.DEFAULT_LAYOUT, nil)
   check("a short screen trims the row count below what the layout asked for",
     rects.rowCount == 5, "got " .. tostring(rects.rowCount))
-  check("the row band's own height is exactly the trimmed row count times the row height",
-    rects.list.h == rects.rowCount * geometry.DEFAULT_LAYOUT.rowH,
+  local peek = geometry.DEFAULT_LAYOUT.peek
+  check("the row band's own height is the trimmed row count and the peek times the row height",
+    rects.list.h == (rects.rowCount + peek) * geometry.DEFAULT_LAYOUT.rowH
+      and rects.viewRows == rects.rowCount + peek,
     "got " .. tostring(rects.list.h))
 end
 
@@ -136,22 +137,27 @@ do
 end
 
 --------------------------------------------------------------------------------
--- The field rect and the list rect sit inside the canvas at the edge margin, the field
--- on top, the list directly beneath it, nothing between them.
+-- The canvas has no padding of its own. The field spans the top, its text inset by the margin
+-- so it starts on the highlighted row's left edge, and the list starts right under it with no
+-- gap, padded by the margin on its sides and below.
 --------------------------------------------------------------------------------
 
 do
   local rects = geometry.resolve(ROOMY_SCREEN, geometry.DEFAULT_LAYOUT, nil)
   local L = geometry.DEFAULT_LAYOUT
-  check("the field sits inset from the canvas by the edge margin on the leading edges",
-    rects.field.x == rects.canvas.x + L.edgeMargin and rects.field.y == rects.canvas.y + L.edgeMargin,
+  check("the field sits at the canvas top, its text inset by the margin so it lines up with the highlighted row's edge",
+    rects.field.x == rects.list.x and rects.field.x == rects.canvas.x + L.marginX and rects.field.y == rects.canvas.y,
     "x " .. tostring(rects.field.x) .. " y " .. tostring(rects.field.y))
   check("the field stands exactly the field height tall",
     rects.field.h == L.baseH, "got " .. tostring(rects.field.h))
-  check("the list sits directly beneath the field with nothing between them",
+  check("the list starts right under the field with no gap",
     rects.list.y == rects.field.y + rects.field.h, "got " .. tostring(rects.list.y))
-  check("the field and the list share the same width, the canvas less the edge margin twice",
-    rects.field.w == rects.list.w and rects.list.w == rects.canvas.w - 2 * L.edgeMargin)
+  check("the list and the field are both the canvas less the margin twice",
+    rects.list.w == rects.canvas.w - 2 * L.marginX and rects.field.w == rects.list.w)
+  check("the canvas is the field, the rows with the half row peek and one margin below them",
+    rects.canvas.h == L.baseH + (rects.rowCount + L.peek) * L.rowH + L.marginY)
+  check("every x inset is the one inset x, the kit's 14, and the margin below is its y, 10",
+    L.padX == 14 and L.iconGap == 14 and L.marginX == 14 and L.marginY == 10)
 end
 
 --------------------------------------------------------------------------------
@@ -217,11 +223,11 @@ do
     .. "gap, the trailing pad, and the numeral column",
     geometry.textBudget(rects, L) == expected,
     "got " .. tostring(geometry.textBudget(rects, L)) .. " expected " .. tostring(expected))
-  -- The concrete number too, five hundred ninety six less sixteen, twenty eight, ten,
-  -- sixteen and twenty eight again, so a change to the formula above and a change to
+  -- The concrete number too, four hundred fifty two less fourteen, twenty eight, fourteen,
+  -- fourteen and twenty eight again, so a change to the formula above and a change to
   -- DEFAULT_LAYOUT's own numbers cannot both drift and still pass unnoticed.
-  check("the width budget for this layout on a roomy screen comes out to three hundred fifty eight points",
-    geometry.textBudget(rects, L) == 358, "got " .. tostring(geometry.textBudget(rects, L)))
+  check("the width budget for this layout on a roomy screen comes out to three hundred fifty four points",
+    geometry.textBudget(rects, L) == 354, "got " .. tostring(geometry.textBudget(rects, L)))
 end
 
 do
@@ -254,7 +260,7 @@ end
 
 do
   -- A fractional scrollTop, the sub row remainder rather than the whole of it. Forty
-  -- three and a half is exactly what one hundred point five leaves over a fifty seven
+  -- nine and a half is exactly what one hundred point five leaves over a fifty one
   -- point row, and a point at the very top of the list rect still answers slot one
   -- with that same remainder as its own offset, matching the row still partly visible
   -- above the viewport's own top.
@@ -264,7 +270,7 @@ do
   check("a fractional scrollTop is reduced to its own sub row remainder rather than used whole",
     slot == 1, "got " .. tostring(slot))
   check("the offset within that first visible row is exactly that remainder",
-    math.abs(offset - 43.5) < 1e-9, "got " .. tostring(offset))
+    math.abs(offset - 49.5) < 1e-9, "got " .. tostring(offset))
 end
 
 do
@@ -289,18 +295,26 @@ end
 --------------------------------------------------------------------------------
 
 do
+  -- The inset's y is measured to the letters, so the field is the title's capital plus the
+  -- inset twice and a row is the inset, the body's capital, one caption line and the inset.
   local text = { title = { lineHeight = 27 }, body = { lineHeight = 22 }, caption = { lineHeight = 19 } }
-  local d = geometry.derivedRows(text)
-  check("a row is the body line 22 plus the caption line 19 plus twice the padding 8, which is 57",
-    d.rowH == 57, "got " .. tostring(d.rowH))
-  check("the field is the title line 27 plus twice the padding 8, which is 43",
-    d.baseH == 43, "got " .. tostring(d.baseH))
-  check("DEFAULT_LAYOUT states the same 57 and 43 for the shipped sizes",
-    geometry.DEFAULT_LAYOUT.rowH == 57 and geometry.DEFAULT_LAYOUT.baseH == 43)
-  local bigger = geometry.derivedRows({ title = { lineHeight = 34 }, body = { lineHeight = 26 }, caption = { lineHeight = 22 } })
-  check("a larger body 26 and caption 22 reflow the row to 26 plus 22 plus 16, which is 64, and a title 34 the field to 50",
-    bigger.rowH == 64 and bigger.baseH == 50, "got " .. tostring(bigger.rowH) .. " " .. tostring(bigger.baseH))
-  local padded = geometry.derivedRows(text, 10)
-  check("a padding of 10 gives 22 plus 19 plus 20, which is 61, and the field 27 plus 20, which is 47",
-    padded.rowH == 61 and padded.baseH == 47, "got " .. tostring(padded.rowH) .. " " .. tostring(padded.baseH))
+  local cap = { title = 14.1, body = 11.3 }
+  local inset = { x = 14, y = 10 }
+  local d = geometry.derivedRows(text, cap, inset)
+  check("a row is 10 plus the body capital 11.3 plus the caption line 19 plus 10, rounded up to 51",
+    d.rowH == 51, "got " .. tostring(d.rowH))
+  check("the field is a row's 51 plus half again its padding, 10 more, 61",
+    d.baseH == 61, "got " .. tostring(d.baseH))
+  check("DEFAULT_LAYOUT states the same 51 and 61 at the shipped sizes",
+    geometry.DEFAULT_LAYOUT.rowH == 51 and geometry.DEFAULT_LAYOUT.baseH == 61)
+  local huge = geometry.derivedRows(text, { title = 40, body = 11.3 }, inset)
+  check("a title capital of 40 no longer fits a row, so the field grows to 15 plus 40 plus 15",
+    huge.baseH == 70 and huge.rowH == 51, "got " .. tostring(huge.baseH))
+  local bigger = geometry.derivedRows({ title = { lineHeight = 34 }, body = { lineHeight = 26 }, caption = { lineHeight = 22 } },
+    { title = 18, body = 14 }, inset)
+  check("a larger body capital 14 and caption line 22 reflow the row to 56, and the field to 66",
+    bigger.rowH == 56 and bigger.baseH == 66, "got " .. tostring(bigger.rowH) .. " " .. tostring(bigger.baseH))
+  local roomier = geometry.derivedRows(text, cap, { x = 14, y = 12 })
+  check("an inset y of 12 grows the row to 55 and the field to 67",
+    roomier.rowH == 55 and roomier.baseH == 67, "got " .. tostring(roomier.rowH) .. " " .. tostring(roomier.baseH))
 end

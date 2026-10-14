@@ -509,7 +509,7 @@ end
 do
   local layout = {
     width = 480, rowH = DERIVED_ROW_H, rowCount = 10, baseH = 94,
-    font = TYPE.font, textSize = TYPE.textSize, textLine = TYPE.textLine, subFont = TYPE.subFont, subSize = TYPE.subSize, subLine = TYPE.subLine, numFont = TYPE.numFont, numSize = TYPE.numSize, rowPad = PAD,
+    font = TYPE.font, textSize = TYPE.textSize, textLine = TYPE.textLine, subFont = TYPE.subFont, subSize = TYPE.subSize, subLine = TYPE.subLine, numFont = TYPE.numFont, numSize = TYPE.numSize,
   }
   local rows = {
     row("Has a subtitle", "the second line", 1),
@@ -528,17 +528,17 @@ do
   end
   check("both titles were found among the drawn elements",
     titleY[1] ~= nil and titleY[2] ~= nil)
-  -- The title's line band is 22 tall and starts 8 below the row's top, so a centred title
-  -- frame lands inside 8 to 30, and the subtitle band 19 tall below it ends at 8 + 22 + 19,
-  -- which is 49, leaving the other 8 of the 57 row as padding underneath.
-  check("a row with a subtitle sits its title in the band starting one padding below the row's top",
-    titleY[1] >= layout.rowPad and titleY[1] < layout.rowPad + layout.textLine,
-    "got " .. tostring(titleY[1]))
-  check("the subtitle sits below the title, in the 19 tall band ending 8 above the row's bottom",
-    subY ~= nil and subY > titleY[1]
-      and subY >= layout.rowPad + layout.textLine
-      and subY < layout.rowPad + layout.textLine + layout.subLine,
-    "got " .. tostring(subY))
+  -- The space above the title's capitals and the space below the subtitle's baseline are the
+  -- same, read from the real metrics the renderer places the frames from, within the one
+  -- point two frames may differ by when each is rounded to a whole point.
+  local tm = hs.styledtext.fontInfo({ name = TYPE.font, size = TYPE.textSize })
+  local sm = hs.styledtext.fontInfo({ name = TYPE.subFont, size = TYPE.subSize })
+  local above = titleY[1] + tm.ascender - tm.capHeight
+  local below = layout.rowH - (subY + sm.ascender)
+  check("a row with a subtitle has the same space above the title's capitals as below the subtitle's baseline",
+    math.abs(above - below) <= 1, "above " .. tostring(above) .. " below " .. tostring(below))
+  check("the subtitle's baseline sits one caption line below the title's",
+    math.abs((subY + sm.ascender) - (titleY[1] + tm.ascender) - layout.subLine) <= 1)
   check("a row with no subtitle centres its title lower than the stacked row's own title sits",
     titleY[2] ~= nil and titleY[2] > titleY[1],
     "centred " .. tostring(titleY[2]) .. " stacked " .. tostring(titleY[1]))
@@ -584,10 +584,10 @@ do
       numbersSeen[el.text] = true
     end
   end
-  check("the first nine visible rows each draw their own number",
-    numbersSeen["1"] and numbersSeen["5"] and numbersSeen["9"])
-  check("no number is drawn past the ninth visible row",
-    numbersSeen["10"] == nil)
+  check("the first nine visible rows each draw their own shortcut, the command sign and the digit",
+    numbersSeen["\u{2318}1"] and numbersSeen["\u{2318}5"] and numbersSeen["\u{2318}9"])
+  check("no shortcut is drawn past the ninth visible row",
+    numbersSeen["\u{2318}10"] == nil)
 end
 
 do

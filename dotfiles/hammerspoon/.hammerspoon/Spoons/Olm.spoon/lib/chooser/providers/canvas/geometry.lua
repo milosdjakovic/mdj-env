@@ -110,15 +110,22 @@ M.DEFAULT_LAYOUT = {
   -- and the provider recomputes them from the kit's tokens so a size set in
   -- config/typography.toml reflows them. The two numbers here are that same rule applied to
   -- the shipped sizes, a title line of 27, a body line of 22 and a caption line of 19, for a caller that has no
-  -- kit, a unit case among them. rowPad is the one vertical padding value.
-  rowPad = rowHeight.PAD,
-  baseH = 27 + 2 * rowHeight.PAD,
-  rowH = 22 + 19 + 2 * rowHeight.PAD,
+  -- kit, a unit case among them.
+  -- Every inset is the kit's one inset, tokens.inset, so the chooser pads like every pane.
+  -- padX is the inset inside a row, marginX and marginY the margin wrapping the list, and the
+  -- provider overwrites all four from the kit. The heights are the row height rule over the
+  -- shipped sizes, a title capital of 14.1, a body capital of 11.3 and a caption line of 19.
+  baseH = 61,
+  rowH = 51,
   rowCount = 9,
-  padX = 16,
+  -- How much of one more row the list shows below its whole rows, asked for on 2026 10 14 so
+  -- a half visible row says the list goes on. The viewport is rowCount plus this many rows.
+  peek = 0.3,
+  padX = 14,
   iconSize = 28,
-  iconGap = 10,
-  edgeMargin = 12,
+  iconGap = 14,
+  marginX = 14,
+  marginY = 10,
   showRowNumbers = true,
   caretWidth = 2,
   -- Borrowed outright from native.lua's own DEFAULT_LAYOUT, a placement question the
@@ -131,10 +138,10 @@ M.DEFAULT_LAYOUT = {
 }
 M.DEFAULT_LAYOUT.paneMaxW = M.DEFAULT_LAYOUT.width
 
---- M.derivedRows(text, pad) -> { rowH, baseH, pad }, the row height rule over the kit's
+--- M.derivedRows(text, cap, inset) -> { rowH, baseH }, the row height rule over the kit's
 --- tokens.text, see lib/chooser/rowheight.lua.
-function M.derivedRows(text, pad)
-  return rowHeight.heights(text, pad)
+function M.derivedRows(text, cap, inset)
+  return rowHeight.heights(text, cap, inset or { x = M.DEFAULT_LAYOUT.padX, y = M.DEFAULT_LAYOUT.marginY })
 end
 
 --------------------------------------------------------------------------------
@@ -148,7 +155,8 @@ end
 -- hold even the field, the same answer something sane rather than raising posture every
 -- other file in this provider already keeps.
 local function trimmedRowCount(screenFrame, layout)
-  local avail = screenFrame.h - 2 * layout.minVPad - layout.baseH - 2 * layout.edgeMargin
+  local avail = screenFrame.h - 2 * layout.minVPad - layout.baseH - layout.marginY
+    - (layout.peek or 0) * layout.rowH
   local fit = math.floor(avail / layout.rowH)
   return math.max(0, math.min(layout.rowCount, fit))
 end
@@ -184,8 +192,9 @@ function M.resolve(screenFrame, layout, paneWidth)
   layout = layout or M.DEFAULT_LAYOUT
 
   local rowCount = trimmedRowCount(screenFrame, layout)
+  local viewRows = rowCount + ((rowCount > 0) and (layout.peek or 0) or 0)
   local canvasW = layout.width
-  local canvasH = 2 * layout.edgeMargin + layout.baseH + rowCount * layout.rowH
+  local canvasH = layout.marginY + layout.baseH + viewRows * layout.rowH
 
   local companionW = resolveCompanionWidth(paneWidth, canvasW, layout)
   local total = canvasW + (companionW > 0 and (layout.gap + companionW) or 0)
@@ -194,13 +203,17 @@ function M.resolve(screenFrame, layout, paneWidth)
 
   local canvasRect = { x = x, y = y, w = canvasW, h = canvasH }
 
+  -- The canvas has no padding of its own, asked for on 2026 10 14. The field spans its full
+  -- width at the top and the list fills the rest, padded by the margin on its sides and below,
+  -- with no gap between the two. The field's text is inset by that same margin, so the query
+  -- starts on the left edge of the highlighted row.
   local fieldRect = {
-    x = x + layout.edgeMargin, y = y + layout.edgeMargin,
-    w = canvasW - 2 * layout.edgeMargin, h = layout.baseH,
+    x = x + layout.marginX, y = y,
+    w = canvasW - 2 * layout.marginX, h = layout.baseH,
   }
   local listRect = {
-    x = x + layout.edgeMargin, y = y + layout.edgeMargin + layout.baseH,
-    w = canvasW - 2 * layout.edgeMargin, h = rowCount * layout.rowH,
+    x = x + layout.marginX, y = y + layout.baseH,
+    w = canvasW - 2 * layout.marginX, h = viewRows * layout.rowH,
   }
 
   local companionRect = nil
@@ -215,6 +228,7 @@ function M.resolve(screenFrame, layout, paneWidth)
     chooser = canvasRect,
     companion = companionRect,
     rowCount = rowCount,
+    viewRows = viewRows,
   }
 end
 
@@ -224,13 +238,13 @@ end
 
 --- M.textBudget(rects, layout) answers the pixel room a row's title has, the list
 --- rect's own width less the leading pad, the icon and its gap, less the trailing pad
---- and a numeral column exactly layout.iconSize wide, matching list/render.lua's own
---- numeral column width. Computed from the layout, never from a measurement.
+--- and the shortcut column, layout.numW wide, iconSize when no width was measured, matching
+--- list/render.lua's own column. Computed from the layout, never from a measurement.
 function M.textBudget(rects, layout)
   layout = layout or M.DEFAULT_LAYOUT
   local listRect = rects and rects.list
   if not listRect then return 0 end
-  local numeralColumnWidth = layout.iconSize
+  local numeralColumnWidth = layout.numW or layout.iconSize
   local budget = listRect.w - layout.padX - layout.iconSize - layout.iconGap
     - layout.padX - numeralColumnWidth
   return math.max(0, budget)

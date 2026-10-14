@@ -176,7 +176,9 @@ local function kitLayout()
     titleSize = text.body.size,
     subFont = text.caption.font,
     subSize = text.caption.size,
-    rowH = rowHeight.rowH(text),
+    rowH = rowHeight.rowH(text, UI.measure and function(role)
+      return UI.measure:metrics(text[role].font, text[role].size).capHeight
+    end, UI.tokens().inset or { x = 14, y = 10 }),
   }
 end
 
