@@ -181,7 +181,7 @@ end
 -- The same answer the appearance check here used to give, with the light side falling back
 -- to the dark one and the dark side to the light one before that.
 local function styleSide(style)
-  local dark = UI == nil or UI.tokens().half == "dark"
+  local dark = UI == nil or UI.half() == "dark"
   return (dark and style.dark) or style.light or style.dark or {}
 end
 
@@ -242,8 +242,19 @@ function obj.emptyStateElements(w, h, opts)
   if not UI then return {} end
   local text = opts.text or "Nothing to preview"
   local tokens = UI.tokens()
-  local variant = tokens.text.empty
-  if opts.color ~= nil then tokens.colors.quiet = opts.color end
+  -- The groups are shared with the cache, so the two this changes are copied first.
+  local variant = {}
+  for k, v in pairs(tokens.text.empty) do variant[k] = v end
+  local text_ = {}
+  for k, v in pairs(tokens.text) do text_[k] = v end
+  text_.empty = variant
+  tokens.text = text_
+  if opts.color ~= nil then
+    local colors = {}
+    for k, v in pairs(tokens.colors) do colors[k] = v end
+    colors.quiet = opts.color
+    tokens.colors = colors
+  end
   if opts.size ~= nil then
     -- The line box keeps its proportion to the size, one point six of it.
     variant.lineHeight = variant.lineHeight / variant.size * opts.size

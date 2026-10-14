@@ -178,11 +178,25 @@ local dark = hs.host.interfaceStyle() == "Dark"
 -- the production theme correctly, which is a wiring question for a later phase once
 -- something depends on this field at all. fontSize reads GEOMETRY.textSize rather than a
 -- field only number of its own, round four's own point stated in full above.
+local geometryLib = loadFrom(here .. "../lib/chooser/providers/canvas/", "geometry.lua")
+local kitTokens = spoon.Olm and spoon.Olm.lib and spoon.Olm.lib.ui and spoon.Olm.lib.ui.tokens()
+local function faded(color, factor)
+  local c = {}
+  for k, v in pairs(color) do c[k] = v end
+  c.alpha = (c.alpha or 1) * factor
+  return c
+end
+local textColor = kitTokens and kitTokens.colors.foreground
+  or (dark and { white = 0.92 } or { white = 0.15 })
 local style = {
+  font = kitTokens and kitTokens.text.title.font or GEOMETRY.font,
   fontSize = GEOMETRY.textSize,
-  textColor = dark and { white = 0.92 } or { white = 0.15 },
-  selectionColor = dark and { white = 1, alpha = 0.20 } or { white = 0, alpha = 0.14 },
-  caretColor = dark and { white = 0.92 } or { white = 0.15 },
+  textColor = textColor,
+  selectionColor = kitTokens and kitTokens.colors.selection
+    or (dark and { white = 1, alpha = 0.20 } or { white = 0, alpha = 0.14 }),
+  caretColor = textColor,
+  placeholderColor = faded(textColor, kitTokens and kitTokens.alpha.dim or 0.4),
+  caretWidth = geometryLib.DEFAULT_LAYOUT.caretWidth,
 }
 
 -- The list's own colours, hand set here for the same reason style above is, chooserTheme

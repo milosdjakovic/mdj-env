@@ -57,6 +57,8 @@ function M.spec(policy)
     text = cheatText(cheatSheet),
     radius = {
       surface = (policy.surface or {}).cornerRadius,
+      -- One radius shared on purpose by the cheat sheet badges and the hint bar badges,
+      -- matching the settings comment.
       badge = cheatSheet.badgeRadius,
     },
   }

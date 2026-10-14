@@ -339,6 +339,8 @@ font or a size, and hand it to `ui.layout` with the rect you want it in. What co
 canvas elements and the height the tree wants, and your pane still owns its window and draws
 the elements itself.
 
+The layout engine closes its clip with resetClip, which clears every clip on the canvas, so never lay out a clipped subtree inside a clip of your own.
+
 ```lua
 local ui
 

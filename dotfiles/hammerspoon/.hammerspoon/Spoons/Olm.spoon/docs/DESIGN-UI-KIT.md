@@ -26,8 +26,8 @@ which a stack and a single text answer the same layout call.
 tree, measures through `measure.lua`, resolves every variant through the tokens, and returns
 canvas elements plus the content height, so a scrolling pane can compute its own limit.
 `opts.scrollY` offsets the result and the engine wraps it in a clip for the rect, closing
-every clip it opens. Nodes with an `id` come back with `trackMouseUp` set, so a click
-reaches the owner's existing handler.
+every clip it opens. Only a `group` takes an `id`, and a group with an `id` comes back with
+`trackMouseUp` set, so a click reaches the owner's existing handler.
 
 Nothing in the kit owns a window. The canvas provider's surface, CanvasPanel and the plugin
 panes keep their own windows and draw what the engine answers, which is the same division

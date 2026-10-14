@@ -43,9 +43,15 @@ function ui.configure(opts)
   return ui
 end
 
---- ui.tokens() -> the resolved token table for the half the system is on now.
+--- ui.tokens() -> the resolved token table for the half the system is on now. A shallow
+--- copy of a cached table, so a caller copies any nested group before changing it.
 function ui.tokens()
   return style.tokens()
+end
+
+--- ui.half() -> "dark" | "light", which half the system is on now, without building tokens.
+function ui.half()
+  return style.half()
 end
 
 --- ui.layout(node, rect, opts) -> elements, contentHeight.

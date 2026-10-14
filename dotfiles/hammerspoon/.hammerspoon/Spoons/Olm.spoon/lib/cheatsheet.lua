@@ -201,9 +201,19 @@ function obj:_rowsElements(els, rows, contentY, L, alpha, T)
 
   -- The model owns the badge height and the icon size, so the tokens this section draws
   -- with carry the model's numbers in the two slots its badges and icons are sized from.
-  -- T is this draw's own fresh copy, so nothing outside it sees the change.
-  T.badge.cheat.height = L.badgeHeight
-  T.icon.sheet = L.iconSize
+  -- The groups in T are shared with the style cache, so the three this changes are copied
+  -- first and nothing outside this draw sees the change.
+  local cheat = {}
+  for k, v in pairs(T.badge.cheat) do cheat[k] = v end
+  cheat.height = L.badgeHeight
+  local badge = {}
+  for k, v in pairs(T.badge) do badge[k] = v end
+  badge.cheat = cheat
+  T.badge = badge
+  local icon = {}
+  for k, v in pairs(T.icon) do icon[k] = v end
+  icon.sheet = L.iconSize
+  T.icon = icon
 
   -- For content-sized `badges` rows, align every label past the widest badge
   -- block in this section, so a short row and a two-box row still line up.

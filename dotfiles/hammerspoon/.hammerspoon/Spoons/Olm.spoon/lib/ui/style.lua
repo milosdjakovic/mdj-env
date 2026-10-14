@@ -220,6 +220,8 @@ function M.new(opts)
   end
   local spec = {}
   local instance = {}
+  -- The resolved table per half, built once per configure. Cleared by configure.
+  local cache = {}
 
   --- instance.configure(newSpec)
   --- Takes the whole spec, replacing any earlier one, since the composition root builds it
@@ -229,6 +231,7 @@ function M.new(opts)
   ---            shipped values one level down
   function instance.configure(newSpec)
     spec = newSpec or {}
+    cache = {}
     return instance
   end
 
@@ -238,10 +241,22 @@ function M.new(opts)
   end
 
   --- instance.tokens() -> the resolved token table for the current half.
-  --- Built fresh on every call, so a caller may keep or mutate what it receives. The light
+  --- Built once per half after each configure and handed out as a shallow copy, so a caller
+  --- may replace a top level field of what it receives. The groups inside are shared, so a
+  --- caller that changes one, a colour or a text variant, copies that group first. The light
   --- half falls back to the dark half role by role when the spec gives no light colours.
   function instance.tokens()
     local half = instance.half()
+    local built = cache[half]
+    if not built then
+      built = instance._build(half)
+      cache[half] = built
+    end
+    return copy(built)
+  end
+
+  -- Resolves the table for one half from the spec and the shipped values.
+  function instance._build(half)
     local colors = spec.colors or {}
     local given = colors[half] or colors.dark or {}
 

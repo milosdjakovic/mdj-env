@@ -11,14 +11,15 @@
 ---
 --- layout and style are the two things a caller passes and this file never invents its
 --- own version of either. layout carries the geometry and the row typography, geometry.lua's
---- DEFAULT_LAYOUT plus the font, textSize and subSize the provider reads from the UI kit's
---- tokens, since stage two of docs/DESIGN-UI-KIT.md made that table the one canvas layout
+--- DEFAULT_LAYOUT, which carries no font, textSize or subSize, plus those three, which the
+--- caller must pass from the UI kit's tokens, and elements raises an error naming the first
+--- one missing. Stage two of docs/DESIGN-UI-KIT.md made that table the one canvas layout
 --- source. textSize is named for what it is, the whole surface's own text size, shared with
 --- the field text sitting above this list, round four's own choice over native's titleSize.
 --- padX, iconSize, iconGap and textTopPad name what a row needs that the native layout has
 --- no word for at all, since a real hs.chooser row is drawn by the operating system's own
 --- nib. showRowNumbers is round four's own flag, described in full below where the numbers
---- themselves are drawn. A geometry field a caller omits falls back to geometry's own value.
+--- themselves are drawn. Any other geometry field a caller omits falls back to geometry's own value.
 --- style carries the colours and the dim alpha, titleColor, subColor, highlightColor,
 --- numberColor and dimAlpha, every one resolved by the provider from the kit's tokens, and
 --- this file reads none of settings.chooserTheme, decision six of the original brief
@@ -151,9 +152,9 @@ local function resolveLayout(layout)
     rowH = layout.rowH or DEFAULT_LAYOUT.rowH,
     rowCount = layout.rowCount or DEFAULT_LAYOUT.rowCount,
     baseH = layout.baseH or DEFAULT_LAYOUT.baseH,
-    font = layout.font or DEFAULT_LAYOUT.font,
-    textSize = layout.textSize or DEFAULT_LAYOUT.textSize,
-    subSize = layout.subSize or DEFAULT_LAYOUT.subSize,
+    font = layout.font,
+    textSize = layout.textSize,
+    subSize = layout.subSize,
     padX = layout.padX or DEFAULT_LAYOUT.padX,
     iconSize = layout.iconSize or DEFAULT_LAYOUT.iconSize,
     iconGap = layout.iconGap or DEFAULT_LAYOUT.iconGap,
@@ -214,6 +215,12 @@ end
 --- around. layout and style are both every field optional, described at the head of this
 --- file.
 function M.elements(state, rect, layout, style)
+  for _, field in ipairs({ "font", "textSize", "subSize" }) do
+    if not layout or layout[field] == nil then
+      error("canvas list render, layout." .. field .. " is required, the caller passes the "
+        .. "font, textSize and subSize from the kit's tokens", 2)
+    end
+  end
   layout = resolveLayout(layout)
   style = style or {}
   local dimAlpha = style.dimAlpha or NO_STYLE.dimAlpha
