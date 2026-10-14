@@ -1,5 +1,9 @@
 --- === Chooser ===
 ---
+--- DEPRECATED since 2026-10-14. The canvas provider is the default and this one is kept only
+--- as a fallback until it is removed. Nothing new should be built against it, and the root
+--- warns in the console whenever it is selected. See decisions/olm-chooser-keys.md.
+---
 --- A themed, keyboard driven chooser atom, the reusable mechanism behind the
 --- clipboard picker and any similar tool. It owns only the chooser window, its
 --- theming, row styling, j and k navigation, close on a key, top biased

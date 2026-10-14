@@ -23,8 +23,9 @@ return {
   chooserProviders = chooserProviders,
 
   -- Which picker draws every chooser. canvas is the hand drawn picker on the shared panel
-  -- chrome, with its own field, list and mouse handling, and is the choice here. native is
-  -- the built in hs.chooser window, kept as the fallback. chooserProviders.native | chooserProviders.canvas
+  -- chrome, with its own field, list and mouse handling, and is the default. native is the
+  -- built in hs.chooser window, DEPRECATED since 2026-10-14, kept only as a fallback for now
+  -- and warned about in the console on every load that picks it. chooserProviders.native | chooserProviders.canvas
   chooser = {
     provider = chooserProviders.canvas,
   },

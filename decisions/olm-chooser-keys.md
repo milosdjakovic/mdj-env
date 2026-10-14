@@ -20,6 +20,10 @@ The docked shortcut hint pane shows after 800 ms with no key, and every key rest
 countdown, Hyper moves included, since the canvas provider counts activity in selectNext,
 selectPrev and insertSelected. Once shown it stays until the list closes.
 
+The canvas provider is the shipped default. The native provider is deprecated, still selectable
+through `chooser.provider` in the settings as a fallback, marked in its own header, and named
+in a console warning on every load that picks it. Removing it is a later, separate step.
+
 ## Rejected
 
 - **Putting the action panel on Hyper and k.** 2026-10-14. k already moves the cursor up in
@@ -71,3 +75,9 @@ about the pane changed.
 ### 2026-10-14 21:33
 
 1300 ms still felt long, and the person asked for 800 ms, which is what ships now.
+
+### 2026-10-14 21:45
+
+The canvas picker becomes the default on main at the person's request, and the native picker is
+deprecated rather than removed, kept as a fallback for now with a header note and a load warning.
+An unknown provider name now falls back to canvas instead of native.

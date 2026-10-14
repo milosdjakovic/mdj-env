@@ -144,8 +144,10 @@ local SHIPPED_POLICY = {
   -- in the config drew instantly. The knob read as configured and was doing nothing.
   shortcutsPanel = { delayMs = 800 },
   matcher = "fuzzy",
-  -- Which picker provider every Chooser.new builds, a name from Chooser.providers.
-  chooserProvider = "native",
+  -- Which picker provider every Chooser.new builds, a name from Chooser.providers. canvas is
+  -- the default since 2026-10-14. native is deprecated, kept selectable as a fallback for now
+  -- and warned about on every load that picks it, see decisions/olm-chooser-keys.md.
+  chooserProvider = "canvas",
   autoReload = { ignore = { "/config/[^/]+%.json[^/]*$" } },
 
   -- The heading drawn over the window leader's rows on the hold overlay. What the leader does
@@ -316,8 +318,11 @@ function obj.run(olm, cfg)
   chooserAtom:init()
   local chooserProvider = chooserAtom.providers and chooserAtom.providers[policy.chooserProvider]
   if not chooserProvider then
-    log.w("unknown chooserProvider " .. tostring(policy.chooserProvider) .. ", falling back to native")
-    chooserProvider = chooserAtom.providers and chooserAtom.providers.native
+    log.w("unknown chooserProvider " .. tostring(policy.chooserProvider) .. ", falling back to canvas")
+    chooserProvider = chooserAtom.providers and chooserAtom.providers.canvas
+  end
+  if chooserAtom.providers and chooserProvider == chooserAtom.providers.native then
+    log.w("chooserProvider native is deprecated and will be removed, canvas is the default")
   end
   chooserAtom.configure({
     screen = function() return overlay and overlay.screen() end,
