@@ -27,6 +27,16 @@ state filter, but it filters inside the tree rather than flattening it.
 **`prefix+D` for last pane, 2026-09-27.** That is `prefix+shift+d`, the built in `close_workspace`,
 so a slip closes a space.
 
+**Numbers on agent and space rows in the expanded sidebar, 2026-10-09.** Built and looked at,
+then turned down on sight. herdr 0.9.3 draws no index on expanded rows, so a script reported a
+`$n` metadata token per agent pane and per space in list order, and the rows showed it. herdr
+puts `·` between any two adjacent values with no setting for it, and the only gap without one
+is after `state_icon`, so a number first reads `1 · ● mdj`. Folding the number into one token
+with the space name removed the dot but could not put the number before the icon, which only
+works by drawing the state icon ourselves and losing herdr's own. Showing numbers only while
+the prefix is held is not possible at all, since herdr reports no event for prefix mode. The
+keys stand without them.
+
 ## Log
 
 **2026-09-27 17:28.** `prefix+alt+1..9` did nothing, and the reason was that `focus_agent` is unset by
@@ -52,3 +62,7 @@ bare it switches tabs instead, and the fallback is `prefix+shift+1..9`, herdr's 
 
 **2026-10-09 16:07.** Confirmed by a key press, `prefix+ctrl+1..9` reaches herdr as its own
 key and switches spaces, so the fallback is not needed.
+
+**2026-10-09 16:36.** Sidebar numbers tried as a `$n` token and as a combined `$where` token,
+both rejected by the person looking at them, script and row changes removed. The reasons are
+under Rejected.
