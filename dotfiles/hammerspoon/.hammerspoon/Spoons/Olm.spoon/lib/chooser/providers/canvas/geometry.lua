@@ -94,7 +94,9 @@ local M = {}
 M.DEFAULT_LAYOUT = {
   -- Settled by hand across five rounds, read from Spoons/Olm.spoon/test/probe-canvasfield.lua's
   -- own GEOMETRY table. Not this file's own design, this file only carries it.
-  width = 620,
+  -- The list is as wide as the side pane beside it, asked for on 2026 10 14, so the two read
+  -- as one surface. paneMaxW below follows this one value rather than repeating it.
+  width = 480,
   baseH = 38,
   rowH = 38,
   rowCount = 9,
@@ -109,11 +111,11 @@ M.DEFAULT_LAYOUT = {
   -- five rounds behind BRIEF-CANVAS-LIST.md never redesigned. Named here so this file's
   -- own header can say plainly that this is a borrow rather than a fresh design.
   gap = 12,
-  paneMaxW = 480,
   topFrac = 0.06,
   minVPad = 60,
   titleLineBreak = "truncateTail",
 }
+M.DEFAULT_LAYOUT.paneMaxW = M.DEFAULT_LAYOUT.width
 
 --------------------------------------------------------------------------------
 -- M.resolve, the whole surface's own placement
