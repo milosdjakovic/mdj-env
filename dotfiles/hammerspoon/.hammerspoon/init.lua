@@ -73,7 +73,7 @@ local olm = spoon.Olm:start({
     chord          = { repeatTiming = settings.keyRepeat },
     surface        = settings.surface,
     -- Absent from this table until 2026-09-01, which is why the shortcuts panel's own idle
-    -- delay never reached Olm and every docked bar drew instantly. Olm ships two and a half seconds
+    -- delay never reached Olm and every docked bar drew instantly. Olm ships 800 ms
     -- now, so this line matters only on a machine that wants to differ.
     shortcutsPanel = settings.shortcutsPanel,
     chooserProvider = settings.chooser.provider,

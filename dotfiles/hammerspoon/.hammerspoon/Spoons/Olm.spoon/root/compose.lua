@@ -132,7 +132,7 @@ local SHIPPED_POLICY = {
   -- keypress, so the bar only appears once a person has actually stopped, and once it appears
   -- it stays until the list closes. Zero, and only zero, means draw it the instant the list
   -- opens.
-  -- Ships at two and a half seconds, so the bar shows once no key has been pressed for that long.
+  -- Ships at 800 ms, so the bar shows once no key has been pressed for that long.
   --
   -- This ships here rather than only in a person's own config file because a docked panel is
   -- an ambient entitlement every surfaced plugin earns without asking, so a plugin installed
@@ -142,7 +142,7 @@ local SHIPPED_POLICY = {
   -- for every chooser that docks the panel, and the root never forwarded the field, so
   -- deps.settings.shortcutsPanel resolved to nil, CanvasPanel read no delay, and every panel
   -- in the config drew instantly. The knob read as configured and was doing nothing.
-  shortcutsPanel = { delayMs = 2500 },
+  shortcutsPanel = { delayMs = 800 },
   matcher = "fuzzy",
   -- Which picker provider every Chooser.new builds, a name from Chooser.providers.
   chooserProvider = "native",

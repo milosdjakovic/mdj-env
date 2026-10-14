@@ -16,7 +16,7 @@ predicate, and the native provider needs nothing since its keys already reach Hy
 The action panel is on Hyper and o in every list, declared once in `lib/surface.lua` and in
 the loop at the bottom of `config/keys.lua`. File search reveal in Finder is on Hyper and f.
 
-The docked shortcut hint pane shows after 2500 ms with no key, and every key restarts that
+The docked shortcut hint pane shows after 800 ms with no key, and every key restarts that
 countdown, Hyper moves included, since the canvas provider counts activity in selectNext,
 selectPrev and insertSelected. Once shown it stays until the list closes.
 
@@ -58,3 +58,16 @@ leader key autorepeats while held and counting there would keep the pane from ev
 The 250 ms delay above was tried live and works, and the person asked for 2500 ms instead, so
 that is what ships. The 250 ms entry stands as the record of what was tried first. The debounce,
 the latch and where activity is counted are unchanged.
+
+### 2026-10-14 21:25
+
+After living with 2500 ms the person asked for 1650 ms, so that is what ships now. Nothing else
+about the pane changed.
+
+### 2026-10-14 21:31
+
+1650 ms still felt long, and the person asked for 1300 ms, which is what ships now.
+
+### 2026-10-14 21:33
+
+1300 ms still felt long, and the person asked for 800 ms, which is what ships now.
