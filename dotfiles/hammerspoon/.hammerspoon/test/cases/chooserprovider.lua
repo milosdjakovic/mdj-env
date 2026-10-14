@@ -67,3 +67,29 @@ local okBad, reason = pcall(Chooser.new, {})
 check("a provider breaking the contract is refused before decorate", not okBad and tostring(reason):find("contract", 1, true) ~= nil)
 
 Chooser.configure({})
+
+-- The native provider reads body and caption from an injected kit, and keeps its own literals
+-- when none is injected. The facade forwards opts.ui, so this goes through Chooser.configure.
+check("with no kit native keeps its literal row of 42 and sizes 16 and 12",
+  ok and native.layout.rowH == 42 and native.layout.titleSize == 16 and native.layout.subSize == 12,
+  ok and (tostring(native.layout.rowH)) or tostring(native))
+
+local kit = { tokens = function()
+  return { text = {
+    body = { font = "BodyFont", size = 18, lineHeight = 25 },
+    caption = { font = "CaptionFont", size = 15, lineHeight = 21 },
+  } }
+end }
+Chooser.configure({ ui = kit })
+local okKit, withKit = pcall(Chooser.new, {})
+check("with a kit native takes the body font and size for titles and caption for subtitles",
+  okKit and withKit.layout.font == "BodyFont" and withKit.layout.titleSize == 18
+    and withKit.layout.subFont == "CaptionFont" and withKit.layout.subSize == 15,
+  okKit and nil or tostring(withKit))
+check("with a kit native grows its row to body 25 plus caption 21 plus twice a padding of 8, which is 62",
+  okKit and withKit.layout.rowH == 62, okKit and tostring(withKit.layout.rowH) or tostring(withKit))
+local okOwn, own = pcall(Chooser.new, { layout = { rowH = 70 } })
+check("a consumer's own rowH still wins over the derived one",
+  okOwn and own.layout.rowH == 70, okOwn and tostring(own.layout.rowH) or tostring(own))
+Chooser.providers.native.configure({ ui = false })
+Chooser.configure({})

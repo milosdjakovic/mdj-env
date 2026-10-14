@@ -115,13 +115,17 @@ end
 --- config in place (see the note above DEFAULT_DECORATE for why that reaches the
 --- instance's live behaviour). One call at the root wires the overlay display policy,
 --- the matching policy, and the panel decorator into every chooser at once. opts.provider
---- is a provider module from Chooser.providers, nil meaning native.
+--- is a provider module from Chooser.providers, nil meaning native. opts.ui is the UI kit,
+--- forwarded to the native provider so its rows are styled from the body and caption roles.
 function obj.configure(opts)
   opts = opts or {}
   DEFAULT_SCREEN = opts.screen
   DEFAULT_MATCHER = opts.matcher
   DEFAULT_PROVIDER = opts.provider
   DEFAULT_DECORATE = opts.decorate
+  -- The UI kit reaches the native provider here, since it has no other door. The canvas
+  -- provider is handed it by its own configure, which also takes the panel.
+  if opts.ui ~= nil then native.configure({ ui = opts.ui }) end
   return obj
 end
 

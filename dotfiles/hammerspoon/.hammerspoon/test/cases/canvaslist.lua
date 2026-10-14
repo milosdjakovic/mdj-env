@@ -73,6 +73,20 @@ end
 local ROW_H = 42
 local ROWS_10 = { rowCount = 10, rowH = ROW_H }
 
+-- The type the render layouts below carry, the kit's body, caption and section roles at
+-- their shipped sizes. A line is the size times 1.35 rounded up, so body 16 gives 22,
+-- caption 14 gives 19, and section 12 gives 17. The row height a render layout states is the
+-- derived one, 22 body plus 19 caption plus 2 times a padding of 8, which is 57, the number
+-- geometry.lua's DEFAULT_LAYOUT answers for these sizes.
+local FONT = ".AppleSystemUIFont"
+local PAD = 8
+local TYPE = {
+  font = FONT, textSize = 16, textLine = 22,
+  subFont = FONT, subSize = 14, subLine = 19,
+  numFont = FONT, numSize = 12,
+}
+local DERIVED_ROW_H = 22 + 19 + 2 * PAD
+
 --------------------------------------------------------------------------------
 -- Seeding a state
 --------------------------------------------------------------------------------
@@ -438,8 +452,8 @@ end
 
 do
   local layout = {
-    width = 480, rowH = 42, rowCount = 10, baseH = 94,
-    font = ".AppleSystemUIFont", textSize = 16, subSize = 12,
+    width = 480, rowH = DERIVED_ROW_H, rowCount = 10, baseH = 94,
+    font = TYPE.font, textSize = TYPE.textSize, textLine = TYPE.textLine, subFont = TYPE.subFont, subSize = TYPE.subSize, subLine = TYPE.subLine, numFont = TYPE.numFont, numSize = TYPE.numSize,
   }
   check("bandHeight answers exactly the row count times the row height, no remainder left over",
     render.bandHeight(layout) == layout.rowCount * layout.rowH,
@@ -461,8 +475,8 @@ do
   -- by its own fillColor, the clip rectangle carries none, so this stays correct however
   -- many rectangle typed elements this file answers around it.
   local layout = {
-    width = 480, rowH = 42, rowCount = 10, baseH = 94,
-    font = ".AppleSystemUIFont", textSize = 16, subSize = 12,
+    width = 480, rowH = DERIVED_ROW_H, rowCount = 10, baseH = 94,
+    font = TYPE.font, textSize = TYPE.textSize, textLine = TYPE.textLine, subFont = TYPE.subFont, subSize = TYPE.subSize, subLine = TYPE.subLine, numFont = TYPE.numFont, numSize = TYPE.numSize,
   }
   local rows = rowSet(25)
   local s = model.newState(rows, layout)
@@ -494,8 +508,8 @@ end
 
 do
   local layout = {
-    width = 480, rowH = 42, rowCount = 10, baseH = 94,
-    font = ".AppleSystemUIFont", textSize = 16, subSize = 12, textTopPad = 5,
+    width = 480, rowH = DERIVED_ROW_H, rowCount = 10, baseH = 94,
+    font = TYPE.font, textSize = TYPE.textSize, textLine = TYPE.textLine, subFont = TYPE.subFont, subSize = TYPE.subSize, subLine = TYPE.subLine, numFont = TYPE.numFont, numSize = TYPE.numSize, rowPad = PAD,
   }
   local rows = {
     row("Has a subtitle", "the second line", 1),
@@ -506,14 +520,25 @@ do
   local els = render.elements(s, rect, layout, {})
 
   local titleY = {}
+  local subY = nil
   for _, el in ipairs(els) do
     if el.type == "text" and el.text == "Has a subtitle" then titleY[1] = el.frame.y end
     if el.type == "text" and el.text == "No subtitle at all" then titleY[2] = el.frame.y end
+    if el.type == "text" and el.text == "the second line" then subY = el.frame.y end
   end
   check("both titles were found among the drawn elements",
     titleY[1] ~= nil and titleY[2] ~= nil)
-  check("a row with a subtitle sits its title high, near the row's own top rather than centred",
-    titleY[1] == 0 + layout.textTopPad, "got " .. tostring(titleY[1]))
+  -- The title's line band is 22 tall and starts 8 below the row's top, so a centred title
+  -- frame lands inside 8 to 30, and the subtitle band 19 tall below it ends at 8 + 22 + 19,
+  -- which is 49, leaving the other 8 of the 57 row as padding underneath.
+  check("a row with a subtitle sits its title in the band starting one padding below the row's top",
+    titleY[1] >= layout.rowPad and titleY[1] < layout.rowPad + layout.textLine,
+    "got " .. tostring(titleY[1]))
+  check("the subtitle sits below the title, in the 19 tall band ending 8 above the row's bottom",
+    subY ~= nil and subY > titleY[1]
+      and subY >= layout.rowPad + layout.textLine
+      and subY < layout.rowPad + layout.textLine + layout.subLine,
+    "got " .. tostring(subY))
   check("a row with no subtitle centres its title lower than the stacked row's own title sits",
     titleY[2] ~= nil and titleY[2] > titleY[1],
     "centred " .. tostring(titleY[2]) .. " stacked " .. tostring(titleY[1]))
@@ -523,8 +548,8 @@ do
   -- An empty string subtitle is treated the same as no subtitle at all, matching how
   -- every other read of subTitle in this file already answers "".
   local layout = {
-    width = 480, rowH = 42, rowCount = 10, baseH = 94,
-    font = ".AppleSystemUIFont", textSize = 16, subSize = 12,
+    width = 480, rowH = DERIVED_ROW_H, rowCount = 10, baseH = 94,
+    font = TYPE.font, textSize = TYPE.textSize, textLine = TYPE.textLine, subFont = TYPE.subFont, subSize = TYPE.subSize, subLine = TYPE.subLine, numFont = TYPE.numFont, numSize = TYPE.numSize,
   }
   local rows = { row("Empty subtitle", "", 1) }
   local s = model.newState(rows, layout)
@@ -546,8 +571,8 @@ end
 
 do
   local layout = {
-    width = 480, rowH = 42, rowCount = 10, baseH = 94,
-    font = ".AppleSystemUIFont", textSize = 16, subSize = 12, showRowNumbers = true,
+    width = 480, rowH = DERIVED_ROW_H, rowCount = 10, baseH = 94,
+    font = TYPE.font, textSize = TYPE.textSize, textLine = TYPE.textLine, subFont = TYPE.subFont, subSize = TYPE.subSize, subLine = TYPE.subLine, numFont = TYPE.numFont, numSize = TYPE.numSize, showRowNumbers = true,
   }
   local s = model.newState(rowSet(12), layout)
   local rect = { x = 0, y = 0, w = layout.width, h = render.bandHeight(layout) }
@@ -567,8 +592,8 @@ end
 
 do
   local layout = {
-    width = 480, rowH = 42, rowCount = 10, baseH = 94,
-    font = ".AppleSystemUIFont", textSize = 16, subSize = 12, showRowNumbers = false,
+    width = 480, rowH = DERIVED_ROW_H, rowCount = 10, baseH = 94,
+    font = TYPE.font, textSize = TYPE.textSize, textLine = TYPE.textLine, subFont = TYPE.subFont, subSize = TYPE.subSize, subLine = TYPE.subLine, numFont = TYPE.numFont, numSize = TYPE.numSize, showRowNumbers = false,
   }
   local s = model.newState(rowSet(12), layout)
   local rect = { x = 0, y = 0, w = layout.width, h = render.bandHeight(layout) }
@@ -588,8 +613,8 @@ end
 
 do
   local layout = {
-    width = 480, rowH = 42, rowCount = 10, baseH = 94,
-    font = ".AppleSystemUIFont", textSize = 16, subSize = 12,
+    width = 480, rowH = DERIVED_ROW_H, rowCount = 10, baseH = 94,
+    font = TYPE.font, textSize = TYPE.textSize, textLine = TYPE.textLine, subFont = TYPE.subFont, subSize = TYPE.subSize, subLine = TYPE.subLine, numFont = TYPE.numFont, numSize = TYPE.numSize,
   }
   local s = model.newState(rowSet(3), layout)
   local rect = { x = 5, y = 7, w = layout.width, h = render.bandHeight(layout) }

@@ -322,6 +322,7 @@ function obj.run(olm, cfg)
     screen = function() return overlay and overlay.screen() end,
     matcher = chooserAtom.matchers and chooserAtom.matchers[policy.matcher],
     provider = chooserProvider,
+    ui = uiAtom,
     -- THE SEAM. ActionPanel is one of the five host modules this file is allowed to name.
     -- decorate has to be installed before the first Chooser.new call anywhere or every
     -- instance keeps its own rows and the panel decorates nothing, which is Fact 2, and

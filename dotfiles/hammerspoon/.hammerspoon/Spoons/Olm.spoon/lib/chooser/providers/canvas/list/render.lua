@@ -11,12 +11,14 @@
 ---
 --- layout and style are the two things a caller passes and this file never invents its
 --- own version of either. layout carries the geometry and the row typography, geometry.lua's
---- DEFAULT_LAYOUT, which carries no font, textSize or subSize, plus those three, which the
---- caller must pass from the UI kit's tokens, and elements raises an error naming the first
---- one missing. Stage two of docs/DESIGN-UI-KIT.md made that table the one canvas layout
+--- DEFAULT_LAYOUT, which carries no type, plus the type fields, which the caller must pass
+--- from the UI kit's tokens, and elements raises an error naming the first one missing. The
+--- type is three roles. font, textSize and textLine are the body role, the row title. subFont,
+--- subSize and subLine are the caption role, the row subtitle. numFont and numSize are the
+--- section role, the row number. A line is the role's line height. Stage two of docs/DESIGN-UI-KIT.md made that table the one canvas layout
 --- source. textSize is named for what it is, the whole surface's own text size, shared with
 --- the field text sitting above this list, round four's own choice over native's titleSize.
---- padX, iconSize, iconGap and textTopPad name what a row needs that the native layout has
+--- padX, iconSize, iconGap and rowPad name what a row needs that the native layout has
 --- no word for at all, since a real hs.chooser row is drawn by the operating system's own
 --- nib. showRowNumbers is round four's own flag, described in full below where the numbers
 --- themselves are drawn. Any other geometry field a caller omits falls back to geometry's own value.
@@ -36,8 +38,10 @@
 --- for whatever reads model.highlightedRow rather than for this file.
 ---
 --- Round four's own vertical rule. A row carrying a subTitle keeps the pair stacked
---- exactly as before, a title sitting textTopPad below the row's own top with the
---- subtitle directly beneath it. A row with no subTitle, or an empty one, centres its
+--- with the title's line band starting rowPad below the row's own top and the subtitle's
+--- band directly beneath it, each line centred in its own band, so the pair sits with equal
+--- padding above and below because geometry.lua grows rowH to the two line heights plus
+--- twice rowPad. A row with no subTitle, or an empty one, centres its
 --- title in the row instead, using the row's own real font metrics rather than a guessed
 --- fraction of rowH, the same reasoning field render.lua's own header already lays out
 --- for why a canvas text element has to be placed from a measured baseline rather than
@@ -154,11 +158,16 @@ local function resolveLayout(layout)
     baseH = layout.baseH or DEFAULT_LAYOUT.baseH,
     font = layout.font,
     textSize = layout.textSize,
+    textLine = layout.textLine,
+    subFont = layout.subFont,
     subSize = layout.subSize,
+    subLine = layout.subLine,
+    numFont = layout.numFont,
+    numSize = layout.numSize,
     padX = layout.padX or DEFAULT_LAYOUT.padX,
     iconSize = layout.iconSize or DEFAULT_LAYOUT.iconSize,
     iconGap = layout.iconGap or DEFAULT_LAYOUT.iconGap,
-    textTopPad = layout.textTopPad or DEFAULT_LAYOUT.textTopPad,
+    rowPad = layout.rowPad or DEFAULT_LAYOUT.rowPad,
     showRowNumbers = (layout.showRowNumbers == nil) and DEFAULT_LAYOUT.showRowNumbers or layout.showRowNumbers,
   }
 end
@@ -215,10 +224,11 @@ end
 --- around. layout and style are both every field optional, described at the head of this
 --- file.
 function M.elements(state, rect, layout, style)
-  for _, field in ipairs({ "font", "textSize", "subSize" }) do
+  for _, field in ipairs({ "font", "textSize", "textLine", "subFont", "subSize", "subLine",
+                           "numFont", "numSize" }) do
     if not layout or layout[field] == nil then
       error("canvas list render, layout." .. field .. " is required, the caller passes the "
-        .. "font, textSize and subSize from the kit's tokens", 2)
+        .. "body, caption and section type from the kit's tokens", 2)
     end
   end
   layout = resolveLayout(layout)
@@ -234,7 +244,8 @@ function M.elements(state, rect, layout, style)
 
   local bandH = layout.rowCount * layout.rowH
   local titleMetrics = fontMetrics(layout.font, layout.textSize)
-  local numberMetrics = layout.showRowNumbers and fontMetrics(layout.font, layout.subSize) or nil
+  local subMetrics = fontMetrics(layout.subFont, layout.subSize)
+  local numberMetrics = layout.showRowNumbers and fontMetrics(layout.numFont, layout.numSize) or nil
 
   local els = {}
   local textX = rect.x + layout.padX + layout.iconSize + layout.iconGap
@@ -291,27 +302,26 @@ function M.elements(state, rect, layout, style)
     end
 
     if hasSubTitle(row) then
-      -- Stacked exactly as round two left it, a title sitting textTopPad below the
-      -- row's own top with the subtitle directly beneath it. Round four's own vertical
-      -- centring only answers what a row with nothing to stack against should do, a row
-      -- carrying both keeps the arrangement that already read correctly.
-      local titleH = layout.textSize + 2
+      -- Two line bands stacked from rowPad below the row's top, the title's as tall as the
+      -- body line height and the subtitle's as tall as the caption line height, each line
+      -- centred in its own band from its real font metrics.
+      local titleBandY = rowY + layout.rowPad
+      local subBandY = titleBandY + layout.textLine
+      local titleTop, titleH = centredLine(titleBandY, layout.textLine, titleMetrics)
+      local subTop, subH = centredLine(subBandY, layout.subLine, subMetrics)
       els[#els + 1] = {
         type = "text", text = row.title or "",
         textFont = layout.font, textSize = layout.textSize,
         textColor = enabled and titleColor or dim(titleColor, dimAlpha),
         textAlignment = "left",
-        frame = { x = px(textX), y = px(rowY + layout.textTopPad), w = px(reservedW), h = px(titleH) },
+        frame = { x = px(textX), y = px(titleTop), w = px(reservedW), h = px(titleH) },
       }
       els[#els + 1] = {
         type = "text", text = row.subTitle,
-        textFont = layout.font, textSize = layout.subSize,
+        textFont = layout.subFont, textSize = layout.subSize,
         textColor = enabled and subColor or dim(subColor, dimAlpha),
         textAlignment = "left",
-        frame = {
-          x = px(textX), y = px(rowY + layout.textTopPad + titleH), w = px(reservedW),
-          h = px(layout.subSize + 2),
-        },
+        frame = { x = px(textX), y = px(subTop), w = px(reservedW), h = px(subH) },
       }
     else
       -- No subtitle to stack against, so the title centres in the row instead of sitting
@@ -338,7 +348,7 @@ function M.elements(state, rect, layout, style)
       local numW = layout.iconSize
       els[#els + 1] = {
         type = "text", text = tostring(slot),
-        textFont = layout.font, textSize = layout.subSize,
+        textFont = layout.numFont, textSize = layout.numSize,
         textColor = numberColor,
         textAlignment = "right",
         frame = {

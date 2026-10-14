@@ -62,7 +62,7 @@
 --- tokens, both foreground at a fixed alpha, a disabled row and the placeholder are
 --- dimmed by the dim alpha, and the row numbers are the dim colour. The caret is left to
 --- field render's own fallback, the text colour standing in for it. The font and the two
---- text sizes are the title and sub variants, handed to both renderers through the draw
+--- text sizes are the body, caption and section roles, handed to both renderers through the draw
 --- layout, and the rest of the layout is geometry.lua's.
 ---
 --- M.configure(opts) takes opts.panel, the CanvasPanel module, and opts.ui, the UI kit,
@@ -226,15 +226,20 @@ Provider.__index = Provider
 -- Tokens, screen and the styles both renderers are handed
 --------------------------------------------------------------------------------
 
--- The font and the two text sizes every row and the field are drawn in. Rows and the field
--- take the body role, and the subtitle keeps the retiring sub variant until the chooser moves
--- onto caption together with the taller row it needs.
+-- The three roles every row and the field are drawn in, read only from the kit's tokens.
+-- Row titles and the field take body, row subtitles caption and row numbers section. A line
+-- is the role's own line height, which the row geometry is derived from too.
 local function typeOf(tokens)
+  local text = tokens.text
   return {
-    font = tokens.text.body.font,
-    textSize = tokens.text.body.size,
-    subFont = tokens.text.sub.font,
-    subSize = tokens.text.sub.size,
+    font = text.body.font,
+    textSize = text.body.size,
+    textLine = text.body.lineHeight,
+    subFont = text.caption.font,
+    subSize = text.caption.size,
+    subLine = text.caption.lineHeight,
+    numFont = text.section.font,
+    numSize = text.section.size,
   }
 end
 
@@ -263,7 +268,7 @@ function Provider:_deriveStyles()
     titleColor = T.colors.foreground,
     subColor = T.colors.subtext,
     highlightColor = T.colors.highlight,
-    numberColor = T.colors.dim,
+    numberColor = T.colors[T.text.section.color],
     dimAlpha = T.alpha.dim,
   }
 end
@@ -296,15 +301,13 @@ end
 -- the old number, is closed by this same copy being rebuilt on every show, and costs
 -- nothing today since the stage always hides before it resizes.
 --
--- The draw layout also carries the font and the two text sizes from the tokens, the three
--- typography names list render reads off a layout, since geometry.lua no longer holds them.
+-- The draw layout also carries the three roles' fonts, sizes and line heights from the
+-- tokens, the names list render reads off a layout, since geometry.lua holds no type.
 function Provider:_updateDrawLayout()
   local L = {}
   for k, v in pairs(self.layout) do L[k] = v end
   L.rowCount = self._rects.rowCount
-  L.font = self._type.font
-  L.textSize = self._type.textSize
-  L.subSize = self._type.subSize
+  for k, v in pairs(self._type) do L[k] = v end
   self._drawLayout = L
 end
 
@@ -1171,6 +1174,12 @@ function M.new(config)
 
   local layout = {}
   for k, v in pairs(geometry.DEFAULT_LAYOUT) do layout[k] = v end
+  -- The row and field heights follow the kit's body and caption line heights and the one
+  -- padding value, so a size change in config/typography.toml reflows them. A consumer's own
+  -- layout still wins over what is derived.
+  local derived = geometry.derivedRows(UI.tokens().text, layout.rowPad)
+  layout.rowH = derived.rowH
+  layout.baseH = derived.baseH
   for k, v in pairs(config.layout or {}) do layout[k] = v end
 
   local self = setmetatable({

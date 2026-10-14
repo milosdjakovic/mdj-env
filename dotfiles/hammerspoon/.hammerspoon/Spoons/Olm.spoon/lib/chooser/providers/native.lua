@@ -104,6 +104,7 @@ local function loadSibling(relPath)
   return chunk()
 end
 local textwidth = loadSibling("../textwidth.lua")
+local rowHeight = loadSibling("../rowheight.lua")
 local rank = loadSibling("../rank.lua")
 
 -- Minimal dark palette used only if no theme is injected, so an instance still
@@ -135,6 +136,9 @@ local DEFAULT_LAYOUT = {
   -- resolved width for that show. A number overrides it independently, the same as
   -- today. paneMaxW caps both. Zero, nil, and false all mean no pane.
   companionWidth = 0,
+  -- These literals exist only for a portable load with no UI kit injected. With the kit,
+  -- obj.new overwrites font, titleSize, subFont, subSize and rowH from the body and caption
+  -- roles, see kitLayout below, and a consumer's own layout still wins over both.
   font = ".AppleSystemUIFont",
   titleSize = 16,
   subSize = 12,
@@ -147,6 +151,34 @@ local DEFAULT_LAYOUT = {
   -- Subtitles are always cut at the tail, since nothing has asked otherwise.
   titleLineBreak = "truncateTail",
 }
+
+-- The injected UI kit, lib/ui, nil until obj.configure runs, held at module level the way
+-- the canvas provider holds it. The composition root hands it over through the facade.
+local UI = nil
+
+--- obj.configure(opts), opts.ui the UI kit. A nil field is left unchanged.
+function obj.configure(opts)
+  opts = opts or {}
+  if opts.ui ~= nil then UI = opts.ui end
+  return obj
+end
+
+-- The layout fields the kit decides. A row title is the body role and a row subtitle the
+-- caption role, and the row height grows to fit the two by the one rule in
+-- lib/chooser/rowheight.lua. hs.chooser draws its own field, so the field cannot be styled
+-- from here and no baseH is derived. With no kit this answers an empty table, so the
+-- literals in DEFAULT_LAYOUT stand.
+local function kitLayout()
+  if not UI then return {} end
+  local text = UI.tokens().text
+  return {
+    font = text.body.font,
+    titleSize = text.body.size,
+    subFont = text.caption.font,
+    subSize = text.caption.size,
+    rowH = rowHeight.heights(text).rowH,
+  }
+end
 
 -- The horizontal room a row loses to everything on it that is not text, so what is left
 -- is what a title or a subtitle actually has. MEASURED rather than derived, by walking a
@@ -215,7 +247,7 @@ function Chooser:_toChoice(it)
   local titleColor = enabled and self.theme.titleColor or dim(self.theme.titleColor)
   return {
     text = styledText(it.title, L.titleSize, titleColor, L.font, L.titleLineBreak),
-    subText = styledText(it.subTitle, L.subSize, self.theme.subColor, L.font),
+    subText = styledText(it.subTitle, L.subSize, self.theme.subColor, L.subFont or L.font),
     image = it.image,
     _item = it.item,
     _enabled = enabled,
@@ -987,7 +1019,8 @@ end
 function Chooser:textWidth(str, which)
   local L = self.layout
   local size = (which == "title") and L.titleSize or L.subSize
-  return self._textWidth:width(str, L.font, size)
+  local font = (which == "title") and L.font or (L.subFont or L.font)
+  return self._textWidth:width(str, font, size)
 end
 
 --------------------------------------------------------------------------------
@@ -1110,6 +1143,7 @@ function obj.new(config)
   config = config or {}
   local layout = {}
   for k, v in pairs(DEFAULT_LAYOUT) do layout[k] = v end
+  for k, v in pairs(kitLayout()) do layout[k] = v end
   for k, v in pairs(config.layout or {}) do layout[k] = v end
 
   local self = setmetatable({

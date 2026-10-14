@@ -51,11 +51,13 @@ end
 
 do
   -- Short enough that the nine requested rows do not survive. avail works out to three
-  -- hundred eighteen points, which fits eight rows of thirty eight and no more.
+  -- hundred eighteen points, 500 less 120 of padding, 38 of field and 24 of margin, which fits
+  -- five rows of fifty seven, 22 body line plus 19 caption line plus 2 times 8 of padding, and
+  -- no more, since six would need 342.
   local shortScreen = { x = 0, y = 0, w = 1440, h = 500 }
   local rects = geometry.resolve(shortScreen, geometry.DEFAULT_LAYOUT, nil)
   check("a short screen trims the row count below what the layout asked for",
-    rects.rowCount == 8, "got " .. tostring(rects.rowCount))
+    rects.rowCount == 5, "got " .. tostring(rects.rowCount))
   check("the row band's own height is exactly the trimmed row count times the row height",
     rects.list.h == rects.rowCount * geometry.DEFAULT_LAYOUT.rowH,
     "got " .. tostring(rects.list.h))
@@ -251,8 +253,8 @@ do
 end
 
 do
-  -- A fractional scrollTop, the sub row remainder rather than the whole of it. Twenty
-  -- four and a half is exactly what one hundred point five leaves over a thirty eight
+  -- A fractional scrollTop, the sub row remainder rather than the whole of it. Forty
+  -- three and a half is exactly what one hundred point five leaves over a fifty seven
   -- point row, and a point at the very top of the list rect still answers slot one
   -- with that same remainder as its own offset, matching the row still partly visible
   -- above the viewport's own top.
@@ -262,7 +264,7 @@ do
   check("a fractional scrollTop is reduced to its own sub row remainder rather than used whole",
     slot == 1, "got " .. tostring(slot))
   check("the offset within that first visible row is exactly that remainder",
-    math.abs(offset - 24.5) < 1e-9, "got " .. tostring(offset))
+    math.abs(offset - 43.5) < 1e-9, "got " .. tostring(offset))
 end
 
 do
@@ -280,4 +282,25 @@ do
   local belowCanvas = { x = rects.list.x + 10, y = rects.canvas.y + rects.canvas.h + 5 }
   check("a point below the canvas but on the same horizontal band still answers nil",
     geometry.rowAtPoint(belowCanvas, rects, L, 0) == nil)
+end
+
+--------------------------------------------------------------------------------
+-- The derived row and field heights, lib/chooser/rowheight.lua through M.derivedRows.
+--------------------------------------------------------------------------------
+
+do
+  local text = { body = { lineHeight = 22 }, caption = { lineHeight = 19 } }
+  local d = geometry.derivedRows(text)
+  check("a row is the body line 22 plus the caption line 19 plus twice the padding 8, which is 57",
+    d.rowH == 57, "got " .. tostring(d.rowH))
+  check("the field is the body line 22 plus twice the padding 8, which is 38",
+    d.baseH == 38, "got " .. tostring(d.baseH))
+  check("DEFAULT_LAYOUT states the same 57 and 38 for the shipped sizes",
+    geometry.DEFAULT_LAYOUT.rowH == 57 and geometry.DEFAULT_LAYOUT.baseH == 38)
+  local bigger = geometry.derivedRows({ body = { lineHeight = 26 }, caption = { lineHeight = 22 } })
+  check("a larger body 26 and caption 22 reflow the row to 26 plus 22 plus 16, which is 64, and the field to 42",
+    bigger.rowH == 64 and bigger.baseH == 42, "got " .. tostring(bigger.rowH) .. " " .. tostring(bigger.baseH))
+  local padded = geometry.derivedRows(text, 10)
+  check("a padding of 10 gives 22 plus 19 plus 20, which is 61, and the field 22 plus 20, which is 42",
+    padded.rowH == 61 and padded.baseH == 42, "got " .. tostring(padded.rowH) .. " " .. tostring(padded.baseH))
 end

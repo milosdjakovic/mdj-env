@@ -84,6 +84,14 @@
 
 local M = {}
 
+-- The shared row height rule, lib/chooser/rowheight.lua, which the native provider reads too.
+local rowHeight = (function()
+  local here = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or ""
+  local chunk, err = loadfile(here .. "../../rowheight.lua")
+  if not chunk then error("Canvas geometry failed to load rowheight.lua, " .. tostring(err)) end
+  return chunk()
+end)()
+
 -- Stage two of docs/DESIGN-UI-KIT.md made this table the one canvas layout source. The list
 -- renderer used to carry a disagreeing copy of its own and now reads this one, and the
 -- native provider keeps its own because the system draws its rows. The type, the font and
@@ -97,13 +105,18 @@ M.DEFAULT_LAYOUT = {
   -- The list is as wide as the side pane beside it, asked for on 2026 10 14, so the two read
   -- as one surface. paneMaxW below follows this one value rather than repeating it.
   width = 480,
-  baseH = 38,
-  rowH = 38,
+  -- rowH and baseH come from the one row height rule over the body and caption line heights,
+  -- and the provider recomputes them from the kit's tokens so a size set in
+  -- config/typography.toml reflows them. The two numbers here are that same rule applied to
+  -- the shipped sizes, a body line of 22 and a caption line of 19, for a caller that has no
+  -- kit, a unit case among them. rowPad is the one vertical padding value.
+  rowPad = rowHeight.PAD,
+  baseH = 22 + 2 * rowHeight.PAD,
+  rowH = 22 + 19 + 2 * rowHeight.PAD,
   rowCount = 9,
   padX = 16,
   iconSize = 28,
   iconGap = 10,
-  textTopPad = 5,
   edgeMargin = 12,
   showRowNumbers = true,
   caretWidth = 2,
@@ -116,6 +129,12 @@ M.DEFAULT_LAYOUT = {
   titleLineBreak = "truncateTail",
 }
 M.DEFAULT_LAYOUT.paneMaxW = M.DEFAULT_LAYOUT.width
+
+--- M.derivedRows(text, pad) -> { rowH, baseH, pad }, the row height rule over the kit's
+--- tokens.text, see lib/chooser/rowheight.lua.
+function M.derivedRows(text, pad)
+  return rowHeight.heights(text, pad)
+end
 
 --------------------------------------------------------------------------------
 -- M.resolve, the whole surface's own placement
