@@ -83,6 +83,7 @@ local olm = spoon.Olm:start({
     storage        = { cacheRoot = settings.paths.cacheRoot, olmRoot = settings.paths.olmRoot },
     -- The colour theme files, one per theme, which hold every colour the surfaces draw with.
     themes         = { dir = settings.paths.themes },
+    typography     = { file = settings.paths.typography },
   },
 
   -- The BrowserTabs test suite reaches its plugin through a global, so that one name is

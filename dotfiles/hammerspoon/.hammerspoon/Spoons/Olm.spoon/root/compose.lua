@@ -119,6 +119,9 @@ local SHIPPED_POLICY = {
   -- The surface and chooserTheme tables below are views the root fills from the live theme,
   -- see the themes store in step B, so a person's config sets only the radius and width.
   themes = {},
+  -- Where the typography file lives, fonts and sizes of the five type roles. Nothing ships
+  -- here, the style carries the shipped values and a missing file falls back to them.
+  typography = {},
   surface = {},
   chooserTheme = {},
   cheatSheet = {},
@@ -241,6 +244,20 @@ function obj.run(olm, cfg)
   -- rewriting the two views below. A draw asks the kit for its tokens every time, which is why
   -- the next one shows the switch with no reload.
   local uiAtom = atoms.ui
+  -- The five type roles' fonts and sizes, read once from the file policy names. The style
+  -- validates every key and falls back to its shipped value with one warning, so what comes
+  -- back here is only ever valid keys, and a theme switch hands the same answer to the new
+  -- spec rather than reading the file again.
+  local typography = uiAtom and uiAtom.loadTypography and uiAtom.loadTypography(
+    (policy.typography or {}).file,
+    function(path)
+      local file = io.open(path, "r")
+      if not file then return nil end
+      local text = file:read("a")
+      file:close()
+      return text
+    end,
+    { w = function(message) log.w(message) end })
   local themeLog = { w = function(message) log.w(message) end }
   local themes = themesLib.new({
     dir = (policy.themes or {}).dir,
@@ -262,7 +279,7 @@ function obj.run(olm, cfg)
     settings = { get = function(key) return hs.settings.get(key) end,
                  set = function(key, value) hs.settings.set(key, value) end },
     ui = uiAtom,
-    specFor = function(colors) return uiSpecLib.spec(policy, colors) end,
+    specFor = function(colors) return uiSpecLib.spec(policy, colors, typography) end,
     onChange = function(_, colors)
       uiSpecLib.chooserView(policy.chooserTheme, colors)
       uiSpecLib.surfaceView(policy.surface, colors)
@@ -288,7 +305,7 @@ function obj.run(olm, cfg)
   -- empty state draws through it and its surface asks it which half the system is on.
   if uiAtom then
     uiAtom.configure({
-      spec = uiSpecLib.spec(policy, themes.colors()),
+      spec = uiSpecLib.spec(policy, themes.colors(), typography),
       surfaceElements = canvasPanel.surfaceElements,
     })
     canvasPanel.configure({ ui = uiAtom })

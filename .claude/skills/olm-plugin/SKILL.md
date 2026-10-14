@@ -144,6 +144,11 @@ declared. It never references `spoon.Olm`, never loads a lib file by path, never
 is installed. External binaries and bundles are declared in `needs.tools` and arrive through
 the scoped `deps` adapter, and anything undeclared answers nothing by design.
 
+Never set a font, a size, a line height or a colour literal. Text goes through the UI kit,
+`needs.lib.ui`, by one of the five typography roles, and the hammerspoon `AGENTS.md` section
+on Olm typography is the rule and says which role fits where. A pane that needs something
+the kit cannot draw is a finding to report, never a reason for a local literal.
+
 Never write an install command anywhere, not in code, not in a comment, not in help text a
 person reads. The repository root holds the answer key for where every tool comes from.
 

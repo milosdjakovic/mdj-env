@@ -267,5 +267,7 @@ return {
     -- The directory of colour theme files, found from this file's own location so it is the
     -- one beside this config wherever the config is loaded from. Tracked, unlike the two above.
     themes = (debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$") or (hs.configdir .. "/config")) .. "/themes",
+    -- The typography file, fonts and sizes of the five type roles, beside this config.
+    typography = (debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$") or (hs.configdir .. "/config")) .. "/typography.toml",
   },
 }

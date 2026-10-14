@@ -226,12 +226,13 @@ Provider.__index = Provider
 -- Tokens, screen and the styles both renderers are handed
 --------------------------------------------------------------------------------
 
--- The font and the two text sizes every row and the field are drawn in, the kit's title
--- and sub variants, which hold what geometry.lua carried before stage two.
+-- The font and the two text sizes every row and the field are drawn in. Rows and the field
+-- take the body role, and the subtitle keeps the retiring sub variant until the chooser moves
+-- onto caption together with the taller row it needs.
 local function typeOf(tokens)
   return {
-    font = tokens.text.title.font,
-    textSize = tokens.text.title.size,
+    font = tokens.text.body.font,
+    textSize = tokens.text.body.size,
     subFont = tokens.text.sub.font,
     subSize = tokens.text.sub.size,
   }

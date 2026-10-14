@@ -1,0 +1,16 @@
+# The Olm typography. Only the fonts and the sizes of the five type roles live here, title,
+# body, caption, section and code. Everything else is derived from them. The line height is
+# the size times 1.35 rounded up, the code role takes the mono font and the others the ui
+# font, and each role's colour comes from the active theme. A key left out or given a bad
+# value falls back to the shipped one with a warning in the Hammerspoon console.
+
+[fonts]
+ui   = ".AppleSystemUIFont"
+mono = ".AppleSystemUIFontMonospaced"
+
+[sizes]
+title   = 20
+body    = 16
+caption = 14
+section = 12
+code    = 14

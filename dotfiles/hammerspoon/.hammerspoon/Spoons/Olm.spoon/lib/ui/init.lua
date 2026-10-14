@@ -30,6 +30,10 @@ local ui = kitLib.new(styleLib.names)
 
 ui.measure = measure
 
+--- ui.loadTypography(path, read, log), the composition root's reader for the typography
+--- file, see lib/ui/style.lua. It answers the valid fonts and sizes for the spec.
+ui.loadTypography = styleLib.loadTypography
+
 --- ui.configure(opts), the composition root's door.
 --- opts.spec             the style spec, see lib/ui/style.lua.
 --- opts.surfaceElements  CanvasPanel.surfaceElements, what a surface node paints.

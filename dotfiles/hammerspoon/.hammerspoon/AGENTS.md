@@ -619,6 +619,24 @@ in Eyedropper are that shape, and they stay as they are. The rule governs the wo
 broken one. Vpn carries no `hs.alert` today, so the exception this paragraph used
 to name here no longer applies.
 
+**Olm typography, five roles and nothing else.** Every piece of text Olm draws, in the
+canvas chooser, the side and bottom panes, the toasts, the cheat sheets and every plugin, uses
+one of five roles from the UI kit in `Spoons/Olm.spoon/lib/ui`. title is the name at the top
+of a pane, a toast headline or a cheat sheet section title. body is a list row title, pane
+text and a hint label. caption is a row subtitle, metadata, a description or an empty state.
+section is a heading inside a pane and a key badge glyph. code is a path, a command, output,
+or anything a person would copy, and it is the only role in the monospace font. A caller names
+a role and never a font, a size, a line height or a colour literal. Font, line height and
+colour are derived by the kit, the font from the role, the line height as the size times 1.35
+rounded up, and the colour from the role through the active theme, and a caller may pass a
+theme colour name such as subtext when a different emphasis is meant. Emphasis comes from
+colour, never from an extra size. Case is the caller's choice, the kit never uppercases.
+`config/typography.toml` holds the only two things a person sets, the ui and mono fonts and
+one size per role, and the kit ships the same values as its fallback. A font or size written
+anywhere else is the drift this rule exists to end. Emoji drawn to an image are icons rather
+than text and take an icon size, and `hs.alert` and `hs.dialog` are system drawn and outside
+this rule. The design and the role table live in `Spoons/Olm.spoon/docs/DESIGN-UI-KIT.md`.
+
 **Spoon lifecycle contract.** Every spoon is created and wired the same way, so
 `root/compose.lua`'s wiring pipeline can treat them uniformly. This is a convention, not a base class,
 because a Lua contract is structural, a documented set of methods plus validation,

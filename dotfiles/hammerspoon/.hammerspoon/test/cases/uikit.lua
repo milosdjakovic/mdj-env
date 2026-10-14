@@ -82,7 +82,7 @@ do
     near(dark.colors.badge.white, 1) and near(dark.colors.badge.alpha, 0.12)
       and near(light.colors.badge.white, 0) and near(light.colors.badge.alpha, 0.06))
   check("line height is ceil of size times 1.35",
-    dark.text.title.lineHeight == 22 and dark.text.body.lineHeight == 19
+    dark.text.title.lineHeight == 27 and dark.text.body.lineHeight == 22
       and dark.text.label.lineHeight == 15 and dark.text.big.lineHeight == 27)
   check("a text variant names its font, not the font token",
     dark.text.label.font == "Menlo" and dark.text.body.font == ".AppleSystemUIFont")
@@ -186,11 +186,11 @@ do
   for _, el in ipairs(els) do order[#order + 1] = textOf(el) or "?" end
   check("a stack of texts answers its elements in order",
     table.concat(order, ",") == "one,two,three", table.concat(order, ","))
-  local want = 22 + 19 + 17 + 2 * 6
+  local want = 27 + 22 + 17 + 2 * 6
   check("a stack's height is the summed line heights and gaps", height == want,
     "got " .. tostring(height) .. ", wanted " .. want)
   check("each text sits below the last, starting at the rect",
-    els[1].frame.y == 20 and els[2].frame.y == 20 + 22 + 6 and els[3].frame.y == 20 + 22 + 6 + 19 + 6
+    els[1].frame.y == 20 and els[2].frame.y == 20 + 27 + 6 and els[3].frame.y == 20 + 27 + 6 + 22 + 6
       and els[1].frame.x == 10 and els[1].frame.w == 300)
   check("text is emitted as hs.styledtext", type(els[1].text) == "userdata")
 end
@@ -250,7 +250,7 @@ do
   end
   check("scrollY offsets every element", shifted)
   check("the clip covers the rect", scrolled[1].frame.x == 10 and scrolled[1].frame.h == 200)
-  check("the content height is answered before scrolling", height == 19 + 28 + 1,
+  check("the content height is answered before scrolling", height == 22 + 28 + 1,
     "got " .. tostring(height))
   local noClip = true
   for _, el in ipairs(plain) do
@@ -280,7 +280,7 @@ do
   check("a row places its children left to right and the last takes the remaining width",
     els[1].frame.x == 10 and els[1].frame.w == 35 and els[2].frame.x == 10 + 35 + 10
       and els[2].frame.w == 300 - 35 - 10)
-  check("a row's height is its tallest child", height == 19, "got " .. tostring(height))
+  check("a row's height is its tallest child", height == 22, "got " .. tostring(height))
 end
 
 do
@@ -289,8 +289,8 @@ do
   }, { columns = 2, gapX = "m" })
   local els, height = engine.layout(tree, { x = 0, y = 0, w = 210, h = 100 }, tokens)
   check("a grid places cells in columns and wraps to the next row",
-    els[2].frame.x == 110 and els[2].frame.y == 0 and els[3].frame.x == 0 and els[3].frame.y == 19)
-  check("a grid's height is its rows", height == 38, "got " .. tostring(height))
+    els[2].frame.x == 110 and els[2].frame.y == 0 and els[3].frame.x == 0 and els[3].frame.y == 22)
+  check("a grid's height is its rows", height == 44, "got " .. tostring(height))
 end
 
 do
@@ -304,14 +304,14 @@ do
   check("a surface paints the whole rect once, behind and outside the clip",
     #painted == 1 and painted[1].w == 300 and els[1].frame.x == 10 and els[1].frame.y == 20
       and els[2].action == "clip")
-  check("a surface takes no room and no gap", height == 19 and els[3].frame.y == 15,
+  check("a surface takes no room and no gap", height == 22 and els[3].frame.y == 15,
     "height " .. tostring(height))
 end
 
 do
   local tree = kit.text(string.rep("x", 10), "body", { wrap = true })
   local _, height = engine.layout(tree, { x = 0, y = 0, w = 35, h = 100 }, tokens)
-  check("a wrapped text is as tall as its lines", height == 2 * 19, "got " .. tostring(height))
+  check("a wrapped text is as tall as its lines", height == 2 * 22, "got " .. tostring(height))
 end
 
 --------------------------------------------------------------------------------

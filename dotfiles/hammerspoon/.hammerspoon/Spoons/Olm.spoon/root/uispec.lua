@@ -61,14 +61,17 @@ local function cheatText(cheatSheet)
   return text
 end
 
---- M.spec(policy, colors) -> the style spec for lib/ui/style.lua. colors is the table
---- lib/ui/themes.lua answers for the current theme, a half each of theme keys.
-function M.spec(policy, colors)
+--- M.spec(policy, colors, typography) -> the style spec for lib/ui/style.lua. colors is the
+--- table lib/ui/themes.lua answers for the current theme, a half each of theme keys.
+--- typography is what style.loadTypography answered, the valid fonts and sizes of the type
+--- roles from config/typography.toml, handed on untouched since the style owns the fallback.
+function M.spec(policy, colors, typography)
   policy = policy or {}
   local cheatSheet = policy.cheatSheet or {}
   return {
     colors = { dark = colorsFor(colors, "dark"), light = colorsFor(colors, "light") },
     text = cheatText(cheatSheet),
+    typography = typography,
     radius = {
       surface = (policy.surface or {}).cornerRadius,
       -- One radius shared on purpose by the cheat sheet badges and the hint bar badges,

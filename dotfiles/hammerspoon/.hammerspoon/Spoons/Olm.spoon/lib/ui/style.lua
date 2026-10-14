@@ -22,6 +22,13 @@
 -- them. dim is subtext at the dim alpha, selection is foreground at 0.20, highlight is
 -- foreground at 0.14, and surface is background until the palette step gives it its own.
 
+local tomlLib = (function()
+  local here = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or ""
+  local chunk, err = loadfile(here .. "toml.lua")
+  if not chunk then error("Olm style failed to load toml.lua, " .. tostring(err)) end
+  return chunk()
+end)()
+
 local M = {}
 
 -- The half names the resolver answers and the spec is keyed by.
@@ -59,10 +66,40 @@ local SHIPPED_COLORS = {
   },
 }
 
+-- The fonts and sizes of the five type roles, shipped. config/typography.toml overrides them
+-- key by key, see M.loadTypography below, and anything it leaves out or gets wrong is the
+-- value here. Only fonts and sizes are ever configured. The line height, the font each role
+-- takes and the colour each role is drawn in are derived, one rule each, in ROLE_RULES.
+local SHIPPED_TYPOGRAPHY = {
+  fonts = { ui = ".AppleSystemUIFont", mono = ".AppleSystemUIFontMonospaced" },
+  sizes = { title = 20, body = 16, caption = 14, section = 12, code = 14 },
+}
+
+--- M.roles, the five type roles in reading order. A text node names one of them as its
+--- variant. They are derived, never configured, apart from the fonts and sizes above.
+M.roles = { "title", "body", "caption", "section", "code" }
+
+-- Which font token and which colour role each type role is drawn with. code is the mono
+-- font and every other role the ui font. title, body and code draw in the foreground,
+-- caption in subtext and section in overlay, which is the theme's meta colour. A text node
+-- may still pass a colour role of its own to override. No role changes the case of its text,
+-- since the kit applies no text transform of any kind, upper casing a section heading is
+-- the caller's job.
+local ROLE_RULES = {
+  title = { font = "ui", color = "foreground" },
+  body = { font = "ui", color = "foreground" },
+  caption = { font = "ui", color = "subtext" },
+  section = { font = "ui", color = "overlay" },
+  code = { font = "mono", color = "foreground" },
+}
+
 -- Every token that is not a colour. Values come from the brief that settled stage one and
 -- are what the tree draws today, where the tree agrees with itself.
 local SHIPPED = {
-  fonts = { ui = ".AppleSystemUIFont", mono = "Menlo" },
+  -- ui and mono here are the typography fonts, filled from SHIPPED_TYPOGRAPHY and the
+  -- typography file when the table is built. legacyMono is the font the retiring variants
+  -- below drew in before the typography existed, kept apart so they change nothing.
+  fonts = { legacyMono = "Menlo" },
 
   -- Each variant names a font token rather than a font, and states a lineHeight only when
   -- it departs from the one rule in lineHeightFor below. heading is the one variant that
@@ -77,24 +114,30 @@ local SHIPPED = {
   -- the frame sits against the box the layout reserves, frameY points lower and extraW
   -- points wider, neither taking any room in the layout, which is how the hint bar label
   -- was placed. Stage three replaces this group with the new look.
+  --
+  -- Every variant in this table is retiring, to be removed as each consumer migrates to the
+  -- five type roles built from the typography below. title and body are already shadowed by
+  -- the roles of the same name, which win, so the two entries here are never what a node
+  -- resolves to, and they stay only so the list reads as it did.
   text = {
-    title = { font = "ui", size = 16 },
-    body = { font = "ui", size = 14 },
-    sub = { font = "ui", size = 12 },
-    label = { font = "mono", size = 11 },
-    heading = { font = "ui", size = 16, color = "subtext" },
-    mono = { font = "mono", size = 12 },
-    big = { font = "mono", size = 20 },
+    title = { font = "ui", size = 16 }, -- retiring, shadowed by the title role
+    body = { font = "ui", size = 14 }, -- retiring, shadowed by the body role
+    sub = { font = "ui", size = 12 }, -- retiring
+    label = { font = "legacyMono", size = 11 }, -- retiring
+    heading = { font = "ui", size = 16, color = "subtext" }, -- retiring
+    mono = { font = "legacyMono", size = 12 }, -- retiring
+    big = { font = "legacyMono", size = 20 }, -- retiring
 
     hintKey = { font = "ui", size = 11, lineHeight = 15, pin = false },
     hintLabel = { font = "ui", size = 12, lineHeight = 16, pin = false, color = "subtext",
                   frameY = 3, extraW = 4 },
     cheat = { font = "ui", size = 16, lineHeight = 20, pin = false },
     cheatTitle = { font = "ui", size = 16, lineHeight = 20, pin = false, color = "subtext" },
-    toast = { font = "mono", size = 18, lineHeight = 24, pin = false },
+    toast = { font = "legacyMono", size = 18, lineHeight = 24, pin = false },
     report = { font = "ui", size = 16, lineHeight = 22, pin = false },
     reportDetail = { font = "ui", size = 14, lineHeight = 20, pin = false },
     empty = { font = "ui", size = 13, lineHeight = 20.8, pin = false, color = "quiet" },
+    -- The parity group above is retiring as well, each variant going with its surface.
   },
 
   -- sm and lg are the hint bar's two gaps, eight between lines and sixteen between hints,
@@ -158,13 +201,19 @@ M.names = {
     for _, role in ipairs(COLOR_ROLES) do out[role] = true end
     return out
   end)(),
-  text = keysOf(SHIPPED.text),
+  text = (function()
+    local out = keysOf(SHIPPED.text)
+    for _, role in ipairs(M.roles) do out[role] = true end
+    return out
+  end)(),
+  roles = M.roles,
   space = keysOf(SHIPPED.space),
   icon = keysOf(SHIPPED.icon),
   badge = keysOf(SHIPPED.badge),
 }
 
--- The one line height rule, ceil of size times 1.35, unless a variant states its own.
+-- The one line height rule, ceil of size times 1.35, unless a retiring variant states its own.
+-- A type role never states one.
 local function lineHeightFor(size)
   return math.ceil(size * 1.35)
 end
@@ -215,6 +264,66 @@ local function mergeGroup(shipped, given)
   return out
 end
 
+local function positiveNumber(value)
+  return type(value) == "number" and value == value and value > 0 and value < math.huge
+end
+
+--- M.loadTypography(path, read, log) -> { fonts = {...}, sizes = {...} }
+--- Reads the typography file with lib/ui/toml.lua and answers only the keys that are valid,
+--- which the spec then lays over the shipped values. read is a function of a path answering
+--- the text or nil, log a table with w. A path of nil, a file that is not there or cannot be
+--- parsed is one warning and an empty answer. A missing key, an unknown key, a font that is
+--- not a non empty string and a size that is not a positive number are each one warning
+--- naming the key, and that key keeps its shipped value.
+function M.loadTypography(path, read, log)
+  log = log or { w = function(message) print(message) end }
+  local out = { fonts = {}, sizes = {} }
+  if path == nil then return out end
+  local ok, parsed = pcall(tomlLib.read, path, read, { numbers = true })
+  if not ok then
+    log.w("typography is not loaded, " .. tostring(parsed) .. ", so the shipped fonts and sizes are used")
+    return out
+  end
+  for section in pairs(parsed) do
+    if section ~= "" and section ~= "fonts" and section ~= "sizes" then
+      log.w("typography has an unknown section " .. section .. ", it is ignored")
+    end
+  end
+  if parsed[""] and next(parsed[""]) ~= nil then
+    for key in pairs(parsed[""]) do
+      log.w("typography key " .. key .. " is outside a section, it is ignored")
+    end
+  end
+  for _, section in ipairs({ "fonts", "sizes" }) do
+    local given = parsed[section] or {}
+    for key in pairs(given) do
+      if SHIPPED_TYPOGRAPHY[section][key] == nil then
+        log.w("typography has an unknown key " .. section .. "." .. key .. ", it is ignored")
+      end
+    end
+    for key in pairs(SHIPPED_TYPOGRAPHY[section]) do
+      local value = given[key]
+      local valid
+      if section == "fonts" then
+        valid = type(value) == "string" and value ~= ""
+      else
+        valid = positiveNumber(value)
+      end
+      if value == nil then
+        log.w("typography has no " .. section .. "." .. key .. ", so the shipped "
+          .. tostring(SHIPPED_TYPOGRAPHY[section][key]) .. " is used")
+      elseif not valid then
+        log.w("typography " .. section .. "." .. key .. " is " .. tostring(value) .. ", which is not "
+          .. (section == "fonts" and "a font name" or "a positive number")
+          .. ", so the shipped " .. tostring(SHIPPED_TYPOGRAPHY[section][key]) .. " is used")
+      else
+        out[section][key] = value
+      end
+    end
+  end
+  return out
+end
+
 --- M.new(opts) -> instance
 --- opts.appearance, optional, a function answering "Dark" on the dark half and anything
 --- else on the light one, the same answer hs.host.interfaceStyle gives. Injected so a test
@@ -233,6 +342,8 @@ function M.new(opts)
   --- Takes the whole spec, replacing any earlier one, since the composition root builds it
   --- once from policy and has nothing to merge.
   ---   colors   { dark = { role = colour }, light = { role = colour } }, light optional
+  ---   typography { fonts = { ui, mono }, sizes = { title ... code } }, validated, see
+  ---            M.loadTypography, laid over the shipped fonts and sizes of the type roles
   ---   fonts, text, space, radius, alpha, icon, badge, each optional and merged over the
   ---            shipped values one level down
   function instance.configure(newSpec)
@@ -281,7 +392,9 @@ function M.new(opts)
     resolved.selection = resolved.selection or M.withAlpha(resolved.foreground, 0.20)
     resolved.highlight = resolved.highlight or M.withAlpha(resolved.foreground, 0.14)
 
-    local fonts = mergeGroup(SHIPPED.fonts, spec.fonts)
+    local typography = mergeGroup(SHIPPED_TYPOGRAPHY, spec.typography)
+    local fonts = mergeGroup(SHIPPED.fonts, typography.fonts)
+    fonts = mergeGroup(fonts, spec.fonts)
     local text = {}
     for name, variant in pairs(mergeGroup(SHIPPED.text, spec.text)) do
       text[name] = {
@@ -292,6 +405,21 @@ function M.new(opts)
         pin = variant.pin ~= false,
         frameY = variant.frameY or 0,
         extraW = variant.extraW or 0,
+      }
+    end
+    -- The five type roles are derived from the typography and win over a retiring variant
+    -- of the same name.
+    for _, role in ipairs(M.roles) do
+      local rule = ROLE_RULES[role]
+      local size = typography.sizes[role]
+      text[role] = {
+        font = fonts[rule.font],
+        size = size,
+        lineHeight = lineHeightFor(size),
+        color = rule.color,
+        pin = true,
+        frameY = 0,
+        extraW = 0,
       }
     end
 

@@ -71,13 +71,19 @@ end
 
 --- M.new(names) -> the primitives, bound to one vocabulary.
 --- names is lib/ui/style.lua's M.names, the sets of colour, text, space, icon and badge
---- names. Injected rather than loaded so this file names no sibling.
+--- names, and the list of type roles. Injected rather than loaded so this file names no sibling.
 function M.new(names)
   assert(type(names) == "table", "ui.kit, new needs the style's names")
   local kit = { kinds = M.kinds, aligns = M.aligns, rowAligns = M.rowAligns,
-                lineBreaks = M.lineBreaks }
+                lineBreaks = M.lineBreaks,
+                -- The five type roles, title body caption section code, which a text node
+                -- names as its variant. Their font, size, line height and colour all come
+                -- from the style, none is given here.
+                roles = names.roles }
 
   --- kit.text(str, variant, opts) -> node
+  --- The kit applies no text transform of any kind, no upper casing and no other change of
+  --- case, so a caller that wants a section label in capitals writes it in capitals.
   --- opts.color a colour role, opts.align one of aligns, opts.lineBreak one of lineBreaks,
   --- opts.wrap true to wrap at the width the text is laid out in.
   function kit.text(str, variant, opts)

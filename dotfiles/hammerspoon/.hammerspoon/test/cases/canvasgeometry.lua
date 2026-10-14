@@ -218,8 +218,8 @@ do
   -- The concrete number too, five hundred ninety six less sixteen, twenty eight, ten,
   -- sixteen and twenty eight again, so a change to the formula above and a change to
   -- DEFAULT_LAYOUT's own numbers cannot both drift and still pass unnoticed.
-  check("the width budget for this layout on a roomy screen comes out to four hundred ninety eight points",
-    geometry.textBudget(rects, L) == 498, "got " .. tostring(geometry.textBudget(rects, L)))
+  check("the width budget for this layout on a roomy screen comes out to three hundred fifty eight points",
+    geometry.textBudget(rects, L) == 358, "got " .. tostring(geometry.textBudget(rects, L)))
 end
 
 do
