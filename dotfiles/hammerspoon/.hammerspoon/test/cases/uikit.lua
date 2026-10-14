@@ -412,6 +412,22 @@ do
     els[1].frame.y == 20 and els[1].frame.h == 3 * clh and height == 3 * clh,
     tostring(els[1].frame.h))
 
+  -- asTable reports the default for a key never set, so the case records the attributes the
+  -- layout hands hs.styledtext.new instead.
+  local function paragraphOf(node)
+    local realNew, given = hs.styledtext.new, nil
+    hs.styledtext.new = function(str, attrs) given = attrs return realNew(str, attrs) end
+    local ok, err = pcall(engine.layout, node, R, tokens)
+    hs.styledtext.new = realNew
+    if not ok then error(err) end
+    return given and given.paragraphStyle or {}
+  end
+  local codeStyle = paragraphOf(kit.code({ "plain" }))
+  local bodyStyle = paragraphOf(kit.text("plain words", "body"))
+  check("a code block never tightens its letter spacing before truncation, a body text is left alone",
+    codeStyle.tighteningFactorForTruncation == 0 and bodyStyle.tighteningFactorForTruncation == nil,
+    tostring(codeStyle.tighteningFactorForTruncation) .. " and " .. tostring(bodyStyle.tighteningFactorForTruncation))
+
   local long = engine.layout(kit.code({ string.rep("x", 200) }), { x = 0, y = 0, w = 70, h = 100 }, tokens)
   check("code truncates a long line rather than wrapping it, one line high at the rect width",
     #long == 1 and long[1].frame.w == 70 and long[1].frame.h == clh)
@@ -578,4 +594,39 @@ do
   -- The chip is 34 high and its glyph box 22, so the box starts 6 down, then the shift.
   check("a badge glyph is centred in the chip, then by the same cap height rule",
     near(chip[2].frame.y, 20 + 6 - 1.75), "frame y " .. tostring(chip[2].frame.y))
+end
+
+--------------------------------------------------------------------------------
+-- the section heading
+--------------------------------------------------------------------------------
+
+do
+  local bare = kit.heading("TREE")
+  check("a heading with no facts is the label alone, in the section role",
+    bare.kind == "text" and bare.variant == "section" and bare.str == "TREE")
+  check("an empty facts string is no facts", kit.heading("TREE", "").kind == "text")
+
+  local withFacts = kit.heading("TREE", "stops 3 processes")
+  check("a heading with facts is a row, the label then the facts in subtext flush right",
+    withFacts.kind == "row" and withFacts.children[1].str == "TREE"
+      and withFacts.children[2].str == "stops 3 processes"
+      and withFacts.children[2].variant == "section" and withFacts.children[2].color == "subtext"
+      and withFacts.children[2].align == "right")
+
+  local els, h = engine.layout(withFacts, RECT, tokens)
+  local labelEl, factsEl = els[1], els[2]
+  check("the facts sit against the right edge and the heading is one section line high",
+    near(factsEl.frame.x + factsEl.frame.w, RECT.x + RECT.w) and h == tokens.text.section.lineHeight,
+    "right edge " .. tostring(factsEl.frame.x + factsEl.frame.w) .. ", h " .. tostring(h))
+  check("the label keeps the left edge", near(labelEl.frame.x, RECT.x))
+
+  -- Facts of 40 characters are 280 points at seven a character, wider than the room beside a
+  -- 4 character label in a 300 point pane once the label's own 28 is taken, so one of them has
+  -- to give way, and it must be the label.
+  local long = string.rep("x", 40)
+  local narrowEls = engine.layout(kit.heading("TREE", long), RECT, tokens)
+  check("long facts keep their whole width and the label is the one that gives way",
+    near(narrowEls[2].frame.w, 280) and narrowEls[1].frame.w < 28 + 0.001
+      and near(narrowEls[2].frame.x + narrowEls[2].frame.w, RECT.x + RECT.w),
+    "facts w " .. tostring(narrowEls[2].frame.w) .. ", label w " .. tostring(narrowEls[1].frame.w))
 end

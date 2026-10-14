@@ -8,6 +8,12 @@
 -- practical absence, matching the reasoning the ports entries below already give.
 return {
   needs = {
+    -- The UI kit, which every piece of text in the detail pane is drawn through, so the pane
+    -- names a role and never a font, a size, a line height or a colour. Optional, since without
+    -- it the pane stands down and the picker still lists and stops what it finds.
+    lib = {
+      ui = { from = "ui", policy = "optional" },
+    },
     tools = {
       { name = "ps", kind = "system", locator = "/bin/ps", policy = "optional", unit = "metrics",
         reason = "samples cpu and memory for the rows the picker is showing",

@@ -74,18 +74,6 @@ function M.pair(ui, label, value, valueColor)
   return labelled(ui, label, "subtext", value, valueColor or "foreground", "caption")
 end
 
---- M.heading(ui, label, facts) -> node, a section heading with an optional fact flush right in
---- subtext. The same two anchors as a pair, so a heading reads as a heading.
-function M.heading(ui, label, facts)
-  if facts and facts ~= "" then
-    return ui.row({
-      ui.text(label, "section"),
-      ui.text(facts, "section", { color = "subtext", align = "right" }),
-    }, { fillIndex = 2 })
-  end
-  return ui.text(label, "section")
-end
-
 --- M.header(ui, name, dir, pairs) -> node, everything true of every row. The name, where it
 --- lives when it lives anywhere worth saying, then the facts. pairs is an array of
 --- { label, value, color }, in the order they are drawn.
@@ -113,7 +101,7 @@ end
 --- and only past that is it worth trimming and worth mentioning.
 function M.body(ui, body, w)
   if body.image then
-    return ui.stack({ M.heading(ui, body.label, body.facts), ui.image(body.image, { upscale = false }) },
+    return ui.stack({ ui.heading(body.label, body.facts), ui.image(body.image, { upscale = false }) },
       { gap = M.HEADING_GAP })
   end
 
@@ -139,7 +127,7 @@ function M.body(ui, body, w)
 
   local facts = body.facts
   if note and not facts then facts = string.format("first %d lines", shown) end
-  local heading = M.heading(ui, body.label, facts)
+  local heading = ui.heading(body.label, facts)
   if #lines == 0 then return heading end
 
   -- The code block draws only the lines inside the scrolled window, which is what keeps a long

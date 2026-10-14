@@ -146,6 +146,20 @@ function M.new(names)
              fill = opts.fill ~= false, fillIndex = fillIndex }
   end
 
+  --- kit.heading(label, facts) -> node, a section label at the left and optional facts flush
+  --- against the right edge, both in the section role, the facts in subtext. Without facts it
+  --- is the label alone. The label is the child that takes the remaining width, so the facts
+  --- keep their whole width and it is the label that gives way in a pane too narrow for both.
+  --- It lives in the kit because the file search, processes and speedtest panes all head a
+  --- section the same way, and three private copies would drift.
+  function kit.heading(label, facts)
+    if facts == nil or facts == "" then return kit.text(label, "section") end
+    return kit.row({
+      kit.text(label, "section"),
+      kit.text(facts, "section", { color = "subtext", align = "right" }),
+    }, { fillIndex = 1 })
+  end
+
   --- kit.stack(children, opts) -> node, top to bottom. opts.gap a space name.
   function kit.stack(children, opts)
     opts = opts or {}

@@ -63,6 +63,21 @@ Because the clipboard and file search panes both draw an image scaled to the pan
 gained an `image` primitive for the two, which keeps the aspect and can refuse to draw wider than
 the picture itself. The header stays pinned and only the body scrolls, as before.
 
+The processes pane was decided on the same day, 2026 10 14, while building its step. Every
+heading, CPU, MEMORY, PORTS, DIRECTORY, COMMAND, IMAGE, CONTAINER and TREE, is section with its
+optional facts flush right in subtext, and it is the kit's new `heading`, moved there from the file
+search pane because speedtest needs it next. Ports, the command or image, and the container id are
+the code role wrapped, so whitespace in a command now stays as written where the old wrap collapsed
+it, and the directory is the same in the path colour. The tree is the kit's code block with a
+closing line worded "… N more", so it is cut at the pane width by the block rather than by a column
+budget and the label elision went, and the pid sits before the label so a cut never moves it. The
+sparklines are raw nodes, their geometry stays named constants since it belongs to a graph and not to
+type, their colours come from tokens, the baseline is the dim colour, and the live block's height is
+derived from the section line height and the space steps. What the pane is made of is built as nodes
+in a pure file, `pane-nodes.lua`, covered by a unit case, and the canvas, the cache and the sampler
+stay in `preview.lua`, which caches the static half's laid out elements the way file search caches
+its header, so a sampler tick lays out the live block alone.
+
 ## What the kit gains first
 
 Three things the panes need and the kit lacks, each with more than one consumer.
@@ -84,7 +99,7 @@ Three things the panes need and the kit lacks, each with more than one consumer.
    variants they used are deleted. Judged live. Built 2026 10 14, every text variant outside
    the five roles is gone and none had another consumer.
 4. The four panes, one plugin per step, clipboard, file search, processes, speedtest. The
-   clipboard step and the file search step were built 2026 10 14. Each
+   clipboard step, the file search step and the processes step were built 2026 10 14. Each
    step draws its pane through `ui.layout`, deletes its own fonts, sizes, palette closure and
    fallback colours, drops its theme exemption line, and is judged live before the next.
 5. Close out. The last retiring variants and lib/chooser/textwidth.lua go, and a check joins

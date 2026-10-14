@@ -384,6 +384,24 @@ server sits flat down the middle. The figures beside each heading carry the abso
 anchor either way, and a peak is printed only when it is above the current reading,
 since a peak that is the current reading is the same number twice.
 
+## The pane is drawn through the UI kit, and built as nodes
+
+Every piece of text in the pane is one of the five typography roles and every colour a role
+name, so `preview.lua` and `pane-nodes.lua` name no font, size, line height or colour. A heading is
+section with its facts flush right in subtext, the ports, the command or image and the container id
+are the code role wrapped, and the tree is the kit's code block with a closing line "… N more". The
+two sparklines are raw nodes. Their geometry is a graph's and stays a named constant, their colours
+come from tokens, and the live block's height is derived from the section line height and the space
+steps rather than written down.
+
+What the pane is made of is `pane-nodes.lua`, which loads in plain Lua and takes the kit as an
+argument, and `test/cases/processes-pane.lua` covers it. The canvas, the cache, the sampler's figures
+and the paint stay in `preview.lua`. The static half's laid out elements are cached in the model the
+way file search caches its header, so a sampler tick lays out the live block alone. The tree's room
+is what the sections leave, measured through the layout, because a wrapped command is as tall as the
+pane is wide. The kit arrives as `needs.lib.ui`, optional, and with no kit the pane stands down like
+it does with no surface.
+
 ## Rows differ, so a section is dropped rather than emptied
 
 A container has no working directory and no tree, a portless watcher has no ports, and
@@ -399,8 +417,9 @@ a field the row carries rather than the name of the source that produced it.
 The pane shows the command line in full. The sources carry both forms, `command` elided
 to 120 characters for the one line row subtitle and `commandFull` untruncated for the
 pane to wrap, because the two readers want different things and neither should have to
-compromise for the other. The tree labels stay elided only, since each of those is one
-line anyway and a second copy would pay for nothing.
+compromise for the other. The tree labels are one line each and carry no second copy,
+the code block cuts a long one at the pane width, and since the pid sits before the label a
+cut only ever takes the end of a label and the column stays lined up.
 
 ## The icon and the name are one decision
 

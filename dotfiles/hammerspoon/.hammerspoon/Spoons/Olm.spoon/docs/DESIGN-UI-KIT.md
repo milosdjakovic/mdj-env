@@ -61,6 +61,7 @@ row(children, {gap, align, fillIndex})
                               left to right, the last child takes the remaining width, or the
                               one fillIndex names, so a header can truncate its name and keep
                               its facts whole
+heading(label, facts)         a section label left and optional facts flush right in subtext, see below
 stack(children, {gap})        top to bottom
 flow(children, {gapX, gapY})  left to right, wrapping at the rect width, the hint bar
 grid(children, {columns})     the cheat sheet
@@ -143,6 +144,7 @@ The lines that are drawn go out as one text element, joined by newlines with the
 pinned and truncateTail so each line is still cut at the width, rather than one element per line.
 A styled text per line was measured to make every scroll event cost dozens of constructions, and a
 trackpad sends dozens of events a second. The closing line stays its own caption element.
+The code role also sets `tighteningFactorForTruncation` to 0, since macOS otherwise tightens the letter spacing of a line it is about to cut, which draws a cut line narrower than its neighbours and shifts its columns left.
 
 The visible slice applies when `ui.layout` gets `scrollY`. A code line wholly outside the
 window, the rect shifted by the scroll, is left out of the element and is not measured, and the content
@@ -162,6 +164,16 @@ icon from being blown up. A picture that cannot say its size draws as a square. 
 click id reach it the way they reach an icon. It is a primitive rather than a raw node because the
 clipboard pane and the file search pane both draw one and would otherwise each carry the same
 arithmetic.
+
+## The section heading
+
+`heading(label, facts)` answers the row a pane heads a section with, the label in section at the
+left and the facts, when there are any, in section and subtext flush against the right edge. With
+no facts it is the label alone. The label is the child that takes the remaining width, so the facts
+keep their whole width and it is the label that gives way in a pane too narrow for both. It is in
+the kit because the file search pane, the processes pane and the speedtest pane all head a section
+this way, and three private copies would each drift. Added 2026 10 14 with the processes step, and
+the file search pane's own copy was deleted.
 
 ## What the typography plan's step three removed
 

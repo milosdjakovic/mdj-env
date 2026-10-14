@@ -786,16 +786,9 @@ function M:start()
     -- declaring plugin earns both together. See lib/panel.lua's own header for why a
     -- frame with nothing to preview now paints this rather than hiding the canvas.
     emptyState = cfg.emptyState,
-    -- The atom's own light and dark resolution, hs.host.interfaceStyle() picking cfg.theme's
-    -- dark or light half, lib/chooser/providers/native.lua:178's own arithmetic, reproduced
-    -- here rather than reached through an instance this file no longer holds, so the pane
-    -- still follows the system appearance switch exactly as it did before the migration.
-    palette = function()
-      local p = cfg.theme or {}
-      local dark = hs.host.interfaceStyle() == "Dark"
-      local resolved = (dark and p.dark) or p.light or p.dark
-      return resolved and resolved.preview
-    end,
+    -- The UI kit every piece of the pane is drawn through. It follows the system appearance
+    -- itself, which is what a palette closure used to do here by hand.
+    ui = cfg.ui,
     -- The one sampler this file already holds. Handing it over rather than letting the
     -- pane load its own matters, since loadfile returns a fresh module every call and a
     -- second sampler would keep its own empty history behind every sparkline.

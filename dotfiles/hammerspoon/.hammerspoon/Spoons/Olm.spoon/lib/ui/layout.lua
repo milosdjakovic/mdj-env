@@ -308,6 +308,10 @@ function M.new(deps)
   local function textElement(ctx, str, v, colorRole, align, lineBreak, frame)
     local paragraph = { alignment = align, lineBreak = lineBreak,
       minimumLineHeight = v.lineHeight, maximumLineHeight = v.lineHeight }
+    -- macOS tightens the letter spacing of a line before it cuts it with an ellipsis, so in a
+    -- monospaced font a cut line is drawn narrower than its neighbours and its columns drift
+    -- left. The mono font never tightens, which keeps every column of the code role aligned.
+    if v.font == ctx.T.fonts.mono then paragraph.tighteningFactorForTruncation = 0 end
     frame.y = frame.y + glyphShift(v)
     local styled = hs.styledtext.new(str, {
       font = { name = v.font, size = v.size },
