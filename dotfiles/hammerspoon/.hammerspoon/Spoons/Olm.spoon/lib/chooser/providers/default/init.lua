@@ -326,6 +326,8 @@ function Provider:_updateDrawLayout()
   -- The viewport holds the whole rows and the peek of one more, so the model scrolls and the
   -- renderer clips to that height. A fractional count is fine for both, they work in points.
   L.rowCount = self._rects.viewRows or self._rects.rowCount
+  -- The margin under the list scrolls with the rows, see geometry.resolve.
+  L.padBottom = self.layout.marginY
   for k, v in pairs(self._type) do L[k] = v end
   self._drawLayout = L
 end
@@ -418,7 +420,7 @@ function Provider:_rebuildList(query, resetHighlight)
   self.listState = listModel.normalized({
     rows = drawReady, query = "", filtered = drawReady,
     highlight = prev.highlight, scrollTop = prev.scrollTop,
-    rowH = prev.rowH, visibleCount = prev.visibleCount,
+    rowH = prev.rowH, visibleCount = prev.visibleCount, padEnd = prev.padEnd,
   })
 end
 
@@ -446,7 +448,15 @@ function Provider:_redraw()
   for _, el in ipairs(fieldRender.elements(fieldState, fieldRect, self._fieldStyle, self._caretVisible, self._placeholder)) do
     els[#els + 1] = el
   end
-  for _, el in ipairs(listRender.elements(self.listState, listRect, self._drawLayout, self._listStyle)) do
+  -- The band is cut at the inside of the border, so a row scrolled past the bottom stops at
+  -- the edge of the surface and never draws over the border line.
+  local clip = listRect
+  local interior = self.surface:interior()
+  if interior then
+    local bottom = math.min(listRect.y + listRect.h, interior.y + interior.h)
+    clip = { x = listRect.x, y = listRect.y, w = listRect.w, h = math.max(0, bottom - listRect.y) }
+  end
+  for _, el in ipairs(listRender.elements(self.listState, listRect, self._drawLayout, self._listStyle, clip)) do
     els[#els + 1] = el
   end
   self.surface:draw(els)

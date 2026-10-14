@@ -219,6 +219,17 @@ function obj.surfaceElements(w, h, style)
   return els
 end
 
+--- CanvasPanel.surfaceInterior(w, h, style) - the box inside the surface's border, for a
+--- w x h box at origin (0, 0). Content that scrolls is clipped here rather than at its own
+--- padded box, so a cut line is cut by the edge of the surface, the way a web list puts its
+--- padding on the element inside the one that overflows, and still never drawn over the
+--- border. Answered here because this is the one place that knows the border width.
+function obj.surfaceInterior(w, h, style)
+  style = style or DEFAULT_STYLE or {}
+  local bw = style.borderWidth or 1
+  return { x = bw, y = bw, w = w - 2 * bw, h = h - 2 * bw }
+end
+
 --- CanvasPanel.emptyStateElements(w, h, opts) - a quiet empty state for a w x h box at
 --- origin (0, 0), one line of centered text. A docked pane used to hide itself the
 --- moment its presentation had nothing to describe, and a reserved rect with nothing

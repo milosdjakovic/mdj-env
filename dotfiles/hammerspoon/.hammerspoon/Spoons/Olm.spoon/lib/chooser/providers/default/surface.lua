@@ -100,6 +100,13 @@ function Surface:draw(elements)
 end
 
 --- show() reveals the window. Does nothing when no frame has been set.
+-- The box inside the border in the canvas's own coordinates, where the list's scroll band
+-- is cut, or nil before the first frame.
+function Surface:interior()
+  if not (self.frame and self.panel.surfaceInterior) then return nil end
+  return self.panel.surfaceInterior(self.frame.w, self.frame.h, self.style)
+end
+
 function Surface:show()
   if self.canvas then self.canvas:show() end
 end

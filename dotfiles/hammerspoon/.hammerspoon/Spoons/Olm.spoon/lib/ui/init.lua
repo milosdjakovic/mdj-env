@@ -37,10 +37,14 @@ ui.loadTypography = styleLib.loadTypography
 --- ui.configure(opts), the composition root's door.
 --- opts.spec             the style spec, see lib/ui/style.lua.
 --- opts.surfaceElements  CanvasPanel.surfaceElements, what a surface node paints.
+--- opts.surfaceInterior  CanvasPanel.surfaceInterior, the box inside the surface's border.
 --- Callable more than once, each call replacing only what it names.
+local surfaceInterior = nil
+
 function ui.configure(opts)
   opts = opts or {}
   if opts.spec ~= nil then style.configure(opts.spec) end
+  if opts.surfaceInterior ~= nil then surfaceInterior = opts.surfaceInterior end
   if opts.surfaceElements ~= nil then
     engine = layoutLib.new({ measure = measure, surfaceElements = opts.surfaceElements })
   end
@@ -64,6 +68,14 @@ end
 function ui.layout(node, rect, opts)
   opts = opts or {}
   return engine.layout(node, rect, opts.tokens or style.tokens(), opts)
+end
+
+--- ui.interior(w, h) -> the box inside the border of a w x h surface at origin (0, 0), the
+--- viewport a pane hands ui.layout so scrolled content is cut by the pane's edge rather than
+--- by its padding. The whole box when no surface was configured.
+function ui.interior(w, h)
+  if surfaceInterior then return surfaceInterior(w, h) end
+  return { x = 0, y = 0, w = w, h = h }
 end
 
 --- ui.iconImage(imageOrGlyph, size) -> hs.image or nil, size an icon name. The image an

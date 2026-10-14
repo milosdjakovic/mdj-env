@@ -453,6 +453,20 @@ load error, and the console can still be read from outside through accessibility
 window. Never relaunch Hammerspoon to recover before capturing the console,
 since a relaunch wipes the scrollback that holds the only copy of the error.
 
+Every `hs` call an agent makes passes `-q`, and every one is bounded. Without `-q` the CLI
+instance has console output sent back to it while it is still handling the request, and
+Hammerspoon refuses each of those messages with an `hs.ipc ... already recursing, refusing
+request` warning. Reading the console that way on 2026-10-14 wrote some seven hundred of
+these warnings into the console. That looked like a broken reload when the reload was clean,
+and it pushed the real load lines out of the scrollback this gate depends on. So the console
+is read by a script, run through `hs -q -c "return dofile('<script>')"`, that writes
+`hs.console.getConsole()` to a file in the scratchpad, and the file is grepped. The console
+text is never returned over the port. Each call runs in the background and is killed after a
+few seconds, `( hs -q -c '...' & p=$!; sleep 4; kill $p ) 2>/dev/null`, since an ipc reply can
+go missing and `timeout` is not on this machine. A reload is scheduled rather than called
+inline, `hs -q -c 'hs.timer.doAfter(0.2, hs.reload)'`, because a reload called inside the ipc
+request tears down the port that is answering it.
+
 Stow only links what existed the last time it ran. The resting main config at
 `~/.hammerspoon` is a folded stow tree, a real `Spoons` directory holding one
 symlink per spoon, so a spoon directory born after the last stow run is simply

@@ -471,6 +471,11 @@ function M.new(deps)
   ---            content is clipped to rect, the clip opened once and closed once.
   ---   a code block lays out only the lines inside the visible window when scrollY is set.
   ---   clip     true to clip to rect without scrolling.
+  ---   viewport the box the content is clipped to, when it is not rect. rect is the padded box
+  ---            the tree is laid out in and viewport the box that scrolls, so a pane passes its
+  ---            surface interior here and a line scrolled past the padding is cut by the edge
+  ---            of the pane rather than by the padding, the way a web list puts its padding on
+  ---            the element inside the one that overflows.
   --- contentHeight is the height the tree wants at rect.w, before any scroll.
   function engine.layout(node, rect, tokens, opts)
     opts = opts or {}
@@ -488,15 +493,16 @@ function M.new(deps)
       end
     end
 
-    local clipped = opts.scrollY ~= nil or opts.clip == true
+    local clipped = opts.scrollY ~= nil or opts.clip == true or opts.viewport ~= nil
+    local box = opts.viewport or rect
     if clipped then
       els[#els + 1] = { type = "rectangle", action = "clip",
-        frame = { x = rect.x, y = rect.y, w = rect.w, h = rect.h } }
+        frame = { x = box.x, y = box.y, w = box.w, h = box.h } }
     end
 
     local _, contentH = sizeOf(node, rect.w, tokens)
     local ctx = { T = tokens, els = els, alpha = 1, id = nil }
-    if opts.scrollY ~= nil then ctx.window = { top = rect.y, bottom = rect.y + rect.h } end
+    if opts.scrollY ~= nil then ctx.window = { top = box.y, bottom = box.y + box.h } end
     emit(node, rect.x, rect.y - (opts.scrollY or 0), rect.w, contentH, ctx)
 
     if clipped then els[#els + 1] = { type = "resetClip" } end

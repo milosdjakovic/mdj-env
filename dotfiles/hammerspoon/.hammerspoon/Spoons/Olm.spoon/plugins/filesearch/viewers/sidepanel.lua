@@ -339,8 +339,10 @@ end
 -- Compose the surface, the header and the body, and show.
 --
 -- The header was laid out when the model was built and never moves. The body is laid out in
--- the rect below it, clipped to that rect and scrolled by the scroll offset, so a body scrolled
--- up stops at the header and one scrolled down stops at the padding rather than at the border.
+-- the rect below it and scrolled by the scroll offset. It is clipped from the header down to
+-- the inside of the pane's border, so a body scrolled up stops at the header and a line cut at
+-- the bottom is cut by the edge of the pane rather than by the padding, the padding being part
+-- of what scrolls.
 -- The offset is clamped HERE rather than where it is changed, against the body height the
 -- layout answers. That is what lets a key press, a trackpad gesture and a rebuild at a new
 -- height all be written without any of them knowing how tall the content turned out.
@@ -370,11 +372,13 @@ local function paint()
   local room = inner.y + inner.h - bodyTop
   if model.body and room > 0 then
     local rect = { x = inner.x, y = bodyTop, w = inner.w, h = room }
-    local content, bodyH = ui.layout(model.body, rect, { scrollY = scrollOffset })
+    local box = ui.interior(frame.w, frame.h)
+    local viewport = { x = box.x, y = bodyTop, w = box.w, h = box.y + box.h - bodyTop }
+    local content, bodyH = ui.layout(model.body, rect, { scrollY = scrollOffset, viewport = viewport })
     local overflow = math.max(0, bodyH - room)
     if scrollOffset > overflow or scrollOffset < 0 then
       scrollOffset = math.max(0, math.min(scrollOffset, overflow))
-      content = ui.layout(model.body, rect, { scrollY = scrollOffset })
+      content = ui.layout(model.body, rect, { scrollY = scrollOffset, viewport = viewport })
     end
     for _, el in ipairs(content) do els[#els + 1] = el end
   else

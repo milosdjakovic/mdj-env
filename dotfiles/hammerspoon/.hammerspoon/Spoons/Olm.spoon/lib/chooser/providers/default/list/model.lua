@@ -36,6 +36,16 @@
 --- always rowH times visibleCount and never a number carried separately that could drift
 --- from those two.
 ---
+--- padEnd is the padding at the bottom of the scrolled content, read from a layout's
+--- padBottom, asked for on 2026 10 14. The scroll box reaches the edge of the surface and
+--- the margin under the list lives inside what scrolls, the way a web list puts its padding
+--- on the inner element rather than on the element that overflows, so a cut row is cut by
+--- the edge and never by the margin. The scroll box is the row band plus padEnd, and the
+--- content is every row plus padEnd, so the two cancel and the furthest scroll is the same
+--- as it would be with no padding. Keeping a highlight in view still measures against the
+--- row band alone, so a highlight moved to the bottom stops a margin above the edge with
+--- the next row showing under it.
+---
 --- scrollTop is a point offset from the top of the filtered set to the top of the
 --- viewport, not a row index. This is round five's own replacement for what scrollTop
 --- used to be, a whole row the viewport started drawing from, and the change is what
@@ -142,10 +152,10 @@ end
 -- State construction and the total, never raising normalize every operation opens with
 --------------------------------------------------------------------------------
 
-local function newRawState(rows, query, filtered, highlight, scrollTop, rowH, visibleCount)
+local function newRawState(rows, query, filtered, highlight, scrollTop, rowH, visibleCount, padEnd)
   return {
     rows = rows, query = query, filtered = filtered, highlight = highlight,
-    scrollTop = scrollTop, rowH = rowH, visibleCount = visibleCount,
+    scrollTop = scrollTop, rowH = rowH, visibleCount = visibleCount, padEnd = padEnd or 0,
   }
 end
 
@@ -204,6 +214,7 @@ local function normalizeState(rawState)
   local filtered = (rawState and rawState.filtered) or {}
   local visibleCount = (rawState and rawState.visibleCount) or DEFAULT_VISIBLE_COUNT
   local rowH = (rawState and rawState.rowH) or DEFAULT_ROW_H
+  local padEnd = (rawState and rawState.padEnd) or 0
   local total = #filtered
   local highlight = rawState and rawState.highlight
   if total == 0 then
@@ -216,7 +227,7 @@ local function normalizeState(rawState)
   end
   local scrollTop = (rawState and rawState.scrollTop) or 0
   scrollTop = boundScroll(scrollTop, total, rowH, visibleCount)
-  return newRawState(rows, query, filtered, highlight, scrollTop, rowH, visibleCount)
+  return newRawState(rows, query, filtered, highlight, scrollTop, rowH, visibleCount, padEnd)
 end
 
 --------------------------------------------------------------------------------
@@ -238,10 +249,11 @@ function M.newState(rows, layout, query)
   query = query or ""
   local visibleCount = (layout and layout.rowCount) or DEFAULT_VISIBLE_COUNT
   local rowH = (layout and layout.rowH) or DEFAULT_ROW_H
+  local padEnd = (layout and layout.padBottom) or 0
   local filtered = rankRows(rows, query)
   local highlight = (#filtered > 0) and 1 or nil
   local scrollTop = scrollToShowHighlight(highlight, 0, #filtered, rowH, visibleCount)
-  return newRawState(rows, query, filtered, highlight, scrollTop, rowH, visibleCount)
+  return newRawState(rows, query, filtered, highlight, scrollTop, rowH, visibleCount, padEnd)
 end
 
 --- M.setQuery(state, query) reranks the same rows the state already holds against a new
@@ -255,7 +267,7 @@ function M.setQuery(rawState, query)
   local filtered = rankRows(ns.rows, query)
   local highlight = (#filtered > 0) and 1 or nil
   local scrollTop = scrollToShowHighlight(highlight, 0, #filtered, ns.rowH, ns.visibleCount)
-  return newRawState(ns.rows, query, filtered, highlight, scrollTop, ns.rowH, ns.visibleCount)
+  return newRawState(ns.rows, query, filtered, highlight, scrollTop, ns.rowH, ns.visibleCount, ns.padEnd)
 end
 
 --- M.moveDown(state) and M.moveUp(state), one function per movement as the brief asks,
@@ -275,24 +287,24 @@ function M.moveDown(rawState)
   local ns = normalizeState(rawState)
   local total = #ns.filtered
   if total == 0 then
-    return newRawState(ns.rows, ns.query, ns.filtered, nil, ns.scrollTop, ns.rowH, ns.visibleCount)
+    return newRawState(ns.rows, ns.query, ns.filtered, nil, ns.scrollTop, ns.rowH, ns.visibleCount, ns.padEnd)
   end
   local highlight = ns.highlight + 1
   if highlight > total then highlight = 1 end
   local scrollTop = scrollToShowHighlight(highlight, ns.scrollTop, total, ns.rowH, ns.visibleCount)
-  return newRawState(ns.rows, ns.query, ns.filtered, highlight, scrollTop, ns.rowH, ns.visibleCount)
+  return newRawState(ns.rows, ns.query, ns.filtered, highlight, scrollTop, ns.rowH, ns.visibleCount, ns.padEnd)
 end
 
 function M.moveUp(rawState)
   local ns = normalizeState(rawState)
   local total = #ns.filtered
   if total == 0 then
-    return newRawState(ns.rows, ns.query, ns.filtered, nil, ns.scrollTop, ns.rowH, ns.visibleCount)
+    return newRawState(ns.rows, ns.query, ns.filtered, nil, ns.scrollTop, ns.rowH, ns.visibleCount, ns.padEnd)
   end
   local highlight = ns.highlight - 1
   if highlight < 1 then highlight = total end
   local scrollTop = scrollToShowHighlight(highlight, ns.scrollTop, total, ns.rowH, ns.visibleCount)
-  return newRawState(ns.rows, ns.query, ns.filtered, highlight, scrollTop, ns.rowH, ns.visibleCount)
+  return newRawState(ns.rows, ns.query, ns.filtered, highlight, scrollTop, ns.rowH, ns.visibleCount, ns.padEnd)
 end
 
 --- M.scrollTo(state, points) sets scrollTop to an absolute point offset, bounded to the
@@ -307,7 +319,7 @@ function M.scrollTo(rawState, points)
   local ns = normalizeState(rawState)
   local total = #ns.filtered
   local scrollTop = boundScroll(points or 0, total, ns.rowH, ns.visibleCount)
-  return newRawState(ns.rows, ns.query, ns.filtered, ns.highlight, scrollTop, ns.rowH, ns.visibleCount)
+  return newRawState(ns.rows, ns.query, ns.filtered, ns.highlight, scrollTop, ns.rowH, ns.visibleCount, ns.padEnd)
 end
 
 --- M.scrollBy(state, delta) moves scrollTop by a relative number of points, bounded the
@@ -353,7 +365,7 @@ function M.visibleRows(rawState)
   local ns = normalizeState(rawState)
   local total = #ns.filtered
   if total == 0 or ns.rowH <= 0 then return {} end
-  local viewportH = ns.rowH * ns.visibleCount
+  local viewportH = ns.rowH * ns.visibleCount + ns.padEnd
   local firstIndex = math.floor(ns.scrollTop / ns.rowH) + 1
   if firstIndex < 1 then firstIndex = 1 end
   local out = {}

@@ -517,10 +517,10 @@ local function innerRect()
            w = previewFrame.w - 2 * inset.x, h = previewFrame.h - 2 * inset.y }
 end
 
--- Lay a tree into the canvas, the shared surface first (unclipped), then the tree clipped
--- to the inner box and scrolled by the live offset. maxScroll comes from the content height
--- the layout answers, so a tall entry scrolls under the inset instead of spilling over the
--- border. A node of nil is the empty state. Records the tree for repaint().
+-- Lay a tree into the canvas, the shared surface first (unclipped), then the tree laid out in
+-- the inner box, scrolled by the live offset, and clipped at the inside of the border. The
+-- padding scrolls with the content, so a line cut at the bottom is cut by the edge of the pane
+-- rather than by the padding. maxScroll comes from the content height the layout answers. A node of nil is the empty state. Records the tree for repaint().
 local function paint(node)
   if not previewFrame then return end
   -- A late media decode, a store change, or an in flight file read can all reach this
@@ -546,11 +546,12 @@ local function paint(node)
       els[#els + 1] = shiftEl(el, inner.x, inner.y)
     end
   else
-    local content, contentH = kit.layout(node, inner, { scrollY = scrollOffset })
+    local viewport = kit.interior(frame.w, frame.h)
+    local content, contentH = kit.layout(node, inner, { scrollY = scrollOffset, viewport = viewport })
     maxScroll = math.max(0, contentH - inner.h)
     if scrollOffset > maxScroll or scrollOffset < 0 then
       scrollOffset = math.max(0, math.min(scrollOffset, maxScroll))
-      content = kit.layout(node, inner, { scrollY = scrollOffset })
+      content = kit.layout(node, inner, { scrollY = scrollOffset, viewport = viewport })
     end
     for _, el in ipairs(content) do els[#els + 1] = el end
   end

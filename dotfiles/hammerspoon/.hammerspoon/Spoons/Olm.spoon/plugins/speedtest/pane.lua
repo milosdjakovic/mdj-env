@@ -120,13 +120,16 @@ local function paint()
   local rect = innerRect()
 
   local body = buildBody()
-  local content, bodyH = ui.layout(body, rect, { scrollY = scrollY, tokens = tokens })
+  -- Laid out in the padded box and cut at the inside of the border, so a line scrolled past
+  -- the padding is cut by the edge of the pane rather than by the padding.
+  local viewport = ui.interior(frame.w, frame.h)
+  local content, bodyH = ui.layout(body, rect, { scrollY = scrollY, tokens = tokens, viewport = viewport })
   maxScroll = math.max(0, (bodyH or 0) - rect.h)
   -- The offset is clamped here, against the height the layout answers, so a scroll, a rebuild at
   -- a new height and a run that grows underneath it all land somewhere real.
   if scrollY > maxScroll or scrollY < 0 then
     scrollY = math.max(0, math.min(scrollY, maxScroll))
-    content = ui.layout(body, rect, { scrollY = scrollY, tokens = tokens })
+    content = ui.layout(body, rect, { scrollY = scrollY, tokens = tokens, viewport = viewport })
   end
 
   local els = {}

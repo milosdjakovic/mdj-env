@@ -310,6 +310,7 @@ function obj.run(olm, cfg)
     uiAtom.configure({
       spec = uiSpecLib.spec(policy, themes.colors(), typography),
       surfaceElements = canvasPanel.surfaceElements,
+      surfaceInterior = canvasPanel.surfaceInterior,
     })
     canvasPanel.configure({ ui = uiAtom })
   end

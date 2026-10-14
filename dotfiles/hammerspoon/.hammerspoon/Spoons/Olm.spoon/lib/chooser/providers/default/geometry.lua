@@ -205,16 +205,18 @@ function M.resolve(screenFrame, layout, paneWidth)
   local canvasRect = { x = x, y = y, w = canvasW, h = canvasH }
 
   -- The canvas has no padding of its own, asked for on 2026 10 14. The field spans its full
-  -- width at the top and the list fills the rest, padded by the margin on its sides and below,
-  -- with no gap between the two. The field's text is inset by that same margin, so the query
-  -- starts on the left edge of the highlighted row.
+  -- width at the top and the list fills the rest, padded by the margin on its sides, with no
+  -- gap between the two. The field's text is inset by that same margin, so the query starts
+  -- on the left edge of the highlighted row. The list reaches the bottom of the canvas and
+  -- the margin below it is padding inside what scrolls, list model's padEnd, so a row the
+  -- viewport cuts is cut by the edge of the surface rather than by the margin.
   local fieldRect = {
     x = x + layout.marginX, y = y,
     w = canvasW - 2 * layout.marginX, h = layout.baseH,
   }
   local listRect = {
     x = x + layout.marginX, y = y + layout.baseH,
-    w = canvasW - 2 * layout.marginX, h = viewRows * layout.rowH,
+    w = canvasW - 2 * layout.marginX, h = viewRows * layout.rowH + layout.marginY,
   }
 
   local companionRect = nil

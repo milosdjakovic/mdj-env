@@ -79,7 +79,7 @@
 ---
 --- M.bandHeight(layout) answers the one number every caller sizing a surface around this
 --- list has to agree with this file about, how tall the whole row band stands, the
---- visible row count times the row height and nothing else. It exists because that
+--- visible row count times the row height, plus the padding under the last row. It exists because that
 --- multiplication used to happen twice, once inside the drawing loop below simply by
 --- walking forward one rowH per row, and once wherever a caller had to decide how much
 --- room to leave for this list before it ever called elements. Two places computing the
@@ -169,6 +169,7 @@ local function resolveLayout(layout)
     iconGap = layout.iconGap or DEFAULT_LAYOUT.iconGap,
     iconFrame = layout.iconFrame,
     numW = layout.numW,
+    padBottom = layout.padBottom or 0,
     showRowNumbers = (layout.showRowNumbers == nil) and DEFAULT_LAYOUT.showRowNumbers or layout.showRowNumbers,
   }
 end
@@ -210,8 +211,8 @@ local function fontMetrics(font, size)
 end
 
 --- M.bandHeight(layout) answers the exact height of the whole row band this list draws
---- for the given layout, the visible row count times the row height and nothing added
---- and nothing taken away. A caller sizing a canvas, a rect, or anything else this list
+--- for the given layout, the visible row count times the row height plus padBottom, the
+--- padding that scrolls with the rows. A caller sizing a canvas, a rect, or anything else this list
 --- will sit inside asks this function rather than repeating the multiplication itself,
 --- which is what keeps that outer size and what this file actually draws from ever
 --- drifting apart as rowH or rowCount change in a later round, and it is also the exact
@@ -220,10 +221,13 @@ end
 --- way.
 function M.bandHeight(layout)
   local resolved = resolveLayout(layout)
-  return resolved.rowCount * resolved.rowH
+  return resolved.rowCount * resolved.rowH + resolved.padBottom
 end
 
---- M.elements(state, rect, layout, style) answers a list of canvas elements for one row
+--- clip is optional, the rect the band is cut to when it is not the band itself, which is
+--- how a caller keeps a row from being drawn over a border its surface paints at the edge.
+---
+--- M.elements(state, rect, layout, style, clip) answers a list of canvas elements for one row
 --- list. rect is x y w h, the box this list occupies inside the caller's own canvas,
 --- ordinarily sitting directly under the field at layout.baseH and standing exactly
 --- M.bandHeight(layout) tall, though this function only ever reads rect.x, rect.y and
@@ -231,7 +235,7 @@ end
 --- rowCount of them is what answers rect.h in the first place rather than the other way
 --- around. layout and style are both every field optional, described at the head of this
 --- file.
-function M.elements(state, rect, layout, style)
+function M.elements(state, rect, layout, style, clip)
   for _, field in ipairs({ "font", "textSize", "textLine", "subFont", "subSize", "subLine",
                            "numFont", "numSize" }) do
     if not layout or layout[field] == nil then
@@ -250,7 +254,7 @@ function M.elements(state, rect, layout, style)
   local ns = model.normalized(state)
   local visible = model.visibleRows(ns)
 
-  local bandH = layout.rowCount * layout.rowH
+  local bandH = layout.rowCount * layout.rowH + layout.padBottom
   local titleMetrics = fontMetrics(layout.font, layout.textSize)
   local subMetrics = fontMetrics(layout.subFont, layout.subSize)
   local numberMetrics = layout.showRowNumbers and fontMetrics(layout.numFont, layout.numSize) or nil
@@ -267,7 +271,8 @@ function M.elements(state, rect, layout, style)
   -- after this file's own elements is ever affected by a clip this file leaves open.
   els[#els + 1] = {
     type = "rectangle", action = "clip",
-    frame = { x = px(rect.x), y = px(rect.y), w = px(rect.w), h = px(bandH) },
+    frame = clip and { x = px(clip.x), y = px(clip.y), w = px(clip.w), h = px(clip.h) }
+      or { x = px(rect.x), y = px(rect.y), w = px(rect.w), h = px(bandH) },
   }
 
   for slot = 1, #visible do
