@@ -22,11 +22,11 @@ return {
   overlayModes = overlayModes,
   chooserProviders = chooserProviders,
 
-  -- Which picker draws every chooser. native is the built in hs.chooser window and is the
-  -- default. canvas is the hand drawn picker on the shared panel chrome, with its own
-  -- field, list and mouse handling. chooserProviders.native | chooserProviders.canvas
+  -- Which picker draws every chooser. canvas is the hand drawn picker on the shared panel
+  -- chrome, with its own field, list and mouse handling, and is the choice here. native is
+  -- the built in hs.chooser window, kept as the fallback. chooserProviders.native | chooserProviders.canvas
   chooser = {
-    provider = chooserProviders.native,
+    provider = chooserProviders.canvas,
   },
 
   -- Gap around and between managed windows, in pixels. One value drives both the
