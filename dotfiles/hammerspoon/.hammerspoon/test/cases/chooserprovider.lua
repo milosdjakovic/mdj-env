@@ -1,5 +1,5 @@
 -- Unit case for the provider choice in Olm.spoon/lib/chooser/init.lua, phase four of the
--- canvas chooser build, docs/BRIEF-CANVAS-SELECT.md. It loads the facade by a path derived
+-- default chooser build, docs/BRIEF-CANVAS-SELECT.md. It loads the facade by a path derived
 -- from this file, configures it with a stand in provider that satisfies the picker
 -- contract, and checks that new builds through it, and that new falls back to native when
 -- no provider is configured. The native build is only constructed, never shown.
@@ -28,9 +28,9 @@ end
 local contract = dofile(contractPath)
 local Chooser = facadeChunk()
 
-check("the facade exposes a native provider", type(Chooser.providers) == "table" and type(Chooser.providers.native) == "table")
-check("the facade exposes a canvas provider", type(Chooser.providers) == "table" and type(Chooser.providers.canvas) == "table")
-check("the two providers are distinct modules", Chooser.providers.native ~= Chooser.providers.canvas)
+check("the facade exposes a legacy provider", type(Chooser.providers) == "table" and type(Chooser.providers.legacy) == "table")
+check("the facade exposes a default provider", type(Chooser.providers) == "table" and type(Chooser.providers.default) == "table")
+check("the two providers are distinct modules", Chooser.providers.legacy ~= Chooser.providers.default)
 
 -- A stand in provider whose instances carry every required method at a generous arity.
 local built = {}
@@ -90,10 +90,10 @@ check("with a kit native takes the body font and size for titles and caption for
   okKit and nil or tostring(withKit))
 -- This stub kit has no measurer and no inset, so the rule falls back to a capital of seven
 -- tenths of the body size, 12.6, and the inset of 10, giving 10 plus 12.6 plus 21 plus 10.
-check("with a kit native grows its row to the inset, the body capital, one caption line and the inset, 54",
+check("with a kit legacy grows its row to the inset, the body capital, one caption line and the inset, 54",
   okKit and withKit.layout.rowH == 54, okKit and tostring(withKit.layout.rowH) or tostring(withKit))
 local okOwn, own = pcall(Chooser.new, { layout = { rowH = 70 } })
 check("a consumer's own rowH still wins over the derived one",
   okOwn and own.layout.rowH == 70, okOwn and tostring(own.layout.rowH) or tostring(own))
-Chooser.providers.native.configure({ ui = false })
+Chooser.providers.legacy.configure({ ui = false })
 Chooser.configure({})

@@ -303,7 +303,7 @@ function obj.validatePresentation(name, identity, manifest, modules, deps)
     -- onScroll, found during the trickle migrations rather than named by either contract
     -- brief, filesearch and clipboard both already wiring one directly into their own
     -- retired Chooser.new calls for the identical reason
-    -- lib/chooser/providers/native.lua's own header names, a canvas companion has no
+    -- lib/chooser/providers/legacy.lua's own header names, a canvas companion has no
     -- scroll callback of its own. A member spec exactly like onHighlight, resolved and
     -- checked the same way.
     "onScroll",
@@ -691,7 +691,7 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
   -- that fetch from rather than depending on some other door having already warmed it.
   -- onPositioned is the geometry brief's own addition, docs/BRIEF-GEOMETRY.md decision one,
   -- called by the stage with the chooser and companion frames whenever it repositions the pair
-  -- for this presentation, mirroring the shape and the name lib/chooser/providers/native.lua's
+  -- for this presentation, mirroring the shape and the name lib/chooser/providers/legacy.lua's
   -- own config.onPositioned already carries, so a plugin migrating its own companion pane onto
   -- the stage in phase five hands over the identical function it already wrote for that field
   -- with nothing to rewrite. rowCount and paneWidth are both read as a plain value, a number

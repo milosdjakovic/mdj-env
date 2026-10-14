@@ -3,7 +3,7 @@
 --- A window this configuration owns, drawn with hs.canvas, which never takes focus. This
 --- is a shell around a resource, not a Strategy. It draws whatever it is handed and holds
 --- no policy of its own, it does not know what a row is, what a query is, or that a
---- picker exists at all. That is the same division lib/chooser/providers/canvas/field
+--- picker exists at all. That is the same division lib/chooser/providers/default/field
 --- already takes, input.lua is the only file touching hs.eventtap and render.lua answers
 --- elements without owning a surface, and it is what keeps this placeable inside the
 --- three pane window later.

@@ -19,7 +19,7 @@
 ---
 --- Caret x position is measured, never summed. hs.drawing.getTextDrawingSize runs once
 --- against the whole prefix up to the caret on every call, rather than a memoised per
---- character sum the way lib/chooser/providers/native.lua speeds up a whole page of
+--- character sum the way lib/chooser/providers/legacy.lua speeds up a whole page of
 --- rows, since that sum runs about zero point seven percent high, invisible in
 --- truncation and visible here as a caret sitting off the glyph it belongs to. One
 --- measure of a query length string costs about a tenth of a millisecond, which a single

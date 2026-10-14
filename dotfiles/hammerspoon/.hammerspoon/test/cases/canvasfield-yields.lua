@@ -32,7 +32,7 @@ end
 --------------------------------------------------------------------------------
 
 do
-  local input = loadfile(olm .. "lib/chooser/providers/canvas/field/input.lua")()
+  local input = loadfile(olm .. "lib/chooser/providers/default/field/input.lua")()
   local ESCAPE, KEY_I = 53, 34
 
   local function field(opts)

@@ -1,26 +1,27 @@
 # Olm chooser keys
 
-Status. The canvas picker's text field lets Hyper presses through to their own dispatch, and
+Status. The default chooser's text field lets Hyper presses through to their own dispatch, and
 the action panel opens on Hyper and o in every list, with file search reveal on Hyper and f.
 
 ## Now
 
-The canvas field's event tap claims every key down so nothing reaches the app underneath, with
+The default chooser's field event tap claims every key down so nothing reaches the app underneath, with
 Escape answered first. The one exception is Hyper. The field takes an injected predicate,
 `yields`, and a key it answers true for is passed on unclaimed. The composition root builds
 that predicate over `HyperKey:owns`, which each trigger shape answers. Under the leader shape a
 key is Hyper's when it is the leader key or the leader is held, under the chord shape when
-every chord modifier is held. The field and the canvas provider know only that it is a
-predicate, and the native provider needs nothing since its keys already reach Hyper.
+every chord modifier is held. The field and the default provider know only that it is a
+predicate, and the legacy provider needs nothing since its keys already reach Hyper.
 
 The action panel is on Hyper and o in every list, declared once in `lib/surface.lua` and in
 the loop at the bottom of `config/keys.lua`. File search reveal in Finder is on Hyper and f.
 
 The docked shortcut hint pane shows after 800 ms with no key, and every key restarts that
-countdown, Hyper moves included, since the canvas provider counts activity in selectNext,
+countdown, Hyper moves included, since the default provider counts activity in selectNext,
 selectPrev and insertSelected. Once shown it stays until the list closes.
 
-The canvas provider is the shipped default. The native provider is deprecated, still selectable
+The default chooser is the shipped default and the word chooser means it unless legacy is
+named. The legacy chooser, the one wrapping hs.chooser, is deprecated, still selectable
 through `chooser.provider` in the settings as a fallback, marked in its own header, and named
 in a console warning on every load that picks it. Removing it is a later, separate step.
 
@@ -81,3 +82,15 @@ about the pane changed.
 The canvas picker becomes the default on main at the person's request, and the native picker is
 deprecated rather than removed, kept as a fallback for now with a header note and a load warning.
 An unknown provider name now falls back to canvas instead of native.
+
+### 2026-10-14 22:30
+
+Estimated time, anchored to the commit before this one.
+
+The two pickers are renamed at the person's request. The canvas provider is now the default
+chooser and the hs.chooser provider is now the legacy chooser. The files moved to
+`lib/chooser/providers/default/` and `lib/chooser/providers/legacy.lua`, the facade registry
+keys are `providers.default` and `providers.legacy`, and the `chooser.provider` setting takes
+`default` or `legacy`. From here on the word chooser means the default chooser unless legacy is
+named. The legacy chooser is still deprecated and still warns on every load that picks it. The
+earlier entries above keep their old names, canvas and native, since they are records.

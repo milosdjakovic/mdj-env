@@ -29,7 +29,7 @@ canvas elements plus the content height, so a scrolling pane can compute its own
 every clip it opens. Only a `group` takes an `id`, and a group with an `id` comes back with
 `trackMouseUp` set, so a click reaches the owner's existing handler.
 
-Nothing in the kit owns a window. The canvas provider's surface, CanvasPanel and the plugin
+Nothing in the kit owns a window. The default chooser's surface, CanvasPanel and the plugin
 panes keep their own windows and draw what the engine answers, which is the same division
 `field/render.lua` and `lib/cheatsheet.lua` already take.
 
@@ -59,7 +59,7 @@ row, is in the alpha group and is not a role. The rule and what each role is for
 text(str, variant, {color, align, lineBreak, wrap, width})
 badge(key, size)              size names cheat, hint or button
 icon(imageOrGlyph, size)      a glyph is drawn to an hs.image, cached, so the same call
-                              also feeds a native chooser row
+                              also feeds a legacy chooser row
 row(children, {gap, align, fillIndex})
                               left to right, the last child takes the remaining width, or the
                               one fillIndex names, so a header can truncate its name and keep
@@ -104,13 +104,13 @@ a `[light]` section of the eight colour keys, read by `lib/ui/toml.lua` and kept
 the next draw shows it. The OLM settings page lists the themes and switches them. Two views
 of the theme, a `chooserTheme` shaped table and a `surface` shaped one, are rewritten in place
 on every switch from the eight roles, for the readers outside the kit that still take them, the
-native provider and the panel surface, and stage four retires both.
+legacy provider and the panel surface, and stage four retires both.
 
 ## Stages
 
 1. The four units with offline unit cases, wired into compose and offered as `needs.lib.ui`.
    Nothing draws through them yet.
-2. The canvas provider, CanvasPanel's empty state, the hint bar, the toasts and the cheat
+2. The default chooser, CanvasPanel's empty state, the hint bar, the toasts and the cheat
    sheet draw through the kit, and the three disagreeing layout tables become one. Judged
    by eye against main for visual parity.
 3. The palette step, the new look.
@@ -129,7 +129,7 @@ toast, report, reportDetail and empty hold each surface's old type. Badge geomet
 the space steps sm and lg, the radius swatch, the icon swatch and the alpha muted joined the
 tokens. The layout engine measures each laid out string whole through `measure:exact`.
 `root/uispec.lua` builds the spec from settings for the root and the probes alike.
-`lib/chooser/textwidth.lua` stayed for the native provider alone then, and the typography plan's
+`lib/chooser/textwidth.lua` stayed for the legacy provider alone then, and the typography plan's
 step five deleted it. Stage three replaces the parity variants with the new look.
 
 ## What the typography plan added, code, the visible slice and raw
@@ -219,7 +219,7 @@ file under the spoon except `lib/ui` and `test/`, and it looks for a value writt
 is a numeric or constant `textSize`, a quoted `textFont`, a `font` table naming a literal name or
 size, a quoted font name such as the system or monospace font, and a line height field. A value
 read from a variable the kit filled is the kit's own passing through and is not flagged, so the
-canvas and native providers, which are handed the roles, stay clean. A comment line, and the
+default and legacy providers, which are handed the roles, stay clean. A comment line, and the
 comment at the end of a code line, never count.
 
 An icon is not text. A glyph or an emoji drawn into a small canvas to make a row icon, a keycap

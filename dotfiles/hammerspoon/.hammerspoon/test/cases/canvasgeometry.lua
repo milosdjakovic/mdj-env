@@ -1,5 +1,5 @@
 -- Unit case for the pure canvas geometry arithmetic,
--- Spoons/Olm.spoon/lib/chooser/providers/canvas/geometry.lua, phase three a part one of
+-- Spoons/Olm.spoon/lib/chooser/providers/default/geometry.lua, phase three a part one of
 -- this track's build plan and built from docs/BRIEF-CANVAS-GEOMETRY.md. Every check
 -- here drives that one file alone, with no hs.canvas, no hs.screen and no timer behind
 -- it, the same reason test/cases/canvaslist.lua drives list model.lua alone rather than
@@ -14,7 +14,7 @@
 local source = debug.getinfo(1, "S").source
 local herePath = source:match("^@(.*)$") or source
 local caseDir = herePath:match("^(.*)/[^/]+$")
-local modulePath = caseDir .. "/../../Spoons/Olm.spoon/lib/chooser/providers/canvas/geometry.lua"
+local modulePath = caseDir .. "/../../Spoons/Olm.spoon/lib/chooser/providers/default/geometry.lua"
 
 local moduleChunk, loadErr = loadfile(modulePath)
 if not moduleChunk then
@@ -211,7 +211,7 @@ do
 end
 
 --------------------------------------------------------------------------------
--- M.textBudget, computed from the layout rather than measured, replacing native.lua's
+-- M.textBudget, computed from the layout rather than measured, replacing legacy.lua's
 -- own ROW_TEXT_INSET constant.
 --------------------------------------------------------------------------------
 

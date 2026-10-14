@@ -27,10 +27,10 @@
 --- this file reads none of settings.chooserTheme, decision six of the original brief
 --- stated plainly. The one set of colours it keeps answers only a caller passing no style.
 ---
---- A row is drawn from the shape lib/chooser/providers/native.lua's own head already
+--- A row is drawn from the shape lib/chooser/providers/legacy.lua's own head already
 --- documents, title, subTitle, image, enabled and item, filterText playing no part once
 --- list model.lua has already ranked by it. The icon column is reserved at a fixed width
---- whether or not a row carries an image, matching the reasoning native.lua's own row
+--- whether or not a row carries an image, matching the reasoning legacy.lua's own row
 --- measurement rests on, a title never drifts sideways depending on which rows around it
 --- happen to carry an icon. A disabled row draws its title and subTitle dimmed and is not
 --- treated any differently otherwise, the highlight still able to sit on it, since

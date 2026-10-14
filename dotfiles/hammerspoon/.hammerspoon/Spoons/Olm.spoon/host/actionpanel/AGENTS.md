@@ -141,7 +141,7 @@ back, and a silent gap the day somebody adds a thirteenth chooser and forgets it
 So the panel is a Decorator over that one component, wrapping the same six functions rather
 than replacing any of them, installed through decorate, one function handed to
 Chooser.configure and called once for every instance the facade builds, right after
-native.new returns and before new hands the instance back. Every chooser behaves exactly as
+the provider's new returns and before new hands the instance back. Every chooser behaves exactly as
 it did whenever the panel is closed, which is almost always, and no file under
 Spoons/Olm.spoon/plugins is edited and none of the twelve consumers learns the panel exists.
 
@@ -154,7 +154,7 @@ found it, on a row number rather than an item, needed both before it could exist
 
 ## What each wrapped function is for
 
-decorate wraps six functions on the config table native.new was handed, and every wrapped
+decorate wraps six functions on the config table the provider's new was handed, and every wrapped
 closure checks self._openInstance against the one instance it closes over on every call,
 since eleven of the twelve decorated instances are not the open one at any given moment and
 must behave exactly as they always did.
@@ -241,7 +241,7 @@ contextActions entry the chord itself runs.
 
 The chord path is the one exception, and toggle carries it rather than _leave. Intercept and
 back both earn an automatic rebuild the moment their own handler answers true, since that is
-what _intercept and _back in providers/native.lua do next. The chord closing the panel answers
+what _intercept and _back in providers/legacy.lua do next. The chord closing the panel answers
 neither, so nothing rebuilds it for free, and toggle runs instance:refresh(true) itself, right
 after _leave hands back a restored field, so the chooser shows the tool's own list again
 rather than sitting on stale panel rows while every wrapper here already believes the panel is
@@ -254,7 +254,7 @@ warning firing being the proof the state and the screen had disagreed.
 
 _leave schedules the row restore, and _choose's own action with it, on a continuation,
 self._defer defaulting to hs.timer.doAfter(0, ...), rather than doing either synchronously
-before returning. This looks removable and is not. _intercept and _back in providers/native.lua
+before returning. This looks removable and is not. _intercept and _back in providers/legacy.lua
 both call refresh(true) on the instance the moment their own handler answers true, and they do
 that AFTER the handler has already returned, which is exactly what decorate's own wrapped
 intercept and back are. So anything _leave did to the highlight synchronously would be undone

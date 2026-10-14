@@ -1,5 +1,5 @@
 -- Unit case for the pure model and the render helper behind the canvas row list,
--- Spoons/Olm.spoon/lib/chooser/providers/canvas/list/model.lua and render.lua, phase
+-- Spoons/Olm.spoon/lib/chooser/providers/default/list/model.lua and render.lua, phase
 -- three a of this track's build plan and built from the canvas list brief. Every check
 -- here drives those two files alone, with no eventtap, no canvas, and no timer behind
 -- them, the same reason test/cases/canvasfield.lua drives field model.lua alone rather
@@ -20,7 +20,7 @@
 local source = debug.getinfo(1, "S").source
 local herePath = source:match("^@(.*)$") or source
 local caseDir = herePath:match("^(.*)/[^/]+$")
-local listDir = caseDir .. "/../../Spoons/Olm.spoon/lib/chooser/providers/canvas/list/"
+local listDir = caseDir .. "/../../Spoons/Olm.spoon/lib/chooser/providers/default/list/"
 local modulePath = listDir .. "model.lua"
 local renderPath = listDir .. "render.lua"
 
@@ -46,7 +46,7 @@ local function check(description, ok, detail)
   end
 end
 
--- A supplier row exactly in the shape lib/chooser/providers/native.lua documents at its
+-- A supplier row exactly in the shape lib/chooser/providers/legacy.lua documents at its
 -- own head, title, subTitle, image, enabled, item and filterText, since decision one of
 -- the brief asks for a row this list can rank to be a row the native provider could have
 -- drawn.

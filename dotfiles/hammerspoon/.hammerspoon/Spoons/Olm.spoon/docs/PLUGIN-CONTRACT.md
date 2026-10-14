@@ -778,7 +778,7 @@ and `paneWidth` already get, since a typo left to `host/stage`'s own `_resolveMa
 fall back to the root default in silence with nothing anywhere naming the misspelling.
 `host/stage` writes the resolved value onto `self._instance.matcher` before every show and
 swap, present, push, and pop alike, the identical live mutation discipline `paneWidth` already
-follows for `layout.companionWidth`, since `native.lua`'s own `Chooser:_build` reads `self.matcher`
+follows for `layout.companionWidth`, since `legacy.lua`'s own `Chooser:_build` reads `self.matcher`
 fresh on every keystroke rather than once at construction.
 
 `enter` is a member, called with one function, `proceed`, in place of the stage showing this
@@ -851,7 +851,7 @@ is the wrong shape now, not merely an older style.
 
 `onScroll` is a third addition the trickle migrations found rather than either contract brief
 naming, `function(points)` for a trackpad or a wheel scrolled over the companion rect, which a
-canvas cannot report for itself, `lib/chooser/providers/native.lua`'s own reason it exists at
+canvas cannot report for itself, `lib/chooser/providers/legacy.lua`'s own reason it exists at
 all. filesearch and clipboard both already wired one directly into their own retired
 `Chooser.new` calls, config read live on every scroll exactly the way `onHighlight` already is,
 so `host/stage` routes it the identical way, a presentation with none simply never asked.
@@ -862,7 +862,7 @@ retired `Chooser.new` call is the only consumer anywhere, and `host/stage` route
 identical way.
 
 `onPositioned` is called with `chooserFrame, companionFrame`, the same two frames
-`lib/chooser/providers/native.lua`'s own `config.onPositioned` already hands its caller, once
+`lib/chooser/providers/legacy.lua`'s own `config.onPositioned` already hands its caller, once
 the pair has been repositioned for this presentation, whether the atom placed it natively on a
 cold show or the stage placed it by hand on a swap, both converging on the stage's own
 `_onPositioned`, adversarial review finding M2. `companionFrame` is nil both when this

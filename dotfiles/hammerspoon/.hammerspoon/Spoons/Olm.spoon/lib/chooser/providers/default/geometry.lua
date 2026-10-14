@@ -23,11 +23,11 @@
 --- M.resolve(screenFrame, layout, paneWidth) answers one table of rectangles, canvas,
 --- field, list, chooser, companion and rowCount, every rectangle in absolute screen
 --- points, the same space hs.window frames and hs.eventtap event locations already use.
---- The arithmetic mirrors native.lua's own placement functions in shape, a row count
+--- The arithmetic mirrors legacy.lua's own placement functions in shape, a row count
 --- trimmed to the screen, a pair centred as one unit, a top biased vertical position
 --- clamped between two pads with the top pad winning when the surface cannot keep both,
 --- and a companion width resolved from true, a number, or nil, every answer capped at
---- paneMaxW. Nothing here is copied from native.lua's own numbers, only the shape of the
+--- paneMaxW. Nothing here is copied from legacy.lua's own numbers, only the shape of the
 --- reasoning, since the canvas surface's own proportions are its own design.
 ---
 --- M.textBudget(rects, layout) answers the pixel room a row's title has, computed from
@@ -65,7 +65,7 @@
 --- Truncation, section two of the brief, measured before anything here was written
 --- rather than assumed. An hs.canvas text element was rendered offscreen twice, once
 --- handed a plain Lua string and once handed an hs.styledtext value built the same way
---- native.lua's own styledText function at its line one hundred fifty five builds one,
+--- legacy.lua's own styledText function at its line one hundred fifty five builds one,
 --- carrying a paragraphStyle of lineBreak truncateTail, both into the same narrow frame
 --- holding a string far too long to fit. The canvas was never shown, hs.canvas.new plus
 --- imageFromCanvas rasterizes without a window ever appearing, and the two images were
@@ -76,7 +76,7 @@
 --- macOS text field does. truncateMiddle was measured the same way straight after and
 --- read correctly too, an ellipsis in the middle of the string with both ends intact. So
 --- the paragraph style IS honoured by an hs.canvas text element, truncation is free, this
---- configuration already carries the code for it in native.lua's own styledText, and this
+--- configuration already carries the code for it in legacy.lua's own styledText, and this
 --- file delivers no truncate.lua, exactly the outcome the brief asked to be verified
 --- before anything was built rather than assumed. The element key carrying the styled
 --- value is the ordinary text key every element in list/render.lua already uses, an
@@ -128,7 +128,7 @@ M.DEFAULT_LAYOUT = {
   marginY = 10,
   showRowNumbers = true,
   caretWidth = 2,
-  -- Borrowed outright from native.lua's own DEFAULT_LAYOUT, a placement question the
+  -- Borrowed outright from legacy.lua's own DEFAULT_LAYOUT, a placement question the
   -- five rounds behind BRIEF-CANVAS-LIST.md never redesigned. Named here so this file's
   -- own header can say plainly that this is a borrow rather than a fresh design.
   gap = 12,
@@ -164,7 +164,7 @@ end
 -- Resolves paneWidth into a companion width in points for this call, or zero for no
 -- companion. true inherits canvasWidth, a number overrides it independently, nil or
 -- zero or a negative number all mean no companion, and every answer is capped at
--- layout.paneMaxW, mirroring native.lua's own _resolveCompanionWidth in shape though not
+-- layout.paneMaxW, mirroring legacy.lua's own _resolveCompanionWidth in shape though not
 -- in the numbers it resolves against.
 local function resolveCompanionWidth(paneWidth, canvasWidth, layout)
   local w = paneWidth
@@ -175,7 +175,7 @@ end
 
 -- The vertical position, the top fraction down from the top of the screen, clamped
 -- never closer than the minimum padding to either edge, with the top pad winning when
--- the surface is too tall to keep both, mirroring native.lua's own _topBiasedY.
+-- the surface is too tall to keep both, mirroring legacy.lua's own _topBiasedY.
 local function topBiasedY(screenFrame, layout, canvasHeight)
   local lo = screenFrame.y + layout.minVPad
   local hi = screenFrame.y + screenFrame.h - layout.minVPad - canvasHeight
@@ -233,7 +233,7 @@ function M.resolve(screenFrame, layout, paneWidth)
 end
 
 --------------------------------------------------------------------------------
--- M.textBudget, replacing native.lua's own measured ROW_TEXT_INSET
+-- M.textBudget, replacing legacy.lua's own measured ROW_TEXT_INSET
 --------------------------------------------------------------------------------
 
 --- M.textBudget(rects, layout) answers the pixel room a row's title has, the list

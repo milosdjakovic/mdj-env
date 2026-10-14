@@ -795,7 +795,7 @@ M.rows = tabRows
 
 -- M.intercept, the disabled row guard this level once carried by hand, is gone, review
 -- findings H1 and H2, rework. host/stage's own _intercept now answers true and does nothing
--- for any disabled row, before asking any presentation anything, native.lua passing the
+-- for any disabled row, before asking any presentation anything, legacy.lua passing the
 -- row's own enabled state through as intercept's second argument, so this level, and every
 -- other, gets that guard for free rather than writing one. The stray selection that used to
 -- reach here through a keyboard path the atom's own click guard never covered cannot reach

@@ -170,7 +170,7 @@ return {
   -- on a stray selection of one of this level's own disabled guidance rows, emptyRows in
   -- chooser.lua, and that reason is gone, review findings H1 and H2, rework, host/stage's
   -- own _intercept now answering true and doing nothing for any disabled row before asking
-  -- this level anything at all, native.lua passing the row's own enabled state through for
+  -- this level anything at all, legacy.lua passing the row's own enabled state through for
   -- exactly that check.
   presentation = {
     rows = { member = "chooser.rows", call = "dot" },

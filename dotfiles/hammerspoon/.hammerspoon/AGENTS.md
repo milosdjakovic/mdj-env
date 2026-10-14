@@ -20,6 +20,12 @@ inside the spoon, where a second person installing Olm would also need it. Below
 this file still names `init.lua` for a piece of wiring, configuration, or policy, take the
 true location to be `compose.lua` unless the text says otherwise.
 
+**The chooser means the default chooser.** When a request says to change or fix something in
+the chooser, the work goes to the default chooser in `Spoons/Olm.spoon/lib/chooser/providers/default/`,
+and it is made live and tested there. The legacy chooser, `providers/legacy.lua`, is deprecated
+and kept only as a fallback. It is touched only when a request names it. Stated by the person on
+2026-10-14, see `decisions/olm-chooser-keys.md`.
+
 Any work that creates or changes an Olm plugin goes through the `olm-plugin` skill, at
 `.claude/skills/olm-plugin/SKILL.md` in this repository, rather than through this file. The
 skill routes to `Spoons/Olm.spoon/docs/PLUGIN-AUTHORING.md` as the recipe to follow and to
@@ -620,7 +626,7 @@ broken one. Vpn carries no `hs.alert` today, so the exception this paragraph use
 to name here no longer applies.
 
 **Olm typography, five roles and nothing else.** Every piece of text Olm draws, in the
-canvas chooser, the side and bottom panes, the toasts, the cheat sheets and every plugin, uses
+default chooser, the side and bottom panes, the toasts, the cheat sheets and every plugin, uses
 one of five roles from the UI kit in `Spoons/Olm.spoon/lib/ui`. title is the chooser's input
 field, the name at the top of a pane, a toast headline or a cheat sheet section title. body is a list row title, pane
 text and a hint label. caption is a row subtitle, metadata, a description or an empty state.
@@ -637,7 +643,7 @@ anywhere else is the drift this rule exists to end. Emoji drawn to an image are 
 than text and take an icon size, and `hs.alert` and `hs.dialog` are system drawn and outside
 this rule. The Olm dry gate, `Spoons/Olm.spoon/test/drygate.sh`, enforces it by reporting any font name, text size or line height written outside `lib/ui` as a finding, and an icon drawn into a canvas declares itself with a `type-exempt, reason` comment on its line or the line above, which counts as accepted. The design and the role table live in `Spoons/Olm.spoon/docs/DESIGN-UI-KIT.md`.
 
-**Olm colour, eight roles and nothing else.** Every colour Olm draws, in the canvas chooser,
+**Olm colour, eight roles and nothing else.** Every colour Olm draws, in the default chooser,
 the panes, the toasts, the cheat sheets and every plugin, is one of eight roles from the UI kit
 in `Spoons/Olm.spoon/lib/ui`. foreground is text you read, a row title and pane content.
 subtext is text you glance at, a subtitle, a label, a fact, a note, a path or an empty state.
@@ -788,7 +794,7 @@ says nothing about any key, since the repository root is what answers where the 
 comes from.
 
 **Wiring a list tool into the Hyper contexts.** The picker atom gives only the
-widget. `Spoons/Olm.spoon/lib/chooser` wraps the native `hs.chooser` and backs every list tool,
+widget. `Spoons/Olm.spoon/lib/chooser` is the default chooser, a hand drawn canvas picker, beside the legacy chooser that wraps `hs.chooser`, and backs every list tool,
 the clipboard, the VPN locations, caffeinate, menu search, the launcher, the
 display profiles menu, and the emoji picker. It
 once had a second webview backend built on a `Surface.spoon`, selectable per
@@ -815,13 +821,13 @@ step mirroring what the clipboard already does.
 4. Expose a `surface` function so `root/compose.lua`'s `surfaceAdapterFor` can resolve
    it into the plan, the live equivalent of the retired `choosers` list, so `lib/nav.lua`'s
    `activeSurface` and `routeNav` send the navigation actions to whichever surface is open.
-5. Show the shortcuts. Every chooser now runs on the native backend and docks a
+5. Show the shortcuts. Every chooser docks a
    deferred `HelperPanel` (a plain `hs.canvas`) below the list, so the hints stay
    hidden while the field is in use and reveal once the user pauses
    (`settings.shortcutsPanel.delayMs`). Build one with `shortcutPanelFor(name)`, defined in
    `Spoons/Olm.spoon/lib/hints.lua` and called from `root/compose.lua`, which reads the hints
    from `footerFor(name)` in the same file (the same `hyperContexts`
-   bindings) and returns the three callbacks a native chooser is wired with, then
+   bindings) and returns the three callbacks a chooser is wired with, then
    pass `onPositioned`, `onActivity`, and `onClose` into the chooser. `onPositioned`
    arms the panel at the chooser frame, `onActivity` pokes its idle timer on each
    keypress, and `onClose` hides it and clears any peeked overlay. A consumer that
@@ -1158,7 +1164,7 @@ site.** Two options are like this today, `placement` and `align`, both on `Canva
 owning module publishes its set as a table whose member value is its own name,
 `CanvasPanel.placements` and `CanvasPanel.aligns`, the same shape `Chooser.matchers` already had.
 `Chooser` itself once published a third, `fieldModes`, for the `fieldMode` option `filter`, `off`,
-`input`, and `hybrid` on the atom's own `providers/native.lua`, deleted in the chooser stage close
+`input`, and `hybrid` on the atom's own `providers/legacy.lua`, deleted in the chooser stage close
 out sweep along with the three modes beside `filter` that no consumer had ever asked for, the atom
 having stood at one member of a four member set since the trickle migrations, docs/BRIEF-STAGE.md
 decision three's own close out note.

@@ -1,6 +1,6 @@
 --- === Chooser ===
 ---
---- DEPRECATED since 2026-10-14. The canvas provider is the default and this one is kept only
+--- DEPRECATED since 2026-10-14. The default chooser is the canvas picker and this legacy one is kept only
 --- as a fallback until it is removed. Nothing new should be built against it, and the root
 --- warns in the console whenever it is selected. See decisions/olm-chooser-keys.md.
 ---

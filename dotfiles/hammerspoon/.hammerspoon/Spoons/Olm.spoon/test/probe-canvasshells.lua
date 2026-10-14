@@ -40,7 +40,7 @@
 -- caller can talk the limit out of firing at all.
 
 local here = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
-local canvasDir = here .. "../lib/chooser/providers/canvas/"
+local canvasDir = here .. "../lib/chooser/providers/default/"
 
 local function loadFrom(dir, name)
   local chunk, err = loadfile(dir .. name)

@@ -7,7 +7,7 @@
 --- plain Lua tables behind it, the same reasoning that split field model.lua away from
 --- the event tap around it.
 ---
---- A row is the shape lib/chooser/providers/native.lua already documents at its own
+--- A row is the shape lib/chooser/providers/legacy.lua already documents at its own
 --- head, title, subTitle, image, enabled, item and filterText. A row this file can rank
 --- must be a row the native provider could have drawn, so a future picker built on this
 --- list needs no translation between the two and no consumer ever learns which backend
@@ -30,7 +30,7 @@
 --- one based index into filtered, or nil when filtered is empty, an empty set having no
 --- highlight at all rather than a highlight pointing at nothing. rowH is the height of
 --- one row in points, read once from a layout table's own rowH field on construction, the
---- same field name lib/chooser/providers/native.lua's DEFAULT_LAYOUT already carries.
+--- same field name lib/chooser/providers/legacy.lua's DEFAULT_LAYOUT already carries.
 --- visibleCount is how many whole rows the viewport nominally holds at once, read once
 --- from that same layout table's rowCount field, so the viewport's own height in points is
 --- always rowH times visibleCount and never a number carried separately that could drift

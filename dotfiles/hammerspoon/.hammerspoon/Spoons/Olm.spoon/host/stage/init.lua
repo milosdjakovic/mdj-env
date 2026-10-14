@@ -88,7 +88,7 @@
 --- the existing intercept chain is not a choice among several, it is the only place capable
 --- of the promise decision one makes, that such a row swaps the list in place with no window
 --- ever closing. onSelect fires before Return is ever let through to hs.chooser's own native
---- completion, native.lua's own key watcher asking intercept first on every path, Return,
+--- completion, legacy.lua's own key watcher asking intercept first on every path, Return,
 --- insertSelected, and a click alike, so this is the one gate a decision here can still stop
 --- a real close from happening at all. Backspace on an empty field needs nothing new,
 --- Stage:pop already restores whatever sits below the top of the stack, which is the parent
@@ -230,7 +230,7 @@ function obj:configure(opts)
     -- otherwise. Under that, the current presentation's own intercept or back is asked
     -- first, and a back the presentation declines pops the stack instead.
     --
-    -- Review findings H1 and H2, rework. enabled is native.lua's own second argument now,
+    -- Review findings H1 and H2, rework. enabled is legacy.lua's own second argument now,
     -- the row's own enabled state at the moment intercept was asked, forwarded straight
     -- through so _intercept's own disabled row guard, the very first thing it checks, has
     -- something to check.
@@ -238,7 +238,7 @@ function obj:configure(opts)
     back = function() return self:_back() end,
     onHighlight = function(item) self:_onHighlight(item) end,
     -- Review findings N1 and N2, reverting the construction half of M5. onScroll and
-    -- onRightClick are permanent closures again. lib/chooser/providers/native.lua installs
+    -- onRightClick are permanent closures again. lib/chooser/providers/legacy.lua installs
     -- rightClickCallback exactly once, at construction inside obj.new, never re-read
     -- afterward, so writing this field only on a later cold show, M5's own first attempt,
     -- meant the callback was never registered on the real hs.chooser at all and every right
@@ -268,7 +268,7 @@ function obj:configure(opts)
 
   -- Decision two of the geometry brief. The row count the window is currently built for is
   -- read straight off the fresh instance's own rowCount() rather than assumed, so this can
-  -- never drift from whatever lib/chooser/providers/native.lua actually ships as its own
+  -- never drift from whatever lib/chooser/providers/legacy.lua actually ships as its own
   -- default, and _defaultRowCount is what a presentation naming no rowCount of its own is
   -- asking to return to. Read once, right here, before setRows is ever called on this
   -- instance, since that is the only moment rowCount() still answers the atom's own default
@@ -279,7 +279,7 @@ function obj:configure(opts)
   self._defaultRowCount = self._rowCount
 
   -- Contract v2 decision one. self._instance:matcher() already answers the resolved module
-  -- wide default the instant construction above returns, native.lua's own `matcher = config.matcher`
+  -- wide default the instant construction above returns, legacy.lua's own `matcher = config.matcher`
   -- having already folded DEFAULT_MATCHER in for a config that named none, lib/chooser/init.lua:122.
   -- Read once, right here, before any presentation has ever written to it, the same moment
   -- _defaultRowCount is read for the identical reason, so a presentation naming no matcher of
@@ -463,7 +463,7 @@ function obj:_show(p, wasShowing, outgoing)
   self._instance:setPaneWidth(p.paneWidth)
   -- Contract v2 decision one. Written before every show, cold or swap alike, the identical
   -- placement and the identical reasoning the pane width just above already carries, since
-  -- native.lua's own Chooser:_build reads its own matcher live on every keystroke rather than
+  -- legacy.lua's own Chooser:_build reads its own matcher live on every keystroke rather than
   -- once at construction, lib/chooser/init.lua's own note on why that reference is safe to
   -- mutate after construction. A presentation naming no matcher of its own resolves back to
   -- _defaultMatcher, the module wide default this host itself inherited at configure, so a
@@ -589,7 +589,7 @@ end
 -- landing later than that, the overwhelming ordinary case, races nothing and runs at once.
 -- The delay itself is asked of the instance through settleDelay() rather than carried here
 -- as a second copy, the contract freeze phase collapsing what used to be a duplicated
--- literal into the one native.lua already needs for its own _settleFrames.
+-- literal into the one legacy.lua already needs for its own _settleFrames.
 function obj:_applyPaneGeometry(p, outgoing)
   -- The unconditional cancel that used to open this function now sits at the top of _show
   -- instead, rider N2 of the geometry review, so every door clears a pending timer before
@@ -1001,7 +1001,7 @@ end
 --- stopped holding the instance themselves.
 ---
 --- Review finding H6. Guarded on the stack being non empty rather than on isShowing, and the
---- two are not the same question here. native.lua's own show sequence fires config.onPositioned
+--- two are not the same question here. legacy.lua's own show sequence fires config.onPositioned
 --- BEFORE self.chooser:show(...) ever runs, so a presentation's own seed call, docking its pane
 --- and asking for the row already on it, lands while isShowing() still answers false, and a
 --- guard borrowed from selectedRow's own would have answered nil for the one call that most
@@ -1028,7 +1028,7 @@ end
 ---
 --- Guarded on isShowing rather than only on the instance existing, second review pass of the
 --- cache build, finding N1. hs.chooser keeps its own selected row across a hide, restoring
---- it only on the next show, lib/chooser/providers/native.lua's own reason for resetting the
+--- it only on the next show, lib/chooser/providers/legacy.lua's own reason for resetting the
 --- highlight there, so an unguarded read answers a row that belonged to whatever was on
 --- screen before the window last closed rather than nothing. A consumer asking what the
 --- highlight is doing while nothing is showing almost never means "what was it last", so nil
@@ -1086,7 +1086,7 @@ end
 -- what keeps a STALE true from ever surviving into some later, unrelated row, since this is
 -- the only place that clears it and it is asked on the very next call this host receives
 -- after _intercept sets it. When a child was pushed instead, this function is never reached
--- at all for that keypress, native.lua's own key watcher swallowing Return outright once
+-- at all for that keypress, legacy.lua's own key watcher swallowing Return outright once
 -- intercept answers true, so the flag is never even written down that path and needs no
 -- clearing here for it.
 function obj:_onSelect(item)
@@ -1101,19 +1101,19 @@ end
 -- Asked before a row is allowed to complete. Review findings H1 and H2, rework. A disabled
 -- row answers true and does absolutely nothing, before anything else in this chain, no
 -- presentation intercept, no onSelect probe, no flag, no push, matching the guard
--- native.lua's own click path already kept at its own call site. This has to live here
--- rather than at each of native.lua's three callers, since it is the stage's own contract v3
+-- legacy.lua's own click path already kept at its own call site. This has to live here
+-- rather than at each of legacy.lua's three callers, since it is the stage's own contract v3
 -- addition, the onSelect probe just below, that turned a merely unused disabled selection
 -- into one that runs a plugin's own onSelect and can drill, and disabled rows becoming this
 -- host's own business is what keeps that fix in one place rather than three. enabled arrives
--- as native.lua's own second argument to config.intercept now, nil for a caller that never
+-- as legacy.lua's own second argument to config.intercept now, nil for a caller that never
 -- learned a row's state, which this treats the same as true, so an unmigrated caller loses
 -- nothing.
 --
 -- Failing that, the current presentation's own intercept answers next, the plain mutation
 -- case contract v3 decision three still reserves for it, a row that acts on the list it is
 -- on and stands. Its answer, true or the string "stay", is returned exactly as given rather
--- than normalized to plain true, since native.lua's own Chooser:_intercept is the one place
+-- than normalized to plain true, since legacy.lua's own Chooser:_intercept is the one place
 -- that actually decides whether to reset the highlight or hold it, and can only tell the two
 -- cases apart if the string survives the trip through here unchanged. true means the row
 -- swapped to a different list and the highlight resets to the top, "stay" means the row
@@ -1168,7 +1168,7 @@ function obj:_onHighlight(item)
 end
 
 -- A trackpad or a wheel scrolled over the companion rect, which a canvas cannot report for
--- itself, lib/chooser/providers/native.lua's own reason this exists at all. Found during the
+-- itself, lib/chooser/providers/legacy.lua's own reason this exists at all. Found during the
 -- trickle migrations, filesearch and the clipboard both already wiring one directly into
 -- their own retired Chooser.new calls. Routed the identical way _onHighlight is, the current
 -- presentation's own onScroll answering first and a presentation with none simply never

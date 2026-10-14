@@ -83,8 +83,8 @@
 -- no animation, which is list model.lua's own job and unchanged by anything in this file.
 
 local here = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
-local fieldDir = here .. "../lib/chooser/providers/canvas/field/"
-local listDir = here .. "../lib/chooser/providers/canvas/list/"
+local fieldDir = here .. "../lib/chooser/providers/default/field/"
+local listDir = here .. "../lib/chooser/providers/default/list/"
 
 local function loadFrom(dir, name)
   local chunk, err = loadfile(dir .. name)
@@ -108,7 +108,7 @@ local listRender = loadFrom(listDir, "render.lua")
 -- for the field taller, the rows tighter, the icon bigger, or the wheel to catch up
 -- faster changes one line in one file rather than hunting through render.lua and this
 -- probe both. width, rowH, rowCount, baseH, font, textSize and subSize keep the field
--- names lib/chooser/providers/native.lua gave DEFAULT_LAYOUT, save for textSize which
+-- names lib/chooser/providers/legacy.lua gave DEFAULT_LAYOUT, save for textSize which
 -- round four renamed away from that module's own titleSize on purpose, explained just
 -- below, so a real provider handed this same table later needs no translation to read
 -- most of it. padX, iconSize, iconGap, textTopPad and showRowNumbers name what that
@@ -178,7 +178,7 @@ local dark = hs.host.interfaceStyle() == "Dark"
 -- the production theme correctly, which is a wiring question for a later phase once
 -- something depends on this field at all. fontSize reads GEOMETRY.textSize rather than a
 -- field only number of its own, round four's own point stated in full above.
-local geometryLib = loadFrom(here .. "../lib/chooser/providers/canvas/", "geometry.lua")
+local geometryLib = loadFrom(here .. "../lib/chooser/providers/default/", "geometry.lua")
 local kitTokens = spoon.Olm and spoon.Olm.lib and spoon.Olm.lib.ui and spoon.Olm.lib.ui.tokens()
 local function faded(color, factor)
   local c = {}
@@ -262,7 +262,7 @@ end
 
 -- One row per running application, name as the title and bundle path as the subtitle,
 -- with the real icon in the image slot, exactly the row shape lib/chooser/providers
--- native.lua documents at its own head. Wrapped in pcall per application since a
+-- legacy.lua documents at its own head. Wrapped in pcall per application since a
 -- background helper or an app mid launch can answer nothing for its own name, its own
 -- path, or its own bundle identifier, and one such application must not stop every other
 -- row this probe was going to show.
@@ -428,7 +428,7 @@ local function scrollByWheelNotch(deltaPoints)
   end
 end
 
--- The same point in space test native.lua's own scroll watcher already uses for its
+-- The same point in space test legacy.lua's own scroll watcher already uses for its
 -- companion pane, restated here rather than reached for since that file is the one this
 -- whole track leaves untouched, a plain bounds check against a rect in screen
 -- coordinates.
@@ -441,12 +441,12 @@ end
 -- nothing at all. Outside listScreenRect this returns false untouched, so a scroll
 -- anywhere else on screen still reaches whatever is actually under the pointer there.
 -- Which kind of event it is comes from the event itself rather than being assumed, a
--- trackpad's own continuous flag being how native.lua already tells the two apart for
+-- trackpad's own continuous flag being how legacy.lua already tells the two apart for
 -- its own companion pane. A continuous event's point delta moves the viewport directly
 -- and stops any wheel ease already in flight, since a hand touching the trackpad has
 -- taken over from whatever the wheel queued a moment before. A discrete wheel notch
 -- never touches scrollTop directly at all, it only ever updates the ease target through
--- scrollByWheelNotch. The sign on both is flipped once, matching native.lua's own
+-- scrollByWheelNotch. The sign on both is flipped once, matching legacy.lua's own
 -- reasoning stated in full in that file, the event measures the fingers and the list
 -- measures its own content, so the two run opposite ways.
 local function startScrollTap()

@@ -14,20 +14,20 @@ local overlayModes = {
 -- Picker provider names, the same keys the Chooser facade's providers table uses, named
 -- constants for the same reason as overlayModes.
 local chooserProviders = {
-  native = "native",
-  canvas = "canvas",
+  default = "default",
+  legacy = "legacy",
 }
 
 return {
   overlayModes = overlayModes,
   chooserProviders = chooserProviders,
 
-  -- Which picker draws every chooser. canvas is the hand drawn picker on the shared panel
-  -- chrome, with its own field, list and mouse handling, and is the default. native is the
+  -- Which picker draws every chooser. default is the hand drawn picker on the shared panel
+  -- chrome, with its own field, list and mouse handling. legacy is the
   -- built in hs.chooser window, DEPRECATED since 2026-10-14, kept only as a fallback for now
-  -- and warned about in the console on every load that picks it. chooserProviders.native | chooserProviders.canvas
+  -- and warned about in the console on every load that picks it. chooserProviders.default | chooserProviders.legacy
   chooser = {
-    provider = chooserProviders.canvas,
+    provider = chooserProviders.default,
   },
 
   -- Gap around and between managed windows, in pixels. One value drives both the

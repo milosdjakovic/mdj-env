@@ -43,7 +43,7 @@
 ---
 --- Rows here carry a title turned into an hs.styledtext value before this file ever
 --- hands them to list render, baking in the enabled aware colour, the font, the size
---- and the truncation mode, the same shape native.lua's own styledText bakes before
+--- and the truncation mode, the same shape legacy.lua's own styledText bakes before
 --- handing a row to hs.chooser. geometry.lua's own header already measured that
 --- hs.canvas honours a styled value's paragraphStyle exactly the way an ordinary macOS
 --- text field does, a single ellipsis landing wherever the frame runs out of room
@@ -100,7 +100,7 @@ local listModel = load("list/model.lua")
 local listRender = load("list/render.lua")
 
 -- lib/chooser/rank.lua and lib/chooser/contract.lua sit two directories above this file,
--- providers up to chooser, the same siblings lib/chooser/providers/native.lua already
+-- providers up to chooser, the same siblings lib/chooser/providers/legacy.lua already
 -- loads by the identical relative path.
 local rank = load("../../rank.lua")
 local contract = load("../../contract.lua")
@@ -188,7 +188,7 @@ local function faded(color, factor)
 end
 
 -- Bakes a plain string into an hs.styledtext value carrying the font, the size, the
--- colour and a lineBreak, the identical shape native.lua's own styledText already
+-- colour and a lineBreak, the identical shape legacy.lua's own styledText already
 -- builds before handing a row to hs.chooser, restated here rather than reached for
 -- since that file is the one this whole track leaves untouched.
 local function styledText(str, size, color, font, lineBreak)
@@ -282,7 +282,7 @@ end
 
 -- The display this open should appear on, config.screen called once per show, falling
 -- back to the main screen and then the primary one, the identical fallback chain
--- native.lua's own Chooser colon underscore resolveScreen already takes.
+-- legacy.lua's own Chooser colon underscore resolveScreen already takes.
 function Provider:_resolveScreen()
   local fn = self.config.screen
   local s = fn and fn()
@@ -384,7 +384,7 @@ end
 -- support through list model's own normalized, rather than recomputed to keep that
 -- row visible, since a preserved highlight was already on screen before this rebuild
 -- and a shrunk list only needs clamping, not a fresh scroll animation. This is the
--- canvas answer to what native.lua's own refresh does by reading self.chooser colon
+-- canvas answer to what legacy.lua's own refresh does by reading self.chooser colon
 -- selectedRow back after rebuilding its choices.
 --
 -- The state this produces holds already styled rows, hs.styledtext values baked in by
@@ -533,7 +533,7 @@ end
 -- Chooses row, exactly what Return means, including asking config.intercept first and
 -- honouring a disabled row. index, when known, is where in the filtered set row sits,
 -- moved onto the highlight first so the row being chosen and the row reading as
--- highlighted never disagree, the same fact native.lua's own click watcher gets for
+-- highlighted never disagree, the same fact legacy.lua's own click watcher gets for
 -- free from the widget moving its own selection on a click before this file's mouse
 -- equivalent ever runs.
 function Provider:_choose(row, index)
@@ -640,7 +640,7 @@ end
 
 -- Section one of the brief's own addition to field/input.lua, a backward delete on an
 -- empty field with nothing selected. Asks config.back and does nothing at all when it
--- answers anything but true, rather than dismissing, matching what native.lua's own
+-- answers anything but true, rather than dismissing, matching what legacy.lua's own
 -- colon underscore back does for the identical press.
 function Provider:_onEmptyBackspace()
   if self.config.onActivity then safeCall(self.config.onActivity) end
@@ -669,13 +669,13 @@ end
 -- LEFT press hides the picker and does not claim the event, so the same press also
 -- reaches whatever the person actually meant to click, matching what happens today. A
 -- right press out there is left alone entirely, neither hiding the picker nor being
--- claimed, matching native.lua, whose own click watcher only ever looks at left button
+-- claimed, matching legacy.lua, whose own click watcher only ever looks at left button
 -- events at all, a right click anywhere it does not already own never reaching that
 -- atom's notice in the first place. Inside the companion, which this file draws none
 -- of, the press is left for whatever owns that pane to answer, the identical choice
--- native.lua's own click watcher makes for the same rect. A right press on a row reads
+-- legacy.lua's own click watcher makes for the same rect. A right press on a row reads
 -- config.onRightClick LIVE on every use rather than once at construction, the one
--- asymmetry with native.lua this document already names and asks not to be reproduced.
+-- asymmetry with legacy.lua this document already names and asks not to be reproduced.
 -- A left press records which row it landed on, for the matching release to compare
 -- against.
 function Provider:_onMouseDown(point, button)
@@ -703,7 +703,7 @@ function Provider:_onMouseDown(point, button)
 end
 
 -- The release chooses the row the matching press landed on, only when the release
--- lands on that same row, ordinary click behaviour and also what native.lua's own
+-- lands on that same row, ordinary click behaviour and also what legacy.lua's own
 -- click watcher measured the real widget doing. A right release inside this surface is
 -- claimed too, purely so the down and the up of the identical press agree about
 -- whether this surface owns it, and answers nothing further since the row already had
@@ -1037,7 +1037,7 @@ end
 
 --- Provider colon textBudget, arity zero. The pixel room a row's text has on the
 --- screen this picker will open on, resolved lazily and cached for the open through
---- geometry.textBudget, the replacement for native.lua's own measured ROW_TEXT_INSET.
+--- geometry.textBudget, the replacement for legacy.lua's own measured ROW_TEXT_INSET.
 function Provider:textBudget()
   if not self._textBudget then
     local screen = self._targetScreen or self:_resolveScreen()
@@ -1142,7 +1142,7 @@ end
 -- Builds the field, wiring every one of its four callbacks to this instance's own
 -- handlers, including section one's own onEmptyBackspace, the addition this brief
 -- makes to field/input.lua so config.back can ever be reached at all. onDismiss fires
--- onActivity before hiding, matching native.lua's own key watcher, which fires
+-- onActivity before hiding, matching legacy.lua's own key watcher, which fires
 -- onActivity for every key down including escape before asking which key it saw, since
 -- the field's own escape path answers before onKey or onChange are ever reached and
 -- would otherwise be the one key this provider's idle signal never learns about.

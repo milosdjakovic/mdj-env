@@ -45,6 +45,12 @@ The rule exists because a shell colour problem became a plugin exactly this way.
 a menu of three options, picked, built, gated, loaded live, and reverted in full the same hour.
 Everything below applies once he has asked, and never before.
 
+## The chooser means the default chooser
+
+A request to change or fix something in the chooser targets the default chooser under
+`Spoons/Olm.spoon/lib/chooser/providers/default`, and it is tested there. The legacy chooser is
+deprecated and is touched only when a request names it.
+
 ## Choosing the shape of the interaction
 
 Work down this ladder and stop at the first rung that fits. Each rung is cheaper, more

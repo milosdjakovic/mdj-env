@@ -320,7 +320,7 @@ end
 -- whatever the panel's own query was left on.
 --
 -- The row is restored on a continuation deferred past that rebuild, for the same reason
--- action, when there is one, has to be too. Both intercept and back in providers/native.lua
+-- action, when there is one, has to be too. Both intercept and back in providers/legacy.lua
 -- call refresh(true) on instance the moment their own handler answers true, and they do that
 -- AFTER the handler has already returned, which is exactly what every caller of this function
 -- is. So anything this function did to the highlight synchronously would be undone a moment
@@ -361,7 +361,7 @@ function obj:_leave(instance, action)
 end
 
 -- What decorate's wrapped intercept calls while the panel is open on instance, answering
--- exactly what _intercept in providers/native.lua asks of any consumer, true to keep the
+-- exactly what _intercept in providers/legacy.lua asks of any consumer, true to keep the
 -- chooser open, and it is always true here, since neither closing the panel nor running a
 -- verb is a reason to let the row complete as an ordinary selection.
 --
@@ -406,7 +406,7 @@ function obj:decorate(instance, config)
   -- SEAM, review finding N1. Every wrapper below now takes ... and forwards ... to whatever
   -- it calls through to, rather than a fixed named parameter list, because a fixed list is
   -- exactly what silently ate host/stage's own second argument to intercept, enabled, the
-  -- moment native.lua started passing one. Lua drops an extra argument at a call site with no
+  -- moment legacy.lua started passing one. Lua drops an extra argument at a call site with no
   -- error, no warning, and nothing luac or the reconciler can see, so a wrapper that names its
   -- own parameters is a promise about the atom's own calling convention that nothing checks
   -- against the atom actually keeping it, the identical arity shift class of failure
@@ -431,7 +431,7 @@ function obj:decorate(instance, config)
   -- runs exactly once, at the stage's own single construction, long before any presentation,
   -- or its own matcher, exists to read, so a value captured there answers for nothing real.
   -- instance:matcher() is read live here instead, inside the closure, the identical value
-  -- native.lua's own Chooser:_build already reads fresh on every keystroke rather than once
+  -- legacy.lua's own Chooser:_build already reads fresh on every keystroke rather than once
   -- at construction, so the panel now filters, or does not, for whichever presentation is
   -- actually current when a key is actually pressed. Eleven tools across this track declare
   -- matcher = false today, four before this batch and seven more inside it, and every one of
@@ -449,8 +449,8 @@ function obj:decorate(instance, config)
   -- Choosing a panel row is answered here rather than completing as a row of the underlying
   -- list. Absent on ten of the twelve consumers, so this supplies one where there was none and
   -- falls through to the original where there was. Review finding N1. ... now carries item
-  -- and, since native.lua widened its own call, enabled too, and both reach originalIntercept
-  -- untouched, the stage's own disabled row guard finally seeing what native.lua actually
+  -- and, since legacy.lua widened its own call, enabled too, and both reach originalIntercept
+  -- untouched, the stage's own disabled row guard finally seeing what legacy.lua actually
   -- sends rather than nil. _choose itself still only reads instance and item, the extra
   -- argument landing on a parameter _choose never declared and Lua silently discarding it,
   -- which is the harmless half of the same rule that made the truncation harmful the other way.
@@ -466,7 +466,7 @@ function obj:decorate(instance, config)
   -- choosing its own Back row through intercept above. Absent on eleven of the twelve
   -- consumers, same treatment. Routed through _leave with no action, the same door Back and a
   -- chosen verb both use, so the field and the highlight come back the same way on every path.
-  -- Review finding N1. native.lua calls this with no arguments today, but the wrapper takes
+  -- Review finding N1. legacy.lua calls this with no arguments today, but the wrapper takes
   -- and forwards ... anyway, the same defensive widening as every wrapper here, so a future
   -- argument to back needs no second visit to this file to stop being eaten.
   config.back = function(...)
@@ -484,7 +484,7 @@ function obj:decorate(instance, config)
   -- items, so this warns naming it rather than calling the original in silence, and does not
   -- call the original at all, since the tool never asked to see a panel row. Review finding
   -- N1, the same widening, item read positionally since the warning below needs it by name
-  -- and the untouched ... beside it still carries whatever else native.lua ever sends.
+  -- and the untouched ... beside it still carries whatever else legacy.lua ever sends.
   config.onSelect = function(item, ...)
     if self._openInstance == instance then
       self._log.w(string.format(

@@ -294,7 +294,7 @@ local function buildDeleteChild(state)
           -- Review finding L2, rework, counted honestly rather than left silent. Each
           -- Stage:pop below runs _show's own swap branch, setQuery("") then refresh(true),
           -- and this atom's own key watcher runs a further refresh(true) of its own once
-          -- this whole intercept answers true, native.lua:_intercept's documented contract
+          -- this whole intercept answers true, legacy.lua:_intercept's documented contract
           -- for any consumer that answers yes. So landing on top from here costs three
           -- rebuilds for one keypress, not the two an ordinary single pop already costs
           -- every other Back row in this file. All three are correct, cheap, and no

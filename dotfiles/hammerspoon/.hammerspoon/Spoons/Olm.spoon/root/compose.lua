@@ -144,10 +144,10 @@ local SHIPPED_POLICY = {
   -- in the config drew instantly. The knob read as configured and was doing nothing.
   shortcutsPanel = { delayMs = 800 },
   matcher = "fuzzy",
-  -- Which picker provider every Chooser.new builds, a name from Chooser.providers. canvas is
-  -- the default since 2026-10-14. native is deprecated, kept selectable as a fallback for now
+  -- Which picker provider every Chooser.new builds, a name from Chooser.providers. default is
+  -- the default since 2026-10-14. legacy is deprecated, kept selectable as a fallback for now
   -- and warned about on every load that picks it, see decisions/olm-chooser-keys.md.
-  chooserProvider = "canvas",
+  chooserProvider = "default",
   autoReload = { ignore = { "/config/[^/]+%.json[^/]*$" } },
 
   -- The heading drawn over the window leader's rows on the hold overlay. What the leader does
@@ -290,7 +290,7 @@ function obj.run(olm, cfg)
     log = themeLog,
   })
   -- The two views the readers outside the kit still hold, a chooserTheme shaped table for the
-  -- native provider and the plugin panes and a surface shaped one for the panel. Filled in
+  -- legacy provider and the plugin panes and a surface shaped one for the panel. Filled in
   -- place and rewritten in place on every switch, so a reader holding a reference follows
   -- without a reload. Stage four of the kit retires both once those readers draw through it.
   uiSpecLib.chooserView(policy.chooserTheme, themes.colors())
@@ -318,11 +318,11 @@ function obj.run(olm, cfg)
   chooserAtom:init()
   local chooserProvider = chooserAtom.providers and chooserAtom.providers[policy.chooserProvider]
   if not chooserProvider then
-    log.w("unknown chooserProvider " .. tostring(policy.chooserProvider) .. ", falling back to canvas")
-    chooserProvider = chooserAtom.providers and chooserAtom.providers.canvas
+    log.w("unknown chooserProvider " .. tostring(policy.chooserProvider) .. ", falling back to default")
+    chooserProvider = chooserAtom.providers and chooserAtom.providers.default
   end
-  if chooserAtom.providers and chooserProvider == chooserAtom.providers.native then
-    log.w("chooserProvider native is deprecated and will be removed, canvas is the default")
+  if chooserAtom.providers and chooserProvider == chooserAtom.providers.legacy then
+    log.w("chooserProvider legacy is deprecated and will be removed, default is the default chooser")
   end
   chooserAtom.configure({
     screen = function() return overlay and overlay.screen() end,
@@ -343,14 +343,14 @@ function obj.run(olm, cfg)
       end
     end,
   })
-  -- The canvas provider draws through the shared CanvasPanel chrome and reads its type and
+  -- The default provider draws through the shared CanvasPanel chrome and reads its type and
   -- colours from the kit's tokens, and refuses to build until it is handed both, so the root
   -- gives it the ones already configured above.
-  if chooserAtom.providers and chooserAtom.providers.canvas then
-    -- The canvas field's tap claims every key down, which would swallow Hyper before its
+  if chooserAtom.providers and chooserAtom.providers.default then
+    -- The default chooser's field tap claims every key down, which would swallow Hyper before its
     -- dispatch ran, so the field is handed a predicate and told nothing else. The closure
     -- reads the live HyperKey late, since it is not configured until further down.
-    chooserAtom.providers.canvas.configure({
+    chooserAtom.providers.default.configure({
       panel = canvasPanel,
       ui = uiAtom,
       yields = function(ev)
@@ -964,7 +964,7 @@ function obj.run(olm, cfg)
     -- stays open, the identical "swap the list in place" shape host/launcher's own paging
     -- already performs through Stage:setQuery directly, since the launcher holds the stage.
     -- A presenting plugin has no such direct hold, so this is the one word letting it reach
-    -- the identical field control. host/stage's own _intercept, and native.lua's contract
+    -- the identical field control. host/stage's own _intercept, and legacy.lua's contract
     -- underneath it, already call refresh(true) once an intercept answers true, so nothing
     -- here has to ask for a rebuild on top of what the atom already gives every intercept.
     stageSetQuery = function(text)
@@ -2131,7 +2131,7 @@ function obj.run(olm, cfg)
         -- hide, no deferral, decision two's own words, since Stage:push already does the
         -- query clear and the refresh(true) that redraw means. It is genuinely two rebuilds
         -- rather than the one decision two names, phase three review finding seven, since
-        -- Chooser:_intercept in lib/chooser/providers/native.lua calls refresh(true) itself,
+        -- Chooser:_intercept in lib/chooser/providers/legacy.lua calls refresh(true) itself,
         -- by its own documented contract, the moment push's own answer of true comes back to
         -- it, on top of the refresh push already ran. Harmless, a rebuild is idempotent and
         -- cheap for the launcher, left as is rather than reworked to save five milliseconds

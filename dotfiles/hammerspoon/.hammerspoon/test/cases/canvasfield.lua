@@ -1,5 +1,5 @@
 -- Unit case for the pure model behind the canvas text field,
--- Spoons/Olm.spoon/lib/chooser/providers/canvas/field/model.lua, phase two of
+-- Spoons/Olm.spoon/lib/chooser/providers/default/field/model.lua, phase two of
 -- docs/PLAN-CANVAS-CHOOSER.md and built from docs/BRIEF-CANVAS-FIELD.md. Every check here
 -- drives model.lua alone, with no eventtap, no canvas, and no timer behind it, which is the
 -- whole point of splitting the field into a pure core and a side effecting shell, this file
@@ -17,7 +17,7 @@
 local source = debug.getinfo(1, "S").source
 local herePath = source:match("^@(.*)$") or source
 local caseDir = herePath:match("^(.*)/[^/]+$")
-local modulePath = caseDir .. "/../../Spoons/Olm.spoon/lib/chooser/providers/canvas/field/model.lua"
+local modulePath = caseDir .. "/../../Spoons/Olm.spoon/lib/chooser/providers/default/field/model.lua"
 
 local function check(description, ok, detail)
   if ok then

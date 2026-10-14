@@ -1,5 +1,5 @@
 --- Ranks a supplier's candidate rows against the live query and matching strategy, the
---- policy lib/chooser/providers/native.lua's own _build used to hold entirely by itself.
+--- policy lib/chooser/providers/legacy.lua's own _build used to hold entirely by itself.
 --- Moved out to this pure module during the canvas provider phase,
 --- docs/BRIEF-CANVAS-PROVIDER.md section zero, once a second provider needed the exact
 --- same order rather than a ranking policy of its own. Nothing in here touches
@@ -7,7 +7,7 @@
 --- question, what order a query puts a list in, and styling or drawing the survivors is
 --- left entirely to the caller.
 ---
---- This is a pure move out of native.lua's own _build, not a redesign. The order
+--- This is a pure move out of legacy.lua's own _build, not a redesign. The order
 --- M.apply answers for a given items, query, and matcher is the same order that
 --- function answered before the move, tie break included, and holding that identity is
 --- the whole reason this lives in one place now rather than the canvas provider

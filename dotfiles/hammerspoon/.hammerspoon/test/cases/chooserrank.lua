@@ -1,5 +1,5 @@
 -- Unit case for Olm.spoon/lib/chooser/rank.lua, the ranking policy pulled out of
--- lib/chooser/providers/native.lua's own _build during the canvas provider phase,
+-- lib/chooser/providers/legacy.lua's own _build during the canvas provider phase,
 -- docs/BRIEF-CANVAS-PROVIDER.md section zero, so a second provider can share the exact
 -- same order rather than carry a ranking policy of its own. The runner reaches this
 -- file with a dofile call carrying an absolute path, so this file in turn locates

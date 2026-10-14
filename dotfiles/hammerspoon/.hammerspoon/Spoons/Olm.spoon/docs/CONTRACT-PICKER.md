@@ -8,13 +8,13 @@ order that makes the code match it is docs/BRIEF-CONTRACT-FREEZE.md.
 `lib/chooser/init.lua` is a facade over one provider, and what a provider must offer has
 never been written down anywhere except in what the two callers happen to call. That was
 survivable with one provider and it stops being survivable with two, because a name the
-survey missed is a name the canvas provider does not implement and nobody finds out until
+survey missed is a name the default provider does not implement and nobody finds out until
 a person opens a picker and it breaks.
 
 Three surveys of 2026-09-11 produced this, one over every call site in the tree, one over
-`lib/chooser/providers/native.lua` separating behaviour a caller observes from workaround
+`lib/chooser/providers/legacy.lua` separating behaviour a caller observes from workaround
 the widget forces, and one over `host/stage/init.lua` and `host/actionpanel/init.lua`
-looking for code above the facade that only works for the native backend. Every claim
+looking for code above the facade that only works for the legacy chooser. Every claim
 below came from reading a line, not from reading a name.
 
 ## The shape
@@ -96,8 +96,8 @@ of its own can return to it.
 
 `selectNext()` and `selectPrev()`, arity 0, answer nothing. Move the highlight by one.
 
-What happens at the ends is deliberately NOT fixed by this contract. The native provider
-clamps and says so in its own comment. The canvas provider wraps, by an explicit decision
+What happens at the ends is deliberately NOT fixed by this contract. The legacy provider
+clamps and says so in its own comment. The default provider wraps, by an explicit decision
 recorded in docs/BRIEF-CANVAS-LIST.md. This is a visible difference between two backends
 and it is intentional rather than an oversight, so a provider states its own end policy in
 its own header and neither one is wrong against this document.
@@ -121,7 +121,7 @@ can keep before it would be cut, so it is a number a caller builds logic on rath
 hint. It is resolved per open, since a different screen answers differently.
 
 `textWidth(str, which)` arity 2, answers the rendered pixel width of a string. `which`
-selects the title size or the subtitle size. The native implementation is a UTF8 safe per
+selects the title size or the subtitle size. The legacy implementation is a UTF8 safe per
 character memoised sum that over counts by roughly zero point seven percent, chosen because
 over counting shortens a string marginally early which looks like nothing, while under
 counting lets a string through that then gets cut. Nothing in that function is coupled to
@@ -137,7 +137,7 @@ answers nil when it is not up. This is the method that replaces the stage reachi
 provider knows how its own surface is drawn and moved.
 
 `settleDelay()` arity 0, answers seconds. How long after `show()` returns the provider's
-own placement is still moving. The native provider answers its own post show correction
+own placement is still moving. The legacy provider answers its own post show correction
 delay. A provider whose placement is final on the first frame answers zero. The stage waits
 this out before repositioning on a swap, so it never computes a frame from a surface that is
 about to move under it.
@@ -195,7 +195,7 @@ and not on a bare swap or refresh.
 later show. This asymmetry with `onScroll` is recorded as a past defect in the stage's own
 comment. A second provider either reproduces it or the composition root is told it is no
 longer safe to assume, and reproducing a known defect to preserve bug compatibility is not
-the right answer, so the canvas provider reads it live and this document says so.
+the right answer, so the default provider reads it live and this document says so.
 
 `placeholder`, a string, read once at construction. `setPlaceholder` is the live route and
 the stage overwrites the constructed value on its very first show.
@@ -203,9 +203,9 @@ the stage overwrites the constructed value on its very first show.
 `layout`, merged once at construction over the provider's own defaults. The merged table is
 the thing the accessors above front. The current caller passes no layout at all.
 
-`pollInterval`, seconds. Live but dead, nothing in the tree sets it. It is native only, an
+`pollInterval`, seconds. Live but dead, nothing in the tree sets it. It is legacy only, an
 interval for a highlight poll that exists because `hs.chooser` has no highlight callback. A
-canvas provider has no poll and ignores the key.
+default provider has no poll and ignores the key.
 
 `provider`, accepted and ignored, the seam this whole track walks through.
 
@@ -221,7 +221,7 @@ comments.
 
 `activeTheme()` had no caller anywhere in the tree, confirmed by exhaustive search. It was
 built so a consumer could style its own companion from `theme.preview` and no consumer ever
-did. It was deleted from the native provider on 2026 10 14 along with the dead `preview` set.
+did. It was deleted from the legacy provider on 2026 10 14 along with the dead `preview` set.
 
 `close()`, an alias for `hide`, likewise has no caller. The composition root's own close
 binding routes to `hide`. Same treatment.
@@ -236,14 +236,14 @@ Everything under `layout` other than what the accessors above expose. `gap`, `pa
 
 ## Divergences a person should expect to see
 
-Movement at the ends, clamping on native and wrapping on canvas, stated above.
+Movement at the ends, clamping on legacy and wrapping on default, stated above.
 
-Proportions. The canvas backend does not copy the native widget's row height or field
+Proportions. The default chooser does not copy the legacy widget's row height or field
 height, which came from a compiled nib rather than from a design. It is a uniform sixteen
 point type size with a thirty eight point field and a thirty eight point row, decided by
 hand across five rounds.
 
 Input method composition and the accessibility tree. Neither exists on a canvas surface.
-Option e then e types a plain e, measured rather than assumed. A canvas picker cannot be
+Option e then e types a plain e, measured rather than assumed. The default chooser cannot be
 driven through the accessibility route the existing probes use, so a probe against it
 reports another way.

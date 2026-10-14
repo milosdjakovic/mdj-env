@@ -28,7 +28,7 @@ local ok, err = pcall(function()
   local function tree(dir, pol)
     local panel = dofile(dir .. "lib/panel.lua")
     panel.configure({ surface = pol.surface })
-    local canvasDir = dir .. "lib/chooser/providers/canvas/"
+    local canvasDir = dir .. "lib/chooser/providers/default/"
     return {
       provider = dofile(canvasDir .. "init.lua"),
       geometry = dofile(canvasDir .. "geometry.lua"),
