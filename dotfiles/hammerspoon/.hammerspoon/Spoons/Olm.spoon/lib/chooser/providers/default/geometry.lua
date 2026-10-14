@@ -114,15 +114,16 @@ M.DEFAULT_LAYOUT = {
   -- Every inset is the kit's one inset, tokens.inset, so the chooser pads like every pane.
   -- padX is the inset inside a row, marginX and marginY the margin wrapping the list, and the
   -- provider overwrites all four from the kit. The heights are the row height rule over the
-  -- shipped sizes, a title capital of 14.1, a body capital of 11.3 and a caption line of 19.
-  baseH = 61,
-  rowH = 51,
+  -- shipped sizes, a title capital of 14.1, a body capital of 11.3, a caption capital of 9.9 and a caption line
+  -- of 19, the subtitle's capitals sitting rowheight.lua's SUB_GAP below the title.
+  baseH = 57,
+  rowH = 47,
   rowCount = 9,
   -- How much of one more row the list shows below its whole rows, asked for on 2026 10 14 so
   -- a half visible row says the list goes on. The viewport is rowCount plus this many rows.
   peek = 0.3,
   padX = 14,
-  iconSize = 28,
+  iconSize = 33,
   iconGap = 14,
   marginX = 14,
   marginY = 10,
@@ -236,8 +237,19 @@ end
 -- M.textBudget, replacing legacy.lua's own measured ROW_TEXT_INSET
 --------------------------------------------------------------------------------
 
+--- How much more room a row's icon has on its left than above and below it, asked for on
+--- 2026 10 14 after an even pad read a little tight against the edge.
+M.ICON_PAD_LEFT = 1.38
+
+--- M.iconPad(layout) -> the room above and below a row's icon, and the room on its left, the
+--- second ICON_PAD_LEFT times the first.
+function M.iconPad(layout)
+  local pad = (layout.rowH - layout.iconSize) / 2
+  return pad, pad * M.ICON_PAD_LEFT
+end
+
 --- M.textBudget(rects, layout) answers the pixel room a row's title has, the list
---- rect's own width less the leading pad, the icon and its gap, less the trailing pad
+--- rect's own width less the icon's pad, the icon and its gap, less the trailing pad
 --- and the shortcut column, layout.numW wide, iconSize when no width was measured, matching
 --- list/render.lua's own column. Computed from the layout, never from a measurement.
 function M.textBudget(rects, layout)
@@ -245,7 +257,8 @@ function M.textBudget(rects, layout)
   local listRect = rects and rects.list
   if not listRect then return 0 end
   local numeralColumnWidth = layout.numW or layout.iconSize
-  local budget = listRect.w - layout.padX - layout.iconSize - layout.iconGap
+  local _, padLeft = M.iconPad(layout)
+  local budget = listRect.w - padLeft - layout.iconSize - layout.iconGap
     - layout.padX - numeralColumnWidth
   return math.max(0, budget)
 end

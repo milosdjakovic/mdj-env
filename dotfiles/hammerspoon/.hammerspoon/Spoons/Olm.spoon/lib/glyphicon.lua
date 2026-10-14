@@ -14,10 +14,9 @@
 -- instance.icon(glyph) answers a cached hs.image for that glyph, drawing it the first
 -- time and answering the very same cached object on every call after, or nil for a nil
 -- glyph and nil for a glyph that drew nothing. The canvas size, the text size, the
--- alignment, and the frame are copied exactly from the drawing Launcher owned before
--- this packet, unchanged in every number, since a launcher row and a panel row have to
--- line up and any change to those numbers would be a change to the launcher this packet
--- is not making. A drawing that answers no image is remembered as false internally, so a
+-- alignment, and the frame are shared by every caller, since a launcher row and a panel
+-- row have to line up. The text size fills the same 60 of 72 points an app icon's artwork
+-- fills, measured on 2026 10 14, so an emoji row and an app row show icons of one size. A drawing that answers no image is remembered as false internally, so a
 -- glyph nothing can render is asked for once rather than on every row it appears on, and
 -- answered back out as nil, the honest public answer, never the internal sentinel.
 
@@ -40,8 +39,8 @@ function M.new()
       local size = 72
       local c = hs.canvas.new({ x = 0, y = 0, w = size, h = size })
       -- type-exempt, a glyph drawn into a row icon image, sized to its 72 point box
-      c[1] = { type = "text", text = glyph, textSize = 52, textAlignment = "center",
-               frame = { x = "0%", y = "8%", w = "100%", h = "100%" } }
+      c[1] = { type = "text", text = glyph, textSize = 60, textAlignment = "center",
+               frame = { x = "0%", y = "0%", w = "100%", h = "100%" } }
       cache[glyph] = c:imageFromCanvas() or false
       c:delete()
     end

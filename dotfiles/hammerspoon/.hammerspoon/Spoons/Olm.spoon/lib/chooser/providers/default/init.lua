@@ -233,7 +233,17 @@ Provider.__index = Provider
 
 -- The four roles the field and every row are drawn in, read only from the kit's tokens. The
 -- field takes title, row titles body, row subtitles caption and the row shortcut body, the size of the title beside it. A line
--- is the role's own line height, which the row and field geometry are derived from too.
+-- is the role's own line height, except the subtitle's, which is the baseline step the row
+-- rule derives, see lib/chooser/rowheight.lua.
+-- A role's capital height from the real font metrics, nil with no measure so the row rule
+-- falls back to its own estimate.
+local function capOf(tokens)
+  return UI.measure and function(role)
+    local v = tokens.text[role]
+    return UI.measure:metrics(v.font, v.size).capHeight
+  end
+end
+
 local function typeOf(tokens)
   local text = tokens.text
   return {
@@ -242,7 +252,7 @@ local function typeOf(tokens)
     textLine = text.body.lineHeight,
     subFont = text.caption.font,
     subSize = text.caption.size,
-    subLine = text.caption.lineHeight,
+    subLine = geometry.derivedRows(text, capOf(tokens)).subStep,
     numFont = text.body.font,
     numSize = text.body.size,
     fieldFont = text.title.font,
@@ -1213,10 +1223,7 @@ function M.new(config)
   local inset = tokens.inset or { x = layout.padX, y = layout.marginY }
   layout.padX, layout.iconGap = inset.x, inset.x
   layout.marginX, layout.marginY = inset.x, inset.y
-  local cap = UI.measure and function(role)
-    local v = tokens.text[role]
-    return UI.measure:metrics(v.font, v.size).capHeight
-  end
+  local cap = capOf(tokens)
   local derived = geometry.derivedRows(tokens.text, cap, inset)
   layout.iconSize = derived.iconSize
   layout.iconFrame = derived.iconFrame

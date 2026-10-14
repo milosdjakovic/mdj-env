@@ -10,8 +10,8 @@
 --- when the title's capital height plus the inset above and below would not fit. Its padding
 --- above and below is then FIELD_PAD_Y times a row's, asked for the same day to give the
 --- query more room than a row. A row stacks a body title over a caption subtitle, so its height is the inset
---- above the title's capital, the title's capital height, one caption line from the title's
---- baseline to the subtitle's, and the inset below that baseline. Heights round up to whole
+--- above the title's capital, the title's capital height, M.subStep from the title's baseline
+--- to the subtitle's, and the inset below that baseline. Heights round up to whole
 --- points and the renderers centre the letters in what they are given, so any rounding is
 --- split evenly above and below.
 ---
@@ -19,6 +19,13 @@
 --- read by the caller from the real font metrics. inset is the kit's tokens.inset.
 
 local M = {}
+
+--- The gap in points from the title's baseline to the top of the subtitle's capitals. A full
+--- caption line left about 9, asked down to 5.3 on 2026 10 14 so the pair reads as one item.
+M.SUB_GAP = 5.3
+
+--- How much larger a row's icon is than the text beside it, asked for on 2026 10 14.
+M.ICON_SCALE = 1.26
 
 --- How much more vertical padding the field has than a row, as a multiple of the inset's y.
 M.FIELD_PAD_Y = 1.5
@@ -36,10 +43,18 @@ local function capOf(cap, text, role)
   return (text[role].size or text[role].lineHeight / 1.35) * 0.7
 end
 
---- M.rowH(text, cap, inset) -> the height of one row, a body title over a caption subtitle.
---- The native chooser asks only this, since the system draws its field.
-function M.rowH(text, cap, inset)
-  return math.ceil(2 * inset.y + capOf(cap, text, "body") + text.caption.lineHeight)
+--- M.subStep(text, cap, fullLine) -> the distance from the title's baseline to the
+--- subtitle's, the caption's capital height plus M.SUB_GAP. The native chooser passes fullLine,
+--- one whole caption line, since the system spaces its own lines.
+function M.subStep(text, cap, fullLine)
+  if fullLine then return text.caption.lineHeight end
+  return capOf(cap, text, "caption") + M.SUB_GAP
+end
+
+--- M.rowH(text, cap, inset, fullLine) -> the height of one row, a body title over a caption
+--- subtitle. The native chooser asks only this, since the system draws its field.
+function M.rowH(text, cap, inset, fullLine)
+  return math.ceil(2 * inset.y + capOf(cap, text, "body") + M.subStep(text, cap, fullLine))
 end
 
 --- M.fieldH(text, cap, inset) -> the height of the field, one title line in a row's height.
@@ -49,10 +64,11 @@ function M.fieldH(text, cap, inset)
 end
 
 --- M.iconH(text, cap) -> the side of a row's icon, the span from the top of the title's
---- capitals to the subtitle's baseline, asked for on 2026 10 14, so the icon stands exactly as
---- tall as the text beside it and has the inset above and below just as the text does.
+--- capitals to the subtitle's baseline times M.ICON_SCALE. At a scale of one the icon stands
+--- exactly as tall as the text beside it, and above one it reaches into the inset, and the
+--- canvas geometry's iconPad gives it the same room on its left as above and below.
 function M.iconH(text, cap)
-  return math.floor(capOf(cap, text, "body") + text.caption.lineHeight)
+  return math.floor((capOf(cap, text, "body") + M.subStep(text, cap)) * M.ICON_SCALE)
 end
 
 --- M.iconFrame(text, cap) -> the side the icon image is drawn at, larger than M.iconH by the
@@ -65,7 +81,8 @@ end
 --- its own field.
 function M.heights(text, cap, inset)
   return { rowH = M.rowH(text, cap, inset), baseH = M.fieldH(text, cap, inset),
-    iconSize = M.iconH(text, cap), iconFrame = M.iconFrame(text, cap) }
+    iconSize = M.iconH(text, cap), iconFrame = M.iconFrame(text, cap),
+    subStep = M.subStep(text, cap) }
 end
 
 return M

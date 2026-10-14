@@ -38,8 +38,8 @@
 --- for whatever reads model.highlightedRow rather than for this file.
 ---
 --- The vertical rule. A row carrying a subTitle centres the pair's letters in the row, from
---- the top of the title's capitals to the subtitle's baseline, the two baselines one caption
---- line apart, so the space above the title and below the subtitle is equal and is the kit's
+--- the top of the title's capitals to the subtitle's baseline, the two baselines subLine
+--- apart, the step lib/chooser/rowheight.lua derives, so the space above the title and below the subtitle is equal and is the kit's
 --- inset, since lib/chooser/rowheight.lua sizes rowH to exactly that span plus the inset
 --- twice. The field centres its one line the same way, so the two read alike. A row with no subTitle, or an empty one, centres its
 --- title in the row instead, using the row's own real font metrics rather than a guessed
@@ -168,6 +168,7 @@ local function resolveLayout(layout)
     iconSize = layout.iconSize or DEFAULT_LAYOUT.iconSize,
     iconGap = layout.iconGap or DEFAULT_LAYOUT.iconGap,
     iconFrame = layout.iconFrame,
+    numW = layout.numW,
     showRowNumbers = (layout.showRowNumbers == nil) and DEFAULT_LAYOUT.showRowNumbers or layout.showRowNumbers,
   }
 end
@@ -255,7 +256,8 @@ function M.elements(state, rect, layout, style)
   local numberMetrics = layout.showRowNumbers and fontMetrics(layout.numFont, layout.numSize) or nil
 
   local els = {}
-  local textX = rect.x + layout.padX + layout.iconSize + layout.iconGap
+  local iconPad, iconPadLeft = geometry.iconPad(layout)
+  local textX = rect.x + iconPadLeft + layout.iconSize + layout.iconGap
   local textW = math.max(0, rect.w - (textX - rect.x) - layout.padX)
 
   -- The whole row band is clipped to its own rect before anything below is drawn into
@@ -288,7 +290,7 @@ function M.elements(state, rect, layout, style)
     -- what brings all three back into agreement.
     local reservedW = textW
     if numberMetrics and slot <= 9 then
-      reservedW = math.max(0, textW - layout.iconSize)
+      reservedW = math.max(0, textW - (layout.numW or layout.iconSize))
     end
 
     if entry.index == ns.highlight then
@@ -304,7 +306,7 @@ function M.elements(state, rect, layout, style)
       -- falls into the padding around it.
       local art = layout.iconSize
       local side = layout.iconFrame or art
-      local artX, artY = rect.x + layout.padX, rowY + (layout.rowH - art) / 2
+      local artX, artY = rect.x + iconPadLeft, rowY + iconPad
       els[#els + 1] = {
         type = "image", image = row.image, imageScaling = "scaleProportionally",
         frame = {
@@ -315,7 +317,7 @@ function M.elements(state, rect, layout, style)
     end
 
     if hasSubTitle(row) then
-      -- The letters of the pair, the title's capital height and one caption line down to
+      -- The letters of the pair, the title's capital height and the subtitle step down to
       -- the subtitle's baseline, centred in the row, each text frame placed from its own
       -- baseline and real font metrics.
       local inkH = titleMetrics.capHeight + layout.subLine

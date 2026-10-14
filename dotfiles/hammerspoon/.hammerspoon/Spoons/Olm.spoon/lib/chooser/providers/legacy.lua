@@ -185,7 +185,7 @@ local function kitLayout()
     subSize = text.caption.size,
     rowH = rowHeight.rowH(text, kit.measure and function(role)
       return kit.measure:metrics(text[role].font, text[role].size).capHeight
-    end, kit.tokens().inset or { x = 14, y = 10 }),
+    end, kit.tokens().inset or { x = 14, y = 10 }, true),
   }
 end
 
