@@ -28,6 +28,10 @@ return {
       -- the one store here that is genuinely durable under a cache name. Required, since a
       -- history with nowhere to go is not a clipboard manager.
       storage = { from = "storage", policy = "required" },
+      -- The UI kit, which every piece of text in the preview pane is drawn through, so the pane
+      -- names a role and never a font, a size, a line height or a colour. Required, since the
+      -- pane has no drawing of its own left to fall back on.
+      ui = { from = "ui", policy = "required" },
     },
     tools = {
       { name = "ffmpeg", kind = "path", policy = "optional", unit = "preview",

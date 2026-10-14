@@ -61,6 +61,18 @@ local function widthOf(measure, str, font, size)
   return measure:width(str, font, size)
 end
 
+-- The size an image draws at inside a slot maxW wide. The slot width, or the picture's own
+-- width when it may not be upscaled and is narrower, with the height following its aspect. An
+-- image that cannot say its size, or says none, draws as a square of the width, the way the
+-- clipboard pane always has, so a stack still reserves something visible.
+local function imageFit(node, maxW)
+  local size = node.image:size()
+  local natural = size and size.w and size.w > 0 and size.h and size
+  if not natural then return maxW, maxW end
+  local w = node.upscale and maxW or math.min(maxW, natural.w)
+  return w, w * natural.h / natural.w
+end
+
 --- M.new(deps) -> engine
 --- deps.measure          a lib/ui/measure.lua instance, required.
 --- deps.surfaceElements  optional, CanvasPanel.surfaceElements or anything shaped like it,
@@ -97,19 +109,42 @@ function M.new(deps)
   local sizeOf, codeCut
 
   -- The slots of a row, each child's width and height, and the row's own size. Every child
-  -- but the last takes its natural width, and the last takes what remains when fill is on.
+  -- but one takes its natural width, and the filling child, the last unless fillIndex names
+  -- another, takes what remains when fill is on. The others are sized first, so a filling
+  -- child in front still leaves them their whole width, and it is never given less than 0.
   local function rowSlots(node, maxW, T)
     local kids = content(node.children)
     local gap = spaceOf(T, node.gap)
+    local fillAt = node.fill and (node.fillIndex or #kids) or nil
+    -- fillIndex counts every child, and a surface is dropped from the list, so it is found
+    -- again through the node it pointed at.
+    if node.fill and node.fillIndex then
+      fillAt = nil
+      for i, child in ipairs(kids) do
+        if child == node.children[node.fillIndex] then fillAt = i end
+      end
+    end
     local slots, used, rowH = {}, 0, 0
+    local others, gapsBefore = 0, 0
     for i, child in ipairs(kids) do
+      if i > 1 then gapsBefore = gapsBefore + gap end
+      if i ~= fillAt then
+        -- The same width the child was always offered, what is left after the gaps and
+        -- the non filling children in front of it, so a wrapping child keeps its height.
+        local cw, ch = sizeOf(child, math.max(0, maxW - gapsBefore - others), T)
+        slots[i] = { node = child, w = cw, h = ch }
+        others = others + cw
+      end
+    end
+    local room = math.max(0, maxW - gap * math.max(0, #kids - 1) - others)
+    if fillAt and kids[fillAt] then
+      local _, ch = sizeOf(kids[fillAt], room, T)
+      slots[fillAt] = { node = kids[fillAt], w = room, h = ch }
+    end
+    for i, slot in ipairs(slots) do
       if i > 1 then used = used + gap end
-      local avail = math.max(0, maxW - used)
-      local cw, ch = sizeOf(child, avail, T)
-      if node.fill and i == #kids then cw = avail end
-      slots[i] = { node = child, w = cw, h = ch }
-      used = used + cw
-      if ch > rowH then rowH = ch end
+      used = used + slot.w
+      if slot.h > rowH then rowH = slot.h end
     end
     return slots, used, rowH
   end
@@ -209,7 +244,9 @@ function M.new(deps)
       local _, _, h = codeCut(node, T)
       return maxW, h
     elseif kind == "raw" then
-      return maxW, node.height
+      return node.width and math.min(node.width, maxW) or maxW, node.height
+    elseif kind == "image" then
+      return imageFit(node, maxW)
     elseif kind == SURFACE then
       return 0, 0
     elseif kind == "row" then
@@ -313,17 +350,26 @@ function M.new(deps)
         frame = { x = x, y = y, w = w, h = 1 } })
     elseif kind == "code" then
       -- The visible slice rule. Every line of a code block is the same height, so with a
-      -- window set a line wholly above or below it is skipped, no element is emitted and
-      -- nothing is measured for it, while the content height above still counts every line.
+      -- window set a line wholly above or below it is skipped, nothing is built for it, and the
+      -- content height above still counts every line. The lines that remain are drawn as ONE
+      -- text element, joined by newlines with the role's line height pinned, since one styled
+      -- text per line was measured to make a scroll event cost dozens of constructions and a
+      -- trackpad sends dozens of events a second. truncateTail cuts each paragraph at the width
+      -- on its own, so a long line is still cut and never wraps into the next.
       local lh = T.text.code.lineHeight
       local shown, left = codeCut(node, T)
       local win = ctx.window
-      for i = 1, shown do
-        local ly = y + (i - 1) * lh
-        if not win or (ly + lh > win.top and ly < win.bottom) then
-          emit({ kind = "text", str = node.lines[i], variant = "code", lineBreak = "truncateTail" },
-            x, ly, w, lh, ctx)
-        end
+      local first, last = 1, shown
+      if win and shown > 0 then
+        first = math.max(1, math.floor((win.top - y) / lh) + 1)
+        last = math.min(shown, math.ceil((win.bottom - y) / lh))
+      end
+      if last >= first then
+        local slice = first == 1 and last == #node.lines and node.lines
+          or table.move(node.lines, first, last, 1, {})
+        push(ctx, textElement(ctx, table.concat(slice, "\n"), T.text.code,
+          T.text.code.color or "foreground", "left", "truncateTail",
+          { x = x, y = y + (first - 1) * lh, w = w, h = (last - first + 1) * lh }))
       end
       if left > 0 then
         local ly = y + shown * lh
@@ -333,6 +379,11 @@ function M.new(deps)
             x, ly, w, T.text.caption.lineHeight, ctx)
         end
       end
+    elseif kind == "image" then
+      local iw, ih = imageFit(node, w)
+      push(ctx, { type = "image", image = node.image, imageAlpha = ctx.alpha,
+        imageScaling = "scaleProportionally", imageAlignment = "topLeft",
+        frame = { x = x, y = y, w = iw, h = ih } })
     elseif kind == "raw" then
       -- The caller's elements go in as returned and in order. Their colours must come from
       -- the tokens draw is handed. Group alpha and the click id are not applied to them.

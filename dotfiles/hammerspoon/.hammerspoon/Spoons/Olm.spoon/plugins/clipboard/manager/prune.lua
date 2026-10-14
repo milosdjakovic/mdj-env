@@ -265,9 +265,11 @@ local function stamp(e)
   return os.date("%a %d %b, %H:%M", ts)
 end
 
---- P.preview(item) -> a meta line and a body block for the highlighted row, or nil for a row
---- with nothing to say, a hint. Two plain strings, because the pane already knows how to draw
---- a meta line above a monospace body and this page has no reason to teach it a second shape.
+--- P.preview(item) -> facts and a body block for the highlighted row, or nil for a row with
+--- nothing to say, a hint. The facts are the shape the pane's header takes, { kind, details }
+--- with kind the slice's name and details a list of strings, and the body is one plain string,
+--- so the pane draws this page like any other kind and this page has no reason to teach it a
+--- second shape.
 ---
 --- What it lists is what would go, newest first, which is the only real check available before
 --- a delete that cannot be undone. A count is a promise, and this is the evidence for it.
@@ -276,17 +278,20 @@ function P.preview(item)
   local hits = matchesFor(item)
   local total = #store.all()
 
-  local meta
+  local facts
   if item.side == "all" then
-    meta = "Everything  ·  " .. total .. " items"
-  elseif item.side == "older" then
-    meta = "Older than " .. item.span .. "  ·  " .. #hits .. " of " .. total
-  elseif item.side == "trim" then
-    meta = "All but the newest " .. item.count .. "  ·  " .. #hits .. " of " .. total
-  elseif item.side == "newest" then
-    meta = "The newest " .. item.count .. "  ·  " .. #hits .. " of " .. total
+    facts = { kind = "Everything", details = { total .. " items" } }
   else
-    meta = "Last " .. item.span .. "  ·  " .. #hits .. " of " .. total
+    local counts = { #hits .. " of " .. total }
+    if item.side == "older" then
+      facts = { kind = "Older than " .. item.span, details = counts }
+    elseif item.side == "trim" then
+      facts = { kind = "All but the newest " .. item.count, details = counts }
+    elseif item.side == "newest" then
+      facts = { kind = "The newest " .. item.count, details = counts }
+    else
+      facts = { kind = "Last " .. item.span, details = counts }
+    end
   end
 
   local lines = {}
@@ -317,7 +322,7 @@ function P.preview(item)
     end
   end
 
-  return meta, table.concat(lines, "\n")
+  return facts, table.concat(lines, "\n")
 end
 
 --------------------------------------------------------------------------------

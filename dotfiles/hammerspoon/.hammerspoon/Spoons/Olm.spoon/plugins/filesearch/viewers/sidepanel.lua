@@ -20,7 +20,7 @@
 --- CanvasPanel.surfaceElements, so the pane, the docked shortcut panel and the cheat
 --- sheets are one component drawn in several places rather than lookalikes.
 ---
---- Dot called, and it holds no policy. The surface routine, the palette, the limits, the
+--- Dot called, and it holds no policy. The surface routine, the kit, the limits, the
 --- last used lookup and the thumbnail chain are all injected by the surface that owns the
 --- picker, so this file names nothing concrete.
 ---
@@ -43,6 +43,7 @@
 -- A viewer sits one directory below the spoon root, so its siblings are one level up.
 local viewerPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local util = loadfile(viewerPath .. "../util.lua")()
+local nodes = loadfile(viewerPath .. "sidepanel-nodes.lua")()
 
 local M = {}
 
@@ -59,180 +60,20 @@ local cfg = {}
 
 local canvas = nil       -- the docked canvas, built lazily and deleted on every close
 local frame = nil        -- the companion rect the atom reported, where the canvas docks
-local colors = nil       -- the palette, resolved once per open rather than per highlight
-local model = nil        -- the row on screen, laid out, see buildModel
+local model = nil        -- the row on screen, the header's laid out elements and a body node, see buildModel
 local scrollOffset = 0   -- how far down the body, in points, clamped at paint
 local pending = 0        -- the generation of the newest thumbnail request, see requestImage
 local hidden = false     -- set by M.hide, cleared by M.dock, the resurrection guard paint reads
+local scrollTimer = nil  -- the one pending scroll paint, see M.scrollBy
 
---------------------------------------------------------------------------------
--- Layout
---------------------------------------------------------------------------------
+-- One display frame, the longest a scroll event waits for its paint.
+local SCROLL_FRAME = 1 / 60
 
--- The padding matches the shortcut panel, the clipboard preview and the Processes pane,
--- CanvasPanel's 14 and 10, so every surface sharing the screen shares its inner margin.
-local PAD_X, PAD_Y = 14, 10
-
--- One monospace font throughout, so a wrap can be measured by column arithmetic rather
--- than by measuring every string, and so a file's own indentation survives being shown.
--- A proportional font would bend the head of a source file out of shape, which is most of
--- what this pane draws.
-local FONT = "Menlo"
-local NAME_SIZE, LABEL_SIZE, BODY_SIZE = 13, 11, 11
-local LINE_MULT = 1.35
-local BLOCK_GAP = 12    -- between one block and the next
-local HEADING_GAP = 2   -- between a heading and what it heads
-
-local function lineHeight(size)
-  return math.ceil(size * LINE_MULT)
-end
-
-local LABEL_H = lineHeight(LABEL_SIZE)
-
---------------------------------------------------------------------------------
--- Text and colour helpers
---------------------------------------------------------------------------------
-
-local function hexColor(hex)
-  local r, g, b = tostring(hex):match("#?(%x%x)(%x%x)(%x%x)")
-  if not r then return { white = 0.85, alpha = 1 } end
-  return { red = tonumber(r, 16) / 255, green = tonumber(g, 16) / 255,
-           blue = tonumber(b, 16) / 255, alpha = 1 }
-end
-
--- A styled run with a pinned line height, so the drawn height matches the line count
--- exactly and every block below lands where the layout said it would.
---
--- Every run truncates rather than wraps, which is a safety net rather than a look. The
--- blocks here are wrapped by column arithmetic against an averaged character width, so a
--- line measuring a shade wider than the estimate would otherwise wrap itself, silently
--- taking one more line than the layout accounted for and pushing everything below it down.
-local function styled(text, color, size, align)
-  local lineH = lineHeight(size)
-  return hs.styledtext.new(text or "", {
-    font = { name = FONT, size = size },
-    color = color,
-    paragraphStyle = { maximumLineHeight = lineH, minimumLineHeight = lineH,
-                       alignment = align, lineBreak = "truncateTail" },
-  })
-end
-
--- Monospace character width per size, measured once from a run so any per glyph padding
--- averages out. This is the unit the column budgets are counted in.
-local charWidth = {}
-local function monoCharWidth(size)
-  local hit = charWidth[size]
-  if hit then return hit end
-  local run = "MMMMMMMMMMMMMMMMMMMM"
-  local sz = hs.drawing.getTextDrawingSize(hs.styledtext.new(run, { font = { name = FONT, size = size } }))
-  hit = (((sz and sz.w) or (size * 12 * 0.6)) / #run)
-  charWidth[size] = hit
-  return hit
-end
-
-local function columns(w, size)
-  return math.max(1, math.floor(w / monoCharWidth(size)))
-end
-
--- Wrap one line to a column budget, breaking at the last space that fits and hard
--- breaking a token longer than the whole line, which is what a long path with no spaces
--- in it needs. Tabs are expanded first, since a tab drawn in a monospace run is one cell
--- wide and would collapse the indentation this pane exists to show.
---
-local function wrapMono(str, cols)
-  str = tostring(str):gsub("\t", "  ")
-  local lines, pos, n = {}, 1, #str
-  if n == 0 then return { "" } end
-  while pos <= n do
-    if n - pos + 1 <= cols then
-      lines[#lines + 1] = str:sub(pos)
-      break
-    end
-    local slice = str:sub(pos, pos + cols - 1)
-    local lastSpace = nil
-    for s in slice:gmatch("() ") do lastSpace = s end
-    if lastSpace and lastSpace > 1 then
-      lines[#lines + 1] = str:sub(pos, pos + lastSpace - 2)
-      pos = pos + lastSpace
-    else
-      lines[#lines + 1] = slice
-      pos = pos + cols
-    end
+local function stopScrollTimer()
+  if scrollTimer then
+    scrollTimer:stop()
+    scrollTimer = nil
   end
-  return lines
-end
-
--- Wrap a block of source lines to a column budget.
---
--- Everything read is wrapped, deliberately, and the trim happens after. The input is already
--- bounded by the read cap, so this is a few thousand iterations at worst, and wrapping all of
--- it is what makes the count of what is being left out an exact number rather than an estimate.
--- What is NOT affordable is drawing all of it, which is a different layer and is handled in
--- paint.
-local function wrapBlock(lines, cols)
-  local out = {}
-  for _, line in ipairs(lines) do
-    for _, part in ipairs(wrapMono(line, cols)) do out[#out + 1] = part end
-  end
-  return out
-end
-
--- What is being left out, said in the units that are actually known.
---
--- A COUNT OF LINES IS ONLY HONEST WHEN THE FILE HAS LINES. A minified bundle is one line of a
--- hundred thousand characters, so telling you seven hundred more lines would be describing the
--- wrapping rather than the file. Characters is true whatever the shape, and it comes from the
--- stat, so it counts the whole file rather than only the part that was read.
---
--- The character figure is measured against the bytes drawn, so it is off by a line ending here
--- and an expanded tab there, well under a percent on any real file. It says roughly how much
--- more there is, which is the question, and pretending to an exact figure would cost a second
--- pass for nothing.
-local function remainderNote(lines, overLines, shownBytes, total, hasLines)
-  local parts = {}
-  if hasLines and overLines > 0 then
-    parts[#parts + 1] = string.format("%d lines", overLines)
-  end
-  if total and total > shownBytes then
-    parts[#parts + 1] = string.format("%d characters", total - shownBytes)
-  end
-  if #parts == 0 then return nil end
-  return table.concat(parts, ", ") .. " more"
-end
-
--- A block of text as one canvas element rather than one per line. The pinned line height
--- makes the joined run's drawn height exactly the line count, and one element keeps a
--- repaint cheap where a long file head would otherwise cost dozens.
-local function appendLines(els, lines, y, w, color, size)
-  if #lines == 0 then return y end
-  local lineH = lineHeight(size)
-  local h = #lines * lineH
-  els[#els + 1] = { type = "text", text = styled(table.concat(lines, "\n"), color, size),
-    frame = { x = 0, y = y, w = w, h = h + lineH } }
-  return y + h
-end
-
--- A label at the left with a value flush against the right edge. Two anchors rather than
--- one padded run, because a value read down a column has to start in the same place on
--- every line and a padded run in a wrapped block cannot promise that.
-local function appendPair(els, label, value, y, w, valueColor)
-  els[#els + 1] = { type = "text", text = styled(label, colors.meta, LABEL_SIZE),
-    frame = { x = 0, y = y, w = w, h = LABEL_H * 2 } }
-  els[#els + 1] = { type = "text", text = styled(value, valueColor or colors.fg, LABEL_SIZE, "right"),
-    frame = { x = 0, y = y, w = w, h = LABEL_H * 2 } }
-  return y + LABEL_H
-end
-
--- A section heading, with an optional right hand fact. Same two anchors as a pair, in the
--- meta tone on both sides, so a heading reads as a heading rather than as another field.
-local function appendHeading(els, label, facts, y, w)
-  els[#els + 1] = { type = "text", text = styled(label, colors.meta, LABEL_SIZE),
-    frame = { x = 0, y = y, w = w, h = LABEL_H * 2 } }
-  if facts and facts ~= "" then
-    els[#els + 1] = { type = "text", text = styled(facts, colors.meta, LABEL_SIZE, "right"),
-      frame = { x = 0, y = y, w = w, h = LABEL_H * 2 } }
-  end
-  return y + LABEL_H + HEADING_GAP
 end
 
 --------------------------------------------------------------------------------
@@ -401,114 +242,51 @@ local BODIES = { folderBody, imageBody, textBody }
 -- Laying a row out
 --------------------------------------------------------------------------------
 
--- The header, everything true of every row. The name, where it lives, then the facts.
+-- The header, everything true of every row. The name, where it lives, then the facts. What
+-- each fact looks like is sidepanel-nodes.lua's business, this only decides which there are.
 --
 -- Both ages are LABELLED, the same fix the row subtitle carries, because a bare age reads
 -- as something you did and a file a build wrote four days ago is not a file you touched
 -- four days ago. When you last reached for it comes first, since it is the field that
 -- explains why the row is where it is.
-local function headerElements(row, attrs, w)
-  local els, y = {}, 0
-  els[#els + 1] = { type = "text", text = styled(row.name or row.path, colors.fg, NAME_SIZE),
-    frame = { x = 0, y = y, w = w, h = lineHeight(NAME_SIZE) * 2 } }
-  y = y + lineHeight(NAME_SIZE)
-
-  local dir = util.shortDir(row.dir)
-  if dir ~= "" then
-    y = appendLines(els, wrapMono(dir, columns(w, LABEL_SIZE)), y, w, colors.path, LABEL_SIZE)
-  end
-  y = y + BLOCK_GAP
-
-  y = appendPair(els, "KIND", kindOf(row, attrs), y, w)
+local function headerNode(row, attrs)
+  local ui = cfg.ui
+  local facts = { { label = "KIND", value = kindOf(row, attrs) } }
   -- No size for a directory. A directory's own byte count is the size of the entry that
   -- holds its names, which is not the question anyone is asking, and the folder section
   -- below carries the count that is.
   if attrs and attrs.size and not row.isDir then
-    y = appendPair(els, "SIZE", util.humanBytes(attrs.size), y, w)
+    facts[#facts + 1] = { label = "SIZE", value = util.humanBytes(attrs.size) }
   end
   if attrs and attrs.modification then
-    y = appendPair(els, "CHANGED", util.humanAge(attrs.modification), y, w)
+    facts[#facts + 1] = { label = "CHANGED", value = util.humanAge(attrs.modification) }
   end
   if attrs and attrs.creation then
-    y = appendPair(els, "ADDED", util.humanAge(attrs.creation), y, w)
+    facts[#facts + 1] = { label = "ADDED", value = util.humanAge(attrs.creation) }
   end
   local usedAt = cfg.usedAt and row.path and cfg.usedAt(row.path)
   if usedAt then
     -- In the accent tone, because it is the one fact on the pane that is about you rather
     -- than about the file.
-    y = appendPair(els, "USED", util.humanAge(usedAt), y, w, colors.note)
+    facts[#facts + 1] = { label = "USED", value = util.humanAge(usedAt), color = "note" }
   end
-  return els, y + BLOCK_GAP
+  return nodes.header(ui, row.name or row.path, util.shortDir(row.dir), facts)
 end
 
--- The body's own elements, laid out in a box of their own starting at zero, so the paint
--- can offset them by the scroll without the builder knowing anything about it.
-local function bodyElements(body, w)
-  local els, y = {}, 0
-  if body.image then
-    y = appendHeading(els, body.label, body.facts, y, w)
-    local size = body.image:size()
-    -- Scaled to the width and never past its own size, so a small icon is drawn at the
-    -- size it really is rather than blown up into a blur.
-    local drawW = math.min(w, size.w)
-    local drawH = size.h * (drawW / size.w)
-    els[#els + 1] = { type = "image", image = body.image, imageScaling = "scaleProportionally",
-      imageAlignment = "topLeft", frame = { x = 0, y = y, w = drawW, h = drawH } }
-    return els, y + drawH
-  end
-  -- Wrapped before the heading is written, so the heading can say what was left out. The
-  -- describer cannot say it, because whether a budget counted in drawn lines is reached
-  -- depends on how wide the pane turned out.
-  local lines = body.lines or {}
-  if body.wrap then lines = wrapBlock(lines, columns(w, BODY_SIZE)) end
-
-  -- THE SLACK IS THE POINT OF THIS BLOCK. A budget with a hard edge means a file four lines
-  -- over it loses those four lines and gains a notice about them, which is a worse thing to
-  -- read than the four lines were. So the budget is where the trim lands and the slack is how
-  -- far past it a file is simply shown whole. Anything up to budget plus slack is complete and
-  -- says nothing, and only past that is it worth trimming and worth mentioning.
-  local budget, slack = body.budget, body.slack or 0
-  local note, shown = nil, #lines
-  if budget and #lines > budget + slack then
-    local kept, bytes = {}, 0
-    for i = 1, budget do
-      kept[i] = lines[i]
-      bytes = bytes + #lines[i] + 1
-    end
-    local over = #lines - budget
-    shown = budget
-    -- The ellipsis is a line of the body rather than part of the note, so it sits in the body
-    -- tone at the end of the text and reads as the text stopping, which is what it means.
-    kept[#kept + 1] = "..."
-    lines = kept
-    note = remainderNote(lines, over, bytes, body.total, body.hasLines)
-  end
-
-  local facts = body.facts
-  if note and not facts then facts = string.format("first %d lines", shown) end
-  y = appendHeading(els, body.label, facts, y, w)
-
-  -- The text block is DESCRIBED rather than built, so the paint can draw only the lines
-  -- that are actually on screen. Everything above is a fixed handful of elements and is
-  -- built here as before. See the note on paint for why the difference matters.
-  local run = nil
-  if #lines > 0 then
-    run = { lines = lines, y = y, size = BODY_SIZE, color = colors.fg,
-            lineH = lineHeight(BODY_SIZE), note = note }
-    y = y + #lines * run.lineH
-    -- Room for the note under the last line, so scrolling to the bottom reaches it.
-    if note then y = y + run.lineH end
-  end
-  return els, y, run
+-- The inner box the tree is laid out in, the pane's frame less the kit's one inset, which is
+-- the space around content every surface shares. In the canvas's own coordinates.
+local function innerRect()
+  local inset = cfg.ui.tokens().inset
+  return { x = inset.x, y = inset.y, w = frame.w - 2 * inset.x, h = frame.h - 2 * inset.y }
 end
 
 -- Everything for one row, built once and cached, since the highlight poll fires often and
 -- nothing here changes under it. Keyed on the path and the box, so a re dock at the
--- corrected frame rebuilds and a poll that has not moved pays nothing.
+-- corrected frame rebuilds and a poll that has not moved pays nothing. w is the width the
+-- text is laid out and wrapped at, and h is kept only to key the cache.
 local function buildModel(row, w, h)
   local attrs = statOf(row)
-  local headEls, bodyY = headerElements(row, attrs, w)
-  local body, bodyEls, bodyH, bodyRun = nil, {}, 0, nil
+  local body = nil
   local limits = cfg.limits or {}
   local ctx = {
     readCap = limits.readCap or 64 * 1024,
@@ -521,10 +299,14 @@ local function buildModel(row, w, h)
     body = describe(row, attrs, ctx)
     if body then break end
   end
-  if body then bodyEls, bodyH, bodyRun = bodyElements(body, w) end
+  -- The header is laid out here, once, since it never scrolls and a paint happens on every
+  -- scroll event. Its elements and height are kept, and a paint only adds them to the list, never
+  -- changing them.
+  local headEls, headH = cfg.ui.layout(headerNode(row, attrs), innerRect(), { clip = true })
   return {
-    row = row, path = row.path, w = w, h = h, attrs = attrs,
-    headEls = headEls, bodyY = bodyY, bodyEls = bodyEls, bodyH = bodyH, bodyRun = bodyRun,
+    row = row, path = row.path, w = w, h = h,
+    headEls = headEls, headH = headH,
+    body = body and nodes.body(cfg.ui, body, w) or nil,
   }
 end
 
@@ -556,75 +338,47 @@ end
 
 -- Compose the surface, the header and the body, and show.
 --
--- The body is clipped to what is left below the header and drawn at the scroll offset,
--- which is clamped HERE rather than where it is changed. That is what lets a key press, a
--- trackpad gesture and a rebuild at a new height all be written without any of them
--- knowing how tall the content turned out.
+-- The header was laid out when the model was built and never moves. The body is laid out in
+-- the rect below it, clipped to that rect and scrolled by the scroll offset, so a body scrolled
+-- up stops at the header and one scrolled down stops at the padding rather than at the border.
+-- The offset is clamped HERE rather than where it is changed, against the body height the
+-- layout answers. That is what lets a key press, a trackpad gesture and a rebuild at a new
+-- height all be written without any of them knowing how tall the content turned out.
 --
 -- ONLY THE LINES ON SCREEN ARE DRAWN, and that is not an optimisation to be simplified
 -- away. A clip bounds what is VISIBLE and not what is laid out, so handing the canvas the
 -- whole block made every paint cost the whole file, and a paint happens on every scroll
 -- event. Measured with a heartbeat timer, a four hundred line body stalled the main thread
--- for fifty to a hundred milliseconds per paint and dropped half the frames of a scroll,
--- while the same body windowed to the thirty visible lines costs nothing above the idle
--- floor whatever the file is. The run is rebuilt per paint rather than cached, which is
--- affordable exactly because it is only ever the visible slice.
+-- for fifty to a hundred milliseconds per paint and dropped half the frames of a scroll.
+-- The kit's code block lays out only the lines inside the scrolled window, and the body is
+-- laid out again on every paint, which is affordable exactly because of that.
 local function paint()
   -- A background tick, a late search result, or a settled thumbnail can all reach this
   -- point after M.hide has already taken the canvas down for a swap away. hidden is what
   -- stops any of them from bringing it back up beside a tool that is no longer current.
   if hidden then return end
-  if not (model and frame and cfg.surface) then return end
+  if not (model and frame and cfg.surface and cfg.ui) then return end
   ensureCanvas()
-  local innerW = frame.w - 2 * PAD_X
-  local innerH = frame.h - 2 * PAD_Y
-  local bodyRoom = innerH - model.bodyY
-
-  local overflow = math.max(0, model.bodyH - bodyRoom)
-  if scrollOffset > overflow then scrollOffset = overflow end
-  if scrollOffset < 0 then scrollOffset = 0 end
+  local ui = cfg.ui
+  local inner = innerRect()
 
   local els = {}
   for _, el in ipairs(cfg.surface(frame.w, frame.h)) do els[#els + 1] = el end
-  els[#els + 1] = { type = "rectangle", action = "clip",
-    frame = { x = PAD_X, y = PAD_Y, w = innerW, h = innerH } }
-  for _, el in ipairs(model.headEls) do els[#els + 1] = shifted(el, PAD_X, PAD_Y) end
+  for _, el in ipairs(model.headEls) do els[#els + 1] = el end
 
-  if bodyRoom > 0 and (#model.bodyEls > 0 or model.bodyRun) then
-    -- A second clip, so a body scrolled up stops at the header rather than being drawn
-    -- over it, and one scrolled down stops at the padding rather than at the border.
-    els[#els + 1] = { type = "rectangle", action = "clip",
-      frame = { x = PAD_X, y = PAD_Y + model.bodyY, w = innerW, h = bodyRoom } }
-    local dy = PAD_Y + model.bodyY - scrollOffset
-    for _, el in ipairs(model.bodyEls) do els[#els + 1] = shifted(el, PAD_X, dy) end
-
-    local run = model.bodyRun
-    if run then
-      -- One line of margin at each end, so a partly scrolled line is still drawn rather
-      -- than appearing only once its top edge crosses into the box.
-      local first = math.max(1, math.floor((scrollOffset - run.y) / run.lineH))
-      local last = math.min(#run.lines, first + math.ceil(bodyRoom / run.lineH) + 1)
-      if last >= first then
-        local slice = {}
-        for i = first, last do slice[#slice + 1] = run.lines[i] end
-        els[#els + 1] = { type = "text",
-          text = styled(table.concat(slice, "\n"), run.color, run.size),
-          -- The slice is placed where its FIRST line belongs rather than at the top of the
-          -- block, which is what keeps the text still while the window moves over it.
-          frame = { x = PAD_X, y = dy + run.y + (first - 1) * run.lineH,
-                    w = innerW, h = (#slice + 1) * run.lineH } }
-      end
-      -- What was left out, under the ellipsis at the very end. In the meta tone, because it is
-      -- the pane talking about the file rather than more of the file. Always emitted, since it
-      -- is one line and the clip drops it while you are anywhere above the bottom.
-      if run.note then
-        els[#els + 1] = { type = "text",
-          text = styled(run.note, colors.meta, LABEL_SIZE),
-          frame = { x = PAD_X, y = dy + run.y + #run.lines * run.lineH,
-                    w = innerW, h = 2 * run.lineH } }
-      end
+  local bodyTop = inner.y + model.headH + ui.tokens().space[nodes.GAP]
+  local room = inner.y + inner.h - bodyTop
+  if model.body and room > 0 then
+    local rect = { x = inner.x, y = bodyTop, w = inner.w, h = room }
+    local content, bodyH = ui.layout(model.body, rect, { scrollY = scrollOffset })
+    local overflow = math.max(0, bodyH - room)
+    if scrollOffset > overflow or scrollOffset < 0 then
+      scrollOffset = math.max(0, math.min(scrollOffset, overflow))
+      content = ui.layout(model.body, rect, { scrollY = scrollOffset })
     end
-    els[#els + 1] = { type = "resetClip" }
+    for _, el in ipairs(content) do els[#els + 1] = el end
+  else
+    scrollOffset = 0
   end
 
   canvas:frame(frame)
@@ -702,8 +456,8 @@ end
 --- preview.configure(opts) - injected by the surface that owns the picker.
 --- opts.surface   function(w, h) -> canvas elements, the shared CanvasPanel surface.
 ---                Absent means no pane at all, see available.
---- opts.palette   function() -> the theme's preview colour set, resolved per open so the
----                pane follows the live light and dark appearance.
+--- opts.ui        the UI kit, needs.lib.ui, which every piece of text in the pane is drawn
+---                through. Absent means no pane at all, see available.
 --- opts.limits    the preview block from config, the read cap, the head line count, the
 ---                folder entry count and the image edge, so no number here is a policy
 ---                this file invented.
@@ -731,6 +485,7 @@ end
 --- over the desktop with no background behind it.
 function M.available()
   if cfg.surface == nil then return false, "no canvas surface was injected" end
+  if cfg.ui == nil then return false, "no UI kit was injected" end
   return true
 end
 
@@ -751,8 +506,7 @@ end
 
 --- preview.dock(companionFrame) - take the rect the Chooser atom reported.
 --- Fired with a seed rect at show and again once the real window settles, so a re dock is
---- expected. The palette is resolved here rather than per highlight, since it can only
---- change between opens.
+--- expected.
 function M.dock(companionFrame)
   if not (M.available() and companionFrame) then return end
   frame = companionFrame
@@ -760,16 +514,9 @@ function M.dock(companionFrame)
   -- here on. The highlight seed the caller runs right after this call is what actually
   -- fills the pane, cold or not, a nil highlight landing in M.clear same as any other.
   hidden = false
-  local p = (cfg.palette and cfg.palette()) or {}
-  colors = {
-    -- theme-exempt, a literal fallback for a palette the panes are not yet handed, retired in stage four of the kit
-    fg = hexColor(p.fg or "#dcdcdc"),
-    meta = hexColor(p.meta or "#8a8a8a"),
-    path = hexColor(p.path or "#7a7a7a"),
-    note = hexColor(p.note or "#c8a86a"),
-  }
   if model then
-    model = buildModel(model.row, frame.w - 2 * PAD_X, frame.h - 2 * PAD_Y)
+    local inner = innerRect()
+    model = buildModel(model.row, inner.w, inner.h)
     paint()
   end
 end
@@ -781,12 +528,13 @@ end
 --- The scroll goes back to the top whenever the row changes, because an offset carried
 --- over would open the next file part way down for no reason the reader can see.
 function M.show(row)
-  if not (M.available() and frame and colors) then return end
+  if not (M.available() and frame) then return end
   if not (row and row.path) then
     M.clear()
     return
   end
-  local w, h = frame.w - 2 * PAD_X, frame.h - 2 * PAD_Y
+  local inner = innerRect()
+  local w, h = inner.w, inner.h
   if not (model and model.path == row.path and model.w == w and model.h == h) then
     pending = pending + 1
     scrollOffset = 0
@@ -801,7 +549,14 @@ end
 function M.scrollBy(points)
   if not model then return end
   scrollOffset = scrollOffset + (tonumber(points) or 0)
-  paint()
+  -- A trackpad sends dozens of events a second and a paint costs a layout, so the offset adds up
+  -- and one paint is scheduled for the next frame, however many events land before it. The
+  -- paint clamps the sum, and its own hidden guard keeps a late timer from drawing.
+  if scrollTimer then return end
+  scrollTimer = hs.timer.doAfter(SCROLL_FRAME, function()
+    scrollTimer = nil
+    paint()
+  end)
 end
 
 --- preview.clear() - the empty state, for a highlight with nothing to describe, a
@@ -820,12 +575,13 @@ end
 --- that read as a content label rather than as guidance, Recent files painted where a
 --- person expects to be told what to do next.
 ---
---- Does nothing when called before the first dock, so frame or colors are still nil,
+--- Does nothing when called before the first dock, so frame is still nil,
 --- since the dock that follows paints this same empty state on its own.
 function M.clear()
+  stopScrollTimer()
   model = nil
   scrollOffset = 0
-  if not (frame and colors and cfg.surface) then return end
+  if not (frame and cfg.surface and cfg.ui) then return end
   -- See paint's own note. A swap away must stay down through whatever clear a stray
   -- highlight event fires while nobody can see it.
   if hidden then return end
@@ -836,11 +592,11 @@ function M.clear()
     return
   end
   ensureCanvas()
-  local innerW, innerH = frame.w - 2 * PAD_X, frame.h - 2 * PAD_Y
+  local inner = innerRect()
   local els = {}
   for _, el in ipairs(cfg.surface(frame.w, frame.h)) do els[#els + 1] = el end
-  for _, el in ipairs(cfg.emptyState(innerW, innerH, { text = cfg.emptyText, color = colors.meta })) do
-    els[#els + 1] = shifted(el, PAD_X, PAD_Y)
+  for _, el in ipairs(cfg.emptyState(inner.w, inner.h, { text = cfg.emptyText })) do
+    els[#els + 1] = shifted(el, inner.x, inner.y)
   end
   canvas:frame(frame)
   canvas:replaceElements(els)
@@ -849,10 +605,11 @@ end
 
 --- preview.hide() - hide the canvas without destroying it, for the stage's own swap away
 --- signal, onPositioned told nil twice when a different presentation becomes current. The
---- canvas, the frame, the colors and the model all survive, so a swap back to this
+--- canvas, the frame and the model all survive, so a swap back to this
 --- presentation docks again and repaints at once rather than rebuilding from nothing.
 function M.hide()
   hidden = true
+  stopScrollTimer()
   -- Bumps the image generation the same way M.destroy does, so a thumbnail already in
   -- flight for the row this pane was last showing cannot land after the hide and pull
   -- the canvas back up on its own. The swap back through M.dock repaints properly.
@@ -865,9 +622,9 @@ end
 --- Deleted rather than hidden because nothing may survive a close, and rebuilding one
 --- canvas on the next open costs nothing.
 function M.destroy()
+  stopScrollTimer()
   model = nil
   frame = nil
-  colors = nil
   scrollOffset = 0
   pending = pending + 1
   hidden = false

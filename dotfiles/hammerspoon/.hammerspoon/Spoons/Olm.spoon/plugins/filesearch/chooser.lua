@@ -549,16 +549,6 @@ function M:start()
     -- highlight with nothing to describe should read as something to do next rather
     -- than as a label borrowed from whatever the list happened to be showing.
     emptyText = "Highlight a file to preview it",
-    -- The atom's own light and dark resolution, hs.host.interfaceStyle() picking cfg.theme's
-    -- dark or light half, lib/chooser/providers/native.lua:178's own arithmetic, reproduced
-    -- here rather than reached through an instance this file no longer holds, so a provider
-    -- still follows the system appearance switch exactly as it did before the migration.
-    palette = function()
-      local p = cfg.theme or {}
-      local dark = hs.host.interfaceStyle() == "Dark"
-      local resolved = (dark and p.dark) or p.light or p.dark
-      return resolved and resolved.preview
-    end,
     limits = policy,
     -- The same seam the row subtitle reads, so a preview and the row cannot disagree about when
     -- a path was last acted on.
@@ -566,6 +556,9 @@ function M:start()
     thumbs = thumbs,
     log = util.log,
     storage = cfg.storage,
+    -- The UI kit every pane is drawn through. It follows the system appearance itself, which
+    -- is what the palette closure used to do here by hand.
+    ui = cfg.ui,
   }
   viewer = NO_VIEWER
   for _, candidate in ipairs(cfg.viewers or {}) do

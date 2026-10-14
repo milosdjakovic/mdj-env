@@ -308,6 +308,9 @@ function obj:configure(opts)
     -- Look one, since the surface is the layer that configures a viewer and the lib is the
     -- only thing that knows where a cache goes.
     storage = opts.storage,
+    -- The UI kit, carried through to whichever viewer draws a pane, so the pane names a role
+    -- and never a font or a colour.
+    ui = opts.ui,
     -- The provider, and the side panel behind it as the fallback, which is what turns an
     -- unavailable first choice into a working picker with a console line rather than into no
     -- preview at all. This is the only place in the spoon that names a concrete one, and it

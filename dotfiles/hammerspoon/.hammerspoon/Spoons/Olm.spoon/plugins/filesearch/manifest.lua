@@ -17,6 +17,10 @@ return {
     -- a directory under HOME of its own.
     lib = {
       storage = { from = "storage", policy = "required" },
+      -- The UI kit, which every piece of text in the side pane is drawn through, so the pane
+      -- names a role and never a font, a size, a line height or a colour. Optional, since
+      -- without it the side pane declines to open and the picker still lists and opens files.
+      ui = { from = "ui", policy = "optional" },
     },
     tools = {
       { name = "qlmanage", kind = "system", locator = "/usr/bin/qlmanage", policy = "optional", unit = "thumbs",

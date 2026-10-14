@@ -40,6 +40,29 @@ the process tree and ports are code. Speedtest's large figures are title, which 
 from Menlo to the proportional system font, so their digits must be drawn tabular or they
 slide as a figure changes. That is checked when speedtest moves.
 
+The clipboard pane's copied text is the code role wrapped through `ui.text`, decided 2026 10 14
+while building its step. It is not the code block, because copied prose is one long line and the
+block never wraps, so it would cut that line at the pane edge and hide most of what was copied.
+File heads elsewhere and the process tree keep the block, since there a line is a line and a cut
+one is honest. The clipboard header is one component for every kind of entry, the source at the
+left, the app icon and its name in caption, and the facts flush right in caption and subtext,
+built from a table in the fixed order kind, details, time, marks and upper cased as a whole. To
+let the facts keep their whole width while the name gives way, the kit's row gained `fillIndex`,
+which names the child that takes the remaining width, and `raw` gained an optional `width` so an
+icon the pane draws itself can sit beside a name.
+
+The file search pane was decided on the same day, 2026 10 14, while building its step. Its file
+head wraps, the same choice the clipboard made for its text files, so a file looks the same in both
+panes. The kit's measurer, which now keeps whitespace as written and expands tabs by the same width the
+code block draws, wraps each source line at the content width, and
+the resulting drawn lines are drawn as a code block, so the head budget and slack stay counted in
+drawn lines and the scrolled slice stays cheap for a long head. The folder listing is a code block
+that does not wrap. The file name is title, the folder is code in the path colour and wraps, each
+fact pair is caption with the label in subtext and the value flush right, and a heading is section.
+Because the clipboard and file search panes both draw an image scaled to the pane width, the kit
+gained an `image` primitive for the two, which keeps the aspect and can refuse to draw wider than
+the picture itself. The header stays pinned and only the body scrolls, as before.
+
 ## What the kit gains first
 
 Three things the panes need and the kit lacks, each with more than one consumer.
@@ -60,7 +83,8 @@ Three things the panes need and the kit lacks, each with more than one consumer.
 3. The empty pane state, the hint bar, the toasts and the cheat sheet, then the retiring
    variants they used are deleted. Judged live. Built 2026 10 14, every text variant outside
    the five roles is gone and none had another consumer.
-4. The four panes, one plugin per step, clipboard, file search, processes, speedtest. Each
+4. The four panes, one plugin per step, clipboard, file search, processes, speedtest. The
+   clipboard step and the file search step were built 2026 10 14. Each
    step draws its pane through `ui.layout`, deletes its own fonts, sizes, palette closure and
    fallback colours, drops its theme exemption line, and is judged live before the next.
 5. Close out. The last retiring variants and lib/chooser/textwidth.lua go, and a check joins

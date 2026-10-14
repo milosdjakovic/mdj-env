@@ -57,7 +57,10 @@ text(str, variant, {color, align, lineBreak, wrap})
 badge(key, size)              size names cheat, hint or button
 icon(imageOrGlyph, size)      a glyph is drawn to an hs.image, cached, so the same call
                               also feeds a native chooser row
-row(children, {gap, align})   left to right, the last child may take the remaining width
+row(children, {gap, align, fillIndex})
+                              left to right, the last child takes the remaining width, or the
+                              one fillIndex names, so a header can truncate its name and keep
+                              its facts whole
 stack(children, {gap})        top to bottom
 flow(children, {gapX, gapY})  left to right, wrapping at the rect width, the hint bar
 grid(children, {columns})     the cheat sheet
@@ -67,7 +70,8 @@ surface()                     the chrome, CanvasPanel.surfaceElements behind it
 group(children, {alpha, id})  multiplies every child colour and image alpha, and carries
                               the click id
 code(lines, {maxHeight, more}) preformatted block in the code role, see below
-raw(height, draw)             room the caller draws into itself, see below
+raw(height, draw, {width})    room the caller draws into itself, see below
+image(img, {upscale})         a picture at the slot width in its own aspect, top left, see below
 ```
 
 Text is always emitted as `hs.styledtext`, since only styledtext carries a line break mode
@@ -128,21 +132,36 @@ parity variants with the new look.
 
 Three pieces with more than one consumer each, from docs/PLAN-TYPOGRAPHY.md.
 
-`code(lines, {maxHeight, more})` is one text element per line in the code role. Whitespace is
+`code(lines, {maxHeight, more})` is a block of lines in the code role. Whitespace is
 kept exactly, a tab is expanded to the next multiple of four columns when the node is built,
 nothing wraps, and each line is cut at the rect width with truncateTail. When `maxHeight` is
 given and the lines do not fit, as many lines as fit minus one are drawn and then a closing
 line in the caption role, worded by `more(count)` and defaulting to "N more lines". The
 content height is the drawn height.
 
+The lines that are drawn go out as one text element, joined by newlines with the code line height
+pinned and truncateTail so each line is still cut at the width, rather than one element per line.
+A styled text per line was measured to make every scroll event cost dozens of constructions, and a
+trackpad sends dozens of events a second. The closing line stays its own caption element.
+
 The visible slice applies when `ui.layout` gets `scrollY`. A code line wholly outside the
-window, the rect shifted by the scroll, emits no element and is not measured, and the content
+window, the rect shifted by the scroll, is left out of the element and is not measured, and the content
 height still counts every line, since every line in the role is the same height.
 
-`raw(height, draw)` reserves `height` points at its position and inserts what
+`raw(height, draw, {width})` reserves `height` points at its position and inserts what
 `draw(rect, tokens)` returns, in order, with the absolute rect after the scroll offset. The
-tokens are passed so every colour comes from them. Group alpha and the click id do not reach
+tokens are passed so every colour comes from them. It is as wide as its slot unless `width`
+is given, which lets it sit beside other children in a row, the clipboard header's app icon. Group alpha and the click id do not reach
 raw elements.
+
+`image(img, {upscale})` draws a picture at the width of its slot, keeping its aspect, aligned top
+left and scaled proportionally. Its height is derived from the width it is laid out at, so a stack
+sizes it right whatever the pane width turns out to be. `upscale` is true unless given as false,
+and false never draws it wider than its own size, which is how the file search pane keeps a small
+icon from being blown up. A picture that cannot say its size draws as a square. Group alpha and the
+click id reach it the way they reach an icon. It is a primitive rather than a raw node because the
+clipboard pane and the file search pane both draw one and would otherwise each carry the same
+arithmetic.
 
 ## What the typography plan's step three removed
 

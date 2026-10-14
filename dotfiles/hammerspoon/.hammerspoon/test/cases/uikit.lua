@@ -294,6 +294,42 @@ do
 end
 
 do
+  -- fillIndex, the stub measures seven points a character. The name is 40 characters, 280
+  -- points, and the facts 5 characters, 35 points, in a 300 wide row with a gap of 10.
+  local name = kit.text(string.rep("n", 40), "body")
+  local facts = kit.text("FACTS", "body", { align = "right" })
+  local first = kit.row({ name, facts }, { gap = "m", fillIndex = 1 })
+  local els = engine.layout(first, RECT, tokens)
+  check("fillIndex 1 gives the first child what the others leave and they keep their width",
+    els[1].frame.x == 10 and els[1].frame.w == 300 - 10 - 35
+      and els[2].frame.x == 10 + 255 + 10 and els[2].frame.w == 35,
+    els[1].frame.w .. ", " .. els[2].frame.x .. ", " .. els[2].frame.w)
+  local last = kit.row({ name, facts }, { gap = "m" })
+  local lastEls = engine.layout(last, RECT, tokens)
+  check("the default is the last child, so the first keeps its natural width and the last the rest",
+    last.fillIndex == nil and lastEls[1].frame.w == 280 and lastEls[2].frame.w == 10,
+    lastEls[1].frame.w .. ", " .. lastEls[2].frame.w)
+  local narrow = engine.layout(kit.row({ name, facts }, { gap = "m", fillIndex = 1 }),
+    { x = 0, y = 0, w = 30, h = 50 }, tokens)
+  check("a row narrower than its other children gives the filling child 0, never less",
+    narrow[1].frame.w == 0 and narrow[2].frame.w >= 0 and narrow[2].frame.w <= 30,
+    narrow[1].frame.w .. ", " .. narrow[2].frame.w)
+  local order = engine.layout(kit.row({ name, facts }, { fillIndex = 1 }), RECT, tokens)
+  check("slots are emitted in list order whichever child fills",
+    order[1].frame.x < order[2].frame.x)
+  local bad = {}
+  for _, v in ipairs({ 0, 3, 1.5, "1" }) do
+    if pcall(kit.row, { name, facts }, { fillIndex = v }) then bad[#bad + 1] = tostring(v) end
+  end
+  check("fillIndex outside 1 to the child count or not an integer is an error", #bad == 0,
+    table.concat(bad, ","))
+  local short = kit.text("nn", "body")
+  local off = engine.layout(kit.row({ short, facts }, { fillIndex = 1, fill = false }), RECT, tokens)
+  check("fill false ignores fillIndex, every child keeps its natural width",
+    off[1].frame.w == 14 and off[2].frame.w == 35, off[1].frame.w .. ", " .. off[2].frame.w)
+end
+
+do
   local tree = kit.grid({
     kit.text("a", "body"), kit.text("b", "body"), kit.text("c", "body"),
   }, { columns = 2, gapX = "m" })
@@ -371,20 +407,21 @@ do
 
   local els, height = engine.layout(kit.code({ "  indented", "a\tb", "plain" }), R, tokens)
   check("code keeps leading spaces and expands a tab to the next four columns",
-    #els == 3 and textOf(els[1]) == "  indented" and textOf(els[2]) == "a   b",
-    tostring(textOf(els[1])) .. " | " .. tostring(textOf(els[2])))
-  check("code is one element per line at the code line height",
-    els[2].frame.y == 20 + clh and height == 3 * clh)
+    #els == 1 and textOf(els[1]) == "  indented\na   b\nplain", tostring(textOf(els[1])))
+  check("code is one text element for the visible lines, three lines high at the code line height",
+    els[1].frame.y == 20 and els[1].frame.h == 3 * clh and height == 3 * clh,
+    tostring(els[1].frame.h))
 
   local long = engine.layout(kit.code({ string.rep("x", 200) }), { x = 0, y = 0, w = 70, h = 100 }, tokens)
-  check("code truncates a long line rather than wrapping it",
+  check("code truncates a long line rather than wrapping it, one line high at the rect width",
     #long == 1 and long[1].frame.w == 70 and long[1].frame.h == clh)
 
   local lines = {}
   for i = 1, 10 do lines[i] = "line " .. i end
   local cutEls, cutH = engine.layout(kit.code(lines, { maxHeight = 4 * clh + 1 }), R, tokens)
-  check("code cuts with a closing line saying how many more",
-    #cutEls == 4 and textOf(cutEls[4]) == "7 more lines" and textOf(cutEls[3]) == "line 3",
+  check("code cuts with a closing line saying how many more, its own caption element",
+    #cutEls == 2 and textOf(cutEls[1]) == "line 1\nline 2\nline 3"
+      and textOf(cutEls[2]) == "7 more lines" and cutEls[2].frame.y == 20 + 3 * clh,
     tostring(#cutEls) .. " " .. tostring(textOf(cutEls[#cutEls])))
   check("a cut block's height is the drawn height",
     cutH == 3 * clh + plh, tostring(cutH))
@@ -400,13 +437,15 @@ do
     { scrollY = 40 * clh })
   local texts = {}
   for _, el in ipairs(sliced) do if el.text then texts[#texts + 1] = textOf(el) end end
-  check("the visible slice emits only the visible lines", #texts == 5 and texts[1] == "row 41"
-    and texts[5] == "row 45", table.concat(texts, ","))
+  check("the visible slice is one element of only the visible lines, placed at its first line",
+    #texts == 1 and texts[1] == "row 41\nrow 42\nrow 43\nrow 44\nrow 45"
+      and sliced[2].frame.y == 0 and sliced[2].frame.h == 5 * clh, table.concat(texts, ","))
   check("the visible slice still answers the full height", fullH == 100 * clh)
   check("the slice keeps the clip balanced", sliced[1].action == "clip"
     and sliced[#sliced].type == "resetClip")
   local unsliced = engine.layout(kit.code(many), { x = 0, y = 0, w = 300, h = 5 * clh }, tokens)
-  check("with no scroll every line is emitted", #unsliced == 100)
+  check("with no scroll every line is in the one element",
+    #unsliced == 1 and select(2, textOf(unsliced[1]):gsub("\n", "")) == 99)
 
   local seen
   local tree = kit.stack({
@@ -428,6 +467,91 @@ do
     textOf(rawEls[2]) == "above" and rawEls[3].action == "fill" and rawEls[4].action == "stroke"
       and textOf(rawEls[5]) == "below")
   check("raw refuses a non number height", not pcall(kit.raw, "tall", function() end))
+  local seenRect
+  local beside = kit.row({ kit.raw(10, function(rect) seenRect = rect return {} end, { width = 12 }),
+    kit.text("name", "body") }, { gap = "m" })
+  engine.layout(beside, RECT, tokens)
+  check("a raw node with a width takes that width beside its sibling, never the whole row",
+    seenRect and seenRect.w == 12 and seenRect.x == 10 and seenRect.h == 10,
+    seenRect and tostring(seenRect.w))
+  check("raw refuses a non number width", not pcall(kit.raw, 5, function() end, { width = "wide" }))
+end
+
+--------------------------------------------------------------------------------
+-- image
+--------------------------------------------------------------------------------
+
+do
+  local function fake(w, h) return { size = function() return { w = w, h = h } end } end
+  local R = { x = 10, y = 20, w = 300, h = 200 }
+
+  local els, height = engine.layout(kit.image(fake(100, 50)), R, tokens)
+  check("an image fills the slot width and keeps its aspect",
+    #els == 1 and els[1].type == "image" and els[1].frame.w == 300 and els[1].frame.h == 150
+      and height == 150, tostring(els[1] and els[1].frame.h))
+  check("an image is placed at the top left of its slot, scaled proportionally",
+    els[1].frame.x == 10 and els[1].frame.y == 20 and els[1].imageAlignment == "topLeft"
+      and els[1].imageScaling == "scaleProportionally")
+
+  local small, smallH = engine.layout(kit.image(fake(100, 50), { upscale = false }), R, tokens)
+  check("upscale false never draws wider than the image's own size",
+    small[1].frame.w == 100 and small[1].frame.h == 50 and smallH == 50)
+  local big, bigH = engine.layout(kit.image(fake(1000, 500), { upscale = false }), R, tokens)
+  check("upscale false still scales a wide image down to the slot",
+    big[1].frame.w == 300 and big[1].frame.h == 150 and bigH == 150)
+
+  local tree = kit.stack({ kit.text("above", "body"), kit.image(fake(60, 30)), kit.text("below", "body") },
+    { gap = "s" })
+  local stackEls, stackH = engine.layout(tree, R, tokens)
+  local bodyH = tokens.text.body.lineHeight
+  check("a stack sizes an image from the width it is laid out at",
+    stackH == bodyH + tokens.space.s + 150 + tokens.space.s + bodyH, tostring(stackH))
+  local below
+  for _, el in ipairs(stackEls) do if el.text and textOf(el) == "below" then below = el end end
+  check("what follows an image starts under its derived height",
+    below and below.frame.y > 20 + bodyH + tokens.space.s + 150, tostring(below and below.frame.y))
+
+  local faded = engine.layout(kit.group({ kit.image(fake(10, 10)) }, { alpha = 0.5 }), R, tokens)
+  check("group alpha reaches an image the way it reaches an icon", faded[1].imageAlpha == 0.5)
+
+  local flat = engine.layout(kit.image({ size = function() return nil end }), R, tokens)
+  check("an image that cannot say its size draws as a square of the width",
+    flat[1].frame.w == 300 and flat[1].frame.h == 300)
+
+  check("image refuses something that has no size", not pcall(kit.image, "path"))
+  check("image refuses a non boolean upscale", not pcall(kit.image, fake(1, 1), { upscale = "no" }))
+end
+
+--------------------------------------------------------------------------------
+-- measure, wrap keeps whitespace
+--------------------------------------------------------------------------------
+
+do
+  -- The real measurer with its width stubbed at seven points a character.
+  local m = fresh("measure.lua").new()
+  function m:width(str) return #(str or "") * 7 end
+  local function wrapped(str, w) return m:wrap(str, "f", 10, w) end
+  local function joined(lines) return table.concat(lines, "|") end
+
+  local indent = wrapped("    alpha beta gamma", 70)
+  check("wrap keeps leading indentation as written and trims the break",
+    indent[1] == "    alpha" and indent[2] == "beta gamma", joined(indent))
+  local runs = wrapped("a   b", 70)
+  check("wrap keeps a run of spaces as written when the line fits",
+    #runs == 1 and runs[1] == "a   b", joined(runs))
+  local inner = wrapped("aaaa   bbbb cccc", 77)
+  check("wrap keeps a run of spaces inside a line and drops the one that lands on a break",
+    inner[1] == "aaaa   bbbb" and inner[2] == "cccc", joined(inner))
+  local long = wrapped(string.rep("x", 25), 70)
+  check("wrap breaks a word wider than the line by character",
+    #long == 3 and #long[1] == 10 and #long[3] == 5, joined(long))
+  local blank = wrapped("one\n\ntwo", 70)
+  check("wrap keeps an empty line and an explicit newline",
+    #blank == 3 and blank[2] == "", joined(blank))
+  local tabbed = wrapped("a\tb", 70)
+  check("wrap expands a tab by the code block's own width", tabbed[1] == "a   b"
+    and fresh("kit.lua").tabWidth == 4, joined(tabbed))
+  check("wrap with no width answers the string whole", #m:wrap("a b c", "f", 10, nil) == 1)
 end
 
 --------------------------------------------------------------------------------

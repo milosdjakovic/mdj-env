@@ -17,7 +17,7 @@ local M = {}
 M.kinds = {
   text = "text", badge = "badge", icon = "icon", row = "row", stack = "stack",
   flow = "flow", grid = "grid", divider = "divider", spacer = "spacer",
-  surface = "surface", group = "group", code = "code", raw = "raw",
+  surface = "surface", group = "group", code = "code", raw = "raw", image = "image",
 }
 M.aligns = { left = "left", center = "center", right = "right" }
 M.rowAligns = { start = "start", center = "center", ["end"] = "end" }
@@ -69,26 +69,13 @@ local function childList(children, primitive)
   return children
 end
 
--- A tab is expanded to the next multiple of this many columns, counted in characters, so a
--- tab after three characters adds one space and after four adds four.
-local TAB_WIDTH = 4
-M.tabWidth = TAB_WIDTH
-
-local function expandTabs(line)
-  if not line:find("\t", 1, true) then return line end
-  local out, col = {}, 0
-  for ch in line:gmatch(utf8.charpattern) do
-    if ch == "\t" then
-      local n = TAB_WIDTH - (col % TAB_WIDTH)
-      out[#out + 1] = string.rep(" ", n)
-      col = col + n
-    else
-      out[#out + 1] = ch
-      col = col + 1
-    end
-  end
-  return table.concat(out)
-end
+-- Tab expansion is tabs.lua's, shared with the measurer so the code block and the wrap agree on
+-- the width. A sibling loaded by path rather than named by the composition root, since it is
+-- plain Lua with no collaborators.
+local here = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
+local tabs = assert(loadfile(here .. "tabs.lua"))()
+M.tabWidth = tabs.width
+local expandTabs = tabs.expand
 
 --- M.new(names) -> the primitives, bound to one vocabulary.
 --- names is lib/ui/style.lua's M.names, the sets of colour, text, space, icon and badge
@@ -138,14 +125,25 @@ function M.new(names)
   end
 
   --- kit.row(children, opts) -> node, left to right. opts.gap a space name, opts.align one
-  --- of rowAligns for the cross axis. The last child takes the remaining width, unless
-  --- opts.fill is false.
+  --- of rowAligns for the cross axis. One child takes the remaining width, the last unless
+  --- opts.fillIndex names another, an integer from 1 to the child count, and every other
+  --- child keeps its natural width, so a row can truncate its first child and keep the one
+  --- beside it whole. opts.fill false turns the filling off, and then fillIndex is ignored.
   function kit.row(children, opts)
     opts = opts or {}
-    return { kind = M.kinds.row, children = childList(children, "row"),
+    childList(children, "row")
+    local fillIndex = opts.fillIndex
+    if fillIndex ~= nil then
+      if type(fillIndex) ~= "number" or fillIndex ~= math.floor(fillIndex)
+        or fillIndex < 1 or fillIndex > #children then
+        error("ui.kit row, fillIndex must be an integer from 1 to " .. #children
+          .. ", not " .. tostring(fillIndex), 2)
+      end
+    end
+    return { kind = M.kinds.row, children = children,
              gap = optional(names.space, opts.gap, "gap", "row"),
              align = optional(ROW_ALIGNS, opts.align, "align", "row"),
-             fill = opts.fill ~= false }
+             fill = opts.fill ~= false, fillIndex = fillIndex }
   end
 
   --- kit.stack(children, opts) -> node, top to bottom. opts.gap a space name.
@@ -206,7 +204,7 @@ function M.new(names)
   end
 
   --- kit.code(lines, opts) -> node, a preformatted block in the code role. lines is an
-  --- array of strings, drawn one text element per line with the whitespace kept exactly,
+  --- array of strings, drawn as one text element for the visible lines with the whitespace kept exactly,
   --- never collapsed and never wrapped, each line cut at the rect width with truncateTail.
   --- Tabs are expanded here to the next multiple of TAB_WIDTH columns. opts.maxHeight, when
   --- the lines do not fit in it, draws as many lines as fit minus one and a closing line in
@@ -228,18 +226,45 @@ function M.new(names)
     return { kind = M.kinds.code, lines = out, maxHeight = opts.maxHeight, more = opts.more }
   end
 
-  --- kit.raw(height, draw) -> node, room the caller draws into itself. Layout reserves
+  --- kit.raw(height, draw, opts) -> node, room the caller draws into itself. Layout reserves
   --- height points, a number, at the node's position and calls draw(rect, tokens) with the
   --- absolute rect it was given after the scroll offset, then inserts the element list draw
-  --- returns at that point, in order.
-  function kit.raw(height, draw)
+  --- returns at that point, in order. The room is as wide as the slot it is laid out in,
+  --- unless opts.width, a number of points, says otherwise, which is how a raw node sits
+  --- beside other children in a row, an icon the caller draws itself in front of a name.
+  function kit.raw(height, draw, opts)
+    opts = opts or {}
     if type(height) ~= "number" or height < 0 then
       error("ui.kit raw, height must be a number of points, not " .. tostring(height), 2)
     end
     if type(draw) ~= "function" then
       error("ui.kit raw, draw must be a function", 2)
     end
-    return { kind = M.kinds.raw, height = height, draw = draw }
+    if opts.width ~= nil and (type(opts.width) ~= "number" or opts.width < 0) then
+      error("ui.kit raw, width must be a number of points, not " .. tostring(opts.width), 2)
+    end
+    return { kind = M.kinds.raw, height = height, draw = draw, width = opts.width }
+  end
+
+  --- kit.image(img, opts) -> node, a picture scaled to the width of its slot, keeping its own
+  --- aspect and kept at the top left. Its height is derived from the width it is laid out at,
+  --- so a stack sizes it correctly whatever the pane width turns out to be. img is an hs.image
+  --- or anything answering size() with a table holding w and h. opts.upscale, true by default,
+  --- says whether the picture may draw wider than its own size. false never draws it wider than
+  --- it is, so a small icon is shown at the size it really is rather than blown up into a blur.
+  --- Group alpha and the click id reach it the way they reach an icon. It exists so the
+  --- clipboard and the file search pane share one image instead of two raw nodes that agree.
+  function kit.image(img, opts)
+    opts = opts or {}
+    local hasSize = img ~= nil and (type(img) == "table" or type(img) == "userdata")
+      and type(img.size) == "function"
+    if not hasSize then
+      error("ui.kit image, img must be an image that answers size(), not " .. tostring(img), 2)
+    end
+    if opts.upscale ~= nil and type(opts.upscale) ~= "boolean" then
+      error("ui.kit image, upscale must be true or false, not " .. tostring(opts.upscale), 2)
+    end
+    return { kind = M.kinds.image, image = img, upscale = opts.upscale ~= false }
   end
 
   return kit

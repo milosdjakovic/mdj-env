@@ -886,8 +886,9 @@ out to have. A minified file is not an unlikely case either, since every build w
 The second cost sat underneath that one and applies to every long text file rather than only
 to minified ones. A clip bounds what is VISIBLE and not what is laid out, so handing the
 canvas one text run of the whole body made every paint cost the whole body, and a paint
-happens on every scroll event. Only the visible slice is drawn now, rebuilt per paint, which
-is affordable precisely because it is a slice.
+happens on every scroll event. Only the visible slice is drawn now, by the kit's code block, which lays out only the lines
+inside the scrolled window on every paint, and that is affordable precisely because it is a
+slice.
 
 Measured as the largest gap between fires of a sixteen millisecond timer, the same method
 the type token measurement used and the only one that catches a stall wherever it lands.
@@ -914,8 +915,20 @@ the interruption.
 
 When it does trim, the last line of the body is an ellipsis and a line under it says what is
 missing. The ellipsis sits in the body tone as a line of the text, because it means the text
-stopping, while the count sits in the meta tone because it is the pane talking about the file
+stopping, while the count is caption in subtext because it is the pane talking about the file
 rather than more of the file.
+
+**The pane is drawn through the five typography roles and names no font, size or colour.** The
+shape lives in `viewers/sidepanel-nodes.lua`, which only builds UI kit nodes, and
+`viewers/sidepanel.lua` keeps the stat, the chain of describers, the thumbnails and the canvas.
+The file name is title, the folder is code in the path colour, each fact is a caption row with
+the label in subtext and the value flush right, a heading is section, and a file head or a folder
+listing is the kit's code block. The head WRAPS, as the clipboard pane's text files do, so a file
+looks the same in both. Each source line is wrapped at the pane width through the kit's measurer,
+keeping its indentation, which the measurer's wrap preserves, and the drawn lines
+are what the budget and the slack count. The header stays pinned and only the body scrolls.
+The kit arrives as `needs.lib.ui` and reaches the viewer through the chooser's deps, and there is
+no palette closure any more.
 
 **The count is only in units that are known.** Characters always, from the stat, so it covers
 the whole file rather than the part that was read. Lines only when the file really has lines

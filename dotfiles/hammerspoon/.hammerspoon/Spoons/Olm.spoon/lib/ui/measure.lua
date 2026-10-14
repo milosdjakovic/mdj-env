@@ -18,10 +18,13 @@
 -- not cached, since its strings are whatever a surface is saying right now, a toast message
 -- among them, and a cache keyed by them would only grow.
 --
--- Wrapping is greedy by word, splitting a word wider than the line by character, which is
--- what the layout needs to know how many lines a wrapped text takes. It is an estimate of
+-- Wrapping is greedy by word, keeping whitespace as written and splitting a word wider than the
+-- line by character, which is what the layout needs to know how many lines a wrapped text takes. It is an estimate of
 -- what hs.styledtext will draw rather than a promise, since the system's own breaker can
 -- choose differently around punctuation, and it errs toward one line more, never one less.
+
+local here = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
+local tabs = assert(loadfile(here .. "tabs.lua"))()
 
 local M = {}
 M.__index = M
@@ -111,41 +114,61 @@ function M:metrics(font, size)
 end
 
 --- instance:wrap(str, font, size, maxW) -> a list of lines, at least one.
---- Greedy by word, a word wider than maxW broken by character. Explicit newlines start a
---- new line. A maxW of nil or below one character answers the string as one line.
+--- Breaks at spaces and keeps whitespace as written, so leading indentation and a run of spaces
+--- survive, since the canvas draws them and a count that dropped them would come out short. A run
+--- of spaces that lands on a break is dropped rather than carried to the next line, and the spaces
+--- trailing a line that breaks before a word go with it, a word wider
+--- than maxW is broken by character, and a line that fits is answered whole after one measure.
+--- Tabs are expanded first, by tabs.lua, the same width the code block draws. Explicit newlines
+--- start a new line. A maxW of nil or below one character answers the string as one line.
 function M:wrap(str, font, size, maxW)
   str = str or ""
   if not maxW or maxW <= 0 then return { str } end
+  str = tabs.expand(str)
   local lines = {}
-  local spaceW = self:width(" ", font, size)
   for paragraph in (str .. "\n"):gmatch("(.-)\n") do
-    local cur, curW = nil, 0
-    for word in paragraph:gmatch("%S+") do
-      local ww = self:width(word, font, size)
-      if cur and curW + spaceW + ww <= maxW then
-        cur, curW = cur .. " " .. word, curW + spaceW + ww
-      else
-        if cur then lines[#lines + 1] = cur end
-        if ww <= maxW then
-          cur, curW = word, ww
+    if paragraph == "" or self:width(paragraph, font, size) <= maxW then
+      lines[#lines + 1] = paragraph
+    else
+      local cur, curW = "", 0
+      local before = #lines
+      local pos, n = 1, #paragraph
+      while pos <= n do
+        local isSpace = paragraph:byte(pos) == 32
+        local _, stop = paragraph:find(isSpace and "^ +" or "^[^ ]+", pos)
+        local token = paragraph:sub(pos, stop)
+        pos = stop + 1
+        local w = self:width(token, font, size)
+        if curW + w <= maxW then
+          cur, curW = cur .. token, curW + w
+        elseif isSpace then
+          if cur ~= "" then lines[#lines + 1] = cur end
+          cur, curW = "", 0
         else
-          -- A word wider than the line is broken by character, so a long path still
-          -- answers a count of lines rather than one line that overflows.
-          local memo = memoFor(self, font, size)
-          local piece, pieceW = "", 0
-          for ch in eachChar(word) do
-            local cw = charWidth(memo, ch, font, size)
-            if piece ~= "" and pieceW + cw > maxW then
-              lines[#lines + 1] = piece
-              piece, pieceW = "", 0
+          -- The spaces trailing a line that breaks before a word are the break, not content.
+          cur = cur:gsub(" +$", "")
+          if cur ~= "" then lines[#lines + 1] = cur end
+          if w <= maxW then
+            cur, curW = token, w
+          else
+            -- A word wider than the line is broken by character, so a long path still
+            -- answers a count of lines rather than one line that overflows.
+            local piece, pieceW = {}, 0
+            for ch in token:gmatch(utf8.charpattern) do
+              local cw = self:width(ch, font, size)
+              if #piece > 0 and pieceW + cw > maxW then
+                lines[#lines + 1] = table.concat(piece)
+                piece, pieceW = {}, 0
+              end
+              piece[#piece + 1] = ch
+              pieceW = pieceW + cw
             end
-            piece, pieceW = piece .. ch, pieceW + cw
+            cur, curW = table.concat(piece), pieceW
           end
-          cur, curW = piece, pieceW
         end
       end
+      if cur ~= "" or #lines == before then lines[#lines + 1] = cur end
     end
-    lines[#lines + 1] = cur or ""
   end
   return lines
 end

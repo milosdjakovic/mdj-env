@@ -11,8 +11,8 @@
 --- focus, so typing always stays in the search field. The atom polls the
 --- highlighted row and calls onHighlight, which re-renders the canvas here.
 ---
---- Preview rendering is per kind, building canvas elements (never a webview). Text
---- and url wrap in a monospace block; image and video show the downscaled preview
+--- Preview rendering is per kind, a tree of UI kit nodes laid out onto a canvas (never a
+--- webview). Text and url wrap in the code role; image and video show the downscaled preview
 --- PNG the store already generated (sips or ffmpeg, off the main thread, in
 --- preview.lua), loaded straight as an hs.image, so nothing sizes media here. A
 --- single text file is read off the main thread with hs.task so an undownloaded or
@@ -76,6 +76,15 @@ local paneHidden = false -- set by the swap away hide, cleared by onPositioned's
 local renderToken = 0 -- bumped each render; async results check it to avoid stale writes
 local scrollOffset = 0 -- how far the current preview is scrolled down, in points
 local maxScroll = 0 -- clamp bound for scrollOffset, set by the last render from content height
+local scrollTimer = nil -- the one pending scroll paint, see UI.scrollPreviewBy
+local SCROLL_FRAME = 1 / 60 -- one display frame, the longest a scroll event waits for its paint
+
+local function stopScrollTimer()
+  if scrollTimer then
+    scrollTimer:stop()
+    scrollTimer = nil
+  end
+end
 local thumbCache = {} -- path -> hs.image (or false), for row thumbnails
 local imageCache = {} -- preview png path -> hs.image (or false), so a re-highlight re-decodes nothing
 local iconCache = {} -- bundle id -> hs.image (or false), for row source-app icons
@@ -269,13 +278,6 @@ local function keycapImage(pos)
   return img or nil
 end
 
--- The preview meta note for an appended entry, kept as readable text (the pane's
--- monospace block, unlike the row icon, is no place for the emoji).
-local function withBatchMark(meta, e)
-  local pos = batchPos(e)
-  return pos and (meta .. "  ·  #" .. pos .. " Appended") or meta
-end
-
 -- Forward declaration. parseColor is defined below in the colour section, but the row
 -- builder needs it to show a colour chip. It is only called at runtime, well after the
 -- whole file has loaded, so the later assignment is in place by then.
@@ -441,39 +443,32 @@ local function buildChoices(q)
 end
 
 --------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- Preview rendering (the atom's onHighlight target)
 --------------------------------------------------------------------------------
 --
--- Everything is drawn as hs.canvas elements. A render builds a content model of
--- blocks (meta lines, wrapped text, images) stacked top down from y = 0, measuring
--- each block so the total height is known, then paint() lays them into the canvas
--- offset by the padding and the live scroll, clipped to the inner box. Media comes
--- straight from the store's downscaled preview PNG (preview.lua sized it with sips
--- or ffmpeg off the main thread), loaded once as an hs.image; nothing sizes it here.
+-- A render picks what kind of entry it has, asks that kind for its facts and its blocks, and
+-- composes them with manager/pane.lua into one tree of UI kit nodes. paint() lays the tree
+-- out through ui.layout, clipped to the inner box and scrolled by the live offset, and draws
+-- what comes back. This file chooses and measures nothing about type, every font, size, line
+-- height and colour is the kit's, see pane.lua. Media comes straight from the store's
+-- downscaled preview PNG (preview.lua sized it with sips or ffmpeg off the main thread),
+-- loaded once as an hs.image, so nothing sizes it here.
 
--- Layout and type sizes for the canvas content. The padding matches the shortcut
--- panel (CanvasPanel's 14/10) so the two canvas panels read as one component.
-local PAD_X, PAD_Y = 14, 10
-local META_SIZE, PATH_SIZE, BODY_SIZE = 11, 11, 13
-local BODY_FONT = "Menlo" -- monospace, so text wraps by column math with exact heights
-local LINE_MULT = 1.35 -- body line height as a multiple of the font size
-local BLOCK_GAP = 10 -- vertical gap between content blocks
-local TEXT_DISPLAY_CAP = 20000 -- max characters drawn, so the canvas stays bounded
+local TEXT_DISPLAY_CAP = 20000 -- max characters drawn, so the pane stays bounded
 
--- Colors resolved per render from the atom's active (light/dark) preview palette.
-local colors = nil
-
--- The content of the last paint, kept so a scroll can redraw at the new offset
--- without rebuilding the model.
-local lastEls, lastH = {}, 0
-
--- Convert a CSS hex string (the palette's format) to a canvas color table.
-local function hexColor(hex)
-  local r, g, b = tostring(hex):match("#?(%x%x)(%x%x)(%x%x)")
-  if not r then return { white = 0.85, alpha = 1 } end
-  return { red = tonumber(r, 16) / 255, green = tonumber(g, 16) / 255,
-           blue = tonumber(b, 16) / 255, alpha = 1 }
+local kit = nil -- the UI kit, needs.lib.ui, set by configure
+local pane = nil -- manager/pane.lua, loaded the way init.lua loads its siblings
+do
+  local here = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
+  local chunk, err = loadfile(here .. "pane.lua")
+  if not chunk then error("clipboard native: failed to load pane.lua: " .. tostring(err)) end
+  pane = chunk()
 end
+
+-- The tree of the last paint, kept so a scroll can lay it out again at the new offset
+-- without asking the entry for its blocks a second time.
+local lastNode = nil
 
 -- A shallow copy of a canvas element with its frame offset by (dx, dy), so content
 -- built in its own (0,0) box can be placed absolutely without mutating the source.
@@ -497,61 +492,6 @@ local function ensurePreview()
   preview:clickActivating(false) -- a click on the pane must not pull focus off the field
 end
 
--- Monospace character width per size, measured once from a run so any per-glyph
--- padding averages out. Drives the column count text wraps to.
-local charWidthCache = {}
-local function monoCharWidth(size)
-  local c = charWidthCache[size]
-  if c then return c end
-  local run = "MMMMMMMMMMMMMMMMMMMM" -- 20 chars
-  local sz = hs.drawing.getTextDrawingSize(hs.styledtext.new(run, { font = { name = BODY_FONT, size = size } }))
-  c = (((sz and sz.w) or (size * 12 * 0.6)) / #run)
-  charWidthCache[size] = c
-  return c
-end
-
--- Wrap text to a column budget for the monospace body font. Honors existing
--- newlines, breaks at the last space in an over-long line, and hard-breaks a word
--- longer than the whole line, so leading indentation survives. Tabs become spaces
--- first so the column math holds.
-local function wrapMono(str, cols)
-  local lines = {}
-  str = tostring(str):gsub("\t", "    ")
-  for para in (str .. "\n"):gmatch("(.-)\n") do
-    if #para == 0 then
-      lines[#lines + 1] = ""
-    else
-      local pos, n = 1, #para
-      while pos <= n do
-        if n - pos + 1 <= cols then
-          lines[#lines + 1] = para:sub(pos)
-          break
-        end
-        local slice = para:sub(pos, pos + cols - 1)
-        local lastSpace = nil
-        for s in slice:gmatch("() ") do lastSpace = s end
-        if lastSpace and lastSpace > 1 then
-          lines[#lines + 1] = para:sub(pos, pos + lastSpace - 2)
-          pos = pos + lastSpace
-        else
-          lines[#lines + 1] = slice
-          pos = pos + cols
-        end
-      end
-    end
-  end
-  return lines
-end
-
--- A styled text run with a fixed line height, so the drawn height matches the line
--- count exactly and the scroll clamp stays honest.
-local function styled(text, color, size, lineH, align)
-  return hs.styledtext.new(text, {
-    font = { name = BODY_FONT, size = size },
-    color = color,
-    paragraphStyle = { maximumLineHeight = lineH, minimumLineHeight = lineH, alignment = align },
-  })
-end
 
 -- The decoded preview image for a path, cached (false marks a decode failure so it
 -- is tried once). The store's PNG is content-unique, so a hit is always valid.
@@ -564,121 +504,67 @@ local function previewImage(path)
   return img or nil
 end
 
--- Append a wrapped text block at content-local (x0, y0), returning the y below it.
-local function appendText(els, str, x0, y0, w, color, size)
-  local cols = math.max(1, math.floor(w / monoCharWidth(size)))
-  local lineH = math.ceil(size * LINE_MULT)
-  local lines = wrapMono(str, cols)
-  if #lines == 0 then return y0 end
-  local h = #lines * lineH
-  els[#els + 1] = { type = "text", text = styled(table.concat(lines, "\n"), color, size, lineH),
-    frame = { x = x0, y = y0, w = w, h = h + lineH } }
-  return y0 + h
+
+-- The inner box the tree is laid out in, the pane's frame less the kit's one inset, which is
+-- the space around content every surface shares. In the canvas's own coordinates, so the
+-- elements the layout answers are drawn as they come. Only ever called while a frame exists,
+-- renderPreview having already deferred when there is none.
+local function innerRect()
+  local inset = kit.tokens().inset
+  return { x = inset.x, y = inset.y,
+           w = previewFrame.w - 2 * inset.x, h = previewFrame.h - 2 * inset.y }
 end
 
--- Append an image scaled to fit the content width (the preview PNG is already
--- small), returning the y below it.
-local function appendImage(els, img, x0, y0, w)
-  local sz = img:size()
-  local h = (sz and sz.w and sz.w > 0) and (w * sz.h / sz.w) or w
-  els[#els + 1] = { type = "image", image = img, imageScaling = "scaleProportionally",
-    imageAlignment = "topLeft", frame = { x = x0, y = y0, w = w, h = h } }
-  return y0 + h
-end
-
--- The preview header line, read as two anchored groups. The source, the app icon and its
--- name, sits at the left. The facts the builder joined, the type and size and time, sit
--- flush against the right edge in a quiet uppercase strip, joined by a plain gap where the
--- builder used a dot, so the line reads as two calm anchors rather than one centred run. The
--- name keeps its natural case so the source reads as a proper noun against the facts, and it
--- is capped to the space before the facts so the two never touch. Returns the y below the
--- single header line. Every kind's builder routes its meta through here, so the header is one
--- place, and each still joins its parts with the canonical dot, which this presenter reforms.
-local HDR_ICON = 15
-local META_GAP = "   " -- the facts separator, a plain gap in place of the builder dot
-local function metaHeader(els, e, w, meta)
-  local ic = e and appIcon(e.sourceApp) or nil
-  local name = e and appName(e.sourceApp) or nil
-  local lineH = math.ceil(META_SIZE * LINE_MULT)
-  local x = 0
-  if ic then
-    els[#els + 1] = { type = "image", image = ic, imageScaling = "scaleProportionally",
-      imageAlignment = "center", frame = { x = 0, y = 0, w = HDR_ICON, h = HDR_ICON } }
-    x = HDR_ICON + 6
-  end
-  -- Facts flush right. The strip is pure ascii once the dot is gone, so the character count
-  -- times the mono glyph width estimates its pixel width, enough to reserve the name's room,
-  -- while the right alignment itself hugs the edge exactly with no reliance on that estimate.
-  local factsW = 0
-  if meta and #meta > 0 then
-    local facts = (meta:gsub("  ·  ", META_GAP)):upper()
-    factsW = math.ceil(#facts * monoCharWidth(META_SIZE))
-    els[#els + 1] = { type = "text", text = styled(facts, colors.meta, META_SIZE, lineH, "right"),
-      frame = { x = x, y = 0, w = w - x, h = lineH * 2 } }
-  end
-  if name then
-    local avail = math.max(0, w - x - factsW - 12)
-    if avail > 0 then
-      els[#els + 1] = { type = "text", text = styled(name, colors.meta, META_SIZE, lineH),
-        frame = { x = x, y = 0, w = avail, h = lineH * 2 } }
-    end
-  end
-  return lineH
-end
-
--- Lay the content blocks into the canvas: the shared surface first (unclipped),
--- then a clip to the inner box, then the content shifted by the padding and the
--- live scroll. maxScroll comes from the overflow, so a tall entry scrolls under the
--- padding instead of spilling over the border. Records the model for repaint().
-local function paint(contentEls, contentH)
+-- Lay a tree into the canvas, the shared surface first (unclipped), then the tree clipped
+-- to the inner box and scrolled by the live offset. maxScroll comes from the content height
+-- the layout answers, so a tall entry scrolls under the inset instead of spilling over the
+-- border. A node of nil is the empty state. Records the tree for repaint().
+local function paint(node)
   if not previewFrame then return end
   -- A late media decode, a store change, or an in flight file read can all reach this
   -- point after a swap away already hid the canvas. paneHidden is what stops any of them
   -- from bringing it back up beside a tool that is no longer current.
   if paneHidden then return end
   ensurePreview()
-  lastEls, lastH = contentEls, contentH
+  lastNode = node
   local frame = previewFrame
-  local innerW = frame.w - 2 * PAD_X
-  local innerH = frame.h - 2 * PAD_Y
-  maxScroll = math.max(0, contentH - innerH)
-  if scrollOffset > maxScroll then scrollOffset = maxScroll end
-  if scrollOffset < 0 then scrollOffset = 0 end
-
-  -- Background and rounded border come from the shared surface, the same routine the
-  -- CanvasPanel hint bar draws, so the preview and the panel are one component just
-  -- placed differently. Then a clip to the inner box confines the content.
+  local inner = innerRect()
   local els = {}
   for _, el in ipairs(cfg.surface and cfg.surface(frame.w, frame.h) or {}) do
     els[#els + 1] = el
   end
-  els[#els + 1] = { type = "rectangle", action = "clip",
-    frame = { x = PAD_X, y = PAD_Y, w = innerW, h = innerH } }
-  for _, el in ipairs(contentEls) do
-    els[#els + 1] = shiftEl(el, PAD_X, PAD_Y - scrollOffset)
+  if node == nil then
+    -- The empty state, for a highlight with nothing to describe. A reserved rect with nothing
+    -- drawn in it reads as a broken layout rather than as an empty one, so the shared routine
+    -- paints it, which is what makes this pane read as one component with the other docked
+    -- panes in their quiet moments. Absent means a misconfigured or partially configured
+    -- module, so degrade to the bare surface rather than erroring.
+    maxScroll = 0
+    for _, el in ipairs(cfg.emptyState and cfg.emptyState(inner.w, inner.h) or {}) do
+      els[#els + 1] = shiftEl(el, inner.x, inner.y)
+    end
+  else
+    local content, contentH = kit.layout(node, inner, { scrollY = scrollOffset })
+    maxScroll = math.max(0, contentH - inner.h)
+    if scrollOffset > maxScroll or scrollOffset < 0 then
+      scrollOffset = math.max(0, math.min(scrollOffset, maxScroll))
+      content = kit.layout(node, inner, { scrollY = scrollOffset })
+    end
+    for _, el in ipairs(content) do els[#els + 1] = el end
   end
   preview:frame(frame)
   preview:replaceElements(els)
   preview:show()
 end
 
--- Redraw the last content at the current scroll, for the scroll bindings.
+-- Redraw the last tree at the current scroll, for the scroll bindings.
 local function repaint()
-  paint(lastEls, lastH)
+  paint(lastNode)
 end
 
--- The inner content width, the companion frame minus horizontal padding. Only ever
--- called while building content for renderPreview, which has already deferred when
--- there is no frame yet, so previewFrame is always real here.
-local function innerWidth()
-  return previewFrame.w - 2 * PAD_X
-end
-
--- The inner content height, the companion frame minus vertical padding. Used to
--- size the colour swatch so it fills the pane without forcing a scroll. Same
--- guarantee as innerWidth, previewFrame is always real by the time this runs.
-local function innerHeight()
-  return previewFrame.h - 2 * PAD_Y
+-- A tree with nothing in it, a manage history row with nothing to say.
+local function blank()
+  return kit.stack({})
 end
 
 --------------------------------------------------------------------------------
@@ -836,109 +722,60 @@ local function colorReps(c)
   }
 end
 
--- A checkerboard behind a translucent swatch, so alpha reads against it instead of
--- blending invisibly into the panel. Drawn only when the colour is not opaque, and
--- clipped by the caller to the rounded swatch box. The cell scales with the swatch
--- so the grid stays ~8 cells wide at any size, a fixed handful of rectangles.
-local function appendChecker(els, x0, y0, w, h)
-  local cell = math.max(8, math.floor(math.min(w, h) / 8))
-  els[#els + 1] = { type = "rectangle", action = "fill", fillColor = { white = 0.92, alpha = 1 },
-    frame = { x = x0, y = y0, w = w, h = h } }
-  local dark = { white = 0.72, alpha = 1 }
-  local rowIdx, yy = 0, y0
-  while yy < y0 + h do
-    local ch = math.min(cell, y0 + h - yy)
-    local colIdx, xx = 0, x0
-    while xx < x0 + w do
-      local cw = math.min(cell, x0 + w - xx)
-      if (rowIdx + colIdx) % 2 == 1 then
-        els[#els + 1] = { type = "rectangle", action = "fill", fillColor = dark,
-          frame = { x = xx, y = yy, w = cw, h = ch } }
-      end
-      xx, colIdx = xx + cell, colIdx + 1
-    end
-    yy, rowIdx = yy + cell, rowIdx + 1
+
+--------------------------------------------------------------------------------
+-- What each kind of entry shows, and how a file is told apart
+--------------------------------------------------------------------------------
+
+-- The batch mark, today's "#N Appended", as a mark of the facts rather than glued onto a
+-- string, so it is placed and upper cased by the one rule the rest of the facts follow.
+local function batchMarks(e)
+  local pos = batchPos(e)
+  return pos and { "#" .. pos .. " Appended" } or {}
+end
+
+-- The facts every entry shares, with its own kind, details and marks. The source is the app
+-- the entry was copied from, and an entry that recorded none draws the facts alone.
+local function factsFor(e, kind, details, marks)
+  local icon = e.sourceApp and appIcon(e.sourceApp) or nil
+  local name = e.sourceApp and appName(e.sourceApp) or nil
+  return {
+    source = (icon or name) and { icon = icon, name = name } or nil,
+    kind = kind,
+    details = details or {},
+    time = util.relTime(e.ts),
+    marks = marks or batchMarks(e),
+  }
+end
+
+-- Text that would overflow the pane is cut here, so the layout never wraps a book.
+local function capped(text)
+  if #text > TEXT_DISPLAY_CAP then
+    return text:sub(1, TEXT_DISPLAY_CAP) .. "\n\n… truncated"
   end
+  return text
 end
 
--- The swatch block: a plain rectangle filled with the colour, over a checker for
--- transparency so a translucent colour reads against it instead of blending into
--- the panel. No border and no rounded corners, it is a flat block of the colour.
-local function appendSwatch(els, color, x0, y0, w, h)
-  if color.alpha < 1 then appendChecker(els, x0, y0, w, h) end
-  els[#els + 1] = { type = "rectangle", action = "fill", fillColor = color,
-    frame = { x = x0, y = y0, w = w, h = h } }
-  return y0 + h
-end
-
--- Build the colour preview: an uppercase meta line, the three canonical forms, and
--- the swatch. The swatch fills the width and is square, unless the space left in the
--- pane is shorter than the width, in which case it takes that height so it still
--- fits without a scroll (the pane is taller than wide, so a square usually fits).
-local function buildColor(e, c)
-  local els = {}
-  local w = innerWidth()
-  local meta = withBatchMark("Color  ·  " .. util.relTime(e.ts), e)
-  local y = metaHeader(els, e, w, meta) + BLOCK_GAP
-  y = appendText(els, table.concat(colorReps(c), "\n"), 0, y, w, colors.fg, BODY_SIZE) + BLOCK_GAP
-  local avail = math.max(0, innerHeight() - y)
-  local side = (avail > 0 and avail < w) and avail or w
+-- The colour preview, its three canonical forms and a swatch. The swatch fills the width and
+-- is square, unless the room left in the pane is shorter than the width, in which case it
+-- takes that height so it still fits without a scroll. The room is asked of the layout, since
+-- the header and the forms are the kit's to measure.
+local function colorBlocks(e, c, ctx)
+  local facts = factsFor(e, "Color", {})
+  local forms = { pane.text(kit, table.concat(colorReps(c), "\n")) }
+  local used = ctx.heightOf(facts, forms)
+  local avail = math.max(0, ctx.h - used - kit.tokens().space[pane.GAP])
+  local side = (avail > 0 and avail < ctx.w) and avail or ctx.w
   local fill = { red = c.r, green = c.g, blue = c.b, alpha = c.a }
-  return els, appendSwatch(els, fill, 0, y, w, side)
+  return facts, { forms[1], pane.swatch(kit, fill, ctx.w, side) }
 end
 
--- Header blocks for a file entry: an uppercase meta line (count, size, badge) and
--- one path line per original. Returns the element list and the y below it.
-local function buildFileHeader(e, w)
-  local els = {}
-  local files = e.files or {}
-  local meta = "File  ·  " .. #files .. " item" .. (#files == 1 and "" or "s")
-  if e.size and e.size > 0 then meta = meta .. "  ·  " .. util.humanSize(e.size) end
-  local badge = fileBadge(e)
-  if badge then meta = meta .. "  ·  " .. badge end
-  meta = withBatchMark(meta, e)
-  local y = metaHeader(els, e, w, meta) + 4
-  for _, el in ipairs(files) do
-    y = appendText(els, el.path, 0, y, w, colors.path, PATH_SIZE) + 2
-  end
-  return els, y + BLOCK_GAP
-end
-
--- The synchronous kinds, text, url, and image, as canvas blocks. Returns the
--- element list and total content height.
-local function buildNonFile(e)
-  local els = {}
-  local w = innerWidth()
-  if e.kind == "image" then
-    local meta = e.title
-    if e.size then meta = meta .. "  ·  " .. util.humanSize(e.size) end
-    meta = withBatchMark(meta, e)
-    local y = metaHeader(els, e, w, meta) + BLOCK_GAP
-    local img = previewImage(e.prev)
-    if img then
-      y = appendImage(els, img, 0, y, w)
-    else
-      y = appendText(els, "No preview.", 0, y, w, colors.note, BODY_SIZE)
-    end
-    return els, y
-  end
-  -- A text entry that is nothing but a single colour literal renders as a swatch
-  -- with its canonical forms, rather than the raw monospace text.
-  if e.kind == "text" then
-    local c = parseColor(e.text)
-    if c then return buildColor(e, c) end
-  end
-  local meta = (KIND_LABEL[e.kind] or e.kind) .. "  ·  " .. util.relTime(e.ts)
-  -- Text shows its character count, computed once at capture, so the pane never
-  -- recounts on highlight.
-  if e.kind == "text" and e.chars then meta = meta .. "  ·  " .. e.chars .. " chars" end
-  meta = withBatchMark(meta, e)
-  local y = metaHeader(els, e, w, meta) + BLOCK_GAP
-  local text = e.text or ""
-  local capped = #text > TEXT_DISPLAY_CAP
-  if capped then text = text:sub(1, TEXT_DISPLAY_CAP) .. "\n\n… truncated" end
-  y = appendText(els, text, 0, y, w, colors.fg, BODY_SIZE)
-  return els, y
+-- The path of a file's bytes, our frozen copy first and the original only if it survives,
+-- else nil, a dead link.
+local function readPathOf(el)
+  return (el.stored and hs.fs.attributes(el.stored) and el.stored)
+    or (hs.fs.attributes(el.path) and el.path)
+    or nil
 end
 
 -- Read the head of a file off the main thread, so a slow or large file cannot
@@ -961,163 +798,205 @@ local function asyncRead(path, cap, cb)
   end
 end
 
--- Draw the file header plus an optional trailing note in one paint, the common
--- shape for the file cases that resolve synchronously.
-local function paintFile(e, noteText, noteColor)
-  local els, y = buildFileHeader(e, innerWidth())
-  if noteText then y = appendText(els, noteText, 0, y, innerWidth(), noteColor or colors.note, BODY_SIZE) end
-  paint(els, y)
+-- An image block for a path, or the note saying why there is none.
+local function imageOrNote(noteText, path, ctx)
+  local img = previewImage(path)
+  if img then return { pane.image(kit, img) } end
+  return { pane.note(kit, noteText) }
 end
 
-local function renderFile(e, token)
-  local w = innerWidth()
-  local files = e.files or {}
-  if #files ~= 1 then
-    local els, y = buildFileHeader(e, w)
-    for _, el in ipairs(files) do
-      if el.prev and hs.fs.attributes(el.prev) then
-        local img = previewImage(el.prev)
-        if img then y = appendImage(els, img, 0, y, w) + BLOCK_GAP end
+-- FILE_BODIES is a Chain of Responsibility for one file, what shows under its path. Handlers
+-- are tried in order and the first whose match answers true is the only one that runs, so the
+-- order is the policy. Adding a file type is one handler placed in this list, nothing else
+-- changes. A handler's body answers the blocks to draw now and, when it has more to say
+-- later, a second value, a function of done which calls done with the blocks to draw once it
+-- knows. The caller owns the guard against a selection that moved on, so a handler never
+-- looks at the render token. ctx is { w, h }, the inner width and height.
+local FILE_BODIES = {
+  { name = "folder",
+    match = function(el) return el.isDir end,
+    body = function(el)
+      return { pane.note(kit, pathExists(el.path) and "Folder." or "Folder no longer exists.") }
+    end },
+  -- A previewable file carries a small PNG, a raster image, a video frame, or a pdf or icns
+  -- page, in our cache. It goes before anything else since it is durable and lets a deleted
+  -- file still show its thumbnail. While it is being generated the path is set but the file
+  -- is absent, so a pending note shows, and mediaReady repaints when it lands.
+  { name = "cachedPreview",
+    match = function(el) return el.prev end,
+    body = function(el, ctx)
+      if not hs.fs.attributes(el.prev) then return { pane.note(kit, "Generating preview…") } end
+      return imageOrNote("Cannot render preview.", el.prev, ctx)
+    end },
+  { name = "gone",
+    match = function(el) return readPathOf(el) == nil end,
+    body = function() return { pane.note(kit, "File no longer exists.") } end },
+  -- A raster image can still fall back to the original bytes, a video just says it has no
+  -- frame.
+  { name = "raster",
+    match = function(_, ext) return util.RASTER_EXT[ext] end,
+    body = function(el, ctx) return imageOrNote("Cannot render image.", readPathOf(el), ctx) end },
+  { name = "video",
+    match = function(_, ext) return util.VIDEO_EXT[ext] end,
+    body = function() return { pane.note(kit, "No video preview.") } end },
+  -- Anything left is read as text. The pane shows a note at once and fills the body when the
+  -- read returns, off the main thread so a slow or large file cannot freeze it.
+  { name = "text",
+    match = function() return true end,
+    body = function(el)
+      local path = readPathOf(el)
+      local function later(done)
+        asyncRead(path, cfg.fileReadCap, function(data, failed)
+          if failed then
+            done({ pane.note(kit, "Cannot read file.") })
+          elseif data:find("\0", 1, true) then
+            done({ pane.note(kit, "Binary file, no text preview.") })
+          else
+            local truncated = #data > cfg.fileReadCap
+            if truncated then data = data:sub(1, cfg.fileReadCap) end
+            if #data > TEXT_DISPLAY_CAP then data = data:sub(1, TEXT_DISPLAY_CAP); truncated = true end
+            if truncated then data = data .. "\n\n… truncated" end
+            done({ pane.text(kit, data) })
+          end
+        end)
       end
-    end
-    paint(els, y)
-    return
-  end
+      return { pane.note(kit, "Loading…") }, later
+    end },
+}
 
-  local el = files[1]
-  if el.isDir then
-    paintFile(e, pathExists(el.path) and "Folder." or "Folder no longer exists.")
-    return
-  end
-
-  -- A previewable file carries a small PNG (a raster image, a video frame, or a
-  -- pdf/icns page) in our cache. Prefer it before anything else, since it is
-  -- durable and lets a Deleted file still show its thumbnail. While it is still
-  -- being generated the path is set but the file is absent, so show a pending note;
-  -- mediaReady repaints when it lands.
-  local ext = util.fileExt(el.path)
-  if el.prev then
-    if hs.fs.attributes(el.prev) then
-      local img = previewImage(el.prev)
-      if img then
-        local els, y = buildFileHeader(e, w)
-        paint(els, appendImage(els, img, 0, y, w))
-      else
-        paintFile(e, "Cannot render preview.")
+-- KINDS is the Strategy table for what an entry shows. Each entry answers whether it takes an
+-- entry and, if so, build(e, ctx), which answers the facts, the blocks and, for a body that
+-- arrives later, the function that delivers it, see FILE_BODIES. The first that matches is
+-- used, so the manage history row, which has no kind, comes first and text, which takes
+-- anything left, last. ctx is { w, h, heightOf }, the inner size and a way to ask how tall a
+-- header and some blocks would be. A new kind is one entry here.
+local KINDS = {
+  { name = "history",
+    match = function(e) return e.side ~= nil end,
+    -- The page lists what a row would take rather than the content of one entry, so prune
+    -- answers the facts itself, a kind and details, with no source, no time and no marks.
+    build = function(e)
+      local facts, body = prune.preview(e)
+      if not facts then return nil end
+      return { kind = facts.kind, details = facts.details, marks = {} }, { pane.text(kit, body) }
+    end },
+  { name = "file",
+    match = function(e) return e.kind == "file" end,
+    build = function(e, ctx)
+      local files = e.files or {}
+      local details = {}
+      if #files ~= 1 then details[#details + 1] = #files .. " items" end
+      if e.size and e.size > 0 then details[#details + 1] = util.humanSize(e.size) end
+      local marks = {}
+      local badge = fileBadge(e)
+      if badge then marks[#marks + 1] = badge end
+      for _, mark in ipairs(batchMarks(e)) do marks[#marks + 1] = mark end
+      local facts = factsFor(e, KIND_LABEL.file, details, marks)
+      local paths = {}
+      for i, el in ipairs(files) do paths[i] = el.path end
+      local blocks = { pane.paths(kit, paths) }
+      if #files ~= 1 then
+        -- Several files show their paths and then every thumbnail that is there.
+        for _, el in ipairs(files) do
+          if el.prev and hs.fs.attributes(el.prev) then
+            local img = previewImage(el.prev)
+            if img then blocks[#blocks + 1] = pane.image(kit, img) end
+          end
+        end
+        return facts, blocks
       end
-    else
-      paintFile(e, "Generating preview…")
-    end
-    return
-  end
+      local el = files[1]
+      local ext = util.fileExt(el.path)
+      for _, handler in ipairs(FILE_BODIES) do
+        if handler.match(el, ext) then
+          local more, later = handler.body(el, ctx)
+          for _, block in ipairs(more) do blocks[#blocks + 1] = block end
+          return facts, blocks, later and function(done)
+            later(function(delivered)
+              local all = { blocks[1] }
+              for _, block in ipairs(delivered) do all[#all + 1] = block end
+              done(all)
+            end)
+          end
+        end
+      end
+    end },
+  { name = "image",
+    match = function(e) return e.kind == "image" end,
+    build = function(e, ctx)
+      -- The dimensions are in the title the reader wrote, Image WxH, so they are read back
+      -- rather than stored twice.
+      local details = {}
+      local dims = tostring(e.title or ""):match("(%d+x%d+)")
+      if dims then details[#details + 1] = dims end
+      if e.size then details[#details + 1] = util.humanSize(e.size) end
+      local facts = factsFor(e, KIND_LABEL.image, details)
+      return facts, imageOrNote("No preview.", e.prev, ctx)
+    end },
+  { name = "url",
+    match = function(e) return e.kind == "url" end,
+    build = function(e)
+      return factsFor(e, KIND_LABEL.url), { pane.text(kit, capped(e.text or "")) }
+    end },
+  -- A text entry that is nothing but a single colour literal renders as a swatch with its
+  -- canonical forms, rather than the raw text.
+  { name = "text",
+    match = function() return true end,
+    build = function(e, ctx)
+      local c = e.kind == "text" and parseColor(e.text) or nil
+      if c then return colorBlocks(e, c, ctx) end
+      -- Text shows its character count, computed once at capture, so the pane never
+      -- recounts on highlight.
+      local details = {}
+      if e.kind == "text" and e.chars then details[1] = e.chars .. " chars" end
+      return factsFor(e, KIND_LABEL[e.kind] or e.kind, details), { pane.text(kit, capped(e.text or "")) }
+    end },
+}
 
-  -- No cached preview. Prefer our frozen copy, fall back to the original only if it
-  -- survives, else the entry is a dead link.
-  local readPath = (el.stored and hs.fs.attributes(el.stored) and el.stored)
-    or (hs.fs.attributes(el.path) and el.path)
-    or nil
-  if not readPath then
-    paintFile(e, "File no longer exists.")
-    return
-  end
-
-  -- A raster image can still fall back to the original bytes; a video just says it
-  -- has no frame.
-  if util.RASTER_EXT[ext] then
-    local img = previewImage(readPath)
-    if img then
-      local els, y = buildFileHeader(e, w)
-      paint(els, appendImage(els, img, 0, y, w))
-    else
-      paintFile(e, "Cannot render image.")
-    end
-    return
-  end
-  if util.VIDEO_EXT[ext] then
-    paintFile(e, "No video preview.")
-    return
-  end
-
-  -- Text: show the header at once, fill the body when the async read returns.
-  paintFile(e, "Loading…")
-  asyncRead(readPath, cfg.fileReadCap, function(data, failed)
-    if token ~= renderToken then
-      return -- selection moved on
-    end
-    if failed then
-      paintFile(e, "Cannot read file.")
-    elseif data:find("\0", 1, true) then
-      paintFile(e, "Binary file, no text preview.")
-    else
-      local truncated = #data > cfg.fileReadCap
-      if truncated then data = data:sub(1, cfg.fileReadCap) end
-      if #data > TEXT_DISPLAY_CAP then data = data:sub(1, TEXT_DISPLAY_CAP); truncated = true end
-      if truncated then data = data .. "\n\n… truncated" end
-      local els, y = buildFileHeader(e, w)
-      paint(els, appendText(els, data, 0, y, w, colors.fg, BODY_SIZE))
-    end
-  end)
-end
-
--- The atom's onHighlight target. Resolve the palette for the current appearance,
--- reset the scroll to the top for the new entry, then paint the model. The atom
--- seeds one call before it has positioned anything, so the very first call of a
--- show can land with no companion rect known yet. Nothing here can size or measure
--- without one, so it defers entirely rather than guessing a width, the same way the
--- processes and filesearch panes defer their own first paint. onPositioned calls
--- this again the moment it has a real rect, well before anything is visible.
--- This is the presentation's own onHighlight, named directly on the manifest's own
+-- The atom's onHighlight target. Reset the scroll to the top for the new entry, pick its
+-- kind, then paint what it answers. The atom seeds one call before it has positioned
+-- anything, so the very first call of a show can land with no companion rect known yet.
+-- Nothing here can size or measure without one, so it defers entirely rather than guessing a
+-- width, the same way the processes and filesearch panes defer their own first paint.
+-- onPositioned calls this again the moment it has a real rect, well before anything is
+-- visible. This is the presentation's own onHighlight, named directly on the manifest's own
 -- presentation block. Review finding H6, no longer caches e anywhere, every other caller
 -- that used to read that cache now asks cfg.stageSelectedItem for the live row instead.
 local function renderPreview(e)
   if not previewFrame then return end
   renderToken = renderToken + 1
+  stopScrollTimer()
   scrollOffset = 0
-  -- Only the text colours come from the palette; the pane's background and border are
-  -- the shared surface, drawn in paint() through the injected cfg.surface. The atom's own
-  -- light and dark resolution, hs.host.interfaceStyle() picking cfg.theme's dark or light
-  -- half, lib/chooser/providers/native.lua:178's own arithmetic, reproduced here rather than
-  -- reached through an instance this file no longer holds.
-  local theme = cfg.theme or {}
-  local dark = hs.host.interfaceStyle() == "Dark"
-  local resolved = (dark and theme.dark) or theme.light or theme.dark or {}
-  local p = resolved.preview or {}
-  colors = {
-    fg = hexColor(p.fg), meta = hexColor(p.meta),
-    path = hexColor(p.path), note = hexColor(p.note),
-  }
   if not e then
-    -- The empty state, for a highlight with nothing to describe. This used to paint the
-    -- bare surface with nothing on it, which reads as a broken layout, a reserved rect
-    -- with nothing drawn in it, rather than as an empty one. Painting the shared routine
-    -- instead is what makes this pane read as one component with the other two docked
-    -- panes in their quiet moments the same way the surface already does in their chrome.
-    -- Absent means a misconfigured or partially configured module, so degrade to the bare
-    -- surface rather than erroring.
-    local w, h = innerWidth(), innerHeight()
-    paint(cfg.emptyState and cfg.emptyState(w, h, { color = colors.meta }) or {}, 0)
+    paint(nil)
     return
   end
-  -- A manage history row, whose pane lists what the row would take rather than the content of
-  -- one entry. Drawn with the same meta line and monospace body every other kind uses, since
-  -- what differs is the text and nothing about the shape.
-  if e.side then
-    local meta, body = prune.preview(e)
-    if not meta then
-      paint({}, 0)
+  local inner = innerRect()
+  local ctx = { w = inner.w, h = inner.h }
+  ctx.heightOf = function(facts, blocks)
+    local _, height = kit.layout(pane.compose(kit, facts, blocks), inner)
+    return height
+  end
+  for _, kind in ipairs(KINDS) do
+    if kind.match(e) then
+      local facts, blocks, later = kind.build(e, ctx)
+      if not facts then
+        paint(blank())
+        return
+      end
+      paint(pane.compose(kit, facts, blocks))
+      if later then
+        -- The selection may move on while a read is out, and an answer for an entry that is
+        -- no longer showing is dropped.
+        local token = renderToken
+        later(function(delivered)
+          if token ~= renderToken then return end
+          paint(pane.compose(kit, facts, delivered))
+        end)
+      end
       return
     end
-    local els, w = {}, innerWidth()
-    local y = metaHeader(els, nil, w, meta) + BLOCK_GAP
-    paint(els, appendText(els, body, 0, y, w, colors.fg, BODY_SIZE))
-    return
   end
-  if e.kind == "file" then
-    renderFile(e, renderToken)
-    return
-  end
-  local els, h = buildNonFile(e)
-  paint(els, h)
 end
 
 --------------------------------------------------------------------------------
@@ -1125,6 +1004,7 @@ end
 --------------------------------------------------------------------------------
 
 local function hidePreview()
+  stopScrollTimer()
   if preview then
     preview:hide()
   end
@@ -1139,6 +1019,7 @@ end
 -- existCache alone, the per open caches hidePreview drops between opens, and only takes
 -- the canvas down and raises the guard paint reads.
 local function hidePreviewForSwap()
+  stopScrollTimer()
   paneHidden = true
   if preview then preview:hide() end
 end
@@ -1359,7 +1240,14 @@ local PREVIEW_SCROLL_STEP = 120
 function UI.scrollPreviewBy(points)
   if not (preview and showing) then return end
   scrollOffset = scrollOffset + (tonumber(points) or 0)
-  repaint()
+  -- A trackpad sends dozens of events a second and a paint costs a layout, so the offset adds up
+  -- and one paint is scheduled for the next frame, however many events land before it. paint
+  -- clamps the sum and keeps its own hidden guard, so a late timer never draws.
+  if scrollTimer then return end
+  scrollTimer = hs.timer.doAfter(SCROLL_FRAME, function()
+    scrollTimer = nil
+    repaint()
+  end)
 end
 
 --- UI.scrollPreviewDown() / UI.scrollPreviewUp() - one step of the above, for the
@@ -1521,7 +1409,8 @@ end
 
 --- UI.configure(opts) - inject store, the insertion engine, util, media (for the shared file
 --- state rule fileBadge draws on), prune (the manage history page, whose rows and wording this
---- file only draws), the theme, the shared
+--- file only draws), the UI kit (opts.ui, needs.lib.ui, which every piece of text in the preview
+--- is drawn through), the shared
 --- surface routine (opts.surface, drawing the preview pane's background and
 --- border), the shared empty state routine (opts.emptyState, painted by renderPreview below
 --- for a highlight with nothing to describe), and the layout config. stagePresent,
@@ -1533,6 +1422,7 @@ function UI.configure(opts)
   util = opts.util
   media = opts.media
   prune = opts.prune
+  kit = opts.ui
   isAccumulator = opts.isAccumulator or isAccumulator
   cfg = opts
   return UI
