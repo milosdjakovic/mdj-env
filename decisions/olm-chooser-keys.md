@@ -16,6 +16,10 @@ predicate, and the native provider needs nothing since its keys already reach Hy
 The action panel is on Hyper and o in every list, declared once in `lib/surface.lua` and in
 the loop at the bottom of `config/keys.lua`. File search reveal in Finder is on Hyper and f.
 
+The docked shortcut hint pane shows after 2500 ms with no key, and every key restarts that
+countdown, Hyper moves included, since the canvas provider counts activity in selectNext,
+selectPrev and insertSelected. Once shown it stays until the list closes.
+
 ## Rejected
 
 - **Putting the action panel on Hyper and k.** 2026-10-14. k already moves the cursor up in
@@ -39,3 +43,18 @@ Estimated time. The action panel moved from Hyper and period to Hyper and o at t
 request, and file search reveal moved from o to f to make room. Reveal had been on f before it
 moved to o for reading as open, and f now reads as Finder. The panel row, the hint strip and
 the inventory golden follow from the declarations.
+
+### 2026-10-14 21:00
+
+Estimated time. The shortcut hint pane now shows after 250 ms with no key, down from three seconds,
+at the person's request, and each key restarts that countdown. It stays up once shown until the list
+closes. Hyper presses are yielded by the canvas field, so they never reach its key handler where
+activity used to be counted. Activity is now counted in the canvas provider's selectNext, selectPrev
+and insertSelected, which is what the Hyper dispatch calls, and not at the field's yield, since the
+leader key autorepeats while held and counting there would keep the pane from ever appearing.
+
+### 2026-10-14 21:20
+
+The 250 ms delay above was tried live and works, and the person asked for 2500 ms instead, so
+that is what ships. The 250 ms entry stands as the record of what was tried first. The debounce,
+the latch and where activity is counted are unchanged.

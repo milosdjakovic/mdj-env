@@ -596,6 +596,15 @@ function Provider:_onFieldChange(state)
   if self.config.onActivity then safeCall(self.config.onActivity) end
 end
 
+-- The idle signal a consumer such as the docked hint panel restarts its countdown on.
+-- A Hyper press never reaches _onFieldKey, since the field yields it so the leader
+-- dispatch can run, and that dispatch drives selectNext, selectPrev and insertSelected
+-- instead, so those count here. The field itself deliberately does not count a yielded
+-- key, because the leader autorepeats while held and the panel would never appear.
+function Provider:_noteActivity()
+  if self.config.onActivity then safeCall(self.config.onActivity) end
+end
+
 -- Runs for a key down neither the field's own keymap nor its printable check claims,
 -- return, keypad enter, up, down and cmd plus a digit among them. Everything this
 -- provider does not itself recognise is swallowed rather than let through, the field's
@@ -609,7 +618,7 @@ end
 -- watcher before it looks at the keycode at all, so this moves to the top the same
 -- way, above the dispatch rather than below it.
 function Provider:_onFieldKey(ev)
-  if self.config.onActivity then safeCall(self.config.onActivity) end
+  self:_noteActivity()
   local code = ev:getKeyCode()
   local digit = KEYCODE_DIGIT[code]
   if digit and ev:getFlags().cmd then
@@ -625,7 +634,7 @@ function Provider:_onFieldKey(ev)
     self:_fireHighlight()
     self:_redraw()
   elseif code == KEYCODE_RETURN or code == KEYCODE_KEYPAD_ENTER then
-    self:insertSelected()
+    self:_insertHighlighted()
   end
 end
 
@@ -938,6 +947,7 @@ end
 --- contract asks every provider to state for itself.
 function Provider:selectNext()
   if not self.active then return end
+  self:_noteActivity()
   self:_stopScrollEase()
   self.listState = listModel.moveDown(self.listState)
   self:_fireHighlight()
@@ -947,6 +957,7 @@ end
 --- Provider colon selectPrev, arity zero. The same move upward.
 function Provider:selectPrev()
   if not self.active then return end
+  self:_noteActivity()
   self:_stopScrollEase()
   self.listState = listModel.moveUp(self.listState)
   self:_fireHighlight()
@@ -1012,6 +1023,13 @@ end
 --- all three call.
 function Provider:insertSelected()
   if not self.active then return end
+  self:_noteActivity()
+  self:_insertHighlighted()
+end
+
+-- The choosing half of insertSelected, split out so the Return key in the field, which
+-- has already counted as activity at the top of its own handler, does not count twice.
+function Provider:_insertHighlighted()
   local ns = listModel.normalized(self.listState)
   local row = ns.highlight and ns.filtered[ns.highlight]
   self:_choose(row, ns.highlight)

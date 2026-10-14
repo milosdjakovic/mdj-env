@@ -97,7 +97,7 @@ return {
   -- many milliseconds with no key does it reveal, staying up until the list closes. Zero
   -- draws it instantly on open.
   --
-  -- Olm ships three seconds, so this is an OVERRIDE POINT and is deliberately absent
+  -- Olm ships two and a half seconds, so this is an OVERRIDE POINT and is deliberately absent
   -- rather than empty. The number used to live here and nowhere else, this comment used to
   -- call itself the one source for every chooser that docks the panel, and init.lua never
   -- forwarded the field into Olm's policy, so nothing ever read it and every bar drew
@@ -107,11 +107,11 @@ return {
   -- Absent rather than an empty table on purpose, and this is not a style choice.
   -- lib/defaults.lua's own merge treats a table with no keys as a LIST, and a list REPLACES
   -- the default instead of merging into it, so writing `shortcutsPanel = {}` here would wipe
-  -- the shipped three seconds and put every bar back to drawing instantly, with the config
+  -- the shipped two and a half seconds and put every bar back to drawing instantly, with the config
   -- still looking like it said nothing at all. To differ from what Olm ships, uncomment the
   -- whole block below with a real value in it.
   --
-  -- shortcutsPanel = { delayMs = 3000 },
+  -- shortcutsPanel = { delayMs = 2500 },
 
   -- Window sizing defaults. A move or resize key travels one of two amounts and never anything
   -- in between. stepPixels is what a press on its own does, kept small because a press is how
