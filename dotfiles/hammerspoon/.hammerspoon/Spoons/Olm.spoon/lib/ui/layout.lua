@@ -221,6 +221,14 @@ function M.new(deps)
     local kind = node.kind
     if kind == "text" then
       local v = T.text[node.variant]
+      -- A slot is as wide as it says, or as the room allows, and the text wraps or aligns inside.
+      if node.width then
+        local slot = math.min(node.width, maxW)
+        if node.wrap then
+          return slot, #measure:wrap(node.str, v.font, v.size, slot) * v.lineHeight
+        end
+        return slot, v.lineHeight
+      end
       if node.wrap then
         local lines = measure:wrap(node.str, v.font, v.size, maxW)
         return maxW, #lines * v.lineHeight
@@ -328,8 +336,11 @@ function M.new(deps)
     if kind == "text" then
       local v = T.text[node.variant]
       local lineBreak = node.lineBreak or (node.wrap and "wordWrap" or "truncateTail")
+      -- A container may offer more room than a slot asked for, a stack gives its children the
+      -- whole width, so the slot is applied here as well as in sizeOf.
+      local tw = node.width and math.min(node.width, w) or w
       push(ctx, textElement(ctx, node.str, v, node.color or v.color or "foreground",
-        node.align or "left", lineBreak, { x = x, y = y, w = w, h = h }))
+        node.align or "left", lineBreak, { x = x, y = y, w = tw, h = h }))
     elseif kind == "badge" then
       local b = T.badge[node.size]
       local v = T.text[b.text]

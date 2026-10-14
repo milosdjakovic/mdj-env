@@ -545,6 +545,45 @@ do
 end
 
 --------------------------------------------------------------------------------
+-- text width, a slot a figure is aligned inside
+--------------------------------------------------------------------------------
+
+do
+  local R = { x = 10, y = 20, w = 300, h = 200 }
+  local function figure(str, slot)
+    return kit.row({ kit.text(str, "title", { align = kit.aligns.right, width = slot }),
+      kit.text("Mbps", "title") }, { gap = "s" })
+  end
+  local function frames(node)
+    local els = engine.layout(node, R, tokens)
+    return els[1].frame, els[2].frame
+  end
+
+  local a, aUnit = frames(figure("8.8", 70))
+  local b, bUnit = frames(figure("88.8", 70))
+  check("a text with a width is exactly that wide in a row, whatever it says",
+    a.w == 70 and b.w == 70 and a.x == 10 and b.x == 10, tostring(a.w) .. " " .. tostring(b.w))
+  check("the sibling after a slot starts at the same place for a short value and a long one",
+    aUnit.x == bUnit.x and aUnit.x == 10 + 70 + tokens.space.s, tostring(aUnit.x) .. " " .. tostring(bUnit.x))
+
+  local narrow = kit.text("long words in a slot", "body", { width = 50, wrap = true })
+  local _, narrowH = engine.layout(narrow, R, tokens)
+  check("a wrapping text wraps at the slot width and not at the room around it",
+    narrowH > tokens.text.body.lineHeight, tostring(narrowH))
+
+  local stacked = engine.layout(kit.stack({ kit.text("x", "body", { width = 40 }) }), R, tokens)
+  check("a stack offers the whole width and the slot still applies", stacked[1].frame.w == 40)
+
+  local tight = engine.layout(kit.text("x", "body", { width = 900 }), { x = 0, y = 0, w = 100, h = 50 }, tokens)
+  check("a slot is never wider than the room it is given", tight[1].frame.w == 100)
+
+  check("a text without a width fills as it always did",
+    engine.layout(kit.text("x", "body"), R, tokens)[1].frame.w == 300)
+  check("text refuses a width that is not a number of points",
+    not pcall(kit.text, "x", "body", { width = "wide" }) and not pcall(kit.text, "x", "body", { width = -1 }))
+end
+
+--------------------------------------------------------------------------------
 -- measure, wrap keeps whitespace
 --------------------------------------------------------------------------------
 

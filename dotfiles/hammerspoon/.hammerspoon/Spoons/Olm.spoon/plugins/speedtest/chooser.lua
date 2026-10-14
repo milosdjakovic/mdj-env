@@ -807,14 +807,9 @@ function M.configure(opts)
   pane.configure({
     surface = cfg.surface,
     emptyState = cfg.emptyState,
-    -- The atom's own light and dark resolution, reproduced here rather than reached through
-    -- an instance this file does not hold, so the pane follows the system appearance switch.
-    palette = function()
-      local theme = cfg.theme or {}
-      local dark = hs.host.interfaceStyle() == "Dark"
-      local resolved = (dark and theme.dark) or theme.light or theme.dark
-      return resolved and resolved.preview
-    end,
+    -- The UI kit every piece of the pane is drawn through. It follows the system appearance
+    -- itself, which is what a palette closure used to do here by hand.
+    ui = cfg.ui,
   })
   return M
 end

@@ -78,6 +78,30 @@ in a pure file, `pane-nodes.lua`, covered by a unit case, and the canvas, the ca
 stay in `preview.lua`, which caches the static half's laid out elements the way file search caches
 its header, so a sampler tick lays out the live block alone.
 
+The speedtest pane was decided on the same day, 2026 10 14, while building its step, and it was
+the last of the four. The large figures, the download, the upload, Running, Warming up and Nothing
+measured, are title, headings are the kit's heading, the live responsiveness line and the trend's
+network label are body, and every explanation and every line of metadata is caption in subtext,
+wrapped where it was wrapped before. The graphs are raw nodes coloured by rank, the download
+primary, the upload secondary and the latency or responsiveness strip tertiary, with the baseline in
+border, and the mark under the newest bar takes the colour of its series. What the pane is made of is
+a pure file, `pane-nodes.lua`, covered by a unit case, and the canvas, the scroll and the choice of
+view stay in `pane.lua`, whose scroll events add up and paint once a frame. Both large figures are
+foreground, see decisions/olm-colour-roles.md.
+
+The digits question the plan left open was checked and has a plain answer. The title role is the
+proportional system font, whose digits have different widths, 8.7 points for a one and 12.1 for
+an eight at twenty points. A canvas takes a font by name and size and nothing else, Hammerspoon's
+font conversion reads those two keys and ignores the rest, so a tabular digit feature cannot be
+asked for, and no font name reaches the system for a monospaced digit variant of the system font,
+the names tried all came back as the system font. The monospace role is a different design and
+not an option for a figure. So the figure is drawn in a slot. The kit's `text` gained a `width`
+option, a slot of exactly that many points with the text aligned inside it, and the pane draws the
+number right aligned in a slot as wide as the widest value the format can make, three digits before
+the point and one after, measured at the title role with the widest digit the measurer finds, and
+the unit after the slot, so the unit never moves. A reading wider than the slot widens it for that
+reading only. The cost is that a short number stands a little in from the left edge.
+
 ## What the kit gains first
 
 Three things the panes need and the kit lacks, each with more than one consumer.
@@ -99,9 +123,10 @@ Three things the panes need and the kit lacks, each with more than one consumer.
    variants they used are deleted. Judged live. Built 2026 10 14, every text variant outside
    the five roles is gone and none had another consumer.
 4. The four panes, one plugin per step, clipboard, file search, processes, speedtest. The
-   clipboard step, the file search step and the processes step were built 2026 10 14. Each
-   step draws its pane through `ui.layout`, deletes its own fonts, sizes, palette closure and
-   fallback colours, drops its theme exemption line, and is judged live before the next.
+   clipboard step, the file search step, the processes step and the speedtest step were built
+   2026 10 14, so every pane step is built. Each step draws its pane through `ui.layout`, deletes
+   its own fonts, sizes, palette closure and fallback colours, drops its theme exemption line,
+   and is judged live before the next.
 5. Close out. The last retiring variants and lib/chooser/textwidth.lua go, and a check joins
    the dry gate that reports any font name, text size or line height set outside lib/ui, the
    way the theme checker reports a hex value, so the rule cannot drift again.

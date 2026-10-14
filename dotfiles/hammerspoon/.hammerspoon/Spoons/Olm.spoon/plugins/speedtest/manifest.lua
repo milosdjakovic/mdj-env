@@ -19,6 +19,10 @@ return {
       -- other row's in this configuration rather than being drawn a second way here.
       -- Optional, a list with no icons still reads.
       glyphIcon = { from = "glyphicon", policy = "optional" },
+      -- The UI kit, which every piece of text in the pane is drawn through, so the pane names a
+      -- role and never a font, a size, a line height or a colour. Optional, since without it the
+      -- pane stands down and the list still measures and keeps every reading.
+      ui = { from = "ui", policy = "optional" },
     },
 
     tools = {

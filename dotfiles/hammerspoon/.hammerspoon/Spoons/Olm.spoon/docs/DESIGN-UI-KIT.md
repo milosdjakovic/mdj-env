@@ -56,7 +56,7 @@ row, is in the alpha group and is not a role. The rule and what each role is for
 ## The primitives
 
 ```
-text(str, variant, {color, align, lineBreak, wrap})
+text(str, variant, {color, align, lineBreak, wrap, width})
 badge(key, size)              size names cheat, hint or button
 icon(imageOrGlyph, size)      a glyph is drawn to an hs.image, cached, so the same call
                               also feeds a native chooser row
@@ -104,7 +104,7 @@ a `[light]` section of the eight colour keys, read by `lib/ui/toml.lua` and kept
 the next draw shows it. The OLM settings page lists the themes and switches them. Two views
 of the theme, a `chooserTheme` shaped table and a `surface` shaped one, are rewritten in place
 on every switch from the eight roles, for the readers outside the kit that still take them, the
-native provider, the panel surface and speedtest's pane, and stage four retires both.
+native provider and the panel surface, and stage four retires both.
 
 ## Stages
 
@@ -167,6 +167,19 @@ icon from being blown up. A picture that cannot say its size draws as a square. 
 click id reach it the way they reach an icon. It is a primitive rather than a raw node because the
 clipboard pane and the file search pane both draw one and would otherwise each carry the same
 arithmetic.
+
+## The text slot, and why digits do not slide
+
+`text` takes a `width`, a number of points, which makes the text a slot of exactly that width,
+never wider than the room it is given, with `align` placing the text inside it. In a row that
+means the children after it start at a fixed place, and in a stack, which offers every child the
+whole width, the slot still applies. A wrapping text wraps at the slot. It exists for a figure
+that changes under the eye, added 2026 10 14 with the speedtest step. The title role is the
+proportional system font and its digits have different widths, so a number drawn at its own width
+pushes the unit beside it sideways as it changes. The kit cannot ask for tabular digits instead,
+since a canvas takes a font by name and size and nothing else, so the caller measures the widest
+value its format can produce with `ui.measure`, makes that the slot, aligns the number right
+inside it and puts the unit after. `plugins/speedtest/pane-nodes.lua` is the one consumer.
 
 ## The section heading
 

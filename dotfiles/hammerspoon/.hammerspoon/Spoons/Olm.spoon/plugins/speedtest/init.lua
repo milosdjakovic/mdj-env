@@ -10,7 +10,8 @@
 ---   store.lua    the history, the network names, and the run settings, one JSON file.
 ---   chooser.lua  the list surface, pure policy over the two above.
 ---   pane.lua     the docked companion pane, loaded by the chooser since only the chooser
----                knows when a window exists to draw beside.
+---                knows when a window exists to draw beside. It owns the canvas and the scroll.
+---   pane-nodes.lua  what the pane shows, as UI kit nodes and nothing else, loaded by pane.lua.
 ---   util.lua     stateless formatting and the one question of which network this is.
 ---
 --- There is no provider contract here and there should not be one yet. There is exactly one
@@ -47,7 +48,8 @@ obj.chooser = load("chooser.lua")
 --- opts.surface            the shared pane surface, granted because the manifest asks for a
 ---                         pane. Absent means the list opens with no companion rect at all.
 --- opts.emptyState         the shared quiet state a docked pane paints with nothing to say.
---- opts.theme              the shared palette, which the pane resolves per open.
+--- opts.ui                 the UI kit, which every piece of text and every colour in the pane comes
+---                         through. Absent means no pane, the same as no surface.
 --- opts.stagePresent, opts.redrawPresented, opts.stagePop, opts.stageSelectedItem
 ---                         the four root published words this plugin speaks.
 function obj:configure(opts)
@@ -85,7 +87,7 @@ function obj:configure(opts)
     store = store,
     surface = opts.surface,
     emptyState = opts.emptyState,
-    theme = opts.theme,
+    ui = opts.ui,
     glyphIcon = opts.glyphIcon,
     stagePresent = opts.stagePresent,
     redrawPresented = opts.redrawPresented,

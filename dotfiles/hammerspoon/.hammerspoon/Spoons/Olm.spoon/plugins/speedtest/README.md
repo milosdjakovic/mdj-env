@@ -50,6 +50,20 @@ the person went without measuring, and a line joining those would draw a slope t
 knows nothing about. A network with one reading is therefore shown that reading's own shape
 rather than a trend, since a trend of one is flat by construction and says nothing.
 
+## How the pane is drawn
+
+Every piece of text in the pane is one of the five typography roles and every colour is one of the
+eight colour roles, through the UI kit, so the pane names no font, size, line height or colour.
+The large figures are title, headings are the kit's heading, and explanations and metadata are
+caption in subtext. The graphs take their colours by rank, the download primary, the upload
+secondary and the latency or responsiveness strip tertiary. What each view is made of is built as
+nodes by `pane-nodes.lua`, which is plain Lua and has a unit case, and `pane.lua` keeps the canvas,
+the scroll and the choice of view.
+
+A figure is drawn as its number and its unit. The number is right aligned in a slot as wide as the
+widest value the format can make, so the unit beside it stays still while the number changes. The
+system font has no tabular digits a canvas can ask for, which is why the slot exists.
+
 ## What it deliberately does not do
 
 There is no announcement when a run finishes with the list closed. The result lands in the

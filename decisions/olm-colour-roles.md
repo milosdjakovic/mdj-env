@@ -53,3 +53,16 @@ the surface shaped one, are kept and rebuilt from the eight roles, since the nat
 the panel and speedtest's pane still read them. Speedtest's pane keeps its own four keys
 inside the chooser shaped view until it is migrated to the kit. The Local Servers graph now
 draws its CPU line in primary, its memory line in secondary and its baseline in border.
+
+### 2026-10-14 19:41
+
+Speedtest's pane was moved onto the kit, and with it the last reader of the chooser shaped
+view's preview table went, so the table was deleted from `root/uispec.lua`. The four keys it
+held, fg, meta, path and note, are not roles and nothing reads them. The pane's download curve
+and bars are primary, its upload secondary, its latency and responsiveness strip tertiary and
+every baseline border, so a series is the same colour in every view. The figures are
+foreground, both of them. The old pairing drew the upload figure in the note colour to match its
+curve, but a figure sits directly over its own curve under its own unit, and an accent carries
+a rank and no meaning, so a coloured figure would have said nothing the position did not. The
+native provider still carries a preview colour set in its own fallback theme. Nothing reads it
+either, `activeTheme` has no caller, and it goes with the native provider's own step.

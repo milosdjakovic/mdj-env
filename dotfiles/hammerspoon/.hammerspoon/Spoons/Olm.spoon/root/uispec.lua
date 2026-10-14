@@ -13,11 +13,11 @@
 -- colours of its own takes the dark one, the same fallback every reader applies.
 --
 -- chooserView and surfaceView are the other two things this file knows. The native provider
--- and speedtest's pane still read a table shaped like the old chooserTheme setting, and the
--- panel still reads one shaped like the surface setting, so the root keeps one table of each
--- and these two fill it in place from the colours of the live theme. They are rebuilt from the
--- eight roles and name none of the retired ones. Stage four of the kit retires both views once
--- those readers draw through the kit, and these two go with them.
+-- still reads a table shaped like the old chooserTheme setting, and the panel still reads one
+-- shaped like the surface setting, so the root keeps one table of each and these two fill it
+-- in place from the colours of the live theme. They are rebuilt from the eight roles and name
+-- none of the retired ones. Stage four of the kit retires both views once those readers draw
+-- through the kit, and these two go with them.
 
 local M = {}
 
@@ -69,23 +69,17 @@ end
 --- M.chooserView(into, colors) -> into
 --- Rewrites into, in place, as a table shaped like the old chooserTheme setting from the
 --- colours of a theme, so the readers outside the kit that took that setting follow a switch
---- without a reload. bgDark is the half itself, the row text colours are hs colour tables,
---- and preview is the four CSS hex strings speedtest's pane still takes, alpha digits cut off
---- since CSS here has never been handed any. preview is the one place a retired name survives,
---- as the pane's own keys, and each is answered from a role, fg from foreground, meta and path
---- from subtext and note from secondary, the second series, which is the upload curve. It goes
---- when speedtest is migrated to the kit.
+--- without a reload. bgDark is the half itself and the row text colours are hs colour tables.
+--- There is no preview set any more, every pane draws through the kit and reads the eight roles
+--- from its tokens.
 function M.chooserView(into, colors)
   clear(into)
   for _, half in ipairs({ "dark", "light" }) do
     local theme = (colors and (colors[half] or colors.dark)) or {}
-    local function six(hex) return hex and hex:sub(1, 7) end
     into[half] = {
       bgDark = half == "dark",
       titleColor = hexColor(theme.foreground),
       subColor = hexColor(theme.subtext),
-      preview = { fg = six(theme.foreground), meta = six(theme.subtext), path = six(theme.subtext),
-                  note = six(theme.secondary) },
     }
   end
   return into

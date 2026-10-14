@@ -93,9 +93,18 @@ function M.new(names)
   --- The kit applies no text transform of any kind, no upper casing and no other change of
   --- case, so a caller that wants a section label in capitals writes it in capitals.
   --- opts.color a colour role, opts.align one of aligns, opts.lineBreak one of lineBreaks,
-  --- opts.wrap true to wrap at the width the text is laid out in.
+  --- opts.wrap true to wrap at the width the text is laid out in. opts.width, a number of
+  --- points, makes the text a slot of exactly that width, never wider than the room it is
+  --- given, with opts.align placing the text inside it. It exists for a figure that changes
+  --- under the eye. The system font draws digits of different widths, so a number drawn at its
+  --- own width would push whatever sits beside it sideways as it changes, and a slot sized to
+  --- the widest value, with the number aligned right inside it, keeps the neighbour still.
+  --- A wrapping text wraps at the slot's width.
   function kit.text(str, variant, opts)
     opts = opts or {}
+    if opts.width ~= nil and (type(opts.width) ~= "number" or opts.width < 0) then
+      error("ui.kit text, width must be a number of points, not " .. tostring(opts.width), 2)
+    end
     return {
       kind = M.kinds.text,
       str = tostring(str or ""),
@@ -104,6 +113,7 @@ function M.new(names)
       align = optional(ALIGNS, opts.align, "align", "text"),
       lineBreak = optional(LINE_BREAKS, opts.lineBreak, "lineBreak", "text"),
       wrap = opts.wrap and true or false,
+      width = opts.width,
     }
   end
 
