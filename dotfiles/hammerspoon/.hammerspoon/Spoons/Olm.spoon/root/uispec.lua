@@ -47,6 +47,10 @@ function M.spec(policy, colors, typography)
       -- Every chip's corner is derived from this one, see radius.nested in lib/ui/style.lua.
       surface = (policy.surface or {}).cornerRadius,
     },
+    stroke = {
+      -- Every outline and divider takes this width, see stroke in lib/ui/style.lua.
+      border = (policy.surface or {}).borderWidth,
+    },
   }
 end
 

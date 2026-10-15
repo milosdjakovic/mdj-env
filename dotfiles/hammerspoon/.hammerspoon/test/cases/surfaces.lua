@@ -138,9 +138,14 @@ do
   check("the colour toast is the swatch 26 high, taller than the 19 high code line",
     cs.h == T.icon.swatch and cs.h == 26 and T.text.code.lineHeight == 19, "height " .. tostring(cs.h))
   local cdraw = color.draw(cs.w, cs.h)
-  local hex = cdraw[2].text:asTable()[2].attributes
+  -- The swatch is a fill and an outline drawn inside it, inset by half the border width.
+  local bw = T.stroke.border
+  check("the swatch outline is the border width, inset by half of it inside the fill",
+    cdraw[2].action == "stroke" and cdraw[2].strokeWidth == bw and cdraw[2].frame.x == bw / 2
+      and cdraw[2].frame.w == T.icon.swatch - bw)
+  local hex = cdraw[3].text:asTable()[2].attributes
   check("the hex value is drawn in the code font at the code size, 14",
-    hex.font.size == T.text.code.size and cdraw[2].frame.h == 19)
+    hex.font.size == T.text.code.size and cdraw[3].frame.h == 19)
 
   local icon = hs.image.imageFromName("NSCaution")
   local list = toast.list({ title = "Not open", secondsLeft = 4, rows = {

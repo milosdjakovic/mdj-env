@@ -62,6 +62,12 @@ local RULES = {
     return c:match("[xy]Radius%s*=%s*%.?%d") or c:match("[xy]Radius%s*=%s*%u[%u%d_]*%f[^%w_]")
       or c:match("[Rr]adius%s*=%s*%.?%d")
   end },
+  -- And the border rule. Every outline and divider takes stroke.border and a graph line takes
+  -- stroke.graph, so a number written into a stroke width is a line that will not follow them.
+  { "a hand set stroke width", function(c)
+    return c:match("strokeWidth%s*=%s*%.?%d") or c:match("strokeWidth%s*=%s*%u[%u%d_]*%f[^%w_]")
+      or c:match("[Bb]orderWidth%s*=%s*%.?%d")
+  end },
   { "a hand set line height", function(c)
     return c:match("minimumLineHeight") or c:match("maximumLineHeight") or c:match("lineHeightMultiple")
       or c:match("[Ll]ineHeight%s*=%s*%.?%d")

@@ -683,8 +683,12 @@ less the padding between them, never below zero, `ui.nestedRadius(outer, gap)` i
 four sides. A caller reads `radius.nested`, or calls `nestedRadius` with its own padding when it
 has one, and never writes a number. It is dynamic, so a surface set to 0 squares every corner
 inside it on the next draw. Padding is one value on every side, since unequal sides cannot both
-fit one corner. The dry gate reports a hand set radius outside `lib/ui`, and
-`Spoons/Olm.spoon/docs/DESIGN-UI-KIT.md` has the detail under Corners.
+fit one corner. Borders follow the same idea. `surface.borderWidth` is the one width, handed on
+as `stroke.border` to every outline and divider in the `border` colour, a graph line takes
+`stroke.graph`, and a stroke is drawn inside its shape with its corner less half its width.
+Chips, badges and the highlighted row have no border. The dry gate reports a hand set radius or
+stroke width outside `lib/ui`, and `Spoons/Olm.spoon/docs/DESIGN-UI-KIT.md` has the detail under
+Corners and Borders.
 
 **Spoon lifecycle contract.** Every spoon is created and wired the same way, so
 `root/compose.lua`'s wiring pipeline can treat them uniformly. This is a convention, not a base class,

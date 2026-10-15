@@ -51,15 +51,15 @@ end
 
 do
   -- Short enough that the nine requested rows do not survive. avail is 500 less 120 of
-  -- padding, 61 of field, 10 of margin below the list and the peek of a row, which fits five
-  -- rows of fifty one and no more.
+  -- padding, 57 of field, 10 of margin below the list and the peek of a row, which fits six
+  -- rows of forty seven and no more.
   local shortScreen = { x = 0, y = 0, w = 1440, h = 500 }
   local rects = geometry.resolve(shortScreen, geometry.DEFAULT_LAYOUT, nil)
   check("a short screen trims the row count below what the layout asked for",
-    rects.rowCount == 5, "got " .. tostring(rects.rowCount))
+    rects.rowCount == 6, "got " .. tostring(rects.rowCount))
   local peek = geometry.DEFAULT_LAYOUT.peek
-  check("the row band's own height is the trimmed row count and the peek times the row height",
-    rects.list.h == (rects.rowCount + peek) * geometry.DEFAULT_LAYOUT.rowH
+  check("the row band's own height is the trimmed row count and the peek times the row height, plus the margin that pads the end of the list",
+    rects.list.h == (rects.rowCount + peek) * geometry.DEFAULT_LAYOUT.rowH + geometry.DEFAULT_LAYOUT.marginY
       and rects.viewRows == rects.rowCount + peek,
     "got " .. tostring(rects.list.h))
 end
@@ -194,7 +194,7 @@ do
   -- this screen height, engineered directly through a custom layout rather than
   -- through the row trim, so this checks the clamp itself and nothing the trim also
   -- happens to affect. avail comes out negative, so the row count trims to zero and
-  -- the canvas is only the field plus the edge margin twice, sixty two points tall,
+  -- the canvas is only the field plus the edge margin, sixty seven points tall,
   -- and even that will not fit both a sixty point top pad and a sixty point bottom pad
   -- against a two hundred point screen.
   local L = {}
@@ -218,16 +218,17 @@ end
 do
   local rects = geometry.resolve(ROOMY_SCREEN, geometry.DEFAULT_LAYOUT, nil)
   local L = geometry.DEFAULT_LAYOUT
-  local expected = rects.list.w - L.padX - L.iconSize - L.iconGap - L.padX - L.iconSize
-  check("textBudget is the list rect's own width less the leading pad, the icon and its "
+  local _, padLeft = geometry.iconPad(L)
+  local expected = rects.list.w - padLeft - L.iconSize - L.iconGap - L.padX - L.iconSize
+  check("textBudget is the list rect's own width less the icon's left pad, the icon and its "
     .. "gap, the trailing pad, and the numeral column",
     geometry.textBudget(rects, L) == expected,
     "got " .. tostring(geometry.textBudget(rects, L)) .. " expected " .. tostring(expected))
-  -- The concrete number too, four hundred fifty two less fourteen, twenty eight, fourteen,
-  -- fourteen and twenty eight again, so a change to the formula above and a change to
+  -- The concrete number too, four hundred fifty two less nine point sixty six for the icon's
+  -- left pad, thirty three, fourteen, fourteen and thirty three again, so a change to the formula above and a change to
   -- DEFAULT_LAYOUT's own numbers cannot both drift and still pass unnoticed.
-  check("the width budget for this layout on a roomy screen comes out to three hundred fifty four points",
-    geometry.textBudget(rects, L) == 354, "got " .. tostring(geometry.textBudget(rects, L)))
+  check("the width budget for this layout on a roomy screen comes out to three hundred forty eight point thirty four points",
+    math.abs(geometry.textBudget(rects, L) - 348.34) < 1e-9, "got " .. tostring(geometry.textBudget(rects, L)))
 end
 
 do
@@ -259,8 +260,8 @@ do
 end
 
 do
-  -- A fractional scrollTop, the sub row remainder rather than the whole of it. Forty
-  -- nine and a half is exactly what one hundred point five leaves over a fifty one
+  -- A fractional scrollTop, the sub row remainder rather than the whole of it. Six
+  -- and a half is exactly what one hundred point five leaves over a forty seven
   -- point row, and a point at the very top of the list rect still answers slot one
   -- with that same remainder as its own offset, matching the row still partly visible
   -- above the viewport's own top.
@@ -270,7 +271,7 @@ do
   check("a fractional scrollTop is reduced to its own sub row remainder rather than used whole",
     slot == 1, "got " .. tostring(slot))
   check("the offset within that first visible row is exactly that remainder",
-    math.abs(offset - 49.5) < 1e-9, "got " .. tostring(offset))
+    math.abs(offset - (100.5 % geometry.DEFAULT_LAYOUT.rowH)) < 1e-9 and math.abs(offset - 6.5) < 1e-9, "got " .. tostring(offset))
 end
 
 do
@@ -296,25 +297,29 @@ end
 
 do
   -- The inset's y is measured to the letters, so the field is the title's capital plus the
-  -- inset twice and a row is the inset, the body's capital, one caption line and the inset.
+  -- inset twice and a row is the inset, the body's capital, the step down to the subtitle and
+  -- the inset. The step is the caption's capital plus rowheight's SUB_GAP of 5.3, and with no
+  -- caption capital handed in the caption's capital is its line over 1.35 times 0.7, 9.85.
   local text = { title = { lineHeight = 27 }, body = { lineHeight = 22 }, caption = { lineHeight = 19 } }
   local cap = { title = 14.1, body = 11.3 }
   local inset = { x = 14, y = 10 }
   local d = geometry.derivedRows(text, cap, inset)
-  check("a row is 10 plus the body capital 11.3 plus the caption line 19 plus 10, rounded up to 51",
-    d.rowH == 51, "got " .. tostring(d.rowH))
-  check("the field is a row's 51 plus half again its padding, 10 more, 61",
-    d.baseH == 61, "got " .. tostring(d.baseH))
-  check("DEFAULT_LAYOUT states the same 51 and 61 at the shipped sizes",
-    geometry.DEFAULT_LAYOUT.rowH == 51 and geometry.DEFAULT_LAYOUT.baseH == 61)
+  local step = 19 / 1.35 * 0.7 + 5.3
+  check("a row is 10 plus the body capital 11.3 plus the step 15.15 plus 10, rounded up to 47",
+    d.rowH == math.ceil(10 + 11.3 + step + 10) and d.rowH == 47, "got " .. tostring(d.rowH))
+  check("the field is a row's 47 plus half again its padding, 10 more, 57",
+    d.baseH == d.rowH + 10 and d.baseH == 57, "got " .. tostring(d.baseH))
+  check("DEFAULT_LAYOUT states the same 47 and 57 at the shipped sizes",
+    geometry.DEFAULT_LAYOUT.rowH == d.rowH and geometry.DEFAULT_LAYOUT.baseH == d.baseH)
   local huge = geometry.derivedRows(text, { title = 40, body = 11.3 }, inset)
   check("a title capital of 40 no longer fits a row, so the field grows to 15 plus 40 plus 15",
-    huge.baseH == 70 and huge.rowH == 51, "got " .. tostring(huge.baseH))
+    huge.baseH == 70 and huge.rowH == 47, "got " .. tostring(huge.baseH))
   local bigger = geometry.derivedRows({ title = { lineHeight = 34 }, body = { lineHeight = 26 }, caption = { lineHeight = 22 } },
     { title = 18, body = 14 }, inset)
-  check("a larger body capital 14 and caption line 22 reflow the row to 56, and the field to 66",
-    bigger.rowH == 56 and bigger.baseH == 66, "got " .. tostring(bigger.rowH) .. " " .. tostring(bigger.baseH))
+  local biggerStep = 22 / 1.35 * 0.7 + 5.3
+  check("a larger body capital 14 and caption line 22 reflow the row to 10 plus 14 plus the step 16.7 plus 10, 51, and the field to 61",
+    bigger.rowH == math.ceil(20 + 14 + biggerStep) and bigger.rowH == 51 and bigger.baseH == 61, "got " .. tostring(bigger.rowH) .. " " .. tostring(bigger.baseH))
   local roomier = geometry.derivedRows(text, cap, { x = 14, y = 12 })
-  check("an inset y of 12 grows the row to 55 and the field to 67",
-    roomier.rowH == 55 and roomier.baseH == 67, "got " .. tostring(roomier.rowH) .. " " .. tostring(roomier.baseH))
+  check("an inset y of 12 grows the row to 12 plus 11.3 plus the step 15.15 plus 12, 51, and the field to 63",
+    roomier.rowH == math.ceil(24 + 11.3 + step) and roomier.rowH == 51 and roomier.baseH == 63, "got " .. tostring(roomier.rowH) .. " " .. tostring(roomier.baseH))
 end

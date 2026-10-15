@@ -439,12 +439,18 @@ function obj.toast(deps)
       draw = function(w, h)
         local tokens = ui.tokens()
         local swatch, r, v = tokens.icon.swatch, tokens.radius.nested, tokens.text.code
+        local bw = tokens.stroke.border
         local gap = tokens.space.l
         local els = {
-          { type = "rectangle", action = "strokeAndFill", fillColor = state.color,
-            strokeColor = tokens.colors.border, strokeWidth = 1,
+          { type = "rectangle", action = "fill", fillColor = state.color,
             roundedRectRadii = { xRadius = r, yRadius = r },
             frame = { x = 0, y = (h - swatch) / 2, w = swatch, h = swatch } },
+          -- The outline is drawn inside the swatch, inset by half its width with its corner
+          -- less half its width, so it follows the fill's curve rather than straddling it.
+          { type = "rectangle", action = "stroke",
+            strokeColor = tokens.colors.border, strokeWidth = bw,
+            roundedRectRadii = { xRadius = math.max(0, r - bw / 2), yRadius = math.max(0, r - bw / 2) },
+            frame = { x = bw / 2, y = (h - swatch) / 2 + bw / 2, w = swatch - bw, h = swatch - bw } },
         }
         place(els, ui.text(state.hex, "code", { lineBreak = wordWrap }),
           { x = swatch + gap, y = (h - v.lineHeight) / 2, w = w - swatch - gap,

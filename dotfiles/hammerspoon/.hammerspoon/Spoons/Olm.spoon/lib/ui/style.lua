@@ -108,6 +108,11 @@ local SHIPPED = {
   -- square surface squares everything drawn inside it.
   radius = { surface = 0 },
 
+  -- border is the one border width, overwritten from settings by the spec, and every outline
+  -- and divider takes it. graph is the weight of a data line in a pane's graph, which is a mark
+  -- rather than a border and so has a width of its own.
+  stroke = { border = 1, graph = 1.5 },
+
   -- muted is the report toast's alpha for a row naming something that was not there, added
   -- in stage two beside the two the design names.
   alpha = { dim = 0.4, fade = 0.55, muted = 0.5 },
@@ -401,6 +406,7 @@ function M.new(opts)
       radius = radius,
       alpha = alpha,
       icon = mergeGroup(SHIPPED.icon, spec.icon),
+      stroke = mergeGroup(SHIPPED.stroke, spec.stroke),
       badge = mergeGroup(badges, spec.badge),
       inset = inset,
       pad = pad,

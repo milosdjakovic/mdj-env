@@ -61,7 +61,7 @@ function M.spark(ui, values, lo, hi, color)
   return ui.raw(M.SPARK_GAP + M.SPARK_H, function(rect, tokens)
     local top = rect.y + M.SPARK_GAP
     local base = top + M.SPARK_H
-    local els = { { type = "segments", action = "stroke", strokeWidth = 1,
+    local els = { { type = "segments", action = "stroke", strokeWidth = tokens.stroke.border,
       strokeColor = tokens.colors.border,
       coordinates = { { x = rect.x, y = base }, { x = rect.x + rect.w, y = base } } } }
     if #values < 2 then return els end
@@ -76,7 +76,7 @@ function M.spark(ui, values, lo, hi, color)
       local frac = (span > 0) and ((v - lo) / span) or 0.5
       coordinates[i] = { x = x, y = base - frac * (M.SPARK_H - 1) }
     end
-    els[#els + 1] = { type = "segments", action = "stroke", strokeWidth = 1.5,
+    els[#els + 1] = { type = "segments", action = "stroke", strokeWidth = tokens.stroke.graph,
       strokeColor = tokens.colors[color], strokeCapStyle = "round", coordinates = coordinates }
     return els
   end)

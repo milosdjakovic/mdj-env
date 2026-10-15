@@ -131,7 +131,7 @@ local function seriesColor(ui, color)
 end
 
 local function baseline(rect, base, tokens)
-  return { type = "segments", action = "stroke", strokeWidth = 1, strokeColor = tokens.colors.border,
+  return { type = "segments", action = "stroke", strokeWidth = tokens.stroke.border, strokeColor = tokens.colors.border,
     coordinates = { { x = rect.x, y = base }, { x = rect.x + rect.w, y = base } } }
 end
 
@@ -154,7 +154,7 @@ function M.curve(ui, values, color, height)
     for i, v in ipairs(values) do
       coordinates[i] = { x = rect.x + (i - 1) * step, y = base - (v / hi) * (height - 1) }
     end
-    els[#els + 1] = { type = "segments", action = "stroke", strokeWidth = 1.5,
+    els[#els + 1] = { type = "segments", action = "stroke", strokeWidth = tokens.stroke.graph,
       strokeColor = tokens.colors[color], strokeCapStyle = "round", coordinates = coordinates }
     return els
   end)

@@ -42,6 +42,7 @@ text     title body sub label heading mono big       each {font, size, lineHeigh
 space    xs s m l xl                                  points
 radius   surface nested                               points, nested derived from surface
 pad      one number                                   points, every panel's padding
+stroke   border graph                                 points, outline and divider, graph line
 alpha    dim fade                                     multipliers, one rule each
 icon     row list sheet                               points
 ```
@@ -72,6 +73,20 @@ radius changes every corner on the next draw, and a surface set to 0 squares eve
 it. Padding has to be the same on all four sides for the corners to fit, which is why `pad` is
 one number rather than an x and a y. The dry gate refuses a number written into a radius
 anywhere outside `lib/ui`, through the same scan as the typography rule.
+
+## Borders
+
+`surface.borderWidth` in `config/settings.lua` is the only border width a person sets, and the
+kit hands it on as `stroke.border`. Every outline and every divider takes that width and the
+`border` colour role, the surface's own border, the colour swatch's outline and a graph's
+baseline. A line in a graph is a mark rather than a border and takes `stroke.graph`.
+
+The padding the corner formula subtracts is measured from the outer edge of the surface, border
+included, so a border needs no change to the formula. A stroke is drawn inside its shape, its
+frame inset by half the width and its corner less half the width, the nested rule once more, so
+the line follows the curve of the fill it outlines rather than straddling it. Chips, badges and
+the highlighted row carry no border, they read by their `highlight` fill. The dry gate refuses a
+number written into a stroke width outside `lib/ui`, the same scan as the corners.
 
 ## The primitives
 

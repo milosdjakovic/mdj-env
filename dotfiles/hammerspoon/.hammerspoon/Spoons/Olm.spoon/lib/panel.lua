@@ -212,9 +212,11 @@ function obj.surfaceElements(w, h, style)
   end
   local border = side.border and hexColor(side.border)
   if border then
-    -- Inset by half the stroke so the full border stays inside the canvas bounds.
+    -- Inset by half the stroke so the full border stays inside the canvas bounds, and its
+    -- corner less half the stroke, the nested rule, so the line follows the fill's curve.
+    local sr = math.max(0, radius - bw / 2)
     els[#els + 1] = { type = "rectangle", action = "stroke", strokeColor = border,
-      strokeWidth = bw, roundedRectRadii = radii,
+      strokeWidth = bw, roundedRectRadii = { xRadius = sr, yRadius = sr },
       frame = { x = bw / 2, y = bw / 2, w = w - bw, h = h - bw } }
   end
   return els

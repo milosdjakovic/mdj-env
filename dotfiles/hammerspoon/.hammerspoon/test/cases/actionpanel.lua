@@ -66,9 +66,9 @@ local NOOP_RUN = function() end
 -- coordinator's review found missing entirely, so this stands in for it too, a plain string
 -- the fake stores rather than anything the real atom's query changed callback would fire on,
 -- since nothing here needs that callback to fire on to prove the panel restores what it
--- captured. matcher stands in for the contract freeze phase's own accessor, answering nil,
--- exactly what a fake never given one always answered back when the panel read it as a plain
--- field, so this file's own known substring failure keeps reading exactly as it did before.
+-- captured. matcher stands in for the contract freeze phase's own accessor, the live answer the
+-- panel reads to decide whether it filters its own rows. opts.matcher sets what it answers, and
+-- a fake given none answers nil, a chooser with no matcher of its own set.
 local function fakeInstance(opts)
   opts = opts or {}
   local instance = {
@@ -81,7 +81,8 @@ local function fakeInstance(opts)
   instance.isShowing = function() return instance.showing end
   instance.selectedItem = function() return instance.item end
   instance.selectedRow = function() return instance.row end
-  instance.matcher = function() return nil end
+  local matcherAnswer = opts.matcher
+  instance.matcher = function() return matcherAnswer end
   instance.selectRow = function(_, n) instance.row = n end
   instance.query = function() return instance.q end
   instance.setQuery = function(_, text) instance.q = text or "" end
@@ -715,9 +716,10 @@ do
 end
 
 -- The panel filters its own rows by a plain case insensitive substring against the title when
--- config.matcher was false at decoration time, the supplier owning filtering, and answers
--- every row unfiltered otherwise, letting the instance's own matcher rank the full list, the
--- same choice the atom already gives every consumer over its ordinary rows.
+-- the instance's live matcher answers false, the supplier owning filtering, and answers every
+-- row unfiltered otherwise, letting the instance's own matcher rank the full list. It is read
+-- from the instance on every call rather than from the config at decoration time, since the
+-- stage shares one instance whose matcher is written before every show.
 do
   local ap = configuredPanel({
     demo = {
@@ -726,8 +728,8 @@ do
       { title = "Back" },
     },
   })
-  local config = fakeConfig({ matcher = false })
-  local instance = fakeInstance({ showing = true })
+  local config = fakeConfig()
+  local instance = fakeInstance({ showing = true, matcher = false })
   ap:decorate(instance, config)
   ap:toggle("demo")
   local filtered = config.rows("the")
@@ -741,8 +743,8 @@ do
   local ap = configuredPanel({
     demo = { { action = "doThing", title = "Do The Thing" }, { title = "Back" } },
   })
-  local config = fakeConfig({ matcher = function() return 1 end })
-  local instance = fakeInstance({ showing = true })
+  local config = fakeConfig()
+  local instance = fakeInstance({ showing = true, matcher = function() return 1 end })
   ap:decorate(instance, config)
   ap:toggle("demo")
   local unfiltered = config.rows("the")
