@@ -31,9 +31,8 @@
 --- builds no window any more. Its rows and its selection dispatch are exactly what they
 --- always were, now named on the manifest's own presentation block instead of handed to a
 --- Chooser.new call this file no longer makes, and rowCount there is what asks the stage
---- for the two row window this tool has always needed, since the larger row font clips a
---- single row at one. The plugin root's own three function surface, isShowing, hide, and
---- insertSelected, is gone too, deleted along with the Chooser.new block that gave it
+--- for a one row window, since this tool only ever shows one morphing row. The plugin root's
+--- own three function surface, isShowing, hide, and insertSelected, is gone too, deleted along with the Chooser.new block that gave it
 --- something to answer for, host/stage's own surfaceFor answering all five generic nav
 --- verbs now that a presentation exists to find. surface.nav stays false in the manifest,
 --- unrelated to any of this since lib/surface.lua reads it at the binding layer to decide

@@ -44,6 +44,7 @@ if [ "$tiers" = "dry" ]; then
     exit 2
   fi
   lua "$here/ranking.lua" || exit 1
+  lua "$here/geometry.lua" || exit 1
   echo
   exec "$here/drygate.sh" "$@"
 fi

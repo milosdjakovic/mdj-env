@@ -60,9 +60,9 @@ return {
   -- everywhere else a member is not a presentation's own. placeholder resolves once, at
   -- register, to the static field wording.
   --
-  -- rowCount is the row count exerciser named in the stage design brief itself, the one
+  -- rowCount is one, since this tool only ever shows its one morphing row, and it is the one
   -- consumer in the whole tree that differs from the atom's own default of ten. A window
-  -- built for some other presentation's ten rows is hidden, rebuilt at two, and reshown the
+  -- built for some other presentation's ten rows is hidden, rebuilt at one, and reshown the
   -- moment this presentation becomes current, the one resize path that exists, and the same
   -- happens in reverse the moment anything else is shown next, both blinks host/stage's own
   -- _applyRowCount pays rather than this plugin.
@@ -75,7 +75,7 @@ return {
     rows = { member = "rows", call = "dot" },
     select = { member = "select", call = "dot" },
     placeholder = { member = "placeholder", call = "dot" },
-    rowCount = 2,
+    rowCount = 1,
     matcher = false,
   },
 

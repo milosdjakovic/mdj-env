@@ -34,8 +34,8 @@ return {
     nav = false,
   },
 
-  -- rowCount is two for the same reason keep awake declares it, the larger row font clips a
-  -- single row at one.
+  -- rowCount is one, since this tool only ever shows its one morphing row and the default
+  -- chooser sizes a one row window to exactly that row.
   --
   -- matcher is a real false in both places. The field is a value being typed, so rows parses
   -- it on every keystroke and answers the row that value means, and a fuzzy pass over that
@@ -44,7 +44,7 @@ return {
     rows = { member = "rows", call = "dot" },
     select = { member = "select", call = "dot" },
     placeholder = { member = "placeholder", call = "dot" },
-    rowCount = 2,
+    rowCount = 1,
     matcher = false,
   },
 

@@ -120,7 +120,9 @@ M.DEFAULT_LAYOUT = {
   rowH = 47,
   rowCount = 9,
   -- How much of one more row the list shows below its whole rows, asked for on 2026 10 14 so
-  -- a half visible row says the list goes on. The viewport is rowCount plus this many rows.
+  -- a half visible row says the list goes on. The viewport is rowCount plus this many rows,
+  -- except a one row viewport takes no peek, since a tool that shows one row never has a list
+  -- that continues and the peek would only be empty space.
   peek = 0.3,
   padX = 14,
   iconSize = 33,
@@ -193,7 +195,7 @@ function M.resolve(screenFrame, layout, paneWidth)
   layout = layout or M.DEFAULT_LAYOUT
 
   local rowCount = trimmedRowCount(screenFrame, layout)
-  local viewRows = rowCount + ((rowCount > 0) and (layout.peek or 0) or 0)
+  local viewRows = rowCount + ((rowCount > 1) and (layout.peek or 0) or 0)
   local canvasW = layout.width
   local canvasH = layout.marginY + layout.baseH + viewRows * layout.rowH
 
