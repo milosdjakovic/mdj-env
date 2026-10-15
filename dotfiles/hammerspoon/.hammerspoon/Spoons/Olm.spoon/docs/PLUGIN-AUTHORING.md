@@ -431,9 +431,43 @@ A row says `icon = "key"` to use one of its own plugin's icons. A child presenta
 resolve the same way, so one declaration serves every place a row appears. A key your manifest
 does not declare logs one warning naming the plugin and the key, and the row shows no icon.
 
-A glyph that is content, known only at runtime, is a table spec on the row and never a key, as
+The plugin's own identity icon, the one its launcher row, its action panel and its scoped list
+wear, is `defaults.icon`, and it is a key into the same table. Name the key for the plugin and
+declare it like any other.
+
+```lua
+icons = { vpn = { emoji = "🌐", sf = "globe" } },
+defaults = { leader = "app", key = "P", description = "VPN", icon = "vpn" },
+```
+
+A key `defaults.icon` names that `icons` does not declare is refused at register with one console
+line naming your plugin. A table spec is also accepted there, though a key serves the plugin's
+own rows too and is preferred. A person who writes a string over it in `config/keys.lua` that is
+not a declared key means an emoji, the plain shorthand. An action panel verb or a binding names
+its icon the same way, `icon = "key"` on the binding, read against the plugin that owns the
+context. A computed row source names `icon = "key"` on the rows it answers, and the root
+resolves them against that plugin.
+
+Give every entry an `sf` name beside its `emoji`. Prefer the outline style SF uses in menus and
+sidebars and fill only where the meaning needs it, a status dot. Every name must exist, so check
+each one before it is written by running this through `osascript -l JavaScript` and replacing any
+that print missing.
+
+```js
+ObjC.import('AppKit');
+var names = ['circle.fill', 'clock'];
+names.map(function(n){ var i = $.NSImage.imageWithSystemSymbolNameAccessibilityDescription(n, $('x')); return n + ' ' + (i.isNil() ? 'missing' : 'ok'); }).join('\n');
+```
+
+The dry gate prints one coverage line per icon source and a warning for every plugin and key
+with no `sf` entry. An entry may carry `content = true`, which is not a source, to mark a glyph
+that is content and leave it out of the count. It also refuses a literal `icon = "key"` in any
+Lua file of a plugin when the manifest does not declare that key.
+
+Content, known only at runtime, is a table spec on the row and never a key, as
 in `icon = { emoji = flag }` for a country flag or the emoji a picker is offering. Switching the
-set then never changes what the content is. A row that already carries an `image` keeps it,
+set then never changes what the content is, so such a spec has no `sf` entry by design, and a
+comment where it is built says so. A row that already carries an `image` keeps it,
 since a real picture, an application icon or a file icon, is not an icon key. A colour swatch or
 a thumbnail is content and is the one kind of drawing that may stay in a plugin, declared in
 `test/drygate-accepted.txt` with its reason, and the dry gate refuses any other file under

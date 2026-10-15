@@ -116,7 +116,16 @@ against the icons of the plugin that owns the presentation or the scope, through
 `lib/icons/rows.lua`. A row may instead carry a table spec such as `icon = { emoji = flag }` for
 a glyph that is content, and a row that carries an `image` keeps it. The registrar refuses a
 declaration that is not a table, a key that is not a string, or an entry with no string value for
-any source. A key a row names that nothing declares logs one warning and the row shows no icon.
+any source, and an entry may carry `content = true`, which is not a source and only marks the icon
+for the dry gate's coverage report.
+
+`defaults.icon` is the plugin's identity icon, read by the launcher row, the action panel and the
+scoped list. It is a key into `icons`, or a table spec. The registrar refuses a
+key that `icons` does not declare, naming the plugin. A binding, a row and a `registry.row` name
+an icon the same way with `icon = "key"`, and `defaults.glyph` and every `glyph` field are gone.
+`lib/icons/rows.lua` `image(spec, owner)` is the one function that resolves an owner and a key
+or a spec, and a string that is not an identifier, an emoji a person wrote in config, reads as
+`{ emoji = string }`. A key a row names that nothing declares logs one warning and the row shows no icon.
 Which source draws is the active set in `config/icons.toml`, with the fallback behind it.
 
 ### needs.tools
@@ -495,7 +504,7 @@ anything captured at declare time would capture nothing, permanently and silentl
 
 ```lua
 registry = {
-  row = { category = "Tools", glyph = "🗂️", detail = "...", keywords = "..." },
+  row = { category = "Tools", icon = "filesearch", detail = "...", keywords = "..." },
   open = "show",                                  -- a colon method on this plugin's root
   surface = "chooser",                            -- this plugin's own submodule
   hosted = true,
@@ -525,12 +534,12 @@ A member is a bare string for a colon method on the plugin root, or a table carr
 may be `true` to mean the plugin root itself.
 
 `row` is what a person reads. Its `category` is required for a row to exist at all, and
-`description`, `glyph`, `aliases`, `key` and `leader` come from `defaults` rather than being
+`description`, `icon`, `aliases`, `key` and `leader` come from `defaults` rather than being
 retyped here, so one answer serves the row, the key binding and the scope directory.
 
 `row.bundle` is a bundle id for a tool that fronts exactly one application, and it puts that
-application's real icon on the launcher row in place of the drawn glyph, resolved by the
-launcher at row build. The glyph stays declared as the fallback for every other surface and
+application's real icon on the launcher row in place of the drawn icon, resolved by the
+launcher at row build. The icon stays declared as the fallback for every other surface and
 for a machine where the bundle resolves to nothing. Obsidian is the consumer.
 
 `row.detail` is display text when it is a string, which is nearly every row. It may instead
@@ -566,7 +575,7 @@ app leader to SUPER carries every default with it.
 ```lua
 defaults = {
   leader = "app", key = "j", description = "Emoji picker",
-  glyph = "😀", aliases = { "e", "emoji" },
+  icon = "emoji", aliases = { "e", "emoji" },
 },
 ```
 

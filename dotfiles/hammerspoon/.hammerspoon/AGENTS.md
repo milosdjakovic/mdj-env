@@ -679,11 +679,17 @@ changes in its own file. `decisions/olm-colour-roles.md` has what was rejected.
 in `Spoons/Olm.spoon/lib/icons`, a Strategy over sources that answer a name and a draw function,
 the emoji source and the SF Symbol source today. A plugin never draws a row icon. It declares
 `icons` in its manifest and a row says `icon = "key"`, or `icon = { emoji = glyph }` for content,
-and the stage and the query scope resolve it in one helper. `config/icons.toml` holds the only
+and the stage and the query scope resolve it in one helper. The plugin's own identity icon, which
+the launcher row, the action panel and the scoped list wear, is `defaults.icon`, a key into the
+same `icons`, and an action panel verb or a binding names its icon the same way. A string a person
+writes over it in config that is not a key the plugin declares reads as an emoji. Every spec carries
+an `sf` entry beside its `emoji` except content, and the dry gate's coverage line says so. `config/icons.toml` holds the only
 two things a person sets, the active set and its fallback, and the colour a symbol is drawn in is
 the foreground role through the kit, so it follows the light and dark halves. The emoji source
 keeps the 72 point canvas with the glyph at 60 that looked right live, and `lib/glyphicon.lua` and
-the kit's `iconImage` both draw through the engine. The dry gate refuses a plugin file that
+the kit's `iconImage` both draw through the engine. One function, `image(spec, owner)` in
+`lib/icons/rows.lua`, turns an owner and a key or a spec into an image, and every reader goes
+through it. The dry gate refuses a plugin file that
 creates a canvas and snapshots it into an image, apart from the files listed with a reason in
 `Spoons/Olm.spoon/test/drygate-accepted.txt`. `decisions/olm-icons.md` has what was rejected.
 
@@ -1098,8 +1104,8 @@ every list.
 **Back is the first row in a chooser menu.** For a menu style chooser with levels,
 like DisplayProfiles, the Back row is always the first row, not the last, so
 stepping out is the predictable default and the fresh highlight lands on it, and it
-is never hunted for at the bottom. It reads Back and it carries the ⬅️ glyph, one
-label and one glyph across every menu here, so stepping out looks the same wherever
+is never hunted for at the bottom. It reads Back and it carries the back icon, one
+label and one icon across every menu here, so stepping out looks the same wherever
 it is met rather than each menu inventing its own way out. Two related cases follow
 the same spirit rather than the letter. A confirm screen leads with the safe cancel,
 DisplayProfiles' delete leads with Keep, so the default and a stray Return do the
@@ -1458,24 +1464,24 @@ launcher and deleting the space hands the list back. Olm's QueryScope host is th
 claims, and it names no tool. This root names the concrete scopes, each a thin adapter over
 a tool that already answers a rows and a select, so a tool never learns it can be scoped.
 
-Adding one is two edits and there is no third. The `aliases` and `glyph` fields go on that
-tool's existing `config/keys.lua` entry, and one `scope(name, policy)` line goes in the list
+Adding one is two edits and there is no third. The `aliases` field goes on that
+tool's existing `config/keys.lua` entry, and its icon is the `defaults.icon` its manifest already declares, and one `scope(name, policy)` line goes in the list
 here, where the policy is only where the rows come from, what choosing one does, what
 previewing one does, and whether the shared matcher applies. Everything a scope says about
 itself is read from that one entry by that helper, and one identity ties it together, the
 tool's key in the pure data, which is also what its launcher row descriptor carries and what
 the scope is registered under. So the hint on its row, its place in the alias directory, and
 the text that enters it all follow from the two edits, and there is nowhere left to state a
-title, a glyph, or an alias a second time and have the two copies disagree. That identity is
+title, an icon, or an alias a second time and have the two copies disagree. That identity is
 also why the keep awake scope is named `caffeinate` rather than `keepAwake`, since a scope
 this root cannot find by the tool's own name is a scope every derived surface has to be told
 about separately.
 
 The aliases live in that pure data so the row advertising them and the resolver
 answering them read one thing and cannot drift, the same reason a key is data rather than
-something each surface knows. The `glyph` is there for the same reason and only where it
-earns it, a scoped tool being drawn both on its launcher row and on the rows its scope
-produces, while a row that appears in one list only keeps its glyph at that call site. Exposing the pair is the one change a scoped tool takes,
+something each surface knows. The icon is declared once in the tool's manifest as `defaults.icon`
+for the same reason, a scoped tool being drawn both on its launcher row and on the rows its scope
+produces. Exposing the pair is the one change a scoped tool takes,
 `Caffeinate` exports the `rows` and `select` its own chooser was already built from, which
 hands out the data rather than inviting a second copy of the parse, so two surfaces cannot
 disagree about what a typed value means. Nothing here is a bound shortcut, so the mandates do

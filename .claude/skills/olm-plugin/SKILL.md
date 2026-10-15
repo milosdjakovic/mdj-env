@@ -160,7 +160,10 @@ to report, never a reason for a local literal.
 
 Never draw a row icon. A plugin declares its icons in its manifest `icons` table and names one
 on a row with `icon = "key"`, or with a table spec such as `icon = { emoji = flag }` for a glyph
-that is content, and Olm draws it. A row that carries a real picture keeps its `image`. The
+that is content, and Olm draws it. The plugin's own identity icon is `defaults.icon`, a key into
+the same `icons`, named for the plugin, and a binding or a verb names its icon the same way. Every
+entry gets an `sf` name beside its `emoji`, each checked to exist before it is written, and content
+is the only spec without one. A row that carries a real picture keeps its `image`. The
 active icon set is one setting in `config/icons.toml`, and the dry gate refuses a plugin file
 that draws a canvas into an image.
 
@@ -182,7 +185,7 @@ existing word before minting a new one, since a vocabulary of one word per plugi
 vocabulary nobody can pay. Siblings exist and are rare, prefer not needing one.
 
 Configuration splits three ways. The plugin proposes its own `defaults`, a leader role, a key,
-aliases, a glyph, and a person overrides them outside the plugin, rebinding a physical key only
+aliases, an icon, and a person overrides them outside the plugin, rebinding a physical key only
 in `config/keys.lua`, so no other file ever names one. Person supplied policy arrives as `needs.data` with `source = "user"`,
 always optional, always with a `breaks` sentence and a working fallback.
 
