@@ -93,7 +93,7 @@ number written into a stroke width outside `lib/ui`, the same scan as the corner
 ```
 text(str, variant, {color, align, lineBreak, wrap, width})
 badge(key, size)              size names cheat, hint or button
-icon(imageOrGlyph, size)      a glyph is drawn to an hs.image, cached, so the same call
+icon(imageOrGlyph, size)      a glyph or an icon spec is drawn by the root's icon engine, so the same call
                               also feeds a legacy chooser row
 row(children, {gap, align, fillIndex})
                               left to right, the last child takes the remaining width, or the
@@ -261,5 +261,7 @@ An icon is not text. A glyph or an emoji drawn into a small canvas to make a row
 or a filter glyph is an image, and its size is the box it fills. Such a site declares itself with
 a comment on its line or the line directly above reading `type-exempt`, a comma and the reason,
 the same form as `theme-exempt`. The gate prints every exempted line as an accepted item and
-counts it, and an exemption with no reason is a finding. Moving those sites onto icon tokens in
-the kit is a separate decision, recorded in `docs/PLAN-TYPOGRAPHY.md`.
+counts it, and an exemption with no reason is a finding. Row icons no longer need the exemption in
+a plugin, since Olm draws them through the icon engine in `lib/icons`, and the one canvas that draws
+an emoji there carries it. Moving other sites onto icon tokens in the kit is a separate decision,
+recorded in `docs/PLAN-TYPOGRAPHY.md`.

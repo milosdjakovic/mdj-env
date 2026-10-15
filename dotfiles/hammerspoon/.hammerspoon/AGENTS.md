@@ -675,6 +675,18 @@ keys under `[dark]` and `[light]`. The Aura one is generated, so a colour change
 `theme/palettes` or in `theme-map` beside this directory, and the hand written default theme
 changes in its own file. `decisions/olm-colour-roles.md` has what was rejected.
 
+**Olm icons, one engine and a name on the row.** Every icon Olm draws comes out of the one engine
+in `Spoons/Olm.spoon/lib/icons`, a Strategy over sources that answer a name and a draw function,
+the emoji source and the SF Symbol source today. A plugin never draws a row icon. It declares
+`icons` in its manifest and a row says `icon = "key"`, or `icon = { emoji = glyph }` for content,
+and the stage and the query scope resolve it in one helper. `config/icons.toml` holds the only
+two things a person sets, the active set and its fallback, and the colour a symbol is drawn in is
+the foreground role through the kit, so it follows the light and dark halves. The emoji source
+keeps the 72 point canvas with the glyph at 60 that looked right live, and `lib/glyphicon.lua` and
+the kit's `iconImage` both draw through the engine. The dry gate refuses a plugin file that
+creates a canvas and snapshots it into an image, apart from the files listed with a reason in
+`Spoons/Olm.spoon/test/drygate-accepted.txt`. `decisions/olm-icons.md` has what was rejected.
+
 **Olm corners, one radius and one formula.** Every corner Olm draws, a chip, a key badge, the
 chooser's highlighted row, a preview picture, a swatch, is derived from the one surface radius,
 `surface.cornerRadius` in `config/settings.lua`. The formula is inner radius equals outer radius

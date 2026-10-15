@@ -5,7 +5,8 @@ Run it.
 ```
 Spoons/Olm.spoon/test/suite.sh              # everything
 Spoons/Olm.spoon/test/suite.sh dry          # plain lua, no Hammerspoon, no lock, see below
-Spoons/Olm.spoon/test/ranking.lua           # one of the two dry runs, standalone, see below
+Spoons/Olm.spoon/test/ranking.lua           # one of the three dry runs, standalone, see below
+Spoons/Olm.spoon/test/icons.lua             # the icon engine, the config file, the row resolver and the two sources
 Spoons/Olm.spoon/test/suite.sh structure    # no screen needed, fast, safe any time
 Spoons/Olm.spoon/test/suite.sh surface      # opens and closes every picker
 Spoons/Olm.spoon/test/suite.sh behaviour    # the hand written per plugin scenarios
@@ -33,7 +34,7 @@ module under a permissive stub, attempting its own configure too, since a real t
 assembles the very members this checks against inside configure rather than at load. A
 module that will not load or will not configure under that stub is reported UNKNOWN rather
 than guessed at as passing or failing, since an honest unknown beats a false green. Read
-`drygate.lua`'s own header for the full account of what each of its four checks actually
+`drygate.lua`'s own header for the full account of what each of its checks actually
 reuses, and `drygate-composewords.lua`'s own header for the one check, a root sourced word
 against what `root/compose.lua` publishes, that is a structural scan of that file's source
 text rather than a real read, and exactly what that scan can and cannot see.

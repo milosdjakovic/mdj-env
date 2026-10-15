@@ -523,9 +523,9 @@ shared `Olm.spoon/lib/glyphicon.lua` in phase eight's third packet, once
 `ActionPanel` became a genuine second caller of the exact same drawing. This
 spoon keeps `_glyphIcon` as the thin caller everything here already reaches
 through, delegating to an instance the composition root builds and injects as
-`opts.glyphIcon`, so a glyph is still rendered to an image once through
-`hs.canvas` and cached, in the exact same size and frame as before, and it
-still lines up in the row with the app icons. The cache itself now lives on
+`opts.glyphIcon`, which since 2026 10 15 is a thin facade over the one icon engine in
+`lib/icons`, so a glyph is still drawn to an image once and cached, in the same size and
+frame as before, and it still lines up in the row with the app icons. The cache itself now lives on
 the injected instance rather than on a field of this spoon, and the root hands
 the panel the very same instance, so a glyph the two happen to share, the
 arrow pointing back among them, is drawn once rather than twice.

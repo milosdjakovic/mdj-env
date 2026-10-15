@@ -400,6 +400,45 @@ primary, the second secondary and the third tertiary, since accents are ranks an
 meaning. "Olm colour, eight roles and nothing else" in the config's `AGENTS.md` is the rule and
 says what each role is for.
 
+## Row icons
+
+A plugin never draws a row icon. It declares its icons in its manifest and names one on a row,
+and Olm draws it, so every icon comes out of one engine and the active icon set is one setting
+in `config/icons.toml`.
+
+```lua
+-- manifest.lua
+icons = {
+  on  = { emoji = "🟢", sf = "circle.fill" },
+  off = { emoji = "🔴", sf = "circle" },
+},
+```
+
+Each key is a name your rows use and each value is a table of source name to the value that
+source understands, an emoji string for `emoji` and an SF Symbol name for `sf`. Give every
+entry at least one string. The set in use is tried first and the fallback after it, so an
+entry with only an emoji still shows when the set is `sf`. A broken declaration, a table that
+is not one, a key that is not a string, an entry with no string value, is refused at register
+with one console line naming your tool.
+
+```lua
+-- in rows
+{ title = "Deactivate", icon = "off", item = item }
+```
+
+A row says `icon = "key"` to use one of its own plugin's icons. A child presentation your
+`select` returns resolves against the same plugin, and the rows your launcher scope shows
+resolve the same way, so one declaration serves every place a row appears. A key your manifest
+does not declare logs one warning naming the plugin and the key, and the row shows no icon.
+
+A glyph that is content, known only at runtime, is a table spec on the row and never a key, as
+in `icon = { emoji = flag }` for a country flag or the emoji a picker is offering. Switching the
+set then never changes what the content is. A row that already carries an `image` keeps it,
+since a real picture, an application icon or a file icon, is not an icon key. A colour swatch or
+a thumbnail is content and is the one kind of drawing that may stay in a plugin, declared in
+`test/drygate-accepted.txt` with its reason, and the dry gate refuses any other file under
+`plugins` that creates a canvas and snapshots it into an image.
+
 ## Tools your plugin needs
 
 A plugin declares what it needs on the machine and installs nothing. Every external binary or

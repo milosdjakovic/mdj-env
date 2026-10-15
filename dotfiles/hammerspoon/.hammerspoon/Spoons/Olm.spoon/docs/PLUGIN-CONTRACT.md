@@ -100,6 +100,25 @@ answers to. Olm names the mismatch out loud at compose time rather than merging 
 nothing, but the fix is still to write the identity a plugin claims for itself, never the
 folder it was found in.
 
+### icons
+
+The row icons a plugin names, a table of key to a table of source name to value. Pure data like
+the rest of the manifest.
+
+```lua
+icons = {
+  on = { emoji = "🟢", sf = "circle.fill" },
+},
+```
+
+A row says `icon = "on"` and the stage, and the query scope for launcher scope rows, resolve it
+against the icons of the plugin that owns the presentation or the scope, through
+`lib/icons/rows.lua`. A row may instead carry a table spec such as `icon = { emoji = flag }` for
+a glyph that is content, and a row that carries an `image` keeps it. The registrar refuses a
+declaration that is not a table, a key that is not a string, or an entry with no string value for
+any source. A key a row names that nothing declares logs one warning and the row shows no icon.
+Which source draws is the active set in `config/icons.toml`, with the fallback behind it.
+
 ### needs.tools
 
 An external binary or bundle, and now the only place a tool is ever declared. A second

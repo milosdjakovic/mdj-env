@@ -158,6 +158,12 @@ colour, accents are ranks that a graph takes in order, and the section of that `
 colour says what each role is for. A pane that needs something the kit cannot draw is a finding
 to report, never a reason for a local literal.
 
+Never draw a row icon. A plugin declares its icons in its manifest `icons` table and names one
+on a row with `icon = "key"`, or with a table spec such as `icon = { emoji = flag }` for a glyph
+that is content, and Olm draws it. A row that carries a real picture keeps its `image`. The
+active icon set is one setting in `config/icons.toml`, and the dry gate refuses a plugin file
+that draws a canvas into an image.
+
 Never write an install command anywhere, not in code, not in a comment, not in help text a
 person reads. The repository root holds the answer key for where every tool comes from.
 
