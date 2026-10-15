@@ -192,6 +192,13 @@ do
   local out = resolver.resolveAll({ plain, keyed }, "vpn")
   check("a list that needed something is a new list", out[2].image.value, "A")
   check("the rows that needed nothing are the same rows", out[1], plain)
+
+  -- The one resolution every reader of an icon shares, an identity icon included.
+  check("image resolves a declared key for its owner", resolver.image("on", "vpn").value, "A")
+  check("image draws a table spec as it stands", resolver.image({ emoji = "Q" }, "any").value, "Q")
+  check("image reads a string that is not an identifier as an emoji", resolver.image("\u{2615}", "vpn").value, "\u{2615}")
+  check("image answers nil for nil", resolver.image(nil, "vpn"), nil)
+  check("image answers nil for an identifier nobody declared", resolver.image("coffee", "vpn"), nil)
 end
 
 -- The manifest check.
@@ -212,6 +219,23 @@ do
   _, ok, logs = verdict("nope")
   check("a non table is refused", ok, false)
   check("a refusal names the plugin", logs[1]:find("registrar refused 'x'", 1, true) ~= nil, true)
+  local function defaultsVerdict(icons, identity)
+    local logs = {}
+    local _, good = registrarLib.validateIcons("x", { icons = icons, defaults = { icon = identity } }, {
+      log = function(level, msg) logs[#logs + 1] = msg end,
+    })
+    return good, logs
+  end
+  ok = defaultsVerdict({ x = { emoji = "A" } }, "x")
+  check("a defaults icon naming a declared key is accepted", ok, true)
+  local dlogs
+  ok, dlogs = defaultsVerdict({ x = { emoji = "A" } }, "y")
+  check("a defaults icon naming an undeclared key is refused", ok, false)
+  check("that refusal names the plugin and the key", dlogs[1]:find("registrar refused 'x'", 1, true) ~= nil and dlogs[1]:find("'y'", 1, true) ~= nil, true)
+  ok = defaultsVerdict(nil, "y")
+  check("a defaults icon with no icons table is refused", ok, false)
+  ok = defaultsVerdict(nil, { emoji = "A" })
+  check("a defaults icon given as a table spec is accepted", ok, true)
   _, ok = verdict({ [1] = { emoji = "A" } })
   check("a key that is not a string is refused", ok, false)
   _, ok = verdict({ on = {} })
@@ -273,3 +297,24 @@ do
 end
 
 if failed then os.exit(1) end
+
+-- The static checks the dry gate runs, see test/drygate-icons.lua.
+do
+  local scan = dofile(here .. "drygate-icons.lua")
+  local hits = scan.literalKeys('local a = { icon = "on" }\n-- icon = "commented"\nlocal b = { icon = "\u{2615}" } -- icon = "trailing"\nlocal c = { icon = "off", x = 1 }\n')
+  check("the scan finds a literal key on a code line", hits[1].key .. "@" .. hits[1].line, "on@1")
+  check("the scan skips a comment, an emoji and a trailing comment", #hits, 2)
+  check("the scan finds the next literal key", hits[2].key .. "@" .. hits[2].line, "off@4")
+  check("a source is a file under lib/icons/sources", table.concat(scan.sourceNames({
+    "x/lib/icons/sources/sf.lua", "x/lib/icons/init.lua", "x/lib/icons/sources/emoji.lua" }), ","), "emoji,sf")
+  local report = scan.coverage({
+    { owner = "a", key = "one", spec = { emoji = "1", sf = "one" } },
+    { owner = "a", key = "two", spec = { emoji = "2" } },
+    { owner = "b", key = "flag", spec = { emoji = "F", content = true } },
+  }, { "emoji", "sf" })
+  check("coverage counts the specs that are not content", report.total, 2)
+  check("coverage counts content apart", report.content, 1)
+  check("coverage counts a source entry", report.covered.sf, 1)
+  check("coverage names a spec with no entry for a source", report.missing.sf[1], "a two")
+  check("a source that covers everything names nothing", #report.missing.emoji, 0)
+end

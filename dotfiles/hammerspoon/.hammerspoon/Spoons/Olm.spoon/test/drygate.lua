@@ -143,6 +143,7 @@ local function finding(line)
   end
 end
 local function warning(line) warnings[#warnings + 1] = line end
+local coverageLines = {}
 local function unknown(dir, reason)
   unknowns[#unknowns + 1] = string.format("dry gate, '%s', unknown, %s", dir, reason)
 end
@@ -632,6 +633,88 @@ do
 end
 
 ----------------------------------------------------------------------------------------
+-- Seven, the icon declarations, see test/drygate-icons.lua. Two questions are asked here.
+--
+-- The first is static. A row literal icon = "key" in a plugin's own Lua must name a key its
+-- manifest declares under icons, since a key nothing declares draws nothing and the plugin only
+-- says so at run time. Every Lua file under a plugin or a host directory is read, the manifest
+-- included, so defaults.icon and a binding's icon are held to the same rule.
+--
+-- The second is a report. For every icon source, one line says how many declared specs have an
+-- entry for it, and a warning names each plugin and key that has none, so a set that does not
+-- cover everything is visible rather than found by a row that draws nothing. A spec marked
+-- content = true is left out of the counts. Content built at run time, an emoji picker's glyph
+-- or a country flag, is not in a manifest and so is not counted at all.
+----------------------------------------------------------------------------------------
+
+do
+  local iconsScan = dofile(scriptDir .. "drygate-icons.lua")
+  local list = os.getenv("DRYGATE_SOURCES")
+  local paths = {}
+  if list and list ~= "" then
+    for path in list:gmatch("[^\n]+") do paths[#paths + 1] = path end
+  end
+
+  for _, path in ipairs(paths) do
+    local rel = path:sub(1, #spoonDir) == spoonDir and path:sub(#spoonDir + 1) or path
+    local dir = rel:match("^plugins/([^/]+)/") or rel:match("^host/([^/]+)/")
+    local manifest = dir and manifestsByDir[dir]
+    if manifest then
+      local f = io.open(path, "r")
+      if f then
+        local text = f:read("a")
+        f:close()
+        local declaredKeys = type(manifest.icons) == "table" and manifest.icons or {}
+        for _, hit in ipairs(iconsScan.literalKeys(text)) do
+          if declaredKeys[hit.key] == nil then
+            finding(string.format(
+              "dry gate refused '%s', line %d, icon = \"%s\" names a key the manifest of '%s' does not declare under icons, declare it there with an emoji and an sf entry or name one it has",
+              rel, hit.line, hit.key, dir))
+          end
+        end
+      end
+    end
+  end
+
+  local declared = {}
+  local dirs = {}
+  for dir in pairs(manifestsByDir) do dirs[#dirs + 1] = dir end
+  table.sort(dirs)
+  for _, dir in ipairs(dirs) do
+    local manifest = manifestsByDir[dir]
+    -- The registrar's own check of the icons table and of defaults.icon, so a key the manifest
+    -- names as its identity icon without declaring it is a finding here and not only a refused
+    -- registration at load.
+    registrarLib.validateIcons(identityOfDir[dir] or dir, manifest, {
+      log = function(_, message) finding("dry gate, " .. message) end,
+    })
+    if type(manifest.icons) == "table" then
+      for key, spec in pairs(manifest.icons) do
+        if type(spec) == "table" then declared[#declared + 1] = { owner = dir, key = key, spec = spec } end
+      end
+    end
+    local identity = type(manifest.defaults) == "table" and manifest.defaults.icon
+    if type(identity) == "table" then
+      declared[#declared + 1] = { owner = dir, key = "defaults.icon", spec = identity }
+    end
+  end
+
+  local sources = iconsScan.sourceNames(paths)
+  if #sources > 0 then
+    local report = iconsScan.coverage(declared, sources)
+    for _, source in ipairs(sources) do
+      coverageLines[#coverageLines + 1] = string.format(
+        "icon coverage, %s has an entry for %d of %d declared specs%s",
+        source, report.covered[source], report.total,
+        report.content > 0 and string.format(", %d content spec(s) not counted", report.content) or "")
+      for _, item in ipairs(report.missing[source]) do
+        warning(string.format("icon coverage, '%s' has no %s entry", item, source))
+      end
+    end
+  end
+end
+
+----------------------------------------------------------------------------------------
 -- An accepted line that no longer matches anything this run is itself a finding, appended
 -- straight to the real list rather than through finding() above, so it is never itself
 -- eligible to be accepted away, the one rule that keeps this file from rotting.
@@ -670,6 +753,7 @@ for _, line in ipairs(findings) do print(line) end
 for _, line in ipairs(accepted) do print(line) end
 for _, line in ipairs(warnings) do print("warning, " .. line) end
 for _, line in ipairs(unknowns) do print(line) end
+for _, line in ipairs(coverageLines) do print(line) end
 
 local pluginCount = 0
 for _ in pairs(manifestsByDir) do pluginCount = pluginCount + 1 end
