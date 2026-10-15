@@ -12,8 +12,11 @@
 -- an open, and its notes are in plugins/emoji/AGENTS.md. The snapshot is independent of the
 -- canvas, so reusing it cannot change an image already handed out.
 --
--- Emoji carry their own colours, so this source ignores the colour it is handed and does not
--- declare itself tinted.
+-- Colour emoji carry their own colours and the font ignores the text colour for them, but the
+-- emoji picker also lists plain text symbols, a star, a check, an arrow, which draw in the text
+-- colour like any letter. So this source is tinted and draws in the colour it is handed, the
+-- theme's foreground, which leaves a colour emoji exactly as it was and turns a plain symbol
+-- dark on the light half and light on the dark half.
 
 local M = {}
 
@@ -23,10 +26,10 @@ local TEXT = 60
 
 --- M.new() -> source, the name emoji and a draw function, see lib/icons/contract.lua.
 function M.new()
-  local source = { name = "emoji" }
+  local source = { name = "emoji", tinted = true }
   local canvas
 
-  function source.draw(glyph, points)
+  function source.draw(glyph, points, color)
     if type(glyph) ~= "string" or glyph == "" then return nil end
     if not canvas then
       canvas = hs.canvas.new({ x = 0, y = 0, w = SIDE, h = SIDE })
@@ -35,6 +38,7 @@ function M.new()
                     frame = { x = "0%", y = "0%", w = "100%", h = "100%" } }
     end
     canvas[1].text = glyph
+    canvas[1].textColor = color or { white = 0, alpha = 1 }
     local img = canvas:imageFromCanvas()
     if img and points and points ~= SIDE then img = img:setSize({ w = points, h = points }) end
     return img
