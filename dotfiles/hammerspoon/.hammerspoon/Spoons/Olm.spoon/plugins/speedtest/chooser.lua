@@ -29,29 +29,25 @@ local net = nil         -- the network this open is about, read once per open
 local ticker = nil      -- redraws the elapsed row while a run is in flight
 local lastReason = nil  -- why the most recent run did not land, shown until the next one
 
-local ICON_RUN = "📶"
-local ICON_STOP = "🚫"
-local ICON_RESULT = "📈"
-local ICON_SETTINGS = "⚙️"
-local ICON_NETWORKS = "🌐"
-local ICON_BACK = "⬅️"
-local ICON_EMPTY = "📊"
-local ICON_PROBLEM = "⚠️"
-local ICON_NAME = "✏️"
-local ICON_CLEAR = "🗑️"
-local ICON_KEEP = "↩️"
+-- The icon keys, declared with their glyphs in the manifest.
+local ICON_RUN = "run"
+local ICON_STOP = "stop"
+local ICON_RESULT = "result"
+local ICON_SETTINGS = "settings"
+local ICON_NETWORKS = "networks"
+local ICON_BACK = "back"
+local ICON_EMPTY = "empty"
+local ICON_PROBLEM = "problem"
+local ICON_NAME = "name"
+local ICON_CLEAR = "clear"
+local ICON_KEEP = "keep"
 
 --------------------------------------------------------------------------------
 -- Rows
 --------------------------------------------------------------------------------
 
-local function icon(glyph)
-  if not (cfg.glyphIcon and glyph) then return nil end
-  return cfg.glyphIcon.icon(glyph)
-end
-
-local function row(title, subTitle, glyph, item, enabled)
-  return { title = title, subTitle = subTitle, image = icon(glyph),
+local function row(title, subTitle, icon, item, enabled)
+  return { title = title, subTitle = subTitle, icon = icon,
            item = item, enabled = enabled ~= false }
 end
 

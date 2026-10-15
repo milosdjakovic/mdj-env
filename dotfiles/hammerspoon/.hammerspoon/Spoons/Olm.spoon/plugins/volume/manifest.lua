@@ -3,14 +3,18 @@
 -- Native Lua over hs.audiodevice, so it names no external tool. One behaviour, so no engine
 -- and no contract, the whole plugin is init.lua.
 return {
+  -- The row icons, named by the rows and drawn by Olm.
+  icons = {
+    muted = { emoji = "🔇" },
+    quiet = { emoji = "🔈" },
+    loud = { emoji = "🔊" },
+    warn = { emoji = "⚠️" },
+  },
+
   needs = {
     data = {
       stagePresent = { source = "root", policy = "optional",
         breaks = "the launcher row reaches nothing, since it has no other way to ask the shared stage to show this presentation" },
-    },
-
-    lib = {
-      glyphIcon = { from = "glyphicon", policy = "optional" },
     },
   },
 

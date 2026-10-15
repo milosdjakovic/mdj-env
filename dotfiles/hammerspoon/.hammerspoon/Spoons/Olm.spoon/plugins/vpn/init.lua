@@ -296,38 +296,17 @@ end
 -- Row icons
 --------------------------------------------------------------------------------
 
--- Row icons are drawn by the shared glyph drawer, which arrives as cfg.glyphIcon, so every
--- emoji icon fills its box the same way and sits centred. Nothing is drawn without it, and
--- the row simply has no icon.
-local function emojiImage(str)
-  if not (cfg and cfg.glyphIcon and str) then return nil end
-  return cfg.glyphIcon.icon(str)
-end
-
--- A country flag image built from the two letter country code as a pair of regional
--- indicator symbols, then rendered through the shared emoji path.
-local function flagImage(cc)
+-- A country flag as an icon spec, built from the two letter country code as a pair of
+-- regional indicator symbols. It is content derived from the location, so it is a table spec
+-- of an emoji and never an icon key, and switching the icon set never changes which flag a
+-- city wears.
+local function flagIcon(cc)
   if not cc or #cc ~= 2 then return nil end
   local base, a = 0x1F1E6, string.byte("a")
   local c1, c2 = cc:sub(1, 1):byte() - a, cc:sub(2, 2):byte() - a
   if c1 < 0 or c1 > 25 or c2 < 0 or c2 > 25 then return nil end
-  return emojiImage(utf8.char(base + c1, base + c2))
+  return { emoji = utf8.char(base + c1, base + c2) }
 end
-
--- The action glyphs. A green circle reads as go, a red one as stop. The rest are the
--- shared vocabulary the other pages in this config already use for the same meanings, so a
--- page here reads the way the settings and browser pages do rather than inventing its own
--- marks. Green is the live one, an empty circle is a choice that is there to be made, and
--- the warning triangle is something this machine cannot currently reach.
-local ICON = {
-  connect = "🟢",
-  disconnect = "🔴",
-  back = "⬅️",
-  settings = "⚙️",
-  active = "🟢",
-  idle = "⚪",
-  warn = "⚠️",
-}
 
 --------------------------------------------------------------------------------
 -- Row supplier (one flat list)
@@ -348,7 +327,7 @@ local function actionRow()
     return {
       title = where and ("Disconnect from " .. where) or "Disconnect",
       subTitle = statusText(current),
-      image = emojiImage(ICON.disconnect),
+      icon = "disconnect",
       item = { id = "disconnect" },
     }
   end
@@ -362,7 +341,7 @@ local function actionRow()
   return {
     title = where and ("Connect to " .. where) or "Connect",
     subTitle = statusText(current),
-    image = emojiImage(ICON.connect),
+    icon = "connect",
     item = { id = "connect", target = target },
   }
 end
@@ -382,7 +361,7 @@ local function settingsRow()
   return {
     title = "VPN provider",
     subTitle = (provider and provider.name) or "none",
-    image = emojiImage(ICON.settings),
+    icon = "settings",
     item = { id = "providers" },
     filterText = "VPN provider providers backend settings config",
   }
@@ -398,25 +377,25 @@ end
 -- a person cannot switch to something that is not there.
 local function providerRows()
   local out = {
-    { title = "Back", subTitle = "", image = emojiImage(ICON.back),
+    { title = "Back", subTitle = "", icon = "back",
       item = { nav = true, to = "back" } },
   }
   for _, entry in ipairs(providers) do
     local usable = entry.module.available()
     local mark, detail
     if entry.id == activeId then
-      mark, detail = ICON.active, "Active"
+      mark, detail = "active", "Active"
     elseif usable then
-      mark, detail = ICON.idle, "Installed"
+      mark, detail = "idle", "Installed"
     else
       local note = (entry.module.install or {}).note
-      mark = ICON.warn
+      mark = "warn"
       detail = note and ("Not installed. " .. note) or "Not installed"
     end
     out[#out + 1] = {
       title = entry.module.name or entry.id,
       subTitle = detail,
-      image = emojiImage(mark),
+      icon = mark,
       enabled = usable,
       item = { provider = entry.id },
     }
@@ -479,7 +458,7 @@ local function unavailableRow()
   return {
     title = name .. " CLI not found",
     subTitle = info.note or "The provider CLI is not installed",
-    image = emojiImage("⚠️"),
+    icon = "warn",
     enabled = false,
     item = { id = "unavailable" },
   }
@@ -504,7 +483,7 @@ local function rows(query)
       -- case. One names a country and a city code, the other a gateway host, so a caller
       -- assuming either shape would be reading one backend's vocabulary into every other.
       subTitle = loc.detail or (loc.countryCode .. " " .. loc.cityCode),
-      image = flagImage(loc.countryCode),
+      icon = flagIcon(loc.countryCode),
       item = loc,
       filterText = loc.label .. " " .. loc.countryCode,
     }
@@ -646,7 +625,7 @@ function M.scopeRows(rest, redraw)
   end
   if #out == 0 and not M.ready() then
     return { { title = "Reading the locations", subTitle = "one moment",
-               image = emojiImage("⏳"), enabled = false, filterText = rest } }
+               icon = "loading", enabled = false, filterText = rest } }
   end
   return out
 end

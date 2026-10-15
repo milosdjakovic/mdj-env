@@ -70,11 +70,6 @@ local function associated(details)
   return details.power and (details.transmitRate or 0) > 0
 end
 
-local function icon(glyph)
-  if not (cfg.glyphIcon and glyph) then return nil end
-  return cfg.glyphIcon.icon(glyph)
-end
-
 local function strength(rssi)
   if type(rssi) ~= "number" or rssi == 0 then return nil end
   if rssi >= -60 then return "strong signal" end
@@ -213,21 +208,21 @@ local function currentRow(device, current)
   local details = hs.wifi.interfaceDetails(device)
   if not details.power then
     return { title = "Wi-Fi is off", subTitle = "Turn it on",
-             image = icon("📴"), item = { id = "power" } }
+             icon = "off", item = { id = "power" } }
   end
   if not current then
     -- Joined but nameless means the name was withheld, not that nothing is joined.
     if associated(details) then
       withheld = true
       return { title = "Connected", subTitle = "Name hidden, choose to disconnect",
-               image = icon("📶"), item = { id = "disconnect" } }
+               icon = "connected", item = { id = "disconnect" } }
     end
     return { title = "Not connected", subTitle = "Pick a network below",
-             image = icon("📡"), enabled = false, item = { id = "none" } }
+             icon = "network", enabled = false, item = { id = "none" } }
   end
   local signal = strength(details.rssi)
   return { title = current, subTitle = "Connected" .. (signal and (", " .. signal) or "") .. ", choose to disconnect",
-           image = icon("📶"), item = { id = "disconnect", name = current } }
+           icon = "connected", item = { id = "disconnect", name = current } }
 end
 
 local function networkRow(n)
@@ -247,7 +242,7 @@ local function networkRow(n)
   local sub = table.concat(parts, ", ")
   sub = sub:sub(1, 1):upper() .. sub:sub(2)
   local usable = saved[n.name] or n.kind ~= "enterprise"
-  return { title = n.name, subTitle = sub, image = icon(saved[n.name] and "⭐" or "📡"),
+  return { title = n.name, subTitle = sub, icon = saved[n.name] and "saved" or "network",
            enabled = usable and true or false,
            item = { id = "join", name = n.name, kind = n.kind } }
 end
@@ -256,7 +251,7 @@ local function rows()
   local device = iface()
   if not device then
     return { { title = "No Wi-Fi hardware", subTitle = "This Mac reports no wireless interface",
-               image = icon("⚠️"), enabled = false, item = { id = "none" } } }
+               icon = "warn", enabled = false, item = { id = "none" } } }
   end
 
   local current = readable(hs.wifi.currentNetwork(device))
@@ -272,7 +267,7 @@ local function rows()
     out[#out + 1] = { title = "Allow Location Services",
       subTitle = "macOS hides network names without it. If nothing asks, turn Hammerspoon on in " ..
                  "System Settings, Privacy and Security, Location Services",
-      image = icon("🔒"), item = { id = "locate" } }
+      icon = "locked", item = { id = "locate" } }
     return out
   end
 
@@ -294,9 +289,9 @@ local function rows()
   if #list == 0 then
     if scanning or not scannedOnce then
       out[#out + 1] = { title = "Looking for networks", subTitle = "One moment",
-                        image = icon("⏳"), enabled = false, item = { id = "none" } }
+                        icon = "loading", enabled = false, item = { id = "none" } }
     else
-      out[#out + 1] = { title = "No other networks in range", image = icon("📡"),
+      out[#out + 1] = { title = "No other networks in range", icon = "network",
                         enabled = false, item = { id = "none" } }
     end
   end

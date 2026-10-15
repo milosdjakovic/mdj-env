@@ -41,13 +41,12 @@ local stagePresent = nil     -- the door from the launcher row to the shared sta
 local redrawPresented = nil  -- repaint the staged list when a rescan lands
 local redraw = nil           -- repaint a launcher hosted list when a rescan lands
 local matcher = nil          -- the shared fuzzy scorer, query and haystack to score or nil
-local glyphIcon = nil        -- the shared glyph drawer, an emoji to a row sized image
 
--- The row faces. One note emoji for every note, and each action row wearing its own,
--- so a note and an action never read alike at a glance.
-local GLYPH_NOTE = "📝"
-local GLYPH_NEW = "➕"
-local GLYPH_SEARCH = "🔍"
+-- The row faces, keys declared in the manifest. One note icon for every note, and each action
+-- row wearing its own, so a note and an action never read alike at a glance.
+local ICON_NOTE = "note"
+local ICON_NEW = "new"
+local ICON_SEARCH = "search"
 
 -- Owned state.
 local vaults = nil        -- { { id, path, name, ignore }, ... } from the registry read
@@ -70,12 +69,10 @@ end
 
 -- A row for the picker. The payload under item is plain data only, strings and nothing
 -- else, since a function or userdata anywhere in a row makes LuaSkin reject the whole
--- choices table, a defect this tree has shipped once and paid for. The image is the one
--- sanctioned userdata a row carries, drawn by the shared glyph drawer and cached there,
--- so every row of a glyph shares one object rather than paying one drawing per row.
-local function row(title, subTitle, item, enabled, glyph)
-  local image = glyphIcon and glyph and glyphIcon.icon(glyph) or nil
-  return { title = title, subTitle = subTitle, image = image, item = item, enabled = enabled }
+-- choices table, a defect this tree has shipped once and paid for. The icon is a plain key,
+-- and Olm turns it into the one cached image that every row of that icon shares.
+local function row(title, subTitle, item, enabled, icon)
+  return { title = title, subTitle = subTitle, icon = icon, item = item, enabled = enabled }
 end
 
 -- The registry read. Obsidian only lists vaults that were opened at least once, which
@@ -359,7 +356,7 @@ function M.rows(query)
     local where = n.folder ~= "" and n.folder or n.vault.name
     if manyVaults and n.folder ~= "" then where = n.vault.name .. "  " .. n.folder end
     rows[#rows + 1] = row(n.name, where,
-      { open = { vault = n.vault.id, rel = n.rel, key = keyOf(n) } }, nil, GLYPH_NOTE)
+      { open = { vault = n.vault.id, rel = n.rel, key = keyOf(n) } }, nil, ICON_NOTE)
   end
 
   -- The two query level actions, only when there are words to act on. They trail the
@@ -368,9 +365,9 @@ function M.rows(query)
   if q ~= "" then
     local v = defaultVault()
     rows[#rows + 1] = row(string.format("New note \"%s\"", q),
-      "creates it in " .. v.name, { new = q }, nil, GLYPH_NEW)
+      "creates it in " .. v.name, { new = q }, nil, ICON_NEW)
     rows[#rows + 1] = row(string.format("Search notes for \"%s\"", q),
-      "full text search inside Obsidian", { search = q }, nil, GLYPH_SEARCH)
+      "full text search inside Obsidian", { search = q }, nil, ICON_SEARCH)
   end
 
   return rows
@@ -436,7 +433,6 @@ function M:configure(opts)
   if opts.redrawPresented ~= nil then redrawPresented = opts.redrawPresented end
   if opts.redraw ~= nil then redraw = opts.redraw end
   if opts.matcher ~= nil then matcher = opts.matcher end
-  if opts.glyphIcon ~= nil then glyphIcon = opts.glyphIcon end
   -- One scan shortly after load, once the reload has settled, so the first human open
   -- of the session already has a list and pays nothing. Without it the first open
   -- inside the first few seconds falls back to the blocking scan, which still works.

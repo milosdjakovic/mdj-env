@@ -9,13 +9,23 @@ return {
   -- displayProfiles.
   name = "displayProfiles",
 
-  needs = {
-    -- The shared glyph drawer behind every row icon, so the emoji sits centred in its box.
-    -- Optional, and without it the rows simply carry no icon.
-    lib = {
-      glyphIcon = { from = "glyphicon", policy = "optional" },
-    },
+  -- The row icons, named by the rows and drawn by Olm.
+  icons = {
+    active = { emoji = "🟢" },
+    profile = { emoji = "🖥️" },
+    displays = { emoji = "📺" },
+    reapply = { emoji = "🔄" },
+    rename = { emoji = "✏️" },
+    delete = { emoji = "🗑️" },
+    capture = { emoji = "➕" },
+    save = { emoji = "💾" },
+    no = { emoji = "↩️" },
+    back = { emoji = "⬅️" },
+    hint = { emoji = "⌨️" },
+    warn = { emoji = "⚠️" },
+  },
 
+  needs = {
     tools = {
       { name = "displayplacer", kind = "path", policy = "optional", unit = "engine",
         reason = "reading and applying display arrangements",

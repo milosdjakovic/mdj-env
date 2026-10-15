@@ -40,43 +40,17 @@ local log = hs.logger.new("DisplayProfiles", "info")
 
 local cfg = {}        -- injected across two calls: api from the spoon, view deps from the root
 
---------------------------------------------------------------------------------
--- Row icons
---------------------------------------------------------------------------------
-
--- Row icons are drawn by the shared glyph drawer, which arrives as cfg.glyphIcon, so every
--- emoji icon fills its box the same way and sits centred. Nothing is drawn without it, and
--- the row simply has no icon.
-local function emojiImage(str)
-  if not (cfg.glyphIcon and str) then return nil end
-  return cfg.glyphIcon.icon(str)
-end
-
-local ICON = {
-  active = "🟢",
-  profile = "🖥️",
-  displays = "📺",
-  reapply = "🔄",
-  rename = "✏️",
-  delete = "🗑️",
-  capture = "➕",
-  save = "💾",
-  no = "↩️",
-  back = "⬅️",
-  hint = "⌨️",
-  warn = "⚠️",
-}
 
 --------------------------------------------------------------------------------
 -- Small row builders
 --------------------------------------------------------------------------------
 
 local function row(title, subTitle, icon, item, enabled)
-  return { title = title, subTitle = subTitle, image = emojiImage(icon), item = item, enabled = enabled }
+  return { title = title, subTitle = subTitle, icon = icon, item = item, enabled = enabled }
 end
 
 local function backRow()
-  return row("Back", "", ICON.back, { nav = true, to = "back" }, true)
+  return row("Back", "", "back", { nav = true, to = "back" }, true)
 end
 
 -- A profile's display count, read from its command, for the list subtitles.
@@ -101,14 +75,14 @@ local function topRows(query)
   local active = cfg.api.active()
   if not active then
     out[#out + 1] = row("Capture current arrangement", "The displays attached now match no profile",
-      ICON.capture, { nav = true, to = "capture" }, true)
+      "capture", { nav = true, to = "capture" }, true)
   end
   for _, p in ipairs(cfg.api.list()) do
     if q == "" or p.name:lower():find(q, 1, true) then
       local isActive = p.name == active
       local n = displayCount(p)
       local sub = (isActive and "Active, " or "") .. n .. (n == 1 and " display" or " displays")
-      out[#out + 1] = row(p.name, sub, isActive and ICON.active or ICON.profile,
+      out[#out + 1] = row(p.name, sub, isActive and "active" or "profile",
         { nav = true, to = "profile", name = p.name }, true)
     end
   end
@@ -135,21 +109,21 @@ end
 -- enter.
 local function profileRows(name)
   local p = profileByName(name)
-  if not p then return { backRow(), row("Profile is gone", "It may have been removed", ICON.warn, { noop = true }, false) } end
+  if not p then return { backRow(), row("Profile is gone", "It may have been removed", "warn", { noop = true }, false) } end
   local out = { backRow() }
   for _, d in ipairs(cfg.api.displays(p.command)) do
     local title = (d.res or "?") .. (d.main and "   (main)" or "")
     local sub = "id " .. d.id .. (d.hz and (", " .. d.hz .. "hz") or "") .. ", origin (" .. d.origin .. ")"
-    out[#out + 1] = row(title, sub, ICON.displays, { noop = true }, false)
+    out[#out + 1] = row(title, sub, "displays", { noop = true }, false)
   end
   if name == cfg.api.active() then
     out[#out + 1] = row("Reapply this arrangement", "Force it back if macOS scrambled the layout",
-      ICON.reapply, { act = "reapply" }, true)
+      "reapply", { act = "reapply" }, true)
   end
   if p.editable then
-    out[#out + 1] = row("Rename", "Change the name of this captured profile", ICON.rename,
+    out[#out + 1] = row("Rename", "Change the name of this captured profile", "rename",
       { nav = true, to = "rename", name = name }, true)
-    out[#out + 1] = row("Delete", "Remove this captured profile", ICON.delete,
+    out[#out + 1] = row("Delete", "Remove this captured profile", "delete",
       { nav = true, to = "delete", name = name }, true)
   end
   return out
@@ -162,11 +136,11 @@ local function renameRows(name, query)
   local newName = trim(query)
   local out = {}
   if newName == "" then
-    out[#out + 1] = row("Type a new name", "Rename '" .. name .. "'", ICON.hint, { noop = true }, false)
+    out[#out + 1] = row("Type a new name", "Rename '" .. name .. "'", "hint", { noop = true }, false)
   elseif newName ~= name and cfg.api.exists(newName) then
-    out[#out + 1] = row("Name already used", "Choose a name no other profile has", ICON.warn, { noop = true }, false)
+    out[#out + 1] = row("Name already used", "Choose a name no other profile has", "warn", { noop = true }, false)
   else
-    out[#out + 1] = row("Save as '" .. newName .. "'", "Rename '" .. name .. "'", ICON.save,
+    out[#out + 1] = row("Save as '" .. newName .. "'", "Rename '" .. name .. "'", "save",
       { act = "saveRename", name = name, newName = newName }, true)
   end
   out[#out + 1] = backRow()
@@ -179,8 +153,8 @@ end
 -- would otherwise catch the default Return and close the chooser.
 local function deleteRows(name)
   return {
-    row("Keep '" .. name .. "'", "Leave it as it is", ICON.no, { nav = true, to = "back" }, true),
-    row("Delete '" .. name .. "'", "Remove this captured profile for good", ICON.delete, { act = "delete", name = name }, true),
+    row("Keep '" .. name .. "'", "Leave it as it is", "no", { nav = true, to = "back" }, true),
+    row("Delete '" .. name .. "'", "Remove this captured profile for good", "delete", { act = "delete", name = name }, true),
   }
 end
 
@@ -190,11 +164,11 @@ local function captureRows(query)
   local newName = trim(query)
   local out = {}
   if newName == "" then
-    out[#out + 1] = row("Type a name", "Name this display arrangement", ICON.hint, { noop = true }, false)
+    out[#out + 1] = row("Type a name", "Name this display arrangement", "hint", { noop = true }, false)
   elseif cfg.api.exists(newName) then
-    out[#out + 1] = row("Name already used", "Choose a name no other profile has", ICON.warn, { noop = true }, false)
+    out[#out + 1] = row("Name already used", "Choose a name no other profile has", "warn", { noop = true }, false)
   else
-    out[#out + 1] = row("Capture as '" .. newName .. "'", "Save the arrangement attached now", ICON.save,
+    out[#out + 1] = row("Capture as '" .. newName .. "'", "Save the arrangement attached now", "save",
       { act = "capture", newName = newName }, true)
   end
   out[#out + 1] = backRow()

@@ -16,14 +16,18 @@
 local BUNDLE = "md.obsidian"
 
 return {
+  -- The row icons, named by the rows and drawn by Olm.
+  icons = {
+    note = { emoji = "📝" },
+    new = { emoji = "➕" },
+    search = { emoji = "🔍" },
+  },
+
   needs = {
     -- Lifting the notes opened through this tool to the front of the resting order.
-    -- Optional, and without it the order by modification time simply stands. The glyph
-    -- drawer turns the note emoji into a row icon sized to line up with every other
-    -- list, and without it the rows simply carry no image.
+    -- Optional, and without it the order by modification time simply stands.
     lib = {
       recency = { from = "recency", policy = "optional" },
-      glyphIcon = { from = "glyphicon", policy = "optional" },
     },
 
     data = {

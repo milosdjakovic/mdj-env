@@ -39,24 +39,9 @@ local log = hs.logger.new("TmuxSessions", "info")
 
 local cfg = {}       -- injected across two calls: api from the spoon, view deps from the root
 
--- Row icons are drawn by the shared glyph drawer, which arrives as cfg.glyphIcon, so every
--- emoji icon fills its box the same way and sits centred. Nothing is drawn without it, and
--- the row simply has no icon.
-local function emojiImage(str)
-  if not (cfg.glyphIcon and str) then return nil end
-  return cfg.glyphIcon.icon(str)
-end
-
-local ICON = {
-  active = "🟢",   -- the window currently on screen, or the currently chosen terminal
-  window = "🪟",
-  terminal = "💻",
-  settings = "⚙️",
-  back = "⬅️",
-}
 
 local function row(title, subTitle, icon, item, enabled)
-  return { title = title, subTitle = subTitle, image = emojiImage(icon), item = item,
+  return { title = title, subTitle = subTitle, icon = icon, item = item,
     enabled = enabled ~= false }
 end
 
@@ -94,7 +79,7 @@ local function windowRows(query)
   for _, w in ipairs(cfg.api:windows()) do
     local body = (w.name .. " " .. w.session):lower()
     if matchesQuery(body, q) then
-      out[#out + 1] = row(w.name, w.session, isLive(w) and ICON.active or ICON.window,
+      out[#out + 1] = row(w.name, w.session, isLive(w) and "active" or "window",
         { go = w.target, label = w.name .. " in " .. w.session }, true)
     end
   end
@@ -107,7 +92,7 @@ end
 -- both use for the identical reason.
 local function topRows(query)
   local out = windowRows(query)
-  out[#out + 1] = row("Settings", "Choose which terminal opens a fresh attach", ICON.settings,
+  out[#out + 1] = row("Settings", "Choose which terminal opens a fresh attach", "settings",
     { nav = true, to = "settings" }, true)
   return out
 end
@@ -117,12 +102,12 @@ end
 -- has, since the field on this level exists for the settings child's own placeholder text
 -- to name rather than for filtering a list this short.
 local function settingsRows()
-  local out = { row("Back", "", ICON.back, { nav = true, to = "back" }, true) }
+  local out = { row("Back", "", "back", { nav = true, to = "back" }, true) }
   local current = cfg.api:currentProviderName()
   for _, p in ipairs(cfg.api:providers()) do
     local isActive = p.name == current
     local sub = p.available() and "Installed" or "Not installed"
-    out[#out + 1] = row(p.name, sub, isActive and ICON.active or ICON.terminal,
+    out[#out + 1] = row(p.name, sub, isActive and "active" or "terminal",
       { setProvider = p.name }, p.available())
   end
   return out
@@ -217,7 +202,7 @@ end
 --- case tmux is running with no session at all. `where` names where a session would be
 --- started, since a hosted list has no row of its own to point at, the browserTabs shape.
 function M.explain(where)
-  return { row("No tmux sessions", "Start one, then search " .. where, ICON.window,
+  return { row("No tmux sessions", "Start one, then search " .. where, "window",
     { noop = true }, false) }
 end
 

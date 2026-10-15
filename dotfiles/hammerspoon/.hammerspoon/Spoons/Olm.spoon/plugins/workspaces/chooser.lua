@@ -29,53 +29,23 @@ local log = hs.logger.new("Workspaces", "info")
 
 local cfg = {}  -- injected across two calls, api from the plugin root, stage words from the wiring step
 
---------------------------------------------------------------------------------
--- Row icons
---------------------------------------------------------------------------------
-
--- Row icons are drawn by the shared glyph drawer, which arrives as cfg.glyphIcon, so every
--- emoji icon fills its box the same way and sits centred. Nothing is drawn without it, and
--- the row simply has no icon.
-local function emojiImage(str)
-  if not (cfg.glyphIcon and str) then return nil end
-  return cfg.glyphIcon.icon(str)
-end
-
-local ICON = {
-  available = "🟢",
-  unavailable = "⚪",
-  new = "📸",
-  apply = "🪟",
-  apps = "📦",
-  app = "🪟",
-  update = "🔄",
-  rename = "✏️",
-  delete = "🗑️",
-  remove = "🚫",
-  include = "✅",
-  save = "💾",
-  no = "↩️",
-  back = "⬅️",
-  hint = "⌨️",
-  warn = "⚠️",
-}
 
 --------------------------------------------------------------------------------
 -- Small row builders
 --------------------------------------------------------------------------------
 
 local function row(title, subTitle, icon, item, enabled)
-  return { title = title, subTitle = subTitle, image = emojiImage(icon), item = item, enabled = enabled }
+  return { title = title, subTitle = subTitle, icon = icon, item = item, enabled = enabled }
 end
 
 local function backRow()
-  return row("Back", "", ICON.back, { nav = "back" }, true)
+  return row("Back", "", "back", { nav = "back" }, true)
 end
 
 -- One app row, carrying the app's own icon from the api rather than the generic emoji mark, so
 -- the Apps list reads at a glance the way the launcher and the other choosers already do.
 local function appRow(title, subTitle, icon, item)
-  return { title = title, subTitle = subTitle, image = icon or emojiImage(ICON.app), item = item, enabled = true }
+  return { title = title, subTitle = subTitle, image = icon, icon = icon == nil and "app" or nil, item = item, enabled = true }
 end
 
 local function trim(s)
@@ -106,12 +76,12 @@ local function topRows(query)
   local out = {}
   if not cfg.api.persists() then
     out[#out + 1] = row("Nothing can be stored", "No file was given for layouts to live in",
-      ICON.warn, { noop = true }, false)
+      "warn", { noop = true }, false)
     return out
   end
   if matches("New snapshot", q) then
     out[#out + 1] = row("New snapshot", "Record where every window sits on " .. cfg.api.here(),
-      ICON.new, { nav = "new" }, true)
+      "new", { nav = "new" }, true)
   end
   for _, l in ipairs(cfg.api.list()) do
     if matches(l.name, q) then
@@ -121,12 +91,12 @@ local function topRows(query)
       else
         sub = "Not here, it " .. l.reason .. ", taken on " .. l.topology
       end
-      out[#out + 1] = row(l.name, sub, l.available and ICON.available or ICON.unavailable,
+      out[#out + 1] = row(l.name, sub, l.available and "available" or "unavailable",
         { nav = "layout", id = l.id }, true)
     end
   end
   if #out == 0 then
-    out[#out + 1] = row("No layout matches", "", ICON.hint, { noop = true }, false)
+    out[#out + 1] = row("No layout matches", "", "hint", { noop = true }, false)
   end
   return out
 end
@@ -139,12 +109,12 @@ local function newRows(query)
   local out = {}
   if name == "" then
     out[#out + 1] = row("Type a name for this snapshot", "Everything open now on " .. cfg.api.here(),
-      ICON.hint, { noop = true }, false)
+      "hint", { noop = true }, false)
   elseif cfg.api.exists(name) then
-    out[#out + 1] = row("Name already used", "Choose a name no other layout has", ICON.warn,
+    out[#out + 1] = row("Name already used", "Choose a name no other layout has", "warn",
       { noop = true }, false)
   else
-    out[#out + 1] = row("Save as '" .. name .. "'", "Record where every window sits now", ICON.save,
+    out[#out + 1] = row("Save as '" .. name .. "'", "Record where every window sits now", "save",
       { act = "create", name = name }, true)
   end
   out[#out + 1] = backRow()
@@ -157,23 +127,23 @@ end
 local function layoutRows(id)
   local l = cfg.api.get(id)
   if not l then
-    return { backRow(), row("Layout is gone", "It may have been deleted", ICON.warn, { noop = true }, false) }
+    return { backRow(), row("Layout is gone", "It may have been deleted", "warn", { noop = true }, false) }
   end
   local out = { backRow() }
   if l.available then
     out[#out + 1] = row("Apply", "Place the windows that are open now, closed apps stay closed",
-      ICON.apply, { act = "apply" }, true)
+      "apply", { act = "apply" }, true)
   else
     out[#out + 1] = row("Cannot apply here", "It " .. l.reason .. ", taken on " .. l.topology,
-      ICON.warn, { noop = true }, false)
+      "warn", { noop = true }, false)
   end
   local appsSub = countLabel(l.apps, "app", "apps")
   if l.excluded > 0 then appsSub = appsSub .. ", " .. countLabel(l.excluded, "excluded", "excluded") end
-  out[#out + 1] = row("Apps", appsSub, ICON.apps, { nav = "apps" }, true)
+  out[#out + 1] = row("Apps", appsSub, "apps", { nav = "apps" }, true)
   out[#out + 1] = row("Update snapshot", "Replace what is recorded with the windows open now, taken " .. (l.taken or "?"),
-    ICON.update, { act = "update" }, true)
-  out[#out + 1] = row("Rename", "Give this layout a different name", ICON.rename, { nav = "rename" }, true)
-  out[#out + 1] = row("Delete", "Remove this layout for good", ICON.delete, { nav = "delete" }, true)
+    "update", { act = "update" }, true)
+  out[#out + 1] = row("Rename", "Give this layout a different name", "rename", { nav = "rename" }, true)
+  out[#out + 1] = row("Delete", "Remove this layout for good", "delete", { nav = "delete" }, true)
   return out
 end
 
@@ -184,7 +154,7 @@ local function appsRows(id)
   local apps = cfg.api.apps(id)
   if #apps == 0 then
     out[#out + 1] = row("Nothing recorded here", "Update the snapshot with some windows open",
-      ICON.hint, { noop = true }, false)
+      "hint", { noop = true }, false)
     return out
   end
   for _, a in ipairs(apps) do
@@ -206,13 +176,13 @@ local function appRows(name, excluded)
     return {
       backRow(),
       row("Include '" .. name .. "' again", "Place its windows when this layout is applied",
-        ICON.include, { act = "include" }, true),
+        "include", { act = "include" }, true),
     }
   end
   return {
     backRow(),
     row("Remove '" .. name .. "'", "Leave this app alone when this layout is applied",
-      ICON.remove, { act = "exclude" }, true),
+      "remove", { act = "exclude" }, true),
   }
 end
 
@@ -223,12 +193,12 @@ local function renameRows(id, query)
   local newName = trim(query)
   local out = {}
   if newName == "" then
-    out[#out + 1] = row("Type a new name", "Rename '" .. current .. "'", ICON.hint, { noop = true }, false)
+    out[#out + 1] = row("Type a new name", "Rename '" .. current .. "'", "hint", { noop = true }, false)
   elseif newName ~= current and cfg.api.exists(newName) then
-    out[#out + 1] = row("Name already used", "Choose a name no other layout has", ICON.warn,
+    out[#out + 1] = row("Name already used", "Choose a name no other layout has", "warn",
       { noop = true }, false)
   else
-    out[#out + 1] = row("Save as '" .. newName .. "'", "Rename '" .. current .. "'", ICON.save,
+    out[#out + 1] = row("Save as '" .. newName .. "'", "Rename '" .. current .. "'", "save",
       { act = "saveRename", newName = newName }, true)
   end
   out[#out + 1] = backRow()
@@ -241,8 +211,8 @@ local function deleteRows(id)
   local l = cfg.api.get(id)
   local name = l and l.name or ""
   return {
-    row("Keep '" .. name .. "'", "Leave it as it is", ICON.no, { nav = "back" }, true),
-    row("Delete '" .. name .. "'", "Remove this layout for good", ICON.delete, { act = "delete" }, true),
+    row("Keep '" .. name .. "'", "Leave it as it is", "no", { nav = "back" }, true),
+    row("Delete '" .. name .. "'", "Remove this layout for good", "delete", { act = "delete" }, true),
   }
 end
 
@@ -464,20 +434,20 @@ function M.scopeRows(rest)
   local q = trim(rest):lower()
   local out = {}
   if not cfg.api.persists() then
-    return { row("Nothing can be stored", "No place was given for layouts to live in", ICON.warn, { noop = true }, false) }
+    return { row("Nothing can be stored", "No place was given for layouts to live in", "warn", { noop = true }, false) }
   end
   for _, l in ipairs(cfg.api.list()) do
     if matches(l.name, q) then
       if l.available then
         out[#out + 1] = row(l.name, "Apply, " .. countLabel(l.apps, "app", "apps") .. ", taken on " .. l.topology,
-          ICON.available, { id = l.id }, true)
+          "available", { id = l.id }, true)
       else
-        out[#out + 1] = row(l.name, "Not here, it " .. l.reason, ICON.unavailable, { noop = true }, false)
+        out[#out + 1] = row(l.name, "Not here, it " .. l.reason, "unavailable", { noop = true }, false)
       end
     end
   end
   if #out == 0 then
-    out[#out + 1] = row("No layout to apply", "Open Workspaces and take a snapshot", ICON.hint, { noop = true }, false)
+    out[#out + 1] = row("No layout to apply", "Open Workspaces and take a snapshot", "hint", { noop = true }, false)
   end
   return out
 end

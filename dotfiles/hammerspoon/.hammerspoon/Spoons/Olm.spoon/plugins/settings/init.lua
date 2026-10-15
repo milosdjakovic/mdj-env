@@ -48,26 +48,19 @@ local cfg = {}
 -- Row building
 --------------------------------------------------------------------------------
 
--- Row icons are drawn by the shared glyph drawer, which arrives as cfg.glyphIcon, so every
--- emoji icon fills its box the same way and sits centred. Nothing is drawn without it, and
--- the row simply has no icon.
-local function emojiImage(str)
-  if not (cfg.glyphIcon and str) then return nil end
-  return cfg.glyphIcon.icon(str)
-end
-
-local ICON_PLACEMENT = "🖥️"
-local ICON_THEME = "🎨"
-local ICON_BACK = "⬅️"
+-- The icon keys, declared with their glyphs in the manifest.
+local ICON_PLACEMENT = "placement"
+local ICON_THEME = "theme"
+local ICON_BACK = "back"
 -- The two option rows carry only a circle each, never a checkmark, the one marker
 -- convention this codebase uses for "which of these is current right now". Green marks
 -- whichever option is current and red marks the other one, so the pair together says which
 -- is live without either row needing a glyph of its own to describe what it does.
-local ICON_SELECTED = "🟢"
-local ICON_NOT_SELECTED = "🔴"
+local ICON_SELECTED = "selected"
+local ICON_NOT_SELECTED = "notSelected"
 
 local function row(title, subTitle, icon, item, enabled)
-  return { title = title, subTitle = subTitle, image = emojiImage(icon), item = item, enabled = enabled }
+  return { title = title, subTitle = subTitle, icon = icon, item = item, enabled = enabled }
 end
 
 local function backRow()
@@ -249,7 +242,6 @@ end
 --- opts.stagePresent             optional, the shared stage door M.show asks through.
 --- opts.stagePop                 optional, the door the placement child's own Back row asks
 ---                                through.
---- opts.glyphIcon                optional, the shared glyph drawer behind every row icon.
 function M:configure(opts)
   opts = opts or {}
   cfg.readMode = opts.overlayPlacementMode
@@ -259,7 +251,6 @@ function M:configure(opts)
   cfg.setTheme = opts.setTheme
   cfg.stagePresent = opts.stagePresent
   cfg.stagePop = opts.stagePop
-  cfg.glyphIcon = opts.glyphIcon
   if not cfg.readMode or not cfg.setMode then
     log.w("configured with no overlay placement reader or writer, the Where the OLM "
       .. "launcher appears page will show and change nothing")

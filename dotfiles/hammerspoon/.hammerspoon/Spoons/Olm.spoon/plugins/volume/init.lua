@@ -16,11 +16,6 @@ local cfg = {}
 
 local ACCEPTS = "Type a number from 0 to 100, mute, or unmute"
 
-local function icon(glyph)
-  if not (cfg.glyphIcon and glyph) then return nil end
-  return cfg.glyphIcon.icon(glyph)
-end
-
 -- The device sound goes to right now, read on every call, since headphones or a display can
 -- take over between two openings.
 local function device()
@@ -42,15 +37,15 @@ local function now(dev)
 end
 
 local function muteRow(dev)
-  return { title = "Mute", subTitle = now(dev), image = icon("🔇"), item = { id = "mute" } }
+  return { title = "Mute", subTitle = now(dev), icon = "muted", item = { id = "mute" } }
 end
 
 local function unmuteRow(dev)
-  return { title = "Unmute", subTitle = now(dev), image = icon("🔊"), item = { id = "unmute" } }
+  return { title = "Unmute", subTitle = now(dev), icon = "loud", item = { id = "unmute" } }
 end
 
 local function invalidRow(title, dev)
-  return { title = title, subTitle = now(dev) .. ". " .. ACCEPTS, image = icon("⚠️"),
+  return { title = title, subTitle = now(dev) .. ". " .. ACCEPTS, icon = "warn",
            enabled = false, item = { id = "none" } }
 end
 
@@ -61,7 +56,7 @@ end
 local function queryRow(q, dev)
   if q == "" then
     return { title = "Volume " .. level(dev) .. "%" .. (dev:outputMuted() and ", muted" or ""),
-             subTitle = ACCEPTS, image = icon(dev:outputMuted() and "🔇" or "🔊"),
+             subTitle = ACCEPTS, icon = dev:outputMuted() and "muted" or "loud",
              enabled = false, item = { id = "none" } }
   end
 
@@ -69,7 +64,7 @@ local function queryRow(q, dev)
     local n = tonumber(q)
     if n > 100 then return invalidRow(q .. " is above 100", dev) end
     return { title = "Set volume to " .. n .. "%", subTitle = now(dev),
-             image = icon(n == 0 and "🔈" or "🔊"), item = { id = "set", level = n } }
+             icon = n == 0 and "quiet" or "loud", item = { id = "set", level = n } }
   end
 
   local word = q:lower()
@@ -89,7 +84,7 @@ local function rows(query)
   if not level(dev) then
     local name = dev and dev:name() or "No output device"
     return { { title = name .. " has no volume control", subTitle = "Choose another output in Sound settings",
-               image = icon("⚠️"), enabled = false, item = { id = "none" } } }
+               icon = "warn", enabled = false, item = { id = "none" } } }
   end
   return { queryRow(q, dev) }
 end

@@ -4,6 +4,17 @@
 -- since joining through hs.wifi blocks the main thread for as long as the association takes
 -- and a task does not. One backend, so no engine and no contract, the whole plugin is init.lua.
 return {
+  -- The row icons, named by the rows and drawn by Olm.
+  icons = {
+    off = { emoji = "📴" },
+    connected = { emoji = "📶" },
+    network = { emoji = "📡" },
+    saved = { emoji = "⭐" },
+    locked = { emoji = "🔒" },
+    loading = { emoji = "⏳" },
+    warn = { emoji = "⚠️" },
+  },
+
   needs = {
     tools = {
       { name = "networksetup", kind = "system", locator = "/usr/sbin/networksetup", policy = "optional",
@@ -26,10 +37,6 @@ return {
         breaks = "the launcher row and this plugin's own open reach nothing, since neither has any other way to ask the shared stage to show this presentation" },
       redrawPresented = { source = "root", policy = "optional",
         breaks = "a finished scan does not appear until the field is touched, since a background answer has no other way to reach the list" },
-    },
-
-    lib = {
-      glyphIcon = { from = "glyphicon", policy = "optional" },
     },
   },
 

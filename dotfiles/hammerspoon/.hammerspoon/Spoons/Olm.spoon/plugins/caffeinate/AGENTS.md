@@ -66,10 +66,10 @@ moment a character is wrong, since `hs.chooser` reruns the supplier on every
 keystroke in filter mode, so we get the same clarity for free and leave the atom
 untouched.
 
-**Why the icon carries the error.** This Hammerspoon has no SF Symbol API, so a
-row icon is an emoji rendered to an image by the shared glyph drawer. The
-keep typing state uses a keyboard and the error state a warning triangle, which
-is how the two disabled states read apart at a glance.
+**Why the icon carries the error.** A row names its icon by key and Olm draws it,
+the manifest declaring an emoji and an SF Symbol for each, so this plugin draws
+nothing itself. The keep typing state uses a keyboard and the error state a
+warning triangle, which is how the two disabled states read apart at a glance.
 
 **Surviving a reload, and why the state is persisted.** The `displayIdle`
 assertion is process state that a config reload discards. The pathwatcher reloads

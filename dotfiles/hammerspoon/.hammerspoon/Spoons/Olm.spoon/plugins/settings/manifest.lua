@@ -6,16 +6,21 @@
 -- choices through the root words below, so the one place that ever calls hs.settings for
 -- each policy stays the lib that owns it.
 return {
+  -- The row icons. The two option rows carry only a circle each, never a checkmark, the one
+  -- marker convention this codebase uses for which of these is current right now. Green marks
+  -- whichever option is current and red marks the other one.
+  icons = {
+    placement = { emoji = "🖥️" },
+    theme = { emoji = "🎨" },
+    back = { emoji = "⬅️" },
+    selected = { emoji = "🟢" },
+    notSelected = { emoji = "🔴" },
+  },
+
   -- No moving parts, so no engine and contract ceremony, one module. The directory is
   -- settings, one lowercase word, and it needs no different spelling, so no name field.
 
   needs = {
-    -- The shared glyph drawer behind every row icon, so the emoji sits centred in its box.
-    -- Optional, and without it the rows simply carry no icon.
-    lib = {
-      glyphIcon = { from = "glyphicon", policy = "optional" },
-    },
-
     data = {
       -- The reader, a function of no arguments answering the resolver's own effective mode
       -- as a string, one of lib/overlaydisplay.lua's M.modes. Required, since a page whose

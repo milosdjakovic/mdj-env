@@ -65,14 +65,6 @@ local permState = {}    -- per bundle id permission state, filled asynchronously
 -- Row icons
 --------------------------------------------------------------------------------
 
--- Row icons are drawn by the shared glyph drawer, which arrives as cfg.glyphIcon, so every
--- emoji icon fills its box the same way and sits centred. Nothing is drawn without it, and
--- the row simply has no icon.
-local function emojiImage(str)
-  if not (cfg.glyphIcon and str) then return nil end
-  return cfg.glyphIcon.icon(str)
-end
-
 -- A browser's own application icon, cached by bundle id. This is what makes a tab row read as
 -- belonging to a browser without saying so in words, and it is why the icon slot on a tab row
 -- is never an emoji.
@@ -85,18 +77,6 @@ local function appIcon(bundleID)
   return img
 end
 
-local ICON = {
-  settings = "⚙️",
-  back = "⬅️",
-  active = "🟢",
-  off = "⚪",
-  warn = "⚠️",
-  locked = "🔒",
-  ask = "🔓",
-  reading = "⏳",
-  none = "🚫",
-}
-
 --------------------------------------------------------------------------------
 -- Row helpers and wording
 --------------------------------------------------------------------------------
@@ -105,12 +85,14 @@ local function row(title, subTitle, image, item, enabled)
   return { title = title, subTitle = subTitle, image = image, item = item, enabled = enabled }
 end
 
+-- A row whose icon is one of the manifest's declared keys, drawn by Olm. The tab rows keep row
+-- above because their image is the browser's own application icon, a real picture.
 local function glyphRow(title, subTitle, icon, item, enabled)
-  return row(title, subTitle, emojiImage(icon), item, enabled)
+  return { title = title, subTitle = subTitle, icon = icon, item = item, enabled = enabled }
 end
 
 local function backRow()
-  return glyphRow("Back", "", ICON.back, { nav = true, to = "back" }, true)
+  return glyphRow("Back", "", "back", { nav = true, to = "back" }, true)
 end
 
 -- The host of a URL, for a tab subtitle, so a long address still says where the tab is. Falls
@@ -181,7 +163,7 @@ local function emptyRows(where)
   where = where or "in settings below"
   local out = {}
   if loading then
-    out[#out + 1] = glyphRow("Reading tabs", "Asking the browsers that are open", ICON.reading,
+    out[#out + 1] = glyphRow("Reading tabs", "Asking the browsers that are open", "reading",
       { noop = true }, false)
     return out
   end
@@ -194,7 +176,7 @@ local function emptyRows(where)
   end
   if #refused > 0 then
     out[#out + 1] = glyphRow("Hammerspoon may not read " .. table.concat(refused, ", "),
-      "Allow it " .. where, ICON.locked, { noop = true }, false)
+      "Allow it " .. where, "locked", { noop = true }, false)
     return out
   end
 
@@ -207,13 +189,13 @@ local function emptyRows(where)
   end
   if not anyEnabled then
     out[#out + 1] = glyphRow("No browser is switched on", "Switch one on " .. where,
-      ICON.none, { noop = true }, false)
+      "none", { noop = true }, false)
   elseif not anyRunning then
     out[#out + 1] = glyphRow("No browser is open", "Nothing to list until one is running",
-      ICON.none, { noop = true }, false)
+      "none", { noop = true }, false)
   else
     out[#out + 1] = glyphRow("No open tabs", "The browsers that are open reported none",
-      ICON.none, { noop = true }, false)
+      "none", { noop = true }, false)
   end
   return out
 end
@@ -236,7 +218,7 @@ local function settingsRow()
     total = total + 1
     if s.enabled then on = on + 1 end
   end
-  return glyphRow("Settings", on .. " of " .. total .. " browsers switched on", ICON.settings,
+  return glyphRow("Settings", on .. " of " .. total .. " browsers switched on", "settings",
     { nav = true, to = "settings" }, true)
 end
 
@@ -413,14 +395,14 @@ end
 -- live choice, and a switched off one a hollow circle, so the column reads as a set of
 -- toggles. An uninstalled browser is warned rather than marked, since it cannot be switched on.
 local function settingsIcon(s)
-  if not s.installed then return emojiImage(ICON.warn) end
-  return emojiImage(s.enabled and ICON.active or ICON.off)
+  if not s.installed then return "warn" end
+  return s.enabled and "active" or "off"
 end
 
 local function settingsRows()
   local out = { backRow() }
   for _, s in ipairs(cfg.api.status()) do
-    out[#out + 1] = row(s.name, statusText(s), settingsIcon(s),
+    out[#out + 1] = glyphRow(s.name, statusText(s), settingsIcon(s),
       { nav = true, to = "browser", bundleID = s.bundleID }, s.installed)
   end
   return out
@@ -452,7 +434,7 @@ end
 local function browserRows(bundleID)
   local s = statusFor(bundleID)
   if not s then
-    return { backRow(), glyphRow("This browser is gone", "It may have been removed", ICON.warn,
+    return { backRow(), glyphRow("This browser is gone", "It may have been removed", "warn",
       { noop = true }, false) }
   end
 
@@ -462,14 +444,14 @@ local function browserRows(bundleID)
   -- rather than sitting under a control that would do nothing.
   if not s.installed then
     out[#out + 1] = glyphRow("Not installed", "There is nothing here to read tabs from",
-      ICON.warn, { noop = true }, false)
+      "warn", { noop = true }, false)
     return out
   end
 
   out[#out + 1] = glyphRow(s.enabled and ("Switch " .. s.name .. " off") or ("Switch " .. s.name .. " on"),
     s.enabled and "Stop reading its tabs, and stop scripting it at all"
       or "Read its tabs along with the others",
-    s.enabled and ICON.off or ICON.active,
+    s.enabled and "off" or "active",
     { act = "toggle", bundleID = bundleID }, true)
 
   if not s.enabled then return out end
@@ -479,21 +461,21 @@ local function browserRows(bundleID)
     if s.running then
       out[#out + 1] = glyphRow("Ask for permission",
         "macOS will ask whether Hammerspoon may read " .. s.name,
-        ICON.ask, { act = "request", bundleID = bundleID }, true)
+        "ask", { act = "request", bundleID = bundleID }, true)
     else
       -- Asking is impossible while it is closed, so the obstacle is named instead of a control
       -- that could only sit there greyed out.
       out[#out + 1] = glyphRow("Open " .. s.name .. " first",
-        "Permission can only be asked while it runs", ICON.warn, { noop = true }, false)
+        "Permission can only be asked while it runs", "warn", { noop = true }, false)
     end
   elseif perm == cfg.api.states.denied then
     out[#out + 1] = glyphRow("Open Automation settings", "macOS never asks twice, so this is changed by hand",
-      ICON.locked, { act = "openSettings" }, true)
+      "locked", { act = "openSettings" }, true)
   elseif perm == cfg.api.states.unknown or perm == cfg.api.states.noTarget then
     -- Nothing here can fix this one, so it is stated rather than offered, and the console
     -- carries the detail.
     out[#out + 1] = glyphRow("Permission cannot be read",
-      "The tab list still works, see the Hammerspoon console", ICON.warn, { noop = true }, false)
+      "The tab list still works, see the Hammerspoon console", "warn", { noop = true }, false)
   end
 
   return out

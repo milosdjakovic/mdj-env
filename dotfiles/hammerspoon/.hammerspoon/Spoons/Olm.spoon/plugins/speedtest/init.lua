@@ -43,8 +43,6 @@ obj.chooser = load("chooser.lua")
 --- opts.storage            lib/storage.lua, for the one data directory this plugin owns.
 --- opts.deps               the per plugin dependency adapter, the only way this file learns
 ---                         where networkQuality lives. Nothing here ever names a path.
---- opts.glyphIcon          the shared glyph drawer, so a row's icon lines up with every other
----                         row's in this configuration.
 --- opts.surface            the shared pane surface, granted because the manifest asks for a
 ---                         pane. Absent means the list opens with no companion rect at all.
 --- opts.emptyState         the shared quiet state a docked pane paints with nothing to say.
@@ -88,7 +86,6 @@ function obj:configure(opts)
     surface = opts.surface,
     emptyState = opts.emptyState,
     ui = opts.ui,
-    glyphIcon = opts.glyphIcon,
     stagePresent = opts.stagePresent,
     redrawPresented = opts.redrawPresented,
     stagePop = opts.stagePop,

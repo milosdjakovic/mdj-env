@@ -16,13 +16,21 @@ return {
   -- folder, the registry, the launcher row, the Hyper context, is tmuxSessions.
   name = "tmuxSessions",
 
+  -- The row icons, named by the rows and drawn by Olm.
+  icons = {
+    active = { emoji = "🟢" },  -- the window currently on screen, or the currently chosen terminal
+    window = { emoji = "🪟" },
+    terminal = { emoji = "💻" },
+    settings = { emoji = "⚙️" },
+    back = { emoji = "⬅️" },
+  },
+
   needs = {
     -- Lifting the last session or window you jumped to. Keyed by the tmux target a row and a
     -- jump both use, session and index, so a killed window leaves a key nothing can produce
     -- again. Optional, and without it the resting order simply stands.
     lib = {
       recency = { from = "recency", policy = "optional" },
-      glyphIcon = { from = "glyphicon", policy = "optional" },
     },
 
     -- Two root computed words, the trickle migration onto the shared stage and, since,

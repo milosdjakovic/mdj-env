@@ -16,6 +16,27 @@
 return {
   -- The identity is exactly the directory, one lowercase word, so no name field.
 
+  -- The row icons, named by the rows and drawn by Olm. The Apps list carries each
+  -- app's own picture instead, and app is only the mark for an app with none.
+  icons = {
+    available = { emoji = "🟢" },
+    unavailable = { emoji = "⚪" },
+    new = { emoji = "📸" },
+    apply = { emoji = "🪟" },
+    apps = { emoji = "📦" },
+    app = { emoji = "🪟" },
+    update = { emoji = "🔄" },
+    rename = { emoji = "✏️" },
+    delete = { emoji = "🗑️" },
+    remove = { emoji = "🚫" },
+    include = { emoji = "✅" },
+    save = { emoji = "💾" },
+    no = { emoji = "↩️" },
+    back = { emoji = "⬅️" },
+    hint = { emoji = "⌨️" },
+    warn = { emoji = "⚠️" },
+  },
+
   needs = {
     -- Where the layouts live. lib/storage.lua's own dataDir, the durable root under the home
     -- directory every plugin's own data goes to, speedtest's history being the settled example,
@@ -25,7 +46,6 @@ return {
     -- at start and a list with nowhere to write would be a list that lies.
     lib = {
       storage = { from = "storage", policy = "required" },
-      glyphIcon = { from = "glyphicon", policy = "optional" },
     },
 
     data = {

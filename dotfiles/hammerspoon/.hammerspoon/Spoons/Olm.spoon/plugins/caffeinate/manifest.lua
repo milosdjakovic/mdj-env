@@ -5,13 +5,19 @@
 -- story, both ambient once a surface is declared, so a present manifest field for either
 -- would only be restating global policy.
 return {
-  needs = {
-    -- The shared glyph drawer behind every row icon, so the emoji sits centred in its box.
-    -- Optional, and without it the rows simply carry no icon.
-    lib = {
-      glyphIcon = { from = "glyphicon", policy = "optional" },
-    },
+  -- A green circle reads as go, a red one as stop, a clock as an absolute time, an hourglass
+  -- as a span, a keyboard as the prompt to keep typing and a warning triangle as the error.
+  -- The rows name these and Olm draws them, in whichever icon set is active.
+  icons = {
+    on = { emoji = "🟢", sf = "circle.fill" },
+    off = { emoji = "🔴", sf = "circle" },
+    clock = { emoji = "🕒", sf = "clock" },
+    duration = { emoji = "⏳", sf = "hourglass" },
+    hint = { emoji = "⌨️", sf = "keyboard" },
+    error = { emoji = "⚠️", sf = "exclamationmark.triangle" },
+  },
 
+  needs = {
     -- Two root computed words, the trickle migration onto the shared stage. stagePresent
     -- is the hotkey door, reached through this plugin's own M.show. redrawPresented is the
     -- async status seam, this plugin's own onChange asking to be redrawn once a timed

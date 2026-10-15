@@ -19,11 +19,6 @@ local FRESH = 2
 local held = {}
 local readAt = 0
 
-local function icon(glyph)
-  if not (cfg.glyphIcon and glyph) then return nil end
-  return cfg.glyphIcon.icon(glyph)
-end
-
 local function side(devices, current, kind)
   local currentUID = current and current:uid()
   local out = {}
@@ -55,11 +50,11 @@ local function rows()
   local out = {}
   for _, d in ipairs(held) do
     local label = d.kind == "output" and "Output" or "Input"
-    local glyph = d.current and "✅" or (d.kind == "output" and "🔊" or "🎙️")
+    local glyph = d.current and "current" or (d.kind == "output" and "output" or "input")
     out[#out + 1] = {
       title = d.name,
       subTitle = label .. (d.current and ", in use" or ""),
-      image = icon(glyph),
+      icon = glyph,
       -- The side is part of what a search matches, so typing input narrows to inputs.
       filterText = d.name .. " " .. label,
       item = { id = "device", kind = d.kind, uid = d.uid, name = d.name },
@@ -67,7 +62,7 @@ local function rows()
   end
   if #out == 0 then
     out[1] = { title = "No audio devices", subTitle = "CoreAudio reported none",
-               image = icon("⚠️"), enabled = false, item = { id = "none" } }
+               icon = "warn", enabled = false, item = { id = "none" } }
   end
   return out
 end

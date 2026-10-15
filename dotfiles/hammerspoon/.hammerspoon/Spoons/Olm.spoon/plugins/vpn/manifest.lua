@@ -12,6 +12,24 @@
 -- presentation block below is the whole of what used to be a Chooser.new call and a hand
 -- built surface adapter.
 return {
+  -- The action glyphs. A green circle reads as go, a red one as stop. The rest are the shared
+  -- vocabulary the other pages in this config already use for the same meanings, so a page
+  -- here reads the way the settings and browser pages do rather than inventing its own marks.
+  -- Green is the live one, an empty circle is a choice that is there to be made, and the
+  -- warning triangle is something this machine cannot currently reach. The country flags on
+  -- the location rows are not here, they are content derived from the location and the plugin
+  -- hands them over as a table spec.
+  icons = {
+    connect = { emoji = "🟢", sf = "lock.shield" },
+    disconnect = { emoji = "🔴", sf = "lock.open" },
+    back = { emoji = "⬅️", sf = "chevron.left" },
+    settings = { emoji = "⚙️", sf = "gearshape" },
+    active = { emoji = "🟢", sf = "checkmark.circle.fill" },
+    idle = { emoji = "⚪", sf = "circle" },
+    warn = { emoji = "⚠️", sf = "exclamationmark.triangle" },
+    loading = { emoji = "⏳", sf = "hourglass" },
+  },
+
   needs = {
     -- Remembering the last used city, so the list opens already ordered by that. This
     -- said optional once, which promised the panel would still open and still connect
@@ -22,7 +40,6 @@ return {
     -- manifest is the one that was wrong. Required.
     lib = {
       recency = { from = "recency", policy = "required" },
-      glyphIcon = { from = "glyphicon", policy = "optional" },
     },
     -- One entry per backend, each naming its own provider as the unit, which is what keeps
     -- a missing tool reporting the provider that wanted it rather than the whole plugin.

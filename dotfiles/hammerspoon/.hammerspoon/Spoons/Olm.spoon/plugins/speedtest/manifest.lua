@@ -9,16 +9,27 @@
 -- the network feels wrong, which is a few times a month, so the launcher row and the alias
 -- are the whole of how it opens.
 return {
+  -- The row icons, named by the rows and drawn by Olm.
+  icons = {
+    run = { emoji = "📶" },
+    stop = { emoji = "🚫" },
+    result = { emoji = "📈" },
+    settings = { emoji = "⚙️" },
+    networks = { emoji = "🌐" },
+    back = { emoji = "⬅️" },
+    empty = { emoji = "📊" },
+    problem = { emoji = "⚠️" },
+    name = { emoji = "✏️" },
+    clear = { emoji = "🗑️" },
+    keep = { emoji = "↩️" },
+  },
+
   needs = {
     lib = {
       -- A run cannot be recreated once its moment has passed, so the history is durable
       -- data under the olm root rather than a cache, and required because a plugin whose
       -- whole value is the comparison has nothing to compare against without it.
       storage = { from = "storage", policy = "required" },
-      -- The shared glyph drawer, so a row's icon is sized and framed exactly like every
-      -- other row's in this configuration rather than being drawn a second way here.
-      -- Optional, a list with no icons still reads.
-      glyphIcon = { from = "glyphicon", policy = "optional" },
       -- The UI kit, which every piece of text in the pane is drawn through, so the pane names a
       -- role and never a font, a size, a line height or a colour. Optional, since without it the
       -- pane stands down and the list still measures and keeps every reading.

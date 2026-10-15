@@ -181,29 +181,6 @@ local function humanSpan(secs)
   return string.format("%dm", m)
 end
 
---------------------------------------------------------------------------------
--- Row icons
---------------------------------------------------------------------------------
-
--- Row icons are drawn by the shared glyph drawer, which arrives as cfg.glyphIcon, so every
--- emoji icon fills its box the same way and sits centred. Nothing is drawn without it, and
--- the row simply has no icon.
-local function emojiImage(str)
-  if not (cfg and cfg.glyphIcon and str) then return nil end
-  return cfg.glyphIcon.icon(str)
-end
-
--- A green circle reads as go, a red one as stop, a clock as an absolute time, an hourglass
--- as a span, a keyboard as the prompt to keep typing.
-local ICON = {
-  on = "🟢",
-  off = "🔴",
-  clock = "🕒",
-  duration = "⏳",
-  hint = "⌨️",
-  error = "⚠️",
-}
-
 -- The format examples as a subtitle fragment, shared by the Activate row and the two hint
 -- rows so the wording lives in one place. The clock is 24 hour so the format is unambiguous.
 local EXAMPLES = "a time like 18:45, or 2h30m as a duration"
@@ -227,27 +204,27 @@ local function rows(query)
 
   if q == "" then
     if s.active then
-      return { { title = "Deactivate", subTitle = statusText(s), image = emojiImage(ICON.off), item = { id = "off" } } }
+      return { { title = "Deactivate", subTitle = statusText(s), icon = "off", item = { id = "off" } } }
     end
-    return { { title = "Activate indefinitely", subTitle = "Specify " .. EXAMPLES, image = emojiImage(ICON.on), item = { id = "indefinite" } } }
+    return { { title = "Activate indefinitely", subTitle = "Specify " .. EXAMPLES, icon = "on", item = { id = "indefinite" } } }
   end
 
   local h, m = parseClock(q)
   if h then
     local ts = nextOccurrence(h, m)
-    return { { title = "Stay awake until " .. endLabel(ts), subTitle = "in " .. humanSpan(ts - os.time()), image = emojiImage(ICON.clock), item = { id = "until", ts = ts } } }
+    return { { title = "Stay awake until " .. endLabel(ts), subTitle = "in " .. humanSpan(ts - os.time()), icon = "clock", item = { id = "until", ts = ts } } }
   end
 
   local secs = parseDuration(q) or parseBareHours(q)
   if secs then
-    return { { title = "Stay awake for " .. humanSpan(secs), subTitle = "ends " .. endLabel(os.time() + secs), image = emojiImage(ICON.duration), item = { id = "for", secs = secs } } }
+    return { { title = "Stay awake for " .. humanSpan(secs), subTitle = "ends " .. endLabel(os.time() + secs), icon = "duration", item = { id = "for", secs = secs } } }
   end
 
   if isIncomplete(q) then
-    return { { title = "Keep typing", subTitle = EXAMPLES, image = emojiImage(ICON.hint), enabled = false, item = { id = "hint" } } }
+    return { { title = "Keep typing", subTitle = EXAMPLES, icon = "hint", enabled = false, item = { id = "hint" } } }
   end
 
-  return { { title = "Not a time or duration", subTitle = EXAMPLES, image = emojiImage(ICON.error), enabled = false, item = { id = "hint" } } }
+  return { { title = "Not a time or duration", subTitle = EXAMPLES, icon = "error", enabled = false, item = { id = "hint" } } }
 end
 
 --------------------------------------------------------------------------------

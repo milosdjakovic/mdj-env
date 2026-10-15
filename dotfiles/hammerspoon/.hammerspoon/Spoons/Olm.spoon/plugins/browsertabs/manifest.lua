@@ -8,6 +8,20 @@ return {
   -- folder, config/keys.lua, the registry, the launcher row, is browserTabs.
   name = "browserTabs",
 
+  -- The row icons, named by the rows and drawn by Olm. A tab row wears its browser's own
+  -- application icon instead, a real picture and not a key.
+  icons = {
+    settings = { emoji = "⚙️" },
+    back = { emoji = "⬅️" },
+    active = { emoji = "🟢" },
+    off = { emoji = "⚪" },
+    warn = { emoji = "⚠️" },
+    locked = { emoji = "🔒" },
+    ask = { emoji = "🔓" },
+    reading = { emoji = "⏳" },
+    none = { emoji = "🚫" },
+  },
+
   needs = {
     -- Ordering the list by what you looked at last. A plain reusable mechanism, so it
     -- comes from lib rather than from a sibling plugin. Optional, and without it the
@@ -21,7 +35,6 @@ return {
       -- Where the compiled permission probe is kept, lib/storage.lua's own cache root, since
       -- a build is regenerable and this plugin may not name a directory under HOME itself.
       storage = { from = "storage", policy = "required" },
-      glyphIcon = { from = "glyphicon", policy = "optional" },
     },
     tools = {
       { name = "osascript", kind = "system", locator = "/usr/bin/osascript", policy = "optional", unit = "jxa",
