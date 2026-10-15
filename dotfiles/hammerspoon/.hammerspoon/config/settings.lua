@@ -55,7 +55,7 @@ return {
   -- corner radius. The colours of the surface and of everything drawn on it come from the
   -- theme files under config/themes, one file per theme, chosen on the OLM settings page.
   surface = {
-    cornerRadius = 20,   -- the macOS window corner, rounding every surface at once, 0 is square
+    cornerRadius = 0,    -- square surfaces, 20 is the macOS window corner, rounding every surface at once
     borderWidth = 1,
   },
 
