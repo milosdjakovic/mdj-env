@@ -77,7 +77,8 @@
 ---              height for left/right. nil = match the anchor's size on that axis.
 ---   align      "start" (default) | "center" | "end", along the shared axis when
 ---              breadth is smaller than the anchor.
----   padX, padY inner padding around the content (default the kit's inset).
+---   padX, padY inner padding around the content (default the kit's inset.x on all four
+---              sides, so a chip against the edge nests in the surface's corner).
 ---   style      per-instance surface override; nil inherits the configured default.
 ---   level      canvas window level (default hs.canvas.windowLevels.popUpMenu).
 ---   content    REQUIRED renderer:
@@ -227,7 +228,10 @@ end
 function obj.surfaceInterior(w, h, style)
   style = style or DEFAULT_STYLE or {}
   local bw = style.borderWidth or 1
-  return { x = bw, y = bw, w = w - 2 * bw, h = h - 2 * bw }
+  -- radius is the interior's own rounding, the surface radius less the border, the same
+  -- nested rule ui.nestedRadius states, so a clip cut here follows the inside of the border.
+  local radius = math.max(0, (style.cornerRadius or 0) - bw)
+  return { x = bw, y = bw, w = w - 2 * bw, h = h - 2 * bw, radius = radius }
 end
 
 --- CanvasPanel.emptyStateElements(w, h, opts) - a quiet empty state for a w x h box at
@@ -289,8 +293,10 @@ end
 function Panel:_layout(anchor)
   local c = self.config
   -- The kit's one inset unless the caller names its own, so every panel pads like the chooser.
-  local inset = UI and UI.tokens().inset or { x = 14, y = 10 }
-  local padX, padY = c.padX or inset.x, c.padY or inset.y
+  -- One value on every side, so content held against an edge sits as far from the bottom as
+  -- from the sides and the kit's nested radius fits every corner.
+  local pad = UI and UI.tokens().pad or 14
+  local padX, padY = c.padX or pad, c.padY or pad
   local gap = c.gap or 8
   local centered = (c.placement == obj.placements.center)
   local horizontal = (c.placement == obj.placements.left

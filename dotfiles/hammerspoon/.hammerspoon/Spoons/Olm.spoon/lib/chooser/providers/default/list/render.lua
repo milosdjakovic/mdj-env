@@ -249,6 +249,7 @@ function M.elements(state, rect, layout, style, clip)
   local titleColor = style.titleColor or NO_STYLE.titleColor
   local subColor = style.subColor or NO_STYLE.subColor
   local highlightColor = style.highlightColor or NO_STYLE.highlightColor
+  local highlightRadius = style.highlightRadius or 0
   local numberColor = style.numberColor or dim(subColor, dimAlpha)
 
   local ns = model.normalized(state)
@@ -269,6 +270,16 @@ function M.elements(state, rect, layout, style, clip)
   -- own point based scrollTop, rather than by accident the way round two's short last
   -- row once did. resetClip below closes the region again so nothing a caller appends
   -- after this file's own elements is ever affected by a clip this file leaves open.
+  -- A rounded clip first when the caller hands one, the inside of a rounded surface, and the
+  -- band's own clip after it, the two intersecting, so the corners follow the surface's curve.
+  if clip and clip.round then
+    local r = clip.round
+    els[#els + 1] = {
+      type = "rectangle", action = "clip",
+      roundedRectRadii = { xRadius = r.radius, yRadius = r.radius },
+      frame = { x = px(r.x), y = px(r.y), w = px(r.w), h = px(r.h) },
+    }
+  end
   els[#els + 1] = {
     type = "rectangle", action = "clip",
     frame = clip and { x = px(clip.x), y = px(clip.y), w = px(clip.w), h = px(clip.h) }
@@ -301,6 +312,7 @@ function M.elements(state, rect, layout, style, clip)
     if entry.index == ns.highlight then
       els[#els + 1] = {
         type = "rectangle", action = "fill", fillColor = highlightColor,
+        roundedRectRadii = { xRadius = highlightRadius, yRadius = highlightRadius },
         frame = { x = px(rect.x), y = px(rowY), w = px(rect.w), h = px(layout.rowH) },
       }
     end

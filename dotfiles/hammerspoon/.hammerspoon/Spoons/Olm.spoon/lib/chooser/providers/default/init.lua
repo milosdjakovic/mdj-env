@@ -285,6 +285,9 @@ function Provider:_deriveStyles()
     titleColor = T.colors.foreground,
     subColor = T.colors.subtext,
     highlightColor = T.colors.highlight,
+    -- The highlight sits marginX inside the surface's edge, so its corners nest inside the
+    -- surface's own, one rule for every rounded thing drawn inside a rounded surface.
+    highlightRadius = UI.nestedRadius(T.radius.surface, self.layout.marginX),
     numberColor = T.colors[T.text.section.color],
     dimAlpha = T.alpha.dim,
   }
@@ -455,6 +458,9 @@ function Provider:_redraw()
   if interior then
     local bottom = math.min(listRect.y + listRect.h, interior.y + interior.h)
     clip = { x = listRect.x, y = listRect.y, w = listRect.w, h = math.max(0, bottom - listRect.y) }
+    -- The interior's rounded outline as a second clip, so a row cut by the bottom edge is cut
+    -- along the surface's curve at the corners rather than poking past it.
+    if (interior.radius or 0) > 0 then clip.round = interior end
   end
   for _, el in ipairs(listRender.elements(self.listState, listRect, self._drawLayout, self._listStyle, clip)) do
     els[#els + 1] = el
@@ -1232,7 +1238,10 @@ function M.new(config)
   local tokens = UI.tokens()
   local inset = tokens.inset or { x = layout.padX, y = layout.marginY }
   layout.padX, layout.iconGap = inset.x, inset.x
-  layout.marginX, layout.marginY = inset.x, inset.y
+  -- The margin wrapping the list is one value on every side, so a highlighted row sits the
+  -- same distance from the bottom edge as from the sides and its corners nest in the
+  -- surface's. inset.y stays the text inset inside a row, handed to derivedRows below.
+  layout.marginX, layout.marginY = inset.x, inset.x
   local cap = capOf(tokens)
   local derived = geometry.derivedRows(tokens.text, cap, inset)
   layout.iconSize = derived.iconSize

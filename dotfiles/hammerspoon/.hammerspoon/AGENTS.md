@@ -675,6 +675,17 @@ keys under `[dark]` and `[light]`. The Aura one is generated, so a colour change
 `theme/palettes` or in `theme-map` beside this directory, and the hand written default theme
 changes in its own file. `decisions/olm-colour-roles.md` has what was rejected.
 
+**Olm corners, one radius and one formula.** Every corner Olm draws, a chip, a key badge, the
+chooser's highlighted row, a preview picture, a swatch, is derived from the one surface radius,
+`surface.cornerRadius` in `config/settings.lua`. The formula is inner radius equals outer radius
+less the padding between them, never below zero, `ui.nestedRadius(outer, gap)` in the kit, and
+`radius.nested` is the surface radius less the kit's `pad`, the padding every panel takes on all
+four sides. A caller reads `radius.nested`, or calls `nestedRadius` with its own padding when it
+has one, and never writes a number. It is dynamic, so a surface set to 0 squares every corner
+inside it on the next draw. Padding is one value on every side, since unequal sides cannot both
+fit one corner. The dry gate reports a hand set radius outside `lib/ui`, and
+`Spoons/Olm.spoon/docs/DESIGN-UI-KIT.md` has the detail under Corners.
+
 **Spoon lifecycle contract.** Every spoon is created and wired the same way, so
 `root/compose.lua`'s wiring pipeline can treat them uniformly. This is a convention, not a base class,
 because a Lua contract is structural, a documented set of methods plus validation,

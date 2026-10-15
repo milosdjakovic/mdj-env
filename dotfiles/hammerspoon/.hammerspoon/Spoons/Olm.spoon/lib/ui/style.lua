@@ -103,11 +103,10 @@ local SHIPPED = {
   -- added in stage two beside the scale they fall between.
   space = { xs = 2, s = 6, sm = 8, m = 10, l = 14, lg = 16, xl = 20 },
 
-  -- surface and badge are overwritten from settings by the spec, and these two are only what
-  -- an unconfigured kit draws, square chrome and the cheat sheet's own default badge radius.
-  -- swatch is the colour toast's swatch corner, kept apart from badge since the badge radius
-  -- follows a setting and the swatch never did.
-  radius = { surface = 0, badge = 5, chip = 6, swatch = 5 },
+  -- surface is the one corner a person sets, overwritten from settings by the spec, square for
+  -- an unconfigured kit. Every other corner is derived from it, see radius.nested below, so a
+  -- square surface squares everything drawn inside it.
+  radius = { surface = 0 },
 
   -- muted is the report toast's alpha for a row naming something that was not there, added
   -- in stage two beside the two the design names.
@@ -136,9 +135,9 @@ local SHIPPED = {
 local INSET_RULE = { x = "l", y = "m" }
 
 local BADGE_RULES = {
-  cheat = { role = "body", padY = "s", padX = "m" },
-  hint = { role = "section", padY = "xs", padX = "s", minWidth = 0 },
-  button = { role = "caption", padY = "s", padX = "l", radius = "chip" },
+  cheat = { role = "body", padY = "s", padX = "m", radius = "nested" },
+  hint = { role = "section", padY = "xs", padX = "s", minWidth = 0, radius = "nested" },
+  button = { role = "caption", padY = "s", padX = "l", radius = "nested" },
 }
 
 -- Every colour role a resolved table answers, the eight and no others, kept here because the
@@ -204,6 +203,13 @@ local function toColor(value)
 end
 
 -- A colour with its alpha multiplied, the one way alpha is applied anywhere in the kit.
+--- M.nestedRadius(outer, gap) -> the corner radius for a shape sitting gap points inside a
+--- shape rounded by outer, the outer radius less the gap and never below square, so both
+--- corners share one centre and the inner one reads as fitting the outer one.
+function M.nestedRadius(outer, gap)
+  return math.max(0, (outer or 0) - (gap or 0))
+end
+
 function M.withAlpha(color, factor)
   if not color then return nil end
   local out = copy(color)
@@ -378,17 +384,26 @@ function M.new(opts)
       }
     end
 
+    local inset = { x = space[INSET_RULE.x], y = space[INSET_RULE.y] }
+    local radius = mergeGroup(SHIPPED.radius, spec.radius)
+    -- pad is what every panel and pane pads its content by, one value on all four sides, so
+    -- content sits as far from the bottom edge as from the sides. inset.y stays the text inset
+    -- inside a chooser row. nested is the corner of anything held against a panel's edge.
+    local pad = inset.x
+    radius.nested = M.nestedRadius(radius.surface, pad)
+
     return {
       half = half,
       colors = resolved,
       fonts = fonts,
       text = text,
       space = space,
-      radius = mergeGroup(SHIPPED.radius, spec.radius),
+      radius = radius,
       alpha = alpha,
       icon = mergeGroup(SHIPPED.icon, spec.icon),
       badge = mergeGroup(badges, spec.badge),
-      inset = { x = space[INSET_RULE.x], y = space[INSET_RULE.y] },
+      inset = inset,
+      pad = pad,
     }
   end
 

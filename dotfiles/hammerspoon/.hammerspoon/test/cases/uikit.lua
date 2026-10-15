@@ -104,8 +104,8 @@ do
       and dark.badge.cheat.padX == 10 and dark.badge.cheat.text == "body"
       and dark.badge.button.padX == 14 and dark.badge.button.text == "caption")
   check("space, radius, alpha and icon carry the settled values",
-    dark.space.xs == 2 and dark.space.xl == 20 and dark.radius.chip == 6
-      and dark.radius.badge == 5 and dark.alpha.fade == 0.55 and dark.icon.sheet == 32)
+    dark.space.xs == 2 and dark.space.xl == 20 and dark.radius.surface == 0
+      and dark.radius.nested == 0 and dark.alpha.fade == 0.55 and dark.icon.sheet == 32)
 end
 
 do

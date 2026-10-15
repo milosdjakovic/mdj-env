@@ -40,15 +40,12 @@ end
 --- roles from config/typography.toml, handed on untouched since the style owns the fallback.
 function M.spec(policy, colors, typography)
   policy = policy or {}
-  local cheatSheet = policy.cheatSheet or {}
   return {
     colors = { dark = colorsFor(colors, "dark"), light = colorsFor(colors, "light") },
     typography = typography,
     radius = {
+      -- Every chip's corner is derived from this one, see radius.nested in lib/ui/style.lua.
       surface = (policy.surface or {}).cornerRadius,
-      -- One radius shared on purpose by the cheat sheet badges and the hint bar badges,
-      -- matching the settings comment.
-      badge = cheatSheet.badgeRadius,
     },
   }
 end

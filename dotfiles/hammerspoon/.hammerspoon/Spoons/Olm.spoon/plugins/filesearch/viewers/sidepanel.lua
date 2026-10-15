@@ -273,11 +273,11 @@ local function headerNode(row, attrs)
   return nodes.header(ui, row.name or row.path, util.shortDir(row.dir), facts)
 end
 
--- The inner box the tree is laid out in, the pane's frame less the kit's one inset, which is
+-- The inner box the tree is laid out in, the pane's frame less the kit's pad on all four sides,
 -- the space around content every surface shares. In the canvas's own coordinates.
 local function innerRect()
-  local inset = cfg.ui.tokens().inset
-  return { x = inset.x, y = inset.y, w = frame.w - 2 * inset.x, h = frame.h - 2 * inset.y }
+  local pad = cfg.ui.tokens().pad
+  return { x = pad, y = pad, w = frame.w - 2 * pad, h = frame.h - 2 * pad }
 end
 
 -- Everything for one row, built once and cached, since the highlight poll fires often and

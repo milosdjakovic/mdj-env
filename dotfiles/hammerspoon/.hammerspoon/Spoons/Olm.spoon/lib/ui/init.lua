@@ -78,6 +78,13 @@ function ui.interior(w, h)
   return { x = 0, y = 0, w = w, h = h }
 end
 
+--- ui.nestedRadius(outer, gap) -> the corner radius for a shape sitting gap points inside a
+--- shape rounded by outer, so both corners share one centre and the inner one reads as fitting
+--- the outer one rather than as a second, unrelated curve. The outer radius less the gap, never
+--- below square. A highlighted row inside a surface takes its radius from here, and so does
+--- anything else drawn near an edge that should follow the surface's rounding.
+ui.nestedRadius = styleLib.nestedRadius
+
 --- ui.iconImage(imageOrGlyph, size) -> hs.image or nil, size an icon name. The image an
 --- icon node draws, for a native chooser row that wants the same picture.
 function ui.iconImage(source, size)

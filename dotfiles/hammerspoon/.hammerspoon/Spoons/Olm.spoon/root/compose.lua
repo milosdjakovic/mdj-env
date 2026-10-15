@@ -361,9 +361,9 @@ function obj.run(olm, cfg)
     })
   end
 
-  -- The cheat sheet's colours and badge radius reach it through the kit's spec, built above
-  -- from the same cheatSheet block, and its type and geometry come from the five roles, so
-  -- only the panel padding and the two collaborators are handed over here.
+  -- The cheat sheet's colours and badge radius reach it through the kit's tokens, and its type
+  -- and geometry come from the five roles, so only an optional padding override and the two
+  -- collaborators are handed over here.
   local cheatSheetAtom = atoms.cheatsheet
   cheatSheetAtom:init()
   cheatSheetAtom:configure({ canvasPanel = canvasPanel, ui = uiAtom,

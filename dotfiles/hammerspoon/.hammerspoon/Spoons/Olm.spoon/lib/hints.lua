@@ -438,7 +438,7 @@ function obj.toast(deps)
       end,
       draw = function(w, h)
         local tokens = ui.tokens()
-        local swatch, r, v = tokens.icon.swatch, tokens.radius.swatch, tokens.text.code
+        local swatch, r, v = tokens.icon.swatch, tokens.radius.nested, tokens.text.code
         local gap = tokens.space.l
         local els = {
           { type = "rectangle", action = "strokeAndFill", fillColor = state.color,

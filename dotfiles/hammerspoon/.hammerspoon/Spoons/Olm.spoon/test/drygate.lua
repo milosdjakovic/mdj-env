@@ -595,7 +595,7 @@ do
             accepted[#accepted + 1] = string.format("accepted, %s:%d, type-exempt, %s", rel, hit.line, hit.exempt)
           else
             findings[#findings + 1] = string.format(
-              "dry gate refused '%s', line %d, %s outside lib/ui, '%s', move it onto a kit role, or if it is an icon drawn into a canvas declare it with a type-exempt comment and a reason",
+              "dry gate refused '%s', line %d, %s outside lib/ui, '%s', move it onto a kit role or a radius derived from the surface, or if it is an icon drawn into a canvas declare it with a type-exempt comment and a reason",
               rel, hit.line, hit.what, hit.source)
           end
         end

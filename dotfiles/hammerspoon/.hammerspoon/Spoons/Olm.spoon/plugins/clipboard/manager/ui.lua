@@ -350,16 +350,20 @@ local function kindGlyph(kind)
   return emojiImage(kind == "url" and "🔗" or "📝")
 end
 
+local kit = nil -- the UI kit, needs.lib.ui, set by configure, declared here so the row icons see it
+
 -- A small chip of a colour literal, cached by the colour so it is drawn once. A
 -- translucent colour sits over a light fill so its alpha is visible.
 local chipCache = {}
 local function colorChip(col)
-  local key = string.format("chip:%.3f,%.3f,%.3f,%.3f", col.r, col.g, col.b, col.a)
+  -- The chip's corner is the kit's nested radius, so a square surface draws a square chip.
+  local r = kit.tokens().radius.nested
+  local key = string.format("chip:%.3f,%.3f,%.3f,%.3f:%g", col.r, col.g, col.b, col.a, r)
   local hit = chipCache[key]
   if hit ~= nil then return hit or nil, key end
   local c = hs.canvas.new({ x = 0, y = 0, w = ICON, h = ICON })
   local box = { x = 7, y = 7, w = ICON - 14, h = ICON - 14 }
-  local radii = { xRadius = 6, yRadius = 6 }
+  local radii = { xRadius = r, yRadius = r }
   if col.a < 1 then
     c[#c + 1] = { type = "rectangle", action = "fill", fillColor = { white = 0.9, alpha = 1 },
       roundedRectRadii = radii, frame = box }
@@ -459,7 +463,6 @@ end
 
 local TEXT_DISPLAY_CAP = 20000 -- max characters drawn, so the pane stays bounded
 
-local kit = nil -- the UI kit, needs.lib.ui, set by configure
 local pane = nil -- manager/pane.lua, loaded the way init.lua loads its siblings
 do
   local here = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
@@ -512,9 +515,8 @@ end
 -- elements the layout answers are drawn as they come. Only ever called while a frame exists,
 -- renderPreview having already deferred when there is none.
 local function innerRect()
-  local inset = kit.tokens().inset
-  return { x = inset.x, y = inset.y,
-           w = previewFrame.w - 2 * inset.x, h = previewFrame.h - 2 * inset.y }
+  local pad = kit.tokens().pad
+  return { x = pad, y = pad, w = previewFrame.w - 2 * pad, h = previewFrame.h - 2 * pad }
 end
 
 -- Lay a tree into the canvas, the shared surface first (unclipped), then the tree laid out in

@@ -57,11 +57,11 @@ local frame = nil  -- the companion rect the atom reported, where the canvas doc
 local model = nil  -- the cached static half of the row on screen, see buildModel
 local hidden = false -- set by M.hide, cleared by M.dock, the resurrection guard paint reads
 
--- The inner box the pane is laid out in, the frame less the kit's one inset, which is the
+-- The inner box the pane is laid out in, the frame less the kit's pad on all four sides, the
 -- space around content every surface shares. In the canvas's own coordinates.
 local function innerRect()
-  local inset = cfg.ui.tokens().inset
-  return { x = inset.x, y = inset.y, w = frame.w - 2 * inset.x, h = frame.h - 2 * inset.y }
+  local pad = cfg.ui.tokens().pad
+  return { x = pad, y = pad, w = frame.w - 2 * pad, h = frame.h - 2 * pad }
 end
 
 --------------------------------------------------------------------------------

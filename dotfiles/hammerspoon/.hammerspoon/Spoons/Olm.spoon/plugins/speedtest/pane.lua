@@ -56,11 +56,11 @@ local function stopScrollTimer()
   end
 end
 
--- The inner box the pane is laid out in, the frame less the kit's one inset, which is the space
+-- The inner box the pane is laid out in, the frame less the kit's pad on all four sides, the space
 -- around content every surface shares. In the canvas's own coordinates.
 local function innerRect()
-  local inset = cfg.ui.tokens().inset
-  return { x = inset.x, y = inset.y, w = frame.w - 2 * inset.x, h = frame.h - 2 * inset.y }
+  local pad = cfg.ui.tokens().pad
+  return { x = pad, y = pad, w = frame.w - 2 * pad, h = frame.h - 2 * pad }
 end
 
 --------------------------------------------------------------------------------
@@ -141,7 +141,9 @@ local function paint()
   if maxScroll > 0 then
     local thumbH = math.max(SCROLL_MIN, rect.h * (rect.h / bodyH))
     local travel = rect.h - thumbH
-    local radius = SCROLL_W / 2
+    -- A pill while the surface is rounded, never rounder than the kit's nested corner, so a
+    -- square surface draws a square thumb.
+    local radius = math.min(SCROLL_W / 2, tokens.radius.nested)
     els[#els + 1] = { type = "rectangle", action = "fill",
       roundedRectRadii = { xRadius = radius, yRadius = radius }, fillColor = thumbColor(tokens),
       frame = { x = frame.w - SCROLL_EDGE, y = rect.y + (scrollY / maxScroll) * travel,

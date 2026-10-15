@@ -25,9 +25,8 @@
 --- and the key badge glyph are the body role, the separator word between alternate keys is
 --- caption, and a section title is the section role in its own colour, so the type, the
 --- chip and the text colours track light and dark through the kit's tokens, matching the
---- hint bar. The cheat sheet settings block, badgeRadius, reaches the tokens through the
---- spec the composition root builds, root/uispec.lua, and there is no font size setting,
---- since the roles carry the sizes.
+--- hint bar. The badge radius is the kit's nested radius, the surface's corner less the panel
+--- padding, and there is no font size setting, since the roles carry the sizes.
 ---
 --- The three heights are derived, never literal. The key badge is a body line with the small
 --- space above and below, a row is a badge with the medium space added, and a title is a
@@ -105,7 +104,6 @@ local function derivedLayout(T)
   }
 end
 
-local PANEL_PADDING = 20 -- CanvasPanel padX/padY unless configure sets padding
 
 -- Key names -> display glyph, and sub-modifier names -> glyph prefixed onto it.
 -- Turning a key plus its modifiers into a badge string is pure presentation, so
@@ -229,6 +227,13 @@ function obj:_rowsElements(els, rows, contentY, L, alpha, T)
   local cheat = {}
   for k, v in pairs(T.badge.cheat) do cheat[k] = v end
   cheat.height = L.badgeHeight
+  -- The badge corner nests in the panel's own corner across this panel's own padding, which
+  -- is wider than every other panel's, so it is derived here rather than read as radius.nested.
+  local radius = {}
+  for k, v in pairs(T.radius) do radius[k] = v end
+  radius.sheet = ui.nestedRadius(radius.surface, self:_padding())
+  T.radius = radius
+  cheat.radius = "sheet"
   local badge = {}
   for k, v in pairs(T.badge) do badge[k] = v end
   badge.cheat = cheat
@@ -328,8 +333,24 @@ function obj:_build()
     h = h + rowsFor(#s.rows, layouts[i].columns) * layouts[i].rowHeight
   end
 
+  -- The panel pads by one value on every side, so the content box is trimmed to its ink. A row
+  -- centres its badge with half the row spacing above and below it, and a title line box
+  -- carries leading above its capitals, so the last row's half and the first line's slack
+  -- would otherwise add to the padding at the bottom and the top.
+  local function rowSlack(SL) return (SL.rowHeight - SL.badgeHeight) / 2 end
+  local topTrim
+  if sections[1].title then
+    local v = T.text.section
+    local cap = self._ui.measure and self._ui.measure:metrics(v.font, v.size).capHeight
+    topTrim = cap and (v.lineHeight - cap) / 2 or 0
+  else
+    topTrim = rowSlack(layouts[1])
+  end
+  local bottomTrim = #sections[#sections].rows > 0 and rowSlack(layouts[#sections]) or 0
+  h = h - topTrim - bottomTrim
+
   local els = {}
-  local cursor = 0
+  local cursor = -topTrim
   for i, s in ipairs(sections) do
     local SL = layouts[i]
     if i > 1 then cursor = cursor + L.groupGap end
@@ -369,11 +390,22 @@ function obj:configure(opts)
   -- factory and the padding are held here. Rebuilt on the next show if it changed.
   self._panelCfg = {
     factory = opts.canvasPanel or (self._panelCfg and self._panelCfg.factory),
-    padding = opts.padding or PANEL_PADDING,
+    -- nil takes PADDING_SCALE times the kit's inset, see obj:_padding.
+    padding = opts.padding,
   }
   self._panel = nil
 
   return self
+end
+
+-- The cheat sheet pads PADDING_SCALE times the kit's panel pad on every side, an overlay
+-- that holds a whole grid reading better with more room around it, unless configure set a
+-- padding of its own.
+local PADDING_SCALE = 2
+function obj:_padding()
+  local cfg = self._panelCfg or {}
+  if cfg.padding then return cfg.padding end
+  return PADDING_SCALE * self._ui.tokens().pad
 end
 
 -- Build the one CanvasPanel instance the first time it is needed, a centered
@@ -385,7 +417,7 @@ function obj:_ensurePanel()
   if not (cfg and cfg.factory) then return nil end
   self._panel = cfg.factory.new({
     placement = cfg.factory.placements.center,
-    padX = cfg.padding, padY = cfg.padding,
+    padX = self:_padding(), padY = self:_padding(),
     content = {
       preferredSize = function()
         self._built = self:_build()

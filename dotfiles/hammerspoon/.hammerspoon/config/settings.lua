@@ -55,7 +55,7 @@ return {
   -- corner radius. The colours of the surface and of everything drawn on it come from the
   -- theme files under config/themes, one file per theme, chosen on the OLM settings page.
   surface = {
-    cornerRadius = 0,    -- square, the look we have; raise it to round every surface at once
+    cornerRadius = 20,   -- the macOS window corner, rounding every surface at once, 0 is square
     borderWidth = 1,
   },
 
@@ -64,10 +64,11 @@ return {
   -- overlay. Per-overlay layout (column count, icons) stays in the spoons. The
   -- panel surface itself (fill, border, corners) is NOT here; the cheat sheet
   -- draws through the shared CanvasPanel atom, so it shares the one surface above.
-  -- Omit any field to keep the default.
+  -- The badge radius is not a setting any more. Every panel pads by the kit's one inset on
+  -- all four sides, the cheat sheet by twice it, and every chip's corner is the surface
+  -- radius less its panel's padding, so it follows surface.cornerRadius above.
   cheatSheet = {
-    badgeRadius = 5,   -- key-badge roundness, matching the hint bar chips
-    padding = 20,      -- inner panel padding (CanvasPanel padX/padY)
+    -- padding = 28,   -- an override of twice the kit inset, the badge corner follows it
   },
 
   -- Overlay display policy. Decides which display every transient overlay appears

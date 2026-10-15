@@ -40,7 +40,8 @@ colors   foreground subtext background border highlight primary secondary tertia
 fonts    ui mono
 text     title body sub label heading mono big       each {font, size, lineHeight}
 space    xs s m l xl                                  points
-radius   surface badge chip
+radius   surface nested                               points, nested derived from surface
+pad      one number                                   points, every panel's padding
 alpha    dim fade                                     multipliers, one rule each
 icon     row list sheet                               points
 ```
@@ -52,6 +53,25 @@ into border, and note into an accent by rank or into subtext when it was text. T
 any other colour name at build time. An alpha a rule needs, such as the dim alpha of a disabled
 row, is in the alpha group and is not a role. The rule and what each role is for are in
 "Olm colour, eight roles and nothing else" in the config's `AGENTS.md`.
+
+## Corners, one radius and one formula
+
+`surface.cornerRadius` in `config/settings.lua` is the only corner a person sets, and every
+other corner Olm draws is derived from it by one formula, inner radius equals outer radius less
+the padding between the two edges, never below zero. `ui.nestedRadius(outer, gap)` is that
+formula and `radius.nested` is it applied once, the surface radius less `pad`, the padding every
+panel and pane takes on all four sides. So the hint bar's key badges, the Dismiss chip, the
+colour toast's swatch, a preview picture in a pane and the clipboard's colour chip all take
+`radius.nested`. Something with its own padding works out its own corner with the same call,
+the chooser's highlighted row from the list margin and the cheat sheet's badges from its doubled
+padding. The inside of a surface's border takes the surface radius less the border width, the
+same rule again, which is what a scroll clip follows.
+
+The radius is dynamic and never cached beside the shape it rounds, so changing the surface
+radius changes every corner on the next draw, and a surface set to 0 squares everything inside
+it. Padding has to be the same on all four sides for the corners to fit, which is why `pad` is
+one number rather than an x and a y. The dry gate refuses a number written into a radius
+anywhere outside `lib/ui`, through the same scan as the typography rule.
 
 ## The primitives
 

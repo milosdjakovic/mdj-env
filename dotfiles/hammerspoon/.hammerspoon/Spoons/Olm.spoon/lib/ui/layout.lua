@@ -345,7 +345,7 @@ function M.new(deps)
       local b = T.badge[node.size]
       local v = T.text[b.text]
       local bw = sizeOf(node, w, T)
-      local r = T.radius[b.radius or "badge"]
+      local r = T.radius[b.radius or "nested"]
       push(ctx, { type = "rectangle", action = "fill", fillColor = colorOf(ctx, "highlight"),
         roundedRectRadii = { xRadius = r, yRadius = r },
         frame = { x = x, y = y, w = bw, h = b.height } })
@@ -396,9 +396,22 @@ function M.new(deps)
       end
     elseif kind == "image" then
       local iw, ih = imageFit(node, w)
+      -- A picture sits a pad inside its pane, so its corners take the nested radius. The canvas
+      -- has one clip region and resetClip clears all of it, so the layout's own clip, if one is
+      -- open, is put back after the picture.
+      local r = T.radius.nested or 0
+      if r > 0 then
+        ctx.els[#ctx.els + 1] = { type = "rectangle", action = "clip",
+          roundedRectRadii = { xRadius = r, yRadius = r },
+          frame = { x = x, y = y, w = iw, h = ih } }
+      end
       push(ctx, { type = "image", image = node.image, imageAlpha = ctx.alpha,
         imageScaling = "scaleProportionally", imageAlignment = "topLeft",
         frame = { x = x, y = y, w = iw, h = ih } })
+      if r > 0 then
+        ctx.els[#ctx.els + 1] = { type = "resetClip" }
+        if ctx.clip then ctx.els[#ctx.els + 1] = ctx.clip end
+      end
     elseif kind == "raw" then
       -- The caller's elements go in as returned and in order. Their colours must come from
       -- the tokens draw is handed. Group alpha and the click id are not applied to them.
@@ -495,13 +508,20 @@ function M.new(deps)
 
     local clipped = opts.scrollY ~= nil or opts.clip == true or opts.viewport ~= nil
     local box = opts.viewport or rect
+    local clipEl = nil
     if clipped then
-      els[#els + 1] = { type = "rectangle", action = "clip",
+      -- A viewport that is a surface's whole interior carries that interior's radius, so a line
+      -- scrolled past the bottom is cut along the pane's curve at the corners.
+      clipEl = { type = "rectangle", action = "clip",
         frame = { x = box.x, y = box.y, w = box.w, h = box.h } }
+      if (box.radius or 0) > 0 then
+        clipEl.roundedRectRadii = { xRadius = box.radius, yRadius = box.radius }
+      end
+      els[#els + 1] = clipEl
     end
 
     local _, contentH = sizeOf(node, rect.w, tokens)
-    local ctx = { T = tokens, els = els, alpha = 1, id = nil }
+    local ctx = { T = tokens, els = els, alpha = 1, id = nil, clip = clipEl }
     if opts.scrollY ~= nil then ctx.window = { top = box.y, bottom = box.y + box.h } end
     emit(node, rect.x, rect.y - (opts.scrollY or 0), rect.w, contentH, ctx)
 

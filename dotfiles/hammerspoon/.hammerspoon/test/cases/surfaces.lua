@@ -186,8 +186,13 @@ do
   local built = obj:_build()
   -- Badge 22 plus 2 times 6 is 34, a row is the badge plus the medium space 10, 44, and a
   -- title band is the section line 17 plus 10, 27. Three rows in two columns are two rows.
-  check("the badge is 34, a row 44 and the title band 27, so a titled three row sheet is 27 plus 88",
-    built.h == 27 + 2 * 44 and built.h == 115, "height " .. tostring(built.h))
+  -- The content box is trimmed to its ink, so the padding is the same on every side, the
+  -- title's leading above its capitals at the top and the last row's half spacing at the bottom.
+  local sec = ui.tokens().text.section
+  local topTrim = (sec.lineHeight - ui.measure:metrics(sec.font, sec.size).capHeight) / 2
+  local function near(a, b) return math.abs(a - b) < 0.001 end
+  check("the badge is 34, a row 44 and the title band 27, so a titled three row sheet is 27 plus 88 trimmed to its ink",
+    near(built.h, 27 + 2 * 44 - topTrim - (44 - 34) / 2), "height " .. tostring(built.h))
   check("the width is the two default columns, 500", built.w == 500, "width " .. tostring(built.w))
   local boxes = chips(built.els)
   check("every key badge is the derived 34 high and square, 34 wide",
@@ -205,13 +210,13 @@ do
     sections = { { title = "KEYS", rows = rows } } }
   local ob = over:_build()
   check("a model may still override the row, badge and title heights, 30 plus 2 times 60",
-    ob.h == 30 + 2 * 60 and chips(ob.els)[1].h == 40 and chips(ob.els)[1].w == 50,
+    near(ob.h, 30 + 2 * 60 - topTrim - (60 - 40) / 2) and chips(ob.els)[1].h == 40 and chips(ob.els)[1].w == 50,
     "height " .. tostring(ob.h))
 
   local sectionOverride = sheet()
   sectionOverride._model = { sections = { { title = "KEYS", rows = rows, rowHeight = 50 } } }
   check("a section may override a height for its own rows, 27 plus 2 times 50",
-    sectionOverride:_build().h == 27 + 2 * 50)
+    near(sectionOverride:_build().h, 27 + 2 * 50 - topTrim - (50 - 34) / 2))
 
   local alt = sheet()
   alt._model = { sections = { { rows = { { badges = { "H", "←" }, label = "Left" } } } } }

@@ -1,4 +1,4 @@
--- The typography rule as a scan, the way src/check-theme.sh reports a hex value written into
+-- The typography rule as a scan, and the corner rule beside it, the way src/check-theme.sh reports a hex value written into
 -- a tool's own config. Every font, size and line height in this spoon is a role of the UI
 -- kit, lib/ui, so a font name, a text size or a line height written by hand anywhere else is
 -- the drift that rule exists to end. This file is pure Lua with no hs and no filesystem
@@ -55,6 +55,13 @@ local RULES = {
       or c:match("%f[%w]font%s*=%s*{%s*$")
   end },
   { "a literal font name", isFontLiteral },
+  -- The corner rule rides on the same scan. Every corner is the kit's surface radius or one
+  -- derived from it by radius.nested, so a number written into a radius is a corner that
+  -- will not follow the surface, and stays round when the surface is set square.
+  { "a hand set corner radius", function(c)
+    return c:match("[xy]Radius%s*=%s*%.?%d") or c:match("[xy]Radius%s*=%s*%u[%u%d_]*%f[^%w_]")
+      or c:match("[Rr]adius%s*=%s*%.?%d")
+  end },
   { "a hand set line height", function(c)
     return c:match("minimumLineHeight") or c:match("maximumLineHeight") or c:match("lineHeightMultiple")
       or c:match("[Ll]ineHeight%s*=%s*%.?%d")
