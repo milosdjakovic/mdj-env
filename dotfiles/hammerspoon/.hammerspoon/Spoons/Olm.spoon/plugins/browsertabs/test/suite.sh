@@ -33,7 +33,13 @@ finish() {
   local code=$?
   printf '\nputting the machine back\n'
   rm -f "$MARKER"
-  ( cd "$REPO" && ./bin/hs-devlock release ) || printf 'the lock would not release, run bin/hs-devlock release by hand\n'
+  # A lock this run found already held by this worktree belongs to whoever took it, often a
+  # person in the middle of a manual hold, so it is left exactly as it was found.
+  if [ "$TOOK_LOCK" -eq 1 ]; then
+    ( cd "$REPO" && ./bin/hs-devlock release ) || printf 'the lock would not release, run bin/hs-devlock release by hand\n'
+  else
+    printf 'the test lock was already held by this worktree, leaving it held\n'
+  fi
   exit $code
 }
 
@@ -47,7 +53,13 @@ touch "$MARKER"
 # something like twenty minutes and a lock that expires underneath it would hand the machine's
 # config to somebody else mid round.
 printf 'taking the test lock, this makes this checkout the live Hammerspoon config\n'
-( cd "$REPO" && ./bin/hs-devlock acquire --manual ) || { printf 'the lock is held elsewhere\n'; exit 1; }
+ACQUIRED="$( cd "$REPO" && ./bin/hs-devlock acquire --manual )" \
+  || { printf '%s\n' "$ACQUIRED"; printf 'the lock is held elsewhere\n'; exit 1; }
+printf '%s\n' "$ACQUIRED"
+# hs-devlock answers an acquire by a worktree that already holds the lock with this line and
+# keeps the hold as it was, so only a run that did not see it took the lock and owns its release.
+TOOK_LOCK=1
+case "$ACQUIRED" in *"already held by this worktree, kept"*) TOOK_LOCK=0 ;; esac
 trap finish EXIT INT TERM
 
 wait_for_agent || { printf 'the harness never came up\n'; exit 1; }
