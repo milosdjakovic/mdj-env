@@ -22,6 +22,7 @@ return {
     -- manifest is the one that was wrong. Required.
     lib = {
       recency = { from = "recency", policy = "required" },
+      glyphIcon = { from = "glyphicon", policy = "optional" },
     },
     -- One entry per backend, each naming its own provider as the unit, which is what keeps
     -- a missing tool reporting the provider that wanted it rather than the whole plugin.

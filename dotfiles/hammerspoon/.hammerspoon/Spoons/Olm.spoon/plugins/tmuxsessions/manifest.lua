@@ -22,6 +22,7 @@ return {
     -- again. Optional, and without it the resting order simply stands.
     lib = {
       recency = { from = "recency", policy = "optional" },
+      glyphIcon = { from = "glyphicon", policy = "optional" },
     },
 
     -- Two root computed words, the trickle migration onto the shared stage and, since,

@@ -21,6 +21,7 @@ return {
       -- Where the compiled permission probe is kept, lib/storage.lua's own cache root, since
       -- a build is regenerable and this plugin may not name a directory under HOME itself.
       storage = { from = "storage", policy = "required" },
+      glyphIcon = { from = "glyphicon", policy = "optional" },
     },
     tools = {
       { name = "osascript", kind = "system", locator = "/usr/bin/osascript", policy = "optional", unit = "jxa",

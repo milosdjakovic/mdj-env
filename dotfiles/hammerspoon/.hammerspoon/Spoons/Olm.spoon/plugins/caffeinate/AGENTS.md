@@ -67,7 +67,7 @@ keystroke in filter mode, so we get the same clarity for free and leave the atom
 untouched.
 
 **Why the icon carries the error.** This Hammerspoon has no SF Symbol API, so a
-row icon is an emoji rendered to a small image through a canvas and cached. The
+row icon is an emoji rendered to an image by the shared glyph drawer. The
 keep typing state uses a keyboard and the error state a warning triangle, which
 is how the two disabled states read apart at a glance.
 

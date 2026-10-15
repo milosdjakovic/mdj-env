@@ -25,6 +25,7 @@ return {
     -- at start and a list with nowhere to write would be a list that lies.
     lib = {
       storage = { from = "storage", policy = "required" },
+      glyphIcon = { from = "glyphicon", policy = "optional" },
     },
 
     data = {

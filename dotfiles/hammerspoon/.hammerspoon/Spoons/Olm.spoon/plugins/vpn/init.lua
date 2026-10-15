@@ -296,28 +296,12 @@ end
 -- Row icons
 --------------------------------------------------------------------------------
 
--- Render an emoji string to a small image so a row can carry it as its icon, an
--- offscreen canvas drawn once and cached by the string, since a supplier runs on every
--- keystroke. The flags and the action glyphs both go through this one path. A false
--- marks a string that cannot render, so it is attempted only once.
-local glyphCache = {}
+-- Row icons are drawn by the shared glyph drawer, which arrives as cfg.glyphIcon, so every
+-- emoji icon fills its box the same way and sits centred. Nothing is drawn without it, and
+-- the row simply has no icon.
 local function emojiImage(str)
-  local hit = glyphCache[str]
-  if hit ~= nil then return hit or nil end
-  local size = 28
-  local cv = hs.canvas.new({ x = 0, y = 0, w = size, h = size })
-  cv[1] = {
-    type = "text",
-    text = str,
-    -- type-exempt, a glyph drawn into a row icon image
-    textSize = 21,
-    textAlignment = "center",
-    frame = { x = 0, y = 0, w = size, h = size },
-  }
-  local img = cv:imageFromCanvas()
-  cv:delete()
-  glyphCache[str] = img or false
-  return img
+  if not (cfg and cfg.glyphIcon and str) then return nil end
+  return cfg.glyphIcon.icon(str)
 end
 
 -- A country flag image built from the two letter country code as a pair of regional

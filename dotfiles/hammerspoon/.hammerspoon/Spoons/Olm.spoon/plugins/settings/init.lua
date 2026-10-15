@@ -48,29 +48,12 @@ local cfg = {}
 -- Row building
 --------------------------------------------------------------------------------
 
--- Render an emoji string to a small image so a row can carry it as its icon, an offscreen
--- canvas drawn once and cached by the string, the same helper every other menu style chooser
--- in this tree already builds for itself rather than sharing, since each one is five lines.
--- The manifest stays pure and touches no hs, this module is free to draw.
-local glyphCache = {}
+-- Row icons are drawn by the shared glyph drawer, which arrives as cfg.glyphIcon, so every
+-- emoji icon fills its box the same way and sits centred. Nothing is drawn without it, and
+-- the row simply has no icon.
 local function emojiImage(str)
-  if not str then return nil end
-  local hit = glyphCache[str]
-  if hit ~= nil then return hit or nil end
-  local size = 28
-  local cv = hs.canvas.new({ x = 0, y = 0, w = size, h = size })
-  cv[1] = {
-    type = "text",
-    text = str,
-    -- type-exempt, a glyph drawn into a row icon image
-    textSize = 21,
-    textAlignment = "center",
-    frame = { x = 0, y = 0, w = size, h = size },
-  }
-  local img = cv:imageFromCanvas()
-  cv:delete()
-  glyphCache[str] = img or false
-  return img
+  if not (cfg.glyphIcon and str) then return nil end
+  return cfg.glyphIcon.icon(str)
 end
 
 local ICON_PLACEMENT = "🖥️"
@@ -266,6 +249,7 @@ end
 --- opts.stagePresent             optional, the shared stage door M.show asks through.
 --- opts.stagePop                 optional, the door the placement child's own Back row asks
 ---                                through.
+--- opts.glyphIcon                optional, the shared glyph drawer behind every row icon.
 function M:configure(opts)
   opts = opts or {}
   cfg.readMode = opts.overlayPlacementMode
@@ -275,6 +259,7 @@ function M:configure(opts)
   cfg.setTheme = opts.setTheme
   cfg.stagePresent = opts.stagePresent
   cfg.stagePop = opts.stagePop
+  cfg.glyphIcon = opts.glyphIcon
   if not cfg.readMode or not cfg.setMode then
     log.w("configured with no overlay placement reader or writer, the Where the OLM "
       .. "launcher appears page will show and change nothing")

@@ -10,6 +10,12 @@ return {
   name = "displayProfiles",
 
   needs = {
+    -- The shared glyph drawer behind every row icon, so the emoji sits centred in its box.
+    -- Optional, and without it the rows simply carry no icon.
+    lib = {
+      glyphIcon = { from = "glyphicon", policy = "optional" },
+    },
+
     tools = {
       { name = "displayplacer", kind = "path", policy = "optional", unit = "engine",
         reason = "reading and applying display arrangements",

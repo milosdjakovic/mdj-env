@@ -6,6 +6,12 @@
 -- would only be restating global policy.
 return {
   needs = {
+    -- The shared glyph drawer behind every row icon, so the emoji sits centred in its box.
+    -- Optional, and without it the rows simply carry no icon.
+    lib = {
+      glyphIcon = { from = "glyphicon", policy = "optional" },
+    },
+
     -- Two root computed words, the trickle migration onto the shared stage. stagePresent
     -- is the hotkey door, reached through this plugin's own M.show. redrawPresented is the
     -- async status seam, this plugin's own onChange asking to be redrawn once a timed
