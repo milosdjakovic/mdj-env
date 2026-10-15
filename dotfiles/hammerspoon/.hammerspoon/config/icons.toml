@@ -7,5 +7,5 @@
 # A key left out or given an unknown name falls back to the shipped emoji with a warning in the
 # Hammerspoon console.
 
-set = "emoji"
+set = "sf"
 fallback = "emoji"
