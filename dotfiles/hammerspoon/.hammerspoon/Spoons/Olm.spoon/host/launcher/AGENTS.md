@@ -45,7 +45,7 @@ never learns what a row does.
 
 Adding a row for a registered tool is now two small edits rather than the one line
 this paragraph used to promise. Phase seven's third packet moved a tool's row data, its
-category, its glyph, its detail, its keywords, and whether it renders a chord, off this
+category, its icon, its detail, its keywords, and whether it renders a chord, off this
 file and onto that tool's `row` in the composition root's registration, so the edit
 there is the `row` table itself, and the edit here is one `addTool` line in
 `_buildActionRows` naming the tool, which asks the registry for that row through
@@ -74,9 +74,9 @@ so no conversion row ever appears while arithmetic keeps working. Unplugging the
 whole feature is passing no sources, and adding a third is a new spoon plus one line
 in the root, with no change here.
 
-Four details make it work. A source returns a glyph rather than an image and the
-launcher renders it through the same cache the action rows use, so a source draws
-nothing and there is one glyph cache rather than one per source. A computed row sets
+Four details make it work. A source returns an icon rather than an image, a key into its own
+manifest icons or a table spec, and the root wraps each source so the rows it answers come back
+drawn, so a source draws nothing and there is one icon cache rather than one per source. A computed row sets
 `filterText` to the raw query, so the shared matcher scores it against what was
 typed rather than against the answer it produced, which is what keeps a result at
 the top instead of being dropped for not resembling its own expression. A source
@@ -513,22 +513,26 @@ permanent unknown and nothing else checks any of it before a live load.
 ## Icons
 
 App rows show the real app icon. The action rows have none of their own, so each
-gets a generic icon drawn from a glyph, since this Hammerspoon has no SF Symbol
-API and the named system images are too sparse. Window actions share one glyph,
-the chord in the subtitle telling them apart, while the other command actions
-get a per-action one.
+names an icon and Olm draws it in the active set. A registered tool's row names a key into
+that plugin's own manifest icons, with the owner taken from the registry listing, so a
+command's row reads its owning plugin's icons. The rows this host states itself, the special
+rows, the three catalog scopes and the window rows, name keys of the launcher's own manifest
+icons, `lock`, `sleep`, `search`, `aliases`, `apps`, `windows` and `settings`. Window actions
+share the one `windows` icon, the chord in the subtitle telling them apart. The System
+Settings rows carry the owner of the plugin that built them, stamped by the root.
 
-The drawing itself, once this spoon's own private `_glyphIcon`, moved to the
+The drawing itself, once this spoon's own private glyph drawer, moved to the
 shared `Olm.spoon/lib/glyphicon.lua` in phase eight's third packet, once
 `ActionPanel` became a genuine second caller of the exact same drawing. This
-spoon keeps `_glyphIcon` as the thin caller everything here already reaches
+spoon keeps `_icon` as the thin caller everything here already reaches
 through, delegating to an instance the composition root builds and injects as
-`opts.glyphIcon`, which since 2026 10 15 is a thin facade over the one icon engine in
-`lib/icons`, so a glyph is still drawn to an image once and cached, in the same size and
-frame as before, and it still lines up in the row with the app icons. The cache itself now lives on
-the injected instance rather than on a field of this spoon, and the root hands
-the panel the very same instance, so a glyph the two happen to share, the
-arrow pointing back among them, is drawn once rather than twice.
+`opts.glyphIcon`, which since 2026 10 15 is a thin door over the icon resolver in
+`lib/icons/rows.lua` and the one engine in `lib/icons`. `_icon(icon, owner)` takes a key into
+the owner's manifest icons or a table spec and the owner defaults to the launcher's own
+identity, `opts.iconOwner`. An icon is still drawn to an image once and cached, in the same
+size and frame as before, and it still lines up in the row with the app icons. The cache
+lives on the engine rather than on a field of this spoon, and the root hands the panel the
+very same instance, so an icon the two happen to share is drawn once rather than twice.
 
 ## Picker integration
 

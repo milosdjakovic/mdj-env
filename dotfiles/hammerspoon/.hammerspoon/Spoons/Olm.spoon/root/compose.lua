@@ -171,7 +171,7 @@ local SHIPPED_POLICY = {
   -- which made a scope Olm provides look like something the person had to describe. A title is
   -- not optional decoration either, QueryScope refuses a scope that has none, so leaving it
   -- unset dropped the directory silently on every run with one warning line among many.
-  aliasDirectory = { title = "Aliases", glyph = "🏷️", aliases = { "?" } },
+  aliasDirectory = { title = "Aliases", icon = "aliases", aliases = { "?" } },
 }
 
 --------------------------------------------------------------------------------
@@ -416,8 +416,6 @@ function obj.run(olm, cfg)
   -- as a loaded module this early even though it is not actually configured until later.
   local hyperKeyAtom = atoms.hyperkey
 
-  local glyphIcon = glyphIconLib.new(iconEngine)
-
   ------------------------------------------------------------------------------
   -- STEP C. Manifests. Pure data, read before anything runs.
   ------------------------------------------------------------------------------
@@ -550,6 +548,9 @@ function obj.run(olm, cfg)
     points = glyphIconLib.POINTS,
     log = themeLog,
   })
+  -- The door the launcher and the action panel draw through, over the same resolver, so a host's
+  -- own row and a row a plugin names resolve an owner and a key one way.
+  local glyphIcon = glyphIconLib.new(iconRows)
 
   -- storage joins this list for the menu search cache, docs/BRIEF-MENUSEARCH-CACHE.md,
   -- the first consumer lib/storage.lua ever had. Its own configure already ran above, atoms.
@@ -1416,6 +1417,8 @@ function obj.run(olm, cfg)
     predicates = ownPredicates,
     glyphFor = cheatSheetAtom.glyphFor,
     owners = contextOwners,
+    -- The identity whose manifest icons the panel's own Back row reads its key against.
+    panelOwner = plan.identity.actionpanel or "actionpanel",
     canvasPanel = canvasPanel,
     ui = uiAtom,
     theme = policy.chooserTheme,
@@ -1466,6 +1469,7 @@ function obj.run(olm, cfg)
   local queryScopeOpts = {
     matcher = chooserAtom.matchers and chooserAtom.matchers[policy.matcher],
     resolveIcons = iconRows.resolveAll,
+    iconFor = iconRows.image,
   }
 
   -- ActionPanel's own three, built here rather than only in step K because the ordinary stage
@@ -1981,14 +1985,17 @@ function obj.run(olm, cfg)
     -- a policy over that host and over Launcher's own way of seeding a field, so both are
     -- named here rather than hidden behind another indirection, exactly the exception this
     -- file's own brief asks to be marked rather than papered over.
-    local launcherModuleForAlias = modules[plan.identity.launcher or "launcher"]
+    local launcherIconOwner = plan.identity.launcher or "launcher"
+    local launcherModuleForAlias = modules[launcherIconOwner]
     local aliasPolicy = policy.aliasDirectory or {}
     local aliasScope = registrarLib.aliasDirectory({
       catalog = function() return queryScopeModule:catalog() end,
       queryFor = function(name) return queryScopeModule:queryFor(name) end,
       show = function(query) if launcherModuleForAlias then launcherModuleForAlias:show(query) end end,
       title = aliasPolicy.title,
-      glyph = aliasPolicy.glyph,
+      icon = aliasPolicy.icon,
+      iconOwner = launcherIconOwner,
+      iconFor = iconRows.image,
       aliases = aliasPolicy.aliases,
       aliasLabel = aliasLabel,
       log = logFn,
@@ -2003,7 +2010,8 @@ function obj.run(olm, cfg)
         scopes[#scopes + 1] = {
           name = spec.name,
           title = spec.description,
-          glyph = spec.glyph,
+          icon = spec.icon,
+          iconOwner = launcherIconOwner,
           aliases = spec.aliases,
           rows = function() return launcherModuleForAlias:rowsOfKind(spec.kind) end,
           run = function(payload) launcherModuleForAlias:runItem(payload) end,
@@ -2029,7 +2037,7 @@ function obj.run(olm, cfg)
     end
 
     local queryScopeLate = { matcher = queryScopeOpts.matcher, resolveIcons = iconRows.resolveAll,
-      scopes = scopes }
+      iconFor = iconRows.image, scopes = scopes }
     queryScopeModule:configure(queryScopeLate)
     lateData.queryscope = queryScopeLate
   end
@@ -2058,7 +2066,17 @@ function obj.run(olm, cfg)
     if queryScopeModule then queryProviders[#queryProviders + 1] = queryScopeModule end
     for _, identity in ipairs((plan.sets.launcher or {}).queryRows or {}) do
       if modules[identity] then
-        queryProviders[#queryProviders + 1] = modules[identity]
+        -- Wrapped so the rows it answers have their icon keys turned into images against this
+        -- plugin's own manifest, the same helper the stage and the query scope run, which is
+        -- what lets a computed row name an icon and never draw one. The launcher still sees
+        -- only a table answering rows(query) and learns nothing of who it came from.
+        local provider = modules[identity]
+        queryProviders[#queryProviders + 1] = {
+          rows = function(_, query)
+            local rows, exclusive = provider:rows(query)
+            return iconRows.resolveAll(rows, identity), exclusive
+          end,
+        }
         local example = ((plan.effective or {})[identity] or {}).example
         local hints = type(example) == "table" and example or { example }
         for _, hint in ipairs(hints) do
@@ -2085,7 +2103,26 @@ function obj.run(olm, cfg)
           if mod and decl.member then
             local fn = mod[decl.member]
             if type(fn) == "function" then
-              kin[field] = (decl.call ~= "dot") and function(...) return fn(mod, ...) end or fn
+              local call = (decl.call ~= "dot") and function(...) return fn(mod, ...) end or fn
+              if decl.rows then
+                -- A member that answers rows whose icon keys belong to that plugin, so each row
+                -- is stamped with the owner the key is read against, by a copy since the plugin
+                -- may hold the row it built. The launcher draws them lazily, at first open.
+                local ownerIdentity = plan.identity[decl.plugin] or decl.plugin
+                kin[field] = function(...)
+                  local rows = call(...)
+                  local out = {}
+                  for i, row in ipairs(rows or {}) do
+                    local copy = {}
+                    for k, v in pairs(row) do copy[k] = v end
+                    copy.iconOwner = ownerIdentity
+                    out[i] = copy
+                  end
+                  return out
+                end
+              else
+                kin[field] = call
+              end
             end
           end
         end
@@ -2108,7 +2145,7 @@ function obj.run(olm, cfg)
       for _, b in ipairs(eff.bindings or {}) do
         captureRows[#captureRows + 1] = {
           action = b.action, key = b.key, mods = b.mods,
-          description = b.description, leader = eff.leader, glyph = b.glyph,
+          description = b.description, leader = eff.leader, icon = b.icon, owner = identity,
         }
       end
     end
@@ -2132,6 +2169,8 @@ function obj.run(olm, cfg)
       -- calls .icon on it, so handing over the function alone made every row build raise the
       -- moment it asked for an icon, which is every row.
       glyphIcon = glyphIcon,
+      -- The identity the launcher's own manifest icons are declared under.
+      iconOwner = plan.identity.launcher or "launcher",
 
       -- Without this the catalogue asks nothing about any tool and draws no tool row at all,
       -- which is exactly what it did.

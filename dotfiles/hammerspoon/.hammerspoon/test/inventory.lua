@@ -248,8 +248,8 @@ for _, l in ipairs(verbLines) do add(l) end
 -- reused rather than read a second time, though rowsFor only needs the name, never
 -- ctx.bindings itself.
 --
--- glyph joined this line in phase eight's third packet, alongside a glyph on every verb row in
--- config/keys.lua, so a glyph going missing from a binding is a diff here rather than something
+-- icon joined this line in phase eight's third packet, alongside an icon on every verb row in
+-- config/keys.lua, so an icon going missing from a binding is a diff here rather than something
 -- noticed by eye months later. Back leading the list rather than trailing it, phase eight's
 -- third packet too, is NOT visible in this section, since panelRowLines is sorted before it is
 -- written, the same as every other listing in this file, so ordering is deliberately not part
@@ -266,8 +266,8 @@ local panelRowLines = {}
 for _, name in ipairs(contextNames) do
   for _, r in ipairs(panelRowsByContext[name]) do
     panelRowLines[#panelRowLines + 1] = string.format(
-      "panelrows.row context=%s action=%s title=%s chord=%s glyph=%s",
-      field(name), field(r.action), field(r.title), field(r.chord), field(r.glyph))
+      "panelrows.row context=%s action=%s title=%s chord=%s icon=%s",
+      field(name), field(r.action), field(r.title), field(r.chord), field(r.icon))
   end
 end
 table.sort(panelRowLines)
@@ -308,8 +308,8 @@ local hostedRowLines = {}
 for _, name in ipairs(contextNames) do
   for _, r in ipairs(hostedRowsByContext[name]) do
     hostedRowLines[#hostedRowLines + 1] = string.format(
-      "hostedrows.row context=%s action=%s title=%s chord=%s glyph=%s closes=%s",
-      field(name), field(r.action), field(r.title), field(r.chord), field(r.glyph), field(r.closes))
+      "hostedrows.row context=%s action=%s title=%s chord=%s icon=%s closes=%s",
+      field(name), field(r.action), field(r.title), field(r.chord), field(r.icon), field(r.closes))
   end
 end
 table.sort(hostedRowLines)
@@ -386,7 +386,7 @@ for _, l in ipairs(scopeLines) do add(l) end
 -- The launcher host's own command rows, read live through its own rowsOfKind for the
 -- special kind, which is every row a registered tool or one of its commands builds.
 -- Phase seven's third packet moves the presentation data behind these rows, the
--- category, the glyph, the detail, the keywords, and the chord, off the launcher and
+-- category, the icon, the detail, the keywords, and the chord, off the launcher and
 -- onto the registry descriptor, and this section is the instrumentation that packet
 -- commits first, before anything moves, so a row that vanished in the fold or came back
 -- with a changed subtitle fails this snapshot rather than passing every other gate this

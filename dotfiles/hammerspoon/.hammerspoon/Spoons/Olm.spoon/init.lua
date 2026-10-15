@@ -59,7 +59,8 @@ end
 ---
 --- Glyphicon arrived in phase eight's third packet, lifted out of Launcher's own private
 --- drawing once ActionPanel became a second caller of it, another factory in the same
---- style as recency and registry. See lib/glyphicon.lua for its api.
+--- style as recency and registry. It is the icon door over lib/icons/rows.lua now. See
+--- lib/glyphicon.lua for its api.
 ---
 --- These are THE instances, not a second set alongside the running ones. The composition
 --- root reads this table and configures what it finds here rather than loading its own,
@@ -90,9 +91,9 @@ obj.lib = {
   -- metatable and no self. See lib/registry.lua for the descriptor shape, the four
   -- refusals, and what active and inactive mean today.
   registry = load("lib/registry.lua"),
-  -- The glyph to icon drawer, phase eight's third packet. A factory in the same style as
-  -- recency and registry, one instance per caller, each owning its own drawing cache. See
-  -- lib/glyphicon.lua for the one function it answers and for the numbers it draws with.
+  -- The icon door, phase eight's third packet. A factory in the same style as recency and
+  -- registry, one instance per caller. See lib/glyphicon.lua for the one function it answers
+  -- and for the numbers it draws with.
   glyphicon = load("lib/glyphicon.lua"),
   -- The UI kit, phase 4b of the canvas picker track, one style and one set of drawing
   -- primitives, a directory like chooser since it is four units and the table that joins

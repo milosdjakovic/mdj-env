@@ -8,7 +8,7 @@
 --- names a domain spoon. The root injects every collaborator through configure,
 --- the stage it presents into, the pure keys and apps data, the window actions table, a
 --- glyph resolver, the settings pane descriptors, the shared predicate registry,
---- the tool registry from phase seven of the build plan, the shared glyph icon drawer
+--- the tool registry from phase seven of the build plan, the shared icon door
 --- from phase eight's third packet, and a small dispatch of leaf actions that do name
 --- the domain spoons. So the launcher owns the row building, the matching,
 --- the app enumeration, and the command dispatch structure, and knows nothing
@@ -55,7 +55,8 @@ obj._actions = nil          -- leaf dispatch: app, capture, settingsPane, specia
 obj._queryProviders = nil   -- ordered query row sources, each answering rows(query)
 obj._aliasHint = nil        -- function(name) -> subtitle fragment, "" when there is none
 obj._registry = nil         -- the tool registry, dot called, optional, see configure and _runItem
-obj._icons = nil            -- the shared glyph icon drawer, Olm.spoon/lib/glyphicon.lua, dot called
+obj._icons = nil            -- the shared icon door, Olm.spoon/lib/glyphicon.lua, icon(spec, owner), dot called
+obj._iconOwner = nil        -- the identity this host's own manifest icons are declared under
 
 -- Owned state
 obj._presentation = nil     -- this host's one presentation, handed to the stage, never rebuilt
@@ -196,7 +197,7 @@ function obj:configure(opts)
   -- nobody moved a tool to the other leader.
   self._leaderNames = opts.leaderNames or {}
   -- Rows that answer to no registration, declared rather than written out. Capture's are
-  -- separate from the rest because they share one kind and each carries its own glyph.
+  -- separate from the rest because they share one kind and each carries its own icon.
   self._captureRows = opts.captureRows or {}
   self._specialRows = opts.specialRows or {}
   self._glyphFor = opts.glyphFor or function(key) return tostring(key) end
@@ -250,11 +251,15 @@ function obj:configure(opts)
   -- no edit here. The default answers nothing, which is the whole feature absent rather than
   -- broken. See _buildActionRows for why it is asked there and not at each call site.
   self._aliasHint = opts.aliasHint or function() return "" end
-  -- The shared glyph icon drawer, Olm.spoon/lib/glyphicon.lua, phase eight's third packet.
-  -- The root builds one instance and hands it to whoever draws a row icon from an emoji
-  -- rather than an app bundle, ActionPanel among them since that packet, so a glyph drawn
-  -- here and a glyph drawn there share the exact same cache and the exact same numbers.
+  -- The shared icon door, Olm.spoon/lib/glyphicon.lua, phase eight's third packet. The root
+  -- builds one instance and hands it to whoever draws a row icon rather than an app bundle,
+  -- ActionPanel among them since that packet, so an icon drawn here and one drawn there share
+  -- the exact same cache, the exact same numbers and the exact same resolution of a key.
   self._icons = opts.glyphIcon
+  -- The identity the launcher's own manifest icons are declared under, which the rows this host
+  -- states itself read their keys against, lock and sleep, the three catalog scopes, the window
+  -- rows. A registered tool's row reads against the tool's own name instead.
+  self._iconOwner = opts.iconOwner or "launcher"
 
   self._configuredApps = self:_buildConfiguredApps()
   self._placeholders = self:_buildPlaceholders()
@@ -353,20 +358,20 @@ function obj:configure(opts)
   return self
 end
 
---- Launcher:_glyphIcon(glyph)
+--- Launcher:_icon(icon, owner)
 --- Method
---- An action row has no app icon of its own, so draw one from a glyph, once per
---- glyph and cached, sized to line up with the real app icons. nil glyph yields none.
+--- An action row has no app icon of its own, so draw one from its icon, once per icon and
+--- cached by the engine, sized to line up with the real app icons. icon is a key into the
+--- manifest icons of owner, or a table spec, and owner defaults to this host. nil yields none.
 ---
---- The drawing itself moved to the shared Olm.spoon/lib/glyphicon.lua once ActionPanel
---- became a genuine second caller of it, phase eight's third packet, so this is the thin
---- caller every call site in this file already reaches through, unchanged in what it
---- answers. Answers nil when nothing was injected, the same as a nil glyph, rather than
---- raising, since a missing collaborator here is a question for whoever configured this
---- spoon and not a reason for a row to blow up while it is being built.
-function obj:_glyphIcon(glyph)
+--- The resolution lives in lib/icons/rows.lua, reached through the shared door in
+--- Olm.spoon/lib/glyphicon.lua, so a launcher row and a row a plugin names in its own list read
+--- one rule. Answers nil when nothing was injected, the same as a nil icon, rather than raising,
+--- since a missing collaborator here is a question for whoever configured this spoon and not a
+--- reason for a row to blow up while it is being built.
+function obj:_icon(icon, owner)
   if not self._icons then return nil end
-  return self._icons.icon(glyph)
+  return self._icons.icon(icon, owner or self._iconOwner)
 end
 
 --- Launcher:_chordSuffix(category, leader, key, mods)
@@ -429,7 +434,7 @@ function obj:_buildActionRows()
   -- the injected rows already carry. It exists so a row can answer to a word its title
   -- and subtitle have no room for, rather than that word being padded into the visible
   -- subtitle where it would cost a reader something to buy a searcher something.
-  local function add(title, subTitle, item, glyph, when, keywords, subTitleFn, image)
+  local function add(title, subTitle, item, icon, when, keywords, subTitleFn, image, owner)
     -- A tool reachable by typing a word says so on its own row, and it says it here rather
     -- than at each call site. That is the difference between a hint a row can be forgotten
     -- from, which is how file search ended up advertising nothing, and one that cannot be,
@@ -443,10 +448,10 @@ function obj:_buildActionRows()
     if item and item.kind == "special" then
       subTitle = (subTitle or "") .. self._aliasHint(item.name)
     end
-    -- An image handed in outright wins over the drawn glyph, the one caller today being
+    -- An image handed in outright wins over the drawn icon, the one caller today being
     -- a registered tool whose row declares the bundle it fronts, so the row wears the
     -- real application icon the way the app rows below already do.
-    rows[#rows + 1] = { title = title, subTitle = subTitle, image = image or self:_glyphIcon(glyph),
+    rows[#rows + 1] = { title = title, subTitle = subTitle, image = image or self:_icon(icon, owner),
                         item = item, when = when, keywords = keywords, subTitleFn = subTitleFn }
   end
   -- addTool(name) asks the injected registry for this name's row and, when there is one,
@@ -471,7 +476,7 @@ function obj:_buildActionRows()
   --
   -- This file still names no tool. It reads a name handed to it and the keys entry that
   -- name points at, and everything about how that name's row looks, its category, its
-  -- glyph, its detail or its chord, now lives on the descriptor rather than here.
+  -- icon, its detail or its chord, now lives on the descriptor rather than here.
   --
   -- Adding a tool still costs one addTool line below, so this is not yet one
   -- registration, only where a row's own data lives now rather than a change to how
@@ -479,7 +484,9 @@ function obj:_buildActionRows()
   -- order into the composition root, taking the capture loop and the window loop with
   -- it since they sit in this same build, and that is a decision for later rather than
   -- a thing to sneak in here.
-  local function addTool(name)
+  -- tool is the registered tool the row belongs to, which is its own name for a tool's row and
+  -- the owning tool for a command's, and it is the owner a row's icon key is read against.
+  local function addTool(name, tool)
     local row = self._registry and self._registry.rowFor(name)
     if not row then return end
     -- A row with no description names nothing a person could read, which is a defect in
@@ -525,11 +532,11 @@ function obj:_buildActionRows()
       end
     end
     -- A row declaring the bundle it fronts wears that application's real icon, resolved
-    -- here once per cache build rather than per keystroke, with the glyph standing in
+    -- here once per cache build rather than per keystroke, with the icon standing in
     -- whenever the bundle resolves to nothing on this machine.
     local image = row.bundle and hs.image.imageFromAppBundle(row.bundle) or nil
     add(row.description, subTitle, { kind = "special", name = name },
-      row.glyph, nil, row.keywords, subTitleFn, image)
+      row.icon, nil, row.keywords, subTitleFn, image, tool or name)
   end
   -- One row per registered tool, and one per registered command, asked of the registry in the
   -- order it holds rather than listed here by hand. This is what the thirteen addTool calls
@@ -541,17 +548,17 @@ function obj:_buildActionRows()
   -- is not in the answer, which is also how deactivating one takes its row away without a
   -- second place having to agree.
   for _, entry in ipairs(self._registry and self._registry.listing() or {}) do
-    addTool(entry.name)
+    addTool(entry.name, entry.tool)
   end
 
   -- Rows that answer to no registration. Each is an action this list runs itself rather than a
   -- tool with a descriptor, so each arrives as plain declared data rather than being written
   -- out here. Capture's are separate from the rest only because they share one kind and each
-  -- carries its own glyph, which is a shape the others do not have.
+  -- carries its own icon, which is a shape the others do not have.
   for _, c in ipairs(self._captureRows or {}) do
     add(c.description or humanize(c.action),
       self:_chordSuffix("Capture", self:_leaderName(c.leader), c.key, c.mods),
-      { kind = "capture", name = c.action }, c.glyph or "📸")
+      { kind = "capture", name = c.action }, c.icon, nil, nil, nil, nil, c.owner)
   end
 
   for _, r in ipairs(self._specialRows or {}) do
@@ -559,7 +566,7 @@ function obj:_buildActionRows()
     if not subTitle and r.category and r.key then
       subTitle = self:_chordSuffix(r.category, self:_leaderName(r.leader), r.key)
     end
-    add(r.description, subTitle, { kind = "special", name = r.name }, r.glyph, nil, r.keywords)
+    add(r.description, subTitle, { kind = "special", name = r.name }, r.icon, nil, r.keywords)
   end
   -- The window bindings arrive as their own injected list rather than being dug out of the
   -- key catalog under a name this file would have to know. That indirection was also the one
@@ -568,7 +575,7 @@ function obj:_buildActionRows()
   for _, b in ipairs(self._windowBindings) do
     if self._windowActions[b.action] then
       add(b.description or humanize(b.action), self:_chordSuffix("Window", self._windowLeaderName, b.key, b.mods),
-        { kind = "window", name = b.action }, "🪟", b.when)
+        { kind = "window", name = b.action }, b.icon or "windows", b.when)
     end
   end
   return rows
@@ -577,13 +584,13 @@ end
 --- Launcher:_buildSettingsPaneRows()
 --- Method
 --- System Settings panes as rows. The injected descriptors are pure (title,
---- subTitle, glyph, keywords, item); render each glyph into an icon the same way
+--- subTitle, icon, iconOwner, keywords, item); render each icon the same way
 --- the action rows do and keep the hidden keywords for the matcher.
 function obj:_buildSettingsPaneRows()
   local rows = {}
   for _, r in ipairs(self._settingsPanes) do
     rows[#rows + 1] = {
-      title = r.title, subTitle = r.subTitle, image = self:_glyphIcon(r.glyph),
+      title = r.title, subTitle = r.subTitle, image = self:_icon(r.icon, r.iconOwner),
       keywords = r.keywords, item = r.item,
     }
   end
@@ -769,9 +776,9 @@ end
 --- the query means nothing to it, which is the usual case, so this costs a handful of
 --- cheap calls per keystroke and no work at all on an empty field.
 ---
---- A source returns a glyph rather than an image, and this renders it through the same
---- cache the action rows use, so a source never draws anything and there is one glyph
---- cache rather than one per source. A source is fully trusted for its own rows but not
+--- A source returns an icon or an image, and an icon is rendered through the same cache the
+--- action rows use, so a source never draws anything and there is one icon cache rather than
+--- one per source. A source is fully trusted for its own rows but not
 --- for the launcher's stability, so a source that raises is dropped for that keystroke
 --- with a log line rather than emptying the whole list.
 ---
@@ -794,7 +801,7 @@ function obj:_queryRows(query)
         out[#out + 1] = {
           title = r.title,
           subTitle = r.subTitle,
-          image = r.image or self:_glyphIcon(r.glyph),
+          image = r.image,
           enabled = r.enabled,
           item = r.item,
           filterText = r.filterText or query,

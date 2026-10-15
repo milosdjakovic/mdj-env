@@ -193,26 +193,26 @@ panelrows.context name=menuSearch rowCount=1
 panelrows.context name=processes rowCount=4
 panelrows.context name=textCase rowCount=1
 panelrows.context name=vpn rowCount=1
-panelrows.row context=browserTabs action=- title=Back chord=⌫ glyph=⬅️
-panelrows.row context=caffeinate action=- title=Back chord=⌫ glyph=⬅️
-panelrows.row context=clipboard action=- title=Back chord=⌫ glyph=⬅️
-panelrows.row context=clipboard action=manageHistory title=Manage history chord=Hyper M glyph=🧹
-panelrows.row context=displayProfiles action=- title=Back chord=⌫ glyph=⬅️
-panelrows.row context=emoji action=- title=Back chord=⌫ glyph=⬅️
-panelrows.row context=fileSearch action=- title=Back chord=⌫ glyph=⬅️
-panelrows.row context=fileSearch action=browseInto title=Into folder chord=Hyper L glyph=📂
-panelrows.row context=fileSearch action=browseUp title=Up a level chord=Hyper H glyph=⬆️
-panelrows.row context=fileSearch action=copyPath title=Copy path chord=Hyper Y glyph=📋
-panelrows.row context=fileSearch action=peekPreview title=Quick Look chord=Hyper Q glyph=👁️
-panelrows.row context=fileSearch action=revealInFinder title=Reveal in Finder chord=Hyper F glyph=🔍
-panelrows.row context=launcher action=- title=Back chord=⌫ glyph=⬅️
-panelrows.row context=menuSearch action=- title=Back chord=⌫ glyph=⬅️
-panelrows.row context=processes action=- title=Back chord=⌫ glyph=⬅️
-panelrows.row context=processes action=refreshList title=Rescan chord=Hyper R glyph=🔄
-panelrows.row context=processes action=sortByLoad title=Sort by load chord=Hyper S glyph=🔥
-panelrows.row context=processes action=stopForced title=Force stop chord=Hyper F glyph=⛔
-panelrows.row context=textCase action=- title=Back chord=⌫ glyph=⬅️
-panelrows.row context=vpn action=- title=Back chord=⌫ glyph=⬅️
+panelrows.row context=browserTabs action=- title=Back chord=⌫ icon=back
+panelrows.row context=caffeinate action=- title=Back chord=⌫ icon=back
+panelrows.row context=clipboard action=- title=Back chord=⌫ icon=back
+panelrows.row context=clipboard action=manageHistory title=Manage history chord=Hyper M icon=sweep
+panelrows.row context=displayProfiles action=- title=Back chord=⌫ icon=back
+panelrows.row context=emoji action=- title=Back chord=⌫ icon=back
+panelrows.row context=fileSearch action=- title=Back chord=⌫ icon=back
+panelrows.row context=fileSearch action=browseInto title=Into folder chord=Hyper L icon=browse
+panelrows.row context=fileSearch action=browseUp title=Up a level chord=Hyper H icon=up
+panelrows.row context=fileSearch action=copyPath title=Copy path chord=Hyper Y icon=copy
+panelrows.row context=fileSearch action=peekPreview title=Quick Look chord=Hyper Q icon=peek
+panelrows.row context=fileSearch action=revealInFinder title=Reveal in Finder chord=Hyper F icon=search
+panelrows.row context=launcher action=- title=Back chord=⌫ icon=back
+panelrows.row context=menuSearch action=- title=Back chord=⌫ icon=back
+panelrows.row context=processes action=- title=Back chord=⌫ icon=back
+panelrows.row context=processes action=refreshList title=Rescan chord=Hyper R icon=rescan
+panelrows.row context=processes action=sortByLoad title=Sort by load chord=Hyper S icon=sortByLoad
+panelrows.row context=processes action=stopForced title=Force stop chord=Hyper F icon=stopForced
+panelrows.row context=textCase action=- title=Back chord=⌫ icon=back
+panelrows.row context=vpn action=- title=Back chord=⌫ icon=back
 registry hostedrows count=11
 hostedrows.context name=browserTabs rowCount=1
 hostedrows.context name=caffeinate rowCount=1
@@ -225,20 +225,20 @@ hostedrows.context name=menuSearch rowCount=1
 hostedrows.context name=processes rowCount=1
 hostedrows.context name=textCase rowCount=1
 hostedrows.context name=vpn rowCount=1
-hostedrows.row context=browserTabs action=- title=Back chord=⌫ glyph=⬅️ closes=-
-hostedrows.row context=caffeinate action=- title=Back chord=⌫ glyph=⬅️ closes=-
-hostedrows.row context=clipboard action=- title=Back chord=⌫ glyph=⬅️ closes=-
-hostedrows.row context=displayProfiles action=- title=Back chord=⌫ glyph=⬅️ closes=-
-hostedrows.row context=emoji action=- title=Back chord=⌫ glyph=⬅️ closes=-
-hostedrows.row context=fileSearch action=- title=Back chord=⌫ glyph=⬅️ closes=-
-hostedrows.row context=fileSearch action=copyPath title=Copy path chord=Hyper Y in File search glyph=📋 closes=true
-hostedrows.row context=fileSearch action=peekPreview title=Quick Look chord=Hyper Q in File search glyph=👁️ closes=false
-hostedrows.row context=fileSearch action=revealInFinder title=Reveal in Finder chord=Hyper F in File search glyph=🔍 closes=true
-hostedrows.row context=launcher action=- title=Back chord=⌫ glyph=⬅️ closes=-
-hostedrows.row context=menuSearch action=- title=Back chord=⌫ glyph=⬅️ closes=-
-hostedrows.row context=processes action=- title=Back chord=⌫ glyph=⬅️ closes=-
-hostedrows.row context=textCase action=- title=Back chord=⌫ glyph=⬅️ closes=-
-hostedrows.row context=vpn action=- title=Back chord=⌫ glyph=⬅️ closes=-
+hostedrows.row context=browserTabs action=- title=Back chord=⌫ icon=back closes=-
+hostedrows.row context=caffeinate action=- title=Back chord=⌫ icon=back closes=-
+hostedrows.row context=clipboard action=- title=Back chord=⌫ icon=back closes=-
+hostedrows.row context=displayProfiles action=- title=Back chord=⌫ icon=back closes=-
+hostedrows.row context=emoji action=- title=Back chord=⌫ icon=back closes=-
+hostedrows.row context=fileSearch action=- title=Back chord=⌫ icon=back closes=-
+hostedrows.row context=fileSearch action=copyPath title=Copy path chord=Hyper Y in File search icon=copy closes=true
+hostedrows.row context=fileSearch action=peekPreview title=Quick Look chord=Hyper Q in File search icon=peek closes=false
+hostedrows.row context=fileSearch action=revealInFinder title=Reveal in Finder chord=Hyper F in File search icon=search closes=true
+hostedrows.row context=launcher action=- title=Back chord=⌫ icon=back closes=-
+hostedrows.row context=menuSearch action=- title=Back chord=⌫ icon=back closes=-
+hostedrows.row context=processes action=- title=Back chord=⌫ icon=back closes=-
+hostedrows.row context=textCase action=- title=Back chord=⌫ icon=back closes=-
+hostedrows.row context=vpn action=- title=Back chord=⌫ icon=back closes=-
 registry actionpaneldecorated count=1
 registry tools count=20
 tools.entry name=audio active=true surface=false hosted=true scope=true

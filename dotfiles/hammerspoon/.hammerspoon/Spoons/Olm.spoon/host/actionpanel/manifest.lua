@@ -17,6 +17,12 @@
 -- stays true only because the composition root remembers to do it in the right order, exactly
 -- the risk already named as this plugin's biggest one.
 return {
+  -- The one icon the panel states for itself, the Back row it puts first. The verbs below it
+  -- name the icons of the plugin that owns their context and never this one.
+  icons = {
+    back = { emoji = "⬅️", sf = "chevron.left" },
+  },
+
   needs = {
     -- What it shows is every VERB the live context carries, and never the shared navigation.
     -- Classifying an action as one or the other is policy that spans every context, so the

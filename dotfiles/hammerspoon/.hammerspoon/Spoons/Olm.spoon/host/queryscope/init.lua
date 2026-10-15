@@ -90,7 +90,12 @@ end
 --- QueryScope:configure(opts)
 --- Method
 --- opts.scopes  the ordered scope list, each a table answering name, title, aliases, rows,
----              and run, plus an optional glyph, matcher, peek, redirect, and act.
+---              and run, plus an optional icon, iconOwner, matcher, peek, redirect, and act. icon
+---              is the scope's identity icon, a key into the manifest icons of iconOwner, which
+---              is the scope's own name when it declares none, or a table spec.
+--- opts.iconFor  function of an icon and an owner identity, answering the image, the same
+---              resolution a row's own icon takes. Draws a scope's identity icon on the rows
+---              that have none of their own and on the notes a scope answers with.
 --- opts.resolveIcons  function of a list of rows and an owner identity, answering the rows with
 ---              every icon key turned into an image, lib/icons/rows.lua. The scope's own name
 ---              is the owner, so a scope row names an icon the way a presentation row does.
@@ -106,6 +111,7 @@ function obj:configure(opts)
   opts = opts or {}
   self._matcher = opts.matcher
   self._resolveIcons = opts.resolveIcons
+  self._iconFor = opts.iconFor
   self._scopes = {}
   self._byAlias = {}
   self._byName = {}
@@ -152,7 +158,7 @@ end
 --- QueryScope:catalog() -> list
 --- Method
 --- Every scope that can actually be entered right now, each as a plain table of name, title,
---- glyph, and live aliases, in registration order. A scope whose aliases were all refused is
+--- icon, iconOwner, and live aliases, in registration order. A scope whose aliases were all refused is
 --- left out, since nothing could reach it and a row for it would do nothing.
 ---
 --- It exists so a surface can list the aliases without asking any tool anything and without
@@ -164,7 +170,8 @@ function obj:catalog()
   for _, s in ipairs(self._scopes) do
     local aliases = self:aliasesOf(s.name)
     if #aliases > 0 then
-      out[#out + 1] = { name = s.name, title = s.title, glyph = s.glyph, aliases = aliases }
+      out[#out + 1] = { name = s.name, title = s.title, icon = s.icon, iconOwner = s.iconOwner or s.name,
+                        aliases = aliases }
     end
   end
   return out
@@ -227,6 +234,14 @@ function obj:_filter(scope, rest, rows)
   return out
 end
 
+-- The image of a scope's own identity icon, drawn for a row that names none and for the notes a
+-- scope answers with. The owner is the scope's iconOwner, so a launcher catalog scope reads the
+-- launcher's icons and a plugin's scope reads that plugin's. Nil when nothing was injected.
+function obj:_identityImage(scope)
+  if not self._iconFor or scope.icon == nil then return nil end
+  return self._iconFor(scope.icon, scope.iconOwner or scope.name)
+end
+
 -- Wrap a scope's rows for the presenter. Two things happen here and both matter.
 --
 -- The row's own item is nested under a descriptor naming its scope, so a chosen row routes back
@@ -248,8 +263,7 @@ function obj:_present(scope, query, rows)
     out[i] = {
       title = r.title,
       subTitle = r.subTitle,
-      image = r.image,
-      glyph = r.glyph or scope.glyph,
+      image = r.image or self:_identityImage(scope),
       enabled = r.enabled,
       filterText = query,
       item = { kind = "scope", scope = scope.name, payload = r.item },
@@ -282,7 +296,7 @@ function obj:rows(query)
     return { {
       title = scope.title .. " is not answering",
       subTitle = "the reason is in the Hammerspoon console",
-      glyph = scope.glyph,
+      image = self:_identityImage(scope),
       enabled = false,
       filterText = query,
       item = { kind = "scope", scope = scope.name },
@@ -294,7 +308,7 @@ function obj:rows(query)
     return { {
       title = "No match",
       subTitle = scope.title .. " has nothing matching " .. rest,
-      glyph = scope.glyph,
+      image = self:_identityImage(scope),
       enabled = false,
       filterText = query,
       item = { kind = "scope", scope = scope.name },

@@ -39,6 +39,9 @@ return {
       -- Turns a row's icon key into an image, the same root built helper the stage receives.
       resolveIcons = { source = "root", policy = "optional",
         breaks = "a scope row that names an icon by key shows no icon, so a tool's rows in the launcher look bare beside the same rows in its own list" },
+      -- Draws a scope's own identity icon, the same resolution a row's icon takes.
+      iconFor = { source = "root", policy = "optional",
+        breaks = "a scope's rows that name no icon of their own and its no match note show none, so the tool's identity is missing from its scoped list" },
       matcher = { source = "root", policy = "optional",
         breaks = "a scope shaped like a list stops ranking its rows against what was typed, since the plain substring or dynamic program that would otherwise score them is never handed in" },
     },

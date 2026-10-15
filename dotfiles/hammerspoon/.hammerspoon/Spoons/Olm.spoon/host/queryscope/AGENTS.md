@@ -25,7 +25,7 @@ names into `{ name, opts }` pairs, warning by name for a spec entry naming a too
 registry has never heard of and staying silent for one that is merely inactive or, for
 emoji, active but carrying no scope this run. The root's own loop then passes each pair
 through the same `scope(name, opts)` helper it always used, which is what still joins
-`name`, `title`, `glyph`, and `aliases` from `config/keys.lua` before handing the finished
+`name`, `title`, `icon`, and `aliases` from the plugin's defaults and `config/keys.lua` before handing the finished
 table to this spoon's own `configure`. So the contract this file enforces, four verbs plus
 a matcher plus the identity fields, is unchanged, only the place those fields are
 assembled from moved one step further from where they are consumed.

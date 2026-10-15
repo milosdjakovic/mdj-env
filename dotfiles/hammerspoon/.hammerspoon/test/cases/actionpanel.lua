@@ -759,7 +759,7 @@ end
 -- own drawer is not the thing under test.
 do
   local ap, _, _ = configuredPanel({
-    demo = { { action = "doThing", title = "Do Thing", glyph = "🔥" }, { title = "Back" } },
+    demo = { { action = "doThing", title = "Do Thing", icon = "flame" }, { title = "Back" } },
   })
   local config = fakeConfig()
   local instance = fakeInstance({ showing = true })
@@ -772,25 +772,25 @@ do
   )
 end
 
--- The panel's own rows put Back first, ahead of every verb, and a row's own glyph carries
+-- The panel's own rows put Back first, ahead of every verb, and a row's own icon carries
 -- through onto its image, phase eight's third packet. rowsByContext here is written the
 -- way the composition root's own rowsFor now answers, Back leading, and deps.icon stands
--- in for the shared glyph icon drawer, answering a small marker table per glyph rather
+-- in for the shared icon door, answering a small marker table per icon and owner rather
 -- than a real hs.canvas drawing, so a case can tell two rows apart by identity alone.
 do
   local ap = freshModule()
-  local icons = { ["⬅️"] = { glyph = "⬅️" }, ["➕"] = { glyph = "➕" } }
+  local icons = { ["panel/back"] = { icon = "back" }, ["clipboard/append"] = { icon = "append" } }
   ap:configure({
     kindOf = function() return nil end,
     rowsFor = function(name)
       if name ~= "demo" then return {} end
       return {
-        { title = "Back", chord = "⌫", glyph = "⬅️" },
-        { action = "appendSelected", title = "Append to batch", chord = "Hyper+A", glyph = "➕" },
+        { title = "Back", chord = "⌫", icon = "back", owner = "panel" },
+        { action = "appendSelected", title = "Append to batch", chord = "Hyper+A", icon = "append", owner = "clipboard" },
       }
     end,
     run = function() end,
-    icon = function(glyph) return icons[glyph] end,
+    icon = function(icon, owner) return icons[tostring(owner) .. "/" .. tostring(icon)] end,
   })
   local config = fakeConfig()
   local instance = fakeInstance({ showing = true })
@@ -802,8 +802,8 @@ do
     #rows == 2 and rows[1].title == "Back" and rows[2].title == "Append to batch"
   )
   check(
-    "a row's own glyph carries through onto its image, through the injected icon function",
-    rows[1].image == icons["⬅️"] and rows[2].image == icons["➕"]
+    "a row's own icon carries through onto its image with its owner, through the injected icon function",
+    rows[1].image == icons["panel/back"] and rows[2].image == icons["clipboard/append"]
   )
 end
 

@@ -201,24 +201,25 @@ end
 --- obj.validateIcons(name, manifest, deps) -> icons, ok
 --- The check on a manifest's top level icons table, the names a plugin's rows may use as
 --- icon = "key". Each key is a string and each value a table of source name to value, with at
---- least one string value, since an entry nothing can draw would show no icon and say nothing.
---- icons is nil when the manifest declares none, and ok is false when the declaration is broken,
+--- least one string value, apart from content = true, which marks the icon as content for the dry
+--- gate's coverage report and is not a source, since an entry nothing can draw would show no icon and say nothing.
+--- It also checks defaults.icon, the plugin's identity icon, against those keys. icons is nil when
+--- the manifest declares none, and ok is false when the declaration is broken,
 --- every defect reported once through deps.log and never silently repaired. A caller that
 --- passes no log gets the answer quietly, which is how the root reads the validated table.
 function obj.validateIcons(name, manifest, deps)
   deps = deps or {}
   local icons = manifest and manifest.icons
-  if icons == nil then return nil, true end
   local ok = true
   local function refuse(fmt, ...)
     ok = false
     if deps.log then deps.log("e", string.format("registrar refused '%s', " .. fmt, name, ...)) end
   end
-  if type(icons) ~= "table" then
+  if icons ~= nil and type(icons) ~= "table" then
     refuse("its icons is '%s', not a table", tostring(icons))
     return nil, false
   end
-  for key, entry in pairs(icons) do
+  for key, entry in pairs(icons or {}) do
     if type(key) ~= "string" then
       refuse("its icons has a key '%s' that is not a string", tostring(key))
     elseif type(entry) ~= "table" then
@@ -228,6 +229,12 @@ function obj.validateIcons(name, manifest, deps)
       for source, value in pairs(entry) do
         if type(source) ~= "string" then
           refuse("its icons.%s has a source name '%s' that is not a string", key, tostring(source))
+        elseif source == "content" then
+          -- Not a source. content = true marks an icon whose glyph is content, so the dry gate's
+          -- coverage report leaves it out of the count of specs a set should cover.
+          if type(value) ~= "boolean" then
+            refuse("its icons.%s.content is '%s', not true or false", key, tostring(value))
+          end
         elseif type(value) == "string" and value ~= "" then
           hasValue = true
         else
@@ -237,6 +244,27 @@ function obj.validateIcons(name, manifest, deps)
       if not hasValue and ok then
         refuse("its icons.%s has no string value for any source", key)
       end
+    end
+  end
+  -- The plugin's identity icon, defaults.icon, which the launcher row, the action panel and
+  -- the scoped list all draw. A string is a key and must be one this manifest declared, since a
+  -- key nothing declares would show no icon and say nothing. A table is a spec, a table of
+  -- source name to value like an entry of icons. A person's own override in their config is not
+  -- read here, a string there that is not a key keeps meaning an emoji.
+  local identity = manifest and manifest.defaults and manifest.defaults.icon
+  if identity ~= nil then
+    if type(identity) == "string" then
+      if not (type(icons) == "table" and icons[identity] ~= nil) then
+        refuse("its defaults.icon is '%s', which its icons do not declare, declare it under icons or name a key it has", identity)
+      end
+    elseif type(identity) == "table" then
+      local hasValue = false
+      for source, value in pairs(identity) do
+        if type(source) == "string" and type(value) == "string" and value ~= "" then hasValue = true end
+      end
+      if not hasValue then refuse("its defaults.icon is a table with no string value for any source") end
+    else
+      refuse("its defaults.icon is '%s', not a key or a table spec", tostring(identity))
     end
   end
   if not ok then return nil, false end
@@ -257,7 +285,7 @@ end
 --- this identity, merges OVER that base through deps.merge, lib/defaults.lua's own merge, field
 --- by field, respecting the same NONE removal sentinel and the same list replaced wholesale, map
 --- merged per key rules a person's own configuration already answers to everywhere else. A
---- plugin declaring a category of Tools and a root override changing only its glyph is one
+--- plugin declaring a category of Tools and a root override changing only its icon is one
 --- merge call away rather than two competing tables neither of which alone is complete. meta may
 --- also answer the boolean false for one identity, read the same way a person's own top level
 --- false already reads for a whole plugin, and it means decline this one registration outright
@@ -271,7 +299,7 @@ end
 --- fields already stay silent for the same reason a line below.
 ---
 --- eff, the plugin's own effective declarations already merged with whatever the person
---- overrode, gives description, glyph, aliases, key and leader, since those are what the plugin
+--- overrode, gives description, icon, aliases, key and leader, since those are what the plugin
 --- itself proposed or the person changed through the ordinary defaults door, the same one every
 --- other field in this config answers to. The merged registry table, info below, gives
 --- everything else, category, detail, keywords, open, surface, hosted, shortcut, commands and
@@ -611,11 +639,11 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
       category = rowSpec.category,
       detail = detail,
       keywords = rowSpec.keywords,
-      glyph = rowSpec.glyph or eff.glyph,
+      icon = rowSpec.icon or eff.icon,
       -- A bundle id for a tool that fronts exactly one application, so its launcher row
-      -- may wear that application's real icon in place of the drawn glyph. Pure data
+      -- may wear that application's real icon in place of the drawn icon. Pure data
       -- passed through untouched, the launcher resolves it to an image at row build,
-      -- and the glyph above stays the fallback everywhere an app icon cannot go.
+      -- and the icon above stays the fallback everywhere an app icon cannot go.
       bundle = rowSpec.bundle,
       aliases = eff.aliases,
       description = eff.description,
@@ -907,7 +935,7 @@ end
 
 --- obj.scopeSpec(plan, registry, names, meta)
 --- Assembles the ordered, resolved scope list QueryScope's own configure takes, one table per
---- scopable tool carrying name, title, aliases, glyph, and every function half of the contract,
+--- scopable tool carrying name, title, aliases, icon, and every function half of the contract,
 --- walking registry.scopeFor and registry.rowFor itself rather than handing a spec to
 --- registry.scopes(), which nothing in this tree calls any more, having stood with zero live
 --- callers since this function took over the assembly it used to be handed. names is the plan's
@@ -929,7 +957,7 @@ end
 --- decides what each member actually is, since only the registry knows which tools ended up
 --- registered and active, and a tool that is present but switched off must not keep its word,
 --- registry.scopeFor already answering nil for it. The presentation half, title and aliases and
---- glyph, is read off the registry's own row first and off the plan's effective values second,
+--- icon, is read off the registry's own row first and off the plan's effective values second,
 --- so a root override of a description reaches the scope directory rather than only the launcher
 --- row.
 ---
@@ -973,7 +1001,8 @@ function obj.scopeSpec(plan, registry, names, meta)
       out[#out + 1] = {
         name = identity,
         title = (row and row.description) or eff.description,
-        glyph = (row and row.glyph) or eff.glyph,
+        icon = (row and row.icon) or eff.icon,
+        iconOwner = identity,
         aliases = aliases,
         matcher = scope.matcher,
         rows = scope.rows,
@@ -1060,7 +1089,8 @@ function obj.aliasDirectory(deps)
   return {
     name = name,
     title = deps.title,
-    glyph = deps.glyph,
+    icon = deps.icon,
+    iconOwner = deps.iconOwner,
     aliases = deps.aliases,
     rows = function()
       local out = {}
@@ -1069,7 +1099,9 @@ function obj.aliasDirectory(deps)
           out[#out + 1] = {
             title = entry.title,
             subTitle = deps.aliasLabel(entry.aliases),
-            glyph = entry.glyph,
+            -- Drawn here with the owner the entry names, since the key belongs to that plugin
+            -- and not to this directory, and a row that carries an image keeps it.
+            image = deps.iconFor and entry.icon ~= nil and deps.iconFor(entry.icon, entry.iconOwner) or nil,
             item = entry.name,
           }
         end

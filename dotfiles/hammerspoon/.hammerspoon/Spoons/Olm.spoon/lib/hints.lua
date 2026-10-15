@@ -210,7 +210,10 @@ end
 function obj.rowsFor(contextName, plan, deps, hosted)
   local glyphFor = deps and deps.glyphFor
   local backChord = (glyphFor and glyphFor("delete")) or "delete"
-  local rows = { { title = "Back", chord = backChord, glyph = "⬅️" } }
+  -- Back belongs to the panel and no plugin, so its icon key is read against the panel's own
+  -- manifest, deps.panelOwner, and every verb's against the plugin that owns the context.
+  local owner = deps and deps.owners
+  local rows = { { title = "Back", chord = backChord, icon = "back", owner = deps and deps.panelOwner } }
   local ctx = plan.contexts and plan.contexts[contextName]
   if not ctx then return rows end
   local kinds = obj.actionKinds(plan, deps and deps.kinds)
@@ -227,7 +230,7 @@ function obj.rowsFor(contextName, plan, deps, hosted)
         closes = hosted[b.action].closes
       end
       rows[#rows + 1] = { action = b.action, title = obj.labelFor(b, contextName, deps and deps.liveLabels),
-                          chord = chord, glyph = b.glyph, closes = closes }
+                          chord = chord, icon = b.icon, owner = owner and owner[contextName], closes = closes }
     end
   end
   return rows

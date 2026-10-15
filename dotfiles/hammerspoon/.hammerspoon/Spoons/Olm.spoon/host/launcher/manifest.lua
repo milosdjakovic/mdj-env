@@ -4,6 +4,20 @@
 -- It receives sixteen fields today, and almost none of them are a named sibling. They are
 -- either a question about the whole plugin set, a plain mechanism from lib, or user data.
 return {
+  -- The icons the launcher states for the rows it owns, the catalog scopes, the special rows and
+  -- the window rows, in the emoji set and the SF Symbol set. A tool's own row reads its own
+  -- plugin's icons and never these.
+  icons = {
+    launcher = { emoji = "🚀", sf = "paperplane" },
+    apps = { emoji = "🚀", sf = "square.grid.2x2" },
+    windows = { emoji = "🪟", sf = "macwindow" },
+    settings = { emoji = "⚙️", sf = "gearshape" },
+    search = { emoji = "🔍", sf = "magnifyingglass" },
+    aliases = { emoji = "🏷️", sf = "tag" },
+    lock = { emoji = "🔒", sf = "lock" },
+    sleep = { emoji = "🌙", sf = "moon" },
+  },
+
   needs = {
     -- Three questions about the set, none of which names a plugin.
     --
@@ -95,8 +109,10 @@ return {
       -- The function rather than its answer, since rows reads what that plugin's own configure
       -- set and asking it before that has happened answers an empty list, which is how the
       -- launcher lost every System Settings pane once already.
+      -- rows marks a member that answers rows whose icon keys belong to the plugin it names, so
+      -- the root stamps each row with that owner and the launcher draws the key against it.
       settingsPaneRows = { plugin = "systemsettings", member = "rows", call = "method",
-        policy = "optional", ordering = false },
+        rows = true, policy = "optional", ordering = false },
       openSettingsPane = { plugin = "systemsettings", member = "open", call = "method",
         policy = "optional", ordering = false },
       focusSettingsSearch = { plugin = "systemsettings", member = "focusSearch", call = "method",
@@ -194,7 +210,7 @@ return {
     leader = "app",
     key = "space",
     description = "Launcher",
-    glyph = "🚀",
+    icon = "launcher",
 
     -- Three scopes that narrow this host's OWN catalog rather than reaching any tool, so they
     -- have no plugin to be declared on and belong here, on the host whose rows they filter.
@@ -249,21 +265,21 @@ return {
 
     specialRows = {
       { name = "searchSettings", description = "Search Settings",
-        subTitle = "System · opens the System Settings search field", glyph = "🔍" },
+        subTitle = "System · opens the System Settings search field", icon = "search" },
       { name = "aliasDirectory", description = "Aliases",
-        subTitle = "Tools · every word that scopes this list", glyph = "🏷️",
+        subTitle = "Tools · every word that scopes this list", icon = "aliases",
         keywords = "alias aliases scope scopes shortcut words prefix" },
-      { name = "lock", description = "Lock Screen", category = "System", key = "§", glyph = "🔒" },
-      { name = "sleep", description = "Sleep", category = "System", key = "escape", glyph = "🌙" },
+      { name = "lock", description = "Lock Screen", category = "System", key = "§", icon = "lock" },
+      { name = "sleep", description = "Sleep", category = "System", key = "escape", icon = "sleep" },
     },
 
     catalogScopes = {
       { name = "apps", kind = "app",
-        description = "Applications", glyph = "🚀", aliases = { "a", "app" } },
+        description = "Applications", icon = "apps", aliases = { "a", "app" } },
       { name = "windowActions", kind = "window",
-        description = "Window actions", glyph = "🪟", aliases = { "w", "window" } },
+        description = "Window actions", icon = "windows", aliases = { "w", "window" } },
       { name = "settingsPanes", kind = "settingsPane",
-        description = "System Settings", glyph = "⚙️", aliases = { "s", "system" } },
+        description = "System Settings", icon = "settings", aliases = { "s", "system" } },
     },
   },
 

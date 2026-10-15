@@ -50,7 +50,7 @@ local function demoPlan()
       fileSearch = {
         bindings = {
           { key = "return", action = "insertSelected", description = "Open" },
-          { key = "r", action = "revealInFinder", description = "Reveal in Finder", glyph = "👀" },
+          { key = "r", action = "revealInFinder", description = "Reveal in Finder", icon = "search" },
           { key = "c", action = "copyPath", description = "Copy Path" },
           { key = "x", action = "closeChooser", description = "Close" },
         },
