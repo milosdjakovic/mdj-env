@@ -754,12 +754,12 @@ do
   )
 end
 
--- deps.icon is optional, defaulting to a function answering nil for everything, so a row
--- still builds and still carries no image rather than raising when the composition root's
--- own drawer is not the thing under test.
+-- The panel draws no picture. A row it builds names the verb's icon and its owner as data and the
+-- chooser draws them when it paints, so the icon follows the light and dark halves. A row that
+-- names no icon carries none, and neither row ever carries an image.
 do
   local ap, _, _ = configuredPanel({
-    demo = { { action = "doThing", title = "Do Thing", icon = "flame" }, { title = "Back" } },
+    demo = { { action = "doThing", title = "Do Thing", icon = "flame", owner = "demo" }, { title = "Back" } },
   })
   local config = fakeConfig()
   local instance = fakeInstance({ showing = true })
@@ -767,19 +767,17 @@ do
   ap:toggle("demo")
   local rows = config.rows("")
   check(
-    "deps.icon left unconfigured answers no image for any row rather than raising",
-    #rows == 2 and rows[1].image == nil and rows[2].image == nil
+    "a row names its icon and owner and carries no image",
+    #rows == 2 and rows[1].icon == "flame" and rows[1].iconOwner == "demo"
+      and rows[1].image == nil and rows[2].icon == nil and rows[2].image == nil
   )
 end
 
--- The panel's own rows put Back first, ahead of every verb, and a row's own icon carries
--- through onto its image, phase eight's third packet. rowsByContext here is written the
--- way the composition root's own rowsFor now answers, Back leading, and deps.icon stands
--- in for the shared icon door, answering a small marker table per icon and owner rather
--- than a real hs.canvas drawing, so a case can tell two rows apart by identity alone.
+-- The panel's own rows put Back first, ahead of every verb, and a row's own icon and owner carry
+-- through onto the chooser row as icon and iconOwner. rowsByContext here is written the way the
+-- composition root's own rowsFor now answers, Back leading.
 do
   local ap = freshModule()
-  local icons = { ["panel/back"] = { icon = "back" }, ["clipboard/append"] = { icon = "append" } }
   ap:configure({
     kindOf = function() return nil end,
     rowsFor = function(name)
@@ -790,7 +788,6 @@ do
       }
     end,
     run = function() end,
-    icon = function(icon, owner) return icons[tostring(owner) .. "/" .. tostring(icon)] end,
   })
   local config = fakeConfig()
   local instance = fakeInstance({ showing = true })
@@ -802,8 +799,9 @@ do
     #rows == 2 and rows[1].title == "Back" and rows[2].title == "Append to batch"
   )
   check(
-    "a row's own icon carries through onto its image with its owner, through the injected icon function",
-    rows[1].image == icons["panel/back"] and rows[2].image == icons["clipboard/append"]
+    "a row's own icon carries through with its owner as iconOwner",
+    rows[1].icon == "back" and rows[1].iconOwner == "panel"
+      and rows[2].icon == "append" and rows[2].iconOwner == "clipboard"
   )
 end
 

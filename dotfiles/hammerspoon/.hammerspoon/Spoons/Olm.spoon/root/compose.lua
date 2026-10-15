@@ -362,11 +362,20 @@ function obj.run(olm, cfg)
   if chooserAtom.providers and chooserProvider == chooserAtom.providers.legacy then
     log.w("chooserProvider legacy is deprecated and will be removed, default is the default chooser")
   end
+  -- The one icon function both chooser providers draw a row's icon through, at paint. The
+  -- resolver it reaches, lib/icons/rows.lua, needs every manifest's declared icons and so is
+  -- built further down, once the manifests are read, which is why this is forward declared and
+  -- read late. Nothing is asked of it before the first row is drawn, and by then it exists.
+  local iconRows
+  local function paintIcon(icon, owner)
+    return iconRows and iconRows.image(icon, owner) or nil
+  end
   chooserAtom.configure({
     screen = function() return overlay and overlay.screen() end,
     matcher = chooserAtom.matchers and chooserAtom.matchers[policy.matcher],
     provider = chooserProvider,
     ui = uiAtom,
+    icon = paintIcon,
     -- THE SEAM. ActionPanel is one of the five host modules this file is allowed to name.
     -- decorate has to be installed before the first Chooser.new call anywhere or every
     -- instance keeps its own rows and the panel decorates nothing, which is Fact 2, and
@@ -391,6 +400,7 @@ function obj.run(olm, cfg)
     chooserAtom.providers.default.configure({
       panel = canvasPanel,
       ui = uiAtom,
+      icon = paintIcon,
       yields = function(ev)
         local hyper = atoms.hyperkey
         return hyper ~= nil and hyper:owns(ev)
@@ -533,8 +543,9 @@ function obj.run(olm, cfg)
   -- wins there because that channel is read last and unconditionally.
   --
   -- What every plugin declared under icons in its manifest, by identity, and the one helper that
-  -- turns a row's icon key into an image against it. The stage and the query scope both receive
-  -- this same helper, so a key resolves one way wherever its row is shown. A broken declaration
+  -- turns an icon key into an image against it. The chooser providers draw through its image
+  -- function when a row paints, and the stage, the query scope and the query row sources stamp
+  -- the owner onto rows with its stampAll, so a key resolves one way wherever its row is shown. A broken declaration
   -- is refused loudly at register by the registrar, so this read stays quiet and only keeps a
   -- table that passed.
   local declaredIcons = {}
@@ -542,14 +553,15 @@ function obj.run(olm, cfg)
     local icons = registrarLib.validateIcons(identity, manifest)
     if icons then declaredIcons[identity] = icons end
   end
-  local iconRows = iconRowsLib.new({
+  iconRows = iconRowsLib.new({
     engine = iconEngine,
     declared = function(owner) return declaredIcons[owner] end,
     points = glyphIconLib.POINTS,
     log = themeLog,
   })
-  -- The door the launcher and the action panel draw through, over the same resolver, so a host's
-  -- own row and a row a plugin names resolve an owner and a key one way.
+  -- The door a plugin may draw an icon through at its own draw time, over the same resolver, so
+  -- an owner and a key resolve one way. No host uses it for a row any more, the chooser draws
+  -- those, and the door stays as the lib a plugin can ask for.
   local glyphIcon = glyphIconLib.new(iconRows)
 
   -- storage joins this list for the menu search cache, docs/BRIEF-MENUSEARCH-CACHE.md,
@@ -1468,8 +1480,7 @@ function obj.run(olm, cfg)
   -- without was missing.
   local queryScopeOpts = {
     matcher = chooserAtom.matchers and chooserAtom.matchers[policy.matcher],
-    resolveIcons = iconRows.resolveAll,
-    iconFor = iconRows.image,
+    stampIcons = iconRows.stampAll,
   }
 
   -- ActionPanel's own three, built here rather than only in step K because the ordinary stage
@@ -1491,7 +1502,6 @@ function obj.run(olm, cfg)
       local fn = dispatchTable and dispatchTable[action]
       if fn then fn() end
     end,
-    icon = glyphIcon.icon,
   }
 
   -- deps.hints receives this same table forwarded whole into shortcutPanelFor for whichever
@@ -1543,7 +1553,7 @@ function obj.run(olm, cfg)
   local stageOpts = {
     chooser = chooserAtom,
     theme = policy.chooserTheme,
-    resolveIcons = iconRows.resolveAll,
+    stampIcons = iconRows.stampAll,
     onPositioned = stagePanel.onPositioned,
     onActivity = stagePanel.onActivity,
     onClose = stagePanel.onClose,
@@ -1995,7 +2005,6 @@ function obj.run(olm, cfg)
       title = aliasPolicy.title,
       icon = aliasPolicy.icon,
       iconOwner = launcherIconOwner,
-      iconFor = iconRows.image,
       aliases = aliasPolicy.aliases,
       aliasLabel = aliasLabel,
       log = logFn,
@@ -2036,8 +2045,8 @@ function obj.run(olm, cfg)
         .. "of the two declarations.")
     end
 
-    local queryScopeLate = { matcher = queryScopeOpts.matcher, resolveIcons = iconRows.resolveAll,
-      iconFor = iconRows.image, scopes = scopes }
+    local queryScopeLate = { matcher = queryScopeOpts.matcher, stampIcons = iconRows.stampAll,
+      scopes = scopes }
     queryScopeModule:configure(queryScopeLate)
     lateData.queryscope = queryScopeLate
   end
@@ -2066,15 +2075,15 @@ function obj.run(olm, cfg)
     if queryScopeModule then queryProviders[#queryProviders + 1] = queryScopeModule end
     for _, identity in ipairs((plan.sets.launcher or {}).queryRows or {}) do
       if modules[identity] then
-        -- Wrapped so the rows it answers have their icon keys turned into images against this
-        -- plugin's own manifest, the same helper the stage and the query scope run, which is
-        -- what lets a computed row name an icon and never draw one. The launcher still sees
+        -- Wrapped so the rows it answers carry this plugin as the owner of their icon keys, the
+        -- same helper the stage and the query scope run, which is what lets a computed row name
+        -- an icon and never draw one. The launcher still sees
         -- only a table answering rows(query) and learns nothing of who it came from.
         local provider = modules[identity]
         queryProviders[#queryProviders + 1] = {
           rows = function(_, query)
             local rows, exclusive = provider:rows(query)
-            return iconRows.resolveAll(rows, identity), exclusive
+            return iconRows.stampAll(rows, identity), exclusive
           end,
         }
         local example = ((plan.effective or {})[identity] or {}).example
@@ -2165,10 +2174,6 @@ function obj.run(olm, cfg)
       predicates = ownPredicates,
       queryProviders = queryProviders,
       placeholderExamples = placeholderExamples,
-      -- The drawer itself, not its icon function. This host stores what it is given and then
-      -- calls .icon on it, so handing over the function alone made every row build raise the
-      -- moment it asked for an icon, which is every row.
-      glyphIcon = glyphIcon,
       -- The identity the launcher's own manifest icons are declared under.
       iconOwner = plan.identity.launcher or "launcher",
 

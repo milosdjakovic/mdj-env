@@ -25,7 +25,10 @@
 ---                window is then forced onto that screen. Defaults to
 ---                hs.screen.mainScreen when omitted.
 ---   rows         REQUIRED supplier function(query) -> list of plain items, each
----                { title, subTitle, image, enabled, item, filterText }. Called on
+---                { title, subTitle, image, icon, iconOwner, enabled, item, filterText }.
+---                image is a real picture and wins. Without one, icon and iconOwner are
+---                drawn through the injected resolver as the row is handed on, see
+---                obj.configure. Called on
 ---                show, refresh, and (in filter mode) on every query change. When a
 ---                matcher is set the supplier returns the full candidate list and the
 ---                atom filters and ranks it, so the supplier no longer filters itself.
@@ -149,10 +152,17 @@ local DEFAULT_LAYOUT = {
 -- the canvas provider holds it. The composition root hands it over through the facade.
 local UI = nil
 
---- obj.configure(opts), opts.ui the UI kit. A nil field is left unchanged.
+-- The injected icon resolver, function(icon, owner) -> hs.image or nil, nil until obj.configure
+-- runs. It is the root's one icon function, the same one the default provider is handed, so both
+-- providers turn a row's icon into a picture the same way and at the moment they draw.
+local ICON = nil
+
+--- obj.configure(opts), opts.ui the UI kit, opts.icon the icon resolver. A nil field is left
+--- unchanged.
 function obj.configure(opts)
   opts = opts or {}
   if opts.ui ~= nil then UI = opts.ui end
+  if opts.icon ~= nil then ICON = opts.icon end
   return obj
 end
 
@@ -257,7 +267,9 @@ function Chooser:_toChoice(it)
   return {
     text = styledText(it.title, L.titleSize, titleColor, L.font, L.titleLineBreak),
     subText = styledText(it.subTitle, L.subSize, self.theme.subColor, L.subFont or L.font),
-    image = it.image,
+    -- A real picture wins. Otherwise the icon is drawn now, so it carries the colour of the half
+    -- the system is in as this row is handed to the native chooser.
+    image = it.image or (it.icon ~= nil and ICON and ICON(it.icon, it.iconOwner)) or nil,
     _item = it.item,
     _enabled = enabled,
   }

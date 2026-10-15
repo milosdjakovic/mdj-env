@@ -115,6 +115,8 @@ end
 --- the matching policy, and the panel decorator into every chooser at once. opts.provider
 --- is a provider module from Chooser.providers, nil meaning legacy. opts.ui is the UI kit,
 --- forwarded to the legacy provider so its rows are styled from the body and caption roles.
+--- opts.icon is the icon resolver, function(icon, owner) -> hs.image or nil, forwarded to the
+--- legacy provider the same way. The default provider is handed it by its own configure.
 function obj.configure(opts)
   opts = opts or {}
   DEFAULT_SCREEN = opts.screen
@@ -124,6 +126,7 @@ function obj.configure(opts)
   -- The UI kit reaches the legacy provider here, since it has no other door. The default
   -- provider is handed it by its own configure, which also takes the panel.
   if opts.ui ~= nil then legacy.configure({ ui = opts.ui }) end
+  if opts.icon ~= nil then legacy.configure({ icon = opts.icon }) end
   return obj
 end
 

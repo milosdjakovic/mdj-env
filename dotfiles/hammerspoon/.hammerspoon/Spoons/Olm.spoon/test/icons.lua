@@ -171,27 +171,34 @@ do
     log = { w = function(m) warnings[#warnings + 1] = m end },
   })
   local plain = { title = "plain" }
-  check("a row with no icon is returned untouched", resolver.resolve(plain, "vpn"), plain)
+  check("a row with no icon is returned untouched", resolver.stamp(plain, "vpn"), plain)
   local keyed = { title = "k", icon = "on" }
-  local resolved = resolver.resolve(keyed, "vpn")
-  check("a key resolves against the owner's icons", resolved.image.value, "A")
-  check("the resolved size is the one asked for", resolved.image.points, 72)
-  check("the plugin's own row table is not mutated", keyed.image, nil)
-  resolved = resolver.resolve({ icon = { emoji = "Z" } }, "other")
-  check("a table spec is drawn as it is", resolved.image.value, "Z")
+  local stamped = resolver.stamp(keyed, "vpn")
+  check("stamping names the owner on the row", stamped.iconOwner, "vpn")
+  check("stamping keeps the icon as data", stamped.icon, "on")
+  check("stamping draws no picture", stamped.image, nil)
+  check("the plugin's own row table is not mutated", keyed.iconOwner, nil)
   local picture = { icon = "on", image = "real" }
-  check("a row that carries an image keeps it", resolver.resolve(picture, "vpn"), picture)
-  resolved = resolver.resolve({ icon = "missing" }, "vpn")
-  check("an unknown key shows no icon", resolved.image, nil)
-  resolver.resolve({ icon = "missing" }, "vpn")
-  check("an unknown key warns once per owner and key", #warnings, 1)
-  resolver.resolve({ icon = "on" }, "other")
-  check("the same key under another owner warns again", #warnings, 2)
-  local list = { plain, picture }
-  check("a list needing nothing comes back as itself", resolver.resolveAll(list, "vpn"), list)
-  local out = resolver.resolveAll({ plain, keyed }, "vpn")
-  check("a list that needed something is a new list", out[2].image.value, "A")
+  check("a row that carries an image is returned untouched", resolver.stamp(picture, "vpn"), picture)
+  local owned = { icon = "on", iconOwner = "clipboard" }
+  check("a row that already names its owner keeps it", resolver.stamp(owned, "vpn"), owned)
+  local list = { plain, picture, owned }
+  check("a list needing nothing comes back as itself", resolver.stampAll(list, "vpn"), list)
+  local out = resolver.stampAll({ plain, keyed }, "vpn")
+  check("a list that needed something is a new list", out[2].iconOwner, "vpn")
   check("the rows that needed nothing are the same rows", out[1], plain)
+  check("resolve is gone, a row never holds a picture of an icon", resolver.resolve, nil)
+  check("resolveAll is gone", resolver.resolveAll, nil)
+
+  -- What the chooser does at paint, ask image for a row's icon and owner.
+  check("a stamped key resolves against the owner's icons", resolver.image(stamped.icon, stamped.iconOwner).value, "A")
+  check("the resolved size is the one asked for", resolver.image("on", "vpn").points, 72)
+  check("a table spec is drawn as it is", resolver.image({ emoji = "Z" }, "other").value, "Z")
+  check("an unknown key shows no icon", resolver.image("missing", "vpn"), nil)
+  resolver.image("missing", "vpn")
+  check("an unknown key warns once per owner and key", #warnings, 1)
+  resolver.image("on", "other")
+  check("the same key under another owner warns again", #warnings, 2)
 
   -- The one resolution every reader of an icon shares, an identity icon included.
   check("image resolves a declared key for its owner", resolver.image("on", "vpn").value, "A")
@@ -199,6 +206,33 @@ do
   check("image reads a string that is not an identifier as an emoji", resolver.image("\u{2615}", "vpn").value, "\u{2615}")
   check("image answers nil for nil", resolver.image(nil, "vpn"), nil)
   check("image answers nil for an identifier nobody declared", resolver.image("coffee", "vpn"), nil)
+end
+
+-- Resolving at paint reads the colour on every call, so a switch of halves between two paints
+-- answers a different picture for the same row, and the same colour answers the same picture.
+do
+  local tint = { red = 1, green = 1, blue = 1, alpha = 1 }
+  local engine = icons.new({
+    sources = { fake("sf", { tinted = true }) }, order = { "sf" },
+    color = function() return tint end,
+  })
+  local resolver = rowsLib.new({
+    engine = engine, points = 72,
+    declared = function() return { go = { sf = "arrow" } } end,
+  })
+  local stamped = resolver.stamp({ icon = "go" }, "demo")
+  local light = resolver.image(stamped.icon, stamped.iconOwner)
+  check("the first paint draws in the current colour", light.color.red, 1)
+  check("a second paint in the same colour is the same picture", resolver.image(stamped.icon, stamped.iconOwner), light)
+  tint = { red = 0, green = 0, blue = 0, alpha = 1 }
+  local dark = resolver.image(stamped.icon, stamped.iconOwner)
+  check("a paint after the colour changed is a different picture", dark ~= light, true)
+  check("the new picture is in the new colour", dark.color.red, 0)
+  check("the stamped row never held either picture", stamped.image, nil)
+  check("going back to the first colour answers the cached picture", (function()
+    tint = { red = 1, green = 1, blue = 1, alpha = 1 }
+    return resolver.image(stamped.icon, stamped.iconOwner)
+  end)(), light)
 end
 
 -- The manifest check.
@@ -278,6 +312,11 @@ do
   local source = sfSource.new({ scratchDir = function() return "/tmp" end })
   check("the sf source is named sf", source.name, "sf")
   check("the sf source is tinted", source.tinted, true)
+  local script = sfSource.script("circle", { red = 1, green = 0, blue = 0, alpha = 1 }, "/tmp/x.png")
+  check("the sf script paints every layer with a palette", script:find("configurationWithPaletteColors($([col]))", 1, true) ~= nil, true)
+  check("the sf script no longer asks for a hierarchical colour", script:find("Hierarchical", 1, true), nil)
+  check("the sf script falls back to the label colour for no colour",
+    sfSource.script("circle", nil, "/tmp/x.png"):find("$.NSColor.labelColor", 1, true) ~= nil, true)
   check("an unsafe name is refused without calling out", source.draw("a'); evil('", 28, nil), nil)
   check("no script ran for an unsafe name", #scripts, 0)
   check("a name with a space is refused", source.draw("a b", 28, nil), nil)

@@ -1,17 +1,25 @@
--- Turns a row's icon into the image the chooser shows, in the one place both callers share.
--- The stage runs it on the rows of a presentation and the query scope runs it on the rows of a
--- launcher scope, and both hand it the owning plugin's identity, so a key means the same thing
--- wherever the row ends up.
+-- Turns a row's icon into the picture the chooser shows, and does it when the chooser paints.
+-- A row names its icon as data, icon, a key into the owning plugin's manifest icons or a table
+-- spec for a glyph only known at runtime, a VPN country flag, plus iconOwner, the identity that
+-- key is read against. Whoever knows the owner stamps it onto the row, the stage with the
+-- presenting plugin, the query scope with the scope, the launcher with the row's own owner. The
+-- chooser then asks instance.image(icon, iconOwner) for the picture each time it draws a row.
 --
--- A row carries icon as data, a key into the owning plugin's manifest icons or a table spec for
--- a glyph only known at runtime, a VPN country flag. A row that already carries an image keeps
--- it, since a real picture, an app icon or a file icon, is not an icon key. The row is copied
--- before the image is set, because a plugin may hold the row table it built, and an image
--- drawn for one colour must not stay on a row that outlives a theme switch.
+-- A row never holds a picture of an icon, and that is the point. A picture baked into a row when
+-- the row was built is drawn in the colour of whichever half the system was in at that moment,
+-- and the launcher keeps its rows across shows, so the icon kept its colour after a light and
+-- dark switch. Resolving at paint reads the colour on every call, and the engine caches by
+-- source, value, size and colour, so a frame costs a table lookup and a switch redraws each
+-- symbol once, with no watcher and no cache that has to be told to flush.
 --
--- An unknown key logs one warning per owner and key and the row shows no icon. A row with no
--- icon field passes through untouched and uncopied. instance.image is the same resolution for
--- anything that is not a row, a plugin's own identity icon, so there is one copy of the rule.
+-- A row that carries a real picture in image, an app icon, a file icon, a thumbnail, is not an
+-- icon key and image wins over icon. Stamping copies a row before it sets the owner, because a
+-- plugin may hold the row table it built. A row with no icon, or one that carries an image or
+-- already names its owner, passes through untouched and uncopied.
+--
+-- An unknown key logs one warning per owner and key and the row shows no icon. instance.image
+-- is the one place a key or spec becomes a picture, for a row at paint time and for anything
+-- else, a plugin's own identity icon, so there is one copy of the rule.
 
 local M = {}
 
@@ -58,29 +66,32 @@ function M.new(opts)
     return engine.image(spec, points)
   end
 
-  --- instance.resolve(row, owner) -> row
-  --- The row itself when it needs nothing, a shallow copy with image set when it does.
-  function instance.resolve(row, owner)
-    if type(row) ~= "table" or row.icon == nil or row.image ~= nil then return row end
+  --- instance.stamp(row, owner) -> row
+  --- The row itself when it needs nothing, a shallow copy with iconOwner set when it names an
+  --- icon, carries no picture and names no owner yet. It never draws anything.
+  function instance.stamp(row, owner)
+    if type(row) ~= "table" or row.icon == nil or row.image ~= nil or row.iconOwner ~= nil then
+      return row
+    end
     local copy = {}
     for k, v in pairs(row) do copy[k] = v end
-    copy.image = instance.image(row.icon, owner)
+    copy.iconOwner = owner
     return copy
   end
 
-  --- instance.resolveAll(rows, owner) -> rows, every one resolved. The list itself comes back
+  --- instance.stampAll(rows, owner) -> rows, every one stamped. The list itself comes back
   --- when no row needed anything, so a long list of rows that carry images, the emoji picker's,
   --- is walked once and never copied.
-  function instance.resolveAll(rows, owner)
+  function instance.stampAll(rows, owner)
     local out
     for i, row in ipairs(rows or {}) do
-      local resolved = instance.resolve(row, owner)
-      if resolved ~= row then
+      local stamped = instance.stamp(row, owner)
+      if stamped ~= row then
         if not out then
           out = {}
           for j = 1, #rows do out[j] = rows[j] end
         end
-        out[i] = resolved
+        out[i] = stamped
       end
     end
     return out or rows

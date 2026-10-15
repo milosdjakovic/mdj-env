@@ -54,7 +54,6 @@ return {
       -- configure never asserts on it, it only reads `opts.registry` with no guard. Corrected
       -- from required to optional to match what the code actually does.
       registry  = { from = "registry", policy = "optional" },
-      glyphIcon = { from = "glyphicon", policy = "optional" },
       -- The shared chord glyph renderer, dot called. Read by `_chordLabel` to print a chord as
       -- words, "Hyper ⌘4", rather than as a bare key. Optional, since configure already falls
       -- back to `tostring(key)` with no glyph styling.

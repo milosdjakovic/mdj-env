@@ -272,3 +272,36 @@ do
     (qs:verbFor(item, "browseInto") ~= nil) == hostedVerbDeclared("browseInto")
   )
 end
+
+-- A scope row names its icon as data and carries no picture. A picture the row has wins, then
+-- the row's own icon under its owner, then the scope's identity icon, and the notes a scope
+-- answers with carry the identity icon too. The chooser draws every one of them at paint.
+do
+  local qs = freshModule()
+  local scope = {
+    name = "demo", title = "Demo", aliases = { "d" }, icon = "demo-id", iconOwner = "demo-owner",
+    run = function() end,
+    rows = function(rest)
+      if rest == "boom" then error("no") end
+      if rest == "none" then return {} end
+      return {
+        { title = "a", item = 1, image = "picture", icon = "ignored" },
+        { title = "b", item = 2, icon = "own", iconOwner = "other" },
+        { title = "c", item = 3, icon = "mine" },
+        { title = "d", item = 4 },
+      }
+    end,
+  }
+  qs:configure({ scopes = { scope }, stampIcons = function(rows) return rows end })
+  local rows = qs:rows("d ")
+  check("a scope row that has a picture keeps it and names no icon",
+    rows[1].image == "picture" and rows[1].icon == nil)
+  check("a scope row's own icon keeps its own owner", rows[2].icon == "own" and rows[2].iconOwner == "other")
+  check("a scope row's own icon with no owner reads against the scope", rows[3].icon == "mine" and rows[3].iconOwner == "demo")
+  check("a scope row with no icon takes the scope's identity icon and owner",
+    rows[4].icon == "demo-id" and rows[4].iconOwner == "demo-owner")
+  check("no scope row holds a picture of an icon", rows[2].image == nil and rows[4].image == nil)
+  local note = qs:rows("d none")
+  check("the no match note carries the identity icon as data",
+    note[1].icon == "demo-id" and note[1].iconOwner == "demo-owner" and note[1].image == nil)
+end

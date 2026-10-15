@@ -45,11 +45,11 @@ return {
       -- The shared theme, the same palette every surfaced plugin already receives ambiently.
       theme = { source = "root", policy = "optional",
         breaks = "the one instance falls back to the atom's own minimal dark palette instead of the configured theme" },
-      -- Turns a row's icon key into an image, built by the root over the engine in lib/icons and
-      -- the icons every manifest declares. It is what lets a plugin name an icon instead of
-      -- drawing one, and it is applied to the rows of whichever presentation is current.
-      resolveIcons = { source = "root", policy = "optional",
-        breaks = "a row that names an icon by key shows no icon, so every plugin that declares its icons in its manifest draws its rows bare" },
+      -- Stamps the owning plugin onto a row's icon, built by the root over lib/icons/rows.lua. It
+      -- is what lets a plugin name an icon instead of drawing one, applied to the rows of
+      -- whichever presentation is current. The chooser draws the picture when it paints.
+      stampIcons = { source = "root", policy = "optional",
+        breaks = "a row that names an icon by key has no owner to read the key against, so every plugin that declares its icons in its manifest draws its rows bare" },
       -- The docked shortcut panel triple. Fixed for the life of this one instance rather than
       -- carried on a presentation, per the stage design brief's own decision that panel
       -- callbacks are atom level policy alongside screen, matcher, and theme, not something a

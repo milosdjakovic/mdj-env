@@ -1099,9 +1099,10 @@ function obj.aliasDirectory(deps)
           out[#out + 1] = {
             title = entry.title,
             subTitle = deps.aliasLabel(entry.aliases),
-            -- Drawn here with the owner the entry names, since the key belongs to that plugin
-            -- and not to this directory, and a row that carries an image keeps it.
-            image = deps.iconFor and entry.icon ~= nil and deps.iconFor(entry.icon, entry.iconOwner) or nil,
+            -- Named with the owner the entry names, since the key belongs to that plugin and
+            -- not to this directory. The chooser draws it when it paints.
+            icon = entry.icon,
+            iconOwner = entry.iconOwner,
             item = entry.name,
           }
         end

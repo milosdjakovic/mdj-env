@@ -41,9 +41,6 @@ return {
       run = { source = "root", policy = "required",
         breaks = "configure refuses to run, since a chosen verb would have nowhere to go once the row it acted on was restored" },
     },
-    lib = {
-      glyphIcon = { from = "glyphicon", policy = "optional" },
-    },
   },
 
   -- Its own chord is Hyper and o, and it is deliberately classified as navigation

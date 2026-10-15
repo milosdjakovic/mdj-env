@@ -93,12 +93,10 @@ end
 ---              and run, plus an optional icon, iconOwner, matcher, peek, redirect, and act. icon
 ---              is the scope's identity icon, a key into the manifest icons of iconOwner, which
 ---              is the scope's own name when it declares none, or a table spec.
---- opts.iconFor  function of an icon and an owner identity, answering the image, the same
----              resolution a row's own icon takes. Draws a scope's identity icon on the rows
----              that have none of their own and on the notes a scope answers with.
---- opts.resolveIcons  function of a list of rows and an owner identity, answering the rows with
----              every icon key turned into an image, lib/icons/rows.lua. The scope's own name
----              is the owner, so a scope row names an icon the way a presentation row does.
+--- opts.stampIcons  function of a list of rows and an owner identity, answering the rows with
+---              iconOwner set on every one that names an icon, lib/icons/rows.lua. The scope's
+---              own name is the owner, so a scope row names an icon the way a presentation row
+---              does. Nothing is drawn here, the chooser draws icon and iconOwner at paint.
 --- opts.matcher the shared filter strategy a scope inherits, the same one the presenter
 ---              uses, so a list shaped scope filters exactly like every other list. A scope
 ---              setting matcher false owns its own filtering, which is right when its field
@@ -110,8 +108,7 @@ end
 function obj:configure(opts)
   opts = opts or {}
   self._matcher = opts.matcher
-  self._resolveIcons = opts.resolveIcons
-  self._iconFor = opts.iconFor
+  self._stampIcons = opts.stampIcons
   self._scopes = {}
   self._byAlias = {}
   self._byName = {}
@@ -234,12 +231,13 @@ function obj:_filter(scope, rest, rows)
   return out
 end
 
--- The image of a scope's own identity icon, drawn for a row that names none and for the notes a
--- scope answers with. The owner is the scope's iconOwner, so a launcher catalog scope reads the
--- launcher's icons and a plugin's scope reads that plugin's. Nil when nothing was injected.
-function obj:_identityImage(scope)
-  if not self._iconFor or scope.icon == nil then return nil end
-  return self._iconFor(scope.icon, scope.iconOwner or scope.name)
+-- The fields that give a row a scope's own identity icon, for a row that names none and for the
+-- notes a scope answers with. The owner is the scope's iconOwner, so a launcher catalog scope
+-- reads the launcher's icons and a plugin's scope reads that plugin's. Data only, the chooser
+-- draws the picture when it paints, so a scope with no icon answers no fields.
+function obj:_identityIcon(scope)
+  if scope.icon == nil then return nil, nil end
+  return scope.icon, scope.iconOwner or scope.name
 end
 
 -- Wrap a scope's rows for the presenter. Two things happen here and both matter.
@@ -256,14 +254,25 @@ end
 function obj:_present(scope, query, rows)
   -- The same helper the stage runs on a presentation's rows, so an icon key means one thing in
   -- a scope and in a list. The owner is the scope's name, which is the plugin's identity.
-  if self._resolveIcons then rows = self._resolveIcons(rows, scope.name) end
+  if self._stampIcons then rows = self._stampIcons(rows, scope.name) end
   local out = {}
   for i = 1, #rows do
     local r = rows[i]
+    -- A picture the row carries wins, then the row's own icon, then the scope's identity icon.
+    local icon, iconOwner
+    if r.image == nil then
+      if r.icon ~= nil then
+        icon, iconOwner = r.icon, r.iconOwner or scope.name
+      else
+        icon, iconOwner = self:_identityIcon(scope)
+      end
+    end
     out[i] = {
       title = r.title,
       subTitle = r.subTitle,
-      image = r.image or self:_identityImage(scope),
+      image = r.image,
+      icon = icon,
+      iconOwner = iconOwner,
       enabled = r.enabled,
       filterText = query,
       item = { kind = "scope", scope = scope.name, payload = r.item },
@@ -290,13 +299,15 @@ function obj:rows(query)
   local scope, rest = self:resolve(query)
   if not scope then return {}, false end
 
+  local scopeIcon, scopeOwner = self:_identityIcon(scope)
   local ok, rows = pcall(scope.rows, rest)
   if not ok then
     hs.printf("QueryScope: the %s scope failed, %s", scope.name, tostring(rows))
     return { {
       title = scope.title .. " is not answering",
       subTitle = "the reason is in the Hammerspoon console",
-      image = self:_identityImage(scope),
+      icon = scopeIcon,
+      iconOwner = scopeOwner,
       enabled = false,
       filterText = query,
       item = { kind = "scope", scope = scope.name },
@@ -308,7 +319,8 @@ function obj:rows(query)
     return { {
       title = "No match",
       subTitle = scope.title .. " has nothing matching " .. rest,
-      image = self:_identityImage(scope),
+      icon = scopeIcon,
+      iconOwner = scopeOwner,
       enabled = false,
       filterText = query,
       item = { kind = "scope", scope = scope.name },

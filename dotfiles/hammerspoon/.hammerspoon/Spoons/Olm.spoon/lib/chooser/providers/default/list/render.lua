@@ -26,6 +26,9 @@
 --- numberColor and dimAlpha, every one resolved by the provider from the kit's tokens, and
 --- this file reads none of settings.chooserTheme, decision six of the original brief
 --- stated plainly. The one set of colours it keeps answers only a caller passing no style.
+--- style.icon is optional, function(icon, owner) -> hs.image or nil. A row with no image of its
+--- own that names an icon is drawn through it at every paint, which is what keeps an icon in the
+--- colour of the half the system is in now. A row that carries an image keeps it.
 ---
 --- A row is drawn from the shape lib/chooser/providers/legacy.lua's own head already
 --- documents, title, subTitle, image, enabled and item, filterText playing no part once
@@ -317,7 +320,11 @@ function M.elements(state, rect, layout, style, clip)
       }
     end
 
-    if row.image then
+    local image = row.image
+    if image == nil and row.icon ~= nil and style.icon then
+      image = style.icon(row.icon, row.iconOwner)
+    end
+    if image then
       -- iconSize is the artwork's side and iconFrame the image's, larger by the transparent
       -- margin an icon carries, so the image is centred on the artwork's box and the margin
       -- falls into the padding around it.
@@ -325,7 +332,7 @@ function M.elements(state, rect, layout, style, clip)
       local side = layout.iconFrame or art
       local artX, artY = rect.x + iconPadLeft, rowY + iconPad
       els[#els + 1] = {
-        type = "image", image = row.image, imageScaling = "scaleProportionally",
+        type = "image", image = image, imageScaling = "scaleProportionally",
         frame = {
           x = px(artX - (side - art) / 2), y = px(artY - (side - art) / 2),
           w = px(side), h = px(side),

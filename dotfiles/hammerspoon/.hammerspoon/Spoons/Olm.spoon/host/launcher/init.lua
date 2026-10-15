@@ -55,7 +55,6 @@ obj._actions = nil          -- leaf dispatch: app, capture, settingsPane, specia
 obj._queryProviders = nil   -- ordered query row sources, each answering rows(query)
 obj._aliasHint = nil        -- function(name) -> subtitle fragment, "" when there is none
 obj._registry = nil         -- the tool registry, dot called, optional, see configure and _runItem
-obj._icons = nil            -- the shared icon door, Olm.spoon/lib/glyphicon.lua, icon(spec, owner), dot called
 obj._iconOwner = nil        -- the identity this host's own manifest icons are declared under
 
 -- Owned state
@@ -251,11 +250,6 @@ function obj:configure(opts)
   -- no edit here. The default answers nothing, which is the whole feature absent rather than
   -- broken. See _buildActionRows for why it is asked there and not at each call site.
   self._aliasHint = opts.aliasHint or function() return "" end
-  -- The shared icon door, Olm.spoon/lib/glyphicon.lua, phase eight's third packet. The root
-  -- builds one instance and hands it to whoever draws a row icon rather than an app bundle,
-  -- ActionPanel among them since that packet, so an icon drawn here and one drawn there share
-  -- the exact same cache, the exact same numbers and the exact same resolution of a key.
-  self._icons = opts.glyphIcon
   -- The identity the launcher's own manifest icons are declared under, which the rows this host
   -- states itself read their keys against, lock and sleep, the three catalog scopes, the window
   -- rows. A registered tool's row reads against the tool's own name instead.
@@ -358,22 +352,6 @@ function obj:configure(opts)
   return self
 end
 
---- Launcher:_icon(icon, owner)
---- Method
---- An action row has no app icon of its own, so draw one from its icon, once per icon and
---- cached by the engine, sized to line up with the real app icons. icon is a key into the
---- manifest icons of owner, or a table spec, and owner defaults to this host. nil yields none.
----
---- The resolution lives in lib/icons/rows.lua, reached through the shared door in
---- Olm.spoon/lib/glyphicon.lua, so a launcher row and a row a plugin names in its own list read
---- one rule. Answers nil when nothing was injected, the same as a nil icon, rather than raising,
---- since a missing collaborator here is a question for whoever configured this spoon and not a
---- reason for a row to blow up while it is being built.
-function obj:_icon(icon, owner)
-  if not self._icons then return nil end
-  return self._icons.icon(icon, owner or self._iconOwner)
-end
-
 --- Launcher:_chordSuffix(category, leader, key, mods)
 --- Method
 --- A row's subtitle tail. The bare category is what a row with no configured chord already
@@ -451,7 +429,14 @@ function obj:_buildActionRows()
     -- An image handed in outright wins over the drawn icon, the one caller today being
     -- a registered tool whose row declares the bundle it fronts, so the row wears the
     -- real application icon the way the app rows below already do.
-    rows[#rows + 1] = { title = title, subTitle = subTitle, image = image or self:_icon(icon, owner),
+    --
+    -- Otherwise the row names its icon and its owner and draws nothing. The rows are cached
+    -- across shows, so a picture drawn here would keep the colour of the half the system was in
+    -- when the cache was built, and the chooser draws the icon at paint instead. An action row
+    -- has no app icon of its own, so the owner defaults to this host.
+    rows[#rows + 1] = { title = title, subTitle = subTitle, image = image,
+                        icon = image == nil and icon or nil,
+                        iconOwner = image == nil and icon ~= nil and (owner or self._iconOwner) or nil,
                         item = item, when = when, keywords = keywords, subTitleFn = subTitleFn }
   end
   -- addTool(name) asks the injected registry for this name's row and, when there is one,
@@ -590,7 +575,8 @@ function obj:_buildSettingsPaneRows()
   local rows = {}
   for _, r in ipairs(self._settingsPanes) do
     rows[#rows + 1] = {
-      title = r.title, subTitle = r.subTitle, image = self:_icon(r.icon, r.iconOwner),
+      title = r.title, subTitle = r.subTitle,
+      icon = r.icon, iconOwner = r.icon ~= nil and (r.iconOwner or self._iconOwner) or nil,
       keywords = r.keywords, item = r.item,
     }
   end
@@ -776,8 +762,8 @@ end
 --- the query means nothing to it, which is the usual case, so this costs a handful of
 --- cheap calls per keystroke and no work at all on an empty field.
 ---
---- A source returns an icon or an image, and an icon is rendered through the same cache the
---- action rows use, so a source never draws anything and there is one icon cache rather than
+--- A source returns an icon or an image, and an icon is drawn by the chooser at paint through
+--- the one resolver, so a source never draws anything and there is one icon cache rather than
 --- one per source. A source is fully trusted for its own rows but not
 --- for the launcher's stability, so a source that raises is dropped for that keystroke
 --- with a log line rather than emptying the whole list.
@@ -802,6 +788,8 @@ function obj:_queryRows(query)
           title = r.title,
           subTitle = r.subTitle,
           image = r.image,
+          icon = r.image == nil and r.icon or nil,
+          iconOwner = r.image == nil and r.icon ~= nil and (r.iconOwner or self._iconOwner) or nil,
           enabled = r.enabled,
           item = r.item,
           filterText = r.filterText or query,
@@ -861,6 +849,7 @@ function obj:_commandRows(query)
       local filterText = row.title .. " " .. subTitle
       if row.keywords then filterText = filterText .. " " .. row.keywords end
       catalog[#catalog + 1] = { title = row.title, subTitle = subTitle, image = row.image,
+                                icon = row.icon, iconOwner = row.iconOwner,
                                 item = row.item, filterText = filterText }
     end
   end
@@ -987,6 +976,7 @@ function obj:rowsOfKind(kind)
       local filterText = row.title .. " " .. subTitle
       if row.keywords then filterText = filterText .. " " .. row.keywords end
       out[#out + 1] = { title = row.title, subTitle = subTitle, image = row.image,
+                        icon = row.icon, iconOwner = row.iconOwner,
                         item = it, filterText = filterText }
     end
   end

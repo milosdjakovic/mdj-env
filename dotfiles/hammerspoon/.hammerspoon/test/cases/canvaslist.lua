@@ -685,3 +685,43 @@ do
   check("a point below the last row of a short filtered set answers nil rather than a wrong row",
     model.rowAtPoint(s, 5 * ROW_H) == nil, "got " .. tostring(model.rowAtPoint(s, 5 * ROW_H)))
 end
+
+--------------------------------------------------------------------------------
+-- An icon is drawn at paint, through the injected style.icon
+--------------------------------------------------------------------------------
+
+do
+  local layout = {
+    width = 480, rowH = DERIVED_ROW_H, rowCount = 10, baseH = 94,
+    font = TYPE.font, textSize = TYPE.textSize, textLine = TYPE.textLine, subFont = TYPE.subFont, subSize = TYPE.subSize, subLine = TYPE.subLine, numFont = TYPE.numFont, numSize = TYPE.numSize,
+  }
+  local rows = {
+    { title = "named", item = 1, icon = "go", iconOwner = "demo" },
+    { title = "pictured", item = 2, image = "real", icon = "go", iconOwner = "demo" },
+    { title = "bare", item = 3 },
+  }
+  local s = model.newState(rows, layout)
+  local rect = { x = 0, y = 0, w = layout.width, h = render.bandHeight(layout) }
+  local asked = {}
+  local colour = "light"
+  local style = { icon = function(icon, owner)
+    asked[#asked + 1] = icon .. "/" .. tostring(owner)
+    return "drawn-" .. colour
+  end }
+  local function images(els)
+    local out = {}
+    for _, el in ipairs(els) do
+      if el.type == "image" then out[#out + 1] = el.image end
+    end
+    return out
+  end
+  local first = images(render.elements(s, rect, layout, style))
+  check("a row that names an icon is drawn through style.icon with its owner", first[1] == "drawn-light" and asked[1] == "go/demo")
+  check("a row that carries an image keeps it and never asks", first[2] == "real" and #asked == 1)
+  check("a row with no icon draws no image", #first == 2)
+  colour = "dark"
+  local again = images(render.elements(s, rect, layout, style))
+  check("the next paint asks again, so a switch of halves redraws the icon", again[1] == "drawn-dark")
+  check("without style.icon a row that names an icon draws none",
+    #images(render.elements(s, rect, layout, {})) == 1)
+end
