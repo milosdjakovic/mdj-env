@@ -605,6 +605,33 @@ do
 end
 
 ----------------------------------------------------------------------------------------
+-- Six, the icon drawing rule. Olm draws every row icon, so a file under plugins that creates a
+-- canvas and snapshots it with imageFromCanvas is a plugin drawing an icon of its own, see
+-- test/drygate-drawing.lua. It reads the same DRYGATE_SOURCES list as the typography check,
+-- restricted to plugins. A file that genuinely has to draw, content such as a thumbnail or a
+-- glyph the engine cannot express, is declared in test/drygate-accepted.txt with its reason,
+-- where this gate's other exemptions live, and goes through finding() like every other line.
+----------------------------------------------------------------------------------------
+
+do
+  local scanner = dofile(scriptDir .. "drygate-drawing.lua")
+  local list = os.getenv("DRYGATE_SOURCES")
+  if list and list ~= "" then
+    for path in list:gmatch("[^\n]+") do
+      local rel = path:sub(1, #spoonDir) == spoonDir and path:sub(#spoonDir + 1) or path
+      if rel:sub(1, 8) == "plugins/" then
+        local line = scanner.scanFile(path)
+        if line then
+          finding(string.format(
+            "dry gate refused '%s', it draws onto a canvas to produce an image, a plugin never draws a row icon, declare it under icons in the manifest and name it on the row, or if it is content or a drawing the icon engine cannot express list the file in test/drygate-accepted.txt with a reason",
+            rel))
+        end
+      end
+    end
+  end
+end
+
+----------------------------------------------------------------------------------------
 -- An accepted line that no longer matches anything this run is itself a finding, appended
 -- straight to the real list rather than through finding() above, so it is never itself
 -- eligible to be accepted away, the one rule that keeps this file from rotting.
