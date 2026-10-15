@@ -76,7 +76,7 @@ in the root, with no change here.
 
 Four details make it work. A source returns an icon rather than an image, a key into its own
 manifest icons or a table spec, and the root wraps each source so the rows it answers come back
-drawn, so a source draws nothing and there is one icon cache rather than one per source. A computed row sets
+stamped with their owner, so a source draws nothing and there is one icon cache rather than one per source. A computed row sets
 `filterText` to the raw query, so the shared matcher scores it against what was
 typed rather than against the answer it produced, which is what keeps a result at
 the top instead of being dropped for not resembling its own expression. A source
@@ -521,18 +521,14 @@ icons, `lock`, `sleep`, `search`, `aliases`, `apps`, `windows` and `settings`. W
 share the one `windows` icon, the chord in the subtitle telling them apart. The System
 Settings rows carry the owner of the plugin that built them, stamped by the root.
 
-The drawing itself, once this spoon's own private glyph drawer, moved to the
-shared `Olm.spoon/lib/glyphicon.lua` in phase eight's third packet, once
-`ActionPanel` became a genuine second caller of the exact same drawing. This
-spoon keeps `_icon` as the thin caller everything here already reaches
-through, delegating to an instance the composition root builds and injects as
-`opts.glyphIcon`, which since 2026 10 15 is a thin door over the icon resolver in
-`lib/icons/rows.lua` and the one engine in `lib/icons`. `_icon(icon, owner)` takes a key into
-the owner's manifest icons or a table spec and the owner defaults to the launcher's own
-identity, `opts.iconOwner`. An icon is still drawn to an image once and cached, in the same
-size and frame as before, and it still lines up in the row with the app icons. The cache
-lives on the engine rather than on a field of this spoon, and the root hands the panel the
-very same instance, so an icon the two happen to share is drawn once rather than twice.
+This spoon draws no icon. Since 2026 10 15 a row it builds keeps `icon` and `iconOwner` as data,
+the owner defaulting to the launcher's own identity, `opts.iconOwner`, and the chooser draws the
+picture when it paints, through the resolver in `lib/icons/rows.lua` over the one engine in
+`lib/icons`. The rows here are cached across shows, so a picture drawn when the cache was built
+kept the colour of the half the system was in then, and a light and dark switch left the icons
+wrong. Only a real picture, an app icon, is held in `image`, and every row copy in this file
+passes `icon` and `iconOwner` along with it. An icon is drawn once per colour by the engine, in
+the same size and frame as before, and it still lines up in the row with the app icons.
 
 ## Picker integration
 

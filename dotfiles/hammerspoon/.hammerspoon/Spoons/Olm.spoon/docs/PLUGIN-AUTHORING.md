@@ -427,8 +427,10 @@ with one console line naming your tool.
 ```
 
 A row says `icon = "key"` to use one of its own plugin's icons. A child presentation your
-`select` returns resolves against the same plugin, and the rows your launcher scope shows
-resolve the same way, so one declaration serves every place a row appears. A key your manifest
+`select` returns is read against the same plugin, and so are the rows your launcher scope shows,
+so one declaration serves every place a row appears. You never set `iconOwner` or `image` for an
+icon. Olm stamps the owner on the row, and the chooser draws the picture when it paints, which is
+how an icon follows a light and dark switch, so never hold or cache a picture of an icon yourself. A key your manifest
 does not declare logs one warning naming the plugin and the key, and the row shows no icon.
 
 The plugin's own identity icon, the one its launcher row, its action panel and its scoped list
@@ -446,7 +448,7 @@ own rows too and is preferred. A person who writes a string over it in `config/k
 not a declared key means an emoji, the plain shorthand. An action panel verb or a binding names
 its icon the same way, `icon = "key"` on the binding, read against the plugin that owns the
 context. A computed row source names `icon = "key"` on the rows it answers, and the root
-resolves them against that plugin.
+stamps that plugin as their owner.
 
 Give every entry an `sf` name beside its `emoji`. Prefer the outline style SF uses in menus and
 sidebars and fill only where the meaning needs it, a status dot. Every name must exist, so check
@@ -467,8 +469,8 @@ Lua file of a plugin when the manifest does not declare that key.
 Content, known only at runtime, is a table spec on the row and never a key, as
 in `icon = { emoji = flag }` for a country flag or the emoji a picker is offering. Switching the
 set then never changes what the content is, so such a spec has no `sf` entry by design, and a
-comment where it is built says so. A row that already carries an `image` keeps it,
-since a real picture, an application icon or a file icon, is not an icon key. A colour swatch or
+comment where it is built says so. A row that carries an `image` keeps it and `image` wins over
+`icon`, since a real picture, an application icon or a file icon, is not an icon key. A colour swatch or
 a thumbnail is content and is the one kind of drawing that may stay in a plugin, declared in
 `test/drygate-accepted.txt` with its reason, and the dry gate refuses any other file under
 `plugins` that creates a canvas and snapshots it into an image.

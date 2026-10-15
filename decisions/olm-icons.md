@@ -9,10 +9,14 @@ content.
 
 A row carries `icon`, either a key into the owning plugin's manifest `icons` or a table spec
 such as `{ emoji = "🇸🇪" }` for a glyph that is content. A row that already carries an `image`
-keeps it, since a real picture such as an app or a file icon is not an icon key. Resolution
-happens in one helper, `lib/icons/rows.lua`, which the stage runs on the rows of the current
-presentation and the query scope runs on a launcher scope's rows, both handing it the owning
-plugin's identity. An unknown key logs one warning per owner and key and the row shows no icon.
+keeps it, since a real picture such as an app or a file icon is not an icon key. A row never
+holds a picture of an icon. Whoever knows the owner stamps `iconOwner` on the row, the stage
+with the presenting plugin, the query scope with the scope, the launcher with the row's owner,
+the action panel with the verb's owner, through `stamp` and `stampAll` in `lib/icons/rows.lua`.
+The chooser then draws the picture each time it paints, asking the one function `image(spec,
+owner)` in that file through an `icon` function the root injects into both providers, the default
+provider's list render and the legacy provider as it converts a row for `hs.chooser`. An unknown
+key logs one warning per owner and key and the row shows no icon.
 
 The engine in `lib/icons/init.lua` is a Strategy over sources that answer a small contract in
 `lib/icons/contract.lua`, a name and a `draw(spec, points, color)`. It tries the active set and
@@ -21,12 +25,13 @@ by source, value, size and, for a source that takes a colour, the colour. `lib/i
 holds the two sources, emoji and sf. The emoji source keeps the numbers that looked right live,
 a 72 point canvas with the glyph at 60, and holds one reused canvas. The sf source renders an SF
 Symbol in process through the AppKit bridge of `hs.osascript.javascript` and places it centred
-in a square keeping its aspect. The composition root names both and reads `config/icons.toml`,
+in a square keeping its aspect, painted with a palette of one colour so every layer is at full
+strength. The composition root names both and reads `config/icons.toml`,
 shipped as `emoji` for the set and the fallback. The colour is the foreground role, the one a
 row title is drawn in, read from the kit on every draw.
 
-`lib/glyphicon.lua` is a thin facade over the engine at 72 points, so the launcher and the
-action panel are unchanged, and the kit's `iconImage` takes the same engine through
+`lib/glyphicon.lua` is a thin facade over the engine at 72 points, kept as the door a plugin may
+draw through at its own draw time though no host uses it for a row any more, and the kit's `iconImage` takes the same engine through
 `ui.configure`, so a pane and a row draw with one set of numbers. The dry gate refuses a file
 under `plugins` that creates a canvas and snapshots it with `imageFromCanvas`, with the few
 declared exceptions listed with a reason in `test/drygate-accepted.txt`.
@@ -66,6 +71,18 @@ literal `icon = "key"` in a plugin's Lua that its manifest does not declare.
 - **Treating every undeclared string as an emoji.** 2026-10-15. A typo in a row's key would then
   draw its own letters as a glyph and say nothing. Only a string that is not a plain identifier
   is the emoji shorthand, and an identifier nobody declared still warns once and draws nothing.
+
+- **An appearance watcher that flushes row caches.** 2026-10-15. It would repair the launcher's
+  two caches when the system switches halves, but every cache of rows added later would have to
+  join the watcher or go stale in the same way, and the fault would reappear silently each time.
+  Resolving at paint has no list to forget.
+- **Per plugin colour choices.** 2026-10-15. A plugin picking a colour or a weight for its icons
+  would be a plugin thinking about contrast, which it must never do, and it would drift from the
+  active half and from every other plugin. Colour and contrast are built into Olm.
+- **Keeping the hierarchical colour configuration for symbols.** 2026-10-15. It draws secondary
+  layers at reduced opacity, so a multi layer symbol such as `face.smiling` or `globe` looked dim
+  beside a single layer one such as `circle.fill`. A palette of one colour gives every layer the
+  same strength and was verified to render so.
 
 ## Log
 
@@ -108,3 +125,27 @@ only by design, the emoji picker's rows and the vpn country flags. The dry gate 
 coverage of each source and warns for any gap, and it refuses a literal row key the manifest does
 not declare. `config/settingsPanes.lua` was deleted, since nothing loaded it and the same list
 lives in the System Settings manifest. `config/icons.toml` still ships `set = "emoji"`.
+
+### 2026-10-15 20:35
+
+Two defects were found live with the SF set and fixed inside Olm, with no plugin file touched.
+
+The first was contrast. The sf source built `configurationWithHierarchicalColor`, which draws a
+symbol's secondary layers at reduced opacity, so a multi layer symbol came out dim beside a single
+layer one. It now builds `configurationWithPaletteColors` with the one colour, so every layer is
+drawn at full strength, and the label colour is still the fallback for no colour. Verified with
+`osascript` that every layer renders at full colour.
+
+The second was staleness. The stage, the query scope and the launcher resolved a row's `icon`
+into `row.image` when the row was built, and the launcher keeps its rows across shows in
+`_orderedRowsCache` and `_appRowsCache`, so an icon drawn in one half's foreground kept that
+colour after the system switched halves. Icons are now resolved at paint. A row keeps `icon` and
+`iconOwner` and never holds a picture of an icon. The default provider's list render and the
+legacy provider both ask the one injected `icon` function, which is `image(spec, owner)` in
+`lib/icons/rows.lua`, and the colour is read on every call, so a switch redraws on the next paint.
+`resolve` and `resolveAll` became `stamp` and `stampAll`, which set the owner and draw nothing, and
+the launcher's `_icon` and the `glyphIcon` dependency of the launcher and the action panel were
+removed. A scope row that names an icon the engine cannot draw no longer falls back to the scope's
+identity icon, since the fallback is chosen from data and not from whether a picture came back.
+Rejected here, an appearance watcher that flushes the row caches and per plugin colour choices,
+both listed above with the reasons.

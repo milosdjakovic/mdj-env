@@ -679,7 +679,7 @@ changes in its own file. `decisions/olm-colour-roles.md` has what was rejected.
 in `Spoons/Olm.spoon/lib/icons`, a Strategy over sources that answer a name and a draw function,
 the emoji source and the SF Symbol source today. A plugin never draws a row icon. It declares
 `icons` in its manifest and a row says `icon = "key"`, or `icon = { emoji = glyph }` for content,
-and the stage and the query scope resolve it in one helper. The plugin's own identity icon, which
+and Olm draws it. The plugin's own identity icon, which
 the launcher row, the action panel and the scoped list wear, is `defaults.icon`, a key into the
 same `icons`, and an action panel verb or a binding names its icon the same way. A string a person
 writes over it in config that is not a key the plugin declares reads as an emoji. Every spec carries
@@ -689,7 +689,18 @@ the foreground role through the kit, so it follows the light and dark halves. Th
 keeps the 72 point canvas with the glyph at 60 that looked right live, and `lib/glyphicon.lua` and
 the kit's `iconImage` both draw through the engine. One function, `image(spec, owner)` in
 `lib/icons/rows.lua`, turns an owner and a key or a spec into an image, and every reader goes
-through it. The dry gate refuses a plugin file that
+through it. A symbol is one colour on every layer, a palette and not a hierarchical configuration,
+so a multi layer symbol is as strong as a single layer one. A row never holds a picture of an
+icon. It carries `icon` and `iconOwner`, stamped by whoever knows the owner, the stage with the
+presenting plugin, the query scope with the scope, the launcher with the row's owner, the action
+panel with the verb's owner. The chooser draws the picture when it paints, the default provider
+in `list/render.lua` and the legacy provider as it hands a row to `hs.chooser`, both through the one
+`icon` function the root injects. The colour is read on every call and the engine caches by colour,
+so a light and dark switch redraws on the next paint with no watcher and no row cache to flush.
+A new cache of rows therefore needs nothing from this rule, and a new host that builds rows must
+carry `icon` and `iconOwner` through and never write `image` for an icon. A row that carries a real
+picture in `image` keeps it and `image` wins. Anything else that needs a picture, a pane or a
+toast, asks the engine at its own draw time. The dry gate refuses a plugin file that
 creates a canvas and snapshots it into an image, apart from the files listed with a reason in
 `Spoons/Olm.spoon/test/drygate-accepted.txt`. `decisions/olm-icons.md` has what was rejected.
 
