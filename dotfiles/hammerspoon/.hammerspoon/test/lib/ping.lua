@@ -3,5 +3,6 @@
 -- path, never inline source, exactly the same shape every case after it takes. A plain
 -- literal handed straight to hs would be safe on its own, but the rule this repository
 -- follows is that no Lua source ever crosses that boundary except through dofile, so this
--- file exists purely to keep the readiness check inside that same rule.
-print("pong")
+-- file exists purely to keep the readiness check inside that same rule. It returns rather
+-- than prints, since the runner calls hs with -q and nothing printed is mirrored back.
+return "pong"
