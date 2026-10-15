@@ -4,9 +4,15 @@
 --
 -- It is rendered in process through the AppKit bridge of hs.osascript.javascript, which needs no
 -- compiler and no helper binary, verified on 2026 10 15 on Hammerspoon 1.1.1 at about 100 ms for
--- the first call. The script builds the symbol with a hierarchical colour configuration and writes
+-- the first call. The script builds the symbol with a palette colour configuration and writes
 -- a PNG to a scratch path, and the picture is then loaded and placed. A compiled Swift helper was
 -- the alternative and is rejected, see decisions/olm-icons.md.
+--
+-- The configuration is a palette of one colour and not a hierarchical one, on purpose. A
+-- hierarchical colour draws a symbol's secondary layers at reduced opacity, so a multi layer
+-- symbol such as face.smiling or globe came out dim beside a single layer one such as
+-- circle.fill. A palette hands every layer the same colour at full strength, which was checked
+-- on 2026 10 15 by rendering both kinds and reading the pixels, so every icon has one contrast.
 --
 -- Symbols are not square, cup.and.saucer.fill comes out wider than it is tall, so the loaded
 -- image is drawn into a square canvas, centred, keeping its aspect, and its longest side fills
@@ -49,7 +55,7 @@ function M.script(name, color, path)
     "var col = " .. tint .. ";",
     "var cfg = $.NSImageSymbolConfiguration.configurationWithPointSizeWeightScale(64, 0, 2)",
     "  .configurationByApplyingConfiguration(",
-    "    $.NSImageSymbolConfiguration.configurationWithHierarchicalColor(col));",
+    "    $.NSImageSymbolConfiguration.configurationWithPaletteColors($([col])));",
     "var img = $.NSImage.imageWithSystemSymbolNameAccessibilityDescription("
       .. jsString(name) .. ", $('x'));",
     "var result = 'unknown';",
