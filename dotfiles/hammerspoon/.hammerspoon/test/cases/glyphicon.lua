@@ -1,6 +1,8 @@
--- Unit case for Olm.spoon/lib/glyphicon.lua, the glyph to icon drawer lifted out of
+-- Unit case for Olm.spoon/lib/glyphicon.lua, the glyph to icon facade lifted out of
 -- Launcher's own private drawing once ActionPanel became a second caller of it, phase
--- eight's third packet. The runner reaches this file with a dofile call carrying an
+-- eight's third packet, and since 2026 10 15 a thin door over the icon engine in lib/icons.
+-- Each instance below is given its own engine built from the real emoji source, so the drawing
+-- under test is the one the root builds. The runner reaches this file with a dofile call carrying an
 -- absolute path, so this file in turn locates itself the same way, through
 -- debug.getinfo, and derives the module path from there. No absolute path is ever
 -- written down here, and the module under test is only loaded, never edited.
@@ -17,6 +19,13 @@ local source = debug.getinfo(1, "S").source
 local herePath = source:match("^@(.*)$") or source
 local caseDir = herePath:match("^(.*)/[^/]+$")
 local modulePath = caseDir .. "/../../Spoons/Olm.spoon/lib/glyphicon.lua"
+local iconsPath = caseDir .. "/../../Spoons/Olm.spoon/lib/icons/init.lua"
+local emojiPath = caseDir .. "/../../Spoons/Olm.spoon/lib/icons/sources/emoji.lua"
+
+-- A fresh engine with the emoji source alone, so no two blocks share a cache.
+local function freshEngine()
+  return dofile(iconsPath).new({ sources = { dofile(emojiPath).new() }, order = { "emoji" } })
+end
 
 local function check(description, ok, detail)
   if ok then
@@ -41,7 +50,7 @@ end
 -- A glyph answers an image, an hs.image this Hammerspoon instance actually drew.
 do
   local M = freshModule()
-  local instance = M.new()
+  local instance = M.new(freshEngine())
   local img = instance.icon("➕")
   check(
     "a glyph answers an hs.image",
@@ -52,7 +61,7 @@ end
 -- The same glyph answers the same cached object twice, not two separate drawings of it.
 do
   local M = freshModule()
-  local instance = M.new()
+  local instance = M.new(freshEngine())
   local first = instance.icon("🗑️")
   local second = instance.icon("🗑️")
   check(
@@ -64,17 +73,17 @@ end
 -- nil answers nil, no canvas ever drawn for a binding with no glyph at all.
 do
   local M = freshModule()
-  local instance = M.new()
+  local instance = M.new(freshEngine())
   check("a nil glyph answers nil", instance.icon(nil) == nil)
 end
 
 -- Two instances share no cache, each drawing its own copy of the same glyph, since
--- M.new() hands back an independent instance every time, the same isolation
+-- M.new(freshEngine()) hands back an independent instance every time, the same isolation
 -- lib/recency.lua and lib/registry.lua both give their own callers.
 do
   local M = freshModule()
-  local a = M.new()
-  local b = M.new()
+  local a = M.new(freshEngine())
+  local b = M.new(freshEngine())
   local imgA = a.icon("🔥")
   local imgB = b.icon("🔥")
   check(

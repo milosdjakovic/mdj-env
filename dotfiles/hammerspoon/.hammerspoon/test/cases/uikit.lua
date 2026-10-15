@@ -383,7 +383,10 @@ end
 
 do
   local ui = fresh("init.lua")
-  ui.configure({ spec = SPEC })
+  -- The kit draws a glyph through the root's icon engine, handed in here as the real one.
+  local engine = dofile(uiDir .. "../icons/init.lua").new({
+    sources = { dofile(uiDir .. "../icons/sources/emoji.lua").new() }, order = { "emoji" } })
+  ui.configure({ spec = SPEC, icon = engine.image })
   local wanted = { "text", "badge", "icon", "row", "stack", "flow", "grid", "divider",
                    "spacer", "surface", "group", "layout", "tokens", "configure", "iconImage" }
   local missing = {}
