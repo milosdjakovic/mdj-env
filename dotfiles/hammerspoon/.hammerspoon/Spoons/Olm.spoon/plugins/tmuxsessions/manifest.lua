@@ -18,11 +18,12 @@ return {
 
   -- The row icons, named by the rows and drawn by Olm.
   icons = {
-    active = { emoji = "🟢" },  -- the window currently on screen, or the currently chosen terminal
-    window = { emoji = "🪟" },
-    terminal = { emoji = "💻" },
-    settings = { emoji = "⚙️" },
-    back = { emoji = "⬅️" },
+    active = { emoji = "🟢", sf = "circle.fill" },  -- the window currently on screen, or the currently chosen terminal
+    window = { emoji = "🪟", sf = "macwindow" },
+    terminal = { emoji = "💻", sf = "laptopcomputer" },
+    settings = { emoji = "⚙️", sf = "gearshape" },
+    back = { emoji = "⬅️", sf = "chevron.left" },
+    tmuxsessions = { emoji = "🗂️", sf = "terminal" },
   },
 
   needs = {
@@ -87,7 +88,7 @@ return {
     leader = "app",
     key = "U",
     description = "Tmux Manager",
-    glyph = "🗂️",
+    icon = "tmuxsessions",
     aliases = { "u", "tmux" },
   },
 
@@ -166,7 +167,7 @@ return {
   -- nav verbs now that presentation above exists, and this plugin binds no verb beyond
   -- them, insertSelected replacing the retired enter being exactly what closed that gap.
   registry = {
-    row = { category = "Tools", glyph = "🗂️",
+    row = { category = "Tools",
       keywords = "tmux sessions windows terminal ghostty" },
     open = "show",
     hosted = true,

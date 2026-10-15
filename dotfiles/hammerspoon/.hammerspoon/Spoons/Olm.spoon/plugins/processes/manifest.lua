@@ -7,6 +7,17 @@
 -- macOS itself, so optional documents the contract rather than guarding against a
 -- practical absence, matching the reasoning the ports entries below already give.
 return {
+  -- The icons this plugin names, in the emoji set and the SF Symbol set. The one named for the
+  -- plugin is its identity icon, which the launcher row and the scoped list both wear.
+  -- The nerd font technology glyphs on a process row are content drawn in lib icons.lua and are
+  -- not declared here.
+  icons = {
+    processes = { emoji = "🔌", sf = "powerplug" },
+    sortByLoad = { emoji = "🔥", sf = "flame" },
+    stopForced = { emoji = "⛔", sf = "xmark.octagon" },
+    rescan = { emoji = "🔄", sf = "arrow.triangle.2.circlepath" },
+  },
+
   needs = {
     -- The UI kit, which every piece of text in the detail pane is drawn through, so the pane
     -- names a role and never a font, a size, a line height or a colour. Optional, since without
@@ -159,9 +170,9 @@ return {
     context = "processes",
     primary = { action = "insertSelected", description = "Stop" },
     extra = {
-      { key = "s", action = "sortByLoad",  description = "Sort by load", glyph = "🔥" },
-      { key = "f", action = "stopForced",  description = "Force stop",  glyph = "⛔" },
-      { key = "r", action = "refreshList", description = "Rescan",      glyph = "🔄" },
+      { key = "s", action = "sortByLoad",  description = "Sort by load", icon = "sortByLoad" },
+      { key = "f", action = "stopForced",  description = "Force stop",  icon = "stopForced" },
+      { key = "r", action = "refreshList", description = "Rescan",      icon = "rescan" },
     },
     -- A query here is a real remembered fragment, a port number or a project name,
     -- rather than an abbreviation of a short label, so this plugin wants the words
@@ -250,7 +261,7 @@ return {
   -- the console naming why.
   registry = {
     row = { category = "System", detail = "stops a dev server, container, or watcher",
-      glyph = "🔌", keywords = "processes port node docker" },
+      icon = "processes", keywords = "processes port node docker" },
     open = { member = "chooser.show", call = "dot" },
     surface = "chooser",
   },

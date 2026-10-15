@@ -29,6 +29,13 @@
 -- name apiece, the last one added by this migration for a background correction to ask whether
 -- the highlight has moved off row one before it is safe to redraw in place.
 return {
+  -- The icons this plugin names, in the emoji set and the SF Symbol set. The one named for the
+  -- plugin is its identity icon, which the launcher row and the scoped list both wear.
+  icons = {
+    menusearch = { emoji = "📋", sf = "filemenu.and.selection" },
+    reading = { emoji = "⏳", sf = "hourglass" },
+  },
+
   -- The registry and every sibling lookup know this plugin as menuSearch, camel
   -- cased, while the directory beside this file is menusearch, lowercase.
   name = "menuSearch",
@@ -87,7 +94,7 @@ return {
     leader = "app",
     key = "e",
     description = "Menu search",
-    glyph = "📋",
+    icon = "menusearch",
     aliases = { "m", "menu" },
   },
 

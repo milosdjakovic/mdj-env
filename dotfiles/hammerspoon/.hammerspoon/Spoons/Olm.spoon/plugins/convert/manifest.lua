@@ -8,6 +8,12 @@
 -- every keystroke the same way Arithmetic is, and it has no entry anywhere in
 -- config/keys.lua and no hyperContext of its own.
 return {
+  -- The icons this plugin names, in the emoji set and the SF Symbol set. The one named for the
+  -- plugin is its identity icon, which the launcher row and the scoped list both wear.
+  icons = {
+    convert = { emoji = "📐", sf = "arrow.left.arrow.right" },
+  },
+
   needs = {
     tools = {
       { name = "qalc", kind = "path", policy = "required",
@@ -71,6 +77,7 @@ return {
   -- collected from that same list. So the field never advertises a conversion this machine
   -- cannot do.
   defaults = {
+    icon = "convert",
     example = {
       "Try 100 eur to usd",
       "Try 72 fahrenheit to celsius",

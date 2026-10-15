@@ -205,7 +205,9 @@ end
 -- aliases ride in the subtitle as the shortcodes you might type, and the item is just
 -- the glyph string, all the dispatcher needs. The icon is a table spec of the emoji and never
 -- a key, since the glyph is the content being picked, so changing the icon set never changes
--- which emoji a row shows. Olm draws it.
+-- which emoji a row shows. It has no sf entry by design, since an SF Symbol cannot stand for the
+-- emoji being picked, and it is not in a manifest so the dry gate's coverage report never counts it.
+-- Olm draws it.
 function obj:_rowFor(entry)
   return { title = entry.n, subTitle = entry.a, icon = { emoji = entry.e }, item = entry.e }
 end

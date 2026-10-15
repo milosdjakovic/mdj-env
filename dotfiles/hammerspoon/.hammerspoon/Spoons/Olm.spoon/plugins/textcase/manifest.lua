@@ -7,6 +7,13 @@
 -- The registry and every sibling lookup know this plugin as textCase, camel cased, while
 -- the directory beside this file is textcase, lowercase.
 return {
+  -- The icons this plugin names, in the emoji set and the SF Symbol set. The one named for the
+  -- plugin is its identity icon, which the launcher row and the scoped list both wear.
+  -- The row icons inside the list are drawn by the plugin itself and are left alone.
+  icons = {
+    textcase = { emoji = "🔠", sf = "textformat" },
+  },
+
   name = "textCase",
 
   needs = {
@@ -116,7 +123,7 @@ return {
     -- whose whole point is the selection. The plugin answers the ordinary words, recase the
     -- selection in place, whenever it cannot tell, so the row never nags on a guess.
     row = { category = "Text", detail = { member = "launcherDetail", call = "method" },
-            glyph = "🔠" },
+            icon = "textcase" },
     open = "show",
   },
 }

@@ -50,11 +50,11 @@ local function rows()
   local out = {}
   for _, d in ipairs(held) do
     local label = d.kind == "output" and "Output" or "Input"
-    local glyph = d.current and "current" or (d.kind == "output" and "output" or "input")
+    local icon = d.current and "current" or (d.kind == "output" and "output" or "input")
     out[#out + 1] = {
       title = d.name,
       subTitle = label .. (d.current and ", in use" or ""),
-      icon = glyph,
+      icon = icon,
       -- The side is part of what a search matches, so typing input narrows to inputs.
       filterText = d.name .. " " .. label,
       item = { id = "device", kind = d.kind, uid = d.uid, name = d.name },

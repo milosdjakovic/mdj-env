@@ -19,22 +19,23 @@ return {
   -- The row icons, named by the rows and drawn by Olm. The Apps list carries each
   -- app's own picture instead, and app is only the mark for an app with none.
   icons = {
-    available = { emoji = "🟢" },
-    unavailable = { emoji = "⚪" },
-    new = { emoji = "📸" },
-    apply = { emoji = "🪟" },
-    apps = { emoji = "📦" },
-    app = { emoji = "🪟" },
-    update = { emoji = "🔄" },
-    rename = { emoji = "✏️" },
-    delete = { emoji = "🗑️" },
-    remove = { emoji = "🚫" },
-    include = { emoji = "✅" },
-    save = { emoji = "💾" },
-    no = { emoji = "↩️" },
-    back = { emoji = "⬅️" },
-    hint = { emoji = "⌨️" },
-    warn = { emoji = "⚠️" },
+    available = { emoji = "🟢", sf = "circle.fill" },
+    unavailable = { emoji = "⚪", sf = "circle" },
+    new = { emoji = "📸", sf = "camera" },
+    apply = { emoji = "🪟", sf = "macwindow" },
+    apps = { emoji = "📦", sf = "shippingbox" },
+    app = { emoji = "🪟", sf = "macwindow" },
+    update = { emoji = "🔄", sf = "arrow.triangle.2.circlepath" },
+    rename = { emoji = "✏️", sf = "pencil" },
+    delete = { emoji = "🗑️", sf = "trash" },
+    remove = { emoji = "🚫", sf = "nosign" },
+    include = { emoji = "✅", sf = "checkmark.circle" },
+    save = { emoji = "💾", sf = "square.and.arrow.down" },
+    no = { emoji = "↩️", sf = "arrow.uturn.backward" },
+    back = { emoji = "⬅️", sf = "chevron.left" },
+    hint = { emoji = "⌨️", sf = "keyboard" },
+    warn = { emoji = "⚠️", sf = "exclamationmark.triangle" },
+    workspaces = { emoji = "🪟", sf = "rectangle.3.group" },
   },
 
   needs = {
@@ -130,7 +131,7 @@ return {
   -- matcher is false because scopeRows filters by the typed rest itself.
   registry = {
     row = { category = "Displays", detail = "window layouts you snapshot and put back",
-      glyph = "🪟", keywords = "workspace workspaces layout layouts window windows snapshot arrange" },
+      icon = "workspaces", keywords = "workspace workspaces layout layouts window windows snapshot arrange" },
     open = { member = "chooser.show", call = "dot" },
     scope = {
       matcher = false,

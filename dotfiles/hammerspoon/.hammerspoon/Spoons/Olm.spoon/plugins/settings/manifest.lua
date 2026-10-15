@@ -10,11 +10,12 @@ return {
   -- marker convention this codebase uses for which of these is current right now. Green marks
   -- whichever option is current and red marks the other one.
   icons = {
-    placement = { emoji = "🖥️" },
-    theme = { emoji = "🎨" },
-    back = { emoji = "⬅️" },
-    selected = { emoji = "🟢" },
-    notSelected = { emoji = "🔴" },
+    placement = { emoji = "🖥️", sf = "desktopcomputer" },
+    theme = { emoji = "🎨", sf = "paintpalette" },
+    back = { emoji = "⬅️", sf = "chevron.left" },
+    selected = { emoji = "🟢", sf = "circle.fill" },
+    notSelected = { emoji = "🔴", sf = "circle" },
+    settings = { emoji = "🎛️", sf = "slider.horizontal.3" },
   },
 
   -- No moving parts, so no engine and contract ceremony, one module. The directory is
@@ -93,7 +94,7 @@ return {
   -- buys nothing. M.show asks cfg.stagePresent for the shared stage the identical way
   -- DisplayProfiles' own launcher only entry does.
   registry = {
-    row = { category = "System", glyph = "🎛️",
+    row = { category = "System", icon = "settings",
       detail = "where the OLM launcher appears, the colour theme and other preferences",
       keywords = "olm settings preferences options window placement theme colour colors appearance" },
     open = { member = "show", call = "dot" },

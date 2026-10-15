@@ -6,13 +6,14 @@
 return {
   -- The row icons, named by the rows and drawn by Olm.
   icons = {
-    off = { emoji = "📴" },
-    connected = { emoji = "📶" },
-    network = { emoji = "📡" },
-    saved = { emoji = "⭐" },
-    locked = { emoji = "🔒" },
-    loading = { emoji = "⏳" },
-    warn = { emoji = "⚠️" },
+    off = { emoji = "📴", sf = "wifi.slash" },
+    connected = { emoji = "📶", sf = "wifi" },
+    network = { emoji = "📡", sf = "antenna.radiowaves.left.and.right" },
+    saved = { emoji = "⭐", sf = "star" },
+    locked = { emoji = "🔒", sf = "lock" },
+    loading = { emoji = "⏳", sf = "hourglass" },
+    warn = { emoji = "⚠️", sf = "exclamationmark.triangle" },
+    wifi = { emoji = "📡", sf = "wifi" },
   },
 
   needs = {
@@ -49,7 +50,7 @@ return {
 
   defaults = {
     description = "Wi-Fi",
-    glyph = "📡",
+    icon = "wifi",
     aliases = { "wi", "wifi" },
     example = "Try wifi to see or change the network",
   },
@@ -72,7 +73,7 @@ return {
   -- landing there needs the redraw callback the launcher hands in rather than redrawPresented.
   registry = {
     row = { category = "Network", detail = "see the current network, disconnect, or join another",
-      glyph = "📡", keywords = "wifi wi-fi wireless network ssid join connect disconnect" },
+      keywords = "wifi wi-fi wireless network ssid join connect disconnect" },
     open = { member = "show", call = "dot" },
     hosted = true,
     scope = {

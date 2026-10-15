@@ -7,6 +7,14 @@
 -- chain, always handles a screenshot or a recording, and OCR simply answers unavailable
 -- with no backend installed.
 return {
+  -- The icons the capture actions name, in the emoji set and the SF Symbol set. A binding below
+  -- names one and the launcher row for that action wears it.
+  icons = {
+    ocr = { emoji = "🔤", sf = "text.viewfinder" },
+    screenshot = { emoji = "📸", sf = "camera" },
+    record = { emoji = "🎥", sf = "video" },
+  },
+
   needs = {
     -- Dispatch waits for the Hyper key to release before running, so a synthetic keystroke
     -- is not swallowed by the same tap that is holding the leader down, and bindHotkeys binds
@@ -72,10 +80,10 @@ return {
   defaults = {
     leader = "app",
     bindings = {
-      { action = "ocrArea", key = "3", description = "OCR", glyph = "🔤" },
-      { action = "captureAreaClipboard", key = "4", description = "Screenshot (copy)", glyph = "📸" },
-      { action = "captureArea", key = "4", mods = { "shift" }, description = "Screenshot", glyph = "📸" },
-      { action = "recordArea", key = "5", description = "Record screen", glyph = "🎥" },
+      { action = "ocrArea", key = "3", description = "OCR", icon = "ocr" },
+      { action = "captureAreaClipboard", key = "4", description = "Screenshot (copy)", icon = "screenshot" },
+      { action = "captureArea", key = "4", mods = { "shift" }, description = "Screenshot", icon = "screenshot" },
+      { action = "recordArea", key = "5", description = "Record screen", icon = "record" },
     },
   },
 

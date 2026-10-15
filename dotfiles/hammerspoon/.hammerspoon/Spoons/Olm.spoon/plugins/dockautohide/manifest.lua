@@ -6,6 +6,13 @@
 -- since it is a two row page hosted inside the launcher rather than a native chooser
 -- with its own hyperContext.
 return {
+  -- The icons this plugin names, in the emoji set and the SF Symbol set. The one named for the
+  -- plugin is its identity icon, which the launcher row and the scoped list both wear.
+  icons = {
+    dockautohide = { emoji = "🗄️", sf = "dock.rectangle" },
+    delay = { emoji = "⏱️", sf = "timer" },
+  },
+
   -- The registry and the launcher both know this plugin as dockAutoHide, camelCase, not as
   -- the lowercase directory. config/settings.lua's activation roster and config/keys.lua's
   -- alias entry both spell it this way.
@@ -47,7 +54,7 @@ return {
   -- since choosing a row and clicking one whose row the accessibility tree could not resolve
   -- in time both mean the same thing here, flip the setting in place.
   registry = {
-    row = { category = "System", detail = "hides or reveals the Dock", glyph = "🗄️",
+    row = { category = "System", detail = "hides or reveals the Dock", icon = "dockautohide",
       keywords = "dock hide hiding autohide show" },
     open = "toggle",
     hosted = true,

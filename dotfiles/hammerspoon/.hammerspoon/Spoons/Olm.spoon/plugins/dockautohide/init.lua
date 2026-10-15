@@ -182,13 +182,13 @@ function obj:rows()
     {
       title = hidingTitle,
       subTitle = "applies right away",
-      glyph = "🗄️",
+      icon = "dockautohide",
       item = "hiding",
     },
     {
       title = delayTitle,
       subTitle = "restarts the Dock to apply",
-      glyph = "⏱️",
+      icon = "delay",
       item = "delay",
     },
   }

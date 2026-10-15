@@ -11,18 +11,18 @@ return {
 
   -- The row icons, named by the rows and drawn by Olm.
   icons = {
-    active = { emoji = "🟢" },
-    profile = { emoji = "🖥️" },
-    displays = { emoji = "📺" },
-    reapply = { emoji = "🔄" },
-    rename = { emoji = "✏️" },
-    delete = { emoji = "🗑️" },
-    capture = { emoji = "➕" },
-    save = { emoji = "💾" },
-    no = { emoji = "↩️" },
-    back = { emoji = "⬅️" },
-    hint = { emoji = "⌨️" },
-    warn = { emoji = "⚠️" },
+    active = { emoji = "🟢", sf = "circle.fill" },
+    profile = { emoji = "🖥️", sf = "desktopcomputer" },
+    displays = { emoji = "📺", sf = "tv" },
+    reapply = { emoji = "🔄", sf = "arrow.triangle.2.circlepath" },
+    rename = { emoji = "✏️", sf = "pencil" },
+    delete = { emoji = "🗑️", sf = "trash" },
+    capture = { emoji = "➕", sf = "plus" },
+    save = { emoji = "💾", sf = "square.and.arrow.down" },
+    no = { emoji = "↩️", sf = "arrow.uturn.backward" },
+    back = { emoji = "⬅️", sf = "chevron.left" },
+    hint = { emoji = "⌨️", sf = "keyboard" },
+    warn = { emoji = "⚠️", sf = "exclamationmark.triangle" },
   },
 
   needs = {
@@ -129,7 +129,7 @@ return {
   -- M.refresh, this plugin's only other public member, was never routed through the nav
   -- registry to begin with, called only from this plugin's own screen watcher.
   registry = {
-    row = { category = "Displays", detail = "inspect and manage arrangements", glyph = "🖥️" },
+    row = { category = "Displays", detail = "inspect and manage arrangements", icon = "profile" },
     open = { member = "chooser.show", call = "dot" },
   },
 }

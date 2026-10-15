@@ -115,7 +115,7 @@ end
 function obj:configure(opts)
   opts = opts or {}
   self._path = opts.deps and opts.deps.path(self.tool) or nil
-  self._glyph = opts.glyph or "📐"
+  self._icon = opts.icon or "convert"
   self._category = opts.category or "Convert"
   self._onResult = opts.redraw
   self._debounce = opts.debounce or 0.25
@@ -244,7 +244,7 @@ function obj:rows(query)
       {
         title = hit.value,
         subTitle = self._category .. " · " .. q .. " · copy the result",
-        glyph = self._glyph,
+        icon = self._icon,
         filterText = query,
         item = { kind = "calc", value = hit.value },
       },
@@ -279,7 +279,7 @@ function obj:rows(query)
     {
       title = "Converting",
       subTitle = self._category .. " · " .. q,
-      glyph = self._glyph,
+      icon = self._icon,
       filterText = query,
       enabled = false,
       item = { kind = "calc", value = nil },

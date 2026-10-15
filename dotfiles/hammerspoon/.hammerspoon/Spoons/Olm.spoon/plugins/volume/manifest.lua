@@ -5,10 +5,11 @@
 return {
   -- The row icons, named by the rows and drawn by Olm.
   icons = {
-    muted = { emoji = "🔇" },
-    quiet = { emoji = "🔈" },
-    loud = { emoji = "🔊" },
-    warn = { emoji = "⚠️" },
+    muted = { emoji = "🔇", sf = "speaker.slash" },
+    quiet = { emoji = "🔈", sf = "speaker.wave.1" },
+    loud = { emoji = "🔊", sf = "speaker.wave.3" },
+    warn = { emoji = "⚠️", sf = "exclamationmark.triangle" },
+    volume = { emoji = "🔊", sf = "speaker.wave.3" },
   },
 
   needs = {
@@ -26,7 +27,7 @@ return {
 
   defaults = {
     description = "Volume",
-    glyph = "🔊",
+    icon = "volume",
     aliases = { "vol" },
     example = "Try vol 40 to set the volume",
   },
@@ -54,7 +55,7 @@ return {
 
   registry = {
     row = { category = "System", detail = "see the volume, set it from 0 to 100, mute or unmute",
-      glyph = "🔊", keywords = "volume sound audio mute unmute speaker loud quiet" },
+      keywords = "volume sound audio mute unmute speaker loud quiet" },
     open = { member = "show", call = "dot" },
     hosted = true,
     scope = {

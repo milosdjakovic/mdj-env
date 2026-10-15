@@ -15,6 +15,7 @@ return {
     duration = { emoji = "⏳", sf = "hourglass" },
     hint = { emoji = "⌨️", sf = "keyboard" },
     error = { emoji = "⚠️", sf = "exclamationmark.triangle" },
+    caffeinate = { emoji = "☕", sf = "cup.and.saucer" },
   },
 
   needs = {
@@ -44,7 +45,7 @@ return {
     leader = "app",
     key = "K",
     description = "Keep awake",
-    glyph = "☕",
+    icon = "caffeinate",
     aliases = { "k", "awake" },
   },
 

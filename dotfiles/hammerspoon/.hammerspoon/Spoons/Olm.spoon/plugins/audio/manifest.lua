@@ -5,10 +5,11 @@
 return {
   -- The row icons, named by the rows and drawn by Olm.
   icons = {
-    current = { emoji = "✅" },
-    output = { emoji = "🔊" },
-    input = { emoji = "🎙️" },
-    warn = { emoji = "⚠️" },
+    current = { emoji = "✅", sf = "checkmark.circle" },
+    output = { emoji = "🔊", sf = "speaker.wave.3" },
+    input = { emoji = "🎙️", sf = "mic" },
+    warn = { emoji = "⚠️", sf = "exclamationmark.triangle" },
+    audio = { emoji = "🎧", sf = "headphones" },
   },
 
   needs = {
@@ -26,7 +27,7 @@ return {
 
   defaults = {
     description = "Audio devices",
-    glyph = "🎧",
+    icon = "audio",
     aliases = { "au", "audio" },
     example = "Try audio to switch output",
   },
@@ -51,7 +52,7 @@ return {
   -- devices itself when what it holds has gone stale.
   registry = {
     row = { category = "System", detail = "switch the sound output or the microphone",
-      glyph = "🎧", keywords = "audio sound output input microphone mic speaker headphones device" },
+      keywords = "audio sound output input microphone mic speaker headphones device" },
     open = { member = "show", call = "dot" },
     hosted = true,
     scope = {

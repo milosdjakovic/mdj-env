@@ -11,15 +11,16 @@ return {
   -- The row icons, named by the rows and drawn by Olm. A tab row wears its browser's own
   -- application icon instead, a real picture and not a key.
   icons = {
-    settings = { emoji = "⚙️" },
-    back = { emoji = "⬅️" },
-    active = { emoji = "🟢" },
-    off = { emoji = "⚪" },
-    warn = { emoji = "⚠️" },
-    locked = { emoji = "🔒" },
-    ask = { emoji = "🔓" },
-    reading = { emoji = "⏳" },
-    none = { emoji = "🚫" },
+    settings = { emoji = "⚙️", sf = "gearshape" },
+    back = { emoji = "⬅️", sf = "chevron.left" },
+    active = { emoji = "🟢", sf = "circle.fill" },
+    off = { emoji = "⚪", sf = "circle" },
+    warn = { emoji = "⚠️", sf = "exclamationmark.triangle" },
+    locked = { emoji = "🔒", sf = "lock" },
+    ask = { emoji = "🔓", sf = "lock.open" },
+    reading = { emoji = "⏳", sf = "hourglass" },
+    none = { emoji = "🚫", sf = "nosign" },
+    browsertabs = { emoji = "📑", sf = "rectangle.stack" },
   },
 
   needs = {
@@ -142,7 +143,7 @@ return {
     leader = "app",
     key = "W",
     description = "Browser tabs",
-    glyph = "📑",
+    icon = "browsertabs",
     aliases = { "t", "tabs" },
     providers = { "safari", "chrome", "arc" },
     enabled = { "safari" },

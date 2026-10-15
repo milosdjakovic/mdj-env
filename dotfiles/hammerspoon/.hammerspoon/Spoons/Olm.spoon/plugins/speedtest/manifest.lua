@@ -11,17 +11,18 @@
 return {
   -- The row icons, named by the rows and drawn by Olm.
   icons = {
-    run = { emoji = "📶" },
-    stop = { emoji = "🚫" },
-    result = { emoji = "📈" },
-    settings = { emoji = "⚙️" },
-    networks = { emoji = "🌐" },
-    back = { emoji = "⬅️" },
-    empty = { emoji = "📊" },
-    problem = { emoji = "⚠️" },
-    name = { emoji = "✏️" },
-    clear = { emoji = "🗑️" },
-    keep = { emoji = "↩️" },
+    run = { emoji = "📶", sf = "speedometer" },
+    stop = { emoji = "🚫", sf = "nosign" },
+    result = { emoji = "📈", sf = "chart.line.uptrend.xyaxis" },
+    settings = { emoji = "⚙️", sf = "gearshape" },
+    networks = { emoji = "🌐", sf = "globe" },
+    back = { emoji = "⬅️", sf = "chevron.left" },
+    empty = { emoji = "📊", sf = "chart.bar" },
+    problem = { emoji = "⚠️", sf = "exclamationmark.triangle" },
+    name = { emoji = "✏️", sf = "pencil" },
+    clear = { emoji = "🗑️", sf = "trash" },
+    keep = { emoji = "↩️", sf = "arrow.uturn.backward" },
+    speedtest = { emoji = "📶", sf = "speedometer" },
   },
 
   needs = {
@@ -76,7 +77,7 @@ return {
 
   defaults = {
     description = "Speedtest",
-    glyph = "📶",
+    icon = "speedtest",
     -- st is the short form a person types, speed is the whole word anybody would try
     -- first. Neither collides with a claimed alias, s belongs to system settings.
     aliases = { "st", "speed" },
@@ -116,7 +117,7 @@ return {
 
   registry = {
     row = { category = "Network", detail = "measure this connection and compare it with its own past",
-      glyph = "📶", keywords = "speedtest speed network bandwidth latency rpm" },
+      keywords = "speedtest speed network bandwidth latency rpm" },
     open = { member = "chooser.show", call = "dot" },
     hosted = true,
     -- The scope is deliberately not the whole tool. A scope shows its rows inside the

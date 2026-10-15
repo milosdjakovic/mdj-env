@@ -10,6 +10,12 @@
 -- install until the command line tools go on, so its origin names that install step rather
 -- than claiming the compiler ships with the system.
 return {
+  -- The icons this plugin names, in the emoji set and the SF Symbol set. The one named for the
+  -- plugin is its identity icon, which the launcher row and the scoped list both wear.
+  icons = {
+    eyedropper = { emoji = "🎨", sf = "eyedropper" },
+  },
+
   -- The registry and the launcher's registered tool row know this plugin as colorPicker,
   -- while the directory beside this file is eyedropper.
   name = "colorPicker",
@@ -42,9 +48,9 @@ return {
     },
   },
 
-  -- What this plugin proposes for its own key. No glyph and no aliases, since it is reached
+  -- What this plugin proposes for its own key. No icon and no aliases, since it is reached
   -- as a base Hyper binding and, separately, as a launcher row through the registered tool
-  -- dispatcher, rather than through a scope that would draw the glyph a second time.
+  -- dispatcher, rather than through a scope that would draw the icon a second time.
   defaults = {
     leader = "app",
     key = "2",
@@ -55,7 +61,7 @@ return {
   -- one. No surface, since this is a lone mechanism rather than a list, matching the surface
   -- block's own absence above.
   registry = {
-    row = { category = "Tools", glyph = "🎨" },
+    row = { category = "Tools", icon = "eyedropper" },
     open = "pick",
     shortcut = "leader",
   },

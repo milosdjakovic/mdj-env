@@ -299,7 +299,8 @@ end
 -- A country flag as an icon spec, built from the two letter country code as a pair of
 -- regional indicator symbols. It is content derived from the location, so it is a table spec
 -- of an emoji and never an icon key, and switching the icon set never changes which flag a
--- city wears.
+-- city wears. It has no sf entry by design, since a flag is content and an SF Symbol has none,
+-- which is also why the dry gate's coverage report never counts it, it is not in a manifest.
 local function flagIcon(cc)
   if not cc or #cc ~= 2 then return nil end
   local base, a = 0x1F1E6, string.byte("a")

@@ -4,6 +4,14 @@
 -- plugin itself, it is read by Olm's root, which turns it into wiring, and by the setup
 -- script, which turns the tool lines into an install proposal.
 return {
+  -- The icons this plugin names, in the emoji set and the SF Symbol set. The one named for the
+  -- plugin is its identity icon, which the launcher row and the scoped list both wear.
+  -- The glyphs in the picker's own rows are content, table specs of the emoji alone, and are
+  -- never declared here.
+  icons = {
+    emoji = { emoji = "😀", sf = "face.smiling" },
+  },
+
   needs = {
     -- A glyph is PASTED rather than typed, because a synthesized keystroke mangles an
     -- astral character in a terminal and in some native apps. This used to be declared as
@@ -74,7 +82,7 @@ return {
     leader = "app",
     key = "j",
     description = "Emoji picker",
-    glyph = "😀",
+    icon = "emoji",
     aliases = { "e", "emoji" },
   },
 

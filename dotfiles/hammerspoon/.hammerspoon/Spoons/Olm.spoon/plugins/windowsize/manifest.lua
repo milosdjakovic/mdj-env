@@ -13,6 +13,12 @@
 -- its rows never asked for. The directory is one word here regardless, so nothing is lost by
 -- staying inside what the wiring can actually carry.
 return {
+  -- The icons this plugin names, in the emoji set and the SF Symbol set. The one named for the
+  -- plugin is its identity icon, which the launcher row and the scoped list both wear.
+  icons = {
+    windowsize = { emoji = "📐", sf = "ruler" },
+  },
+
   needs = {
     -- The resize itself, which is window geometry and belongs to the plugin that already
     -- owns every other move and size on this machine. This plugin asks it what a request
@@ -42,7 +48,7 @@ return {
   },
 
   defaults = {
-    glyph = "📐",
+    icon = "windowsize",
     category = "Window size",
 
     -- The one short line the launcher's empty field can wear, which is the only way a person

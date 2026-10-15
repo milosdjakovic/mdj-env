@@ -45,7 +45,7 @@ end
 --- SystemSettings:configure(opts)
 --- Method
 --- Injects the pane catalog. opts.panes is the list from config/settingsPanes, each
---- entry a table with name, id, glyph, and keywords. opts.deps is the scoped dependency
+--- entry a table with name, id, icon, and keywords. opts.deps is the scoped dependency
 --- adapter, granted because the manifest declares open under needs.tools, and it is what
 --- open below resolves the pane launcher against rather than a path named in this file.
 --- Called once from the composition root. Returns self so it can chain after loadSpoon.
@@ -59,9 +59,9 @@ end
 --- SystemSettings:rows()
 --- Method
 --- Turns the injected catalog into launcher row descriptors. Each row is pure data,
---- title, subTitle, glyph, keywords, and a serializable item carrying only the
+--- title, subTitle, icon, keywords, and a serializable item carrying only the
 --- pane's URL, never a function, so it survives the native chooser round trip the
---- launcher relies on. Drawing the glyph into an icon and matching the keywords is
+--- launcher relies on. Drawing the icon, a key into this plugin's manifest icons, and matching the keywords is
 --- the launcher's job, this only supplies the values.
 function obj:rows()
   local out = {}
@@ -69,7 +69,7 @@ function obj:rows()
     out[#out + 1] = {
       title = p.name,
       subTitle = "System Settings",
-      glyph = p.glyph,
+      icon = p.icon,
       keywords = p.keywords,
       item = { kind = "settingsPane", url = SCHEME .. p.id },
     }

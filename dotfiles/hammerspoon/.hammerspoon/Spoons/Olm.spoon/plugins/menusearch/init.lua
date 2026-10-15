@@ -245,7 +245,7 @@ local function readingRow(entry, filterText)
   return {
     title = "Reading the menus",
     subTitle = (app and app:name() or "this app") .. ", one moment",
-    glyph = "⏳",
+    icon = "reading",
     enabled = false,
     filterText = filterText or "",
   }

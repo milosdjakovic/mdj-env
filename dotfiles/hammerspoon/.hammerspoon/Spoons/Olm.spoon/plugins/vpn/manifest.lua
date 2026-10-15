@@ -28,6 +28,7 @@ return {
     idle = { emoji = "⚪", sf = "circle" },
     warn = { emoji = "⚠️", sf = "exclamationmark.triangle" },
     loading = { emoji = "⏳", sf = "hourglass" },
+    vpn = { emoji = "🌐", sf = "globe" },
   },
 
   needs = {
@@ -97,7 +98,7 @@ return {
     leader = "app",
     key = "P",
     description = "VPN",
-    glyph = "🌐",
+    icon = "vpn",
     aliases = { "v", "vpn" },
   },
 

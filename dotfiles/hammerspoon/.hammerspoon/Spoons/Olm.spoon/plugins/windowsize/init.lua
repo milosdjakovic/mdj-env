@@ -33,7 +33,7 @@ obj.license = "MIT"
 
 -- Injected via configure
 obj._plan = nil          -- the window manager's own answer for what a request would do
-obj._glyph = nil         -- the row glyph, rendered to an icon by whatever presents the row
+obj._icon = nil          -- the row icon, a key into this plugin's manifest icons, drawn by Olm
 obj._category = nil      -- the subtitle category word, so the visible wording stays config
 obj._smallestEdge = nil  -- the shortest edge worth a row
 
@@ -57,14 +57,14 @@ end
 --- WindowSize:configure(opts)
 --- Method
 --- opts.plan         the window manager's exactSizePlan, asked what a request would land as.
---- opts.glyph        the character shown as the row icon, rendered by the presenter.
+--- opts.icon         the key into this plugin's manifest icons shown as the row icon, drawn by Olm.
 --- opts.category     the word leading the row subtitle, so the visible wording is config
 ---                   rather than something this plugin decides for a surface it cannot see.
 --- opts.smallestEdge the shortest edge this plugin will offer a row for.
 function obj:configure(opts)
   opts = opts or {}
   self._plan = opts.plan
-  self._glyph = opts.glyph or "📐"
+  self._icon = opts.icon or "windowsize"
   self._category = opts.category or "Window size"
   self._smallestEdge = tonumber(opts.smallestEdge) or 200
   return self
@@ -123,7 +123,7 @@ function obj:rows(query)
     {
       title = lands,
       subTitle = self._category .. " · " .. detail,
-      glyph = self._glyph,
+      icon = self._icon,
       filterText = query,
       -- The window kind the launcher already dispatches, naming the window manager's own
       -- exact size action and carrying the size that action needs. A window row that carries

@@ -6,6 +6,12 @@
 -- apart from conversion. Being a computed row rather than a bound shortcut also means
 -- neither discoverability mandate applies to it, it is found only by typing an expression.
 return {
+  -- The icons this plugin names, in the emoji set and the SF Symbol set. The one named for the
+  -- plugin is its identity icon, which the launcher row and the scoped list both wear.
+  icons = {
+    arithmetic = { emoji = "🧮", sf = "plusminus" },
+  },
+
   -- What the launcher may reach for a typed expression. Named queryRows rather than rows,
   -- because rows and select together mean a scopable tool, one whose whole list a typed
   -- alias can hand the launcher, and arithmetic is the opposite of that, it computes at most
@@ -18,10 +24,10 @@ return {
     queryRows = "rows",
   },
 
-  -- The glyph and the subtitle wording this plugin proposes for its own row, read by
+  -- The icon and the subtitle wording this plugin proposes for its own row, read by
   -- whatever presents it. Neither is a key or an alias, since a computed row has none.
   defaults = {
-    glyph = "🧮",
+    icon = "arithmetic",
     category = "Arithmetic",
 
     -- Short lines for the launcher's empty field, a list rather than the one line this used

@@ -152,17 +152,16 @@ local M = {
   -- answers them both read this one entry, the same reason the key itself is data rather
   -- than something each surface knows. An entry with no aliases is simply not scopable.
   --
-  -- `glyph` is here for the same reason and only where it earns it. A tool that is scoped is
-  -- drawn twice, once on its launcher row and once on the rows its scope produces, so the
-  -- glyph is stated here where both read it rather than written out in each place and left to
-  -- drift. A row that only ever appears in one list keeps its glyph at that one call site,
-  -- since moving it here would relocate it without removing a copy.
-  caffeinate = { modifiers = HYPER, key = "K", description = "Keep awake", glyph = "☕", aliases = { "k", "awake" } },
+  -- A tool's icon is not stated here. Each plugin declares its own in its manifest, as
+  -- `defaults.icon` naming a key of its `icons`, and the launcher row and the scoped list both
+  -- read that one declaration. An `icon` written on an entry here overrides it, and a string
+  -- that is not a key the plugin declares reads as an emoji, the plain shorthand.
+  caffeinate = { modifiers = HYPER, key = "K", description = "Keep awake", aliases = { "k", "awake" } },
 
   -- VPN controls (for Olm's Vpn plugin). Same shape again. Hyper+P opens the VPN control
   -- panel, a short list of actions with the live connection state at the top. It is
   -- a base binding, suppressed while a modal context owns Hyper.
-  vpn = { modifiers = HYPER, key = "P", description = "VPN", glyph = "🌐", aliases = { "v", "vpn" } },
+  vpn = { modifiers = HYPER, key = "P", description = "VPN", aliases = { "v", "vpn" } },
 
   -- Colour picker (for Olm's Eyedropper plugin). Hyper+2 turns the pointer into a screen
   -- eyedropper with a magnifier loupe, a click copies the pixel hex. It is not a
@@ -218,10 +217,10 @@ local M = {
         -- exact-mods bindings ahead of the mod-less move catch-alls on the same keys.
         { key = "j", mods = { "cmd" }, action = "scrollPreviewDown", description = "Scroll preview down" },
         { key = "k", mods = { "cmd" }, action = "scrollPreviewUp",   description = "Scroll preview up" },
-        { key = "a", action = "appendSelected", description = "Append to batch", glyph = "➕" },
+        { key = "a", action = "appendSelected", description = "Append to batch", icon = "append" },
         -- Delete the highlighted entry, or the whole marked batch. The composition
         -- root relabels this to "Delete marked" while a batch is gathered.
-        { key = "d", action = "deleteSelected",  description = "Delete", glyph = "🗑️" },
+        { key = "d", action = "deleteSelected",  description = "Delete", icon = "delete" },
         { key = "x", action = "closeChooser",   description = "Close" },
       },
     },
@@ -393,9 +392,9 @@ local M = {
         { key = "i", action = "insertSelected", description = "Stop" },
         { key = "j", action = "selectNext",     description = "Move down" },
         { key = "k", action = "selectPrev",     description = "Move up" },
-        { key = "s", action = "sortByLoad",     description = "Sort by load", glyph = "🔥" },
-        { key = "f", action = "stopForced",     description = "Force stop", glyph = "⛔" },
-        { key = "r", action = "refreshList",    description = "Rescan", glyph = "🔄" },
+        { key = "s", action = "sortByLoad",     description = "Sort by load", icon = "sortByLoad" },
+        { key = "f", action = "stopForced",     description = "Force stop", icon = "stopForced" },
+        { key = "r", action = "refreshList",    description = "Rescan", icon = "rescan" },
         { key = "x", action = "closeChooser",   description = "Close" },
       },
     },
@@ -440,16 +439,16 @@ local M = {
         -- place the feature had to reach. One key meaning Quick Look wherever a file is listed is
         -- worth more than matching Finder's bar in only half of them.
         { key = "q", action = "peekPreview",
-          needs = "askedPreview", description = "Quick Look", glyph = "👁️" },
-        { key = "l", action = "browseInto",     description = "Into folder", glyph = "📂" },
-        { key = "h", action = "browseUp",       description = "Up a level", glyph = "⬆️" },
+          needs = "askedPreview", description = "Quick Look", icon = "peek" },
+        { key = "l", action = "browseInto",     description = "Into folder", icon = "browse" },
+        { key = "h", action = "browseUp",       description = "Up a level", icon = "up" },
         -- Two verbs for a row and no third. The primary key opens it with whatever the system
         -- considers its default, a folder in Finder, and this one shows it in Finder instead of
         -- opening it. There used to be a third that opened the ENCLOSING folder without selecting
         -- anything, which is a worse version of showing it, so it was dropped rather than kept for
         -- symmetry. This lives on f, the key that reads as Finder, since o belongs to the action panel in every list.
-        { key = "f", action = "revealInFinder", description = "Reveal in Finder", glyph = "🔍" },
-        { key = "y", action = "copyPath",       description = "Copy path", glyph = "📋" },
+        { key = "f", action = "revealInFinder", description = "Reveal in Finder", icon = "search" },
+        { key = "y", action = "copyPath",       description = "Copy path", icon = "copy" },
         { key = "x", action = "closeChooser",   description = "Close" },
       },
     },
@@ -481,7 +480,7 @@ local M = {
   -- it has no meaning without HyperKey wired up (the menu tree is fetched live).
   -- Menu search is a discovery opener, so it is the one scopable tool with no launcher row of
   -- its own, and its aliases are advertised in the alias directory rather than on a row.
-  menuSearch = { modifiers = HYPER, key = "e", description = "Menu search", glyph = "📋", aliases = { "m", "menu" } },
+  menuSearch = { modifiers = HYPER, key = "e", description = "Menu search", aliases = { "m", "menu" } },
 
   -- Emoji picker (for Olm's Emoji plugin, wired in init.lua). Hyper+J opens a filterable
   -- list of every emoji, matched by name, shortcode, tag, or category, so a keyword
@@ -490,7 +489,7 @@ local M = {
   -- field as the fallback combo. It has its own hyperContext above, so while open it
   -- takes the shared j and k navigation and i inserts, and x closes it the way menu
   -- search does, since the open key j is itself the move down key inside.
-  emoji = { modifiers = HYPER, key = "j", description = "Emoji picker", glyph = "😀", aliases = { "e", "emoji" } },
+  emoji = { modifiers = HYPER, key = "j", description = "Emoji picker", aliases = { "e", "emoji" } },
 
   -- External menu search combo. When Hyper+E is set to hand off (see init.lua) it
   -- fires this combo, and whatever tool you bind the SAME combo to anywhere opens.
@@ -528,7 +527,7 @@ local M = {
   --
   -- Scoped, it lists the tabs alone. The settings row is a step into a second level, which a
   -- scope has no way to show, so reaching the browser switches means opening the tool itself.
-  browserTabs = { modifiers = HYPER, key = "W", description = "Browser tabs", glyph = "📑", aliases = { "t", "tabs" } },
+  browserTabs = { modifiers = HYPER, key = "W", description = "Browser tabs", aliases = { "t", "tabs" } },
 
   -- Tmux sessions (for Olm's TmuxSessions plugin, wired in init.lua). Lists every tmux
   -- session, its windows named in the subtitle, and jumps to one, retargeting whatever
@@ -560,7 +559,7 @@ local M = {
   -- The alias is the same character as the key, which is the point. One thing to remember, and
   -- a slash reads as a path everywhere else too. Only one word, since `file` would claim every
   -- launcher query beginning with that word and a space.
-  fileSearch = { modifiers = HYPER, key = "/", description = "File search", glyph = "🗂️", aliases = { "/" } },
+  fileSearch = { modifiers = HYPER, key = "/", description = "File search", aliases = { "/" } },
 
   -- Processes (for Olm's Processes plugin, wired in init.lua). Finds the development servers you
   -- left running, identified by the port they hold and the project they run in, and stops
@@ -593,9 +592,9 @@ local M = {
   -- names what the scoped list is rather than a tool. Each is a group of rows rather than one
   -- row, so like menu search they have no row of their own to advertise on and are found in the
   -- alias directory instead.
-  apps = { description = "Applications", glyph = "🚀", aliases = { "a", "app" } },
-  windowActions = { description = "Window actions", glyph = "🪟", aliases = { "w", "window" } },
-  settingsPanes = { description = "System Settings", glyph = "⚙️", aliases = { "s", "system" } },
+  apps = { description = "Applications", icon = "apps", aliases = { "a", "app" } },
+  windowActions = { description = "Window actions", icon = "windows", aliases = { "w", "window" } },
+  settingsPanes = { description = "System Settings", icon = "settings", aliases = { "s", "system" } },
 
   -- The alias directory, which lists every alias that scopes the launcher and hands the list
   -- to whichever one is chosen. It is the answer to a scoped tool having nowhere to advertise
@@ -610,7 +609,7 @@ local M = {
   -- Its alias sits here like every other rather than being a constant inside the spoon, so it
   -- is changed the same way, and a tool that ever wants `?` collides with it loudly in the
   -- console instead of quietly losing to it.
-  aliasDirectory = { description = "Aliases", glyph = "🏷️", aliases = { "?" } },
+  aliasDirectory = { description = "Aliases", icon = "aliases", aliases = { "?" } },
 }
 
 -- THE SEAM. The action panel's own chord, Hyper and o, folded into every context here

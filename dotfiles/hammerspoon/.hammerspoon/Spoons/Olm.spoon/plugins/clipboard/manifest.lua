@@ -14,25 +14,30 @@ return {
   -- by its place in the batch, one to nine and then a shared mark. The thumbnails, the file type
   -- icons and the colour chip on a row are content and are drawn from the entry itself.
   icons = {
-    url = { emoji = "🔗" },
-    text = { emoji = "📝" },
-    queued1 = { emoji = "1️⃣" },
-    queued2 = { emoji = "2️⃣" },
-    queued3 = { emoji = "3️⃣" },
-    queued4 = { emoji = "4️⃣" },
-    queued5 = { emoji = "5️⃣" },
-    queued6 = { emoji = "6️⃣" },
-    queued7 = { emoji = "7️⃣" },
-    queued8 = { emoji = "8️⃣" },
-    queued9 = { emoji = "9️⃣" },
-    queuedMore = { emoji = "🔟" },
+    url = { emoji = "🔗", sf = "link" },
+    text = { emoji = "📝", sf = "note.text" },
+    queued1 = { emoji = "1️⃣", sf = "1.circle" },
+    queued2 = { emoji = "2️⃣", sf = "2.circle" },
+    queued3 = { emoji = "3️⃣", sf = "3.circle" },
+    queued4 = { emoji = "4️⃣", sf = "4.circle" },
+    queued5 = { emoji = "5️⃣", sf = "5.circle" },
+    queued6 = { emoji = "6️⃣", sf = "6.circle" },
+    queued7 = { emoji = "7️⃣", sf = "7.circle" },
+    queued8 = { emoji = "8️⃣", sf = "8.circle" },
+    queued9 = { emoji = "9️⃣", sf = "9.circle" },
+    queuedMore = { emoji = "🔟", sf = "ellipsis.circle" },
     -- The manage history page.
-    sweep = { emoji = "🧹" },
-    older = { emoji = "🕰️" },
-    trim = { emoji = "✂️" },
-    everything = { emoji = "🗑️" },
-    hint = { emoji = "⌨️" },
-    warn = { emoji = "⚠️" },
+    sweep = { emoji = "🧹", sf = "sparkles" },
+    older = { emoji = "🕰️", sf = "clock.arrow.circlepath" },
+    trim = { emoji = "✂️", sf = "scissors" },
+    everything = { emoji = "🗑️", sf = "trash" },
+    hint = { emoji = "⌨️", sf = "keyboard" },
+    warn = { emoji = "⚠️", sf = "exclamationmark.triangle" },
+    clipboard = { emoji = "📋", sf = "doc.on.clipboard" },
+    append = { emoji = "➕", sf = "plus" },
+    delete = { emoji = "🗑️", sf = "trash" },
+    back = { emoji = "⬅️", sf = "chevron.left" },
+    pasteNext = { emoji = "⏩", sf = "forward" },
   },
 
   needs = {
@@ -141,7 +146,7 @@ return {
 
   -- No provides. The manager is not itself scoped by an alias.
 
-  -- Hyper plus X opens the native manager. No glyph and no aliases are set on this
+  -- Hyper plus X opens the native manager. No icon and no aliases are set on this
   -- entry in config/keys.lua, unlike most of the other pickers, so none are stated
   -- here either.
   defaults = {
@@ -166,20 +171,20 @@ return {
       -- not enough for the panel, since a key listed there while it does nothing is exactly the
       -- disagreement between a hint and a binding the two discoverability mandates exist to
       -- prevent. Gated, they leave the panel the moment the page opens and come back with it.
-      { key = "a", action = "appendSelected", description = "Append to batch", glyph = "➕",
+      { key = "a", action = "appendSelected", description = "Append to batch", icon = "append",
         when = "clipboardHistoryList" },
-      { key = "d", action = "deleteSelected", description = "Delete", glyph = "🗑️",
+      { key = "d", action = "deleteSelected", description = "Delete", icon = "delete",
         when = "clipboardHistoryList" },
       -- The manage history page, where history is deleted by age rather than a row at a time.
       -- The same key steps back off the page, since that is what a person presses again.
-      { key = "m", action = "manageHistory", description = "Manage history", glyph = "🧹" },
+      { key = "m", action = "manageHistory", description = "Manage history", icon = "sweep" },
       -- A listing rather than a binding. Backspace on an empty field belongs to the Chooser
       -- atom, which reads it directly as its `back` hook, so there is nothing here to bind and
       -- chord = false says so. It is still declared, because the hint panel is where a key
       -- becomes visible and a way out nobody can see is a way out nobody takes, and it is gated
       -- so it appears exactly while there is a page to leave.
       { key = "delete", action = "leaveManageHistory", when = "clipboardManagingHistory",
-        chord = false, description = "Back to history", glyph = "⬅️" },
+        chord = false, description = "Back to history", icon = "back" },
     },
     -- Entries here are prose and code searched from the inside, a real remembered
     -- word rather than an abbreviation of a short label, so the words matcher fits
@@ -276,7 +281,7 @@ return {
   -- with no arguments, and each sits on a global combination rather than on the Hyper
   -- leader, since that is the only place either has ever lived.
   registry = {
-    row = { category = "Clipboard", glyph = "📋" },
+    row = { category = "Clipboard", icon = "clipboard" },
     -- open still stays, and still matters, the hotkey door this plugin's own leader key binds
     -- to, unchanged by the migration since it never called the picker directly. It resolves
     -- the provider chain, native or an external manager, and only the native leg's own
@@ -312,14 +317,14 @@ return {
       -- is how it is found, which is what a keyless command is for.
       manageHistory = {
         fn = { member = "manager.manageHistory", call = "dot" },
-        row = { category = "Clipboard", glyph = "🧹",
+        row = { category = "Clipboard", icon = "sweep",
           description = "Manage clipboard history",
           keywords = "clipboard delete clear wipe prune history age old hour day week" },
       },
       appendCopy = {
         fn = { member = "manager.appendCopy", call = "dot" },
         key = "C", mods = { "ctrl", "alt" },
-        row = { category = "Clipboard", chord = "modifier", glyph = "➕",
+        row = { category = "Clipboard", chord = "modifier", icon = "append",
           description = "Append copy",
           keywords = "append copy add selection accumulate" },
         shortcut = "global",
@@ -327,7 +332,7 @@ return {
       pasteNext = {
         fn = { member = "manager.pasteNext", call = "dot" },
         key = "V", mods = { "ctrl", "alt" },
-        row = { category = "Clipboard", chord = "modifier", glyph = "⏩",
+        row = { category = "Clipboard", chord = "modifier", icon = "pasteNext",
           description = "Paste next",
           keywords = "paste next sequential walk history" },
         shortcut = "global",

@@ -18,9 +18,10 @@ local BUNDLE = "md.obsidian"
 return {
   -- The row icons, named by the rows and drawn by Olm.
   icons = {
-    note = { emoji = "📝" },
-    new = { emoji = "➕" },
-    search = { emoji = "🔍" },
+    note = { emoji = "📝", sf = "note.text" },
+    new = { emoji = "➕", sf = "plus" },
+    search = { emoji = "🔍", sf = "magnifyingglass" },
+    obsidian = { emoji = "💎", sf = "diamond" },
   },
 
   needs = {
@@ -94,7 +95,7 @@ return {
   -- its own is an established shape here rather than a first.
   defaults = {
     description = "Search Obsidian",
-    glyph = "💎",
+    icon = "obsidian",
     aliases = { "ob", "obsidian" },
   },
 
@@ -118,8 +119,8 @@ return {
 
   registry = {
     -- bundle puts the real application icon on the launcher row in place of the drawn
-    -- glyph, since a tool that fronts exactly one application reads fastest wearing that
-    -- application's own face. The glyph in defaults stays as the fallback everywhere an
+    -- icon, since a tool that fronts exactly one application reads fastest wearing that
+    -- application's own face. The icon in defaults stays as the fallback everywhere an
     -- app icon cannot go.
     row = { category = "Tools", detail = "search and open notes", bundle = BUNDLE,
       keywords = "obsidian notes vault markdown note write" },
