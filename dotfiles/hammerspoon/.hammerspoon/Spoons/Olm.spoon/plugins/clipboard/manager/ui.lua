@@ -251,32 +251,12 @@ local function parseQuery(q)
   return nil, q
 end
 
--- An appended row (Hyper+a) is marked by swapping its icon for a big keycap-emoji
--- number, since a tiny text prefix was too easy to miss. The glyph is a keycap
--- digit 1..9, capping at the ten-keycap past nine, so the mark says "queued and
--- roughly where", not exact depth.
-local KEYCAP = { "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣" }
-local function keycapGlyph(pos)
-  return KEYCAP[pos] or "🔟"
-end
-
--- Render a keycap emoji to a square hs.image once per position, cached. hs.canvas
--- draws the glyph and imageFromCanvas snapshots it; the image is independent of the
--- canvas, so the scratch canvas is deleted right after. An hs.image serialises fine
--- as a chooser row image (only functions are dropped), so it stands in as the icon.
-local keycapCache = {}
-local function keycapImage(pos)
-  local hit = keycapCache[pos]
-  if hit ~= nil then return hit or nil end
-  local S = 48
-  local c = hs.canvas.new({ x = 0, y = 0, w = S, h = S })
-  -- type-exempt, a keycap glyph drawn into a row icon image
-  c[1] = { type = "text", text = keycapGlyph(pos), textSize = 34,
-           textAlignment = "center", frame = { x = 0, y = (S - 40) / 2, w = S, h = 42 } }
-  local img = c:imageFromCanvas() or false
-  c:delete()
-  keycapCache[pos] = img
-  return img or nil
+-- An appended row (Hyper+a) is marked by swapping its icon for a big keycap number, since a
+-- tiny text prefix was too easy to miss. The icon is a keycap digit 1 to 9, capping at one
+-- shared mark past nine, so it says "queued and roughly where", not exact depth. The keys are
+-- declared in the manifest and Olm draws them.
+local function queuedIcon(pos)
+  return pos <= 9 and ("queued" .. pos) or "queuedMore"
 end
 
 -- Forward declaration. parseColor is defined below in the colour section, but the row
@@ -286,10 +266,9 @@ local parseColor
 
 -- Row icon helpers. The row icon now says what kind an entry is, not which app it came
 -- from. Files show the system icon for their type, images their thumbnail, url and text a
--- flat monochrome mark drawn on a scratch canvas the way the keycap badges are, and a
--- colour literal a small chip of the colour. Each carries a stable iconKey so the atom
--- encodes it once and reuses it.
-local ICON = 44 -- scratch canvas edge for the drawn marks, matching the keycap size
+-- named icon Olm draws, and a colour literal a small chip of the colour. The pictures and the
+-- chip are content and carry a stable iconKey so the atom encodes each once and reuses it.
+local ICON = 44 -- scratch canvas edge for the colour chip, the one mark this file still draws
 
 -- File type icons, keyed so the same type is fetched once. An extension drives the icon
 -- with no need for the file to still exist, a folder and a generic file have their own
@@ -319,37 +298,6 @@ local function fileRowIcon(e)
   return cachedIcon("data", function() return hs.image.iconForFileType("public.data") end)
 end
 
--- Kind marks, drawn once and cached. Both are emoji rendered to an image the same way the
--- keycap badges are, so the row icon family stays consistent. Text is the memo emoji, url is
--- the link emoji.
-local glyphCache = {}
-
-local function drawEmojiGlyph(glyph)
-  local c = hs.canvas.new({ x = 0, y = 0, w = ICON, h = ICON })
-  -- type-exempt, an emoji drawn into a row icon image
-  c[1] = { type = "text", text = glyph, textSize = 30,
-    textAlignment = "center", frame = { x = 0, y = (ICON - 36) / 2, w = ICON, h = 38 } }
-  local img = c:imageFromCanvas() or false
-  c:delete()
-  return img
-end
-
--- Any emoji as a row icon, drawn once and cached by the string itself. Keyed by the glyph
--- rather than by what it stands for, so the kind marks and the manage history page's own
--- glyphs, which arrive as plain strings from a file that may not call into hs at all, share one
--- cache and one renderer.
-local function emojiImage(glyph)
-  local hit = glyphCache[glyph]
-  if hit ~= nil then return hit or nil end
-  local img = drawEmojiGlyph(glyph)
-  glyphCache[glyph] = img
-  return img or nil
-end
-
-local function kindGlyph(kind)
-  return emojiImage(kind == "url" and "🔗" or "📝")
-end
-
 local kit = nil -- the UI kit, needs.lib.ui, set by configure, declared here so the row icons see it
 
 -- A small chip of a colour literal, cached by the colour so it is drawn once. A
@@ -377,20 +325,6 @@ local function colorChip(col)
   return img or nil, key
 end
 
--- The manage history page's rows, its own plain data with each glyph string turned into the
--- icon image here. The page never touches a canvas and this never decides what a row means,
--- which is the whole split, and it is why that file loads and can be tested without hs.
-local function pruneChoices(q)
-  local out = prune.rows(q)
-  for _, r in ipairs(out) do
-    if r.glyph then
-      r.image, r.iconKey = emojiImage(r.glyph), "glyph:" .. r.glyph
-      r.glyph = nil
-    end
-  end
-  return out
-end
-
 -- The atom's rows supplier. Returns plain items; the atom styles them with the
 -- active palette. Filtering, the type prefix, the batch mark, and the kind icon
 -- are all clipboard policy and live here. The free-text part runs through
@@ -402,7 +336,7 @@ local function buildChoices(q)
   -- The page is a different list, not a filtered one, so it answers first and the type prefix
   -- and the word matcher below never see its query. That field is a duration being typed rather
   -- than a search, which is also why the chooser opts out of the shared matcher entirely.
-  if page == "prune" then return pruneChoices(q) end
+  if page == "prune" then return prune.rows(q) end
 
   local kind, rest = parseQuery(q)
   rest = (rest or ""):gsub("^%s+", ""):gsub("%s+$", ""):lower()
@@ -413,32 +347,33 @@ local function buildChoices(q)
       -- number), the most visible mark on the native chooser, which renders no icon
       -- badge. Otherwise the icon says the kind: an image shows its own thumbnail, a
       -- file the system icon for its type, a colour literal a chip of the colour, and
-      -- url and text a flat monochrome mark. The source app is no longer a row icon, it
+      -- url and text a named icon. The source app is no longer a row icon, it
       -- moved to the preview header. The stable iconKey lets the atom encode each icon
       -- once and reuse it.
       local pos = batchPos(e)
-      local img, iconKey
+      local img, iconKey, icon
       if pos then
-        img, iconKey = keycapImage(pos), "batch:" .. pos
+        icon = queuedIcon(pos)
       elseif e.kind == "image" then
         local thumb = thumbImage(e.thumb)
         if thumb then img, iconKey = thumb, "thumb:" .. e.thumb end
       elseif e.kind == "file" then
         img, iconKey = fileRowIcon(e)
       elseif e.kind == "url" then
-        img, iconKey = kindGlyph("url"), "glyph:url"
+        icon = "url"
       else
         local col = parseColor(e.text)
         if col then
           img, iconKey = colorChip(col)
         else
-          img, iconKey = kindGlyph("text"), "glyph:text"
+          icon = "text"
         end
       end
       out[#out + 1] = {
         title = e.title,
         subTitle = subTextFor(e),
         image = img,
+        icon = icon,
         iconKey = iconKey,
         badge = pos and tostring(pos) or nil,
         item = e,

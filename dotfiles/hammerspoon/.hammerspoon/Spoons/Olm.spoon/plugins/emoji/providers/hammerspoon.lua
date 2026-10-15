@@ -3,9 +3,8 @@
 --- The emoji picker's own data and dispatch, one of the backends the Emoji facade can
 --- select. It owns the vendored emoji dataset loaded when this backend is configured, plus
 --- a small persisted pick memory that floats your most used glyphs to the top of the empty
---- browse view. It owns only a transient prewarm timer that self stops once the leading
---- icons are warmed, and no watcher or eventtap, and the pick memory lives in hs.settings,
---- so nothing needs an explicit start or stop, matching the lifecycle contract.
+--- browse view. It owns no timer, watcher or eventtap, and the pick memory lives in
+--- hs.settings, so nothing needs an explicit start or stop, matching the lifecycle contract.
 ---
 --- Migrated onto host/stage, the trickle migration. This backend owns no Chooser instance
 --- and builds no window any more, having never been the layer that showed one. The facade
@@ -38,9 +37,6 @@ obj._onInsert = nil          -- function(glyph), the effect of a chosen row
 
 -- Owned state
 obj._data = nil              -- the vendored emoji list, loaded once when this backend wins
-obj._iconCache = nil         -- glyph -> hs.image, each rendered once and reused
-obj._iconCanvas = nil        -- one reused canvas the glyph icons are drawn through
-obj._prewarmTimer = nil      -- transient, warms the empty-state icons after configure
 obj._byGlyph = nil           -- glyph string -> entry, maps a remembered pick back to its row
 obj._recency = nil           -- persisted pick memory, { n = tick, g = { [glyph] = { v, k } } }
 
@@ -60,8 +56,8 @@ local dataPath = providerPath .. "../data.lua"
 -- cosmetics, since a first view renders one icon per visible row on the main thread,
 -- so this is the ceiling on that per keystroke render cost, kept modest so even a
 -- broad one letter query stays responsive over the several thousand row set. It also
--- bounds how many distinct icons a view can render, which paces the icon memory below,
--- since a narrow query renders far fewer than a broad one.
+-- bounds how many distinct icons a view can render, which paces the icon memory the engine
+-- holds, since a narrow query renders far fewer than a broad one.
 local MAX_RESULTS = 100
 
 -- How many of your most-used glyphs lead the empty browse view, ranked by the decaying
@@ -83,15 +79,6 @@ local PRUNE_FLOOR = 0.05
 -- The hs.settings key holding the pick memory, persisted like the launcher's timeline so a
 -- favorite survives a reload and a reboot.
 local RECENCY_KEY = "emojiRecency"
-
--- The glyph icon geometry. The canvas is rendered only about as large as the chooser row
--- actually shows the icon, times the retina scale, since hs.chooser scales whatever we give it
--- into that fixed slot and any extra resolution is memory we hold until reload for nothing. 44
--- keeps a row crisp on a 2x display while costing several times less per glyph than the old 72,
--- measured at about 30KB versus 143KB. The text size is the glyph within that square, nudged
--- down a touch to center it.
-local ICON_SIZE = 44
-local ICON_TEXT_SIZE = 32
 
 -- Split a query into whitespace tokens. A multi word query narrows with AND, so
 -- every token must be found for an entry to match, which is how "smiling cat"
@@ -214,33 +201,13 @@ function obj:_promote(glyph)
   hs.settings.set(RECENCY_KEY, mem)
 end
 
---- Emoji.hammerspoon:_glyphIcon(glyph)
---- Method
---- The row icon for a glyph. hs.chooser has no emoji rendering, so the glyph is drawn
---- once through one reused canvas into an hs.image and cached, so it sits in the icon
---- slot like an app icon rather than inline in the title. A glyph is rendered at most
---- once ever and kept, so a glyph costs its render and its memory at most one time, and
---- false marks a glyph that produced no image so it is not retried. The render is not
---- reclaimable until a reload, so caching each glyph exactly once is the leanest option,
---- a re-render would only allocate more that never comes back. MAX_RESULTS bounds how
---- many distinct glyphs a session can reach, which is what keeps the total in hand.
-function obj:_glyphIcon(glyph)
-  local cache = self._iconCache
-  local img = cache[glyph]
-  if img == nil then
-    local c = self._iconCanvas
-    c[1].text = glyph
-    img = c:imageFromCanvas() or false
-    cache[glyph] = img
-  end
-  return img or nil
-end
-
 -- One entry to a chooser row. The glyph is the row icon, the name is the title, the
 -- aliases ride in the subtitle as the shortcodes you might type, and the item is just
--- the glyph string, all the dispatcher needs.
+-- the glyph string, all the dispatcher needs. The icon is a table spec of the emoji and never
+-- a key, since the glyph is the content being picked, so changing the icon set never changes
+-- which emoji a row shows. Olm draws it.
 function obj:_rowFor(entry)
-  return { title = entry.n, subTitle = entry.a, image = self:_glyphIcon(entry.e), item = entry.e }
+  return { title = entry.n, subTitle = entry.a, icon = { emoji = entry.e }, item = entry.e }
 end
 
 --- Emoji.hammerspoon:_rows(query)
@@ -328,43 +295,7 @@ function obj:configure(opts)
   self:_load()
   self._onInsert = opts.onInsert or function() end
 
-  -- One reused canvas draws every glyph icon, far cheaper than a canvas per glyph,
-  -- and the cache keeps each glyph rendered once. See _glyphIcon.
-  self._iconCache = {}
-  self._iconCanvas = hs.canvas.new({ x = 0, y = 0, w = ICON_SIZE, h = ICON_SIZE })
-  -- type-exempt, an emoji drawn into a row icon image
-  self._iconCanvas[1] = { type = "text", text = "", textSize = ICON_TEXT_SIZE,
-    textAlignment = "center", frame = { x = "0%", y = "8%", w = "100%", h = "100%" } }
-
-  -- Warm the empty-state icons in the background so the first open is instant. The
-  -- match runs over everything but only MAX_RESULTS show at once, so warming that
-  -- leading slice covers the first open, and typed queries render any remainder on
-  -- demand, each cached after.
-  self:_prewarm(MAX_RESULTS)
   return self
-end
-
---- Emoji.hammerspoon:_prewarm(count)
---- Method
---- Render the first count glyph icons into the cache in small background batches, so
---- the render cost is paid before the first open rather than during it, and never in
---- one blocking pass. Self stopping when done, and it replaces any prior run.
-function obj:_prewarm(count)
-  if self._prewarmTimer then self._prewarmTimer:stop() end
-  -- Warm the remembered glyphs first, they lead the empty view and may sit outside the
-  -- leading slice below. There are at most RECENTS_MAX of them so the extra render is trivial.
-  for _, glyph in ipairs(self:_recentGlyphs()) do self:_glyphIcon(glyph) end
-  local data = self._data
-  local target = math.min(count, #data)
-  local i = 0
-  self._prewarmTimer = hs.timer.doEvery(0.03, function()
-    local stop = math.min(i + 25, target)
-    while i < stop do i = i + 1; self:_glyphIcon(data[i].e) end
-    if i >= target and self._prewarmTimer then
-      self._prewarmTimer:stop()
-      self._prewarmTimer = nil
-    end
-  end)
 end
 
 -- show, isShowing, and surface are gone, the trickle migration, deleted along with the

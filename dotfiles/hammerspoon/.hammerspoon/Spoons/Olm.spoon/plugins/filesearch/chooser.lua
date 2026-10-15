@@ -120,32 +120,6 @@ local shortDir = util.shortDir
 -- Rows
 --------------------------------------------------------------------------------
 
--- Render an emoji to a small image so a row that has no file behind it can still carry an icon.
--- An offscreen canvas drawn once and cached by the string, since the supplier runs on every
--- keystroke, and a false marks a string that will not render so it is attempted only once. This
--- Hammerspoon has no SF Symbol api, so it is how the launcher, the clipboard, Processes and three
--- others do the same thing. Cached permanently rather than through the injected memo, because a
--- glyph cannot go stale the way a file type icon can when its default application changes.
-local glyphCache = {}
-local function glyph(str)
-  local hit = glyphCache[str]
-  if hit ~= nil then return hit or nil end
-  local size = 28
-  local cv = hs.canvas.new({ x = 0, y = 0, w = size, h = size })
-  cv[1] = {
-    type = "text",
-    text = str,
-    -- type-exempt, a glyph drawn into a row icon image
-    textSize = 21,
-    textAlignment = "center",
-    frame = { x = 0, y = 0, w = size, h = size },
-  }
-  local img = cv:imageFromCanvas()
-  cv:delete()
-  glyphCache[str] = img or false
-  return img
-end
-
 -- This picker's own icon memo, used whenever nothing was injected.
 --
 -- It exists because the injected one stopped arriving. The retired root held the memo table and
@@ -305,21 +279,21 @@ end
 -- state loses its tailored headline and stays perfectly readable, which is a fair price for not
 -- making every source declare a presentation key it has no interest in.
 local STATUS = {
-  ["searching"]           = { icon = "🔍", title = "Searching",       detail = "asking the index" },
-  ["loading"]             = { icon = "⏳", title = "Recent files",    detail = "gathering what you touched lately" },
-  ["keep typing"]         = { icon = "⌨️",  title = "Keep typing",     detail = "three characters, or name a folder to search inside" },
-  ["nothing to search for"] = { icon = "⌨️", title = "Keep typing",   detail = "add something to search for" },
-  ["nothing found"]       = { icon = "🤷", title = "No matches",      detail = "try fewer words, or a bang to include pruned folders" },
-  ["empty folder"]        = { icon = "📭", title = "Empty folder",    detail = "there is nothing in this one" },
-  ["no such directory"]   = { icon = "📁", title = "No such folder",  detail = "check the path, or give a full one like ~/Documents" },
-  ["no directory"]        = { icon = "📁", title = "No such folder",  detail = "check the path, or give a full one like ~/Documents" },
-  ["no source available"] = { icon = "🚫", title = "Nothing can answer that", detail = "a tool it needs is missing, the console names which" },
-  ["type something to search hidden files"] = { icon = "👻", title = "Search hidden files", detail = "type something to search hidden files" },
-  ["timed out"]           = { icon = "⌛", title = "Timed out",       detail = "that took too long, try narrowing it" },
-  ["listing failed"]      = { icon = "⚠️",  title = "Could not list that folder", detail = "check its permissions" },
-  ["walk failed"]         = { icon = "⚠️",  title = "Search failed",   detail = "the walker returned an error" },
+  ["searching"]           = { icon = "search", title = "Searching",       detail = "asking the index" },
+  ["loading"]             = { icon = "loading", title = "Recent files",    detail = "gathering what you touched lately" },
+  ["keep typing"]         = { icon = "keyboard",  title = "Keep typing",     detail = "three characters, or name a folder to search inside" },
+  ["nothing to search for"] = { icon = "keyboard", title = "Keep typing",   detail = "add something to search for" },
+  ["nothing found"]       = { icon = "shrug", title = "No matches",      detail = "try fewer words, or a bang to include pruned folders" },
+  ["empty folder"]        = { icon = "emptyFolder", title = "Empty folder",    detail = "there is nothing in this one" },
+  ["no such directory"]   = { icon = "folder", title = "No such folder",  detail = "check the path, or give a full one like ~/Documents" },
+  ["no directory"]        = { icon = "folder", title = "No such folder",  detail = "check the path, or give a full one like ~/Documents" },
+  ["no source available"] = { icon = "blocked", title = "Nothing can answer that", detail = "a tool it needs is missing, the console names which" },
+  ["type something to search hidden files"] = { icon = "hidden", title = "Search hidden files", detail = "type something to search hidden files" },
+  ["timed out"]           = { icon = "timeout", title = "Timed out",       detail = "that took too long, try narrowing it" },
+  ["listing failed"]      = { icon = "warn",  title = "Could not list that folder", detail = "check its permissions" },
+  ["walk failed"]         = { icon = "warn",  title = "Search failed",   detail = "the walker returned an error" },
 }
-local STATUS_FALLBACK = { icon = "⚠️", title = "Nothing to show" }
+local STATUS_FALLBACK = { icon = "warn", title = "Nothing to show" }
 
 -- A single inert row explaining why the list is empty, so the picker never looks broken.
 local function statusRow(status)
@@ -327,7 +301,7 @@ local function statusRow(status)
   return { {
     title = look.title,
     subTitle = look.detail or status,
-    image = glyph(look.icon),
+    icon = look.icon,
     enabled = false,
     item = { status = true },
   } }
@@ -337,15 +311,15 @@ end
 -- headline and what it does underneath. Every row is inert, so there is nothing to select by
 -- mistake and Escape or clearing the field returns to searching.
 local HELP = {
-  { "🔍", "hammerspoon",        "plain text searches names everywhere" },
-  { "🏷️",  ".js hello",          "a dot attached to a token is a type" },
-  { "👻", ". js",               "a dot alone includes hidden files" },
-  { "👻", ".zshrc",             "a dotted name is hidden too, with no sigil" },
-  { "📂", "downloads/",         "a trailing slash browses that folder, newest first" },
-  { "🔎", "downloads/hs",       "with text it searches inside it" },
-  { "🧩", ".js src/api",        "a type, a scope and text combine in that order" },
-  { "❗", "! ts node_modules/", "a bang includes what is normally pruned" },
-  { "🏠", "~/Development/mdj",  "an absolute or tilde path scopes directly" },
+  { "search", "hammerspoon",        "plain text searches names everywhere" },
+  { "tag", ".js hello",          "a dot attached to a token is a type" },
+  { "hidden", ". js",               "a dot alone includes hidden files" },
+  { "hidden", ".zshrc",             "a dotted name is hidden too, with no sigil" },
+  { "browse", "downloads/",         "a trailing slash browses that folder, newest first" },
+  { "searchInside", "downloads/hs",       "with text it searches inside it" },
+  { "combine", ".js src/api",        "a type, a scope and text combine in that order" },
+  { "bang", "! ts node_modules/", "a bang includes what is normally pruned" },
+  { "home", "~/Development/mdj",  "an absolute or tilde path scopes directly" },
 }
 
 local function helpRows()
@@ -354,7 +328,7 @@ local function helpRows()
     out[#out + 1] = {
       title = h[2],
       subTitle = h[3],
-      image = glyph(h[1]),
+      icon = h[1],
       enabled = false,
       item = { help = true },
     }

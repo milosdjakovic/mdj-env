@@ -10,6 +10,27 @@ return {
   -- this folder, config/keys.lua, the registry, the launcher row, is fileSearch.
   name = "fileSearch",
 
+  -- The row icons, named by the status and help rows and drawn by Olm. The file rows carry the
+  -- system icon for their type, a real picture, and are not here.
+  icons = {
+    search = { emoji = "🔍" },
+    loading = { emoji = "⏳" },
+    keyboard = { emoji = "⌨️" },
+    shrug = { emoji = "🤷" },
+    emptyFolder = { emoji = "📭" },
+    folder = { emoji = "📁" },
+    blocked = { emoji = "🚫" },
+    hidden = { emoji = "👻" },
+    timeout = { emoji = "⌛" },
+    warn = { emoji = "⚠️" },
+    tag = { emoji = "🏷️" },
+    browse = { emoji = "📂" },
+    searchInside = { emoji = "🔎" },
+    combine = { emoji = "🧩" },
+    bang = { emoji = "❗" },
+    home = { emoji = "🏠" },
+  },
+
   needs = {
     -- Where the compiled Quick Look helper and the hidden files index are kept,
     -- lib/storage.lua's own cache root, handed down to the viewer through the surface's deps

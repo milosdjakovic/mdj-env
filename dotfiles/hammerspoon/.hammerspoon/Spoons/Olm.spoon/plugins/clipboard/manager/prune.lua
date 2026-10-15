@@ -9,8 +9,8 @@
 --- still there to show what a row would actually take.
 ---
 --- This file is pure Lua over the store. It reads history, counts what a slice would take, and
---- hands rows back as plain data carrying a glyph STRING rather than an image, so every canvas
---- call stays in the ui and this stays loadable, and testable, with no Hammerspoon at all.
+--- hands rows back as plain data carrying an icon KEY rather than an image, so every canvas
+--- call stays out of it and this stays loadable, and testable, with no Hammerspoon at all.
 ---
 --- What a field holds is either a duration or a count, and the count came second because a plain
 --- number was the one thing a person typed here that meant nothing. A bare 100 now reads as a
@@ -180,7 +180,7 @@ end
 -- One slice row. The subtitle is the whole confirmation this action gets, so it always names
 -- both numbers, what goes and what is left, and a row that would take nothing is disabled
 -- rather than hidden, which keeps the ladder's rungs in the same place at every history size.
-local function sliceRow(item, title, glyph, total)
+local function sliceRow(item, title, icon, total)
   local n = countFor(item)
   local sub
   if total == 0 then
@@ -190,11 +190,11 @@ local function sliceRow(item, title, glyph, total)
   else
     sub = string.format("%d of %d items  ·  keeps %d", n, total, total - n)
   end
-  return { title = title, subTitle = sub, glyph = glyph, enabled = n > 0, item = item }
+  return { title = title, subTitle = sub, icon = icon, enabled = n > 0, item = item }
 end
 
-local function hintRow(title, glyph)
-  return { title = title, subTitle = EXAMPLES, glyph = glyph, enabled = false,
+local function hintRow(title, icon)
+  return { title = title, subTitle = EXAMPLES, icon = icon, enabled = false,
     item = { side = "hint" } }
 end
 
@@ -212,9 +212,9 @@ function P.rows(q)
     local span = P.label(value.secs)
     return {
       sliceRow({ side = "recent", secs = value.secs, span = span },
-        "Delete the last " .. span, "🧹", total),
+        "Delete the last " .. span, "sweep", total),
       sliceRow({ side = "older", secs = value.secs, span = span },
-        "Delete older than " .. span, "🕰️", total),
+        "Delete older than " .. span, "older", total),
     }
   end
 
@@ -231,9 +231,9 @@ function P.rows(q)
       -- no such second reading. It also makes all four places that name this slice agree, the
       -- row, its twin below, the pane and the message afterwards.
       sliceRow({ side = "newest", count = n, span = "the newest " .. many },
-        "Delete the newest " .. many, "🧹", total),
+        "Delete the newest " .. many, "sweep", total),
       sliceRow({ side = "trim", count = n, span = "all but the newest " .. many },
-        "Delete all but the newest " .. many, "✂️", total),
+        "Delete all but the newest " .. many, "trim", total),
     }
   end
 
@@ -241,16 +241,16 @@ function P.rows(q)
     local out = {}
     for _, p in ipairs(PRESETS) do
       out[#out + 1] = sliceRow({ side = "recent", secs = p.secs, span = P.label(p.secs) },
-        p.title, "🧹", total)
+        p.title, "sweep", total)
     end
-    out[#out + 1] = sliceRow({ side = "all", span = "all of it" }, "Everything", "🗑️", total)
+    out[#out + 1] = sliceRow({ side = "all", span = "all of it" }, "Everything", "everything", total)
     return out
   end
 
   if status == "incomplete" then
-    return { hintRow("Keep typing", "⌨️") }
+    return { hintRow("Keep typing", "hint") }
   end
-  return { hintRow("Not a duration or a count", "⚠️") }
+  return { hintRow("Not a duration or a count", "warn") }
 end
 
 --------------------------------------------------------------------------------

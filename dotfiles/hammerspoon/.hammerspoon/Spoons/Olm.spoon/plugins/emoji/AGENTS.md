@@ -183,6 +183,15 @@ and is why it is kept modest even though the scan itself could show far more.
 
 ## Icons
 
+Corrected 2026 10 15. This picker no longer draws its own icons. A row carries
+`icon = { emoji = glyph }` and Olm's icon engine draws it, through the one reused canvas the
+emoji source in `lib/icons/sources/emoji.lua` now holds for every emoji icon, at the shared
+72 point size. It is a table spec and never an icon key, since the glyph is the content being
+picked, so switching the icon set never changes which emoji a row shows. The background
+prewarm below is gone with the drawing, because a plugin cannot reach the engine, so the first
+open renders its visible rows on demand. The measurements that follow are kept as the record
+of why a canvas per glyph is the whole cost and why one reused canvas is what the engine does.
+
 The glyph is the row icon, not text in the title, so a row reads like an app row
 with a large glyph on the left and the name beside it. hs.chooser has no
 emoji rendering, so each glyph is drawn once through one reused canvas into an

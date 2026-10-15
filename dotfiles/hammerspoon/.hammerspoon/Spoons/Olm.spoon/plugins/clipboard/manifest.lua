@@ -10,6 +10,31 @@
 -- dependency, and they are optional, a still frame or a text block always renders
 -- even with neither tool present.
 return {
+  -- The row icons, named by the rows and drawn by Olm. The queued keycaps mark an appended row
+  -- by its place in the batch, one to nine and then a shared mark. The thumbnails, the file type
+  -- icons and the colour chip on a row are content and are drawn from the entry itself.
+  icons = {
+    url = { emoji = "🔗" },
+    text = { emoji = "📝" },
+    queued1 = { emoji = "1️⃣" },
+    queued2 = { emoji = "2️⃣" },
+    queued3 = { emoji = "3️⃣" },
+    queued4 = { emoji = "4️⃣" },
+    queued5 = { emoji = "5️⃣" },
+    queued6 = { emoji = "6️⃣" },
+    queued7 = { emoji = "7️⃣" },
+    queued8 = { emoji = "8️⃣" },
+    queued9 = { emoji = "9️⃣" },
+    queuedMore = { emoji = "🔟" },
+    -- The manage history page.
+    sweep = { emoji = "🧹" },
+    older = { emoji = "🕰️" },
+    trim = { emoji = "✂️" },
+    everything = { emoji = "🗑️" },
+    hint = { emoji = "⌨️" },
+    warn = { emoji = "⚠️" },
+  },
+
   needs = {
     -- The engine every paste and every selection read runs through, the pasteboard
     -- snapshot, the restore, and the self capture guard all live there. Required,
