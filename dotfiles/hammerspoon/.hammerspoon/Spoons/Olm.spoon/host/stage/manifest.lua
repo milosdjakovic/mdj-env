@@ -30,7 +30,7 @@
 -- eleven of the phase two adversarial review. The lesson kept is that a need only belongs here
 -- when this host actually reads what arrives.
 --
--- All five needs below are delivered by hand into wireData.stage at the composition root
+-- All six needs below are delivered by hand into wireData.stage at the composition root
 -- rather than through servicesLib.fanOut, the same door host/actionpanel's own kindOf,
 -- rowsFor, and run already go through for the identical reason, a value only the root can
 -- compute for one particular host rather than a word many plugins share.
@@ -45,6 +45,11 @@ return {
       -- The shared theme, the same palette every surfaced plugin already receives ambiently.
       theme = { source = "root", policy = "optional",
         breaks = "the one instance falls back to the atom's own minimal dark palette instead of the configured theme" },
+      -- Turns a row's icon key into an image, built by the root over the engine in lib/icons and
+      -- the icons every manifest declares. It is what lets a plugin name an icon instead of
+      -- drawing one, and it is applied to the rows of whichever presentation is current.
+      resolveIcons = { source = "root", policy = "optional",
+        breaks = "a row that names an icon by key shows no icon, so every plugin that declares its icons in its manifest draws its rows bare" },
       -- The docked shortcut panel triple. Fixed for the life of this one instance rather than
       -- carried on a presentation, per the stage design brief's own decision that panel
       -- callbacks are atom level policy alongside screen, matcher, and theme, not something a

@@ -19,9 +19,8 @@
 -- its band and never nudges a frame by hand. Text and badges are measured whole through the
 -- measurer's exact, falling back to its width for a measurer that has no exact, such as a
 -- test's stub, and a measurer with no metrics, the same stub, moves nothing. A glyph icon is
--- drawn to an hs.image the way
--- lib/glyphicon.lua draws one, and cached here by glyph and size, so iconImage can also feed
--- a native chooser row the very image a canvas pane would draw.
+-- drawn to an hs.image by the injected icon function, the one engine in lib/icons, so
+-- iconImage can also feed a native chooser row the very image a canvas pane would draw.
 
 local M = {}
 
@@ -75,6 +74,8 @@ end
 
 --- M.new(deps) -> engine
 --- deps.measure          a lib/ui/measure.lua instance, required.
+--- deps.icon             optional, a function of an icon spec and a size in points answering an
+---                       hs.image or nil, the root's icon engine. With none a glyph draws nothing.
 --- deps.surfaceElements  optional, CanvasPanel.surfaceElements or anything shaped like it,
 ---                       (w, h) -> elements at origin. Injected by the composition root so
 ---                       the chrome is painted by the one routine that already paints it.
@@ -82,28 +83,19 @@ end
 function M.new(deps)
   deps = deps or {}
   local measure = assert(deps.measure, "ui.layout, new needs a measure instance")
+  local icon = deps.icon
   local engine = {}
-  local imageCache = {}
 
   --- engine.iconImage(source, points) -> hs.image or nil.
-  --- A string is a glyph, drawn once per glyph and size with lib/glyphicon.lua's numbers, a
-  --- 72 point canvas, 52 point text centred and dropped by 8 percent, then sized to points.
-  --- Anything else is taken to be an image already and answered unchanged. A glyph that
-  --- draws nothing is remembered as false and answered as nil.
+  --- A string is a glyph and a table is an icon spec keyed by source name, and both are drawn by
+  --- the injected icon function, the root's one engine in lib/icons, so a pane draws an icon
+  --- with exactly the numbers a chooser row does and nothing here has a second drawer. The
+  --- engine caches, so this does not. Anything else is taken to be an image already and
+  --- answered unchanged. A kit built with no icon function answers nil for a glyph.
   function engine.iconImage(source, points)
-    if type(source) ~= "string" then return source end
-    local key = source .. "\0" .. tostring(points)
-    if imageCache[key] == nil then
-      local side = 72
-      local c = hs.canvas.new({ x = 0, y = 0, w = side, h = side })
-      c[1] = { type = "text", text = source, textSize = 52, textAlignment = "center",
-               frame = { x = "0%", y = "8%", w = "100%", h = "100%" } }
-      local img = c:imageFromCanvas()
-      c:delete()
-      if img and points then img = img:setSize({ w = points, h = points }) end
-      imageCache[key] = img or false
-    end
-    return imageCache[key] or nil
+    local kind = type(source)
+    if kind ~= "string" and kind ~= "table" then return source end
+    return icon and icon(source, points) or nil
   end
 
   local sizeOf, codeCut

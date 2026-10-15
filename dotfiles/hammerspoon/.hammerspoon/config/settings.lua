@@ -270,5 +270,7 @@ return {
     themes = (debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$") or (hs.configdir .. "/config")) .. "/themes",
     -- The typography file, fonts and sizes of the five type roles, beside this config.
     typography = (debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$") or (hs.configdir .. "/config")) .. "/typography.toml",
+    -- The icons file, which icon set draws every row icon and which one backs it up.
+    icons = (debug.getinfo(1, "S").source:match("^@(.*)/[^/]*$") or (hs.configdir .. "/config")) .. "/icons.toml",
   },
 }

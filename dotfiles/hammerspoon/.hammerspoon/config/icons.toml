@@ -1,0 +1,11 @@
+# The Olm icons. One file, two keys. set is the icon source that draws every row icon when a
+# plugin offers a drawing for it, and fallback is the source tried when the set has no entry
+# for an icon or cannot draw it. A plugin names an icon and Olm draws it, so changing set here
+# restyles every row at once and no plugin has to know. The known sets are
+#   emoji   the colour emoji glyphs, which ignore the theme
+#   sf      SF Symbols, drawn in the theme's foreground so they follow light and dark
+# A key left out or given an unknown name falls back to the shipped emoji with a warning in the
+# Hammerspoon console.
+
+set = "emoji"
+fallback = "emoji"

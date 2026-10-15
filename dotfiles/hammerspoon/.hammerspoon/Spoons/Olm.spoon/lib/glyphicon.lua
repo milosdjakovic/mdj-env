@@ -1,50 +1,30 @@
--- The glyph to icon drawer, lifted out of Launcher's own private _glyphIcon once
--- ActionPanel became a genuine second caller of the exact same drawing, phase eight's
--- third packet. A row with no app bundle behind it, a command, a window action, a panel
--- verb, still wants something in its icon slot, and this is what turns an emoji into an
--- hs.image sized and framed to line up with a real app icon, drawn once per glyph and
--- cached from then on.
+-- The glyph to icon facade. It began as the drawer itself, lifted out of Launcher's private
+-- drawing once ActionPanel became a second caller, and the drawing now lives in lib/icons so
+-- that one engine draws every icon Olm shows and the launcher, the action panel and every
+-- row a plugin names all come out of the same numbers. What is left is the small door those
+-- two hosts already hold, so neither changed when the drawing moved.
 --
--- M.new() returns an independent instance, a factory in the same style as
--- lib/recency.lua and lib/registry.lua, since a cache is state and each caller owns
--- one. There is exactly one function on the returned instance, dot called rather than
--- colon called, since there is no metatable here and no self to receive, matching both
--- of those modules exactly.
---
--- instance.icon(glyph) answers a cached hs.image for that glyph, drawing it the first
--- time and answering the very same cached object on every call after, or nil for a nil
--- glyph and nil for a glyph that drew nothing. The canvas size, the text size, the
--- alignment, and the frame are shared by every caller, since a launcher row and a panel
--- row have to line up. The text size fills the same 60 of 72 points an app icon's artwork
--- fills, measured on 2026 10 14, so an emoji row and an app row show icons of one size. A drawing that answers no image is remembered as false internally, so a
--- glyph nothing can render is asked for once rather than on every row it appears on, and
--- answered back out as nil, the honest public answer, never the internal sentinel.
+-- M.new(engine) returns an instance with one function, dot called, matching lib/recency.lua and
+-- lib/registry.lua. instance.icon(glyph) answers the engine's image for that glyph as an emoji
+-- at 72 points, the size the launcher rows have always been drawn at and scaled down from, or
+-- nil for a nil glyph or one nothing can draw. The engine caches, so the very same image comes
+-- back on every call after the first.
 
 local M = {}
 
---- M.new() returns instance.
---- Returns a fresh instance holding its own cache, independent of any other instance,
---- so two callers never share or invalidate each other's drawings.
-function M.new()
-  local instance = {}
-  local cache = {}
+-- The side the glyph is drawn at, and what a row icon is scaled down from. Public, so the root
+-- draws a manifest icon at the same size and a glyph row and a keyed row come out alike.
+local POINTS = 72
+M.POINTS = POINTS
 
-  --- instance.icon(glyph)
-  --- The cached hs.image for this glyph, drawn once and reused after. nil in, nil out.
-  --- A glyph that draws nothing is cached as false internally so it is only ever drawn
-  --- once, and this still answers nil for it, never the internal sentinel.
+--- M.new(engine) -> instance. engine is a lib/icons instance, answering image(spec, points).
+function M.new(engine)
+  local instance = {}
+
+  --- instance.icon(glyph) -> hs.image or nil
   function instance.icon(glyph)
-    if not glyph then return nil end
-    if cache[glyph] == nil then
-      local size = 72
-      local c = hs.canvas.new({ x = 0, y = 0, w = size, h = size })
-      -- type-exempt, a glyph drawn into a row icon image, sized to its 72 point box
-      c[1] = { type = "text", text = glyph, textSize = 60, textAlignment = "center",
-               frame = { x = "0%", y = "0%", w = "100%", h = "100%" } }
-      cache[glyph] = c:imageFromCanvas() or false
-      c:delete()
-    end
-    return cache[glyph] or nil
+    if not glyph or not engine then return nil end
+    return engine.image({ emoji = glyph }, POINTS)
   end
 
   return instance

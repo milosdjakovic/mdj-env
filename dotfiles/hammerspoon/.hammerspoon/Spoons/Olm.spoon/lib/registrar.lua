@@ -198,6 +198,51 @@ function obj.action(modules, identity, fallbackName, spec, extra)
   end
 end
 
+--- obj.validateIcons(name, manifest, deps) -> icons, ok
+--- The check on a manifest's top level icons table, the names a plugin's rows may use as
+--- icon = "key". Each key is a string and each value a table of source name to value, with at
+--- least one string value, since an entry nothing can draw would show no icon and say nothing.
+--- icons is nil when the manifest declares none, and ok is false when the declaration is broken,
+--- every defect reported once through deps.log and never silently repaired. A caller that
+--- passes no log gets the answer quietly, which is how the root reads the validated table.
+function obj.validateIcons(name, manifest, deps)
+  deps = deps or {}
+  local icons = manifest and manifest.icons
+  if icons == nil then return nil, true end
+  local ok = true
+  local function refuse(fmt, ...)
+    ok = false
+    if deps.log then deps.log("e", string.format("registrar refused '%s', " .. fmt, name, ...)) end
+  end
+  if type(icons) ~= "table" then
+    refuse("its icons is '%s', not a table", tostring(icons))
+    return nil, false
+  end
+  for key, entry in pairs(icons) do
+    if type(key) ~= "string" then
+      refuse("its icons has a key '%s' that is not a string", tostring(key))
+    elseif type(entry) ~= "table" then
+      refuse("its icons.%s is '%s', not a table of source name to value", key, tostring(entry))
+    else
+      local hasValue = false
+      for source, value in pairs(entry) do
+        if type(source) ~= "string" then
+          refuse("its icons.%s has a source name '%s' that is not a string", key, tostring(source))
+        elseif type(value) == "string" and value ~= "" then
+          hasValue = true
+        else
+          refuse("its icons.%s.%s is '%s', not a non empty string", key, source, tostring(value))
+        end
+      end
+      if not hasValue and ok then
+        refuse("its icons.%s has no string value for any source", key)
+      end
+    end
+  end
+  if not ok then return nil, false end
+  return icons, true
+end
+
 --- obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
 --- Builds one registry descriptor for the plugin the plan wired under this directory name, or
 --- answers nil, and the nil case is deliberate rather than a gap. Not every plugin the plan
@@ -719,6 +764,12 @@ function obj.describe(name, plan, modules, manifests, meta, apiVersion, deps)
   -- one function this file and a lua only checker both call, rather than the identical
   -- rule written twice and free to drift.
   local presentation = obj.validatePresentation(name, identity, manifest, modules, deps)
+
+  -- A broken icons table refuses the registration the same way a broken presentation does,
+  -- by handing the registry an empty presentation it will refuse by name, since a nil
+  -- descriptor would drop the tool with only the console line above as evidence.
+  local _, iconsOk = obj.validateIcons(name, manifest, deps)
+  if not iconsOk then presentation = {} end
 
   return {
     name = identity,

@@ -128,7 +128,8 @@ function M.new(names)
   end
 
   --- kit.icon(imageOrGlyph, size) -> node, size names row, list or sheet. A string is a
-  --- glyph the layout draws to an image, anything else is taken as an image already.
+  --- glyph and a table is an icon spec keyed by source name, both drawn by the root's icon engine,
+  --- and anything else is taken as an image already.
   function kit.icon(imageOrGlyph, size)
     return { kind = M.kinds.icon, source = imageOrGlyph,
              size = member(names.icon, size, "size", "icon") }

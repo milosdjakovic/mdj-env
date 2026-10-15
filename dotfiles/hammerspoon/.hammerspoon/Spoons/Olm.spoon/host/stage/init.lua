@@ -173,6 +173,9 @@ end
 ---                     it nothing can ever be presented, see the manifest's own breaks
 ---                     sentence.
 --- opts.theme          the shared palette, forwarded once at construction.
+--- opts.resolveIcons   function of a list of rows and the owning plugin's identity, answering
+---                     the rows with every icon key turned into an image, lib/icons/rows.lua.
+---                     Without it a row's icon is left alone and shows nothing.
 --- opts.onPositioned, opts.onActivity, opts.onClose
 ---                     the docked shortcut panel triple, fixed atom level policy rather than
 ---                     something a presentation carries. Phase two hands this the launcher's
@@ -193,6 +196,7 @@ function obj:configure(opts)
   opts = opts or {}
   self._chooser = opts.chooser
   self._theme = opts.theme
+  self._resolveIcons = opts.resolveIcons
   self._panelOnPositioned = opts.onPositioned
   self._panelOnActivity = opts.onActivity
   self._panelOnClose = opts.onClose
@@ -1075,7 +1079,12 @@ end
 function obj:_rows(query)
   local p = self:_current()
   if not p or not p.rows then return {} end
-  return p.rows(query) or {}
+  local rows = p.rows(query) or {}
+  -- THE ONE PLACE a presentation's icon keys become images. p.name is the owning plugin, a
+  -- child presentation taking its parent's name when it declares none, so a level a plugin
+  -- pushes resolves against that same plugin's manifest icons with nothing more to know.
+  if self._resolveIcons then return self._resolveIcons(rows, p.name) end
+  return rows
 end
 
 -- Contract v3's own seam. A presentation whose onSelect already ran once inside _intercept

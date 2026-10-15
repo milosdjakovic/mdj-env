@@ -84,6 +84,8 @@ local olm = spoon.Olm:start({
     -- The colour theme files, one per theme, which hold every colour the surfaces draw with.
     themes         = { dir = settings.paths.themes },
     typography     = { file = settings.paths.typography },
+    -- The active icon set and its fallback, one small file beside the typography.
+    icons          = { file = settings.paths.icons },
   },
 
   -- The BrowserTabs test suite reaches its plugin through a global, so that one name is

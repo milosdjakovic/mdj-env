@@ -91,6 +91,9 @@ end
 --- Method
 --- opts.scopes  the ordered scope list, each a table answering name, title, aliases, rows,
 ---              and run, plus an optional glyph, matcher, peek, redirect, and act.
+--- opts.resolveIcons  function of a list of rows and an owner identity, answering the rows with
+---              every icon key turned into an image, lib/icons/rows.lua. The scope's own name
+---              is the owner, so a scope row names an icon the way a presentation row does.
 --- opts.matcher the shared filter strategy a scope inherits, the same one the presenter
 ---              uses, so a list shaped scope filters exactly like every other list. A scope
 ---              setting matcher false owns its own filtering, which is right when its field
@@ -102,6 +105,7 @@ end
 function obj:configure(opts)
   opts = opts or {}
   self._matcher = opts.matcher
+  self._resolveIcons = opts.resolveIcons
   self._scopes = {}
   self._byAlias = {}
   self._byName = {}
@@ -235,6 +239,9 @@ end
 -- Every row then scores alike and the order decided above survives, the same trick a
 -- computed row already uses.
 function obj:_present(scope, query, rows)
+  -- The same helper the stage runs on a presentation's rows, so an icon key means one thing in
+  -- a scope and in a list. The owner is the scope's name, which is the plugin's identity.
+  if self._resolveIcons then rows = self._resolveIcons(rows, scope.name) end
   local out = {}
   for i = 1, #rows do
     local r = rows[i]

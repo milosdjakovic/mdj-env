@@ -25,6 +25,7 @@ local layoutLib = load("layout.lua")
 local style = styleLib.new()
 local measure = measureLib.new()
 local engine = layoutLib.new({ measure = measure })
+local surfaceElementsFn, iconFn = nil, nil
 
 local ui = kitLib.new(styleLib.names)
 
@@ -38,6 +39,9 @@ ui.loadTypography = styleLib.loadTypography
 --- opts.spec             the style spec, see lib/ui/style.lua.
 --- opts.surfaceElements  CanvasPanel.surfaceElements, what a surface node paints.
 --- opts.surfaceInterior  CanvasPanel.surfaceInterior, the box inside the surface's border.
+--- opts.icon             a function of an icon spec and a size in points answering an hs.image or
+---                       nil, the root's icon engine in lib/icons, so a glyph in a pane and a
+---                       glyph in a chooser row are one drawing. The kit never loads that engine.
 --- Callable more than once, each call replacing only what it names.
 local surfaceInterior = nil
 
@@ -45,8 +49,10 @@ function ui.configure(opts)
   opts = opts or {}
   if opts.spec ~= nil then style.configure(opts.spec) end
   if opts.surfaceInterior ~= nil then surfaceInterior = opts.surfaceInterior end
-  if opts.surfaceElements ~= nil then
-    engine = layoutLib.new({ measure = measure, surfaceElements = opts.surfaceElements })
+  if opts.surfaceElements ~= nil then surfaceElementsFn = opts.surfaceElements end
+  if opts.icon ~= nil then iconFn = opts.icon end
+  if opts.surfaceElements ~= nil or opts.icon ~= nil then
+    engine = layoutLib.new({ measure = measure, surfaceElements = surfaceElementsFn, icon = iconFn })
   end
   return ui
 end

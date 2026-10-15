@@ -59,6 +59,13 @@ local navLib = load("lib/nav.lua")
 local servicesLib = load("lib/services.lua")
 local uiSpecLib = load("root/uispec.lua")
 local themesLib = load("lib/ui/themes.lua")
+-- The icon engine and the units it is composed from. This file is the one that names the
+-- concrete sources, the engine itself knows only lib/icons/contract.lua.
+local iconsLib = load("lib/icons/init.lua")
+local iconsConfigLib = load("lib/icons/config.lua")
+local iconRowsLib = load("lib/icons/rows.lua")
+local emojiSourceLib = load("lib/icons/sources/emoji.lua")
+local sfSourceLib = load("lib/icons/sources/sf.lua")
 
 local log = hs.logger.new("Olm.compose", "info")
 -- Every sibling here has its own opinion about the shape a logger arrives in. Some read an
@@ -122,6 +129,9 @@ local SHIPPED_POLICY = {
   -- Where the typography file lives, fonts and sizes of the five type roles. Nothing ships
   -- here, the style carries the shipped values and a missing file falls back to them.
   typography = {},
+  -- Where the icons file lives, the active icon set and its fallback. Nothing ships here, lib/
+  -- icons/config.lua carries the shipped values and a missing file falls back to them.
+  icons = {},
   surface = {},
   chooserTheme = {},
   cheatSheet = {},
@@ -296,6 +306,32 @@ function obj.run(olm, cfg)
   uiSpecLib.chooserView(policy.chooserTheme, themes.colors())
   uiSpecLib.surfaceView(policy.surface, themes.colors())
 
+  -- The icon engine. Every icon Olm draws, a launcher row, a panel verb, a row a plugin names by
+  -- key, a glyph in a pane, comes out of this one instance, so they cannot drift. The sources
+  -- are named here and nowhere else, one line each, and which is active and which is the
+  -- fallback is the one setting in config/icons.toml. The colour is the foreground role, the
+  -- one a row title is drawn in, read from the kit on every draw so the light and dark halves
+  -- and a theme switch reach a tinted source with no watcher, and the engine keys its cache on
+  -- it for the sources that take a colour.
+  local iconSources = {
+    emojiSourceLib.new(),
+    sfSourceLib.new({ scratchDir = function() return atoms.storage.ensure(atoms.storage.cacheDir("icons")) end }),
+  }
+  local iconKnown = {}
+  for _, source in ipairs(iconSources) do iconKnown[source.name] = true end
+  local iconConfig = iconsConfigLib.load((policy.icons or {}).file, function(path)
+    local file = io.open(path, "r")
+    if not file then return nil end
+    local text = file:read("a")
+    file:close()
+    return text
+  end, themeLog, function(name) return iconKnown[name] end)
+  local iconEngine = iconsLib.new({
+    sources = iconSources,
+    order = iconsConfigLib.order(iconConfig),
+    color = function() return uiAtom and uiAtom.tokens().colors.foreground or nil end,
+  })
+
   local canvasPanel = atoms.panel
   canvasPanel:init()
   canvasPanel.configure({ surface = policy.surface })
@@ -311,6 +347,7 @@ function obj.run(olm, cfg)
       spec = uiSpecLib.spec(policy, themes.colors(), typography),
       surfaceElements = canvasPanel.surfaceElements,
       surfaceInterior = canvasPanel.surfaceInterior,
+      icon = iconEngine.image,
     })
     canvasPanel.configure({ ui = uiAtom })
   end
@@ -379,7 +416,7 @@ function obj.run(olm, cfg)
   -- as a loaded module this early even though it is not actually configured until later.
   local hyperKeyAtom = atoms.hyperkey
 
-  local glyphIcon = glyphIconLib.new()
+  local glyphIcon = glyphIconLib.new(iconEngine)
 
   ------------------------------------------------------------------------------
   -- STEP C. Manifests. Pure data, read before anything runs.
@@ -497,6 +534,23 @@ function obj.run(olm, cfg)
   -- below still hands each declaring plugin its own fresh instance through deps.data, which
   -- wins there because that channel is read last and unconditionally.
   --
+  -- What every plugin declared under icons in its manifest, by identity, and the one helper that
+  -- turns a row's icon key into an image against it. The stage and the query scope both receive
+  -- this same helper, so a key resolves one way wherever its row is shown. A broken declaration
+  -- is refused loudly at register by the registrar, so this read stays quiet and only keeps a
+  -- table that passed.
+  local declaredIcons = {}
+  for identity, manifest in pairs(manifests) do
+    local icons = registrarLib.validateIcons(identity, manifest)
+    if icons then declaredIcons[identity] = icons end
+  end
+  local iconRows = iconRowsLib.new({
+    engine = iconEngine,
+    declared = function(owner) return declaredIcons[owner] end,
+    points = glyphIconLib.POINTS,
+    log = themeLog,
+  })
+
   -- storage joins this list for the menu search cache, docs/BRIEF-MENUSEARCH-CACHE.md,
   -- the first consumer lib/storage.lua ever had. Its own configure already ran above, atoms.
   -- storage.configure(policy.storage), so the module handed out here is the one already
@@ -1411,6 +1465,7 @@ function obj.run(olm, cfg)
   -- without was missing.
   local queryScopeOpts = {
     matcher = chooserAtom.matchers and chooserAtom.matchers[policy.matcher],
+    resolveIcons = iconRows.resolveAll,
   }
 
   -- ActionPanel's own three, built here rather than only in step K because the ordinary stage
@@ -1484,6 +1539,7 @@ function obj.run(olm, cfg)
   local stageOpts = {
     chooser = chooserAtom,
     theme = policy.chooserTheme,
+    resolveIcons = iconRows.resolveAll,
     onPositioned = stagePanel.onPositioned,
     onActivity = stagePanel.onActivity,
     onClose = stagePanel.onClose,
@@ -1972,7 +2028,8 @@ function obj.run(olm, cfg)
         .. "of the two declarations.")
     end
 
-    local queryScopeLate = { matcher = queryScopeOpts.matcher, scopes = scopes }
+    local queryScopeLate = { matcher = queryScopeOpts.matcher, resolveIcons = iconRows.resolveAll,
+      scopes = scopes }
     queryScopeModule:configure(queryScopeLate)
     lateData.queryscope = queryScopeLate
   end
