@@ -22,8 +22,8 @@ return {
   -- The row icons, named by the rows and drawn by Olm.
   icons = {
     active = { emoji = "🟢", sf = "circle.fill" },
-    profile = { emoji = "🖥️", sf = "desktopcomputer" },
-    displays = { emoji = "📺", sf = "tv" },
+    profile = { emoji = "🖥️", sf = "display.2" },
+    displays = { emoji = "📺", sf = "display" },
     reapply = { emoji = "🔄", sf = "arrow.triangle.2.circlepath" },
     rename = { emoji = "✏️", sf = "pencil" },
     delete = { emoji = "🗑️", sf = "trash" },
