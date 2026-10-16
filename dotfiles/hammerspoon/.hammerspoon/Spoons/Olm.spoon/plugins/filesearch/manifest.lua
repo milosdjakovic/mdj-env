@@ -17,7 +17,7 @@ return {
   },
 
   -- The directory is filesearch, one word, while the identity everywhere outside
-  -- this folder, config/keys.lua, the registry, the launcher row, is fileSearch.
+  -- this folder, config/plugins.lua, the registry, the launcher row, is fileSearch.
   name = "fileSearch",
 
   -- The row icons, named by the status and help rows and drawn by Olm. The file rows carry the

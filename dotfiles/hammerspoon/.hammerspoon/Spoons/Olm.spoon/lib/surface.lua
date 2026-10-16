@@ -1,5 +1,5 @@
 -- One plugin's shared shape for a Hyper context, factored out once the twelve hand written
--- blocks in config/keys.lua were read side by side. Every one of them opens with a primary
+-- blocks in the old config/keys.lua were read side by side. Every one of them opens with a primary
 -- verb on i, closes on x, and settles ties at the same priority, and ten of the twelve also
 -- move the highlight on j and k, so a plugin should only ever have to say what its primary
 -- verb does and what else it needs, never retype the keys every list already agrees on.
@@ -31,8 +31,8 @@ local MOVE_PREV = { key = "k", action = "selectPrev", description = "Move up" }
 
 -- The action panel's own chord, named here as plain data with no reference to what the
 -- action panel is or does, the same way every other binding this module builds names only a
--- key and an action. Every real context carries this chord today, added by a loop at the
--- bottom of config/keys.lua, and this module now carries it too, so a context built here is
+-- key and an action. Every real context carries this chord today, once added by a loop at the
+-- bottom of the old config/keys.lua, and this module now carries it too, so a context built here is
 -- honest about the whole set of keys live while it is open and the chord no longer depends on
 -- a loop somewhere else remembering to add it, or on the action panel plugin declaring a
 -- surface of its own to earn a place in every list.
@@ -71,7 +71,7 @@ local function keep(binding, available)
 end
 
 -- The loose shape a row in `extra` is trusted to have, a key and an action naming what it
--- does, the same two fields every binding in config/keys.lua carries whether or not it also
+-- does, the same two fields every binding a manifest declares carries whether or not it also
 -- carries mods, a glyph, a when, or chord = false.
 local function looksLikeBinding(value)
   return type(value) == "table" and type(value.key) == "string" and type(value.action) == "string"
@@ -170,8 +170,8 @@ end
 -- exception for it.
 --
 -- The action panel's own binding, Hyper and o, is appended to every block this module
--- builds. Every real context carries that chord today, added by a loop at the bottom of
--- config/keys.lua, and stating it here once, as plain data naming no plugin, keeps a context
+-- builds. Every real context carries that chord today, once added by a loop at the bottom of
+-- the old config/keys.lua, and stating it here once, as plain data naming no plugin, keeps a context
 -- built here honest about the whole set of keys live while it is open with no dependence on a
 -- loop elsewhere remembering it or on the action panel plugin declaring a surface to earn it.
 --

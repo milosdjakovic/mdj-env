@@ -281,7 +281,7 @@ do
 end
 
 -- The list handed to verbsIn is never mutated, whatever the filter decides, since the caller
--- may be holding the very table config/keys.lua built.
+-- may be holding the very table the composition root built.
 do
   local ap = freshModule()
   ap:configure({ rowsFor = NOOP_ROWS_FOR, run = NOOP_RUN, kindOf = function(action)

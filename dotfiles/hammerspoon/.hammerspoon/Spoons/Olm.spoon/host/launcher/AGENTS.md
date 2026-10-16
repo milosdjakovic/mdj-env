@@ -240,7 +240,7 @@ Asking per row rather than at each site is the whole point, because the version 
 written out by hand had been forgotten on file search, which had an alias and advertised
 nothing. A hint a row can be left out of is a hint that will be.
 
-The question is asked by name, and the name is the tool's key in `config/keys.lua`, which
+The question is asked by name, and the name is the plugin's identity, the one its manifest declares and `config/plugins.lua` keys by, which
 is also what the row's descriptor carries and what the scope is registered under. One
 identity behind the row, the scope, and the hint, so there is nothing for three strings to
 disagree about. Only a `special` row is asked, since only a command row can be a tool, which

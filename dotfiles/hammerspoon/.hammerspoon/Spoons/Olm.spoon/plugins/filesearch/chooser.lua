@@ -18,8 +18,8 @@
 --- engine, injected by the root, where it does the local narrow between round trips, so the
 --- policy is not lost, it just applies one layer down.
 ---
---- It names no key anywhere. The actions are exposed as plain methods, a Hyper context in
---- config/keys.lua decides which key reaches which one, and the deferred helper panel spells
+--- It names no key anywhere. The actions are exposed as plain methods, the plugin's manifest
+--- decides which key reaches which one, and config/plugins.lua rebinds it, and the deferred helper panel spells
 --- them out, so rebinding is a config edit and no wording here can disagree with a binding.
 --- The one wording it does carry is the grammar itself, which is the spoon's own syntax rather
 --- than anything about keys, and it is shown on a help screen reached by typing a question mark.

@@ -705,7 +705,7 @@ do
 end
 
 -- scopes(spec), a resolved tool answers a table carrying both name and opts, since
--- joining the identity fields from config/keys.lua stays the root's own scope(name,
+-- joining the identity fields from the manifest defaults and config/plugins.lua stays the root's own scope(name,
 -- opts) helper's job, and a non string entry passes straight through untouched, in the
 -- order the spec gave, mixed with the resolved tool.
 do

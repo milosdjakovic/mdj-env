@@ -157,7 +157,7 @@ return {
   -- No provides. The manager is not itself scoped by an alias.
 
   -- Hyper plus X opens the native manager. No icon and no aliases are set on this
-  -- entry in config/keys.lua, unlike most of the other pickers, so none are stated
+  -- entry in config/plugins.lua, unlike most of the other pickers, so none are stated
   -- here either.
   defaults = {
     leader = "app",

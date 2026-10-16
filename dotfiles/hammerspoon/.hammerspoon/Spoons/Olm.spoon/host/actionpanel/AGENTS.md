@@ -8,7 +8,7 @@ AGENTS.md, which links here.
 The measurement phase eight's action panel is built on, packet one of three, and the panel
 itself, packet two, the chooser it opens a chord away from a chooser already open. A panel
 lists a chooser's verbs and never its navigation, and before packet one that distinction did
-not exist anywhere in this repository, every binding in config/keys.lua was one
+not exist anywhere in this repository, every binding in a context was one
 undifferentiated shape. verbsIn answers the one question a panel needs answered, given a
 context's bindings, which of them are verbs, the things a person forgets the chord for,
 rather than navigation, the shared moving up and down, inserting, closing, and scrolling the
@@ -38,18 +38,18 @@ handled for free, it would fall into the same branch an unclassified action alre
 into, dropped and reported as a defect. Growing this set to three members is a new member
 here and a new branch in verbsIn together, never one without the other.
 
-## Why the classification is the root's, and not config/keys.lua's
+## Why the classification is the root's, and not the plugin manifests'
 
 The design says the kind is stamped by the host, from a named set, per the named values
 rule. Read that as the host, this module, owning the set of possible kinds, and the
 composition root owning the map from an action name to a kind, since init.lua already
 keeps contextActions, the one place that knows what every action name means. Putting a
-kind field on each of the sixty odd bindings in config/keys.lua by hand would repeat the
+kind field on each of the sixty odd bindings in the plugin manifests by hand would repeat the
 same word forty times for navigation alone, and the twelve contexts would drift against
 each other the moment somebody added a thirteenth without remembering to stamp it there
 too.
 
-So config/keys.lua stays the pure data it already claims to be, this module names the two
+So the plugin manifests stay the pure data it already claims to be, this module names the two
 possible answers, and the composition root's own actionKinds table, written beside
 contextActions, is the concrete policy joining an action name to one of them. Adding an
 action still costs exactly one line in that table, and a load time completeness check,
@@ -89,7 +89,7 @@ verbs are gated off, since the panel was listing two rows that did nothing, and 
 `rowsFor` because that is the function the hint bar already read the same answer from.
 
 Keeping them out here is what makes verbsIn a statement about the declarations themselves,
-a fact that only changes when config/keys.lua or actionKinds changes, rather than a
+a fact that only changes when a manifest or actionKinds changes, rather than a
 statement about a moment that could answer differently from one call to the next with
 nothing in the source having moved. That is exactly what test/inventory.lua's own
 actionpanel section leans on, since it can only be a stable measurement, checked byte for
@@ -272,7 +272,7 @@ composition root never sets it.
 
 ## decoratedCount, and why a green panel is not proof of a decorated one
 
-Every finding above was invisible to every gate this phase already had, since config/keys.lua,
+Every finding above was invisible to every gate this phase already had, since the plugin manifests,
 the panelrows section, and the unit cases all describe what the panel WOULD show, never
 whether decorate ever actually ran on the chooser in front of a person. A chooser built before
 Chooser.configure installed the decorate seam, or one that stopped going through the Chooser

@@ -7,7 +7,7 @@
 ├── init.lua                      # Main orchestrator (loads and wires everything)
 ├── config/                       # Configuration (pure data, edit these)
 │   ├── apps.lua                  # App bundle ID registry
-│   ├── keys.lua                  # All keybinding definitions
+│   ├── keys.lua                  # The two leaders and the app toggles
 │   └── settings.lua              # Global settings (margins, timing, etc.)
 └── Spoons/                       # Hammerspoon Spoons (reusable logic)
 ```
@@ -44,9 +44,10 @@ Edit `config/apps.lua`:
 NewApp = "com.example.newapp",
 ```
 
-Edit `config/keys.lua`:
+Edit `appToggles` in `config/keys.lua`, using the same name as in `config/apps.lua`.
+An entry with no `modifiers` binds into the Hyper modal:
 ```lua
-{ app = "NewApp", modifiers = HYPER, key = "W" },
+{ app = "NewApp", key = "W" },
 ```
 App toggles fire by holding the Hyper key (**Caps Lock**, remapped to **F18** at the
 HID level by Olm's core `lib/keyremap.lua` from the root's own shipped leader catalog,

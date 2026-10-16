@@ -15,7 +15,7 @@ return {
   },
 
   -- The directory is displayprofiles, one word, while the identity everywhere
-  -- outside this folder, config/keys.lua, the registry, the launcher row, is
+  -- outside this folder, config/plugins.lua, the registry, the launcher row, is
   -- displayProfiles.
   name = "displayProfiles",
 
@@ -83,7 +83,7 @@ return {
     },
   },
 
-  -- No provides. This tool has no alias in config/keys.lua, so it is reached only by
+  -- No provides. This tool has no alias in config/plugins.lua, so it is reached only by
   -- opening the picker itself, never by a typed scope.
 
   -- Opened from the launcher only, so it proposes no key at all.

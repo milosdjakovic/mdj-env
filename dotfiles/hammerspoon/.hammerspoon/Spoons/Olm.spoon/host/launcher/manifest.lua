@@ -269,7 +269,7 @@ return {
     },
   },
 
-  -- Corrected against config/keys.lua's real launcher block rather than left as first
+  -- Corrected against the launcher's real block rather than left as first
   -- written. The primary verb reads "Run" there, not "Open", the composition root only
   -- relabels it to "Open" live while the highlight sits on an application. The close key is
   -- "space" rather than the shared default "x", since space is also this plugin's own open

@@ -15,7 +15,7 @@
 -- local, they behave identically on every Mac. That is the test a default has to pass, and
 -- it is why they belong here even though AppToggler's per app toggles do not, those need to
 -- know which apps are installed and these need nothing. The order below is copied exactly
--- as config/keys.lua has it, since it matches the cheat sheet grid, two switch display rows
+-- as config/keys.lua once had it, since it matches the cheat sheet grid, two switch display rows
 -- gated on multiple displays, then resize, then move and center, then hide all last.
 return {
   -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.

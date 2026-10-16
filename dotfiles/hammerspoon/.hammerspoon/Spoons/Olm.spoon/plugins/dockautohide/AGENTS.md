@@ -24,7 +24,7 @@ chord would only be one more binding to remember for the same action.
 The launcher's own catalog carries one row for this tool, reading the plain noun Dock,
 matching every other hosted tool's outer row. Choosing it steps into the page rather than
 doing anything itself, the same as caffeinate, VPN, and the rest of `hostedInPlace`. That
-doorway is root policy, `config/keys.lua` and the root's `hostedInPlace` table, and this
+doorway is root policy, the root's `hostedInPlace` table, and this
 plugin never sees it.
 
 The two rows inside the page are what this plugin owns, and each names the action choosing

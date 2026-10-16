@@ -6,7 +6,7 @@
 -- has no defaults and no surface, unlike every other plugin in this set, because it
 -- is not a key or a launcher row at all, it is a computed row source consulted on
 -- every keystroke the same way Arithmetic is, and it has no entry anywhere in
--- config/keys.lua and no hyperContext of its own.
+-- config/plugins.lua and no hyperContext of its own.
 return {
   -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
   apiVersion = 1,

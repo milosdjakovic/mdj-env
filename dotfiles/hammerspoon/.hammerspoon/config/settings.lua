@@ -178,9 +178,9 @@ return {
   -- here at all.
   --
   -- { kind = "leader" } is a single physical key held down, which is what this machine uses.
-  -- The key itself is deliberately not named here, it is the appLeader row of the catalog in
-  -- config/keys.lua, remapped at the HID level, and only the composition root reads that
-  -- catalog. Hold it and press a letter to fire a binding, tap it alone to toggle real Caps
+  -- The key itself is deliberately not named here, it is the appLeader name in
+  -- config/keys.lua, resolved against the root's leader catalog and remapped at the HID level,
+  -- and only the composition root reads that catalog. Hold it and press a letter to fire a binding, tap it alone to toggle real Caps
   -- Lock, hold it alone to reveal the cheat sheet.
   --
   -- { kind = "chord", mods = { "shift", "ctrl", "alt", "cmd" } } is a modifier chord held

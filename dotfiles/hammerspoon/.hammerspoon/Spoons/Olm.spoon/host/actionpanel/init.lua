@@ -27,7 +27,7 @@
 --- configure.
 ---
 --- It names no action and no context. The composition root owns the map from an action name to
---- a kind, since config/keys.lua already knows what every action name means, and injects that
+--- a kind, since the composition root already knows what every action name means, and injects that
 --- map through configure as deps.kindOf, and it owns the panel's own presentation and the
 --- running of a chosen verb, injected as deps.rowsFor and deps.run. A row it builds names its
 --- icon and owner as data and the chooser draws the picture when it paints, so this module draws
@@ -193,7 +193,7 @@ end
 --- Method
 --- A context's binding list in, a new ordered list holding only the bindings whose action
 --- classifies as a verb, in declaration order, out. The list handed in is never mutated,
---- since the caller may be holding the very table config/keys.lua built. Answers an empty
+--- since the caller may be holding the very table the composition root built. Answers an empty
 --- list, with the one warning ensureConfigured already logs, when this instance has not been
 --- configured yet.
 ---

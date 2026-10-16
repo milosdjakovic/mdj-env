@@ -1,7 +1,7 @@
 -- Turning a catalog entry into a real keycode, and the one place the window binding stamp
 -- is produced.
 --
--- The catalog in config/keys.lua names a physical key and an unused function key it maps
+-- The root's leader catalog names a physical key and an unused function key it maps
 -- to. Nothing else here needs to know a physical key exists, it only needs the keycode that
 -- key resolves to once lib/keyremap.lua has applied the mapping, and that resolution has to happen
 -- in exactly one place, because two call sites resolving the same catalog entry separately

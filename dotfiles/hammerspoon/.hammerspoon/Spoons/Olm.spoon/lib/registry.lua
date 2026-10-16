@@ -21,8 +21,8 @@
 -- never passes it, and every default construction behaves exactly as if this option did
 -- not exist.
 --
--- One table per tool is handed to register, the descriptor. name is the tool's own key
--- in config/keys.lua, a string, required. apiVersion is the integer the tool was built
+-- One table per tool is handed to register, the descriptor. name is the tool's own key,
+-- the identity its manifest declares and config/plugins.lua keys by, a string, required. apiVersion is the integer the tool was built
 -- against, required. open is a function of no arguments, what running this tool's
 -- launcher row does, optional, because a tool may exist only as a scope. commands is a
 -- map of name to function, extra named actions belonging to this tool rather than tools
@@ -43,7 +43,7 @@
 -- the fields the composition root's own scope helper passes through today, matcher,
 -- rows, run, peek, redirect, act, and, since phase eight's fourth packet, verbs. The
 -- identity fields that helper adds on top, name, title, glyph, and aliases, are
--- deliberately not here, since three of them come from config/keys.lua and this
+-- deliberately not here, since three of them come from the manifest defaults and config/plugins.lua and this
 -- registry reads no configuration, the same rule that keeps name the tool's only
 -- identity above. rows and run are required once scope is present at all, since
 -- QueryScope's own admissible function requires both, and refusing here names the
@@ -80,13 +80,13 @@
 -- should host its list in place rather than open its own picker, and nothing more.
 --
 -- shortcut, added in phase seven's fifth and last packet, is optional, one of exactly two
--- strings. leader means this tool's entry in config/keys.lua names a key that is bound
+-- strings. leader means this tool's resolved entry names a key that is bound
 -- through the Hyper leader to this tool's open. global means the entry names a whole
 -- modifier combination bound directly, which is what the two clipboard commands are and
 -- the only thing they are. A command inside commands may carry the same field on its own
 -- table, which is how appendCopy and pasteNext each answer global while remaining commands
 -- of the clipboard rather than tools of their own. The key itself is deliberately not on
--- the descriptor, config/keys.lua holds it and this registry reads no configuration, the
+-- the descriptor, the manifest defaults and config/plugins.lua hold it and this registry reads no configuration, the
 -- same rule name and row and scope already keep. A shortcut present and not one of the two
 -- strings is refused, naming the tool or the command and what it said. A shortcut present
 -- with nothing to bind, no open on a tool or no callable fn on a command, is refused too,
@@ -192,7 +192,7 @@
 -- condition and is legitimately absent when the condition does not hold, never the
 -- mistake an unregistered name is. A resolved tool answers a small table carrying both
 -- name and opts rather than a finished scope, since joining the identity fields
--- config/keys.lua holds, name, title, glyph, and aliases, is the composition root's own
+-- the manifest defaults and config/plugins.lua hold, name, title, glyph, and aliases, is the composition root's own
 -- scope(name, opts) helper's job and stays there, in the one place that has always done
 -- it, this module reading no configuration at all. Anything that is not a string passes
 -- straight through unexamined, in the position it was given.
@@ -656,7 +656,7 @@ function M.new(opts)
   --- active and declared no scope this run, the emoji case this packet protects, a scope
   --- that registers only under a condition. A resolved tool answers { name = entry, opts
   --- = descriptor.scope } rather than a finished scope, since joining the identity fields
-  --- from config/keys.lua is the root's own scope(name, opts) helper's job and stays
+  --- from the manifest defaults and config/plugins.lua is the root's own scope(name, opts) helper's job and stays
   --- there. Anything that is not a string passes straight through unexamined, in the
   --- position it was given.
   function instance.scopes(spec)

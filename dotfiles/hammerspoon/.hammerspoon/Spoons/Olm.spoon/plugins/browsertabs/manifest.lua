@@ -15,7 +15,7 @@ return {
   },
 
   -- The directory is browsertabs, one word, while the identity everywhere outside this
-  -- folder, config/keys.lua, the registry, the launcher row, is browserTabs.
+  -- folder, config/plugins.lua, the registry, the launcher row, is browserTabs.
   name = "browserTabs",
 
   -- The row icons, named by the rows and drawn by Olm. A tab row wears its browser's own

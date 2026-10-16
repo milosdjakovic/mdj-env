@@ -253,7 +253,7 @@ for _, l in ipairs(verbLines) do add(l) end
 -- ctx.bindings itself.
 --
 -- icon joined this line in phase eight's third packet, alongside an icon on every verb row in
--- config/keys.lua, so an icon going missing from a binding is a diff here rather than something
+-- the plugin manifests, so an icon going missing from a binding is a diff here rather than something
 -- noticed by eye months later. Back leading the list rather than trailing it, phase eight's
 -- third packet too, is NOT visible in this section, since panelRowLines is sorted before it is
 -- written, the same as every other listing in this file, so ordering is deliberately not part
@@ -321,7 +321,7 @@ for _, l in ipairs(hostedRowLines) do add(l) end
 
 -- How many instances decorate has actually wrapped, asked of the live action panel host
 -- through the small public door built for exactly this, rather than trusted from the fact
--- that config/keys.lua and the panelrows section above both look right. Neither of those
+-- that the plugin manifests and the panelrows section above both look right. Neither of those
 -- proves the decorate seam ever ran on a given chooser, only that it would answer correctly if
 -- it had, and a chooser built before Chooser.configure installed that seam, or one that stopped
 -- going through the Chooser facade at all, would leave the panel silently dead on it with every
