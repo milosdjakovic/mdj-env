@@ -365,20 +365,35 @@ check("the shipped Finder toggle is on the sheet", real.sheet.app["f"] == 1)
 -- The person's own configuration. Every run above has an empty user, which is a machine that
 -- configured nothing, so one run is made with the real config/plugins.lua as the user, and the
 -- app roster and toggles from config/apps.lua and config/keys.lua handed over the way init.lua
--- hands them, by field name to the plugin that declares them. Loaded through require with the
--- config directory on the path, the way init.lua loads them.
+-- hands them, in its own entry in config/plugins.lua. Loaded by path from this checkout, since a
+-- require inside the live Hammerspoon would return the running config's cached modules.
 --------------------------------------------------------------------------------
 
 do
   local configRoot = caseDir .. "/../../"
+  -- The units run inside the live Hammerspoon, whose own config is already in package.loaded
+  -- under the same config.* names. A plain require would hand back that cached copy instead of
+  -- this checkout's files, so every config.* entry is set aside, the files are loaded from this
+  -- checkout by path, and the cache is put back exactly as it was afterwards.
   local savedPath = package.path
+  local setAside = {}
+  for name, mod in pairs(package.loaded) do
+    if type(name) == "string" and name:match("^config%.") then
+      setAside[name] = mod
+      package.loaded[name] = nil
+    end
+  end
   package.path = configRoot .. "?.lua;" .. configRoot .. "?/init.lua;" .. package.path
   -- config/plugins.lua pulls in config/keys.lua and config/apps.lua itself, since its apptoggler
   -- entry carries both lists as that plugin's data.
   local loaded, personPlugins = pcall(function()
-    return require("config.plugins")
+    return dofile(configRoot .. "config/plugins.lua")
   end)
   package.path = savedPath
+  for name in pairs(package.loaded) do
+    if type(name) == "string" and name:match("^config%.") then package.loaded[name] = nil end
+  end
+  for name, mod in pairs(setAside) do package.loaded[name] = mod end
   check("the person's config/plugins.lua and the files it points at load", loaded,
     not loaded and tostring(personPlugins) or nil)
   if loaded then
