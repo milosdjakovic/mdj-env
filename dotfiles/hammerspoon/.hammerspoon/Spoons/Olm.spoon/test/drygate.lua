@@ -567,8 +567,8 @@ for dir, manifest in pairs(manifestsByDir) do
       checkRegistryMembers(dir, identity, manifest, mod)
       checkWiring(dir, identity, manifest, mod)
     elseif manifest.presentation == nil and type(manifest.wiring) == "table" then
-      -- A plugin with no registry and no presentation but wiring steps of its own, KeyRemap
-      -- shaped, still has those steps checked, since checkWiring only needs the module.
+      -- A plugin with no registry and no presentation but wiring steps of its own, a bare key
+      -- binder for one, still has those steps checked, since checkWiring only needs the module.
       checkWiring(dir, identity, manifest, mod)
     end
   end

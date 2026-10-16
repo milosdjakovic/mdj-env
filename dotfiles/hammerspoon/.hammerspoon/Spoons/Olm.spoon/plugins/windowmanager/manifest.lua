@@ -39,12 +39,9 @@ return {
     },
 
     data = {
-      -- The shared when name to predicate function table, gating previousDisplay and
-      -- nextDisplay on multipleDisplays. Root computed. Optional, since an absent or
-      -- unknown name is treated as always active by bindToLeader's own fallback, the same
-      -- rule the overlay applies, so the gate is lost rather than the binding.
-      predicates = { source = "root", policy = "optional",
-                     breaks = "previousDisplay and nextDisplay bind unconditionally instead of hiding on a single screen, so a lone display still shows two display switch keys that do nothing useful" },
+      -- The when name to predicate table is not declared here any more. The window leader lib
+      -- owns the gate, like Hyper, and the root hands it the table when it configures it, so
+      -- this plugin only says which name a binding carries.
       -- configure's own margins, config/settings.lua's gap on all four sides. The person's
       -- own preference, and configure already treats an absent one as {}, so it degrades
       -- rather than breaks.
@@ -64,12 +61,12 @@ return {
 
   -- bindToLeader is a second call beyond configure, so it is named here rather than assumed.
   -- The leader is the lib grant above and the bindings are this plugin's own effective list,
-  -- after any override, which is the same shape capture's bindHotkeys takes. The predicate
-  -- table is the one value the root owes. The root reads the same effective list by walking
+  -- after any override, which is the same shape capture's bindHotkeys takes. A binding's
+  -- `when` and `repeats` travel to the lib through its bind options. The root reads the same effective list by walking
   -- the plan for every plugin on the window leader, so the cheat sheet and the launcher show
   -- what is bound without ever naming this plugin.
   wiring = {
-    { method = "bindToLeader", args = { "self.windowLeader", "self.bindings", "root.predicates" } },
+    { method = "bindToLeader", args = { "self.windowLeader", "self.bindings" } },
   },
 
   -- The launcher narrows its own catalog into a window actions group by asking this plugin

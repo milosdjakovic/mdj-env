@@ -54,7 +54,7 @@ do
   leader:configure({ keyCode = KEYS.f16 })
   leader:addLeader(KEYS.f16)
   local moved, maximized = 0, 0
-  leader:bind("d", function() moved = moved + 1 end, nil, true)
+  leader:bind("d", function() moved = moved + 1 end, nil, { repeats = true })
   leader:bind("s", function() maximized = maximized + 1 end)
 
   local bindings = leader._leaders[KEYS.f16].bindings
@@ -77,8 +77,8 @@ do
   leader:init()
   leader:configure({ keyCode = KEYS.f16 })
   leader:addLeader(KEYS.f16)
-  leader:bind("d", function() end, { "shift" }, false)
-  leader:bind("d", function() end, nil, true)
+  leader:bind("d", function() end, { "shift" }, { repeats = false })
+  leader:bind("d", function() end, nil, { repeats = true })
 
   local bindings = leader._leaders[KEYS.f16].bindings[KEYS.d]
   local _, bare = leader:_resolve(bindings, {})
@@ -95,7 +95,7 @@ do
   local engine = stubEngine()
   leader:configure({ chord = engine, keyCode = KEYS.f16 })
   leader:addLeader(KEYS.f16)
-  leader:bind("d", function() end, nil, true)
+  leader:bind("d", function() end, nil, { repeats = true })
   leader:start()
 
   local opts = engine.registered[KEYS.f16]
@@ -121,4 +121,35 @@ do
   check("configure can put the leader back on the system autorepeat",
     engine.registered[KEYS.f16].repeatMode == "system",
     "got " .. tostring(engine.registered[KEYS.f16].repeatMode))
+end
+
+-- A binding that carries a `when` is gated live by the injected predicate table, the way
+-- Hyper's are. A false predicate makes the key a swallowed no op, bound and inert, and it does
+-- not fall through to a catch all beside it. A true one acts, and an unknown name stays active
+-- so a typo fails visibly.
+do
+  local leader = freshModule()
+  leader:init()
+  local open = false
+  leader:configure({ keyCode = KEYS.f16, predicates = { multipleDisplays = function() return open end } })
+  leader:addLeader(KEYS.f16)
+  local fired = 0
+  leader:bind("d", function() fired = fired + 1 end, nil, { when = "multipleDisplays" })
+  leader:bind("s", function() fired = fired + 10 end, nil, { when = "typo" })
+  local bindings = leader._leaders[KEYS.f16].bindings
+
+  local fn, repeats = leader:_resolve(bindings[KEYS.d], {})
+  check("a false predicate still answers a handler, so the key is swallowed",
+    type(fn) == "function" and not repeats)
+  fn()
+  check("a false predicate makes the key a no op", fired == 0, "fired " .. fired)
+
+  open = true
+  local fn2 = leader:_resolve(bindings[KEYS.d], {})
+  fn2()
+  check("a true predicate lets the action run", fired == 1, "fired " .. fired)
+
+  local fn3 = leader:_resolve(bindings[KEYS.s], {})
+  fn3()
+  check("an unknown predicate name is treated as active", fired == 11, "fired " .. fired)
 end

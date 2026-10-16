@@ -512,14 +512,17 @@ list in its defaults, asks for the leader with `needs.lib.windowLeader = { from 
 "windowleader" }`, and names a wiring step that binds each entry through the lib. That is all of
 it, the same shape capture uses on the app leader. Windowmanager is the worked example, its
 sixteen bindings are plain data in `defaults.bindings` and its `bindToLeader` step takes
-`self.windowLeader`, `self.bindings` and `root.predicates`. The lib binds onto the one keycode
-the root gave it, so a binding never names a keycode, and `repeats = true` marks a step worth
-repeating while the key is held.
+`self.windowLeader` and `self.bindings`. The lib binds onto the one keycode the root gave it,
+so a binding never names a keycode. A binding's `repeats = true` marks a step worth repeating
+while the key is held, and its `when` names a predicate the lib checks live, a false one
+making the key a swallowed no op.
 
 You write nothing for the sheet. The root walks the plan for every binding declared on the
 window leader and the held window sheet draws it, with `when` hiding the row and the key
 together and `description` replacing the label humanized from the action name. A person moves
-the whole leader to another physical key in `config/keys.lua`, and no plugin changes.
+the whole leader to another physical key in `config/keys.lua`, and no plugin changes. The
+launcher's window rows still come only from windowmanager's action map until phase three of the
+core split, so a binding another plugin declares reaches the sheet and not yet the launcher.
 
 ## Tools your plugin needs
 

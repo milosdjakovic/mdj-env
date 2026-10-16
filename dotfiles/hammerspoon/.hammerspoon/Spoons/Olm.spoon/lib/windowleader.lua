@@ -12,7 +12,7 @@
 --- This was a plugin until phase two of the core split and it is core now, beside hyperkey,
 --- which it mirrors on purpose. The root configures it once with the keycode the window role
 --- resolved to, and a plugin that declares leader = "window" binds onto it the way a plugin on
---- the app leader binds onto Hyper, through bind(key, fn, mods, repeats) with no keycode in
+--- the app leader binds onto Hyper, through bind(key, fn, mods, opts) with no keycode in
 --- sight, after asking for it through needs.lib.windowLeader. The root collects what such
 --- plugins declare by walking the plan, so nothing here or there names a plugin.
 ---
@@ -44,6 +44,9 @@ obj._leaders = nil -- keyCode -> { bindings = { code -> { {mods, fn, repeats}, .
 -- The one keycode the window role resolved to, set by configure. A plugin binds without ever
 -- seeing it, which is what makes moving the window leader to another physical key one edit.
 obj._keyCode = nil
+-- name -> function() -> bool, injected by configure, gating bindings that carry a `when`. The
+-- same shape and the same rule as lib/hyperkey.lua, so a binding reads one way on either leader.
+obj._predicates = nil
 
 -- Hold to reveal. onHold and onHoldEnd are this file's own closures, built once in
 -- configure rather than handed in from outside, since the only part of this coupling
@@ -88,8 +91,10 @@ end
 --- WindowLeader:configure(opts)
 --- Method
 --- opts.chord           - the shared ChordKey engine to register into (required)
+--- opts.predicates      - name -> function() -> bool, the table a binding's `when` is resolved
+---                        against live at each press, the same one Hyper reads
 --- opts.keyCode         - the virtual keycode the window role resolved to, the one leader
----                        bind(key, fn, mods, repeats) binds onto
+---                        bind(key, fn, mods, opts) binds onto
 --- opts.holdDelay       - seconds to hold a leader (no other key) before the hold reveals
 --- opts.repeatMode      - how a repeating binding under this leader keeps firing, the shared
 ---                        engine's own option, "driven" here rather than the engine's
@@ -105,6 +110,7 @@ function obj:configure(opts)
   opts = opts or {}
   self._chord = opts.chord or self._chord
   self._keyCode = opts.keyCode or self._keyCode
+  self._predicates = opts.predicates or self._predicates
   self._holdDelay = opts.holdDelay or self._holdDelay
   self._repeatMode = opts.repeatMode or self._repeatMode
   self._windowCheatSheet = opts.windowCheatSheet or self._windowCheatSheet
@@ -136,14 +142,17 @@ function obj:addLeader(keyCode)
   return self
 end
 
---- WindowLeader:bind(key, fn, mods, repeats)
+--- WindowLeader:bind(key, fn, mods, opts)
 --- Method
 --- Register a handler under the window leader, the keycode configure was given. `mods` is an optional list of required
---- modifier names ({"shift"}); omit it for a catch-all binding. `repeats` is true for a
---- handler that should keep firing while its key stays held, which is the binding's own
---- business rather than the leader's, since moving a window a step is worth repeating and
---- maximizing it is not. HOW it repeats is the leader's, see _repeatMode.
-function obj:bind(key, fn, mods, repeats)
+--- modifier names ({"shift"}); omit it for a catch-all binding. `opts` is optional and
+--- carries `repeats`, true for a handler that should keep firing while its key stays held,
+--- which is the binding's own business rather than the leader's, since moving a window a step
+--- is worth repeating and maximizing it is not, and `when`, a predicate name gating the
+--- binding on live state, the same two fields HyperKey:bind takes. HOW a key repeats is the
+--- leader's, see _repeatMode.
+function obj:bind(key, fn, mods, opts)
+  opts = opts or {}
   local leader = self._leaders[self._keyCode]
   if not leader then
     log.w("no window leader registered, so '" .. tostring(key) .. "' was not bound")
@@ -158,8 +167,27 @@ function obj:bind(key, fn, mods, repeats)
   end
 
   leader.bindings[code] = leader.bindings[code] or {}
-  table.insert(leader.bindings[code], { mods = mods, fn = fn, repeats = repeats })
+  table.insert(leader.bindings[code], { mods = mods, fn = fn, repeats = opts.repeats, when = opts.when })
   return self
+end
+
+-- Whether a binding's optional `when` predicate allows it right now, asked live at each press
+-- so it tracks state such as the display count. No `when` always passes. An unknown name is
+-- treated as active and logged, so a typo fails visibly, the key stays live and the sheet row
+-- stays shown, rather than a binding silently dying. This is Hyper's own rule.
+local unknownSeen = {}
+local function passes(self, binding)
+  if not binding.when then return true end
+  local pred = self._predicates and self._predicates[binding.when]
+  if pred == nil then
+    -- Said once per name, since this runs at every press.
+    if not unknownSeen[binding.when] then
+      unknownSeen[binding.when] = true
+      log.w("unknown predicate '" .. tostring(binding.when) .. "'")
+    end
+    return true
+  end
+  return pred() and true or false
 end
 
 -- The only sub-modifiers a binding may require. `fn` is deliberately excluded:
@@ -200,10 +228,15 @@ function obj:_resolve(list, flags)
         end
       end
       if match then
+        -- A matched binding whose predicate is false is a swallowed no op rather than a
+        -- fall through to a catch all, so the key neither acts nor leaks, as before.
+        if not passes(self, b) then return noop, false end
         return b.fn, b.repeats
       end
-    else
+    elseif passes(self, b) then
       catchAll, catchAllRepeats = b.fn, b.repeats
+    else
+      catchAll, catchAllRepeats = noop, false
     end
   end
   return catchAll, catchAllRepeats

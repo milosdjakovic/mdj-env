@@ -77,12 +77,14 @@ and overridable through `cfg.policy`, and hidutil is declared by `root/manifest.
 unit still called keyremap. The root applies the remap itself just before the leaders are
 configured, through the dependency door like scutil. The window leader is `lib/windowleader.lua`,
 published in `obj.lib` and in the root's `libs`, configured once with the window role's keycode,
-and a plugin binds through `bind(key, fn, mods, repeats)` with no keycode. The window cheat sheet
+and a plugin binds through `bind(key, fn, mods, opts)` with no keycode, `opts` carrying `when` and `repeats`, and the lib owns the predicate gate like Hyper. The window cheat sheet
 is `host/windowcheatsheet` and reads the root word `windowBindings`, which is every binding on
 the window leader found by `hints.leaderBindings` walking the plan, stamped once, and also handed
-to the launcher in place of windowmanager's own record. Windowmanager keeps `leader = "window"`,
+to the launcher in place of windowmanager's own record, though the launcher's window rows still
+come only from windowmanager's actions until phase 3. Windowmanager keeps `leader = "window"`,
 renames `windowManagement` to `bindings`, and declares `needs.lib.windowLeader` with the wiring
-step `bindToLeader(self.windowLeader, self.bindings, root.predicates)`. The root words
+step `bindToLeader(self.windowLeader, self.bindings)`. The remap is applied just before the
+engines start, so a failed load leaves the native keys. The root words
 `activeNames`, `mapping` and `windowManagement` are gone and `windowBindings` is new. The
 launcher's sibling on windowmanager for the action map is untouched, and phase 3 removes it.
 

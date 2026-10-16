@@ -798,7 +798,7 @@ function obj:actions()
   }
 end
 
---- WindowManager:bindToLeader(windowLeader, bindings, predicates)
+--- WindowManager:bindToLeader(windowLeader, bindings)
 --- Method
 --- Bind window actions onto the window leader, the core lib the manifest asks for through
 --- needs.lib.windowLeader. `bindings` is this plugin's own ordered list, the effective
@@ -808,32 +808,17 @@ end
 --- `repeats` says the action keeps firing while its key is
 --- held, which only some of these want. A step is worth repeating and a placement is not, so
 --- moving and resizing carry it while maximize, the halves and the display switch do not,
---- since holding a key that puts a window somewhere exact would only put it there again. `predicates` maps
---- a `when` name to a function() -> bool. An entry with a `when` is wrapped so it
---- runs only while its predicate holds; a false predicate makes the key a no-op
---- (still swallowed by the held leader, so no raw character leaks). This is the
---- same gate the overlay applies to rows, so the key and the overlay agree.
---- An unknown name is treated as always active, matching the overlay, so a typo
---- fails visibly rather than silently disabling a binding.
-function obj:bindToLeader(windowLeader, bindings, predicates)
-  predicates = predicates or {}
+--- since holding a key that puts a window somewhere exact would only put it there again.
+--- `when` and `repeats` are handed to the leader through its bind options. The leader owns the
+--- predicate gate, so a false predicate makes the key a no op, still swallowed by the held
+--- leader so no raw character leaks, and the overlay applies the same gate to its rows.
+function obj:bindToLeader(windowLeader, bindings)
   local actionMap = self:actions()
   for _, binding in ipairs(bindings or {}) do
     local action = actionMap[binding.action]
     if action then
-      local when = binding.when
-      local fn = action
-      if when then
-        local p = predicates[when]
-        if not p then
-          log.w("unknown predicate '" .. tostring(when) .. "'")
-        else
-          fn = function(hold)
-            if p() then action(hold) end
-          end
-        end
-      end
-      windowLeader:bind(binding.key, fn, binding.mods, binding.repeats)
+      windowLeader:bind(binding.key, action, binding.mods,
+        { when = binding.when, repeats = binding.repeats })
     else
       log.w("Unknown action '" .. tostring(binding.action) .. "'")
     end

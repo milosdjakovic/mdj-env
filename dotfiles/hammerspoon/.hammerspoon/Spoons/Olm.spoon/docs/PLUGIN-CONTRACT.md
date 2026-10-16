@@ -275,17 +275,21 @@ defaults = {
   leader = "window",
   bindings = { { action = "leftHalf", key = "left" }, { action = "nextDisplay", key = ".", when = "multipleDisplays" } },
 },
-wiring = { { method = "bindToLeader", args = { "self.windowLeader", "self.bindings", "root.predicates" } } },
+wiring = { { method = "bindToLeader", args = { "self.windowLeader", "self.bindings" } } },
 ```
 
-The lib's `bind(key, fn, mods, repeats)` binds onto the one keycode the root configured it
-with, so a plugin never names a keycode, and `repeats` is true for a step worth repeating
-while the key is held. The root finds every binding declared on the window leader by walking
-the plan, whichever plugin declared it, stamps the leader keycode onto them once and hands
-the list to the window cheat sheet and to the launcher, so a binding declared this way
-appears in the held sheet with no other step. A binding may carry `when`, a predicate name
-gating the key and its sheet row together, and `description`, which overrides the label the
-sheet humanizes from the action name.
+The lib's `bind(key, fn, mods, opts)` binds onto the one keycode the root configured it
+with, so a plugin never names a keycode. `opts` carries `repeats`, true for a step worth
+repeating while the key is held, and `when`, a predicate name the lib resolves live against
+the table the root configured it with, so a false predicate makes the key a swallowed no op
+and an unknown name stays active, the same rule Hyper applies. The root finds every binding
+declared on the window leader by walking the plan, whichever plugin declared it, stamps the
+leader keycode onto them once and hands the list to the window cheat sheet, so a binding
+declared this way appears in the held sheet with no other step. A binding may carry `when`,
+which gates the key and its sheet row together, and `description`, which overrides the label
+the sheet humanizes from the action name. The launcher's window rows still come only from
+windowmanager's own action map until phase three of the core split, so a binding from another
+plugin is on the sheet and not yet in the launcher.
 
 The value is delivered on `opts` under the field name you chose, and a member defined as a
 method arrives already bound to its own module, so you can call it plainly. Both halves
@@ -1086,7 +1090,7 @@ wiring = {
   -- this plugin's own effective declarations, already merged with the user's overrides
   { method = "bindHotkeys", args = { "self.bindings" } },
   -- values the composition root assembles
-  { method = "bindToLeader", args = { "self.windowLeader", "self.bindings", "root.predicates" } },
+  { method = "bindToLeader", args = { "self.windowLeader", "self.bindings" } },
 }
 ```
 

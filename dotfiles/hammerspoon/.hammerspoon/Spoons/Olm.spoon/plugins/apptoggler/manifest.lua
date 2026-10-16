@@ -82,7 +82,7 @@ return {
 
   -- bindHotkeys is a second call this plugin exposes beyond configure, so it belongs in
   -- wiring rather than being folded into opts. It takes the toggle list positionally rather
-  -- than the whole options table, the same reason KeyRemap's apply needs args at all. self is
+  -- than the whole options table, the same reason any step that is not configure(opts) needs args at all. self is
   -- right rather than root now, toggles is this plugin's own effective declaration below,
   -- already merged with whatever the person's own file overrides.
   wiring = {

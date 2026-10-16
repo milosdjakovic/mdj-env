@@ -659,19 +659,15 @@ end
 --- declares them is what lets a plugin join a leader by writing leader = "window" and a
 --- bindings list, with nothing here or in the root naming it.
 ---
---- A plugin declaring one key of its own on the leader, eff.key, contributes that single
---- entry first, named for the plugin, mirroring what sections does for the Hyper sheet.
---- Entries are copied, never the declared tables themselves, so a caller stamping a keycode
+--- Only the bindings list is read. A single key of a plugin's own, eff.key, is not, since
+--- nothing binds one on the window leader, the root binds a host key on the app leader alone,
+--- and a sheet row for a key that does nothing would be dishonest. Entries are copied, never the declared tables themselves, so a caller stamping a keycode
 --- onto them cannot reach back into a plugin's effective record.
 function obj.leaderBindings(plan, role)
   local out = {}
   for _, directory in ipairs((plan or {}).order or {}) do
     local eff = ((plan or {}).effective or {})[directory] or {}
     if eff.leader == role then
-      if eff.key ~= nil then
-        out[#out + 1] = { action = directory, key = eff.key, mods = eff.mods,
-          description = eff.description, owner = directory }
-      end
       for _, b in ipairs(eff.bindings or {}) do
         local copy = { owner = directory }
         for k, v in pairs(b) do copy[k] = v end

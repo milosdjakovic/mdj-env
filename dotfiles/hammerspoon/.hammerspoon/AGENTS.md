@@ -191,7 +191,7 @@ release (Caps Lock's real toggle), fire `onHold(keyCode)` once ~0.6s pass with
 no other key. `lib/hyperkey.lua` and `lib/windowleader.lua` are thin domain adapters
 over it, both core and both published under `Olm.lib`. They keep their public
 contracts (`HyperKey:bind`/`isActive` for the plugins on the app leader,
-`WindowLeader:bind(key, fn, mods, repeats)` for the plugins on the window leader)
+`WindowLeader:bind(key, fn, mods, opts)` for the plugins on the window leader)
 and supply the per-key lookup. A plugin reaches the window leader the way it reaches
 Hyper, by declaring `leader = "window"` with a `bindings` list in its manifest defaults
 and `needs.lib.windowLeader = { from = "windowleader" }`, with a wiring step that calls

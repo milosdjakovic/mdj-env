@@ -1203,27 +1203,16 @@ function obj.run(olm, cfg)
   -- here for the two engines rather than resolved a second time.
   ------------------------------------------------------------------------------
 
-  -- The remap is applied here, ahead of every key that will be bound, from the catalog in
-  -- policy and the roles the person's config names. It was a plugin's wiring step until
-  -- phase two of the core split, and the root reading a plugin's catalog by name was the leak
-  -- that move closed. The binary comes through the dependency door from the root's own
-  -- declaration in root/manifest.lua, the same way scutil does, so this names no prefix. An
-  -- unresolved path is passed on as nil, and the engine answers by remapping nothing and
-  -- saying so, which leaves every leader its own native key.
-  keyRemapAtom:apply(keymapCatalog, activeLeaderNames, sharedDepsScope.path("hidutil"))
-
   -- The window cheat sheet host, named outright since both it and the window leader are core.
   -- The leader is handed it in its own configure below and builds its hold and release
   -- closures itself. Nil where the host did not load, which only costs the reveal.
   local windowCheatSheetModule = modules[plan.identity.windowcheatsheet or "windowcheatsheet"]
 
   -- The flat root argument namespace, deps.args, the only channel a non configure wiring
-  -- step can read a value through when that step's own signature is not opts shaped. The
-  -- predicate table is the one value left, bindToLeader takes it as a plain positional
-  -- argument rather than reading it off an opts table, so nothing generic can hand it over.
-  local wiringArgs = {
-    predicates = ownPredicates,
-  }
+  -- step can read a value through when that step's own signature is not opts shaped. Nothing
+  -- is owed through it now, the window leader owns the predicate gate and is handed the table
+  -- when it is configured, but the namespace stays for a plugin that needs one.
+  local wiringArgs = {}
 
   -- Assigned rather than declared, joining the forward declared set at the top of this
   -- function in phase three. Needed here, synchronously, rather than only inside a later
@@ -1375,6 +1364,7 @@ function obj.run(olm, cfg)
   windowLeaderAtom:configure({
     chord = chordKeyAtom,
     keyCode = windowKeycode,
+    predicates = ownPredicates,
     holdDelay = policy.chord.holdDelay,
     windowCheatSheet = windowCheatSheetModule,
     suppressWhen = anyListShowing,
@@ -1908,6 +1898,18 @@ function obj.run(olm, cfg)
   })
 
   w.contexts(hyperKeyAtom, bindOneInContext)
+
+  -- The remap is applied here, after every binding has been stored and immediately before the
+  -- engines start listening, and that placement is the point. The remap is machine wide and
+  -- takes Caps Lock and Right Option away from the system, so if anything raised earlier in
+  -- this load, a failed load must leave the native keys alone rather than two dead ones with
+  -- no chord engine behind them until the next reload. It was a plugin's wiring step until
+  -- phase two of the core split, and the root reading a plugin's catalog by name was the leak
+  -- that move closed. The binary comes through the dependency door from the root's own
+  -- declaration in root/manifest.lua, the same way scutil does, so this names no prefix. An
+  -- unresolved path is passed on as nil, and the engine answers by remapping nothing and
+  -- saying so, which leaves every leader its own native key.
+  keyRemapAtom:apply(keymapCatalog, activeLeaderNames, sharedDepsScope.path("hidutil"))
   w.start({ hyperKeyAtom, windowLeaderAtom }, chordKeyAtom)
 
   ------------------------------------------------------------------------------
