@@ -55,6 +55,10 @@ local leadersLib = load("lib/leaders.lua")
 local overlayDisplayLib = load("lib/overlaydisplay.lua")
 local hintsLib = load("lib/hints.lua")
 local registrarLib = load("lib/registrar.lua")
+-- How rows other plugins contribute reach the launcher and how a chosen one runs, assembled
+-- from the plan's set answers. A pure module like the registrar, so the unit case drives the
+-- same code this file runs.
+local contributionsLib = load("lib/contributions.lua")
 local navLib = load("lib/nav.lua")
 local servicesLib = load("lib/services.lua")
 local uiSpecLib = load("root/uispec.lua")
@@ -951,6 +955,14 @@ function obj.run(olm, cfg)
     end)
   end
 
+  -- Whether the launcher is part of this plan at all, asked of the first pass since the
+  -- launcher's two words below are built before the second one. A word over a launcher that is
+  -- switched off or blocked would answer nil forever while reporting itself delivered, so it is
+  -- not published, and a plugin requiring it gets the root's ordinary line naming what it
+  -- costs rather than a closure that quietly answers nothing.
+  local launcherIdentity = (firstPass.identity or {}).launcher or "launcher"
+  local launcherInPlan = (firstPass.effective or {})[launcherIdentity] ~= nil
+
   local rootValues = {
     -- THE SEAM, Fact 1's other half. The window cheat sheet reads the stamped list, every
     -- binding on the window leader. The launcher's window rows come from the window manager's
@@ -965,14 +977,15 @@ function obj.run(olm, cfg)
     -- name a host, so the root publishes them by field name like every other word here. The
     -- launcher is looked up when a closure is called rather than now, since the closures are
     -- handed out before the launcher is configured and a person typing is what calls them.
-    coveredApp = function()
-      local launcher = modules[((plan or firstPass).identity or {}).launcher or "launcher"]
+    -- Neither is published when the launcher is not in the plan, see launcherInPlan above.
+    coveredApp = launcherInPlan and function()
+      local launcher = modules[launcherIdentity]
       if launcher then return launcher:coveredApp() end
-    end,
-    refreshLauncher = function()
-      local launcher = modules[((plan or firstPass).identity or {}).launcher or "launcher"]
+    end or nil,
+    refreshLauncher = launcherInPlan and function()
+      local launcher = modules[launcherIdentity]
       if launcher then launcher:refresh() end
-    end,
+    end or nil,
 
     -- The shared when name to predicate table every gated binding is resolved against.
     predicates = ownPredicates,
@@ -2060,28 +2073,6 @@ function obj.run(olm, cfg)
 
   local launcherModule = modules[plan.identity.launcher or "launcher"]
   if launcherModule then
-    -- Every row a plugin hands the launcher comes back through here, stamped with that
-    -- plugin's identity as the owner on its item, by a copy since the plugin may hold the row
-    -- it built. The owner is a plain string, so the row still survives hs.chooser, and it is
-    -- the one word the launcher's dispatcher routes a chosen row by. A row that already names
-    -- an owner keeps it.
-    local function ownRows(rows, owner)
-      local out = {}
-      for i, row in ipairs(rows or {}) do
-        if type(row) == "table" and type(row.item) == "table" and row.item.owner == nil then
-          local copy, item = {}, {}
-          for k, v in pairs(row) do copy[k] = v end
-          for k, v in pairs(row.item) do item[k] = v end
-          item.owner = owner
-          copy.item = item
-          out[i] = copy
-        else
-          out[i] = row
-        end
-      end
-      return out
-    end
-
     -- The ordered query row sources. QueryScope leads, since it is the one that CLAIMS a
     -- query outright rather than only computing a row for it, then every plugin the plan's
     -- own set answer says provides queryRows, in the order the plan already settled on.
@@ -2108,13 +2099,8 @@ function obj.run(olm, cfg)
         -- same helper the stage and the query scope run, which is what lets a computed row name
         -- an icon and never draw one. The launcher still sees
         -- only a table answering rows(query) and learns nothing of who it came from.
-        local provider = modules[identity]
-        queryProviders[#queryProviders + 1] = {
-          rows = function(_, query)
-            local rows, exclusive = provider:rows(query)
-            return ownRows(iconRows.stampAll(rows, identity), identity), exclusive
-          end,
-        }
+        queryProviders[#queryProviders + 1] =
+          contributionsLib.queryProvider(modules[identity], identity, iconRows.stampAll)
         local example = ((plan.effective or {})[identity] or {}).example
         local hints = type(example) == "table" and example or { example }
         for _, hint in ipairs(hints) do
@@ -2128,42 +2114,20 @@ function obj.run(olm, cfg)
     local launcherEffective = (plan.effective or {})[plan.identity.launcher or "launcher"] or {}
 
     -- The rows other plugins add to the launcher's own catalog, and the runners that take a
-    -- chosen one back, both answered by the plan rather than named here. Every plugin in the
-    -- launcherRows set answer gets one supplier, a function calling that plugin's own declared
-    -- member when the launcher builds its rows, and every plugin in the launcherRun set answer
-    -- gets one runner, keyed by its identity. Each supplied row comes back with that identity
-    -- stamped as the owner on its item and as the owner of its icon key, so the launcher routes
-    -- a chosen row by one plain word and never learns which plugin built it.
-    --
-    -- The member is resolved lazily through the registrar's own door, the same one a scope's
-    -- rows and run go through, so a plugin that assembles a member inside its own configure is
-    -- still found. A member that resolves to nothing on the real module is named here once,
-    -- since the launcher would otherwise lose that plugin's rows or runs in silence.
-    local rowSuppliers, runners = {}, {}
-    local launcherSets = plan.sets.launcher or {}
-    local function contribution(identity, field)
-      local manifest = manifests[identity] or {}
-      local spec = (manifest.provides or {})[field]
-      local member = registrarLib.memberSpec(spec)
-      if member == nil or not registrarLib.memberResolves(modules[identity], member) then
-        log.e("Olm compose, '" .. tostring(identity) .. "' provides " .. field
-          .. " but it names no function on the module, so the launcher skips it")
-        return nil
-      end
-      return registrarLib.action(modules, identity, identity, spec)
-    end
-    for _, identity in ipairs(launcherSets.launcherRows or {}) do
-      local call = modules[identity] and contribution(identity, "launcherRows")
-      if call then
-        rowSuppliers[#rowSuppliers + 1] = function()
-          return ownRows(iconRows.stampAll(call() or {}, identity), identity)
-        end
-      end
-    end
-    for _, identity in ipairs(launcherSets.launcherRun or {}) do
-      local call = modules[identity] and contribution(identity, "launcherRun")
-      if call then runners[identity] = call end
-    end
+    -- chosen one back, both answered by the plan rather than named here. lib/contributions.lua
+    -- turns the launcherRows and launcherRun set answers into one supplier per contributor and
+    -- one runner per owner identity, each row stamped with its owner, its icon owner and its
+    -- place, so the launcher routes a chosen row by one plain word and never learns which
+    -- plugin built it.
+    local rowSuppliers, runners = contributionsLib.assemble({
+      host = plan.identity.launcher or "launcher",
+      plan = plan,
+      manifests = manifests,
+      modules = modules,
+      registrar = registrarLib,
+      stampIcons = iconRows.stampAll,
+      log = function(message) log.e("Olm compose, " .. message) end,
+    })
 
     -- THE SEAM. Stage is one of the five host modules this file may name. It is fully
     -- configured already, in the ordinary stage two pass above. stageModule itself was
@@ -2196,6 +2160,9 @@ function obj.run(olm, cfg)
       rowSuppliers = rowSuppliers,
       runners = runners,
       specialRows = launcherEffective.specialRows,
+      -- Where the launcher's own special rows sit among the contributed ones, its own shipped
+      -- number, which a person may move in config/plugins.lua like any default.
+      launcherOrder = launcherEffective.launcherOrder,
 
       -- What a row says about being reachable by a typed word, asked of the resolver that owns
       -- the grammar rather than restated here.
@@ -2249,6 +2216,10 @@ function obj.run(olm, cfg)
         -- back a callable for, so this file learns nothing new about recency to make VPN's row
         -- remember itself.
         rowIntercept = function(item)
+          -- A row a plugin contributed belongs to that plugin alone. It is never taken for a
+          -- registered tool of the same name nor for a scope, so only its owner's runner can
+          -- act on it.
+          if item.owner ~= nil then return nil end
           if item.kind == "special" and wiredRegistry.presentationFor then
             local presentation = wiredRegistry.presentationFor(item.name)
             if presentation then

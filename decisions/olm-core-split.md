@@ -18,6 +18,8 @@ and the root collects every window binding by walking the plan rather than readi
 A plugin puts rows in the launcher's own catalog by declaring `provides.launcherRows` and
 `provides.launcherRun`, the root stamps its identity on each row's item as `owner`, and the
 launcher runs an owned row through that owner's runner, so the launcher declares no siblings.
+Where a row sits is the contributor's own `defaults.launcherOrder`, and what it is remembered by
+is its own kind joined to its item's `key` or name.
 Bringing an app forward is `lib/appfocus.lua`, and `coveredApp` and `refreshLauncher` are words
 the root publishes over the launcher.
 
@@ -43,6 +45,12 @@ the root publishes over the launcher.
   action and the System Settings panes up among the commands, which a person scrolling an
   untouched list would see. Grouping by kind with a `directory` mark keeps the old order and
   names nothing.
+  Corrected 2026-10-16 13:32, see below.
+- **Placing contributed launcher rows by the order their kind words sort.** 2026-10-16 13:32. It
+  reproduced the old order only because capture, special and window happen to sort that way,
+  so the place of a row depended on how a kind is spelled, and it needed a `directory` mark to
+  keep the panes last. Each contributor declares `defaults.launcherOrder` instead, a row may
+  state its own `order`, and the launcher sorts by the number.
 - **A contributed row keeping the launcher as its icon owner.** 2026-10-16. It would have kept
   the owner field identical, but only by a plugin naming the launcher, the coupling phase 3
   removes. The plugin declares the same icon instead.
@@ -80,3 +88,25 @@ the root publishes over the launcher.
   bundle id registry, so the lib is `appfocus` rather than `apps`. A one off comparison against
   the previous commit found all 63 catalog rows otherwise equal, and
   `test/cases/launcher-contributions.lua` keeps the expected rows and one dispatch per kind.
+  Corrected 2026-10-16 13:32, see below.
+- 2026-10-16 13:32. The phase 3 review found no blocker and eight things to rework, done on the
+  same branch. The 13:16 entry was wrong that the order rule named nothing. Sorting groups by
+  kind word read the spelling of `capture`, `special` and `window`, and it matched the old order
+  by coincidence. Placement is a declared number now, `defaults.launcherOrder` per contributor,
+  overridable in `config/plugins.lua`, with a row's own `order` for the System Settings search
+  row, shipped as capture 10, the search row 20, the launcher's own rows 30, the window actions 40
+  and the panes 50, and the `directory` mark is gone since the panes sit last by number. Row
+  identity moved to the row too. An item may state `key`, which System Settings sets to each
+  pane's url, and `remember = false`, which Window Size sets on its typed size, so the launcher
+  keys every row it did not build as kind joined to key or name and keeps rules only for its
+  own kinds. Every persisted key is unchanged, checked row by row against the previous commit.
+  The root now always writes the owner over what a row carries, an owned row skips the alias
+  hint and the root's intercept and never falls through to `special` or `scope`, two
+  contributors answering one kind and key are named with both owners, and the assembly moved
+  into `lib/contributions.lua`, which the unit case drives. `coveredApp` and `refreshLauncher`
+  are published only when the launcher is in the plan, so menu search's required policy can
+  fail out loud. The review also noted that the set edges move the window manager and window
+  size later in configure order, after workspaces, display profiles and text case. Accepted
+  as is, since none of the plugins whose order shifted reads another at configure, every
+  contributed member is called when the launcher first builds its rows, and the plan still
+  wires every contributor before the launcher.

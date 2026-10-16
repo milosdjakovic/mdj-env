@@ -92,6 +92,10 @@ return {
 
   defaults = {
     leader = "window",
+    -- Where the window action rows sit in the launcher's own catalog, a number compared with
+    -- every other contributor's and with the launcher's own. Forty puts them after the
+    -- launcher's own rows and before the System Settings panes, where they have always been.
+    launcherOrder = 40,
     bindings = {
       -- Switch display (first row, hidden on a single display by the predicate)
       { action = "previousDisplay",      key = ",", when = "multipleDisplays" },

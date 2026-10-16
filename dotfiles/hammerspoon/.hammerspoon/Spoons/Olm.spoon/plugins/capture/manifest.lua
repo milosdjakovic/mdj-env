@@ -91,6 +91,11 @@ return {
 
   defaults = {
     leader = "app",
+    -- Where these four rows sit in the launcher's own catalog, a number compared with every
+    -- other contributor's and with the launcher's own. Ten leads every other contributed row,
+    -- where the screenshot actions have always been. A person moves them in
+    -- config/plugins.lua like any default.
+    launcherOrder = 10,
     bindings = {
       { action = "ocrArea", key = "3", description = "OCR", icon = "ocr" },
       { action = "captureAreaClipboard", key = "4", description = "Screenshot (copy)", icon = "screenshot" },

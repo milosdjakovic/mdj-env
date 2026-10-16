@@ -51,15 +51,12 @@ up empty. One dispatcher turns the descriptor back into the right call, so this
 is the Command pattern with the command encoded as data, and the launcher still
 never learns what a row does.
 
-Adding a row for a registered tool is now two small edits rather than the one line
-this paragraph used to promise. Phase seven's third packet moved a tool's row data, its
-category, its icon, its detail, its keywords, and whether it renders a chord, off this
-file and onto that tool's `row` in the composition root's registration, so the edit
-there is the `row` table itself, and the edit here is one `addTool` line in
-`_buildActionRows` naming the tool, which asks the registry for that row through
-`rowFor` and builds it. Adding a tool row is therefore not yet one registration, since
-the launcher still needs its own line and still decides where in the build that line
-sits, which is what keeps the row order exactly what a fresh reload has always shown.
+Adding a row for a registered tool is one registration and no edit here. A tool's row
+data, its category, its icon, its detail, its keywords, and whether it renders a chord,
+lives on that tool's `row` in its registration, and `_buildActionRows` asks the registry
+for every row it holds, in the registry's own order, through `listing` and `rowFor`. The
+one `addTool` line per tool this paragraph used to describe is gone, and those registry
+rows lead the catalog ahead of every contributed and declared row.
 The three rows belonging to no registered tool and no plugin, `lock`, `sleep`, and the
 alias directory, are declared in this host's own manifest as `specialRows`, since none of
 those names anything the registry has ever heard of. The System Settings search row was a
@@ -84,27 +81,44 @@ whether the item has an owner with a runner and runs it through that runner, on 
 delay every row waits for after the chooser closes. Only then does the kind switch run, and
 the kinds this host still owns are `app`, `special` for registry tools and its own declared
 rows, `calc` and `scope`. A computed sum carries an owner and no runner, so it falls through to
-`calc` exactly as before.
+`calc` exactly as before. An owned row whose owner runs nothing never reaches `special` or
+`scope`, since both act on a tool's name and an owner must not reach another tool through a
+word it chose. The root also writes the owner over whatever a row arrived with, so a plugin
+cannot route a row into somebody else's runner, and an owned row is never asked for an alias
+hint nor taken by the root's intercept for a registered tool or a scope of the same name.
 
-A contributed row is `{ title, subTitle?, group?, chord?, icon, keywords?, when?, directory?,
-item }`. The item keeps whatever kind and identifying field the plugin chose, and for every row
-that existed before the change it keeps exactly the kind and field it had, `capture` and the
-action name, `window` and the action name, `settingsPane` and the url, `special` and
-`searchSettings`, because the recency keys below are built from those and must not move. A row
+A contributed row is `{ title, subTitle?, group?, chord?, icon, keywords?, when?, order?,
+item }`. The item names its `kind` and a `name`, and may state `key`, the identifying string
+the launcher remembers it by in place of the name, and `remember = false`, which keeps it out
+of recency and the query memory altogether. Row identity is the row's own business, so this
+host keys every row it did not build as the kind joined to the key or the name, and only its own
+kinds keep rules of their own, an app by its bundle id, a computed or scoped row never. Every row
+that existed before the change keeps exactly the key it was persisted under, `capture` and the
+action name, `window` and the action name, `settingsPane` and the url stated as its key,
+`special` and `searchSettings`, and a typed window size states `remember = false` where this host
+used to recognise one by its size field. Two contributed rows answering one kind and one key are
+named at build with both owners, since they would share a memory and nothing would say so. A row
 names its chord as parts rather than as words, `group` the word before it and `chord = {
 leader, key, mods }` with the leader as a role, so the subtitle is spelled by `_chordSuffix`
 with the one shared speller and the leader display name the root passes for every role, and
 reads byte for byte what it read when this host built the row itself. A row with a finished
 `subTitle` keeps it as it stands.
 
-The order of an untouched list is stated in `_buildActionRows` rather than left to a loop.
-Commands are grouped by their kind, the groups in the order the kind words sort, within a group
-each supplier's rows in the set's own stable order, then this host's declared rows last in the
-group their kind names. A row marked `directory` is listed after every command, which is where
-the System Settings panes have always sat. That rule names no kind and no plugin and it gives
-exactly the order the list had before, screenshots, the settings search, the alias directory,
-lock and sleep, the window actions, and the panes at the end. A supplier that raises is dropped
-with a log line rather than costing the list every other row.
+The order of an untouched list is a declared number, not something this host works out. Each
+contributor states `defaults.launcherOrder` in its own manifest, a person may move it in
+`config/plugins.lua` like any default, and the root stamps it on every row the plugin answers
+that does not state its own `order`. This host's own declared rows take its own
+`defaults.launcherOrder`. `_buildActionRows` puts the registry's rows first and then sorts the
+rest by that number, a row with none after every numbered one, a tie keeping the suppliers in
+the set's own order, each supplier's rows in the order it answered them, and this host's own rows
+last. The shipped numbers are capture 10, the settings search row 20 by its own `order`, this
+host's alias directory, lock and sleep 30, the window manager 40 and the System Settings panes
+50, which is exactly the order the list had before. Nothing reads a kind word or a plugin name
+to decide a place. A first attempt grouped rows by kind with the groups in the order the kind
+words sort and a `directory` mark for the panes, which reproduced the order by coincidence of
+spelling, and it was replaced by these numbers the same day. The `directory` mark went with it,
+since the panes sit last by their number alone and the app rows always lead the catalog anyway.
+A supplier that raises is dropped with a log line rather than costing the list every other row.
 
 ## Query row sources, the composable half of the list
 
@@ -328,7 +342,7 @@ Verified live, reaching menu search through the directory lists the covered app'
 
 ## Static rows are built on first use, not at configure
 
-The command rows and the directory rows used to be built in `configure`, and they are now
+The command rows and the settings pane rows used to be built in `configure`, and they are now
 built on the first open and cached, joining the app scan that was already lazy there. A
 contributed row is asked of its supplier at that moment too, which matters for System
 Settings, whose pane list is empty until its own configure has run.
@@ -446,10 +460,10 @@ The last thing used bubbles to the top whether it was an app or a command. There
 is one most-recently-used timeline, not an app-only one, keyed by a
 kind-qualified item key (`app:<bundleID>`, `capture:<name>`, `special:<name>`,
 `window:<name>`, `settingsPane:<url>`) so an app and a command never collide.
-The key is the kind and the name, or the url for a pane, and never the owner, so
-a row a plugin contributes is remembered under the same key the launcher used
-when it built that row itself, and a pick persisted before phase three of the
-core split still floats its row.
+The key is the kind and the row's own `key` or its name, never the owner, so a
+row a plugin contributes is remembered under the same key the launcher used when
+it built that row itself, a pane stating its url as its key, and a pick persisted
+before phase three of the core split still floats its row.
 Every used row of any kind sorts above every unused one, used rows most-recent
 first, and unused rows keep their natural order, which is open apps first then
 alphabetical for apps and the curated order for the action and settings rows. So

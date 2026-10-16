@@ -114,7 +114,16 @@ return {
       title = "Search Settings",
       subTitle = "System · opens the System Settings search field",
       icon = "search",
+      -- Its place among the launcher's rows, after the screenshot actions and before the
+      -- launcher's own rows, where it has always sat. See launcherOrder below.
+      order = 20,
     },
+
+    -- Where the pane rows sit in the launcher's own catalog, a number compared with every
+    -- other contributor's and with the launcher's own. Fifty puts them after every command,
+    -- capture at ten, the launcher's own rows at thirty, the window actions at forty, which is
+    -- where the panes have always been. A person moves them in config/plugins.lua.
+    launcherOrder = 50,
 
     -- config/settingsPanes today, and every id below was read off this machine's installed
     -- settings extensions, but the ids are Apple's, not this person's, so the whole catalog

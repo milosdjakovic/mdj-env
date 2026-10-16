@@ -580,24 +580,55 @@ builds its rows rather than at load, so a list assembled inside configure is rea
   icon = "screenshot",                      -- a key into this plugin's own manifest icons
   when = nil,                               -- a predicate name gating the row live, optional
   keywords = nil,                           -- hidden words the matcher reads, optional
-  directory = nil,                          -- true lists the row after every command
-  item = { kind = "capture", name = "captureArea" } }
+  order = nil,                              -- this row's own place, else the plugin's
+  item = { kind = "capture", name = "captureArea",
+           key = nil,                       -- what it is remembered by, else the name
+           remember = nil } }               -- false keeps it out of every memory
 ```
 
 A row is data and never a function, because the launcher hands every row to `hs.chooser`,
 which drops a row holding one without a word. The subtitle is either a finished `subTitle` or
 the parts, `group` and `chord` with its leader named by role, which the launcher spells with the
 shared chord speller so a row and the docked hint bar print the same words for one key. The
-root stamps the plugin's identity on every item as `owner` and on the row as `iconOwner`. The
-launcher routes a chosen row by that owner, so `launcherRun` is handed the whole item back after
-the chooser has closed and focus has returned, and reads whatever fields it put there itself.
+root stamps the plugin's identity on every item as `owner`, always, over anything the row
+arrived with, so a plugin cannot route a row into another plugin's runner, and on the row as
+`iconOwner`. The launcher routes a chosen row by that owner, so `launcherRun` is handed the whole
+item back after the chooser has closed and focus has returned, and reads whatever fields it put
+there itself. An owned row is never asked for an alias hint, never taken by the root's intercept
+for a registered tool or a scope of the same name, and when its owner runs nothing it still
+reaches the launcher's plain kinds, a computed value copied or an app opened, but never
+`special` or `scope`.
 
-The item's `kind` and its name, or its `url`, are the launcher's recency key, `kind:name`, so
-choose them once and keep them. A row whose kind and name change is a new row to the recency
-memory, and every pick a person made under the old key is forgotten. `app`, `calc`, `scope` and
-`special` are the launcher's own kinds, and a contributed row may use `special` only for a
-name no registered tool has. A member named here that resolves to nothing on the real module
-is named by the dry gate and on the console rather than failing in silence.
+Identity belongs to the row. The launcher remembers a row as its `kind` joined to its item's
+`key`, or to its `name` when it states no key, so choose them once and keep them. A row whose
+kind or key changes is a new row to the recency memory and to the query memory, and every pick a
+person made under the old key is forgotten. System Settings states each pane's url as its key,
+which is the key the launcher persisted for a pane before rows were contributed. `remember =
+false` keeps a row out of both memories, for a row computed from what was typed, Window Size's
+typed size being the shipped case. Two contributors answering one kind and one key are named on
+the console with both owners when the launcher builds its rows. `app`, `calc`, `scope` and
+`special` are the launcher's own kinds, and a contributed row may use `special` only for a name
+no registered tool has. A member named here that resolves to nothing on the real module is named
+by the dry gate and on the console rather than failing in silence.
+
+Where a row sits is a number, `defaults.launcherOrder` in the contributing plugin's manifest,
+which a person overrides in `config/plugins.lua` like any default and which the root stamps on
+every row of that plugin that states no `order` of its own. The launcher's own special rows take
+its own `defaults.launcherOrder`. The registry's rows lead the catalog, and every other row
+follows sorted by its number, a row with none after every numbered one, a tie keeping the set's
+own order of suppliers, then each supplier's own order of rows, then the launcher's rows. The
+shipped numbers reproduce the order the list has always had.
+
+| Rows | Number | Declared in |
+|---|---|---|
+| Capture's screenshot actions | 10 | `plugins/capture`, `defaults.launcherOrder` |
+| The System Settings search row | 20 | `plugins/systemsettings`, `defaults.searchRow.order` |
+| The alias directory, lock and sleep | 30 | `host/launcher`, `defaults.launcherOrder` |
+| The window actions | 40 | `plugins/windowmanager`, `defaults.launcherOrder` |
+| The System Settings panes | 50 | `plugins/systemsettings`, `defaults.launcherOrder` |
+
+Leave gaps when choosing a number, so a plugin added later can sit between two without anybody
+renumbering.
 
 ### registry
 

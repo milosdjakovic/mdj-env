@@ -63,7 +63,6 @@ obj._placeholders = nil     -- the rotation pool, this host's own placeholder fi
 obj._placeholderLast = nil  -- the previous open's own pick, never repeated immediately
 obj._surface = nil          -- the stage's own nav adapter, delegated to rather than built here
 obj._actionRows = nil
-obj._directoryRows = nil    -- contributed rows marked directory, listed after every command
 obj._configuredApps = nil
 obj._installedApps = nil         -- the disk scan, cached until a watched app directory changes
 obj._appRowsCache = nil          -- app rows only, invalidated on running-set change, activation, or a directory change
@@ -125,14 +124,18 @@ local function recencyKey(item)
   -- named and exists only for that query, so remembering it would float a stale answer to
   -- the top of the next fresh open.
   if item.kind == "calc" or item.kind == "scope" then return nil end
-  -- A window row that carries its OWN dimensions is the same case a third time. It was
-  -- computed from a typed size rather than named by a binding, so it exists only for that
-  -- query and there is no identity to remember, where every other window row names one of
-  -- the bound actions this catalog lists and recency legitimately orders those.
-  if item.kind == "window" and item.size then return nil end
+  -- A row whose owner says it has no identity worth remembering, the same case a third time.
+  -- The owner decides, since only it knows whether a row was computed from what was typed, a
+  -- window size being the shipped example, and this host must not guess from the fields a
+  -- row of somebody else's happens to carry.
+  if item.remember == false then return nil end
+  -- An app is this host's own kind, keyed by its bundle id.
   if item.kind == "app" then return "app:" .. tostring(item.bundleID) end
-  if item.kind == "settingsPane" then return "settingsPane:" .. tostring(item.url) end
-  return item.kind .. ":" .. tostring(item.name)
+  -- Every other row is its kind joined to its identifying string, `key` when the row states
+  -- one and its name otherwise, so a plugin decides what identifies its own row. A System
+  -- Settings pane states its url as the key, which is exactly the key this host used to build
+  -- for it by name, so no pick persisted before is forgotten.
+  return item.kind .. ":" .. tostring(item.key or item.name)
 end
 
 --- Launcher:init()
@@ -200,8 +203,12 @@ function obj:configure(opts)
   -- _buildActionRows for how they are placed and _runItem for how they run.
   self._rowSuppliers = opts.rowSuppliers or {}
   self._runners = opts.runners or {}
-  -- This host's own rows that answer to no registration, declared rather than written out.
+  -- This host's own rows that answer to no registration, declared rather than written out,
+  -- and the place they take among the contributed rows, this host's own defaults.launcherOrder.
+  -- Kept rather than overwritten when a later call arrives without one, for the reason the
+  -- chord speller below documents, this host is configured twice.
   self._specialRows = opts.specialRows or {}
+  self._launcherOrder = opts.launcherOrder or self._launcherOrder
   self._glyphFor = opts.glyphFor or function(key) return tostring(key) end
   -- The shared chord speller, held as data rather than wrapped in a method of its own, so a
   -- row states the exact same words the docked hint bar and the action panel already agree
@@ -394,22 +401,21 @@ end
 --- larger, and every open after it is served from the cache.
 function obj:_ensureStaticRows()
   if self._actionRows then return end
-  self._actionRows, self._directoryRows = self:_buildActionRows()
+  self._actionRows = self:_buildActionRows()
 end
 
---- Launcher:_buildActionRows() -> rows, directoryRows
+--- Launcher:_buildActionRows() -> rows
 --- Method
---- The static action rows, and separately the contributed rows marked directory, which the
---- full list places after every command. Each is { title, subTitle, image, item, when? } where
---- item is a serializable descriptor for the dispatcher.
+--- The static action rows, the registry's first and then every contributed and declared row
+--- in its declared order. Each is { title, subTitle, image, item, when? } where item is a
+--- serializable descriptor for the dispatcher.
 function obj:_buildActionRows()
   local rows = {}
-  local directoryRows = {}
   -- keywords is hidden text the matcher sees and the row does not show, the same field
   -- the injected rows already carry. It exists so a row can answer to a word its title
   -- and subtitle have no room for, rather than that word being padded into the visible
   -- subtitle where it would cost a reader something to buy a searcher something.
-  local function add(title, subTitle, item, icon, when, keywords, subTitleFn, image, owner, into)
+  local function add(title, subTitle, item, icon, when, keywords, subTitleFn, image, owner)
     -- A tool reachable by typing a word says so on its own row, and it says it here rather
     -- than at each call site. That is the difference between a hint a row can be forgotten
     -- from, which is how file search ended up advertising nothing, and one that cannot be,
@@ -420,7 +426,9 @@ function obj:_buildActionRows()
     -- strings that have to agree. Only a special row can be a tool, so nothing else is asked,
     -- which also means an action sharing a name with a scope cannot pick up a hint that was
     -- never about it. The usual answer is empty.
-    if item and item.kind == "special" then
+    -- A row a plugin contributed carries its owner and is never asked, since its name is that
+    -- plugin's own word and a registered tool or a scope sharing it must not lend it a hint.
+    if item and item.kind == "special" and item.owner == nil then
       subTitle = (subTitle or "") .. self._aliasHint(item.name)
     end
     -- An image handed in outright wins over the drawn icon, the one caller today being
@@ -431,8 +439,7 @@ function obj:_buildActionRows()
     -- across shows, so a picture drawn here would keep the colour of the half the system was in
     -- when the cache was built, and the chooser draws the icon at paint instead. An action row
     -- has no app icon of its own, so the owner defaults to this host.
-    into = into or rows
-    into[#into + 1] = { title = title, subTitle = subTitle, image = image,
+    rows[#rows + 1] = { title = title, subTitle = subTitle, image = image,
                         icon = image == nil and icon or nil,
                         iconOwner = image == nil and icon ~= nil and (owner or self._iconOwner) or nil,
                         item = item, when = when, keywords = keywords, subTitleFn = subTitleFn }
@@ -538,29 +545,24 @@ function obj:_buildActionRows()
   -- chord this host spells, so every chord in the list is spelled by the one shared speller.
   -- The owner is already on the item, stamped by the root, and it is what _runItem routes by.
   --
-  -- THE ORDER, which is what a person sees scrolling an untouched list, so it is stated rather
-  -- than left to fall out of a loop. Commands are grouped by their descriptor kind, the groups in
-  -- the order their kind words sort, and within a group each supplier's rows in the order the
-  -- root handed the suppliers over, which is the set's own stable order, then this host's own
-  -- declared rows last in the group their kind names. That rule names no kind and no plugin,
-  -- and it is the order the list has always had, screenshots, then the settings search, the
-  -- alias directory, lock and sleep, then the window actions. A row marked directory is kept
-  -- apart and listed after every command, after the apps and the rows above, which is where
-  -- the System Settings panes have always sat, since a row that only navigates somewhere reads
-  -- better below the rows that do something.
+  -- THE ORDER, which is what a person sees scrolling an untouched list. Every row carries a
+  -- number, `order`, declared rather than derived. A contributed row has its own when it states
+  -- one and its plugin's defaults.launcherOrder otherwise, stamped by the root, and this host's
+  -- own rows take this host's own launcherOrder. Rows sort by that number, a row with none
+  -- after every numbered one, and a tie keeps the suppliers in the set's own stable order, then
+  -- each supplier's rows in the order it answered them, then this host's rows last. So the place
+  -- of a row is a number its owner wrote down and a person may move, and nothing here reads a
+  -- kind word or a plugin name to decide it. The shipped numbers reproduce the order the list
+  -- has always had, docs/PLUGIN-CONTRACT.md lists them.
   --
   -- A supplier that raises is dropped with a log line rather than costing the list every
   -- other row, the same rule a query row source lives under.
-  local byKind, kinds = {}, {}
-  local function group(kind)
-    local key = tostring(kind or "")
-    if not byKind[key] then
-      byKind[key] = {}
-      kinds[#kinds + 1] = key
-    end
-    return byKind[key]
+  local entries = {}
+  local seen = {}
+  local function push(entry)
+    entry.seq = #entries + 1
+    entries[#entries + 1] = entry
   end
-  local directory = {}
   for _, supplier in ipairs(self._rowSuppliers or {}) do
     local ok, answered = pcall(supplier)
     if not ok then
@@ -568,21 +570,31 @@ function obj:_buildActionRows()
     else
       for _, r in ipairs(answered or {}) do
         if type(r) == "table" and type(r.item) == "table" and r.title then
-          if r.directory then
-            directory[#directory + 1] = r
-          else
-            local list = group(r.item.kind)
-            list[#list + 1] = { contributed = r }
+          -- Two plugins answering one kind and one identifying string would share a recency
+          -- key and run whichever owner the row happened to carry, so the collision is named
+          -- once, at build, with both owners, rather than discovered as a pick that floats the
+          -- wrong row.
+          local id = tostring(r.item.kind) .. ":" .. tostring(r.item.key or r.item.name or r.item.url)
+          local first = seen[id]
+          if first and first ~= r.item.owner then
+            log.w(string.format("Launcher found two rows answering '%s', from '%s' and '%s'",
+              id, tostring(first), tostring(r.item.owner)))
+          elseif not first then
+            seen[id] = r.item.owner
           end
+          push({ contributed = r, order = r.order })
         end
       end
     end
   end
   for _, r in ipairs(self._specialRows or {}) do
-    local list = group("special")
-    list[#list + 1] = { own = r }
+    push({ own = r, order = self._launcherOrder })
   end
-  table.sort(kinds)
+  table.sort(entries, function(a, b)
+    if (a.order ~= nil) ~= (b.order ~= nil) then return a.order ~= nil end
+    if a.order ~= nil and a.order ~= b.order then return a.order < b.order end
+    return a.seq < b.seq
+  end)
 
   -- The subtitle a contributed row shows. A finished one is taken as it stands, otherwise the
   -- group word joined to the chord, otherwise the group word alone, which is what a row with no
@@ -594,27 +606,22 @@ function obj:_buildActionRows()
     end
     return r.group
   end
-  local function addContributed(r, into)
-    add(r.title, contributedSubTitle(r), r.item, r.icon, r.when, r.keywords, nil, nil,
-      r.iconOwner or r.item.owner, into)
-  end
 
-  for _, kind in ipairs(kinds) do
-    for _, entry in ipairs(byKind[kind]) do
-      if entry.own then
-        local r = entry.own
-        local subTitle = r.subTitle
-        if not subTitle and r.category and r.key then
-          subTitle = self:_chordSuffix(r.category, self:_leaderName(r.leader), r.key)
-        end
-        add(r.description, subTitle, { kind = "special", name = r.name }, r.icon, nil, r.keywords)
-      else
-        addContributed(entry.contributed)
+  for _, entry in ipairs(entries) do
+    if entry.own then
+      local r = entry.own
+      local subTitle = r.subTitle
+      if not subTitle and r.category and r.key then
+        subTitle = self:_chordSuffix(r.category, self:_leaderName(r.leader), r.key)
       end
+      add(r.description, subTitle, { kind = "special", name = r.name }, r.icon, nil, r.keywords)
+    else
+      local r = entry.contributed
+      add(r.title, contributedSubTitle(r), r.item, r.icon, r.when, r.keywords, nil, nil,
+        r.iconOwner or r.item.owner)
     end
   end
-  for _, r in ipairs(directory) do addContributed(r, directoryRows) end
-  return rows, directoryRows
+  return rows
 end
 
 --- Launcher:_buildConfiguredApps()
@@ -758,8 +765,7 @@ end
 --- Method
 --- Every row of every kind in one list, ordered by the shared recency timeline.
 --- The natural order is apps (open first, then alphabetical) then the curated
---- action rows then the directory rows, the System Settings panes today. Each row
---- carries that position as _n. A
+--- action rows in their declared order. Each row carries that position as _n. A
 --- row used before, of any kind, carries its recency rank as _rank. The sort puts
 --- every used row above every unused one, used rows most-recent first, and unused
 --- rows in their natural order, so the last thing used sits on top while an
@@ -780,7 +786,6 @@ function obj:_orderedRows()
   end
   for _, row in ipairs(self:_appRows()) do push(row) end
   for _, row in ipairs(self._actionRows) do push(row) end
-  for _, row in ipairs(self._directoryRows) do push(row) end
   table.sort(rows, function(x, y)
     if (x._rank ~= nil) ~= (y._rank ~= nil) then return x._rank ~= nil end -- used before unused
     if x._rank and y._rank then return x._rank < y._rank end               -- more recent first
@@ -1239,6 +1244,10 @@ function obj:_runItem(it)
     self._runTimer = hs.timer.doAfter(0.1, function() runner(it) end)
     return
   end
+  -- An owned row with no runner may still be one of this host's plain kinds, a computed sum
+  -- copied or an app opened, but never special or scope, since both act on another tool's name
+  -- and an owned row must not reach a tool through a word its owner chose.
+  if it.owner ~= nil and (it.kind == "special" or it.kind == "scope") then return end
   if it.kind == "app" then
     self._runTimer = hs.timer.doAfter(0.1, function()
       if a.app then a.app(it.bundleID, it.url) end

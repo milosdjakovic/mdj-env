@@ -239,6 +239,13 @@ return {
     -- the three that is a correctness guard rather than a preference. Raising it toward one
     -- makes the memory apply only to near ties, lowering it lets it reach further, and zero
     -- removes the guard entirely and is very unlikely to be what anyone wants.
+    -- Where this host's own special rows, the alias directory, lock and sleep, sit among the rows
+    -- other plugins contribute, a number compared with each contributor's own launcherOrder.
+    -- Thirty puts them after the screenshot actions and the settings search and before the
+    -- window actions, where they have always been. docs/PLUGIN-CONTRACT.md lists every
+    -- shipped number.
+    launcherOrder = 30,
+
     ranking = {
       decay = 0.80,
       margin = 0.6,

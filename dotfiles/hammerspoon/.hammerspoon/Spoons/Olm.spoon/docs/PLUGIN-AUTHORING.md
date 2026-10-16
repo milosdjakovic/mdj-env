@@ -573,13 +573,16 @@ launcher routes a chosen row to your `launcherRun` by it, after the list has clo
 gone back to the app underneath. Read the fields you put there yourself.
 
 The kind and the name are a memory key. The launcher remembers picks in `hs.settings` as the
-kind joined to the name, or to the url for a row carrying one. Pick them once, since renaming
-either makes the launcher forget every time a person chose that row.
+kind joined to the item's `key`, or to its name when it states no key. Pick them once, since
+renaming either makes the launcher forget every time a person chose that row. A row computed
+from what was typed states `remember = false` and is never remembered at all.
 
 `icon` is a key into your own manifest icons, read against your identity like every row icon.
 `when` names a predicate that hides the row live, the way a window binding's gate hides its key.
-`keywords` is hidden text the matcher reads. `directory = true` lists the row after every
-command, which suits a row that navigates somewhere rather than doing something.
+`keywords` is hidden text the matcher reads. Where your rows sit is `defaults.launcherOrder`,
+a number compared with every other contributor's, and a single row may state its own `order`
+to sit apart from the rest of yours. The contract lists the shipped numbers, so choose one in a
+gap between them.
 
 A query row source owns the rows it computes too, so one that wants a chosen row run by itself
 declares `launcherRun` alone and leaves `launcherRows` out. Window Size is that case.

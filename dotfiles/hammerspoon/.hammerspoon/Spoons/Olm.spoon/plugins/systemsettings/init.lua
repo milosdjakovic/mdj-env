@@ -170,22 +170,25 @@ local SEARCH_ROW = "searchSettings"
 ---
 --- Every row is plain data and never a function, because the launcher hands each row to
 --- hs.chooser and a row holding a function is silently dropped. Each item keeps the kind and
---- the identifying field it has always carried, settingsPane with its url and special with
---- the search row's name, since the launcher remembers what was picked under those words. A
---- pane row is marked directory, which places it after every command in the list a person
---- opens on, where the panes have always sat, since a row that only navigates somewhere
---- reads better below the rows that do something.
+--- the identifying string it has always been remembered by, settingsPane with its url as the
+--- key and special with the search row's name, since the launcher persists what was picked
+--- under the kind joined to that string.
+---
+--- The panes take this plugin's own place in the list, defaults.launcherOrder, which ships
+--- after every command, where the panes have always sat, since a row that only navigates
+--- somewhere reads better below the rows that do something. The search row states its own
+--- order in defaults.searchRow, since it does something and sits among the commands.
 function obj:launcherRows()
   local out = {}
   local s = self._searchRow
   if type(s) == "table" and s.title then
     out[#out + 1] = {
-      title = s.title, subTitle = s.subTitle, icon = s.icon,
+      title = s.title, subTitle = s.subTitle, icon = s.icon, order = s.order,
       item = { kind = "special", name = SEARCH_ROW },
     }
   end
   for _, row in ipairs(self:rows()) do
-    row.directory = true
+    row.item.key = row.item.url
     out[#out + 1] = row
   end
   return out

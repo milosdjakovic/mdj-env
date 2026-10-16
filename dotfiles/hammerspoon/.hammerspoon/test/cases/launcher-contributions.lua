@@ -1,18 +1,22 @@
 -- Unit case for the rows other plugins contribute to the launcher's own catalog, phase three of
 -- the core split. Capture, the window manager and System Settings each answer their own rows
 -- through provides.launcherRows and run a chosen one through provides.launcherRun, and the
--- launcher routes a chosen row by the owner the composition root stamps on its item. Before
+-- launcher routes a chosen row by the owner lib/contributions.lua stamps on its item. Before
 -- that the launcher held seven siblings on four plugins and built these rows itself.
 --
 -- What is asserted is what a person sees and what the launcher remembers. The titles, the
--- subtitles, the icon keys, the order of an untouched list, and the kind and identifying field
--- every item carries, since the recency memory persisted in hs.settings is keyed by those and a
--- change would make the launcher forget every pick made before it. The expected words were
--- read off the launcher as it built these rows before the change, by a one off comparison run
--- against the previous commit, which found every field equal except the owner an icon key is
--- read against. The window rows and the settings search row read theirs against the plugin
--- that built them now, which declares the same emoji and the same SF Symbol the launcher did,
--- so the picture is unchanged.
+-- subtitles, the icon keys, the order of an untouched list, and the recency key of every row,
+-- since the recency memory persisted in hs.settings is keyed by kind and identifying string and
+-- a change would make the launcher forget every pick made before it. The expected words were
+-- read off the launcher as it built these rows before the change, by a comparison run against
+-- the previous commit, which found every field equal except the owner an icon key is read
+-- against. The window rows and the settings search row read theirs against the plugin that
+-- built them now, which declares the same emoji and the same SF Symbol the launcher did, so the
+-- picture is unchanged.
+--
+-- The suppliers, the runners and the query row wrapper come from lib/contributions.lua itself,
+-- the same module the composition root calls, handed a plan shaped like the real one, so the
+-- owner stamping, the order stamping and the member resolution here are the code that runs.
 --
 -- Then one row per kind is run through the launcher's own dispatcher and must reach the right
 -- runner with the right argument. Every plugin method that would act on the world, take a
@@ -22,19 +26,24 @@
 --
 -- Fresh copies throughout, each module loaded with loadfile straight out of this checkout, so
 -- the instance the live config holds is never reached. Under a plain lua interpreter with no
--- Hammerspoon at all, a small stub stands in, which is how the comparison above was run.
+-- Hammerspoon at all, a small stub stands in.
 
 local source = debug.getinfo(1, "S").source
 local herePath = source:match("^@(.*)$") or source
 local caseDir = herePath:match("^(.*)/[^/]+$")
 local spoon = caseDir .. "/../../Spoons/Olm.spoon/"
 
+-- Warnings the launcher logs, readable only under the stub, since a live logger keeps its
+-- lines to itself.
+local warnings = nil
 if hs == nil then
+  warnings = {}
   hs = {
     settings = { get = function() return nil end, set = function() end },
     processInfo = { bundleID = "org.hammerspoon.Hammerspoon" },
     logger = { new = function()
-      return setmetatable({}, { __index = function() return function() end end })
+      return setmetatable({ w = function(msg) warnings[#warnings + 1] = msg end },
+        { __index = function() return function() end end })
     end },
     timer = { doAfter = function(_, fn) return { fire = function() fn() end, stop = function() end } end },
     image = { imageFromAppBundle = function() return nil end },
@@ -61,10 +70,18 @@ local function load(rel)
   return chunk()
 end
 
-local captureManifest = load("plugins/capture/manifest.lua")
-local windowManifest = load("plugins/windowmanager/manifest.lua")
-local settingsManifest = load("plugins/systemsettings/manifest.lua")
-local launcherManifest = load("host/launcher/manifest.lua")
+local contributions = load("lib/contributions.lua")
+local registrar = load("lib/registrar.lua")
+
+local manifests = {
+  capture = load("plugins/capture/manifest.lua"),
+  windowmanager = load("plugins/windowmanager/manifest.lua"),
+  systemsettings = load("plugins/systemsettings/manifest.lua"),
+  windowsize = load("plugins/windowsize/manifest.lua"),
+  launcher = load("host/launcher/manifest.lua"),
+}
+local captureManifest, windowManifest = manifests.capture, manifests.windowmanager
+local settingsManifest, launcherManifest = manifests.systemsettings, manifests.launcher
 
 -- The three contributors and the one query row source that runs its own row, each a fresh
 -- copy given the effective defaults its manifest ships, the same values configure receives
@@ -85,32 +102,46 @@ settings:configure({ panes = settingsManifest.defaults.panes,
   searchRow = settingsManifest.defaults.searchRow })
 
 local windowSize = load("plugins/windowsize/init.lua")
+windowSize:init()
+windowSize:configure({ plan = function(w, h) return { width = w, height = h, clamped = false } end })
 
--- What the composition root does with a contributor's rows, stamp its identity as the owner of
--- the item and of the icon key, by a copy. Restated rather than reached, since the root is one
--- long function and not a module a case can load.
-local function own(rows, identity)
+local modules = { capture = capture, systemsettings = settings, windowmanager = windows,
+  windowsize = windowSize }
+
+-- What the icon door does to a row naming an icon, set its owner when it has none. The icon
+-- engine itself is not this case's subject.
+local function stampIcons(rows, owner)
   local out = {}
   for i, row in ipairs(rows or {}) do
-    local copy, item = {}, {}
-    for k, v in pairs(row) do copy[k] = v end
-    for k, v in pairs(row.item) do item[k] = v end
-    item.owner = identity
-    copy.item = item
-    if copy.icon ~= nil and copy.image == nil and copy.iconOwner == nil then copy.iconOwner = identity end
-    out[i] = copy
+    if row.icon ~= nil and row.image == nil and row.iconOwner == nil then
+      local copy = {}
+      for k, v in pairs(row) do copy[k] = v end
+      copy.iconOwner = owner
+      out[i] = copy
+    else
+      out[i] = row
+    end
   end
   return out
 end
 
-local modules = { capture = capture, systemsettings = settings, windowmanager = windows,
-  windowsize = windowSize }
-local suppliers, runners = {}, {}
-for _, identity in ipairs({ "capture", "systemsettings", "windowmanager" }) do
-  suppliers[#suppliers + 1] = function() return own(modules[identity]:launcherRows(), identity) end
-end
-for identity, mod in pairs(modules) do
-  runners[identity] = function(item) return mod:launcherRun(item) end
+-- The plan as the resolver shapes it, the set answers sorted by identity and the effective
+-- defaults keyed by identity, with an optional person override merged over one plugin's.
+local function planWith(overrides)
+  local effective = {}
+  for identity, m in pairs(manifests) do
+    local merged = {}
+    for k, v in pairs(m.defaults or {}) do merged[k] = v end
+    for k, v in pairs((overrides or {})[identity] or {}) do merged[k] = v end
+    effective[identity] = merged
+  end
+  return {
+    sets = { launcher = {
+      launcherRows = { "capture", "systemsettings", "windowmanager" },
+      launcherRun = { "capture", "systemsettings", "windowmanager", "windowsize" },
+    } },
+    effective = effective,
+  }
 end
 
 -- A chord speller that keeps every part visible, so a subtitle that names the wrong leader,
@@ -120,45 +151,63 @@ local function chordLabel(leader, key, mods)
 end
 
 local leafCalls = {}
-local launcher = load("host/launcher/init.lua")
-launcher:init()
-launcher:configure({
-  leaderNames = { app = "Hyper", window = "Meta" },
-  chordLabel = chordLabel,
-  rowSuppliers = suppliers,
-  runners = runners,
-  specialRows = launcherManifest.defaults.specialRows,
-  iconOwner = "launcher",
-  predicates = { multipleDisplays = function() return true end },
-  actions = {
-    app = function(bundleID, url) leafCalls[#leafCalls + 1] = "app " .. bundleID .. " " .. tostring(url) end,
-    copy = function(value) leafCalls[#leafCalls + 1] = "copy " .. tostring(value) end,
-    special = { lock = function() leafCalls[#leafCalls + 1] = "lock" end },
-  },
-})
--- No app scan, the catalog rows are the subject here.
-launcher._appRows = function() return {} end
-launcher:_ensureStaticRows()
+local function buildLauncher(plan, extraSuppliers)
+  local suppliers, runners = contributions.assemble({
+    host = "launcher", plan = plan, manifests = manifests, modules = modules,
+    registrar = registrar, stampIcons = stampIcons,
+  })
+  for _, s in ipairs(extraSuppliers or {}) do suppliers[#suppliers + 1] = s end
+  local launcher = load("host/launcher/init.lua")
+  launcher:init()
+  launcher:configure({
+    leaderNames = { app = "Hyper", window = "Meta" },
+    chordLabel = chordLabel,
+    rowSuppliers = suppliers,
+    runners = runners,
+    specialRows = launcherManifest.defaults.specialRows,
+    launcherOrder = plan.effective.launcher.launcherOrder,
+    iconOwner = "launcher",
+    predicates = { multipleDisplays = function() return true end },
+    -- A scope that would hint every special name, so an owned row asking it shows up.
+    aliasHint = function(name) return name == "searchSettings" and " (HINT)" or "" end,
+    queryProviders = { contributions.queryProvider(windowSize, "windowsize", stampIcons) },
+    actions = {
+      app = function(bundleID, url) leafCalls[#leafCalls + 1] = "app " .. bundleID .. " " .. tostring(url) end,
+      copy = function(value) leafCalls[#leafCalls + 1] = "copy " .. tostring(value) end,
+      special = {
+        lock = function() leafCalls[#leafCalls + 1] = "lock" end,
+        searchSettings = function() leafCalls[#leafCalls + 1] = "special searchSettings" end,
+      },
+    },
+  })
+  -- No app scan, the catalog rows are the subject here.
+  launcher._appRows = function() return {} end
+  launcher:_ensureStaticRows()
+  return launcher
+end
+
+local launcher = buildLauncher(planWith())
 
 --------------------------------------------------------------------------------
 -- The rows, as they read.
 --------------------------------------------------------------------------------
 
-local actionRows, directoryRows = launcher._actionRows, launcher._directoryRows
+local actionRows = launcher._actionRows
 local nWindows = #windowManifest.defaults.bindings
 local nCapture = #captureManifest.defaults.bindings
-eq("every command row is listed", #actionRows, nCapture + 1 + 3 + nWindows)
-eq("every pane is listed after the commands", #directoryRows, #settingsManifest.defaults.panes)
+local nPanes = #settingsManifest.defaults.panes
+eq("every catalog row is listed", #actionRows, nCapture + 1 + 3 + nWindows + nPanes)
 
--- The untouched order, which is the order the list has always had.
+-- The untouched order, which is the order the list has always had, the panes last.
 local wantOrder = { "OCR", "Screenshot (copy)", "Screenshot", "Record screen", "Search Settings",
   "Aliases", "Lock Screen", "Sleep", "Previous Display", "Next Display", "Left Half" }
 for i, title in ipairs(wantOrder) do
   eq("row " .. i .. " is " .. title, (actionRows[i] or {}).title, title)
 end
-eq("the last command row is the last window action", actionRows[#actionRows].title,
-  "Hide All Except Focused")
-eq("the first directory row is the first pane", directoryRows[1].title, "Wi-Fi")
+local lastWindow = nCapture + 1 + 3 + nWindows
+eq("the last window action precedes the panes", actionRows[lastWindow].title, "Hide All Except Focused")
+eq("the first pane follows every command", actionRows[lastWindow + 1].title, "Wi-Fi")
+eq("the last row is the last pane", actionRows[#actionRows].title, "Device Management")
 
 local function expectRow(label, row, want)
   row = row or {}
@@ -168,7 +217,7 @@ local function expectRow(label, row, want)
   eq(label .. " icon key", row.icon, want.icon)
   eq(label .. " icon owner", row.iconOwner, want.iconOwner)
   eq(label .. " kind", item.kind, want.kind)
-  eq(label .. " identifying field", item.name or item.url, want.id)
+  eq(label .. " identifying field", item.key or item.name, want.id)
   eq(label .. " owner", item.owner, want.owner)
   eq(label .. " gate", row.when, want.when)
   eq(label .. " carries no image", row.image, nil)
@@ -177,6 +226,8 @@ end
 expectRow("capture row", actionRows[3], {
   title = "Screenshot", subTitle = "Capture · Hyper 4+shift", icon = "screenshot",
   iconOwner = "capture", kind = "capture", id = "captureArea", owner = "capture" })
+-- The scope above would hint this name, and an owned row is never asked, so the subtitle is
+-- exactly what it always was, the real resolver answering nothing for this name either.
 expectRow("search settings row", actionRows[5], {
   title = "Search Settings", subTitle = "System · opens the System Settings search field",
   icon = "search", iconOwner = "systemsettings", kind = "special", id = "searchSettings",
@@ -188,15 +239,17 @@ expectRow("gated window row", actionRows[9], {
   title = "Previous Display", subTitle = "Window · Meta ,", icon = "windows",
   iconOwner = "windowmanager", kind = "window", id = "previousDisplay", owner = "windowmanager",
   when = "multipleDisplays" })
-expectRow("window row", actionRows[#actionRows], {
+expectRow("window row", actionRows[lastWindow], {
   title = "Hide All Except Focused", subTitle = "Window · Meta H", icon = "windows",
   iconOwner = "windowmanager", kind = "window", id = "hideAllExceptFocused",
   owner = "windowmanager" })
-expectRow("pane row", directoryRows[1], {
+expectRow("pane row", actionRows[lastWindow + 1], {
   title = "Wi-Fi", subTitle = "System Settings", icon = "wifi", iconOwner = "systemsettings",
   kind = "settingsPane", id = "x-apple.systempreferences:com.apple.wifi-settings-extension",
   owner = "systemsettings" })
-eq("pane row keywords", directoryRows[1].keywords, "wifi wireless internet network")
+eq("pane row keeps its url", actionRows[lastWindow + 1].item.url,
+  "x-apple.systempreferences:com.apple.wifi-settings-extension")
+eq("pane row keywords", actionRows[lastWindow + 1].keywords, "wifi wireless internet network")
 
 -- The icon each contributed row names is one its owner declares, drawn the same as the
 -- launcher's own copy was, so the picture did not change when the owner did.
@@ -209,16 +262,58 @@ eq("the search icon is the one the launcher drew", settingsManifest.icons.search
 eq("the search icon emoji is the one the launcher drew", settingsManifest.icons.search.emoji, "🔍")
 
 --------------------------------------------------------------------------------
--- The catalog scopes and the recency keys.
+-- Recency keys, byte identical to the keys persisted before the change.
+--------------------------------------------------------------------------------
+
+-- The old rule, written out, kind and name, the url for a pane, nothing for a sized window.
+local function oldKey(item)
+  if item.kind == "calc" or item.kind == "scope" then return nil end
+  if item.kind == "window" and item.size then return nil end
+  if item.kind == "app" then return "app:" .. tostring(item.bundleID) end
+  if item.kind == "settingsPane" then return "settingsPane:" .. tostring(item.url) end
+  return item.kind .. ":" .. tostring(item.name)
+end
+
+-- The launcher's own key, read through the query memory, which is handed exactly that key.
+local noted
+launcher._assoc = { note = function(_, key) noted = key end }
+launcher.currentQuery = function() return "q" end
+local function keyOf(item)
+  noted = nil
+  launcher:_noteAssociation(item)
+  return noted
+end
+
+local mismatched = 0
+for _, row in ipairs(actionRows) do
+  if keyOf(row.item) ~= oldKey(row.item) then
+    mismatched = mismatched + 1
+    print("FAIL recency key for " .. tostring(row.title) .. ", wanted " .. tostring(oldKey(row.item))
+      .. ", got " .. tostring(keyOf(row.item)))
+  end
+end
+eq("every catalog row keeps its persisted recency key", mismatched, 0)
+eq("a pane is remembered by its url", keyOf(actionRows[lastWindow + 1].item),
+  "settingsPane:x-apple.systempreferences:com.apple.wifi-settings-extension")
+
+local sized = launcher:_queryRows("1920x1080")[1]
+eq("a typed size reaches the launcher as a row", (sized or {}).title, "1920 x 1080")
+eq("the query row carries its owner", ((sized or {}).item or {}).owner, "windowsize")
+eq("the query row's icon is read against its owner", (sized or {}).iconOwner, "windowsize")
+eq("a typed size is never remembered", keyOf((sized or {}).item or {}), nil)
+eq("an app keeps its own key", keyOf({ kind = "app", bundleID = "com.apple.finder" }),
+  "app:com.apple.finder")
+launcher._assoc = nil
+launcher.currentQuery = nil
+
+--------------------------------------------------------------------------------
+-- The catalog scopes, and the recency order.
 --------------------------------------------------------------------------------
 
 eq("the window scope lists every window action", #launcher:rowsOfKind("window"), nWindows)
-eq("the settings scope lists every pane", #launcher:rowsOfKind("settingsPane"),
-  #settingsManifest.defaults.panes)
+eq("the settings scope lists every pane", #launcher:rowsOfKind("settingsPane"), nPanes)
 eq("the capture rows keep their kind", #launcher:rowsOfKind("capture"), nCapture)
 
--- Recency keyed by kind and name, or by url for a pane, exactly the keys persisted before, so a
--- pick remembered under the old build still floats its row to the top.
 launcher._mru = { "settingsPane:x-apple.systempreferences:com.apple.wifi-settings-extension",
   "special:searchSettings", "capture:ocrArea", "window:center" }
 launcher._orderedRowsCache = nil
@@ -230,6 +325,37 @@ eq("then the remembered window action", (ordered[4] or {}).title, "Center")
 eq("then the untouched order resumes", (ordered[5] or {}).title, "Screenshot (copy)")
 launcher._mru = {}
 launcher._orderedRowsCache = nil
+
+--------------------------------------------------------------------------------
+-- Placement is a declared number, and a person may move it.
+--------------------------------------------------------------------------------
+
+local moved = buildLauncher(planWith({ windowmanager = { launcherOrder = 5 } }))
+eq("window actions moved to five lead the list", moved._actionRows[1].title, "Previous Display")
+eq("and the screenshot actions follow them", moved._actionRows[nWindows + 1].title, "OCR")
+
+--------------------------------------------------------------------------------
+-- An owner is stamped, never chosen, and a collision is named.
+--------------------------------------------------------------------------------
+
+-- A supplier that claims another plugin's identity on its row, and a second row answering a
+-- kind and name capture already answers. The stamp overwrites the claim.
+local forged = contributions.ownRows({
+  { title = "Forged", item = { kind = "capture", name = "ocrArea", owner = "capture" } },
+}, "windowmanager")
+eq("ownRows overwrites a claimed owner", forged[1].item.owner, "windowmanager")
+local clashing = buildLauncher(planWith(), { function() return forged end })
+local forgedRow
+for _, row in ipairs(clashing._actionRows) do if row.title == "Forged" then forgedRow = row end end
+eq("the forged row keeps the stamped owner", forgedRow and forgedRow.item.owner, "windowmanager")
+if warnings then
+  local named = false
+  for _, w in ipairs(warnings) do
+    if w:find("capture:ocrArea", 1, true) and w:find("'capture'", 1, true)
+      and w:find("'windowmanager'", 1, true) then named = true end
+  end
+  check("two rows answering one kind and name are named with both owners", named)
+end
 
 --------------------------------------------------------------------------------
 -- Dispatch, one row per kind, each reaching its own runner with its own argument.
@@ -252,6 +378,7 @@ end
 
 local function run(item)
   calls, leafCalls = {}, {}
+  launcher._runTimer = nil
   launcher:runItem(item)
   local timer = launcher._runTimer
   if timer then
@@ -272,13 +399,14 @@ eq("a window row reaches the window manager", run(itemOf(actionRows, "maximize")
   "window maximize")
 eq("the search row reaches System Settings", run(itemOf(actionRows, "searchSettings")),
   "focusSearch")
-eq("a pane row opens its pane", run(directoryRows[2].item),
+eq("a pane row opens its pane", run(actionRows[lastWindow + 2].item),
   "open x-apple.systempreferences:com.apple.BluetoothSettings")
-eq("a typed size reaches the window size plugin",
-  run({ kind = "window", name = "exactSize", size = { width = 1920, height = 1080 }, owner = "windowsize" }),
+eq("a typed size reaches the window size plugin through its query row", run(sized.item),
   "exactSize 1920x1080")
 eq("an own special row stays the launcher's", run(itemOf(actionRows, "lock")), "lock")
 eq("an app row reaches the app action", run({ kind = "app", bundleID = "com.apple.finder" }),
   "app com.apple.finder nil")
 eq("a computed row whose owner runs nothing falls through to its kind",
   run({ kind = "calc", value = "42", owner = "arithmetic" }), "copy 42")
+eq("an owned special row whose owner runs nothing reaches no tool",
+  run({ kind = "special", name = "searchSettings", owner = "arithmetic" }), nil)

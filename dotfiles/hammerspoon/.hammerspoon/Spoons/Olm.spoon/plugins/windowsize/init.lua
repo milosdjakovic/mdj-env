@@ -129,10 +129,11 @@ function obj:rows(query)
       filterText = query,
       -- The window kind, naming the window manager's own exact size action and carrying the
       -- size that action needs, run by launcherRun below once the root has stamped this
-      -- plugin as the row's owner. A window row that carries a size is computed rather than
-      -- catalogued, which is also how the launcher knows to keep it out of the recency
-      -- timeline.
-      item = { kind = "window", name = "exactSize", size = { width = w, height = h } },
+      -- plugin as the row's owner. The row is computed rather than catalogued.
+      -- remember false keeps it out of the launcher's recency and its query memory, since it
+      -- exists only for the size that was typed and has no identity to remember.
+      item = { kind = "window", name = "exactSize", size = { width = w, height = h },
+        remember = false },
     },
   }
 end
