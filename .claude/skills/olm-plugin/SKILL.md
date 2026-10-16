@@ -192,7 +192,9 @@ existing word before minting a new one, since a vocabulary of one word per plugi
 vocabulary nobody can pay. Siblings exist and are rare, prefer not needing one, and a sibling
 never names a host. A plugin whose actions deserve rows in the launcher's own catalog declares
 `provides.launcherRows` and `provides.launcherRun` instead, the contract has the row shape and
-the authoring guide has the walk through.
+the authoring guide has the walk through. A plugin that binds leader keys from its own data rather than
+from manifest bindings declares `provides.cheatSheetSections` so its keys reach that leader's
+sheet, which otherwise lists only what the manifests declare.
 
 Configuration splits three ways. The plugin proposes its own `defaults`, a leader role, a key,
 aliases, an icon, and a person overrides them outside the plugin, rebinding a physical key only

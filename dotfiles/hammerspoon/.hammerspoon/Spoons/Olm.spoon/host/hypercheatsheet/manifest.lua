@@ -22,30 +22,31 @@ return {
       cheatSheet = { from = "cheatsheet", policy = "required" },
     },
 
-    data = {
-      -- config/apps.lua, the person's own bundle id registry. This plugin resolves a
-      -- toggle's app name into a name and an icon through it, so it is this person's own
-      -- knowledge rather than something Olm could ship, the same reasoning VPN's relay list
-      -- already earns. Optional, since a missing registry only drops the app rows rather
-      -- than the whole overlay.
-      apps = { source = "user", policy = "optional",
-        breaks = "the overlay's app section stays empty, since nothing maps a toggle's app name to a bundle id to resolve a name and an icon from" },
-      -- config/keys.lua's appToggles list, the person's own choice of which apps get a
-      -- Hyper toggle and on which key. Optional for the same reason apps is, a missing
-      -- list only drops the app rows.
-      toggles = { source = "user", policy = "optional",
-        breaks = "the overlay's app section stays empty, since there is no toggle list to resolve against the app registry" },
-      -- The static, non app sections appended after the running and dormant split, assembled
-      -- by the root out of several plugins' own bindings. Root computed, since building that
-      -- list is composition policy this plugin could not know on its own. Optional, since an
-      -- absent list only means the overlay stops at the app split.
-      --
-      -- What this field cannot say is that the list must enumerate every plugin that actually
-      -- carries a Hyper chord. The live root's own list is a hand kept copy that has already
-      -- gone stale once, and needs.data only proves a list arrived, never that it is
-      -- complete against the rest of the set.
-      sections = { source = "root", policy = "optional",
-        breaks = "the overlay shows the running and dormant app split and nothing else, since no static service sections are appended after it" },
+    -- Every plugin that adds sections to a leader's sheet. A contributor answers them from its
+    -- own cheatSheetSections member, built from its own data, and states the leader they belong
+    -- to as defaults.leader, so only the ones on the app leader reach this sheet. Asking the set
+    -- is what lets the app toggles appear here while this host names no plugin and reads no
+    -- plugin's data, which until phase four of the core split it did.
+    set = {
+      cheatSheetSections = { provides = { "cheatSheetSections" } },
     },
+
+    data = {
+      -- The ordered list of sections, the root's assembly of two sources. This sheet's own
+      -- block, every chord the root found bound on the app leader, and one supplier per plugin
+      -- answering the set above, each placed by its cheatSheetOrder. Root computed, since only
+      -- the root may resolve a member on another plugin's module and only the root knows what
+      -- it bound. Optional, since an absent list leaves an overlay with nothing to show rather
+      -- than a broken one.
+      sections = { source = "root", policy = "optional",
+        breaks = "holding Hyper shows an empty overlay, since neither the bound chords nor any plugin's sections are handed over" },
+    },
+  },
+
+  defaults = {
+    -- Where this sheet's own block, every chord bound on the app leader, sits among the
+    -- sections plugins contribute, a number compared with each contributor's own
+    -- cheatSheetOrder. Fifty follows the app toggles at ten, the order the sheet has always had.
+    cheatSheetOrder = 50,
   },
 }

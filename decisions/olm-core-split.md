@@ -3,7 +3,8 @@
 Status. In progress. Phases 1 to 3 of `Spoons/Olm.spoon/docs/PLAN-CORE-SPLIT.md` have
 landed. Phase 5, the switch and the settings Plugins page, is built and reviewed on its branch,
 its apply reworked after Milos's first live try to stage choices and apply them when the stage
-closes, and owes its live load.
+closes, and owes its live load. Phase 4, cheat sheets that list exactly what their leader binds, is built on
+its branch stacked on phase 5 and owes its live load.
 
 ## Now
 
@@ -23,6 +24,11 @@ Where a row sits is the contributor's own `defaults.launcherOrder`, and what it 
 is its own kind joined to its item's `key` or name.
 Bringing an app forward is `lib/appfocus.lua`, and `coveredApp` and `refreshLauncher` are words
 the root publishes over the launcher.
+A leader's cheat sheet lists what the root collected from the manifests, a plugin's own key, its
+`bindings`, its keyed special rows and its registry leader commands, plus the sections a plugin
+supplies by declaring `provides.cheatSheetSections`, placed by `defaults.cheatSheetOrder` and
+routed by `defaults.leader`. The app toggler supplies the app sections, so the Hyper sheet reads
+no person data and names no plugin.
 There is one plugin switch. A plugin under `plugins/` is off when `config/plugins.lua` says
 `false` or the settings page saved its identity under `Olm.disabledPlugins`, its code never
 runs, a plugin requiring it is reported off because of every switched off plugin it depends on,
@@ -76,6 +82,17 @@ the place the plugin was in, and the next load reopens it through `stage.present
   but any other reload, a config file saved while the page is open, would then apply a half
   made set nobody announced. A staged set is a draft, it lives in memory until apply, and a
   draft lost to a reload costs a few presses.
+- **Keeping the toggle split in the Hyper sheet and handing it the toggles as root data.**
+  2026-10-16 16:40. It would have removed the person data read from the manifest and kept the
+  code where it was, but the sheet would still know the shape of one plugin's data, app, key,
+  modifiers and the running split, and the plugin would still bind from a list the sheet did not
+  see. The plugin supplies its own sections instead.
+- **Rendering every contributed badge through the glyph helper.** 2026-10-16 16:40. It is the
+  uniform choice, and it would have turned every toggle's letter into its upper case glyph, a
+  visible change on a sheet that was meant to look the same. A row may state its own badge.
+- **Asking the window sheet the same set.** 2026-10-16 16:40. It reads no person data, and a set
+  question nothing answers is reported as a problem on every load. It asks the day a plugin on
+  the window leader supplies sections.
 - **A contributed row keeping the launcher as its icon owner.** 2026-10-16. It would have kept
   the owner field identical, but only by a plugin naming the launcher, the coupling phase 3
   removes. The plugin declares the same icon instead.
@@ -202,3 +219,25 @@ the place the plugin was in, and the next load reopens it through `stage.present
   rejected, Apply now is optional and dismissing applies just the same. The settings row for
   where the launcher appears changed its icon at the same time, to `macwindow.and.cursorarrow`,
   an outline window with a pointer naming both modes, confirmed in the CoreGlyphs name list.
+- 2026-10-16 16:40. Phase 4 built on its branch, stacked on phase 5. The Hyper sheet read the
+  person's appToggles and app registry through `cfg.shared`, while the app toggler bound from its
+  own merged list, so a core host knew one plugin's data and shape and the two could disagree. A
+  plugin now supplies sheet sections through `provides.cheatSheetSections`, routed by its
+  `defaults.leader` and placed by `defaults.cheatSheetOrder`, assembled by
+  `contributions.sheetSections` beside the launcher's `assemble` and resolved through the same
+  member door. The app toggler builds its rows in `bindHotkeys` from the entries it bound into the
+  modal and answers running then dormant on every show. The sheet's own block takes fifty from the
+  sheet's own manifest. The second question, whether a leader command reaches its sheet, had a
+  real answer. `hints.sections` found a registry command's key through the plan, which has no
+  directory for a command, so a command bound on a leader was dropped from the sheet while the
+  registrar bound it through the root's own lookup. Nothing shipped was lost, since the only
+  keyed commands, the clipboard's append copy and paste next, are global. The lookup moved into
+  `registrar.commandKey`, used by both. `test/cases/leader-sheets.lua` builds the plan over the
+  real manifests, drives the real binding code into recorders, restating only the two rules that
+  live inline in `root/compose.lua`, the host key loop and the lock and sleep rows, and found no
+  key bound and not shown and none shown and not bound on either leader. A mutation giving the
+  alias directory a key the root never binds failed it, as it should. Still open. A registry
+  tool declaring `leader = "window"` with a leader shortcut would be bound on Hyper by
+  `registrar.bind` and listed on neither sheet, since bind always uses the app engine. No such
+  tool exists. And the launcher still reads the person's toggles and app registry itself for
+  its app rows' chord subtitles, the same shape of leak this phase removed from the sheet.

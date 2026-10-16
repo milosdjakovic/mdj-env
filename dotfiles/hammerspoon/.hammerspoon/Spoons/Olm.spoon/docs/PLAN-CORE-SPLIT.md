@@ -136,6 +136,31 @@ Every key a plugin declares on a leader appears in that leader's sheet, and noth
 is not bound there. Fix the Actions listing. Check that a command declared on a leader reaches
 the sheet, since the trace suggests a leader command is dropped. App toggles stay person data.
 
+**Done, 2026-10-16, built, live load owed.** The Hyper sheet reads no person data. A plugin adds
+sections to a leader's sheet by declaring `provides.cheatSheetSections`, a member answering
+sections and asked on every show, with `defaults.leader` naming the sheet and
+`defaults.cheatSheetOrder` placing them. The Hyper sheet asks the set
+`needs.set.cheatSheetSections` and declares only `data.sections`, and `lib/contributions.lua`
+gained `sheetSections`, which resolves each supplier on the leader the sheet reveals through the
+same member door the launcher uses, wraps it so one that raises costs only its own sections, and
+orders suppliers with the sheet's own block by number, the toggles at ten and the sheet's own
+block at fifty, its `defaults.cheatSheetOrder`. The app toggler is the supplier. It resolves names
+and icons once in `bindHotkeys`, from exactly the entries it bound into the Hyper modal, and splits
+running from dormant in `cheatSheetSections`, so the sheet now lists what was bound rather than the
+person's raw list. The sheet renders a section with `icons = true` in its icon grid and any other
+without the gutter, and a row's own `badge` stands, so the sheet draws as before. The window sheet
+reads no person data, so it is unchanged. The command check found the defect real but latent.
+`hints.sections` looked a registry command up through the plan, found no directory and no key, and
+dropped it, while the registrar bound it through the root's command lookup. No shipped command
+sits on a leader, the clipboard's two are global, so nothing visible was lost. The lookup moved
+into `registrar.commandKey`, the root binds with it and hands it to the app sheet's sections, so a
+leader command is listed with its launcher row's description. `test/cases/leader-sheets.lua`
+builds a plan over the real manifests, binds through the real binding code into recorders, shows
+both sheets into recorders, and finds every bound key shown and every shown key bound on both
+leaders, with the app toggler and without it, and with a probe leader command added. The key
+inventory now reads the toggle models off the app toggler, its lines renamed by hand in the
+golden, which the live run owes a check.
+
 ### Phase 5, the switch
 
 1. One saved set of disabled plugins in `hs.settings`, merged with `false` entries from the

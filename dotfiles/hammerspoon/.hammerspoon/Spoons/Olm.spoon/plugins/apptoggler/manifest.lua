@@ -84,7 +84,23 @@ return {
     { method = "bindHotkeys", args = { "self.toggles" } },
   },
 
+  -- The Hyper cheat sheet lists the toggles because this plugin says it supplies sections for
+  -- a leader's sheet, never because the sheet knows it exists. cheatSheetSections answers the
+  -- running and dormant split of every toggle this plugin bound into the Hyper modal, asked on
+  -- every show since which apps are running changes while Hammerspoon runs. Switched off, the
+  -- sheet simply has no app section.
+  provides = {
+    cheatSheetSections = "cheatSheetSections",
+  },
+
   defaults = {
+    -- The leader whose sheet lists the toggles, the one a modal entry binds on through
+    -- needs.lib.hyperKey. An entry with its own `modifiers` is a global combo on no leader and
+    -- is never listed.
+    leader = "app",
+    -- Where the app sections sit on that sheet, compared with the sheet's own block of bound
+    -- chords at fifty. Ten keeps the apps first, where they have always been.
+    cheatSheetOrder = 10,
     apps = {
       Finder = "com.apple.finder",
     },

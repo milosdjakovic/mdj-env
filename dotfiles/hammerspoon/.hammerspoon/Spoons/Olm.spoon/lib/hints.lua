@@ -598,10 +598,24 @@ function obj.sections(registry, plan, deps)
     }
   end
 
+  -- A leader command is bound through the registrar's own key lookup, never through the plan,
+  -- since a command belongs to no directory. Reading it through the plan alone found no key for
+  -- one and dropped it from the sheet while the key worked, which is what phase four of the core
+  -- split found. The root hands the lookup only to the sheet of the leader whose engine binds
+  -- registry commands, so a command never lands on a sheet whose leader does not answer it.
+  local commandKey = (deps or {}).commandKey
+
   for _, entry in ipairs(registry.shortcuts()) do
-    if entry.kind == "leader" then
-      local key = keyForIdentity(entry.name)
-      local eff = (key and plan.effective[key]) or {}
+    local key = entry.kind == "leader" and keyForIdentity(entry.name) or nil
+    if entry.kind == "leader" and key == nil then
+      local bound = commandKey and commandKey(entry.name)
+      if bound then
+        local row = registry.rowFor(entry.name)
+        local detail = row and type(row.detail) == "string" and row.detail or nil
+        add(bound.key, bound.mods, entry.name, bound.description or detail or entry.name)
+      end
+    elseif entry.kind == "leader" then
+      local eff = plan.effective[key] or {}
       -- A tool living on another leader has no business on this leader's overlay, and one
       -- that states no leader is left in rather than guessed at.
       if role == nil or eff.leader == nil or eff.leader == role then

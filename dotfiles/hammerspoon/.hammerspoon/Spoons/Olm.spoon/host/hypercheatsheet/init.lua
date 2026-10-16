@@ -1,38 +1,35 @@
 --- === HyperCheatSheet ===
 ---
---- Content builder for the Hyper overlay: everything reachable while the Hyper
---- key is held. The app toggles come first, split into apps that are currently
---- running and apps that are not, followed by any static service sections
---- (the app bindings) passed in from the composition root. Meant to be
---- triggered by the onHold hook the root wires. Reads the same appToggles and apps
---- config the bindings use, so the app rows never drift.
+--- Content builder for the Hyper overlay, everything reachable while the Hyper key is held.
+--- It renders an ordered list of sections the composition root hands it and knows nothing
+--- about who supplied them. Some are the sheet's own, every chord the root found bound on the
+--- app leader, built once. Others come from plugins that declare provides.cheatSheetSections,
+--- asked again on every show, which is how the app toggler's running and dormant split reaches
+--- the sheet while this host names no plugin and reads no plugin's data.
 ---
---- This spoon owns only the domain logic -- resolving icons, filtering
---- uninstalled apps, the running/not-running split, and building the service
---- rows. Turning a key into a badge glyph and the actual drawing are both
---- delegated to the shared CheatSheet.spoon renderer (injected via configure).
+--- Turning a key into a badge glyph and the actual drawing are both delegated to the shared
+--- CheatSheet renderer injected through configure. This host owns only the layout of a
+--- section, an icon grid for a section that asks for icons and a plain grid for one that does
+--- not.
 ---
---- This is the olm side copy of HyperCheatSheet, made in the host into olm pass on
---- 2026-08-07, and the original this was copied from lived at
---- Spoons/HyperCheatSheet.spoon.
+--- Until phase four of the core split this host read the person's appToggles list and the app
+--- registry itself and did the running split here, which was a host knowing one plugin's data
+--- and its shape. The split is app knowledge and moved into that plugin with the list.
 
 local obj = {}
 obj.__index = obj
 
 -- Metadata
 obj.name = "HyperCheatSheet"
-obj.version = "2.0"
+obj.version = "3.0"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
-obj._apps = nil            -- name -> bundleID
-obj._toggles = nil         -- list of { app, key, modifiers }
-obj._items = nil           -- precomputed { key, name, bundleID, icon }, built once
-obj._staticSections = nil  -- precomputed service sections { title, rows }, built once
-obj._cheatSheet = nil      -- shared CheatSheet renderer
+obj._entries = nil     -- ordered, each a built section or a function answering sections
+obj._cheatSheet = nil  -- shared CheatSheet renderer
 
--- Layout knobs for this overlay: four columns, app icons. The badge is square and its size
--- and the row height are not here, the cheat sheet derives them from the type roles.
+-- Layout knobs for this overlay, four columns and room for an app icon. The badge is square and
+-- its size and the row height are not here, the cheat sheet derives them from the type roles.
 local LAYOUT = {
   columns = 4,
   colWidth = 215,   -- wide enough for names like "Activity Monitor"
@@ -41,148 +38,106 @@ local LAYOUT = {
   groupGap = 20,
 }
 
--- Static (non-app) sections carry no icons, so they render without the app
--- grid's icon gutter. Four columns keep the four capture actions (OCR,
--- Screenshot, Screenshot copy, Record screen) on the first row, with the remaining
--- commands falling to the next. They reuse the app column width, freeing the
--- icon gutter as extra label room, so the columns keep the same tight rhythm as
--- the app rows instead of spreading across the whole panel.
-local SERVICE_COLUMNS = 4
-local SERVICE_COLWIDTH = LAYOUT.colWidth
+-- A section that asks for no icons renders without the icon gutter. Four columns keep the
+-- four capture actions (OCR, Screenshot, Screenshot copy, Record screen) on the first row,
+-- with the remaining commands falling to the next. They reuse the icon grid's column width,
+-- freeing the gutter as extra label room, so the columns keep the same tight rhythm as the
+-- icon rows instead of spreading across the whole panel.
+local PLAIN_COLUMNS = 4
+local PLAIN_COLWIDTH = LAYOUT.colWidth
 
 --- HyperCheatSheet:init()
 function obj:init()
   return self
 end
 
+-- One section as the renderer wants it. A section carries either `bindings`, the chords the
+-- root collected, each { key, mods, action, description }, or `rows`, each { badge or key and
+-- mods, label, icon }. A row that states its own badge keeps it, anything else is spelled by
+-- the shared glyph helper so Hyper+Shift+4 reads "⇧4". `icons = true` asks for the icon grid,
+-- `alpha` fades the whole group and `titleAlpha` its title alone.
+local function build(section, glyphFor)
+  local rows = {}
+  for _, b in ipairs(section.bindings or {}) do
+    local badge = glyphFor and glyphFor(b.key, b.mods) or tostring(b.key)
+    rows[#rows + 1] = { badge = badge, label = b.description or b.action or tostring(b.key) }
+  end
+  for _, r in ipairs(section.rows or {}) do
+    local badge = r.badge or (glyphFor and glyphFor(r.key, r.mods)) or tostring(r.key)
+    rows[#rows + 1] = { badge = badge, label = r.label or tostring(r.key), icon = r.icon }
+  end
+  local out = {
+    title = section.title,
+    alpha = section.alpha or 1.0,
+    titleAlpha = section.titleAlpha,
+    rows = rows,
+  }
+  if not section.icons then
+    -- Override the panel layout for these rows, fewer, wider columns and no icon gutter, so
+    -- long labels like "Screenshot to clipboard" are not cut.
+    out.columns = PLAIN_COLUMNS
+    out.colWidth = PLAIN_COLWIDTH
+    out.iconSize = 0
+  end
+  return out
+end
+
 --- HyperCheatSheet:configure(opts)
---- opts.apps       - app name -> bundleID registry (config/apps.lua)
---- opts.toggles    - appToggles list (config/keys.lua)
 --- opts.cheatSheet - shared CheatSheet renderer to draw with
---- opts.sections   - optional list of static service sections appended after the
----                   app split, each { title, bindings }, where a binding is a
----                   { key, mods, action, description } table. The badge is
----                   rendered through the shared glyph helper and the label is
----                   the description (falling back to the action, then the key).
+--- opts.sections   - the ordered list the root assembles through lib/contributions.lua, each
+---                   entry a section table or a function answering a list of them when the
+---                   sheet is shown. Absent means the overlay has nothing to show.
 function obj:configure(opts)
   opts = opts or {}
-  self._apps = opts.apps or {}
-  self._toggles = opts.toggles or {}
   self._cheatSheet = opts.cheatSheet or self._cheatSheet
-  -- Resolve name + icon once (disk I/O), so show() stays instant. Only the
-  -- running check happens per-show, which is cheap. Apps that are not installed
-  -- (no bundle path) are dropped here so they never appear in the overlay.
-  self._items = {}
-  for _, t in ipairs(self._toggles) do
-    -- An entry that states its own modifiers binds as a literal global combo rather than
-    -- into the Hyper modal, so it never fires while this overlay's own key is held and
-    -- does not belong on a grid of everything that does.
-    if not t.modifiers then
-      local bundleID = self._apps[t.app]
-      -- pathForBundleID returns "" (not nil) when the app is not installed, and
-      -- "" is truthy in Lua -- so test for a non-empty path explicitly.
-      local path = bundleID and hs.application.pathForBundleID(bundleID)
-      if path and path ~= "" then
-        self._items[#self._items + 1] = {
-          key = tostring(t.key),
-          name = hs.application.nameForBundleID(bundleID) or t.app,
-          bundleID = bundleID,
-          icon = hs.image.imageFromAppBundle(bundleID),
-        }
-      end
+  local glyphFor = self._cheatSheet and self._cheatSheet.glyphFor
+  -- A plain section carries no live state, so it is built once here and only a supplier is
+  -- asked again on every show.
+  self._entries = {}
+  for _, entry in ipairs(opts.sections or {}) do
+    if type(entry) == "function" then
+      self._entries[#self._entries + 1] = entry
+    elseif type(entry) == "table" then
+      self._entries[#self._entries + 1] = build(entry, glyphFor)
     end
-  end
-  -- Order by key: alphanumeric first (0-9, a-z), then non-alphanumeric symbols
-  -- (`, /, ...) at the end. Case-insensitive. The running/not-running split
-  -- below preserves this order, so each group ends up sorted the same way.
-  local function rank(k)
-    return k:match("^%w$") and 0 or 1 -- 0 = alphanumeric, 1 = symbol
-  end
-  table.sort(self._items, function(a, b)
-    local ra, rb = rank(a.key), rank(b.key)
-    if ra ~= rb then
-      return ra < rb
-    end
-    return a.key:lower() < b.key:lower()
-  end)
-  -- Build the static service sections once. They carry no running state, so
-  -- unlike the app split there is nothing to recompute per show. The badge is
-  -- rendered through the shared glyph helper so Hyper+Shift+4 reads "⇧4".
-  self._staticSections = {}
-  for _, section in ipairs(opts.sections or {}) do
-    local rows = {}
-    for _, b in ipairs(section.bindings or {}) do
-      local badge = self._cheatSheet and self._cheatSheet.glyphFor(b.key, b.mods) or tostring(b.key)
-      rows[#rows + 1] = { badge = badge, label = b.description or b.action or tostring(b.key) }
-    end
-    self._staticSections[#self._staticSections + 1] = { title = section.title, rows = rows }
   end
   return self
 end
 
--- Split precomputed items into running / not-running, preserving order.
--- Enumerate running apps once (a single NSWorkspace call) rather than calling
--- hs.application.get() per item -- the latter costs ~20ms each and dominated
--- the overlay's show latency.
-function obj:_entries()
-  local running = {}
-  for _, app in ipairs(hs.application.runningApplications()) do
-    local bid = app:bundleID()
-    if bid then
-      running[bid] = true
-    end
-  end
-
-  local open, closed = {}, {}
-  for _, item in ipairs(self._items or {}) do
-    if running[item.bundleID] then
-      table.insert(open, item)
+--- HyperCheatSheet:_sections()
+--- Every section in order, each supplier asked now. A supplier that fails is the root's to
+--- contain, lib/contributions.lua wraps every one so a plugin that raises costs its own
+--- sections and is named, and this host only skips an answer that is not a list.
+function obj:_sections()
+  local glyphFor = self._cheatSheet and self._cheatSheet.glyphFor
+  local out = {}
+  for _, entry in ipairs(self._entries or {}) do
+    if type(entry) == "function" then
+      local supplied = entry()
+      if type(supplied) == "table" then
+        for _, section in ipairs(supplied) do
+          if type(section) == "table" then out[#out + 1] = build(section, glyphFor) end
+        end
+      end
     else
-      table.insert(closed, item)
+      out[#out + 1] = entry
     end
   end
-  return open, closed
-end
-
--- Turn precomputed items into CheatSheet rows
-local function toRows(items)
-  local rows = {}
-  for _, e in ipairs(items) do
-    rows[#rows + 1] = { badge = e.key, label = e.name, icon = e.icon }
-  end
-  return rows
+  return out
 end
 
 --- HyperCheatSheet:show()
---- Build the running/not-running model, append the static service sections, and
---- hand the whole thing to the renderer. Empty sections are dropped by the
---- renderer, so a service group with no bindings simply does not appear.
+--- Hand every section to the renderer. Empty sections are dropped by the renderer, so a group
+--- with no rows, no running app for instance, simply does not appear.
 function obj:show()
   if not self._cheatSheet then return self end
-  local open, closed = self:_entries()
-  local sections = {
-    { title = "RUNNING", alpha = 1.0, rows = toRows(open) },
-    { title = "DORMANT", alpha = 0.55, titleAlpha = 1.0, rows = toRows(closed) },
-  }
-  for _, s in ipairs(self._staticSections or {}) do
-    sections[#sections + 1] = {
-      title = s.title,
-      alpha = 1.0,
-      rows = s.rows,
-      -- Override the panel layout for these rows: fewer, wider columns and no
-      -- icon gutter, so long labels like "Screenshot to clipboard" are not cut.
-      columns = SERVICE_COLUMNS,
-      colWidth = SERVICE_COLWIDTH,
-      iconSize = 0,
-    }
-  end
   self._cheatSheet:show({
     columns = LAYOUT.columns,
     colWidth = LAYOUT.colWidth,
     iconSize = LAYOUT.iconSize,
     gap = LAYOUT.gap,
     groupGap = LAYOUT.groupGap,
-    sections = sections,
+    sections = self:_sections(),
   })
   return self
 end

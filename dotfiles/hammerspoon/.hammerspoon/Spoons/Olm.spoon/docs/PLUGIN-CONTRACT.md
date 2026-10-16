@@ -553,6 +553,7 @@ set = {
   queryRows    = { provides = { "queryRows" } },
   launcherRows = { provides = { "launcherRows" } },
   launcherRun  = { provides = { "launcherRun" } },
+  cheatSheetSections = { provides = { "cheatSheetSections" } },   -- host/hypercheatsheet
 },
 ```
 
@@ -658,6 +659,48 @@ shipped numbers reproduce the order the list has always had.
 
 Leave gaps when choosing a number, so a plugin added later can sit between two without anybody
 renumbering.
+
+`cheatSheetSections` is how a plugin adds sections of its own to a leader's held cheat sheet,
+the sheet asking the set and naming no plugin. Every key a plugin binds through its manifest,
+its own key, its `bindings`, its leader commands, already reaches the sheet without this, since
+the root collects those itself. This is for keys a plugin binds from data the manifest does not
+spell as bindings, the app toggler's person supplied toggle list being the shipped case.
+
+```lua
+provides = { cheatSheetSections = "cheatSheetSections" },
+defaults = { leader = "app", cheatSheetOrder = 10 },
+```
+
+The member answers a list of sections and is asked every time the sheet is shown, so a section
+may read live state, which apps are running for instance. Keep it cheap, since the sheet opens on
+a key hold, and resolve anything that touches the disk once, when you bind.
+
+```lua
+{ title = "RUNNING",
+  icons = true,                -- the icon grid, otherwise a plain grid with no icon gutter
+  alpha = nil,                 -- fades the whole group, optional
+  titleAlpha = nil,            -- fades the title alone, optional
+  rows = {
+    { badge = "f",             -- the badge as written, or key and mods spelled by the sheet
+      key = nil, mods = nil,
+      label = "Finder",
+      icon = image },          -- drawn only in an icon grid
+  } }
+```
+
+Which sheet the sections reach is the plugin's `defaults.leader`, a plugin stating none reaches
+no sheet, and the Hyper sheet is the one that asks today. List only keys you actually bound on
+that leader, never a global combo, since the promise of a sheet is that it shows everything its
+leader does and nothing else. Where the sections sit is `defaults.cheatSheetOrder`, compared
+with the sheet's own block of bound chords, which takes the sheet's own
+`defaults.cheatSheetOrder`. A tie puts contributors in the set's order ahead of the sheet's own
+block, and a contributor with no number sits after every numbered one. The root wraps each
+member so one that raises costs its own sections and is named on the console.
+
+| Sections | Number | Declared in |
+|---|---|---|
+| The app toggles, running then dormant | 10 | `plugins/apptoggler`, `defaults.cheatSheetOrder` |
+| Every chord bound on the app leader | 50 | `host/hypercheatsheet`, `defaults.cheatSheetOrder` |
 
 ### registry
 

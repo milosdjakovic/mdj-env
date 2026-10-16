@@ -1,11 +1,18 @@
 --- === contributions ===
 ---
---- How rows other plugins contribute reach the launcher, and how a chosen one finds its way
---- back. A plugin declares provides.launcherRows, a member answering plain row descriptors,
---- and provides.launcherRun, a member handed a chosen row's item. The launcher asks the set
---- for both and names no plugin. This module turns the set answers into what the launcher
---- receives, one supplier per contributor and one runner per owner identity, and wraps a
---- query row source so the rows it computes carry their owner too.
+--- How what other plugins contribute reaches a host. Two hosts ask today.
+---
+--- The launcher. A plugin declares provides.launcherRows, a member answering plain row
+--- descriptors, and provides.launcherRun, a member handed a chosen row's item. The launcher
+--- asks the set for both and names no plugin. This module turns the set answers into what the
+--- launcher receives, one supplier per contributor and one runner per owner identity, and wraps
+--- a query row source so the rows it computes carry their owner too.
+---
+--- A leader's cheat sheet. A plugin declares provides.cheatSheetSections, a member answering
+--- the sections it adds to the sheet of the leader its defaults.leader names, asked on every
+--- show so a section may read live state. The sheet asks the set and names no plugin, and this
+--- module hands it one ordered list mixing those suppliers with the sheet's own sections, placed
+--- by defaults.cheatSheetOrder the way launcher rows are placed by defaults.launcherOrder.
 ---
 --- It lives here rather than inline in the composition root since phase three of the core
 --- split, so the unit case can drive the very code the root runs instead of restating it.
@@ -63,6 +70,23 @@ function M.queryProvider(provider, owner, stampIcons)
   }
 end
 
+-- The member a plugin declares under provides[field], resolved through the registrar's own
+-- door, or nil after naming it once when it names nothing on the real module, since the host
+-- would otherwise lose that plugin's contribution in silence. Shared by every host this module
+-- serves, so a contribution point added later resolves its members the same way.
+local function resolveMember(opts, identity, field, hostWords)
+  local manifests, modules, registrar = opts.manifests or {}, opts.modules or {}, opts.registrar
+  local say = opts.log or function() end
+  local spec = ((manifests[identity] or {}).provides or {})[field]
+  local member = registrar.memberSpec(spec)
+  if member == nil or not registrar.memberResolves(modules[identity], member) then
+    say("'" .. tostring(identity) .. "' provides " .. field
+      .. " but it names no function on the module, so " .. hostWords .. " skips it")
+    return nil
+  end
+  return registrar.action(modules, identity, identity, spec)
+end
+
 --- contributions.assemble(opts) -> rowSuppliers, runners
 --- opts.host        the identity of the host whose set answers are read, the launcher
 --- opts.plan        the load plan, its sets and its effective defaults
@@ -79,20 +103,12 @@ end
 --- is named once and skipped, since the launcher would otherwise lose that plugin's rows or
 --- runs in silence.
 function M.assemble(opts)
-  local plan, manifests, modules = opts.plan or {}, opts.manifests or {}, opts.modules or {}
-  local registrar, stampIcons = opts.registrar, opts.stampIcons
-  local say = opts.log or function() end
+  local plan, modules = opts.plan or {}, opts.modules or {}
+  local stampIcons = opts.stampIcons
   local sets = (plan.sets or {})[opts.host] or {}
 
   local function resolve(identity, field)
-    local spec = ((manifests[identity] or {}).provides or {})[field]
-    local member = registrar.memberSpec(spec)
-    if member == nil or not registrar.memberResolves(modules[identity], member) then
-      say("'" .. tostring(identity) .. "' provides " .. field
-        .. " but it names no function on the module, so the launcher skips it")
-      return nil
-    end
-    return registrar.action(modules, identity, identity, spec)
+    return resolveMember(opts, identity, field, "the launcher")
   end
 
   local rowSuppliers, runners = {}, {}
@@ -112,6 +128,74 @@ function M.assemble(opts)
     if call then runners[identity] = call end
   end
   return rowSuppliers, runners
+end
+
+--- contributions.sheetSections(opts) -> entries
+--- opts.host        the identity of the cheat sheet host whose set answer is read
+--- opts.role        the leader role word the sheet reveals, app or window
+--- opts.plan        the load plan, its sets and its effective defaults
+--- opts.manifests   every manifest by identity
+--- opts.modules     every loaded module by identity
+--- opts.registrar   lib/registrar.lua, for memberSpec, memberResolves and action
+--- opts.own         optional, the sheet's own sections, a list, placed as one block
+--- opts.ownOrder    optional, the number the sheet's own block sits at
+--- opts.log         optional, function(message) for a member that resolves to nothing
+---
+--- One ordered list for the sheet, each entry either one of its own sections, a plain table,
+--- or a supplier, a function answering a list of sections when the sheet is shown. A supplier
+--- is one plugin answering the cheatSheetSections set whose effective leader is the role this
+--- sheet reveals, so a plugin on another leader never reaches this sheet, and one stating no
+--- leader is left out rather than guessed at. Placed by the plugin's effective
+--- cheatSheetOrder, the sheet's own block by ownOrder. A tie keeps the set's order of
+--- suppliers and puts the sheet's own block after them, and an entry with no number sorts after
+--- every numbered one, the rules launcher rows already follow.
+---
+--- A supplier is wrapped so a member that raises or answers something other than a list costs
+--- its own sections and nothing else. The sheet draws on a key hold, and one plugin's fault
+--- must not leave the person holding a leader over an empty screen.
+function M.sheetSections(opts)
+  local plan = opts.plan or {}
+  local say = opts.log or function() end
+  local sets = (plan.sets or {})[opts.host] or {}
+  local blocks = {}
+
+  for position, identity in ipairs(sets.cheatSheetSections or {}) do
+    local eff = (plan.effective or {})[identity] or {}
+    if eff.leader == opts.role then
+      local call = (opts.modules or {})[identity]
+        and resolveMember(opts, identity, "cheatSheetSections", "the cheat sheet")
+      if call then
+        blocks[#blocks + 1] = { order = eff.cheatSheetOrder, position = position,
+          entries = { function()
+            local ok, sections = pcall(call)
+            if not ok then
+              say("'" .. tostring(identity) .. "' failed answering its cheat sheet sections, "
+                .. tostring(sections))
+              return {}
+            end
+            return type(sections) == "table" and sections or {}
+          end } }
+      end
+    end
+  end
+  if opts.own and #opts.own > 0 then
+    blocks[#blocks + 1] = { order = opts.ownOrder, position = math.huge, entries = opts.own }
+  end
+
+  table.sort(blocks, function(a, b)
+    if a.order ~= b.order then
+      if a.order == nil then return false end
+      if b.order == nil then return true end
+      return a.order < b.order
+    end
+    return a.position < b.position
+  end)
+
+  local out = {}
+  for _, block in ipairs(blocks) do
+    for _, entry in ipairs(block.entries) do out[#out + 1] = entry end
+  end
+  return out
 end
 
 return M

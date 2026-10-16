@@ -104,14 +104,18 @@ return {
     expect = function(w)
       local sheet = w.role("hypercheatsheet")
       if not sheet then return false, "no Hyper cheat sheet in this config at all" end
-      local n = 0
-      for _ in pairs(sheet._apps or {}) do n = n + 1 end
-      if n == 0 then
-        return false, "it holds no application registry, so its whole app half draws empty "
-          .. "however well it opens"
+      -- The sheet holds no app data of its own since phase four of the core split, a plugin
+      -- supplies the app sections on every show, so the rows it would draw now are asked for
+      -- and an app row is told apart by the icon it carries.
+      local apps = 0
+      for _, section in ipairs(sheet:_sections() or {}) do
+        for _, row in ipairs(section.rows or {}) do
+          if row.icon ~= nil then apps = apps + 1 end
+        end
       end
-      if #(sheet._toggles or {}) == 0 then
-        return false, "it holds no toggle list, so it knows of no app to draw a row for"
+      if apps == 0 then
+        return false, "no section it would draw carries an application row, so its whole app "
+          .. "half draws empty however well it opens"
       end
       return true
     end,
@@ -124,8 +128,10 @@ return {
       local sheet = w.role("hypercheatsheet")
       if not sheet then return false, "no Hyper cheat sheet in this config at all" end
       local rows = 0
-      for _, section in ipairs(sheet._staticSections or {}) do
-        rows = rows + #(section.rows or {})
+      -- Its own sections are the plain tables among its entries, built once at configure, and
+      -- a supplier a plugin handed in is a function, which is not this scenario's subject.
+      for _, entry in ipairs(sheet._entries or {}) do
+        if type(entry) == "table" then rows = rows + #(entry.rows or {}) end
       end
       if rows == 0 then
         return false, "it has no action rows, so every chord under this leader is unlisted"

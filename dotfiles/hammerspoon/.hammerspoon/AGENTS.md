@@ -316,15 +316,17 @@ Most toggles focus or cycle their app. A toggle in `keys.lua` may instead carry
 an optional `url`, and `AppToggler` opens it with `open` so the app lands on a
 specific pane rather than wherever it was last. Hyper+, uses this to open System
 Settings on the General pane, and pressing it again while frontmost hides it.
-These toggles still show in the cheat sheet like any other app, resolved by
-bundle id, so the overlay stays complete without extra wiring.
+These toggles still show in the cheat sheet like any other app. AppToggler supplies the
+sheet's app sections itself through `provides.cheatSheetSections`, built from the entries it
+bound into the Hyper modal, so the sheet names no plugin and the overlay stays complete without
+extra wiring.
 
 A toggle may also carry `modifiers` of its own, `hides`, and `placement`, three fields
 AppToggler's own README documents in full. `modifiers` opts a toggle out of the Hyper modal
 entirely and into a literal global combo, live all the time rather than only while Hyper is
 held, which is what the terminal's own placed summon on Option+\` wants, since it is pressed
 mid work rather than reached through a leader, and such a toggle never reaches the cheat
-sheet above, resolved by bundle id off toggles that live in the modal alone. `hides` swaps
+sheet above, which lists only the toggles AppToggler bound into the modal. `hides` swaps
 focus-or-cycle for show and hide. `placement` centers and sizes the window once the press
 actually showed, launched, or focused the app, and is where the retired TerminalHandler
 spoon's own behaviour lives now.
@@ -340,7 +342,8 @@ and an app toggle counts because its app row carries the shortcut. The only
 things exempt from the launcher rule are the surfaces used to reach the launcher
 itself, the launcher open key and the other discovery openers, since listing a
 finder inside the finder earns nothing. Both surfaces read the same
-manifest data, the cheat sheet through the sections the root assembles
+manifest data, the cheat sheet through the sections the root assembles, plus the sections a
+plugin binding keys from its own data supplies through `provides.cheatSheetSections`,
 and the launcher through its action rows, so a new binding is added to that data
 and surfaced in both places rather than in code only one of them reads, and the
 key and its listings can never drift. A binding whose `when` predicate is false

@@ -28,6 +28,8 @@ local log = hs.logger.new("AppToggler", "info")
 obj._apps = nil
 obj._hyperKey = nil
 obj._appFocus = nil   -- lib/appfocus.lua, dot called, focus or cycle and toggle by url
+obj._toggles = nil    -- the toggle list bindHotkeys bound from
+obj._sheetItems = nil -- the modal toggles as cheat sheet rows, { key, name, bundleID, icon }
 
 -- The literal combo an entry with no `modifiers` field falls back to when HyperKey is not
 -- wired at all, so losing that spoon degrades the chord rather than the toggle itself.
@@ -325,6 +327,10 @@ end
 --- the modal entirely rather than asking for a fallback from it. Every entry used to be
 --- forced into the modal no matter what it declared, a defect this fixes.
 function obj:bindHotkeys(toggles)
+  -- Kept as given, the list this plugin bound from, so the key inventory reads the toggles where
+  -- they are used rather than from a copy somewhere else.
+  self._toggles = toggles
+  local modal = {}
   for _, toggle in ipairs(toggles) do
     local bundleID = self._apps[toggle.app]
     if bundleID then
@@ -334,6 +340,7 @@ function obj:bindHotkeys(toggles)
       elseif self._hyperKey then
         -- Fires while the physical Hyper key is held (HyperKey.spoon eventtap)
         self._hyperKey:bind(toggle.key, action)
+        modal[#modal + 1] = { toggle = toggle, bundleID = bundleID }
       else
         -- Fallback when no HyperKey is wired: the literal modifier combo
         hs.hotkey.bind(HYPER_FALLBACK, toggle.key, action)
@@ -342,7 +349,74 @@ function obj:bindHotkeys(toggles)
       log.w("Unknown app '" .. toggle.app .. "' in config")
     end
   end
+  self._sheetItems = self:_sheetItemsFor(modal)
   return self
+end
+
+--------------------------------------------------------------------------------
+-- The Hyper cheat sheet's app sections, supplied through provides.cheatSheetSections. They were
+-- built by the sheet itself until phase four of the core split, from the same person data this
+-- plugin binds, which made a core host know this plugin's data and its shape. They are built
+-- here now, from exactly the entries bindHotkeys put into the Hyper modal, so the sheet cannot
+-- list a toggle that was not bound there.
+--------------------------------------------------------------------------------
+
+-- Order by key, alphanumeric first (0 to 9, a to z), then symbols such as ` and / at the end,
+-- ignoring case. The running and dormant split keeps this order, so each group ends up sorted
+-- the same way.
+local function keyRank(k)
+  return k:match("^%w$") and 0 or 1
+end
+
+--- AppToggler:_sheetItemsFor(modal)
+--- Method
+--- Resolve each modal toggle's name and icon once, since both are disk work and the sheet is
+--- shown on a key hold that must feel instant. An app that is not installed is dropped, so the
+--- sheet never shows a row for something that is not on this machine. pathForBundleID answers
+--- an empty string rather than nil for such an app, and an empty string is truthy in Lua, so
+--- the test is for a non empty path.
+function obj:_sheetItemsFor(modal)
+  local items = {}
+  for _, m in ipairs(modal) do
+    local path = hs.application.pathForBundleID(m.bundleID)
+    if path and path ~= "" then
+      items[#items + 1] = {
+        key = tostring(m.toggle.key),
+        name = hs.application.nameForBundleID(m.bundleID) or m.toggle.app,
+        bundleID = m.bundleID,
+        icon = hs.image.imageFromAppBundle(m.bundleID),
+      }
+    end
+  end
+  table.sort(items, function(a, b)
+    local ra, rb = keyRank(a.key), keyRank(b.key)
+    if ra ~= rb then return ra < rb end
+    return a.key:lower() < b.key:lower()
+  end)
+  return items
+end
+
+--- AppToggler:cheatSheetSections()
+--- Method
+--- The app toggles as two sheet sections, the apps running now and the ones that are not,
+--- dormant ones faded with their title kept bright. Running apps are enumerated once, a single
+--- NSWorkspace call, rather than asked per item, which cost about twenty milliseconds an app
+--- and dominated the overlay's show latency. The badge is the toggle's key exactly as written.
+function obj:cheatSheetSections()
+  local running = {}
+  for _, app in ipairs(hs.application.runningApplications()) do
+    local bid = app:bundleID()
+    if bid then running[bid] = true end
+  end
+  local open, closed = {}, {}
+  for _, item in ipairs(self._sheetItems or {}) do
+    local row = { badge = item.key, label = item.name, icon = item.icon }
+    if running[item.bundleID] then open[#open + 1] = row else closed[#closed + 1] = row end
+  end
+  return {
+    { title = "RUNNING", icons = true, alpha = 1.0, rows = open },
+    { title = "DORMANT", icons = true, alpha = 0.55, titleAlpha = 1.0, rows = closed },
+  }
 end
 
 return obj

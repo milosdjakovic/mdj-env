@@ -587,6 +587,26 @@ gap between them.
 A query row source owns the rows it computes too, so one that wants a chosen row run by itself
 declares `launcherRun` alone and leaves `launcherRows` out. Window Size is that case.
 
+## Sections on a leader's cheat sheet
+
+Holding a leader shows every key bound on it. A key your manifest declares, your own `key`, your
+`bindings`, a registry command on the leader, is collected by Olm and listed without you doing
+anything. Only a plugin that binds keys from data the manifest does not spell as bindings needs
+more, and it supplies its own sections.
+
+```lua
+provides = { cheatSheetSections = "cheatSheetSections" },
+defaults = { leader = "app", cheatSheetOrder = 10 },
+```
+
+The member answers a list of sections, each a title and rows of badge, label and an optional
+icon, and it is asked on every show. Build the expensive part once, where you bind, and keep the
+member to what changes while Hammerspoon runs. List exactly what you bound on that leader. A
+key that does nothing on the sheet is the dishonesty the sheet exists to prevent, and a global
+combo belongs to no leader. The app toggler is the worked example, it resolves names and icons
+in `bindHotkeys` and splits running from dormant in `cheatSheetSections`. The contract has the
+section shape and the shipped numbers.
+
 ## Tools your plugin needs
 
 A plugin declares what it needs on the machine and installs nothing. Every external binary or

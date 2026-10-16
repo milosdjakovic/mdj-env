@@ -1647,14 +1647,9 @@ function obj.run(olm, cfg)
   -- every call rather than merging, so the base opts built here are reused verbatim for
   -- their post register second call in step K, instead of being recomputed and risking two
   -- slightly different tables answering for the same plugin in the same run.
-  -- Read off sharedData, which is where a person actually puts these two, cfg.shared. They
-  -- were read as cfg.apps and cfg.appToggles, fields nothing has ever sent, so both were nil
-  -- on every run and the overlay's whole application half was empty. It looked like a
-  -- rendering fault and was a spelling one, and the second configure call in step K reuses
-  -- this same table, so the wrong names were applied twice rather than once.
+  -- The sheet reads no person data since phase four of the core split. The app toggles reach
+  -- it as sections the toggling plugin supplies, assembled in step K with everything else.
   local hyperCheatSheetOpts = {
-    apps = sharedData.apps,
-    toggles = sharedData.toggles,
     cheatSheet = cheatSheetAtom,
   }
 
@@ -1817,6 +1812,10 @@ function obj.run(olm, cfg)
         matchers = chooserAtom.matchers })
   end
 
+  local function commandKey(name)
+    return registrarLib.commandKey(manifests, registryMeta, name)
+  end
+
   local function bindShortcut(entry)
     return registrarLib.bind(entry, plan, {
       log = logFn,
@@ -1825,23 +1824,9 @@ function obj.run(olm, cfg)
       -- A command belongs to no plugin, appendCopy and pasteNext being the concrete example,
       -- so its key is root policy with nowhere else to live. registryMeta is exactly that
       -- policy table, keyed the same way for a command's own name as for a tool's identity.
-      rootKey = function(name)
-        -- An override for this command's own name wins, the same way it does for a tool.
-        local info = registryMeta[name]
-        if info and info.key then return { key = info.key, mods = info.mods } end
-
-        -- Otherwise whichever manifest declares a command by this name ships its key. Walked
-        -- rather than looked up because a command is named inside its owner's registry block
-        -- and nothing anywhere records which plugin owns which command name, which is right,
-        -- since a command is deliberately not a tool of its own.
-        for _, m in pairs(manifests) do
-          local declared = ((m.registry or {}).commands or {})[name]
-          if declared and declared.key then
-            return { key = declared.key, mods = declared.mods }
-          end
-        end
-        return nil
-      end,
+      -- The lookup is the registrar's, shared with the cheat sheet's sections below, so the
+      -- key a command binds on and the key its sheet row shows come from one answer.
+      rootKey = commandKey,
     })
   end
 
@@ -2151,12 +2136,28 @@ function obj.run(olm, cfg)
     -- already stale by the live root's own admission. The raw registry instance is handed
     -- here rather than the zero argument wire adapter, since sections reads rowFor and
     -- shortcuts, neither of which the wire adapter promises to carry.
-    local opts = { apps = hyperCheatSheetOpts.apps, toggles = hyperCheatSheetOpts.toggles,
-      cheatSheet = hyperCheatSheetOpts.cheatSheet }
+    local opts = { cheatSheet = hyperCheatSheetOpts.cheatSheet }
     -- Told which leader's overlay this is, so a tool bound to the window leader stays off the
     -- Hyper one, and so the plugins that carry their own binding list rather than a launcher
-    -- row are picked up for this leader too.
-    opts.sections = hintsLib.sections(wiredRegistry, plan, { leader = "app" })
+    -- row are picked up for this leader too. Handed the command key lookup because the app
+    -- leader's engine is the one bindShortcut binds a leader command on, so a command bound
+    -- there shows here.
+    local hyperIdentity = plan.identity.hypercheatsheet or "hypercheatsheet"
+    local own = hintsLib.sections(wiredRegistry, plan, { leader = "app", commandKey = commandKey })
+    -- The sections plugins supply for the app leader's sheet, the app toggles today, ordered
+    -- with the sheet's own block by each one's declared number. lib/contributions.lua asks the
+    -- set the sheet declared, so this names none of them.
+    opts.sections = contributionsLib.sheetSections({
+      host = hyperIdentity,
+      role = "app",
+      plan = plan,
+      manifests = manifests,
+      modules = modules,
+      registrar = registrarLib,
+      own = own,
+      ownOrder = ((plan.effective or {})[hyperIdentity] or {}).cheatSheetOrder,
+      log = function(message) log.e("Olm compose, " .. message) end,
+    })
     hyperCheatSheetModule:configure(opts)
     -- Keyed by DIRECTORY rather than by identity, since that is how a manifest is keyed and the
     -- delivery check reads the two side by side. This host spells the two the same way, and four

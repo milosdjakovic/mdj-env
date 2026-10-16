@@ -21,6 +21,24 @@ modal entry does and the launcher row is its only discoverability surface.
 
 There are no other keys.
 
+## On the Hyper cheat sheet
+
+Holding Hyper shows every modal entry, the apps running now first and the rest faded below
+them, each with its key and its icon. This plugin supplies those two sections itself through
+`provides.cheatSheetSections`, with `defaults.leader = "app"` naming the sheet and
+`defaults.cheatSheetOrder = 10` keeping them ahead of the other chords. The sheet asks the set
+for them and never names this plugin, so switched off, the sheet simply has no app section.
+
+The rows are built from exactly the entries `bindHotkeys` bound into the Hyper modal, so the
+sheet cannot list an app this plugin did not bind there. An entry with its own `modifiers` is a
+global combo on no leader and is never listed. An app that is not installed is dropped. Each
+name and icon is resolved once, when the keys are bound, since that is disk work and the sheet
+opens on a key hold, and only which apps are running is read again on every show, in one call
+for all of them. The order is by key, letters and digits first, then symbols, ignoring case.
+
+Until phase four of the core split the sheet did all of this itself from the person's raw
+toggle list, which made a core host know this plugin's data and its shape.
+
 ## The per entry fields
 
 Every field beyond `app` and `key` is optional.

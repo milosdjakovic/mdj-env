@@ -81,7 +81,7 @@ local olm = must(spoon.Olm, "spoon.Olm, the loaded core spoon")
 local launcher = must(olm:module("launcher"), "the launcher host through spoon.Olm module")
 local actionPanel = must(olm:module("actionpanel"), "the action panel host through spoon.Olm module")
 local queryScope = must(olm:module("queryscope"), "the query scope host through spoon.Olm module")
-local cheatSheet = must(olm:module("hypercheatsheet"), "the hyper cheat sheet host through spoon.Olm module")
+local appToggler = must(olm:module("apptoggler"), "the app toggler plugin through spoon.Olm module")
 local chordKey = must(olm.lib and olm.lib.chordkey, "the chord key atom at spoon.Olm.lib.chordkey")
 local hyperKey = must(olm.lib and olm.lib.hyperkey, "the hyper key atom at spoon.Olm.lib.hyperkey")
 local registry = must(olm.registry, "spoon.Olm.registry, the tool registry the composition root published")
@@ -115,22 +115,23 @@ for _, code in ipairs(chordCodes) do
     field(k.onTap ~= nil), field(k.onHold ~= nil), field(k.onHoldEnd ~= nil), field(k.onKey ~= nil)))
 end
 
--- The cheat sheet models, the pure data the hyper cheat sheet host was
--- configured with, apps and toggles, plus items, what it precomputed from them.
--- Icons are left out of the item line on purpose, since an hs.image carries no
--- stable text form of its own, only an address.
-local hcsApps = must(cheatSheet._apps, "hypercheatsheet._apps, the app roster the hyper cheat sheet host was configured with")
-local hcsToggles = must(cheatSheet._toggles, "hypercheatsheet._toggles, the toggle list the hyper cheat sheet host was configured with")
-local hcsItems = must(cheatSheet._items, "hypercheatsheet._items, the items the hyper cheat sheet host precomputed")
+-- The app toggle models, the pure data the app toggler was configured with, apps and toggles,
+-- plus items, the rows it precomputed for the Hyper cheat sheet's app sections. They were read
+-- off the cheat sheet host until phase four of the core split, when the sheet stopped reading
+-- the toggles and the plugin began supplying its own sections. Icons are left out of the item
+-- line on purpose, since an hs.image carries no stable text form of its own, only an address.
+local hcsApps = must(appToggler._apps, "apptoggler._apps, the app roster the app toggler was configured with")
+local hcsToggles = must(appToggler._toggles, "apptoggler._toggles, the toggle list the app toggler bound from")
+local hcsItems = must(appToggler._sheetItems, "apptoggler._sheetItems, the cheat sheet rows the app toggler precomputed")
 
 local appNames = {}
 for name in pairs(hcsApps) do
   appNames[#appNames + 1] = name
 end
 table.sort(appNames)
-add("registry hypercheatsheet.apps count=" .. #appNames)
+add("registry apptoggler.apps count=" .. #appNames)
 for _, name in ipairs(appNames) do
-  add("hypercheatsheet.app name=" .. name .. " bundleID=" .. field(hcsApps[name]))
+  add("apptoggler.app name=" .. name .. " bundleID=" .. field(hcsApps[name]))
 end
 
 local toggleLines = {}
@@ -139,21 +140,21 @@ for _, t in ipairs(hcsToggles) do
   for _, m in ipairs(t.modifiers or {}) do mods[#mods + 1] = m end
   table.sort(mods)
   toggleLines[#toggleLines + 1] = string.format(
-    "hypercheatsheet.toggle app=%s key=%s mods=%s url=%s",
+    "apptoggler.toggle app=%s key=%s mods=%s url=%s",
     field(t.app), field(t.key), join(mods), field(t.url))
 end
 table.sort(toggleLines)
-add("registry hypercheatsheet.toggles count=" .. #toggleLines)
+add("registry apptoggler.toggles count=" .. #toggleLines)
 for _, l in ipairs(toggleLines) do add(l) end
 
 local itemLines = {}
 for _, it in ipairs(hcsItems) do
   itemLines[#itemLines + 1] = string.format(
-    "hypercheatsheet.item key=%s name=%s bundleID=%s",
+    "apptoggler.item key=%s name=%s bundleID=%s",
     field(it.key), field(it.name), field(it.bundleID))
 end
 table.sort(itemLines)
-add("registry hypercheatsheet.items count=" .. #itemLines)
+add("registry apptoggler.items count=" .. #itemLines)
 for _, l in ipairs(itemLines) do add(l) end
 
 -- The context blocks, read from the load plan the composition root published on the loaded
