@@ -16,6 +16,10 @@
 # line height written outside lib/ui is a finding unless the line declares type-exempt and a
 # reason, and an exempted line is counted as accepted.
 #
+# The rename proof rides along too, see drygate-rename.lua, it runs the composition root over
+# the spoon and over a copy whose plugins carry scrambled names, and any difference in what core
+# decided is a finding.
+#
 # Exit status mirrors drygate.lua's own. A clean tree, meaning every finding is either
 # genuinely absent or accepted by test/drygate-accepted.txt, exits zero. An unknown module
 # and a warning both print but do not fail the gate on their own, unless --strict is given.
@@ -62,4 +66,18 @@ export DRYGATE_SOURCES
 DRYGATE_LEAKSOURCES="$(find "$spoon" -type f -name '*.lua' -not -path "$spoon/plugins/*" -not -path "$spoon/test/*" 2>/dev/null | sort)"
 export DRYGATE_LEAKSOURCES
 
-exec lua "$here/drygate.lua" "$spoon/" "${manifests[@]}"
+# The rename proof, see drygate-rename.lua. Copying the spoon and making a sandbox are the
+# shell's half, the copy is where the plugin directories get their scrambled names, so the tree
+# under test is never touched. It runs the person's own init.lua, two levels above the spoon,
+# and when there is none the proof cannot run and drygate.lua says so as a warning.
+config="$(cd "$spoon/../.." && pwd)"
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+if [ -f "$config/init.lua" ] && cp -R "$spoon" "$work/Olm.spoon" && mkdir "$work/sandbox"; then
+  lua "$here/drygate-rename.lua" "$spoon/" "$config" "$work/Olm.spoon" "$work/sandbox" "${manifests[@]}" \
+    >"$work/rename.txt" 2>&1
+  DRYGATE_RENAMEPROOF="$work/rename.txt"
+  export DRYGATE_RENAMEPROOF
+fi
+
+lua "$here/drygate.lua" "$spoon/" "${manifests[@]}"

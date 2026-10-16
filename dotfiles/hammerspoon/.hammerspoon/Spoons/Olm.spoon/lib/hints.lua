@@ -352,7 +352,7 @@ end
 -- anyone can say which presentation it will be showing hints for on any one open, decision
 -- seven of the handoff brief, contexts and hints follow current().
 function obj.shortcutPanelFor(contextName, plan, deps)
-  local shortcutsPanel = deps and deps.settings and deps.settings.shortcutsPanel
+  local shortcutsPanel = deps and deps.policy and deps.policy.shortcutsPanel
   local panel = deps.canvasPanel.new({
     placement = deps.canvasPanel.placements.below,
     gap = 8,

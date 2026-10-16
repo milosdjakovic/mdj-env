@@ -159,7 +159,7 @@ local SHIPPED_POLICY = {
   -- not here at all until 2026-09-01, and the consequence is worth recording. The number lived
   -- in one machine's config/settings.lua, that file's own comment called itself the one source
   -- for every chooser that docks the panel, and the root never forwarded the field, so
-  -- deps.settings.shortcutsPanel resolved to nil, CanvasPanel read no delay, and every panel
+  -- deps.policy.shortcutsPanel resolved to nil, CanvasPanel read no delay, and every panel
   -- in the config drew instantly. The knob read as configured and was doing nothing.
   shortcutsPanel = { delayMs = 800 },
   matcher = "fuzzy",
@@ -331,8 +331,8 @@ function obj.run(olm, cfg)
       file:close()
       return text
     end,
-    settings = { get = function(key) return hs.settings.get(key) end,
-                 set = function(key, value) hs.settings.set(key, value) end },
+    store = { get = function(key) return hs.settings.get(key) end,
+              set = function(key, value) hs.settings.set(key, value) end },
     ui = uiAtom,
     specFor = function(colors) return uiSpecLib.spec(policy, colors, typography) end,
     onChange = function(_, colors)
@@ -1622,7 +1622,7 @@ function obj.run(olm, cfg)
     canvasPanel = canvasPanel,
     ui = uiAtom,
     theme = policy.chooserTheme,
-    settings = policy,
+    policy = policy,
     hideShortcuts = hideSharedOverlay,
     chordLabel = chordLabel,
     -- leaderName hands over this leader's already resolved word rather than the catalog

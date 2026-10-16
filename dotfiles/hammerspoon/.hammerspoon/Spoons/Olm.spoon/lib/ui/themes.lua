@@ -11,7 +11,7 @@
 --   dir        the directory holding the theme files.
 --   list       a function of a directory answering the file names in it.
 --   read       a function of a path answering the text of a file, nil when it is not there.
---   settings   a table with get and set, hs.settings in the running config, a stub in a test.
+--   store      a table with get and set, hs.settings in the running config, a stub in a test.
 --   ui         the kit, anything with a configure taking { spec = ... }.
 --   specFor    a function of the current colours answering the style spec for the kit.
 --   onChange   called with the new name and colours after a switch has been applied.
@@ -58,7 +58,7 @@ end
 function M.new(opts)
   opts = opts or {}
   local log = opts.log or { w = function(message) print(message) end }
-  local settings = opts.settings or { get = function() return nil end, set = function() end }
+  local store = opts.store or { get = function() return nil end, set = function() end }
   local instance = {}
   local themes = {}      -- name to { dark = {...}, light = {...} }, raw as the file said
   local resolved = {}    -- name to the colours with every fallback applied, built on demand
@@ -87,7 +87,7 @@ function M.new(opts)
         end
       end
     end
-    local stored = settings.get(M.SETTINGS_KEY)
+    local stored = store.get(M.SETTINGS_KEY)
     if stored ~= nil and themes[stored] == nil then
       warnOnce("stored " .. tostring(stored), "the stored theme " .. tostring(stored)
         .. " has no file, so the " .. M.DEFAULT .. " theme is used")
@@ -154,7 +154,7 @@ function M.new(opts)
       return false
     end
     currentName = name
-    settings.set(M.SETTINGS_KEY, name)
+    store.set(M.SETTINGS_KEY, name)
     local colors = instance.colors(name)
     if opts.ui and opts.specFor then opts.ui.configure({ spec = opts.specFor(colors) }) end
     if opts.onChange then opts.onChange(name, colors) end

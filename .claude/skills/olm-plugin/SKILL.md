@@ -235,7 +235,11 @@ In order, before anything merges.
    lock free and instant. Run it and read
    the line naming your tool. It is the only thing that checks `registry.open`, scope members,
    and command functions, so skipping it is how a typo becomes a key that does nothing. It also
-   fails on any file outside `plugins/` that names a plugin, so core never learns your name.
+   fails on any file outside `plugins/` that names a plugin, so core never learns your name, and
+   it runs the composition root a second time with every plugin renamed and fails on any
+   difference. A difference after a manifest change usually means the manifest names an
+   identity in a field that proof does not rename, `test/drygate-rename.lua` lists the ones it
+   does.
 3. One live load. This is the gate no static check replaces, and the discipline around the
    devlock, the console read, and the scheduled reload lives in the hammerspoon `AGENTS.md`.
    Never drive the screen or the keyboard for a test until Milos says start.

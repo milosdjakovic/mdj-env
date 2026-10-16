@@ -770,24 +770,63 @@ do
       if f then
         local text = f:read("a")
         f:close()
-        -- Hits are counted per line, identity and form, and the count is part of the finding
-        -- text, so an accepted entry accepts exactly that many. A further hit on an accepted
-        -- line changes the text, the old entry then matches nothing and the new text is a
-        -- finding of its own, which is how a third "emoji" on one line cannot ride along.
+        -- Hits are counted per line text, identity and form, and both the line and the count are
+        -- part of the finding text, so an accepted entry accepts exactly that many on exactly
+        -- that line. A further hit on an accepted line changes the count, the old entry then
+        -- matches nothing and the new text is a finding of its own, which is how a third "emoji"
+        -- on one line cannot ride along. The line is named by its text rather than its number,
+        -- so an accepted entry survives an edit elsewhere in the file and goes stale only when
+        -- its own line changes.
         local counts, order = {}, {}
         for _, hit in ipairs(leaksScan.scan(text, identities, dirs)) do
-          local key = table.concat({ hit.line, hit.identity, hit.form }, "|")
+          local key = table.concat({ hit.text, hit.identity, hit.form }, "\0")
           if not counts[key] then counts[key] = { hit = hit, n = 0 }; order[#order + 1] = key end
           counts[key].n = counts[key].n + 1
         end
         for _, key in ipairs(order) do
           local hit, n = counts[key].hit, counts[key].n
           local line = string.format(
-            "dry gate refused '%s', line %d, %d hit(s), names the plugin '%s' as %s, only plugins/ and the person's config may name a plugin, go through a manifest declaration or a contract instead, or list the exact line in test/drygate-accepted.txt with a reason, the count is part of the line so an accepted entry accepts exactly that many hits",
-            rel, hit.line, n, hit.identity, hit.form)
+            "dry gate refused '%s', %d hit(s) on the line `%s`, names the plugin '%s' as %s, only plugins/ and the person's config may name a plugin, go through a manifest declaration or a contract instead, or list the exact line in test/drygate-accepted.txt with a reason, the count is part of the line so an accepted entry accepts exactly that many hits",
+            rel, n, hit.text, hit.identity, hit.form)
           if LEAK_FAILS then finding(line) else warning("layer leak, " .. line) end
         end
       end
+    end
+  end
+end
+
+----------------------------------------------------------------------------------------
+-- Nine, the rename proof, see test/drygate-rename.lua. drygate.sh runs it before this file and
+-- hands over its output in DRYGATE_RENAMEPROOF. A line saying core decided differently once the
+-- plugins were renamed, or that a scrambled name never reached core, is a finding and is never
+-- accepted, since the fix for one is in core. A weak proof, the root raising under the stub, is
+-- a warning, and so is a proof that did not run at all. Its count line prints beside the icon
+-- coverage lines.
+----------------------------------------------------------------------------------------
+
+do
+  local path = os.getenv("DRYGATE_RENAMEPROOF")
+  local f = path and io.open(path, "r")
+  if not f then
+    warning("dry gate did not run the rename proof, DRYGATE_RENAMEPROOF names no output, run it through test/drygate.sh beside a person's init.lua")
+  else
+    local summary
+    for line in f:lines() do
+      if line:match("^rename proof, ") then
+        summary = line
+      elseif line:match("^dry gate refused ") then
+        findings[#findings + 1] = line
+      elseif line:match("^dry gate, ") then
+        warning(line:sub(#"dry gate, " + 1))
+      elseif line ~= "" then
+        findings[#findings + 1] = "dry gate refused the rename proof, it printed a line it never prints, " .. line
+      end
+    end
+    f:close()
+    if summary then
+      coverageLines[#coverageLines + 1] = summary
+    else
+      findings[#findings + 1] = "dry gate refused the rename proof, it ended without its count line, so it did not finish"
     end
   end
 end

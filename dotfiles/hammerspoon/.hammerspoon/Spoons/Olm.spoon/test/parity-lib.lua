@@ -72,7 +72,7 @@ local function loadDefaultColors()
       f:close()
       return text
     end,
-    settings = { get = function() return nil end, set = function() end },
+    store = { get = function() return nil end, set = function() end },
   })
   return store.colors("default")
 end

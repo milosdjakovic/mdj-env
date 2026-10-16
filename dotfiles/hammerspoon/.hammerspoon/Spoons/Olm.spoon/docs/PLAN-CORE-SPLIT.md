@@ -254,18 +254,38 @@ core vocabulary sharing a word with the emoji picker and is accepted line by lin
 `test/drygate-accepted.txt` rather than renamed. `LEAK_FAILS` is true in `test/drygate.lua`, so a
 new hit is a finding and fails the gate, and the gate reads 0 findings with 14 accepted.
 
-The known blind spot. A lower case identity written as a bare field or a bare name, `opts.audio`
-or `settings.x`, is never matched, since a lower case plugin name is also an ordinary word and
-`hs.settings` or a local named `audio` would drown the check in false hits. Only the quoted forms
-and a mixed case name are seen, so core reading a plugin's table through a lower case field would
-pass this gate, and a reviewer has to look for that by hand.
+**Blind spots closed, 2026-10-16.** The gate now has two layers. The scan in
+`test/drygate-leaks.lua` reads operators as well as words, so it also reports a lower case
+identity written as a field or a method, `opts.audio` or `modules.clipboard`, unless the receiver
+is the bare `hs` global, whose `settings` and `wifi` are the Hammerspoon api, a lower case
+identity written as a table constructor key, `{ apptoggler = 1 }`, a string folded from a chain of
+literals joined with `..` or from `string.format` and `("..."):format` with literal arguments, and
+a literal ending in `plugins/` joined to anything computed. On the real tree that found two core
+words that collided, `deps.settings` handed to `lib/hints.lua`, which holds the policy and is
+`deps.policy` now, and the theme store's `opts.settings`, which is `opts.store` now. The `emoji`
+field of an icon spec, which names the icon engine's source, is accepted on each of its nine
+lines. An accepted line is named by its text rather than its number, so an edit elsewhere in the
+file leaves it valid.
 
-Two further blind spots sit beside it. A name built by concatenation, `"em" .. "oji"`, is two
-string tokens and neither is an identity, so it is never matched. A lower case table key written
-in a constructor, `{ emoji = 1 }`, is a bare name and not a quoted string, so it is never matched
-either, which makes it the same gap as the bare field one reached through a different syntax. An
-accepted leak line now also carries the number of hits it accepts, `lib/icons/config.lua` line 15
-carries two, so a further hit on an accepted line changes the finding text and fails the gate.
+The second layer is `test/drygate-rename.lua`, which `drygate.sh` runs every time. It runs the
+person's own `init.lua` and so `root/compose.lua` under a stub, once over the spoon and once over a
+copy whose plugin directories, manifest names, surface contexts, sibling needs and config keys
+are all spelled by a fixed letter scramble, and compares what the two runs decided, the log, the
+wiring report, the plan, the data handed to each plugin, the shared atoms, every hs call and every
+file loaded. Any difference is a finding that cannot be accepted. This sees every route a name can
+take into core, a reversed or upper cased literal and a `table.concat` included, and it is the
+first test that runs the composition root outside a live Hammerspoon. Thirteen planted leaks in a
+scratch copy, one per form and route, were each caught by at least one layer, and the two harmless
+shapes, the hs global's own `settings` and a bare local sharing a plugin's word, read clean.
+`test/cases/leakscan.lua` keeps the scan's forms under the unit runner. The gate reads 0 findings,
+23 accepted and 0 differences, in about 1.9 seconds against 1.2 before.
+
+What stays open. Host code that runs only once a list is shown or a key is pressed never runs
+under the root, so only the scan sees it, and only in the forms it knows. A bare local or global
+sharing a plugin's word is never reported, since the scan cannot tell a reach into a plugin from a
+name a file chose. The proof compares lines as sorted words, so a difference that is only the
+order of plugins in a list is deliberately not one, which also means a core that orders plugins
+by one particular name would pass.
 
 ## Decisions
 

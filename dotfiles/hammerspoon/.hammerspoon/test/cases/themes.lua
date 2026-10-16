@@ -103,7 +103,7 @@ local function store(files, stored, extra)
     dir = "themes",
     list = function() local names = {}; for name in pairs(files) do names[#names + 1] = name end; return names end,
     read = function(path) return files[path:match("([^/]+)$")] end,
-    settings = { get = function() return stored end, set = function(k, v) set[k] = v end },
+    store = { get = function() return stored end, set = function(k, v) set[k] = v end },
     log = { w = function(message) warnings[#warnings + 1] = message end },
   }
   for k, v in pairs(extra or {}) do opts[k] = v end

@@ -22,7 +22,7 @@ why before reaching for it.
 Every other tier proves something about a plugin actually RUNNING, which means a live
 Hammerspoon, the test lock that guards one, and the several seconds a reload costs. The dry
 gate proves something narrower and earlier, that every manifest is well formed, plain lua,
-in well under a second, with nothing started and nothing locked. It exists because a builder
+in about two seconds, with nothing started and nothing locked. It exists because a builder
 agent has no way to acquire the lock or start Hammerspoon at all, and this repository's own
 review trickle this week named the cost of that gap directly, a presentation member naming a
 function that does not exist and a root sourced word nobody publishes, each shipped at least
@@ -38,6 +38,13 @@ than guessed at as passing or failing, since an honest unknown beats a false gre
 reuses, and `drygate-composewords.lua`'s own header for the one check, a root sourced word
 against what `root/compose.lua` publishes, that is a structural scan of that file's source
 text rather than a real read, and exactly what that scan can and cannot see.
+
+It also enforces the layer rule, no file outside `plugins/` names a plugin, in two layers.
+`drygate-leaks.lua` scans core source for the shapes a name takes in code, and
+`drygate-rename.lua` runs the person's `init.lua`, and so `root/compose.lua`, under a sandboxed
+stub through `drygate-composerun.lua`, once as the spoon is and once with every plugin renamed,
+and fails on any difference in what core decided. That run is the one place the composition root
+runs without a live Hammerspoon, and it adds well under a second.
 
 Run it standalone too, straight from the shell, no suite.sh, no lock, no Hammerspoon:
 

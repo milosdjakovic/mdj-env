@@ -104,7 +104,7 @@ do
     local fake = fakePanel()
     hints.shortcutPanelFor("list", plan, { predicates = {}, glyphFor = glyphFor,
       leaderName = "Hyper", chordLabel = function(l, k, m) return l .. " " .. glyphFor(k, m) end,
-      canvasPanel = fake, settings = {}, ui = ui })
+      canvasPanel = fake, policy = {}, ui = ui })
     return fake.content, width
   end
   local c = content()

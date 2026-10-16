@@ -33,8 +33,10 @@ no person data and names no plugin. The launcher's app rows learn each bound app
 the same way, from `provides.launcherAppDetails`, so the launcher reads neither the toggles nor
 the app registry. A registry tool's open key binds on the app leader only, and a tool stating
 `leader = "window"` with a leader shortcut is refused at wiring with a problem line. The dry gate
-fails on any file outside `plugins/` that names a plugin, with the icon engine's own `emoji`
-source set accepted line by line.
+fails on any file outside `plugins/` that names a plugin, as a string, a path, a field, a table
+key or a string folded from literals, with the icon engine's own `emoji` source set and icon spec
+field accepted line by line, and it runs the composition root a second time with every plugin
+renamed and fails on any difference in what core decided.
 There is one plugin switch. A plugin under `plugins/` is off when `config/plugins.lua` says
 `false` or the settings page saved its identity under `Olm.disabledPlugins`, its code never
 runs, a plugin requiring it is reported off because of every switched off plugin it depends on,
@@ -133,6 +135,35 @@ surface and empty state, the scroll and the teardown, `pane = true` on a surface
 - **Keeping the raw `surface` and `emptyState` grants beside the pane.** 2026-10-16 17:47. Once
   the pane holds them nothing in a plugin reads them, and a plugin handed the raw routines is one
   step from copying the lifecycle again, so `pane = true` now earns `dockedPane` alone.
+
+- **Reporting a lower case field only when its receiver is a table known to be keyed by plugin
+  identity.** 2026-10-16 23:23. It was the precise rule first proposed, `modules`, `plan.effective`,
+  `plan.identity`, `cfg.plugins` and the rest read off compose and the libs, but that list is a
+  roster of receiver names, the moment a table is copied into a local with another name the field
+  on it is invisible, and the list has to be kept in step with core by hand. Measured on the tree,
+  every lower case field and key equal to an identity is 35 hits, 21 of them on the bare `hs`
+  global, so reporting all of them but the one receiver that is structurally never a plugin left
+  14, few enough to settle one by one.
+- **Accepting every remaining collision instead of renaming the two settings options.** 2026-10-16
+  23:23. Accepting `deps.settings` and the theme store's `opts.settings` would have kept the code
+  as it was, but both lines sit in `root/compose.lua` and `lib/hints.lua`, which change weekly, and
+  neither name was precise, one held the policy and the other a store over hs.settings. They were
+  renamed `deps.policy` and `opts.store`. This is not the rejected `emoji` rename above, no person
+  config changes and the old words described nothing core owns.
+- **Running the rename proof as a unit case instead of inside drygate.sh.** 2026-10-16 23:23. The
+  unit runner needs a live Hammerspoon, while the proof runs in plain lua in under a second, so
+  putting it there would have taken the one test of the composition root away from every agent
+  that cannot start Hammerspoon.
+- **Comparing the two runs line for line in order.** 2026-10-16 23:23. The first comparison did,
+  and its only differences on a clean tree were the dependency summary listing owners in the order
+  their names sort, which a renamed set sorts differently. Lines are compared as counted sets of
+  their sorted words instead, a list ordered by name is generic, and a leak changes which words
+  or lines exist.
+- **Scrambling with a prefix or a suffix on each name.** 2026-10-16 23:23. A marker such as
+  `zqx` would have made turning names back trivial, but it changes every name's length, and a
+  report that pads by name length would then differ for no reason. A case keeping letter shift
+  keeps the length, keeps a directory and an identity that differ by case related the same way,
+  and the shift is chosen so no scrambled name is already a word in the original snapshot.
 
 ## Log
 
@@ -341,3 +372,35 @@ surface and empty state, the scroll and the teardown, `pane = true` on a surface
   canvas and timer and runs in plain lua, and the dry gate hands a pane declaring plugin an
   autostub `dockedPane` in place of the old `surface`.
 - 2026-10-16 17:54. Speedtest's scroll direction was corrected to match the other panes, so it passes the points the chooser hands it straight through and no longer negates them. The 17:47 entry's open question about keeping the old inversion is closed.
+- 2026-10-16 23:23. The layer gate's blind spots closed, on `olm/gate-blind-spots`. The scan in
+  `test/drygate-leaks.lua` now tokenizes operators and reports four more forms, a lower case
+  identity as a field or method on anything but the bare `hs` global, as a table constructor key,
+  a string folded from literals joined with `..` or from `string.format` and `("..."):format` with
+  literal arguments, and a literal ending in `plugins/` joined to something computed. Measured on
+  the tree before choosing, lower case fields 24 hits, 21 on `hs`, constructor keys 11, bare names
+  3, folded strings and run time plugin paths 0. Bare names are not reported, see phase 6 of the
+  plan. The two `settings` collisions were renamed, see Rejected, and the nine `emoji` icon spec
+  keys in the host manifests and `lib/icons/rows.lua` are accepted. A leak finding now names its
+  line by the line's text rather than its number, so the 12 accepted leak lines survive edits
+  elsewhere in their files. `test/drygate-rename.lua` with `test/drygate-composerun.lua` is the
+  second layer, run by `drygate.sh` on every call. It runs the person's `init.lua`, and so
+  `root/compose.lua`, under a stub with a sandbox that refuses every write and every read of
+  runtime data, once over the spoon and once over a copy where every plugin directory, manifest
+  name, surface context, sibling need and person config key is spelled by a fixed case keeping
+  letter shift, and compares the two snapshots, log lines, the wiring report, the record of the
+  run, the shared atoms, every hs call and every file loaded, after turning the names back. A
+  difference, or a scrambled name that never reached core, is a finding that cannot be accepted.
+  Two stub rules made the root run to the end, a stand in indexed by a number answers nil so
+  `ipairs` over one ends, and a stand in can be added, compared and joined. On the real tree it
+  reads 0 differences over 4439 distinct lines. Thirteen planted leaks in a scratch copy, a field,
+  a field through the plan binding a key, a constructor key, a literal concatenation, a plugins
+  path by concatenation, a plugins path finished at run time, `string.format`, `:format`, a
+  reversed literal, a `table.concat`, a concatenation inside `lib/registrar.lua`, a literal in
+  launcher code that runs only on show, and `hs` reached through another table, each failed the
+  gate, the reversed literal and the `table.concat` through the proof alone, the run time path,
+  the launcher literal and the indirect `hs` through the scan alone, the rest through both. The
+  hs global's own `settings` and a bare local named like a plugin read clean.
+  `test/cases/leakscan.lua` keeps the scan's forms under the unit runner. The gate went from about 1.2 to 1.9
+  seconds. Still open, host code that runs only when a list shows is seen by the scan alone, a
+  bare name sharing a plugin's word is never reported, and a core that orders plugins by one
+  particular name passes the proof, since order is not compared.
