@@ -116,6 +116,11 @@ leaves the row the person chose, and a page of options a person flips never pops
 on selection, leaving is always the person's own key. Plain true from intercept is for a
 wholesale swap of the list and nothing else.
 
+A list of items a person picks from always filters on the shared matcher, so leave matcher
+undeclared. `matcher = false` is only for a page of a few fixed options, or for a plugin that
+ranks the query itself. A false matcher on a long list shows an unfiltered list and nothing
+notices.
+
 The placeholder names the list, never a key, and no user visible text anywhere names a
 physical key, since bindings live in the manifest and the hint surfaces already say them.
 A child inherits everything it does not declare, so declare only what genuinely differs.

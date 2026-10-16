@@ -50,8 +50,9 @@ local catalog = {
     offBecause = { "alpha", "beta" } },
 }
 
-local function row(title, subTitle, icon, item, enabled)
-  return { title = title, subTitle = subTitle, icon = icon, item = item, enabled = enabled }
+local function row(title, subTitle, icon, item, enabled, filterText)
+  return { title = title, subTitle = subTitle, icon = icon, item = item, enabled = enabled,
+    filterText = filterText }
 end
 
 local rows = page.rows(catalog, row, "settings")
@@ -152,3 +153,14 @@ check("a plugin staged on says what applying brings back",
 local bare = joined(page.detail(ui, catalog[2], catalog, nil))
 check("a plugin with no author draws none", bare:find("Author", 1, true) == nil)
 check("a plugin that needs nothing says so", bare:find("Needs nothing", 1, true) ~= nil)
+
+-- The Plugins child must inherit the shared matcher, since it is a list a person picks from.
+local initFile = io.open(olm .. "plugins/settings/init.lua", "r")
+local initText = initFile and initFile:read("*a") or ""
+if initFile then initFile:close() end
+local childBody = initText:match("local function buildPluginsChild%(%).-\n  }\nend") or ""
+check("the Plugins child body was found", childBody ~= "")
+check("the Plugins child does not set matcher to false", childBody:find("matcher%s*=%s*false") == nil)
+
+check("a plugin row filters on its title and identity only", rows[1].filterText == "Alpha alpha")
+check("a staged row filters on the same text as before", afterRows[1].filterText == rows[1].filterText)

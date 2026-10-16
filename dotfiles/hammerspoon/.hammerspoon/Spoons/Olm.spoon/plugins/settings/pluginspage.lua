@@ -114,6 +114,8 @@ end
 --- M.rows(catalog, row, selfIdentity) -> rows
 --- One row per catalog entry, the catalog's own order, which the root already sorted by title.
 --- row is the plugin's own row constructor, so this file never decides what a row's fields are.
+--- Each row filters on its title and identity only, never the state words, so staging a row
+--- never changes whether it matches a typed query and the stay redraw keeps its row number.
 --- Each item states its identity as key, so the stage holds the highlight on the same plugin
 --- when a row above it comes or goes.
 function M.rows(catalog, row, selfIdentity)
@@ -122,7 +124,7 @@ function M.rows(catalog, row, selfIdentity)
     rows[#rows + 1] = row(titleOf(entry), M.words(entry, catalog, selfIdentity),
       M.isOff(entry) and M.ICON_OFF or M.ICON_ON,
       { plugin = entry.identity, key = entry.identity, toggle = M.toggleable(entry, selfIdentity) },
-      true)
+      true, titleOf(entry) .. " " .. tostring(entry.identity))
   end
   return rows
 end
