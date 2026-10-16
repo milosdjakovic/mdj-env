@@ -53,15 +53,16 @@ return {
     },
   },
 
-  -- Its own chord is Hyper and o, and it is deliberately classified as navigation
-  -- rather than a verb so the panel can never list its own way in among the verbs it offers.
+  -- Its own chord is o, and it is deliberately classified as navigation rather than a verb so
+  -- the panel can never list its own way in among the verbs it offers.
   --
-  -- The binding is NOT declared here even so. lib/surface.lua now appends it to every context
-  -- it builds, which is what makes a thirteenth context carry it for free, and moving it here
-  -- would mean naming it once per context again.
+  -- The key is NOT declared here, and neither is a leader. lib/surface.lua appends the binding
+  -- to every context it builds, which is what makes a thirteenth context carry it for free, and
+  -- the chord only exists inside an open list. A leader and key declared here would make the
+  -- plan treat o as a key held on the app leader, and the Hyper cheat sheet reads exactly that
+  -- to draw its rows, so it listed a key nothing binds there. A sheet lists only what its
+  -- leader binds, so this plugin states a description and nothing that places it on a leader.
   defaults = {
-    leader = "app",
-    key = "o",
     description = "Actions",
   },
 }
