@@ -103,14 +103,33 @@ restore_mj() {
 # is also the environment the config actually runs in for real, so a test here
 # stops passing on a PATH the Dock launch will not have.
 # decisions/ghostty-relaunch-env-leak.md has the history.
+#
+# The launch is retried until the process is really up. LaunchServices can still hold a
+# quitting Hammerspoon for a moment after its process has left the process table, and an
+# open sent into that gap is refused with error -600. Under set -e that refusal used to end
+# this script on the spot, after the quit and before the launch, so the lock stayed taken
+# and Hammerspoon stayed down with nothing said, seen on 2026 10 15. So a refused or
+# unanswered launch waits a second and asks again, a bounded number of times, and if
+# Hammerspoon never comes back this says so and fails rather than leaving it silently down.
 relaunch_hs() {
   if pgrep -x "$APP" >/dev/null 2>&1; then
     osascript -e "tell application \"$APP\" to quit" >/dev/null 2>&1 || true
-    for _ in $(seq 1 40); do pgrep -x "$APP" >/dev/null 2>&1 || break; sleep 0.25; done
+    for _ in $(seq 1 80); do pgrep -x "$APP" >/dev/null 2>&1 || break; sleep 0.25; done
   fi
-  env -i open -a "$APP"
-  for _ in $(seq 1 40); do pgrep -x "$APP" >/dev/null 2>&1 && break; sleep 0.25; done
-  sleep 1.5
+  local attempt
+  for attempt in 1 2 3 4 5 6; do
+    env -i open -a "$APP" >/dev/null 2>&1 || true
+    for _ in $(seq 1 12); do
+      if pgrep -x "$APP" >/dev/null 2>&1; then
+        sleep 1.5
+        return 0
+      fi
+      sleep 0.25
+    done
+    echo "hs-devlock: $APP did not start on attempt $attempt, trying again" >&2
+    sleep 1
+  done
+  die "$APP would not start after six attempts, open it by hand, the config it will load is $(current_mj)"
 }
 
 holder_field() { jq -r "$1 // \"\"" "$HOLDER" 2>/dev/null || echo ""; }
