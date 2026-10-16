@@ -293,10 +293,10 @@ window action fires underneath one. One gate answers it, `anyListShowing` in
 through, consulted by the hyper hold reveal directly and injected into
 `WindowLeader` as `suppressWhen`. Its rows are every binding any plugin declared on
 the window leader, collected by `lib/hints.lua` walking the plan and stamped with the
-window keycode once in `root/compose.lua`, the same list the launcher's window rows read,
-so it never drifts and names no plugin; each row's label is
-the action name humanized (`nextDisplay` → "Next Display") unless the entry sets
-an explicit `description` override.
+window keycode once in `root/compose.lua`, so it never drifts and names no plugin, and the
+launcher's window rows are built by the window manager from the same declared bindings.
+Each row's label is the action name humanized (`nextDisplay` → "Next Display") unless the
+entry sets an explicit `description` override.
 
 A binding may also carry an optional `when = "<predicate>"` that gates it on live
 state. When the named predicate returns false the key becomes a no-op (still
@@ -1518,7 +1518,9 @@ adapter and the thing adapted there. Apps, window
 actions and System Settings panes
 are neither, they narrow the launcher's own catalog, so they read `Launcher:rowsOfKind(kind)` and
 hand a chosen row back through `Launcher:runItem`, which keeps one row builder and one dispatcher
-however a row is reached. Those three scope a group of rows rather than one row, so like menu
+however a row is reached. The window and pane rows in that catalog are contributed by the plugins
+that own them, through `provides.launcherRows` and `provides.launcherRun`, so the launcher routes a
+chosen one back to its plugin by the owner stamped on its item and names none of them. Those three scope a group of rows rather than one row, so like menu
 search they have no row of their own to advertise an alias on, and their manifest defaults
 carry a description and an alias and no key because they open nothing. The alias
 directory is where they are found instead.

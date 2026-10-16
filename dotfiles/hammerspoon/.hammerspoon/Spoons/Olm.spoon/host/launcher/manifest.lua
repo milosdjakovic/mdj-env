@@ -1,8 +1,9 @@
 -- Launcher, what it declares about itself.
 --
 -- The largest host, and the one that shows why hosts needed a declaration kind of their own.
--- It receives sixteen fields today, and almost none of them are a named sibling. They are
--- either a question about the whole plugin set, a plain mechanism from lib, or user data.
+-- It receives many fields, and since phase three of the core split none of them is a named
+-- sibling. Each is a question about the whole plugin set, a plain mechanism from lib, root
+-- data, or user data, so this host names no plugin.
 return {
   -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
   apiVersion = 1,
@@ -14,15 +15,17 @@ return {
     license = "MIT",
   },
 
-  -- The icons the launcher states for the rows it owns, the catalog scopes, the special rows and
-  -- the window rows, in the emoji set and the SF Symbol set. A tool's own row reads its own
-  -- plugin's icons and never these.
+  -- The icons the launcher states for the rows it owns, the catalog scopes and its own special
+  -- rows, in the emoji set and the SF Symbol set. A tool's own row, and every row a plugin
+  -- contributes, reads its own plugin's icons and never these. The search icon left with the
+  -- System Settings search row and the window rows wear the window manager's own copy of
+  -- windows, both since phase three of the core split, and windows stays here for the window
+  -- catalog scope's own row.
   icons = {
     launcher = { emoji = "🚀", sf = "paperplane" },
     apps = { emoji = "🚀", sf = "square.grid.2x2" },
     windows = { emoji = "🪟", sf = "macwindow" },
     settings = { emoji = "⚙️", sf = "gearshape" },
-    search = { emoji = "🔍", sf = "magnifyingglass" },
     aliases = { emoji = "🏷️", sf = "tag" },
     lock = { emoji = "🔒", sf = "lock" },
     sleep = { emoji = "🌙", sf = "moon" },
@@ -49,11 +52,16 @@ return {
       surfaces  = { has = "surface" },
       scopes    = { provides = { "rows", "select" } },
       queryRows = { provides = { "queryRows" } },
-      -- A plugin whose own keyed actions each deserve a row in this list, rather than one row
-      -- for the plugin as a whole. Capture is the case and may stay the only one. Asking the
-      -- set is what keeps the four screenshot rows built from that plugin's own bindings, so
-      -- moving one of its keys moves the row with it instead of leaving a copy here to drift.
-      actionRows = { provides = { "actionRows" } },
+      -- Every plugin that adds rows to this catalog, and every plugin that runs a row it owns.
+      -- A contributor answers plain row descriptors from its own launcherRows member, built
+      -- from its own bindings or its own data, so moving one of its keys moves the row with
+      -- it instead of leaving a copy here to drift. A runner answers launcherRun, handed the
+      -- chosen row's item. The two are separate questions because a query row source may own
+      -- the rows it computes and run them without adding anything to the catalog. Asking the
+      -- set is what lets this host list window actions, screenshots and System Settings panes
+      -- while naming none of the plugins behind them.
+      launcherRows = { provides = { "launcherRows" } },
+      launcherRun = { provides = { "launcherRun" } },
     },
 
     lib = {
@@ -81,52 +89,13 @@ return {
       queryassoc = { from = "queryassoc", policy = "optional" },
     },
 
-    -- A sibling naming clipboard.setContents used to sit here for actions.copy. It named a
-    -- capability that does not exist. Asked against the real, loaded clipboard module, it has
-    -- no setContents, its own manager comment says the outward pasteText and copySelection
-    -- wrappers it used to carry are gone, and the real code confirms it, host/launcher's own
-    -- actions.copy is `function(value) hs.pasteboard.setContents(value) end`, a plain call
-    -- with nothing behind it from any plugin. So the line is removed rather than repaired
-    -- into the new table form, since converting the shape of a need that names nothing real
-    -- would only carry the same defect forward in a tidier spelling.
-    --
-    -- windowActions is real and was undeclared. `spoon.WindowManager:actions()` is a genuine
-    -- sibling capability, a colon method answering the action name to handler map the window
-    -- rows in this catalog dispatch through. Optional, since an absent map only drops those
-    -- rows one at a time, `if self._windowActions[b.action] then add(...) end`, rather than
-    -- failing anything.
-    -- Every leaf a chosen row dispatches to. This catalogue owns the kind switch and nothing
-    -- else, so each leaf is a capability declared here and injected, which is what lets the
-    -- file itself name no plugin at all. The composition root used to hold these as closures
-    -- and could not honestly resolve them without naming a plugin, so it left them unset and
-    -- said so, which meant choosing an app row, a capture action or a settings pane did
-    -- nothing at all with no error anywhere.
-    --
-    -- Every one is optional, because a row of a kind nothing provides is simply never built,
-    -- and every one is ordering false, because a leaf is called when a person picks a row
-    -- rather than while anything is being wired, so needing it says nothing about who goes
-    -- first. Making them ordering true would add edges that mean nothing and could only
-    -- constrain the plan for no reason.
-    siblings = {
-      windowActions = { plugin = "windowmanager", member = "actions", call = "method", policy = "optional" },
-      appFocus = { plugin = "apptoggler", member = "focusOrCycle", call = "method",
-        policy = "optional", ordering = false },
-      appToggleURL = { plugin = "apptoggler", member = "toggleURL", call = "method",
-        policy = "optional", ordering = false },
-      runCapture = { plugin = "capture", member = "capture", call = "method",
-        policy = "optional", ordering = false },
-      -- The function rather than its answer, since rows reads what that plugin's own configure
-      -- set and asking it before that has happened answers an empty list, which is how the
-      -- launcher lost every System Settings pane once already.
-      -- rows marks a member that answers rows whose icon keys belong to the plugin it names, so
-      -- the root stamps each row with that owner and the launcher draws the key against it.
-      settingsPaneRows = { plugin = "systemsettings", member = "rows", call = "method",
-        rows = true, policy = "optional", ordering = false },
-      openSettingsPane = { plugin = "systemsettings", member = "open", call = "method",
-        policy = "optional", ordering = false },
-      focusSettingsSearch = { plugin = "systemsettings", member = "focusSearch", call = "method",
-        policy = "optional", ordering = false },
-    },
+    -- No siblings, since phase three of the core split. Seven used to sit here, the window
+    -- manager's action map, the app toggler's focus or cycle and toggle by url, capture's run,
+    -- and System Settings' rows, open and search focus, every one a leaf this catalog's
+    -- dispatcher reached by naming a plugin. The rows and the runs now arrive through the two
+    -- set questions above and the root data below, keyed by whoever owns a row, and bringing
+    -- an application forward is core, lib/appfocus.lua, reached through actions.app. A host
+    -- that names no plugin keeps working with any of them switched off.
 
     -- Everything below is root or user data configure reads that this plugin cannot derive
     -- and that had no declaration anywhere. All nine are optional, because every one of them
@@ -156,26 +125,29 @@ return {
       -- registry to exist at all.
       apps = { source = "user", policy = "optional",
         breaks = "every app row loses its Hyper shortcut subtitle, since nothing maps a toggle's app name to the bundle id a scanned app row is keyed by" },
-      -- `spoon.SystemSettings:rows()`, called once by the root and handed in as a plain list.
-      -- Root computed rather than a sibling here, since what this plugin wants is the
-      -- concrete list a method call produced, not the method itself. The set query above
-      -- already makes systemsettings an ordering edge ahead of this plugin whenever it
-      -- provides rows and select, so the sequencing this value depends on is covered there.
-      settingsPanes = { source = "root", policy = "optional",
-        breaks = "no System Settings pane is ever listed as a row, since nothing hands over the descriptors SystemSettings itself already assembled" },
+      -- One supplier per plugin answering the launcherRows set above, in the set's order, each
+      -- a function answering that plugin's rows with the plugin's identity already stamped as
+      -- the owner on every item. Root assembled because only the root may resolve a member on
+      -- another plugin's module, and stamped there so a plugin never has to know its own
+      -- identity for the routing to work.
+      rowSuppliers = { source = "root", policy = "optional",
+        breaks = "no screenshot, window action, System Settings pane or settings search row is listed, since nothing hands over the rows those plugins contribute" },
+      -- Owner identity to a function running that owner's chosen row, one per plugin answering
+      -- the launcherRun set above. Root assembled for the same reason.
+      runners = { source = "root", policy = "optional",
+        breaks = "choosing a contributed row, a screenshot, a window action, a typed window size or a System Settings pane, does nothing at all" },
       -- The shared predicate registry, gating a row's `when` the same way a Hyper context
       -- binding does.
       predicates = { source = "root", policy = "optional",
         breaks = "every row gated on a when name, previousDisplay and nextDisplay among them, disappears from the catalog instead of showing conditionally, since an unmatched name reads here as hide rather than as always active" },
       -- The one opaque field this schema cannot see into. `actions` is a nested table of
-      -- closures, app, capture, settingsPane, rowIntercept, scope, scopePeek, scopeCanPeek,
-      -- and a `special` map of bare commands, and six of those close over other plugins or
-      -- hosts, WindowManager, AppToggler, Capture, SystemSettings, and QueryScope among them.
-      -- needs.data can say this plugin needs SOME table here, it cannot say which capabilities
-      -- live inside it, since the category is built for a plain value and this is a bundle of
-      -- behaviour naming several other parts of the configuration at once.
+      -- closures, app, copy, rowIntercept, scope, scopePeek, scopeCanPeek, and a `special`
+      -- map of bare commands, and every one closes over core alone, the app focus lib and the
+      -- query scope and stage hosts among them, never a plugin. needs.data can say this
+      -- plugin needs SOME table here, it cannot say which capabilities live inside it, since
+      -- the category is built for a plain value and this is a bundle of behaviour.
       actions = { source = "root", policy = "optional",
-        breaks = "choosing almost any row does nothing at all, an app opens nothing, a capture command runs nothing, a settings pane opens nothing, and every special command from lock to the alias directory is silent, since the one dispatcher this plugin calls has nothing to call" },
+        breaks = "choosing an app row opens nothing, a computed result copies nothing, and every special command from lock to the alias directory is silent, since the one dispatcher this plugin calls has nothing to call" },
       -- What a row says about being reachable by a typed word, asked once per row while the
       -- action rows are built. Root computed, since it depends on aliases resolved after
       -- several other plugins have configured.
@@ -232,11 +204,12 @@ return {
     -- empty list rather than needing to be removed. Losing them cost nothing visibly, which is
     -- why they went missing quietly, they are advertised only in the alias directory and each
     -- is reachable by typing a word nothing tells you about anywhere else.
-    -- Rows for the handful of actions that answer to no registration. Each is a bare command
-    -- with nothing behind it that a descriptor could describe, so each is stated here as plain
-    -- data rather than written into the row builder, which is what keeps that builder naming
-    -- nothing. lock and sleep are system calls, searchSettings focuses a field inside a pane
-    -- and belongs to no plugin, and aliasDirectory is a scope about scopes.
+    -- Rows for the handful of actions that answer to no registration and belong to no plugin.
+    -- Each is a bare command with nothing behind it that a descriptor could describe, so each
+    -- is stated here as plain data rather than written into the row builder, which is what
+    -- keeps that builder naming nothing. lock and sleep are system calls and aliasDirectory is
+    -- a scope about scopes. The System Settings search row sat here too until phase three of
+    -- the core split, and it is that plugin's own now, since it calls that plugin's method.
     --
     -- A key here is a default this person may move. Where one is given the subtitle names the
     -- chord, and where none is the subtitle says what the row is for instead, which is right
@@ -273,8 +246,6 @@ return {
     },
 
     specialRows = {
-      { name = "searchSettings", description = "Search Settings",
-        subTitle = "System · opens the System Settings search field", icon = "search" },
       { name = "aliasDirectory", description = "Aliases",
         subTitle = "Tools · every word that scopes this list", icon = "aliases",
         keywords = "alias aliases scope scopes shortcut words prefix" },

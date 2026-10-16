@@ -94,6 +94,11 @@ obj.lib = {
   -- as every atom above.
   windowleader = load("lib/windowleader.lua"),
   keyremap = load("lib/keyremap.lua"),
+  -- Bringing an application forward, focus or cycle and toggle by url, core since phase three
+  -- of the core split so the launcher's app rows reach it without naming the app toggler,
+  -- which asks for the same module through needs.lib. Configured once by the root with the
+  -- dependency door's path resolver.
+  appfocus = load("lib/appfocus.lua"),
   deps = load("lib/deps.lua"),
   -- The tool registry, phase seven of the build plan. A factory in the same style as
   -- recency, so the root builds its own instance with M.new rather than reaching for a

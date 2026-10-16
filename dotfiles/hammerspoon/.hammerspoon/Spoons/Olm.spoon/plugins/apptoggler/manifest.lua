@@ -47,22 +47,17 @@ return {
     -- reaches this at all, either way.
     lib = {
       hyperKey = { from = "hyperkey", policy = "optional" },
+      -- Bringing the app forward, focus or cycle and toggle by url, the core lib the launcher's
+      -- app rows share. Required, since the ordinary toggle and the url form both call it, and
+      -- a core lib is always present, so requiring it costs nothing on any install.
+      appFocus = { from = "appfocus", policy = "required" },
     },
 
     -- One toggle form opens a URL rather than an application, for a pane scheme such as the
-    -- one System Settings answers to, and hs.urlevent.openURL refuses those since they carry
-    -- a single colon instead of a scheme separator. So the launcher binary is a real
-    -- dependency of this plugin rather than an implementation detail, and it was invoked by
-    -- name here for as long as this plugin has existed with nothing declaring it.
-    --
-    -- Optional, because every ordinary toggle resolves an application through the
-    -- accessibility API and never reaches this, so an absent one costs the URL form alone.
-    tools = {
-      { name = "open", kind = "system", locator = "/usr/bin/open", policy = "optional",
-        reason = "opening a pane URL for a toggle whose target is a settings pane rather " ..
-                 "than an application",
-        origin = { macos = "ships with the system" } },
-    },
+    -- one System Settings answers to. That form and the ordinary focus or cycle both live in
+    -- lib/appfocus.lua since phase three of the core split, which is also what the launcher's
+    -- app rows call, so the launcher binary the url form runs is declared by the root rather
+    -- than here, and this plugin runs no tool of its own any more.
 
     -- Both fields now have a working shipped default below, so neither blocks a fresh
     -- install, but both are still worth declaring, since the person's own fuller list is the

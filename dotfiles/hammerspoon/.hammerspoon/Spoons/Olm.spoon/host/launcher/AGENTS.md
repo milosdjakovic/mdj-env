@@ -22,16 +22,24 @@ spoons into one feature and owns real state, the app scan caches and an
 `hs.application.watcher`, so it outgrew inline wiring in the root. It is a layer
 two coordinator in the sense of the lifecycle contract in the hammerspoon
 `AGENTS.md`, built over the Chooser atom, the same widget behind the other list
-tools, and it names no domain spoon. The root injects every collaborator through
-`configure`, the Chooser factory, the pure `keys` and `apps` data, injected
-window action descriptors, a chord glyph resolver, injected settings pane
-descriptors, the shared predicate registry, the docked shortcut panel, and a
-small `actions` table of leaf closures that do name concrete domain behaviors
-(app focus or cycle, a URL toggle, a screen capture, a settings pane open, and
-the show functions the base bindings call). So the mapping of the pure
-`config/keys.lua` data onto behavior is still decided in one place, the root,
-while the row building, matching, app enumeration, and dispatch structure live
-in the spoon.
+tools, and it names no domain spoon and no plugin. The root injects every
+collaborator through `configure`, the stage, the pure toggle and `apps` data, a
+chord glyph resolver and the leader display names, the shared predicate
+registry, the tool registry, the rows other plugins contribute with the runners
+that take them back, and a small `actions` table of leaf closures that close
+over core alone (app focus or cycle and a URL toggle through `lib/appfocus.lua`,
+a copy, the query scope's run and peek, and the bare system commands). So the
+row building, matching, app enumeration, and dispatch structure live in the
+spoon, and what any contributed row does lives with the plugin that built it.
+
+Until phase three of the core split, 2026-10-16, the manifest declared seven
+siblings on four plugins for those leaves, the window manager's action map, the
+app toggler's two app calls, capture's run, and System Settings' rows, open and
+search focus, and the root built a table of closures over them. A host in core
+naming plugins is the coupling the split exists to remove, so each became either
+a contribution any plugin may declare or a core lib, and the manifest has no
+siblings now. `decisions/olm-core-split.md` at the repository root has the
+record.
 
 ## Rows are data, never functions
 
@@ -52,9 +60,51 @@ there is the `row` table itself, and the edit here is one `addTool` line in
 `rowFor` and builds it. Adding a tool row is therefore not yet one registration, since
 the launcher still needs its own line and still decides where in the build that line
 sits, which is what keeps the row order exactly what a fresh reload has always shown.
-The four rows belonging to no registered tool, `lock`, `sleep`, the System Settings
-search focus, and the alias directory, are still a plain `add` call written by hand,
-since none of those names anything the registry has ever heard of.
+The three rows belonging to no registered tool and no plugin, `lock`, `sleep`, and the
+alias directory, are declared in this host's own manifest as `specialRows`, since none of
+those names anything the registry has ever heard of. The System Settings search row was a
+fourth until phase three of the core split, and it is that plugin's own contributed row now.
+
+## Rows other plugins contribute, and the owner that runs them
+
+A plugin whose actions deserve rows in this catalog, rather than one row for the plugin as a
+whole, declares `provides.launcherRows`, a member answering plain row descriptors, and
+`provides.launcherRun`, a member handed a chosen row's item. Capture, the window manager and
+System Settings do today. The manifest asks the set for both, `needs.set.launcherRows` and
+`needs.set.launcherRun`, so the plugins join by declaring and this host names none of them.
+A plugin may declare `launcherRun` alone, which is what Window Size does, since its one row is
+computed from a typed size and reaches the list as a query row instead.
+
+The root turns the set answers into two values this host receives, `rowSuppliers`, one function
+per contributor answering that plugin's rows, and `runners`, keyed by owner identity. Every row
+a supplier answers, and every row a query source answers, comes back with the plugin's identity
+stamped on its item as `owner` and on the row as `iconOwner`, so the icon key is read against
+the plugin that named it and a chosen row is routed by one plain string. `_runItem` asks first
+whether the item has an owner with a runner and runs it through that runner, on the same short
+delay every row waits for after the chooser closes. Only then does the kind switch run, and
+the kinds this host still owns are `app`, `special` for registry tools and its own declared
+rows, `calc` and `scope`. A computed sum carries an owner and no runner, so it falls through to
+`calc` exactly as before.
+
+A contributed row is `{ title, subTitle?, group?, chord?, icon, keywords?, when?, directory?,
+item }`. The item keeps whatever kind and identifying field the plugin chose, and for every row
+that existed before the change it keeps exactly the kind and field it had, `capture` and the
+action name, `window` and the action name, `settingsPane` and the url, `special` and
+`searchSettings`, because the recency keys below are built from those and must not move. A row
+names its chord as parts rather than as words, `group` the word before it and `chord = {
+leader, key, mods }` with the leader as a role, so the subtitle is spelled by `_chordSuffix`
+with the one shared speller and the leader display name the root passes for every role, and
+reads byte for byte what it read when this host built the row itself. A row with a finished
+`subTitle` keeps it as it stands.
+
+The order of an untouched list is stated in `_buildActionRows` rather than left to a loop.
+Commands are grouped by their kind, the groups in the order the kind words sort, within a group
+each supplier's rows in the set's own stable order, then this host's declared rows last in the
+group their kind names. A row marked `directory` is listed after every command, which is where
+the System Settings panes have always sat. That rule names no kind and no plugin and it gives
+exactly the order the list had before, screenshots, the settings search, the alias directory,
+lock and sleep, the window actions, and the panes at the end. A supplier that raises is dropped
+with a log line rather than costing the list every other row.
 
 ## Query row sources, the composable half of the list
 
@@ -278,8 +328,10 @@ Verified live, reaching menu search through the directory lists the covered app'
 
 ## Static rows are built on first use, not at configure
 
-The command rows and the settings pane rows used to be built in `configure`, and they are now
-built on the first open and cached, joining the app scan that was already lazy there.
+The command rows and the directory rows used to be built in `configure`, and they are now
+built on the first open and cached, joining the app scan that was already lazy there. A
+contributed row is asked of its supplier at that moment too, which matters for System
+Settings, whose pane list is empty until its own configure has run.
 
 The reason is not performance, it is that they ask questions of collaborators. The alias hint
 is answered by a resolver the root configures after this spoon, because that resolver adapts
@@ -307,8 +359,9 @@ would fail loudly. Reusing the rows costs two small methods and makes the disagr
 impossible.
 
 This is the one place a scope reaches back in here, and it stays honest because what comes back
-out is a descriptor of this launcher's own making. `runItem` never sees a foreign payload, so the
-dispatcher gains no case and learns nothing new.
+out is a row this launcher built. A contributed row handed back through `runItem` still carries
+its owner, so it reaches its plugin's runner exactly as it would have from the full list, and
+the dispatcher gains no case and learns nothing new.
 
 ## App enumeration and caching
 
@@ -393,6 +446,10 @@ The last thing used bubbles to the top whether it was an app or a command. There
 is one most-recently-used timeline, not an app-only one, keyed by a
 kind-qualified item key (`app:<bundleID>`, `capture:<name>`, `special:<name>`,
 `window:<name>`, `settingsPane:<url>`) so an app and a command never collide.
+The key is the kind and the name, or the url for a pane, and never the owner, so
+a row a plugin contributes is remembered under the same key the launcher used
+when it built that row itself, and a pick persisted before phase three of the
+core split still floats its row.
 Every used row of any kind sorts above every unused one, used rows most-recent
 first, and unused rows keep their natural order, which is open apps first then
 alphabetical for apps and the curated order for the action and settings rows. So
@@ -515,11 +572,13 @@ permanent unknown and nothing else checks any of it before a live load.
 App rows show the real app icon. The action rows have none of their own, so each
 names an icon and Olm draws it in the active set. A registered tool's row names a key into
 that plugin's own manifest icons, with the owner taken from the registry listing, so a
-command's row reads its owning plugin's icons. The rows this host states itself, the special
-rows, the three catalog scopes and the window rows, name keys of the launcher's own manifest
-icons, `lock`, `sleep`, `search`, `aliases`, `apps`, `windows` and `settings`. Window actions
-share the one `windows` icon, the chord in the subtitle telling them apart. The System
-Settings rows carry the owner of the plugin that built them, stamped by the root.
+command's row reads its owning plugin's icons. The rows this host states itself, its special
+rows and the three catalog scopes, name keys of the launcher's own manifest icons, `lock`,
+`sleep`, `aliases`, `apps`, `windows` and `settings`. A contributed row reads against its
+owner, stamped by the root. Window actions share the window manager's own `windows` icon, the
+chord in the subtitle telling them apart, and the settings search row wears System Settings'
+own `search`. Both icons were the launcher's until phase three of the core split, and the
+plugins declare the same emoji and SF Symbol, so the pictures did not change.
 
 This spoon draws no icon. Since 2026 10 15 a row it builds keeps `icon` and `iconOwner` as data,
 the owner defaulting to the launcher's own identity, `opts.iconOwner`, and the chooser draws the

@@ -33,6 +33,7 @@ obj.license = "MIT"
 
 -- Injected via configure
 obj._plan = nil          -- the window manager's own answer for what a request would do
+obj._windowActions = nil -- the window manager's action map, for running a chosen row
 obj._icon = nil          -- the row icon, a key into this plugin's manifest icons, drawn by Olm
 obj._category = nil      -- the subtitle category word, so the visible wording stays config
 obj._smallestEdge = nil  -- the shortest edge worth a row
@@ -64,6 +65,7 @@ end
 function obj:configure(opts)
   opts = opts or {}
   self._plan = opts.plan
+  self._windowActions = opts.windowActions
   self._icon = opts.icon or "windowsize"
   self._category = opts.category or "Window size"
   self._smallestEdge = tonumber(opts.smallestEdge) or 200
@@ -125,13 +127,25 @@ function obj:rows(query)
       subTitle = self._category .. " · " .. detail,
       icon = self._icon,
       filterText = query,
-      -- The window kind the launcher already dispatches, naming the window manager's own
-      -- exact size action and carrying the size that action needs. A window row that carries
-      -- a size is computed rather than catalogued, which is also how the launcher knows to
-      -- keep it out of the recency timeline.
+      -- The window kind, naming the window manager's own exact size action and carrying the
+      -- size that action needs, run by launcherRun below once the root has stamped this
+      -- plugin as the row's owner. A window row that carries a size is computed rather than
+      -- catalogued, which is also how the launcher knows to keep it out of the recency
+      -- timeline.
       item = { kind = "window", name = "exactSize", size = { width = w, height = h } },
     },
   }
+end
+
+--- WindowSize:launcherRun(item)
+--- Method
+--- Run a chosen row, declared as provides.launcherRun. The launcher calls this after its
+--- chooser has closed and focus has gone back to the window that was in front, and the window
+--- manager's exact size action trims the size as typed against the screen that window is on.
+function obj:launcherRun(item)
+  if not (item and self._windowActions) then return end
+  local fn = self._windowActions()[item.name]
+  if fn then fn(item.size) end
 end
 
 return obj

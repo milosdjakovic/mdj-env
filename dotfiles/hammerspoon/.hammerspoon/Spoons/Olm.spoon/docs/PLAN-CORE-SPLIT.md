@@ -104,6 +104,29 @@ Every one of the seven siblings becomes a generic contribution point a plugin de
 When this lands the launcher manifest has no siblings, and switching off capture or
 systemsettings produces no problem line.
 
+**Done, 2026-10-16, built, live load owed.** A plugin contributes rows to the launcher's own
+catalog by declaring `provides.launcherRows`, plain row descriptors, and `provides.launcherRun`,
+handed a chosen row's item. The launcher asks the set for both, and the root resolves each
+member through the registrar's own door, stamps the plugin's identity on every row's item as
+`owner`, and hands the launcher `rowSuppliers` and `runners` keyed by owner. Query source rows
+carry their owner the same way. The dispatcher runs an owned row through its owner's runner on
+the same short delay, then falls back to its own kinds, `app`, `special`, `calc` and `scope`.
+A row names its chord as `group` and `chord = { leader, key, mods }`, spelled by the launcher
+with the leader names the root passes for every role, so every subtitle reads as before. Capture
+and the window manager build their rows from their own effective bindings, System Settings
+answers its panes, marked `directory` to keep them after every command, and its search row,
+which kept kind `special` and name `searchSettings`. Window Size runs its typed size row itself
+through a second sibling on the window manager. Focus or cycle and toggle by url moved into
+`lib/appfocus.lua`, published in `obj.lib` and the root's libs, with `open` declared by
+`root/manifest.lua`, and the app toggler and the launcher's app rows both call it. `coveredApp`
+and `refreshLauncher` are root words over the launcher. The `kin` table, `captureRows`,
+`windowActions`, `windowLeaderName` and `settingsPanes` are gone, and the launcher manifest has no
+siblings. A comparison against the previous commit found all 63 catalog rows equal in title,
+subtitle, icon key, kind, identifying field, gate, keywords and order, the only difference being
+that the window rows and the search row read their icon against the plugin that built them,
+which declares the same emoji and SF Symbol. The gate this phase opens in report mode, phase
+six, is not written yet.
+
 ### Phase 4, cheat sheets complete and honest
 
 Every key a plugin declares on a leader appears in that leader's sheet, and nothing appears that

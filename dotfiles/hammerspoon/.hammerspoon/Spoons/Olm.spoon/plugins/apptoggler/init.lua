@@ -27,6 +27,7 @@ local log = hs.logger.new("AppToggler", "info")
 -- Configuration
 obj._apps = nil
 obj._hyperKey = nil
+obj._appFocus = nil   -- lib/appfocus.lua, dot called, focus or cycle and toggle by url
 
 -- The literal combo an entry with no `modifiers` field falls back to when HyperKey is not
 -- wired at all, so losing that spoon degrades the chord rather than the toggle itself.
@@ -156,9 +157,11 @@ function obj:configure(opts)
   -- its modal (fired by holding the physical Hyper key) instead of a literal modifier
   -- combination.
   self._hyperKey = opts.hyperKey
-  -- The scoped dependency door, earned by declaring a tool at all. Kept rather than resolved
-  -- here so a toggle asks at the moment it fires, which is also the only moment it matters.
-  self._deps = opts.deps
+  -- Focus or cycle and toggle by url, the core lib the manifest asks for through needs.lib.
+  -- Both used to be methods here, and the launcher reached them as siblings on this plugin.
+  -- Phase three of the core split moved them into lib/appfocus.lua so the launcher's app rows
+  -- name no plugin, and this plugin calls the same module rather than keeping a copy.
+  self._appFocus = opts.appFocus
   return self
 end
 
@@ -180,99 +183,11 @@ function obj:toggle(bundleID)
   return wasRunning and "focused" or "launched"
 end
 
---- AppToggler:toggleURL(bundleID, url)
---- Method
---- Toggle an app that should land on a specific pane. Opens the URL when the app
---- is not frontmost (launching it, or navigating an already-open window to that
---- pane); hides the app when it is frontmost. Used for apps like System Settings
---- whose panes are reachable via a URL scheme. Answers the same outcome words toggle
---- does, for the identical reason.
-function obj:toggleURL(bundleID, url)
-  local app = hs.application.get(bundleID)
-
-  if app and app:isFrontmost() and #app:allWindows() > 0 then
-    app:hide()
-    return "hidden"
-  end
-
-  local wasRunning = app ~= nil
-  -- The launcher binary rather than hs.urlevent.openURL, because a pane URL scheme such as
-  -- x-apple.systempreferences carries a single colon and openURL rejects any URL without a
-  -- full scheme separator. Asked of the door by name rather than run as one, so an absent
-  -- one says so instead of failing as an empty answer.
-  local opener = self._deps and self._deps.path("open")
-  if opener then
-    hs.execute(opener .. " " .. ("%q"):format(url))
-  else
-    -- Said out loud rather than swallowed, because the failure is a key that does nothing at
-    -- all, and a toggle that silently declines is indistinguishable from a binding that never
-    -- arrived. The door answers nil either because the tool is genuinely absent or because
-    -- this plugin was configured without one, and both are worth seeing.
-    log.w("no open tool, so '" .. tostring(url) .. "' cannot be reached")
-  end
-  return wasRunning and "focused" or "launched"
-end
-
 --- AppToggler:launchOrFocus(bundleID)
 --- Method
 --- Launch or focus an app (for workspace engine)
 function obj:launchOrFocus(bundleID)
   hs.application.launchOrFocusByBundleID(bundleID)
-end
-
---- AppToggler:focusOrCycle(bundleID)
---- Method
---- Focus an app, or cycle through its windows if already frontmost.
---- Never hides. First press shows the last focused window, each
---- subsequent press moves to the next window and wraps to the first.
---- Answers "launched", "focused", or "cycled", so a caller that also asked for placement
---- knows a cycle within an already frontmost app never counts as the outcome placement
---- fires on.
-function obj:focusOrCycle(bundleID)
-  local app = hs.application.get(bundleID)
-
-  -- Not running: launch it
-  if not app then
-    hs.application.launchOrFocusByBundleID(bundleID)
-    return "launched"
-  end
-
-  -- Collect standard, non-minimized windows in a deterministic order so
-  -- cycling is consistent (allWindows order is not stable on its own)
-  local windows = {}
-  for _, w in ipairs(app:allWindows()) do
-    if w:isStandard() and not w:isMinimized() then
-      table.insert(windows, w)
-    end
-  end
-  table.sort(windows, function(a, b) return a:id() < b:id() end)
-
-  -- No cyclable windows: fall back to launch or focus
-  if #windows == 0 then
-    hs.application.launchOrFocusByBundleID(bundleID)
-    return "focused"
-  end
-
-  if app:isFrontmost() then
-    -- Already focused: move to the next window, wrapping to the first
-    local focused = hs.window.focusedWindow()
-    local index = nil
-    if focused then
-      for i, w in ipairs(windows) do
-        if w:id() == focused:id() then
-          index = i
-          break
-        end
-      end
-    end
-    local nextIndex = index and (index % #windows) + 1 or 1
-    windows[nextIndex]:focus()
-    return "cycled"
-  else
-    -- Not focused: bring the app forward with its last focused window
-    hs.application.launchOrFocusByBundleID(bundleID)
-    return "focused"
-  end
 end
 
 -- Whether the outcome a toggle answered is one placement is allowed to fire on. Showing,
@@ -388,11 +303,11 @@ function obj:_buildAction(toggle, bundleID)
   return function()
     local outcome
     if toggle.url then
-      outcome = self_ref:toggleURL(bundleID, toggle.url)
+      outcome = self_ref._appFocus.toggleURL(bundleID, toggle.url)
     elseif toggle.hides then
       outcome = self_ref:toggle(bundleID)
     else
-      outcome = self_ref:focusOrCycle(bundleID)
+      outcome = self_ref._appFocus.focusOrCycle(bundleID)
     end
     if toggle.placement and PLACING_OUTCOMES[outcome] then
       self_ref:_setupPlacement(bundleID, toggle.placement)

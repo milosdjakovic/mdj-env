@@ -520,9 +520,69 @@ making the key a swallowed no op.
 You write nothing for the sheet. The root walks the plan for every binding declared on the
 window leader and the held window sheet draws it, with `when` hiding the row and the key
 together and `description` replacing the label humanized from the action name. A person moves
-the whole leader to another physical key in `config/keys.lua`, and no plugin changes. The
-launcher's window rows still come only from windowmanager's action map until phase three of the
-core split, so a binding another plugin declares reaches the sheet and not yet the launcher.
+the whole leader to another physical key in `config/keys.lua`, and no plugin changes. The sheet
+is one of the two places every key must be found. The launcher is the other, and a plugin puts
+its keyed actions there itself, as the next section says, which is what the window manager does
+for its window rows.
+
+## Rows in the launcher's own catalog
+
+A registered tool gets its one launcher row from its `registry` block. A plugin whose separate
+actions each deserve a row, four screenshot actions, sixteen window actions, thirty nine System
+Settings panes, contributes them to the launcher's own catalog instead, with two members.
+
+```lua
+provides = { launcherRows = "launcherRows", launcherRun = "launcherRun" },
+```
+
+`launcherRows` answers a list of plain rows, built from your own effective bindings or your own
+data so a key moved in the person's config moves its row too. Keep the bindings your
+`configure` receives, `opts.bindings` and `opts.leader`, and build from those.
+
+```lua
+function obj:launcherRows()
+  local rows = {}
+  for _, b in ipairs(self._bindings or {}) do
+    rows[#rows + 1] = {
+      title = b.description,
+      group = "Capture",
+      chord = { leader = self._leader, key = b.key, mods = b.mods },
+      icon = b.icon,
+      item = { kind = "capture", name = b.action },
+    }
+  end
+  return rows
+end
+
+function obj:launcherRun(item)
+  self:capture(item.name)
+end
+```
+
+Four rules, each one a way this goes wrong without a sound.
+
+A row is data. Never put a function in a row or its item, since the launcher hands every row to
+`hs.chooser`, which drops a row holding one, and the list comes up without it.
+
+Name the chord rather than spelling it. Give `group` and `chord` with the leader as a role, and
+the launcher spells the subtitle with the same speller the hint bar uses. A finished `subTitle`
+is for a row with no key, and it is taken as it stands.
+
+Your run gets the whole item back. Olm stamps your identity on every item as `owner`, and the
+launcher routes a chosen row to your `launcherRun` by it, after the list has closed and focus has
+gone back to the app underneath. Read the fields you put there yourself.
+
+The kind and the name are a memory key. The launcher remembers picks in `hs.settings` as the
+kind joined to the name, or to the url for a row carrying one. Pick them once, since renaming
+either makes the launcher forget every time a person chose that row.
+
+`icon` is a key into your own manifest icons, read against your identity like every row icon.
+`when` names a predicate that hides the row live, the way a window binding's gate hides its key.
+`keywords` is hidden text the matcher reads. `directory = true` lists the row after every
+command, which suits a row that navigates somewhere rather than doing something.
+
+A query row source owns the rows it computes too, so one that wants a chosen row run by itself
+declares `launcherRun` alone and leaves `launcherRows` out. Window Size is that case.
 
 ## Tools your plugin needs
 

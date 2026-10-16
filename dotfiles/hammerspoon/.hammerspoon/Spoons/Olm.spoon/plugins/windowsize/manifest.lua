@@ -33,8 +33,10 @@ return {
     -- The resize itself, which is window geometry and belongs to the plugin that already
     -- owns every other move and size on this machine. This plugin asks it what a request
     -- would actually do, so the row can say up front that a size the display cannot hold is
-    -- about to be trimmed, and the resize that follows is the same plugin's own action
-    -- reached through the launcher's window dispatch rather than through anything here.
+    -- about to be trimmed, and the resize that follows is the same plugin's own exact size
+    -- action, which launcherRun below reaches through the second sibling. That used to be the
+    -- launcher's window dispatch holding the window manager's action map, and phase three of
+    -- the core split moved the call here so the launcher names no plugin.
     --
     -- Required, since a source that cannot describe what a row would do has no honest row to
     -- offer and is better absent than offering one that lies.
@@ -45,6 +47,8 @@ return {
     siblings = {
       plan = { plugin = "windowmanager", member = "exactSizePlan", call = "method",
         policy = "required", ordering = false },
+      windowActions = { plugin = "windowmanager", member = "actions", call = "method",
+        policy = "required", ordering = false },
     },
   },
 
@@ -53,8 +57,14 @@ return {
   -- computes at most one row from what was typed and claims nothing else. The member is
   -- spelled rows because the launcher's own door asks a source for a member literally by
   -- that name, so this is the one field here whose spelling is not free.
+  --
+  -- launcherRun is how a chosen row comes back. The launcher routes a row by the owner the root
+  -- stamps on it, so this plugin runs its own row rather than the launcher knowing which
+  -- plugin a window row belongs to. It provides no launcherRows, since its one row is computed
+  -- from what was typed and reaches the launcher as a query row instead.
   provides = {
     queryRows = "rows",
+    launcherRun = "launcherRun",
   },
 
   defaults = {

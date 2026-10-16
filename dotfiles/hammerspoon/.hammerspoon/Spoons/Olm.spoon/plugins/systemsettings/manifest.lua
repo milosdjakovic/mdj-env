@@ -68,6 +68,10 @@ return {
     softwareUpdate = { emoji = "🔄", sf = "arrow.triangle.2.circlepath" },
     storage = { emoji = "💾", sf = "externaldrive" },
     deviceManagement = { emoji = "📋", sf = "checklist" },
+    -- The search row's icon. It was the launcher's own while the launcher stated that row
+    -- itself, and it moved here with the row in phase three of the core split, drawn
+    -- identically in both sets, so the picture is unchanged.
+    search = { emoji = "🔍", sf = "magnifyingglass" },
   },
 
   needs = {
@@ -84,17 +88,33 @@ return {
 
   provides = {
     rows = "rows",
-    -- open is the real member. Choosing a pane in the live root actually runs through the
-    -- launcher's own item.kind dispatch, actions.settingsPane, which itself calls this same
-    -- method, so naming it here is honest about where the row's own action ends up rather
-    -- than inventing a member this plugin does not have.
+    -- open is the real member. Choosing a pane in the launcher runs through launcherRun
+    -- below, which itself calls this same method, so naming it here is honest about where the
+    -- row's own action ends up rather than inventing a member this plugin does not have.
     select = "open",
+    -- The launcher's own catalog. launcherRows answers the search row and one row per pane,
+    -- and launcherRun opens a chosen pane or focuses the search field, so the launcher asks
+    -- the set for both and names no plugin. The pane rows are the same descriptors rows
+    -- answers above, so the scoped list and the catalog can never disagree about a pane.
+    launcherRows = "launcherRows",
+    launcherRun = "launcherRun",
   },
 
   defaults = {
     description = "System Settings",
     icon = "systemsettings",
     aliases = { "s", "system" },
+
+    -- The one row that is not a pane. It drops a person into Apple's own per setting search
+    -- for everything the pane list does not reach, and it was the launcher's own row, listed
+    -- among its special rows and run by a closure in the composition root, until phase three
+    -- of the core split moved it here beside the method it calls. It names no key, so its
+    -- subtitle says what it does rather than naming a chord.
+    searchRow = {
+      title = "Search Settings",
+      subTitle = "System · opens the System Settings search field",
+      icon = "search",
+    },
 
     -- config/settingsPanes today, and every id below was read off this machine's installed
     -- settings extensions, but the ids are Apple's, not this person's, so the whole catalog

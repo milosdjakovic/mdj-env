@@ -94,3 +94,4 @@ than discovered.
 - [olm-chooser-keys](olm-chooser-keys.md), the default chooser's field yields Hyper presses through an injected predicate, and the action panel is on Hyper and o with file search reveal on Hyper and f
 - [olm-icons](olm-icons.md), a plugin names an icon and Olm draws it through one engine with an emoji source and an SF Symbol source, the active set is one setting in `config/icons.toml`, and a gate refuses a plugin that draws its own
 - [olm-manifest-header](olm-manifest-header.md), each plugin manifest declares its `apiVersion` and an optional `about` block inside `manifest.lua`, checked when manifests are read, after a separate TOML or JSON manifest was turned down
+- [olm-core-split](olm-core-split.md), core may be named and never names a plugin, a person's plugin changes live in `config/plugins.lua`, the leader plumbing is core, and the launcher routes contributed rows by owner

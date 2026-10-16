@@ -1,7 +1,7 @@
 -- The composition root's own needs, which belong to no plugin.
 --
 -- Every other manifest in this tree describes a plugin. This one describes the root that wires
--- them, which reaches for two tools of its own. A need with nothing but the root behind it is
+-- them, which reaches for three tools of its own. A need with nothing but the root behind it is
 -- otherwise the one category nothing declares and so nothing checks, which is the same reason
 -- the setup scripts one layer up declare stow and duti rather than assuming them.
 --
@@ -30,6 +30,16 @@ return {
         unit = "keyremap",
         reason = "applying the one HID mapping every leader key depends on, and clearing it " ..
                  "again on quit",
+        origin = { macos = "ships with the system" } },
+      -- Optional, because only the url form of bringing an app forward runs it, an app toggle
+      -- or a launcher app row whose target is a settings pane rather than an application.
+      -- Declared here since phase three of the core split moved that behaviour out of the app
+      -- toggler into lib/appfocus.lua, which the root configures with this door, so the unit
+      -- is named for the lib that runs it.
+      { name = "open", kind = "system", locator = "/usr/bin/open", policy = "optional",
+        unit = "appfocus",
+        reason = "opening a pane url for an app toggle or a launcher app row whose target is " ..
+                 "a settings pane rather than an application",
         origin = { macos = "ships with the system" } },
     },
   },

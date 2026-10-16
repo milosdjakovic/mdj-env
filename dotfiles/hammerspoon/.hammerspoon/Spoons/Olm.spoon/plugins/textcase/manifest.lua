@@ -62,18 +62,7 @@ return {
       recency = { from = "recency", policy = "optional" },
     },
 
-    siblings = {
-      -- Which application the launcher opened over, the same declaration menu search
-      -- carries and for the same reason, the selection this plugin's launcher subtitle asks
-      -- about belongs to that app and not to the chooser holding the keyboard. A closure
-      -- reaching into the launcher only at call time, so no wiring edge, ordering false.
-      -- Optional where menu search says required, since only the live subtitle asks, and
-      -- without an answer the row simply keeps its static words.
-      coveredApp = { plugin = "launcher", member = "coveredApp", call = "method",
-        policy = "optional", ordering = false },
-    },
-
-    -- One root computed word, the trickle migration onto the shared stage. stagePresent is
+    -- Root computed words. stagePresent, from the trickle migration onto the shared stage, is
     -- the hotkey door reached through registry.open's own kept fallback, VPN's identical
     -- precedent, since a launcher row choosing this tool pushes the registry's own
     -- presentation straight from root/compose.lua's rowIntercept and never calls show at
@@ -84,6 +73,13 @@ return {
       stagePresent = { source = "root", policy = "optional",
         breaks = "the special row dispatch reaches nothing, since show has no other way to " ..
                  "reach the shared stage" },
+      -- Which application the launcher opened over, the same word menu search declares and for
+      -- the same reason, the selection this plugin's launcher subtitle asks about belongs to
+      -- that app and not to the chooser holding the keyboard. A root published closure over
+      -- the launcher since phase three of the core split, so this plugin names no host.
+      -- Optional where menu search says required, since only the live subtitle asks.
+      coveredApp = { source = "root", policy = "optional",
+        breaks = "the launcher row keeps its static subtitle rather than saying whether a selection is there to recase" },
     },
   },
 

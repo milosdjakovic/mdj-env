@@ -450,6 +450,17 @@ local function checkRegistryMembers(dir, identity, manifest, mod)
   end
 end
 
+--- provides.launcherRows and provides.launcherRun, the two members a plugin offers the
+--- launcher's own catalog. The composition root resolves both lazily through the registrar's
+--- own door and names one that resolves to nothing on its console, which is after a reload, so
+--- this asks the same question ahead of one.
+local function checkLauncherMembers(dir, identity, manifest, mod)
+  local provides = manifest.provides
+  if type(provides) ~= "table" then return end
+  checkMember(dir, identity, "provides.launcherRows", provides.launcherRows, mod)
+  checkMember(dir, identity, "provides.launcherRun", provides.launcherRun, mod)
+end
+
 --- manifest.wiring, mirroring lib/wire.lua's own targetOf and its method lookup, call.lua
 --- lines this gate never touched since neither is exposed and both are small enough to
 --- write again here than to justify a seam for. Absent target means the plugin root, a
@@ -509,8 +520,10 @@ for dir, manifest in pairs(manifestsByDir) do
 
   checkRootWords(dir, identity, manifest)
 
+  local launcherMembers = type(manifest.provides) == "table"
+    and (manifest.provides.launcherRows ~= nil or manifest.provides.launcherRun ~= nil)
   local needsModule = (manifest.registry ~= nil) or (manifest.presentation ~= nil)
-    or (type(manifest.wiring) == "table" and #manifest.wiring > 0)
+    or (type(manifest.wiring) == "table" and #manifest.wiring > 0) or launcherMembers
 
   if needsModule and not mod then
     unknown(dir, string.format(
@@ -571,6 +584,7 @@ for dir, manifest in pairs(manifestsByDir) do
       -- binder for one, still has those steps checked, since checkWiring only needs the module.
       checkWiring(dir, identity, manifest, mod)
     end
+    if launcherMembers then checkLauncherMembers(dir, identity, manifest, mod) end
   end
 end
 

@@ -182,7 +182,10 @@ and data paths, plus the leader engines and the cheatsheet renderer for the plug
 those surfaces. Declaring `needs.data` with `source = "root"` earns a stage word or a root
 value, and the vocabulary is deliberately shared, so grep the other manifests and reuse an
 existing word before minting a new one, since a vocabulary of one word per plugin is a
-vocabulary nobody can pay. Siblings exist and are rare, prefer not needing one.
+vocabulary nobody can pay. Siblings exist and are rare, prefer not needing one, and a sibling
+never names a host. A plugin whose actions deserve rows in the launcher's own catalog declares
+`provides.launcherRows` and `provides.launcherRun` instead, the contract has the row shape and
+the authoring guide has the walk through.
 
 Configuration splits three ways. The plugin proposes its own `defaults`, a leader role, a key,
 aliases, an icon, and a person overrides them outside the plugin, rebinding a physical key only

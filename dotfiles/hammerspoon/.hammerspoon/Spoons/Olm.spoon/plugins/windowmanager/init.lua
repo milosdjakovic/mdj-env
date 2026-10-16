@@ -32,6 +32,8 @@ end
 -- Dependencies (injected via configure)
 obj._margins = {}
 obj._settings = nil
+obj._bindings = nil   -- the effective bindings, for the launcher rows built from them
+obj._leader = nil     -- the leader role those bindings sit on, window unless overridden
 
 -- The round trip memory for _placeOnScreen, declared here as well as reset in init, since
 -- init runs inside loader.lua's own pcall and a failure anywhere else inside it would
@@ -57,6 +59,10 @@ function obj:configure(opts)
   opts = opts or {}
   self._margins = opts.margins or {}
   self._settings = opts.settings or {}
+  -- The effective bindings and the leader they sit on, kept so launcherRows builds the
+  -- launcher's rows from the very list bindToLeader binds, after any override.
+  self._bindings = opts.bindings or {}
+  self._leader = opts.leader
   hs.window.animationDuration = self._settings.windowAnimationDuration or 0
   return self
 end
@@ -824,6 +830,58 @@ function obj:bindToLeader(windowLeader, bindings)
     end
   end
   return self
+end
+
+-- camelCase action name to a Title Case label, for a binding that sets no description. The
+-- launcher used to apply this to the window rows it built from this plugin's action map, and
+-- the rows are built here now, so the fallback came along with them. The window cheat sheet
+-- humanizes the same way, so a row and the sheet read alike.
+local function humanize(name)
+  local s = tostring(name):gsub("(%l)(%u)", "%1 %2")
+  return s:sub(1, 1):upper() .. s:sub(2)
+end
+
+--- WindowManager:launcherRows() -> rows
+--- Method
+--- One launcher row per bound window action, declared as provides.launcherRows, in the order
+--- the bindings are declared. A binding whose action this plugin does not answer gets no row,
+--- the same filter bindToLeader applies before binding, since a row that runs nothing is worse
+--- than no row.
+---
+--- Each row is plain data and never a function, because the launcher hands every row to
+--- hs.chooser and a row holding a function is silently dropped. The item keeps the kind and the
+--- name it has always carried, window and the action name, since the launcher's recency memory
+--- is keyed by those two words. A binding's `when` rides along, so the display switch rows drop
+--- out of the list on a single display exactly as their keys go quiet. group and chord are the
+--- subtitle's parts and the launcher spells them, so the row names the key the leader binds.
+function obj:launcherRows()
+  local actionMap = self:actions()
+  local rows = {}
+  for _, b in ipairs(self._bindings or {}) do
+    if actionMap[b.action] then
+      rows[#rows + 1] = {
+        title = b.description or humanize(b.action),
+        group = "Window",
+        chord = { leader = self._leader, key = b.key, mods = b.mods },
+        icon = b.icon or "windows",
+        when = b.when,
+        item = { kind = "window", name = b.action },
+      }
+    end
+  end
+  return rows
+end
+
+--- WindowManager:launcherRun(item)
+--- Method
+--- Run a chosen launcher row's window action, declared as provides.launcherRun. The launcher
+--- calls this after its chooser has closed and focus has gone back to the window that was in
+--- front, which every action here reads through hs.window.focusedWindow. A row may carry the
+--- size it means, which exactSize reads and every other action ignores, the repeating ones
+--- reading an absent argument as the press itself.
+function obj:launcherRun(item)
+  local fn = item and self:actions()[item.name]
+  if fn then fn(item.size) end
 end
 
 return obj

@@ -13,11 +13,11 @@
 -- proving consumer, exactly. Its own leader key still opens it, through cfg.stagePresent, the
 -- root published word every presenting plugin's own hotkey door shares.
 --
--- Its two collaborators from the launcher are unchanged by this migration. coveredApp and
--- refreshLauncher are declared and ordering false for the identical reason the note that used
--- to sit here explained. Each arrives as a closure called when a person types rather than
--- while anything is being wired, and this plugin is deliberately configured BEFORE the
--- launcher, so an eager edge would invert that order for no reason.
+-- Its two collaborators from the launcher, coveredApp and refreshLauncher, are root published
+-- words since phase three of the core split rather than siblings naming the launcher, so this
+-- plugin names no host. Each arrives as a closure the root built over the launcher, called when
+-- a person types rather than while anything is being wired, so this plugin can still be
+-- configured before the launcher with no edge between them.
 --
 -- Three more collaborators join for the snapshot cache, docs/BRIEF-MENUSEARCH-CACHE.md. storage
 -- is lib/storage.lua itself, asked for under a field name other than the module's own so the
@@ -51,17 +51,6 @@ return {
   name = "menuSearch",
 
   needs = {
-    siblings = {
-      -- Which application the launcher opened over, which is the whole subject of this
-      -- plugin, since the menus it searches belong to that app and not to the launcher.
-      coveredApp = { plugin = "launcher", member = "coveredApp", call = "method",
-        policy = "required", ordering = false },
-      -- Poking the launcher to draw again once this plugin's own scope read lands, the same
-      -- late answer shape the browser tab and relay lists take.
-      refreshLauncher = { plugin = "launcher", member = "refresh", call = "method",
-        policy = "optional", ordering = false },
-    },
-
     lib = {
       -- Declared under "recencyLib" rather than "recency" on purpose. The key "recency" is
       -- what lib/services.lua's own perPlugin function watches for to auto build ONE instance
@@ -82,6 +71,14 @@ return {
     },
 
     data = {
+      -- Which application the launcher opened over, which is the whole subject of this
+      -- plugin, since the menus it searches belong to that app and not to the launcher.
+      coveredApp = { source = "root", policy = "required",
+        breaks = "the alias scope has no application to read menus from, so it lists nothing" },
+      -- Poking the launcher to draw again once this plugin's own scope read lands, the same
+      -- late answer shape the browser tab and relay lists take.
+      refreshLauncher = { source = "root", policy = "optional",
+        breaks = "a menu read that lands after the keystroke stays off screen until the next keystroke" },
       stagePresent = { source = "root", policy = "optional",
         breaks = "this plugin's own leader key opens nothing, since the hotkey has no other way to reach the shared stage" },
       redrawPresented = { source = "root", policy = "optional",

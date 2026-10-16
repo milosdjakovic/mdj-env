@@ -339,11 +339,13 @@ wired first. Set it to false when the capability arrives as a closure that reach
 plugin at call time rather than at configure time. The need still resolves and is still
 existence checked, it just contributes no edge.
 
-This distinction is not theoretical. MenuSearch receives two Launcher capabilities as
+This distinction is not theoretical. MenuSearch received two Launcher capabilities as
 closures, and the live root configures MenuSearch **before** the Launcher. An eager
-declaration would invert that order for no reason, and in some pairings would produce a
-cycle that fails the whole plan. The lesson is that a need and an ordering constraint are
-two different statements, and the schema used to be able to make only one of them.
+declaration would have inverted that order for no reason, and in some pairings would produce
+a cycle that fails the whole plan. The lesson is that a need and an ordering constraint are
+two different statements, and the schema used to be able to make only one of them. Those two
+are root published words now, `coveredApp` and `refreshLauncher`, since phase three of the core
+split, because a sibling may name another plugin and never a host.
 
 `call` is `"method"` or `"dot"`, defaulting to `"method"`. A resolved member with the
 wrong convention is worse than a missing one, since it resolves and then fails on
@@ -429,8 +431,9 @@ doing the asking makes no difference whatsoever.
 The composition root builds one table of these values, keyed by field name, and today it
 publishes the following words. `windowBindings`, every binding any plugin declared on the
 window leader, collected by walking the plan and stamped with the window keycode, which the
-window cheat sheet host reads and the launcher's window rows also receive, so a row that
-names a key and the overlay that shows it can never be allowed to disagree. `predicates`, the shared when name to
+window cheat sheet host reads. `coveredApp`, the application the launcher opened over and the
+id of that open, and `refreshLauncher`, asking the launcher to draw again, both closures over
+the launcher for a plugin that works in the app underneath it, MenuSearch and TextCase today. `predicates`, the shared when name to
 predicate table every gated binding is resolved against. `leaders`, what the window
 leader's own overlay section is called, since the leader's own name says nothing to
 somebody reading a list of window actions. `redraw`, repaint whichever list is on screen,
@@ -516,10 +519,11 @@ from what the plugins themselves declared.
 
 ```lua
 set = {
-  surfaces   = { has = "surface" },
-  scopes     = { provides = { "rows", "select" } },
-  queryRows  = { provides = { "queryRows" } },
-  actionRows = { provides = { "actionRows" } },
+  surfaces     = { has = "surface" },
+  scopes       = { provides = { "rows", "select" } },
+  queryRows    = { provides = { "queryRows" } },
+  launcherRows = { provides = { "launcherRows" } },
+  launcherRun  = { provides = { "launcherRun" } },
 },
 ```
 
@@ -551,14 +555,49 @@ The split is not cosmetic. A query for `rows` alone returns every scopable tool 
 computed source may also propose `defaults.example`, one short line the launcher's empty
 field can wear, which is the only way a person finds out a typed sum answers at all.
 
-Two more are answered today. `profile` means this plugin can say which display arrangement
-is current, which the overlay resolver asks for without knowing any plugin manages
-arrangements at all. `actionRows` means each of this plugin's own keyed actions deserves a
-row of its own in the catalogue rather than one row for the plugin, which capture declares
-because it has four actions, a key each, and no picker of its own to open.
+`profile` means this plugin can say which display arrangement is current, which the overlay
+resolver asks for without knowing any plugin manages arrangements at all. A value may be
+`true` where the capability is a fact about the plugin rather than a member to call, as
+`profile` is.
 
-A value may be `true` where the capability is a fact about the plugin rather than a member
-to call, as `actionRows` and `profile` both are.
+`launcherRows` and `launcherRun` are how a plugin puts rows in the launcher's own catalog and
+runs the one a person chooses, the launcher asking the set for each and naming no plugin.
+Capture declares both for its four screenshot actions, the window manager for its window
+actions, and System Settings for its panes and its search row. Window Size declares
+`launcherRun` alone, since its one row is computed from a typed size and reaches the list as a
+query row.
+
+```lua
+provides = { launcherRows = "launcherRows", launcherRun = "launcherRun" },
+```
+
+`launcherRows` is a member answering a list of plain descriptors, asked when the launcher first
+builds its rows rather than at load, so a list assembled inside configure is ready.
+
+```lua
+{ title = "Screenshot", group = "Capture",
+  chord = { leader = "app", key = "4", mods = { "shift" } },
+  icon = "screenshot",                      -- a key into this plugin's own manifest icons
+  when = nil,                               -- a predicate name gating the row live, optional
+  keywords = nil,                           -- hidden words the matcher reads, optional
+  directory = nil,                          -- true lists the row after every command
+  item = { kind = "capture", name = "captureArea" } }
+```
+
+A row is data and never a function, because the launcher hands every row to `hs.chooser`,
+which drops a row holding one without a word. The subtitle is either a finished `subTitle` or
+the parts, `group` and `chord` with its leader named by role, which the launcher spells with the
+shared chord speller so a row and the docked hint bar print the same words for one key. The
+root stamps the plugin's identity on every item as `owner` and on the row as `iconOwner`. The
+launcher routes a chosen row by that owner, so `launcherRun` is handed the whole item back after
+the chooser has closed and focus has returned, and reads whatever fields it put there itself.
+
+The item's `kind` and its name, or its `url`, are the launcher's recency key, `kind:name`, so
+choose them once and keep them. A row whose kind and name change is a new row to the recency
+memory, and every pick a person made under the old key is forgotten. `app`, `calc`, `scope` and
+`special` are the launcher's own kinds, and a contributed row may use `special` only for a
+name no registered tool has. A member named here that resolves to nothing on the real module
+is named by the dry gate and on the console rather than failing in silence.
 
 ### registry
 

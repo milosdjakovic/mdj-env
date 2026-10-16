@@ -495,6 +495,13 @@ function obj.run(olm, cfg)
   -- single adapter every plugin sharing it in the live root already reads today.
   local sharedDepsScope = depsAtom:scope("Olm")
 
+  -- Bringing an application forward, core since phase three of the core split. Configured here,
+  -- once, with the shared door's path resolver, since its url form runs the launcher binary
+  -- root/manifest.lua declares, and before any plugin is wired, since the app toggler binds keys
+  -- that call it as soon as its own wiring step runs.
+  local appFocusAtom = atoms.appfocus
+  appFocusAtom.configure({ path = sharedDepsScope.path })
+
   -- resolve.plan's existence question for one declared tool, which is the door's own answer
   -- rather than a probe of its own. A package kind is the exception, since presence for one is
   -- proven by asking the package manager and nothing at this layer can do that, so it is taken
@@ -606,6 +613,7 @@ function obj.run(olm, cfg)
     chordkey = chordKeyAtom,
     hyperkey = hyperKeyAtom,
     windowleader = windowLeaderAtom,
+    appfocus = appFocusAtom,
     recency = atoms.recency,
     queryassoc = atoms.queryassoc,
     storage = atoms.storage,
@@ -944,10 +952,27 @@ function obj.run(olm, cfg)
   end
 
   local rootValues = {
-    -- THE SEAM, Fact 1's other half. The window cheat sheet reads the stamped list the
-    -- launcher's window rows also receive, one object, because a row that names a key and the
-    -- sheet that shows it can never be allowed to disagree.
+    -- THE SEAM, Fact 1's other half. The window cheat sheet reads the stamped list, every
+    -- binding on the window leader. The launcher's window rows come from the window manager's
+    -- own effective bindings since phase three of the core split, which are the same entries
+    -- before the keycode stamp, so a row and the sheet still read one declaration.
     windowBindings = stampedWindowBindings,
+
+    -- Two words over the launcher, which is core, for plugins that work in the app the
+    -- launcher opened over. coveredApp answers that app and the id of the open, and
+    -- refreshLauncher asks the launcher to draw again once a late answer lands. Both were
+    -- siblings naming the launcher until phase three of the core split, and a plugin must not
+    -- name a host, so the root publishes them by field name like every other word here. The
+    -- launcher is looked up when a closure is called rather than now, since the closures are
+    -- handed out before the launcher is configured and a person typing is what calls them.
+    coveredApp = function()
+      local launcher = modules[((plan or firstPass).identity or {}).launcher or "launcher"]
+      if launcher then return launcher:coveredApp() end
+    end,
+    refreshLauncher = function()
+      local launcher = modules[((plan or firstPass).identity or {}).launcher or "launcher"]
+      if launcher then launcher:refresh() end
+    end,
 
     -- The shared when name to predicate table every gated binding is resolved against.
     predicates = ownPredicates,
@@ -2035,6 +2060,28 @@ function obj.run(olm, cfg)
 
   local launcherModule = modules[plan.identity.launcher or "launcher"]
   if launcherModule then
+    -- Every row a plugin hands the launcher comes back through here, stamped with that
+    -- plugin's identity as the owner on its item, by a copy since the plugin may hold the row
+    -- it built. The owner is a plain string, so the row still survives hs.chooser, and it is
+    -- the one word the launcher's dispatcher routes a chosen row by. A row that already names
+    -- an owner keeps it.
+    local function ownRows(rows, owner)
+      local out = {}
+      for i, row in ipairs(rows or {}) do
+        if type(row) == "table" and type(row.item) == "table" and row.item.owner == nil then
+          local copy, item = {}, {}
+          for k, v in pairs(row) do copy[k] = v end
+          for k, v in pairs(row.item) do item[k] = v end
+          item.owner = owner
+          copy.item = item
+          out[i] = copy
+        else
+          out[i] = row
+        end
+      end
+      return out
+    end
+
     -- The ordered query row sources. QueryScope leads, since it is the one that CLAIMS a
     -- query outright rather than only computing a row for it, then every plugin the plan's
     -- own set answer says provides queryRows, in the order the plan already settled on.
@@ -2065,7 +2112,7 @@ function obj.run(olm, cfg)
         queryProviders[#queryProviders + 1] = {
           rows = function(_, query)
             local rows, exclusive = provider:rows(query)
-            return iconRows.stampAll(rows, identity), exclusive
+            return ownRows(iconRows.stampAll(rows, identity), identity), exclusive
           end,
         }
         local example = ((plan.effective or {})[identity] or {}).example
@@ -2078,67 +2125,44 @@ function obj.run(olm, cfg)
       end
     end
 
-    -- Every leaf this catalogue dispatches to, resolved from its OWN manifest's sibling
-    -- declarations rather than written out here. That is what keeps this block from naming a
-    -- plugin, the names live in the manifest of the host that wants them, and an install
-    -- missing one of those plugins simply gets nil for that leaf and never builds a row of
-    -- that kind. The same resolution wire.lua's stage two already does, repeated here because
-    -- Launcher's own configure resets every field it reads rather than merging, so a second
-    -- call has to restate everything the first one gave it.
-    local kin = {}
-    do
-      local launcherManifest = manifests[plan.identity.launcher or "launcher"] or {}
-      for field, decl in pairs(((launcherManifest.needs or {}).siblings) or {}) do
-        if type(decl) == "table" and decl.plugin then
-          local mod = modules[plan.identity[decl.plugin] or decl.plugin]
-          if mod and decl.member then
-            local fn = mod[decl.member]
-            if type(fn) == "function" then
-              local call = (decl.call ~= "dot") and function(...) return fn(mod, ...) end or fn
-              if decl.rows then
-                -- A member that answers rows whose icon keys belong to that plugin, so each row
-                -- is stamped with the owner the key is read against, by a copy since the plugin
-                -- may hold the row it built. The launcher draws them lazily, at first open.
-                local ownerIdentity = plan.identity[decl.plugin] or decl.plugin
-                kin[field] = function(...)
-                  local rows = call(...)
-                  local out = {}
-                  for i, row in ipairs(rows or {}) do
-                    local copy = {}
-                    for k, v in pairs(row) do copy[k] = v end
-                    copy.iconOwner = ownerIdentity
-                    out[i] = copy
-                  end
-                  return out
-                end
-              else
-                kin[field] = call
-              end
-            end
-          end
+    local launcherEffective = (plan.effective or {})[plan.identity.launcher or "launcher"] or {}
+
+    -- The rows other plugins add to the launcher's own catalog, and the runners that take a
+    -- chosen one back, both answered by the plan rather than named here. Every plugin in the
+    -- launcherRows set answer gets one supplier, a function calling that plugin's own declared
+    -- member when the launcher builds its rows, and every plugin in the launcherRun set answer
+    -- gets one runner, keyed by its identity. Each supplied row comes back with that identity
+    -- stamped as the owner on its item and as the owner of its icon key, so the launcher routes
+    -- a chosen row by one plain word and never learns which plugin built it.
+    --
+    -- The member is resolved lazily through the registrar's own door, the same one a scope's
+    -- rows and run go through, so a plugin that assembles a member inside its own configure is
+    -- still found. A member that resolves to nothing on the real module is named here once,
+    -- since the launcher would otherwise lose that plugin's rows or runs in silence.
+    local rowSuppliers, runners = {}, {}
+    local launcherSets = plan.sets.launcher or {}
+    local function contribution(identity, field)
+      local manifest = manifests[identity] or {}
+      local spec = (manifest.provides or {})[field]
+      local member = registrarLib.memberSpec(spec)
+      if member == nil or not registrarLib.memberResolves(modules[identity], member) then
+        log.e("Olm compose, '" .. tostring(identity) .. "' provides " .. field
+          .. " but it names no function on the module, so the launcher skips it")
+        return nil
+      end
+      return registrarLib.action(modules, identity, identity, spec)
+    end
+    for _, identity in ipairs(launcherSets.launcherRows or {}) do
+      local call = modules[identity] and contribution(identity, "launcherRows")
+      if call then
+        rowSuppliers[#rowSuppliers + 1] = function()
+          return ownRows(iconRows.stampAll(call() or {}, identity), identity)
         end
       end
     end
-
-    local launcherEffective = (plan.effective or {})[plan.identity.launcher or "launcher"] or {}
-
-    -- The rows for capture's own actions, built from whatever that plugin's effective
-    -- bindings turned out to be rather than from a copy of them kept here, so moving one of
-    -- its keys moves the row with it. The set query answers which plugin provides them, so
-    -- this names none.
-    local captureRows = {}
-    for _, identity in ipairs((plan.sets.launcher or {}).actionRows or {}) do
-      local directory = identity
-      for dirName, id in pairs(plan.identity or {}) do
-        if id == identity then directory = dirName break end
-      end
-      local eff = (plan.effective or {})[directory] or {}
-      for _, b in ipairs(eff.bindings or {}) do
-        captureRows[#captureRows + 1] = {
-          action = b.action, key = b.key, mods = b.mods,
-          description = b.description, leader = eff.leader, icon = b.icon, owner = identity,
-        }
-      end
+    for _, identity in ipairs(launcherSets.launcherRun or {}) do
+      local call = modules[identity] and contribution(identity, "launcherRun")
+      if call then runners[identity] = call end
     end
 
     -- THE SEAM. Stage is one of the five host modules this file may name. It is fully
@@ -2163,17 +2187,14 @@ function obj.run(olm, cfg)
       -- which is exactly what it did.
       registry = wiredRegistry,
       glyphFor = cheatSheetAtom and cheatSheetAtom.glyphFor,
+      -- What every leader role is called, app and window alike, so a contributed row that names
+      -- its leader by role reads the same word the docked hint bar prints.
       leaderNames = leaderDisplayNames,
-      windowLeaderName = leaderDisplayNames.window,
       -- The shared speller rather than one the launcher owns for itself, so a row states the
       -- same chord the docked hint bar already agreed on.
       chordLabel = chordLabel,
-      windowActions = kin.windowActions and kin.windowActions() or {},
-      -- The SAME stamped table both window consumers already hold, Fact 1's own object, so a
-      -- row in this list can never name a different physical key than the one that acts.
-      windowBindings = stampedWindowBindings,
-      settingsPanes = kin.settingsPaneRows and kin.settingsPaneRows() or {},
-      captureRows = captureRows,
+      rowSuppliers = rowSuppliers,
+      runners = runners,
       specialRows = launcherEffective.specialRows,
 
       -- What a row says about being reachable by a typed word, asked of the resolver that owns
@@ -2186,19 +2207,21 @@ function obj.run(olm, cfg)
         return " " .. words
       end,
 
-      -- The leaf dispatch. The catalogue owns the kind switch, these are the calls it routes
-      -- to, and every one either goes through a declared sibling above or is a plain macOS
-      -- call this file can make without knowing about any plugin.
+      -- The leaf dispatch. The catalogue owns the kind switch for the rows it states itself,
+      -- these are the calls it routes to, and every one closes over core or is a plain macOS
+      -- call, so none of them names a plugin. A row a plugin contributed runs through that
+      -- plugin's own runner above instead.
       actions = {
+        -- An app row, core naming core. A url is the toggle form a person's app toggle may
+        -- declare, landing the app on one pane of itself, and every other app row focuses or
+        -- cycles, the same two calls the app toggler's own keys make.
         app = function(bundleID, url)
           if url then
-            if kin.appToggleURL then kin.appToggleURL(bundleID, url) end
-          elseif kin.appFocus then
-            kin.appFocus(bundleID)
+            appFocusAtom.toggleURL(bundleID, url)
+          else
+            appFocusAtom.focusOrCycle(bundleID)
           end
         end,
-        capture = function(name) if kin.runCapture then kin.runCapture(name) end end,
-        settingsPane = function(url) if kin.openSettingsPane then kin.openSettingsPane(url) end end,
         -- A computed result lands on the pasteboard plainly, so it joins clipboard history
         -- like any other copy, unlike the hidden writes the insertion paths use.
         copy = function(value) hs.pasteboard.setContents(value) end,
@@ -2239,13 +2262,13 @@ function obj.run(olm, cfg)
           if not query then return nil end
           return function() launcherModule:seedQuery(query) end
         end,
-        -- The four names with no tool behind them. Reached only when the registry does not
+        -- The three names with no tool behind them. Reached only when the registry does not
         -- already run the name, which registration itself makes safe since one name cannot
-        -- belong to both.
+        -- belong to both. The System Settings search row was a fourth until phase three of
+        -- the core split, and it is owned and run by that plugin now.
         special = {
           lock = function() hs.caffeinate.lockScreen() end,
           sleep = function() hs.caffeinate.systemSleep() end,
-          searchSettings = function() if kin.focusSettingsSearch then kin.focusSettingsSearch() end end,
           aliasDirectory = function()
             if not queryScopeModule then return end
             local query = queryScopeModule:queryFor("aliasDirectory")

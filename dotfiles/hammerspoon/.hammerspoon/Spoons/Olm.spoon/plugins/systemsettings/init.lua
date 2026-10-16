@@ -7,10 +7,11 @@
 --- on the other, wired together only in the composition root.
 ---
 --- It does three things. It turns an injected pane catalog into serializable row
---- descriptors the launcher can render and dispatch. It opens a pane by building the
---- x-apple.systempreferences URL for that pane's id. And it focuses the System
---- Settings search field through Accessibility, so a single row can drop the user
---- into Apple's own per setting search for everything the pane list does not reach.
+--- descriptors the launcher can render, and runs the ones a person chooses there. It
+--- opens a pane by building the x-apple.systempreferences URL for that pane's id. And it
+--- focuses the System Settings search field through Accessibility, so a single row can
+--- drop the user into Apple's own per setting search for everything the pane list does
+--- not reach.
 ---
 --- The catalog is injected, never read from disk here, so the spoon names no config
 --- file and stays reusable. init.lua names config/settingsPanes and passes it in.
@@ -53,6 +54,7 @@ function obj:configure(opts)
   opts = opts or {}
   self.panes = opts.panes or {}
   self._deps = opts.deps
+  self._searchRow = opts.searchRow
   return self
 end
 
@@ -154,6 +156,53 @@ function obj:focusSearch()
   end
   if self._searchRetry then self._searchRetry:stop() end
   self._searchRetry = hs.timer.doAfter(0.25, try)
+end
+
+-- The descriptor name of the search row, the word its item has always carried. It is part of
+-- the launcher's recency key for that row, special then this name, so renaming it would make
+-- the launcher forget every time a person picked it.
+local SEARCH_ROW = "searchSettings"
+
+--- SystemSettings:launcherRows() -> rows
+--- Method
+--- The rows this plugin adds to the launcher's own catalog, declared as
+--- provides.launcherRows. The search row first, then one row per pane.
+---
+--- Every row is plain data and never a function, because the launcher hands each row to
+--- hs.chooser and a row holding a function is silently dropped. Each item keeps the kind and
+--- the identifying field it has always carried, settingsPane with its url and special with
+--- the search row's name, since the launcher remembers what was picked under those words. A
+--- pane row is marked directory, which places it after every command in the list a person
+--- opens on, where the panes have always sat, since a row that only navigates somewhere
+--- reads better below the rows that do something.
+function obj:launcherRows()
+  local out = {}
+  local s = self._searchRow
+  if type(s) == "table" and s.title then
+    out[#out + 1] = {
+      title = s.title, subTitle = s.subTitle, icon = s.icon,
+      item = { kind = "special", name = SEARCH_ROW },
+    }
+  end
+  for _, row in ipairs(self:rows()) do
+    row.directory = true
+    out[#out + 1] = row
+  end
+  return out
+end
+
+--- SystemSettings:launcherRun(item)
+--- Method
+--- Run a chosen launcher row, declared as provides.launcherRun. A pane row carries its url and
+--- opens it, and the search row focuses the search field. The launcher calls this after its
+--- chooser has closed, on the same short delay every row waits for.
+function obj:launcherRun(item)
+  if not item then return end
+  if item.url then
+    self:open(item.url)
+  elseif item.name == SEARCH_ROW then
+    self:focusSearch()
+  end
 end
 
 return obj

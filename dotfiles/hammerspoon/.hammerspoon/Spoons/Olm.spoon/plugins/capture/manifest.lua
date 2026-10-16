@@ -79,12 +79,14 @@ return {
   -- much larger table, so it is stated here rather than pointed at as user configuration.
   -- This plugin has no picker and no registration of its own, so it would appear in the
   -- launcher's list nowhere at all, yet its four actions are exactly the kind of thing a
-  -- person looks for by typing screenshot. Declaring actionRows is how it says that each of
+  -- person looks for by typing screenshot. Declaring launcherRows is how it says that each of
   -- its own keyed actions deserves a row, which the launcher asks the set for rather than
-  -- naming this plugin. The rows are then built from the bindings below, so a key moved here
-  -- moves in the list too and no copy of it exists anywhere else.
+  -- naming this plugin, and launcherRun is how a chosen row comes back here to run. The rows
+  -- are built from the bindings below, so a key moved here moves in the list too and no copy
+  -- of it exists anywhere else.
   provides = {
-    actionRows = true,
+    launcherRows = "launcherRows",
+    launcherRun = "launcherRun",
   },
 
   defaults = {

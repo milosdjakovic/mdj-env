@@ -6,18 +6,19 @@
 --- owns real state, the app scan caches and an hs.application.watcher, so it is a
 --- spoon of its own rather than inline wiring in the composition root. It never
 --- names a domain spoon. The root injects every collaborator through configure,
---- the stage it presents into, the pure keys and apps data, the window actions table, a
---- glyph resolver, the settings pane descriptors, the shared predicate registry,
---- the tool registry from phase seven of the build plan, the shared icon door
---- from phase eight's third packet, and a small dispatch of leaf actions that do name
---- the domain spoons. So the launcher owns the row building, the matching,
---- the app enumeration, and the command dispatch structure, and knows nothing
---- about what a row ultimately does.
+--- the stage it presents into, the pure keys and apps data, a glyph resolver, the
+--- shared predicate registry, the tool registry from phase seven of the build plan,
+--- the rows other plugins contribute and the runners that take them back, and a
+--- small dispatch of leaf actions that close over core alone. So the launcher owns
+--- the row building, the matching, the app enumeration, and the command dispatch
+--- structure, and knows nothing about what a row ultimately does or which plugin
+--- it came from.
 ---
 --- The Command pattern is preserved. Each row carries only a serializable
---- descriptor, its kind plus a name or bundle id, never a function, because the
---- Chooser hands each row to hs.chooser which serialises it and would drop a
---- function. runItem turns that descriptor back into the injected call.
+--- descriptor, its kind plus a name or bundle id, and the owner identity of a row a
+--- plugin contributed, never a function, because the Chooser hands each row to
+--- hs.chooser which serialises it and would drop a function. runItem turns that
+--- descriptor back into the injected call, the owner's runner first.
 ---
 --- Since the chooser stage build's phase two, this host owns no chooser instance of its own.
 --- It builds one presentation, a plain table of policy, and hands it to host/stage, the one
@@ -46,12 +47,11 @@ obj._placeholder = nil
 obj._placeholderExamples = nil  -- example field hints, one per computed row source that proposes one
 obj._keys = nil
 obj._apps = nil
-obj._windowActions = nil
-obj._windowLeaderName = nil
 obj._glyphFor = nil         -- function(key, mods) -> chord glyph string
-obj._settingsPanes = nil    -- raw settings pane descriptors, injected by the root
+obj._rowSuppliers = nil     -- functions answering contributed rows, owner already stamped
+obj._runners = nil          -- owner identity -> function(item), runs a chosen contributed row
 obj._predicates = nil       -- shared predicate registry, for `when` gating
-obj._actions = nil          -- leaf dispatch: app, capture, settingsPane, special, rowIntercept
+obj._actions = nil          -- leaf dispatch, app, copy, special, rowIntercept, scope
 obj._queryProviders = nil   -- ordered query row sources, each answering rows(query)
 obj._aliasHint = nil        -- function(name) -> subtitle fragment, "" when there is none
 obj._registry = nil         -- the tool registry, dot called, optional, see configure and _runItem
@@ -63,7 +63,7 @@ obj._placeholders = nil     -- the rotation pool, this host's own placeholder fi
 obj._placeholderLast = nil  -- the previous open's own pick, never repeated immediately
 obj._surface = nil          -- the stage's own nav adapter, delegated to rather than built here
 obj._actionRows = nil
-obj._settingsPaneRows = nil
+obj._directoryRows = nil    -- contributed rows marked directory, listed after every command
 obj._configuredApps = nil
 obj._installedApps = nil         -- the disk scan, cached until a watched app directory changes
 obj._appRowsCache = nil          -- app rows only, invalidated on running-set change, activation, or a directory change
@@ -187,17 +187,20 @@ function obj:configure(opts)
   -- shipped row, so the catalog itself is no longer wanted here at all.
   self._toggles = opts.toggles or {}
   self._apps = opts.apps or {}
-  self._windowActions = opts.windowActions or {}
-  self._windowBindings = opts.windowBindings or {}
-  self._windowLeaderName = opts.windowLeaderName or "Meta"
   -- The display name for each leader role, so a row's subtitle can say which physical key
   -- opens it without this file deciding what any leader is called. The word Hyper used to be
   -- written into every one of those subtitles literally, which was correct only for as long as
-  -- nobody moved a tool to the other leader.
+  -- nobody moved a tool to the other leader. Every role is here, the window leader's too, so a
+  -- contributed row names its leader by role and reads the same word the hint bar prints.
   self._leaderNames = opts.leaderNames or {}
-  -- Rows that answer to no registration, declared rather than written out. Capture's are
-  -- separate from the rest because they share one kind and each carries its own icon.
-  self._captureRows = opts.captureRows or {}
+  -- The rows other plugins add to this catalog, one supplier per contributing plugin in the
+  -- order the root's set answer put them, and the runners that take a chosen row back. Each
+  -- supplier answers plain descriptors with its owner already stamped on every item, so this
+  -- host routes a row by that one word and never learns which plugin it came from. See
+  -- _buildActionRows for how they are placed and _runItem for how they run.
+  self._rowSuppliers = opts.rowSuppliers or {}
+  self._runners = opts.runners or {}
+  -- This host's own rows that answer to no registration, declared rather than written out.
   self._specialRows = opts.specialRows or {}
   self._glyphFor = opts.glyphFor or function(key) return tostring(key) end
   -- The shared chord speller, held as data rather than wrapped in a method of its own, so a
@@ -232,7 +235,6 @@ function obj:configure(opts)
   -- see _rankCatalog, so this is the function that does it, and the same keep rather than
   -- overwrite rule applies since only the generic stage supplies it.
   self._matcher = opts.matcher or self._matcher
-  self._settingsPanes = opts.settingsPanes or {}
   self._predicates = opts.predicates or {}
   self._actions = opts.actions or {}
   -- The tool registry, phase seven of the build plan. Optional, and a launcher configured
@@ -251,8 +253,9 @@ function obj:configure(opts)
   -- broken. See _buildActionRows for why it is asked there and not at each call site.
   self._aliasHint = opts.aliasHint or function() return "" end
   -- The identity the launcher's own manifest icons are declared under, which the rows this host
-  -- states itself read their keys against, lock and sleep, the three catalog scopes, the window
-  -- rows. A registered tool's row reads against the tool's own name instead.
+  -- states itself read their keys against, lock and sleep and the three catalog scopes. A
+  -- registered tool's row reads against the tool's own name instead, and a contributed row
+  -- against its owner.
   self._iconOwner = opts.iconOwner or "launcher"
 
   self._configuredApps = self:_buildConfiguredApps()
@@ -287,7 +290,7 @@ function obj:configure(opts)
         -- handoff brief, the deferral moves inside the dispatcher's own branches, since a
         -- presenting tool's row never reaches onSelect at all, decision two, it completes
         -- through intercept above and stage.push, and the kinds that do still reach here,
-        -- app, window, capture, settingsPane, calc, scope, and an unmigrated special, are
+        -- an owned row its owner runs, app, calc, scope, and an unmigrated special, are
         -- the only ones that still genuinely need to wait for focus to return before acting,
         -- so each of those branches now owns its own wait rather than one wrapper owning it
         -- for a switch it cannot see inside.
@@ -376,13 +379,6 @@ function obj:_leaderName(role)
   return self._leaderNames[role] or tostring(role)
 end
 
--- camelCase action name -> "Title Case" label, applied when a binding sets no
--- explicit description.
-local function humanize(name)
-  local s = tostring(name):gsub("(%l)(%u)", "%1 %2")
-  return s:sub(1, 1):upper() .. s:sub(2)
-end
-
 --- Launcher:_ensureStaticRows()
 --- Method
 --- Build the rows that do not change between opens, once, on first use rather than at
@@ -398,21 +394,22 @@ end
 --- larger, and every open after it is served from the cache.
 function obj:_ensureStaticRows()
   if self._actionRows then return end
-  self._actionRows = self:_buildActionRows()
-  self._settingsPaneRows = self:_buildSettingsPaneRows()
+  self._actionRows, self._directoryRows = self:_buildActionRows()
 end
 
---- Launcher:_buildActionRows()
+--- Launcher:_buildActionRows() -> rows, directoryRows
 --- Method
---- The static action rows. Each is { title, subTitle, image, item, when? } where
+--- The static action rows, and separately the contributed rows marked directory, which the
+--- full list places after every command. Each is { title, subTitle, image, item, when? } where
 --- item is a serializable descriptor for the dispatcher.
 function obj:_buildActionRows()
   local rows = {}
+  local directoryRows = {}
   -- keywords is hidden text the matcher sees and the row does not show, the same field
   -- the injected rows already carry. It exists so a row can answer to a word its title
   -- and subtitle have no room for, rather than that word being padded into the visible
   -- subtitle where it would cost a reader something to buy a searcher something.
-  local function add(title, subTitle, item, icon, when, keywords, subTitleFn, image, owner)
+  local function add(title, subTitle, item, icon, when, keywords, subTitleFn, image, owner, into)
     -- A tool reachable by typing a word says so on its own row, and it says it here rather
     -- than at each call site. That is the difference between a hint a row can be forgotten
     -- from, which is how file search ended up advertising nothing, and one that cannot be,
@@ -434,7 +431,8 @@ function obj:_buildActionRows()
     -- across shows, so a picture drawn here would keep the colour of the half the system was in
     -- when the cache was built, and the chooser draws the icon at paint instead. An action row
     -- has no app icon of its own, so the owner defaults to this host.
-    rows[#rows + 1] = { title = title, subTitle = subTitle, image = image,
+    into = into or rows
+    into[#into + 1] = { title = title, subTitle = subTitle, image = image,
                         icon = image == nil and icon or nil,
                         iconOwner = image == nil and icon ~= nil and (owner or self._iconOwner) or nil,
                         item = item, when = when, keywords = keywords, subTitleFn = subTitleFn }
@@ -463,12 +461,10 @@ function obj:_buildActionRows()
   -- name points at, and everything about how that name's row looks, its category, its
   -- icon, its detail or its chord, now lives on the descriptor rather than here.
   --
-  -- Adding a tool still costs one addTool line below, so this is not yet one
-  -- registration, only where a row's own data lives now rather than a change to how
-  -- many places know a tool exists. Removing that last line would move the whole row
-  -- order into the composition root, taking the capture loop and the window loop with
-  -- it since they sit in this same build, and that is a decision for later rather than
-  -- a thing to sneak in here.
+  -- The one addTool line per tool this once needed is gone, the registry loop below asks for
+  -- every row, and the capture and window loops that sat beside it are gone too, since phase
+  -- three of the core split, those rows arriving from their own plugins through the row
+  -- suppliers further down.
   -- tool is the registered tool the row belongs to, which is its own name for a tool's row and
   -- the owning tool for a command's, and it is the owner a row's icon key is read against.
   local function addTool(name, tool)
@@ -536,51 +532,89 @@ function obj:_buildActionRows()
     addTool(entry.name, entry.tool)
   end
 
-  -- Rows that answer to no registration. Each is an action this list runs itself rather than a
-  -- tool with a descriptor, so each arrives as plain declared data rather than being written
-  -- out here. Capture's are separate from the rest only because they share one kind and each
-  -- carries its own icon, which is a shape the others do not have.
-  for _, c in ipairs(self._captureRows or {}) do
-    add(c.description or humanize(c.action),
-      self:_chordSuffix("Capture", self:_leaderName(c.leader), c.key, c.mods),
-      { kind = "capture", name = c.action }, c.icon, nil, nil, nil, nil, c.owner)
+  -- Rows other plugins contribute, and this host's own declared rows beside them. A contributed
+  -- row is plain data its plugin built from its own bindings or its own data, carrying its
+  -- title, an icon key read against its owner, and either a finished subTitle or a group and a
+  -- chord this host spells, so every chord in the list is spelled by the one shared speller.
+  -- The owner is already on the item, stamped by the root, and it is what _runItem routes by.
+  --
+  -- THE ORDER, which is what a person sees scrolling an untouched list, so it is stated rather
+  -- than left to fall out of a loop. Commands are grouped by their descriptor kind, the groups in
+  -- the order their kind words sort, and within a group each supplier's rows in the order the
+  -- root handed the suppliers over, which is the set's own stable order, then this host's own
+  -- declared rows last in the group their kind names. That rule names no kind and no plugin,
+  -- and it is the order the list has always had, screenshots, then the settings search, the
+  -- alias directory, lock and sleep, then the window actions. A row marked directory is kept
+  -- apart and listed after every command, after the apps and the rows above, which is where
+  -- the System Settings panes have always sat, since a row that only navigates somewhere reads
+  -- better below the rows that do something.
+  --
+  -- A supplier that raises is dropped with a log line rather than costing the list every
+  -- other row, the same rule a query row source lives under.
+  local byKind, kinds = {}, {}
+  local function group(kind)
+    local key = tostring(kind or "")
+    if not byKind[key] then
+      byKind[key] = {}
+      kinds[#kinds + 1] = key
+    end
+    return byKind[key]
   end
-
+  local directory = {}
+  for _, supplier in ipairs(self._rowSuppliers or {}) do
+    local ok, answered = pcall(supplier)
+    if not ok then
+      log.w("Launcher dropped a row supplier that raised, " .. tostring(answered))
+    else
+      for _, r in ipairs(answered or {}) do
+        if type(r) == "table" and type(r.item) == "table" and r.title then
+          if r.directory then
+            directory[#directory + 1] = r
+          else
+            local list = group(r.item.kind)
+            list[#list + 1] = { contributed = r }
+          end
+        end
+      end
+    end
+  end
   for _, r in ipairs(self._specialRows or {}) do
-    local subTitle = r.subTitle
-    if not subTitle and r.category and r.key then
-      subTitle = self:_chordSuffix(r.category, self:_leaderName(r.leader), r.key)
-    end
-    add(r.description, subTitle, { kind = "special", name = r.name }, r.icon, nil, r.keywords)
+    local list = group("special")
+    list[#list + 1] = { own = r }
   end
-  -- The window bindings arrive as their own injected list rather than being dug out of the
-  -- key catalog under a name this file would have to know. That indirection was also the one
-  -- place here that raised outright rather than degrading, since it indexed straight into a
-  -- table an install with no window manager never fills.
-  for _, b in ipairs(self._windowBindings) do
-    if self._windowActions[b.action] then
-      add(b.description or humanize(b.action), self:_chordSuffix("Window", self._windowLeaderName, b.key, b.mods),
-        { kind = "window", name = b.action }, b.icon or "windows", b.when)
-    end
-  end
-  return rows
-end
+  table.sort(kinds)
 
---- Launcher:_buildSettingsPaneRows()
---- Method
---- System Settings panes as rows. The injected descriptors are pure (title,
---- subTitle, icon, iconOwner, keywords, item); render each icon the same way
---- the action rows do and keep the hidden keywords for the matcher.
-function obj:_buildSettingsPaneRows()
-  local rows = {}
-  for _, r in ipairs(self._settingsPanes) do
-    rows[#rows + 1] = {
-      title = r.title, subTitle = r.subTitle,
-      icon = r.icon, iconOwner = r.icon ~= nil and (r.iconOwner or self._iconOwner) or nil,
-      keywords = r.keywords, item = r.item,
-    }
+  -- The subtitle a contributed row shows. A finished one is taken as it stands, otherwise the
+  -- group word joined to the chord, otherwise the group word alone, which is what a row with no
+  -- key reads as everywhere else in this list.
+  local function contributedSubTitle(r)
+    if r.subTitle then return r.subTitle end
+    if r.group and type(r.chord) == "table" and r.chord.key then
+      return self:_chordSuffix(r.group, self:_leaderName(r.chord.leader), r.chord.key, r.chord.mods)
+    end
+    return r.group
   end
-  return rows
+  local function addContributed(r, into)
+    add(r.title, contributedSubTitle(r), r.item, r.icon, r.when, r.keywords, nil, nil,
+      r.iconOwner or r.item.owner, into)
+  end
+
+  for _, kind in ipairs(kinds) do
+    for _, entry in ipairs(byKind[kind]) do
+      if entry.own then
+        local r = entry.own
+        local subTitle = r.subTitle
+        if not subTitle and r.category and r.key then
+          subTitle = self:_chordSuffix(r.category, self:_leaderName(r.leader), r.key)
+        end
+        add(r.description, subTitle, { kind = "special", name = r.name }, r.icon, nil, r.keywords)
+      else
+        addContributed(entry.contributed)
+      end
+    end
+  end
+  for _, r in ipairs(directory) do addContributed(r, directoryRows) end
+  return rows, directoryRows
 end
 
 --- Launcher:_buildConfiguredApps()
@@ -724,7 +758,8 @@ end
 --- Method
 --- Every row of every kind in one list, ordered by the shared recency timeline.
 --- The natural order is apps (open first, then alphabetical) then the curated
---- action rows then the settings panes; each row carries that position as _n. A
+--- action rows then the directory rows, the System Settings panes today. Each row
+--- carries that position as _n. A
 --- row used before, of any kind, carries its recency rank as _rank. The sort puts
 --- every used row above every unused one, used rows most-recent first, and unused
 --- rows in their natural order, so the last thing used sits on top while an
@@ -745,7 +780,7 @@ function obj:_orderedRows()
   end
   for _, row in ipairs(self:_appRows()) do push(row) end
   for _, row in ipairs(self._actionRows) do push(row) end
-  for _, row in ipairs(self._settingsPaneRows) do push(row) end
+  for _, row in ipairs(self._directoryRows) do push(row) end
   table.sort(rows, function(x, y)
     if (x._rank ~= nil) ~= (y._rank ~= nil) then return x._rank ~= nil end -- used before unused
     if x._rank and y._rank then return x._rank < y._rank end               -- more recent first
@@ -1175,15 +1210,18 @@ end
 
 --- Launcher:_runItem(it)
 --- Method
---- The one dispatcher. Maps a row descriptor back to a call. The launcher owns the
---- kind switch; the leaf calls are injected, so it names no domain spoon.
+--- The one dispatcher. Maps a row descriptor back to a call. A row a plugin contributed, or a
+--- computed row a query source answered, carries its owner's identity, and an owner that
+--- registered a runner gets the item back through it, so the run lives with the plugin that
+--- built the row and this file names none of them. Everything else is the launcher's own kind
+--- switch, app, special, calc and scope, whose leaf calls are injected and close over core.
 ---
 --- Decision four of the handoff brief, the deferral moved inside these branches rather than
 --- wrapping the whole switch from outside, review 9.7's own warning accepted and answered.
 --- Every branch below still waits the same 0.1 seconds for focus to return to the app the
---- launcher covered before it acts, since app, window, capture, settingsPane, calc, and scope
---- all genuinely act on the world once that focus is back, window actions the clearest case,
---- reading hs.window.focusedWindow(). special waits too, but only ever runs for an
+--- launcher covered before it acts, since an owner's run, app, calc, and scope all genuinely
+--- act on the world once that focus is back, a window action the clearest case, reading
+--- hs.window.focusedWindow(). special waits too, but only ever runs for an
 --- unmigrated tool or a bare command, since a presenting tool's own row never reaches this
 --- function at all, decision two, it completes through the presentation's own intercept and
 --- stage.push before onSelect is ever asked, synchronously, with no close and no wait.
@@ -1192,22 +1230,18 @@ end
 function obj:_runItem(it)
   if not it then return end
   local a = self._actions
+  -- An owned row whose owner runs it. The whole item goes back, so a plugin reads whichever
+  -- fields it put there itself, a name, a url, a typed size, and the launcher interprets none
+  -- of them. A row whose owner registered no runner, a computed sum for one, falls through to
+  -- the kind switch below exactly as an unowned row does.
+  local runner = it.owner ~= nil and self._runners[it.owner] or nil
+  if runner then
+    self._runTimer = hs.timer.doAfter(0.1, function() runner(it) end)
+    return
+  end
   if it.kind == "app" then
     self._runTimer = hs.timer.doAfter(0.1, function()
       if a.app then a.app(it.bundleID, it.url) end
-    end)
-  elseif it.kind == "window" then
-    -- A window row may carry the size it means, which a computed row from a typed pair of
-    -- dimensions does and a row named by a binding does not. Every action that ignores the
-    -- argument is unaffected, and the repeating ones already read an absent first argument as
-    -- the press itself, so passing nil for a catalog row is what they always received.
-    self._runTimer = hs.timer.doAfter(0.1, function()
-      local fn = self._windowActions[it.name]
-      if fn then fn(it.size) end
-    end)
-  elseif it.kind == "capture" then
-    self._runTimer = hs.timer.doAfter(0.1, function()
-      if a.capture then a.capture(it.name) end
     end)
   elseif it.kind == "special" then
     -- Two sources, not a leak. A name the registry answers is a tool, and everything left
@@ -1222,10 +1256,6 @@ function obj:_runItem(it)
         local fn = a.special and a.special[it.name]
         if fn then fn() end
       end
-    end)
-  elseif it.kind == "settingsPane" then
-    self._runTimer = hs.timer.doAfter(0.1, function()
-      if a.settingsPane then a.settingsPane(it.url) end
     end)
   elseif it.kind == "calc" then
     -- A computed result is put somewhere useful by an injected action, so the launcher
