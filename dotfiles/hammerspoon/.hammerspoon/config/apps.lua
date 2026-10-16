@@ -1,4 +1,6 @@
 -- App bundle ID registry
+-- The app toggler reads it as its own data, through the apptoggler entry in config/plugins.lua.
+-- The browserTabs entry there reads Chrome's id from it too.
 -- Get app identifier: osascript -e 'id of app "APP_NAME"'
 
 return {

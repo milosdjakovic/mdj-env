@@ -373,18 +373,19 @@ do
   local configRoot = caseDir .. "/../../"
   local savedPath = package.path
   package.path = configRoot .. "?.lua;" .. configRoot .. "?/init.lua;" .. package.path
-  local loaded, personPlugins, personKeys, personApps = pcall(function()
-    return require("config.plugins"), require("config.keys"), require("config.apps")
+  -- config/plugins.lua pulls in config/keys.lua and config/apps.lua itself, since its apptoggler
+  -- entry carries both lists as that plugin's data.
+  local loaded, personPlugins = pcall(function()
+    return require("config.plugins")
   end)
   package.path = savedPath
-  check("the person's config/plugins.lua, keys.lua and apps.lua load", loaded,
+  check("the person's config/plugins.lua and the files it points at load", loaded,
     not loaded and tostring(personPlugins) or nil)
   if loaded then
     local data = {}
     for name, entry in pairs(personPlugins) do
       if type(entry) == "table" and entry.data then data[name] = entry.data end
     end
-    data.apptoggler = { apps = personApps, toggles = personKeys.appToggles }
     local person = run(realManifests, { user = personPlugins, data = data })
     check("with the person's config the plan has no problems", #person.problems == 0,
       #person.problems > 0 and (tostring(person.problems[1].kind) .. " at " .. tostring(person.problems[1].where)) or nil)

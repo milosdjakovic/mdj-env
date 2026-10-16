@@ -63,10 +63,12 @@ return {
     -- install, but both are still worth declaring, since the person's own fuller list is the
     -- entire point of this plugin and its absence is a real, if contained, loss.
     data = {
-      -- config/apps.lua, the bundle id every toggle resolves its app name through.
+      -- config/apps.lua, the bundle id every toggle resolves its app name through. Reaches this
+      -- plugin as `data.apps` in its own apptoggler entry in config/plugins.lua.
       apps = { source = "user", policy = "optional",
                breaks = "only Finder resolves, every other toggle logs Unknown app and does nothing" },
-      -- config/keys.lua's appToggles, the list bindHotkeys walks below. Each entry's own
+      -- config/keys.lua's appToggles, the list bindHotkeys walks below, reaching this plugin as
+      -- `data.toggles` in the same entry. Each entry's own
       -- optional fields, modifiers, hides, description, and placement, live inside this
       -- same list rather than as separate declarations, since they are the person's
       -- per app choices and this door already carries those.

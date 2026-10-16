@@ -11,28 +11,24 @@
 -- Everything below is either a value only this machine could know or a preference that
 -- differs from what Olm ships. Delete any of it and Olm still comes up working.
 
-local apps       = require("config.apps")
 local keys       = require("config.keys")
 local settings   = require("config.settings")
 
 hs.loadSpoon("Olm")
 
 local olm = spoon.Olm:start({
-  -- Values matched by FIELD NAME rather than by plugin, so one application catalog serves
-  -- every plugin that asks for it without any of them being named here. Since the core split
-  -- finished only the app toggler asks, and the Hyper cheat sheet and the launcher learn the
-  -- toggles from it. A plugin that stops needing one of these
-  -- simply stops receiving it, with nothing to remove. Only genuinely shared values belong
-  -- here, anything one plugin alone wants goes below where it is easier to follow.
-  shared = {
-    apps    = apps,
-    toggles = keys.appToggles,
-  },
+  -- Values matched by FIELD NAME rather than by plugin, for a value several plugins ask for
+  -- under one name. Empty today. The application catalog and the app toggles used to travel
+  -- here, but only the app toggler reads either one now, so both moved to its own entry in
+  -- config/plugins.lua. A value belongs here only when two plugins genuinely want the same
+  -- thing, anything one plugin alone wants goes below where it is easier to follow.
+  shared = {},
 
   -- Everything about one plugin in particular, keyed by the name that plugin is known by
   -- everywhere outside its own folder. Its overrides of its own defaults, the values only this
   -- machine knows, the spoon global it is mirrored onto, or false to switch it off, all in
-  -- config/plugins.lua. Per plugin rather than shared because these field names are not unique
+  -- config/plugins.lua, which is also where the app catalog and the app toggles reach the app
+  -- toggler. Per plugin rather than shared because these field names are not unique
   -- across the set and two plugins wanting a bundleID or a settings block mean different things
   -- by it. Olm names any key there that matches no plugin, so a slip in a name says so.
   plugins = require("config.plugins"),

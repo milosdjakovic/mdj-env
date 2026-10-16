@@ -39,7 +39,8 @@ newly linked Spoon.
 
 ## Adding New Apps
 
-Edit `config/apps.lua`:
+Edit `config/apps.lua`. The `apptoggler` entry in `config/plugins.lua` hands this catalog and
+the toggle list below to the app toggler as its own data:
 ```lua
 NewApp = "com.example.newapp",
 ```

@@ -1,7 +1,8 @@
 -- Keybinding definitions that belong to no plugin.
 --
 -- Pure data, no logic. This file holds two things only, the physical key each leader domain
--- uses, and the app toggle list the AppToggler plugin reads through init.lua. That plugin then
+-- uses, and the app toggle list the AppToggler plugin reads. config/plugins.lua hands it over as that
+-- plugin's own data, next to the bundle id catalog in config/apps.lua. That plugin then
 -- tells the Hyper cheat sheet and the launcher's app rows what it bound. Everything else about
 -- a key lives with the plugin that owns it. A plugin's own key, its aliases and the Hyper
 -- contexts it joins are declared in that plugin's manifest, and a person's change to any of
@@ -17,7 +18,8 @@ local M = {
   windowLeader = "META",
 
   -- App toggle bindings (for Olm's AppToggler plugin)
-  -- Uses app names from config/apps.lua.
+  -- Uses app names from config/apps.lua. Reaches the plugin through the apptoggler entry in
+  -- config/plugins.lua, which points at this list rather than copying it.
   -- An entry with no `modifiers` field binds into the Hyper modal, fired by holding the
   -- Hyper key (Caps Lock, remapped to F18 and driven by HyperKey, now Olm's
   -- lib/hyperkey.lua) plus the letter. A quick Caps Lock tap toggles real Caps Lock
