@@ -57,4 +57,9 @@ fi
 DRYGATE_SOURCES="$(find "$spoon" -type f -name '*.lua' -not -path "$spoon/lib/ui/*" -not -path "$spoon/test/*" 2>/dev/null | sort)"
 export DRYGATE_SOURCES
 
+# The layer rule reads every Lua file outside plugins/ and test/, lib/ui included, since the
+# kit is core too. The person's config lives above the spoon and is never in this set.
+DRYGATE_LEAKSOURCES="$(find "$spoon" -type f -name '*.lua' -not -path "$spoon/plugins/*" -not -path "$spoon/test/*" 2>/dev/null | sort)"
+export DRYGATE_LEAKSOURCES
+
 exec lua "$here/drygate.lua" "$spoon/" "${manifests[@]}"

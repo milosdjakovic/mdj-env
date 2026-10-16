@@ -737,6 +737,48 @@ do
 end
 
 ----------------------------------------------------------------------------------------
+-- Eight, the layer rule, see test/drygate-leaks.lua. No file outside plugins/ names a plugin
+-- identity in code or data, the person's config, tests and docs excepted, which
+-- drygate.sh leaves out of DRYGATE_LEAKSOURCES. Identities are read from the manifests this
+-- run already loaded, never listed here.
+--
+-- REPORT MODE. Each hit prints as a leak warning and does not fail the gate, until the rule
+-- is switched to failing by setting LEAK_FAILS to true. A deliberate exception is declared
+-- once, in test/drygate-accepted.txt, as the exact finding line with a reason, and only
+-- counts when LEAK_FAILS is true, since a warning cannot be accepted.
+----------------------------------------------------------------------------------------
+
+do
+  local LEAK_FAILS = false
+  local leaksScan = dofile(scriptDir .. "drygate-leaks.lua")
+  local identities, dirs = {}, {}
+  -- Only a manifest under plugins/ is a plugin, a host is core and core may name core.
+  for dir, identity in pairs(identityOfDir) do
+    if pathOfDir[dir] and pathOfDir[dir]:find("/plugins/", 1, true) then
+      identities[identity] = true
+      dirs[dir] = true
+    end
+  end
+  local list = os.getenv("DRYGATE_LEAKSOURCES")
+  if list and list ~= "" then
+    for path in list:gmatch("[^\n]+") do
+      local rel = path:sub(1, #spoonDir) == spoonDir and path:sub(#spoonDir + 1) or path
+      local f = io.open(path, "r")
+      if f then
+        local text = f:read("a")
+        f:close()
+        for _, hit in ipairs(leaksScan.scan(text, identities, dirs)) do
+          local line = string.format(
+            "dry gate refused '%s', line %d, names the plugin '%s' as %s, only plugins/ and the person's config may name a plugin, go through a manifest declaration or a contract instead, or list the exact line in test/drygate-accepted.txt with a reason",
+            rel, hit.line, hit.identity, hit.form)
+          if LEAK_FAILS then finding(line) else warning("layer leak, " .. line) end
+        end
+      end
+    end
+  end
+end
+
+----------------------------------------------------------------------------------------
 -- An accepted line that no longer matches anything this run is itself a finding, appended
 -- straight to the real list rather than through finding() above, so it is never itself
 -- eligible to be accepted away, the one rule that keeps this file from rotting.
