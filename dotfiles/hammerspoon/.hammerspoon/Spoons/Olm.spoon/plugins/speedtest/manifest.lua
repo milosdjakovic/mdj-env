@@ -9,6 +9,16 @@
 -- the network feels wrong, which is a few times a month, so the launcher row and the alias
 -- are the whole of how it opens.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Speedtest",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   -- The row icons, named by the rows and drawn by Olm.
   icons = {
     run = { emoji = "📶", sf = "speedometer" },

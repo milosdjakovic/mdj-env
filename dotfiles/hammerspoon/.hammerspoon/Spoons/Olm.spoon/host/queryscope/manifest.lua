@@ -7,6 +7,16 @@
 -- That is what `needs.set` is for. It is a question about the set rather than a name, so the
 -- answer is computed from what the plugins themselves declared.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Query Scope",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   needs = {
     -- Every plugin that can be reached by typing its alias. The pair is the requirement and
     -- both halves matter. `rows` alone is a computed source that claims nothing, which is a

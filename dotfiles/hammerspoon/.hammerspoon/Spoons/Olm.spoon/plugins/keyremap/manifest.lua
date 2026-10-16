@@ -35,6 +35,16 @@
 -- takes down every leader at once. Sourcing it from the root rather than the user is what
 -- keeps that from blocking a fresh install, since the root always discharges it.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Key Remap",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   needs = {
     -- Required, because this plugin is nothing but a front end onto this one binary. Without it
     -- no catalog row can be applied, which is every leader key at once, so a dead plugin the

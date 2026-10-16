@@ -6,6 +6,16 @@
 -- choices through the root words below, so the one place that ever calls hs.settings for
 -- each policy stays the lib that owns it.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "OLM Settings",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   -- The row icons. The two option rows carry only a circle each, never a checkmark, the one
   -- marker convention this codebase uses for which of these is current right now. Green marks
   -- whichever option is current and red marks the other one.

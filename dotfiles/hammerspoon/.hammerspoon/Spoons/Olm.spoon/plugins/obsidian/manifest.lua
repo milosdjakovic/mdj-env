@@ -16,6 +16,16 @@
 local BUNDLE = "md.obsidian"
 
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Obsidian",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   -- The row icons, named by the rows and drawn by Olm.
   icons = {
     note = { emoji = "📝", sf = "note.text" },

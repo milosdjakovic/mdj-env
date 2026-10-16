@@ -15,6 +15,16 @@
 -- declaration nothing tells the loader that SystemSettings must be configured before the
 -- launcher captures its rows, which is the exact silent loss the launcher already suffered.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "System Settings",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   -- The icons the System Settings rows name, one per pane, in the emoji set and the SF Symbol
   -- set, and the identity icon the launcher row and the scoped list wear.
   icons = {

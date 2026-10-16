@@ -28,6 +28,16 @@
 -- outright, both documented in this plugin's own README rather than here, since this file
 -- states what the plugin needs, not how it behaves.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "App Toggler",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   needs = {
     -- Toggles fire while the physical Hyper key is held, through the shared hold engine
     -- HyperKey wraps, so a modal entry reads as a modal chord rather than a literal

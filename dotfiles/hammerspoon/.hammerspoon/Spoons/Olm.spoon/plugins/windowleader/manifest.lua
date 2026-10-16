@@ -6,6 +6,16 @@
 -- alias, every binding it carries belongs to whichever domain registered it, so this plugin
 -- is nearly, but not entirely, empty.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Window Leader",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   needs = {
     -- The engine that actually swallows keys while a leader is held and fires onKey.
     -- Without it, start logs a warning and registers nothing, so every window leader key

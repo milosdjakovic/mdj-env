@@ -18,6 +18,16 @@
 -- as config/keys.lua has it, since it matches the cheat sheet grid, two switch display rows
 -- gated on multiple displays, then resize, then move and center, then hide all last.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Window Manager",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   needs = {
     -- bindToLeader hands this plugin a WindowLeader instance directly as an argument,
     -- outside configure, so this coupling would otherwise never appear in a manifest built

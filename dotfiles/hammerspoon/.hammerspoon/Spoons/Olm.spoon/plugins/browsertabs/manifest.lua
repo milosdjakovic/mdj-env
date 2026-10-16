@@ -4,6 +4,16 @@
 -- the root names, persisted per machine state, a nested settings level, and it opts out of
 -- the shared matcher, so it exercises the parts of the manifest the other two do not.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Browser Tabs",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   -- The directory is browsertabs, one word, while the identity everywhere outside this
   -- folder, config/keys.lua, the registry, the launcher row, is browserTabs.
   name = "browserTabs",

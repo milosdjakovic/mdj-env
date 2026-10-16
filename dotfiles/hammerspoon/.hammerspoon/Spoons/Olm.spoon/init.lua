@@ -16,9 +16,12 @@ obj.version = "0.1"
 obj.author = "Milos Djakovic"
 obj.license = "MIT"
 
--- The api version a plugin will one day declare itself against, a single
+-- The api version every plugin manifest declares itself against, a single
 -- integer starting at one, bumped only on a breaking change to what this
--- spoon exposes, settled in phase zero of the build plan.
+-- spoon exposes, settled in phase zero of the build plan. It is the one copy of
+-- the number. The composition root reads it from here, a manifest naming any
+-- other value is left out before its code runs, and the dry gate reads this
+-- line to ask the same question.
 obj.apiVersion = 1
 
 -- Loaded relative to this file's own location rather than from a hardcoded

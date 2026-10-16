@@ -6,6 +6,16 @@
 -- unscoped hidden search and once beside the scoped walk, since each file names it
 -- for its own reason and neither should have to learn the other exists.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "File Search",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   -- The directory is filesearch, one word, while the identity everywhere outside
   -- this folder, config/keys.lua, the registry, the launcher row, is fileSearch.
   name = "fileSearch",

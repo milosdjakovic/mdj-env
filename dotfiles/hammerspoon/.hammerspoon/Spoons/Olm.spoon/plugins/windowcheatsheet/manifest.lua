@@ -13,6 +13,16 @@
 -- itself, with no member, would say this plugin calls something on WindowManager, and it
 -- never does, it only needs to be handed the same table.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Window Cheat Sheet",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   needs = {
     -- Drawing is delegated entirely to the shared grid renderer, this spoon only builds the
     -- row model handed to it. Required, because unlike Eyedropper's compiler, which still

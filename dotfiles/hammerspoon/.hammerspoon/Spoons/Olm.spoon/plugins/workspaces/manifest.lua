@@ -14,6 +14,16 @@
 -- completion, apply, which is also the thing a layout is for, so the typed word is the fast
 -- path and the launcher row still opens the manager for taking, pruning, and the rest.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Workspaces",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   -- The identity is exactly the directory, one lowercase word, so no name field.
 
   -- The row icons, named by the rows and drawn by Olm. The Apps list carries each

@@ -8,6 +8,16 @@
 -- every keystroke the same way Arithmetic is, and it has no entry anywhere in
 -- config/keys.lua and no hyperContext of its own.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Convert",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   -- The icons this plugin names, in the emoji set and the SF Symbol set. The one named for the
   -- plugin is its identity icon, which the launcher row and the scoped list both wear.
   icons = {

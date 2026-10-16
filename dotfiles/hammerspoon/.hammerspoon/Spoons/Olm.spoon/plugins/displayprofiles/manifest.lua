@@ -4,6 +4,16 @@
 -- once and handed to engine.lua, which never probes for it on its own. Without it
 -- the spoon still starts, it simply manages nothing and says why.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Display Profiles",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   -- The directory is displayprofiles, one word, while the identity everywhere
   -- outside this folder, config/keys.lua, the registry, the launcher row, is
   -- displayProfiles.

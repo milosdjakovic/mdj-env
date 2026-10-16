@@ -7,6 +7,16 @@
 -- chain, always handles a screenshot or a recording, and OCR simply answers unavailable
 -- with no backend installed.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Screen Capture",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   -- The icons the capture actions name, in the emoji set and the SF Symbol set. A binding below
   -- names one and the launcher row for that action wears it.
   icons = {

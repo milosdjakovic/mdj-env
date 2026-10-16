@@ -4,6 +4,16 @@
 -- It receives sixteen fields today, and almost none of them are a named sibling. They are
 -- either a question about the whole plugin set, a plain mechanism from lib, or user data.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Launcher",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   -- The icons the launcher states for the rows it owns, the catalog scopes, the special rows and
   -- the window rows, in the emoji set and the SF Symbol set. A tool's own row reads its own
   -- plugin's icons and never these.

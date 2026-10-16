@@ -35,6 +35,16 @@
 -- rowsFor, and run already go through for the identical reason, a value only the root can
 -- compute for one particular host rather than a word many plugins share.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Stage",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   needs = {
     data = {
       -- The chooser facade, lib/chooser, the one door this host reaches to build its instance.

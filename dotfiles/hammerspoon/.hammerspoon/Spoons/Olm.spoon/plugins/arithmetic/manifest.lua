@@ -6,6 +6,16 @@
 -- apart from conversion. Being a computed row rather than a bound shortcut also means
 -- neither discoverability mandate applies to it, it is found only by typing an expression.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Arithmetic",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   -- The icons this plugin names, in the emoji set and the SF Symbol set. The one named for the
   -- plugin is its identity icon, which the launcher row and the scoped list both wear.
   icons = {

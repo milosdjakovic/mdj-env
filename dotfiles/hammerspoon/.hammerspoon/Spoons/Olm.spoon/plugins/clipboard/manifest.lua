@@ -10,6 +10,16 @@
 -- dependency, and they are optional, a still frame or a text block always renders
 -- even with neither tool present.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Clipboard History",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   -- The row icons, named by the rows and drawn by Olm. The queued keycaps mark an appended row
   -- by its place in the batch, one to nine and then a shared mark. The thumbnails, the file type
   -- icons and the colour chip on a row are content and are drawn from the entry itself.

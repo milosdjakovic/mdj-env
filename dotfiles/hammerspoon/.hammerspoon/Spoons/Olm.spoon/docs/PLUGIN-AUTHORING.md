@@ -17,6 +17,28 @@ directory and zero edits anywhere else.
 `hs`. Olm reads it before anything initializes, so a manifest that requires a module has
 broken the contract even when it happens to work.
 
+Every manifest opens with the contract version it was written against and, optionally, what a
+person reads about it.
+
+```lua
+return {
+  apiVersion = 1,
+
+  about = {
+    title = "Obsidian",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+  -- everything else
+}
+```
+
+`apiVersion` is required and must equal the spoon's own `obj.apiVersion` in `init.lua`. A
+manifest without it, or naming another number, is left out before any of its code runs. `about`
+takes `title`, `author`, `version`, `license` and `homepage`, all strings, and refuses any other
+key, so a typo is reported rather than shown blank.
+
 `init.lua` returns the module and exposes `configure(opts)`, unless the manifest declares
 `wiring` steps that stand in for it. Everything else `init.lua` exposes, the manifest
 declares.
@@ -241,6 +263,14 @@ All of this happens at register, stage five, after every plugin's wiring has run
 module checked against is the real finished one. A refusal is one console line naming your
 tool and the reason, and the whole registration is dropped, so you lose your row, your key,
 and your list rather than getting a silently wrong one.
+
+One refusal comes earlier than all of these, while the manifests are read, before any plugin
+loads. A manifest that fails it is left out entirely, and whatever needed it is then reported
+by the cascade that already handles a missing plugin.
+
+- `Olm compose, plugin '%s' was left out, declares no apiVersion`
+- `Olm compose, plugin '%s' was left out, was written against apiVersion %s and this Olm is %s`
+- `Olm compose, plugin '%s' was left out, about.%s is not a field about carries`
 
 `lib/registrar.lua`, on the presentation block.
 
@@ -494,7 +524,8 @@ disagreement between your declaration and the map. The full rule is in the repos
 
 ## The build order
 
-1. New directory under `plugins/`, `manifest.lua` loading with nothing required and no `hs`.
+1. New directory under `plugins/`, `manifest.lua` loading with nothing required and no `hs`,
+   opening with `apiVersion` and `about`.
 2. `needs` first, tools with `reason` and `origin`, then the `DEPENDENCIES.map` and `Brewfile`
    lines at the repository root.
 3. `init.lua` with `configure(opts)`, plus the `rows` and `select` members the presentation

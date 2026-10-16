@@ -165,6 +165,9 @@ local function loadPure(relPath)
 end
 
 local registrarLib = loadPure("lib/registrar.lua")
+-- Only for checkHeader, which is pure. Called rather than mirrored, so the apiVersion and
+-- about rules this gate enforces are the very ones the live load enforces.
+local pluginsLib = loadPure("lib/plugins.lua")
 local registryLib = loadPure("lib/registry.lua")
 local defaultsLib = loadPure("lib/defaults.lua")
 local matchersLib = loadPure("lib/chooser/match.lua")
@@ -179,15 +182,15 @@ rootWords = rootWords or {}
 
 local apiVersion
 do
-  local f = io.open(spoonDir .. "root/compose.lua", "r")
+  local f = io.open(spoonDir .. "init.lua", "r")
   if f then
     local text = f:read("a")
     f:close()
-    apiVersion = tonumber(text:match("local%s+REGISTRY_API_VERSION%s*=%s*(%-?%d+)"))
+    apiVersion = tonumber(text:match("obj%.apiVersion%s*=%s*(%-?%d+)"))
   end
   if not apiVersion then
-    finding("dry gate, root/compose.lua, no 'local REGISTRY_API_VERSION = <number>' found, "
-      .. "so check four's apiVersion match cannot run")
+    finding("dry gate, init.lua, no 'obj.apiVersion = <number>' found, "
+      .. "so the apiVersion checks cannot run")
   end
 end
 
@@ -230,6 +233,11 @@ for _, path in ipairs(manifestPaths) do
           finding(string.format("dry gate refused '%s', its manifest %s is a %s rather than a %s", dir, field, type(got), want))
           shapeOk = false
         end
+      end
+      local headerErr = pluginsLib.checkHeader(value, apiVersion)
+      if headerErr then
+        finding(string.format("dry gate refused '%s', its manifest %s", dir, headerErr))
+        shapeOk = false
       end
 
       local identity = (type(value.name) == "string" and value.name) or dir

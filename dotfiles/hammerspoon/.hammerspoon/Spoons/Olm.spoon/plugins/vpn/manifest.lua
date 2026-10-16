@@ -12,6 +12,16 @@
 -- presentation block below is the whole of what used to be a Chooser.new call and a hand
 -- built surface adapter.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "VPN",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   -- The action glyphs. A green circle reads as go, a red one as stop. The rest are the shared
   -- vocabulary the other pages in this config already use for the same meanings, so a page
   -- here reads the way the settings and browser pages do rather than inventing its own marks.

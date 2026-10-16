@@ -4,6 +4,16 @@
 -- since joining through hs.wifi blocks the main thread for as long as the association takes
 -- and a task does not. One backend, so no engine and no contract, the whole plugin is init.lua.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Wi-Fi",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   -- The row icons, named by the rows and drawn by Olm.
   icons = {
     off = { emoji = "📴", sf = "wifi.slash" },

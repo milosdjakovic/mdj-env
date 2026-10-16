@@ -12,6 +12,16 @@
 -- plugin out of the dependency scope it already receives. Both were root knowledge in the
 -- retired file, and both would have meant editing the root to add a provider.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Tmux Sessions",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   -- The directory is tmuxsessions, one word, while the identity everywhere outside this
   -- folder, the registry, the launcher row, the Hyper context, is tmuxSessions.
   name = "tmuxSessions",

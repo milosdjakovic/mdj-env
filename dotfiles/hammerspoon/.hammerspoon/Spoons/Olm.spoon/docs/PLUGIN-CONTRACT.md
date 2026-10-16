@@ -70,13 +70,53 @@ failed to build. If you add a new kind of need, the delivery is the part to writ
 
 ## Fields
 
-Every field is optional. A plugin with nothing to claim returns `{}` and that is a
-complete answer, not an omission. This used to name KeyRemap and WindowMemory as the two
+Every field is optional except `apiVersion`. A plugin with nothing to claim returns
+`{ apiVersion = 1 }` and that is a complete answer, not an omission. This used to name KeyRemap and WindowMemory as the two
 worked examples of that, and neither is one any more. WindowMemory is gone, replaced by
 Workspaces, and KeyRemap grew a real declaration once it was understood that shipping with
 the system is an origin rather than a reason to stay silent. So the rule stands and the tree
 happens to have no example of it right now, which is worth saying plainly rather than
 citing a plugin that has moved on.
+
+### apiVersion
+
+The contract version this manifest was written against, a whole number, and the one required
+field.
+
+```lua
+apiVersion = 1,
+```
+
+`lib/plugins.lua` compares it for equality with the spoon's own `obj.apiVersion` while the
+manifests are read, so a plugin written against another contract is left out before any of its
+code runs, with one console line saying which version it named. Equality rather than at least,
+because the contract has changed meaning without changing shape before. The spoon's value is
+the one copy of the number. The composition root and the dry gate both read it from there.
+
+The registry also compares an `apiVersion` on every descriptor, and that check cannot fail for
+a manifest plugin, since the registrar stamps the core's number onto what it builds. It guards a
+descriptor assembled some other way. This field is the check that actually stops a manifest.
+
+### about
+
+What a person reads about the plugin, all optional strings.
+
+```lua
+about = {
+  title = "Obsidian",
+  author = "Milos Djakovic",
+  version = "0.1",
+  license = "MIT",
+  homepage = "https://example.com",
+},
+```
+
+`title` is the name a person reads, which may differ from both the directory and the identity.
+`version` is the plugin's own, separate from `apiVersion`. A key outside these five is refused
+with the plugin, so a misspelt field is reported where it was written. Nothing here is read by
+the wiring, it exists for a page or a listing that describes plugins. `defaults.description`
+stays where it is and is not repeated here, since the launcher reads it and a person can
+override it.
 
 ### name
 
@@ -1077,6 +1117,8 @@ row silently vanished.
 ## Checklist for a new plugin
 
 - `manifest.lua` loads with nothing required and touches no `hs`.
+- `apiVersion` equals the spoon's `obj.apiVersion`, and `about` carries at least `title` and
+  `author`.
 - `name` is set unless the identity is exactly the directory, and any `cfg.data` or
   `cfg.globals` key a person writes for this plugin uses that identity, never the
   directory.

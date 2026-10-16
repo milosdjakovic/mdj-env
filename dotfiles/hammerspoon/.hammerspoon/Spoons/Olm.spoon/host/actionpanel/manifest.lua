@@ -17,6 +17,16 @@
 -- stays true only because the composition root remembers to do it in the right order, exactly
 -- the risk already named as this plugin's biggest one.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Action Panel",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   -- The one icon the panel states for itself, the Back row it puts first. The verbs below it
   -- name the icons of the plugin that owns their context and never this one.
   icons = {

@@ -7,6 +7,16 @@
 -- macOS itself, so optional documents the contract rather than guarding against a
 -- practical absence, matching the reasoning the ports entries below already give.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Local Servers",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   -- The icons this plugin names, in the emoji set and the SF Symbol set. The one named for the
   -- plugin is its identity icon, which the launcher row and the scoped list both wear.
   -- The nerd font technology glyphs on a process row are content drawn in lib icons.lua and are

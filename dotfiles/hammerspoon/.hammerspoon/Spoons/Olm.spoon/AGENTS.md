@@ -186,8 +186,11 @@ silently wrong one, and the rest of the config keeps working.
 **The equality version check.** `apiVersion` is compared for equality, not for at least,
 because the contract has changed meaning without changing shape before. A tool built against a
 different contract is refused loudly rather than run on luck. The registrar stamps the core's
-own value onto every descriptor it builds, so the check cannot fail for a manifest built
-plugin and guards a descriptor assembled anywhere else.
+own value onto every descriptor it builds, so this check cannot fail for a manifest built
+plugin and guards a descriptor assembled anywhere else. The check that does stop a manifest
+plugin runs earlier, in `lib/plugins.lua` as the manifests are read, against the `apiVersion`
+each manifest declares, and both compare against the spoon's own `obj.apiVersion`, the one copy
+of the number. `decisions/olm-manifest-header.md` at the repository root has why.
 
 **Identity stays off the descriptor.** The physical key, the activation roster, and the alias
 words live above this spoon in the config tree, `config/keys.lua` and `config/settings.lua`

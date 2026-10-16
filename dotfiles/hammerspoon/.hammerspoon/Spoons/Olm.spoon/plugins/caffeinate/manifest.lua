@@ -5,6 +5,16 @@
 -- story, both ambient once a surface is declared, so a present manifest field for either
 -- would only be restating global policy.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Keep Awake",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   -- A green circle reads as go, a red one as stop, a clock as an absolute time, an hourglass
   -- as a span, a keyboard as the prompt to keep typing and a warning triangle as the error.
   -- The rows name these and Olm draws them, in whichever icon set is active.

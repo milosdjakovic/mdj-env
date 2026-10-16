@@ -4,6 +4,16 @@
 -- and no alias of its own. The one real capability is the shared overlay renderer both cheat
 -- sheets draw through, which is why this plugin is nearly, but not entirely, empty.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Hyper Cheat Sheet",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   needs = {
     -- Drawing is delegated entirely to the shared grid renderer, this spoon only builds the
     -- row model. Required, matching WindowCheatSheet, since this spoon is also only a front

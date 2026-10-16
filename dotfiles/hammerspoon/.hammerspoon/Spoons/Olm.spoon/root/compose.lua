@@ -76,12 +76,6 @@ local log = hs.logger.new("Olm.compose", "info")
 -- so the difference is paid once here rather than once per call site.
 local function logFn(level, message) log[level](message) end
 
--- The registry's own API version, the integer every registration is checked against. It
--- lives here, as a plain literal, because it names no plugin and is genuinely this
--- composition root's own contract with lib/registry.lua rather than anything a manifest
--- could propose.
-local REGISTRY_API_VERSION = 1
-
 --------------------------------------------------------------------------------
 -- STEP A. Policy.
 --------------------------------------------------------------------------------
@@ -195,6 +189,10 @@ function obj.run(olm, cfg)
   -- remove.
   local atoms = olm.lib or {}
   local registryLib = atoms.registry
+  -- The one contract version, the spoon's own published apiVersion. Every manifest is read
+  -- against it and every registry descriptor carries it, so the two checks cannot disagree
+  -- about which contract this Olm speaks. It used to be a second literal kept here.
+  local API_VERSION = olm.apiVersion
   local glyphIconLib = atoms.glyphicon
 
   local policy = defaultsLib.merge(SHIPPED_POLICY, cfg.policy)
@@ -433,7 +431,7 @@ function obj.run(olm, cfg)
   local pluginRoots = { plugins = spoonDir .. "plugins", host = spoonDir .. "host" }
   local manifests, skippedManifests, directories = pluginsLib.readAll({
     pluginRoots.plugins, pluginRoots.host,
-  })
+  }, API_VERSION)
   for identity, why in pairs(skippedManifests or {}) do
     log.e("Olm compose, plugin '" .. identity .. "' was left out, " .. tostring(why))
   end
@@ -1616,7 +1614,7 @@ function obj.run(olm, cfg)
     -- flat ambient grant structurally cannot.
   })
 
-  wiredRegistry = registryLib.new({ apiVersion = REGISTRY_API_VERSION, log = log })
+  wiredRegistry = registryLib.new({ apiVersion = API_VERSION, log = log })
 
   local function describeForRegistry(name, planArg)
     -- matchers, contract v2 decision one, docs/BRIEF-CONTRACT-V2.md, is what lets the
@@ -1626,7 +1624,7 @@ function obj.run(olm, cfg)
     -- table ambientServices.matcher above is already resolved against for every unmigrated
     -- consumer, so this names no new concretion, only hands the registrar the same map.
     return registrarLib.describe(name, planArg, modules, manifests, registryMeta,
-      REGISTRY_API_VERSION, { merge = defaultsLib.merge, redraw = redrawSurface, log = logFn,
+      API_VERSION, { merge = defaultsLib.merge, redraw = redrawSurface, log = logFn,
         matchers = chooserAtom.matchers })
   end
 

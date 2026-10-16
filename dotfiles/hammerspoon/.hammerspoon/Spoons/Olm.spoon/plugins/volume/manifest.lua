@@ -3,6 +3,16 @@
 -- Native Lua over hs.audiodevice, so it names no external tool. One behaviour, so no engine
 -- and no contract, the whole plugin is init.lua.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Volume",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   -- The row icons, named by the rows and drawn by Olm.
   icons = {
     muted = { emoji = "🔇", sf = "speaker.slash" },

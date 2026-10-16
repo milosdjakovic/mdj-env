@@ -10,6 +10,16 @@
 -- install until the command line tools go on, so its origin names that install step rather
 -- than claiming the compiler ships with the system.
 return {
+  -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
+  apiVersion = 1,
+
+  about = {
+    title = "Color Picker",
+    author = "Milos Djakovic",
+    version = "0.1",
+    license = "MIT",
+  },
+
   -- The icons this plugin names, in the emoji set and the SF Symbol set. The one named for the
   -- plugin is its identity icon, which the launcher row and the scoped list both wear.
   icons = {

@@ -91,10 +91,56 @@ local function normalizeLib(value)
   return { module = mod, member = member, policy = value.policy or "required" }
 end
 
+-- What a manifest says about itself rather than about what it needs, the contract version it
+-- was written against and the about block a person reads. The fields about may carry, each a
+-- string. A key outside this set is refused rather than ignored, because a misspelt author
+-- would otherwise show as a blank line on any page that lists plugins, far from the typo.
+local ABOUT = { title = true, author = true, version = true, license = true, homepage = true }
+
+-- Answers nil when the header is sound, or one sentence saying why it is not. Pure, with no
+-- hs call, so the dry gate asks the same question the live load asks rather than a mirror of
+-- it.
+--
+-- apiVersion is required and compared for equality, the same stance the registry takes and
+-- for the same reason, the contract has changed meaning without changing shape before. The
+-- registry's own check cannot catch a manifest plugin, since the registrar stamps the core's
+-- number onto every descriptor it builds, so this is where a plugin written against another
+-- contract is actually stopped, before any of its code runs. coreVersion may be nil for a
+-- caller with no core to compare against, which still requires a whole number to be there.
+function obj.checkHeader(value, coreVersion)
+  local v = value.apiVersion
+  if v == nil then
+    return "declares no apiVersion"
+  end
+  if type(v) ~= "number" then
+    return "apiVersion is a " .. type(v) .. " rather than a whole number"
+  end
+  if v % 1 ~= 0 then
+    return "apiVersion is " .. v .. " rather than a whole number"
+  end
+  if coreVersion ~= nil and v ~= coreVersion then
+    return "was written against apiVersion " .. v .. " and this Olm is " .. tostring(coreVersion)
+  end
+  local about = value.about
+  if about == nil then return nil end
+  if type(about) ~= "table" then
+    return "about is a " .. type(about) .. " rather than a table"
+  end
+  for key, field in pairs(about) do
+    if not ABOUT[key] then
+      return "about." .. tostring(key) .. " is not a field about carries"
+    end
+    if type(field) ~= "string" then
+      return "about." .. key .. " is a " .. type(field) .. " rather than a string"
+    end
+  end
+  return nil
+end
+
 -- Read one manifest. Loaded with loadfile rather than require, since a plugin directory
 -- is not on package.path, and called in a protected call so a syntax error names the
 -- plugin instead of taking the whole config down with it.
-local function readOne(dir, name)
+local function readOne(dir, name, coreVersion)
   local path = dir .. "/" .. name .. "/manifest.lua"
   local chunk, err = loadfile(path)
   if not chunk then return nil, "unreadable, " .. tostring(err) end
@@ -110,6 +156,8 @@ local function readOne(dir, name)
       return nil, field .. " is a " .. type(got) .. " rather than a " .. want
     end
   end
+  local headerErr = obj.checkHeader(value, coreVersion)
+  if headerErr then return nil, headerErr end
   return value
 end
 
@@ -120,8 +168,9 @@ end
 -- whoever needs to go find the file rather than treated as the name itself.
 --
 -- A plugin whose manifest will not load is named in the console and left out, so one bad
--- plugin costs itself and nothing else.
-function obj.read(dir)
+-- plugin costs itself and nothing else. coreVersion is the apiVersion this Olm answers to,
+-- and a manifest declaring another one is left out the same way.
+function obj.read(dir, coreVersion)
   local found, skipped, directories = {}, {}, {}
   -- hs.fs.dir hands back an iterator AND the directory object it walks, and the second one
   -- must be carried into the loop. Keeping only the first leaves the iterator with no state
@@ -135,7 +184,7 @@ function obj.read(dir)
     if entry ~= "." and entry ~= ".." then
       local attrs = hs.fs.attributes(dir .. "/" .. entry)
       if attrs and attrs.mode == "directory" then
-        local manifest, err = readOne(dir, entry)
+        local manifest, err = readOne(dir, entry, coreVersion)
         if manifest then
           local identity = manifest.name or entry
           if found[identity] then
@@ -168,10 +217,10 @@ end
 -- They are one set on purpose. A host is not a different kind of thing to load, it differs
 -- only in knowing that a set exists, and keeping two registries would mean every question
 -- below being asked twice and answered slightly differently the first time one was missed.
-function obj.readAll(dirs)
+function obj.readAll(dirs, coreVersion)
   local found, skipped, directories = {}, {}, {}
   for _, dir in ipairs(dirs) do
-    local f, s, d = obj.read(dir)
+    local f, s, d = obj.read(dir, coreVersion)
     for identity, m in pairs(f) do
       if found[identity] then
         skipped[identity] = "is declared in more than one directory, so the identity is ambiguous"
