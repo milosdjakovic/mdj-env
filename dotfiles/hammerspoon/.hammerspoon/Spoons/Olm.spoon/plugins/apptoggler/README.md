@@ -19,6 +19,13 @@ app to narrow to only those rows, and a literal combo entry carries its own
 `description` there, since it never reaches the Hyper cheat sheet the way a
 modal entry does and the launcher row is its only discoverability surface.
 
+The launcher learns those chords from this plugin through `provides.launcherAppDetails`, a
+table keyed by bundle id built in `bindHotkeys` from exactly the entries it bound, each with its
+chord, its description and its url. Where two entries name one app the one with its own
+`modifiers` wins the chord the row shows, and a url from either stays with the row. The launcher
+asks the set for it and never names this plugin, and until the core split finished it read the
+person's toggles and app registry itself. Switched off, the launcher's app rows carry no chord.
+
 There are no other keys.
 
 ## On the Hyper cheat sheet

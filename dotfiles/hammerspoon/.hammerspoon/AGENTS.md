@@ -319,7 +319,8 @@ Settings on the General pane, and pressing it again while frontmost hides it.
 These toggles still show in the cheat sheet like any other app. AppToggler supplies the
 sheet's app sections itself through `provides.cheatSheetSections`, built from the entries it
 bound into the Hyper modal, so the sheet names no plugin and the overlay stays complete without
-extra wiring.
+extra wiring. The launcher's app rows name each toggle's chord the same way, through
+`provides.launcherAppDetails`, so the launcher reads neither the toggles nor the app registry.
 
 A toggle may also carry `modifiers` of its own, `hides`, and `placement`, three fields
 AppToggler's own README documents in full. `modifiers` opts a toggle out of the Hyper modal

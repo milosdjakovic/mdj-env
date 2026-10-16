@@ -1,6 +1,7 @@
 --- === contributions ===
 ---
---- How what other plugins contribute reaches a host. Two hosts ask today.
+--- How what other plugins contribute reaches a host. Two hosts ask today, the launcher with two
+--- questions and a leader's cheat sheet with one.
 ---
 --- The launcher. A plugin declares provides.launcherRows, a member answering plain row
 --- descriptors, and provides.launcherRun, a member handed a chosen row's item. The launcher
@@ -13,6 +14,11 @@
 --- show so a section may read live state. The sheet asks the set and names no plugin, and this
 --- module hands it one ordered list mixing those suppliers with the sheet's own sections, placed
 --- by defaults.cheatSheetOrder the way launcher rows are placed by defaults.launcherOrder.
+---
+--- The launcher's app rows. A plugin declares provides.launcherAppDetails, a member answering
+--- what the launcher's row for an installed app shows beyond the app itself, keyed by bundle id,
+--- the chord that brings it forward and the url the row opens. The launcher asks the set and
+--- names no plugin, and this module hands it one function merging every supplier's answer.
 ---
 --- It lives here rather than inline in the composition root since phase three of the core
 --- split, so the unit case can drive the very code the root runs instead of restating it.
@@ -128,6 +134,48 @@ function M.assemble(opts)
     if call then runners[identity] = call end
   end
   return rowSuppliers, runners
+end
+
+--- contributions.appDetails(opts) -> function() -> { [bundleID] = details }
+--- opts.host        the identity of the host whose set answer is read, the launcher
+--- opts.plan        the load plan and its sets
+--- opts.manifests   every manifest by identity
+--- opts.modules     every loaded module by identity
+--- opts.registrar   lib/registrar.lua, for memberSpec, memberResolves and action
+--- opts.log         optional, function(message) for a member that resolves to nothing or raises
+---
+--- One function the launcher calls whenever it builds its app rows, answering every supplier of
+--- the launcherAppDetails set merged into one table keyed by bundle id. Asked then rather than at
+--- load, because a supplier knows what it bound only after its own wiring step has run. Where two
+--- suppliers answer one bundle id the earlier in the set's order wins the whole entry, since a
+--- chord taken from one and a url from another would describe a row neither of them built. Each
+--- supplier is wrapped so one that raises or answers something other than a table costs its own
+--- details and nothing else. With no supplier the function answers an empty table, which is an
+--- app row carrying no chord.
+function M.appDetails(opts)
+  local plan, modules = opts.plan or {}, opts.modules or {}
+  local say = opts.log or function() end
+  local sets = (plan.sets or {})[opts.host] or {}
+  local suppliers = {}
+  for _, identity in ipairs(sets.launcherAppDetails or {}) do
+    local call = modules[identity] and resolveMember(opts, identity, "launcherAppDetails", "the launcher")
+    if call then suppliers[#suppliers + 1] = { identity = identity, call = call } end
+  end
+  return function()
+    local out = {}
+    for _, s in ipairs(suppliers) do
+      local ok, details = pcall(s.call)
+      if not ok then
+        say("'" .. tostring(s.identity) .. "' failed answering its launcher app details, "
+          .. tostring(details))
+      elseif type(details) == "table" then
+        for bundleID, entry in pairs(details) do
+          if out[bundleID] == nil and type(entry) == "table" then out[bundleID] = entry end
+        end
+      end
+    end
+    return out
+  end
 end
 
 --- contributions.sheetSections(opts) -> entries

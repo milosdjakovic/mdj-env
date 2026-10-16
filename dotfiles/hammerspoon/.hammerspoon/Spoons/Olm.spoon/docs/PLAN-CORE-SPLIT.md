@@ -161,6 +161,27 @@ leaders, with the app toggler and without it, and with a probe leader command ad
 inventory now reads the toggle models off the app toggler, its lines renamed by hand in the
 golden, which the live run owes a check.
 
+**The two open items closed, 2026-10-16, built, live load owed.** The launcher read the person's
+toggles and app registry to put a chord on an app row's subtitle, the same leak this phase removed
+from the Hyper sheet. The app toggler now declares `provides.launcherAppDetails`, a table keyed by
+bundle id it builds in `bindHotkeys` from exactly the entries it bound, each a chord named by
+leader role or a literal combo, a description and a url, keeping the rule that a combo wins the
+chord over a modal entry for one app. The launcher asks the set `launcherAppDetails`,
+`contributions.appDetails` merges every supplier into one function the root hands over as
+`appDetails`, and the launcher asks it each time the app rows are built and spells a leader chord
+with the leader's name. The launcher declares neither `toggles` nor `apps` any more, since its app
+catalog is its own disk scan, so with the app toggler switched off an app row carries no chord.
+`test/cases/launcher-contributions.lua` checks the subtitles the old code wrote for the same
+toggles and the url rule. Second, a registry tool declaring `leader = "window"` with a leader
+shortcut would have been bound on Hyper and listed on neither sheet. `registrar.bind` takes the
+role its leader engine answers, `leaderRole = "app"` at the root, and raises for a tool whose
+effective leader names another role, which the wiring stage reports as a problem line naming the
+tool. Refused rather than bound on the window leader, since that leader binds declared `bindings`
+alone, the rule `hints.leaderBindings` and the root's host key loop already keep, and routing an
+open key onto it would teach the sheet, the inventory and the binding a second path no plugin needs.
+`test/cases/leader-sheets.lua` moves a copy of keep awake onto the window leader and finds it
+refused by name, bound nowhere and shown nowhere.
+
 ### Phase 5, the switch
 
 1. One saved set of disabled plugins in `hs.settings`, merged with `false` entries from the
@@ -219,6 +240,25 @@ holds a "stay" highlight on an item's `key` so the Apply row appearing above doe
 A dry gate check that no file outside `plugins/` names a plugin identity in code or manifest
 data, the person's config excepted. It runs from the start of phase 3 in report mode and fails
 the gate from the end of phase 3.
+
+**Done, 2026-10-16, built.** `test/drygate-leaks.lua` tokenizes every Lua file outside `plugins/`
+and `test/` with comments removed and reports three forms, a string literal that is a plugin
+identity or directory, a string that is a path into a plugin, and a mixed case identity written
+as code. Identities come from the manifests under `plugins/`, never a list, and a host is core so
+core may name it. It opened in report mode and the hits were settled before switching. The
+launcher's System Settings scope icon was keyed `settings`, the settings plugin's identity, and is
+`settingsPanes` now, named for the scope it marks. The four `emoji` hits are the icon engine's own
+source set name in `lib/icons/config.lua`, `lib/icons/init.lua` and
+`lib/icons/sources/emoji.lua`, which `config/icons.toml` names as its set and fallback, so it is
+core vocabulary sharing a word with the emoji picker and is accepted line by line in
+`test/drygate-accepted.txt` rather than renamed. `LEAK_FAILS` is true in `test/drygate.lua`, so a
+new hit is a finding and fails the gate, and the gate reads 0 findings with 15 accepted.
+
+The known blind spot. A lower case identity written as a bare field or a bare name, `opts.audio`
+or `settings.x`, is never matched, since a lower case plugin name is also an ordinary word and
+`hs.settings` or a local named `audio` would drown the check in false hits. Only the quoted forms
+and a mixed case name are seen, so core reading a plugin's table through a lower case field would
+pass this gate, and a reviewer has to look for that by hand.
 
 ## Decisions
 

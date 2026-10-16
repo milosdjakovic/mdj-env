@@ -46,7 +46,7 @@ obj._stage = nil            -- host/stage, the one host owning the live chooser 
 obj._placeholder = nil
 obj._placeholderExamples = nil  -- example field hints, one per computed row source that proposes one
 obj._keys = nil
-obj._apps = nil
+obj._appDetails = nil       -- function() -> bundle id to { chord, description, url }, see _buildConfiguredApps
 obj._glyphFor = nil         -- function(key, mods) -> chord glyph string
 obj._rowSuppliers = nil     -- functions answering contributed rows, owner already stamped
 obj._runners = nil          -- owner identity -> function(item), runs a chosen contributed row
@@ -63,7 +63,6 @@ obj._placeholders = nil     -- the rotation pool, this host's own placeholder fi
 obj._placeholderLast = nil  -- the previous open's own pick, never repeated immediately
 obj._surface = nil          -- the stage's own nav adapter, delegated to rather than built here
 obj._actionRows = nil
-obj._configuredApps = nil
 obj._installedApps = nil         -- the disk scan, cached until a watched app directory changes
 obj._appRowsCache = nil          -- app rows only, invalidated on running-set change, activation, or a directory change
 obj._orderedRowsCache = nil      -- all rows, recency-sorted, invalidated on any promote or a directory change
@@ -182,14 +181,13 @@ function obj:configure(opts)
   -- chord speller below already documents, this host is configured twice and only the root's
   -- own call can compute this.
   self._placeholderExamples = opts.placeholderExamples or self._placeholderExamples
-  -- The per app toggle list, the same one the app toggler and the Hyper cheat sheet already
-  -- receive under this name. This host used to take the whole key catalog and reach into it
-  -- for this one field, which meant the person had to hand over a table of everything to give
-  -- it the one thing it wanted, and meant this file knew a field name inside somebody else's
-  -- data. Every other thing it used that catalog for is now on a descriptor or declared as a
-  -- shipped row, so the catalog itself is no longer wanted here at all.
-  self._toggles = opts.toggles or {}
-  self._apps = opts.apps or {}
+  -- What an app row shows beyond the app, its chord and the url it opens, answered by whichever
+  -- plugins supply launcher app details and merged by the root. This host read the person's
+  -- toggle list and app registry itself until the core split finished, which made a core host
+  -- know one plugin's data and its shape. It shows what it is given now and never learns where
+  -- it came from. Kept rather than overwritten when a later call arrives without one, for the
+  -- reason the chord speller below documents, this host is configured twice.
+  self._appDetails = opts.appDetails or self._appDetails
   -- The display name for each leader role, so a row's subtitle can say which physical key
   -- opens it without this file deciding what any leader is called. The word Hyper used to be
   -- written into every one of those subtitles literally, which was correct only for as long as
@@ -265,7 +263,6 @@ function obj:configure(opts)
   -- against its owner.
   self._iconOwner = opts.iconOwner or "launcher"
 
-  self._configuredApps = self:_buildConfiguredApps()
   self._placeholders = self:_buildPlaceholders()
 
   -- The one presentation this host hands the stage, built once here and reused for the life
@@ -626,35 +623,20 @@ end
 
 --- Launcher:_buildConfiguredApps()
 --- Method
---- The configured toggle for each app, keyed by bundle id, so an app row can show its
---- shortcut and reuse its url-pane behavior.
----
---- Two toggles may name the same app, one living in the Hyper modal for the ordinary
---- focus and cycle behaviour and one stating its own modifiers for something like a
---- placed summon. The one with modifiers wins the chord this row displays, since it has
---- nowhere else to be found, the Hyper cheat sheet only ever draws an entry that actually
---- lives in the modal, while the modal entry keeps that grid as its own discoverability
---- surface regardless of what this row says. A url from either belongs to the row no
---- matter which one is shown, since selecting the row always opens it.
+--- What each app row shows beyond the app, keyed by bundle id, so a row can name the chord that
+--- brings the app forward and open the url its supplier states. Asked of the injected answer
+--- every time the app rows are built rather than once at configure, since a supplier knows what
+--- it bound only after its own wiring step, and the rows are rebuilt only when the running set
+--- changes. Which chord wins when two bindings name one app is the supplier's business, this
+--- host shows the one entry it is handed. With nothing injected every row carries no chord.
 function obj:_buildConfiguredApps()
-  local out = {}
-  for _, t in ipairs(self._toggles) do
-    local bundleID = self._apps[t.app]
-    if bundleID then
-      local existing = out[bundleID]
-      if not existing then
-        out[bundleID] = { key = t.key, url = t.url, modifiers = t.modifiers, description = t.description }
-      else
-        if t.modifiers and not existing.modifiers then
-          existing.key = t.key
-          existing.modifiers = t.modifiers
-          existing.description = t.description
-        end
-        existing.url = existing.url or t.url
-      end
-    end
+  if type(self._appDetails) ~= "function" then return {} end
+  local ok, details = pcall(self._appDetails)
+  if not ok then
+    log.w("the launcher app details raised, so no app row names a chord, " .. tostring(details))
+    return {}
   end
-  return out
+  return type(details) == "table" and details or {}
 end
 
 -- Walk the standard app roots recursively so an app nested in a vendor subfolder
@@ -732,21 +714,21 @@ function obj:_appRows()
     return (x.name or ""):lower() < (y.name or ""):lower()
   end)
 
+  local configured = self:_buildConfiguredApps()
   local rows = {}
   for _, e in ipairs(list) do
-    local cfg = self._configuredApps[e.bundleID]
+    local cfg = configured[e.bundleID]
+    local chord = cfg and type(cfg.chord) == "table" and cfg.chord.key ~= nil and cfg.chord or nil
     local status = e.running and "Open" or "Not running"
     local subTitle = status
-    if cfg then
-      if cfg.modifiers then
-        -- A literal combo never appears on the Hyper cheat sheet, so this row is its only
-        -- discoverability surface, and it names its own chord and description rather than
-        -- the word Hyper, which would describe a modal it was never bound into.
-        local chord = self._glyphFor and self._glyphFor(cfg.key, cfg.modifiers) or cfg.key
-        subTitle = status .. " · " .. chord .. (cfg.description and (" " .. cfg.description) or "")
-      else
-        subTitle = status .. " · Hyper " .. cfg.key
-      end
+    if chord and chord.leader == nil then
+      -- A literal combo on no leader never appears on a cheat sheet, so this row is its only
+      -- discoverability surface, and it names its own chord and description rather than a
+      -- leader's name, which would describe a modal it was never bound into.
+      local glyphs = self._glyphFor and self._glyphFor(chord.key, chord.mods) or chord.key
+      subTitle = status .. " · " .. glyphs .. (cfg.description and (" " .. cfg.description) or "")
+    elseif chord then
+      subTitle = status .. " · " .. self:_leaderName(chord.leader) .. " " .. tostring(chord.key)
     end
     rows[#rows + 1] = {
       title = e.name,

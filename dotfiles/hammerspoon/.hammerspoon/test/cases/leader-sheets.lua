@@ -30,6 +30,11 @@
 -- shipped command sits on a leader today, the clipboard's two are global, so a probe command is
 -- added to a copy of one manifest and must reach both the binding and the sheet.
 --
+-- Last, a registry tool declaring the window leader with a leader shortcut. The registrar binds
+-- a tool's open key only on the app leader's engine, so such a key used to land on Hyper and on
+-- neither sheet. It is refused at wiring now, and a copy of one shipped tool moved to the window
+-- leader must be refused by name, bound nowhere and shown nowhere.
+--
 -- Under a plain lua interpreter with no Hammerspoon at all, a small stub stands in. Inside the
 -- running Hammerspoon nothing here touches the live config, every module is a fresh copy loaded
 -- with loadfile, and the one global binding call a toggle with its own modifiers would make is
@@ -147,7 +152,7 @@ local function run(manifests)
   local plan = resolver.plan({ manifests = manifests, user = {}, present = function() return true end,
     libNames = libNames })
   local result = { plan = plan, bound = { app = {}, window = {}, global = {} },
-    sheet = { app = {}, window = {} }, undriven = {}, problems = plan.problems }
+    sheet = { app = {}, window = {} }, undriven = {}, problems = plan.problems, refused = {} }
 
   local function bindOn(leader)
     return function(key, mods) result.bound[leader][mark(key, mods)] = true end
@@ -181,12 +186,16 @@ local function run(manifests)
   local claimed = {}
   for _, entry in ipairs(registry.shortcuts()) do
     claimed[entry.name] = true
-    registrar.bind(entry, plan, {
+    -- A refusal raises, which the wiring stage turns into a problem line, so it is caught and
+    -- kept here the way that stage keeps it.
+    local ok, err = pcall(registrar.bind, entry, plan, {
       log = noop,
       bindLeader = bindOn("app"),
+      leaderRole = "app",
       bindGlobal = function(mods, key) bindOn("global")(key, mods) end,
       rootKey = commandKey,
     })
+    if not ok then result.refused[entry.name] = tostring(err) end
   end
 
   -- The two rules root/compose.lua binds by itself, restated. A host with a key, a leader and no
@@ -376,3 +385,42 @@ for _, section in ipairs(withCommand.ownWithout) do
 end
 check("without the command lookup the sheet drops it, the defect this case guards", not before)
 check("the command stays off the window sheet", not withCommand.sheet.window["9"])
+
+--------------------------------------------------------------------------------
+-- A registry tool declaring the window leader with a leader shortcut. The registrar binds a
+-- tool's open key on the app leader's engine alone, and each sheet lists only its own leader's
+-- tools, so such a key was bound on Hyper and listed nowhere. It is refused at wiring now with a
+-- problem line naming the tool. No shipped tool does this, so a copy of one leader tool is moved
+-- to the window leader.
+--------------------------------------------------------------------------------
+
+check("no shipped registry tool is refused", next(real.refused) == nil,
+  next(real.refused) and (next(real.refused) .. ", " .. real.refused[next(real.refused)]) or nil)
+
+local moved = {}
+for identity, m in pairs(realManifests) do moved[identity] = m end
+local caffeinate = {}
+for k, v in pairs(realManifests.caffeinate) do caffeinate[k] = v end
+local caffeinateDefaults = {}
+for k, v in pairs(realManifests.caffeinate.defaults) do caffeinateDefaults[k] = v end
+caffeinateDefaults.leader = "window"
+caffeinate.defaults = caffeinateDefaults
+moved.caffeinate = caffeinate
+local movedKey = mark(caffeinateDefaults.key)
+
+local onWindow = run(moved)
+local refusal = onWindow.refused.caffeinate
+check("a registry tool on the window leader is refused at wiring", refusal ~= nil)
+check("the refusal names the tool and the leader it asked for",
+  refusal ~= nil and refusal:find("'caffeinate'", 1, true) ~= nil and refusal:find("leader = 'window'", 1, true) ~= nil,
+  refusal)
+check("the refused key is bound on neither leader",
+  not onWindow.bound.app[movedKey] and not onWindow.bound.window[movedKey])
+check("the refused key is on neither sheet",
+  not onWindow.sheet.app[movedKey] and not onWindow.sheet.window[movedKey])
+check("with the tool refused every other key still matches its sheet on both leaders",
+  #missing(onWindow.bound.app, onWindow.sheet.app) == 0 and #missing(onWindow.sheet.app, onWindow.bound.app) == 0
+    and #missing(onWindow.bound.window, onWindow.sheet.window) == 0
+    and #missing(onWindow.sheet.window, onWindow.bound.window) == 0)
+check("the same tool on the app leader is bound and shown", real.bound.app[movedKey] == true
+  and real.sheet.app[movedKey] == true)

@@ -18,9 +18,10 @@ local settings   = require("config.settings")
 hs.loadSpoon("Olm")
 
 local olm = spoon.Olm:start({
-  -- Values wanted by more than one plugin, matched by FIELD NAME rather than by plugin, so
-  -- one application catalog serves the app toggles, the Hyper cheat sheet and the launcher
-  -- without any of the three being named here. A plugin that stops needing one of these
+  -- Values matched by FIELD NAME rather than by plugin, so one application catalog serves
+  -- every plugin that asks for it without any of them being named here. Since the core split
+  -- finished only the app toggler asks, and the Hyper cheat sheet and the launcher learn the
+  -- toggles from it. A plugin that stops needing one of these
   -- simply stops receiving it, with nothing to remove. Only genuinely shared values belong
   -- here, anything one plugin alone wants goes below where it is easier to follow.
   shared = {

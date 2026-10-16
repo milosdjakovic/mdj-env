@@ -841,6 +841,17 @@ end
 --- never bound and never wired, audit finding twelve. Neither engine is named here, both arrive
 --- through deps, since which concrete thing binds a leader chord is the composition root's own
 --- business and this file's job stops at deciding which of the two engines this entry wants.
+---
+--- deps.leaderRole is the leader role word bindLeader's engine answers, app at the root. A tool
+--- whose effective leader names another role, a registry tool declaring leader = "window" with a
+--- leader shortcut, is refused by raising, which the wiring stage reports as a problem line naming
+--- the tool. Binding it on bindLeader's engine anyway put its key on a leader it never asked for
+--- and on neither sheet, since each sheet lists only its own leader's tools. It is refused rather
+--- than routed onto the window leader because that leader binds a declared bindings list and
+--- nothing else, the same rule lib/hints.lua's leaderBindings and the root's host key loop keep,
+--- and a second route onto it would need the sheet, the inventory and the binding all taught the
+--- open key of a tool with no tool on that leader needing one. A command answers to no leader of
+--- its own, so it is never refused here.
 function obj.bind(entry, plan, deps)
   plan = plan or {}
   deps = deps or {}
@@ -866,6 +877,13 @@ function obj.bind(entry, plan, deps)
   end
 
   if entry.kind == "leader" then
+    if directory and deps.leaderRole and eff.leader ~= nil and eff.leader ~= deps.leaderRole then
+      error("'" .. tostring(entry.name) .. "' declares a leader shortcut with leader = '"
+        .. tostring(eff.leader) .. "', and a registry tool's open key binds only on the "
+        .. tostring(deps.leaderRole) .. " leader, so it is not bound, list its key under bindings "
+        .. "for the " .. tostring(eff.leader) .. " leader or move the tool to the "
+        .. tostring(deps.leaderRole) .. " leader", 0)
+    end
     if not deps.bindLeader then
       if deps.log then deps.log("w", "registrar has no deps.bindLeader, '" .. tostring(entry.name) .. "' is not bound") end
       return

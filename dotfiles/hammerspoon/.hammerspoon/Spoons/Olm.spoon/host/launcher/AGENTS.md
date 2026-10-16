@@ -10,8 +10,8 @@ A filterable app switcher and command runner, the built-in one, wired straight
 to the Chooser atom with no external launcher handoff. It lists every installed
 application, open ones first then not running, and below them the injected
 command actions. Its open binding is a base binding, suppressed while a modal
-context owns the opening key, so it always opens this launcher. An app that has
-a toggle shortcut shows it, the rest are launchable by name, and typing filters
+context owns the opening key, so it always opens this launcher. An app some
+plugin bound a chord for shows it, the rest are launchable by name, and typing filters
 by name or shortcut. The native accept key, or the shared accept action, runs
 the highlighted row.
 
@@ -23,8 +23,8 @@ spoons into one feature and owns real state, the app scan caches and an
 two coordinator in the sense of the lifecycle contract in the hammerspoon
 `AGENTS.md`, built over the Chooser atom, the same widget behind the other list
 tools, and it names no domain spoon and no plugin. The root injects every
-collaborator through `configure`, the stage, the pure toggle and `apps` data, a
-chord glyph resolver and the leader display names, the shared predicate
+collaborator through `configure`, the stage, the merged app details other
+plugins supply for an app row, a chord glyph resolver and the leader display names, the shared predicate
 registry, the tool registry, the rows other plugins contribute with the runners
 that take them back, and a small `actions` table of leaf closures that close
 over core alone (app focus or cycle and a URL toggle through `lib/appfocus.lua`,
@@ -40,6 +40,16 @@ naming plugins is the coupling the split exists to remove, so each became either
 a contribution any plugin may declare or a core lib, and the manifest has no
 siblings now. `decisions/olm-core-split.md` at the repository root has the
 record.
+
+The app rows read person data until the split finished. The person's toggle list
+and app registry reached this host so it could put a Hyper chord on an app row's
+subtitle, the same leak phase four removed from the Hyper sheet. A plugin that
+binds an app's chord now declares `provides.launcherAppDetails`, the host asks the
+set `launcherAppDetails`, and the root hands it one function, `appDetails`,
+merging every supplier by bundle id. It is asked each time the app rows are
+built. The app catalog itself is the host's own disk scan, which is launcher
+policy and needs no person data, so the host declares neither `toggles` nor
+`apps`. With the app toggler switched off an app row carries no chord.
 
 ## Rows are data, never functions
 
@@ -588,7 +598,8 @@ names an icon and Olm draws it in the active set. A registered tool's row names 
 that plugin's own manifest icons, with the owner taken from the registry listing, so a
 command's row reads its owning plugin's icons. The rows this host states itself, its special
 rows and the three catalog scopes, name keys of the launcher's own manifest icons, `lock`,
-`sleep`, `aliases`, `apps`, `windows` and `settings`. A contributed row reads against its
+`sleep`, `aliases`, `apps`, `windows` and `settingsPanes`, the last named for its scope rather
+than `settings`, which is also a plugin's identity. A contributed row reads against its
 owner, stamped by the root. Window actions share the window manager's own `windows` icon, the
 chord in the subtitle telling them apart, and the settings search row wears System Settings'
 own `search`. Both icons were the launcher's until phase three of the core split, and the

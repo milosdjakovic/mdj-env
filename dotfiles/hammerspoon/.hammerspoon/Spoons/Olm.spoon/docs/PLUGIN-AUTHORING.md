@@ -607,6 +607,28 @@ combo belongs to no leader. The app toggler is the worked example, it resolves n
 in `bindHotkeys` and splits running from dormant in `cheatSheetSections`. The contract has the
 section shape and the shipped numbers.
 
+A registry tool's own open key, the one `registry.shortcut = "leader"` binds, goes on the app
+leader only. A tool stating `leader = "window"` with a leader shortcut is refused at wiring with
+a problem line naming it, since binding it on Hyper would put it on neither sheet. A key on the
+window leader belongs in `bindings`, which that leader binds and its sheet lists.
+
+## Chords on the launcher's app rows
+
+The launcher lists every installed app from its own disk scan. A plugin that binds a chord for an
+app tells the launcher so, and the app's row then names the chord and opens the url the plugin
+states.
+
+```lua
+provides = { launcherAppDetails = "launcherAppDetails" },
+```
+
+The member answers a table keyed by bundle id, asked whenever the launcher builds its app rows,
+which is after your wiring step has run. Each entry is `{ chord = { leader = "app", key = "f" } }`
+for a key on a leader, or `{ chord = { key = "8", mods = { "ctrl", "alt" } }, description =
+"Placed" }` for a literal combo, with an optional `url`. List only what you bound. The app
+toggler is the worked example, it builds the table in `bindHotkeys` from exactly the entries it
+bound.
+
 ## Tools your plugin needs
 
 A plugin declares what it needs on the machine and installs nothing. Every external binary or

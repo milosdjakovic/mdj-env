@@ -20,12 +20,14 @@ return {
   -- contributes, reads its own plugin's icons and never these. The search icon left with the
   -- System Settings search row and the window rows wear the window manager's own copy of
   -- windows, both since phase three of the core split, and windows stays here for the window
-  -- catalog scope's own row.
+  -- catalog scope's own row. The System Settings scope's icon is settingsPanes, named for the
+  -- scope it marks, since a key spelled settings is also a plugin's identity and core must not
+  -- write a plugin's name.
   icons = {
     launcher = { emoji = "🚀", sf = "paperplane" },
     apps = { emoji = "🚀", sf = "square.grid.2x2" },
     windows = { emoji = "🪟", sf = "macwindow" },
-    settings = { emoji = "⚙️", sf = "gearshape" },
+    settingsPanes = { emoji = "⚙️", sf = "gearshape" },
     aliases = { emoji = "🏷️", sf = "tag" },
     lock = { emoji = "🔒", sf = "lock" },
     sleep = { emoji = "🌙", sf = "zzz" },
@@ -62,6 +64,11 @@ return {
       -- while naming none of the plugins behind them.
       launcherRows = { provides = { "launcherRows" } },
       launcherRun = { provides = { "launcherRun" } },
+      -- Every plugin that knows something about an installed app's row, the chord that brings
+      -- the app forward and the url the row opens, keyed by bundle id. The app rows themselves
+      -- come from this host's own disk scan, which is the catalog it searches and is launcher
+      -- policy, so a supplier only adds to a row and never adds one.
+      launcherAppDetails = { provides = { "launcherAppDetails" } },
     },
 
     lib = {
@@ -98,7 +105,7 @@ return {
     -- that names no plugin keeps working with any of them switched off.
 
     -- Everything below is root or user data configure reads that this plugin cannot derive
-    -- and that had no declaration anywhere. All nine are optional, because every one of them
+    -- and that had no declaration anywhere. Every one is optional, because every one of them
     -- has a working, if diminished, absence already built into configure, none of them make
     -- this plugin refuse to wire.
     data = {
@@ -109,22 +116,14 @@ return {
       -- plugin's leaf actions call into.
       stage = { source = "root", policy = "optional",
         breaks = "this plugin builds no presentation and no navigation surface, so its list never opens at all, no window, no rows, and no way for the shared list keys to reach it" },
-      -- The per app toggle list, the same value the app toggler and the Hyper cheat sheet both
-      -- declare under this name, so one answer reaches all three and none of them is named by
-      -- the person's own file.
-      --
-      -- This used to ask for the whole key catalog and reach inside it for this one field,
-      -- which made the person hand over everything to supply one thing and made this host know
-      -- a field name inside somebody else's data. Every other use of that catalog here is gone,
-      -- the curated rows became shipped declarations and the per tool chords now come off each
-      -- tool's own registration, so the catalog itself is no longer wanted.
-      toggles = { source = "user", policy = "optional",
-        breaks = "no application toggle appears in the catalogue, so an app bound to a Hyper letter can be launched by that letter but never found by searching for it here" },
-      -- config/apps.lua, the bundle id registry. Only used here to label an app row's own
-      -- Hyper shortcut, the app rows themselves come from a real disk scan and need no
-      -- registry to exist at all.
-      apps = { source = "user", policy = "optional",
-        breaks = "every app row loses its Hyper shortcut subtitle, since nothing maps a toggle's app name to the bundle id a scanned app row is keyed by" },
+      -- One function answering every launcherAppDetails supplier above merged into one table
+      -- keyed by bundle id, asked whenever the app rows are built. Root assembled because only
+      -- the root may resolve a member on another plugin's module. This replaced the person's
+      -- toggles and app registry, which this host read itself to put a chord on an app row,
+      -- the same leak phase four of the core split removed from the Hyper sheet. The app rows
+      -- need neither, they come from a disk scan.
+      appDetails = { source = "root", policy = "optional",
+        breaks = "no app row names the chord that brings its app forward, and an app row a toggle points at a pane opens the app instead" },
       -- One supplier per plugin answering the launcherRows set above, in the set's order, each
       -- a function answering that plugin's rows with the plugin's identity already stamped as
       -- the owner on every item. Root assembled because only the root may resolve a member on
@@ -266,7 +265,7 @@ return {
       { name = "windowActions", kind = "window",
         description = "Window actions", icon = "windows", aliases = { "w", "window" } },
       { name = "settingsPanes", kind = "settingsPane",
-        description = "System Settings", icon = "settings", aliases = { "s", "system" } },
+        description = "System Settings", icon = "settingsPanes", aliases = { "s", "system" } },
     },
   },
 

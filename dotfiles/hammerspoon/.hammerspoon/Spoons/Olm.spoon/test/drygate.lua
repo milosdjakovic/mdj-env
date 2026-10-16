@@ -742,14 +742,15 @@ end
 -- drygate.sh leaves out of DRYGATE_LEAKSOURCES. Identities are read from the manifests this
 -- run already loaded, never listed here.
 --
--- REPORT MODE. Each hit prints as a leak warning and does not fail the gate, until the rule
--- is switched to failing by setting LEAK_FAILS to true. A deliberate exception is declared
--- once, in test/drygate-accepted.txt, as the exact finding line with a reason, and only
--- counts when LEAK_FAILS is true, since a warning cannot be accepted.
+-- FAILING since the core split finished. Each hit is a finding and fails the gate. A
+-- deliberate exception is declared once, in test/drygate-accepted.txt, as the exact finding
+-- line with a reason. Setting LEAK_FAILS back to false prints each hit as a leak warning that
+-- fails nothing, which is report mode, and in report mode no accepted line can match, since a
+-- warning cannot be accepted, so every leak line there is reported as stale.
 ----------------------------------------------------------------------------------------
 
 do
-  local LEAK_FAILS = false
+  local LEAK_FAILS = true
   local leaksScan = dofile(scriptDir .. "drygate-leaks.lua")
   local identities, dirs = {}, {}
   -- Only a manifest under plugins/ is a plugin, a host is core and core may name core.

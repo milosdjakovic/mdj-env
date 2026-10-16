@@ -13,6 +13,10 @@ The alias directory lists every word that does this. Applications, window action
 Settings panes each have their own word too, narrowing the same catalog rather than reaching
 outside it.
 
+An application that has a chord shows it beside its state, `Open · Hyper F`, when a plugin that
+bound the chord says so. The app toggler is the one that does, and with it switched off every
+application is still listed and simply names no chord.
+
 Whatever was chosen last, of any kind, floats to the top of the next open, so a fresh list
 still reads sensibly and a recent pick is never buried underneath the rest.
 

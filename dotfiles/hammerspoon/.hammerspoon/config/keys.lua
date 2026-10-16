@@ -1,11 +1,11 @@
 -- Keybinding definitions that belong to no plugin.
 --
 -- Pure data, no logic. This file holds two things only, the physical key each leader domain
--- uses, and the app toggle list the AppToggler plugin and the Hyper cheat sheet both read
--- through init.lua. Everything else about a key lives with the plugin that owns it. A
--- plugin's own key, its aliases and the Hyper contexts it joins are declared in that plugin's
--- manifest, and a person's change to any of them, or to a plugin's data, goes in
--- config/plugins.lua, keyed by plugin identity.
+-- uses, and the app toggle list the AppToggler plugin reads through init.lua. That plugin then
+-- tells the Hyper cheat sheet and the launcher's app rows what it bound. Everything else about
+-- a key lives with the plugin that owns it. A plugin's own key, its aliases and the Hyper
+-- contexts it joins are declared in that plugin's manifest, and a person's change to any of
+-- them, or to a plugin's data, goes in config/plugins.lua, keyed by plugin identity.
 
 local M = {
   -- Which catalog key each domain uses. This single reference is the domain

@@ -30,6 +30,7 @@ obj._hyperKey = nil
 obj._appFocus = nil   -- lib/appfocus.lua, dot called, focus or cycle and toggle by url
 obj._toggles = nil    -- the toggle list bindHotkeys bound from
 obj._sheetItems = nil -- the modal toggles as cheat sheet rows, { key, name, bundleID, icon }
+obj._appDetails = nil -- bundle id to what the launcher's row for that app shows, see launcherAppDetails
 
 -- The literal combo an entry with no `modifiers` field falls back to when HyperKey is not
 -- wired at all, so losing that spoon degrades the chord rather than the toggle itself.
@@ -330,10 +331,11 @@ function obj:bindHotkeys(toggles)
   -- Kept as given, the list this plugin bound from, so the key inventory reads the toggles where
   -- they are used rather than from a copy somewhere else.
   self._toggles = toggles
-  local modal = {}
+  local modal, bound = {}, {}
   for _, toggle in ipairs(toggles) do
     local bundleID = self._apps[toggle.app]
     if bundleID then
+      bound[#bound + 1] = { toggle = toggle, bundleID = bundleID }
       local action = self:_buildAction(toggle, bundleID)
       if toggle.modifiers then
         hs.hotkey.bind(toggle.modifiers, toggle.key, action)
@@ -350,7 +352,56 @@ function obj:bindHotkeys(toggles)
     end
   end
   self._sheetItems = self:_sheetItemsFor(modal)
+  self._appDetails = self:_appDetailsFor(bound)
   return self
+end
+
+--------------------------------------------------------------------------------
+-- What the launcher's row for a bound app shows, supplied through provides.launcherAppDetails.
+-- The launcher read the person's toggles and app registry itself until the core split finished,
+-- the same leak phase four removed from the Hyper sheet, so a core host knew this plugin's data
+-- and its shape. It is built here now, from exactly the entries bindHotkeys bound.
+--------------------------------------------------------------------------------
+
+--- AppToggler:_appDetailsFor(bound)
+--- Method
+--- One entry per bundle id. Two toggles may name the same app, one in the Hyper modal for the
+--- ordinary focus and cycle and one stating its own modifiers for something like a placed
+--- summon. The one with modifiers wins the chord the row shows, since a literal combo appears on
+--- no cheat sheet and the row is the only place it can be found, while the modal entry keeps the
+--- Hyper sheet as its own. A url from either belongs to the row whichever chord is shown, since
+--- choosing the row always opens it. A modal entry names its leader by role, so the launcher
+--- spells the leader's name and this plugin never writes the word Hyper. An entry bound on the
+--- literal fallback combo because no HyperKey was wired is still a Hyper chord and reads as one.
+function obj:_appDetailsFor(bound)
+  local out = {}
+  local function chordOf(toggle)
+    if toggle.modifiers then return { key = toggle.key, mods = toggle.modifiers } end
+    return { leader = "app", key = toggle.key }
+  end
+  for _, b in ipairs(bound) do
+    local t = b.toggle
+    local existing = out[b.bundleID]
+    if not existing then
+      out[b.bundleID] = { chord = chordOf(t), description = t.description, url = t.url }
+    else
+      if t.modifiers and not existing.chord.mods then
+        existing.chord = chordOf(t)
+        existing.description = t.description
+      end
+      existing.url = existing.url or t.url
+    end
+  end
+  return out
+end
+
+--- AppToggler:launcherAppDetails()
+--- Method
+--- Bundle id to { chord, description, url } for every app this plugin bound, asked by the
+--- launcher whenever it builds its app rows. chord is { leader, key } for a key on a leader, or
+--- { key, mods } for a literal combo on no leader. Empty before bindHotkeys has run.
+function obj:launcherAppDetails()
+  return self._appDetails or {}
 end
 
 --------------------------------------------------------------------------------

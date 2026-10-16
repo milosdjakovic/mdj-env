@@ -4,7 +4,8 @@ Status. In progress. Phases 1 to 3 of `Spoons/Olm.spoon/docs/PLAN-CORE-SPLIT.md`
 landed. Phase 5, the switch and the settings Plugins page, is built and reviewed on its branch,
 its apply reworked after Milos's first live try to stage choices and apply them when the stage
 closes, and owes its live load. Phase 4, cheat sheets that list exactly what their leader binds, is built on
-its branch stacked on phase 5 and owes its live load.
+its branch stacked on phase 5 and owes its live load, with its two open items closed on a branch
+of their own. Phase 6, the dry gate's layer rule, fails the gate now.
 
 ## Now
 
@@ -28,7 +29,12 @@ A leader's cheat sheet lists what the root collected from the manifests, a plugi
 `bindings`, its keyed special rows and its registry leader commands, plus the sections a plugin
 supplies by declaring `provides.cheatSheetSections`, placed by `defaults.cheatSheetOrder` and
 routed by `defaults.leader`. The app toggler supplies the app sections, so the Hyper sheet reads
-no person data and names no plugin.
+no person data and names no plugin. The launcher's app rows learn each bound app's chord and url
+the same way, from `provides.launcherAppDetails`, so the launcher reads neither the toggles nor
+the app registry. A registry tool's open key binds on the app leader only, and a tool stating
+`leader = "window"` with a leader shortcut is refused at wiring with a problem line. The dry gate
+fails on any file outside `plugins/` that names a plugin, with the icon engine's own `emoji`
+source set accepted line by line.
 There is one plugin switch. A plugin under `plugins/` is off when `config/plugins.lua` says
 `false` or the settings page saved its identity under `Olm.disabledPlugins`, its code never
 runs, a plugin requiring it is reported off because of every switched off plugin it depends on,
@@ -93,6 +99,21 @@ the place the plugin was in, and the next load reopens it through `stage.present
 - **Asking the window sheet the same set.** 2026-10-16 16:40. It reads no person data, and a set
   question nothing answers is reported as a problem on every load. It asks the day a plugin on
   the window leader supplies sections.
+- **Handing the launcher the toggles as root data instead of reading them as person data.**
+  2026-10-16 16:52. It would have moved the read from the manifest to the root and kept the code,
+  but the launcher would still know the toggle list's shape, app, key, modifiers and url, and
+  still resolve app names through a registry it does not own. The plugin that bound the keys
+  supplies what each app row shows instead.
+- **Binding a registry tool declared on the window leader on the window leader.** 2026-10-16
+  16:52. It is the generous answer, but the window leader binds a declared `bindings` list and
+  nothing else, a rule `hints.leaderBindings` and the root's host key loop already keep, and
+  routing a tool's open key onto it would need the registrar to know two engines and the window
+  sheet and the key inventory taught a second source, all for a case no plugin has. Refused out
+  loud at wiring instead.
+- **Renaming the icon engine's `emoji` source set to clear the layer rule.** 2026-10-16 16:52.
+  The word is core's own vocabulary, written in `config/icons.toml` as the set and the fallback,
+  and it shares a spelling with the emoji picker plugin by coincidence. Renaming it would change a
+  person's config to satisfy a scanner, so the three lines are accepted with a reason.
 - **A contributed row keeping the launcher as its icon owner.** 2026-10-16. It would have kept
   the owner field identical, but only by a plugin naming the launcher, the coupling phase 3
   removes. The plugin declares the same icon instead.
@@ -241,3 +262,25 @@ the place the plugin was in, and the next load reopens it through `stage.present
   `registrar.bind` and listed on neither sheet, since bind always uses the app engine. No such
   tool exists. And the launcher still reads the person's toggles and app registry itself for
   its app rows' chord subtitles, the same shape of leak this phase removed from the sheet.
+- 2026-10-16 16:52. Phase 4's two open items closed and phase 6 switched to failing, on
+  `olm/core-split-finish`. The app toggler declares `provides.launcherAppDetails`, a table keyed by
+  bundle id built in `bindHotkeys` from the entries it bound, chord by leader role or literal
+  combo, description and url, keeping the rule that a combo wins the chord over a modal entry for
+  one app and a url from either stays. `contributions.appDetails` merges every supplier of the
+  launcher's new `launcherAppDetails` set into one function, the root hands it over as
+  `appDetails`, and the launcher asks it whenever it builds its app rows and spells a leader chord
+  with the leader's name, so every subtitle reads as before. The launcher's `toggles` and `apps`
+  declarations are gone, since its app catalog is a disk scan and needs neither. With the person's
+  config the set of apps carrying a chord is unchanged. On a machine with no person toggle list
+  the shipped Finder toggle now shows on its row as it is bound, which the old read of raw person
+  data missed. `registrar.bind` takes `leaderRole` and raises for a tool whose effective leader
+  names another role, which the wiring stage reports as a problem line, see Rejected for why it is
+  not bound on the window leader. `test/cases/leader-sheets.lua` moves keep awake onto the window
+  leader and finds it refused by name, bound nowhere and shown nowhere, and
+  `test/cases/launcher-contributions.lua` checks the app row subtitles and urls. For the gate, the
+  launcher's System Settings scope icon key `settings` collided with the settings plugin's identity
+  and is `settingsPanes` now, the four `emoji` hits are accepted, see Rejected, the stale
+  verification note in `test/drygate-accepted.txt` quotes the line compose writes today, and
+  `LEAK_FAILS` is true, so the gate reads 0 findings and 0 warnings. Still open, the scan's named
+  blind spot, a lower case identity written as a bare field such as `opts.audio`, which no form
+  matches, so a review has to look for it by hand.

@@ -194,7 +194,10 @@ never names a host. A plugin whose actions deserve rows in the launcher's own ca
 `provides.launcherRows` and `provides.launcherRun` instead, the contract has the row shape and
 the authoring guide has the walk through. A plugin that binds leader keys from its own data rather than
 from manifest bindings declares `provides.cheatSheetSections` so its keys reach that leader's
-sheet, which otherwise lists only what the manifests declare.
+sheet, which otherwise lists only what the manifests declare, and one that binds an app's chord
+declares `provides.launcherAppDetails` so the launcher's row for that app names it. A registry
+tool's open key binds on the app leader only, so a tool stating `leader = "window"` with a leader
+shortcut is refused at wiring with a problem line, and a window key belongs in `bindings`.
 
 Configuration splits three ways. The plugin proposes its own `defaults`, a leader role, a key,
 aliases, an icon, and a person overrides them outside the plugin, rebinding a physical key only
@@ -226,7 +229,8 @@ In order, before anything merges.
 2. The dry gate, `Spoons/Olm.spoon/test/drygate.sh` under `dotfiles/hammerspoon/.hammerspoon`,
    lock free and instant. Run it and read
    the line naming your tool. It is the only thing that checks `registry.open`, scope members,
-   and command functions, so skipping it is how a typo becomes a key that does nothing.
+   and command functions, so skipping it is how a typo becomes a key that does nothing. It also
+   fails on any file outside `plugins/` that names a plugin, so core never learns your name.
 3. One live load. This is the gate no static check replaces, and the discipline around the
    devlock, the console read, and the scheduled reload lives in the hammerspoon `AGENTS.md`.
    Never drive the screen or the keyboard for a test until Milos says start.

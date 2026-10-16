@@ -20,9 +20,9 @@
 -- field a config table may carry would drift from the code the moment either one changed
 -- alone. `modifiers` asks for the literal combo above. `hides` swaps the default
 -- focus-or-cycle behaviour for show and hide, a second press on an already frontmost app
--- hiding it instead of walking its windows. `description` labels a launcher row, worth
--- stating on a literal combo entry especially, since such an entry never reaches the Hyper
--- cheat sheet and the launcher row is its only discoverability surface. `placement` centers
+-- hiding it instead of walking its windows. `description` labels the launcher's row for the app,
+-- worth stating on a literal combo entry especially, since such an entry never reaches the
+-- Hyper cheat sheet and the launcher row is its only discoverability surface. `placement` centers
 -- and sizes the window once the press actually showed, launched, or focused the app, a
 -- table of width, height, padding, and a fractional anchor, or a function answering a frame
 -- outright, both documented in this plugin's own README rather than here, since this file
@@ -89,8 +89,14 @@ return {
   -- running and dormant split of every toggle this plugin bound into the Hyper modal, asked on
   -- every show since which apps are running changes while Hammerspoon runs. Switched off, the
   -- sheet simply has no app section.
+  --
+  -- The launcher's app rows show each bound app's chord because this plugin says it supplies
+  -- details for them, never because the launcher reads the toggles. launcherAppDetails answers
+  -- every app bindHotkeys bound, keyed by bundle id, with its chord, its description and its
+  -- url. Switched off, an app row simply carries no chord.
   provides = {
     cheatSheetSections = "cheatSheetSections",
+    launcherAppDetails = "launcherAppDetails",
   },
 
   defaults = {

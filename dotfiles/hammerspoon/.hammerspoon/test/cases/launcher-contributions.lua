@@ -18,6 +18,10 @@
 -- the same module the composition root calls, handed a plan shaped like the real one, so the
 -- owner stamping, the order stamping and the member resolution here are the code that runs.
 --
+-- Last, the app rows. A bound app's chord and url reach its row through the app toggler's
+-- provides.launcherAppDetails, merged by lib/contributions.lua, and the launcher reads no person
+-- data. The expected subtitles are the ones the launcher wrote when it read the toggles itself.
+--
 -- Then one row per kind is run through the launcher's own dispatcher and must reach the right
 -- runner with the right argument. Every plugin method that would act on the world, take a
 -- screenshot, move a window, open a pane, is replaced by a recorder on a fresh copy of the
@@ -47,6 +51,12 @@ if hs == nil then
     end },
     timer = { doAfter = function(_, fn) return { fire = function() fn() end, stop = function() end } end },
     image = { imageFromAppBundle = function() return nil end },
+    application = {
+      runningApplications = function() return {} end,
+      pathForBundleID = function() return "" end,
+      nameForBundleID = function() return nil end,
+    },
+    hotkey = { bind = function() end },
   }
 end
 
@@ -410,3 +420,83 @@ eq("a computed row whose owner runs nothing falls through to its kind",
   run({ kind = "calc", value = "42", owner = "arithmetic" }), "copy 42")
 eq("an owned special row whose owner runs nothing reaches no tool",
   run({ kind = "special", name = "searchSettings", owner = "arithmetic" }), nil)
+
+--------------------------------------------------------------------------------
+-- The app rows. The app toggler binds a toggle list and supplies what each bound app's row
+-- shows, and the launcher shows it. The subtitles are the ones the launcher wrote when it read
+-- the person's toggles and app registry itself, a modal key spelled with the app leader's name,
+-- a literal combo spelled by the glyph function with its description, and a second toggle on
+-- one app winning the chord only when it states modifiers while a url from either stays.
+--------------------------------------------------------------------------------
+
+local toggler = load("plugins/apptoggler/init.lua")
+toggler:init()
+toggler:configure({ apps = { Alpha = "olm.test.alpha", Beta = "olm.test.beta", Gamma = "olm.test.gamma" },
+  hyperKey = { bind = function() end }, appFocus = {} })
+-- A toggle stating modifiers binds a global combo, so the binding call is swapped for a no op for
+-- this one call and the live config is never handed a hotkey.
+local realHotkey = hs.hotkey
+hs.hotkey = { bind = function() end }
+local bindOk, bindErr = pcall(toggler.bindHotkeys, toggler, {
+  { app = "Alpha", key = "A" },
+  { app = "Beta", key = "B", url = "x-test:beta-first" },
+  { app = "Beta", key = "8", modifiers = { "ctrl", "alt" }, description = "Placed", url = "x-test:beta" },
+  { app = "Gamma", key = "G", modifiers = { "cmd" }, description = "First" },
+  { app = "Gamma", key = "H", url = "x-test:gamma" },
+})
+hs.hotkey = realHotkey
+check("the app toggler binds the probe toggles", bindOk, tostring(bindErr))
+
+local function appLauncher(details)
+  local l = load("host/launcher/init.lua")
+  l:init()
+  l:configure({
+    leaderNames = { app = "Hyper", window = "Meta" },
+    glyphFor = function(key, mods) return table.concat(mods or {}, "+") .. " " .. tostring(key) end,
+    appDetails = details,
+  })
+  l._installedApps = {
+    ["olm.test.alpha"] = { name = "Alpha", bundleID = "olm.test.alpha" },
+    ["olm.test.beta"] = { name = "Beta", bundleID = "olm.test.beta" },
+    ["olm.test.gamma"] = { name = "Gamma", bundleID = "olm.test.gamma" },
+    ["olm.test.delta"] = { name = "Delta", bundleID = "olm.test.delta" },
+  }
+  local byId = {}
+  for _, row in ipairs(l:_appRows()) do byId[row.item.bundleID] = row end
+  return byId
+end
+
+local appDetails = contributions.appDetails({
+  host = "launcher",
+  plan = { sets = { launcher = { launcherAppDetails = { "apptoggler" } } } },
+  manifests = { apptoggler = load("plugins/apptoggler/manifest.lua") },
+  modules = { apptoggler = toggler },
+  registrar = registrar,
+})
+local apps = appLauncher(appDetails)
+eq("a modal toggle's row names the app leader and the key", (apps["olm.test.alpha"] or {}).subTitle,
+  "Not running · Hyper A")
+eq("a literal combo wins the chord and shows its description", (apps["olm.test.beta"] or {}).subTitle,
+  "Not running · ctrl+alt 8 Placed")
+eq("the first toggle's url stays when the combo wins the chord", (apps["olm.test.beta"] or {}).item.url,
+  "x-test:beta-first")
+eq("a later modal toggle does not take the chord from a combo", (apps["olm.test.gamma"] or {}).subTitle,
+  "Not running · cmd G First")
+eq("a later toggle's url fills an entry that had none", (apps["olm.test.gamma"] or {}).item.url,
+  "x-test:gamma")
+eq("an app no toggle names carries no chord", (apps["olm.test.delta"] or {}).subTitle, "Not running")
+
+local bare = appLauncher(nil)
+eq("with no supplier an app row carries no chord", (bare["olm.test.alpha"] or {}).subTitle, "Not running")
+eq("with no supplier an app row opens no url", (bare["olm.test.beta"] or {}).item.url, nil)
+
+local broken = contributions.appDetails({
+  host = "launcher",
+  plan = { sets = { launcher = { launcherAppDetails = { "broken", "apptoggler" } } } },
+  manifests = { apptoggler = load("plugins/apptoggler/manifest.lua"),
+    broken = { provides = { launcherAppDetails = "launcherAppDetails" } } },
+  modules = { apptoggler = toggler, broken = { launcherAppDetails = function() error("probe") end } },
+  registrar = registrar,
+})
+eq("a supplier that raises costs only its own details", (appLauncher(broken)["olm.test.alpha"] or {}).subTitle,
+  "Not running · Hyper A")

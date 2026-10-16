@@ -553,6 +553,7 @@ set = {
   queryRows    = { provides = { "queryRows" } },
   launcherRows = { provides = { "launcherRows" } },
   launcherRun  = { provides = { "launcherRun" } },
+  launcherAppDetails = { provides = { "launcherAppDetails" } },
   cheatSheetSections = { provides = { "cheatSheetSections" } },   -- host/hypercheatsheet
 },
 ```
@@ -702,6 +703,37 @@ member so one that raises costs its own sections and is named on the console.
 | The app toggles, running then dormant | 10 | `plugins/apptoggler`, `defaults.cheatSheetOrder` |
 | Every chord bound on the app leader | 50 | `host/hypercheatsheet`, `defaults.cheatSheetOrder` |
 
+`launcherAppDetails` is how a plugin tells the launcher what an installed app's row shows beyond
+the app itself, the chord that brings it forward and the url the row opens, the launcher asking
+the set and naming no plugin. The app rows come from the launcher's own disk scan, which is the
+catalog it searches, so a supplier only adds to a row and never adds one. The app toggler is the
+shipped case, and switched off, every app row simply carries no chord.
+
+```lua
+provides = { launcherAppDetails = "launcherAppDetails" },
+```
+
+The member answers a table keyed by bundle id and is asked whenever the launcher builds its app
+rows, which happens when the running set changes, after every wiring step, so a table built where
+the plugin binds is ready.
+
+```lua
+{ ["com.apple.finder"] = {
+    chord = { leader = "app", key = "F" },      -- a key on a leader, named by role
+    description = nil,                          -- read only beside a literal combo
+    url = nil },                                -- what choosing the row opens, optional
+  ["com.mitchellh.ghostty"] = {
+    chord = { key = "`", mods = { "alt" } },    -- a literal combo on no leader
+    description = "Terminal" } }
+```
+
+A chord on a leader reads as the leader's name and the key, `Open · Hyper F`. A chord with no
+leader is spelled by the glyph renderer and followed by its description, since a literal combo is
+on no cheat sheet and the row is the only place it is found. Where one plugin has two bindings for
+one app it decides which chord the row shows, the app toggler preferring the combo. The root merges
+every supplier into one table, the earlier in the set's order winning a bundle id whole, and wraps
+each so one that raises costs only its own details and is named on the console.
+
 ### registry
 
 How this plugin appears in the tool registry, which is what gives it a launcher row, a
@@ -760,6 +792,12 @@ id the launcher hands over beside the covered app. A bare string here is never r
 member name, since a string detail already means words a person reads, which is also why the
 dry gate checks only the table form against the real module. TextCase is the consumer, its
 row saying up front that nothing is selected.
+
+`shortcut = "leader"` binds the tool's own key on the app leader, the one engine that binds a
+registry key. A tool whose `defaults.leader` is `"window"` and which asks for a leader shortcut
+is refused at wiring, a problem line naming the tool, rather than bound on Hyper and listed on
+neither sheet. The window leader binds a plugin's declared `bindings` and nothing else, so a key
+meant for it goes there.
 
 `commands` are named actions that belong to a tool but are not tools themselves. A command
 has no plugin directory, so nothing can resolve a key for it through the plan, which is why

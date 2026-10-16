@@ -704,9 +704,8 @@ function obj.run(olm, cfg)
   -- Two channels for the person's own values, and they are not the same shape on purpose.
   --
   -- cfg.shared is flat and keyed by FIELD NAME. A value in it reaches every plugin that
-  -- declared a user sourced need of that name, which is what makes one application catalog
-  -- serve the app toggles, the cheat sheet and the launcher without the person naming any of
-  -- the three. Nothing here says which plugins those are, and a plugin that stops needing a
+  -- declared a user sourced need of that name, which is what lets one application catalog
+  -- serve whichever plugins ask for it without the person naming any of them. Nothing here says which plugins those are, and a plugin that stops needing a
   -- field simply stops receiving it.
   --
   -- cfg.plugins[name].data is per PLUGIN and merged over whatever the fan out reached, for the values
@@ -1820,6 +1819,9 @@ function obj.run(olm, cfg)
     return registrarLib.bind(entry, plan, {
       log = logFn,
       bindLeader = function(key, mods, fn) hyperKeyAtom:bind(key, fn, mods) end,
+      -- The role the engine above answers, so a tool declaring another leader is refused out
+      -- loud rather than bound on Hyper and listed on neither sheet.
+      leaderRole = "app",
       bindGlobal = function(mods, key, fn) hs.hotkey.bind(mods, key, fn) end,
       -- A command belongs to no plugin, appendCopy and pasteNext being the concrete example,
       -- so its key is root policy with nowhere else to live. registryMeta is exactly that
@@ -2309,6 +2311,18 @@ function obj.run(olm, cfg)
       log = function(message) log.e("Olm compose, " .. message) end,
     })
 
+    -- What an app row shows beyond the app, the chord and the url, merged from every plugin
+    -- answering the launcherAppDetails set, so the launcher reads no person data and names
+    -- none of them. Asked when the launcher builds its app rows, after every wiring step.
+    local appDetails = contributionsLib.appDetails({
+      host = plan.identity.launcher or "launcher",
+      plan = plan,
+      manifests = manifests,
+      modules = modules,
+      registrar = registrarLib,
+      log = function(message) log.e("Olm compose, " .. message) end,
+    })
+
     -- THE SEAM. Stage is one of the five host modules this file may name. It is fully
     -- configured already, in the ordinary stage two pass above. stageModule itself was
     -- assigned earlier in this same function, ahead of the surface adapters loop which
@@ -2319,8 +2333,7 @@ function obj.run(olm, cfg)
     local launcherOpts = {
       stage = stageModule,
       placeholder = ambientServices.placeholder,
-      toggles = sharedData and sharedData.toggles,
-      apps = sharedData and sharedData.apps,
+      appDetails = appDetails,
       predicates = ownPredicates,
       queryProviders = queryProviders,
       placeholderExamples = placeholderExamples,
