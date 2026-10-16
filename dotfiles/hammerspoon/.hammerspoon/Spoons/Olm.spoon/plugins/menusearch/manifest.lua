@@ -43,7 +43,7 @@ return {
   -- plugin is its identity icon, which the launcher row and the scoped list both wear.
   icons = {
     menusearch = { emoji = "📋", sf = "filemenu.and.selection" },
-    reading = { emoji = "⏳", sf = "hourglass" },
+    reading = { emoji = "⏳", sf = "clock" },
   },
 
   -- The registry and every sibling lookup know this plugin as menuSearch, camel

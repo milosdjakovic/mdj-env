@@ -30,7 +30,7 @@ return {
   icons = {
     active = { emoji = "🟢", sf = "circle.fill" },  -- the window currently on screen, or the currently chosen terminal
     window = { emoji = "🪟", sf = "macwindow" },
-    terminal = { emoji = "💻", sf = "laptopcomputer" },
+    terminal = { emoji = "💻", sf = "apple.terminal" },
     settings = { emoji = "⚙️", sf = "gearshape" },
     back = { emoji = "⬅️", sf = "chevron.left" },
     tmuxsessions = { emoji = "🗂️", sf = "terminal" },

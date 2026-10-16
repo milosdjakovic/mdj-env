@@ -21,7 +21,7 @@ return {
     network = { emoji = "📡", sf = "antenna.radiowaves.left.and.right" },
     saved = { emoji = "⭐", sf = "star" },
     locked = { emoji = "🔒", sf = "lock" },
-    loading = { emoji = "⏳", sf = "hourglass" },
+    loading = { emoji = "⏳", sf = "clock" },
     warn = { emoji = "⚠️", sf = "exclamationmark.triangle" },
     wifi = { emoji = "📡", sf = "wifi" },
   },

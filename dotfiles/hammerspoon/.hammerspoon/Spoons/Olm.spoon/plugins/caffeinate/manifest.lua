@@ -15,14 +15,14 @@ return {
     license = "MIT",
   },
 
-  -- A green circle reads as go, a red one as stop, a clock as an absolute time, an hourglass
+  -- A green circle reads as go, a red one as stop, a clock as an absolute time, a timer
   -- as a span, a keyboard as the prompt to keep typing and a warning triangle as the error.
   -- The rows name these and Olm draws them, in whichever icon set is active.
   icons = {
     on = { emoji = "🟢", sf = "circle.fill" },
     off = { emoji = "🔴", sf = "circle" },
     clock = { emoji = "🕒", sf = "clock" },
-    duration = { emoji = "⏳", sf = "hourglass" },
+    duration = { emoji = "⏳", sf = "timer" },
     hint = { emoji = "⌨️", sf = "keyboard" },
     error = { emoji = "⚠️", sf = "exclamationmark.triangle" },
     caffeinate = { emoji = "☕", sf = "cup.and.saucer" },

@@ -28,7 +28,7 @@ return {
     settings = { emoji = "⚙️", sf = "gearshape" },
     aliases = { emoji = "🏷️", sf = "tag" },
     lock = { emoji = "🔒", sf = "lock" },
-    sleep = { emoji = "🌙", sf = "moon" },
+    sleep = { emoji = "🌙", sf = "zzz" },
   },
 
   needs = {

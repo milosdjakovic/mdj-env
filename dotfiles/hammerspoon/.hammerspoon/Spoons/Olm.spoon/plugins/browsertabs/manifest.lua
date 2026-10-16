@@ -28,7 +28,7 @@ return {
     warn = { emoji = "⚠️", sf = "exclamationmark.triangle" },
     locked = { emoji = "🔒", sf = "lock" },
     ask = { emoji = "🔓", sf = "lock.open" },
-    reading = { emoji = "⏳", sf = "hourglass" },
+    reading = { emoji = "⏳", sf = "clock" },
     none = { emoji = "🚫", sf = "nosign" },
     browsertabs = { emoji = "📑", sf = "rectangle.stack" },
   },

@@ -25,7 +25,7 @@ return {
   -- icons and the colour chip on a row are content and are drawn from the entry itself.
   icons = {
     url = { emoji = "🔗", sf = "link" },
-    text = { emoji = "📝", sf = "note.text" },
+    text = { emoji = "📝", sf = "doc.text" },
     queued1 = { emoji = "1️⃣", sf = "1.circle" },
     queued2 = { emoji = "2️⃣", sf = "2.circle" },
     queued3 = { emoji = "3️⃣", sf = "3.circle" },
@@ -37,13 +37,13 @@ return {
     queued9 = { emoji = "9️⃣", sf = "9.circle" },
     queuedMore = { emoji = "🔟", sf = "ellipsis.circle" },
     -- The manage history page.
-    sweep = { emoji = "🧹", sf = "sparkles" },
+    sweep = { emoji = "🧹", sf = "wind" },
     older = { emoji = "🕰️", sf = "clock.arrow.circlepath" },
     trim = { emoji = "✂️", sf = "scissors" },
     everything = { emoji = "🗑️", sf = "trash" },
     hint = { emoji = "⌨️", sf = "keyboard" },
     warn = { emoji = "⚠️", sf = "exclamationmark.triangle" },
-    clipboard = { emoji = "📋", sf = "doc.on.clipboard" },
+    clipboard = { emoji = "📋", sf = "clipboard" },
     append = { emoji = "➕", sf = "plus" },
     delete = { emoji = "🗑️", sf = "trash" },
     back = { emoji = "⬅️", sf = "chevron.left" },

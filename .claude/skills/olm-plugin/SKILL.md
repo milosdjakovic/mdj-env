@@ -168,7 +168,9 @@ on a row with `icon = "key"`, or with a table spec such as `icon = { emoji = fla
 that is content, and Olm draws it. The plugin's own identity icon is `defaults.icon`, a key into
 the same `icons`, named for the plugin, and a binding or a verb names its icon the same way. Every
 entry gets an `sf` name beside its `emoji`, each checked to exist before it is written, and content
-is the only spec without one. A row that carries a real picture keeps its `image`. The
+is the only spec without one. Every `sf` symbol is an outline glyph, judged by how it renders and not only by its
+name, since some symbols draw a solid body without `.fill` in the name. The one exception is an
+on and off marker, a filled circle beside an outline one, stated by Milos 2026-10-16. A row that carries a real picture keeps its `image`. The
 active icon set is one setting in `config/icons.toml`, and the dry gate refuses a plugin file
 that draws a canvas into an image.
 

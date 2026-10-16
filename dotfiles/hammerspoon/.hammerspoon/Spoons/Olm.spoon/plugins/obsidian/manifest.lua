@@ -28,7 +28,7 @@ return {
 
   -- The row icons, named by the rows and drawn by Olm.
   icons = {
-    note = { emoji = "📝", sf = "note.text" },
+    note = { emoji = "📝", sf = "doc.text" },
     new = { emoji = "➕", sf = "plus" },
     search = { emoji = "🔍", sf = "magnifyingglass" },
     obsidian = { emoji = "💎", sf = "diamond" },
