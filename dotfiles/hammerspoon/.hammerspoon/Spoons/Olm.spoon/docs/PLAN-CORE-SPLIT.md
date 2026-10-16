@@ -272,20 +272,34 @@ person's own `init.lua` and so `root/compose.lua` under a stub, once over the sp
 copy whose plugin directories, manifest names, surface contexts, sibling needs and config keys
 are all spelled by a fixed letter scramble, and compares what the two runs decided, the log, the
 wiring report, the plan, the data handed to each plugin, the shared atoms, every hs call and every
-file loaded. Any difference is a finding that cannot be accepted. This sees every route a name can
-take into core, a reversed or upper cased literal and a `table.concat` included, and it is the
-first test that runs the composition root outside a live Hammerspoon. Thirteen planted leaks in a
+file loaded. Any difference is a finding that cannot be accepted. It sees a name however core
+spelled it, a reversed or upper cased literal and a `table.concat` included, wherever the decision
+reaches what the run records during composition, and it is the first test that runs the
+composition root outside a live Hammerspoon. After review it also records every call into a
+shared atom or a host module and into an object one of them built, with its arguments written as
+their sorted plain contents four levels down, so a decision kept inside a constructed panel or
+closure shows, every hs call including hs.settings, hs.json, hs.execute and hs.fs, and it asks each
+content strategy handed to an atom what it shows, at a fixed size, so the hint bar's footer per
+context is compared. The snapshot walk has no depth limit. Thirteen planted leaks in a
 scratch copy, one per form and route, were each caught by at least one layer, and the two harmless
 shapes, the hs global's own `settings` and a bare local sharing a plugin's word, read clean.
 `test/cases/leakscan.lua` keeps the scan's forms under the unit runner. The gate reads 0 findings,
-23 accepted and 0 differences, in about 1.9 seconds against 1.2 before.
+23 accepted and 0 differences, in about 2.4 seconds against 1.2 before. Twenty planted cases,
+eighteen leaks and two harmless shapes, are listed in the decision log.
 
-What stays open. Host code that runs only once a list is shown or a key is pressed never runs
-under the root, so only the scan sees it, and only in the forms it knows. A bare local or global
-sharing a plugin's word is never reported, since the scan cannot tell a reach into a plugin from a
-name a file chose. The proof compares lines as sorted words, so a difference that is only the
-order of plugins in a list is deliberately not one, which also means a core that orders plugins
-by one particular name would pass.
+What stays open. Code that runs only once a person acts, a key handler, a timer callback, a
+chooser's own row and select callbacks, a host's code that runs only when its list shows, never
+runs under the root, so only the scan sees it, and only in the forms it knows. The content
+strategies are the one kind of closure the proof calls. A decision kept in state nothing records,
+a local upvalue no atom call, hs call, log line or record field ever reads back, is invisible too.
+A bare local or global sharing a plugin's word is never reported by the scan, since it cannot tell
+a reach into a plugin from a name a file chose. The proof compares lines as sorted words, so a
+difference that is only order is deliberately not one, which means a core that orders plugins by
+one particular name passes. Comparing order was measured and is not sound, a list core builds by
+walking a table keyed by identity comes out in hash order and a renamed key changes it, over a
+thousand positional differences on a clean tree. Within one line the words are compared as a bag,
+so a nested key that moves to another parent in the same argument is not seen, a key and its plain
+value stay one word.
 
 ## Decisions
 

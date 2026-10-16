@@ -6,8 +6,9 @@
 --
 -- This is the first of two layers. test/drygate-rename.lua is the second, it runs the
 -- composition root over scrambled plugin names and reports any difference in what core
--- decided, which sees every route a name can take, including the ones no token pattern here
--- can. This scan stays because it names the file and the line, which a difference in behaviour
+-- decided, which sees a name however core spelled it, including the shapes no token pattern
+-- here can, wherever the decision reaches what that run records during composition. This scan
+-- stays because it names the file and the line, which a difference in behaviour
 -- cannot, and because it reads code the root never runs at load, a host's code that runs only
 -- once a list is shown.
 --

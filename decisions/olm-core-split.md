@@ -165,6 +165,17 @@ surface and empty state, the scroll and the teardown, `pane = true` on a surface
   keeps the length, keeps a directory and an identity that differ by case related the same way,
   and the shift is chosen so no scrambled name is already a word in the original snapshot.
 
+- **Calling every closure the root hands out under the stub.** 2026-10-16 23:39. It would reach
+  key handlers and chooser callbacks the proof cannot see, but those closures share state and
+  would be called in the order a walk of identity keyed tables meets them, which a renamed key
+  changes, so two clean runs could disagree for no reason. It was reasoned out rather than built.
+  Only content strategies are called, each one alone, since each answers what it shows from its
+  own inputs.
+- **Comparing the order of lists between the two runs.** 2026-10-16 23:39. Measured with array
+  positions in the snapshot, a clean tree gave 1072 differences, a list core builds by walking a
+  table keyed by identity comes out in hash order and a renamed key changes it, so no difference
+  could be told apart from a leak.
+
 ## Log
 
 - 2026-10-16 11:52, e48d0fa. Found that of roughly thirty entries in `config/keys.lua` only four
@@ -404,3 +415,31 @@ surface and empty state, the scroll and the teardown, `pane = true` on a surface
   seconds. Still open, host code that runs only when a list shows is seen by the scan alone, a
   bare name sharing a plugin's word is never reported, and a core that orders plugins by one
   particular name passes the proof, since order is not compared.
+- 2026-10-16 23:39. Review fixes to the rename proof, after 5975fec. A review planted a leak in
+  `lib/hints.lua` that kept a decision inside the panel the root builds, a delay dropped for one
+  context, and it passed with 0 differences, since the snapshot saw only the record, the atoms'
+  own fields and hs calls. `test/drygate-composerun.lua` now wraps every function of every
+  `Olm.lib` atom and every host module, and the methods of every object one of them returns,
+  through its metatable, and records each call with its arguments, a table written as its sorted
+  plain contents four levels down, a table inside an atom written as atom since its state is a
+  cache filled in call order. Every content strategy handed to one, a table with a draw, is asked
+  its state and preferred size and drawn at 400 by 300 after the root finishes, which compares the
+  hint bar's footer per context, and text measures a fixed width per character so the kit can lay
+  one out. hs.settings, hs.json, hs.execute and hs.fs record their calls and still answer nothing,
+  hs call arguments are written the same deep way, so a modifier list differs where it used to
+  read table, the sandbox also refuses io.output and io.input with an argument, io.lines outside
+  the two trees, os.tmpname and package.loadlib, and the snapshot walk has no depth limit. The
+  comparison splits words at braces too, keeping key=value as one word. A unit check in
+  `test/cases/surfaces.lua` proves `deps.policy.shortcutsPanel.delayMs` reaches the panel, and
+  `test/cases/compose-shortcutdelay.lua` runs the root through the same stubbed run and requires
+  every hint bar panel to carry one delay above zero, which a half reverted rename in either
+  `root/compose.lua` or `lib/hints.lua` fails, checked in a scratch copy each way. The planted
+  cases were rerun with five more, the delay dropped in the panel constructor, the policy dropped
+  for one identity, an hs.settings write keyed by a computed name, different hotkey modifiers for
+  one plugin and an empty footer for one context, all built with a reversed literal the scan
+  cannot see, and all five fail through the proof. The earlier fifteen give the same results as
+  before. The gate reads 0 findings, 23 accepted and 0 differences over 5159 lines, in about 2.4
+  seconds, 1.9 before this change and 1.2 on main. The coverage wording in the three gate files
+  and the plan now says what the proof records rather than every route, and phase 6 of the plan
+  lists what stays open, code that runs only once a person acts, state nothing reads back, order,
+  and nesting inside one argument.

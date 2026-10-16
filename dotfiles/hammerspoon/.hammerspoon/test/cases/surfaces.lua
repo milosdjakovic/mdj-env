@@ -47,6 +47,7 @@ local function fakePanel()
                                 center = "center" } }
   function fake.new(cfg)
     fake.content = cfg.content
+    fake.config = cfg
     return { arm = function() end, poke = function() end, hide = function() end,
              show = function() end, isShowing = function() return false end }
   end
@@ -116,6 +117,14 @@ do
   local boxes = chips(drawn)
   check("every key badge is the derived 21 high and has no literal frame offset",
     #boxes >= 3 and boxes[1].h == 21, "chips " .. #boxes)
+  -- The idle delay arrives as policy, the name root/compose.lua hands it under, so a rename
+  -- that reaches one side and not the other leaves every hint bar drawing at once.
+  local timed = fakePanel()
+  hints.shortcutPanelFor("list", plan, { predicates = {}, glyphFor = glyphFor, leaderName = "Hyper",
+    chordLabel = function(l, k, m) return l .. " " .. glyphFor(k, m) end, canvasPanel = timed,
+    policy = { shortcutsPanel = { delayMs = 650 } }, ui = ui })
+  check("the policy's shortcutsPanel delay reaches the hint bar's panel",
+    timed.config and timed.config.delay == 650, "delay " .. tostring(timed.config and timed.config.delay))
   local narrow = c.preferredSize(90)
   check("a wrapped bar is whole lines of 21 with 8 between them, so 21 n plus 8 times n less 1",
     narrow.h > 21 and (narrow.h - 21) % (21 + 8) == 0, "height " .. tostring(narrow.h))

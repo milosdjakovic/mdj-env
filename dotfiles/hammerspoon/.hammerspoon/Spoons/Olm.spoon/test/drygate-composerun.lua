@@ -4,9 +4,10 @@
 -- whose plugins all carry scrambled names, and compares the two snapshots after turning the
 -- scrambled names back. Any difference means core behaves differently depending on what a
 -- plugin is called, which is the layer rule seen from the outside rather than read from the
--- source, so it catches every route a name can take into core, a field, a table key, a
--- concatenation, a format string or anything computed, and it runs root/compose.lua itself,
--- which no unit case does.
+-- source. It sees a name however core spelled it, a field, a key, a concatenation, a format or
+-- anything computed, but only where the decision reaches something this file records, listed
+-- under THE SNAPSHOT below, and only for code that runs while the root composes. It runs
+-- root/compose.lua itself, which no unit case does.
 --
 -- Usage
 --   lua drygate-composerun.lua <spoon dir> <hammerspoon config dir> <sandbox dir> [rename map]
@@ -27,19 +28,39 @@
 -- first live answer it wanted. A stand in indexed by a number answers nil, so ipairs over one
 -- is an empty list and never a loop that runs forever. A handful of answers are real, the
 -- directory listing and the file attributes, from one listing of the two trees taken at the
--- start, hs.settings, which answers nothing, and a logger that records every line.
+-- start, hs.settings, hs.json and hs.execute, which answer nothing, and a logger that records
+-- every line. Every one of them records its calls the way a stand in does. Text is measured
+-- at a fixed width per character, so a content strategy can be laid out and drawn.
 --
--- THE SANDBOX. Nothing here may change a file, so os.remove, os.rename, os.execute, io.popen
--- and every io.open other than a read are refused after the listing is taken. A read outside
--- the spoon and the config directory, or of any json file, is refused too, since that is
--- runtime data, and a store keyed by a plugin's name would read differently under a scrambled
--- name for a reason that has nothing to do with core.
+-- THE SANDBOX. Nothing here may change a file, so os.remove, os.rename, os.execute, os.tmpname,
+-- io.popen, package.loadlib, io.output and io.input with an argument, and every io.open other
+-- than a read are refused after the listing is taken. A read through io.open or io.lines
+-- outside the spoon and the config directory, or of any json file, is refused too, since that
+-- is runtime data, and a store keyed by a plugin's name would read differently under a
+-- scrambled name for a reason that has nothing to do with core.
 --
--- THE SNAPSHOT is a sorted list of lines. Every log line, everything printed, the wiring
--- report, and a walk of what Olm:start recorded and of the shared atoms, with array positions
--- written as [] so two runs that built the same list in a different order agree. A plugin's
--- own module table is left out, since what a plugin keeps inside itself is the plugin's own
--- business and only what core did with it is in question.
+-- THE SNAPSHOT is a sorted list of lines, compared without order, see test/drygate-rename.lua.
+--   log and print     every log line and everything printed.
+--   call              every call into hs, with its arguments, a table written as its sorted
+--                     plain contents four levels down.
+--   atom              every call into a shared atom under Olm.lib or a host module, and into
+--                     an object one of them built, with its arguments written the same way.
+--                     A decision core makes at compose time and keeps inside a constructed
+--                     object, a panel's delay or its content, reaches the snapshot here.
+--   probe             every content strategy core handed to an atom or a host, a table with a
+--                     draw, asked its state and preferred size and drawn once at a fixed size
+--                     after the root finishes, so a closure core built per context answers
+--                     here what it would answer on screen.
+--   load              every file loaded.
+--   report, record    the wiring report, and a walk of what Olm:start recorded, of the shared
+--   lib, registry     atoms and of the registry, with no depth limit, a table already on the
+--                     path written as a cycle, and array positions written as [] so two runs
+--                     that built the same list in a different order agree.
+-- A plugin's own module table is left out, since what a plugin keeps inside itself is the
+-- plugin's own business and only what core did with it is in question. Not seen, a closure
+-- core builds that is not a content strategy and that nothing calls while the root composes,
+-- a key handler, a timer callback or a chooser's own callbacks, which run only once a person
+-- acts.
 
 local spoonDir, hsRoot, sandbox, mapPath = arg[1], arg[2], arg[3], arg[4]
 if not (spoonDir and hsRoot and sandbox) then
@@ -104,19 +125,38 @@ end
 -- The sandbox.
 ----------------------------------------------------------------------------------------
 
-local realOpen = io.open
+local realOpen, realLines = io.open, io.lines
 local function refused() return nil, "refused by the dry gate sandbox" end
 os.remove, os.rename = refused, refused
 os.execute = function() return nil, "exit", 1 end
+os.tmpname = function() error("os.tmpname is refused by the dry gate sandbox") end
 io.popen = refused
+package.loadlib = refused
+local realOutput, realInput = io.output, io.input
+io.output = function(file)
+  if file ~= nil then error("io.output with an argument is refused by the dry gate sandbox") end
+  return realOutput()
+end
+io.input = function(file)
+  if file ~= nil then error("io.input with an argument is refused by the dry gate sandbox") end
+  return realInput()
+end
 local spoonPrefix, configPrefix = clean(spoonDir), clean(hsRoot)
+local function readable(path)
+  local p = clean(path)
+  local inside = p:sub(1, #spoonPrefix + 1) == spoonPrefix .. "/" or p:sub(1, #configPrefix + 1) == configPrefix .. "/"
+  return inside and not p:match("%.json$")
+end
 io.open = function(path, mode)
   mode = mode or "r"
   if not mode:match("^r") or mode:find("+", 1, true) then return refused() end
-  local p = clean(path)
-  local inside = p:sub(1, #spoonPrefix + 1) == spoonPrefix .. "/" or p:sub(1, #configPrefix + 1) == configPrefix .. "/"
-  if not inside or p:match("%.json$") then return refused() end
+  if not readable(path) then return refused() end
   return realOpen(path, mode)
+end
+io.lines = function(path, ...)
+  if path == nil then return realLines() end
+  if not readable(path) then error("io.lines on " .. tostring(path) .. " is refused by the dry gate sandbox") end
+  return realLines(path, ...)
 end
 
 ----------------------------------------------------------------------------------------
@@ -126,15 +166,43 @@ end
 local lines = {}
 local function add(line) lines[#lines + 1] = line end
 
--- Every call into the stub is recorded by the path it was reached through and its plain
--- arguments, hs.hotkey.bind with its modifiers and key, hs.settings keys and the rest, so a
--- core that binds, asks or starts something for one name only shows it here. A table or a
--- function argument is written by its type, since its identity differs from run to run.
-local function argText(v)
+-- What a value is, as text that two runs agree on. A string, a number and a boolean are
+-- themselves, a function is fn, a stand in is stub, a shared atom, a host module or an object
+-- one of them built is atom, and so is any table inside one, since its contents are walked
+-- once elsewhere and its state, a cache filled in call order, is not a decision. A table is its plain
+-- contents ARG_DEPTH levels down, keys sorted and array items sorted, since order is not compared.
+local opaque = setmetatable({}, { __mode = "k" })
+local walked = setmetatable({}, { __mode = "k" })
+local function deepText(v, depth, onPath)
   local t = type(v)
   if t == "string" then return string.format("%q", v) end
   if t == "number" or t == "boolean" or t == "nil" then return tostring(v) end
-  return t
+  if t == "function" then return "fn" end
+  if t ~= "table" then return t end
+  local mt = getmetatable(v)
+  if mt and mt.__tostring and tostring(v) == "<stub>" then return "stub" end
+  if opaque[v] or walked[v] then return "atom" end
+  if onPath[v] then return "cycle" end
+  if depth <= 0 then return "table" end
+  onPath[v] = true
+  local items = {}
+  for k, child in pairs(v) do
+    local value = deepText(child, depth - 1, onPath)
+    if math.type(k) == "integer" then
+      items[#items + 1] = value
+    else
+      items[#items + 1] = (type(k) == "string" and k or "[" .. deepText(k, 0, onPath) .. "]") .. "=" .. value
+    end
+  end
+  onPath[v] = nil
+  table.sort(items)
+  return "{" .. table.concat(items, ",") .. "}"
+end
+local ARG_DEPTH = 4
+local function argsText(...)
+  local parts = {}
+  for i = 1, select("#", ...) do parts[#parts + 1] = deepText((select(i, ...)), ARG_DEPTH, {}) end
+  return table.concat(parts, ", ")
 end
 local recording = false
 local function stub(path)
@@ -144,11 +212,7 @@ local function stub(path)
       return stub(path .. "." .. tostring(key))
     end,
     __call = function(_, ...)
-      if recording then
-        local parts = {}
-        for i = 1, select("#", ...) do parts[#parts + 1] = argText((select(i, ...))) end
-        add("call " .. path .. "(" .. table.concat(parts, ", ") .. ")")
-      end
+      if recording then add("call " .. path .. "(" .. argsText(...) .. ")") end
       return stub(path .. "()")
     end,
     __tostring = function() return "<stub>" end,
@@ -166,30 +230,55 @@ local function isStub(v)
   return mt and mt.__tostring and tostring(v) == "<stub>"
 end
 
+-- A real answer that still records its call, the way a stand in does, so a core that asks or
+-- writes one setting, one file or one command for one plugin's name shows it.
+local function recorded(path, fn)
+  return function(...)
+    if recording then add("call " .. path .. "(" .. argsText(...) .. ")") end
+    return fn(...)
+  end
+end
+
 hs = stub("hs")
 spoon = {}
 hs.configdir = hsRoot
 local fs = stub("hs.fs")
-fs.dir = function(path)
+fs.dir = recorded("hs.fs.dir", function(path)
   local names = children[clean(path)]
   if not names then return nil end
   local all = { ".", ".." }
   for _, n in ipairs(names) do all[#all + 1] = n end
   local i = 0
   return function() i = i + 1 return all[i] end, {}
-end
-fs.attributes = function(path, field)
+end)
+fs.attributes = recorded("hs.fs.attributes", function(path, field)
   local mode = kinds[clean(path)]
   if not mode then return nil end
   if field == nil then return { mode = mode } end
   if field == "mode" then return mode end
   return nil
-end
+end)
 hs.fs = fs
-hs.settings = { get = function() return nil end, set = function() end }
-hs.execute = function() return "", true, "exit", 0 end
-hs.json = { read = function() return nil end, write = function() return false end,
-  decode = function() return nil end, encode = function() return "{}" end }
+local function none() return nil end
+hs.settings = { get = recorded("hs.settings.get", none), set = recorded("hs.settings.set", none),
+  clear = recorded("hs.settings.clear", none) }
+-- Text measures a fixed width per character, so the kit can lay a probe out to the end. A
+-- scrambled name keeps its length, so it measures the same.
+local drawing = stub("hs.drawing")
+drawing.getTextDrawingSize = function(str, style)
+  local size = type(style) == "table" and tonumber(style.size) or 13
+  return { w = math.ceil((utf8.len(tostring(str)) or #tostring(str)) * size * 0.6), h = math.ceil(size * 1.2) }
+end
+hs.drawing = drawing
+local styledtext = stub("hs.styledtext")
+styledtext.fontInfo = function(font)
+  local size = type(font) == "table" and tonumber(font.size) or 13
+  return { ascender = size * 0.8, descender = -size * 0.2, capHeight = size * 0.7 }
+end
+hs.styledtext = styledtext
+hs.execute = recorded("hs.execute", function() return "", true, "exit", 0 end)
+hs.json = { read = recorded("hs.json.read", none), write = recorded("hs.json.write", function() return false end),
+  decode = recorded("hs.json.decode", none), encode = recorded("hs.json.encode", function() return "{}" end) }
 local function logger(name)
   local l = {}
   local function record(level)
@@ -217,6 +306,78 @@ end
 package.path = hsRoot .. "/?.lua;" .. hsRoot .. "/?/init.lua;" .. package.path
 package.preload["hs.ipc"] = function() return stub("hs.ipc") end
 
+----------------------------------------------------------------------------------------
+-- The atoms and the hosts, recorded at every call.
+--
+-- Every function on a shared atom under Olm.lib and on a host module is swapped for one that
+-- records its path and its arguments and then calls through, and so is every method of an
+-- object one of them builds, found through the object's metatable. A function seen twice gets
+-- the same wrapper, so two fields holding one function still compare equal. A content strategy
+-- handed over in an argument, a table with a draw, is kept for the probe after the root.
+----------------------------------------------------------------------------------------
+
+local wrapperOf = setmetatable({}, { __mode = "k" })
+local probes, probeSeen = {}, {}
+local instrument
+
+local function noteProbes(path, ...)
+  for i = 1, select("#", ...) do
+    local a = select(i, ...)
+    if type(a) == "table" and not opaque[a] then
+      local candidates = { a }
+      for _, v in pairs(a) do candidates[#candidates + 1] = v end
+      for _, c in ipairs(candidates) do
+        if type(c) == "table" and not probeSeen[c] and rawget(c, "draw") ~= nil and type(c.draw) == "function" then
+          probeSeen[c] = true
+          probes[#probes + 1] = { path = path, strategy = c }
+        end
+      end
+    end
+  end
+end
+
+local function wrap(fn, path)
+  if wrapperOf[fn] then return wrapperOf[fn] end
+  local w = function(...)
+    if recording then
+      add("atom " .. path .. "(" .. argsText(...) .. ")")
+      noteProbes(path, ...)
+    end
+    local results = table.pack(fn(...))
+    for i = 1, results.n do
+      local r = results[i]
+      local mt = type(r) == "table" and getmetatable(r)
+      if mt and type(mt.__index) == "table" and not (mt.__tostring and tostring(r) == "<stub>") then
+        opaque[r] = true
+        instrument(mt.__index, path .. "()", 1)
+      end
+    end
+    return table.unpack(results, 1, results.n)
+  end
+  wrapperOf[fn] = w
+  wrapperOf[w] = w
+  return w
+end
+
+instrument = function(t, path, depth)
+  if type(t) ~= "table" or walked[t] or depth < 0 then return end
+  local mt = getmetatable(t)
+  if mt and mt.__tostring and tostring(t) == "<stub>" then return end
+  walked[t] = true
+  local keys = {}
+  for k in pairs(t) do keys[#keys + 1] = k end
+  for _, k in ipairs(keys) do
+    local v = rawget(t, k)
+    local seg = path .. "." .. tostring(k)
+    if type(v) == "function" then
+      rawset(t, k, wrap(v, seg))
+    elseif type(v) == "table" then
+      instrument(v, seg, depth - 1)
+    end
+  end
+  if mt and type(mt.__index) == "table" then instrument(mt.__index, path, depth - 1) end
+end
+
 -- Every file loaded is recorded, so which plugin files core reached is part of the snapshot and
 -- a renamed directory shows up in it the way an identity does.
 do
@@ -227,7 +388,13 @@ do
   end
   dofile = function(path)
     add("load " .. clean(path))
-    return realDofile(path)
+    local results = table.pack(realDofile(path))
+    local host = clean(path):match("/host/([^/]+)/init%.lua$")
+    if host and type(results[1]) == "table" then
+      opaque[results[1]] = true
+      instrument(results[1], "host." .. host, 2)
+    end
+    return table.unpack(results, 1, results.n)
   end
 end
 
@@ -267,6 +434,10 @@ local olm
 hs.loadSpoon = function(name)
   local chunk = assert(loadfile(spoonDir .. "init.lua"))
   olm = chunk()
+  for atomName, atom in pairs(olm.lib or {}) do
+    opaque[atom] = true
+    instrument(atom, "lib." .. atomName, 2)
+  end
   local start = olm.start
   olm.start = function(self, cfg)
     cfg = cfg or {}
@@ -295,9 +466,26 @@ debug.sethook(function()
 end, "", 1000)
 recording = true
 local ok, err = pcall(dofile, hsRoot .. "/init.lua")
+if not ok then add("raised " .. tostring(err)) end
+
+-- The probe. Each content strategy is asked what it would show, at one fixed size, each call
+-- on its own so one that raises costs only its own line.
+local PROBE_W, PROBE_H = 400, 300
+for _, probe in ipairs(probes) do
+  local c = probe.strategy
+  for _, member in ipairs({ "state", "preferredSize", "draw" }) do
+    if type(c[member]) == "function" then
+      local answered = table.pack(pcall(c[member], PROBE_W, PROBE_H))
+      if answered[1] then
+        add("probe " .. probe.path .. " " .. member .. " = " .. deepText(answered[2], 6, {}))
+      else
+        add("probe " .. probe.path .. " " .. member .. " raised " .. tostring(answered[2]))
+      end
+    end
+  end
+end
 recording = false
 debug.sethook()
-if not ok then add("raised " .. tostring(err)) end
 
 ----------------------------------------------------------------------------------------
 -- The snapshot.
@@ -312,14 +500,16 @@ local function scalar(v)
   return nil
 end
 
-local LIMIT = 200000
-local function walk(v, path, depth, onPath)
-  if #lines > LIMIT then return end
+-- No depth limit, a table already on the path is written as a cycle. The line cap only
+-- guards against a structure that has grown without bound, and saying so is a line of its own.
+local LIMIT = 400000
+local capped = false
+local function walk(v, path, onPath)
+  if #lines > LIMIT then capped = true return end
   local s = scalar(v)
   if s then add(path .. " = " .. s) return end
   if type(v) ~= "table" then add(path .. " = " .. type(v)) return end
   if onPath[v] then add(path .. " = cycle") return end
-  if depth <= 0 then add(path .. " = table") return end
   onPath[v] = true
   local any = false
   for k, child in pairs(v) do
@@ -328,7 +518,7 @@ local function walk(v, path, depth, onPath)
     if math.type(k) == "integer" then seg = "[]"
     elseif type(k) == "string" then seg = "." .. k
     else seg = "[" .. (scalar(k) or type(k)) .. "]" end
-    walk(child, path .. seg, depth - 1, onPath)
+    walk(child, path .. seg, onPath)
   end
   if not any then add(path .. " = {}") end
   onPath[v] = nil
@@ -343,7 +533,7 @@ if olm then
       elseif k == "manifests" then
         for name in pairs(v) do add("record.manifests." .. tostring(name)) end
       elseif k ~= "text" then
-        walk(v, "record." .. tostring(k), 7, {})
+        walk(v, "record." .. tostring(k), {})
       end
     end
     if type(record.text) == "string" then
@@ -352,9 +542,10 @@ if olm then
   else
     add("no record")
   end
-  for name, atom in pairs(olm.lib or {}) do walk(atom, "lib." .. name, 5, {}) end
-  walk(olm.registry, "registry", 6, {})
+  for name, atom in pairs(olm.lib or {}) do walk(atom, "lib." .. name, {}) end
+  walk(olm.registry, "registry", {})
 end
+if capped then add("snapshot capped at " .. LIMIT .. " lines") end
 
 -- The run's own paths are not part of what it decided.
 for i, line in ipairs(lines) do

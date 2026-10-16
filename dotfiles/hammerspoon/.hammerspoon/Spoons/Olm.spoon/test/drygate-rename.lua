@@ -5,9 +5,11 @@
 -- WHY A RUN AND NOT ONLY A SCAN. test/drygate-leaks.lua reads the source, so it sees a name only
 -- in the shapes it was taught, a string, a path, a field, a key, a concatenation of literals or
 -- a format of literals. A name can reach core by routes no token pattern sees, a string reversed
--- or upper cased, a table built from a list, a lookup by position. Behaviour sees every route,
--- since a core that does anything different for one particular name does it differently once
--- that name is gone. This is also the one place root/compose.lua runs outside a live
+-- or upper cased, a table built from a list, a lookup by position. A run sees a name however it
+-- was spelled, since a core that does anything different for one particular name does it
+-- differently once that name is gone, but only where the difference reaches what the snapshot
+-- records and only in code that runs while the root composes, test/drygate-composerun.lua lists
+-- both. Order is not compared, see THE COMPARISON. This is also the one place root/compose.lua runs outside a live
 -- Hammerspoon, so a regression where core starts depending on a plugin through the root stays
 -- red here.
 --
@@ -25,7 +27,9 @@
 -- scrambled one has every scrambled name turned back, a name counting only where it stands as
 -- a word of its own or the head of a camel case word, then the two are compared as counted
 -- sets of lines. Order is not compared, since a core that sorts plugins by name is generic and
--- sorting a renamed set gives another order. A line one run has and the other lacks is a
+-- sorting a renamed set gives another order, and a list built by walking a table keyed by
+-- identity comes out in hash order, which a renamed key changes too. Comparing positions was
+-- measured on the clean tree and gave over a thousand differences, none of them a leak. A line one run has and the other lacks is a
 -- finding. The table is chosen so no scrambled name is already a word in the original
 -- snapshot, and the run refuses to compare when that cannot be met, rather than turning an
 -- unrelated word into a plugin name.
@@ -144,7 +148,8 @@ local function unscramble(line)
 end
 
 -- A line is compared by its canonical form, the words it holds sorted, a word being what lies
--- between spaces, commas, quotes and brackets, with "and" dropped. Core joins a list of plugins
+-- between spaces, commas, quotes and brackets of any kind, with "and" dropped. A key and its
+-- plain value stay one word, key=value, so which key holds which value is still compared. Core joins a list of plugins
 -- in the order their names sort, the dependency summary does, and a renamed set sorts in
 -- another order, so the same words come out in another order and, where the list is written
 -- as English, with the "and" on another item. That is generic, a difference that is only that
@@ -152,7 +157,7 @@ end
 -- keep their meaning, and what a leak changes is which words a line holds or which lines exist.
 local function canonical(line)
   local words = {}
-  for word in line:gmatch('[^%s,"()]+') do
+  for word in line:gmatch('[^%s,"(){}]+') do
     if word ~= "and" then words[#words + 1] = word end
   end
   table.sort(words)

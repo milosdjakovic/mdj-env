@@ -44,7 +44,7 @@ It also enforces the layer rule, no file outside `plugins/` names a plugin, in t
 `drygate-rename.lua` runs the person's `init.lua`, and so `root/compose.lua`, under a sandboxed
 stub through `drygate-composerun.lua`, once as the spoon is and once with every plugin renamed,
 and fails on any difference in what core decided. That run is the one place the composition root
-runs without a live Hammerspoon, and it adds well under a second.
+runs without a live Hammerspoon, and it adds about a second.
 
 Run it standalone too, straight from the shell, no suite.sh, no lock, no Hammerspoon:
 
