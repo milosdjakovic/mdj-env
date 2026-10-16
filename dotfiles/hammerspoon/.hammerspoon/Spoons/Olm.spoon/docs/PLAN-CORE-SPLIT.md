@@ -252,13 +252,20 @@ source set name in `lib/icons/config.lua`, `lib/icons/init.lua` and
 `lib/icons/sources/emoji.lua`, which `config/icons.toml` names as its set and fallback, so it is
 core vocabulary sharing a word with the emoji picker and is accepted line by line in
 `test/drygate-accepted.txt` rather than renamed. `LEAK_FAILS` is true in `test/drygate.lua`, so a
-new hit is a finding and fails the gate, and the gate reads 0 findings with 15 accepted.
+new hit is a finding and fails the gate, and the gate reads 0 findings with 14 accepted.
 
 The known blind spot. A lower case identity written as a bare field or a bare name, `opts.audio`
 or `settings.x`, is never matched, since a lower case plugin name is also an ordinary word and
 `hs.settings` or a local named `audio` would drown the check in false hits. Only the quoted forms
 and a mixed case name are seen, so core reading a plugin's table through a lower case field would
 pass this gate, and a reviewer has to look for that by hand.
+
+Two further blind spots sit beside it. A name built by concatenation, `"em" .. "oji"`, is two
+string tokens and neither is an identity, so it is never matched. A lower case table key written
+in a constructor, `{ emoji = 1 }`, is a bare name and not a quoted string, so it is never matched
+either, which makes it the same gap as the bare field one reached through a different syntax. An
+accepted leak line now also carries the number of hits it accepts, `lib/icons/config.lua` line 15
+carries two, so a further hit on an accepted line changes the finding text and fails the gate.
 
 ## Decisions
 

@@ -28,6 +28,8 @@ obj.license = "MIT"
 obj._entries = nil     -- ordered, each a built section or a function answering sections
 obj._cheatSheet = nil  -- shared CheatSheet renderer
 
+local log = hs.logger.new("HyperCheatSheet", "info")
+
 -- Layout knobs for this overlay, four columns and room for an app icon. The badge is square and
 -- its size and the row height are not here, the cheat sheet derives them from the type roles.
 local LAYOUT = {
@@ -51,20 +53,42 @@ function obj:init()
   return self
 end
 
--- One section as the renderer wants it. A section carries either `bindings`, the chords the
+-- One section as the renderer wants it, or nil for one that is not usable. A section carries either `bindings`, the chords the
 -- root collected, each { key, mods, action, description }, or `rows`, each { badge or key and
 -- mods, label, icon }. A row that states its own badge keeps it, anything else is spelled by
 -- the shared glyph helper so Hyper+Shift+4 reads "⇧4". `icons = true` asks for the icon grid,
 -- `alpha` fades the whole group and `titleAlpha` its title alone.
+--
+-- A supplier is a plugin's code, so its answer is checked before anything is built from it. A
+-- row that is not a table, or one with neither a badge nor a key, is dropped with one log line,
+-- and a section that is not a table is dropped the same way, so a malformed answer costs only
+-- itself and never blanks the whole sheet on a key hold.
+local function drop(what, why)
+  log.w("dropped " .. what .. " from the Hyper sheet, " .. why)
+end
+
 local function build(section, glyphFor)
+  if type(section) ~= "table" then
+    drop("a section", "it is a " .. type(section) .. " and not a table")
+    return nil
+  end
+  local name = tostring(section.title or "untitled")
   local rows = {}
   for _, b in ipairs(section.bindings or {}) do
-    local badge = glyphFor and glyphFor(b.key, b.mods) or tostring(b.key)
-    rows[#rows + 1] = { badge = badge, label = b.description or b.action or tostring(b.key) }
+    if type(b) == "table" and b.key ~= nil then
+      local badge = glyphFor and glyphFor(b.key, b.mods) or tostring(b.key)
+      rows[#rows + 1] = { badge = badge, label = b.description or b.action or tostring(b.key) }
+    else
+      drop("a binding of section '" .. name .. "'", "it is not a table with a key")
+    end
   end
   for _, r in ipairs(section.rows or {}) do
-    local badge = r.badge or (glyphFor and glyphFor(r.key, r.mods)) or tostring(r.key)
-    rows[#rows + 1] = { badge = badge, label = r.label or tostring(r.key), icon = r.icon }
+    if type(r) == "table" and (r.badge ~= nil or r.key ~= nil) then
+      local badge = r.badge or (glyphFor and glyphFor(r.key, r.mods)) or tostring(r.key)
+      rows[#rows + 1] = { badge = badge, label = r.label or tostring(r.key), icon = r.icon }
+    else
+      drop("a row of section '" .. name .. "'", "it is not a table with a badge or a key")
+    end
   end
   local out = {
     title = section.title,
@@ -83,10 +107,10 @@ local function build(section, glyphFor)
 end
 
 --- HyperCheatSheet:configure(opts)
---- opts.cheatSheet - shared CheatSheet renderer to draw with
---- opts.sections   - the ordered list the root assembles through lib/contributions.lua, each
----                   entry a section table or a function answering a list of them when the
----                   sheet is shown. Absent means the overlay has nothing to show.
+--- opts.cheatSheet is the shared CheatSheet renderer to draw with.
+--- opts.sections is the ordered list the root assembles through lib/contributions.lua, each
+--- entry a section table or a function answering a list of them when the sheet is shown.
+--- Absent means the overlay has nothing to show.
 function obj:configure(opts)
   opts = opts or {}
   self._cheatSheet = opts.cheatSheet or self._cheatSheet
@@ -98,7 +122,8 @@ function obj:configure(opts)
     if type(entry) == "function" then
       self._entries[#self._entries + 1] = entry
     elseif type(entry) == "table" then
-      self._entries[#self._entries + 1] = build(entry, glyphFor)
+      local built = build(entry, glyphFor)
+      if built then self._entries[#self._entries + 1] = built end
     end
   end
   return self
@@ -116,7 +141,8 @@ function obj:_sections()
       local supplied = entry()
       if type(supplied) == "table" then
         for _, section in ipairs(supplied) do
-          if type(section) == "table" then out[#out + 1] = build(section, glyphFor) end
+          local built = build(section, glyphFor)
+          if built then out[#out + 1] = built end
         end
       end
     else

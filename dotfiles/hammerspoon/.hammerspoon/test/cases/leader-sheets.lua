@@ -13,9 +13,9 @@
 -- that binds its own keys in a wiring step is driven through that step on a fresh copy of its
 -- module. Every wiring step whose method starts with bind must be one this case drives, so a
 -- plugin that starts binding keys a new way fails here until the case learns it. Two rules live
--- inline in root/compose.lua, which no unit case can load, and are restated below, a host that
--- declares a key and a leader and registers nothing binds that key, and the launcher's lock and
--- sleep rows bind theirs.
+-- inline in root/compose.lua, which no unit case can load. A host that declares a key and a
+-- leader and registers nothing binds that key through lib/hints.lua's own rule, which the case
+-- calls rather than restates, and the launcher's lock and sleep rows bind theirs, restated.
 --
 -- What the sheet shows is read off the real hosts. The Hyper sheet is configured with the list
 -- lib/contributions.lua assembles from lib/hints.lua's sections and every supplier answering the
@@ -115,11 +115,18 @@ local function sorted(set)
   return out
 end
 
--- Every member of one set missing from the other, as one line a failure can print.
+-- Chords are counted, never collapsed, so two rows on one chord are two and not one. Every chord
+-- that appears more often in one list than in the other, as one line a failure can print.
+local function tally(into, key)
+  into[key] = (into[key] or 0) + 1
+end
+
 local function missing(from, against)
   local out = {}
   for _, k in ipairs(sorted(from)) do
-    if not against[k] then out[#out + 1] = k end
+    if from[k] > (against[k] or 0) then
+      out[#out + 1] = k .. " x" .. from[k] .. " against x" .. (against[k] or 0)
+    end
   end
   return out
 end
@@ -147,15 +154,33 @@ local DRIVEN = {
   ["windowmanager.bindToLeader"] = true,
 }
 
--- One full pass, bound keys against sheet rows, over the manifests given.
-local function run(manifests)
-  local plan = resolver.plan({ manifests = manifests, user = {}, present = function() return true end,
+-- The module a host key rule asks whether it can be shown. compose.lua hands the rule the real
+-- loaded module, so this loads the same file without calling it, and a file that cannot load
+-- here is answered as a stand-in that can show, which is only what the rule asks of it.
+local function hostModule(directory)
+  for _, rel in ipairs({ "plugins/" .. directory .. "/init.lua", "host/" .. directory .. "/init.lua" }) do
+    local chunk = loadfile(spoonDir .. rel)
+    if chunk then
+      local ok, module = pcall(chunk)
+      if ok and type(module) == "table" then return module end
+      return { show = function() end }
+    end
+  end
+  return nil
+end
+
+-- One full pass, bound keys against sheet rows, over the manifests given. The person's own
+-- configuration is the second argument, empty for every probe and the real files for the last.
+local function run(manifests, person)
+  person = person or {}
+  local plan = resolver.plan({ manifests = manifests, user = person.user or {}, data = person.data,
+    present = function() return true end,
     libNames = libNames })
   local result = { plan = plan, bound = { app = {}, window = {}, global = {} },
     sheet = { app = {}, window = {} }, undriven = {}, problems = plan.problems, refused = {} }
 
   local function bindOn(leader)
-    return function(key, mods) result.bound[leader][mark(key, mods)] = true end
+    return function(key, mods) tally(result.bound[leader], mark(key, mods)) end
   end
   local appLeader = { bind = function(_, key, _, mods) bindOn("app")(key, mods) end,
     isActive = function() return false end }
@@ -198,15 +223,14 @@ local function run(manifests)
     if not ok then result.refused[entry.name] = tostring(err) end
   end
 
-  -- The two rules root/compose.lua binds by itself, restated. A host with a key, a leader and no
-  -- registration binds that key on the app leader, and the launcher's lock and sleep rows bind
-  -- theirs, the only special rows the root has a system call for.
+  -- The two rules root/compose.lua binds by itself. A host's own key goes through the same
+  -- lib/hints.lua rule the root calls, so nothing is restated, and the launcher's lock and sleep
+  -- rows bind theirs, the only special rows the root has a system call for.
   for _, directory in ipairs(plan.order) do
     local identity = plan.identity[directory] or directory
     local eff = plan.effective[directory] or {}
-    if eff.key and eff.leader == "app" and not claimed[identity] and manifests[identity].registry == nil then
-      bindOn("app")(eff.key, eff.mods)
-    end
+    local role, key, mods = hints.hostKeyBinding(eff, hostModule(directory), claimed[identity])
+    if role == "app" then bindOn("app")(key, mods) end
   end
   local systemCalls = { lock = true, sleep = true }
   for _, row in ipairs((plan.effective[plan.identity.launcher or "launcher"] or {}).specialRows or {}) do
@@ -226,12 +250,16 @@ local function run(manifests)
         elseif identity == "apptoggler" then
           local toggler = load("plugins/apptoggler/init.lua")
           toggler:init()
-          toggler:configure({ apps = eff.apps, hyperKey = appLeader, appFocus = {} })
+          -- The person's roster and toggles, handed over by field name, win over the shipped
+          -- defaults the way init.lua's shared table does for the running config.
+          local given = (person.data or {}).apptoggler or {}
+          local apps, shipped = given.apps or eff.apps, given.toggles or eff.toggles
+          toggler:configure({ apps = apps, hyperKey = appLeader, appFocus = {} })
           -- A toggle stating its own modifiers is a global combo, so one is added to prove it
           -- stays off every sheet. The global binding call is swapped for a recorder for this
           -- one call only, so the live config is never handed a hotkey.
           local toggles = {}
-          for _, t in ipairs(eff.toggles or {}) do toggles[#toggles + 1] = t end
+          for _, t in ipairs(shipped or {}) do toggles[#toggles + 1] = t end
           toggles[#toggles + 1] = { app = "Finder", key = "8", modifiers = { "ctrl", "alt" } }
           local realHotkey = hs.hotkey
           hs.hotkey = { bind = function(mods, key) bindOn("global")(key, mods) end }
@@ -257,7 +285,7 @@ local function run(manifests)
       glyphFor = mark,
       show = function(_, model)
         for _, section in ipairs(model.sections or {}) do
-          for _, row in ipairs(section.rows or {}) do into[row.badge] = true end
+          for _, row in ipairs(section.rows or {}) do tally(into, tostring(row.badge):lower()) end
         end
       end,
       hide = noop,
@@ -331,7 +359,48 @@ check("the app sections keep the icon grid and the bound chords drop it",
   drawn[1].iconSize == nil and drawn[#drawn].iconSize == 0)
 check("dormant apps are faded with their title kept bright",
   drawn[2].alpha == 0.55 and drawn[2].titleAlpha == 1.0)
-check("the shipped Finder toggle is on the sheet", real.sheet.app["f"] == true)
+check("the shipped Finder toggle is on the sheet", real.sheet.app["f"] == 1)
+
+--------------------------------------------------------------------------------
+-- The person's own configuration. Every run above has an empty user, which is a machine that
+-- configured nothing, so one run is made with the real config/plugins.lua as the user, and the
+-- app roster and toggles from config/apps.lua and config/keys.lua handed over the way init.lua
+-- hands them, by field name to the plugin that declares them. Loaded through require with the
+-- config directory on the path, the way init.lua loads them.
+--------------------------------------------------------------------------------
+
+do
+  local configRoot = caseDir .. "/../../"
+  local savedPath = package.path
+  package.path = configRoot .. "?.lua;" .. configRoot .. "?/init.lua;" .. package.path
+  local loaded, personPlugins, personKeys, personApps = pcall(function()
+    return require("config.plugins"), require("config.keys"), require("config.apps")
+  end)
+  package.path = savedPath
+  check("the person's config/plugins.lua, keys.lua and apps.lua load", loaded,
+    not loaded and tostring(personPlugins) or nil)
+  if loaded then
+    local data = {}
+    for name, entry in pairs(personPlugins) do
+      if type(entry) == "table" and entry.data then data[name] = entry.data end
+    end
+    data.apptoggler = { apps = personApps, toggles = personKeys.appToggles }
+    local person = run(realManifests, { user = personPlugins, data = data })
+    check("with the person's config the plan has no problems", #person.problems == 0,
+      #person.problems > 0 and (tostring(person.problems[1].kind) .. " at " .. tostring(person.problems[1].where)) or nil)
+    for _, leader in ipairs({ "app", "window" }) do
+      local hidden = missing(person.bound[leader], person.sheet[leader])
+      check("with the person's config every key bound on the " .. leader .. " leader is on its sheet",
+        #hidden == 0, "bound and not shown, " .. table.concat(hidden, " "))
+      local dead = missing(person.sheet[leader], person.bound[leader])
+      check("with the person's config every key on the " .. leader .. " sheet is bound there",
+        #dead == 0, "shown and not bound, " .. table.concat(dead, " "))
+    end
+    check("the person's toggles reach the app sheet", person.sheet.app["b"] == 1 and person.sheet.app["`"] == 1)
+    check("the person's placed terminal toggle is a global combo on no sheet",
+      person.bound.global["`+alt"] == 1 and not person.sheet.app["`+alt"])
+  end
+end
 
 --------------------------------------------------------------------------------
 -- The app toggler switched off. The sheet has no app section and nothing else changes.
@@ -368,8 +437,8 @@ clipboard.registry = reg
 probe.clipboard = clipboard
 
 local withCommand = run(probe)
-check("a command declared on the leader is bound there", withCommand.bound.app["9"] == true)
-check("a command declared on the leader is on that leader's sheet", withCommand.sheet.app["9"] == true)
+check("a command declared on the leader is bound there", withCommand.bound.app["9"] == 1)
+check("a command declared on the leader is on that leader's sheet", withCommand.sheet.app["9"] == 1)
 local labelled = false
 for _, section in ipairs(withCommand.hyper:_sections()) do
   for _, row in ipairs(section.rows or {}) do
@@ -422,5 +491,5 @@ check("with the tool refused every other key still matches its sheet on both lea
   #missing(onWindow.bound.app, onWindow.sheet.app) == 0 and #missing(onWindow.sheet.app, onWindow.bound.app) == 0
     and #missing(onWindow.bound.window, onWindow.sheet.window) == 0
     and #missing(onWindow.sheet.window, onWindow.bound.window) == 0)
-check("the same tool on the app leader is bound and shown", real.bound.app[movedKey] == true
-  and real.sheet.app[movedKey] == true)
+check("the same tool on the app leader is bound and shown", real.bound.app[movedKey] == 1
+  and real.sheet.app[movedKey] == 1)

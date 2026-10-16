@@ -692,4 +692,17 @@ function obj.leaderBindings(plan, role)
   return out
 end
 
+--- hints.hostKeyBinding(eff, module, claimed) -> role, key, mods or nil
+--- The one rule for a host that carries a key. Anything with a key, a leader and a way to be
+--- shown, that the registry did not already claim, has its key bound on that leader, since a
+--- host is not a registered tool and nothing else binds it. It answers the leader role and the
+--- key and modifiers to bind, or nil when the rule does not apply. The root decides which
+--- engine a role reaches, and the leader sheet test reads the same answer, so the rule is
+--- written once and neither side restates it.
+function obj.hostKeyBinding(eff, module, claimed)
+  if type(eff) ~= "table" or not (eff.key and eff.leader) or claimed then return nil end
+  if not module or type(module.show) ~= "function" then return nil end
+  return eff.leader, eff.key, eff.mods
+end
+
 return obj

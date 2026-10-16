@@ -284,3 +284,19 @@ the place the plugin was in, and the next load reopens it through `stage.present
   `LEAK_FAILS` is true, so the gate reads 0 findings and 0 warnings. Still open, the scan's named
   blind spot, a lower case identity written as a bare field such as `opts.audio`, which no form
   matches, so a review has to look for it by hand.
+- 2026-10-16 17:05. Review fixes to the finish branch. The Hyper sheet now validates every section
+  and row before building and drops a bad one with one log line, so a malformed supplier answer
+  costs itself and never blanks the sheet. The app toggler builds its sheet rows and launcher
+  details one bound entry at a time with each lookup guarded, and refuses at configure a
+  `leader` other than app, since its keys always bind on the app leader and another word would
+  list them on the wrong sheet. A supplier that reaches no sheet, no `defaults.leader` or a
+  leader the asking sheet does not reveal, is logged by `lib/contributions.lua`, and the window
+  sheet still does not ask the set. The layer gate counts hits per line and the count is part of
+  the finding text, so an accepted line accepts exactly that many and `lib/icons/config.lua` line
+  15 carries two. Two more blind spots of that scan are written in phase 6 of the plan, a name
+  built by concatenation and a lower case table key in a constructor. The host key rule now
+  lives in `hints.hostKeyBinding`, which `root/compose.lua` and `test/cases/leader-sheets.lua`
+  both call, so the case restates nothing and the earlier restatement, which wrongly asked for
+  no registry block and skipped the show check, is gone. The case compares chords as counted
+  lists and runs once more with the real `config/plugins.lua`, `config/keys.lua` and
+  `config/apps.lua`.

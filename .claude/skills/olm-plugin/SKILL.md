@@ -194,7 +194,9 @@ never names a host. A plugin whose actions deserve rows in the launcher's own ca
 `provides.launcherRows` and `provides.launcherRun` instead, the contract has the row shape and
 the authoring guide has the walk through. A plugin that binds leader keys from its own data rather than
 from manifest bindings declares `provides.cheatSheetSections` so its keys reach that leader's
-sheet, which otherwise lists only what the manifests declare, and one that binds an app's chord
+sheet, which otherwise lists only what the manifests declare, and its `defaults.leader` decides
+which sheet receives the sections, a supplier with none, or on a leader whose sheet does not ask,
+reaches no sheet and is logged, and one that binds an app's chord
 declares `provides.launcherAppDetails` so the launcher's row for that app names it. A registry
 tool's open key binds on the app leader only, so a tool stating `leader = "window"` with a leader
 shortcut is refused at wiring with a problem line, and a window key belongs in `bindings`.

@@ -165,6 +165,13 @@ function obj:configure(opts)
   -- Phase three of the core split moved them into lib/appfocus.lua so the launcher's app rows
   -- name no plugin, and this plugin calls the same module rather than keeping a copy.
   self._appFocus = opts.appFocus
+  -- The leader default only routes which sheet receives the app sections, while the keys
+  -- always bind through the app leader's hyperKey, so any other word would bind the keys on
+  -- one leader and list them on another's sheet, or on none. It is refused here, loudly.
+  if opts.leader ~= nil and opts.leader ~= "app" then
+    error("AppToggler binds its keys on the app leader only, so leader must be \"app\" and not "
+      .. tostring(opts.leader), 2)
+  end
   return self
 end
 
@@ -332,23 +339,35 @@ function obj:bindHotkeys(toggles)
   -- they are used rather than from a copy somewhere else.
   self._toggles = toggles
   local modal, bound = {}, {}
+  self._sheetItems, self._appDetails = {}, {}
   for _, toggle in ipairs(toggles) do
-    local bundleID = self._apps[toggle.app]
-    if bundleID then
-      bound[#bound + 1] = { toggle = toggle, bundleID = bundleID }
+    local ok, err = pcall(function()
+      local bundleID = self._apps[toggle.app]
+      if not bundleID then
+        log.w("Unknown app '" .. tostring(toggle.app) .. "' in config")
+        return
+      end
       local action = self:_buildAction(toggle, bundleID)
+      local inModal = false
       if toggle.modifiers then
         hs.hotkey.bind(toggle.modifiers, toggle.key, action)
       elseif self._hyperKey then
         -- Fires while the physical Hyper key is held (HyperKey.spoon eventtap)
         self._hyperKey:bind(toggle.key, action)
-        modal[#modal + 1] = { toggle = toggle, bundleID = bundleID }
+        inModal = true
       else
         -- Fallback when no HyperKey is wired: the literal modifier combo
         hs.hotkey.bind(HYPER_FALLBACK, toggle.key, action)
       end
-    else
-      log.w("Unknown app '" .. toggle.app .. "' in config")
+      -- Only an entry that bound reaches the sheet and the launcher, and each is built here on
+      -- its own, so a lookup that raises for one app costs that app's row and nothing else.
+      local entry = { toggle = toggle, bundleID = bundleID }
+      bound[#bound + 1] = entry
+      if inModal then modal[#modal + 1] = entry end
+    end)
+    if not ok then
+      log.w("Toggle for '" .. tostring(type(toggle) == "table" and toggle.app or toggle)
+        .. "' failed to bind, " .. tostring(err))
     end
   end
   self._sheetItems = self:_sheetItemsFor(modal)
@@ -429,14 +448,21 @@ end
 function obj:_sheetItemsFor(modal)
   local items = {}
   for _, m in ipairs(modal) do
-    local path = hs.application.pathForBundleID(m.bundleID)
-    if path and path ~= "" then
-      items[#items + 1] = {
-        key = tostring(m.toggle.key),
-        name = hs.application.nameForBundleID(m.bundleID) or m.toggle.app,
-        bundleID = m.bundleID,
-        icon = hs.image.imageFromAppBundle(m.bundleID),
-      }
+    -- Each lookup is guarded on its own, so one app whose name or icon raises is logged and
+    -- skipped while every other row stays.
+    local ok, err = pcall(function()
+      local path = hs.application.pathForBundleID(m.bundleID)
+      if path and path ~= "" then
+        items[#items + 1] = {
+          key = tostring(m.toggle.key),
+          name = hs.application.nameForBundleID(m.bundleID) or m.toggle.app,
+          bundleID = m.bundleID,
+          icon = hs.image.imageFromAppBundle(m.bundleID),
+        }
+      end
+    end)
+    if not ok then
+      log.w("Sheet row for '" .. tostring(m.toggle.app) .. "' failed, " .. tostring(err))
     end
   end
   table.sort(items, function(a, b)

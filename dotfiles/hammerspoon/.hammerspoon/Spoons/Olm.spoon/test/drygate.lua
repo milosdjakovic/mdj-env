@@ -768,10 +768,21 @@ do
       if f then
         local text = f:read("a")
         f:close()
+        -- Hits are counted per line, identity and form, and the count is part of the finding
+        -- text, so an accepted entry accepts exactly that many. A further hit on an accepted
+        -- line changes the text, the old entry then matches nothing and the new text is a
+        -- finding of its own, which is how a third "emoji" on one line cannot ride along.
+        local counts, order = {}, {}
         for _, hit in ipairs(leaksScan.scan(text, identities, dirs)) do
+          local key = table.concat({ hit.line, hit.identity, hit.form }, "|")
+          if not counts[key] then counts[key] = { hit = hit, n = 0 }; order[#order + 1] = key end
+          counts[key].n = counts[key].n + 1
+        end
+        for _, key in ipairs(order) do
+          local hit, n = counts[key].hit, counts[key].n
           local line = string.format(
-            "dry gate refused '%s', line %d, names the plugin '%s' as %s, only plugins/ and the person's config may name a plugin, go through a manifest declaration or a contract instead, or list the exact line in test/drygate-accepted.txt with a reason",
-            rel, hit.line, hit.identity, hit.form)
+            "dry gate refused '%s', line %d, %d hit(s), names the plugin '%s' as %s, only plugins/ and the person's config may name a plugin, go through a manifest declaration or a contract instead, or list the exact line in test/drygate-accepted.txt with a reason, the count is part of the line so an accepted entry accepts exactly that many hits",
+            rel, hit.line, n, hit.identity, hit.form)
           if LEAK_FAILS then finding(line) else warning("layer leak, " .. line) end
         end
       end

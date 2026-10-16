@@ -2019,13 +2019,13 @@ function obj.run(olm, cfg)
     for directory, eff in pairs(plan.effective or {}) do
       local identity = plan.identity[directory] or directory
       local module = modules[identity]
-      if eff.key and eff.leader and module and not claimed[identity]
-        and type(module.show) == "function" then
-        local code = leadersLib.keycode(keymapCatalog, leaderRoles[eff.leader] or eff.leader)
+      local role, key, mods = hintsLib.hostKeyBinding(eff, module, claimed[identity])
+      if role then
+        local code = leadersLib.keycode(keymapCatalog, leaderRoles[role] or role)
         -- Only the app leader's own engine binds by key today, which is what hyperKeyAtom is,
         -- so a host on another leader is left alone rather than bound to the wrong engine.
         if code == appKeycode then
-          hyperKeyAtom:bind(eff.key, function() module:show() end, eff.mods)
+          hyperKeyAtom:bind(key, function() module:show() end, mods)
         end
       end
     end

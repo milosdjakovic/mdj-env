@@ -209,7 +209,15 @@ function M.sheetSections(opts)
 
   for position, identity in ipairs(sets.cheatSheetSections or {}) do
     local eff = (plan.effective or {})[identity] or {}
-    if eff.leader == opts.role then
+    if eff.leader ~= opts.role then
+      -- Dropped on purpose, and said once, since a supplier whose sections reach no sheet is
+      -- otherwise indistinguishable from one that has nothing to show. A leader whose sheet
+      -- never asks this set, the window one today, lands here as well.
+      say("'" .. tostring(identity) .. "' supplies cheat sheet sections but reached no sheet, "
+        .. (eff.leader == nil and "it states no defaults.leader"
+          or ("its leader is '" .. tostring(eff.leader) .. "' and the sheet asking reveals '"
+            .. tostring(opts.role) .. "'")))
+    else
       local call = (opts.modules or {})[identity]
         and resolveMember(opts, identity, "cheatSheetSections", "the cheat sheet")
       if call then
