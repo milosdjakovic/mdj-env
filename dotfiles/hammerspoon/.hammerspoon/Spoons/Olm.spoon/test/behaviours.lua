@@ -279,12 +279,11 @@ return {
     -- native macOS clipboard, and every automated check still reported no problems, because
     -- every check was asking whether wiring returned rather than what the key did.
     --
-    -- The key is read from the live catalog rather than written here, so rebinding it moves the
-    -- test with it. Its catalog name differs from its registered name, which is exactly the
-    -- mismatch that cost seven tools their key once before.
+    -- The key is read from the live manifest and config/plugins.lua rather than written here, so
+    -- rebinding it moves the test with it, asked by the plugin's identity.
     steps = {
       { fn = function(w)
-          w._key = w.keyFor("clipboardHistory") or w.keyFor("clipboard")
+          w._key = w.keyFor("clipboard")
           if w._key then w.down("hyper") end
         end, wait = 1.0 },
       { fn = function(w) if w._key then w.press(w._key) end end, wait = 0.2 },
@@ -296,7 +295,7 @@ return {
     },
     expect = function(w)
       if not w._key then
-        return false, "no key is bound for the clipboard in the live catalog"
+        return false, "no key is bound for the clipboard in its manifest or config/plugins.lua"
       end
       local manager = (w.role("clipboard") or {}).manager or w.role("clipboard")
       if not manager or type(manager.isShowing) ~= "function" then

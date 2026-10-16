@@ -198,7 +198,15 @@ function obj.run(olm, cfg)
   local policy = defaultsLib.merge(SHIPPED_POLICY, cfg.policy)
   local leaderRoles = defaultsLib.merge({ app = "HYPER", window = "META" }, cfg.leaders)
   local decorate = defaultsLib.merge({ installedBy = "actionpanel" }, cfg.decorate)
-  local globals = cfg.globals or {}
+  -- The person's per plugin entries, keyed by plugin identity, from config/plugins.lua. One entry
+  -- holds that plugin's overrides, its person supplied data and its spoon global, or false to
+  -- switch it off. Overrides go to the resolver as they are, and the resolver strips the data and
+  -- global fields itself. The other two are read out below, once each.
+  local pluginEntries = cfg.plugins or {}
+  local globals = {}
+  for name, entry in pairs(pluginEntries) do
+    if type(entry) == "table" and entry.global ~= nil then globals[name] = entry.global end
+  end
   -- The root owned per identity presentation table, category, detail, keywords, chord, and
   -- the rest lib/registrar.lua's own describe reads, none of which a manifest could ever
   -- carry since none of it can be derived from what a plugin declares about itself. This is
@@ -611,14 +619,15 @@ function obj.run(olm, cfg)
   -- the three. Nothing here says which plugins those are, and a plugin that stops needing a
   -- field simply stops receiving it.
   --
-  -- cfg.data is keyed by PLUGIN and merged over whatever the fan out reached, for the values
+  -- cfg.plugins[name].data is per PLUGIN and merged over whatever the fan out reached, for the values
   -- that are genuinely about one plugin. It has to be per plugin because field names are not
   -- unique across the set, bundleID and settings each being wanted by more than one plugin
   -- meaning different things, and folding this into the flat table, as it was, meant one of
   -- them silently got the other's value.
   local sharedData = cfg.shared or {}
   local fannedData = servicesLib.fanOut(manifests, sharedData)
-  for name, fields in pairs(cfg.data or {}) do
+  for name, entry in pairs(pluginEntries) do
+    local fields = type(entry) == "table" and entry.data or nil
     if type(fields) == "table" then
       -- A key naming no plugin is named out loud rather than merged into nothing.
       --
@@ -659,7 +668,7 @@ function obj.run(olm, cfg)
 
   local firstPass = resolver.plan({
     manifests = manifests,
-    user = cfg,
+    user = pluginEntries,
     present = presentTool,
     libNames = libNames,
     modules = modules,
@@ -1142,7 +1151,7 @@ function obj.run(olm, cfg)
 
   plan = resolver.plan({
     manifests = manifests,
-    user = cfg,
+    user = pluginEntries,
     present = presentTool,
     libNames = libNames,
     modules = modules,
@@ -1560,7 +1569,7 @@ function obj.run(olm, cfg)
   -- fannedData WINS, and its absence here altogether was the single worst defect in this build.
   --
   -- Everything a person supplies arrives in it, cfg.shared fanned out by field name and
-  -- cfg.data keyed by plugin, and it was handed to resolver.plan and then to nothing else. So
+  -- cfg.plugins data per plugin, and it was handed to resolver.plan and then to nothing else. So
   -- every one of those declarations was read, validated, reported as satisfied, and then
   -- dropped on the floor before any plugin was configured. The report said no problems because
   -- as far as the plan was concerned there were none.

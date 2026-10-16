@@ -217,17 +217,24 @@ function obj.new()
     end
   end
 
-  --- The person's own key catalog, read from the live config directory so it is whichever one
-  --- is running. Both configurations keep it in the same place, which is what lets an input
-  --- scenario ask what key a tool is on rather than hardcoding one that a rebind would break.
-  local keysCache = nil
+  --- The key a plugin is on, read the way Olm reads it. The plugin's manifest proposes a default
+  --- key, and the person's entry in config/plugins.lua may override it, so the answer is the
+  --- override when there is one and the manifest default otherwise. Both come from the live
+  --- composed record and the live config directory, so a rebind moves the scenarios that ask
+  --- with it rather than leaving a hardcoded key behind. The name is the plugin's identity.
+  local pluginsCache = nil
   function w.keyFor(name)
-    if keysCache == nil then
-      local ok, answer = pcall(dofile, hs.configdir .. "/config/keys.lua")
-      keysCache = ok and answer or false
+    if pluginsCache == nil then
+      local ok, answer = pcall(dofile, hs.configdir .. "/config/plugins.lua")
+      pluginsCache = ok and type(answer) == "table" and answer or false
     end
-    local entry = keysCache and keysCache[name]
-    return entry and entry.key or nil
+    local mine = pluginsCache and pluginsCache[name]
+    if type(mine) == "table" and mine.key then return mine.key end
+    local olm = spoon and spoon.Olm
+    local manifest = olm and olm._composed and olm._composed.manifests
+      and olm._composed.manifests[name]
+    local defaults = manifest and manifest.defaults
+    return defaults and defaults.key or nil
   end
 
   function w.frontmostBundle()

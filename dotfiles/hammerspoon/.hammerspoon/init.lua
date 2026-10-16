@@ -14,12 +14,6 @@
 local apps       = require("config.apps")
 local keys       = require("config.keys")
 local settings   = require("config.settings")
-local displays   = require("config.displays")
-local filesearch = require("config.filesearch")
-local processes  = require("config.processes")
-
-local gap = settings.gap
-local margins = { top = gap, right = gap, bottom = gap, left = gap }
 
 hs.loadSpoon("Olm")
 
@@ -34,32 +28,13 @@ local olm = spoon.Olm:start({
     toggles = keys.appToggles,
   },
 
-  -- Values about one plugin in particular, keyed by the name that plugin is known by
-  -- everywhere outside its own folder, the same name config/keys.lua and every launcher row
-  -- already use. Per plugin rather than shared because these field names are not unique across
-  -- the set and two plugins wanting a bundleID or a settings block mean different things by it.
-  --
-  -- The name matters and used to be wrong here. Eight of these tools spell their folder one way,
-  -- browsertabs, and themselves another, browserTabs, and a key spelled the folder way matched
-  -- nothing and was dropped in silence. So Chrome had no bundle id, this machine's display
-  -- arrangements never arrived, and file search ran with no policy, all three from one letter.
-  -- Olm now names any key here that matches no plugin, so the next slip says so.
-  data = {
-    displayProfiles = { profiles = displays.profiles, settleDelay = displays.settleDelay },
-    windowmanager   = { settings = settings, margins = margins },
-    browserTabs     = { chromeBundleID = apps.GoogleChrome },
-    clipboard       = { shortcut = keys.clipboardShortcut },
-    -- Two whole policy files, each too large and too particular to this machine to live
-    -- anywhere but its own file. File search's is the type words, the folder aliases and the
-    -- prune list. Processes' is which command names count as a dev runtime and which
-    -- directories mark a project. Both tools open and work without either, and recognise
-    -- almost nothing, which is why their absence looked like nothing being wrong.
-    fileSearch      = { policy = filesearch },
-    processes       = { policy = processes },
-    -- The screen capture chain, in priority order, by name. The plugin resolves each name
-    -- against its own backends, so this stays a list of words and reordering it is one edit.
-    capture         = { providers = settings.capture.providers },
-  },
+  -- Everything about one plugin in particular, keyed by the name that plugin is known by
+  -- everywhere outside its own folder. Its overrides of its own defaults, the values only this
+  -- machine knows, the spoon global it is mirrored onto, or false to switch it off, all in
+  -- config/plugins.lua. Per plugin rather than shared because these field names are not unique
+  -- across the set and two plugins wanting a bundleID or a settings block mean different things
+  -- by it. Olm names any key there that matches no plugin, so a slip in a name says so.
+  plugins = require("config.plugins"),
 
   -- Which physical key drives each domain. The only two facts about this keyboard that Olm
   -- cannot guess, and moving either one moves everything on it.
@@ -87,12 +62,6 @@ local olm = spoon.Olm:start({
     -- The active icon set and its fallback, one small file beside the typography.
     icons          = { file = settings.paths.icons },
   },
-
-  -- The BrowserTabs test suite reaches its plugin through a global, so that one name is
-  -- mirrored out for it. Nothing else in this config uses globals. Keyed by the plugin's own
-  -- name for the same reason the data block above is, and spelled browsertabs it mirrored
-  -- nothing at all, so the suite's own door was shut while everything else looked fine.
-  globals = { browserTabs = "BrowserTabs" },
 })
 
 print(olm:report())

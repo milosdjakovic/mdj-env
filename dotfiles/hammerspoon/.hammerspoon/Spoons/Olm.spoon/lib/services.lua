@@ -112,7 +112,7 @@ end
 --- GLOBAL VOCABULARY, since two plugins naming the same field both receive the same value. That
 --- is deliberate and is what lets one display fingerprint serve every plugin that scopes its
 --- memory by arrangement. It also means a root field name has to mean one thing across the
---- whole set, unlike a user sourced one, where cfg.data is keyed per plugin precisely because
+--- whole set, unlike a user sourced one, where cfg.plugins data is per plugin precisely because
 --- bundleID and settings mean different things to different plugins.
 ---
 --- Returns a table keyed by plugin name, each value a table of field to value, shaped

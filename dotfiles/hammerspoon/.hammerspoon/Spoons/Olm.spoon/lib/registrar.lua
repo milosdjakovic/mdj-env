@@ -902,7 +902,7 @@ end
 --- when that was never supplied either, every name that registered this run, answered fresh off
 --- the real instance's own all(), since that is what makes a fresh install activate everything
 --- rather than nothing, exactly the two things the first attempt got backwards. It read only
---- user.settings.toolActivation, so an absent settings block silently activated nothing and
+--- a roster in the user's settings, so an absent settings block silently activated nothing and
 --- deactivated every tool's row, its scope and its key with nothing anywhere naming what
 --- happened, audit findings twenty six and forty five, and the persisted setting a real roster
 --- picker would one day write was never consulted at all.

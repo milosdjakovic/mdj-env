@@ -57,7 +57,25 @@ function obj.new(deps)
   function self.plan(input)
     input = input or {}
     local manifests = input.manifests or {}
-    local userConfig = input.user or {}
+    -- The person's per plugin entries as config/plugins.lua writes them. An entry may also carry
+    -- the plugin's person supplied data and its spoon global, which are not overrides of its
+    -- defaults and must never be merged into them, so they are stripped here and nowhere else.
+    -- The root reads those two fields itself. A false entry stays false, it switches the plugin off.
+    local userConfig = {}
+    for name, entry in pairs(input.user or {}) do
+      if type(entry) == "table" and (entry.data ~= nil or entry.global ~= nil) then
+        local overrides = {}
+        for field, value in pairs(entry) do
+          if field ~= "data" and field ~= "global" then overrides[field] = value end
+        end
+        -- An entry holding only data or a global overrides nothing. It has to stay absent here
+        -- rather than become an empty table, since defaults.merge reads an empty table as an
+        -- empty list, a complete statement that would replace every default the plugin ships.
+        if next(overrides) ~= nil then userConfig[name] = overrides end
+      else
+        userConfig[name] = entry
+      end
+    end
     local present = input.present or function() return true end
     local libNames = input.libNames or {}
     local modules = input.modules

@@ -3,7 +3,7 @@
 --- Domain adapter: function-key "leader" modifiers for window management.
 ---
 --- Right Option and Right Command are remapped to function keys at the HID level
---- from the leaderKeys catalog in config/keys.lua. This spoon owns the per-leader binding
+--- from KeyRemap's own shipped leaderKeys catalog. This spoon owns the per-leader binding
 --- tables and the sub-modifier resolution policy; the hold / tap / chord
 --- MECHANICS (swallowing keys while held, hold-to-reveal timing) live in
 --- ChordKey.spoon, the shared engine it registers its leaders into (opts.chord).

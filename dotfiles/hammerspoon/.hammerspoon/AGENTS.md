@@ -4,7 +4,8 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
 - `init.lua` - Entry point, holding this machine's own data and preferences plus the one call into Olm
 - `config/` - User-editable configuration (pure data)
   - `apps.lua` - App bundle ID registry
-  - `keys.lua` - All keybinding definitions
+  - `keys.lua` - The two leader keys and the app toggle list, nothing that belongs to one plugin
+  - `plugins.lua` - One entry per plugin identity, holding that plugin's overrides of its manifest defaults, its person supplied data and its spoon global, or `false` to switch it off
   - `settings.lua` - Global settings (margins, timing)
   - `workspaces/` - Workspace definitions (dev.lua, vicert.lua)
 - `Spoons/` - Real Hammerspoon Spoons (reusable logic). The authoritative list is the
@@ -148,7 +149,7 @@ has a stated reason.
 **Leader keys (META < SUPER < HYPER).** Three physical keys can be remapped to
 unused function keys, named for the classic X11/Emacs modifier hierarchy,
 ascending with the Fn number. Hammerspoon owns the remap now, not a login
-LaunchAgent. `config/keys.lua` holds a pure `leaderKeys` catalog, one row per
+LaunchAgent. KeyRemap's own shipped `leaderKeys` catalog holds one row per
 remappable key giving only its physical source and target Fn key, and Olm's
 KeyRemap plugin turns the active rows into one `hidutil` `UserKeyMapping` and
 applies it on load, clearing on quit. A single `--set` replaces the whole table,
@@ -331,7 +332,7 @@ and an app toggle counts because its app row carries the shortcut. The only
 things exempt from the launcher rule are the surfaces used to reach the launcher
 itself, the launcher open key and the other discovery openers, since listing a
 finder inside the finder earns nothing. Both surfaces read the same
-`config/keys.lua` data, the cheat sheet through the sections the root assembles
+manifest data, the cheat sheet through the sections the root assembles
 and the launcher through its action rows, so a new binding is added to that data
 and surfaced in both places rather than in code only one of them reads, and the
 key and its listings can never drift. A binding whose `when` predicate is false
@@ -346,7 +347,7 @@ so removing the Hyper key degrades gracefully, it does not break other spoons. A
 toggle that states its own `modifiers` skips this fallback question entirely,
 since it was never headed into the modal to begin with. Window management
 has no such fallback: it goes only through `WindowLeader`, so its leader must be
-referenced in `config/keys.lua` (which is what applies its remap). Trade-offs:
+referenced in `config/keys.lua` as `windowLeader` (which is what applies its remap). Trade-offs:
 the remaps are machine-wide, so each referenced physical key loses its normal
 function in every app (today Caps Lock is F18 and Right Option is F16; the left
 modifiers still work, and Right Command is unreferenced so it stays a normal
@@ -527,7 +528,7 @@ The main root wires it like the other native choosers: the curated profiles and
 the JSON path (`hs.configdir .. "/config/display-profiles.json"`) are injected in
 `configure`, the view deps and the docked shortcut panel in
 `spoon.DisplayProfiles.chooser.configure`, plus the `displayProfilesOpen`
-predicate, the `displayProfiles` Hyper context in `config/keys.lua`, the
+predicate, the `displayProfiles` Hyper context its manifest declares, the
 `choosers` registry entry, and the launcher special action row. Because the JSON
 lives inside the watched tree, the pathwatcher callback skips a reload when only
 `display-profiles.json` changed, and the chooser rebuilds the engine in memory
@@ -826,14 +827,14 @@ composition root of truth and the per spoon files stay ignorant of how they are
 assembled. And a decision record describes only why a thing is shaped the way it
 is, it never enumerates the set of spoons, restates a key binding, or copies a
 method signature, because those already live in the `Spoons/` directory, in
-`config/keys.lua`, and in the spoon's own code, so any copy here is a second source
+each plugin's manifest, and in the spoon's own code, so any copy here is a second source
 of truth that drifts. When you need to point at one, point at where it lives rather
 than restating it. Adding a `AGENTS.md` inside an already symlinked spoon needs no
 restow, it resolves through the existing link like any new file.
 
 **A spoon never knows how it is used.** Which physical keys open a spoon and drive
 its list, and any human wording that names those keys or the interaction, live only
-in `config/keys.lua` and the composition root, and reach the user through the shared
+in the plugin's manifest and the composition root, and reach the user through the shared
 deferred shortcut panel. A spoon supplies its rows as plain data, a title, a subtitle,
 and an icon, plus the action a chosen row performs, and nothing more. It never bakes a
 hint like "Return to copy", or the name of the key that opens it, into a row, a
@@ -870,9 +871,9 @@ step mirroring what the clipboard already does.
    `selectNext`, `selectPrev`, `insertSelected`, and `hide`. A Chooser instance
    uses colon methods, so wrap it in a thin dot called adapter, as Olm's Vpn
    plugin does for its location picker.
-2. Add a context block in `config/keys.lua` under `hyperContexts`, with a name, a
-   `when` predicate name, a priority, and the bindings by action name. This stays
-   pure data.
+2. Declare the context in the plugin's own manifest `surface`, with a name, a `when`
+   predicate name, a priority, and the bindings by action name. This stays pure data, and
+   a person changes a binding in `config/plugins.lua`, never in the plugin.
 3. Add the predicate, the `when` name mapped to a function returning whether that
    surface is open, either on the plugin's own `predicates` table or, for a root owned
    gate, straight into `ownPredicates` in `root/compose.lua`.
@@ -884,8 +885,8 @@ step mirroring what the clipboard already does.
    hidden while the field is in use and reveal once the user pauses
    (`settings.shortcutsPanel.delayMs`). Build one with `shortcutPanelFor(name)`, defined in
    `Spoons/Olm.spoon/lib/hints.lua` and called from `root/compose.lua`, which reads the hints
-   from `footerFor(name)` in the same file (the same `hyperContexts`
-   bindings) and returns the three callbacks a chooser is wired with, then
+   from `footerFor(name)` in the same file (the same context
+   bindings the plan builds from the manifests) and returns the three callbacks a chooser is wired with, then
    pass `onPositioned`, `onActivity`, and `onClose` into the chooser. `onPositioned`
    arms the panel at the chooser frame, `onActivity` pokes its idle timer on each
    keypress, and `onClose` hides it and clears any peeked overlay. A consumer that
@@ -1476,7 +1477,7 @@ claims, and it names no tool. This root names the concrete scopes, each a thin a
 a tool that already answers a rows and a select, so a tool never learns it can be scoped.
 
 Adding one is two edits and there is no third. The `aliases` field goes on that
-tool's existing `config/keys.lua` entry, and its icon is the `defaults.icon` its manifest already declares, and one `scope(name, policy)` line goes in the list
+tool's manifest `defaults`, a person's own words go in its `config/plugins.lua` entry, and its icon is the `defaults.icon` its manifest already declares, and one `scope(name, policy)` line goes in the list
 here, where the policy is only where the rows come from, what choosing one does, what
 previewing one does, and whether the shared matcher applies. Everything a scope says about
 itself is read from that one entry by that helper, and one identity ties it together, the
@@ -1510,8 +1511,8 @@ actions and System Settings panes
 are neither, they narrow the launcher's own catalog, so they read `Launcher:rowsOfKind(kind)` and
 hand a chosen row back through `Launcher:runItem`, which keeps one row builder and one dispatcher
 however a row is reached. Those three scope a group of rows rather than one row, so like menu
-search they have no row of their own to advertise an alias on, and their `config/keys.lua`
-entries carry a description and an alias and no key because they open nothing. The alias
+search they have no row of their own to advertise an alias on, and their manifest defaults
+carry a description and an alias and no key because they open nothing. The alias
 directory is where they are found instead.
 
 **The alias directory, and the one door back into the launcher.** Every alias that scopes the
@@ -1525,7 +1526,7 @@ than a second chooser, which is what makes Back ordinary text editing, deleting 
 which is why it needs no context block, no predicate, no `choosers` entry, and no shortcut panel
 of its own. It is this root's policy over `QueryScope:catalog()` rather than something that spoon
 offers about itself, so the resolver still names no scope at all including its own, and its
-alias sits in `config/keys.lua` like every other rather than as a constant inside a spoon. And
+alias sits in its manifest defaults like every other rather than as a constant inside a spoon. And
 whichever way the word arrives, it is asked of `QueryScope:queryFor(name)`, so which alias is
 canonical and the separator after it stay with the grammar that owns them.
 

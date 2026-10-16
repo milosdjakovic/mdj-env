@@ -130,9 +130,9 @@ name = "colorPicker",   -- the directory is eyedropper
 Omit it only when the identity is exactly the directory name. Most surfaced tools differ,
 so omitting it is the exception rather than the rule.
 
-This is also the identity a person's own configuration has to use. `cfg.data` is keyed by
-plugin, and `cfg.globals` says which spoon global a plugin should be mirrored onto, and
-both are keyed by the identity a plugin declares for itself here, never by the directory
+This is also the identity a person's own configuration has to use. `cfg.plugins` is keyed by
+plugin, each entry holding that plugin's overrides, its `data`, and the `global` it should be
+mirrored onto, and it is keyed by the identity a plugin declares for itself here, never by the directory
 it happens to live in. Eight plugins in this tree spell the two differently, browsertabs
 the directory and browserTabs the declared identity among them, so a person's own file
 that copies the directory into either key lands data or a global under a name no plugin
@@ -1119,8 +1119,7 @@ row silently vanished.
 - `manifest.lua` loads with nothing required and touches no `hs`.
 - `apiVersion` equals the spoon's `obj.apiVersion`, and `about` carries at least `title` and
   `author`.
-- `name` is set unless the identity is exactly the directory, and any `cfg.data` or
-  `cfg.globals` key a person writes for this plugin uses that identity, never the
+- `name` is set unless the identity is exactly the directory, and any `cfg.plugins` key a person writes for this plugin uses that identity, never the
   directory.
 - Every external binary is in `needs.tools` with a `reason` and an `origin`, and nowhere
   else, since a manifest is the only place a tool may be declared. A tool named by `unit`

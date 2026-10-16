@@ -117,7 +117,7 @@ on selection, leaving is always the person's own key. Plain true from intercept 
 wholesale swap of the list and nothing else.
 
 The placeholder names the list, never a key, and no user visible text anywhere names a
-physical key, since bindings live in `config/keys.lua` and the hint surfaces already say them.
+physical key, since bindings live in the manifest and the hint surfaces already say them.
 A child inherits everything it does not declare, so declare only what genuinely differs.
 
 ## Anatomy
@@ -186,13 +186,13 @@ vocabulary nobody can pay. Siblings exist and are rare, prefer not needing one.
 
 Configuration splits three ways. The plugin proposes its own `defaults`, a leader role, a key,
 aliases, an icon, and a person overrides them outside the plugin, rebinding a physical key only
-in `config/keys.lua`, so no other file ever names one. Person supplied policy arrives as `needs.data` with `source = "user"`,
+in that plugin's entry in `config/plugins.lua`, so no other file ever names one. Person supplied policy arrives as `needs.data` with `source = "user"`,
 always optional, always with a `breaks` sentence and a working fallback.
 
 A field on that configuration surface prefers a structural value over a loose quoted word, a
 number, a boolean, a table, or a function rather than a string a plugin then matches against a
 set of meanings only its own source code knows. A bare string is unchecked vocabulary, and
-`config/keys.lua` requires nothing, so no plugin vocabulary can ever reach it and catch a typo
+`config/plugins.lua` requires nothing from a plugin, so no plugin vocabulary can ever reach it and catch a typo
 on the way in. AppToggler's own `hides` and `placement` fields are the settled example, a
 boolean and a table or a function rather than a word like `"showAndHide"` naming a behaviour
 from a set nothing validates. Where an enumeration genuinely cannot be avoided, validate it

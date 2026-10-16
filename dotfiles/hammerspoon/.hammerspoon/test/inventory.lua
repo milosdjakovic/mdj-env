@@ -10,7 +10,7 @@
 -- into one bundled Olm spoon, is the loaded spoon table, the chord key and hyper
 -- key atoms reached through spoon.Olm.lib, the launcher, action panel, query
 -- scope, and hyper cheat sheet hosts each reached through spoon.Olm module, the
--- hyperContexts bindings in config/keys.lua, the tool registry published at
+-- context blocks the load plan built from the plugin manifests, the tool registry published at
 -- spoon.Olm.registry, the assembled scope catalog the query scope host actually
 -- built from it, and hs.hotkey.getHotkeys, the global hotkey table Hammerspoon
 -- itself keeps for the two combinations that never touch a leader at all.
@@ -156,15 +156,18 @@ table.sort(itemLines)
 add("registry hypercheatsheet.items count=" .. #itemLines)
 for _, l in ipairs(itemLines) do add(l) end
 
--- The hyperContexts bindings, read from config/keys.lua through require, which
--- answers from the module cache this live config already populated rather than
--- reading the file a second time. This is a source exactly like the module doors
--- above, since it feeds five sections below, hypercontexts, actionpanel,
--- panelrows, hostedrows, and the counts each one prints, so a renamed or deleted
--- hyperContexts key would otherwise leave all five silently empty rather than
--- failing where the rename actually happened.
-local keysConfig = require("config.keys")
-local contexts = must(keysConfig.hyperContexts, "hyperContexts, the table in config/keys.lua")
+-- The context blocks, read from the load plan the composition root published on the loaded
+-- spoon, which is what the plugin manifests actually produced rather than a table kept by hand.
+-- config/keys.lua used to hold a hyperContexts table for this, and nothing at runtime ever read
+-- it, so this section snapshotted a dead copy. Each block has the same name, when, priority and
+-- bindings shape that table had, with the action panel chord already carried in it. This is a
+-- source exactly like the module doors above, since it feeds five sections below,
+-- hypercontexts, actionpanel, panelrows, hostedrows, and the counts each one prints, so an
+-- unreachable plan would otherwise leave all five silently empty rather than failing here.
+local composed = must(olm._composed, "spoon.Olm._composed, the record the composition root published")
+local planContexts = must(composed.plan and composed.plan.contexts, "the plan's contexts, built from the manifests")
+local contexts = {}
+for _, block in pairs(planContexts) do contexts[#contexts + 1] = block end
 
 local contextNames = {}
 local byName = {}

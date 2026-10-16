@@ -474,7 +474,7 @@ defaults = { leader = "app", key = "P", description = "VPN", icon = "vpn" },
 
 A key `defaults.icon` names that `icons` does not declare is refused at register with one console
 line naming your plugin. A table spec is also accepted there, though a key serves the plugin's
-own rows too and is preferred. A person who writes a string over it in `config/keys.lua` that is
+own rows too and is preferred. A person who writes a string over it in `config/plugins.lua` that is
 not a declared key means an emoji, the plain shorthand. An action panel verb or a binding names
 its icon the same way, `icon = "key"` on the binding, read against the plugin that owns the
 context. A computed row source names `icon = "key"` on the rows it answers, and the root

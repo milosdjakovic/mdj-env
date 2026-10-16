@@ -193,8 +193,8 @@ each manifest declares, and both compare against the spoon's own `obj.apiVersion
 of the number. `decisions/olm-manifest-header.md` at the repository root has why.
 
 **Identity stays off the descriptor.** The physical key, the activation roster, and the alias
-words live above this spoon in the config tree, `config/keys.lua` and `config/settings.lua`
-under `.hammerspoon`, never on the descriptor, so a tool
+words live above this spoon in the config tree, `config/plugins.lua`, `config/keys.lua` and
+`config/settings.lua` under `.hammerspoon`, never on the descriptor, so a tool
 knows what it does and the person's config knows how it is reached. That split is why a
 rebind, a rename, or a deactivation never touches a plugin.
 
