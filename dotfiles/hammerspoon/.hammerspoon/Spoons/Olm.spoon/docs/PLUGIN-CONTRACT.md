@@ -446,16 +446,18 @@ arrangement of displays is attached right now, as one comparable string, so two 
 that both scope memory to the desk agree on what the desk currently is. `storePath`, where
 a plugin keeps data a person is meant to read, edit, and commit by hand.
 
-Four words over the one plugin switch, `lib/pluginswitch.lua`, for a settings page.
+Three words over the one plugin switch, `lib/pluginswitch.lua`, for a settings page.
 `pluginCatalog()` answers a list of `{ identity, directory, about, needs, disabled, lockedBy,
 offBecause }` for the plugins under `plugins/`, never a host, sorted by about title, `needs`
-being sorted names under `tools`, `libs`, `siblings` and `data`, and `lockedBy` being
-`"config"` for a plugin switched off in `config/plugins.lua`. `disabledPlugins()` answers the
-switched off identities as a sorted list. `pluginCascade(identity)` answers which identities
-would go off with it, or come back with it when it is off now, from a dry run of the
-resolver's plan that loads and probes nothing. `setPluginDisabled(identity, off)` refuses a
-host and a config locked plugin, saves the set under `Olm.disabledPlugins` in `hs.settings`,
-and schedules one reload. Each reads the set this load started with.
+being sorted names under `tools`, `libs`, `siblings` and `data`, `lockedBy` being `"config"`
+for a plugin switched off in `config/plugins.lua` and `"core"` for one a host requires, and
+`offBecause` being the sorted list of every switched off plugin this one depends on, or nil.
+`pluginCascade(identity)` answers which identities would go off with it, or come back with it
+when it is off now, from a dry run of the resolver's plan that loads and probes nothing.
+`setPluginDisabled(identity, off)` refuses a host, a config locked plugin and one the core
+needs, saves the set under `Olm.disabledPlugins` in `hs.settings` holding only identities
+that are still switchable, and schedules one reload. Each reads the set this load started
+with.
 
 And the presenting plugin's own set, review finding L4, none of these named here until the
 rework following the trickle migrations, which is what let one of them, `stageSetPlaceholder`,

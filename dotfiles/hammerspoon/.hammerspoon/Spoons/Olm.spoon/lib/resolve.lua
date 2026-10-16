@@ -135,7 +135,9 @@ function obj.new(deps)
         out.disabled[name] = true
       end
     end
-    if P.offBecause then out.offBecause = P.offBecause(manifests, switchedOff) end
+    if P.offBecause then
+      out.offBecause = P.offBecause(manifests, switchedOff, input.switchable)
+    end
     local off = {}
     for name in pairs(out.disabled) do off[name] = true end
     for name in pairs(out.offBecause) do off[name] = true end
@@ -411,8 +413,15 @@ function obj.new(deps)
     for name in pairs(plan.disabled) do
       add("  " .. name .. ", switched off")
     end
-    for name, cause in pairs(plan.offBecause or {}) do
-      add("  " .. name .. ", off because " .. cause .. " is switched off")
+    -- Sorted, since the causes are already sorted lists and the lines should read the same on
+    -- every load.
+    local offNames = {}
+    for name in pairs(plan.offBecause or {}) do offNames[#offNames + 1] = name end
+    table.sort(offNames)
+    for _, name in ipairs(offNames) do
+      local cause = plan.offBecause[name]
+      add("  " .. name .. ", off because " .. table.concat(cause, " and ")
+        .. (#cause > 1 and " are" or " is") .. " switched off")
     end
     for name, why in pairs(plan.blocked) do
       add("  " .. name .. ", NOT wired, " .. why)

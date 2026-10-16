@@ -36,34 +36,51 @@ function M.isOff(entry, pending)
   return entry.disabled == true or entry.offBecause ~= nil
 end
 
---- M.toggleable(entry) -> bool
---- A plugin switched off in config, or off because a sibling it requires is off, cannot be
---- flipped from here. The first is a line in a file only the person can change, and the second
---- comes back on its own when the sibling does.
-function M.toggleable(entry)
-  return entry.lockedBy == nil and entry.offBecause == nil
+--- M.toggleable(entry, selfIdentity) -> bool
+--- A plugin switched off in config, off because a sibling it requires is off, needed by the core,
+--- or this plugin itself cannot be flipped from here. The first is a line in a file only the
+--- person can change, the second comes back on its own when the sibling does, the third would
+--- take a host down, and the last would switch off the only page that can switch it back. The
+--- plugin knows its own identity, so the root names no plugin to protect it.
+function M.toggleable(entry, selfIdentity)
+  return entry.identity ~= selfIdentity and entry.lockedBy == nil and entry.offBecause == nil
 end
 
---- M.words(entry, catalog, pending) -> string
---- The state in plain words, the row's subtitle.
-function M.words(entry, catalog, pending)
-  if entry.lockedBy == "config" then return "locked off in config" end
-  if entry.offBecause ~= nil then
-    local cause = byIdentity(catalog)[entry.offBecause]
-    return "off because " .. (cause and titleOf(cause) or tostring(entry.offBecause)) .. " is off"
+-- The titles of the plugins a switched off one depends on, said as one phrase, A is off, A and B
+-- are off, or A, B and C are off.
+local function causeWords(entry, catalog)
+  local map = byIdentity(catalog)
+  local titles = {}
+  for _, identity in ipairs(entry.offBecause) do
+    local cause = map[identity]
+    titles[#titles + 1] = cause and titleOf(cause) or tostring(identity)
   end
+  local joined = titles[1]
+  if #titles > 1 then
+    joined = table.concat(titles, ", ", 1, #titles - 1) .. " and " .. titles[#titles]
+  end
+  return joined .. (#titles > 1 and " are off" or " is off")
+end
+
+--- M.words(entry, catalog, pending, selfIdentity) -> string
+--- The state in plain words, the row's subtitle.
+function M.words(entry, catalog, pending, selfIdentity)
+  if entry.identity == selfIdentity then return "this page" end
+  if entry.lockedBy == "core" then return "needed by the core" end
+  if entry.lockedBy == "config" then return "locked off in config" end
+  if entry.offBecause ~= nil then return "off because " .. causeWords(entry, catalog) end
   return M.isOff(entry, pending) and "off" or "on"
 end
 
---- M.rows(catalog, pending, row) -> rows
+--- M.rows(catalog, pending, row, selfIdentity) -> rows
 --- One row per catalog entry, the catalog's own order, which the root already sorted by title.
 --- row is the plugin's own row constructor, so this file never decides what a row's fields are.
-function M.rows(catalog, pending, row)
+function M.rows(catalog, pending, row, selfIdentity)
   local rows = {}
   for _, entry in ipairs(catalog or {}) do
-    rows[#rows + 1] = row(titleOf(entry), M.words(entry, catalog, pending),
+    rows[#rows + 1] = row(titleOf(entry), M.words(entry, catalog, pending, selfIdentity),
       M.isOff(entry, pending) and M.ICON_OFF or M.ICON_ON,
-      { plugin = entry.identity, toggle = M.toggleable(entry) }, true)
+      { plugin = entry.identity, toggle = M.toggleable(entry, selfIdentity) }, true)
   end
   return rows
 end
@@ -99,11 +116,11 @@ local function cascadeLine(entry, catalog, cascade, pending)
   return lead .. table.concat(titles, ", ") .. "."
 end
 
---- M.detail(ui, entry, catalog, cascade, pending) -> node
+--- M.detail(ui, entry, catalog, cascade, pending, selfIdentity) -> node
 --- The detail block for one plugin, built from kit nodes. The heading is the title with the
 --- version flush right, then the about facts, then the needs in short labelled groups, then the
 --- cascade line when there is one. Every piece of text names a role and never a font or colour.
-function M.detail(ui, entry, catalog, cascade, pending)
+function M.detail(ui, entry, catalog, cascade, pending, selfIdentity)
   local about = entry.about or {}
   local blocks = {}
 
@@ -116,7 +133,7 @@ function M.detail(ui, entry, catalog, cascade, pending)
   end
 
   blocks[#blocks + 1] = ui.heading(string.upper(titleOf(entry)), about.version and ("v" .. about.version) or nil)
-  blocks[#blocks + 1] = ui.text(M.words(entry, catalog, pending), "caption")
+  blocks[#blocks + 1] = ui.text(M.words(entry, catalog, pending, selfIdentity), "caption")
   fact("Author", about.author)
   fact("License", about.license)
   fact("Homepage", about.homepage)

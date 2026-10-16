@@ -1,7 +1,8 @@
 # Olm core and plugins apart
 
 Status. In progress. Phases 1 to 3 of `Spoons/Olm.spoon/docs/PLAN-CORE-SPLIT.md` have
-landed. Phase 5's switch, without its page, is built on its branch and owes its live load.
+landed. Phase 5, the switch and the settings Plugins page, is built and reviewed on its branch
+and owes its live load.
 
 ## Now
 
@@ -23,7 +24,9 @@ Bringing an app forward is `lib/appfocus.lua`, and `coveredApp` and `refreshLaun
 the root publishes over the launcher.
 There is one plugin switch. A plugin under `plugins/` is off when `config/plugins.lua` says
 `false` or the settings page saved its identity under `Olm.disabledPlugins`, its code never
-runs, a plugin requiring it is reported off because of it, and a change takes one reload.
+runs, a plugin requiring it is reported off because of every switched off plugin it depends on,
+and a change takes one reload. A plugin a host requires is locked by the core and cannot be
+switched, and the settings page cannot switch itself off.
 
 ## Rejected
 
@@ -134,3 +137,30 @@ runs, a plugin requiring it is reported off because of it, and a change takes on
   sibling naming it, and every other reader in the root gets the set without them. The
   registry roster `Olm.registryActivation` is deleted from `registrar.forWire`, which activates
   every tool that registered. Nothing had ever written that key, so no machine loses a choice.
+- 2026-10-16 13:56, 452be9c. The Actions key of the action panel declared a leader and a key in
+  its manifest, which put o Actions on the Hyper cheat sheet although nothing binds o on that
+  leader. The real chord comes from `lib/surface.lua` inside every list, so the manifest now
+  declares neither.
+- 2026-10-16 14:12. Phase 5 packet two built on its branch, the Plugins page in the settings
+  plugin. It lists every plugin under `plugins/` with a green or red circle, shows the
+  highlighted one's about block, needs and cascade in a docked pane, and a press saves the switch
+  and schedules one reload. The page reads three root words, `pluginCatalog`, `pluginCascade` and
+  `setPluginDisabled`, and its row on the top level appears only when they arrive. A press on a
+  locked row answers stay and changes nothing.
+- 2026-10-16 14:26. Review fixes to phase 5. The page could switch itself off and lose the only
+  way back, so it now treats its own row as not toggleable, the plugin reading its identity from
+  its own directory name. A stale saved identity was logged as an error on every load and never
+  removed, so `set` now writes back only identities that are still switchable and the root logs
+  a refused saved entry as a warning saying it is dropped on the next switch, keeping the error
+  for a refused `false` in config, which is a person's own mistake. `offBecause` picked the
+  first required sibling `pairs` returned, so it now maps each off plugin to the sorted list of
+  every switched off plugin it depends on, and every report line, the explanation, the catalog
+  and the page subtext read the list. A host is never marked off, and a plugin that a host
+  requires is reported by `pluginsLib.requiredByCore`, refused by the merge and the setter, and
+  shown as needed by the core, which changes nothing live today since no host requires a plugin.
+  The pane no longer hides itself when the empty state is missing, the unused root word
+  `disabledPlugins` is gone, and a stale comment about registry deactivation was rewritten.
+  Still open. Five plugins now copy the same canvas lifecycle for a docked companion pane, so a
+  shared companion pane kit piece in the lib is a candidate once a sixth appears or one of them
+  changes. And no test runs `root/compose.lua`, so a regression that read `allManifests` where
+  it should read the switched off set would stay green until phase 6's gate or a live load.

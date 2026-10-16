@@ -92,15 +92,14 @@ end
 function M.clear()
   build = nil
   if hidden or not (frame and cfg.surface and cfg.ui) then return end
-  if not cfg.emptyState then
-    if canvas then canvas:hide() end
-    return
-  end
   ensureCanvas()
   local rect = innerRect()
   local els = {}
   for _, el in ipairs(cfg.surface(frame.w, frame.h)) do els[#els + 1] = el end
-  for _, el in ipairs(cfg.emptyState(rect.w, rect.h)) do
+  -- The manifest declares a pane surface, so the empty state always arrives beside it. Were it
+  -- missing, the pane would still stay up with its backdrop and nothing drawn on it, since a
+  -- docked pane is never hidden while its presentation shows.
+  for _, el in ipairs(cfg.emptyState and cfg.emptyState(rect.w, rect.h) or {}) do
     els[#els + 1] = shifted(el, rect.x, rect.y)
   end
   canvas:frame(frame)

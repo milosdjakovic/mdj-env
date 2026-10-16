@@ -40,17 +40,22 @@ local catalog = {
   { identity = "beta", about = { title = "Beta" }, needs = { tools = {}, libs = {}, siblings = {},
       data = {} }, disabled = true },
   { identity = "gamma", about = { title = "Gamma" }, needs = {}, disabled = false,
-    offBecause = "beta" },
+    offBecause = { "beta" } },
   { identity = "delta", about = { title = "Delta" }, needs = {}, disabled = true,
     lockedBy = "config" },
+  { identity = "settings", about = { title = "Settings" }, needs = {}, disabled = false },
+  { identity = "epsilon", about = { title = "Epsilon" }, needs = {}, disabled = false,
+    lockedBy = "core" },
+  { identity = "zeta", about = { title = "Zeta" }, needs = {}, disabled = false,
+    offBecause = { "alpha", "beta" } },
 }
 
 local function row(title, subTitle, icon, item, enabled)
   return { title = title, subTitle = subTitle, icon = icon, item = item, enabled = enabled }
 end
 
-local rows = page.rows(catalog, {}, row)
-eq("one row per catalog entry", #rows, 4)
+local rows = page.rows(catalog, {}, row, "settings")
+eq("one row per catalog entry", #rows, 7)
 eq("an on plugin says on", rows[1].subTitle, "on")
 eq("an on plugin carries the green circle", rows[1].icon, "selected")
 eq("an off plugin says off", rows[2].subTitle, "off")
@@ -62,8 +67,13 @@ check("a plain plugin is toggleable", rows[1].item.toggle == true and rows[2].it
 check("a locked or dependent plugin is not toggleable",
   rows[3].item.toggle == false and rows[4].item.toggle == false)
 eq("the row carries the identity", rows[1].item.plugin, "alpha")
+eq("the page's own row says so", rows[5].subTitle, "this page")
+check("the page's own row is not toggleable", rows[5].item.toggle == false)
+eq("a plugin the core needs says so", rows[6].subTitle, "needed by the core")
+check("a plugin the core needs is not toggleable", rows[6].item.toggle == false)
+eq("two causes are both named", rows[7].subTitle, "off because Alpha and Beta are off")
 
-local after = page.rows(catalog, { alpha = true }, row)
+local after = page.rows(catalog, { alpha = true }, row, "settings")
 eq("a pending switch moves the marker", after[1].icon, "notSelected")
 eq("a pending switch changes the words", after[1].subTitle, "off")
 

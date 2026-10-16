@@ -124,7 +124,8 @@ check("window size is not loaded while the window manager is off", not has(befor
 local plan = resolver.plan({ manifests = manifests, user = {}, disabled = wmOff,
   present = function() return true end, libNames = libNames })
 check("the plan marks the window manager disabled", plan.disabled.windowmanager == true)
-eq("window size is off because of the window manager", plan.offBecause.windowsize, "windowmanager")
+eq("window size is off because of the window manager only",
+  table.concat(plan.offBecause.windowsize or {}, ","), "windowmanager")
 eq("window size is not reported as blocked", plan.blocked.windowsize, nil)
 check("neither is in the wiring order", not has(plan.order, "windowmanager")
   and not has(plan.order, "windowsize"))
@@ -144,6 +145,54 @@ eq("the report names the switched off plugin", lines[1], "switched off, windowma
 eq("the report names its dependent and why", lines[2],
   "off because windowmanager is switched off, windowsize")
 eq("nothing switched off reports nothing", #switch.reportLines({}, {}), 0)
+
+-- Every cause is named, sorted, and a host is never taken off. Four synthetic manifests, one
+-- plugin requiring two others, one chain through a third, and a host requiring a plugin.
+local function need(plugin) return { plugin = plugin, member = "thing" } end
+local synth = {
+  alpha = {}, beta = {},
+  both = { needs = { siblings = { a = need("beta"), b = need("alpha") } } },
+  chain = { needs = { siblings = { a = need("both") } } },
+  gate = { needs = { siblings = { a = need("alpha") } } },
+  corehost = { needs = { siblings = { a = need("alpha") } } },
+  lone = {},
+}
+local function synthSwitchable(identity) return identity ~= "corehost" end
+local causes = plugins.offBecause(synth, { alpha = true, beta = true }, synthSwitchable)
+eq("a plugin on two switched off ones names both, sorted", table.concat(causes.both or {}, ","),
+  "alpha,beta")
+eq("a plugin down a chain names the roots, not the link between", table.concat(causes.chain or {}, ","),
+  "alpha,beta")
+eq("a plugin on one switched off one names it", table.concat(causes.gate or {}, ","), "alpha")
+eq("a host is never marked off", causes.corehost, nil)
+eq("an unrelated plugin is untouched", causes.lone, nil)
+local needed = plugins.requiredByCore(synth, synthSwitchable)
+check("a plugin a host requires is reported as needed by the core",
+  needed.alpha == true and needed.beta == nil and needed.lone == nil)
+local mergedDisabled, _, mergedRefused = switch.merge({ entries = { alpha = false },
+  saved = { "beta", "alpha" }, switchable = synthSwitchable,
+  known = function(identity) return synth[identity] ~= nil end, coreNeeded = needed })
+check("a plugin a host requires is refused from config and from the saved set",
+  mergedDisabled.alpha == nil and mergedDisabled.beta == true and #mergedRefused == 2
+    and tostring(mergedRefused[1].why):find("needed by the core", 1, true) ~= nil)
+local coreStore = { "beta" }
+local coreOk, coreWhy = switch.set("alpha", true, { switchable = synthSwitchable,
+  lockedBy = { alpha = "core" }, read = function() return coreStore end,
+  write = function(list) coreStore = list end })
+check("the setter refuses a plugin a host requires and says why",
+  coreOk == false and tostring(coreWhy):find("needed by the core", 1, true) ~= nil)
+local coreCatalog = switch.catalog({ manifests = synth, directories = {}, switchable = synthSwitchable,
+  disabled = {}, lockedBy = { alpha = "core" }, offBecause = causes })
+local synthRows = {}
+for _, row in ipairs(coreCatalog) do synthRows[row.identity] = row end
+eq("the catalog marks a plugin a host requires as locked by the core", synthRows.alpha.lockedBy, "core")
+eq("the catalog carries every cause as a list", table.concat(synthRows.both.offBecause, ","),
+  "alpha,beta")
+local synthLines = switch.reportLines({ alpha = true, beta = true }, causes)
+eq("the report says which plugins are off because of one", synthLines[2],
+  "off because alpha is switched off, gate")
+eq("and which because of two", synthLines[3],
+  "off because alpha and beta are switched off, both, chain")
 
 -- The cascade a settings page asks, both ways.
 local goes = switch.cascade({ plan = resolver.plan, manifests = manifests, user = {},
@@ -194,6 +243,10 @@ eq("the saved set is written sorted", table.concat(store, ","), "tmuxSessions,wi
 eq("one switch asks for one reload", reloads, 1)
 switch.set("tmuxSessions", false, setOpts())
 eq("switching one back on removes only it", table.concat(store, ","), "windowmanager")
+store = { "gone", "launcher", "tmuxSessions" }
+switch.set("windowmanager", true, setOpts())
+eq("a stale or refused saved identity is dropped on the next switch",
+  table.concat(store, ","), "tmuxSessions,windowmanager")
 
 -- The catalog a page lists.
 local catalog = switch.catalog({ manifests = manifests, directories = directories,

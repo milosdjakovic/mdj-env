@@ -30,7 +30,8 @@ end
 --- M.merge(opts) -> disabled, lockedBy, refused
 --- opts.entries is the person's config/plugins.lua table, opts.saved the list read from the
 --- saved setting, opts.switchable(identity) whether a plugin under plugins/ answers to it and
---- opts.known(identity) whether anything does. disabled is a set of identities, lockedBy maps an
+--- opts.known(identity) whether anything does. opts.coreNeeded is an optional set of plugins a
+--- host requires, refused like a host since switching one off would take the host down. disabled is a set of identities, lockedBy maps an
 --- identity switched off in config to "config", and refused lists one { identity, source, why }
 --- per switch that was not honoured. A switch in config wins the lock even when the same
 --- identity is also saved, since a page cannot undo a line in a file the person wrote.
@@ -50,6 +51,9 @@ function M.merge(opts)
     elseif not switchable(identity) then
       refused[#refused + 1] = { identity = identity, source = source,
         why = "is part of Olm's core rather than a plugin under plugins, so it cannot be switched off" }
+    elseif (opts.coreNeeded or {})[identity] then
+      refused[#refused + 1] = { identity = identity, source = source,
+        why = "is needed by the core, so it cannot be switched off" }
     else
       disabled[identity] = true
       if source == "config" then lockedBy[identity] = "config" end
@@ -143,7 +147,8 @@ end
 
 --- M.catalog(opts) -> list
 --- One row per switchable plugin, sorted by its about title, { identity, directory, about,
---- needs, disabled, lockedBy, offBecause }. opts carries manifests, directories,
+--- needs, disabled, lockedBy, offBecause }, where offBecause is a sorted list of the switched off
+--- plugins this one depends on, or nil, and lockedBy is "config" or "core". opts carries manifests, directories,
 --- switchable(identity), disabled, lockedBy and offBecause. A host never appears, since it is
 --- not something a person can switch.
 function M.catalog(opts)
@@ -176,8 +181,8 @@ end
 --- opts.off is false, which would come back with it. A dry run of the resolver's own plan over
 --- the manifests, twice, once with the current set and once with the change, so the answer is
 --- the plan's rather than a second reading of the sibling graph. opts.plan is the resolver's
---- plan function, and it is handed no modules and a present answering yes to every tool, so
---- nothing loads and nothing is probed. The identity itself is never in the answer.
+--- plan function and opts.switchable is passed through to it. It is handed no modules and a
+--- present answering yes to every tool, so nothing loads and nothing is probed. The identity itself is never in the answer.
 function M.cascade(opts)
   opts = opts or {}
   local identity = opts.identity
@@ -194,6 +199,7 @@ function M.cascade(opts)
       disabled = disabled,
       present = function() return true end,
       libNames = opts.libNames,
+      switchable = opts.switchable,
     })
     local off = {}
     for name in pairs(plan.disabled or {}) do off[name] = true end
@@ -216,18 +222,27 @@ end
 --- Switches one plugin off or back on in the saved set and asks for the reload that applies it.
 --- opts carries switchable(identity), lockedBy, read() answering the saved list, write(list)
 --- and reload(). A plugin switched off in config is locked, since the page cannot change a file
---- the person wrote, and saying no is better than saving a choice that changes nothing.
+--- the person wrote, and a plugin the core requires is locked too, and saying no is better than
+--- saving a choice that changes nothing. What is written back holds only identities that are
+--- switchable and not locked by the core, so a stale saved name, a plugin since deleted or
+--- moved, is dropped on the next switch instead of being refused on every load for ever.
 function M.set(identity, off, opts)
   opts = opts or {}
+  local locks = opts.lockedBy or {}
   if type(identity) ~= "string" or not (opts.switchable and opts.switchable(identity)) then
     return false, tostring(identity) .. " is not a plugin that can be switched off"
   end
-  if (opts.lockedBy or {})[identity] then
+  if locks[identity] == "core" then
+    return false, identity .. " is needed by the core, so it cannot be switched off"
+  end
+  if locks[identity] then
     return false, identity .. " is switched off in config/plugins.lua, which only that file can change"
   end
   local set = {}
   for _, name in ipairs(opts.read and opts.read() or {}) do
-    if type(name) == "string" then set[name] = true end
+    if type(name) == "string" and opts.switchable(name) and locks[name] ~= "core" then
+      set[name] = true
+    end
   end
   if off then set[identity] = true else set[identity] = nil end
   opts.write(sortedKeys(set))
@@ -238,22 +253,30 @@ end
 --- M.reportLines(disabled, offBecause) -> list of strings
 --- The one or two lines a report carries about switches. Nothing when nothing is off, since a
 --- line saying so on every clean load is noise. These are choices rather than problems, so
---- they never stand in the way of a report saying no problems.
+--- they never stand in the way of a report saying no problems. offBecause maps each plugin to
+--- the sorted list of switched off plugins it depends on, and plugins with the same causes
+--- share a line.
 function M.reportLines(disabled, offBecause)
   local lines = {}
   local names = sortedKeys(disabled)
   if #names > 0 then
     lines[#lines + 1] = "switched off, " .. table.concat(names, ", ")
   end
-  local byCause = {}
-  for name, cause in pairs(offBecause or {}) do
-    byCause[cause] = byCause[cause] or {}
-    table.insert(byCause[cause], name)
+  local byCause, causeList = {}, {}
+  for name, causes in pairs(offBecause or {}) do
+    local key = table.concat(causes, " and ")
+    if not byCause[key] then
+      byCause[key] = { names = {}, plural = #causes > 1 }
+      causeList[#causeList + 1] = key
+    end
+    table.insert(byCause[key].names, name)
   end
-  for _, cause in ipairs(sortedKeys(byCause)) do
-    table.sort(byCause[cause])
-    lines[#lines + 1] = "off because " .. cause .. " is switched off, "
-      .. table.concat(byCause[cause], ", ")
+  table.sort(causeList)
+  for _, key in ipairs(causeList) do
+    local group = byCause[key]
+    table.sort(group.names)
+    lines[#lines + 1] = "off because " .. key .. (group.plural and " are" or " is")
+      .. " switched off, " .. table.concat(group.names, ", ")
   end
   return lines
 end

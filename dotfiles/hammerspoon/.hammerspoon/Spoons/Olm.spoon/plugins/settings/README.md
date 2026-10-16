@@ -34,7 +34,7 @@ reload. A refusal is said through the routine feedback line rather than an alert
 only page with a docked pane. For the highlighted plugin it shows the title and version, the
 author, license and homepage when declared, what the plugin needs in short groups, and a line
 naming what else goes off or comes back with it, taken from the root's own dry run of the plan.
-With nothing highlighted, on Back, the pane shows the shared empty state. The four root words
-behind it, `pluginCatalog`, `disabledPlugins`, `pluginCascade` and `setPluginDisabled`, come
+With nothing highlighted, on Back, the pane shows the shared empty state. The three root words
+behind it, `pluginCatalog`, `pluginCascade` and `setPluginDisabled`, come
 from `lib/pluginswitch.lua`. `pluginspage.lua` builds the rows and the detail block as plain
 data and kit nodes, and `pane.lua` is the canvas that draws them.

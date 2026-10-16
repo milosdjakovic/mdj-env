@@ -494,34 +494,78 @@ function obj.data(manifests)
 end
 
 -- Which plugins go off because a plugin they require is switched off, each mapped to the
--- switched off plugin at the root of its chain, so a person reads the choice that caused it
--- rather than whichever link sat between.
+-- sorted list of every switched off plugin it depends on, through any chain of required
+-- siblings, so a person reads the choices that caused it and the answer is the same on every
+-- load. Taking the first one found would depend on the order pairs happens to visit.
 --
 -- Separate from cascade below on purpose. A plugin a person switched off is a choice, so its
 -- dependents are not broken and must not be reported as blocked, and this has to be answerable
 -- before anything loads, since the loader skips both. Only a required sibling carries the
 -- switch, an optional one leaves its user running without that part, and silent about it.
-function obj.offBecause(manifests, disabled)
+--
+-- switchable is optional, a function of an identity. A manifest it refuses, a host, is never
+-- marked off whatever it requires, since a choice about a plugin must not take core down. The
+-- plugins such a manifest requires are named by requiredByCore below and cannot be switched.
+function obj.offBecause(manifests, disabled, switchable)
   disabled = disabled or {}
-  local off = {}
+  local function mayGoOff(name) return switchable == nil or switchable(name) end
+  local roots = {}
   local changed = true
   while changed do
     changed = false
     for name, m in pairs(manifests) do
-      if not disabled[name] and not off[name] then
+      if not disabled[name] and mayGoOff(name) then
         for _, value in pairs((m.needs or {}).siblings or {}) do
           local sib = normalizeSibling(value)
           local dep = sib.plugin
-          if dep and sib.policy == "required" and (disabled[dep] or off[dep]) then
-            off[name] = disabled[dep] and dep or off[dep]
-            changed = true
-            break
+          if dep and sib.policy == "required" then
+            local found = {}
+            if disabled[dep] then found[dep] = true end
+            for root in pairs(roots[dep] or {}) do found[root] = true end
+            for root in pairs(found) do
+              roots[name] = roots[name] or {}
+              if not roots[name][root] then
+                roots[name][root] = true
+                changed = true
+              end
+            end
           end
         end
       end
     end
   end
+  local off = {}
+  for name, set in pairs(roots) do
+    local list = {}
+    for root in pairs(set) do list[#list + 1] = root end
+    table.sort(list)
+    off[name] = list
+  end
   return off
+end
+
+-- The plugins a manifest that is not switchable requires, directly or through the plugins
+-- those require, as a set. Switching one of them off would take a host down with it, which
+-- offBecause refuses to do, so the only honest answer is that such a plugin cannot be
+-- switched off at all. Only a required sibling counts, an optional one leaves the host running.
+function obj.requiredByCore(manifests, switchable)
+  local needed = {}
+  local queue = {}
+  for name in pairs(manifests) do
+    if not switchable(name) then queue[#queue + 1] = name end
+  end
+  while #queue > 0 do
+    local name = table.remove(queue)
+    for _, value in pairs(((manifests[name] or {}).needs or {}).siblings or {}) do
+      local sib = normalizeSibling(value)
+      local dep = sib.plugin
+      if dep and sib.policy == "required" and manifests[dep] and not needed[dep] then
+        if switchable(dep) then needed[dep] = true end
+        queue[#queue + 1] = dep
+      end
+    end
+  end
+  return needed
 end
 
 -- Cascade a block along the sibling graph, and catch a name that resolves to nothing.

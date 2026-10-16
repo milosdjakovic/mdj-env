@@ -153,15 +153,24 @@ item 3 will read. `lib/pluginswitch.lua` merges the `false` entries in `config/p
 with the identities saved under `Olm.disabledPlugins`, refusing out loud anything that is not
 a plugin under `plugins/`, and the root hands the set to the loader and to the resolver
 before anything loads. `lib/plugins.lua` answers `offBecause`, every plugin requiring a
-switched off one mapped to that plugin, which the loader skips too, and the resolver reports
+switched off one mapped to the sorted list of every switched off plugin it depends on, which the loader skips too, and the resolver reports
 both as choices, `plan.disabled` and `plan.offBecause`, while a sibling or a set question
 naming a switched off plugin is no longer reported as a defect. Everything in the root after
 step C reads the manifests without the switched off ones, so the door, the icons, the fan out
 and the delivery check never reach one. `spoon.Olm:report()` leads with `switched off, x` and
 `off because x is switched off, y` and still says no problems when those are the only
-differences. The settings plugin declares `pluginCatalog`, `disabledPlugins`, `pluginCascade`
-and `setPluginDisabled` as optional root words, and `registrar.forWire` activates every tool
-that registered. `test/cases/pluginswitch.lua` covers it. The page itself is the next packet.
+differences. The settings plugin declares `pluginCatalog`, `pluginCascade` and `setPluginDisabled` as
+optional root words, and `registrar.forWire` activates every tool that registered.
+`test/cases/pluginswitch.lua` covers it.
+
+**Packet two done, 2026-10-16, built, live load owed.** The Plugins page in `plugins/settings`,
+rows with a green or red circle, a docked pane with the about block, needs and cascade, and one
+reload per switch, covered by `test/cases/settings-plugins.lua`. The action panel's Actions key
+no longer declares a leader or key in its manifest, since the real chord comes from
+`lib/surface.lua` inside every list. The review then added that the page cannot switch itself
+off, that a stale saved identity is warned about and dropped on the next switch, that a plugin a
+host requires is locked by the core and a host is never marked off, and that the unused word
+`disabledPlugins` is gone.
 
 ### Phase 6, the gate
 

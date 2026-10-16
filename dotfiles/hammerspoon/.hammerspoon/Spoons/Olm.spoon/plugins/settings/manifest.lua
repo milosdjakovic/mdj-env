@@ -71,17 +71,15 @@ return {
         breaks = "choosing a theme on the Theme page changes nothing, since applying and "
           .. "persisting a theme has no other way in from this plugin" },
 
-      -- The plugins page's four words over the one switch, published by the root over
+      -- The plugins page's three words over the one switch, published by the root over
       -- lib/pluginswitch.lua. Optional, since every other page here works without them, and
       -- the Plugins row appears only when they arrive. The catalog lists the plugins under plugins with their
-      -- about block and needs, the set answers which are switched off, the cascade answers
+      -- about block and needs, the cascade answers
       -- what else goes off or comes back with one, and the setter saves a switch and
       -- schedules the one reload that applies it.
       pluginCatalog = { source = "root", policy = "optional",
         breaks = "a plugins page has nothing to list, since which plugins exist and what each "
           .. "needs is known only to the root that read the manifests" },
-      disabledPlugins = { source = "root", policy = "optional",
-        breaks = "a plugins page cannot say which plugins are switched off" },
       pluginCascade = { source = "root", policy = "optional",
         breaks = "a plugins page cannot say what else goes off with a plugin before it is "
           .. "switched off, or what comes back with it" },

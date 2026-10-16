@@ -8,7 +8,7 @@
 --- config/themes, applied the moment it is chosen. That mechanism lives in lib/ui/themes.lua
 --- and reaches this plugin as three root published words, themeName, themeNames and setTheme.
 --- The third lists every plugin with a green or red circle and switches one on or off, over the
---- four root words pluginCatalog, disabledPlugins, pluginCascade and setPluginDisabled. That
+--- three root words pluginCatalog, pluginCascade and setPluginDisabled. That
 --- page alone reserves a docked pane describing the highlighted plugin, and its row on the top
 --- level appears only when the root delivered those words.
 ---
@@ -46,6 +46,11 @@ local page = loadfile(here .. "pluginspage.lua")()
 local pane = loadfile(here .. "pane.lua")()
 
 local log = hs.logger.new("Settings", "info")
+
+-- This plugin's own identity, which is its directory name since the manifest declares no other,
+-- so the Plugins page can refuse to switch itself off. Read from where this file loaded, the
+-- one thing this plugin knows without being told, rather than spelled out as a literal.
+local SELF = here:match("([^/]+)/$")
 
 -- Injected via configure, the trickle migration's own root published words. readMode and
 -- setMode back the whole page, both required, since a page whose reason is showing and
@@ -197,7 +202,7 @@ end
 -- The child page for Plugins, Back plus one row per plugin, with a docked pane
 --------------------------------------------------------------------------------
 
--- Whether the root delivered all four words. They are optional, so a root without them simply
+-- Whether the root delivered all three words. They are optional, so a root without them simply
 -- has no Plugins row rather than a page that lists nothing.
 local function pluginsAvailable()
   return cfg.pluginCatalog ~= nil and cfg.pluginCascade ~= nil and cfg.setPluginDisabled ~= nil
@@ -209,7 +214,7 @@ end
 
 local function pluginRows()
   local rows = { backRow() }
-  for _, r in ipairs(page.rows(catalog(), pending, row)) do rows[#rows + 1] = r end
+  for _, r in ipairs(page.rows(catalog(), pending, row, SELF)) do rows[#rows + 1] = r end
   return rows
 end
 
@@ -227,7 +232,7 @@ local function describe(item)
     return
   end
   local cascade = cfg.pluginCascade(item.plugin)
-  pane.show(function(ui) return page.detail(ui, entry, list, cascade, pending) end)
+  pane.show(function(ui) return page.detail(ui, entry, list, cascade, pending, SELF) end)
 end
 
 local function describeHighlighted()
@@ -265,7 +270,7 @@ local function buildPluginsChild()
         return true
       end
       if item.plugin then
-        if not item.toggle then return "stay" end
+        if not item.toggle or item.plugin == SELF then return "stay" end
         local entry = page.find(catalog(), item.plugin)
         if not entry then return "stay" end
         local off = not page.isOff(entry, pending)
@@ -358,8 +363,6 @@ end
 --- opts.setTheme                 required, a function of a theme name, applying it at once and
 ---                               persisting it through lib/ui/themes.lua.
 --- opts.pluginCatalog            optional, a function of no arguments answering the plugin list.
---- opts.disabledPlugins          optional, delivered with the other three and unread, since the
----                               catalog already carries each plugin's state.
 --- opts.pluginCascade            optional, a function of an identity answering what else changes.
 --- opts.setPluginDisabled        optional, a function of an identity and an off flag answering
 ---                               ok and why. The Plugins page exists only with the three it reads.

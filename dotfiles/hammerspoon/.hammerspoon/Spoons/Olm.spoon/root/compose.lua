@@ -484,20 +484,36 @@ function obj.run(olm, cfg)
     local path = directories[identity]
     return path ~= nil and path:sub(1, #pluginRoots.plugins + 1) == pluginRoots.plugins .. "/"
   end
+  -- A plugin some host requires cannot be switched off either, since the host would go with it
+  -- and a choice about a plugin must never take core down. Today no host requires one.
+  local coreNeeded = pluginsLib.requiredByCore(allManifests, isSwitchable)
   local disabled, lockedBy, refusedSwitches = switchLib.merge({
     entries = pluginEntries,
     saved = savedDisabled,
     switchable = isSwitchable,
+    coreNeeded = coreNeeded,
     known = function(identity) return allManifests[identity] ~= nil end,
   })
+  -- A refused false in config is a person's own error, so it is an error. A refused saved
+  -- identity was written by a page, possibly for a plugin that has since gone, and the next
+  -- switch drops it, so it is only a warning.
   for _, refusal in ipairs(refusedSwitches) do
-    log.e("Olm compose, '" .. refusal.identity .. "' was not switched off, "
-      .. (refusal.source == "config" and "its false entry in config/plugins.lua " or "the saved switch ")
-      .. refusal.why)
+    if refusal.source == "config" then
+      log.e("Olm compose, '" .. refusal.identity .. "' was not switched off, its false entry "
+        .. "in config/plugins.lua " .. refusal.why)
+    else
+      log.w("Olm compose, '" .. refusal.identity .. "' was not switched off, the saved switch "
+        .. refusal.why .. ", and it will be dropped on the next switch")
+    end
   end
+  -- What a page may not change, a false in config and a plugin the core needs, one table so the
+  -- catalog and the setter read the same answer.
+  local locks = {}
+  for identity, why in pairs(lockedBy) do locks[identity] = why end
+  for identity in pairs(coreNeeded) do locks[identity] = "core" end
   -- Every plugin that requires a switched off one goes off with it, answered by the same
   -- function the resolver asks below, so the loader and the plan cannot disagree about it.
-  local offBecause = pluginsLib.offBecause(allManifests, disabled)
+  local offBecause = pluginsLib.offBecause(allManifests, disabled, isSwitchable)
   local switchedOff = {}
   for identity in pairs(disabled) do switchedOff[identity] = true end
   for identity in pairs(offBecause) do switchedOff[identity] = true end
@@ -740,6 +756,7 @@ function obj.run(olm, cfg)
     manifests = allManifests,
     user = pluginOverrides,
     disabled = disabled,
+    switchable = isSwitchable,
     present = presentTool,
     libNames = libNames,
     modules = modules,
@@ -1249,7 +1266,7 @@ function obj.run(olm, cfg)
     themeNames = function() return themes.names() end,
     setTheme = function(name) return themes.set(name) end,
 
-    -- The plugins page's four words over the one switch, lib/pluginswitch.lua. The catalog lists
+    -- The plugins page's three words over the one switch, lib/pluginswitch.lua. The catalog lists
     -- only what lives under plugins, since core is not something a person switches. The cascade
     -- is a dry run of the resolver's own plan with no modules and no probing, so asking it is
     -- free. Setting writes the saved set and schedules one reload, since whether a plugin runs
@@ -1257,25 +1274,19 @@ function obj.run(olm, cfg)
     -- reload it asks for.
     pluginCatalog = function()
       return switchLib.catalog({ manifests = allManifests, directories = directories,
-        switchable = isSwitchable, disabled = disabled, lockedBy = lockedBy,
+        switchable = isSwitchable, disabled = disabled, lockedBy = locks,
         offBecause = offBecause })
-    end,
-    disabledPlugins = function()
-      local names = {}
-      for identity in pairs(disabled) do names[#names + 1] = identity end
-      table.sort(names)
-      return names
     end,
     pluginCascade = function(identity)
       local currentlyOff = disabled[identity] == true
       return switchLib.cascade({ plan = resolver.plan, manifests = allManifests,
         user = pluginOverrides, libNames = libNames, disabled = disabled,
-        identity = identity, off = not currentlyOff })
+        switchable = isSwitchable, identity = identity, off = not currentlyOff })
     end,
     setPluginDisabled = function(identity, off)
       return switchLib.set(identity, off, {
         switchable = isSwitchable,
-        lockedBy = lockedBy,
+        lockedBy = locks,
         read = function()
           local saved = hs.settings.get(switchLib.SETTINGS_KEY)
           return type(saved) == "table" and saved or {}
@@ -1292,6 +1303,7 @@ function obj.run(olm, cfg)
     manifests = allManifests,
     user = pluginOverrides,
     disabled = disabled,
+    switchable = isSwitchable,
     present = presentTool,
     libNames = libNames,
     modules = modules,
@@ -2075,8 +2087,10 @@ function obj.run(olm, cfg)
   local queryScopeModule = modules[plan.identity.queryscope or "queryscope"]
   if queryScopeModule then
     -- Membership from the plan's own set answer, which is the question this host declared
-    -- rather than a roster anyone here keeps, and the scope itself from the live registry, so
-    -- a tool that is present but switched off keeps no word.
+    -- rather than a roster anyone here keeps, and the scope itself from the live registry. A
+    -- plugin that was switched off, or went off with one, is never loaded or registered, so the
+    -- plan's set leaves it out and the registry holds nothing for it, which is how it keeps no
+    -- word.
     local scopeNames = (plan.sets[plan.identity.queryscope or "queryscope"] or {}).scopes
       or (plan.sets.queryscope or {}).scopes
     local scopes = registrarLib.scopeSpec(plan, wiredRegistry, scopeNames, registryMeta) or {}
