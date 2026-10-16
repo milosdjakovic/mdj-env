@@ -22,9 +22,9 @@ the contract even if it happens to work.
 `init.lua` returns the module. It must expose `configure(opts)`, unless it declares
 `wiring` steps of its own, since a step is a call into the module too and a plugin whose
 whole lifecycle is expressed as steps has already said what runs in place of configure
-rather than left it out. KeyRemap is the real example. Its wiring names
-`apply(catalog, activeNames)`, a call that is not configure and was never going to be one,
-so writing an empty `configure(opts)` beside it would exist only to satisfy a rule rather
+rather than left it out. A plugin that does nothing but bind keys is the real case. Its
+wiring names one call that is not configure and was never going to be one, so writing an empty
+`configure(opts)` beside it would exist only to satisfy a rule rather
 than to do anything, which is the exact ceremony this contract elsewhere refuses to keep. A
 plugin with neither configure nor a declared wiring step does nothing at all no matter what
 runs, and that is not this exception, it is the defect the exception exists beside.
@@ -73,10 +73,10 @@ failed to build. If you add a new kind of need, the delivery is the part to writ
 Every field is optional except `apiVersion`. A plugin with nothing to claim returns
 `{ apiVersion = 1 }` and that is a complete answer, not an omission. This used to name KeyRemap and WindowMemory as the two
 worked examples of that, and neither is one any more. WindowMemory is gone, replaced by
-Workspaces, and KeyRemap grew a real declaration once it was understood that shipping with
-the system is an origin rather than a reason to stay silent. So the rule stands and the tree
-happens to have no example of it right now, which is worth saying plainly rather than
-citing a plugin that has moved on.
+Workspaces, and KeyRemap grew a real declaration and then left the plugin set for the core
+in phase two of the core split, since the remap serves every leader and no plugin. So the
+rule stands and the tree happens to have no example of it right now, which is worth saying
+plainly rather than citing a plugin that has moved on.
 
 ### apiVersion
 
@@ -252,7 +252,7 @@ lib = { recency = { from = "recency", policy = "optional" } },
 A lib name that does not exist is a repository defect and is reported, never ignored.
 
 Validation admits any name that is the basename of a `.lua` file in the spoon's `lib` directory, but only the keys of the root's `libs` table are delivered, so asking for another lib basename passes validation and arrives as nil. The delivered names are `paste`, `cheatsheet`,
-`registry`, `glyphicon`, `chordkey`, `hyperkey`, `recency`, `queryassoc`, `storage` and `ui`.
+`registry`, `glyphicon`, `chordkey`, `hyperkey`, `windowleader`, `recency`, `queryassoc`, `storage` and `ui`.
 `ui` is the UI kit, one style and one set of drawing primitives, and arrives as one table
 holding the primitives, `layout`, `tokens()` for the current light or dark half, and
 `measure`. Ask for it whole, with no member.
@@ -263,6 +263,29 @@ lib = { ui = { from = "ui" } },
 
 docs/DESIGN-UI-KIT.md is the design and docs/PLUGIN-AUTHORING.md has a worked example under
 "Drawing with the kit".
+
+`hyperkey` and `windowleader` are the two leader engines, both core. A plugin joins a leader
+by declaring `defaults.leader` as the role word, `"app"` or `"window"`, a `defaults.bindings`
+list, and the matching grant, and by calling the lib's `bind` from a wiring step with
+`self.bindings`. On the window leader that is the whole contract.
+
+```lua
+needs = { lib = { windowLeader = { from = "windowleader", policy = "required" } } },
+defaults = {
+  leader = "window",
+  bindings = { { action = "leftHalf", key = "left" }, { action = "nextDisplay", key = ".", when = "multipleDisplays" } },
+},
+wiring = { { method = "bindToLeader", args = { "self.windowLeader", "self.bindings", "root.predicates" } } },
+```
+
+The lib's `bind(key, fn, mods, repeats)` binds onto the one keycode the root configured it
+with, so a plugin never names a keycode, and `repeats` is true for a step worth repeating
+while the key is held. The root finds every binding declared on the window leader by walking
+the plan, whichever plugin declared it, stamps the leader keycode onto them once and hands
+the list to the window cheat sheet and to the launcher, so a binding declared this way
+appears in the held sheet with no other step. A binding may carry `when`, a predicate name
+gating the key and its sheet row together, and `description`, which overrides the label the
+sheet humanizes from the action name.
 
 The value is delivered on `opts` under the field name you chose, and a member defined as a
 method arrives already bound to its own module, so you can call it plainly. Both halves
@@ -297,15 +320,15 @@ a dotted string cannot say two things the wiring genuinely needs.
 
 ```lua
 siblings = {
-  -- the module itself, because the consumer calls windowLeader:bind(...)
-  leader = { plugin = "windowleader", policy = "required" },
+  -- the module itself, because the consumer calls the capability with a colon
+  actions = { plugin = "windowmanager", policy = "required" },
   -- one member, called with a dot
   rows   = { plugin = "systemsettings", member = "rows", call = "dot", policy = "optional" },
 }
 ```
 
 `member` absent means the module itself. This case is not a convenience. It was
-inexpressible before and it is what WindowManager actually depends on.
+inexpressible before and it is what a consumer of another plugin's whole module depends on.
 
 `ordering` defaults to true, meaning this need is also an edge, so the plugin it names is
 wired first. Set it to false when the capability arrives as a closure that reaches its
@@ -400,11 +423,10 @@ by declaring a need under the same word the root publishes it under, and which p
 doing the asking makes no difference whatsoever.
 
 The composition root builds one table of these values, keyed by field name, and today it
-publishes the following words. `activeNames`, which leader names are actually live on this
-keyboard, KeyRemap's own contract. `mapping` and `windowManagement`, the identical stamped
-window binding table handed to WindowManager and WindowCheatSheet under the two different
-names their own configure calls happen to read, so a row that names a key and the dispatch
-that acts on it can never be allowed to disagree. `predicates`, the shared when name to
+publishes the following words. `windowBindings`, every binding any plugin declared on the
+window leader, collected by walking the plan and stamped with the window keycode, which the
+window cheat sheet host reads and the launcher's window rows also receive, so a row that
+names a key and the overlay that shows it can never be allowed to disagree. `predicates`, the shared when name to
 predicate table every gated binding is resolved against. `leaders`, what the window
 leader's own overlay section is called, since the leader's own name says nothing to
 somebody reading a list of window actions. `redraw`, repaint whichever list is on screen,
@@ -1064,12 +1086,13 @@ wiring = {
   -- this plugin's own effective declarations, already merged with the user's overrides
   { method = "bindHotkeys", args = { "self.bindings" } },
   -- values the composition root assembles
-  { method = "apply", call = "dot", args = { "root.catalog", "root.activeNames" } },
+  { method = "bindToLeader", args = { "self.windowLeader", "self.bindings", "root.predicates" } },
 }
 ```
 
-`self.` is right for a plugin's own data, which is what a binding list is. `root.` is
-right for something built from several plugins, which is what KeyRemap's catalog is.
+`self.` is right for a plugin's own data, which is what a binding list is, and for a lib
+grant, which arrives under the field name the plugin declared it by. `root.` is right for
+something built from several plugins, which is what the shared predicate table is.
 Leaving the namespace implicit was the first version and two readers took it two
 different ways.
 

@@ -650,4 +650,36 @@ function obj.sections(registry, plan, deps)
   return { { title = "ACTIONS", bindings = bindings } }
 end
 
+--- hints.leaderBindings(plan, role)
+--- Every binding any plugin declared on one leader, as plain entries and in a stable order,
+--- the plan order and then each plugin's own order. It is the same walk the second half of
+--- sections does, kept as its own answer because the window leader needs the raw entries
+--- rather than overlay rows. Its cheat sheet wants the `when` gate and the launcher wants the
+--- icon, and a row model drops both. Reading fields by name rather than by knowing who
+--- declares them is what lets a plugin join a leader by writing leader = "window" and a
+--- bindings list, with nothing here or in the root naming it.
+---
+--- A plugin declaring one key of its own on the leader, eff.key, contributes that single
+--- entry first, named for the plugin, mirroring what sections does for the Hyper sheet.
+--- Entries are copied, never the declared tables themselves, so a caller stamping a keycode
+--- onto them cannot reach back into a plugin's effective record.
+function obj.leaderBindings(plan, role)
+  local out = {}
+  for _, directory in ipairs((plan or {}).order or {}) do
+    local eff = ((plan or {}).effective or {})[directory] or {}
+    if eff.leader == role then
+      if eff.key ~= nil then
+        out[#out + 1] = { action = directory, key = eff.key, mods = eff.mods,
+          description = eff.description, owner = directory }
+      end
+      for _, b in ipairs(eff.bindings or {}) do
+        local copy = { owner = directory }
+        for k, v in pairs(b) do copy[k] = v end
+        out[#out + 1] = copy
+      end
+    end
+  end
+  return out
+end
+
 return obj

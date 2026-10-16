@@ -41,7 +41,6 @@ fd | path | fd | optional | filesearch/hidden | building the index of paths Spot
 fzf | path | fzf | optional | filesearch/hidden | ranking that index, the one thing a substring tool cannot do over 42 thousand matches | brew | fzf
 open | system | /usr/bin/open | optional | filesearch/chooser | opening a found file or its containing folder in whatever application owns it | macos | ships with the system
 fd | path | fd | optional | filesearch/walk | walking a named directory, which is faster than the index once a scope is given and is the only way to see dotfiles | brew | fd
-hidutil | system | /usr/bin/hidutil | required | keyremap | applying the one HID mapping every leader key depends on, and clearing it again on quit | macos | ships with the system
 obsidian | app | md.obsidian | required | obsidian | the application every chosen note opens in, and the owner of the vault registry this plugin reads to find notes at all | cask | obsidian
 obsidian-vaults | manual | ~/Library/Application Support/obsidian/obsidian.json | optional | obsidian | the vault registry every note is found through, which nothing here can create | manual | open a vault in Obsidian once, which is what writes the registry this plugin reads
 ps | system | /bin/ps | optional | processes/metrics | samples cpu and memory for the rows the picker is showing | macos | ships with the system
@@ -62,3 +61,4 @@ ivpn | path | ivpn | optional | vpn/ivpn | the CLI behind every VPN control and 
 networksetup | system | /usr/sbin/networksetup | optional | wifi | joining a network and reading which networks this Mac has saved, without which the list still shows and disconnects but cannot connect | macos | ships with the system
 location | grant | location | optional | wifi | reading the name of the current network and of every network a scan finds
 scutil | system | /usr/sbin/scutil | optional | root/compose | reading this machine's own short name, the key every per host answer a plugin asks the root for is stored under | macos | ships with the system
+hidutil | system | /usr/bin/hidutil | required | root/keyremap | applying the one HID mapping every leader key depends on, and clearing it again on quit | macos | ships with the system

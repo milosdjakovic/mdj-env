@@ -87,6 +87,13 @@ obj.lib = {
   cheatsheet = load("lib/cheatsheet.lua"),
   chordkey = load("lib/chordkey.lua"),
   hyperkey = load("lib/hyperkey.lua"),
+  -- The window leader and the HID remap under every leader, core since phase two of the core
+  -- split. windowleader is the window role's twin of hyperkey, configured once by the root
+  -- and reached by a plugin through needs.lib.windowLeader, and keyremap is the root's alone,
+  -- applied from the catalog in policy. Both are loaded here for the same one instance reason
+  -- as every atom above.
+  windowleader = load("lib/windowleader.lua"),
+  keyremap = load("lib/keyremap.lua"),
   deps = load("lib/deps.lua"),
   -- The tool registry, phase seven of the build plan. A factory in the same style as
   -- recency, so the root builds its own instance with M.new rather than reaching for a

@@ -798,12 +798,14 @@ function obj:actions()
   }
 end
 
---- WindowManager:bindToLeader(windowLeader, mapping, predicates)
+--- WindowManager:bindToLeader(windowLeader, bindings, predicates)
 --- Method
---- Bind window actions onto a WindowLeader spoon. `mapping` is an ordered list;
---- each entry is { action = <name>, leader = <keycode>, key = <key>,
---- mods = <optional list>, when = <optional predicate name>,
---- repeats = <optional bool> }. `repeats` says the action keeps firing while its key is
+--- Bind window actions onto the window leader, the core lib the manifest asks for through
+--- needs.lib.windowLeader. `bindings` is this plugin's own ordered list, the effective
+--- defaults.bindings after any override. Each entry is { action = <name>, key = <key>,
+--- mods = <optional list>, when = <optional predicate name>, repeats = <optional bool> },
+--- with no leader on it, since the lib binds onto the one keycode the root configured it with.
+--- `repeats` says the action keeps firing while its key is
 --- held, which only some of these want. A step is worth repeating and a placement is not, so
 --- moving and resizing carry it while maximize, the halves and the display switch do not,
 --- since holding a key that puts a window somewhere exact would only put it there again. `predicates` maps
@@ -813,10 +815,10 @@ end
 --- same gate the overlay applies to rows, so the key and the overlay agree.
 --- An unknown name is treated as always active, matching the overlay, so a typo
 --- fails visibly rather than silently disabling a binding.
-function obj:bindToLeader(windowLeader, mapping, predicates)
+function obj:bindToLeader(windowLeader, bindings, predicates)
   predicates = predicates or {}
   local actionMap = self:actions()
-  for _, binding in ipairs(mapping) do
+  for _, binding in ipairs(bindings or {}) do
     local action = actionMap[binding.action]
     if action then
       local when = binding.when
@@ -831,7 +833,7 @@ function obj:bindToLeader(windowLeader, mapping, predicates)
           end
         end
       end
-      windowLeader:bind(binding.leader, binding.key, fn, binding.mods, binding.repeats)
+      windowLeader:bind(binding.key, fn, binding.mods, binding.repeats)
     else
       log.w("Unknown action '" .. tostring(binding.action) .. "'")
     end

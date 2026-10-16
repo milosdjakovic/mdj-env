@@ -149,26 +149,26 @@ has a stated reason.
 **Leader keys (META < SUPER < HYPER).** Three physical keys can be remapped to
 unused function keys, named for the classic X11/Emacs modifier hierarchy,
 ascending with the Fn number. Hammerspoon owns the remap now, not a login
-LaunchAgent. KeyRemap's own shipped `leaderKeys` catalog holds one row per
-remappable key giving only its physical source and target Fn key, and Olm's
-KeyRemap plugin turns the active rows into one `hidutil` `UserKeyMapping` and
-applies it on load, clearing on quit. A single `--set` replaces the whole table,
+LaunchAgent. The root's own shipped catalog, `policy.leaderCatalog` in
+`root/compose.lua`, holds one row per remappable key giving only its physical
+source and target Fn key, and the core `lib/keyremap.lua` turns the active rows
+into one `hidutil` `UserKeyMapping` and applies it on load, clearing on quit. A single `--set` replaces the whole table,
 so each apply is idempotent and frees any dropped key.
 
 | Key | Fn | Name | Spoon | Role |
 |-----|-------|------|-------|------|
-| Right Option | F16 | META | WindowLeader | the active window leader: bare arrow = **resize** (halves + full-height + reasonable), `WASD` = **move** (W up, A left, S down, D right); return = maximize; `C` = center; `,`/`.` = prev/next display; letters = presets + grow/shrink |
-| Right Command | F17 | SUPER | WindowLeader | in the catalog but **unreferenced**, so it is not remapped and Right Command is a normal key; point `windowLeader` at it to swap |
-| Caps Lock | F18 | HYPER | HyperKey | hold + letter = app toggles; quick tap = `hs.hid.capslock.toggle()` |
+| Right Option | F16 | META | `lib/windowleader.lua` | the active window leader: bare arrow = **resize** (halves + full-height + reasonable), `WASD` = **move** (W up, A left, S down, D right); return = maximize; `C` = center; `,`/`.` = prev/next display; letters = presets + grow/shrink |
+| Right Command | F17 | SUPER | `lib/windowleader.lua` | in the catalog but **unreferenced**, so it is not remapped and Right Command is a normal key; point `windowLeader` at it to swap |
+| Caps Lock | F18 | HYPER | `lib/hyperkey.lua` | hold + letter = app toggles; quick tap = `hs.hid.capslock.toggle()` |
 
 A catalog key is "active" only by being **referenced**. The catalog names no
 consumer, so the dependency points one way, apps and windows name their leader
 and the catalog stays ignorant of both. `config/keys.lua` sets `appLeader =
 "HYPER"` and `windowLeader = "META"`. `root/compose.lua`
-computes exactly that referenced set and hands it to KeyRemap, whose own `apply` wiring step
-runs the remap, then resolves each `fkey` to a keycode via
-`hs.keycodes.map` and stamps the chosen window leader onto the (leaderless)
-window bindings so `WindowManager` and `WindowCheatSheet` never learn the
+computes exactly that referenced set and applies the remap itself through
+`lib/keyremap.lua`, then resolves each `fkey` to a keycode via
+`hs.keycodes.map`, configures the window leader with the chosen keycode and
+stamps it onto the (leaderless) window bindings so no plugin ever learns the
 catalog. So moving all of window management to another physical key is one edit,
 `windowLeader = "SUPER"`, which also frees Right Option and claims Right Command
 automatically. An unreferenced key is neither remapped nor tapped, so it stays a
@@ -188,10 +188,16 @@ overridable hold/tap defaults), so N leaders cost one tap, not N. Today that is
 Caps Lock and Right Option; Right Command is defined but not registered. It owns only
 the state machine — swallow other keys while held, fire `onTap` on a quick
 release (Caps Lock's real toggle), fire `onHold(keyCode)` once ~0.6s pass with
-no other key. Olm's HyperKey and WindowLeader plugins are thin domain adapters
-over it: they keep their public contracts (`HyperKey:bind`/`isActive` for
-AppToggler/ClipboardHistory, `WindowLeader:bind`/`addLeader` for WindowManager)
-and supply the per-key lookup. Both now share one mods-aware resolver (Hyper and
+no other key. `lib/hyperkey.lua` and `lib/windowleader.lua` are thin domain adapters
+over it, both core and both published under `Olm.lib`. They keep their public
+contracts (`HyperKey:bind`/`isActive` for the plugins on the app leader,
+`WindowLeader:bind(key, fn, mods, repeats)` for the plugins on the window leader)
+and supply the per-key lookup. A plugin reaches the window leader the way it reaches
+Hyper, by declaring `leader = "window"` with a `bindings` list in its manifest defaults
+and `needs.lib.windowLeader = { from = "windowleader" }`, with a wiring step that calls
+the lib's `bind` for each binding, which is what `windowmanager` does. The window
+leader binds onto the one keycode the root configured it with, so a plugin never sees
+a keycode. Both now share one mods-aware resolver (Hyper and
 the leaders): optional per-binding `mods`, exact-match on shift/ctrl/alt/cmd,
 ignoring the `fn` flag macOS stamps on arrow keys, then a catch-all fallback. A
 binding with no `mods` is the catch-all, so most keys stay a single press. Hyper
@@ -265,7 +271,7 @@ that brings it back.
 
 `onHold` reveals a cheat sheet, and both cheat sheets draw through one shared
 grid renderer, `Spoons/Olm.spoon/lib/cheatsheet.lua` (dark panel, key-badge rows filled row-major
-across columns). `HyperCheatSheet` and `WindowCheatSheet` only build the content
+across columns). The `hypercheatsheet` and `windowcheatsheet` hosts only build the content
 model, so the drawing never diverges. Its appearance (opacity, background,
 corner radius, font, padding) is global: set once via `CheatSheet:configure`
 from the `cheatSheet` block in `config/settings.lua`, so one edit restyles every
@@ -285,8 +291,10 @@ inert though still swallowed, so neither sheet appears over an open list and no
 window action fires underneath one. One gate answers it, `anyListShowing` in
 `root/compose.lua`, walking the same `contextOwners` table the predicates route
 through, consulted by the hyper hold reveal directly and injected into
-`WindowLeader` as `suppressWhen`. It reads
-the same `keys.windowManagement` config, so it never drifts; each row's label is
+`WindowLeader` as `suppressWhen`. Its rows are every binding any plugin declared on
+the window leader, collected by `lib/hints.lua` walking the plan and stamped with the
+window keycode once in `root/compose.lua`, the same list the launcher's window rows read,
+so it never drifts and names no plugin; each row's label is
 the action name humanized (`nextDisplay` → "Next Display") unless the entry sets
 an explicit `description` override.
 
@@ -296,7 +304,7 @@ swallowed by the held leader, so no raw character leaks) and its cheat-sheet row
 is hidden. The predicate registry, `ownPredicates` merged in `root/compose.lua` and
 fanned out under the field name `predicates`, is the one
 place the logic lives, injected into both the dispatch gate
-(`WindowManager:bindToLeader`) and the overlay filter (`WindowCheatSheet`), so
+(`WindowManager:bindToLeader`) and the overlay filter (the window cheat sheet host), so
 the key and the overlay never disagree, and `config/keys.lua` stays pure data.
 Predicates are evaluated live (at dispatch and at each overlay show), so they
 track runtime state; an unknown name is treated as always active so a typo fails
@@ -346,13 +354,13 @@ to binding the literal `HYPER` (⇧⌃⌥⌘) combo it holds as its own internal
 so removing the Hyper key degrades gracefully, it does not break other spoons. A
 toggle that states its own `modifiers` skips this fallback question entirely,
 since it was never headed into the modal to begin with. Window management
-has no such fallback: it goes only through `WindowLeader`, so its leader must be
+has no such fallback: it goes only through the window leader lib, so its leader must be
 referenced in `config/keys.lua` as `windowLeader` (which is what applies its remap). Trade-offs:
 the remaps are machine-wide, so each referenced physical key loses its normal
 function in every app (today Caps Lock is F18 and Right Option is F16; the left
 modifiers still work, and Right Command is unreferenced so it stays a normal
 key). The remapped keys only do anything while Hammerspoon runs, and now the
-remap itself is applied only while it runs, KeyRemap sets it on load and clears
+remap itself is applied only while it runs, `lib/keyremap.lua` sets it on load and clears
 it on quit. To free a key, stop referencing it; to disable everything, quit
 Hammerspoon.
 

@@ -2,30 +2,31 @@
 ---
 --- Domain adapter: function-key "leader" modifiers for window management.
 ---
---- Right Option and Right Command are remapped to function keys at the HID level
---- from KeyRemap's own shipped leaderKeys catalog. This spoon owns the per-leader binding
---- tables and the sub-modifier resolution policy; the hold / tap / chord
---- MECHANICS (swallowing keys while held, hold-to-reveal timing) live in
---- ChordKey.spoon, the shared engine it registers its leaders into (opts.chord).
---- There is no tap fallback here. These keys exist only to drive
---- window management, so a bare press/release does nothing.
+--- Right Option and Right Command are remapped to function keys at the HID level from the
+--- root's leader catalog, see lib/keyremap.lua. This file owns the binding table and the
+--- sub modifier resolution policy, the hold, tap and chord MECHANICS (swallowing keys while
+--- held, hold to reveal timing) live in lib/chordkey.lua, the shared engine it registers its
+--- leader into (opts.chord). There is no tap fallback here. This key exists only to drive
+--- window management, so a bare press and release does nothing.
 ---
---- A binding may require exact sub-modifiers (e.g. Shift), so one leader can
---- host two tiers: on F16, a bare arrow switches display while Shift+arrow moves
---- the window. Bindings with no `mods` are catch-alls -- they fire whenever no
---- exact-mods binding matches the currently held modifiers.
+--- This was a plugin until phase two of the core split and it is core now, beside hyperkey,
+--- which it mirrors on purpose. The root configures it once with the keycode the window role
+--- resolved to, and a plugin that declares leader = "window" binds onto it the way a plugin on
+--- the app leader binds onto Hyper, through bind(key, fn, mods, repeats) with no keycode in
+--- sight, after asking for it through needs.lib.windowLeader. The root collects what such
+--- plugins declare by walking the plan, so nothing here or there names a plugin.
 ---
---- Holding a leader ~holdDelay seconds with no other key reveals the window cheat sheet,
---- calling show(leaderKeyCode) on whichever module opts.windowCheatSheet resolved to;
---- releasing, or pressing any bound key, calls hide() on it and cancels the hold. The
---- collaborator arrives through configure, resolved by the composition root from this
---- plugin's own manifest.lua, but the two closures that call it are built here, never
---- handed in from outside, which is what keeps WindowLeader a thin adapter and preserves
---- the :bind contract its consumer depends on.
+--- A binding may require exact sub modifiers (e.g. Shift), so one leader can host two tiers,
+--- a bare arrow switches display while Shift and an arrow moves the window. Bindings with no
+--- `mods` are catch alls, they fire whenever no exact mods binding matches the currently held
+--- modifiers.
 ---
---- This is the olm side copy of WindowLeader, made in the bundling pass, phase 6 of the
---- olm build plan, and the original this was copied from lived at
---- Spoons/WindowLeader.spoon.
+--- Holding the leader about holdDelay seconds with no other key reveals the window cheat
+--- sheet, calling show(leaderKeyCode) on the host opts.windowCheatSheet is. Releasing, or
+--- pressing any bound key, calls hide() on it and cancels the hold. The root names the host
+--- outright, since both are core, but the two closures that call it are built here, never
+--- handed in from outside, which is what keeps this a thin adapter and preserves the :bind
+--- contract its consumers depend on.
 
 local obj = {}
 obj.__index = obj
@@ -40,13 +41,16 @@ local log = hs.logger.new("WindowLeader", "info")
 
 obj._chord = nil   -- shared ChordKey engine
 obj._leaders = nil -- keyCode -> { bindings = { code -> { {mods, fn, repeats}, ... } } }
+-- The one keycode the window role resolved to, set by configure. A plugin binds without ever
+-- seeing it, which is what makes moving the window leader to another physical key one edit.
+obj._keyCode = nil
 
--- Hold to reveal. onHold and onHoldEnd are this plugin's own closures now, built once in
+-- Hold to reveal. onHold and onHoldEnd are this file's own closures, built once in
 -- configure rather than handed in from outside, since the only part of this coupling
 -- anything else could know is which module answers show and hide, never the callback
--- itself. _windowCheatSheet is that collaborator, the resolved sibling configure receives
--- under opts.windowCheatSheet, nil on a portable install carrying no such plugin, in which
--- case both closures below still fire on schedule and simply find nothing to call.
+-- itself. _windowCheatSheet is that collaborator, the host configure receives under
+-- opts.windowCheatSheet, nil where none loaded, in which case both closures below still
+-- fire on schedule and simply find nothing to call.
 obj._holdDelay = 0.6
 -- Window actions are nudges rather than toggles, so a bound key that says it repeats has its
 -- repeats scheduled by the engine rather than taken from the OS autorepeat events. The timing
@@ -63,7 +67,7 @@ obj._windowCheatSheet = nil
 -- means while any Olm list is open. The leaders exist to drive window management, and a
 -- window action fired over an open chooser moves or resizes whatever sits underneath the
 -- list a person is reading, so the whole leader goes inert rather than any one binding
--- carrying its own guard. Policy arrives from the composition root, this plugin never asks
+-- carrying its own guard. Policy arrives from the composition root, this file never asks
 -- what the gate actually watches, and absent means never suppressed, the original behaviour.
 obj._suppressWhen = nil
 
@@ -84,20 +88,23 @@ end
 --- WindowLeader:configure(opts)
 --- Method
 --- opts.chord           - the shared ChordKey engine to register into (required)
+--- opts.keyCode         - the virtual keycode the window role resolved to, the one leader
+---                        bind(key, fn, mods, repeats) binds onto
 --- opts.holdDelay       - seconds to hold a leader (no other key) before the hold reveals
 --- opts.repeatMode      - how a repeating binding under this leader keeps firing, the shared
 ---                        engine's own option, "driven" here rather than the engine's
 ---                        "system" default
---- opts.windowCheatSheet - the resolved WindowCheatSheet module, this plugin's own hold
----                         calls show(leaderKeyCode) on it and its own release calls hide(),
----                         absent on an install carrying no such plugin, which only costs
----                         the reveal itself, every leader and every bound key keeps working
+--- opts.windowCheatSheet - the window cheat sheet host, this file's own hold calls
+---                         show(leaderKeyCode) on it and its own release calls hide(),
+---                         absent means only the reveal is lost, the leader and every
+---                         bound key keep working
 --- opts.suppressWhen    - a function answering true while every leader must stay quiet, no
 ---                        reveal on hold and every bound key inert though still swallowed,
 ---                        consulted live at each hold and each press, absent means never
 function obj:configure(opts)
   opts = opts or {}
   self._chord = opts.chord or self._chord
+  self._keyCode = opts.keyCode or self._keyCode
   self._holdDelay = opts.holdDelay or self._holdDelay
   self._repeatMode = opts.repeatMode or self._repeatMode
   self._windowCheatSheet = opts.windowCheatSheet or self._windowCheatSheet
@@ -105,9 +112,8 @@ function obj:configure(opts)
 
   -- Built here rather than accepted as opts.onHold and opts.onHoldEnd, so the composition
   -- root only ever hands over the collaborator and never the callback. The earlier shape
-  -- had the root build both closures itself, reaching directly into a second plugin by
-  -- name, which is the exact coupling this plugin's own manifest.lua now declares instead,
-  -- and a plugin owning its own callback is what a needs.siblings declaration is for.
+  -- had the root build both closures itself, which put the knowledge of what a hold does in
+  -- the wrong file.
   self._onHold = function(leaderKeyCode)
     if self._suppressWhen and self._suppressWhen() then return end
     local sheet = self._windowCheatSheet
@@ -123,23 +129,24 @@ end
 
 --- WindowLeader:addLeader(keyCode)
 --- Method
---- Register a leader key by its (remapped) virtual keycode, e.g. 64 (F17).
+--- Register a leader key by its (remapped) virtual keycode, e.g. 64 (F17). The root calls it
+--- once with the same keycode it gave configure, in the leaders stage ahead of every plugin.
 function obj:addLeader(keyCode)
   self._leaders[keyCode] = self._leaders[keyCode] or { bindings = {} }
   return self
 end
 
---- WindowLeader:bind(leaderKeyCode, key, fn, mods, repeats)
+--- WindowLeader:bind(key, fn, mods, repeats)
 --- Method
---- Register a handler under a leader. `mods` is an optional list of required
+--- Register a handler under the window leader, the keycode configure was given. `mods` is an optional list of required
 --- modifier names ({"shift"}); omit it for a catch-all binding. `repeats` is true for a
 --- handler that should keep firing while its key stays held, which is the binding's own
 --- business rather than the leader's, since moving a window a step is worth repeating and
 --- maximizing it is not. HOW it repeats is the leader's, see _repeatMode.
-function obj:bind(leaderKeyCode, key, fn, mods, repeats)
-  local leader = self._leaders[leaderKeyCode]
+function obj:bind(key, fn, mods, repeats)
+  local leader = self._leaders[self._keyCode]
   if not leader then
-    log.w("no leader registered for keycode " .. tostring(leaderKeyCode))
+    log.w("no window leader registered, so '" .. tostring(key) .. "' was not bound")
     return self
   end
 

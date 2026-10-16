@@ -6,15 +6,16 @@
 --- revealed while a key is held. It renders whatever
 --- leaders are registered, so it also covers SUPER if that leader is reactivated.
 ---
---- Reads the same windowManagement config the bindings use, so it never
---- drifts from the real bindings. The label is the action name humanized
---- (`nextDisplay` -> "Next Display") unless the entry carries an explicit
---- `description`. Drawing is delegated to the shared CheatSheet.spoon renderer
---- (injected via configure); this spoon owns only the glyph/label logic.
+--- Reads the list the root collects from every plugin that declares leader = "window", the
+--- same list the launcher draws its window rows from, so it never drifts from the real
+--- bindings and never learns which plugin declared them. The label is the action name
+--- humanized (`nextDisplay` -> "Next Display") unless the entry carries an explicit
+--- `description`. Drawing is delegated to the shared cheat sheet renderer (injected via
+--- configure), this host owns only the glyph and label logic.
 ---
---- This is the olm side copy of WindowCheatSheet, made in the bundling pass, phase 6 of
---- the olm build plan, and the original this was copied from lived at
---- Spoons/WindowCheatSheet.spoon.
+--- This was a plugin until phase two of the core split. It is a host now, beside the Hyper
+--- cheat sheet, because the window leader is core and the sheet that reveals it is too. It was
+--- never about window management itself, which only ever supplied the rows.
 
 local obj = {}
 obj.__index = obj
@@ -73,20 +74,20 @@ function obj:_active(when)
 end
 
 --- WindowCheatSheet:configure(opts)
---- opts.windowManagement - the ordered windowManagement list (config/keys.lua)
+--- opts.windowBindings   - the ordered list of every binding declared on the window leader,
+---                         each stamped with the leader keycode it belongs to
 --- opts.leaders          - leaderKeyCode -> section title, e.g. { [106]="WINDOW MANAGEMENT" }
 --- opts.cheatSheet       - shared CheatSheet renderer to draw with
 --- opts.predicates       - name -> function() -> bool, for entries with `when`
 function obj:configure(opts)
   opts = opts or {}
-  local wm = opts.windowManagement or {}
+  local wm = opts.windowBindings or {}
   local names = opts.leaders or {}
   self._cheatSheet = opts.cheatSheet or self._cheatSheet
   self._predicates = opts.predicates or self._predicates
 
-  -- windowManagement is an ordered list, so each leader's rows keep that
-  -- sequence -- the overlay renders in the exact order authored in keys.lua
-  -- (filled row-major across the columns).
+  -- The binding list is ordered, so each leader's rows keep that sequence and the overlay
+  -- renders in the order the plugins authored, filled row-major across the columns.
   self._byLeader = {}
   for _, b in ipairs(wm) do
     local lc = b.leader

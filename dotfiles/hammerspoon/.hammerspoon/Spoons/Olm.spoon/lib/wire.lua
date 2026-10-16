@@ -302,10 +302,9 @@ function obj.new(deps)
   end
 
   -- Whether a plugin's own declared wiring earns it a missing configure, rather than a
-  -- plugin simply having forgotten one. KeyRemap's whole lifecycle is apply(catalog,
-  -- activeNames), a call that is not configure(opts) and is declared as a step for exactly
-  -- that reason, so KeyRemap has nothing for this stage to call and that is the correct
-  -- shape rather than a hole in it. A plugin with no configure and no declared step either
+  -- plugin simply having forgotten one. A plugin whose whole lifecycle is a call that is not
+  -- configure(opts), declared as a step for exactly that reason, has nothing for this stage
+  -- to call and that is the correct shape rather than a hole in it. A plugin with no configure and no declared step either
   -- is a different thing entirely, one that does nothing at all no matter what runs, which
   -- is a real defect and must be reported as one rather than folded into the same silence.
   local function hasWiringSteps(name)

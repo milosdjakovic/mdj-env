@@ -1,4 +1,4 @@
--- Unit case for the repeat half of Olm.spoon/plugins/windowleader/init.lua, the leader
+-- Unit case for the repeat half of Olm.spoon/lib/windowleader.lua, the leader
 -- deciding that its keys are driven and carrying each binding's own repeat flag through to
 -- the shared engine. The dispatch itself is an event tap and is not reachable from here, so
 -- this covers what the leader ANSWERS, which is the pair its onKey contract owes the engine.
@@ -10,7 +10,7 @@
 local source = debug.getinfo(1, "S").source
 local herePath = source:match("^@(.*)$") or source
 local caseDir = herePath:match("^(.*)/[^/]+$")
-local modulePath = caseDir .. "/../../Spoons/Olm.spoon/plugins/windowleader/init.lua"
+local modulePath = caseDir .. "/../../Spoons/Olm.spoon/lib/windowleader.lua"
 
 local function check(description, ok, detail)
   if ok then
@@ -35,7 +35,7 @@ local function freshModule()
   }
   local chunk, err = loadfile(modulePath, "t", env)
   if not chunk then
-    error("could not load plugins/windowleader/init.lua, " .. tostring(err))
+    error("could not load lib/windowleader.lua, " .. tostring(err))
   end
   return chunk()
 end
@@ -51,10 +51,11 @@ end
 do
   local leader = freshModule()
   leader:init()
+  leader:configure({ keyCode = KEYS.f16 })
   leader:addLeader(KEYS.f16)
   local moved, maximized = 0, 0
-  leader:bind(KEYS.f16, "d", function() moved = moved + 1 end, nil, true)
-  leader:bind(KEYS.f16, "s", function() maximized = maximized + 1 end)
+  leader:bind("d", function() moved = moved + 1 end, nil, true)
+  leader:bind("s", function() maximized = maximized + 1 end)
 
   local bindings = leader._leaders[KEYS.f16].bindings
   local fn, repeats = leader:_resolve(bindings[KEYS.d], {})
@@ -74,9 +75,10 @@ end
 do
   local leader = freshModule()
   leader:init()
+  leader:configure({ keyCode = KEYS.f16 })
   leader:addLeader(KEYS.f16)
-  leader:bind(KEYS.f16, "d", function() end, { "shift" }, false)
-  leader:bind(KEYS.f16, "d", function() end, nil, true)
+  leader:bind("d", function() end, { "shift" }, false)
+  leader:bind("d", function() end, nil, true)
 
   local bindings = leader._leaders[KEYS.f16].bindings[KEYS.d]
   local _, bare = leader:_resolve(bindings, {})
@@ -91,9 +93,9 @@ do
   local leader = freshModule()
   leader:init()
   local engine = stubEngine()
-  leader:configure({ chord = engine })
+  leader:configure({ chord = engine, keyCode = KEYS.f16 })
   leader:addLeader(KEYS.f16)
-  leader:bind(KEYS.f16, "d", function() end, nil, true)
+  leader:bind("d", function() end, nil, true)
   leader:start()
 
   local opts = engine.registered[KEYS.f16]

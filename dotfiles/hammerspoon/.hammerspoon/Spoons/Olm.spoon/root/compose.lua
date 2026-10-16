@@ -154,6 +154,20 @@ local SHIPPED_POLICY = {
   chooserProvider = "default",
   autoReload = { ignore = { "/config/[^/]+%.json[^/]*$" } },
 
+  -- Which physical key each leader name is, and the spare function key it is remapped to. A
+  -- name is live only by being referenced, by a role in cfg.leaders, so shipping all three
+  -- here costs nothing and moving a domain to another physical key is one edit in the person's
+  -- own config. Caps Lock to F18, Right Option to F16 and Right Command to F17 are the exact
+  -- three rows the owner already wants HYPER, META and SUPER to be, and they work on any
+  -- keyboard. This was keyremap's own default while that was a plugin, and it is root policy
+  -- now because the root is the one reader of it, the keycodes below come from it and so
+  -- does the remap. A person overrides one row through cfg.policy like any other entry.
+  leaderCatalog = {
+    HYPER = { source = "capsLock",     fkey = "f18" },
+    META  = { source = "rightOption",  fkey = "f16" },
+    SUPER = { source = "rightCommand", fkey = "f17" },
+  },
+
   -- The heading drawn over the window leader's rows on the hold overlay. What the leader does
   -- rather than what it is called, since the leader's own name, META, says nothing to anybody
   -- reading a list of window actions.
@@ -431,6 +445,11 @@ function obj.run(olm, cfg)
   -- before step H does, so a lib module a plugin may declare needs.lib against has to exist
   -- as a loaded module this early even though it is not actually configured until later.
   local hyperKeyAtom = atoms.hyperkey
+  -- The window leader and the remap, core like hyperkey and published the same way. The
+  -- window leader joins the libs table below so a plugin on leader = "window" can ask for it,
+  -- and the remap is the root's alone, applied once from the leaders section further down.
+  local windowLeaderAtom = atoms.windowleader
+  local keyRemapAtom = atoms.keyremap
 
   ------------------------------------------------------------------------------
   -- STEP C. Manifests. Pure data, read before anything runs.
@@ -586,6 +605,7 @@ function obj.run(olm, cfg)
     glyphicon = glyphIcon,
     chordkey = chordKeyAtom,
     hyperkey = hyperKeyAtom,
+    windowleader = windowLeaderAtom,
     recency = atoms.recency,
     queryassoc = atoms.queryassoc,
     storage = atoms.storage,
@@ -679,7 +699,7 @@ function obj.run(olm, cfg)
   -- The values only pass one's plan.effective can answer, computed once and reused rather
   -- than rebuilt, so the second pass, the register stage, and the wiring args below can
   -- never disagree about what they hold.
-  local keymapCatalog = firstPass.effective.keyremap and firstPass.effective.keyremap.catalog
+  local keymapCatalog = policy.leaderCatalog
   local appKeycode = leadersLib.keycode(keymapCatalog, leaderRoles.app)
   local windowKeycode = leadersLib.keycode(keymapCatalog, leaderRoles.window)
   local activeLeaderNames = leadersLib.activeNames(keymapCatalog, leaderRoles)
@@ -712,13 +732,15 @@ function obj.run(olm, cfg)
     return "(" .. table.concat(aliases, ", ") .. ")"
   end
 
-  -- THE SEAM, Fact 1. WindowManager and WindowCheatSheet must dispatch and display the
-  -- identical physical key, so this stamped table is built exactly once, right here, and
-  -- the same local is handed to both consumers below rather than two calls that would only
-  -- happen to agree today.
+  -- THE SEAM, Fact 1. The window cheat sheet and the launcher's window rows must show the
+  -- identical physical key the leader dispatches, so this stamped list is built exactly once,
+  -- right here, and the same local is handed to both rather than two calls that would only
+  -- happen to agree today. It is every binding any plugin declared on the window leader,
+  -- found by walking the plan in lib/hints.lua, so no plugin is named and a second plugin
+  -- declaring leader = "window" joins the sheet with no edit. Each plugin binds its own
+  -- entries through the window leader lib, which already knows the one keycode.
   local stampedWindowBindings = leadersLib.stampBindings(
-    firstPass.effective.windowmanager and firstPass.effective.windowmanager.windowManagement,
-    windowKeycode)
+    hintsLib.leaderBindings(firstPass, "window"), windowKeycode)
 
   ------------------------------------------------------------------------------
   -- STEP I. Everything the root itself owes its plugins, in one table, keyed by
@@ -922,16 +944,10 @@ function obj.run(olm, cfg)
   end
 
   local rootValues = {
-    -- Which leader names are actually live on this keyboard, KeyRemap's own contract.
-    activeNames = activeLeaderNames,
-
-    -- THE SEAM, Fact 1's other half. Both window consumers receive the IDENTICAL stamped
-    -- table, under the two different field names their own configure calls happen to read,
-    -- because a row that names a key and the dispatch that acts on it can never be allowed to
-    -- disagree. Two entries pointing at one object is what makes that structural rather than a
-    -- thing that only happens to be true today.
-    mapping = stampedWindowBindings,
-    windowManagement = stampedWindowBindings,
+    -- THE SEAM, Fact 1's other half. The window cheat sheet reads the stamped list the
+    -- launcher's window rows also receive, one object, because a row that names a key and the
+    -- sheet that shows it can never be allowed to disagree.
+    windowBindings = stampedWindowBindings,
 
     -- The shared when name to predicate table every gated binding is resolved against.
     predicates = ownPredicates,
@@ -1187,59 +1203,25 @@ function obj.run(olm, cfg)
   -- here for the two engines rather than resolved a second time.
   ------------------------------------------------------------------------------
 
-  -- windowLeaderIdentity is kept as its own local, rather than folded straight into the
-  -- lookup below, because it is read a second time a few lines down, to find windowleader's
-  -- own manifest. WindowLeader itself still has to be named here, one of the fixed leader
-  -- engines the eight stage pipeline registers and starts directly, stage one and stage
-  -- eight below, and no manifest field yet exists that would let this file discover which
-  -- plugin plays that role rather than being told outright.
-  local windowLeaderIdentity = plan.identity.windowleader or "windowleader"
-  local windowLeaderModule = modules[windowLeaderIdentity]
+  -- The remap is applied here, ahead of every key that will be bound, from the catalog in
+  -- policy and the roles the person's config names. It was a plugin's wiring step until
+  -- phase two of the core split, and the root reading a plugin's catalog by name was the leak
+  -- that move closed. The binary comes through the dependency door from the root's own
+  -- declaration in root/manifest.lua, the same way scutil does, so this names no prefix. An
+  -- unresolved path is passed on as nil, and the engine answers by remapping nothing and
+  -- saying so, which leaves every leader its own native key.
+  keyRemapAtom:apply(keymapCatalog, activeLeaderNames, sharedDepsScope.path("hidutil"))
 
-  -- The hold and release callbacks windowLeaderModule:configure receives further down used
-  -- to be built right here, two closures each reaching straight for
-  -- modules[plan.identity.windowcheatsheet or "windowcheatsheet"], a second plugin under
-  -- plugins named as a literal, exactly the leak this file's own header forbids nowhere else
-  -- may do. WindowLeader's own manifest.lua now declares that coupling itself,
-  -- needs.siblings.windowCheatSheet, ordering false, because the collaborator is only ever
-  -- closed over inside a callback that fires long after every plugin's own configure has
-  -- already run, never read at configure time itself, the same distinction MenuSearch's own
-  -- Launcher closures already rest on. This file's job shrinks to resolving that one declared
-  -- field against the real module set, the same way lib/wire.lua's own needs.lib grant
-  -- already resolves a lib capability, bound to its own module when it names a method so the
-  -- plugin never receives a bare colon method with no self to call it against. Written as a
-  -- function of one manifest and one field rather than a walk over every manifest's own
-  -- siblings, because a blanket walk would start handing values to plugins whose own coupling
-  -- to the same identity is already resolved a different way, Launcher's own windowActions
-  -- among them, and turning that on by accident is a decision for whoever owns that seam to
-  -- make on purpose rather than one this fix should make by accident.
-  local function resolveDeclaredSibling(manifest, field)
-    local decl = ((manifest or {}).needs or {}).siblings or {}
-    decl = decl[field]
-    if not decl or not decl.plugin then return nil end
-    local siblingModule = modules[plan.identity[decl.plugin] or decl.plugin]
-    if not siblingModule then return nil end
-    if not decl.member then return siblingModule end
-    local fn = siblingModule[decl.member]
-    if type(fn) == "function" and decl.call ~= "dot" then
-      return function(...) return fn(siblingModule, ...) end
-    end
-    return fn
-  end
-  local windowCheatSheetForLeader =
-    resolveDeclaredSibling(manifests[windowLeaderIdentity], "windowCheatSheet")
+  -- The window cheat sheet host, named outright since both it and the window leader are core.
+  -- The leader is handed it in its own configure below and builds its hold and release
+  -- closures itself. Nil where the host did not load, which only costs the reveal.
+  local windowCheatSheetModule = modules[plan.identity.windowcheatsheet or "windowcheatsheet"]
 
   -- The flat root argument namespace, deps.args, the only channel a non configure wiring
-  -- step can read a value through when that step's own signature is not opts shaped.
-  -- mapping and activeNames close Fact 1's other half and KeyRemap's own contract. leader
-  -- and predicates exist here, named directly, for the identical reason, bindToLeader takes
-  -- the WindowLeader module and the predicate table as plain positional arguments rather
-  -- than reading them off an opts table, so nothing generic can hand them over, and this
-  -- file is the only place that may still say which module answers "the window leader".
+  -- step can read a value through when that step's own signature is not opts shaped. The
+  -- predicate table is the one value left, bindToLeader takes it as a plain positional
+  -- argument rather than reading it off an opts table, so nothing generic can hand it over.
   local wiringArgs = {
-    activeNames = activeLeaderNames,
-    mapping = stampedWindowBindings,
-    leader = windowLeaderModule,
     predicates = ownPredicates,
   }
 
@@ -1383,29 +1365,20 @@ function obj.run(olm, cfg)
     onHoldEnd = hideHyperLayer,
   })
 
-  -- No init call here. lib/loader.lua already called it uniformly on every loaded module,
-  -- windowLeaderModule included, so calling it again would run its reset twice for no
-  -- reason and is exactly the parity gap that module exists to close rather than repeat.
-  --
-  -- Guarded, unlike the call this replaced. A portable install can genuinely carry no
-  -- windowleader plugin at all, and calling configure on a nil module is not a degraded
-  -- window leader, it is this whole composition root going down before a single other
-  -- plugin has wired, which is worse than the dead surface a missing required tool already
-  -- earns a plugin elsewhere in this file. windowCheatSheet is windowCheatSheetForLeader,
-  -- resolved above from windowleader's own declared sibling need rather than looked up here
-  -- by name, and windowleader/init.lua builds the actual hold and release closures itself
-  -- now, this file only ever hands over the collaborator.
-  -- suppressWhen is anyListShowing, the same gate the hyper hold reveal reads, so while any
-  -- list is open the window leader neither reveals its sheet nor moves a window, and the two
-  -- leaders go quiet on the same evidence.
-  if windowLeaderModule then
-    windowLeaderModule:configure({
-      chord = chordKeyAtom,
-      holdDelay = policy.chord.holdDelay,
-      windowCheatSheet = windowCheatSheetForLeader,
-      suppressWhen = anyListShowing,
-    })
-  end
+  -- Initialized and configured here like hyperKeyAtom just above, since a lib is not walked
+  -- by lib/loader.lua the way a plugin is. The keycode is the window role's own, so a plugin
+  -- on leader = "window" binds with no keycode in sight. suppressWhen is anyListShowing, the
+  -- same gate the hyper hold reveal reads, so while any list is open the window leader
+  -- neither reveals its sheet nor moves a window, and the two leaders go quiet on the same
+  -- evidence.
+  windowLeaderAtom:init()
+  windowLeaderAtom:configure({
+    chord = chordKeyAtom,
+    keyCode = windowKeycode,
+    holdDelay = policy.chord.holdDelay,
+    windowCheatSheet = windowCheatSheetModule,
+    suppressWhen = anyListShowing,
+  })
 
   ------------------------------------------------------------------------------
   -- Presentation deps, one shared table for every lib/hints.lua call this file
@@ -1479,7 +1452,7 @@ function obj.run(olm, cfg)
   }
 
   -- The window overlay's own three root owned values are NOT built here any more, and that is
-  -- the point rather than an omission. It declares windowManagement, leaders and predicates,
+  -- the point rather than an omission. It declares windowBindings, leaders and predicates,
   -- every one of them a root value another plugin also asks for by the same name, so all three
   -- now reach it through the root fan out above with this file never naming it. Building them
   -- here was what made a plugin under plugins appear as a literal in a file whose own header
@@ -1821,7 +1794,7 @@ function obj.run(olm, cfg)
     isShowing = isShowingFor,
   })
 
-  w.leaders({ windowLeaderModule }, { windowKeycode })
+  w.leaders({ windowLeaderAtom }, { windowKeycode })
   w.configure(modules, manifests)
   w.steps(modules, manifests)
   w.predicates(hyperKeyAtom, ownPredicates)
@@ -1935,7 +1908,7 @@ function obj.run(olm, cfg)
   })
 
   w.contexts(hyperKeyAtom, bindOneInContext)
-  w.start({ hyperKeyAtom, windowLeaderModule }, chordKeyAtom)
+  w.start({ hyperKeyAtom, windowLeaderAtom }, chordKeyAtom)
 
   ------------------------------------------------------------------------------
   -- ActionPanel's own configure. Deferred to here for the identical reason step

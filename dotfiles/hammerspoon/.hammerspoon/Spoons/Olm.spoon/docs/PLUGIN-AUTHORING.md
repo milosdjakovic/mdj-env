@@ -505,6 +505,22 @@ a thumbnail is content and is the one kind of drawing that may stay in a plugin,
 `test/drygate-accepted.txt` with its reason, and the dry gate refuses any other file under
 `plugins` that creates a canvas and snapshots it into an image.
 
+## Keys on a leader
+
+A plugin that wants keys on the window leader declares `leader = "window"` and a `bindings`
+list in its defaults, asks for the leader with `needs.lib.windowLeader = { from =
+"windowleader" }`, and names a wiring step that binds each entry through the lib. That is all of
+it, the same shape capture uses on the app leader. Windowmanager is the worked example, its
+sixteen bindings are plain data in `defaults.bindings` and its `bindToLeader` step takes
+`self.windowLeader`, `self.bindings` and `root.predicates`. The lib binds onto the one keycode
+the root gave it, so a binding never names a keycode, and `repeats = true` marks a step worth
+repeating while the key is held.
+
+You write nothing for the sheet. The root walks the plan for every binding declared on the
+window leader and the held window sheet draws it, with `when` hiding the row and the key
+together and `description` replacing the label humanized from the action name. A person moves
+the whole leader to another physical key in `config/keys.lua`, and no plugin changes.
+
 ## Tools your plugin needs
 
 A plugin declares what it needs on the machine and installs nothing. Every external binary or

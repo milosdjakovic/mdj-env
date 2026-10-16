@@ -57,7 +57,7 @@ Work down this ladder and stop at the first rung that fits. Each rung is cheaper
 consistent, and more discoverable than the one below it.
 
 1. No list at all. A plugin whose whole job is an action or a watcher declares commands or
-   wiring and shows nothing. KeyRemap and WindowManager are the settled examples. The recipe
+   wiring and shows nothing. WindowManager and Capture are the settled examples. The recipe
    is written for list tools, so for this shape read the contract's `wiring` and `registry`
    sections directly. Do not invent a list so the plugin has a face.
 2. A typed word. When the thing beneath a row can be reached by typing, prefer a scope, the

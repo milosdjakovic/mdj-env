@@ -71,6 +71,21 @@ its bindings in its own manifest, which it already does, and the root stops read
 name. Thirds, sixths and other layouts become later additions to windowmanager with no core
 change.
 
+**Done, 2026-10-16.** The three pieces are core and the root names none of them as plugins.
+Keyremap is `lib/keyremap.lua`, its catalog is `policy.leaderCatalog` in `root/compose.lua`
+and overridable through `cfg.policy`, and hidutil is declared by `root/manifest.lua` with the
+unit still called keyremap. The root applies the remap itself just before the leaders are
+configured, through the dependency door like scutil. The window leader is `lib/windowleader.lua`,
+published in `obj.lib` and in the root's `libs`, configured once with the window role's keycode,
+and a plugin binds through `bind(key, fn, mods, repeats)` with no keycode. The window cheat sheet
+is `host/windowcheatsheet` and reads the root word `windowBindings`, which is every binding on
+the window leader found by `hints.leaderBindings` walking the plan, stamped once, and also handed
+to the launcher in place of windowmanager's own record. Windowmanager keeps `leader = "window"`,
+renames `windowManagement` to `bindings`, and declares `needs.lib.windowLeader` with the wiring
+step `bindToLeader(self.windowLeader, self.bindings, root.predicates)`. The root words
+`activeNames`, `mapping` and `windowManagement` are gone and `windowBindings` is new. The
+launcher's sibling on windowmanager for the action map is untouched, and phase 3 removes it.
+
 ### Phase 3, the launcher stops naming plugins
 
 Every one of the seven siblings becomes a generic contribution point a plugin declares.

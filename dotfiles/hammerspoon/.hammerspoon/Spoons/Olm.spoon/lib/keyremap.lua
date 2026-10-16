@@ -1,24 +1,24 @@
 --- === KeyRemap ===
 ---
---- Apply a physical key remap at the HID level from a name-based catalog, so
---- other spoons can drive otherwise-unused function keys. This is the mechanism
---- half only. It turns friendly key names into hidutil usage codes, applies the
---- mapping, and clears it on quit. It does not decide which keys are active, the
---- composition root passes that in, so this applier and the catalog it reads stay
---- ignorant of apps, windows, or any consumer.
+--- Apply a physical key remap at the HID level from a name based catalog, so the leaders can
+--- drive otherwise unused function keys. This is the mechanism half only. It turns friendly
+--- key names into hidutil usage codes, applies the mapping, and clears it on quit. It does
+--- not decide which keys are active, the composition root passes that in, so this applier
+--- stays ignorant of apps, windows, or any consumer.
 ---
 --- Why here and not a login LaunchAgent. The remapped keys only do anything while
---- Hammerspoon runs, so owning the remap here keeps one source of truth. A key
---- becomes special on load and reverts on quit, and an unreferenced key is simply
---- never remapped, so it stays a normal key with no extra step anywhere.
+--- Hammerspoon runs, so owning the remap here keeps one source of truth. A key becomes
+--- special on load and reverts on quit, and an unreferenced key is simply never remapped, so
+--- it stays a normal key with no extra step anywhere.
 ---
---- hidutil property --set replaces the whole mapping table in one shot, so each
---- apply is idempotent and also frees any key dropped since the last apply. No
---- sudo is needed, UserKeyMapping is per user.
+--- hidutil property --set replaces the whole mapping table in one shot, so each apply is
+--- idempotent and also frees any key dropped since the last apply. No sudo is needed,
+--- UserKeyMapping is per user.
 ---
---- This is the olm side copy of KeyRemap, made in the bundling pass, phase 6 of the
---- olm build plan, and the original this was copied from lived at
---- Spoons/KeyRemap.spoon.
+--- This was a plugin until phase two of the core split, and it is core now beside hyperkey and
+--- windowleader, since the leaders are the root's own business and a plugin may only name core.
+--- The catalog it reads is root policy, policy.leaderCatalog in root/compose.lua, and the path
+--- of the binary arrives from the root's own declaration of hidutil in root/manifest.lua.
 
 local obj = {}
 obj.__index = obj
@@ -60,19 +60,17 @@ function obj:init()
   return self
 end
 
---- KeyRemap:apply(catalog, activeNames, deps)
+--- KeyRemap:apply(catalog, activeNames, hidutil)
 --- Method
 --- catalog     - name -> { source = <friendly>, fkey = <friendly> }
---- activeNames - list of catalog names to remap right now; anything not listed
----               is left as a normal key. Duplicates are ignored.
---- deps        - the scoped dependency adapter, asked for the one binary this plugin is a
----               front end onto. It arrives as a third argument rather than through a
----               configure because this plugin's whole lifecycle is this one call, so the
----               wiring step names it alongside the other two rather than a configure being
----               invented to carry it.
---- Builds one UserKeyMapping from the active rows and applies it, replacing any
---- previous mapping. Also arms a shutdown handler that clears the mapping when
---- Hammerspoon quits or reloads, so these keys are only special while it runs.
+--- activeNames - list of catalog names to remap right now, anything not listed is left as a
+---               normal key. Duplicates are ignored.
+--- hidutil     - the absolute path of the binary, resolved by the root through the dependency
+---               door. It arrives as an argument so this file never probes for a tool or
+---               hardcodes a prefix, which is the rule every other shellout here follows.
+--- Builds one UserKeyMapping from the active rows and applies it, replacing any previous
+--- mapping. Also arms a shutdown handler that clears the mapping when Hammerspoon quits or
+--- reloads, so these keys are only special while it runs.
 ---
 --- An unresolved binary returns without touching the mapping and without arming that handler,
 --- which is the safe direction rather than merely the careful one. hidutil is declared
@@ -81,8 +79,7 @@ end
 --- and recoverable. Failing while CLEARING would leave a machine wide remap in place after
 --- Hammerspoon exits, recoverable only by hand or by a reboot, so the handler is armed only
 --- once a path has already been proven to work by the apply above it.
-function obj:apply(catalog, activeNames, deps)
-  local hidutil = deps and deps.path and deps.path("hidutil")
+function obj:apply(catalog, activeNames, hidutil)
   if not hidutil then
     log.e("hidutil did not resolve through the dependency door, so no leader key was remapped "
       .. "and every one of them stays its own native key")

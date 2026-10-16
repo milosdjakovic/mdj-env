@@ -3,21 +3,22 @@
 --
 -- The catalog in config/keys.lua names a physical key and an unused function key it maps
 -- to. Nothing else here needs to know a physical key exists, it only needs the keycode that
--- key resolves to once KeyRemap has applied the mapping, and that resolution has to happen
+-- key resolves to once lib/keyremap.lua has applied the mapping, and that resolution has to happen
 -- in exactly one place, because two call sites resolving the same catalog entry separately
 -- can drift the moment one of them is edited and the other is not.
 --
--- The window leader stamp lives here for the same reason. WindowManager and WindowCheatSheet
--- both act on the window bindings, one to dispatch a key and one to draw an overlay of what
--- that key does, and both have to be reading the SAME table, not two tables that merely agree
--- today. Stamping the leader keycode onto one list and handing that one list to both closes
--- that gap, which the audit recorded as the first of three facts a manifest cannot express.
--- This module produces that one stamped list. It is the composition root's job to call it
--- once and hand the result to both destinations by reference, never to call it twice.
+-- The window leader stamp lives here for the same reason. The window cheat sheet and the
+-- launcher's window rows both describe the window bindings, one to draw an overlay of what a
+-- key does and one to list it, and both have to be reading the SAME table, not two tables
+-- that merely agree today. Stamping the leader keycode onto one list and handing that one
+-- list to both closes that gap, which the audit recorded as the first of three facts a
+-- manifest cannot express. This module produces that one stamped list. It is the composition
+-- root's job to call it once and hand the result to both destinations by reference, never to
+-- call it twice.
 --
 -- This module names no plugin, no engine, and no physical key. It reads a catalog and a
 -- roles table the composition root already built from what the user's own config
--- references, and it never calls KeyRemap, addLeader, or anything else that would make it a
+-- references, and it never calls the remap, addLeader, or anything else that would make it a
 -- second place deciding wiring order.
 
 local obj = {}
@@ -26,7 +27,7 @@ local obj = {}
 -- that friendly name into the numeric code hs.hotkey and hs.eventtap actually compare
 -- against. Answering nil for a name or an fkey that is not there, rather than raising, is
 -- what lets a caller ask "is this leader real" as a plain value check instead of wrapping
--- every call in a pcall, the same reason KeyRemap's own apply logs and skips an unknown row
+-- every call in a pcall, the same reason the remap's own apply logs and skips an unknown row
 -- rather than aborting the whole remap over one bad entry.
 function obj.keycode(catalog, name)
   local row = catalog and catalog[name]
@@ -43,7 +44,7 @@ end
 -- catalog is accepted, and not read, for the same reason keycode above takes it, both
 -- functions answer a question about one catalog and a caller building both from the same
 -- root should not be passing two different shaped arguments to ask two related questions.
--- Dropping a role that names an entry the catalog does not carry is left to KeyRemap's own
+-- Dropping a role that names an entry the catalog does not carry is left to the remap's own
 -- apply, which already logs and skips an unknown row, so checking it here as well would
 -- either repeat that same log line or, worse, filter the bad entry out before apply ever
 -- sees it and turn a visible warning into a silent one.
@@ -70,9 +71,9 @@ function obj.activeNames(catalog, roles)
   return names
 end
 
--- The window bindings in config/keys.lua carry no leader, because the leader is a runtime
+-- The window bindings a plugin declares carry no leader, because the leader is a runtime
 -- choice, so the composition root stamps one resolved keycode onto every entry before
--- handing the list to the two consumers that dispatch and describe it. The copy is shallow
+-- handing the list to the two consumers that describe it. The copy is shallow
 -- per entry rather than a deep copy of the whole list, because each entry also carries a
 -- `when` predicate name and a `description` string that have to ride along completely
 -- unchanged, and the input list itself must never be mutated, since it may still be read

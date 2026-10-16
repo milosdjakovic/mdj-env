@@ -1,17 +1,15 @@
 -- WindowCheatSheet, what it declares about itself.
 --
--- A content builder only, triggered by holding a window leader, so it has no chooser, no
--- key, and no alias of its own. The one real capability is the shared overlay renderer
--- every cheat sheet draws through, which is why this plugin is nearly, but not entirely,
--- empty.
+-- A content builder only, triggered by holding the window leader, so it has no chooser, no
+-- key, and no alias of its own. The one real capability is the shared overlay renderer every
+-- cheat sheet draws through, which is why this host is nearly, but not entirely, empty.
 --
--- The windowManagement list, the per leader section title, and the predicate table are all
--- root policy, so they earn needs.data rather than needs.siblings. A sibling need naming
--- windowmanager was considered first and set aside. WindowManager exposes no member that IS
--- this list, bindToLeader receives it as a plain wiring argument rather than storing it on
--- itself, so there is nothing on the real module for a sibling to point at. Naming the module
--- itself, with no member, would say this plugin calls something on WindowManager, and it
--- never does, it only needs to be handed the same table.
+-- It is a host rather than a plugin since phase two of the core split. Its rows are not any
+-- one plugin's data, they are every binding any plugin declared on the window leader, which
+-- the root collects by walking the plan, so they earn a root word rather than a sibling need.
+-- Naming windowmanager here was considered and set aside twice. It was a sibling first and a
+-- stamped list second, and both said this file depends on one plugin, when it depends on
+-- whichever plugins declare leader = "window".
 return {
   -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
   apiVersion = 1,
@@ -34,17 +32,12 @@ return {
     },
 
     data = {
-      -- The composition root builds this once, WindowManager's own windowManagement default
-      -- merged with the user's override and stamped with the resolved window leader keycode,
-      -- and hands the identical table to WindowManager's bindToLeader and to this plugin's
-      -- configure. Root computed, required, since an absent list leaves the row model empty
-      -- for every leader.
-      --
-      -- What this field cannot say is the one fact that actually matters, that WindowManager
-      -- and this plugin must receive the SAME table rather than two copies that happen to
-      -- agree today. needs.data only proves a value arrived, never that it is the identical
-      -- object a sibling was also handed, and nothing else in this schema says it either.
-      windowManagement = { source = "root", policy = "required",
+      -- Every binding declared on the window leader by any plugin, in plan order and then in
+      -- each plugin's own order, stamped with the resolved window leader keycode. The root
+      -- builds it once and the launcher's window rows read the same list, so the key a row
+      -- names and the key the overlay shows come from one answer. Root computed, required,
+      -- since an absent list leaves the row model empty for every leader.
+      windowBindings = { source = "root", policy = "required",
         breaks = "holding a leader shows nothing at all, since the row model built from an empty list has no group for any leader to show" },
       -- Section titles keyed by leader keycode, read as the overlay heading over that
       -- leader's rows. Root computed, optional, since a missing title only blanks the

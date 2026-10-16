@@ -29,33 +29,16 @@ return {
   },
 
   needs = {
-    -- bindToLeader hands this plugin a WindowLeader instance directly as an argument,
-    -- outside configure, so this coupling would otherwise never appear in a manifest built
-    -- only from configure calls. It is declared anyway, because the wiring order is
-    -- computed off needs.siblings regardless of which method delivers the collaborator, and
-    -- an undeclared one here would let the loader configure WindowManager before
-    -- WindowLeader exists with nothing to warn about it. Required, since none of the
-    -- sixteen bindings above bind to anything without a leader to bind into.
-    --
-    -- No member. bindToLeader calls windowLeader:bind(...) on the collaborator itself, the
-    -- WindowLeader MODULE, never one method pulled off it in isolation, so leader must
-    -- resolve to the module or it resolves to the bare colon method with no self bound,
-    -- which fails on arity rather than failing cleanly the moment a key is pressed.
-    siblings = {
-      leader = { plugin = "windowleader", policy = "required" },
+    -- The window leader is core, a lib like Hyper, and a plugin that declares leader = "window"
+    -- binds onto it through the grant below with no keycode in sight, the way capture binds
+    -- onto Hyper. The grant is the whole module rather than one member, because bindToLeader
+    -- calls windowLeader:bind(...) on it as a colon method. Required, since none of the
+    -- sixteen bindings below bind to anything without a leader to bind into.
+    lib = {
+      windowLeader = { from = "windowleader", policy = "required" },
     },
 
-    -- bindToLeader's own second and third arguments, just as load bearing as the leader
-    -- itself, and configure's own two fields. None of the four has anywhere else to live.
     data = {
-      -- The stamped windowManagement list, the sixteen entries above merged with any user
-      -- override and stamped with the resolved window leader keycode by the composition
-      -- root. Root computed, and the exact same stamped table WindowCheatSheet must also
-      -- receive, though nothing here, or in WindowCheatSheet's own manifest, can assert
-      -- that the two consumers are handed the identical table rather than two separately
-      -- stamped copies that happen to agree today.
-      mapping = { source = "root", policy = "required",
-                  breaks = "bindToLeader runs over an empty list, so not one of the sixteen window actions binds to any key, holding the window leader does nothing at all" },
       -- The shared when name to predicate function table, gating previousDisplay and
       -- nextDisplay on multipleDisplays. Root computed. Optional, since an absent or
       -- unknown name is treated as always active by bindToLeader's own fallback, the same
@@ -80,11 +63,13 @@ return {
   },
 
   -- bindToLeader is a second call beyond configure, so it is named here rather than assumed.
-  -- Every one of the three positional values, the sibling and the two data entries above, is
-  -- something the composition root resolved rather than something declared on this plugin's
-  -- own defaults, so all three read from the root namespace.
+  -- The leader is the lib grant above and the bindings are this plugin's own effective list,
+  -- after any override, which is the same shape capture's bindHotkeys takes. The predicate
+  -- table is the one value the root owes. The root reads the same effective list by walking
+  -- the plan for every plugin on the window leader, so the cheat sheet and the launcher show
+  -- what is bound without ever naming this plugin.
   wiring = {
-    { method = "bindToLeader", args = { "root.leader", "root.mapping", "root.predicates" } },
+    { method = "bindToLeader", args = { "self.windowLeader", "self.bindings", "root.predicates" } },
   },
 
   -- The launcher narrows its own catalog into a window actions group by asking this plugin
@@ -95,7 +80,7 @@ return {
 
   defaults = {
     leader = "window",
-    windowManagement = {
+    bindings = {
       -- Switch display (first row, hidden on a single display by the predicate)
       { action = "previousDisplay",      key = ",", when = "multipleDisplays" },
       { action = "nextDisplay",          key = ".", when = "multipleDisplays" },
