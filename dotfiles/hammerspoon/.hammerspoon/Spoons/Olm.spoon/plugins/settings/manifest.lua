@@ -1,8 +1,8 @@
 -- OLM settings, what it declares about itself.
 --
--- A friendly front end onto policy that already lives elsewhere, two pages today, where the
--- OLM launcher appears, over lib/overlaydisplay.lua's own two modes, and the colour theme,
--- over lib/ui/themes.lua. It owns no data of its own, it only reads and writes the live
+-- A friendly front end onto policy that already lives elsewhere, three pages today, where the
+-- OLM launcher appears, over lib/overlaydisplay.lua's own two modes, the colour theme, over
+-- lib/ui/themes.lua, and which plugins are switched on, over lib/pluginswitch.lua. It owns no data of its own, it only reads and writes the live
 -- choices through the root words below, so the one place that ever calls hs.settings for
 -- each policy stays the lib that owns it.
 return {
@@ -22,6 +22,7 @@ return {
   icons = {
     placement = { emoji = "🖥️", sf = "desktopcomputer" },
     theme = { emoji = "🎨", sf = "paintpalette" },
+    plugins = { emoji = "🧩", sf = "puzzlepiece.extension" },
     back = { emoji = "⬅️", sf = "chevron.left" },
     selected = { emoji = "🟢", sf = "circle.fill" },
     notSelected = { emoji = "🔴", sf = "circle" },
@@ -32,6 +33,11 @@ return {
   -- settings, one lowercase word, and it needs no different spelling, so no name field.
 
   needs = {
+    -- The UI kit, which the Plugins page's docked pane draws every piece of text through.
+    -- Optional, without it that page has no pane and still lists and switches.
+    lib = {
+      ui = { from = "ui", policy = "optional" },
+    },
     data = {
       -- The reader, a function of no arguments answering the resolver's own effective mode
       -- as a string, one of lib/overlaydisplay.lua's M.modes. Required, since a page whose
@@ -66,8 +72,8 @@ return {
           .. "persisting a theme has no other way in from this plugin" },
 
       -- The plugins page's four words over the one switch, published by the root over
-      -- lib/pluginswitch.lua. Optional, since no page reads them yet and every other page
-      -- here works without them. The catalog lists the plugins under plugins with their
+      -- lib/pluginswitch.lua. Optional, since every other page here works without them, and
+      -- the Plugins row appears only when they arrive. The catalog lists the plugins under plugins with their
       -- about block and needs, the set answers which are switched off, the cascade answers
       -- what else goes off or comes back with one, and the setter saves a switch and
       -- schedules the one reload that applies it.
@@ -82,6 +88,15 @@ return {
       setPluginDisabled = { source = "root", policy = "optional",
         breaks = "switching a plugin on or off from a plugins page changes nothing, since the "
           .. "saved set and the reload have no other way in from this plugin" },
+
+      -- One line of routine feedback, drawn by whoever owns the overlay surface, which is how a
+      -- refused switch says why. Optional, the refusal then simply changes nothing, and the
+      -- stage word the pane follows the highlight through, optional for the same reason.
+      notify = { source = "root", policy = "optional",
+        breaks = "a plugin that cannot be switched gives no reason, the press simply does nothing" },
+      stageSelectedItem = { source = "root", policy = "optional",
+        breaks = "the Plugins pane cannot be repainted after a switch, so it keeps describing the "
+          .. "state from before the press until the highlight moves" },
 
       -- Two of the trickle migration's own words, the hotkey door and the child leaving
       -- door, optional and degrading to an inert press rather than a crash, since asking
@@ -103,6 +118,9 @@ return {
   surface = {
     context = "settings",
     primary = { action = "insertSelected", description = "Choose" },
+    -- Only the Plugins page reserves the docked pane, through its own paneWidth, so this asks
+    -- for the pane surface and the empty state and nothing else changes on the other pages.
+    pane = true,
   },
 
   -- The presentation contract, docs/PLUGIN-CONTRACT.md. rows and select are this plugin's

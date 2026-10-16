@@ -1,12 +1,16 @@
 --- === OLM settings ===
 ---
---- A friendly settings surface, opened from the launcher only, with two nested pages today.
+--- A friendly settings surface, opened from the launcher only, with three nested pages today.
 --- The first is where the OLM launcher appears, deciding which display the launcher and every
 --- stage window land on. The mechanism it controls already lives in lib/overlaydisplay.lua,
 --- two modes, activeWindow and cursor, and this page is the only surface a person sees or
 --- changes either one through. The second is the colour theme, one row per theme file under
 --- config/themes, applied the moment it is chosen. That mechanism lives in lib/ui/themes.lua
 --- and reaches this plugin as three root published words, themeName, themeNames and setTheme.
+--- The third lists every plugin with a green or red circle and switches one on or off, over the
+--- four root words pluginCatalog, disabledPlugins, pluginCascade and setPluginDisabled. That
+--- page alone reserves a docked pane describing the highlighted plugin, and its row on the top
+--- level appears only when the root delivered those words.
 ---
 --- No engine and contract ceremony, this plugin has no moving parts of its own. It reads and
 --- writes the resolver's live mode through two root published words, overlayPlacementMode and
@@ -36,6 +40,11 @@
 
 local M = {}
 
+-- Siblings in this directory are loaded by path, the spoon directory is not on the module path.
+local here = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
+local page = loadfile(here .. "pluginspage.lua")()
+local pane = loadfile(here .. "pane.lua")()
+
 local log = hs.logger.new("Settings", "info")
 
 -- Injected via configure, the trickle migration's own root published words. readMode and
@@ -43,6 +52,11 @@ local log = hs.logger.new("Settings", "info")
 -- changing a policy has nothing honest left to do without either. stagePresent and stagePop
 -- are optional, degrading to an inert press rather than a crash.
 local cfg = {}
+
+-- What was just switched on the Plugins page, identity to its new off state, until the reload
+-- the switch schedules replaces this process. The root's catalog describes this load, so
+-- without it the circle would not move on the row just chosen.
+local pending = {}
 
 --------------------------------------------------------------------------------
 -- Row building
@@ -52,6 +66,7 @@ local cfg = {}
 local ICON_PLACEMENT = "placement"
 local ICON_THEME = "theme"
 local ICON_BACK = "back"
+local ICON_PLUGINS = "plugins"
 -- The two option rows carry only a circle each, never a checkmark, the one marker
 -- convention this codebase uses for "which of these is current right now". Green marks
 -- whichever option is current and red marks the other one, so the pair together says which
@@ -179,21 +194,123 @@ local function buildThemeChild()
 end
 
 --------------------------------------------------------------------------------
--- The top level, two rows, named on the manifest's own presentation block
+-- The child page for Plugins, Back plus one row per plugin, with a docked pane
+--------------------------------------------------------------------------------
+
+-- Whether the root delivered all four words. They are optional, so a root without them simply
+-- has no Plugins row rather than a page that lists nothing.
+local function pluginsAvailable()
+  return cfg.pluginCatalog ~= nil and cfg.pluginCascade ~= nil and cfg.setPluginDisabled ~= nil
+end
+
+local function catalog()
+  return (cfg.pluginCatalog and cfg.pluginCatalog()) or {}
+end
+
+local function pluginRows()
+  local rows = { backRow() }
+  for _, r in ipairs(page.rows(catalog(), pending, row)) do rows[#rows + 1] = r end
+  return rows
+end
+
+-- The pane follows the highlight. A row that is not a plugin, Back, or no row at all, paints
+-- the shared empty state rather than leaving the reserved rect bare.
+local function describe(item)
+  if not (item and item.plugin) then
+    pane.clear()
+    return
+  end
+  local list = catalog()
+  local entry = page.find(list, item.plugin)
+  if not entry then
+    pane.clear()
+    return
+  end
+  local cascade = cfg.pluginCascade(item.plugin)
+  pane.show(function(ui) return page.detail(ui, entry, list, cascade, pending) end)
+end
+
+local function describeHighlighted()
+  describe(cfg.stageSelectedItem and cfg.stageSelectedItem())
+end
+
+-- Built like the other two children, a fixed list that answers the query in full and so opts
+-- out of the shared matcher. Choosing a plugin answers stay, since it mutates the list it
+-- stands on and the person keeps the row they chose, and a row that cannot be switched
+-- answers stay too, doing nothing, so a press on it never leaves the page.
+local function buildPluginsChild()
+  return {
+    placeholder = "Plugins",
+    matcher = false,
+    rows = pluginRows,
+    onSelect = function() end,
+    -- True only when the pane can really draw, so a root that injected no pane surface opens
+    -- the page with no companion rect instead of reserving one nothing can draw in.
+    paneWidth = pane.isEnabled() and true or nil,
+    onHighlight = describe,
+    onPositioned = function(_, companionFrame)
+      if companionFrame then
+        pane.dock(companionFrame)
+        -- The stage seeds the highlight before it positions anything, so this is what fills
+        -- the pane on open.
+        describeHighlighted()
+      else
+        pane.hide()
+      end
+    end,
+    onClose = function() pane.destroy() end,
+    intercept = function(item)
+      if item.nav and item.to == "back" then
+        if cfg.stagePop then cfg.stagePop() end
+        return true
+      end
+      if item.plugin then
+        if not item.toggle then return "stay" end
+        local entry = page.find(catalog(), item.plugin)
+        if not entry then return "stay" end
+        local off = not page.isOff(entry, pending)
+        local ok, why = cfg.setPluginDisabled(item.plugin, off)
+        if ok then
+          pending[item.plugin] = off
+          -- The marker moves on the redraw this answer causes, and the pane is repainted by
+          -- hand since a redraw that keeps the highlight does not announce one.
+          describeHighlighted()
+        elseif cfg.notify then
+          cfg.notify(why or "That plugin could not be switched")
+        end
+        return "stay"
+      end
+      return false
+    end,
+  }
+end
+
+--------------------------------------------------------------------------------
+-- The top level, up to three rows, named on the manifest's own presentation block
 --------------------------------------------------------------------------------
 
 --- M.rows() -> rows
---- The top level's own row supplier. Two rows today, Where the OLM launcher appears, its
---- subtitle naming the live choice in words, and Theme, its subtitle naming the live theme.
---- No matcher declared in the manifest, the shared default fuzzy strategy is more than
---- enough over two rows.
+--- The top level's own row supplier. Where the OLM launcher appears, its subtitle naming the
+--- live choice in words, Theme, its subtitle naming the live theme, and Plugins, only when the
+--- root delivered the plugin switch words, its subtitle counting what is off. No matcher
+--- declared in the manifest, the shared default fuzzy strategy is more than enough over so few
+--- rows.
 function M.rows()
   local mode = liveMode()
   local words = MODE_WORDS[mode] or MODE_WORDS.cursor
-  return {
+  local rows = {
     row("Where the OLM launcher appears", words, ICON_PLACEMENT, { nav = true, to = "placement" }, true),
     row("Theme", liveTheme(), ICON_THEME, { nav = true, to = "theme" }, true),
   }
+  if pluginsAvailable() then
+    local off = 0
+    for _, entry in ipairs(catalog()) do
+      if page.isOff(entry, pending) then off = off + 1 end
+    end
+    rows[#rows + 1] = row("Plugins", off == 0 and "all on" or (off .. " off"), ICON_PLUGINS,
+      { nav = true, to = "plugins" }, true)
+  end
+  return rows
 end
 
 --- M.select(item) -> presentation or nil
@@ -204,6 +321,7 @@ function M.select(item)
   if not item then return nil end
   if item.nav and item.to == "placement" then return buildPlacementChild() end
   if item.nav and item.to == "theme" then return buildThemeChild() end
+  if item.nav and item.to == "plugins" and pluginsAvailable() then return buildPluginsChild() end
   return nil
 end
 
@@ -239,6 +357,16 @@ end
 --- opts.themeNames               required, a function of no arguments answering the sorted names.
 --- opts.setTheme                 required, a function of a theme name, applying it at once and
 ---                               persisting it through lib/ui/themes.lua.
+--- opts.pluginCatalog            optional, a function of no arguments answering the plugin list.
+--- opts.disabledPlugins          optional, delivered with the other three and unread, since the
+---                               catalog already carries each plugin's state.
+--- opts.pluginCascade            optional, a function of an identity answering what else changes.
+--- opts.setPluginDisabled        optional, a function of an identity and an off flag answering
+---                               ok and why. The Plugins page exists only with the three it reads.
+--- opts.notify                   optional, one line of routine feedback, used for a refusal.
+--- opts.stageSelectedItem        optional, the highlighted row, which the pane follows.
+--- opts.surface, opts.emptyState, opts.ui  optional, the shared pane surface, its empty state
+---                               and the UI kit. Without them the Plugins page has no pane.
 --- opts.stagePresent             optional, the shared stage door M.show asks through.
 --- opts.stagePop                 optional, the door the placement child's own Back row asks
 ---                                through.
@@ -251,6 +379,13 @@ function M:configure(opts)
   cfg.setTheme = opts.setTheme
   cfg.stagePresent = opts.stagePresent
   cfg.stagePop = opts.stagePop
+  cfg.pluginCatalog = opts.pluginCatalog
+  cfg.pluginCascade = opts.pluginCascade
+  cfg.setPluginDisabled = opts.setPluginDisabled
+  cfg.notify = opts.notify
+  cfg.stageSelectedItem = opts.stageSelectedItem
+  pending = {}
+  pane.configure({ surface = opts.surface, emptyState = opts.emptyState, ui = opts.ui })
   if not cfg.readMode or not cfg.setMode then
     log.w("configured with no overlay placement reader or writer, the Where the OLM "
       .. "launcher appears page will show and change nothing")
