@@ -339,3 +339,4 @@ surface and empty state, the scroll and the teardown, `pane = true` on a surface
   question rather than this change's. `test/cases/dockedpane.lua` drives the piece over a stub
   canvas and timer and runs in plain lua, and the dry gate hands a pane declaring plugin an
   autostub `dockedPane` in place of the old `surface`.
+- 2026-10-16 17:54. Speedtest's scroll direction was corrected to match the other panes, so it passes the points the chooser hands it straight through and no longer negates them. The 17:47 entry's open question about keeping the old inversion is closed.

@@ -110,12 +110,11 @@ function M.showText(title, lines)
 end
 
 --- pane.scrollBy(points) -> whether anything moved.
---- Negated on the way through. This pane has always moved against the sign the chooser hands
---- every pane, and the shared piece takes positive as further down, so the negation keeps the
---- direction a person already knows here exactly as it was.
+--- Passed straight through. The chooser hands every pane positive as further down, and the
+--- shared piece reads it the same way, so this pane scrolls like the others.
 function M.scrollBy(points)
   if not pane then return false end
-  return pane.scrollBy(-(points or 0))
+  return pane.scrollBy(points or 0)
 end
 
 --- pane.clear() - the shared empty state, for a highlight with nothing to describe.

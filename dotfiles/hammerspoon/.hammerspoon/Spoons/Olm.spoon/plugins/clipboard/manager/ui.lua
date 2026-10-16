@@ -377,8 +377,9 @@ end
 --
 -- A render picks what kind of entry it has, asks that kind for its facts and its blocks, and
 -- composes them with manager/pane.lua into one tree of UI kit nodes. paint() hands the tree to
--- the docked pane, which lays it out clipped to the inner box and scrolled by the live offset. This file chooses and measures nothing about type, every font, size, line
--- height and colour is the kit's, see pane.lua. Media comes straight from the store's
+-- the docked pane, which lays it out clipped to the inner box and scrolled by the live offset.
+-- This file chooses and measures nothing about type, every font, size, line height and colour
+-- is the kit's, see pane.lua. Media comes straight from the store's
 -- downscaled preview PNG (preview.lua sized it with sips or ffmpeg off the main thread),
 -- loaded once as an hs.image, so nothing sizes it here.
 
@@ -863,6 +864,7 @@ end
 -- On close. The pane is destroyed, so nothing outlives a dismissal and the next open starts at
 -- the top with no frame until the atom reports one, and the per open caches go with it.
 local function hidePreview()
+  renderToken = renderToken + 1 -- a read still out must not paint into the destroyed pane
   if companion then companion.destroy() end
   imageCache = {} -- drop decoded preview images between opens
   existCache = {} -- recheck linked-file liveness on the next open

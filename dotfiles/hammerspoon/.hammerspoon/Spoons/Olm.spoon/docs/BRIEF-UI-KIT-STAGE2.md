@@ -13,7 +13,7 @@ your report. The look changes in stage three, never here.
 ## Move these onto the kit
 
 1. lib/panel.lua `emptyStateElements` draws through `ui.text` in the dim variant, centred.
-   Keep its signature, since four plugins call it as `opts.emptyState`.
+   Keep its signature, since four plugins call it as `opts.emptyState`. The docked pane in lib/dockedpane.lua replaced that grant on 2026-10-16.
 2. lib/hints.lua, the docked shortcut bar, the message toast, the colour toast and the list
    toast. The bar is a `flow` of rows of badges and labels. The hint badge today uses the ui
    font at 11, not mono, so the hint badge geometry in style.lua must say ui 11. The colour
