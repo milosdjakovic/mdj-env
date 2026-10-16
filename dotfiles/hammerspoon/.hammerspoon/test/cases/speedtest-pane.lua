@@ -5,8 +5,8 @@
 -- The nodes file is pure, it only builds UI kit nodes, so it is driven with the real kit, style
 -- and layout loaded as plain Lua and a stub measurer, and no canvas is ever made. The stub gives
 -- the digits different widths on purpose, the way the system font does, since the figure slot
--- exists for exactly that. What pane.lua decides, the docking, the scroll and the paint, needs a
--- canvas and is outside this case.
+-- exists for exactly that. What pane.lua decides is which view is on screen, and the docking, the
+-- scroll and the paint are the shared docked pane's, which test/cases/dockedpane.lua covers.
 
 local source = debug.getinfo(1, "S").source
 local herePath = source:match("^@(.*)$") or source

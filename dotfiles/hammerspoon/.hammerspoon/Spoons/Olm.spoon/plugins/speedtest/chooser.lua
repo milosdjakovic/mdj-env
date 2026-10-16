@@ -800,13 +800,9 @@ end
 --- file that names the runner, the store, and the pane.
 function M.configure(opts)
   for k, v in pairs(opts or {}) do cfg[k] = v end
-  pane.configure({
-    surface = cfg.surface,
-    emptyState = cfg.emptyState,
-    -- The UI kit every piece of the pane is drawn through. It follows the system appearance
-    -- itself, which is what a palette closure used to do here by hand.
-    ui = cfg.ui,
-  })
+  -- The shared docked pane the root grants for `pane = true`. It hands the kit to the pane's
+  -- describer on every paint, so the kit is not passed here.
+  pane.configure({ dockedPane = cfg.dockedPane })
   return M
 end
 

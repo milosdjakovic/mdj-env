@@ -200,12 +200,12 @@ function obj.new(deps)
       else
         opts.matcher = services.matcher
       end
-      -- A pane declaring plugin earns the empty state alongside the surface itself, the
-      -- same one routine every docked pane paints when its highlight has nothing to
-      -- describe, so the two never arrive one without the other.
+      -- A pane declaring plugin earns the docked pane, a function answering one, which
+      -- already holds the surface, the empty state and the kit, so the chrome, the quiet
+      -- state and the lifecycle around what the plugin draws are written once in
+      -- lib/dockedpane.lua rather than once per plugin.
       if decl.pane then
-        opts.surface = services.paneElements
-        opts.emptyState = services.emptyStateElements
+        opts.dockedPane = services.dockedPane
       end
     end
 

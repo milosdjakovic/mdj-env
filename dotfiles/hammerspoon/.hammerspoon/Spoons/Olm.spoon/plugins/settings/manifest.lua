@@ -34,11 +34,8 @@ return {
   -- settings, one lowercase word, and it needs no different spelling, so no name field.
 
   needs = {
-    -- The UI kit, which the Plugins page's docked pane draws every piece of text through.
-    -- Optional, without it that page has no pane and still lists and switches.
-    lib = {
-      ui = { from = "ui", policy = "optional" },
-    },
+    -- No lib. The kit the Plugins page draws through arrives with the docked pane, which hands
+    -- it to the describer on every paint, so nothing here reads opts.ui.
     data = {
       -- The reader, a function of no arguments answering the resolver's own effective mode
       -- as a string, one of lib/overlaydisplay.lua's M.modes. Required, since a page whose
@@ -123,7 +120,7 @@ return {
     context = "settings",
     primary = { action = "insertSelected", description = "Choose" },
     -- Only the Plugins page reserves the docked pane, through its own paneWidth, so this asks
-    -- for the pane surface and the empty state and nothing else changes on the other pages.
+    -- for the shared docked pane and nothing else changes on the other pages.
     pane = true,
   },
 

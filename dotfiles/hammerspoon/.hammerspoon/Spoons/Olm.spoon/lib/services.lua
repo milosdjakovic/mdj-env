@@ -42,12 +42,10 @@ local obj = {}
 --- deps.matchers      the table of named strategies, fuzzy, substring, words and the rest,
 ---                     so a plugin naming a strategy by that name in its own surface
 ---                     declaration resolves against the real function rather than the word.
---- deps.paneElements  the shared docked companion pane elements, handed to a plugin whose
----                     surface asks for the pane.
---- deps.emptyStateElements  the shared empty state a docked pane paints when its highlight
----                     has nothing to describe, handed alongside deps.paneElements to the
----                     same plugin, so a companion pane never has to invent its own quiet
----                     message.
+--- deps.dockedPane    a function answering a new docked companion pane, lib/dockedpane.lua
+---                     built with the kit, the shared surface and the shared empty state,
+---                     handed to a plugin whose surface asks for the pane. A function rather
+---                     than a pane, since every plugin that earns it needs its own canvas.
 --- deps.log           the shared logger, granted to any plugin whether it declared anything
 ---                     or not, since UNIVERSAL treats every plugin as free to ask for one.
 ---
@@ -78,8 +76,7 @@ function obj.ambient(deps)
     placeholder = deps.placeholder,
     matcher = deps.matcher,
     matchers = deps.matchers,
-    paneElements = deps.paneElements,
-    emptyStateElements = deps.emptyStateElements,
+    dockedPane = deps.dockedPane,
     log = deps.log,
     after = after,
   }

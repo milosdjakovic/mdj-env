@@ -45,7 +45,11 @@ local M = {}
 -- Siblings in this directory are loaded by path, the spoon directory is not on the module path.
 local here = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local page = loadfile(here .. "pluginspage.lua")()
-local pane = loadfile(here .. "pane.lua")()
+
+-- The docked pane beside the Plugins page, made in configure from the root's grant. The shared
+-- piece owns the canvas, the dock, the empty state and the teardown, and this file hands it only
+-- what to draw. Nil when no pane was granted, and every use below asks first.
+local pane = nil
 
 local log = hs.logger.new("Settings", "info")
 
@@ -244,6 +248,7 @@ end
 -- The pane follows the highlight. A row that is not a plugin, Back, or no row at all, paints
 -- the shared empty state rather than leaving the reserved rect bare.
 local function describe(item)
+  if not pane then return end
   if not (item and item.plugin) then
     pane.clear()
     return
@@ -255,6 +260,9 @@ local function describe(item)
     return
   end
   local cascade = cfg.pluginCascade(item.plugin)
+  -- A function of the kit, so a redock or a change of appearance repaints from the same
+  -- description. There is no scroll, since a plugin's block is short, and anything taller than
+  -- the pane is cut at its edge.
   pane.show(function(ui) return page.detail(ui, entry, list, cascade, SELF) end)
 end
 
@@ -277,9 +285,10 @@ local function buildPluginsChild()
     onSelect = function() end,
     -- True only when the pane can really draw, so a root that injected no pane surface opens
     -- the page with no companion rect instead of reserving one nothing can draw in.
-    paneWidth = pane.isEnabled() and true or nil,
+    paneWidth = (pane and pane.isEnabled()) and true or nil,
     onHighlight = describe,
     onPositioned = function(_, companionFrame)
+      if not pane then return end
       if companionFrame then
         pane.dock(companionFrame)
         -- The stage seeds the highlight before it positions anything, so this is what fills
@@ -289,7 +298,7 @@ local function buildPluginsChild()
         pane.hide()
       end
     end,
-    onClose = function() pane.destroy() end,
+    onClose = function() if pane then pane.destroy() end end,
     intercept = function(item)
       if item.nav and item.to == "back" then
         if cfg.stagePop then cfg.stagePop() end
@@ -408,8 +417,8 @@ end
 ---                               exists with the first three, and Apply now needs this too.
 --- opts.notify                   optional, one line of routine feedback, used for a refusal.
 --- opts.stageSelectedItem        optional, the highlighted row, which the pane follows.
---- opts.surface, opts.emptyState, opts.ui  optional, the shared pane surface, its empty state
----                               and the UI kit. Without them the Plugins page has no pane.
+--- opts.dockedPane               optional, the root's docked pane grant, a function answering
+---                               a pane. Without it the Plugins page has no pane.
 --- opts.stagePresent             optional, the shared stage door M.show asks through.
 --- opts.stagePop                 optional, the door the placement child's own Back row asks
 ---                                through.
@@ -429,7 +438,7 @@ function M:configure(opts)
   cfg.notify = opts.notify
   cfg.stageSelectedItem = opts.stageSelectedItem
   lastStaged = nil
-  pane.configure({ surface = opts.surface, emptyState = opts.emptyState, ui = opts.ui })
+  if not pane and opts.dockedPane then pane = opts.dockedPane() end
   if not cfg.readMode or not cfg.setMode then
     log.w("configured with no overlay placement reader or writer, the Where the OLM "
       .. "launcher appears page will show and change nothing")

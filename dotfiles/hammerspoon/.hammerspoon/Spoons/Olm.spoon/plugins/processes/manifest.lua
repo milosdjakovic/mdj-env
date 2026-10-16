@@ -232,7 +232,7 @@ return {
     onClose = { member = "chooser.onClose", call = "dot" },
     -- Review finding M1. A member spec now, contract v2's own extension, rather than the
     -- static true this migration first shipped, which centred the pair as if the detail pane
-    -- always stood up even when opts.surface was never injected. chooser.paneWidth() mirrors
+    -- always stood up even when no docked pane was granted. chooser.paneWidth() mirrors
     -- the retired layout block's own preview.isEnabled() and (cfg.previewWidth or true) or 0
     -- and is resolved once, at register, after M:start has already configured preview.
     paneWidth = { member = "chooser.paneWidth", call = "dot" },

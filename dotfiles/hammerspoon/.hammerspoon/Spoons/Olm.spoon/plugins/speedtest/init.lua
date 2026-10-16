@@ -43,11 +43,9 @@ obj.chooser = load("chooser.lua")
 --- opts.storage            lib/storage.lua, for the one data directory this plugin owns.
 --- opts.deps               the per plugin dependency adapter, the only way this file learns
 ---                         where networkQuality lives. Nothing here ever names a path.
---- opts.surface            the shared pane surface, granted because the manifest asks for a
----                         pane. Absent means the list opens with no companion rect at all.
---- opts.emptyState         the shared quiet state a docked pane paints with nothing to say.
---- opts.ui                 the UI kit, which every piece of text and every colour in the pane comes
----                         through. Absent means no pane, the same as no surface.
+--- opts.dockedPane         the shared docked pane, a function answering one, granted because the
+---                         manifest asks for a pane. Absent means the list opens with no companion
+---                         rect at all.
 --- opts.stagePresent, opts.redrawPresented, opts.stagePop, opts.stageSelectedItem
 ---                         the four root published words this plugin speaks.
 function obj:configure(opts)
@@ -83,9 +81,7 @@ function obj:configure(opts)
   obj.chooser.configure({
     runner = runner,
     store = store,
-    surface = opts.surface,
-    emptyState = opts.emptyState,
-    ui = opts.ui,
+    dockedPane = opts.dockedPane,
     stagePresent = opts.stagePresent,
     redrawPresented = opts.redrawPresented,
     stagePop = opts.stagePop,

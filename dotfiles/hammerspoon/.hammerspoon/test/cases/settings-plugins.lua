@@ -3,8 +3,9 @@
 -- through debug.getinfo and derives every module path from there.
 --
 -- The page builder is pure, rows are data and the detail is kit nodes, so it is driven with the
--- real kit and a hand written catalog and no canvas is made. What pane.lua and init.lua decide,
--- the docking and the wiring, needs the running config and is outside this case.
+-- real kit and a hand written catalog and no canvas is made. What init.lua decides, the wiring,
+-- needs the running config and is outside this case, and the docking is the shared docked
+-- pane's, which test/cases/dockedpane.lua covers.
 
 local source = debug.getinfo(1, "S").source
 local herePath = source:match("^@(.*)$") or source

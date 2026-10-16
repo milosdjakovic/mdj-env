@@ -45,6 +45,9 @@ stage goes away by any route, which `host/stage` reports through its `onClosed` 
 when the page's Apply now row is chosen. A dismissal reopens nothing and one routine line after
 the reload names what changed. Apply now leaves a one shot note under `Olm.resume` describing
 the place the plugin was in, and the next load reopens it through `stage.presentAt`.
+A docked companion pane is core too. `lib/dockedpane.lua` owns the canvas, the dock, the shared
+surface and empty state, the scroll and the teardown, `pane = true` on a surface earns
+`opts.dockedPane`, a function answering one, and a plugin hands it only what to draw.
 
 ## Rejected
 
@@ -117,6 +120,19 @@ the place the plugin was in, and the next load reopens it through `stage.present
 - **A contributed row keeping the launcher as its icon owner.** 2026-10-16. It would have kept
   the owner field identical, but only by a plugin naming the launcher, the coupling phase 3
   removes. The plugin declares the same icon instead.
+- **Delivering the docked pane through the UI kit, `needs.lib.ui`.** 2026-10-16 17:47. The kit
+  was the obvious home, since the pane lays out kit nodes, but every plugin that asks for the kit
+  could then make a pane without declaring one, so `pane = true` would stop being the gate, and
+  the kit is node vocabulary that loads with no hs while the pane owns a window. It is granted by
+  the pane declaration instead, the way the surface and the empty state already were.
+- **Making the docked pane a mode of CanvasPanel.** 2026-10-16 17:47. CanvasPanel places and
+  sizes itself from an anchor and its content and owns reveal timing, while a docked pane lands
+  on a rect the chooser reported and must not move off it, or a click on it dismisses the list.
+  One object with two placement models would be harder to read than two small ones sharing the
+  surface and the empty state routines.
+- **Keeping the raw `surface` and `emptyState` grants beside the pane.** 2026-10-16 17:47. Once
+  the pane holds them nothing in a plugin reads them, and a plugin handed the raw routines is one
+  step from copying the lifecycle again, so `pane = true` now earns `dockedPane` alone.
 
 ## Log
 
@@ -300,3 +316,26 @@ the place the plugin was in, and the next load reopens it through `stage.present
   no registry block and skipped the show check, is gone. The case compares chords as counted
   lists and runs once more with the real `config/plugins.lua`, `config/keys.lua` and
   `config/apps.lua`.
+- 2026-10-16 17:47. The docked companion pane moved into core, closing the 14:26 entry's open item.
+  Five plugins each carried the same canvas lifecycle, the settings Plugins page, speedtest,
+  processes, file search's side panel and the clipboard preview, and `lib/dockedpane.lua` now
+  owns it once, the canvas, the dock on the companion rect, the surface underneath, the empty
+  state, the scroll and its clamp, the thumb, the hide guard and the destroy. It is Template
+  Method on closures, the paint is the fixed skeleton and what is drawn is a describer answering
+  one kit node or a painter answering elements and an overflow, for a pane of several regions.
+  `root/compose.lua` builds the factory with the kit and CanvasPanel's two routines, and
+  `lib/wire.lua` grants it as `opts.dockedPane` for `pane = true`, replacing the `surface` and
+  `emptyState` grants. Settings lost its `pane.lua` and speedtest kept a `pane.lua` that only
+  chooses the view, and neither reads the kit any more, so both dropped `needs.lib.ui`. Kept in
+  the plugins on purpose, the processes cache of the static half and the file search header,
+  body split and thumbnail generation, since each is what that pane draws rather than how a pane
+  lives. Four behaviours moved slightly and none should be visible. A pane given no empty state
+  now leaves the bare surface up in all five, where three used to hide, a case the grant never
+  produces. The clipboard preview is destroyed on close rather than hidden, so a reopen waits for
+  the first dock instead of painting at the last open's frame. A scroll is clamped as it arrives
+  rather than only at paint. A redock rebuilds the processes and file search caches only when
+  the box changed size. Speedtest negates the scroll it is handed before passing it on, because
+  it has always moved against the other two scrolling panes, and keeping that is the live check's
+  question rather than this change's. `test/cases/dockedpane.lua` drives the piece over a stub
+  canvas and timer and runs in plain lua, and the dry gate hands a pane declaring plugin an
+  autostub `dockedPane` in place of the old `surface`.

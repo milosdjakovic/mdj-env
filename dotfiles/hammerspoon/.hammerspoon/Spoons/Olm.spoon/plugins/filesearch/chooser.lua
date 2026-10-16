@@ -44,7 +44,7 @@ local cfg = {
                       -- learn what is done with that, the same seam as copy above
   usedAt = nil,       -- injected, asks when a path was last used. The read side of onUse, on the
                       -- same seam, so what records a use and what reports one stay together
-  surface = nil,      -- the shared canvas surface, injected by the main root. Absent means no
+  dockedPane = nil,   -- the shared docked pane grant, injected by the main root. Absent means no
                       -- pane at all and the picker opens exactly as it did before there was one
   preview = nil,      -- the preview block from config, split below between the viewer and thumbs
   -- The preview providers, in priority order, injected by the spoon root, which is the only
@@ -515,11 +515,9 @@ function M:start()
   -- Everything a provider might want, offered to whichever one is in use. Each takes what it
   -- knows about and ignores the rest, which is what lets one call configure both of them.
   local deps = {
-    surface = cfg.surface,
-    -- The shared empty state, injected alongside surface by the same wiring since a pane
-    -- declaring plugin earns both together. See lib/panel.lua's own header for why a
-    -- highlight with nothing to describe now paints this rather than hiding the canvas.
-    emptyState = cfg.emptyState,
+    -- The shared docked pane the root grants for `pane = true`, which owns the canvas, the
+    -- surface, the empty state, the scroll and the teardown.
+    dockedPane = cfg.dockedPane,
     -- This pane's own guidance, painted rather than any row's own wording, since a
     -- highlight with nothing to describe should read as something to do next rather
     -- than as a label borrowed from whatever the list happened to be showing.

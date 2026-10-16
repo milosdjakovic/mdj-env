@@ -6,10 +6,11 @@
 --- selection pastes, the append batch, right click delete, and the preview that
 --- docks in the companion pane the atom reserves beside the chooser.
 ---
---- The preview is an hs.canvas docked into the companion frame the native atom
---- reserves beside the chooser, drawn to match the panel look. It never takes key
---- focus, so typing always stays in the search field. The atom polls the
---- highlighted row and calls onHighlight, which re-renders the canvas here.
+--- The preview is the shared docked pane, lib/dockedpane.lua, granted for the manifest's
+--- `pane = true`, which owns the canvas in the companion frame the atom reserves, its dock,
+--- the empty state, the scroll and the teardown. It never takes key focus, so typing always
+--- stays in the search field. The atom polls the highlighted row and calls onHighlight, which
+--- hands the pane a new tree here.
 ---
 --- Preview rendering is per kind, a tree of UI kit nodes laid out onto a canvas (never a
 --- webview). Text and url wrap in the code role; image and video show the downscaled preview
@@ -69,22 +70,8 @@ local KIND_PREFIX = {
 }
 
 -- State
-local preview = nil -- the hs.canvas companion pane, built lazily in ensurePreview
-local previewFrame = nil -- the companion rect the atom reported, where the canvas docks
-local paneHidden = false -- set by the swap away hide, cleared by onPositioned's own dock
-                         -- branch, the resurrection guard paint reads
+local companion = nil -- the shared docked pane, made in configure from the root's grant
 local renderToken = 0 -- bumped each render; async results check it to avoid stale writes
-local scrollOffset = 0 -- how far the current preview is scrolled down, in points
-local maxScroll = 0 -- clamp bound for scrollOffset, set by the last render from content height
-local scrollTimer = nil -- the one pending scroll paint, see UI.scrollPreviewBy
-local SCROLL_FRAME = 1 / 60 -- one display frame, the longest a scroll event waits for its paint
-
-local function stopScrollTimer()
-  if scrollTimer then
-    scrollTimer:stop()
-    scrollTimer = nil
-  end
-end
 local thumbCache = {} -- path -> hs.image (or false), for row thumbnails
 local imageCache = {} -- preview png path -> hs.image (or false), so a re-highlight re-decodes nothing
 local iconCache = {} -- bundle id -> hs.image (or false), for row source-app icons
@@ -389,9 +376,8 @@ end
 --------------------------------------------------------------------------------
 --
 -- A render picks what kind of entry it has, asks that kind for its facts and its blocks, and
--- composes them with manager/pane.lua into one tree of UI kit nodes. paint() lays the tree
--- out through ui.layout, clipped to the inner box and scrolled by the live offset, and draws
--- what comes back. This file chooses and measures nothing about type, every font, size, line
+-- composes them with manager/pane.lua into one tree of UI kit nodes. paint() hands the tree to
+-- the docked pane, which lays it out clipped to the inner box and scrolled by the live offset. This file chooses and measures nothing about type, every font, size, line
 -- height and colour is the kit's, see pane.lua. Media comes straight from the store's
 -- downscaled preview PNG (preview.lua sized it with sips or ffmpeg off the main thread),
 -- loaded once as an hs.image, so nothing sizes it here.
@@ -404,32 +390,6 @@ do
   local chunk, err = loadfile(here .. "pane.lua")
   if not chunk then error("clipboard native: failed to load pane.lua: " .. tostring(err)) end
   pane = chunk()
-end
-
--- The tree of the last paint, kept so a scroll can lay it out again at the new offset
--- without asking the entry for its blocks a second time.
-local lastNode = nil
-
--- A shallow copy of a canvas element with its frame offset by (dx, dy), so content
--- built in its own (0,0) box can be placed absolutely without mutating the source.
-local function shiftEl(el, dx, dy)
-  local copy = {}
-  for k, v in pairs(el) do copy[k] = v end
-  if el.frame then
-    copy.frame = { x = (el.frame.x or 0) + dx, y = (el.frame.y or 0) + dy,
-                   w = el.frame.w, h = el.frame.h }
-  end
-  return copy
-end
-
--- Built only from paint(), which never runs before previewFrame holds the atom's
--- real rect, so the canvas is sized right from its first frame and never sized off
--- a config number.
-local function ensurePreview()
-  if preview then return end
-  preview = hs.canvas.new({ x = 0, y = 0, w = previewFrame.w, h = previewFrame.h })
-  preview:level(hs.canvas.windowLevels.floating)
-  preview:clickActivating(false) -- a click on the pane must not pull focus off the field
 end
 
 
@@ -445,61 +405,20 @@ local function previewImage(path)
 end
 
 
--- The inner box the tree is laid out in, the pane's frame less the kit's one inset, which is
--- the space around content every surface shares. In the canvas's own coordinates, so the
--- elements the layout answers are drawn as they come. Only ever called while a frame exists,
--- renderPreview having already deferred when there is none.
-local function innerRect()
-  local pad = kit.tokens().pad
-  return { x = pad, y = pad, w = previewFrame.w - 2 * pad, h = previewFrame.h - 2 * pad }
-end
-
--- Lay a tree into the canvas, the shared surface first (unclipped), then the tree laid out in
--- the inner box, scrolled by the live offset, and clipped at the inside of the border. The
+-- Hand a tree to the docked pane, which draws the shared surface first, then the tree laid out
+-- in the inner box, scrolled by the live offset and clipped at the inside of the border. The
 -- padding scrolls with the content, so a line cut at the bottom is cut by the edge of the pane
--- rather than by the padding. maxScroll comes from the content height the layout answers. A node of nil is the empty state. Records the tree for repaint().
-local function paint(node)
-  if not previewFrame then return end
-  -- A late media decode, a store change, or an in flight file read can all reach this
-  -- point after a swap away already hid the canvas. paneHidden is what stops any of them
-  -- from bringing it back up beside a tool that is no longer current.
-  if paneHidden then return end
-  ensurePreview()
-  lastNode = node
-  local frame = previewFrame
-  local inner = innerRect()
-  local els = {}
-  for _, el in ipairs(cfg.surface and cfg.surface(frame.w, frame.h) or {}) do
-    els[#els + 1] = el
-  end
+-- rather than by the padding. A node of nil is the shared empty state. keepScroll is for a
+-- later delivery to the entry already on screen, which must not jump back to the top, and the
+-- pane's own hide guard keeps a late decode, a store change or an in flight read from bringing
+-- the pane back up after a swap away.
+local function paint(node, keepScroll)
+  if not companion then return end
   if node == nil then
-    -- The empty state, for a highlight with nothing to describe. A reserved rect with nothing
-    -- drawn in it reads as a broken layout rather than as an empty one, so the shared routine
-    -- paints it, which is what makes this pane read as one component with the other docked
-    -- panes in their quiet moments. Absent means a misconfigured or partially configured
-    -- module, so degrade to the bare surface rather than erroring.
-    maxScroll = 0
-    for _, el in ipairs(cfg.emptyState and cfg.emptyState(inner.w, inner.h) or {}) do
-      els[#els + 1] = shiftEl(el, inner.x, inner.y)
-    end
-  else
-    local viewport = kit.interior(frame.w, frame.h)
-    local content, contentH = kit.layout(node, inner, { scrollY = scrollOffset, viewport = viewport })
-    maxScroll = math.max(0, contentH - inner.h)
-    if scrollOffset > maxScroll or scrollOffset < 0 then
-      scrollOffset = math.max(0, math.min(scrollOffset, maxScroll))
-      content = kit.layout(node, inner, { scrollY = scrollOffset, viewport = viewport })
-    end
-    for _, el in ipairs(content) do els[#els + 1] = el end
+    companion.clear()
+    return
   end
-  preview:frame(frame)
-  preview:replaceElements(els)
-  preview:show()
-end
-
--- Redraw the last tree at the current scroll, for the scroll bindings.
-local function repaint()
-  paint(lastNode)
+  companion.show(function() return node end, { keepScroll = keepScroll })
 end
 
 -- A tree with nothing in it, a manage history row with nothing to say.
@@ -903,15 +822,13 @@ local KINDS = {
 -- presentation block. Review finding H6, no longer caches e anywhere, every other caller
 -- that used to read that cache now asks cfg.stageSelectedItem for the live row instead.
 local function renderPreview(e)
-  if not previewFrame then return end
+  local inner = companion and companion.inner()
+  if not inner then return end
   renderToken = renderToken + 1
-  stopScrollTimer()
-  scrollOffset = 0
   if not e then
     paint(nil)
     return
   end
-  local inner = innerRect()
   local ctx = { w = inner.w, h = inner.h }
   ctx.heightOf = function(facts, blocks)
     local _, height = kit.layout(pane.compose(kit, facts, blocks), inner)
@@ -931,7 +848,7 @@ local function renderPreview(e)
         local token = renderToken
         later(function(delivered)
           if token ~= renderToken then return end
-          paint(pane.compose(kit, facts, delivered))
+          paint(pane.compose(kit, facts, delivered), true)
         end)
       end
       return
@@ -943,25 +860,20 @@ end
 -- Preview pane lifecycle
 --------------------------------------------------------------------------------
 
+-- On close. The pane is destroyed, so nothing outlives a dismissal and the next open starts at
+-- the top with no frame until the atom reports one, and the per open caches go with it.
 local function hidePreview()
-  stopScrollTimer()
-  if preview then
-    preview:hide()
-  end
+  if companion then companion.destroy() end
   imageCache = {} -- drop decoded preview images between opens
   existCache = {} -- recheck linked-file liveness on the next open
-  scrollOffset = 0 -- next open starts at the top
-  paneHidden = false
 end
 
 -- The swap away signal's own hide, lighter than hidePreview above on purpose. A swap back
 -- must repaint at once rather than rebuild from nothing, so this leaves imageCache and
 -- existCache alone, the per open caches hidePreview drops between opens, and only takes
--- the canvas down and raises the guard paint reads.
+-- the canvas down and raises the pane's guard.
 local function hidePreviewForSwap()
-  stopScrollTimer()
-  paneHidden = true
-  if preview then preview:hide() end
+  if companion then companion.hide() end
 end
 
 --------------------------------------------------------------------------------
@@ -1076,9 +988,8 @@ end
 -- Stage:selectedItem() guarding on the stack rather than on that for precisely this call.
 local function onPositioned(chooserFrame, companionFrame)
   if companionFrame then
-    previewFrame = companionFrame
-    -- A redock is the swap back paneHidden guards against, so the pane may paint again.
-    paneHidden = false
+    -- A redock is the swap back the pane's hide guards against, so it may paint again.
+    if companion then companion.dock(companionFrame) end
     renderPreview(cfg.stageSelectedItem and cfg.stageSelectedItem())
   else
     -- host/stage/init.lua's own review finding H2 comment, near present's own handoff, says
@@ -1174,20 +1085,13 @@ local PREVIEW_SCROLL_STEP = 120
 
 --- UI.scrollPreviewBy(points) - move the preview by a distance in points, positive being
 --- further down the content. The one place the offset changes, so the keys and the
---- trackpad cannot drift apart, and the clamp to the content overflow stays where it
---- already was, in paint. Repaint redraws the last content at the new offset without
---- rebuilding it.
+--- trackpad cannot drift apart. The docked pane clamps it to the content overflow and
+--- redraws the last content at the new offset without rebuilding it.
 function UI.scrollPreviewBy(points)
-  if not (preview and showing) then return end
-  scrollOffset = scrollOffset + (tonumber(points) or 0)
-  -- A trackpad sends dozens of events a second and a paint costs a layout, so the offset adds up
-  -- and one paint is scheduled for the next frame, however many events land before it. paint
-  -- clamps the sum and keeps its own hidden guard, so a late timer never draws.
-  if scrollTimer then return end
-  scrollTimer = hs.timer.doAfter(SCROLL_FRAME, function()
-    scrollTimer = nil
-    repaint()
-  end)
+  if not (companion and showing) then return end
+  -- The docked pane clamps the offset against the content and paints once per frame, however
+  -- many events land before it.
+  companion.scrollBy(points)
 end
 
 --- UI.scrollPreviewDown() / UI.scrollPreviewUp() - one step of the above, for the
@@ -1350,10 +1254,9 @@ end
 --- UI.configure(opts) - inject store, the insertion engine, util, media (for the shared file
 --- state rule fileBadge draws on), prune (the manage history page, whose rows and wording this
 --- file only draws), the UI kit (opts.ui, needs.lib.ui, which every piece of text in the preview
---- is drawn through), the shared
---- surface routine (opts.surface, drawing the preview pane's background and
---- border), the shared empty state routine (opts.emptyState, painted by renderPreview below
---- for a highlight with nothing to describe), and the layout config. stagePresent,
+--- is drawn through), the shared docked pane (opts.dockedPane, the root's grant for the
+--- manifest's `pane = true`, which draws the preview's background, border, empty state and
+--- scroll), and the layout config. stagePresent,
 --- redrawPresented, stageHide, stageSetQuery, and stageSetPlaceholder, the trickle migration's
 --- own root published words, arrive here too, under needs.data in the manifest.
 function UI.configure(opts)
@@ -1363,6 +1266,9 @@ function UI.configure(opts)
   media = opts.media
   prune = opts.prune
   kit = opts.ui
+  if not companion and opts.dockedPane then
+    companion = opts.dockedPane({ scroll = true })
+  end
   isAccumulator = opts.isAccumulator or isAccumulator
   cfg = opts
   return UI

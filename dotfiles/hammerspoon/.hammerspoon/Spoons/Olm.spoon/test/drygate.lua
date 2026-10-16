@@ -325,7 +325,9 @@ local function buildOpts(manifest)
       -- anything this gate actually wants to know about.
       opts.matcher = function() return 0 end
     end
-    if manifest.surface.pane then opts.surface = hsstub.autostub() end
+    -- The docked pane a pane declaring surface earns, lib/wire.lua's own grant. An autostub
+    -- answers another one when called, so a plugin making its pane at configure gets one.
+    if manifest.surface.pane then opts.dockedPane = hsstub.autostub() end
   end
   if manifest.needs and manifest.needs.tools then
     opts.deps = hsstub.autostub()

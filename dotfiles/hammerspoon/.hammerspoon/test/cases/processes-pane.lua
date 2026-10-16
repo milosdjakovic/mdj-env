@@ -4,8 +4,9 @@
 --
 -- The nodes file is pure, it only builds UI kit nodes, so it is driven with the real kit, style
 -- and layout loaded as plain Lua and a stub measurer at seven points a character, and no canvas
--- is ever made. What preview.lua decides, the docking, the cache, the sampler's figures and the
--- paint, needs a canvas and is outside this case.
+-- is ever made. What preview.lua decides, the cache, the sampler's figures and the painter, is
+-- outside this case, and the docking and the paint are the shared docked pane's, which
+-- test/cases/dockedpane.lua covers.
 
 local source = debug.getinfo(1, "S").source
 local herePath = source:match("^@(.*)$") or source

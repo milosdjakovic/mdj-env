@@ -66,6 +66,8 @@ local switchLib = load("lib/pluginswitch.lua")
 local resumeLib = load("lib/resume.lua")
 local navLib = load("lib/nav.lua")
 local servicesLib = load("lib/services.lua")
+-- The docked companion pane's lifecycle, one copy for every plugin that declares a pane.
+local dockedPaneLib = load("lib/dockedpane.lua")
 local uiSpecLib = load("root/uispec.lua")
 local themesLib = load("lib/ui/themes.lua")
 -- The icon engine and the units it is composed from. This file is the one that names the
@@ -1783,12 +1785,16 @@ function obj.run(olm, cfg)
     placeholder = policy.placeholder,
     matcher = chooserAtom.matchers and chooserAtom.matchers[policy.matcher],
     matchers = chooserAtom.matchers,
-    paneElements = canvasPanel.surfaceElements,
-    -- Handed to the same plugin as paneElements, immediately above, so a docked pane's
-    -- quiet moments and its chrome come from the same one place. See lib/panel.lua's own
-    -- header for why a highlight with nothing to describe now paints this rather than
-    -- hiding the canvas.
-    emptyStateElements = canvasPanel.emptyStateElements,
+    -- The docked companion pane, one per plugin that asks, so the factory is what is shared.
+    -- Its chrome and its quiet state are CanvasPanel's and its text is the kit's, named here
+    -- and nowhere else, so a pane in a plugin draws only its own content.
+    dockedPane = function(spec)
+      return dockedPaneLib.new({
+        ui = uiAtom,
+        surface = canvasPanel.surfaceElements,
+        emptyState = canvasPanel.emptyStateElements,
+      }, spec)
+    end,
     log = log,
     -- onPositioned, onActivity and onClose are deliberately never passed here. Each
     -- surfaced plugin needs its OWN docked panel closure, never one shared function every

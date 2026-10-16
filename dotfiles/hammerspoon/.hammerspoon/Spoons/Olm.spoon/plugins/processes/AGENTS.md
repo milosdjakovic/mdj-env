@@ -342,6 +342,9 @@ dropped whole. The picker has no scroll bindings and this is why it needs none.
 
 ## The pane is one canvas docked into a rect it did not choose
 
+The canvas is the shared docked pane, `lib/dockedpane.lua`, which the root grants for the
+manifest's `pane = true` and which every pane in Olm uses, so the docking, the empty state, the
+hide guard and the teardown described here live there once. `preview.lua` hands it a painter.
 It draws through the shared surface, the same routine behind the docked shortcut panel
 and the cheat sheets, so the three read as one component. It is not a CanvasPanel
 instance though, and the reason is placement rather than looks. A CanvasPanel computes
@@ -395,12 +398,12 @@ come from tokens, and the live block's height is derived from the section line h
 steps rather than written down.
 
 What the pane is made of is `pane-nodes.lua`, which loads in plain Lua and takes the kit as an
-argument, and `test/cases/processes-pane.lua` covers it. The canvas, the cache, the sampler's figures
-and the paint stay in `preview.lua`. The static half's laid out elements are cached in the model the
+argument, and `test/cases/processes-pane.lua` covers it. The cache, the sampler's figures and the painter
+stay in `preview.lua`, and the canvas around them is the shared docked pane. The static half's laid out elements are cached in the model the
 way file search caches its header, so a sampler tick lays out the live block alone. The tree's room
 is what the sections leave, measured through the layout, because a wrapped command is as tall as the
 pane is wide. The kit arrives as `needs.lib.ui`, optional, and with no kit the pane stands down like
-it does with no surface.
+it does with no docked pane.
 
 ## Rows differ, so a section is dropped rather than emptied
 

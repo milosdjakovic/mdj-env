@@ -48,4 +48,5 @@ the pane shows the shared empty state. The four root words behind it, `pluginCat
 `pluginCascade`, `stagePluginSwitch` and `applyPluginSwitches`, come from
 `lib/pluginswitch.lua`, and the place reopened after Apply now is a note this plugin hands the
 root about itself, its own name, the step to this page and the plugin to highlight. `pluginspage.lua` builds the rows and the detail block as plain
-data and kit nodes, and `pane.lua` is the canvas that draws them.
+data and kit nodes, and the shared docked pane, `lib/dockedpane.lua`, granted by `pane = true`,
+is the canvas that draws them.

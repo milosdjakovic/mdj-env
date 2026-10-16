@@ -57,8 +57,9 @@ eight colour roles, through the UI kit, so the pane names no font, size, line he
 The large figures are title, headings are the kit's heading, and explanations and metadata are
 caption in subtext. The graphs take their colours by rank, the download primary, the upload
 secondary and the latency or responsiveness strip tertiary. What each view is made of is built as
-nodes by `pane-nodes.lua`, which is plain Lua and has a unit case, and `pane.lua` keeps the canvas,
-the scroll and the choice of view.
+nodes by `pane-nodes.lua`, which is plain Lua and has a unit case, and `pane.lua` keeps only the
+choice of view. The canvas, the dock, the empty state, the scroll and its thumb are the shared
+docked pane, `lib/dockedpane.lua`, which the manifest's `pane = true` earns.
 
 A figure is drawn as its number and its unit. The number is right aligned in a slot as wide as the
 widest value the format can make, so the unit beside it stays still while the number changes. The

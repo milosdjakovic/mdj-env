@@ -41,10 +41,8 @@ return {
       -- data under the olm root rather than a cache, and required because a plugin whose
       -- whole value is the comparison has nothing to compare against without it.
       storage = { from = "storage", policy = "required" },
-      -- The UI kit, which every piece of text in the pane is drawn through, so the pane names a
-      -- role and never a font, a size, a line height or a colour. Optional, since without it the
-      -- pane stands down and the list still measures and keeps every reading.
-      ui = { from = "ui", policy = "optional" },
+      -- No ui. The kit every piece of text in the pane is drawn through arrives with the
+      -- docked pane, which hands it to the describer on every paint.
     },
 
     tools = {

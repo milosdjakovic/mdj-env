@@ -84,12 +84,15 @@ presentation and reads the stage words off `opts`.
 
 A glanceable overlay nothing is typed into, a preview, a toast, a status card, is CanvasPanel
 content, never a window of the plugin's own. A companion preview pane beside the rows is
-declared on the surface, `pane = true`, and routine feedback goes out through an injected
-callback the root draws on the shared panel. A docked pane is never hidden while its
-presentation is showing, a highlight with nothing to describe paints the shared empty state
-instead, the injected `emptyState` routine that arrives beside `surface`, so a reserved rect
-never sits there with nothing drawn in it. The pane genuinely vanishes only when the stage
-tells it `onPositioned(nil, nil)` and on close. A
+declared on the surface, `pane = true`, which earns `opts.dockedPane`, the shared docked pane in
+`lib/dockedpane.lua`. It owns the canvas, the dock, the surface, the empty state, the scroll and
+the teardown, and the plugin hands it only what to draw, a describer answering a kit node or a
+painter answering elements, so never copy that lifecycle into a plugin. Routine feedback goes out
+through an injected callback the root draws on the shared panel. A docked pane is never hidden
+while its presentation is showing, a highlight with nothing to describe calls `pane.clear()`,
+which paints the shared empty state, so a reserved rect never sits there with nothing drawn in
+it. The pane genuinely vanishes only when the stage tells it `onPositioned(nil, nil)`, which is
+`pane.hide()`, and on close, which is `pane.destroy()`. A
 grid of key badges under a held leader is the shared cheatsheet lib. Verbs come free, the
 action panel reads them from the registry declaration, so never build a second list to make
 verbs discoverable.
@@ -180,7 +183,7 @@ person reads. The repository root holds the answer key for where every tool come
 ## What declaring earns
 
 Every plugin receives `after` and `log` without asking. Declaring a `surface` earns the shared
-chooser factory, the theme, and the placeholder. The docked panel callbacks are a separate per
+chooser factory, the theme, and the placeholder, and `pane = true` on it earns the docked pane. The docked panel callbacks are a separate per
 plugin grant shaped by the plugin's own stated declaration, and the contract holds the detail.
 Declaring
 `needs.tools` earns `deps`. Declaring `needs.lib` earns the named lib instance, and the set in

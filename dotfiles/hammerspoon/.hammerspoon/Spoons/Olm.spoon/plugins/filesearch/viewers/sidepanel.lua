@@ -10,19 +10,14 @@
 --- row and a page is two hundred rows, while this describes exactly one, so it stats that
 --- one and reports everything the call already returned.
 ---
---- It is a canvas of its own rather than a CanvasPanel instance, the same choice the
---- clipboard preview and the Processes pane make and for the same reason. A CanvasPanel
---- computes its own placement from an anchor and sizes itself from its content, while this
---- pane must land exactly on the companion rect the Chooser atom already reserved and
---- reported. Drawing it anywhere else would put it outside the rect the atom's click
---- watcher treats as part of the picker, so a click on the pane would dismiss the picker
---- rather than being passed through. What it does share is the surface itself, injected as
---- CanvasPanel.surfaceElements, so the pane, the docked shortcut panel and the cheat
---- sheets are one component drawn in several places rather than lookalikes.
+--- The canvas, the dock, the empty state, the scroll, the hide guard and the teardown belong
+--- to the shared docked pane, lib/dockedpane.lua, which the root grants because the manifest
+--- declares `pane = true`. This file is the painter that pane calls, a fixed header over a
+--- scrolled body, and everything that decides what the two say.
 ---
---- Dot called, and it holds no policy. The surface routine, the kit, the limits, the
---- last used lookup and the thumbnail chain are all injected by the surface that owns the
---- picker, so this file names nothing concrete.
+--- Dot called, and it holds no policy. The docked pane, the kit, the limits, the last used
+--- lookup and the thumbnail chain are all injected by the surface that owns the picker, so
+--- this file names nothing concrete.
 ---
 --- WHAT THE BODY SHOWS IS A CHAIN OF RESPONSIBILITY, see BODIES below. Each describer is
 --- offered the row and either answers with something to draw or declines, and the first
@@ -54,27 +49,13 @@ M.name = "sidepanel"
 --- run a highlight poll and to wire the scroll keys.
 M.followsHighlight = true
 
--- Injected, see M.configure. Empty until then, and with no surface injected the pane
+-- Injected, see M.configure. Empty until then, and with no docked pane injected the pane
 -- stays down entirely, which is the whole degradation path, see M.available.
 local cfg = {}
 
-local canvas = nil       -- the docked canvas, built lazily and deleted on every close
-local frame = nil        -- the companion rect the atom reported, where the canvas docks
+local pane = nil         -- the shared docked pane, made in configure from the root's grant
 local model = nil        -- the row on screen, the header's laid out elements and a body node, see buildModel
-local scrollOffset = 0   -- how far down the body, in points, clamped at paint
 local pending = 0        -- the generation of the newest thumbnail request, see requestImage
-local hidden = false     -- set by M.hide, cleared by M.dock, the resurrection guard paint reads
-local scrollTimer = nil  -- the one pending scroll paint, see M.scrollBy
-
--- One display frame, the longest a scroll event waits for its paint.
-local SCROLL_FRAME = 1 / 60
-
-local function stopScrollTimer()
-  if scrollTimer then
-    scrollTimer:stop()
-    scrollTimer = nil
-  end
-end
 
 --------------------------------------------------------------------------------
 -- What the row is
@@ -273,18 +254,12 @@ local function headerNode(row, attrs)
   return nodes.header(ui, row.name or row.path, util.shortDir(row.dir), facts)
 end
 
--- The inner box the tree is laid out in, the pane's frame less the kit's pad on all four sides,
--- the space around content every surface shares. In the canvas's own coordinates.
-local function innerRect()
-  local pad = cfg.ui.tokens().pad
-  return { x = pad, y = pad, w = frame.w - 2 * pad, h = frame.h - 2 * pad }
-end
-
 -- Everything for one row, built once and cached, since the highlight poll fires often and
 -- nothing here changes under it. Keyed on the path and the box, so a re dock at the
--- corrected frame rebuilds and a poll that has not moved pays nothing. w is the width the
--- text is laid out and wrapped at, and h is kept only to key the cache.
-local function buildModel(row, w, h)
+-- corrected frame rebuilds and a poll that has not moved pays nothing. inner is the pane's
+-- padded box, the width the text is laid out and wrapped at, and its height only keys the cache.
+local function buildModel(row, inner)
+  local w, h = inner.w, inner.h
   local attrs = statOf(row)
   local body = nil
   local limits = cfg.limits or {}
@@ -302,7 +277,7 @@ local function buildModel(row, w, h)
   -- The header is laid out here, once, since it never scrolls and a paint happens on every
   -- scroll event. Its elements and height are kept, and a paint only adds them to the list, never
   -- changing them.
-  local headEls, headH = cfg.ui.layout(headerNode(row, attrs), innerRect(), { clip = true })
+  local headEls, headH = cfg.ui.layout(headerNode(row, attrs), inner, { clip = true })
   return {
     row = row, path = row.path, w = w, h = h,
     headEls = headEls, headH = headH,
@@ -314,38 +289,16 @@ end
 -- Painting
 --------------------------------------------------------------------------------
 
--- A shallow copy of an element with its frame offset, so a block built in its own (0, 0)
--- box can be placed absolutely without the builder knowing where it landed.
-local function shifted(el, dx, dy)
-  local copy = {}
-  for k, v in pairs(el) do copy[k] = v end
-  if el.frame then
-    copy.frame = { x = (el.frame.x or 0) + dx, y = (el.frame.y or 0) + dy,
-                   w = el.frame.w, h = el.frame.h }
-  end
-  return copy
-end
-
-local function ensureCanvas()
-  if canvas then return end
-  canvas = hs.canvas.new(frame)
-  canvas:level(hs.canvas.windowLevels.floating)
-  -- A click on the pane must not pull focus off the search field. The atom's click watcher
-  -- already treats a point inside the companion rect as part of the picker and passes it
-  -- through, so between the two a click here changes nothing.
-  canvas:clickActivating(false)
-end
-
--- Compose the surface, the header and the body, and show.
+-- The painter the docked pane calls, the header and the body over the surface it paints first.
 --
 -- The header was laid out when the model was built and never moves. The body is laid out in
 -- the rect below it and scrolled by the scroll offset. It is clipped from the header down to
 -- the inside of the pane's border, so a body scrolled up stops at the header and a line cut at
 -- the bottom is cut by the edge of the pane rather than by the padding, the padding being part
 -- of what scrolls.
--- The offset is clamped HERE rather than where it is changed, against the body height the
--- layout answers. That is what lets a key press, a trackpad gesture and a rebuild at a new
--- height all be written without any of them knowing how tall the content turned out.
+-- The overflow answered is the body's, against the room under the header, and the docked pane
+-- clamps the offset against it, which is what lets a key press, a trackpad gesture and a rebuild
+-- at a new height all be written without any of them knowing how tall the content turned out.
 --
 -- ONLY THE LINES ON SCREEN ARE DRAWN, and that is not an optimisation to be simplified
 -- away. A clip bounds what is VISIBLE and not what is laid out, so handing the canvas the
@@ -354,40 +307,28 @@ end
 -- for fifty to a hundred milliseconds per paint and dropped half the frames of a scroll.
 -- The kit's code block lays out only the lines inside the scrolled window, and the body is
 -- laid out again on every paint, which is affordable exactly because of that.
-local function paint()
-  -- A background tick, a late search result, or a settled thumbnail can all reach this
-  -- point after M.hide has already taken the canvas down for a swap away. hidden is what
-  -- stops any of them from bringing it back up beside a tool that is no longer current.
-  if hidden then return end
-  if not (model and frame and cfg.surface and cfg.ui) then return end
-  ensureCanvas()
+--
+-- A redock at a corrected frame changes the box, so the model is rebuilt here when the box moved
+-- rather than when the dock fired.
+local function paintRow(view)
   local ui = cfg.ui
-  local inner = innerRect()
+  local inner = view.inner
+  if not (model.w == inner.w and model.h == inner.h) then
+    model = buildModel(model.row, inner)
+  end
 
   local els = {}
-  for _, el in ipairs(cfg.surface(frame.w, frame.h)) do els[#els + 1] = el end
   for _, el in ipairs(model.headEls) do els[#els + 1] = el end
 
   local bodyTop = inner.y + model.headH + ui.tokens().space[nodes.GAP]
   local room = inner.y + inner.h - bodyTop
-  if model.body and room > 0 then
-    local rect = { x = inner.x, y = bodyTop, w = inner.w, h = room }
-    local box = ui.interior(frame.w, frame.h)
-    local viewport = { x = box.x, y = bodyTop, w = box.w, h = box.y + box.h - bodyTop }
-    local content, bodyH = ui.layout(model.body, rect, { scrollY = scrollOffset, viewport = viewport })
-    local overflow = math.max(0, bodyH - room)
-    if scrollOffset > overflow or scrollOffset < 0 then
-      scrollOffset = math.max(0, math.min(scrollOffset, overflow))
-      content = ui.layout(model.body, rect, { scrollY = scrollOffset, viewport = viewport })
-    end
-    for _, el in ipairs(content) do els[#els + 1] = el end
-  else
-    scrollOffset = 0
-  end
-
-  canvas:frame(frame)
-  canvas:replaceElements(els)
-  canvas:show()
+  if not (model.body and room > 0) then return els, 0 end
+  local rect = { x = inner.x, y = bodyTop, w = inner.w, h = room }
+  local box = view.viewport
+  local viewport = { x = box.x, y = bodyTop, w = box.w, h = box.y + box.h - bodyTop }
+  local content, bodyH = ui.layout(model.body, rect, { scrollY = view.scrollY, viewport = viewport })
+  for _, el in ipairs(content) do els[#els + 1] = el end
+  return els, math.max(0, bodyH - room)
 end
 
 --------------------------------------------------------------------------------
@@ -443,9 +384,12 @@ function M._image(row, attrs)
     if generation ~= pending then return end
     if not (model and model.path == row.path) then return end
     -- Rebuilt rather than patched, because the image decides the body's height and the
-    -- overflow the scroll is clamped against is measured from it.
-    model = buildModel(model.row, model.w, model.h)
-    paint()
+    -- overflow the scroll is clamped against is measured from it. The pane's own hide guard
+    -- keeps this from drawing after a swap away.
+    local inner = pane and pane.inner()
+    if not inner then return end
+    model = buildModel(model.row, inner)
+    pane.repaint()
   end)
   settled = true
   if landed then return landed end
@@ -458,8 +402,8 @@ end
 --------------------------------------------------------------------------------
 
 --- preview.configure(opts) - injected by the surface that owns the picker.
---- opts.surface   function(w, h) -> canvas elements, the shared CanvasPanel surface.
----                Absent means no pane at all, see available.
+--- opts.dockedPane the root's docked pane grant, a function answering a pane. Absent means
+---                no pane at all, see available.
 --- opts.ui        the UI kit, needs.lib.ui, which every piece of text in the pane is drawn
 ---                through. Absent means no pane at all, see available.
 --- opts.limits    the preview block from config, the read cap, the head line count, the
@@ -469,26 +413,25 @@ end
 ---                row subtitle reads, so the pane and the row cannot disagree about it.
 --- opts.thumbs    the thumbnail chain. Absent means the image describer declines every
 ---                row and a picture simply never appears, which is a working pane.
---- opts.emptyState function(w, h, opts) -> canvas elements, the shared CanvasPanel empty
----                state, painted by clear below for a highlight with nothing to describe.
----                Absent falls back to hiding the canvas, the old behaviour, so a root that
----                has not been updated to inject it degrades rather than breaking.
---- opts.emptyText  the line clear below paints into the shared empty state, this pane's
----                own guidance rather than a content label, so a person reads what to do
----                next instead of the wording off whatever row happened to be highlighted.
----                Absent falls back to the shared routine's own generic default.
+--- opts.emptyText  the line the shared empty state paints, this pane's own guidance rather
+---                than a content label, so a person reads what to do next instead of the
+---                wording off whatever row happened to be highlighted. Absent falls back to
+---                the shared routine's own generic default. Read once, when the pane is made.
 function M.configure(opts)
   for k, v in pairs(opts or {}) do cfg[k] = v end
+  if not pane and cfg.dockedPane then
+    pane = cfg.dockedPane({ scroll = true, emptyText = cfg.emptyText })
+  end
   return M
 end
 
 --- viewer.available() -> bool, reason
---- Whether a pane can be drawn at all, which is to say whether the composition root injected
---- the shared surface. The picker asks before reserving a companion rect, so a root that wires
+--- Whether a pane can be drawn at all, which is to say whether the composition root granted
+--- the docked pane and the kit. The picker asks before reserving a companion rect, so a root that wires
 --- nothing gets the picker exactly as it was rather than a pane of unreadable text floating
 --- over the desktop with no background behind it.
 function M.available()
-  if cfg.surface == nil then return false, "no canvas surface was injected" end
+  if not (pane and pane.isEnabled()) then return false, "no docked pane was granted" end
   if cfg.ui == nil then return false, "no UI kit was injected" end
   return true
 end
@@ -512,17 +455,10 @@ end
 --- Fired with a seed rect at show and again once the real window settles, so a re dock is
 --- expected.
 function M.dock(companionFrame)
-  if not (M.available() and companionFrame) then return end
-  frame = companionFrame
-  -- A redock is the swap back M.hide guards against, so the pane may paint again from
-  -- here on. The highlight seed the caller runs right after this call is what actually
-  -- fills the pane, cold or not, a nil highlight landing in M.clear same as any other.
-  hidden = false
-  if model then
-    local inner = innerRect()
-    model = buildModel(model.row, inner.w, inner.h)
-    paint()
-  end
+  if not M.available() then return end
+  -- The highlight seed the caller runs right after this call is what actually fills the
+  -- pane, cold or not, a nil highlight landing in M.clear same as any other.
+  pane.dock(companionFrame)
 end
 
 --- preview.show(row) - describe a row, or clear the pane when handed nothing.
@@ -532,79 +468,40 @@ end
 --- The scroll goes back to the top whenever the row changes, because an offset carried
 --- over would open the next file part way down for no reason the reader can see.
 function M.show(row)
-  if not (M.available() and frame) then return end
+  local inner = M.available() and pane.inner()
+  if not inner then return end
   if not (row and row.path) then
     M.clear()
     return
   end
-  local inner = innerRect()
-  local w, h = inner.w, inner.h
-  if not (model and model.path == row.path and model.w == w and model.h == h) then
+  local same = model and model.path == row.path and model.w == inner.w and model.h == inner.h
+  if not same then
     pending = pending + 1
-    scrollOffset = 0
-    model = buildModel(row, w, h)
+    model = buildModel(row, inner)
   end
-  paint()
+  pane.draw(paintRow, { keepScroll = same })
 end
 
 --- preview.scrollBy(points) - move the body by a distance in points, positive being
 --- further down it. The one place the offset changes, so the keys and the trackpad cannot
---- drift apart, and the clamp lives in paint where the content height is known.
+--- drift apart. The docked pane clamps it and paints once per frame.
 function M.scrollBy(points)
-  if not model then return end
-  scrollOffset = scrollOffset + (tonumber(points) or 0)
-  -- A trackpad sends dozens of events a second and a paint costs a layout, so the offset adds up
-  -- and one paint is scheduled for the next frame, however many events land before it. The
-  -- paint clamps the sum, and its own hidden guard keeps a late timer from drawing.
-  if scrollTimer then return end
-  scrollTimer = hs.timer.doAfter(SCROLL_FRAME, function()
-    scrollTimer = nil
-    paint()
-  end)
+  if not (model and pane) then return end
+  pane.scrollBy(points)
 end
 
---- preview.clear() - the empty state, for a highlight with nothing to describe, a
---- status row or a help row, or a cold dock before anything has been highlighted yet.
----
---- This used to hide the canvas outright, on the reasoning that nothing to describe
---- means nothing to draw. That reads as a broken layout instead, a bordered rectangle
---- reserved beside the list with nothing in it, so the pane now stays up and paints the
---- shared empty state, the same quiet message every other docked pane shows in this
---- moment, rather than vanishing. The pane genuinely disappears only on the stage's own
+--- preview.clear() - the shared empty state, for a highlight with nothing to describe, a
+--- status row or a help row, or a cold dock before anything has been highlighted yet. The
+--- pane stays up rather than vanishing, and genuinely disappears only on the stage's own
 --- swap signal, M.hide below, and on M.destroy.
 ---
---- The line is cfg.emptyText, this pane's own guidance, falling back to the shared
---- routine's own default when configure never set one. It used to echo the highlighted
---- row's own wording instead, a status row's title standing in for the empty state, and
---- that read as a content label rather than as guidance, Recent files painted where a
---- person expects to be told what to do next.
----
---- Does nothing when called before the first dock, so frame is still nil,
---- since the dock that follows paints this same empty state on its own.
+--- The line is cfg.emptyText, this pane's own guidance, handed to the pane when it was made.
+--- It used to echo the highlighted row's own wording instead, a status row's title standing
+--- in for the empty state, and that read as a content label rather than as guidance, Recent
+--- files painted where a person expects to be told what to do next.
 function M.clear()
-  stopScrollTimer()
   model = nil
-  scrollOffset = 0
-  if not (frame and cfg.surface and cfg.ui) then return end
-  -- See paint's own note. A swap away must stay down through whatever clear a stray
-  -- highlight event fires while nobody can see it.
-  if hidden then return end
-  if not cfg.emptyState then
-    -- Absent means a misconfigured or partially configured module, so degrade by
-    -- hiding rather than erroring.
-    if canvas then canvas:hide() end
-    return
-  end
-  ensureCanvas()
-  local inner = innerRect()
-  local els = {}
-  for _, el in ipairs(cfg.surface(frame.w, frame.h)) do els[#els + 1] = el end
-  for _, el in ipairs(cfg.emptyState(inner.w, inner.h, { text = cfg.emptyText })) do
-    els[#els + 1] = shifted(el, inner.x, inner.y)
-  end
-  canvas:frame(frame)
-  canvas:replaceElements(els)
-  canvas:show()
+  if pane then pane.clear() end
 end
 
 --- preview.hide() - hide the canvas without destroying it, for the stage's own swap away
@@ -612,13 +509,11 @@ end
 --- canvas, the frame and the model all survive, so a swap back to this
 --- presentation docks again and repaints at once rather than rebuilding from nothing.
 function M.hide()
-  hidden = true
-  stopScrollTimer()
   -- Bumps the image generation the same way M.destroy does, so a thumbnail already in
-  -- flight for the row this pane was last showing cannot land after the hide and pull
-  -- the canvas back up on its own. The swap back through M.dock repaints properly.
+  -- flight for the row this pane was last showing cannot land after the hide and rebuild a
+  -- model nobody can see. The swap back through M.dock repaints properly.
   pending = pending + 1
-  if canvas then canvas:hide() end
+  if pane then pane.hide() end
 end
 
 --- preview.destroy() - tear the pane down completely.
@@ -626,17 +521,10 @@ end
 --- Deleted rather than hidden because nothing may survive a close, and rebuilding one
 --- canvas on the next open costs nothing.
 function M.destroy()
-  stopScrollTimer()
   model = nil
-  frame = nil
-  scrollOffset = 0
   pending = pending + 1
-  hidden = false
   images = {}
-  if canvas then
-    canvas:delete()
-    canvas = nil
-  end
+  if pane then pane.destroy() end
 end
 
 return M

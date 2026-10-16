@@ -923,7 +923,8 @@ rather than more of the file.
 
 **The pane is drawn through the five typography roles and names no font, size or colour.** The
 shape lives in `viewers/sidepanel-nodes.lua`, which only builds UI kit nodes, and
-`viewers/sidepanel.lua` keeps the stat, the chain of describers, the thumbnails and the canvas.
+`viewers/sidepanel.lua` keeps the stat, the chain of describers, the thumbnails and the painter
+the shared docked pane calls.
 The file name is title, the folder is code in the path colour, each fact is a caption row with
 the label in subtext and the value flush right, a heading is section, and a file head or a folder
 listing is the kit's code block. The head WRAPS, as the clipboard pane's text files do, so a file
@@ -991,7 +992,9 @@ the row is kept for next time and paints nothing.
 
 ## The pane is one canvas docked into a rect it did not choose
 
-The same arrangement the clipboard preview and the Local Servers pane use. It draws through
+The canvas is the shared docked pane, `lib/dockedpane.lua`, the one every pane in Olm uses,
+granted for the manifest's `pane = true`, so the docking, the empty state, the scroll, the hide
+guard and the teardown live there once and the side panel hands it a painter. It draws through
 the shared surface so the three read as one component, and it is not a `CanvasPanel` instance
 because that atom computes its own placement from an anchor while this has to land exactly on
 the companion rect the Chooser atom already reserved and reported. That rect is also the one
@@ -1055,7 +1058,7 @@ pane could only be moved by its two keys before, and it now takes the same gestu
 same seam. Both surfaces route their keys through their own one scroll verb, which is also
 what the atom calls, so there is one notion of where a pane is scrolled to.
 
-The offset is clamped in paint rather than where it is changed, which is what lets a key
+The offset is clamped by the docked pane against the overflow the painter reports, which is what lets a key
 press, a trackpad gesture and a rebuild at a new height all be written without any of them
 knowing how tall the content turned out. It resets whenever the row changes, since an offset
 carried over would open the next file part way down for no reason a reader can see.
@@ -1115,7 +1118,7 @@ lose their picture, and the describer declines rather than promising one. A rast
 the in process generator loses its picture too, since that one steps aside on size and Quick Look
 is what it steps aside TO.
 
-Without the shared canvas surface injected, the side panel reports itself unavailable. That is
+Without the docked pane granted, the side panel reports itself unavailable. That is
 one line in the main root, and it is the same path a provider takes for any other reason, so the
 chain moves to the next one and lands on nothing if there is no next one. With no provider left
 the picker reserves no room, runs no highlight poll and binds neither the scroll keys nor the

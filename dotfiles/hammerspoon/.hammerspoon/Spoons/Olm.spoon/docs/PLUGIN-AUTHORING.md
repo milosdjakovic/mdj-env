@@ -129,11 +129,31 @@ an answer that never comes must not strand a person on a row that does nothing.
 to inherit the chooser width, or a member spec resolved once at register when your own wiring
 is what decides whether a pane exists at all. Absent means no pane.
 
+The pane itself is core. Declaring `pane = true` on your surface earns `opts.dockedPane`, a
+function answering a pane from `lib/dockedpane.lua`, which owns the canvas, the docking, the
+shared surface, the shared empty state, the scroll and the teardown. You make one in configure
+and hand it what to draw, a describer answering one kit node or a painter answering elements,
+and never build a canvas of your own for it. docs/PLUGIN-CONTRACT.md has the calls under "The
+docked pane".
+
+```lua
+local pane = opts.dockedPane({ scroll = true })
+
+-- onPositioned
+if companionFrame then pane.dock(companionFrame) else pane.hide() end
+-- onHighlight
+if item then pane.show(function(ui) return ui.text(item.title, "title") end) else pane.clear() end
+-- onScroll
+pane.scrollBy(points)
+-- onClose
+pane.destroy()
+```
+
 A docked pane is never hidden while its presentation is showing. A highlight with nothing to
-describe paints the shared empty state instead, the injected `emptyState` routine beside the
-`surface` routine every pane already receives, so a reserved rect never sits there with nothing
-drawn in it. The pane genuinely vanishes only when `onPositioned` is told both frames as nil, the
-stage's own swap signal, and when the stage closes.
+describe calls `pane.clear()`, which paints the shared empty state, so a reserved rect never sits
+there with nothing drawn in it. The pane genuinely vanishes only when `onPositioned` is told both
+frames as nil, the stage's own swap signal, and when the stage closes, and a late repaint after a
+hide stays down until the next dock.
 
 `rowCount` is a positive whole number, declared only when ten genuinely does not fit. It costs
 a hide and show to resize, so it blinks, which is why almost nothing declares it.
@@ -366,8 +386,9 @@ needs = { lib = { ui = { from = "ui" } } },
 
 It arrives as `opts.ui`. Build a tree of nodes, each naming a variant and never a colour, a
 font or a size, and hand it to `ui.layout` with the rect you want it in. What comes back is the
-canvas elements and the height the tree wants, and your pane still owns its window and draws
-the elements itself.
+canvas elements and the height the tree wants. A docked companion pane does not need this
+step, since the docked pane lays out the node a describer answers and hands the describer the
+kit itself, so the example below is for a canvas of your own that is not a docked pane.
 
 The layout engine closes its clip with resetClip, which clears every clip on the canvas, so never lay out a clipped subtree inside a clip of your own.
 

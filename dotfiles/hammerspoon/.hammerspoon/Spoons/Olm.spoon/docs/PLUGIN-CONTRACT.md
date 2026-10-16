@@ -50,7 +50,7 @@ from that.
 | A plugin gets | when it declares |
 | --- | --- |
 | `chooser`, `theme`, `placeholder`, the panel triple, `matcher` | a `surface` |
-| `surface` elements and `emptyState`, the docked companion pane and its quiet state | `surface.pane = true` |
+| `dockedPane`, a function answering a docked companion pane, see "The docked pane" below | `surface.pane = true` |
 | `deps`, the scoped adapter that turns a tool name into an absolute path | any `needs.tools` |
 | `recency` | `needs.lib.recency` |
 | `after`, the deferred call helper | nothing, every plugin may ask |
@@ -916,8 +916,41 @@ surface = {
 ```
 
 `matcher` and `pane` live here rather than being ambient because they are per plugin
-choices. Three plugins want the words matcher rather than fuzzy, and three want the
+choices. Three plugins want the words matcher rather than fuzzy, and five want the
 preview pane. The rest want neither and say nothing.
+
+### The docked pane
+
+`pane = true` earns `opts.dockedPane`, a function answering a new pane from
+`lib/dockedpane.lua`. Call it once, in configure, with a spec, and keep what it answers. The
+pane owns the canvas, docking it on the companion rect, the shared surface underneath, the
+shared empty state, the scroll and its clamp, the hide guard and the teardown, and draws text
+through the kit the root built it with. A plugin keeps only what it draws.
+
+```lua
+local pane = opts.dockedPane({ scroll = true, thumb = false, emptyText = "Highlight a file" })
+
+pane.dock(companionFrame)                      -- from onPositioned, repaints what is current
+pane.show(function(ui, view) return node end)  -- one kit node, laid out in the padded box
+pane.draw(function(view) return els, overflow end) -- several regions drawn by hand
+pane.show(describe, { keepScroll = true })     -- a refresh of the same content
+pane.clear()                                   -- the shared empty state
+pane.scrollBy(points)                          -- positive is further down, answers whether it moved
+pane.hide()                                    -- onPositioned(nil, nil), the swap away
+pane.destroy()                                 -- onClose
+```
+
+Every spec field is optional. `scroll` lets content taller than the pane scroll, `thumb` draws
+a thumb at the right edge while there is more than fits, and `emptyText` replaces the shared
+empty state's default line. A describer is a function of the kit and the view, so a redock or a
+change of appearance repaints from the same description. A painter is for a pane made of
+several regions, a fixed header over a scrolled body, or a cached block under a live one, and
+answers its elements and how far the content overflows, which the pane clamps the scroll
+against. The view carries `frame`, `inner`, the padded box content is laid out in, `viewport`,
+the box inside the border scrolled content is cut at, and `scrollY`. `pane.inner()` answers the
+padded box once docked and nil before, for a plugin that caches a layout by its size.
+`pane.isEnabled()` answers whether anything can be drawn, which is what a member spec
+`paneWidth` should report, so a root that granted no pane gets the list with no companion rect.
 
 **`matcher` names a strategy and nothing else.** It does not say whether the shared
 widget filters, and the difference cost a real defect. Four plugins turn the widget's own
@@ -1040,7 +1073,7 @@ instance it never rebuilds, adversarial review finding H3.
 review finding M1. A plain `true`, the value every one of the three trickle plugins first
 shipped, papers over a viewer or a companion surface that resolves to no pane at all,
 filesearch's own `quicklook.companionWidth()` answering `0` and Processes' own
-`preview.isEnabled()` answering `false` when `opts.surface` was never injected among the ways.
+`preview.isEnabled()` answering `false` when no docked pane was granted among the ways.
 A member spec resolves once, at register, the identical moment and the identical reason
 `placeholder` already does, since by register every plugin's own wiring has already settled
 which viewer or which surface won, so the answer is the real reservation rather than a number
@@ -1180,7 +1213,8 @@ had this file's first draft not corrected it. And FileSearch's own seed of the f
 reads `picker:selectedItem()` directly, `plugins/filesearch/chooser.lua:449`, which needs its
 own instance to still exist by the time it runs, an instance that plugin stops holding once it
 migrates. Docking the pane's own content stays this plugin's own business exactly as it is
-today. `host/stage`'s own `paneAnchor(chooserFrame, companionFrame)` is the one true copy of
+today. The canvas that content lands on has since moved into core, see "The docked pane"
+above, and a plugin's `onPositioned` now hands the companion frame to `pane.dock`. `host/stage`'s own `paneAnchor(chooserFrame, companionFrame)` is the one true copy of
 the anchor arithmetic three plugins each carried their own copy of before this phase, the
 single call worth knowing about for the docked panel's own anchor, and it is the stage's own
 call to make now, never a migrating plugin's.

@@ -5,26 +5,21 @@
 --- process tree a stop would take, since seeing that one row is five processes and
 --- which five is what makes pressing stop safe.
 ---
---- It is a canvas of its own rather than a CanvasPanel instance, the same choice the
---- clipboard preview makes and for the same reason. A CanvasPanel computes its own
---- placement from an anchor and sizes itself from its content, while this pane must
---- land exactly on the companion rect the Chooser atom already reserved and reported.
---- Drawing it anywhere else would put it outside the rect the atom's click watcher
---- treats as part of the picker, so a click on the pane would dismiss the picker
---- instead of being passed through. What it does share is the surface itself, injected
---- as CanvasPanel.surfaceElements, so the pane, the docked shortcut panel and the cheat
---- sheets are one component drawn in three places rather than three lookalikes.
+--- The canvas, the dock, the empty state, the hide guard and the teardown belong to the
+--- shared docked pane, lib/dockedpane.lua, which the root grants because the manifest
+--- declares `pane = true`. This file is the painter that pane calls, the live block over the
+--- cached static block, and the cache itself.
 ---
---- Dot called, like util and metrics, and it holds no policy of its own. The surface
---- routine, the UI kit, the sampler's two accessors and the CPU formatter are all
---- injected by the surface that owns the picker, so this file names nothing concrete
---- and cannot drift from the row it is describing.
+--- Dot called, like util and metrics, and it holds no policy of its own. The docked pane,
+--- the UI kit, the sampler's two accessors and the CPU formatter are all injected by the
+--- surface that owns the picker, so this file names nothing concrete and cannot drift from
+--- the row it is describing.
 ---
 --- Every piece of text is drawn through the kit's five roles and every colour is a role
 --- name, so this file names no font, size, line height or colour. What the pane is made of,
 --- the live block, the sections and the tree, is built as kit nodes by pane-nodes.lua,
 --- which loads in plain Lua and is covered by a unit case. This file owns what has a
---- canvas to touch, the docking, the cache, the sampler's figures and the paint.
+--- view to draw in, the cache, the sampler's figures and the painter.
 ---
 --- The redraw is split in two because it has two very different callers. The static
 --- half, everything derived from the row itself, is built once per row and cached,
@@ -48,21 +43,12 @@ local nodes = loadfile(previewPath .. "pane-nodes.lua")()
 
 local M = {}
 
--- Injected, see M.configure. Empty until then, and with no surface or kit injected the pane
--- stays dark, which is the whole degradation path, see M.isEnabled.
+-- Injected, see M.configure. Empty until then, and with no docked pane or kit injected the
+-- pane stays dark, which is the whole degradation path, see M.isEnabled.
 local cfg = {}
 
-local canvas = nil -- the docked canvas, built lazily and deleted on every close
-local frame = nil  -- the companion rect the atom reported, where the canvas docks
-local model = nil  -- the cached static half of the row on screen, see buildModel
-local hidden = false -- set by M.hide, cleared by M.dock, the resurrection guard paint reads
-
--- The inner box the pane is laid out in, the frame less the kit's pad on all four sides, the
--- space around content every surface shares. In the canvas's own coordinates.
-local function innerRect()
-  local pad = cfg.ui.tokens().pad
-  return { x = pad, y = pad, w = frame.w - 2 * pad, h = frame.h - 2 * pad }
-end
+local pane = nil  -- the shared docked pane, made in configure from the root's grant
+local model = nil -- the cached static half of the row on screen, see buildModel
 
 --------------------------------------------------------------------------------
 -- The live block's figures
@@ -146,8 +132,7 @@ end
 -- The elements are kept, as file search keeps its header's, so the sampler's tick lays out the
 -- live block and nothing else. They are laid out in their own rect, which starts at the live
 -- block's height, so painting them needs no shifting.
-local function buildModel(row)
-  local rect = innerRect()
+local function buildModel(row, rect)
   local liveH = nodes.liveSpan(cfg.ui, row)
   local below = { x = rect.x, y = rect.y + liveH, w = rect.w, h = rect.h - liveH }
   local node = nodes.static(cfg.ui, row, below.w, below.h)
@@ -159,55 +144,28 @@ end
 -- Painting
 --------------------------------------------------------------------------------
 
--- A shallow copy of an element with its frame offset, for the shared empty state, which draws
--- in its own box at the origin and is placed here.
-local function shifted(el, dx, dy)
-  local copy = {}
-  for k, v in pairs(el) do copy[k] = v end
-  if el.frame then
-    copy.frame = { x = (el.frame.x or 0) + dx, y = (el.frame.y or 0) + dy,
-                   w = el.frame.w, h = el.frame.h }
+-- The painter the docked pane calls, the live block and the cached static block, drawn over the
+-- surface the pane paints first. Called by a new highlight and by every sampler tick alike, and
+-- the only work it repeats is the live block, which is two headings and two short polylines. The
+-- sampler ticks every 1.5 seconds while the list is showing, and the pane's own hide guard is
+-- what keeps a tick from bringing the canvas back beside a tool that is no longer current.
+--
+-- A redock at a corrected frame changes the box, which changes where the tree has to stop, so
+-- the static half is rebuilt here when the box moved rather than when the dock fired.
+local function paintRow(view)
+  local rect = view.inner
+  if not (model.w == rect.w and model.h == rect.h) then
+    model = buildModel(model.row, rect)
   end
-  return copy
-end
-
-local function ensureCanvas()
-  if canvas then return end
-  canvas = hs.canvas.new(frame)
-  canvas:level(hs.canvas.windowLevels.floating)
-  -- A click on the pane must not pull focus off the search field. The atom's click
-  -- watcher already treats a point inside the companion rect as part of the picker
-  -- and passes it through, so between the two a click here changes nothing.
-  canvas:clickActivating(false)
-end
-
--- Compose the surface, the live block, and the cached static block, and show. Called by
--- a new highlight and by every sampler tick alike, and the only work it repeats is the
--- live block, which is two headings and two short polylines.
-local function paint()
-  -- The sampler ticks every 1.5 seconds while the list is showing, live or not. hidden is
-  -- what stops that tick, or any other late redraw, from bringing the canvas back up
-  -- beside a tool that is no longer current once M.hide has taken it down for a swap away.
-  if hidden then return end
-  if not (model and frame and cfg.surface and cfg.ui) then return end
-  ensureCanvas()
-  local rect = innerRect()
-
-  local els = {}
-  for _, el in ipairs(cfg.surface(frame.w, frame.h)) do els[#els + 1] = el end
   -- Clip to the inner box, so a tree cut a line short of fitting still stops at the
   -- padding rather than crossing the border.
-  els[#els + 1] = { type = "rectangle", action = "clip", frame = rect }
-
+  local els = { { type = "rectangle", action = "clip", frame = rect } }
   local live = nodes.live(cfg.ui, model.row, model.row.pid and liveSpec(model.row))
   if live then
     for _, el in ipairs(cfg.ui.layout(live, rect)) do els[#els + 1] = el end
   end
   for _, el in ipairs(model.els) do els[#els + 1] = el end
-
-  canvas:frame(frame)
-  canvas:replaceElements(els)
-  canvas:show()
+  return els, 0
 end
 
 --------------------------------------------------------------------------------
@@ -215,8 +173,8 @@ end
 --------------------------------------------------------------------------------
 
 --- preview.configure(opts) - injected by the surface that owns the picker.
---- opts.surface    function(w, h) -> canvas elements, the shared CanvasPanel surface.
----                 Absent means no pane at all, see isEnabled.
+--- opts.dockedPane the root's docked pane grant, a function answering a pane. Absent means
+---                 no pane at all, see isEnabled.
 --- opts.ui         the UI kit, needs.lib.ui, which every piece of text in the pane is drawn
 ---                 through and which follows the system appearance itself. Absent means no
 ---                 pane at all, the same as no surface.
@@ -226,39 +184,29 @@ end
 ---                 its own empty history and every sparkline would stay flat.
 --- opts.formatCpu  the row's own percentage formatter, injected so the figure in the
 ---                 pane and the figure on the row can never round differently.
---- opts.emptyState function(w, h, opts) -> canvas elements, the shared CanvasPanel empty
----                 state, painted by clear below for a frame with nothing to preview.
----                 Absent falls back to hiding the canvas, the old behaviour, so a root
----                 that has not been updated to inject it degrades rather than breaking.
 function M.configure(opts)
   for k, v in pairs(opts or {}) do cfg[k] = v end
+  if not pane and cfg.dockedPane then pane = cfg.dockedPane() end
   return M
 end
 
 --- preview.isEnabled() -> boolean
 --- Whether a pane can be drawn at all, which is to say whether the composition root
---- injected the shared surface and the kit. The picker asks before reserving a companion
+--- granted the docked pane and the kit. The picker asks before reserving a companion
 --- rect, so a root that wires nothing gets the picker exactly as it was rather than a pane
 --- of unreadable text floating over the desktop with no background behind it.
 function M.isEnabled()
-  return cfg.surface ~= nil and cfg.ui ~= nil
+  return pane ~= nil and pane.isEnabled() and cfg.ui ~= nil
 end
 
 --- preview.dock(companionFrame) - take the rect the Chooser atom reported.
 --- Fired with a seed rect at show and again once the real window settles, so a re dock
 --- is expected.
 function M.dock(companionFrame)
-  if not (M.isEnabled() and companionFrame) then return end
-  frame = companionFrame
-  -- A redock is the swap back M.hide guards against, so the pane may paint again from
-  -- here on. The highlight seed the caller runs right after this call is what actually
-  -- fills the pane, cold or not, a nil highlight landing in M.clear same as any other.
-  hidden = false
-  if model then
-    -- The settle can correct the height, which changes where the tree has to stop.
-    model = buildModel(model.row)
-    paint()
-  end
+  if not M.isEnabled() then return end
+  -- The highlight seed the caller runs right after this call is what actually fills the
+  -- pane, cold or not, a nil highlight landing in M.clear same as any other.
+  pane.dock(companionFrame)
 end
 
 --- preview.show(row) - render a row, or clear the pane when handed nothing.
@@ -271,16 +219,16 @@ end
 --- which it must, since a tree grows and shrinks between scans and the count under it
 --- is the whole reason the pane is there.
 function M.show(row)
-  if not (M.isEnabled() and frame) then return end
+  local rect = M.isEnabled() and pane.inner()
+  if not rect then return end
   if not row then
     M.clear()
     return
   end
-  local rect = innerRect()
   if not (model and model.row == row and model.w == rect.w and model.h == rect.h) then
-    model = buildModel(row)
+    model = buildModel(row, rect)
   end
-  paint()
+  pane.draw(paintRow)
 end
 
 --- preview.refresh() - redraw the row already on screen.
@@ -288,40 +236,16 @@ end
 --- surface already ticks once per sample and calls this, so the sparklines advance in
 --- step with the figures on the rows and nothing polls twice.
 function M.refresh()
-  if model then paint() end
+  if model and pane then pane.repaint() end
 end
 
---- preview.clear() - the empty state, for a frame with nothing to preview, the empty
---- list row or a confirmation screen with no target.
----
---- This used to hide the canvas outright, on the reasoning that nothing to preview means
---- nothing to draw. That reads as a broken layout instead, a bordered rectangle reserved
---- beside the list with nothing in it, so the pane now stays up and paints the shared
---- empty state, the same quiet message every other docked pane shows in this moment,
---- rather than vanishing. The pane genuinely disappears only on the stage's own swap
---- signal, M.hide below, and on M.destroy.
+--- preview.clear() - the shared empty state, for a frame with nothing to preview, the
+--- empty list row or a confirmation screen with no target. The pane stays up rather than
+--- vanishing, and genuinely disappears only on the stage's own swap signal, M.hide below,
+--- and on M.destroy.
 function M.clear()
   model = nil
-  if not (frame and cfg.surface and cfg.ui) then return end
-  -- See paint's own note. A swap away must stay down through whatever clear the sampler
-  -- or a rescan fires while nobody can see it.
-  if hidden then return end
-  if not cfg.emptyState then
-    -- Absent means a misconfigured or partially configured module, so degrade by
-    -- hiding rather than erroring.
-    if canvas then canvas:hide() end
-    return
-  end
-  ensureCanvas()
-  local rect = innerRect()
-  local els = {}
-  for _, el in ipairs(cfg.surface(frame.w, frame.h)) do els[#els + 1] = el end
-  for _, el in ipairs(cfg.emptyState(rect.w, rect.h)) do
-    els[#els + 1] = shifted(el, rect.x, rect.y)
-  end
-  canvas:frame(frame)
-  canvas:replaceElements(els)
-  canvas:show()
+  if pane then pane.clear() end
 end
 
 --- preview.hide() - hide the canvas without destroying it, for the stage's own swap away
@@ -329,8 +253,7 @@ end
 --- canvas, the frame and the model all survive, so a swap back to this
 --- presentation docks again and repaints at once rather than rebuilding from nothing.
 function M.hide()
-  hidden = true
-  if canvas then canvas:hide() end
+  if pane then pane.hide() end
 end
 
 --- preview.destroy() - tear the pane down completely.
@@ -339,12 +262,7 @@ end
 --- survive a close, and rebuilding one canvas on the next open costs nothing.
 function M.destroy()
   model = nil
-  frame = nil
-  hidden = false
-  if canvas then
-    canvas:delete()
-    canvas = nil
-  end
+  if pane then pane.destroy() end
 end
 
 return M

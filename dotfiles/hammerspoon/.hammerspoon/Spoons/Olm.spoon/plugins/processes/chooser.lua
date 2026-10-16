@@ -484,7 +484,7 @@ end
 
 --- M.paneWidth() -> number, true, or 0. Review finding M1. paneWidth used to flatten to a
 --- static true in the manifest, which centred the pair as if the detail pane always stood up
---- even when opts.surface was never injected. Resolved once, at register, contract v2's own
+--- even when no docked pane was granted. Resolved once, at register, contract v2's own
 --- extension letting paneWidth be a member spec the identical way placeholder already is, by
 --- which point M:start has already configured preview, so this answers the real reservation.
 --- Mirrors the retired layout block's own companionWidth = preview.isEnabled() and
@@ -777,15 +777,13 @@ end
 --- The pane is configured first, because whether there is one at all used to decide whether
 --- the atom reserved room beside the list. It still decides paneWidth's own honesty, true
 --- meaning a pane genuinely exists, but the reservation itself is host/stage's concern now.
---- With no surface injected the pane stands down and this presentation opens exactly as it
+--- With no docked pane granted the pane stands down and this presentation opens exactly as it
 --- did before one existed, rather than half wired.
 function M:start()
   preview.configure({
-    surface = cfg.surface,
-    -- The shared empty state, injected alongside surface by the same wiring since a pane
-    -- declaring plugin earns both together. See lib/panel.lua's own header for why a
-    -- frame with nothing to preview now paints this rather than hiding the canvas.
-    emptyState = cfg.emptyState,
+    -- The shared docked pane the root grants for `pane = true`, which owns the canvas, the
+    -- surface, the empty state and the teardown, so the preview only paints the row.
+    dockedPane = cfg.dockedPane,
     -- The UI kit every piece of the pane is drawn through. It follows the system appearance
     -- itself, which is what a palette closure used to do here by hand.
     ui = cfg.ui,

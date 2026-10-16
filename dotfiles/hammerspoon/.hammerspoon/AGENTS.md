@@ -1780,8 +1780,8 @@ carries no size, because reading one costs a call per row and a page is two hund
 the pane describes one row and gets every fact from a single stat. What the pane shows is a Chain
 of Responsibility over describers where declining passes the row along, and the pictures behind it
 are a second chain of generators where only Quick Look caches. It exists only because the root
-injects `CanvasPanel.surfaceElements`, and without that line it reports itself unavailable and the
-chain moves on.
+grants the shared docked pane, `lib/dockedpane.lua`, for the manifest's `pane = true`, and without
+that grant it reports itself unavailable and the chain moves on.
 
 Two wiring choices are the ones worth knowing here. It opts the atom out of matching
 entirely with `matcher = false`, because its query is structured rather than a plain
