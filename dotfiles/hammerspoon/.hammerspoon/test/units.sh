@@ -35,6 +35,13 @@
 
 set -o pipefail
 
+# Nothing here may read the caller's standard input. Every hs call is bound to the null device
+# instead, since a run started from a terminal or a tool session that holds a live stdin
+# wedged after the first lost reply. The client then never exited, the runner killed it at
+# each timeout, the recovery reload went unanswered and every probe hung for the whole
+# recovery window, while the same run with stdin on the null device recovered in seconds.
+exec </dev/null
+
 SELF_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SELF_DIR" && git rev-parse --show-toplevel)
 TEST_DIR="$REPO_ROOT/dotfiles/hammerspoon/.hammerspoon/test"
@@ -54,7 +61,7 @@ bounded() {
   shift
   local out
   out=$(mktemp)
-  "$@" >"$out" 2>&1 &
+  "$@" >"$out" 2>&1 </dev/null &
   local pid=$!
   local ticks=0
   while kill -0 "$pid" 2>/dev/null; do
