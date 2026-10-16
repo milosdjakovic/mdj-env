@@ -7,15 +7,18 @@
 -- words, lib/plugins.lua reads the real manifests off this checkout and answers which plugins go
 -- off with a switched off one, and lib/resolve.lua plans over them. Nothing is loaded beyond the
 -- manifests, nothing is written to hs.settings, and no reload is asked for, the writer and the
--- reload being recorders handed in exactly where the root hands in the real ones.
+-- store being recorders handed in exactly where the root hands in the real ones.
 --
 -- What is asserted. The merge of a config false with the saved set, and which wins the lock. A
 -- host refused from either source. A switched off plugin absent from what the loader is handed.
 -- The window manager taking window size off with it, reported as a choice naming the window
 -- manager rather than as a block, and the dry run cascade a settings page asks answering the
--- same thing both ways. And a plugin that only optionally uses a switched off one loading with
+-- same thing both ways. A plugin that only optionally uses a switched off one loading with
 -- nothing said, while the same need naming a plugin that does not exist is still reported, so
--- the silence is the switch's and not a check that stopped looking.
+-- the silence is the switch's and not a check that stopped looking. Staging that writes nothing
+-- and is cleared by toggling back, a preview and catalog that show the cascade of what is staged,
+-- one save of the whole staged set with the line said after it, and the resume note written
+-- once and taken once.
 
 local source = debug.getinfo(1, "S").source
 local herePath = source:match("^@(.*)$") or source
@@ -175,12 +178,12 @@ local mergedDisabled, _, mergedRefused = switch.merge({ entries = { alpha = fals
 check("a plugin a host requires is refused from config and from the saved set",
   mergedDisabled.alpha == nil and mergedDisabled.beta == true and #mergedRefused == 2
     and tostring(mergedRefused[1].why):find("needed by the core", 1, true) ~= nil)
-local coreStore = { "beta" }
-local coreOk, coreWhy = switch.set("alpha", true, { switchable = synthSwitchable,
-  lockedBy = { alpha = "core" }, read = function() return coreStore end,
-  write = function(list) coreStore = list end })
-check("the setter refuses a plugin a host requires and says why",
-  coreOk == false and tostring(coreWhy):find("needed by the core", 1, true) ~= nil)
+local corePending = {}
+local coreOk, coreWhy = switch.stage(corePending, "alpha", true, { switchable = synthSwitchable,
+  lockedBy = { alpha = "core" } })
+check("staging refuses a plugin a host requires and says why",
+  coreOk == false and tostring(coreWhy):find("needed by the core", 1, true) ~= nil
+    and next(corePending) == nil)
 local coreCatalog = switch.catalog({ manifests = synth, directories = {}, switchable = synthSwitchable,
   disabled = {}, lockedBy = { alpha = "core" }, offBecause = causes })
 local synthRows = {}
@@ -224,29 +227,114 @@ for _, p in ipairs(loud.problems) do
 end
 check("the same need naming a plugin that does not exist is still reported", named)
 
--- The setter, with a recorder where the root hands hs.settings and the scheduled reload.
-local store, reloads = { "tmuxSessions" }, 0
-local function setOpts()
+-- Staging, with nothing written until the whole staged set is saved. The current state is this
+-- load's disabled set, tmuxSessions switched off and vpn locked off in config.
+local current = { tmuxSessions = true }
+local pending = {}
+local function stageOpts()
+  return { switchable = isSwitchable, lockedBy = { vpn = "config" },
+    current = function(identity) return current[identity] == true end }
+end
+local ok, why = switch.stage(pending, "launcher", true, stageOpts())
+check("a host cannot be staged off from a page", ok == false and why ~= nil)
+ok = switch.stage(pending, "vpn", false, stageOpts())
+check("a plugin switched off in config cannot be staged on from a page", ok == false)
+eq("neither refusal staged anything", next(pending), nil)
+ok = switch.stage(pending, "windowmanager", true, stageOpts())
+check("staging a plugin off is accepted", ok == true and pending.windowmanager == true)
+switch.stage(pending, "windowmanager", false, stageOpts())
+eq("toggling it back to the current state clears its pending entry", pending.windowmanager, nil)
+switch.stage(pending, "windowmanager", true, stageOpts())
+switch.stage(pending, "tmuxSessions", false, stageOpts())
+check("staging a switched off plugin on is held as on", pending.tmuxSessions == false)
+switch.stage(pending, "tmuxSessions", true, stageOpts())
+eq("and toggling that back clears it too", pending.tmuxSessions, nil)
+
+-- What the staged set would leave, from the same dry run the cascade uses.
+local dry = { plan = resolver.plan, manifests = manifests, user = {}, libNames = libNames,
+  switchable = isSwitchable }
+local function with(extra)
+  local out = {}
+  for k, v in pairs(dry) do out[k] = v end
+  for k, v in pairs(extra) do out[k] = v end
+  return out
+end
+local preview = switch.preview(with({ disabled = current, pending = { windowmanager = true } }))
+check("the preview has the window manager off", preview.off.windowmanager == true)
+check("and window size off with it", preview.off.windowsize == true)
+eq("naming the window manager as the cause", table.concat(preview.offBecause.windowsize or {}, ","),
+  "windowmanager")
+check("and keeps what this load already had off", preview.off.tmuxSessions == true)
+local proposed = switch.proposed(current, { windowmanager = true, tmuxSessions = false })
+check("the proposed set applies both directions", proposed.windowmanager == true
+  and proposed.tmuxSessions == nil)
+eq("without touching the current set", current.tmuxSessions, true)
+
+local previewCatalog = switch.catalog({ manifests = manifests, directories = directories,
+  switchable = isSwitchable, disabled = current, lockedBy = {}, pending = { windowmanager = true },
+  preview = preview })
+local previewRows = {}
+for _, row in ipairs(previewCatalog) do previewRows[row.identity] = row end
+check("the catalog carries the staged choice on its row", previewRows.windowmanager.pending == true
+  and previewRows.windowmanager.after.off == true)
+check("and the cascade on the dependent's row, unstaged itself",
+  previewRows.windowsize.pending == nil and previewRows.windowsize.after.off == true
+    and has(previewRows.windowsize.after.offBecause, "windowmanager"))
+eq("with nothing staged a row carries no after", switch.catalog({ manifests = manifests,
+  directories = directories, switchable = isSwitchable, disabled = current })[1].after, nil)
+
+local before = {}
+for name in pairs(current) do before[name] = true end
+local changes = switch.changes(before, preview.off)
+eq("applying changes two plugins", #changes, 2)
+eq("the line names each by title and state, sorted by title",
+  switch.appliedLine(changes, function(identity)
+    return (manifests[identity].about or {}).title or identity
+  end), "Plugins applied, " .. table.concat((function()
+    local a = { (manifests.windowmanager.about or {}).title or "windowmanager",
+      (manifests.windowsize.about or {}).title or "windowsize" }
+    table.sort(a, function(x, y) return x:lower() < y:lower() end)
+    return { a[1] .. " off", a[2] .. " off" }
+  end)(), ", "))
+eq("nothing changed says nothing", switch.appliedLine({}, tostring), nil)
+
+-- The save, with a recorder where the root hands hs.settings.
+local store, writes = { "gone", "launcher", "tmuxSessions" }, 0
+local function saveOpts()
   return { switchable = isSwitchable, lockedBy = { vpn = "config" },
     read = function() return store end,
-    write = function(list) store = list end,
-    reload = function() reloads = reloads + 1 end }
+    write = function(list) store = list writes = writes + 1 end }
 end
-local ok, why = switch.set("launcher", true, setOpts())
-check("a host cannot be switched off from a page", ok == false and why ~= nil)
-ok = switch.set("vpn", false, setOpts())
-check("a plugin switched off in config cannot be switched on from a page", ok == false)
-eq("neither refusal wrote or reloaded", reloads, 0)
-ok = switch.set("windowmanager", true, setOpts())
-check("switching a plugin off is accepted", ok == true)
-eq("the saved set is written sorted", table.concat(store, ","), "tmuxSessions,windowmanager")
-eq("one switch asks for one reload", reloads, 1)
-switch.set("tmuxSessions", false, setOpts())
-eq("switching one back on removes only it", table.concat(store, ","), "windowmanager")
-store = { "gone", "launcher", "tmuxSessions" }
-switch.set("windowmanager", true, setOpts())
-eq("a stale or refused saved identity is dropped on the next switch",
-  table.concat(store, ","), "tmuxSessions,windowmanager")
+switch.save({ windowmanager = true, tmuxSessions = false, vpn = false }, saveOpts())
+eq("one save writes once", writes, 1)
+eq("the whole staged set is written sorted, a stale or refused saved identity dropped, a locked one skipped",
+  table.concat(store, ","), "windowmanager")
+
+-- The resume note a reload leaves for the load after it.
+local resume = load("lib/resume.lua")
+local slot, clears = nil, 0
+local resumeStore = {
+  read = function() return slot end,
+  write = function(note) slot = note end,
+  clear = function() slot = nil clears = clears + 1 end,
+}
+check("a note with no tool and no line is refused", not resume.write(resumeStore, { open = {} })
+  and slot == nil)
+check("a note whose step is not flat is refused", not resume.write(resumeStore,
+  { open = { tool = "t", path = { { nested = {} } } } }))
+check("a place to reopen is written", resume.write(resumeStore, { open = { tool = "t",
+  path = { { nav = true, to = "page" } }, highlight = { key = "row" } } }))
+local taken = resume.take(resumeStore)
+check("the note is taken with its tool, path and highlight", taken ~= nil and taken.open.tool == "t"
+  and taken.open.path[1].to == "page" and taken.open.highlight.key == "row")
+check("taking it clears it", slot == nil and clears == 1)
+eq("a second take finds nothing", resume.take(resumeStore), nil)
+eq("and clears nothing more", clears, 1)
+check("a line alone is a note", resume.write(resumeStore, { notify = "Plugins applied" })
+  and resume.take(resumeStore).notify == "Plugins applied")
+slot = { open = { tool = 7 } }
+eq("a note of the wrong shape is ignored", resume.take(resumeStore), nil)
+check("and cleared all the same", slot == nil)
 
 -- The catalog a page lists.
 local catalog = switch.catalog({ manifests = manifests, directories = directories,

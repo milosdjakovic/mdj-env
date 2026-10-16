@@ -54,7 +54,7 @@ local function row(title, subTitle, icon, item, enabled)
   return { title = title, subTitle = subTitle, icon = icon, item = item, enabled = enabled }
 end
 
-local rows = page.rows(catalog, {}, row, "settings")
+local rows = page.rows(catalog, row, "settings")
 eq("one row per catalog entry", #rows, 7)
 eq("an on plugin says on", rows[1].subTitle, "on")
 eq("an on plugin carries the green circle", rows[1].icon, "selected")
@@ -67,15 +67,52 @@ check("a plain plugin is toggleable", rows[1].item.toggle == true and rows[2].it
 check("a locked or dependent plugin is not toggleable",
   rows[3].item.toggle == false and rows[4].item.toggle == false)
 eq("the row carries the identity", rows[1].item.plugin, "alpha")
+eq("the row states the identity as its key, so the stage holds the highlight on it",
+  rows[1].item.key, "alpha")
 eq("the page's own row says so", rows[5].subTitle, "this page")
 check("the page's own row is not toggleable", rows[5].item.toggle == false)
 eq("a plugin the core needs says so", rows[6].subTitle, "needed by the core")
 check("a plugin the core needs is not toggleable", rows[6].item.toggle == false)
 eq("two causes are both named", rows[7].subTitle, "off because Alpha and Beta are off")
 
-local after = page.rows(catalog, { alpha = true }, row, "settings")
-eq("a pending switch moves the marker", after[1].icon, "notSelected")
-eq("a pending switch changes the words", after[1].subTitle, "off")
+eq("nothing staged has no summary, so no Apply row", page.pendingSummary(catalog), nil)
+
+-- The same catalog with alpha staged off, the root's preview taking zeta off because of alpha
+-- and leaving every other row as it is. Each row carries after while anything is staged.
+local function staged(base, pendingFor, afterFor)
+  local out = {}
+  for _, entry in ipairs(base) do
+    local copy = {}
+    for k, v in pairs(entry) do copy[k] = v end
+    copy.pending = pendingFor[entry.identity]
+    copy.after = afterFor[entry.identity]
+      or { off = entry.disabled == true or entry.offBecause ~= nil, offBecause = entry.offBecause }
+    out[#out + 1] = copy
+  end
+  return out
+end
+-- Eta is added for this, a plain on plugin that the preview takes off with alpha.
+local pendingCatalog = staged(catalog, { alpha = true }, { alpha = { off = true } })
+pendingCatalog[#pendingCatalog + 1] = { identity = "eta", about = { title = "Eta" }, needs = {},
+  disabled = false, after = { off = true, offBecause = { "alpha" } } }
+local afterRows = page.rows(pendingCatalog, row, "settings")
+eq("a staged switch moves the marker", afterRows[1].icon, "notSelected")
+eq("a staged switch says what applying does", afterRows[1].subTitle, "off after apply")
+check("a staged row can be toggled back", afterRows[1].item.toggle == true)
+eq("a plugin going off with it says so and why", afterRows[8].subTitle,
+  "off after apply, because Alpha is off")
+eq("and carries the red circle", afterRows[8].icon, "notSelected")
+check("and cannot be toggled while it is carried along", afterRows[8].item.toggle == false)
+eq("an unchanged row keeps its plain words", afterRows[2].subTitle, "off")
+eq("the summary names every change in catalog order", page.pendingSummary(pendingCatalog),
+  "Alpha off, Eta off")
+
+local onCatalog = staged(catalog, { beta = false }, { beta = { off = false },
+  gamma = { off = false } })
+local onRows = page.rows(onCatalog, row, "settings")
+eq("a plugin staged on says on after apply", onRows[2].subTitle, "on after apply")
+eq("and carries the green circle", onRows[2].icon, "selected")
+eq("a plugin coming back with it says on after apply", onRows[3].subTitle, "on after apply")
 
 local function said(node, out)
   out = out or {}
@@ -87,7 +124,7 @@ local function said(node, out)
 end
 local function joined(node) return table.concat(said(node), "\n") end
 
-local detail = joined(page.detail(ui, catalog[1], catalog, { "gamma" }, {}))
+local detail = joined(page.detail(ui, catalog[1], catalog, { off = true, others = { "gamma" } }))
 check("the detail names the author", detail:find("A", 1, true) ~= nil)
 check("the detail names the homepage", detail:find("example.test", 1, true) ~= nil)
 check("the detail lists the tools", detail:find("tool1", 1, true) ~= nil)
@@ -95,16 +132,23 @@ check("the detail lists the siblings", detail:find("beta", 1, true) ~= nil)
 check("an on plugin's cascade says turning it off, with titles",
   detail:find("Turning this off also turns off Gamma.", 1, true) ~= nil)
 
-local back = joined(page.detail(ui, catalog[2], catalog, { "gamma" }, {}))
+local back = joined(page.detail(ui, catalog[2], catalog, { off = false, others = { "gamma" } }))
 check("an off plugin's cascade says turning it on",
   back:find("Turning this on also brings back Gamma.", 1, true) ~= nil)
 
-local none = joined(page.detail(ui, catalog[1], catalog, {}, {}))
+local none = joined(page.detail(ui, catalog[1], catalog, { off = true, others = {} }))
 check("an empty cascade says nothing about it", none:find("Turning this", 1, true) == nil)
 
-local stale = joined(page.detail(ui, catalog[1], catalog, { "gamma" }, { alpha = true }))
-check("a cascade is left out once the page has switched that plugin", stale:find("Turning this", 1, true) == nil)
+local applying = joined(page.detail(ui, pendingCatalog[1], pendingCatalog,
+  { off = true, staged = true, others = { "eta" } }))
+check("a staged plugin's cascade says what applying does",
+  applying:find("Applying this also turns off Eta.", 1, true) ~= nil)
+check("and its state line says off after apply", applying:find("off after apply", 1, true) ~= nil)
+local returning = joined(page.detail(ui, onCatalog[2], onCatalog,
+  { off = false, staged = true, others = { "gamma" } }))
+check("a plugin staged on says what applying brings back",
+  returning:find("Applying this also brings back Gamma.", 1, true) ~= nil)
 
-local bare = joined(page.detail(ui, catalog[2], catalog, {}, {}))
+local bare = joined(page.detail(ui, catalog[2], catalog, nil))
 check("a plugin with no author draws none", bare:find("Author", 1, true) == nil)
 check("a plugin that needs nothing says so", bare:find("Needs nothing", 1, true) ~= nil)

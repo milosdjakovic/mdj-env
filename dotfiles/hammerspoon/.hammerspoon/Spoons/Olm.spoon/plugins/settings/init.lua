@@ -7,10 +7,12 @@
 --- changes either one through. The second is the colour theme, one row per theme file under
 --- config/themes, applied the moment it is chosen. That mechanism lives in lib/ui/themes.lua
 --- and reaches this plugin as three root published words, themeName, themeNames and setTheme.
---- The third lists every plugin with a green or red circle and switches one on or off, over the
---- three root words pluginCatalog, pluginCascade and setPluginDisabled. That
---- page alone reserves a docked pane describing the highlighted plugin, and its row on the top
---- level appears only when the root delivered those words.
+--- The third lists every plugin with a green or red circle and stages a switch on or off, over
+--- the four root words pluginCatalog, pluginCascade, stagePluginSwitch and applyPluginSwitches.
+--- A choice is only staged, the page stays open, and the root applies the staged set with one
+--- reload when the stage goes away or the Apply now row is chosen. That page alone reserves a
+--- docked pane describing the highlighted plugin, and its row on the top level appears only when
+--- the root delivered those words.
 ---
 --- No engine and contract ceremony, this plugin has no moving parts of its own. It reads and
 --- writes the resolver's live mode through two root published words, overlayPlacementMode and
@@ -58,10 +60,11 @@ local SELF = here:match("([^/]+)/$")
 -- are optional, degrading to an inert press rather than a crash.
 local cfg = {}
 
--- What was just switched on the Plugins page, identity to its new off state, until the reload
--- the switch schedules replaces this process. The root's catalog describes this load, so
--- without it the circle would not move on the row just chosen.
-local pending = {}
+-- The plugin last staged on the Plugins page, so Apply now can ask for the highlight back on it
+-- after the reload. The Apply row itself will not be there, since nothing is staged by then, and
+-- the row the person last chose is the one they were working on. Not the highlight, which this
+-- plugin never caches, only the last thing chosen.
+local lastStaged = nil
 
 --------------------------------------------------------------------------------
 -- Row building
@@ -72,6 +75,7 @@ local ICON_PLACEMENT = "placement"
 local ICON_THEME = "theme"
 local ICON_BACK = "back"
 local ICON_PLUGINS = "plugins"
+local ICON_APPLY = "apply"
 -- The two option rows carry only a circle each, never a checkmark, the one marker
 -- convention this codebase uses for "which of these is current right now". Green marks
 -- whichever option is current and red marks the other one, so the pair together says which
@@ -202,19 +206,33 @@ end
 -- The child page for Plugins, Back plus one row per plugin, with a docked pane
 --------------------------------------------------------------------------------
 
--- Whether the root delivered all three words. They are optional, so a root without them simply
--- has no Plugins row rather than a page that lists nothing.
+-- Whether the root delivered the three words the page reads. They are optional, so a root
+-- without them simply has no Plugins row rather than a page that lists nothing. Apply now needs
+-- the fourth as well and is left out without it, since dismissing the stage applies anyway.
 local function pluginsAvailable()
-  return cfg.pluginCatalog ~= nil and cfg.pluginCascade ~= nil and cfg.setPluginDisabled ~= nil
+  return cfg.pluginCatalog ~= nil and cfg.pluginCascade ~= nil and cfg.stagePluginSwitch ~= nil
 end
+
+-- Where this page sits inside this plugin's own presentation, the step from the top level, so
+-- the root can reopen it after a reload without knowing this plugin. The same item the top
+-- level row carries.
+local PLUGINS_STEP = { nav = true, to = "plugins" }
 
 local function catalog()
   return (cfg.pluginCatalog and cfg.pluginCatalog()) or {}
 end
 
+-- Back, then Apply now while anything is staged, then one row per plugin. Apply now is optional,
+-- dismissing the stage applies too, so it is a shortcut that keeps the person here rather than a
+-- confirm step.
 local function pluginRows()
+  local list = catalog()
   local rows = { backRow() }
-  for _, r in ipairs(page.rows(catalog(), pending, row, SELF)) do rows[#rows + 1] = r end
+  local summary = page.pendingSummary(list)
+  if summary and cfg.applyPluginSwitches then
+    rows[#rows + 1] = row("Apply now", summary, ICON_APPLY, { apply = true, key = "apply" }, true)
+  end
+  for _, r in ipairs(page.rows(list, row, SELF)) do rows[#rows + 1] = r end
   return rows
 end
 
@@ -232,7 +250,7 @@ local function describe(item)
     return
   end
   local cascade = cfg.pluginCascade(item.plugin)
-  pane.show(function(ui) return page.detail(ui, entry, list, cascade, pending, SELF) end)
+  pane.show(function(ui) return page.detail(ui, entry, list, cascade, SELF) end)
 end
 
 local function describeHighlighted()
@@ -240,10 +258,12 @@ local function describeHighlighted()
 end
 
 -- Built like the other two children, a fixed list that answers the query in full and so opts
--- out of the shared matcher. Choosing a plugin answers stay, since it mutates the list it
--- stands on and the person keeps the row they chose, and a row that cannot be switched
--- answers stay too, doing nothing, so a press on it never leaves the page.
+-- out of the shared matcher. Choosing a plugin stages the opposite of what the row shows and
+-- answers stay, since it mutates the list it stands on and the person keeps the row they chose,
+-- and a row that cannot be switched answers stay too, doing nothing, so a press on it never
+-- leaves the page. Nothing is applied here, the page stays open however many rows are flipped.
 local function buildPluginsChild()
+  lastStaged = nil
   return {
     placeholder = "Plugins",
     matcher = false,
@@ -269,16 +289,25 @@ local function buildPluginsChild()
         if cfg.stagePop then cfg.stagePop() end
         return true
       end
+      if item.apply and cfg.applyPluginSwitches then
+        -- The place to come back to, described by this plugin about itself, this plugin's own
+        -- registered name, the step to this page and the plugin last chosen.
+        cfg.applyPluginSwitches({
+          tool = SELF,
+          path = { PLUGINS_STEP },
+          highlight = lastStaged and { key = lastStaged } or nil,
+        })
+        return "stay"
+      end
       if item.plugin then
         if not item.toggle or item.plugin == SELF then return "stay" end
         local entry = page.find(catalog(), item.plugin)
         if not entry then return "stay" end
-        local off = not page.isOff(entry, pending)
-        local ok, why = cfg.setPluginDisabled(item.plugin, off)
+        local ok, why = cfg.stagePluginSwitch(item.plugin, not page.isOff(entry))
         if ok then
-          pending[item.plugin] = off
+          lastStaged = item.plugin
           -- The marker moves on the redraw this answer causes, and the pane is repainted by
-          -- hand since a redraw that keeps the highlight does not announce one.
+          -- hand so the cascade line is measured against the new staged set at once.
           describeHighlighted()
         elseif cfg.notify then
           cfg.notify(why or "That plugin could not be switched")
@@ -308,12 +337,14 @@ function M.rows()
     row("Theme", liveTheme(), ICON_THEME, { nav = true, to = "theme" }, true),
   }
   if pluginsAvailable() then
+    local list = catalog()
     local off = 0
-    for _, entry in ipairs(catalog()) do
-      if page.isOff(entry, pending) then off = off + 1 end
+    for _, entry in ipairs(list) do
+      if page.isOff(entry) then off = off + 1 end
     end
-    rows[#rows + 1] = row("Plugins", off == 0 and "all on" or (off .. " off"), ICON_PLUGINS,
-      { nav = true, to = "plugins" }, true)
+    local words = off == 0 and "all on" or (off .. " off")
+    if page.pendingSummary(list) then words = words .. " after apply" end
+    rows[#rows + 1] = row("Plugins", words, ICON_PLUGINS, { nav = true, to = PLUGINS_STEP.to }, true)
   end
   return rows
 end
@@ -326,7 +357,7 @@ function M.select(item)
   if not item then return nil end
   if item.nav and item.to == "placement" then return buildPlacementChild() end
   if item.nav and item.to == "theme" then return buildThemeChild() end
-  if item.nav and item.to == "plugins" and pluginsAvailable() then return buildPluginsChild() end
+  if item.nav and item.to == PLUGINS_STEP.to and pluginsAvailable() then return buildPluginsChild() end
   return nil
 end
 
@@ -364,8 +395,11 @@ end
 ---                               persisting it through lib/ui/themes.lua.
 --- opts.pluginCatalog            optional, a function of no arguments answering the plugin list.
 --- opts.pluginCascade            optional, a function of an identity answering what else changes.
---- opts.setPluginDisabled        optional, a function of an identity and an off flag answering
----                               ok and why. The Plugins page exists only with the three it reads.
+--- opts.stagePluginSwitch        optional, a function of an identity and an off flag answering
+---                               ok and why, staging the choice and writing nothing.
+--- opts.applyPluginSwitches      optional, a function of a place to reopen, applying what is
+---                               staged with one reload, the Apply now row. The Plugins page
+---                               exists with the first three, and Apply now needs this too.
 --- opts.notify                   optional, one line of routine feedback, used for a refusal.
 --- opts.stageSelectedItem        optional, the highlighted row, which the pane follows.
 --- opts.surface, opts.emptyState, opts.ui  optional, the shared pane surface, its empty state
@@ -384,10 +418,11 @@ function M:configure(opts)
   cfg.stagePop = opts.stagePop
   cfg.pluginCatalog = opts.pluginCatalog
   cfg.pluginCascade = opts.pluginCascade
-  cfg.setPluginDisabled = opts.setPluginDisabled
+  cfg.stagePluginSwitch = opts.stagePluginSwitch
+  cfg.applyPluginSwitches = opts.applyPluginSwitches
   cfg.notify = opts.notify
   cfg.stageSelectedItem = opts.stageSelectedItem
-  pending = {}
+  lastStaged = nil
   pane.configure({ surface = opts.surface, emptyState = opts.emptyState, ui = opts.ui })
   if not cfg.readMode or not cfg.setMode then
     log.w("configured with no overlay placement reader or writer, the Where the OLM "

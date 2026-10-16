@@ -6,10 +6,10 @@
 --- needed without knowing how any of it is built. The kit arrives as an argument, since this file
 --- never loads it, which also lets the unit case drive it with a bare kit and no canvas.
 ---
---- The catalog is the root's own answer and reflects this load. A switch made on the page only
---- takes effect after the reload it schedules, so the page keeps a small overlay of what was just
---- chosen, handed in as pending, and draws the marker from that until the reload lands. The
---- overlay only ever answers for the identity the person just flipped.
+--- The catalog is the root's own answer. A choice made on the page is staged in the root and
+--- nothing runs differently until it is applied, so each catalog row carries what this load has
+--- and, while anything is staged, what applying would leave, and the page draws the second. A
+--- row that changes on apply says so in words, off after apply or on after apply.
 
 local M = {}
 
@@ -27,13 +27,23 @@ local function byIdentity(catalog)
   return map
 end
 
---- M.isOff(entry, pending) -> bool
---- Whether the plugin is off, counting a switch just made on this page that the reload has not
---- applied yet.
-function M.isOff(entry, pending)
-  local chosen = pending and pending[entry.identity]
-  if chosen ~= nil then return chosen end
+-- Whether the plugin is off in this load.
+local function offNow(entry)
   return entry.disabled == true or entry.offBecause ~= nil
+end
+
+--- M.isOff(entry) -> bool
+--- Whether the plugin is off once what is staged is applied, which is what the marker shows.
+function M.isOff(entry)
+  if entry.after then return entry.after.off == true end
+  return offNow(entry)
+end
+
+--- M.changes(entry) -> bool
+--- Whether applying what is staged changes this plugin, staged on its own row or carried along
+--- by another.
+function M.changes(entry)
+  return entry.after ~= nil and (entry.after.off == true) ~= offNow(entry)
 end
 
 --- M.toggleable(entry, selfIdentity) -> bool
@@ -43,44 +53,76 @@ end
 --- take a host down, and the last would switch off the only page that can switch it back. The
 --- plugin knows its own identity, so the root names no plugin to protect it.
 function M.toggleable(entry, selfIdentity)
-  return entry.identity ~= selfIdentity and entry.lockedBy == nil and entry.offBecause == nil
+  if entry.identity == selfIdentity or entry.lockedBy ~= nil or entry.offBecause ~= nil then
+    return false
+  end
+  -- Going off with a staged choice on another row is the same case as being off because of it
+  -- now, it comes back when that choice is undone.
+  return not (entry.pending == nil and entry.after and entry.after.offBecause ~= nil)
 end
 
--- The titles of the plugins a switched off one depends on, said as one phrase, A is off, A and B
--- are off, or A, B and C are off.
-local function causeWords(entry, catalog)
+-- The titles of a list of identities, said as one phrase, A, A and B, or A, B and C.
+local function titleList(identities, catalog)
   local map = byIdentity(catalog)
   local titles = {}
-  for _, identity in ipairs(entry.offBecause) do
-    local cause = map[identity]
-    titles[#titles + 1] = cause and titleOf(cause) or tostring(identity)
+  for _, identity in ipairs(identities or {}) do
+    local other = map[identity]
+    titles[#titles + 1] = other and titleOf(other) or tostring(identity)
   end
-  local joined = titles[1]
-  if #titles > 1 then
-    joined = table.concat(titles, ", ", 1, #titles - 1) .. " and " .. titles[#titles]
-  end
-  return joined .. (#titles > 1 and " are off" or " is off")
+  if #titles <= 1 then return titles[1] or "", #titles end
+  return table.concat(titles, ", ", 1, #titles - 1) .. " and " .. titles[#titles], #titles
 end
 
---- M.words(entry, catalog, pending, selfIdentity) -> string
---- The state in plain words, the row's subtitle.
-function M.words(entry, catalog, pending, selfIdentity)
+-- The plugins a switched off one depends on, said as one phrase, A is off, A and B are off.
+local function causeWords(causes, catalog)
+  local joined, count = titleList(causes, catalog)
+  return joined .. (count > 1 and " are off" or " is off")
+end
+
+--- M.words(entry, catalog, selfIdentity) -> string
+--- The state in plain words, the row's subtitle, saying what applying will do when it changes
+--- anything for this row.
+function M.words(entry, catalog, selfIdentity)
   if entry.identity == selfIdentity then return "this page" end
   if entry.lockedBy == "core" then return "needed by the core" end
   if entry.lockedBy == "config" then return "locked off in config" end
-  if entry.offBecause ~= nil then return "off because " .. causeWords(entry, catalog) end
-  return M.isOff(entry, pending) and "off" or "on"
+  if M.changes(entry) then
+    if not entry.after.off then return "on after apply" end
+    if entry.pending == nil and entry.after.offBecause then
+      return "off after apply, because " .. causeWords(entry.after.offBecause, catalog)
+    end
+    return "off after apply"
+  end
+  if entry.offBecause ~= nil then return "off because " .. causeWords(entry.offBecause, catalog) end
+  return M.isOff(entry) and "off" or "on"
 end
 
---- M.rows(catalog, pending, row, selfIdentity) -> rows
+--- M.pendingSummary(catalog) -> string or nil
+--- What applying would change, every plugin it changes as its title and on or off, in the
+--- catalog's own order. Nil when nothing is staged, which is when the page shows no Apply row.
+function M.pendingSummary(catalog)
+  local parts = {}
+  for _, entry in ipairs(catalog or {}) do
+    if M.changes(entry) then
+      parts[#parts + 1] = titleOf(entry) .. (entry.after.off and " off" or " on")
+    end
+  end
+  if #parts == 0 then return nil end
+  return table.concat(parts, ", ")
+end
+
+--- M.rows(catalog, row, selfIdentity) -> rows
 --- One row per catalog entry, the catalog's own order, which the root already sorted by title.
 --- row is the plugin's own row constructor, so this file never decides what a row's fields are.
-function M.rows(catalog, pending, row, selfIdentity)
+--- Each item states its identity as key, so the stage holds the highlight on the same plugin
+--- when a row above it comes or goes.
+function M.rows(catalog, row, selfIdentity)
   local rows = {}
   for _, entry in ipairs(catalog or {}) do
-    rows[#rows + 1] = row(titleOf(entry), M.words(entry, catalog, pending, selfIdentity),
-      M.isOff(entry, pending) and M.ICON_OFF or M.ICON_ON,
-      { plugin = entry.identity, toggle = M.toggleable(entry, selfIdentity) }, true)
+    rows[#rows + 1] = row(titleOf(entry), M.words(entry, catalog, selfIdentity),
+      M.isOff(entry) and M.ICON_OFF or M.ICON_ON,
+      { plugin = entry.identity, key = entry.identity, toggle = M.toggleable(entry, selfIdentity) },
+      true)
   end
   return rows
 end
@@ -98,29 +140,27 @@ local GROUPS = {
   { label = "Data", field = "data" },
 }
 
--- The line about what else moves with this switch, nothing when nothing does. cascade is the
--- root's list of identities, mapped to titles here since the root never sees a title.
-local function cascadeLine(entry, catalog, cascade, pending)
-  if not cascade or #cascade == 0 then return nil end
-  -- The root answers the cascade for the state of this load, so a switch just made here would
-  -- be described in the wrong direction until the reload, and saying nothing is the honest line.
-  if pending and pending[entry.identity] ~= nil then return nil end
-  local map = byIdentity(catalog)
-  local titles = {}
-  for _, identity in ipairs(cascade) do
-    local other = map[identity]
-    titles[#titles + 1] = other and titleOf(other) or identity
+-- The line about what else moves with this plugin's choice, nothing when nothing does. cascade
+-- is the root's answer, { off, staged, others }, the identities mapped to titles here since the
+-- root never sees a title. A staged choice says what applying does, an unstaged one what
+-- choosing this row would.
+local function cascadeLine(cascade, catalog)
+  if type(cascade) ~= "table" or not cascade.others or #cascade.others == 0 then return nil end
+  local names = titleList(cascade.others, catalog)
+  local lead
+  if cascade.staged then
+    lead = cascade.off and "Applying this also turns off " or "Applying this also brings back "
+  else
+    lead = cascade.off and "Turning this off also turns off " or "Turning this on also brings back "
   end
-  local lead = (entry.disabled == true) and "Turning this on also brings back "
-    or "Turning this off also turns off "
-  return lead .. table.concat(titles, ", ") .. "."
+  return lead .. names .. "."
 end
 
---- M.detail(ui, entry, catalog, cascade, pending, selfIdentity) -> node
+--- M.detail(ui, entry, catalog, cascade, selfIdentity) -> node
 --- The detail block for one plugin, built from kit nodes. The heading is the title with the
 --- version flush right, then the about facts, then the needs in short labelled groups, then the
 --- cascade line when there is one. Every piece of text names a role and never a font or colour.
-function M.detail(ui, entry, catalog, cascade, pending, selfIdentity)
+function M.detail(ui, entry, catalog, cascade, selfIdentity)
   local about = entry.about or {}
   local blocks = {}
 
@@ -133,7 +173,7 @@ function M.detail(ui, entry, catalog, cascade, pending, selfIdentity)
   end
 
   blocks[#blocks + 1] = ui.heading(string.upper(titleOf(entry)), about.version and ("v" .. about.version) or nil)
-  blocks[#blocks + 1] = ui.text(M.words(entry, catalog, pending, selfIdentity), "caption")
+  blocks[#blocks + 1] = ui.text(M.words(entry, catalog, selfIdentity), "caption")
   fact("Author", about.author)
   fact("License", about.license)
   fact("Homepage", about.homepage)
@@ -151,7 +191,7 @@ function M.detail(ui, entry, catalog, cascade, pending, selfIdentity)
     blocks[#blocks + 1] = ui.text("Needs nothing beyond the core.", "caption", { wrap = true })
   end
 
-  local line = cascadeLine(entry, catalog, cascade, pending)
+  local line = cascadeLine(cascade, catalog)
   if line then blocks[#blocks + 1] = ui.text(line, "caption", { wrap = true }) end
 
   return ui.stack(blocks, { gap = "m" })

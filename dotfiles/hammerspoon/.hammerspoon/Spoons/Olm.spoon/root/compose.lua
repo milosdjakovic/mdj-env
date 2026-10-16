@@ -62,6 +62,8 @@ local contributionsLib = load("lib/contributions.lua")
 -- Which plugins are switched off, merged from the person's config and the saved set, and the
 -- one switch a settings page writes through. Pure, every hs call is handed in from here.
 local switchLib = load("lib/pluginswitch.lua")
+-- The one shot note a reload leaves for the load after it, where to reopen and what to say.
+local resumeLib = load("lib/resume.lua")
 local navLib = load("lib/nav.lua")
 local servicesLib = load("lib/services.lua")
 local uiSpecLib = load("root/uispec.lua")
@@ -75,6 +77,10 @@ local emojiSourceLib = load("lib/icons/sources/emoji.lua")
 local sfSourceLib = load("lib/icons/sources/sf.lua")
 
 local log = hs.logger.new("Olm.compose", "info")
+
+-- The timer that acts on a resume note once a load has finished, held at file level since a
+-- Hammerspoon timer nobody refers to is collected before it fires.
+local resumeTimer
 -- Every sibling here has its own opinion about the shape a logger arrives in. Some read an
 -- hs.logger style object, log.e(message), and are handed this file's own log directly.
 -- Others, lib/wire.lua and lib/registrar.lua among them, read a plain callable, log(level,
@@ -1026,6 +1032,63 @@ function obj.run(olm, cfg)
     switchReloadTimer = hs.timer.doAfter(0.2, hs.reload)
   end
 
+  -- The staged choices a settings page made this load, identity to its new off state, held in
+  -- memory until apply. Not persisted as they are made. A staged choice is a draft the person
+  -- is still looking at, and apply runs on the stage closing, which is the moment the person is
+  -- done with it. Saving each one at once would let any other reload, a config file saved or a
+  -- crash, apply a half made set nobody announced, while losing a draft to such a reload costs a
+  -- few presses, and the page that showed it is gone with it anyway.
+  local pendingSwitches = {}
+
+  local resumeStore = {
+    read = function() return hs.settings.get(resumeLib.KEY) end,
+    write = function(note) hs.settings.set(resumeLib.KEY, note) end,
+    clear = function() hs.settings.clear(resumeLib.KEY) end,
+  }
+
+  -- The dry run every page question asks, the cascade and the preview alike, so they agree.
+  local function switchDryRun(extra)
+    local opts = { plan = resolver.plan, manifests = allManifests, user = pluginOverrides,
+      libNames = libNames, switchable = isSwitchable }
+    for k, v in pairs(extra or {}) do opts[k] = v end
+    return opts
+  end
+
+  -- Saves the staged set, leaves a resume note, and schedules the one reload, answering whether
+  -- anything was applied. resume is the place a tool described for itself, reopened after the
+  -- reload. announce asks instead for one routine line naming what changed, said once the load
+  -- is done, for an apply the person did not ask to watch. Nothing staged, or a reload already
+  -- on its way, applies nothing.
+  local function applySwitches(resume, announce)
+    if next(pendingSwitches) == nil or switchReloadTimer then return false end
+    local after = switchLib.preview(switchDryRun({ disabled = disabled, pending = pendingSwitches }))
+    local line = switchLib.appliedLine(switchLib.changes(switchedOff, after.off), function(identity)
+      local manifest = allManifests[identity]
+      return manifest and manifest.about and manifest.about.title or identity
+    end)
+    switchLib.save(pendingSwitches, {
+      switchable = isSwitchable,
+      lockedBy = locks,
+      read = function()
+        local saved = hs.settings.get(switchLib.SETTINGS_KEY)
+        return type(saved) == "table" and saved or {}
+      end,
+      write = function(list) hs.settings.set(switchLib.SETTINGS_KEY, list) end,
+    })
+    -- The staged set is kept, not cleared, so the page still shows what is about to apply for
+    -- the moment before the reload lands, and the scheduled reload is what refuses a second
+    -- apply and any further staging.
+    local note = {}
+    if type(resume) == "table" then note.open = resume end
+    if announce then note.notify = line end
+    if (note.open or note.notify) and not resumeLib.write(resumeStore, note) then
+      log.w("Olm compose, the place to reopen after the plugin switch was not a valid note, "
+        .. "so the reload reopens nothing")
+    end
+    scheduleSwitchReload()
+    return true
+  end
+
   local launcherIdentity = (firstPass.identity or {}).launcher or "launcher"
   local launcherInPlan = (firstPass.effective or {})[launcherIdentity] ~= nil
 
@@ -1266,34 +1329,44 @@ function obj.run(olm, cfg)
     themeNames = function() return themes.names() end,
     setTheme = function(name) return themes.set(name) end,
 
-    -- The plugins page's three words over the one switch, lib/pluginswitch.lua. The catalog lists
-    -- only what lives under plugins, since core is not something a person switches. The cascade
-    -- is a dry run of the resolver's own plan with no modules and no probing, so asking it is
-    -- free. Setting writes the saved set and schedules one reload, since whether a plugin runs
-    -- is decided once per load. All four read this load's set, a change taking effect after the
-    -- reload it asks for.
+    -- The plugins page's four words over the one switch, lib/pluginswitch.lua. The catalog lists
+    -- only what lives under plugins, since core is not something a person switches, each row
+    -- with what this load has and, while anything is staged, what applying would leave. The
+    -- cascade is a dry run of the resolver's own plan with no modules and no probing, so asking
+    -- it is free. Staging writes nothing, and apply saves the whole staged set and schedules
+    -- one reload, since whether a plugin runs is decided once per load. The stage closing
+    -- applies too, see the observer where the stage is wired.
     pluginCatalog = function()
+      local preview = next(pendingSwitches) ~= nil
+        and switchLib.preview(switchDryRun({ disabled = disabled, pending = pendingSwitches }))
+        or nil
       return switchLib.catalog({ manifests = allManifests, directories = directories,
         switchable = isSwitchable, disabled = disabled, lockedBy = locks,
-        offBecause = offBecause })
+        offBecause = offBecause, pending = pendingSwitches, preview = preview })
     end,
+    -- What the choice for identity brings with it, measured against every other staged choice.
+    -- A staged choice answers what applying it does, an unstaged one what staging it would.
     pluginCascade = function(identity)
-      local currentlyOff = disabled[identity] == true
-      return switchLib.cascade({ plan = resolver.plan, manifests = allManifests,
-        user = pluginOverrides, libNames = libNames, disabled = disabled,
-        switchable = isSwitchable, identity = identity, off = not currentlyOff })
+      local others = {}
+      for name, off in pairs(pendingSwitches) do
+        if name ~= identity then others[name] = off end
+      end
+      local base = switchLib.proposed(disabled, others)
+      local off = pendingSwitches[identity]
+      if off == nil then off = not base[identity] end
+      return { off = off, staged = pendingSwitches[identity] ~= nil,
+        others = switchLib.cascade(switchDryRun({ disabled = base, identity = identity, off = off })) }
     end,
-    setPluginDisabled = function(identity, off)
-      return switchLib.set(identity, off, {
+    stagePluginSwitch = function(identity, off)
+      if switchReloadTimer then return false, "the plugins are being applied, Olm is reloading" end
+      return switchLib.stage(pendingSwitches, identity, off, {
         switchable = isSwitchable,
         lockedBy = locks,
-        read = function()
-          local saved = hs.settings.get(switchLib.SETTINGS_KEY)
-          return type(saved) == "table" and saved or {}
-        end,
-        write = function(list) hs.settings.set(switchLib.SETTINGS_KEY, list) end,
-        reload = scheduleSwitchReload,
+        current = function(name) return disabled[name] == true end,
       })
+    end,
+    applyPluginSwitches = function(resume)
+      return applySwitches(resume, false)
     end,
   }
 
@@ -1359,6 +1432,14 @@ function obj.run(olm, cfg)
   -- assignment in this function's own sequence and only isShowingFor, a closure, reaches it
   -- ahead of that point in the source.
   stageModule = modules[plan.identity.stage or "stage"]
+
+  -- Staged plugin choices apply when the stage goes away, by whatever route, since that is the
+  -- person saying they are done. Leaving a page for the level above is not the stage going away,
+  -- so it applies nothing. Dismissing means done, so nothing is reopened, and one line after the
+  -- reload says what changed.
+  if stageModule and stageModule.onClosed then
+    stageModule:onClosed(function() applySwitches(nil, true) end)
+  end
 
   local contextOwners = hintsLib.contextOwners(plan, manifests)
 
@@ -2459,6 +2540,29 @@ function obj.run(olm, cfg)
   -- the wiring table alone reported five perfectly delivered needs as missing, and the derived
   -- check in the suite that reads this is the one that has to be able to tell.
   record.data = servicesLib.merge(wireData, lateData)
+
+  -- The note the reload before this one left, taken once, here at the end, since a place can
+  -- only be reopened once every tool is registered and the stage is wired. Taken before acting,
+  -- so a load that fails while acting on it does not act on it again. Acted on a moment later
+  -- rather than now, so the rest of start finishes before a window appears.
+  local note = resumeLib.take(resumeStore)
+  if note then
+    if resumeTimer then resumeTimer:stop() end
+    resumeTimer = hs.timer.doAfter(0.3, function()
+      resumeTimer = nil
+      local open = note.open
+      if open and stageModule and wiredRegistry.presentationFor then
+        local presentation = wiredRegistry.presentationFor(open.tool)
+        if presentation then
+          stageModule:presentAt(presentation, open.path, open.highlight)
+        else
+          log.w("Olm compose, nothing is registered as '" .. open.tool
+            .. "' any more, so the place before the reload was not reopened")
+        end
+      end
+      if note.notify then notify(note.notify) end
+    end)
+  end
 
   return record
 end

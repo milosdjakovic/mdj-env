@@ -6,6 +6,12 @@
 -- disabled plugin's code never runs, and whether it runs is decided once per load, so changing
 -- the set costs one reload. Toggling live was rejected, see decisions/olm-core-split.md.
 --
+-- A page does not change the saved set directly. A choice is staged into a pending table the
+-- root holds in memory, and the whole staged set is saved at once, with one reload, when the
+-- person dismisses the stage or asks for it. Saving on every choice tore the list down under
+-- the person after each press, which is what Milos found on the first live try. A staged choice
+-- that returns a plugin to the state this load already has is no change at all and is dropped.
+--
 -- Only a plugin found under plugins/ may be switched off. A host is core, and core is what
 -- plugins consume, so letting a person switch it off would let one choice take down every
 -- plugin standing on it. An identity that is not switchable is refused and named, never
@@ -147,10 +153,14 @@ end
 
 --- M.catalog(opts) -> list
 --- One row per switchable plugin, sorted by its about title, { identity, directory, about,
---- needs, disabled, lockedBy, offBecause }, where offBecause is a sorted list of the switched off
---- plugins this one depends on, or nil, and lockedBy is "config" or "core". opts carries manifests, directories,
---- switchable(identity), disabled, lockedBy and offBecause. A host never appears, since it is
---- not something a person can switch.
+--- needs, disabled, lockedBy, offBecause, pending, after }, where offBecause is a sorted list of
+--- the switched off plugins this one depends on, or nil, and lockedBy is "config" or "core".
+--- pending is the staged off state for this identity, or nil when nothing is staged for it.
+--- after is { off, offBecause } for the state once the staged set is applied, present on every
+--- row while anything at all is staged and nil otherwise, so a page can say what a choice on
+--- one row does to another. opts carries manifests, directories, switchable(identity),
+--- disabled, lockedBy, offBecause, pending and preview, the answer of M.preview for the staged
+--- set. A host never appears, since it is not something a person can switch.
 function M.catalog(opts)
   opts = opts or {}
   local out = {}
@@ -165,6 +175,11 @@ function M.catalog(opts)
         disabled = (opts.disabled or {})[identity] == true,
         lockedBy = (opts.lockedBy or {})[identity],
         offBecause = (opts.offBecause or {})[identity],
+        pending = (opts.pending or {})[identity],
+        after = opts.preview and {
+          off = opts.preview.off[identity] == true,
+          offBecause = opts.preview.offBecause[identity],
+        } or nil,
       }
     end
   end
@@ -174,6 +189,45 @@ function M.catalog(opts)
     return title(a) < title(b)
   end)
   return out
+end
+
+-- Every identity the resolver's plan would leave off for a given disabled set, the switched off
+-- ones and the ones off because of them, plus the offBecause map. A dry run handed no modules
+-- and a present answering yes to every tool, so nothing loads and nothing is probed.
+local function planOff(opts, disabled)
+  local plan = opts.plan({
+    manifests = opts.manifests,
+    user = opts.user,
+    disabled = disabled,
+    present = function() return true end,
+    libNames = opts.libNames,
+    switchable = opts.switchable,
+  })
+  local off = {}
+  for name in pairs(plan.disabled or {}) do off[name] = true end
+  for name in pairs(plan.offBecause or {}) do off[name] = true end
+  return off, plan.offBecause or {}
+end
+
+--- M.proposed(disabled, pending) -> set
+--- The switched off set once the staged choices are applied, a new table, neither argument
+--- touched.
+function M.proposed(disabled, pending)
+  local out = {}
+  for name in pairs(disabled or {}) do out[name] = true end
+  for name, off in pairs(pending or {}) do
+    if off then out[name] = true else out[name] = nil end
+  end
+  return out
+end
+
+--- M.preview(opts) -> { off, offBecause }
+--- What the plan leaves off once opts.pending is applied over opts.disabled, from the same dry
+--- run the cascade uses. off is a set, offBecause maps each dependent to its sorted causes.
+--- opts carries what M.cascade takes, plus pending.
+function M.preview(opts)
+  local off, because = planOff(opts, M.proposed(opts.disabled, opts.pending))
+  return { off = off, offBecause = because }
 end
 
 --- M.cascade(opts) -> list
@@ -192,22 +246,7 @@ function M.cascade(opts)
   for name in pairs(current) do proposed[name] = true end
   if opts.off == false then proposed[identity] = nil else proposed[identity] = true end
 
-  local function offSet(disabled)
-    local plan = opts.plan({
-      manifests = opts.manifests,
-      user = opts.user,
-      disabled = disabled,
-      present = function() return true end,
-      libNames = opts.libNames,
-      switchable = opts.switchable,
-    })
-    local off = {}
-    for name in pairs(plan.disabled or {}) do off[name] = true end
-    for name in pairs(plan.offBecause or {}) do off[name] = true end
-    return off
-  end
-
-  local before, after = offSet(current), offSet(proposed)
+  local before, after = planOff(opts, current), planOff(opts, proposed)
   local changed = {}
   for name in pairs(after) do
     if not before[name] and name ~= identity then changed[name] = true end
@@ -218,36 +257,92 @@ function M.cascade(opts)
   return sortedKeys(changed)
 end
 
---- M.set(identity, off, opts) -> ok, why
---- Switches one plugin off or back on in the saved set and asks for the reload that applies it.
---- opts carries switchable(identity), lockedBy, read() answering the saved list, write(list)
---- and reload(). A plugin switched off in config is locked, since the page cannot change a file
---- the person wrote, and a plugin the core requires is locked too, and saying no is better than
---- saving a choice that changes nothing. What is written back holds only identities that are
---- switchable and not locked by the core, so a stale saved name, a plugin since deleted or
---- moved, is dropped on the next switch instead of being refused on every load for ever.
-function M.set(identity, off, opts)
-  opts = opts or {}
+-- Why a page may not switch identity, or nil when it may. A plugin switched off in config is
+-- locked, since the page cannot change a file the person wrote, and a plugin the core requires is
+-- locked too, and saying no is better than staging a choice that changes nothing.
+local function refusal(identity, opts)
   local locks = opts.lockedBy or {}
   if type(identity) ~= "string" or not (opts.switchable and opts.switchable(identity)) then
-    return false, tostring(identity) .. " is not a plugin that can be switched off"
+    return tostring(identity) .. " is not a plugin that can be switched off"
   end
   if locks[identity] == "core" then
-    return false, identity .. " is needed by the core, so it cannot be switched off"
+    return identity .. " is needed by the core, so it cannot be switched off"
   end
   if locks[identity] then
-    return false, identity .. " is switched off in config/plugins.lua, which only that file can change"
+    return identity .. " is switched off in config/plugins.lua, which only that file can change"
   end
+  return nil
+end
+
+--- M.stage(pending, identity, off, opts) -> ok, why
+--- Stages one choice into pending, the table the root holds until apply, and writes nothing.
+--- opts carries switchable(identity), lockedBy, and current(identity) answering whether this
+--- load has the plugin switched off by choice. A choice equal to current removes the staged
+--- entry, so toggling a row back leaves nothing pending for it.
+function M.stage(pending, identity, off, opts)
+  opts = opts or {}
+  local why = refusal(identity, opts)
+  if why then return false, why end
+  off = off and true or false
+  local current = opts.current and opts.current(identity) == true or false
+  if off == current then pending[identity] = nil else pending[identity] = off end
+  return true
+end
+
+--- M.save(pending, opts) -> list
+--- Writes the staged choices into the saved set and answers the list written. opts carries
+--- switchable(identity), lockedBy, read() answering the saved list and write(list). What is
+--- written holds only identities that are switchable and not locked by the core, so a stale
+--- saved name, a plugin since deleted or moved, is dropped on the next apply instead of being
+--- refused on every load for ever. A staged choice the locks refuse by now is skipped.
+function M.save(pending, opts)
+  opts = opts or {}
+  local locks = opts.lockedBy or {}
   local set = {}
   for _, name in ipairs(opts.read and opts.read() or {}) do
     if type(name) == "string" and opts.switchable(name) and locks[name] ~= "core" then
       set[name] = true
     end
   end
-  if off then set[identity] = true else set[identity] = nil end
-  opts.write(sortedKeys(set))
-  if opts.reload then opts.reload() end
-  return true
+  for identity, off in pairs(pending or {}) do
+    if not refusal(identity, opts) then
+      if off then set[identity] = true else set[identity] = nil end
+    end
+  end
+  local list = sortedKeys(set)
+  opts.write(list)
+  return list
+end
+
+--- M.changes(before, after) -> list
+--- Every identity whose off state differs between two off sets, as { identity, off }, off being
+--- the state after, sorted by identity.
+function M.changes(before, after)
+  local names = {}
+  for name in pairs(before or {}) do if not (after or {})[name] then names[name] = true end end
+  for name in pairs(after or {}) do if not (before or {})[name] then names[name] = true end end
+  local out = {}
+  for _, name in ipairs(sortedKeys(names)) do
+    out[#out + 1] = { identity = name, off = (after or {})[name] == true }
+  end
+  return out
+end
+
+--- M.appliedLine(changes, titleOf) -> string or nil
+--- The one routine line said after a reload that applied staged choices, Plugins applied, then
+--- each change as a title and on or off, sorted by title. titleOf maps an identity to the title
+--- a person reads. Nil when nothing changed, since there is nothing to say.
+function M.appliedLine(changes, titleOf)
+  if not changes or #changes == 0 then return nil end
+  local parts = {}
+  for _, change in ipairs(changes) do
+    parts[#parts + 1] = { title = tostring(titleOf and titleOf(change.identity) or change.identity),
+      off = change.off }
+  end
+  table.sort(parts, function(a, b) return a.title:lower() < b.title:lower() end)
+  local words = {}
+  for _, part in ipairs(parts) do words[#words + 1] = part.title .. (part.off and " off" or " on") end
+  return "Plugins applied, " .. table.concat(words, ", ")
 end
 
 --- M.reportLines(disabled, offBecause) -> list of strings

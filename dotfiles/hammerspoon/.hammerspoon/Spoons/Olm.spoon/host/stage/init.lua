@@ -153,6 +153,7 @@ obj._lastShowAt = nil        -- hs.timer.secondsSinceEpoch() at the last real sh
 obj._enterGen = 0            -- bumped by every present, push, hide, and pop, contract v2 decision
                               -- two, so a deferring presentation's own proceed can tell whether the
                               -- stage is still waiting on it or has since moved on, see _bumpEnterGen
+obj._closedObservers = nil   -- functions told once each time the stage goes away, see onClosed
 obj._selectHandled = false   -- contract v3, set true the instant _intercept has already run the
                               -- current presentation's own onSelect and found no child, so the
                               -- atom's own separate call to config.onSelect a moment later, once
@@ -838,6 +839,81 @@ function obj:pop()
   return true
 end
 
+--- Stage:selectWhere(match) -> bool
+--- Method
+--- Moves the highlight to the first row whose item carries every field of match with an equal
+--- value, answering whether one was found. Only while the rows on screen are the current
+--- presentation's rows in their own order, an empty field or a presentation that declares
+--- matcher false, since a ranked list has an order only the atom knows. For the stage's own
+--- hold by key and for a resumed highlight, never for a plugin, since the highlight belongs to
+--- the person.
+function obj:selectWhere(match)
+  local p = self:_current()
+  if not (p and self._instance and type(match) == "table" and next(match) ~= nil) then
+    return false
+  end
+  local query = self:query()
+  if query ~= "" and p.matcher ~= false then return false end
+  for index, row in ipairs(self:_rows(query)) do
+    local item = type(row) == "table" and row.item or nil
+    local all = type(item) == "table"
+    if all then
+      for k, v in pairs(match) do
+        if item[k] ~= v then all = false break end
+      end
+    end
+    if all then
+      self._instance:selectRow(index)
+      return true
+    end
+  end
+  return false
+end
+
+--- Stage:presentAt(p, path, highlight) -> bool
+--- Method
+--- Presents p as a fresh stack the way present does, then walks path inside it, each step an
+--- item handed to the current level's own onSelect exactly as choosing a row would, stacking
+--- every child that comes back, and shows only the deepest level reached, with the highlight on
+--- the row matching highlight when there is one. The levels are real, so Back and Backspace
+--- leave them as if the person had walked down by hand. A step whose onSelect answers no child
+--- stops the walk where it is, so a stale path degrades to the deepest level still reachable.
+--- For the composition root resuming a place after a reload, from a note the tool wrote about
+--- itself, so a path is only ever made of steps that tool's own onSelect answers with a child
+--- and never one that completes. A p that defers through enter is presented plainly and the
+--- path is skipped, since the walk cannot wait on it.
+function obj:presentAt(p, path, highlight)
+  if p and p.enter then return self:present(p) end
+  if not isPresentation(p) then
+    log.w("Stage presentAt was given something that is not a presentation, refusing")
+    return false
+  end
+  if not self._instance then
+    log.w(string.format("Stage presentAt for '%s' arrived with no instance built, refusing", p.name))
+    return false
+  end
+  self:_bumpEnterGen()
+  local levels = { p }
+  for _, step in ipairs(path or {}) do
+    local top = levels[#levels]
+    local ok, child = pcall(top.onSelect, step)
+    if ok and type(child) == "table" and (child.name == nil or child.name == "") then
+      child.name = top.name
+    end
+    if not (ok and isPresentation(child)) or child.enter then break end
+    levels[#levels + 1] = child
+  end
+  local wasShowing = self._instance:isShowing()
+  local outgoing = self:_current()
+  self:_freshStack(p, self._stack)
+  for i = 2, #levels do self._stack[i] = levels[i] end
+  local top = levels[#levels]
+  self:_announce(top)
+  self:_show(top, wasShowing, outgoing)
+  if highlight then self:selectWhere(highlight) end
+  return true
+end
+
 --- Stage:hide()
 --- Method
 --- Hide the window and clear the stack, unconditionally, so a fresh present afterward always
@@ -861,8 +937,14 @@ function obj:hide()
     self._geometryTimer = nil
   end
   if self._instance then self._instance:hide() end
-  closeStack(self._stack)
-  self._stack = {}
+  -- The atom's own teardown above has usually emptied the stack and told the observers already.
+  -- A stack still standing here belonged to a window that was not up, so it is closed and the
+  -- observers told now, and only once either way.
+  if #self._stack > 0 then
+    closeStack(self._stack)
+    self._stack = {}
+    self:_notifyClosed()
+  end
 end
 
 --- Stage:refresh(resetRow, force)
@@ -1152,6 +1234,15 @@ function obj:_intercept(item, enabled)
   local p = self:_current()
   if p and p.intercept then
     local answer = p.intercept(item)
+    -- "stay" holds the highlight by row number, which is the row the person chose only while
+    -- the rows above it stay put. A choice that adds or removes a row above, a pending line
+    -- appearing at the top of a page, would leave the highlight one row off. An item that states
+    -- its own key is held by that key instead, the rows rebuilt now and the highlight put back
+    -- on the row carrying it, and the atom's own rebuild after this keeps that row.
+    if answer == "stay" and type(item) == "table" and item.key ~= nil and self._instance then
+      self._instance:refresh(false)
+      self:selectWhere({ key = item.key })
+    end
     if answer then return answer end
   end
   if p and p.onSelect then
@@ -1221,8 +1312,32 @@ function obj:_onClose()
   -- be reshown on the very next line rather than one actually leaving.
   self:_bumpEnterGen()
   if self._panelOnClose then self._panelOnClose() end
+  local had = #self._stack > 0
   closeStack(self._stack)
   self._stack = {}
+  if had then self:_notifyClosed() end
+end
+
+--- Stage:onClosed(fn)
+--- Method
+--- Adds fn to the functions told, with no arguments, each time the stage goes away, escape, a
+--- click away, a completed selection or a hide, once per close and after every presentation on
+--- the stack has heard its own onClose. A pop, a push and a present over a window already up are
+--- not a close, since the stage is still there. For the composition root, which wants to act
+--- once a person is done with the stage whatever was showing, without any presentation having
+--- to know it. A presentation still uses its own onClose. An observer that raises is logged and
+--- the rest are still told.
+function obj:onClosed(fn)
+  if type(fn) ~= "function" then return end
+  self._closedObservers = self._closedObservers or {}
+  self._closedObservers[#self._closedObservers + 1] = fn
+end
+
+function obj:_notifyClosed()
+  for _, fn in ipairs(self._closedObservers or {}) do
+    local ok, err = pcall(fn)
+    if not ok then log.e("Stage close observer failed, " .. tostring(err)) end
+  end
 end
 
 return obj

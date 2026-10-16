@@ -145,7 +145,8 @@ the sheet, since the trace suggests a leader command is dropped. App toggles sta
    users stay silent.
 3. A plugins page in the OLM settings plugin lists only `plugins/`, shows each plugin's about
    block and needs in the right pane, says what else goes down before confirming, saves and
-   reloads.
+   reloads. Reworked after the first live try, a choice is staged and the staged set applies
+   with one reload when the stage closes or Apply now is chosen, see below.
 4. The registry roster is deleted, so there is one switch.
 
 **Packet one done, 2026-10-16, built, live load owed.** Items 1, 2 and 4, and the root words
@@ -171,6 +172,22 @@ no longer declares a leader or key in its manifest, since the real chord comes f
 off, that a stale saved identity is warned about and dropped on the next switch, that a plugin a
 host requires is locked by the core and a host is never marked off, and that the unused word
 `disabledPlugins` is gone.
+
+**Apply reworked after the first live try, 2026-10-16, built, live load owed.** A press saved
+and reloaded at once, which tore the list down under Milos after every row. A choice on the
+Plugins page is now only staged, in memory in the root, and the page stays open with the
+highlight held, each row saying off after apply or on after apply, a dependent saying it goes
+with the plugin it needs, and the pane's cascade measured against everything staged. Choosing a
+row back drops its staged entry. The staged set is saved with one reload when the stage goes
+away by any route, through a new `onClosed` observer list on `host/stage`, which a pop back to
+the top level never fires, and after such a dismissal nothing reopens and one routine line names
+what changed. An Apply now row after Back, shown only while something is staged, applies the
+same way and reopens the page on the plugin last chosen, through a one shot note under
+`Olm.resume` that `lib/resume.lua` writes and takes once and `stage.presentAt` acts on, walking
+the plugin's own path of items through each level's `select`. The words are now
+`stagePluginSwitch` and `applyPluginSwitches` in place of `setPluginDisabled`, and the stage
+holds a "stay" highlight on an item's `key` so the Apply row appearing above does not move it.
+`test/cases/stage-resume.lua` covers the stage half.
 
 ### Phase 6, the gate
 

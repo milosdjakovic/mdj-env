@@ -20,9 +20,10 @@ return {
   -- marker convention this codebase uses for which of these is current right now. Green marks
   -- whichever option is current and red marks the other one.
   icons = {
-    placement = { emoji = "🖥️", sf = "desktopcomputer" },
+    placement = { emoji = "🪟", sf = "macwindow.and.cursorarrow" },
     theme = { emoji = "🎨", sf = "paintpalette" },
     plugins = { emoji = "🧩", sf = "puzzlepiece.extension" },
+    apply = { emoji = "🔄", sf = "arrow.clockwise" },
     back = { emoji = "⬅️", sf = "chevron.left" },
     selected = { emoji = "🟢", sf = "circle.fill" },
     notSelected = { emoji = "🔴", sf = "circle" },
@@ -71,21 +72,26 @@ return {
         breaks = "choosing a theme on the Theme page changes nothing, since applying and "
           .. "persisting a theme has no other way in from this plugin" },
 
-      -- The plugins page's three words over the one switch, published by the root over
+      -- The plugins page's four words over the one switch, published by the root over
       -- lib/pluginswitch.lua. Optional, since every other page here works without them, and
-      -- the Plugins row appears only when they arrive. The catalog lists the plugins under plugins with their
-      -- about block and needs, the cascade answers
-      -- what else goes off or comes back with one, and the setter saves a switch and
-      -- schedules the one reload that applies it.
+      -- the Plugins row appears only when they arrive. The catalog lists the plugins under
+      -- plugins with their about block, needs and what applying the staged set would leave,
+      -- the cascade answers what else goes off or comes back with one, staging records a
+      -- choice and writes nothing, and apply saves the staged set and schedules the one reload,
+      -- with the place this page describes reopened after it. The root also applies when the
+      -- stage goes away, which this plugin never has to ask for.
       pluginCatalog = { source = "root", policy = "optional",
         breaks = "a plugins page has nothing to list, since which plugins exist and what each "
           .. "needs is known only to the root that read the manifests" },
       pluginCascade = { source = "root", policy = "optional",
         breaks = "a plugins page cannot say what else goes off with a plugin before it is "
           .. "switched off, or what comes back with it" },
-      setPluginDisabled = { source = "root", policy = "optional",
-        breaks = "switching a plugin on or off from a plugins page changes nothing, since the "
-          .. "saved set and the reload have no other way in from this plugin" },
+      stagePluginSwitch = { source = "root", policy = "optional",
+        breaks = "choosing a plugin on a plugins page stages nothing, since the staged set "
+          .. "lives in the root and has no other way in from this plugin" },
+      applyPluginSwitches = { source = "root", policy = "optional",
+        breaks = "a plugins page cannot offer Apply now, so staged choices apply only when the "
+          .. "stage is dismissed and nothing reopens after the reload" },
 
       -- One line of routine feedback, drawn by whoever owns the overlay surface, which is how a
       -- refused switch says why. Optional, the refusal then simply changes nothing, and the

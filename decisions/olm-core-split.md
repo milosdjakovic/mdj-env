@@ -1,8 +1,9 @@
 # Olm core and plugins apart
 
 Status. In progress. Phases 1 to 3 of `Spoons/Olm.spoon/docs/PLAN-CORE-SPLIT.md` have
-landed. Phase 5, the switch and the settings Plugins page, is built and reviewed on its branch
-and owes its live load.
+landed. Phase 5, the switch and the settings Plugins page, is built and reviewed on its branch,
+its apply reworked after Milos's first live try to stage choices and apply them when the stage
+closes, and owes its live load.
 
 ## Now
 
@@ -26,7 +27,12 @@ There is one plugin switch. A plugin under `plugins/` is off when `config/plugin
 `false` or the settings page saved its identity under `Olm.disabledPlugins`, its code never
 runs, a plugin requiring it is reported off because of every switched off plugin it depends on,
 and a change takes one reload. A plugin a host requires is locked by the core and cannot be
-switched, and the settings page cannot switch itself off.
+switched, and the settings page cannot switch itself off. The page does not save a choice, it
+stages it in memory in the root, and the whole staged set is saved with one reload when the
+stage goes away by any route, which `host/stage` reports through its `onClosed` observers, or
+when the page's Apply now row is chosen. A dismissal reopens nothing and one routine line after
+the reload names what changed. Apply now leaves a one shot note under `Olm.resume` describing
+the place the plugin was in, and the next load reopens it through `stage.presentAt`.
 
 ## Rejected
 
@@ -62,6 +68,14 @@ switched, and the settings page cannot switch itself off.
   disabled set is the only switch.
 - **Letting a page or a config line switch off a host.** 2026-10-16. A host is core that
   plugins stand on, so one choice could take down every plugin above it. Refused out loud.
+- **Saving and reloading on every choice on the Plugins page.** 2026-10-16 14:58. It was the
+  first shape built and it took the list down under the person after each press, so flipping
+  two plugins meant reopening the page between them. A choice is staged and the set applies
+  once, when the stage closes or Apply now is chosen.
+- **Persisting each staged choice as it is made.** 2026-10-16 14:58. It would survive a crash,
+  but any other reload, a config file saved while the page is open, would then apply a half
+  made set nobody announced. A staged set is a draft, it lives in memory until apply, and a
+  draft lost to a reload costs a few presses.
 - **A contributed row keeping the launcher as its icon owner.** 2026-10-16. It would have kept
   the owner field identical, but only by a plugin naming the launcher, the coupling phase 3
   removes. The plugin declares the same icon instead.
@@ -147,6 +161,7 @@ switched, and the settings page cannot switch itself off.
   and schedules one reload. The page reads three root words, `pluginCatalog`, `pluginCascade` and
   `setPluginDisabled`, and its row on the top level appears only when they arrive. A press on a
   locked row answers stay and changes nothing.
+  Corrected 2026-10-16 14:58, see below.
 - 2026-10-16 14:26. Review fixes to phase 5. The page could switch itself off and lose the only
   way back, so it now treats its own row as not toggleable, the plugin reading its identity from
   its own directory name. A stale saved identity was logged as an error on every load and never
@@ -164,3 +179,26 @@ switched, and the settings page cannot switch itself off.
   shared companion pane kit piece in the lib is a candidate once a sixth appears or one of them
   changes. And no test runs `root/compose.lua`, so a regression that read `allManifests` where
   it should read the switched off set would stay green until phase 6's gate or a live load.
+- 2026-10-16 14:58. Apply per toggle corrected after Milos's first live try. In his words, "when
+  i enable or disable plugins i do not want to close it immediately, but somehow when i dismiss
+  olm apply then, and somehow reopen where it was if possible". The 14:12 entry's press that
+  saves and schedules a reload is gone. A press stages the choice in the root,
+  `stagePluginSwitch`, and writes nothing, the page answering stay with the circle and the
+  subtitle showing the state after apply, a dependent naming the plugin it goes with, and the
+  pane's cascade measured against everything else staged. A choice that returns a plugin to what
+  this load has drops its staged entry. The staged set is held in memory rather than persisted,
+  see Rejected. It is saved with one reload when the stage goes away. The stage had no close
+  notice the root could hear, so `host/stage` gained an `onClosed` observer list, told once per
+  close after every presentation's own `onClose` and never on a pop, which is exactly the line
+  between leaving the Plugins page for the top level and being done. A dismissal reopens nothing
+  and says one line through the shared `notify` after the reload. An Apply now row after Back,
+  only while something is staged, calls `applyPluginSwitches` with a place the plugin describes
+  about itself, its registered name, the item that leads to the page and the plugin last chosen,
+  and the root leaves it in a one shot note under `Olm.resume` that `lib/resume.lua` validates,
+  writes and takes once, cleared before it is acted on. The stage reopens it with `presentAt`,
+  walking the items through each level's own `select` so Back still works, and highlights by
+  item fields. Since the Apply row appearing above a row moved a held highlight one row off, the
+  stage now holds a "stay" on an item's `key` when the item states one. The confirm step stays
+  rejected, Apply now is optional and dismissing applies just the same. The settings row for
+  where the launcher appears changed its icon at the same time, to `macwindow.and.cursorarrow`,
+  an outline window with a pointer naming both modes, confirmed in the CoreGlyphs name list.

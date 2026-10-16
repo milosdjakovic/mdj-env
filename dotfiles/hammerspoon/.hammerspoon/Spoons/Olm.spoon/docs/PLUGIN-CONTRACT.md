@@ -446,18 +446,34 @@ arrangement of displays is attached right now, as one comparable string, so two 
 that both scope memory to the desk agree on what the desk currently is. `storePath`, where
 a plugin keeps data a person is meant to read, edit, and commit by hand.
 
-Three words over the one plugin switch, `lib/pluginswitch.lua`, for a settings page.
+Four words over the one plugin switch, `lib/pluginswitch.lua`, for a settings page. A choice
+is staged in the root and applied later, all at once, with one reload.
 `pluginCatalog()` answers a list of `{ identity, directory, about, needs, disabled, lockedBy,
-offBecause }` for the plugins under `plugins/`, never a host, sorted by about title, `needs`
-being sorted names under `tools`, `libs`, `siblings` and `data`, `lockedBy` being `"config"`
-for a plugin switched off in `config/plugins.lua` and `"core"` for one a host requires, and
-`offBecause` being the sorted list of every switched off plugin this one depends on, or nil.
-`pluginCascade(identity)` answers which identities would go off with it, or come back with it
-when it is off now, from a dry run of the resolver's plan that loads and probes nothing.
-`setPluginDisabled(identity, off)` refuses a host, a config locked plugin and one the core
-needs, saves the set under `Olm.disabledPlugins` in `hs.settings` holding only identities
-that are still switchable, and schedules one reload. Each reads the set this load started
-with.
+offBecause, pending, after }` for the plugins under `plugins/`, never a host, sorted by about
+title, `needs` being sorted names under `tools`, `libs`, `siblings` and `data`, `lockedBy`
+being `"config"` for a plugin switched off in `config/plugins.lua` and `"core"` for one a host
+requires, `offBecause` being the sorted list of every switched off plugin this one depends on
+in this load, or nil, `pending` the staged off state for this identity or nil, and `after`,
+present on every row while anything is staged, `{ off, offBecause }` for the state once the
+staged set is applied.
+`pluginCascade(identity)` answers `{ off, staged, others }`, `off` the state the choice for
+this identity sets, `staged` whether that choice is already staged, and `others` the
+identities that go off or come back with it, measured against every other staged choice, from
+a dry run of the resolver's plan that loads and probes nothing.
+`stagePluginSwitch(identity, off)` answers ok and why. It refuses a host, a config locked
+plugin and one the core needs, and once a reload is on its way it refuses everything. It writes
+nothing. A choice equal to what this load has drops the staged entry, so choosing a row twice
+leaves nothing staged.
+`applyPluginSwitches(resume)` saves the staged set under `Olm.disabledPlugins` in
+`hs.settings`, holding only identities that are still switchable, schedules one reload, and
+answers whether anything was staged. `resume`, optional, is the place to reopen after the
+reload, described by the caller about itself, `{ tool, path, highlight }`, `tool` the name it
+registered under, `path` a list of items its own `select` answers a child for, one per level
+down, and `highlight` a flat table of item fields the row to highlight carries. The root leaves
+it in a one shot note under `Olm.resume`, `lib/resume.lua`, takes the note once at the end of
+the next load and hands it to `stage.presentAt`. The root also applies by itself when the stage
+goes away, through `stage.onClosed`, reopening nothing and saying one routine line after the
+reload naming what changed, so a page never has to ask for it.
 
 And the presenting plugin's own set, review finding L4, none of these named here until the
 rework following the trickle migrations, which is what let one of them, `stageSetPlaceholder`,
@@ -1042,6 +1058,11 @@ share no correspondence a held highlight could mean anything by, and the atom re
 the top instead. Any answer besides these two, including nil and false, is not an
 interception at all, and a row that mutates the list it stands on and only ever answers true
 is the wrong shape now, not merely an older style.
+
+"stay" holds the highlight by row number, which is the chosen row only while nothing above it
+moves. A row whose choice adds or removes a row above it, the Plugins page's own Apply now row
+appearing after Back, states a `key` on its item, and the stage then holds the highlight on the
+row carrying that key rather than on the number.
 
 `onScroll` is a third addition the trickle migrations found rather than either contract brief
 naming, `function(points)` for a trackpad or a wheel scrolled over the companion rect, which a
