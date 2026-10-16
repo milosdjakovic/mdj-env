@@ -1,8 +1,7 @@
 # Olm core and plugins apart
 
-Status. In progress. Phases 1 and 2 of `Spoons/Olm.spoon/docs/PLAN-CORE-SPLIT.md` have
-landed, the person's plugin changes live in one file and the leader plumbing is core. Phase 3,
-the launcher naming no plugin, is built on its branch and owes its live load.
+Status. In progress. Phases 1 to 3 of `Spoons/Olm.spoon/docs/PLAN-CORE-SPLIT.md` have
+landed. Phase 5's switch, without its page, is built on its branch and owes its live load.
 
 ## Now
 
@@ -22,6 +21,9 @@ Where a row sits is the contributor's own `defaults.launcherOrder`, and what it 
 is its own kind joined to its item's `key` or name.
 Bringing an app forward is `lib/appfocus.lua`, and `coveredApp` and `refreshLauncher` are words
 the root publishes over the launcher.
+There is one plugin switch. A plugin under `plugins/` is off when `config/plugins.lua` says
+`false` or the settings page saved its identity under `Olm.disabledPlugins`, its code never
+runs, a plugin requiring it is reported off because of it, and a change takes one reload.
 
 ## Rejected
 
@@ -51,6 +53,12 @@ the root publishes over the launcher.
   so the place of a row depended on how a kind is spelled, and it needed a `directory` mark to
   keep the panes last. Each contributor declares `defaults.launcherOrder` instead, a row may
   state its own `order`, and the launcher sorts by the number.
+- **Keeping the registry roster as a second switch.** 2026-10-16. `Olm.registryActivation`
+  could hide a registered tool while the plan still loaded and wired it, so two switches could
+  disagree about whether a plugin is on, and nothing had ever written it. Deleted, the plan's
+  disabled set is the only switch.
+- **Letting a page or a config line switch off a host.** 2026-10-16. A host is core that
+  plugins stand on, so one choice could take down every plugin above it. Refused out loud.
 - **A contributed row keeping the launcher as its icon owner.** 2026-10-16. It would have kept
   the owner field identical, but only by a plugin naming the launcher, the coupling phase 3
   removes. The plugin declares the same icon instead.
@@ -110,3 +118,19 @@ the root publishes over the launcher.
   as is, since none of the plugins whose order shifted reads another at configure, every
   contributed member is called when the launcher first builds its rows, and the plan still
   wires every contributor before the launcher.
+- 2026-10-16 14:03. Phase 5 packet one built on its branch, the switch without its page. The
+  disabled set is the union of the `false` entries in `config/plugins.lua` and a list of
+  identities saved in `hs.settings` under `Olm.disabledPlugins`, merged in the root before
+  anything loads by `lib/pluginswitch.lua`, a pure module the unit case drives. Only a plugin
+  under `plugins/` is switchable. A host written `false` or saved is refused with one console
+  line, never honoured, since core must not be switchable, and nothing today writes `false` for
+  a host. A config `false` locks the plugin, since a page cannot undo a line in the person's
+  file. A plugin that requires a switched off one goes off with it, answered before loading by
+  `pluginsLib.offBecause` and recorded by the resolver under `plan.offBecause` naming the
+  switched off plugin, never under `blocked`, so the report reads it as a choice. The loader
+  skips both kinds, so a dependent's code does not run either, a step past what the plan asked,
+  taken because the answer is pure and known before loading. The resolver still receives every
+  manifest, since it has to know a switched off plugin exists to stay silent about an optional
+  sibling naming it, and every other reader in the root gets the set without them. The
+  registry roster `Olm.registryActivation` is deleted from `registrar.forWire`, which activates
+  every tool that registered. Nothing had ever written that key, so no machine loses a choice.

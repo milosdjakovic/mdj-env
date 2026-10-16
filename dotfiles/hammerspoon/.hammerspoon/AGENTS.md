@@ -5,7 +5,7 @@ Configuration in `dotfiles/hammerspoon/.hammerspoon/`:
 - `config/` - User-editable configuration (pure data)
   - `apps.lua` - App bundle ID registry
   - `keys.lua` - The two leader keys and the app toggle list, nothing that belongs to one plugin
-  - `plugins.lua` - One entry per plugin identity, holding that plugin's overrides of its manifest defaults, its person supplied data and its spoon global, or `false` to switch it off
+  - `plugins.lua` - One entry per plugin identity, holding that plugin's overrides of its manifest defaults, its person supplied data and its spoon global, or `false` to switch it off. Only a plugin under `plugins/` can be switched off, a host written `false` is refused with a console line, and a switch saved by the OLM settings page under `Olm.disabledPlugins` joins these, see `Spoons/Olm.spoon/lib/pluginswitch.lua`
   - `settings.lua` - Global settings (margins, timing)
   - `workspaces/` - Workspace definitions (dev.lua, vicert.lua)
 - `Spoons/` - Real Hammerspoon Spoons (reusable logic). The authoritative list is the

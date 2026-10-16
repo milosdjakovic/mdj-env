@@ -59,6 +59,9 @@ local registrarLib = load("lib/registrar.lua")
 -- from the plan's set answers. A pure module like the registrar, so the unit case drives the
 -- same code this file runs.
 local contributionsLib = load("lib/contributions.lua")
+-- Which plugins are switched off, merged from the person's config and the saved set, and the
+-- one switch a settings page writes through. Pure, every hs call is handed in from here.
+local switchLib = load("lib/pluginswitch.lua")
 local navLib = load("lib/nav.lua")
 local servicesLib = load("lib/services.lua")
 local uiSpecLib = load("root/uispec.lua")
@@ -221,6 +224,13 @@ function obj.run(olm, cfg)
   -- switch it off. Overrides go to the resolver as they are, and the resolver strips the data and
   -- global fields itself. The other two are read out below, once each.
   local pluginEntries = cfg.plugins or {}
+  -- The other half of the one switch, the identities a settings page saved. Read here, before
+  -- anything loads, and merged with the false entries above once step C knows which identities
+  -- live under plugins, since only those may be switched off.
+  local savedDisabled = hs.settings.get(switchLib.SETTINGS_KEY)
+  -- What the resolver merges over each plugin's defaults. A false entry travels in the disabled
+  -- set instead, so a false the merge refuses, one written for a host, switches nothing off.
+  local pluginOverrides = switchLib.overrides(pluginEntries)
   local globals = {}
   for name, entry in pairs(pluginEntries) do
     if type(entry) == "table" and entry.global ~= nil then globals[name] = entry.global end
@@ -460,11 +470,46 @@ function obj.run(olm, cfg)
   ------------------------------------------------------------------------------
 
   local pluginRoots = { plugins = spoonDir .. "plugins", host = spoonDir .. "host" }
-  local manifests, skippedManifests, directories = pluginsLib.readAll({
+  local allManifests, skippedManifests, directories = pluginsLib.readAll({
     pluginRoots.plugins, pluginRoots.host,
   }, API_VERSION)
   for identity, why in pairs(skippedManifests or {}) do
     log.e("Olm compose, plugin '" .. identity .. "' was left out, " .. tostring(why))
+  end
+
+  -- The disabled set, the one switch. A plugin is switchable when its manifest was found under
+  -- plugins, never under host, since core must not be switchable. A switch naming anything else
+  -- is refused and named once per load rather than honoured.
+  local function isSwitchable(identity)
+    local path = directories[identity]
+    return path ~= nil and path:sub(1, #pluginRoots.plugins + 1) == pluginRoots.plugins .. "/"
+  end
+  local disabled, lockedBy, refusedSwitches = switchLib.merge({
+    entries = pluginEntries,
+    saved = savedDisabled,
+    switchable = isSwitchable,
+    known = function(identity) return allManifests[identity] ~= nil end,
+  })
+  for _, refusal in ipairs(refusedSwitches) do
+    log.e("Olm compose, '" .. refusal.identity .. "' was not switched off, "
+      .. (refusal.source == "config" and "its false entry in config/plugins.lua " or "the saved switch ")
+      .. refusal.why)
+  end
+  -- Every plugin that requires a switched off one goes off with it, answered by the same
+  -- function the resolver asks below, so the loader and the plan cannot disagree about it.
+  local offBecause = pluginsLib.offBecause(allManifests, disabled)
+  local switchedOff = {}
+  for identity in pairs(disabled) do switchedOff[identity] = true end
+  for identity in pairs(offBecause) do switchedOff[identity] = true end
+  for _, line in ipairs(switchLib.reportLines(disabled, offBecause)) do log.i(line) end
+
+  -- The plugin set everything below reads, without the ones switched off. Only the resolver
+  -- sees allManifests, since it is the one that has to know a switched off plugin exists to
+  -- report it as a choice rather than as a sibling nothing answers to. So its tools are not
+  -- declared to the door, its icons and data are not read, and nothing below can reach it.
+  local manifests = {}
+  for identity, manifest in pairs(allManifests) do
+    if not switchedOff[identity] then manifests[identity] = manifest end
   end
 
   -- The manifests are the one source of what this machine needs, so the resolver is told
@@ -541,18 +586,9 @@ function obj.run(olm, cfg)
   -- every manifest actually sits, rather than scanned a second time from disk.
   ------------------------------------------------------------------------------
 
-  local rawNames, baseFor, identityOfRaw = {}, {}, {}
-  for identity, absolutePath in pairs(directories) do
-    local base, rawName = absolutePath:match("^(.*/)([^/]+)$")
-    if base and rawName then
-      rawNames[#rawNames + 1] = rawName
-      -- loader concatenates configdir directly onto this, and configdir below is spoonDir,
-      -- so the base recorded here is only the part between spoonDir and the plugin root,
-      -- plugins/ or host/, never the absolute path directories itself already carries.
-      baseFor[rawName] = base:sub(#spoonDir + 1)
-      identityOfRaw[rawName] = identity
-    end
-  end
+  -- A plugin switched off, or off because of one, is left out here, so its init.lua is never
+  -- run, its predicates and live labels are never harvested, and no module of it exists.
+  local rawNames, baseFor, identityOfRaw = switchLib.loadList(directories, spoonDir, switchedOff)
 
   modules = loaderLib.modules(spoonDir, baseFor, rawNames, function(rawName)
     return identityOfRaw[rawName]
@@ -561,7 +597,7 @@ function obj.run(olm, cfg)
   -- the one door a test suite reaches its plugin through was shut while the whole config looked
   -- healthy. Same slip as the data block below, and the same answer, say so.
   for name in pairs(globals) do
-    if modules[name] == nil then
+    if modules[name] == nil and not switchedOff[name] then
       log.e("Olm compose, a global was asked for '" .. name
         .. "', which is not a plugin, so nothing was mirrored. Check the spelling against the "
         .. "name the plugin declares for itself, which is not always its directory.")
@@ -670,12 +706,14 @@ function obj.run(olm, cfg)
       -- nobody. Three real values went that way at once, and every check in the config still
       -- reported a clean run, because a table with an extra entry in it is not wrong about
       -- anything, it is just alone.
-      if manifests[name] == nil then
+      if allManifests[name] == nil then
         log.e("Olm compose, data was supplied for '" .. name
           .. "', which is not a plugin. Check the spelling against the name the plugin declares "
           .. "for itself, which is not always its directory.")
       end
-      fannedData[name] = defaultsLib.merge(fannedData[name] or {}, fields)
+      if not switchedOff[name] then
+        fannedData[name] = defaultsLib.merge(fannedData[name] or {}, fields)
+      end
     end
   end
 
@@ -699,8 +737,9 @@ function obj.run(olm, cfg)
   end
 
   local firstPass = resolver.plan({
-    manifests = manifests,
-    user = pluginEntries,
+    manifests = allManifests,
+    user = pluginOverrides,
+    disabled = disabled,
     present = presentTool,
     libNames = libNames,
     modules = modules,
@@ -960,6 +999,16 @@ function obj.run(olm, cfg)
   -- switched off or blocked would answer nil forever while reporting itself delivered, so it is
   -- not published, and a plugin requiring it gets the root's ordinary line naming what it
   -- costs rather than a closure that quietly answers nothing.
+  -- The switch's reload, held so a second toggle before it fires asks for nothing more. The
+  -- timer lives in a local that outlives the call, since a timer nobody refers to is collected
+  -- before it fires, and a reload is scheduled rather than called because one called inside
+  -- the callback that asked for it is unreliable.
+  local switchReloadTimer
+  local function scheduleSwitchReload()
+    if switchReloadTimer then return end
+    switchReloadTimer = hs.timer.doAfter(0.2, hs.reload)
+  end
+
   local launcherIdentity = (firstPass.identity or {}).launcher or "launcher"
   local launcherInPlan = (firstPass.effective or {})[launcherIdentity] ~= nil
 
@@ -1199,13 +1248,50 @@ function obj.run(olm, cfg)
     themeName = function() return themes.current() end,
     themeNames = function() return themes.names() end,
     setTheme = function(name) return themes.set(name) end,
+
+    -- The plugins page's four words over the one switch, lib/pluginswitch.lua. The catalog lists
+    -- only what lives under plugins, since core is not something a person switches. The cascade
+    -- is a dry run of the resolver's own plan with no modules and no probing, so asking it is
+    -- free. Setting writes the saved set and schedules one reload, since whether a plugin runs
+    -- is decided once per load. All four read this load's set, a change taking effect after the
+    -- reload it asks for.
+    pluginCatalog = function()
+      return switchLib.catalog({ manifests = allManifests, directories = directories,
+        switchable = isSwitchable, disabled = disabled, lockedBy = lockedBy,
+        offBecause = offBecause })
+    end,
+    disabledPlugins = function()
+      local names = {}
+      for identity in pairs(disabled) do names[#names + 1] = identity end
+      table.sort(names)
+      return names
+    end,
+    pluginCascade = function(identity)
+      local currentlyOff = disabled[identity] == true
+      return switchLib.cascade({ plan = resolver.plan, manifests = allManifests,
+        user = pluginOverrides, libNames = libNames, disabled = disabled,
+        identity = identity, off = not currentlyOff })
+    end,
+    setPluginDisabled = function(identity, off)
+      return switchLib.set(identity, off, {
+        switchable = isSwitchable,
+        lockedBy = lockedBy,
+        read = function()
+          local saved = hs.settings.get(switchLib.SETTINGS_KEY)
+          return type(saved) == "table" and saved or {}
+        end,
+        write = function(list) hs.settings.set(switchLib.SETTINGS_KEY, list) end,
+        reload = scheduleSwitchReload,
+      })
+    end,
   }
 
   local rootFanned = servicesLib.fanOut(manifests, rootValues, "root")
 
   plan = resolver.plan({
-    manifests = manifests,
-    user = pluginEntries,
+    manifests = allManifests,
+    user = pluginOverrides,
+    disabled = disabled,
     present = presentTool,
     libNames = libNames,
     modules = modules,
@@ -1826,11 +1912,9 @@ function obj.run(olm, cfg)
   w.configure(modules, manifests)
   w.steps(modules, manifests)
   w.predicates(hyperKeyAtom, ownPredicates)
-  -- forWire's own activate reads a persisted roster ahead of anything passed here, and
-  -- falls all the way back to every name that registered this run when nothing else was
-  -- given, which is the safest default and the reason nil is handed for both remaining
-  -- arguments rather than plan.order, most of which never registers as a tool at all.
-  local forWire = registrarLib.forWire(wiredRegistry, nil, nil)
+  -- Every tool that registered is activated, since the plan already left out every plugin that
+  -- is switched off and there is no second switch.
+  local forWire = registrarLib.forWire(wiredRegistry)
   w.register(forWire, describeForRegistry, bindShortcut)
 
   -- The two system actions that belong to no plugin and therefore to no registration, so the
@@ -2292,22 +2376,28 @@ function obj.run(olm, cfg)
   end):start()
 
   local record = w.record
-  record.text = w.report()
 
   -- The seam init.lua reads through self._composed, so Olm:start's own handle answers
   -- report, module and screen for real rather than the nil all three used to be, since
   -- w.record on its own carries only stages, problems and skipped, none of which init.lua
-  -- promises to any caller. report is wire.lua's own report function, handed over rather
-  -- than called a second time, since record.text above already answers the identical
-  -- question once and a caller reaching for it again through the handle wants the same
-  -- accounting rather than a fresh run. modules is loader.lua's own table, keyed by plugin
+  -- promises to any caller. report is wire.lua's own report function with the switch lines
+  -- put ahead of it, and record.text is its answer taken once. modules is loader.lua's own table, keyed by plugin
   -- identity, the exact table Olm:module indexes. screen is the overlay display resolver's
   -- own resolving function, handed over unpicked rather than called here, because the
   -- resolver resolves its effective mode fresh on every call rather than caching a screen
   -- once, so a screen taken now would go stale the moment the focused window, the cursor
   -- position, or the stored mode changes, and every caller must call it fresh at its own
   -- time, which Olm:screen is what actually does.
-  record.report = w.report
+  -- The wiring report, with the switches said first. A switched off plugin and the ones off
+  -- because of it are choices rather than problems, so they are named here and never reach the
+  -- problem lines, and a load whose only differences are choices still reports no problems.
+  local switchLines = switchLib.reportLines(plan.disabled, plan.offBecause)
+  record.report = function()
+    local text = w.report()
+    if #switchLines == 0 then return text end
+    return table.concat(switchLines, "\n") .. "\n" .. text
+  end
+  record.text = record.report()
   record.modules = modules
   record.screen = overlay.screen
 

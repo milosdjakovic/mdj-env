@@ -148,6 +148,21 @@ the sheet, since the trace suggests a leader command is dropped. App toggles sta
    reloads.
 4. The registry roster is deleted, so there is one switch.
 
+**Packet one done, 2026-10-16, built, live load owed.** Items 1, 2 and 4, and the root words
+item 3 will read. `lib/pluginswitch.lua` merges the `false` entries in `config/plugins.lua`
+with the identities saved under `Olm.disabledPlugins`, refusing out loud anything that is not
+a plugin under `plugins/`, and the root hands the set to the loader and to the resolver
+before anything loads. `lib/plugins.lua` answers `offBecause`, every plugin requiring a
+switched off one mapped to that plugin, which the loader skips too, and the resolver reports
+both as choices, `plan.disabled` and `plan.offBecause`, while a sibling or a set question
+naming a switched off plugin is no longer reported as a defect. Everything in the root after
+step C reads the manifests without the switched off ones, so the door, the icons, the fan out
+and the delivery check never reach one. `spoon.Olm:report()` leads with `switched off, x` and
+`off because x is switched off, y` and still says no problems when those are the only
+differences. The settings plugin declares `pluginCatalog`, `disabledPlugins`, `pluginCascade`
+and `setPluginDisabled` as optional root words, and `registrar.forWire` activates every tool
+that registered. `test/cases/pluginswitch.lua` covers it. The page itself is the next packet.
+
 ### Phase 6, the gate
 
 A dry gate check that no file outside `plugins/` names a plugin identity in code or manifest

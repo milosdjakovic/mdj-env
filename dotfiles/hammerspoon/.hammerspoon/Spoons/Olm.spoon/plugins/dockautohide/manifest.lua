@@ -24,8 +24,8 @@ return {
   },
 
   -- The registry and the launcher both know this plugin as dockAutoHide, camelCase, not as
-  -- the lowercase directory. config/settings.lua's activation roster and config/keys.lua's
-  -- alias entry both spell it this way.
+  -- the lowercase directory. Its entry in config/plugins.lua, and a switch saved by the
+  -- settings page, both spell it this way.
   name = "dockAutoHide",
 
   needs = {

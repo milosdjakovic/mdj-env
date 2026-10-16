@@ -418,7 +418,11 @@ end
 --
 -- Either mapping may be absent, and absent means NOT CHECKED rather than nothing found, so
 -- no need is reported against a namespace the caller never supplied.
-function obj.capabilities(manifests, modules, libs)
+--
+-- off names the plugins switched off and those off because of one, which never loaded, so a
+-- sibling naming one is skipped rather than reported as a module that does not resolve.
+function obj.capabilities(manifests, modules, libs, off)
+  off = off or {}
   local blocked, unresolved = {}, {}
   local function lookup(bag, key)
     if type(bag) == "function" then return bag(key) end
@@ -428,7 +432,7 @@ function obj.capabilities(manifests, modules, libs)
     local needs = m.needs or {}
     for field, value in pairs(needs.siblings or {}) do
       local sib = normalizeSibling(value)
-      local problem = modules and sib.plugin and missingMember(lookup(modules, sib.plugin), sib.member)
+      local problem = modules and sib.plugin and not off[sib.plugin] and missingMember(lookup(modules, sib.plugin), sib.member)
       if problem then
         local label = "sibling '" .. sib.plugin .. (sib.member and ("." .. sib.member) or "") .. "'"
         if sib.policy == "required" then
@@ -489,6 +493,37 @@ function obj.data(manifests)
   return answers, defects
 end
 
+-- Which plugins go off because a plugin they require is switched off, each mapped to the
+-- switched off plugin at the root of its chain, so a person reads the choice that caused it
+-- rather than whichever link sat between.
+--
+-- Separate from cascade below on purpose. A plugin a person switched off is a choice, so its
+-- dependents are not broken and must not be reported as blocked, and this has to be answerable
+-- before anything loads, since the loader skips both. Only a required sibling carries the
+-- switch, an optional one leaves its user running without that part, and silent about it.
+function obj.offBecause(manifests, disabled)
+  disabled = disabled or {}
+  local off = {}
+  local changed = true
+  while changed do
+    changed = false
+    for name, m in pairs(manifests) do
+      if not disabled[name] and not off[name] then
+        for _, value in pairs((m.needs or {}).siblings or {}) do
+          local sib = normalizeSibling(value)
+          local dep = sib.plugin
+          if dep and sib.policy == "required" and (disabled[dep] or off[dep]) then
+            off[name] = disabled[dep] and dep or off[dep]
+            changed = true
+            break
+          end
+        end
+      end
+    end
+  end
+  return off
+end
+
 -- Cascade a block along the sibling graph, and catch a name that resolves to nothing.
 --
 -- Two different failures meet here and they deserve different words. A sibling that EXISTS
@@ -508,8 +543,15 @@ end
 -- is up. Whether the specific member it wants exists on the real module is a later
 -- question, `capabilities` answers it, since a manifest has to load with nothing else
 -- running and cannot be asked to prove anything about a module it never touches.
-function obj.cascade(manifests, blocked, libNames)
+--
+-- off is the set of plugins switched off and of those off because of one, absent from
+-- manifests by then. A sibling naming one of them is not a typo, so it is not reported here.
+-- A required one never reaches this, offBecause above already took its user off, and an
+-- optional one leaves its user loading without that part and saying nothing, since a person
+-- switching one plugin off has not broken another.
+function obj.cascade(manifests, blocked, libNames, off)
   libNames = libNames or {}
+  off = off or {}
   local unresolved = {}
   local changed = true
   while changed do
@@ -520,7 +562,7 @@ function obj.cascade(manifests, blocked, libNames)
         for field, value in pairs(needs.siblings or {}) do
           local sib = normalizeSibling(value)
           local dep = sib.plugin
-          if dep then
+          if dep and not off[dep] then
             local absent = (manifests[dep] == nil)
             local down = (blocked[dep] ~= nil)
             if absent then

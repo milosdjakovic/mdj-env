@@ -192,11 +192,12 @@ plugin runs earlier, in `lib/plugins.lua` as the manifests are read, against the
 each manifest declares, and both compare against the spoon's own `obj.apiVersion`, the one copy
 of the number. `decisions/olm-manifest-header.md` at the repository root has why.
 
-**Identity stays off the descriptor.** The physical key, the activation roster, and the alias
-words live above this spoon in the config tree, `config/plugins.lua`, `config/keys.lua` and
-`config/settings.lua` under `.hammerspoon`, never on the descriptor, so a tool
-knows what it does and the person's config knows how it is reached. That split is why a
-rebind, a rename, or a deactivation never touches a plugin.
+**Identity stays off the descriptor.** The physical key, whether a plugin is switched off, and
+the alias words live above this spoon in the config tree, `config/plugins.lua` and
+`config/keys.lua` under `.hammerspoon`, or in the saved set the OLM settings page writes, never
+on the descriptor, so a tool knows what it does and the person's config knows how it is reached.
+That split is why a rebind, a rename, or switching a plugin off never touches a plugin. Switching
+off is one switch, `lib/pluginswitch.lua`, and the registry activates every tool that registered.
 
 An earlier version of this section was the phase by phase build log of the registry before the
 manifest pipeline existed, hand written registration calls, a hand kept predicate list, and a

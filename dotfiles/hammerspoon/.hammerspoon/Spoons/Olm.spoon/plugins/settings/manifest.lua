@@ -65,6 +65,24 @@ return {
         breaks = "choosing a theme on the Theme page changes nothing, since applying and "
           .. "persisting a theme has no other way in from this plugin" },
 
+      -- The plugins page's four words over the one switch, published by the root over
+      -- lib/pluginswitch.lua. Optional, since no page reads them yet and every other page
+      -- here works without them. The catalog lists the plugins under plugins with their
+      -- about block and needs, the set answers which are switched off, the cascade answers
+      -- what else goes off or comes back with one, and the setter saves a switch and
+      -- schedules the one reload that applies it.
+      pluginCatalog = { source = "root", policy = "optional",
+        breaks = "a plugins page has nothing to list, since which plugins exist and what each "
+          .. "needs is known only to the root that read the manifests" },
+      disabledPlugins = { source = "root", policy = "optional",
+        breaks = "a plugins page cannot say which plugins are switched off" },
+      pluginCascade = { source = "root", policy = "optional",
+        breaks = "a plugins page cannot say what else goes off with a plugin before it is "
+          .. "switched off, or what comes back with it" },
+      setPluginDisabled = { source = "root", policy = "optional",
+        breaks = "switching a plugin on or off from a plugins page changes nothing, since the "
+          .. "saved set and the reload have no other way in from this plugin" },
+
       -- Two of the trickle migration's own words, the hotkey door and the child leaving
       -- door, optional and degrading to an inert press rather than a crash, since asking
       -- either before the stage's own configure has run is a wiring defect rather than a

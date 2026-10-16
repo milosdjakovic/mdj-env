@@ -54,6 +54,7 @@ function obj.new(deps)
   --   modules,   the real loaded modules by identity, OPTIONAL
   --   data,      the data values the root and the user can actually supply, OPTIONAL
   --   available, the wiring time choices a binding may name through `needs`, OPTIONAL
+  --   disabled,  identities switched off from anywhere other than user, OPTIONAL, a set
   function self.plan(input)
     input = input or {}
     local manifests = input.manifests or {}
@@ -105,6 +106,7 @@ function obj.new(deps)
       wiring = {},
       sets = {},
       disabled = {},
+      offBecause = {},
       problems = {},
       unchecked = {},
       obligations = {},
@@ -117,13 +119,29 @@ function obj.new(deps)
     -- A plugin the user switched off entirely. Taken out before anything else looks at it,
     -- since a disabled plugin must not appear in a host's set, must not claim a default key,
     -- and must not be reported as blocked, which would read as a failure rather than a choice.
+    --
+    -- input.disabled carries the switches the caller merged from elsewhere, the saved set a
+    -- settings page writes, so this file reads no store of its own and stays pure. A false
+    -- entry in user still counts, for a caller with no merged set to hand over.
+    --
+    -- A plugin that requires a switched off one goes off with it, a consequence of a choice
+    -- rather than a failure, so it is recorded under offBecause, naming the plugin switched
+    -- off, and never under blocked. Both are taken out before tools are probed, so nothing
+    -- below sees either, and a sibling naming one of them is not mistaken for a typo.
+    local switchedOff = {}
+    for name in pairs(manifests) do
+      if userConfig[name] == false or (input.disabled or {})[name] then
+        switchedOff[name] = true
+        out.disabled[name] = true
+      end
+    end
+    if P.offBecause then out.offBecause = P.offBecause(manifests, switchedOff) end
+    local off = {}
+    for name in pairs(out.disabled) do off[name] = true end
+    for name in pairs(out.offBecause) do off[name] = true end
     local live = {}
     for name, m in pairs(manifests) do
-      if userConfig[name] == false then
-        out.disabled[name] = true
-      else
-        live[name] = m
-      end
+      if not off[name] then live[name] = m end
     end
 
     -- Identity. The directory a plugin was found in is NOT its name outside that directory.
@@ -143,7 +161,7 @@ function obj.new(deps)
     -- 2. Cascade along siblings and lib, so a name that cannot resolve is either a block or a
     -- reported defect, never a silent absence.
     local unresolved
-    blocked, unresolved = P.cascade(live, blocked, libNames)
+    blocked, unresolved = P.cascade(live, blocked, libNames, off)
     for where, why in pairs(unresolved or {}) do
       problem("unresolved", where, why)
     end
@@ -157,7 +175,7 @@ function obj.new(deps)
     -- Skipped, and recorded as skipped, when no modules are supplied. An inspect run has no
     -- reason to load every plugin, but it must not then claim the capabilities were verified.
     if modules or input.libs then
-      local capBlocked, capProblems = P.capabilities(live, modules, input.libs)
+      local capBlocked, capProblems = P.capabilities(live, modules, input.libs, off)
       for name, why in pairs(capBlocked or {}) do
         blocked[name] = blocked[name] or why
       end
@@ -290,8 +308,13 @@ function obj.new(deps)
     -- no host holds a roster and adding a tool joins every list for free.
     local sets, empty = P.sets(live, blocked)
     out.sets = sets
+    -- A question every answer to which is switched off is a choice too, so it is only a
+    -- defect when nothing in the whole set, off or not, would have answered it.
     for where, why in pairs(empty or {}) do
-      problem("emptySet", where, why)
+      local name, field = where:match("^(.-)%.([^.]+)$")
+      local query = name and (((live[name] or {}).needs or {}).set or {})[field]
+      local answeredWhenOn = query and P.set and #P.set(manifests, query, blocked) > 0
+      if not answeredWhenOn then problem("emptySet", where, why) end
     end
 
     -- 9. Surfaces.
@@ -386,7 +409,10 @@ function obj.new(deps)
     end)() .. " predicate(s)")
 
     for name in pairs(plan.disabled) do
-      add("  " .. name .. ", switched off in your configuration")
+      add("  " .. name .. ", switched off")
+    end
+    for name, cause in pairs(plan.offBecause or {}) do
+      add("  " .. name .. ", off because " .. cause .. " is switched off")
     end
     for name, why in pairs(plan.blocked) do
       add("  " .. name .. ", NOT wired, " .. why)

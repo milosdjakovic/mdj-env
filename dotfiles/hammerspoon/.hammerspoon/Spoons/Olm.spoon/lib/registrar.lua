@@ -885,50 +885,30 @@ function obj.bind(entry, plan, deps)
   end
 end
 
---- obj.forWire(registry, activation, defaultRoster)
+--- obj.forWire(registry)
 --- Adapts a real registry instance to the exact shape lib/wire.lua's fifth stage calls, three
 --- fields, register, activate and shortcuts, activate and shortcuts both called with nothing
---- after them, pcall(registry.activate) and registry.shortcuts() with no argument at all. The
---- real instance already answers register and shortcuts in that shape, so both are handed
---- straight through, but activate takes a roster on the real instance and this stage never has
---- one to give it, so the roster the real activate wants is decided in here instead, once,
---- lazily, at the moment activate is actually called rather than at the moment this adapter is
---- built, since nothing has registered yet when forWire itself runs.
+--- after them. The real instance already answers register and shortcuts in that shape, so both
+--- are handed straight through. Its activate takes a roster, and the roster is every name that
+--- registered this run, read off the real instance's own all() at the moment activate is
+--- called, since nothing has registered yet when forWire itself runs.
 ---
---- The roster answers to three sources in order. A setting a future roster picker writes always
---- wins, since it is the person's own runtime choice made after every reload this file will ever
---- see. Failing that, activation, whatever roster the caller configured, for a person who has
---- opinions but has not yet written them through a picker. Failing that too, defaultRoster, or,
---- when that was never supplied either, every name that registered this run, answered fresh off
---- the real instance's own all(), since that is what makes a fresh install activate everything
---- rather than nothing, exactly the two things the first attempt got backwards. It read only
---- a roster in the user's settings, so an absent settings block silently activated nothing and
---- deactivated every tool's row, its scope and its key with nothing anywhere naming what
---- happened, audit findings twenty six and forty five, and the persisted setting a real roster
---- picker would one day write was never consulted at all.
-function obj.forWire(registry, activation, defaultRoster)
+--- A second switch used to live here, a roster read from hs.settings that could hide a
+--- registered tool while the plan still wired it. Nothing ever wrote it, and two switches that
+--- can disagree are worse than one. Whether a plugin runs is the plan's answer alone, from the
+--- disabled set lib/pluginswitch.lua merges, so a plugin that registered is a plugin that is on.
+function obj.forWire(registry)
   assert(registry, "registrar.forWire needs a real registry instance to adapt")
-
-  -- Namespaced under Olm rather than left bare, since this is a portable spoon now and a bare
-  -- key would collide with whatever else on the machine ever calls hs.settings.set with the same
-  -- short word.
-  local SETTINGS_KEY = "Olm.registryActivation"
-
-  local function everyRegisteredName()
-    local names = {}
-    for _, entry in ipairs(registry.all() or {}) do
-      names[#names + 1] = entry.name
-    end
-    return names
-  end
 
   return {
     register = registry.register,
     shortcuts = registry.shortcuts,
     activate = function()
-      local persisted = hs.settings.get(SETTINGS_KEY)
-      local roster = persisted or activation or defaultRoster or everyRegisteredName()
-      registry.activate(roster)
+      local names = {}
+      for _, entry in ipairs(registry.all() or {}) do
+        names[#names + 1] = entry.name
+      end
+      registry.activate(names)
     end,
   }
 end

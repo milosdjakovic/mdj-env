@@ -10,7 +10,11 @@
 -- runs exactly as shipped and deleting an entry returns that plugin to its defaults. An entry is
 -- one of two things.
 --
---   false   the plugin is switched off. It is taken out of every list and claims no key.
+--   false   the plugin is switched off. Its code never runs, it is taken out of every list and
+--           claims no key, and a plugin that requires it goes off with it. Only a plugin under
+--           plugins can be, a host written false is refused out loud. A plugin switched off
+--           here shows as locked on the settings page, which saves its own switches in
+--           hs.settings and cannot undo a line in this file.
 --   table   any of the following, all optional.
 --             override fields, merged over that plugin's manifest defaults the way Olm always
 --                has, so naming one key leaves its siblings alone. This is where a plugin's key

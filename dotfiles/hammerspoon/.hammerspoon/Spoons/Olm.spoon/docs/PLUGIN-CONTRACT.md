@@ -446,6 +446,17 @@ arrangement of displays is attached right now, as one comparable string, so two 
 that both scope memory to the desk agree on what the desk currently is. `storePath`, where
 a plugin keeps data a person is meant to read, edit, and commit by hand.
 
+Four words over the one plugin switch, `lib/pluginswitch.lua`, for a settings page.
+`pluginCatalog()` answers a list of `{ identity, directory, about, needs, disabled, lockedBy,
+offBecause }` for the plugins under `plugins/`, never a host, sorted by about title, `needs`
+being sorted names under `tools`, `libs`, `siblings` and `data`, and `lockedBy` being
+`"config"` for a plugin switched off in `config/plugins.lua`. `disabledPlugins()` answers the
+switched off identities as a sorted list. `pluginCascade(identity)` answers which identities
+would go off with it, or come back with it when it is off now, from a dry run of the
+resolver's plan that loads and probes nothing. `setPluginDisabled(identity, off)` refuses a
+host and a config locked plugin, saves the set under `Olm.disabledPlugins` in `hs.settings`,
+and schedules one reload. Each reads the set this load started with.
+
 And the presenting plugin's own set, review finding L4, none of these named here until the
 rework following the trickle migrations, which is what let one of them, `stageSetPlaceholder`,
 be declared, validated, reported satisfied, and delivered nowhere for a whole migration,
@@ -721,9 +732,26 @@ degrades, so the default may ship and announce what it lost. Missing local knowl
 cannot ship at all, which is why VPN correctly proposes nothing.
 
 Overrides resolve as follows. A list replaces wholesale. A map merges per key. A plugin
-level `false` disables the whole plugin. `defaults.NONE` removes a single key, and it
+level `false` switches the whole plugin off, see Switching a plugin off below. `defaults.NONE` removes a single key, and it
 exists because overloading boolean `false` made a meaningful `false` impossible to
 express, which silently broke `matcher = false`.
+
+#### Switching a plugin off
+
+There is one switch. A plugin is off when its entry in `config/plugins.lua` is `false` or when
+its identity is in the set a settings page saved, and the root merges the two before anything
+loads. Only a plugin under `plugins/` can be switched off. A host is core, and a host written
+`false` or saved is refused with a console line rather than honoured.
+
+A switched off plugin's code never runs. Its `init.lua` is not loaded, its tools are not
+declared or probed, its predicates and live labels are not harvested, and it is in no set, no
+list and no key. Its manifest still reaches the resolver, which reports it as switched off, a
+choice rather than a failure. A plugin that REQUIRES a sibling that is switched off goes off
+with it and is reported as off because of that plugin, named, never as blocked. A plugin that
+only optionally uses one loads without that part and says nothing about it, so write an
+optional sibling knowing it may simply be absent. Whether a plugin runs is decided once per
+load, so a change takes one reload. The registry activates every tool that registered, there is
+no second switch.
 
 Two defaults claiming one slot is reported and never resolved. It is a defect identical
 on every machine, and picking a winner by load order would make it a different defect

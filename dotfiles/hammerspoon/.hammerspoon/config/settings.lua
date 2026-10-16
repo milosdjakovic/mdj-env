@@ -221,7 +221,7 @@ return {
   -- to back, so the first one that supports the action and is usable right now handles
   -- it. This is the whole of the chain order, pure data, and the composition root is
   -- still the only place a name becomes a concrete provider, the same shape the overlay
-  -- display modes and the tool roster above already use. So reordering the chain, or
+  -- display modes already use. So reordering the chain, or
   -- dropping a backend to stay off it, is one edit here.
   --
   -- macshot leads because its capture is the one wanted for screenshots and recording,

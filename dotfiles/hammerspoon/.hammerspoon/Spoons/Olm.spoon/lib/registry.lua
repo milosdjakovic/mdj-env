@@ -143,9 +143,9 @@
 -- list is registered and inactive. A name in the list that nothing registered produces
 -- one warning line naming it and is otherwise ignored, since a typo in a roster should
 -- be visible and harmless rather than fatal. names answers to the same refuse rather
--- than raise principle register does, since the activation list is meant to come from a
--- persisted setting a future roster writes, and a value of the wrong shape there is a
--- question of when rather than whether. Anything that is not a table, nil aside, logs
+-- than raise principle register does. The composition root hands it every name that
+-- registered, since whether a plugin runs is decided by the plan alone and this is not a
+-- second switch. Anything that is not a table, nil aside, logs
 -- one warning naming what it got and leaves the active set empty rather than raising
 -- out of config load, which would otherwise take down the whole of Hammerspoon rather
 -- than only the launcher.
@@ -508,9 +508,8 @@ function M.new(opts)
 
   --- instance.activate(names)
   --- Replace the active set with the given list of tool names. Refuses rather than
-  --- raises, the same principle register answers to. names that is not a table, a
-  --- setting written with the wrong shape being a question of when rather than whether,
-  --- logs one warning naming what it got and leaves the active set empty. A name nothing
+  --- raises, the same principle register answers to. names that is not a table logs one
+  --- warning naming what it got and leaves the active set empty. A name nothing
   --- registered logs its own warning and is otherwise ignored.
   function instance.activate(names)
     activeTools = {}
