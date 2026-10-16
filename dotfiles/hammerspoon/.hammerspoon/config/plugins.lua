@@ -32,6 +32,7 @@
 -- thing that merges it with the manifests.
 
 local apps       = require("config.apps")
+local keys       = require("config.keys")
 local settings   = require("config.settings")
 local displays   = require("config.displays")
 local filesearch = require("config.filesearch")
@@ -47,6 +48,17 @@ return {
 
   windowmanager = {
     data = { settings = settings, margins = margins },
+  },
+
+  -- The app toggler's two lists. The catalog of bundle ids lives in config/apps.lua and the
+  -- toggle list lives in config/keys.lua beside the leader keys, since that file is where a
+  -- person rebinds a physical key. Both files stay where they are and this entry points at them
+  -- rather than copying them in, so there is one copy of each list. They are this plugin's own
+  -- values and no other plugin asks for either, which is why they travel here under its data
+  -- and no longer through the flat shared channel in init.lua. The key is the plugin's
+  -- identity, apptoggler, which is also its directory.
+  apptoggler = {
+    data = { apps = apps, toggles = keys.appToggles },
   },
 
   browserTabs = {

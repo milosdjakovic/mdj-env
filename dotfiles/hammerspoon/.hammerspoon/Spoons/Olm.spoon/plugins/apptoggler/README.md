@@ -101,6 +101,13 @@ time it is summoned loses the one thing a person relies on, knowing where it
 is without looking. Choosing a display at all is the workspaces plugin's job,
 never this one's.
 
+## Where the lists come from
+
+The catalog of bundle ids is config/apps.lua and the toggle list is appToggles in
+config/keys.lua. Neither is shared with another plugin, so config/plugins.lua hands both over
+as this plugin's own data, in its apptoggler entry, rather than through the flat shared
+channel in init.lua.
+
 ## History
 
 A show and hide behaviour and a placement engine both used to live in

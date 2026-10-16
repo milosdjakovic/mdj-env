@@ -316,6 +316,7 @@ surface and empty state, the scroll and the teardown, `pane = true` on a surface
   no registry block and skipped the show check, is gone. The case compares chords as counted
   lists and runs once more with the real `config/plugins.lua`, `config/keys.lua` and
   `config/apps.lua`.
+- 2026-10-16 17:32. The app catalog and the app toggles left `cfg.shared` and now reach the app toggler through its own `apptoggler` entry in `config/plugins.lua`, as `data = { apps = require("config.apps"), toggles = require("config.keys").appToggles }`. A grep over every manifest found no other plugin or host declaring a user sourced need named apps or toggles, so the flat channel carried values for one plugin only. The lists stay in `config/apps.lua` and `config/keys.lua`, referenced rather than copied, since keys.lua is where a person rebinds a physical key. `shared` in init.lua is now empty. The leader sheets case no longer builds the toggler data by hand, it reads it from the real plugins entry.
 - 2026-10-16 17:47. The docked companion pane moved into core, closing the 14:26 entry's open item.
   Five plugins each carried the same canvas lifecycle, the settings Plugins page, speedtest,
   processes, file search's side panel and the clipboard preview, and `lib/dockedpane.lua` now
