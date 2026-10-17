@@ -1232,9 +1232,9 @@ microseconds an `hs.styledtext`, so the emoji set's 5648 rows would cost about 1
 keystroke. The action panel takes the search off the instance while it is open, since its verbs
 do not speak a tool's grammar. The DisplayProfiles, Workspaces and
 TmuxSessions lists and the settings page all inherit now, and the query scope and launcher
-query rows mark what a scope hands over as fromQuery. BrowserTabs tabs and the emoji picker moved
-in phase three and declare their fields, the emoji picker with a rowLimit of a hundred. Obsidian,
-Processes, the clipboard, FileSearch and the launcher itself still rank their own query, each behind its own reason its own file explains,
+query rows mark what a scope hands over as fromQuery. BrowserTabs tabs, the emoji picker and
+Obsidian moved in phase three and declare their fields, the emoji picker with a rowLimit of a
+hundred. Processes, the clipboard, FileSearch and the launcher itself still rank their own query, each behind its own reason its own file explains,
 and phases three and four of the plan move them.
 
 So every list chooser is fuzzy by default with no per-tool wiring, and a future list

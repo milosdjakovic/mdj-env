@@ -59,10 +59,8 @@ return {
                  "lands, so it shows whatever the previous scan held for as long as the " ..
                  "scope stays open" },
       -- The shared fuzzy scorer is deliberately NOT declared here. It is not a published
-      -- root value, declaring it as one earns an owed error on every load, and a surface
-      -- declaring no matcher of its own already receives the shared strategy on opts as
-      -- part of what declaring a surface earns. This plugin reads it there and uses it
-      -- inside its own supplier, since the widget's own ranking pass is stood down.
+      -- root value, declaring it as one earns an owed error on every load, and this plugin
+      -- no longer reads it at all, the shared search ranking its rows.
     },
 
     tools = {
@@ -115,16 +113,18 @@ return {
     -- No extra bindings. Everything this plugin can do is an ordinary row you choose.
   },
 
-  -- matcher is a real false. The rows are already filtered by this plugin's own word
-  -- match and ordered by recency then modification time, and the trailing create and
-  -- search rows carry the typed words in their titles, so a second uniform ranking pass
-  -- would fight the order and could rank the action rows away entirely.
+  -- No matcher, so the list inherits the shared search, phase three of
+  -- docs/PLAN-UNIFIED-SEARCH.md on 2026-10-17. It once opted out because its own word match
+  -- filtered and ordered the notes by recency then modification time, and a second uniform
+  -- pass would have fought that order and ranked the create and search rows away. Both are
+  -- answered by fields now. The supplier hands every note over in the resting order, an
+  -- excluded note is tier one, a note opened here carries its recency as a bonus that orders
+  -- only equally good matches, and the create and search rows are pinned.
   presentation = {
     rows = { member = "rows", call = "dot" },
     select = { member = "select", call = "dot" },
     placeholder = { member = "placeholder", call = "dot" },
     onPresent = { member = "onPresent", call = "dot" },
-    matcher = false,
   },
 
   registry = {
@@ -136,9 +136,7 @@ return {
       keywords = "notes, vault, markdown" },
     open = { member = "show", call = "dot" },
     scope = {
-      -- False for the identical reason presentation.matcher above is, the rows arrive
-      -- already filtered and ordered by this plugin's own supplier.
-      matcher = false,
+      -- No matcher, so the query scope ranks the same rows through the shared search.
       rows = { member = "rows", call = "dot" },
       run = { member = "select", call = "dot" },
     },

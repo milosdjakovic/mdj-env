@@ -1,10 +1,10 @@
 --- === Obsidian ===
 ---
 --- Searches the notes in every vault Obsidian knows about and opens the chosen one in
---- Obsidian. Typing filters by note name and folder a word at a time in any order, a
---- query that matches nothing still offers to create a note with those words as its
---- name, and a trailing row hands the words to Obsidian's own search for the one thing
---- a filename match cannot do, finding words inside a note.
+--- Obsidian. Typing filters by note name and folder through the shared search, a query
+--- that matches nothing still offers to create a note with those words as its name, and a
+--- trailing row hands the words to Obsidian's own search for the one thing a filename
+--- match cannot do, finding words inside a note.
 ---
 --- Vaults come from Obsidian's own registry file rather than from any list here, so a
 --- vault opened in Obsidian tomorrow appears on its own. Notes come from reading the
@@ -15,7 +15,8 @@
 ---
 --- The vault's own excluded files setting is respected by ranking, a note under an
 --- excluded prefix still appears, since hiding it entirely would make it unreachable
---- from here, but it sorts after everything else so it never crowds out a real match.
+--- from here, but it is tier one, so it sorts after every other match and never crowds
+--- out a real one.
 
 local M = {}
 
@@ -40,7 +41,6 @@ local recency = nil          -- shared lift to front instance, notes opened here
 local stagePresent = nil     -- the door from the launcher row to the shared stage
 local redrawPresented = nil  -- repaint the staged list when a rescan lands
 local redraw = nil           -- repaint a launcher hosted list when a rescan lands
-local matcher = nil          -- the shared fuzzy scorer, query and haystack to score or nil
 
 -- The row faces, keys declared in the manifest. One note icon for every note, and each action
 -- row wearing its own, so a note and an action never read alike at a glance.
@@ -52,8 +52,7 @@ local ICON_SEARCH = "search"
 local vaults = nil        -- { { id, path, name, ignore }, ... } from the registry read
 local notes = nil         -- flat list over every vault, rebuilt when the scan goes stale
 local scannedAt = 0
-local lastQuery = nil     -- the previous keystroke's query, the key of the narrow below
-local lastHits = nil      -- and the notes that survived it, scored again instead of all
+local resting = nil       -- the note rows in resting order, built once per scan and pick
 local launchTimer = nil   -- held so a deferred url outlives the function that made it
 local rescanTimer = nil   -- held for the same reason, the deferred rescan behind a present
 local warmTimer = nil     -- the one scan configure schedules so the first open is warm
@@ -142,7 +141,6 @@ local function scanVault(vault, out)
             rel = childRel,
             name = entry:sub(1, -4),
             folder = rel,
-            haystack = childRel:lower(),
             mtime = hs.fs.attributes(full, "modification") or 0,
             ignored = ignored(childRel, vault.ignore),
           }
@@ -160,9 +158,8 @@ local function rescan()
   notes = {}
   for _, v in ipairs(vaults) do scanVault(v, notes) end
   scannedAt = hs.timer.secondsSinceEpoch()
-  -- The narrow cache holds notes from the list this scan just replaced, so it is
-  -- dropped with it rather than serving rows the vault no longer has.
-  lastQuery, lastHits = nil, nil
+  -- The rows were built from the list this scan just replaced, so they go with it.
+  resting = nil
   log.f("scanned %d notes across %d vaults", #notes, #vaults)
 end
 
@@ -201,173 +198,87 @@ local function keyOf(n)
   return n.vault.id .. "/" .. n.rel
 end
 
--- The fallback filter for a machine where the shared scorer was never granted. Every
--- typed word must appear somewhere in the note's own path as a plain substring.
-local function matches(n, words)
-  for _, w in ipairs(words) do
-    if not n.haystack:find(w, 1, true) then return false end
-  end
-  return true
-end
+-- The note rows in resting order, every note, for the shared search to filter and rank.
+-- Excluded prefixes last, then newest modification, with the path as a stable tie breaker,
+-- and recency then lifts the notes opened through this tool to the front, which is the order
+-- an empty field shows. Built once per scan and again after a pick, since the supplier hands
+-- every note over on every keystroke and nothing else moves the order.
+--
+-- What each row declares is the whole of how it is searched. The title is the note's name and
+-- the subtitle is where it lives, its folder, or its vault when it sits at the root, and the
+-- vault before the folder when there are several, so a folder word narrows a name word from
+-- either side. A note under an excluded prefix is tier one, after every other match. A note
+-- opened here carries a bonus, its place among the remembered notes scaled into zero to one,
+-- the most recent at one and the least recent at one over their count, which orders only
+-- matches the search calls equally good and never lifts a worse one, Milos's call on
+-- 2026-10-17. A note never opened here earns nothing.
+local function restingRows()
+  if resting then return resting end
+  local list = {}
+  for _, n in ipairs(notes) do list[#list + 1] = n end
+  table.sort(list, function(a, b)
+    if a.ignored ~= b.ignored then return b.ignored end
+    if a.mtime ~= b.mtime then return a.mtime > b.mtime end
+    return a.rel < b.rel
+  end)
+  if recency then list = recency.order(list, keyOf) end
 
--- Whether a word's characters appear in order in the folded haystack, a linear scan.
--- This is the membership gate in front of the scorer, and it is what fzf itself calls
--- matching, so it is the behaviour a person's fingers already know. The scorer alone
--- also forgives a wrong letter, but paying its dynamic programming for every note on
--- every keystroke is what cost early keystrokes near two hundred milliseconds, since a
--- half typed word over a wide candidate set is exactly where its table is biggest. The
--- gate keeps dropped letters and abbreviations, colr and gdhart both pass, gives up
--- only the wrong letter case for membership, and leaves the scorer ranking the few
--- hundred that pass rather than the whole vault.
-local function subseq(w, hay)
-  local wi = 1
-  local wc = w:byte(wi)
-  for hi = 1, #hay do
-    if hay:byte(hi) == wc then
-      wi = wi + 1
-      if wi > #w then return true end
-      wc = w:byte(wi)
-    end
-  end
-  return false
-end
-
--- The typed query against the whole note list. With the shared fuzzy scorer this is the
--- same forgiving subsequence match every other list ranks with, scored over the vault
--- relative path so a folder word narrows exactly as filesearch's does, and the score
--- decides the order before recency lifts anything. Without it the substring filter
--- above stands and the order stays modification time.
-local function filter(q)
-  if q == "" then
-    local all = {}
-    for _, n in ipairs(notes) do all[#all + 1] = n end
-    return all, nil
-  end
-  if matcher then
-    -- Word at a time rather than the query as one subsequence, since one subsequence
-    -- makes the space a character that must land between two matched runs, and a two
-    -- word query with a typo then falls under the scorer's own relevance floor. Each
-    -- word scores on its own against the whole path, every word must land somewhere,
-    -- the scores add, and word order stops mattering, which is also what lets a folder
-    -- word narrow a name word from either side.
-    local words = {}
-    for w in q:gmatch("%S+") do words[#words + 1] = { raw = w, low = w:lower() } end
-    -- Typing is incremental, so a keystroke that only appended characters rescores the
-    -- previous keystroke's survivors rather than every note, which is what holds a long
-    -- query at a few milliseconds instead of growing with the whole vault. Measured at
-    -- two hundred milliseconds per keystroke on a three word query without this. A
-    -- deleted or edited character falls back to the full list. The subsequence gate is
-    -- monotone under appending, so the narrow stays coherent with membership and a note
-    -- dropped by one keystroke was genuinely dropped rather than lost to a cache.
-    local candidates = notes
-    if lastQuery and lastHits and #q > #lastQuery and q:sub(1, #lastQuery) == lastQuery then
-      candidates = lastHits
-    end
-
-    -- Membership first, the gate alone, so the set is known before anything expensive
-    -- runs against it.
-    local passers = {}
-    for _, n in ipairs(candidates) do
-      local ok = true
-      for _, w in ipairs(words) do
-        if not subseq(w.low, n.haystack) then ok = false break end
-      end
-      if ok then passers[#passers + 1] = n end
-    end
-    lastQuery, lastHits = q, passers
-
-    -- Ranking second, and which ranker depends on how many passed. A short prefix is a
-    -- subsequence of nearly everything, so the scorer's dynamic programming over a
-    -- thousand passers is where the half typed word cost its hundred and eighty
-    -- milliseconds, and precise ranking of a set that wide is also worthless, nothing
-    -- past the visible rows is read. So a wide set ranks cheaply, a substring hit beats
-    -- a scattered one and an early hit beats a late one, both through one C level find
-    -- per word, and the scorer takes over the moment the set is narrow enough that its
-    -- order is actually being read. The handover point is a size, not a cliff a person
-    -- steers by, the order simply sharpens as typing narrows.
-    if #passers > 300 then
-      local scores = {}
-      for _, n in ipairs(passers) do
-        local s = 0
-        for _, w in ipairs(words) do
-          local pos = n.haystack:find(w.low, 1, true)
-          if pos then s = s + 100 - math.min(pos, 50) end
-        end
-        scores[n] = s
-      end
-      return passers, scores
-    end
-
-    local hits, scores = {}, {}
-    for _, n in ipairs(passers) do
-      local total = 0
-      for _, w in ipairs(words) do
-        local s = matcher(w.raw, n.rel)
-        if s == nil then total = nil break end
-        total = total + s
-      end
-      if total ~= nil then
-        hits[#hits + 1] = n
-        scores[n] = total
+  local remembered, count = {}, 0
+  if recency then
+    for i, n in ipairs(list) do
+      if recency.rankOf(keyOf(n)) then
+        count = count + 1
+        remembered[i] = count
       end
     end
-    return hits, scores
   end
-  local words = {}
-  for w in q:lower():gmatch("%S+") do words[#words + 1] = w end
-  local hits = {}
-  for _, n in ipairs(notes) do
-    if matches(n, words) then hits[#hits + 1] = n end
+
+  local manyVaults = #vaults > 1
+  local out = {}
+  for i, n in ipairs(list) do
+    local where = n.folder ~= "" and n.folder or n.vault.name
+    if manyVaults and n.folder ~= "" then where = n.vault.name .. "  " .. n.folder end
+    local r = row(n.name, where, { open = { vault = n.vault.id, rel = n.rel, key = keyOf(n) } },
+      nil, ICON_NOTE)
+    if n.ignored then r.tier = 1 end
+    local place = remembered[i]
+    if place then r.bonus = (count - place + 1) / count end
+    out[i] = r
   end
-  return hits, nil
+  resting = out
+  return out
 end
 
 function M.rows(query)
   ensureScanned()
   refreshSoon()
   local q = (query or ""):gsub("^%s+", ""):gsub("%s+$", "")
-  local rows = {}
 
+  -- Pinned, so whatever is typed it explains the empty list rather than vanishing.
   if not vaults or #vaults == 0 then
-    return { row("Obsidian knows no vaults yet",
-      "open a vault in Obsidian once and it appears here", nil, false) }
+    local r = row("Obsidian knows no vaults yet",
+      "open a vault in Obsidian once and it appears here", nil, false)
+    r.pinned = true
+    return { r }
   end
 
-  local hits, scores = filter(q)
+  local rows = {}
+  for i, r in ipairs(restingRows()) do rows[i] = r end
 
-  -- Excluded prefixes last, then the fuzzy score where one exists, then newest
-  -- modification, with the path as a stable tie breaker. Recency then lifts the notes
-  -- actually opened through this tool to the front of whatever survived the filter,
-  -- which reads right because the scorer's own relevance floor has already dropped
-  -- anything a lift would embarrass.
-  table.sort(hits, function(a, b)
-    if a.ignored ~= b.ignored then return b.ignored end
-    if scores then
-      local sa, sb = scores[a], scores[b]
-      if sa ~= sb then return sa > sb end
-    end
-    if a.mtime ~= b.mtime then return a.mtime > b.mtime end
-    return a.rel < b.rel
-  end)
-  if recency then hits = recency.order(hits, keyOf) end
-
-  local manyVaults = #vaults > 1
-  for _, n in ipairs(hits) do
-    local where = n.folder ~= "" and n.folder or n.vault.name
-    if manyVaults and n.folder ~= "" then where = n.vault.name .. "  " .. n.folder end
-    rows[#rows + 1] = row(n.name, where,
-      { open = { vault = n.vault.id, rel = n.rel, key = keyOf(n) } }, nil, ICON_NOTE)
-  end
-
-  -- The two query level actions, only when there are words to act on. They trail the
-  -- matches rather than lead them, since an existing note is the answer far more often
-  -- than a new one, and they are the whole list when nothing matched.
+  -- The two query level actions, only when there are words to act on. Pinned, so the search
+  -- never scores or drops them and they trail every matching note, since an existing note is
+  -- the answer far more often than a new one, and they are the whole list when nothing
+  -- matched.
   if q ~= "" then
     local v = defaultVault()
-    rows[#rows + 1] = row(string.format("New note \"%s\"", q),
+    local new = row(string.format("New note \"%s\"", q),
       "creates it in " .. v.name, { new = q }, nil, ICON_NEW)
-    rows[#rows + 1] = row(string.format("Search notes for \"%s\"", q),
+    new.pinned = true
+    rows[#rows + 1] = new
+    local search = row(string.format("Search notes for \"%s\"", q),
       "full text search inside Obsidian", { search = q }, nil, ICON_SEARCH)
+    search.pinned = true
+    rows[#rows + 1] = search
   end
 
   return rows
@@ -393,7 +304,11 @@ function M.select(choice)
   if not choice or not choice.item then return end
   local it = choice.item
   if it.open then
-    if recency then recency.touch(it.open.key) end
+    if recency then
+      recency.touch(it.open.key)
+      -- The pick moved the remembered order, so the resting rows are built again.
+      resting = nil
+    end
     -- The trailing .md is optional in the scheme and dropped here, so the url reads as
     -- the note's own name the way Obsidian's own copied links do.
     local rel = it.open.rel
@@ -432,7 +347,6 @@ function M:configure(opts)
   if opts.stagePresent ~= nil then stagePresent = opts.stagePresent end
   if opts.redrawPresented ~= nil then redrawPresented = opts.redrawPresented end
   if opts.redraw ~= nil then redraw = opts.redraw end
-  if opts.matcher ~= nil then matcher = opts.matcher end
   -- One scan shortly after load, once the reload has settled, so the first human open
   -- of the session already has a list and pays nothing. Without it the first open
   -- inside the first few seconds falls back to the blocking scan, which still works.

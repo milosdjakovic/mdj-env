@@ -108,3 +108,118 @@ do
   kept = rank.apply(rows, "a", fuzzy, search)
   check("a broad query is cut to a hundred after ranking", #kept == 100, #kept)
 end
+
+--------------------------------------------------------------------------------
+-- Obsidian
+--------------------------------------------------------------------------------
+
+-- The plugin reads Obsidian's registry and walks the vault through hs, so it is loaded into an
+-- environment of its own whose hs is a stand in over a vault that exists only here. The live
+-- hs is never touched.
+local function obsidianOver(tree, registry, remembered)
+  local function attributes(path, field)
+    local node = tree[path]
+    if node == nil then return nil end
+    if field == "mode" then return node == "dir" and "directory" or "file" end
+    if field == "modification" then return type(node) == "number" and node or 0 end
+  end
+  local function dir(path)
+    local names = {}
+    for p in pairs(tree) do
+      local parent, name = p:match("^(.*)/([^/]+)$")
+      if parent == path then names[#names + 1] = name end
+    end
+    table.sort(names)
+    local i = 0
+    return function() i = i + 1 return names[i] end, nil
+  end
+  local noop = function() end
+  local fakeHs = {
+    logger = { new = function() return setmetatable({}, { __index = function() return noop end }) end },
+    json = { read = function(path)
+      if path:sub(-#"obsidian.json") == "obsidian.json" then return registry end
+      if path:sub(-#"app.json") == "app.json" then return { userIgnoreFilters = { "Archive/" } } end
+    end },
+    fs = { attributes = attributes, dir = dir },
+    timer = { doAfter = function() return { stop = noop } end, secondsSinceEpoch = function() return 0 end },
+  }
+  local env = setmetatable({ hs = fakeHs }, { __index = _G })
+  local chunk = assert(loadfile(olm .. "plugins/obsidian/init.lua", "t", env))
+  local M = chunk()
+  local recency = {
+    rankOf = function(key) return remembered[key] end,
+    order = function(items, keyOf)
+      local lead, rest = {}, {}
+      for _, it in ipairs(items) do
+        if remembered[keyOf(it)] then lead[#lead + 1] = it else rest[#rest + 1] = it end
+      end
+      table.sort(lead, function(a, b) return remembered[keyOf(a)] < remembered[keyOf(b)] end)
+      for _, it in ipairs(rest) do lead[#lead + 1] = it end
+      return lead
+    end,
+    touch = noop,
+  }
+  M:configure({ recency = recency })
+  return M
+end
+
+do
+  local manifest = load("plugins/obsidian/manifest.lua")
+  check("the Obsidian list and its scope inherit the shared search", manifest.presentation.matcher == nil
+    and manifest.registry.scope.matcher == nil)
+
+  local tree = {
+    ["/v/Work"] = "dir",
+    ["/v/Work/Meeting.md"] = 100,
+    ["/v/Work/Prevention.md"] = 90,
+    ["/v/Work/Projects"] = "dir",
+    ["/v/Work/Projects/Alpha plan.md"] = 300,
+    ["/v/Work/Projects/Plan review.md"] = 200,
+    ["/v/Work/Archive"] = "dir",
+    ["/v/Work/Archive/Plan old.md"] = 400,
+    ["/v/Work/Daily"] = "dir",
+    ["/v/Work/Daily/Planning.md"] = 50,
+  }
+  local registry = { vaults = { w = { path = "/v/Work", open = true } } }
+  local remembered = { ["w/Prevention.md"] = 1, ["w/Projects/Alpha plan.md"] = 2 }
+  local M = obsidianOver(tree, registry, remembered)
+
+  local rows = M.rows("")
+  check("an empty field keeps the resting order, opened notes first, then newest, excluded last",
+    titles(rank.apply(rows, "", fuzzy)) == "Prevention,Alpha plan,Plan review,Meeting,Planning,Plan old",
+    titles(rows))
+  local alpha = rows[position(rows, "Alpha plan")]
+  check("a note row is titled by its name with its folder under it",
+    alpha.title == "Alpha plan" and alpha.subTitle == "Projects", alpha.subTitle)
+  check("a note at the vault root names the vault", rows[position(rows, "Meeting")].subTitle == "Work")
+  check("the most recently opened note has bonus one and the next a half",
+    rows[1].bonus == 1 and alpha.bonus == 0.5, tostring(rows[1].bonus) .. " " .. tostring(alpha.bonus))
+  check("a note never opened here has no bonus", rows[position(rows, "Meeting")].bonus == nil)
+  check("an excluded note is tier one", rows[position(rows, "Plan old")].tier == 1
+    and alpha.tier == nil)
+  check("the supplier hands every note over whatever is typed", #M.rows("zzz") == 6 + 2, #M.rows("zzz"))
+
+  local kept = rank.apply(M.rows("plan"), "plan", fuzzy)
+  check("recency orders equal matches, the opened Alpha plan above Plan review and Planning",
+    kept[1].title == "Alpha plan", titles(kept))
+  check("an excluded note is the last note however well it matches",
+    kept[4].title == "Plan old", titles(kept))
+  check("the create and search rows are pinned and trail the notes",
+    kept[5].title == "New note \"plan\"" and kept[6].title == "Search notes for \"plan\""
+      and kept[5].pinned == true and kept[6].pinned == true, titles(kept))
+
+  kept = rank.apply(M.rows("rev"), "rev", fuzzy)
+  check("a better match beats a recent one, Plan review at a word start above the opened Prevention",
+    kept[1].title == "Plan review" and position(kept, "Prevention") == 2, titles(kept))
+  kept = rank.apply(M.rows("projects"), "projects", fuzzy)
+  check("a folder word finds the notes in it", position(kept, "Alpha plan") ~= nil
+    and position(kept, "Plan review") ~= nil and position(kept, "Meeting") == nil, titles(kept))
+  kept = rank.apply(M.rows("zzz"), "zzz", fuzzy)
+  check("a query matching no note leaves the two action rows", titles(kept)
+    == "New note \"zzz\",Search notes for \"zzz\"", titles(kept))
+
+  local none = obsidianOver({}, { vaults = {} }, {})
+  kept = rank.apply(none.rows("plan"), "plan", fuzzy)
+  check("with no vault the explaining row stays whatever is typed",
+    #kept == 1 and kept[1].title == "Obsidian knows no vaults yet", titles(kept))
+end
