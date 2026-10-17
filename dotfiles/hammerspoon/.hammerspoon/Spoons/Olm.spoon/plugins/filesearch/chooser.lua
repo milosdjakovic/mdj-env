@@ -233,13 +233,21 @@ end
 -- and the list would depend on how fast you typed. A folder word would also match at the name's
 -- own level and tie with files actually called that. bonus is how much you use the file, so it
 -- orders only rows the search calls equally good.
+--
+-- M.searchName(row) -> the text a file row is searched by, its file name. Exposed so the
+-- composition root can tell the engine which held rows the shared search will keep, from the
+-- same rule the rows are built by rather than a second statement of it.
+function M.searchName(r)
+  return r.name or r.path
+end
+
 local function fileRows(rows)
   local out = {}
   local budget = budgetFor("")
   local preference = cfg.api and cfg.api.preference
   for i = 1, #rows do
     local r = rows[i]
-    local title = r.name or r.path
+    local title = M.searchName(r)
     out[#out + 1] = {
       title = title,
       subTitle = subtitleFor(r, budget),

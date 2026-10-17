@@ -20,6 +20,18 @@ cannot depend on whether a query arrived by a dispatch or by typing on. The engi
 whether a round trip is needed, by shape alone, `query.narrows` and the two conditions below
 only it knows, and never by matching a row. `decisions/olm-unified-search.md` has the decision.
 
+Since the review of 2026-10-17 the sources ask the way the shared search keeps. The root hands
+the engine `keeps`, built from the shared matcher every surfaced plugin is handed and the
+surface's own `searchName`, and the engine fills the retain cap with the rows the search keeps
+first, then says no matches when a round trip brought back none of them. The root also asks the
+matcher how many letters a word needs before it is kept inside a word, three, and hands that to
+Spotlight and the walker, so a shorter word is asked at a word start, Spotlight through
+`LIKE[cdw]` and the walker through a pattern, and the walker matches later words on the file name
+rather than the path. fzf is asked for whole words with the file name first. While a round trip
+for another population is pending, a scope, a type or a sigil changed, the held rows are not
+handed over and only the searching status shows, and over the same population, a typed letter,
+a backspace or an edit, they stay.
+
 This is why there is no result cache and why one was deliberately refused. A cache is
 wrong at the exact moment this tool is used, right after something was downloaded or
 built, while narrowing is always as live as the results it narrows. The only cache in the
@@ -384,13 +396,13 @@ it was still the wrong choice. It cannot rank. A one word query like `nvim` matc
 rows from wherever the walk began. fzf ranks first, so a cap after it gives the two hundred
 best.
 
-It also matches a subsequence, so a fumbled `hmrspn` finds hammerspoon paths in 60ms where
-a substring tool finds nothing. Since narrowing means one invocation per search rather than
-per keystroke, the worst case is paid once. Since phase three of the unified search on
-2026-10-17 that fumble no longer reaches the list. fzf still decides which rows come back and
-in what order, and the shared search then keeps only rows whose name matches the text at its
-levels, a word start, pieces, one edit or inside a word, with no scattered match, so a row fzf
-found through its folders or by scattered letters is dropped.
+It used to match a subsequence over the full path too, so a fumbled `hmrspn` found hammerspoon
+paths. Since phase three of the unified search on 2026-10-17 that fumble no longer reaches the
+list, since the shared search keeps a row by its name at its levels with no scattered match, and
+after the review that day fzf is asked `--exact --scheme=path`, each word whole and a match in
+the file name ranked first, so its capped answer holds rows the list keeps rather than rows found
+by scattered letters. `--nth=-1` with a slash delimiter would restrict it to the name and was
+rejected, since a directory line ends in a slash and its last field is empty.
 
 nucleo is measurably faster still and was rejected because it is a Rust library, so it
 would add a cargo toolchain to this repository for a tenth of a second on one code path.

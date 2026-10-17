@@ -55,6 +55,7 @@ local NSDATE_REFERENCE = 978307200
 local cfg = {
   prune = {},
   limits = {},
+  insideFrom = nil,
 }
 
 -- There is deliberately no module level slot for the live query. This source answers two
@@ -72,11 +73,14 @@ local cfg = {
 --- opts.prune       directory names never worth searching, used to build the scope list
 --- opts.limits      the pure limits table, read for the recent window
 --- opts.searchAlso  declared starting points, added to the derived home ones
+--- opts.insideFrom  how many letters a word needs before the shared search keeps it inside a
+---                  word, from the composition root, or nil to ask for every word anywhere
 function M.configure(opts)
   opts = opts or {}
   cfg.prune = opts.prune or {}
   cfg.limits = opts.limits or {}
   cfg.searchAlso = opts.searchAlso or {}
+  cfg.insideFrom = opts.insideFrom
   cfg.scopes = nil -- rebuilt lazily, so a configure after a reload picks up new folders
   return M
 end
@@ -198,12 +202,24 @@ local function esc(s)
   return tostring(s or ""):gsub("\\", "\\\\"):gsub('"', '\\"')
 end
 
--- Every word must appear in the name, in any order, which is the same words semantics the
--- rest of this config uses for searching inside long text.
+-- Every word must appear in the name, in any order, asked the way the shared search keeps it,
+-- so the rows a capped harvest reads are rows the list will show. A word shorter than the
+-- shared search's inside length must start a word of the name, which the w modifier asks, word
+-- based and also splitting at a camel hump and between a digit and a letter, so it returns a few
+-- names the search drops and none it keeps. A longer word may sit anywhere in the name, as the
+-- search keeps it inside a word. Before 2026-10-17 every word was asked anywhere, so two letters
+-- inside words filled the harvest with names the list then dropped. Both are case and
+-- diacritic insensitive, as the shared search folds accents. Measured through NSMetadataQuery
+-- over one Documents folder on 2026-10-17, ab asked anywhere answered 660 names and as a word
+-- start 28, ng anywhere 4326 and as a word start 6.
 local function nameClauses(words)
   local parts = {}
   for _, w in ipairs(words) do
-    parts[#parts + 1] = string.format('(kMDItemFSName LIKE[cd] "*%s*")', esc(w))
+    if cfg.insideFrom and #w < cfg.insideFrom then
+      parts[#parts + 1] = string.format('(kMDItemFSName LIKE[cdw] "%s*")', esc(w))
+    else
+      parts[#parts + 1] = string.format('(kMDItemFSName LIKE[cd] "*%s*")', esc(w))
+    end
   end
   return parts
 end

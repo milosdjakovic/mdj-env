@@ -181,6 +181,21 @@ local function viewerNamed(spec)
 end
 
 local configureEngine = obj.configure
+
+-- How many letters a word needs before the shared search keeps it inside a word, asked of the
+-- matcher itself rather than written down here, so the sources follow that search's rule from
+-- its one statement. A word of n repeated letters behind one other letter sits inside a word and
+-- nowhere else, so the first n the matcher keeps it at is the answer. Nil without a matcher, or
+-- when no length up to eight is kept, and the sources then ask for every word anywhere.
+local function insideFromOf(matcher)
+  if type(matcher) ~= "function" then return nil end
+  for n = 1, 8 do
+    local w = string.rep("q", n)
+    local ok, score = pcall(matcher, w, "x" .. w)
+    if ok and score ~= nil then return n end
+  end
+  return nil
+end
 function obj:configure(opts)
   opts = opts or {}
   local policy = opts.policy or {}
@@ -198,9 +213,21 @@ function obj:configure(opts)
     return deps and deps.path(name) or nil
   end
 
+  -- The shared matcher every surfaced plugin is handed. The sources ask for words the way it
+  -- keeps them, and the engine prefers the rows it keeps, by the file name the list surface
+  -- searches a row by, decided 2026-10-17 so a round trip never fills its cap with rows the list
+  -- then drops.
+  local matcher = type(opts.matcher) == "function" and opts.matcher or nil
+  local insideFrom = insideFromOf(matcher)
+  local keeps = nil
+  if matcher then
+    keeps = function(row, text) return matcher(text, obj.chooser.searchName(row)) ~= nil end
+  end
+
   obj.sources.walk.configure({
     path = toolPath("fd"),
     prune = prune,
+    insideFrom = insideFrom,
   })
 
   obj.sources.hidden.configure({
@@ -218,6 +245,7 @@ function obj:configure(opts)
     -- Where an unscoped search starts from. This is the one source that answers a query naming
     -- no folder, so it is the only one the list means anything to.
     searchAlso = policy.searchAlso,
+    insideFrom = insideFrom,
   })
 
   -- The settings key is named HERE rather than inside frecency.lua, so the one piece of global
@@ -237,6 +265,7 @@ function obj:configure(opts)
     limits = limits,
     sources = opts.sources or obj._defaultSources,
     contract = obj._contract,
+    keeps = keeps,
     -- The engine does not care where a preference came from, so it takes the two verbs it needs
     -- and never learns that a store exists. Drop this line and the list you land on is ordered by
     -- date alone, and a typed query by the shared search with no bonus for what you use.

@@ -32,16 +32,20 @@ M.tool = "fd"
 local cfg = {
   path = nil,
   prune = {},
+  insideFrom = nil,
 }
 
 --- walk.configure(opts)
 --- opts.path   resolved location of the walker, injected by the composition root, which is
 ---             the only way this file learns where the tool lives
 --- opts.prune  directory names never worth descending into
+--- opts.insideFrom  how many letters a word needs before the shared search keeps it inside a
+---             word, from the composition root, or nil to take every word anywhere in the name
 function M.configure(opts)
   opts = opts or {}
   cfg.path = opts.path
   cfg.prune = opts.prune or {}
+  cfg.insideFrom = opts.insideFrom
   return M
 end
 
@@ -88,10 +92,48 @@ local function browse(parsed, ctx, cb)
   end)
 end
 
+-- Whether a word shorter than the shared search's inside length must start a word of the name,
+-- the rule that search keeps it by. A longer word may sit anywhere in the name.
+local function wantsStart(w)
+  return cfg.insideFrom ~= nil and #w < cfg.insideFrom
+end
+
+-- The walker's pattern for a short word, a word start in the file name, after anything that is
+-- no letter or digit or at a camel hump, as the shared search reads one. The case is stated
+-- inside the pattern, so the walker is told to respect it.
+local function startPattern(w)
+  local esc = function(t) return (t:gsub("%p", "\\%0")) end
+  local first, rest = w:sub(1, 1), w:sub(2)
+  local pattern = "(?:^|[^\\p{L}\\p{N}])(?i:" .. esc(w) .. ")"
+  if first:match("%a") then
+    pattern = pattern .. "|\\p{Ll}" .. first:upper() .. (rest ~= "" and ("(?i:" .. esc(rest) .. ")") or "")
+  end
+  return pattern
+end
+
+-- Whether a lowered word sits in a file name as the shared search keeps it, at a word start
+-- when it is short, anywhere when it is not.
+local function nameHas(name, w)
+  local low = name:lower()
+  if not wantsStart(w) then return low:find(w, 1, true) ~= nil end
+  local init = 1
+  while true do
+    local pos = low:find(w, init, true)
+    if not pos then return false end
+    if pos == 1 then return true end
+    local prev, here = name:sub(pos - 1, pos - 1), name:sub(pos, pos)
+    if not prev:match("%w") or (prev:match("%l") and here:match("%u")) then return true end
+    init = pos + 1
+  end
+end
+
 -- Recursive search beneath the scope.
 --
--- The walker takes one pattern, so the FIRST word is handed to it as a fixed string and any
--- remaining words are applied here to what came back. That keeps the expensive part, visiting
+-- The walker takes one pattern, so the FIRST word is handed to it and any remaining words are
+-- applied here to what came back, each to the file name, the field the shared search keeps a
+-- row by, and as that search keeps it, a short word at a word start. Until 2026-10-17 the first
+-- went as a fixed string anywhere in the name and the rest anywhere in the full path, so a word
+-- in a folder or two letters inside a word filled the capped answer with rows the list dropped. That keeps the expensive part, visiting
 -- the tree, filtering in C on the most selective thing available, while the cheap part runs
 -- over a bounded list. Extensions go to the tool as well, since it filters those natively.
 local function search(parsed, ctx, cb)
@@ -127,9 +169,15 @@ local function search(parsed, ctx, cb)
   -- capital letter anywhere in the query silently turns the whole search case sensitive. That
   -- is a sensible default for a shell and the wrong one for a picker, where the same typed text
   -- must mean the same thing however it was capitalised.
-  args[#args + 1] = "--ignore-case"
-  args[#args + 1] = "--fixed-strings"
-  args[#args + 1] = parsed.words[1] or ""
+  local first = parsed.words[1] or ""
+  if first ~= "" and wantsStart(first) then
+    args[#args + 1] = "--case-sensitive"
+    args[#args + 1] = startPattern(first:lower())
+  else
+    args[#args + 1] = "--ignore-case"
+    args[#args + 1] = "--fixed-strings"
+    args[#args + 1] = first
+  end
   args[#args + 1] = dir
 
   return util.run(cfg.path, args, ctx.timeoutSeconds, function(out, err)
@@ -143,9 +191,9 @@ local function search(parsed, ctx, cb)
     for line in util.lines(out) do
       local keep = true
       if #extra > 0 then
-        local hay = line:lower()
+        local name = line:gsub("/+$", ""):match("([^/]*)$") or line
         for _, w in ipairs(extra) do
-          if not hay:find(w, 1, true) then keep = false break end
+          if not nameHas(name, w) then keep = false break end
         end
       end
       if keep then

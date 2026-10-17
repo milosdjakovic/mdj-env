@@ -23,8 +23,8 @@
 --- milliseconds against 20 to 130, but it cannot rank. A one word query like nvim matches 42
 --- thousand of these paths, so capping ripgrep's output hands back two hundred arbitrary rows
 --- from wherever the walk happened to begin. fzf ranks first, so capping after it gives the
---- two hundred best, and it matches a subsequence, so a fumbled query like hmrspn still finds
---- hammerspoon paths in 60 milliseconds where a substring tool finds nothing at all.
+--- best. It is asked for each word whole and ranks a match in the file name first, see filter,
+--- since the shared search keeps a file by its name alone and never by scattered letters.
 ---
 --- THE ONE SHELL IN THE SPOON is here. fzf reads its candidates from standard input and takes
 --- no file argument, and pushing 33 megabytes through the task's stdin from Lua on every
@@ -168,12 +168,21 @@ local function filter(parsed, ctx, cb)
   local cap = ctx.cap or 200
   local path = indexPath()
 
-  -- fzf matches a subsequence, so the words are joined with spaces which is its own AND
-  -- syntax for separate terms, meaning every term must match somewhere in the line.
+  -- The words are joined with spaces, fzf's own AND syntax for separate terms, so every term must
+  -- match somewhere in the line.
   local needle = table.concat(parsed.words, " ")
   -- -i forces case insensitivity, since the matcher is smart case by default and one capital
   -- letter would otherwise make the whole query case sensitive. Same reasoning as the walker.
-  local cmd = string.format("%s -i --filter=%s < %s | head -n %d",
+  --
+  -- --exact asks each term whole and --scheme=path ranks a match after the last slash first,
+  -- decided 2026-10-17 for the shared search, which keeps a file by its name, a word whole, and
+  -- never by letters scattered over the path. fzf's default matched a subsequence over the full
+  -- path, so the capped answer filled with rows such as hammerspoon/init.lua for foo, which the
+  -- list then dropped, and a real answer could read as no matches. A term found only in a folder
+  -- still comes back, ranked after the names, and the engine keeps the rows the search keeps
+  -- first. Restricting fzf to the last path field was tried and drops every directory, since a
+  -- directory line ends in a slash and its last field is empty.
+  local cmd = string.format("%s -i --exact --scheme=path --filter=%s < %s | head -n %d",
     util.shellQuote(cfg.fzfPath),
     util.shellQuote(needle),
     util.shellQuote(path),

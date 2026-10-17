@@ -250,3 +250,60 @@ check("the help screen keeps every help row", #kept == #rows and #rows > 0 and k
   titles(kept))
 
 engine:cancel()
+
+--------------------------------------------------------------------------------
+-- The engine prefers what the shared search keeps, 2026-10-17
+--------------------------------------------------------------------------------
+
+-- A source asks more loosely than the shared search keeps, so the engine is handed keeps, built
+-- by the root from the shared matcher and the surface's own search name, and fills its retain
+-- cap with the rows the search keeps first. A round trip that brought back none of those says
+-- no matches, and while a query of another population is pending the held rows are not shown.
+asked, timers = {}, {}
+engine:init()
+engine:configure({
+  types = { js = { "js" } },
+  roots = { dev = "/home/dev" },
+  limits = { minChars = 3, retainCap = 3, recentCount = 40, debounceMs = 70 },
+  sources = { fakeSource },
+  ranker = { score = function() return 0 end, top = function() return {} end },
+  keeps = function(row, text) return fuzzy(text, chooser.searchName(row)) ~= nil end,
+})
+engine:reset()
+reply(1, {})
+
+chooser.rowsForQuery("report")
+fireTimers()
+reply(#asked, {
+  "/home/report/one.txt", "/home/report/two.txt", "/home/report/three.txt",
+  "/home/dev/report-final.txt",
+})
+kept = ranked("report")
+check("a row the search keeps is held ahead of rows it drops when the cap cuts",
+  titles(kept) == "report-final.txt", titles(kept))
+
+chooser.rowsForQuery("ledger")
+fireTimers()
+reply(#asked, { "/home/ledger/a.txt", "/home/ledger/b.txt" })
+kept = ranked("ledger")
+check("a round trip holding only rows the search drops says no matches",
+  titles(kept) == "No matches" and kept[1].pinned == true, titles(kept))
+
+chooser.rowsForQuery("report")
+fireTimers()
+reply(#asked, { "/home/dev/report-final.txt", "/home/dev/report.js" })
+kept = ranked("dev/ .js report")
+check("while another population is asked only the searching status shows",
+  titles(kept) == "Searching", titles(kept))
+fireTimers()
+reply(#asked, { "/home/dev/report.js" })
+kept = ranked("dev/ .js report")
+check("and the answer replaces it", titles(kept) == "report.js", titles(kept))
+
+chooser.rowsForQuery("report")
+fireTimers()
+reply(#asked, { "/home/dev/report-final.txt", "/home/dev/report.js" })
+kept = ranked("repo")
+check("a backspace over the same population keeps the held rows while it asks",
+  position(kept, "report-final.txt") ~= nil and kept[#kept].title == "Searching", titles(kept))
+engine:cancel()

@@ -92,6 +92,7 @@ function obj:init()
   self._parsed = nil
   self._retained = {}
   self._truncated = false
+  self._holding = false
   self._display = {}
   self._status = nil
   self._gen = 0
@@ -125,12 +126,18 @@ end
 ---                 IS this same table, so a public name here would overwrite the root's own
 --- opts.onResults  called with no arguments whenever rows changed underneath the caller,
 ---                 so the surface can redraw. The engine never touches a chooser itself
+--- opts.keeps      keeps(row, text) -> whether the shared search keeps this row for this free
+---                 text. Optional, and without it the held rows go in the order the source gave
+---                 and an answer is never called empty. The engine decides nothing by matching
+---                 with it, it only prefers what the search will keep when the retain cap cuts,
+---                 and says no matches when a round trip brought back none of those
 function obj:configure(opts)
   opts = opts or {}
   self.types = opts.types or {}
   self.roots = opts.roots or {}
   self.prune = opts.prune or {}
   self._ranker = opts.ranker
+  self._keeps = opts.keeps
   self.onResults = opts.onResults
   self._contract = opts.contract
 
@@ -329,18 +336,46 @@ function obj:_float(rows)
   return out
 end
 
+-- The rows the shared search will keep for this free text first, then the rest, each part in
+-- the order the source gave, and how many it keeps. A source asks more loosely than the search
+-- keeps, Spotlight a word inside a word that the search wants at a word start, fzf a word
+-- anywhere in the path, so a source's own order can put rows the search drops ahead of rows it
+-- keeps, and the retain cap below would then hold the first and lose the second. The kept count
+-- is what tells a round trip that brought back only dropped rows from one that found nothing.
+-- With no keeps, or no free text, nothing is preferred and every row counts as kept.
+function obj:_keptFirst(rows, parsed)
+  local keeps = self._keeps
+  local text = parsed and parsed.text or ""
+  if type(keeps) ~= "function" or text == "" then return rows, #rows end
+  local kept, rest = {}, {}
+  for i = 1, #rows do
+    local ok, yes = pcall(keeps, rows[i], text)
+    if ok and yes then kept[#kept + 1] = rows[i] else rest[#rest + 1] = rows[i] end
+  end
+  local n = #kept
+  for i = 1, #rest do kept[#kept + 1] = rest[i] end
+  return kept, n
+end
+
 -- Publish a result set. Keeps the retained copy for narrowing and notes whether it was
 -- truncated.
 --
 -- Truncation is noted against what the source returned rather than what survived the noise
 -- filter, because it is the source's cap that decides whether the held set is the whole truth,
 -- which is the condition narrowing depends on.
+--
+-- A round trip that brought back rows the shared search keeps none of says nothing found, the
+-- same status an empty answer gets, since the list would otherwise show a bare empty field
+-- after a real answer.
 function obj:_publish(rows, parsed, status)
   local retainCap = self.limits.retainCap
   self._truncated = #rows >= retainCap
   -- Only a real search result may be narrowed against. See the flag's note in rowsFor.
   self._narrowable = true
   rows = self:_denoise(rows, parsed)
+  local keptCount
+  rows, keptCount = self:_keptFirst(rows, parsed)
+  if status == nil and #rows > 0 and keptCount == 0 then status = "nothing found" end
   local retained = rows
   if #retained > retainCap then
     local cut = {}
@@ -349,6 +384,7 @@ function obj:_publish(rows, parsed, status)
   end
   self._retained = retained
   self._parsedShape = parsed
+  self._holding = false
   self:_redraw(parsed, status)
 end
 
@@ -356,8 +392,10 @@ end
 -- order its source gave, and the shared search ranks them by the query and keeps the
 -- presentation's rowLimit after ranking. The display cap that once cut this list to two hundred
 -- here cut before any ranking, so the rows it kept were the source's first rather than the best.
+-- While a round trip for a query of another shape is pending, the held rows answer a different
+-- question and are not handed over at all, see rowsFor.
 function obj:_redraw(_, status)
-  self._display = self._retained
+  self._display = self._holding and {} or self._retained
   self._status = status
   if self.onResults then self.onResults() end
 end
@@ -403,14 +441,14 @@ function obj:_dispatch(parsed)
 
   local scopePath = parsed.scope and self:_resolveScope(parsed.scope) or nil
   if parsed.scope and not scopePath then
-    self._retained, self._parsedShape, self._truncated = {}, parsed, false
+    self._retained, self._parsedShape, self._truncated, self._holding = {}, parsed, false, false
     self:_redraw(parsed, "no such directory")
     return
   end
 
   local src = self:_sourceFor(parsed)
   if not src then
-    self._retained, self._parsedShape, self._truncated = {}, parsed, false
+    self._retained, self._parsedShape, self._truncated, self._holding = {}, parsed, false, false
     self:_redraw(parsed, "no source available")
     return
   end
@@ -457,6 +495,7 @@ function obj:reset()
   self._display = {}
   self._truncated = false
   self._narrowable = false
+  self._holding = false
   self._status = nil
   self:_fetchRecents()
   return self
@@ -528,6 +567,7 @@ function obj:_fetchRecents()
       -- _publish, so it has to clear this too or a search that published earlier would leave
       -- the flag on and the next typed query would narrow against recents.
       self._narrowable = false
+      self._holding = false
       self:_redraw(self._parsed or parsed, nil)
     end
   end)
@@ -542,11 +582,15 @@ end
 --- Three outcomes. A query that narrows the held one hands the held rows over again with no
 --- dispatch, and the shared search ranks them by the longer text, which is the common case mid
 --- typing. A query too short or too broad to be worth a round trip shows the recent list.
---- Anything else arms the debounce and says searching at once, and the rows already on screen
---- stay until the answer lands, because clearing them first makes a picker flicker for no gain.
---- The shared search ranks those held rows by the new text meanwhile, and the searching status
---- is what the list shows when none of them match, rather than saying nothing matched before
---- anything was asked.
+--- Anything else arms the debounce and says searching at once. When the new query asks about the
+--- held population, query.sameShape, the held rows stay until the answer lands, because clearing
+--- them first makes a picker flicker for no gain, and the shared search ranks them by the new
+--- text meanwhile. They are files of that population matching what is typed, a truthful partial
+--- answer, which is also why a backspace or an edit keeps them. When it asks about another
+--- population, a scope, a type or a sigil changed, the held rows answer a different question,
+--- and ranked by the new text they looked like answers, foo.js from ~/dev on top while
+--- ~/Downloads .pdf foo was being searched. So then only the pinned searching status shows until
+--- the answer lands.
 function obj:rowsFor(raw)
   local parsed = query.parse(raw or "", self.types)
   local prev = self._parsed
@@ -567,6 +611,7 @@ function obj:rowsFor(raw)
     self._parsedShape = query.parse("", self.types)
     self._truncated = false
     self._narrowable = false
+    self._holding = false
     -- Spelled out, for the same reason as the one in _dispatch. This one read as loading
     -- forever, even with the recent list drawn on screen.
     local recentStatus = nil
@@ -584,6 +629,7 @@ function obj:rowsFor(raw)
     self._parsedShape = query.parse("", self.types)
     self._truncated = false
     self._narrowable = false
+    self._holding = false
     self:_redraw(parsed, "keep typing")
     return self._display, self._status
   end
@@ -603,6 +649,7 @@ function obj:rowsFor(raw)
     and query.narrows(self._parsedShape, parsed) and not self._truncated then
     if self._debounce then self._debounce.cancel() end
     self._debounce = nil
+    self._holding = false
     self:_redraw(parsed, nil)
     return self._display, self._status
   end
@@ -615,6 +662,8 @@ function obj:rowsFor(raw)
     self._debounce = nil
     self:_dispatch(parsed)
   end)
+  self._holding = not (self._parsedShape and query.sameShape(self._parsedShape, parsed))
+  self._display = self._holding and {} or self._retained
   self._status = "searching"
 
   return self._display, self._status
