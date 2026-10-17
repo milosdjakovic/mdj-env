@@ -670,7 +670,7 @@ function M.substring(query, hay)
 end
 
 --- M.words(query, hay) -> score or nil
---- The clipboard strategy, a word tokenizer rather than a subsequence scorer. The query
+--- The clipboard's strategy until 2026-10-17, a word tokenizer rather than a subsequence scorer. The query
 --- is split on whitespace and the row is kept only when every word appears as a case
 --- insensitive substring of the haystack, in any order. So the words need not be adjacent,
 --- "hello there" finds "hello everyone there", and a partial word or a prefix still hits,
@@ -681,8 +681,11 @@ end
 --- and code searched from the inside, where you type a real word you remember, so this fits
 --- them and fuzzy does not. The one thing it will not forgive is a wrong letter inside a
 --- word, the deliberate trade for searching the whole body with nothing truncated. fuzzy
---- now carries the same rule for any haystack past its long body bound, and phase three of
---- docs/PLAN-UNIFIED-SEARCH.md retires this strategy once the lists naming it move over.
+--- now carries the same rule for any haystack past its long body bound, and since phase three
+--- of docs/PLAN-UNIFIED-SEARCH.md moved the clipboard and FileSearch on 2026-10-17 no list or
+--- manifest names this strategy. It stays because test/search-timing.lua measures the shared
+--- search against it, the baseline the numbers in decisions/olm-unified-search.md compare with,
+--- and test/cases/match.lua covers it while it is exported.
 ---
 --- Unlike fuzzy and substring, this folds case only on the query, not the haystack. The
 --- haystack is compared verbatim, so the caller must lower it once when it builds it, as the

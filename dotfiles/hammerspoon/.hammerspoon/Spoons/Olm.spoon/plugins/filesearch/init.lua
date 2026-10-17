@@ -122,7 +122,6 @@ obj.chooser = load("chooser.lua")
 --- opts.sources  an ordered source list, overriding the default order above
 --- opts.deps     the per consumer dependency adapter from the root, the only way a source
 ---               here learns where its CLI lives
---- opts.matcher  the shared matching strategy, used for the local narrow between round trips
 --- opts.onResults  optional, told when the rows changed, for a surface other than this spoon's
 ---                 own picker. Composed with the picker's redraw rather than replacing it
 --- opts.previewWith  which viewer takes the DOCKED seat, by name, or a member of
@@ -238,10 +237,9 @@ function obj:configure(opts)
     limits = limits,
     sources = opts.sources or obj._defaultSources,
     contract = obj._contract,
-    matcher = opts.matcher,
-    -- The engine ranks and does not care where a preference came from, so it takes the two verbs
-    -- it needs and never learns that a store exists. Drop this line and every ordering goes back
-    -- to being a file date or a text score, which is what it was before.
+    -- The engine does not care where a preference came from, so it takes the two verbs it needs
+    -- and never learns that a store exists. Drop this line and the list you land on is ordered by
+    -- date alone, and a typed query by the shared search with no bonus for what you use.
     ranker = {
       score = function(path) return obj.frecency.score(path) end,
       top = function(n) return obj.frecency.top(n) end,
@@ -276,6 +274,12 @@ function obj:configure(opts)
       -- Read only, so the surface can tell a browse from a search without parsing the query a
       -- second time. It is what decides whether the back row is drawn.
       parsed = function() return obj:parsed() end,
+      -- What the shared search ranks a query by, the free text once the grammar has taken its
+      -- sigils, types and scope, and how much a path is used, as a bonus from zero to one. Both
+      -- are the engine's answers, so the surface states its rows' fields without parsing a query
+      -- or naming the store.
+      searchText = function(raw) return obj:searchTextFor(raw) end,
+      preference = function(path) return obj:preference(path) end,
       reset = function()
         obj:reset()
         -- Warming the hidden index belongs here rather than in the engine, because it names one

@@ -299,18 +299,10 @@ return {
       { key = "f", action = "revealInFinder", description = "Reveal in Finder", icon = "search" },
       { key = "y", action = "copyPath",   description = "Copy path", icon = "copy" },
     },
-    -- A path is long text searched from the inside with a real remembered fragment,
-    -- a project name or a folder, rather than an abbreviation of a short label, so
-    -- this plugin wants the words matcher over fuzzy. It still opts its own picker
-    -- out of the atom's own ranking, since the query is structured rather than a
-    -- plain filter, so the words value reaches the engine instead, narrowing a held
-    -- result set between round trips one layer down from everywhere else. Migrated
-    -- onto the shared stage, contract v2, the opt out itself now travels through
-    -- presentation.matcher below as false, while this word stays declared here too,
-    -- unread by the stage, since surface is where a person reading this file expects
-    -- to find what a query means for this tool, and needs.data's own engine facing
-    -- matcher injection, unrelated to either, still reads this exact word.
-    matcher = "words",
+    -- No matcher. Until phase three of the unified search on 2026-10-17 this declared the words
+    -- strategy, injected into the engine to narrow a held result set between round trips over
+    -- the full path. The shared search ranks the held rows now, by file name, so nothing here is
+    -- injected for matching.
     -- The pane beside the list is the one place a highlighted file's name, size,
     -- dates and a rendered preview live, so it earns the reserved room.
     pane = true,
@@ -322,13 +314,15 @@ return {
   -- one supplier and one dispatcher rather than two that could disagree. placeholder resolves
   -- once, at register, to whatever chooser.placeholder currently answers.
   --
-  -- matcher is false, contract v2's own first addition and the reason this plugin needed it
-  -- at all. The atom's own scoring did no filtering here before the migration and must still
-  -- do none after it, chooser.lua's own header states why at length, a structured, sigil
-  -- bearing query fought by a second ranking pass on top of the engine's own would hide the
-  -- status row and mismatch real results. host/stage writes false onto the live instance
-  -- before every show and swap, the same discipline paneWidth already keeps for
-  -- companionWidth, so the supplier goes on owning every bit of its own filtering.
+  -- No matcher, so the shared search ranks the rows, phase three of docs/PLAN-UNIFIED-SEARCH.md
+  -- on 2026-10-17. Until then this declared matcher false, since the engine filtered and ordered
+  -- its own held rows and a second ranking over a structured, sigil bearing query would have
+  -- fought that order and hidden the status row. The grammar stays in the plugin now. searchText
+  -- answers the free text the engine parses out of the query, so `~/dev .js foo` ranks by foo
+  -- while the sources still fetch by the whole parse, a file row names itself by its file name and
+  -- carries frecency as its bonus, and every status, help and up row is pinned. rowLimit is the
+  -- two hundred rows the engine's display cap used to cut, now cut after ranking, since the
+  -- engine hands over every held row, up to two thousand.
   --
   -- intercept is the parent row's own step up a level, chooser.intercept below, which used to
   -- call picker:setQuery(query) directly and now reaches the identical field through
@@ -369,13 +363,14 @@ return {
     -- seat outright. chooser.paneWidth() mirrors M:start's own arithmetic and is resolved
     -- once, at register, after wiring has already settled which viewer, if any, won.
     paneWidth = { member = "chooser.paneWidth", call = "dot" },
-    matcher = false,
+    searchText = { member = "chooser.searchText", call = "dot" },
+    rowLimit = 200,
     -- Rework rider, restored. Every title here is a filename, and the last few characters of
     -- a filename are its extension. A tail cut spends them first, so a long name arrives as
     -- "mahamba_gastric-pain-evaluation-protocol_5b…" with the one field that says what KIND
     -- of thing it is gone. Cutting the middle keeps both ends, the identical value this
     -- plugin's own retired layout block carried, now travelling as a live written field the
-    -- same way matcher does rather than a construction time only default.
+    -- same way the search fields do rather than a construction time only default.
     titleLineBreak = "truncateMiddle",
   },
 
@@ -396,8 +391,8 @@ return {
   -- rather than taking the default. scopeRows is the one member the chooser did not use to
   -- expose. It joins M.ensureSession and M.rowsForQuery exactly the way M.show already asks
   -- for a session, so a scope entered on an empty query gets one going the same way opening
-  -- the real picker does. matcher is false for the same reason the surface block above
-  -- states one nowhere, the query is structured and the engine ranks its own held results.
+  -- the real picker does. The scope declares the same searchText and rowLimit as the
+  -- presentation and no matcher, so a typed alias ranks the same rows the same way.
   -- verbs mirrors the three real actions beyond choosing and previewing a row, each carrying
   -- closes exactly as the retired root's own registration stated it, since whether running a
   -- verb should close the list it ran against is this plugin's own fact about that verb.
@@ -421,8 +416,9 @@ return {
     hosted = true,
     shortcut = "leader",
     scope = {
-      matcher = false,
       rows = { member = "chooser.scopeRows", call = "dot" },
+      searchText = { member = "chooser.searchText", call = "dot" },
+      rowLimit = 200,
       run = { member = "chooser.choose", call = "dot" },
       peek = { member = "chooser.peekRow", call = "dot" },
       verbs = {

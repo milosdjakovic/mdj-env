@@ -1153,7 +1153,8 @@ file, `Spoons/Olm.spoon/lib/chooser/match.lua`, a pure `match(query, hay) -> sco
 nil drops a row and a number ranks it, higher first with the original order breaking
 ties. `Chooser.matchers` exposes the strategies, `fuzzy`, `substring` (the pre-fuzzy
 behaviour, a plain substring test where every match scores zero so the list keeps its
-natural order), and `words` (a word tokenizer, see the clipboard below). `root/compose.lua`
+natural order), and `words` (a word tokenizer no list names since phase three, see the clipboard
+below). `root/compose.lua`
 injects one through `Chooser.configure({ matcher = ... })`, so switching every list
 between them is one edit. Today the root default is fuzzy, and no presentation overrides it
 since the clipboard's `words` override retired in phase three, see the clipboard below.
@@ -1234,10 +1235,11 @@ do not speak a tool's grammar. The DisplayProfiles, Workspaces and
 TmuxSessions lists and the settings page all inherit now, and the query scope and launcher
 query rows mark what a scope hands over as fromQuery. BrowserTabs tabs, the emoji picker,
 Obsidian and Processes moved in phase three and declare their fields, the emoji picker with a
-rowLimit of a hundred. The clipboard moved in the same phase, its rows naming their bodies and
-paths and its searchText answering what follows a type prefix. FileSearch and the launcher itself
-still rank their own query, each behind its own reason its own file explains, and phases three
-and four of the plan move them.
+rowLimit of a hundred. The clipboard and FileSearch moved in the same phase, the clipboard's rows
+naming their bodies and paths and its searchText answering what follows a type prefix, and
+FileSearch's searchText answering the free text its grammar parses out, with a rowLimit of two
+hundred. The launcher itself still ranks its own query, behind the reason its own file explains,
+and phase four of the plan moves it.
 
 So every list chooser is fuzzy by default with no per-tool wiring, and a future list
 chooser inherits it for free, while a field that is input opts out in one word.
@@ -1828,13 +1830,19 @@ are a second chain of generators where only Quick Look caches. It exists only be
 grants the shared docked pane, `lib/dockedpane.lua`, for the manifest's `pane = true`, and without
 that grant it reports itself unavailable and the chain moves on.
 
-Two wiring choices are the ones worth knowing here. It opts the atom out of matching
-entirely with `matcher = false`, because its query is structured rather than a plain
-filter, and the root's `words` matcher is injected into the *engine* instead, where it
-narrows a held result set between round trips. So the shared matching policy still applies,
-one layer further down than anywhere else. And it is the first consumer of the shared row
-icon memo, a closure in the root beside the other view deps, keyed by extension rather than
-by path and dropped when the chooser closes.
+Two wiring choices are the ones worth knowing here. It ranks through the shared search like
+every list since phase three of the unified search on 2026-10-17. Its query is structured, so
+the presentation and the scope declare `searchText`, which answers the free text the engine
+parses out of the sigils, the types and the scope, and `rowLimit` 200. The sources still fetch by
+the whole parse and the engine still decides when a round trip is needed, but it hands every held
+row over unranked, and narrowing between round trips is the shared search ranking those rows by
+the longer text. A file row filters on its name and carries how much you use it as a bonus, and
+every status, help and up row is pinned. Until then it opted the atom out with `matcher = false`
+and had the root's `words` matcher injected into the engine, which narrowed the held rows over
+their full paths and ordered a search by its own score, the one list where matching applied a
+layer further down than anywhere else. And it is the first consumer of the shared row icon memo,
+a closure in the root beside the other view deps, keyed by extension rather than by path and
+dropped when the chooser closes.
 
 It is also the one tool here that accumulates state about the person using it, a decayed
 count of the paths you act on, which floats what you use to the top of the list you land on

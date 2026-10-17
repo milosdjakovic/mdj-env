@@ -109,6 +109,14 @@ Plugins declare a row vocabulary and only core applies it. Today that is `title`
   nothing, so the newest match led however weak it was. The rows now name their body and paths,
   the newer leads only among equal matches, and the type prefix reaches the engine through
   `searchText`.
+- **FileSearch ordering and narrowing its own rows.** 2026-10-17, removed in phase three packet
+  two B. Its engine filtered the held rows between round trips by the injected words matcher over
+  each row's folded full path, ordered a search by its own score, the text whole in the name, every
+  word in it, a shorter path, with frecency under the gaps, and cut the list to two hundred before
+  any of it reached the chooser behind `matcher = false`. The path made typing on keep rows a round
+  trip for the same text never returns, since Spotlight matches names only, and the cap cut before
+  ranking. The engine now hands every held row over, the shared search ranks them by the text
+  `searchText` answers, frecency is the bonus and `rowLimit` cuts after ranking.
 
 ## Log
 

@@ -9,7 +9,7 @@
 --- THE ONE IDEA WORTH KNOWING is that a search costs one round trip per search rather
 --- than one per keystroke. Typing eleven characters fires one query, not eleven, because
 --- once results are held a longer text over the same population can only ever match a
---- subset of them, so it is filtered locally with no dispatch at all. That single
+--- subset of them, so the held rows are ranked again with no dispatch at all. That single
 --- property is what makes this feel instant, and it is worth more than any cache, which
 --- is why there is no result cache here. A cache would be wrong at the exact moment the
 --- tool is used, right after something was downloaded or built, while narrowing is always
@@ -24,7 +24,7 @@
 ---
 --- Everything expensive happens elsewhere. Spotlight queries run off the main thread and
 --- call back, and the walk and the hidden index run as separate processes. What is left
---- here is parsing, a local filter, and an ordering, all of which are microseconds. That
+--- here is parsing and deciding which rows to hand over, all of which are microseconds. That
 --- is not an optimisation, it is a requirement, because Hammerspoon owns the event taps
 --- for every leader key in this config and a block would freeze the whole keyboard.
 
@@ -53,7 +53,6 @@ local log = util.log
 -- exist so the engine still runs unconfigured rather than erroring on a nil.
 local DEFAULTS = {
   debounceMs = 70,
-  displayCap = 200,
   retainCap = 2000,
   minChars = 3,
   timeoutSeconds = 5,
@@ -88,7 +87,6 @@ function obj:init()
   -- module the moment configure ran and left it looking like the module had no methods. Anything
   -- injected into the engine therefore lands on an underscored field, and anything the root
   -- exposes to the outside keeps the plain name.
-  self.matcher = nil
   self.onResults = nil
 
   self._parsed = nil
@@ -118,12 +116,10 @@ end
 ---                 that cannot be made anywhere but the composition root
 --- opts.contract   the contract module, injected so the engine validates against the
 ---                 same declaration a source author reads
---- opts.matcher    match(query, hay) -> score or nil, used for the local narrow so the
----                 filter that runs between round trips agrees with the one the chooser
----                 applies to what it draws. Omit it and a plain all words test is used
 --- opts.ranker     a preference over paths, answering score(path) and top(n). Optional, and
----                 without it every ordering here is exactly what it was before, which is a
----                 file date or a text score. Called a ranker rather than named for what
+---                 without it no path is preferred, the list you land on is ordered by date
+---                 and a typed query by the shared search alone. Called a ranker rather than
+---                 named for what
 ---                 backs it, because the engine does not care where a preference came from,
 ---                 and kept on a private field because the composition root that injects it
 ---                 IS this same table, so a public name here would overwrite the root's own
@@ -134,7 +130,6 @@ function obj:configure(opts)
   self.types = opts.types or {}
   self.roots = opts.roots or {}
   self.prune = opts.prune or {}
-  self.matcher = opts.matcher
   self._ranker = opts.ranker
   self.onResults = opts.onResults
   self._contract = opts.contract
@@ -222,87 +217,35 @@ function obj:_resolveScope(token)
 end
 
 --------------------------------------------------------------------------------
--- Local filtering and ordering
+-- What the shared search is told
 --------------------------------------------------------------------------------
 
-local function allWordsIn(hay, words)
-  for i = 1, #words do
-    if not hay:find(words[i]:lower(), 1, true) then return false end
-  end
-  return true
+-- The engine filters and orders nothing by match since phase three of the unified search on
+-- 2026-10-17. It hands every held row to the chooser, the shared search ranks them by the text
+-- searchTextFor answers, and the narrowing between round trips is that same ranking over the
+-- held rows, so what a query keeps is decided in one place whether it arrived by a round trip or
+-- by typing on. Until then _filter dropped held rows by the injected words matcher over the
+-- folded full path, and _order scored a search by the name holding the text whole, then every
+-- word, then a shorter path, with frecency added under the gaps between those tiers.
+
+--- engine:searchTextFor(raw) -> the free text of a query, what the shared search ranks by.
+--- The grammar stays here, so `~/dev .js foo` ranks by foo, and a query with no free text, a
+--- browse, a bare type or the recent list, answers empty, which keeps the order rows arrive in.
+function obj:searchTextFor(raw)
+  return query.parse(raw or "", self.types).text
 end
 
--- Filter held rows down to a longer text. Uses the injected matcher so the narrow agrees
--- with the policy every chooser applies, falling back to an all words test.
---
--- The haystack is the row's FOLDED path, never the raw one. The shared words matcher folds
--- only the query and compares the haystack verbatim, by design, since it is built for long
--- clipboard bodies that must not be refolded per keystroke. Handing it a raw path made every
--- uppercase query match nothing, and it looked like a broken search rather than a broken
--- filter, because typing the same text in one go dispatched instead and found the file.
-function obj:_filter(rows, parsed)
-  if parsed.text == "" then return rows end
-  local matcher = self.matcher
-  local out = {}
-  for i = 1, #rows do
-    local r = rows[i]
-    local hay = r.lower or (r.path or ""):lower()
-    local keep
-    if type(matcher) == "function" then
-      keep = matcher(parsed.text, hay) ~= nil
-    else
-      keep = allWordsIn(hay, parsed.words)
-    end
-    if keep then out[#out + 1] = r end
-  end
-  return out
-end
-
---- Order rows for display.
----
---- A browse and a recent list arrive already ordered by the thing that makes them useful,
---- modification time, so their order is kept. A search is ordered here, and deliberately
---- without a fuzzy scorer. A path is long text searched from the inside where you type a
---- real fragment, which is the same reasoning that put the clipboard on the words strategy
---- rather than fuzzy, so the ordering answers three plain questions. Does the basename
---- hold the whole text, does it hold every word, and failing both, is the path shorter.
---- Shorter wins because a match near the top of a tree is nearly always the one meant, and
---- it is what keeps a vendored copy buried twelve levels down from outranking the real file.
----
---- What you use adds a fourth question, and it is deliberately the WEAKEST of the four. The
---- bump saturates below the gap between the name match tiers, so a file you open daily is
---- floated above others that matched the query just as well, and never above one that matched
---- it better. That asymmetry is the whole point. Here the query is the strong signal and your
---- habits break the ties, while in the list you see before typing there is no query at all, so
---- there your habits are the only signal and they choose the rows outright.
-function obj:_order(rows, parsed)
-  if parsed.kind ~= "search" or parsed.text == "" then return rows end
-  local text = parsed.text:lower()
-  local weight = self._ranker and (self.limits.frecencyWeight or 0) or 0
-  local scored = {}
-  for i = 1, #rows do
-    local r = rows[i]
-    local name = (r.name or ""):lower()
-    local s = 0
-    if name:find(text, 1, true) then s = s + 1000 end
-    if allWordsIn(name, parsed.words) then s = s + 500 end
-    if r.isDir then s = s + 50 end
-    s = s - math.min(#(r.path or ""), 500) / 25
-    if weight > 0 then
-      -- Saturating rather than linear, so one heavily used file cannot run away with the
-      -- ranking however many times it has been opened. Two uses is already most of the bump.
-      local used = self._ranker.score(r.path)
-      if used > 0 then s = s + weight * (used / (used + 2)) end
-    end
-    scored[#scored + 1] = { row = r, score = s, idx = i }
-  end
-  table.sort(scored, function(a, b)
-    if a.score ~= b.score then return a.score > b.score end
-    return a.idx < b.idx
-  end)
-  local out = {}
-  for i = 1, #scored do out[i] = scored[i].row end
-  return out
+--- engine:preference(path) -> how much you use a path, from zero to one, the row's bonus.
+--- It orders only rows the shared search calls equally good, so a file you open daily leads
+--- others that matched as well and never one that matched better, which is the same asymmetry
+--- the old ordering kept by holding its weight under the gaps between its tiers. Saturating
+--- rather than linear, so one heavily used file cannot run away with it, and two uses is already
+--- half of it.
+function obj:preference(path)
+  if not self._ranker or not path then return 0 end
+  local used = self._ranker.score(path) or 0
+  if used <= 0 then return 0 end
+  return used / (used + 2)
 end
 
 --- Drop rows living inside a directory nobody searches for, the vendored copies and the
@@ -386,8 +329,8 @@ function obj:_float(rows)
   return out
 end
 
--- Publish a result set. Keeps the retained copy for narrowing, notes whether it was
--- truncated, and cuts the display list to its own smaller cap.
+-- Publish a result set. Keeps the retained copy for narrowing and notes whether it was
+-- truncated.
 --
 -- Truncation is noted against what the source returned rather than what survived the noise
 -- filter, because it is the source's cap that decides whether the held set is the whole truth,
@@ -409,20 +352,12 @@ function obj:_publish(rows, parsed, status)
   self:_redraw(parsed, status)
 end
 
--- Recompute what is displayed from what is retained, without any dispatch.
-function obj:_redraw(parsed, status)
-  local rows = self._retained
-  if self._parsedShape and query.narrows(self._parsedShape, parsed) then
-    rows = self:_filter(rows, parsed)
-  end
-  rows = self:_order(rows, parsed)
-  local cap = self.limits.displayCap
-  if #rows > cap then
-    local cut = {}
-    for i = 1, cap do cut[i] = rows[i] end
-    rows = cut
-  end
-  self._display = rows
+-- Hand over what is retained, without any dispatch. Every held row goes, unfiltered and in the
+-- order its source gave, and the shared search ranks them by the query and keeps the
+-- presentation's rowLimit after ranking. The display cap that once cut this list to two hundred
+-- here cut before any ranking, so the rows it kept were the source's first rather than the best.
+function obj:_redraw(_, status)
+  self._display = self._retained
   self._status = status
   if self.onResults then self.onResults() end
 end
@@ -604,11 +539,14 @@ end
 --- only hook a query change reaches, and is the reason this is named for what it returns
 --- rather than for what it does.
 ---
---- Three outcomes. A query that narrows the held one is filtered locally and drawn with no
---- dispatch, which is the common case mid typing. A query too short or too broad to be
---- worth a round trip shows the recent list. Anything else arms the debounce, and the rows
---- already on screen stay until the answer lands, because clearing them first makes a
---- picker flicker for no gain.
+--- Three outcomes. A query that narrows the held one hands the held rows over again with no
+--- dispatch, and the shared search ranks them by the longer text, which is the common case mid
+--- typing. A query too short or too broad to be worth a round trip shows the recent list.
+--- Anything else arms the debounce and says searching at once, and the rows already on screen
+--- stay until the answer lands, because clearing them first makes a picker flicker for no gain.
+--- The shared search ranks those held rows by the new text meanwhile, and the searching status
+--- is what the list shows when none of them match, rather than saying nothing matched before
+--- anything was asked.
 function obj:rowsFor(raw)
   local parsed = query.parse(raw or "", self.types)
   local prev = self._parsed
@@ -650,7 +588,9 @@ function obj:rowsFor(raw)
     return self._display, self._status
   end
 
-  -- The narrowing path. No process, no query, no debounce.
+  -- The narrowing path. No process, no query, no debounce. Whether a round trip is needed is
+  -- decided by shape alone, query.narrows and the two conditions only this file knows, and never
+  -- by matching a row, since the held rows are ranked by the chooser once they are handed over.
   --
   -- _narrowable is the condition that is easy to miss and was missed. The other three ask
   -- whether the text merely grew over an identical population, and they are all satisfied by
@@ -675,6 +615,7 @@ function obj:rowsFor(raw)
     self._debounce = nil
     self:_dispatch(parsed)
   end)
+  self._status = "searching"
 
   return self._display, self._status
 end

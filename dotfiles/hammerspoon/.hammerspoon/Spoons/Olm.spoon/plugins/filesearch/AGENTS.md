@@ -8,8 +8,17 @@ several things that were tried and turned out to be wrong.
 
 One round trip per search, not one per keystroke. Typing eleven characters fires one
 query, because once results are held, a longer text over the same population can only
-match a subset of them, so it is filtered locally with no dispatch. Everything else here
-is ordinary.
+match a subset of them, so the held rows are ranked again with no dispatch. Everything else
+here is ordinary.
+
+Who does that ranking moved on 2026-10-17, phase three of the unified search. Until then the
+engine filtered the held rows itself, through the words matcher the root injected, over each
+row's folded full path, and ordered a search by its own score. Now the engine hands every held
+row to the chooser, up to the retain cap, and the shared search ranks them by the free text the
+presentation's `searchText` answers, the same ranking a round trip's answer gets, so the list
+cannot depend on whether a query arrived by a dispatch or by typing on. The engine still decides
+whether a round trip is needed, by shape alone, `query.narrows` and the two conditions below
+only it knows, and never by matching a row. `decisions/olm-unified-search.md` has the decision.
 
 This is why there is no result cache and why one was deliberately refused. A cache is
 wrong at the exact moment this tool is used, right after something was downloaded or
@@ -104,9 +113,15 @@ would be a claim about intent that cannot be backed, and copying a path is often
 signal there is.
 
 **The two applications are the part worth understanding, and they are not the same.** With a query
-typed, the score only REORDERS, and its weight is smaller than the gaps in the search ranking, so
-it separates files that matched the query equally well and can never lift one that matched it
-worse. Without a query it CHOOSES rows outright, and it has to, because that list is a date bound
+typed, the score only REORDERS. It is each row's `bonus`, the use count saturated into zero to one,
+used over used plus two, and the shared search reads a bonus only between rows it calls equally
+good, so it separates files that matched the query equally well and can never lift one that
+matched it worse. Until phase three of the unified search on 2026-10-17 the engine ordered a
+search itself, a thousand for the text whole in the name, five hundred for every word in it, a
+shorter path above a longer one, and frecency added at a weight of three hundred, below the gaps
+between those tiers, which kept the same asymmetry by arithmetic, and `frecencyWeight` went with
+it. The shorter path rule went too, so among names that match equally well the order is the use
+first and then the order the source answered in. Without a query it CHOOSES rows outright, and it has to, because that list is a date bound
 capped at a few dozen rows, so a file you open daily but have not modified in a month is not in
 the candidate set at all and no amount of sorting could surface it. That is the one place in the
 spoon where a row appears that no source returned.
@@ -177,7 +192,10 @@ was handing it a raw path. So a query with a capital letter narrowed to nothing,
 same text quickly worked because the debounce meant one dispatch and no narrow at all, where
 `LIKE[cd]` had folded case for us. That is exactly the pattern to distrust, the same text
 behaving differently depending on how fast it was typed means the narrow and the search disagree.
-The fold now happens once in `util.row`, half a millisecond for two thousand rows.
+The fold then happened once in `util.row`, half a millisecond for two thousand rows. It went in
+phase three of the unified search on 2026-10-17, together with the narrow itself, since the shared
+search folds case on its own and ranks the held rows by name, so there is one matcher and nothing
+to disagree with.
 
 Both tools are SMART CASE, which is the right default for a shell and the wrong one for a
 picker. One capital letter anywhere silently made a scoped or hidden search case sensitive, so
@@ -368,7 +386,11 @@ best.
 
 It also matches a subsequence, so a fumbled `hmrspn` finds hammerspoon paths in 60ms where
 a substring tool finds nothing. Since narrowing means one invocation per search rather than
-per keystroke, the worst case is paid once.
+per keystroke, the worst case is paid once. Since phase three of the unified search on
+2026-10-17 that fumble no longer reaches the list. fzf still decides which rows come back and
+in what order, and the shared search then keeps only rows whose name matches the text at its
+levels, a word start, pieces, one edit or inside a word, with no scattered match, so a row fzf
+found through its folders or by scattered letters is dropped.
 
 nucleo is measurably faster still and was rejected because it is a Rust library, so it
 would add a cargo toolchain to this repository for a tenth of a second on one code path.
@@ -1135,9 +1157,26 @@ Making the row supplier asynchronous. The chooser atom calls it synchronously on
 change and expects rows back, which is why the engine answers from what it holds and
 schedules separately. An async supplier would need the atom to change.
 
-Letting the atom filter. The surface passes `matcher = false` because the query is
-structured. Turning the shared matcher back on would re rank the engine's ordering and hide
-the status row.
+Turning the atom's filtering back off. Since phase three of the unified search the shared
+search ranks every list, this one by the free text `searchText` answers, and the engine hands
+its held rows over unranked. Until then the surface passed `matcher = false`, because a second
+ranking on top of the engine's own would have fought that order and hidden the status row. Both
+reasons are answered by fields now, the order is the shared search's and every status, help and
+up row is pinned. A status row also trails the files whenever the engine reports one, not only
+when it holds none, because the shared search may keep none of the held rows while a round trip
+is in flight or a short query shows the recent list, and the row is what then says searching or
+keep typing rather than the list saying no results.
+
+Putting a cap back in the engine. `displayCap` cut the handed over list to two hundred before any
+ranking, so the rows it kept were the source's first rather than the best. The presentation and
+the scope declare `rowLimit` 200 instead, cut after ranking, and `retainCap` stays as the bound
+on what is held and handed over.
+
+Searching the full path. A file row filters on its name, and its folder is neither a name nor a
+keyword. Spotlight, which answers every unscoped query, matches names only, so a path searched
+here would let typing on keep a row a round trip for the same text never returns, and a folder
+word would match at the name's own level and tie with a file actually called that. The old
+narrow searched the folded full path and had exactly that disagreement.
 
 Losing a held handle. Every timer and every in flight search are held in fields for the same
 reason, an unreferenced one is collected and its callback silently never arrives, which looks

@@ -10,13 +10,15 @@
 --- Whether there is a pane at all is decided by the main root injecting the shared canvas
 --- surface, and with nothing injected this file behaves exactly as it did before one existed.
 ---
---- It opts OUT of the shared matcher, passing matcher false, and that is deliberate rather
---- than a shortcut. A query here is structured, it carries sigils, a type token and a scope,
---- so it is not a plain filter over a list and the atom re ranking what came back would fight
---- the engine's own ordering and hide the status row. This is the same opt out the clipboard,
---- the emoji picker and three others make for the same reason. The matcher still reaches the
---- engine, injected by the root, where it does the local narrow between round trips, so the
---- policy is not lost, it just applies one layer down.
+--- It ranks through the shared search like every list since phase three of the unified search
+--- on 2026-10-17. A query here is structured, it carries sigils, a type token and a scope, so
+--- the presentation's searchText, M.searchText below, answers the free text the engine parsed
+--- out of it, and the shared search ranks the rows by that. A file row names itself by its file
+--- name alone and carries how much you use it as a bonus, and every row that is not a file, a
+--- status, the up row, a help line, is pinned, so a typed query never drops it. Until then this
+--- surface declared matcher false, since the engine filtered and ordered its own held rows and a
+--- second ranking would have fought that order and hidden the status row, and the words matcher
+--- reached the engine instead, for the narrow between round trips.
 ---
 --- It names no key anywhere. The actions are exposed as plain methods, the plugin's manifest
 --- decides which key reaches which one, and config/plugins.lua rebinds it, and the deferred helper panel spells
@@ -179,12 +181,20 @@ local dirFits = {}
 -- replace the direct picker:textBudget()/textWidth() calls this used to make on an instance
 -- it held itself, both root published words proxying host/stage's own public methods, since
 -- this file has no instance left to ask directly.
-local function fitDir(dir, reserved)
-  if dir == "" then return dir end
-  if not (cfg.stageTextBudget and cfg.stageTextWidth) then return dir end
+--
+-- The room is measured once per list rather than once per row, budgetFor below, since every
+-- held row is built on every keystroke now that the shared search ranks them, up to two thousand,
+-- and the measure is a call into the live instance each time.
+local function budgetFor(reserved)
+  if not (cfg.stageTextBudget and cfg.stageTextWidth) then return nil end
   -- `reserved` is the rest of the line verbatim, its own separator included, so a caller
   -- states what shares the row rather than this having to know where each caller puts it.
-  local budget = cfg.stageTextBudget() - cfg.stageTextWidth(reserved, "sub")
+  return cfg.stageTextBudget() - cfg.stageTextWidth(reserved, "sub")
+end
+
+local function fitDir(dir, budget)
+  if dir == "" then return dir end
+  if not budget then return dir end
   local key = dir .. "\0" .. math.floor(budget)
   local hit = dirFits[key]
   if hit then return hit end
@@ -211,17 +221,30 @@ end
 -- Worth knowing that a searched row never carried an age anyway. Only the recent list reads a
 -- date, and frecency rarely holds a record for a path you just searched for, so on the list you
 -- spend most of your time in this changed nothing at all.
-local function subtitleFor(row)
-  return fitDir(shortDir(row.dir), "")
+local function subtitleFor(row, budget)
+  return fitDir(shortDir(row.dir), budget)
 end
 
+-- What a file row is searched by, decided 2026-10-17 for phase three of the unified search.
+-- Its file name alone, the title, so filterText keeps the fitted folder under it out of the
+-- search. The full path is not a name either, though the old narrow between round trips searched
+-- it. Spotlight, which answers every query that names no folder, matches names only, so a path
+-- searched here would let typing on keep a row that a round trip for the same text never returns,
+-- and the list would depend on how fast you typed. A folder word would also match at the name's
+-- own level and tie with files actually called that. bonus is how much you use the file, so it
+-- orders only rows the search calls equally good.
 local function fileRows(rows)
   local out = {}
+  local budget = budgetFor("")
+  local preference = cfg.api and cfg.api.preference
   for i = 1, #rows do
     local r = rows[i]
+    local title = r.name or r.path
     out[#out + 1] = {
-      title = r.name or r.path,
-      subTitle = subtitleFor(r),
+      title = title,
+      subTitle = subtitleFor(r, budget),
+      filterText = title,
+      bonus = preference and preference(r.path) or nil,
       image = iconFor(r),
       item = r,
     }
@@ -253,7 +276,6 @@ local function upRow()
   if path == "" then path = "/" end
   local row = {
     path = path,
-    lower = path:lower(),
     name = "..",
     dir = util.dirname(path),
     isDir = true,
@@ -263,9 +285,10 @@ local function upRow()
   local lead = "up to "
   return {
     title = "..",
-    subTitle = lead .. fitDir(shortDir(path), lead),
+    subTitle = lead .. fitDir(shortDir(path), budgetFor(lead)),
     image = iconFor(row),
     item = row,
+    pinned = true,
   }
 end
 
@@ -304,6 +327,7 @@ local function statusRow(status)
     icon = look.icon,
     enabled = false,
     item = { status = true },
+    pinned = true,
   } }
 end
 
@@ -331,6 +355,7 @@ local function helpRows()
       icon = h[1],
       enabled = false,
       item = { help = true },
+      pinned = true,
     }
   end
   return out
@@ -338,16 +363,19 @@ end
 
 --- The row supplier. The engine is asked what to draw for this query and may schedule work as
 --- a side effect, which is why nothing here decides whether to search.
+---
+--- A status is a pinned row after the files whenever the engine reports one, not only when it
+--- holds no files. The shared search ranks the held files by what is typed and may keep none of
+--- them, while a round trip is in flight over rows from the last query or while a short query
+--- shows the recent list, and the status row is what then says searching or keep typing rather
+--- than the list saying no results. It trails the files that do match, since a pinned row trails
+--- under a typed query.
 local function supplier(q)
   q = q or ""
   if q == "?" then return helpRows() end
   local rows, status = cfg.api.rowsFor(q)
-  local out
-  if (not rows or #rows == 0) and status then
-    out = statusRow(status)
-  else
-    out = fileRows(rows or {})
-  end
+  local out = fileRows(rows or {})
+  if status then out[#out + 1] = statusRow(status)[1] end
   -- Only while browsing, which is a scope with nothing typed. Once text is typed the list is
   -- search results and a back row sitting above them would be competing with the answer. The key
   -- still works there, it is only the row that is browse specific.
@@ -725,6 +753,16 @@ end
 --- records the use once. A status row or a help row is ignored here exactly as it is there.
 function M.choose(row)
   onSelect(row)
+end
+
+--- chooser.searchText(raw) -> the text the shared search ranks this list by, named on the
+--- manifest's presentation and scope as their searchText. The engine's own parse answers it, the
+--- free text once the sigils, the types and the scope are taken off, so `~/dev .js foo` ranks by
+--- foo, and a query with no free text answers empty, which keeps the order the rows came in.
+--- The help screen's question mark answers itself, and every help row is pinned, so it stays.
+function M.searchText(raw)
+  if not (cfg.api and cfg.api.searchText) then return "" end
+  return cfg.api.searchText(raw)
 end
 
 --- chooser.refresh() - redraw from what the engine now holds, without re dispatching. Wired as
