@@ -47,7 +47,6 @@ obj.tool = "qalc"
 -- Injected via configure
 obj._path = nil        -- resolved absolute path of the calculator tool
 obj._glyph = nil
-obj._category = nil
 obj._onResult = nil    -- called when a late answer lands, so the presenter can redraw
 obj._debounce = nil    -- seconds to wait for typing to stop before running
 
@@ -105,7 +104,6 @@ end
 ---               field nobody sends fails exactly this quietly, which is why there is one
 ---               door rather than one per plugin.
 --- opts.glyph    the character shown as the row icon, rendered by the presenter.
---- opts.category the word leading the row subtitle, so the visible wording stays config.
 --- opts.redraw   called with no arguments when a late answer lands, so the presenter can
 ---               redraw its list. Omit it and a result simply appears the next time rows
 ---               are asked for. Named redraw because it is the root's own one word for this,
@@ -116,7 +114,6 @@ function obj:configure(opts)
   opts = opts or {}
   self._path = opts.deps and opts.deps.path(self.tool) or nil
   self._icon = opts.icon or "convert"
-  self._category = opts.category or "Convert"
   self._onResult = opts.redraw
   self._debounce = opts.debounce or 0.25
   return self
@@ -243,7 +240,8 @@ function obj:rows(query)
     return {
       {
         title = hit.value,
-        subTitle = self._category .. " · " .. q .. " · copy the result",
+        -- Only what choosing the row does, since the field already holds the query.
+        subTitle = "Copy the result",
         icon = self._icon,
         fromQuery = true,
         item = { kind = "calc", value = hit.value },
@@ -278,7 +276,6 @@ function obj:rows(query)
   return {
     {
       title = "Converting",
-      subTitle = self._category .. " · " .. q,
       icon = self._icon,
       fromQuery = true,
       enabled = false,

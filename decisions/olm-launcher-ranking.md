@@ -190,3 +190,11 @@ Not about ranking either. The emoji picker answers to em as well as e and emoji,
 is what gets typed for it. Nothing else holds em. The word s and system were checked as a possible
 collision between the System Settings plugin and the launcher's settings pane scope, and there is
 none, because the plugin registers no scope and its aliases only word the launcher row's hint.
+
+### 2026-10-17 17:33
+
+Not about ranking. The Arithmetic and Convert result rows now carry the subtitle Copy the result
+and nothing else, and the Converting placeholder has no subtitle. The category word and the echoed
+expression are gone, since the field already holds the query. The category option had no other
+reader, so it was removed from both plugins and from the Arithmetic manifest. Subtitles are not
+searched, so nothing in ranking moves.

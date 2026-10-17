@@ -36,7 +36,6 @@ obj.license = "MIT"
 
 -- Injected via configure
 obj._icon = nil      -- the row icon, a key into this plugin's manifest icons, drawn by Olm
-obj._category = nil  -- the subtitle category word, so the presenter's wording stays config
 
 -- The alphabet an expression may use. Anything else is not arithmetic and is refused
 -- before Lua ever sees it, which is what makes evaluating it safe. The letter e is in the
@@ -73,12 +72,9 @@ end
 --- Arithmetic:configure(opts)
 --- Method
 --- opts.glyph    the character shown as the row icon, rendered by the presenter.
---- opts.category the word leading the row subtitle, so the visible wording is config
----               rather than something this spoon decides for a surface it cannot see.
 function obj:configure(opts)
   opts = opts or {}
   self._icon = opts.icon or "arithmetic"
-  self._category = opts.category or "Arithmetic"
   return self
 end
 
@@ -163,7 +159,9 @@ function obj:rows(query)
   return {
     {
       title = text,
-      subTitle = self._category .. " · " .. (query or ""):gsub("^%s+", ""):gsub("%s+$", "") .. " · copy the result",
+      -- Only what choosing the row does. The expression is already in the field and the result is
+      -- the title, so echoing either only crowded the line.
+      subTitle = "Copy the result",
       icon = self._icon,
       fromQuery = true,
       item = { kind = "calc", value = text },

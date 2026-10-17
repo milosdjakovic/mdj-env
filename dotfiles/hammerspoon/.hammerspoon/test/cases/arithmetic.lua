@@ -98,3 +98,17 @@ do
   local value = Arithmetic:evaluate("2+%")
   check("a malformed expression still produces no row", value == nil, tostring(value))
 end
+
+-- The row says only what choosing it does, with no category word and no echo of the expression,
+-- since the field already holds what was typed and the result is the title.
+
+do
+  local instance = Arithmetic
+  if instance.init then instance:init() end
+  instance:configure({})
+  local rows = instance:rows("2 + 3")
+  check("a sum answers one row", #rows == 1, tostring(#rows))
+  check("the row title is the result", (rows[1] or {}).title == "5", tostring((rows[1] or {}).title))
+  check("the row subtitle only says what choosing it does",
+    (rows[1] or {}).subTitle == "Copy the result", tostring((rows[1] or {}).subTitle))
+end

@@ -65,6 +65,11 @@ return {
           return false, "it never answered with a number, it stayed on its Converting row, "
             .. "so the process behind it either never ran or never came back"
         end
+        -- The answer row says only what choosing it does, the field already holds the query.
+        if w._rows[1].subTitle ~= "Copy the result" then
+          return false, "the answer row subtitle is " .. tostring(w._rows[1].subTitle)
+            .. " rather than Copy the result"
+        end
         return true
       end,
     },
