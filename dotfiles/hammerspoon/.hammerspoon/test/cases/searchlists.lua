@@ -105,9 +105,11 @@ do
   check("a name match leads a glyph found by a keyword", tears ~= nil and bigEyes ~= nil and tears < bigEyes,
     tostring(tears) .. " " .. tostring(bigEyes))
   kept = rank.apply(rows, "grin", fuzzy, search)
+  -- Then the names starting with grin, the shorter first, grinning cat before grinning face,
+  -- since the shortcode grinning, which grin does not spell whole, lends grinning face nothing.
   check("an exact alias leads an emoji whose name only starts with it",
     kept[1] and kept[1].title == "beaming face with smiling eyes"
-      and position(kept, "grinning face") == 2, titles(kept, 3))
+      and position(kept, "grinning cat") == 2 and position(kept, "grinning face") == 3, titles(kept, 3))
   kept = rank.apply(rows, "thumbsup", fuzzy, search)
   check("a shortcode finds its emoji by name", kept[1] and kept[1].title == "thumbs up", titles(kept, 3))
   kept = rank.apply(rows, "food", fuzzy, search)

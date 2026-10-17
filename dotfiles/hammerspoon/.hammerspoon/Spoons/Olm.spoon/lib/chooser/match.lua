@@ -567,38 +567,46 @@ local function matchName(w, name)
   return nil
 end
 
--- One lowered word against the name and the row's further names, its best level and, at that
--- level, its best score, or nil. Each name is matched alone, so a word never spans two names and
--- pieces stay inside one. The best is taken and never a sum, which is what keeps a row with more
--- names from scoring above an equal row with fewer. A name that matches no better than the ones
--- before it changes nothing, and every name is bounded exactly as the title is, so the spread
--- the step is derived from holds whatever the number of names. The third answer is whether the
--- level came only from a further name, the name itself reaching no level that good, which
--- M.fuzzy ranks below the same level found in the name. A further name the word spells whole
--- counts as the name, since that is the row's name as a person types it, so grin still lists
--- the beaming face whose shortcode is grin before grinning face, Milos's correction of
--- 2026-10-17, while face lists person facepalming before the fist whose shortcode is facepunch.
+-- One lowered word against the name and the row's further names, its level and score, or nil.
+-- Each name is matched alone, so a word never spans two names and pieces stay inside one. The
+-- names fall in two groups. The name itself, and any further name the word spells whole, since
+-- that is the row's name as a person types it, so grin still lists the beaming face whose
+-- shortcode is grin before grinning face, Milos's correction of 2026-10-17. And every other
+-- further name. The best of the first group answers, its level and at that level its best score.
+-- The second group answers only when it reaches a level the first does not, and then the third
+-- answer is true, which M.fuzzy ranks below the same level found in the name.
+--
+-- So a further name never lends the row its score at a level the name already reaches. It did
+-- until 2026-10-17, the best score at the level being taken across every name, and on the real
+-- emoji rows face listed person facepalming first, since face starts its shortcode facepalm, a
+-- short field where the word fills the start, which outscored face at the start of face with
+-- tongue. Where face sits in the name, in the second word, is what ranks that row, so face
+-- leads the names that start with it. The best is taken and never a sum, which keeps a row with
+-- more names from scoring above an equal row with fewer, and every name is bounded exactly as
+-- the title is, so the spread the step is derived from holds whatever the number of names.
 local function spellsWhole(w, n)
   return #n <= LONG and prepare(n).low == w
 end
 local function matchNames(w, name, names)
   local level, score = matchName(w, name)
-  local fromNames = false
+  local further, furtherScore
   if names then
     for i = 1, #names do
       local n = names[i]
       if type(n) == "string" then
         local l, sc = matchName(w, n)
-        if l and (level == nil or l > level) then
-          level, score, fromNames = l, sc, not spellsWhole(w, n)
-        elseif l and l == level then
-          if sc > score then score = sc end
-          if fromNames and spellsWhole(w, n) then fromNames = false end
+        if l then
+          if spellsWhole(w, n) then
+            if level == nil or l > level or (l == level and sc > score) then level, score = l, sc end
+          elseif further == nil or l > further or (l == further and sc > furtherScore) then
+            further, furtherScore = l, sc
+          end
         end
       end
     end
   end
-  return level, score, fromNames
+  if further and (level == nil or further > level) then return further, furtherScore, true end
+  return level, score, false
 end
 
 -- A phrase typed run together, the lowered word a prefix of a declared phrase with its spaces
@@ -709,9 +717,10 @@ end
 ---
 --- names are further names of the row, a tab's host and address beside its title, a clipboard
 --- entry's body, matched at levels A to D exactly like the primary. Each word takes its best
---- level, and at that level its best score, across the primary and the names, so github pull
---- finds a tab titled Pull request on github.com with each word in a different name, while one
---- word never spans two names and pieces stay inside one. The best is taken, never a sum, so a
+--- level across the primary and the names, so github pull finds a tab titled Pull request on
+--- github.com with each word in a different name, while one word never spans two names and
+--- pieces stay inside one. At a level the primary reaches, the primary's score answers, and a
+--- further name lends it nothing unless the word spells that name whole, matchNames above. The best is taken, never a sum, so a
 --- row never scores higher for having more names than an equal row with fewer.
 ---
 --- A word never matches across fields. Each query word, folded and lowered like every field, so

@@ -41,7 +41,9 @@ local M = {}
 -- sets it, since names add to the primary rather than replace it. Each query word takes its
 -- best level across the primary and the names, so two words may land in two names, but one
 -- word never spans two names and pieces stay inside one. The best is taken and never a sum, so
--- a row never scores higher for having more names than an equal row with fewer. A long name
+-- a row never scores higher for having more names than an equal row with fewer. At a level the
+-- primary reaches, the primary's own score answers, and a further name lends it nothing unless
+-- the word spells that name whole, so where the word sits in the title ranks the row. A long name
 -- follows the 256 byte rule in lib/chooser/match.lua. A strategy that reads one string, words
 -- or substring, never sees names, since joining a body of megabytes into one string on every
 -- key is the cost the shared search exists to avoid.

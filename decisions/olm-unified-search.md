@@ -22,7 +22,8 @@ level. Every word is required and the scores add. A row shows the subtitle its s
 Every query and every field is folded before it is lowered, Latin letters with diacritics to
 their base letters, so resume finds Résumé, Milos's decision of 2026-10-17. At one level a word
 found in the name leads the same level found only in a further name, unless it spells that name
-whole.
+whole, and at a level the name reaches a further name lends the row nothing, so where the word
+sits in the name ranks the row.
 
 Plugins declare a row vocabulary and only core applies it. Today that is `title`, `subTitle`,
 `keywords`, `filterText`, `names`, `pinned`, `fromQuery`, `tier` and `bonus` on a row, and
@@ -887,3 +888,29 @@ never its folders or its body. A text or url entry still names its whole body. T
 test/cases/clipboard-search.lua adds a file entry under Library and Application Support whose
 body also names those folders, and support, library and the shared folder find nothing while a
 file name and a part of one still find it. Naming the paths again fails four of its checks.
+
+### 2026-10-17 20:20, a further name lends nothing at a level the name reaches
+
+The 20:00 rework said face listed person facepalming before oncoming fist, and its case passed,
+yet on the live emoji data face put person facepalming first, ahead of face with tongue, face
+exhaling and face vomiting. The case was built by hand with the facepalm row alone against the
+fist, never against a row whose name starts with face, so it could not see the cause. Ranking the
+real rows the provider builds from data.lua showed every one of them at level four with no
+further name word counted, the title reaching the start level in each, and the facepalm row ahead
+by a tenth of a point. Its score came from its shortcode, not its name. matchNames took the best
+score at the row's level across the name and every further name, and face starts facepalm, a
+field of eight letters where the word fills the start and leaves little trailing gap, which beat
+face at the start of the longer face with tongue. So the rule that a title leads a further name
+held for the level and leaked through the score. The same leak put grinning face before grinning
+cat for grin, its shortcode grinning lending it a shorter field.
+
+The fix is in matchNames. The name and any further name the word spells whole form one group,
+every other further name the second, and the second answers only when it reaches a level the
+first does not, at the cost of one further name word as before. At a level the name reaches, the
+name's own score answers. Rows without names take the path they always did. On the real rows
+face now lists face exhaling, face vomiting, face in clouds and face with tongue, with person
+facepalming after every name starting with face, flag lists the country flags with carp streamer
+after every name holding flag, and grin lists the beaming face, grinning cat and grinning face.
+The hand built rows in test/cases/searchfields.lua are replaced by the real rows, built through
+the provider over a stand in hs, and searchlists.lua now expects grinning cat second. Reverting
+the fix fails five checks.

@@ -193,7 +193,10 @@ alias leads again, though not by a bonus of its own. Packet two A of phase three
 as keywords, below any name match, so grin listed grinning face above the beaming face whose
 shortcode it is. Milos corrected that the same day, an alias being a name, and grin now matches
 the beaming face's alias whole, which the shared search scores above grinning face, whose name
-only starts with it.
+only starts with it. An alias the word does not spell whole lends its row nothing at a level the
+name already reaches, so face lists the names starting with face before person facepalming,
+whose shortcode facepalm once lifted it to the top, and grin lists grinning cat, the shorter
+name, before grinning face.
 
 The visible list is cut to 100 rows by `rowLimit` on the presentation and on the scope, after
 ranking, so the best rows of a broad query are the ones kept and any glyph stays findable by

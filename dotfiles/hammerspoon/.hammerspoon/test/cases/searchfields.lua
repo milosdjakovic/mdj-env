@@ -327,21 +327,69 @@ end
 -- At one level a word found in the title or filterText leads the same level found only in a
 -- further name, decided 2026-10-17 after the review of phase three. It sits inside the level,
 -- under the phrase bonus and over the row's own bonus, so a recent row never lifts over one
--- whose title holds the word. The reviewer's three examples.
+-- whose title holds the word. And a further name never lends a row its score at a level the
+-- title already reaches, unless the word spells that name whole. The emoji checks rank the
+-- real rows, built by plugins/emoji/providers/hammerspoon.lua from data.lua over a stand in hs,
+-- since a hand made row once passed while the real data put person facepalming first for face,
+-- its shortcode facepalm lending the row the score of a word filling the start of a short field.
 do
   local function ranked(q, list, search)
     return titles(rank.apply(list, q, fuzzy, search))
   end
-  local fist = { title = "oncoming fist", names = { "facepunch", "punch" } }
-  local palm = { title = "person facepalming", names = { "facepalm" } }
-  local got = ranked("face", { fist, palm })
-  check("face lists person facepalming before the fist whose alias is facepunch",
-    got == "person facepalming,oncoming fist", got)
+  local stub = { settings = { get = function() return nil end, set = function() end } }
+  local chunk = assert(loadfile(olmDir .. "plugins/emoji/providers/hammerspoon.lua", "t",
+    setmetatable({ hs = stub }, { __index = _G })))
+  local backend = chunk()
+  backend:configure({})
+  local emoji = backend:rows()
+  check("the real emoji rows load", #emoji > 1000, tostring(#emoji))
+  local function top(q, n)
+    local list = rank.apply(emoji, q, fuzzy)
+    local out = {}
+    for i = 1, n do out[i] = list[i] and list[i].title end
+    return out, list
+  end
+  local function place(list, title)
+    for i, r in ipairs(list) do if r.title == title then return i end end
+    return nil
+  end
+  local function rowNamed(title)
+    for _, r in ipairs(emoji) do if r.title == title then return r end end
+  end
 
-  local carp = { title = "carp streamer", names = { "flags" } }
-  local cuba = { title = "flag: Cuba", names = { "cuba" } }
-  got = ranked("flag", { carp, cuba })
-  check("flag lists a flag before carp streamer whose alias is flags", got == "flag: Cuba,carp streamer", got)
+  -- face leads with names that start with face, the shorter first, and a name holding face only
+  -- in a later word, whatever its shortcode, comes after every one of them.
+  local faces, list = top("face", 5)
+  check("face lists face exhaling first on the real rows", faces[1] == "face exhaling", table.concat(faces, ","))
+  local allStart = true
+  for i = 1, 5 do allStart = allStart and faces[i]:sub(1, 5) == "face " end
+  check("the first five names for face all start with face", allStart, table.concat(faces, ","))
+  local lastStart = 0
+  for i, r in ipairs(list) do if r.title:sub(1, 5) == "face " then lastStart = i end end
+  check("person facepalming comes after every name starting with face",
+    place(list, "person facepalming") > lastStart, tostring(place(list, "person facepalming")))
+  check("the fist whose shortcode is facepunch comes after person facepalming",
+    place(list, "oncoming fist") > place(list, "person facepalming"))
+  check("face with tongue, the shorter name, leads face with monocle",
+    place(list, "face with tongue") < place(list, "face with monocle"))
+
+  -- flag lists the flags, never carp streamer whose shortcode is flags, before a flag.
+  local flags
+  flags, list = top("flag", 3)
+  check("flag lists the country flags first", flags[1]:sub(1, 6) == "flag: " and flags[3]:sub(1, 6) == "flag: ",
+    table.concat(flags, ","))
+  local carp = place(list, "carp streamer")
+  check("carp streamer comes after every name holding flag", carp ~= nil and carp > place(list, "pirate flag"),
+    tostring(carp))
+
+  -- grin, a shortcode spelled whole counts as the name, so the beaming face leads.
+  local grins = top("grin", 3)
+  check("grin lists the beaming face whose shortcode is grin first",
+    grins[1] == "beaming face with smiling eyes", table.concat(grins, ","))
+  check("then the shorter grinning names, cat before face",
+    grins[2] == "grinning cat" and grins[3] == "grinning face", table.concat(grins, ","))
+
+  local fist, palm = rowNamed("oncoming fist"), rowNamed("person facepalming")
 
   local onHost = { title = "Pull request", names = { "github.com", "https://github.com/x/pull/1" }, bonus = 1 }
   local inTitle = { title = "Pull request github", names = {} }
@@ -356,20 +404,11 @@ do
   got = ranked("pos", { insideTitle, startInName })
   check("a name word start still leads a title inside a word", got == "Repository,Composer", got)
 
-  -- A further name the word spells whole counts as the name, so an exact shortcode keeps
-  -- leading, Milos's emoji correction of 2026-10-17.
-  local beaming = { title = "beaming face with smiling eyes", names = { "grin" } }
-  local grinning = { title = "grinning face", names = { "grinning" } }
-  got = ranked("grin", { grinning, beaming })
-  check("an alias spelled whole counts as the name", got == "beaming face with smiling eyes,grinning face", got)
-
   -- The score alone orders the same way, for a consumer reading only the first answer, and a
   -- further name word never costs a row its level.
-  -- The title alone, since palm's own alias facepalm would lift its score past the fist's
-  -- without the rule.
-  local palmTitle = { title = "person facepalming" }
-  check("the score alone puts the title match first", graded("face", palmTitle) > graded("face", fist))
-  check("and the ranking agrees", titles(rank.apply({ fist, palmTitle }, "face", fuzzy)) == "person facepalming,oncoming fist")
+  check("the score alone puts the title match first", graded("face", palm) > graded("face", fist))
+  check("and so does the score of a name that starts with face",
+    graded("face", rowNamed("face with tongue")) > graded("face", palm))
   check("the score alone keeps a name word start over a title inside a word",
     graded("pos", startInName) > graded("pos", insideTitle))
 
