@@ -130,3 +130,69 @@ end
 check("no row is highlighted under the empty state", model.highlightedRow(none) == nil)
 check("no visible slot answers under the empty state", model.rowAtVisibleSlot(none, 1) == nil)
 check("no point in the band answers a row", model.rowAtPoint(none, ROW_H / 2) == nil)
+
+-- The provider's own bookkeeping of which query the rows were ranked for, which is what render
+-- reads to decide the empty state. It needs the real UI kit, so it runs only inside Hammerspoon,
+-- the way cases/stage-holdkey.lua builds the same provider, with show replaced so nothing is ever
+-- drawn and the rects left unset so the provider's own redraw stays a no op.
+if hs.canvas then
+  local olmDir = caseDir .. "/../../Spoons/Olm.spoon/"
+  local Chooser = loadfile(olmDir .. "lib/chooser/init.lua")()
+  local Default = Chooser.providers.default
+  Default.configure({ panel = {}, ui = loadfile(olmDir .. "lib/ui/init.lua")() })
+
+  local source = {}
+  local inst = Default.new({ matcher = false, rows = function() return source end })
+  function inst:show()
+    self.active = true
+    self._rects = { rowCount = 10 }
+    self:_updateDrawLayout()
+    self._rects = nil
+    self:_rebuildList("", true)
+    self._suppressRebuild = true
+    self.field:setText("")
+    self._suppressRebuild = false
+  end
+
+  local function empty() return render.showsEmptyState(inst.listState, inst._rankedQuery) end
+
+  inst:show()
+  check("show ranks for the empty query", inst._rankedQuery == "")
+  check("show with no rows draws no empty state", not empty())
+
+  inst:setQuery("zzz")
+  check("setQuery records the query it ranked for", inst._rankedQuery == "zzz",
+    tostring(inst._rankedQuery))
+  check("a typed query with no rows draws the empty state after setQuery", empty())
+
+  -- Rows arrive after the query was typed, as a slow source's do, and a refresh ranks them for
+  -- the field's current text.
+  source = { { title = "Zzz row", item = { id = "z" } } }
+  inst:refresh(true)
+  check("refresh ranks for the field's current query", inst._rankedQuery == "zzz",
+    tostring(inst._rankedQuery))
+  check("rows that arrive clear the empty state on refresh", not empty())
+
+  -- The field runs ahead of the rows for the length of a setQuery, its text already new and its
+  -- rows not yet rebuilt. The empty state must still answer for the rows on screen, which were
+  -- ranked for the old text and exist, so reading the field instead would flash No results.
+  inst._suppressRebuild = true
+  inst.field:setText("zzzq")
+  inst._suppressRebuild = false
+  check("a field ahead of the rows leaves the ranked query where it was",
+    inst._rankedQuery == "zzz", tostring(inst._rankedQuery))
+  check("so no empty state shows for rows that are about to be replaced", not empty())
+  check("while the field's own text would have said there is nothing",
+    render.showsEmptyState(model.newState({}, LAYOUT, ""), inst:query()))
+
+  -- The rebuild that catches the rows up records the new query and tells the truth.
+  source = {}
+  inst:refresh(true)
+  check("the catch up rebuild ranks for the new text", inst._rankedQuery == "zzzq",
+    tostring(inst._rankedQuery))
+  check("and with no rows left it draws the empty state", empty())
+
+  inst:setQuery("")
+  check("clearing the field with rows gone draws nothing", not empty() and inst._rankedQuery == "")
+  inst.active = false
+end

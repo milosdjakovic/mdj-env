@@ -309,8 +309,8 @@ function obj:configure(opts)
     -- stage before it lets a row close, routed straight through to the atom underneath exactly
     -- as it always reached the atom directly. The launcher only routes the question, exactly as
     -- it routes running a row and peeking at one, so it still learns nothing about what a scope
-    -- or a tool is. Whoever answers acts through the two public doors below, seedQuery and
-    -- enterPage.
+    -- or a tool is. Whoever answers acts through the public door below, seedQuery, or pushes a
+    -- presentation onto the stage.
     --
     -- Promoting happens HERE and not in _replacementFor, because the stage calls this closure
     -- only when a row is actually being taken while the shortcut hint asks _replacementFor on
@@ -1114,8 +1114,8 @@ end
 
 --- Launcher:seedQuery(text) -> bool
 --- Method
---- Put text in the field of the open launcher, answering whether it went in. One of the two things
---- a row that replaces this list can mean, the other being enterPage below. For a row that names a
+--- Put text in the field of the open launcher, answering whether it went in. The way a row
+--- that replaces this list hands over a word. For a row that names a
 --- query rather than an action, which is what an alias directory row is, so the word arrives in
 --- the field and the next thing typed is that tool's own query. Plain text, and the launcher
 --- attaches no meaning to it.
@@ -1127,30 +1127,6 @@ function obj:seedQuery(text)
   if not self._stage or type(text) ~= "string" or text == "" then return false end
   self:leavePage()
   self._stage:setQuery(text)
-  return true
-end
-
---- Launcher:enterPage(prefix, title)
---- Method
---- Host somebody else's list in the chooser that is already open. The other thing a row that
---- replaces this list can mean, and the one that needs no word in the field.
----
---- A PAGE IS A PREFIX THIS SPOON NEVER SHOWS. The query sources already answer a whole list for a
---- query that names a tool, so hosting one is just asking them with that text in front of whatever
---- the user typed, while the field itself holds only the typing. So this needs no second row
---- mechanism, no second matcher and no second definition of what choosing a row does, and a tool
---- reachable by a typed word is hostable with no work of its own.
----
---- The prefix is opaque. What it says, which tool it reaches, and whether one exists at all are
---- decided by whoever passes it, exactly as with the text seedQuery takes. The title is what the
---- field says while nothing is typed in it, which is what tells you where you are once no word is
---- visible. The way out is not said here. It is a listed key in the shortcut panel like every other
---- key, gated on a page existing, since a sentence in a placeholder was doing a panel's job worse.
-function obj:enterPage(prefix, title)
-  if not self._stage or type(prefix) ~= "string" or prefix == "" then return false end
-  self._page = prefix
-  self._stage:setQuery("")
-  self._stage:setPlaceholder(title or "This list")
   return true
 end
 

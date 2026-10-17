@@ -22,9 +22,9 @@ chord would only be one more binding to remember for the same action.
 ## The outer row is a doorway, the inner rows name the action
 
 The launcher's own catalog carries one row for this tool, reading the plain noun Dock,
-matching every other hosted tool's outer row. Choosing it steps into the page rather than
-doing anything itself, the same as caffeinate, VPN, and the rest of `hostedInPlace`. That
-doorway is root policy, the root's `hostedInPlace` table, and this
+matching every other tool's outer row. Choosing it steps into the page rather than
+doing anything itself, the same as caffeinate, VPN and the rest. That doorway is root policy,
+answered by the root's `rowIntercept` pushing the presentation this plugin declares, and this
 plugin never sees it.
 
 The two rows inside the page are what this plugin owns, and each names the action choosing

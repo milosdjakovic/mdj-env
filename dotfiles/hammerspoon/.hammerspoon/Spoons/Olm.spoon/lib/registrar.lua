@@ -1080,32 +1080,6 @@ function obj.aliasCollisions(scopes)
   return hits
 end
 
---- obj.aliasRowReplacement(deps)
---- What choosing the launcher's own Aliases row means while the launcher is open, as a function
---- that answers a callable for that row and nil for every other. The row is a catalog row of kind
---- special with no owner and no tool behind it, so the registry has no presentation for it and the
---- launcher used to let it run and close, seeding a field that was already gone. Answering it
---- through the same intercept path a directory row's redirect takes keeps the list open and puts
---- the word in the field, the one word the directory scope answers to.
----
---- deps.name is the row's name, deps.queryFor is the resolver's own canonical word for a name, so
---- the grammar stays with its owner, and deps.seed puts that word in the open launcher's field.
---- Nothing is answered when the resolver has no word for the name, so a row with nothing to seed
---- falls through to the ordinary run instead of promising a replacement it cannot make.
-function obj.aliasRowReplacement(deps)
-  deps = deps or {}
-  assert(type(deps.name) == "string", "aliasRowReplacement needs deps.name, the row it answers for")
-  assert(type(deps.queryFor) == "function", "aliasRowReplacement needs deps.queryFor, the canonical word for a name")
-  assert(type(deps.seed) == "function", "aliasRowReplacement needs deps.seed, putting a word in the open field")
-  return function(item)
-    if type(item) ~= "table" or item.owner ~= nil then return nil end
-    if item.kind ~= "special" or item.name ~= deps.name then return nil end
-    local query = deps.queryFor(deps.name)
-    if not query then return nil end
-    return function() deps.seed(query) end
-  end
-end
-
 --- obj.aliasDirectory(deps)
 --- The one scope that lists every other scope, and the last resort fallback for entering one, a
 --- click whose row the accessibility tree could not resolve before the chooser it was in had

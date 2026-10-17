@@ -2182,6 +2182,9 @@ function obj.run(olm, cfg)
   end
 
   local queryScopeModule = modules[plan.identity.queryscope or "queryscope"]
+  -- The alias directory scope's own run, kept for the launcher's special row fallback below, which
+  -- is built after the block that makes the scope.
+  local aliasDirectoryRun = nil
   if queryScopeModule then
     -- Membership from the plan's own set answer, which is the question this host declared
     -- rather than a roster anyone here keeps, and the scope itself from the live registry. A
@@ -2243,7 +2246,10 @@ function obj.run(olm, cfg)
       end
     end
 
-    if aliasScope then scopes[#scopes + 1] = aliasScope end
+    if aliasScope then
+      scopes[#scopes + 1] = aliasScope
+      aliasDirectoryRun = aliasScope.run
+    end
 
     -- Two scopes claiming one typed word, named rather than ranked, and asked here because this
     -- is the first point at which the whole list exists.
@@ -2336,11 +2342,18 @@ function obj.run(olm, cfg)
       log = function(message) log.e("Olm compose, " .. message) end,
     })
 
-    local aliasRowReplacement = queryScopeModule and registrarLib.aliasRowReplacement({
-      name = "aliasDirectory",
-      queryFor = function(name) return queryScopeModule:queryFor(name) end,
-      seed = function(query) launcherModule:seedQuery(query) end,
-    }) or nil
+    -- The launcher's own Aliases row is root policy with no tool behind it, a catalog row of kind
+    -- special with no owner, so the registry has no presentation for it. This is the one place the
+    -- name and the row's shape are written. It answers the word the directory scope answers to
+    -- when the item is that row, and nil for every other, so rowIntercept can replace the open
+    -- list with it and the special fallback can name the same row.
+    local aliasRowName = "aliasDirectory"
+    local function aliasRowQuery(item)
+      if not queryScopeModule then return nil end
+      if type(item) ~= "table" or item.owner ~= nil then return nil end
+      if item.kind ~= "special" or item.name ~= aliasRowName then return nil end
+      return queryScopeModule:queryFor(aliasRowName)
+    end
 
     -- THE SEAM. Stage is one of the five host modules this file may name. It is fully
     -- configured already, in the ordinary stage two pass above. stageModule itself was
@@ -2435,13 +2448,10 @@ function obj.run(olm, cfg)
           -- registered tool of the same name nor for a scope, so only its owner's runner can
           -- act on it.
           if item.owner ~= nil then return nil end
-          -- The Aliases row is root policy with no tool behind it, so the registry never has a
-          -- presentation for it. It is answered here, by the same seeding its fallback uses, so
-          -- choosing it replaces the open list instead of closing the launcher first.
-          if aliasRowReplacement then
-            local seed = aliasRowReplacement(item)
-            if seed then return seed end
-          end
+          -- The Aliases row never has a presentation in the registry, so it is answered here,
+          -- which makes choosing it replace the open list instead of closing the launcher first.
+          local aliasQuery = aliasRowQuery(item)
+          if aliasQuery then return function() launcherModule:seedQuery(aliasQuery) end end
           if item.kind == "special" and wiredRegistry.presentationFor then
             local presentation = wiredRegistry.presentationFor(item.name)
             if presentation then
@@ -2462,10 +2472,11 @@ function obj.run(olm, cfg)
         special = {
           lock = function() hs.caffeinate.lockScreen() end,
           sleep = function() hs.caffeinate.systemSleep() end,
-          aliasDirectory = function()
-            if not queryScopeModule then return end
-            local query = queryScopeModule:queryFor("aliasDirectory")
-            if query then launcherModule:seedQuery(query) end
+          -- Reached only when the stage has already closed, so seeding the field would write to
+          -- a hidden one that show then clears. The directory scope's own run opens the launcher
+          -- with the word typed, which is what an unresolved click needs.
+          [aliasRowName] = function()
+            if aliasDirectoryRun then aliasDirectoryRun(aliasRowName) end
           end,
         },
       },

@@ -205,6 +205,13 @@ end
 report(onlyOriginal, "with the real names")
 report(onlyRenamed, "with the scrambled names")
 
+-- A wiring line the composition run reported as a failure, see the wiring check at the end of
+-- test/drygate-composerun.lua. Every run prints the same ones, so the comparison above cannot see
+-- them and they are read from the first run here.
+for line in originalText:gmatch("wiring FAIL [^\n]*") do
+  print("dry gate refused the wiring check, " .. line:gsub("^wiring FAIL ", ""))
+end
+
 local total = 0
 for _ in pairs(original) do total = total + 1 end
 local raised = originalText:match("\nraised [^\n]*") or originalText:match("^raised [^\n]*")

@@ -1048,15 +1048,11 @@ Getting that backwards is what the first attempt here did, typing `v ` into the 
 the VPN row was chosen, and being told so is what produced the split. Choosing a tool should
 hand you the tool.
 
-Hosting costs nothing per tool because it reuses the alias as an invisible prefix.
-`Launcher:enterPage(prefix, title)` keeps that prefix and puts it in front of whatever the user
-typed before asking the query sources, so the field holds only the typing and the rows are the
-tool's own. There is no second row mechanism, no second matcher, and no second definition of
-what choosing a row does. A tool is hostable exactly when it is already reachable by a typed
-word. That was the first shape of hosting and nothing calls `enterPage` any more, since a tool row
-now pushes its presentation onto the stage through `rowIntercept`, and `hostedInPlace` no longer
-exists in the composition root. Both are kept described here as history. A name whose alias does
-not resolve falls back to opening the picker on its own. The placeholder names the list, since
+A tool row is answered by `rowIntercept`, which asks the registry for the presentation the tool
+declares and pushes it onto the stage, so the rows change and the tool's own list is shown. A tool
+reachable by a typed word is also reachable through its scope, and a name whose alias does not
+resolve falls back to opening the picker on its own. There is no second row mechanism, no second
+matcher and no second definition of what choosing a row does. The placeholder names the list, since
 the word that reached it is no longer visible. Backspace on an empty field leaves it, which is the
 atom's `back` hook and the same press that steps out of a typed scope, and it is listed in the hint
 panel as a key with no chord, gated on there being a list to leave, see `chord = false` above.
@@ -1565,14 +1561,15 @@ word arrives under the list that is already there and nothing closes. It was a r
 and it worked while looking broken, a list closing and another opening to deliver two characters.
 The Aliases row seeds the field too, with `?` and a space, so opening the directory costs no
 reopen either. It is a catalog row of kind special with no owner and no tool, so the registry has
-no presentation for it, and it is answered by `registrar.aliasRowReplacement` through the same
-`rowIntercept` a directory row takes. Before that it was not intercepted at all, so the launcher
+no presentation for it, and the composition root answers it in `rowIntercept` through the same
+path a directory row takes. Before that it was not intercepted at all, so the launcher
 closed and `special.aliasDirectory` then seeded a field that was already gone. That special
 handler stays as the fallback for a click whose row the accessibility tree could not resolve,
-which arrives after the chooser has already gone.
+which arrives after the chooser has already gone, and it opens the launcher afresh through the
+directory scope's own run with the word typed, since the stage it would seed is closed by then.
 
 This is the one list here whose rows hand over a WORD rather than a list, which is the whole point
-of it, so it is also the one place seeding is right. Every tool row is hosted instead. Both are
+of it, so it is also the one place seeding is right. A tool row pushes the tool's own presentation onto the stage instead. Both are
 under one list becoming another in place, above, along with why confusing them is a defect and not
 a preference.
 

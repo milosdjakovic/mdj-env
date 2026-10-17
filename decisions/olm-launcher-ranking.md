@@ -190,6 +190,11 @@ click whose row could not be resolved. `enterPage` has no caller left. The notes
 Aliases row was hosted were wrong and are corrected in `AGENTS.md`. `test/cases/launcher-aliasrow.lua`
 covers it.
 
+Corrected 2026-10-17 17:51. The fallback described above was still broken. It seeded a field on
+a stage that had already closed, which show then cleared, so an unresolved click opened nothing.
+It was fixed in the review rework logged below, and the helper and the case named here no longer
+exist.
+
 ### 2026-10-17 17:33
 
 Not about ranking either. The emoji picker answers to em as well as e and emoji, since two letters
@@ -218,3 +223,25 @@ while the display trim still runs against the real screen when the row is chosen
 apply the subtitle names the size limit, because it holds on every display while the display
 limit is a guess about which screen is involved. The category option lost its reader and was
 removed. `test/cases/windowsize-row.lua` covers it.
+
+### 2026-10-17 17:51
+
+Not about ranking. An adversarial review of the launcher polish branch found six things and all
+six were fixed. The Aliases fallback in `special.aliasDirectory` seeded a hidden field that show
+then cleared, so it now calls the alias directory scope's own run, which opens the launcher with
+the word typed. The row replacement had been put in `lib/registrar.lua` as
+`aliasRowReplacement`, which made the registrar know the row, so it was deleted and the root holds
+one closure that both `rowIntercept` and the special fallback use, with the name and the row shape
+written once. Its proof moved from a unit case that rebuilt the wiring by hand into the dry gate's
+composition run, which asks the real configured launcher and reports `wiring FAIL` lines that the
+rename proof turns into findings. A case that loaded a copy of the launcher could not have caught
+the root wiring it was meant to guard. The Window Size title could name an app the resize would
+not reach, so it names the covered app only when that app has a focused window and otherwise reads
+`Resize window`, and the case now runs the window manager's real `exactSizePlan` over a fake screen.
+VPN let No results replace a better status, since the CLI not found row was neither pinned nor
+from the query. It is pinned, and a cold location cache now shows the pinned Reading the locations
+row at the top level as the scope already did. Other lists on the shared matcher with status rows
+that a typed query would drop were pinned the same way, audio, processes, text case and wifi.
+`enterPage` and its prose, and the stale `hostedInPlace` and every tool row is hosted claims, were
+removed or corrected. `test/cases/chooser-emptystate.lua` now covers the provider's `_rankedQuery`
+across show, setQuery and refresh, including a field that runs ahead of the rows.

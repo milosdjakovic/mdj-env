@@ -487,6 +487,56 @@ end
 recording = false
 debug.sethook()
 
+-- The wiring check. A snapshot only says two runs agree, so a decision the root makes about one
+-- row is asked here directly, through the launcher the root configured, and answered as a line
+-- beginning wiring pass or wiring FAIL. test/drygate-rename.lua turns any FAIL line into a
+-- finding. It runs after the root has finished and records nothing else.
+--
+-- The launcher's own Aliases row has no tool behind it, so choosing it must replace the open
+-- list with the directory word rather than close the launcher, and the special fallback that a
+-- click the accessibility tree could not resolve reaches must open the launcher afresh with that
+-- word, since the stage it would seed has already closed.
+do
+  local function wiring(description, ok) add((ok and "wiring pass " or "wiring FAIL ") .. description) end
+  local ran, failure = pcall(function()
+    local record = olm and olm._composed
+    local identity = record and record.plan and record.plan.identity or {}
+    local launcher = record and record.modules and record.modules[identity.launcher or "launcher"]
+    if not (launcher and launcher._actions) then
+      wiring("the launcher was composed with its actions", false)
+      return
+    end
+    local row = { kind = "special", name = "aliasDirectory" }
+    local replace = launcher:_replacementFor(row)
+    wiring("intercept answers a callable for the Aliases catalog row, so the list stays open",
+      type(replace) == "function")
+
+    local seeded, shown
+    launcher.seedQuery = function(_, text) seeded = text return true end
+    launcher.show = function(_, text) shown = text end
+
+    if type(replace) == "function" then
+      replace()
+      wiring("choosing the Aliases row seeds the open field with the directory word",
+        type(seeded) == "string" and seeded:match("^%?") ~= nil)
+    end
+    wiring("a row another plugin owns is never taken for the Aliases row",
+      launcher:_replacementFor({ kind = "special", name = "aliasDirectory", owner = "somebody" }) == nil)
+    wiring("another special row is left to run", launcher:_replacementFor({ kind = "special", name = "lock" }) == nil)
+
+    local word = seeded
+    seeded, shown = nil, nil
+    local special = launcher._actions.special or {}
+    wiring("the special fallback for the Aliases row exists", type(special.aliasDirectory) == "function")
+    if type(special.aliasDirectory) == "function" then
+      special.aliasDirectory()
+      wiring("the fallback opens the launcher with the same word typed", shown ~= nil and shown == word)
+      wiring("the fallback never seeds a field the closed stage no longer shows", seeded == nil)
+    end
+  end)
+  if not ran then add("wiring FAIL the wiring check raised, " .. tostring(failure)) end
+end
+
 ----------------------------------------------------------------------------------------
 -- The snapshot.
 ----------------------------------------------------------------------------------------

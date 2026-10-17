@@ -275,12 +275,12 @@ both keys. The main `AGENTS.md` has why answering takes a key, and a click, away
 
 ## Two ways to replace this list, and they are not the same thing
 
-`seedQuery(text)` puts a word in the field. `enterPage(prefix, title)` hosts somebody else's list.
-Both leave the chooser exactly where it was and both are reached through the one routed question,
-but they answer different rows and confusing them was a reported defect rather than a nuance. A
-row that names a WORD should seed, which is an alias directory row and nothing else, since being
-handed the word is the entire purpose of that list. A row that names a LIST should host, so the
-rows change and nothing else does. Typing `v ` into the field when the VPN row was chosen was the
+`seedQuery(text)` puts a word in the field, and a tool's presentation pushed onto the stage shows
+that tool's own list. Both leave the chooser exactly where it was and both are reached through
+the one routed question, but they answer different rows and confusing them was a reported defect
+rather than a nuance. A row that names a WORD should seed, which is an alias directory row and
+nothing else, since being handed the word is the entire purpose of that list. A row that names a
+LIST should show that list, so the rows change and nothing else does. Typing `v ` into the field when the VPN row was chosen was the
 first attempt at this and it was wrong, because choosing a tool should hand you the tool.
 
 A PAGE IS A PREFIX THIS SPOON NEVER SHOWS. `_commandRows` puts the held prefix in front of
