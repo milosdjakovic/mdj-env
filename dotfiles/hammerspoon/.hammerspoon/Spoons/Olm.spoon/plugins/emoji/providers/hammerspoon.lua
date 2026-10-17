@@ -15,11 +15,12 @@
 --- wiring, and loses only the Chooser.new call and the navigation adapter that gave it
 --- something to answer for.
 ---
---- The match is keyword based, not exact name. Each entry carries a lowercased haystack
---- folding its name, its shortcode aliases, its tags, and its category, so a word like
---- happy or money or a group word like food or animal finds the right glyphs without the
---- precise Unicode name. The decision trail, the data source, and the tradeoffs live in
---- AGENTS.md beside this file.
+--- The match belongs to the shared search since phase three of docs/PLAN-UNIFIED-SEARCH.md.
+--- Each row declares its name as the title, its shortcodes as the subtitle, and the words the
+--- generator folded in after the name, aliases, tags and category, as keywords, so a word like
+--- happy or money or a group word like food or animal still finds the right glyphs without the
+--- precise Unicode name. An emoji is tier zero and a symbol tier one. The decision trail, the
+--- data source, and the tradeoffs live in AGENTS.md beside this file.
 ---
 --- Rows are data, never functions. Each row carries only the glyph string as its item,
 --- which the Chooser serialises and hands back to onSelect, and the injected onInsert
@@ -39,6 +40,7 @@ obj._onInsert = nil          -- function(glyph), the effect of a chosen row
 obj._data = nil              -- the vendored emoji list, loaded once when this backend wins
 obj._byGlyph = nil           -- glyph string -> entry, maps a remembered pick back to its row
 obj._recency = nil           -- persisted pick memory, { n = tick, g = { [glyph] = { v, k } } }
+obj._rowOf = nil             -- glyph string -> its row, built once per load, see _rowFor
 
 -- Load the vendored dataset by absolute path, the loadfile pattern the spoons use, since a spoon
 -- directory is not on package.path. The dataset is a Lua table for one measured reason,
@@ -51,18 +53,10 @@ obj._recency = nil           -- persisted pick memory, { n = tick, g = { [glyph]
 local providerPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local dataPath = providerPath .. "../data.lua"
 
--- The most rows a query returns. The match runs over the whole set, so any glyph is
--- still findable by typing, this only bounds the visible list. It matters more than
--- cosmetics, since a first view renders one icon per visible row on the main thread,
--- so this is the ceiling on that per keystroke render cost, kept modest so even a
--- broad one letter query stays responsive over the several thousand row set. It also
--- bounds how many distinct icons a view can render, which paces the icon memory the engine
--- holds, since a narrow query renders far fewer than a broad one.
-local MAX_RESULTS = 100
-
 -- How many of your most-used glyphs lead the empty browse view, ranked by the decaying
 -- score below. Kept small so the recents sit at the top without pushing the browse list
--- far down, and small enough that rendering their icons is trivial next to MAX_RESULTS.
+-- far down, and small enough that rendering their icons is trivial next to the presentation's
+-- rowLimit.
 local RECENTS_MAX = 12
 
 -- The recency memory is a decaying score, not a raw count, so a stale favorite can be
@@ -79,35 +73,6 @@ local PRUNE_FLOOR = 0.05
 -- The hs.settings key holding the pick memory, persisted like the launcher's timeline so a
 -- favorite survives a reload and a reboot.
 local RECENCY_KEY = "emojiRecency"
-
--- Split a query into whitespace tokens. A multi word query narrows with AND, so
--- every token must be found for an entry to match, which is how "smiling cat"
--- reaches the cat faces rather than every smile.
-local function tokenize(q)
-  local t = {}
-  for w in q:gmatch("%S+") do t[#t + 1] = w end
-  return t
-end
-
--- Score a matched entry so the closest name floats up within its kind. An exact alias
--- or an exact name is the strongest signal, then a name that starts with the whole
--- query, then the count of tokens found anywhere in the haystack. This score never
--- crosses the emoji and symbol tiers, the sort puts every matching emoji above every
--- matching symbol first and only then applies this score, so score orders like against
--- like. Ties keep the upstream order, which is grouped and roughly common first.
-local function score(entry, q, toks)
-  local s = 0
-  local name = (entry.n or ""):lower()
-  for alias in (entry.a or ""):gmatch("%S+") do
-    if alias == q then s = s + 100 break end
-  end
-  if name == q then s = s + 80 end
-  if name:sub(1, #q) == q then s = s + 40 end
-  for _, tok in ipairs(toks) do
-    if entry.k:find(tok, 1, true) then s = s + 5 end
-  end
-  return s
-end
 
 --- Emoji.hammerspoon:isAvailable()
 --- Method
@@ -143,6 +108,7 @@ function obj:_load()
   end
   self._data = self._data or {}
   self._byGlyph = {}
+  self._rowOf = {}
   for _, e in ipairs(self._data) do self._byGlyph[e.e] = e end
   local r = hs.settings.get(RECENCY_KEY)
   if type(r) ~= "table" or type(r.g) ~= "table" then r = { n = 0, g = {} } end
@@ -201,75 +167,96 @@ function obj:_promote(glyph)
   hs.settings.set(RECENCY_KEY, mem)
 end
 
--- One entry to a chooser row. The glyph is the row icon, the name is the title, the
--- aliases ride in the subtitle as the shortcodes you might type, and the item is just
--- the glyph string, all the dispatcher needs. The icon is a table spec of the emoji and never
--- a key, since the glyph is the content being picked, so changing the icon set never changes
--- which emoji a row shows. It has no sf entry by design, since an SF Symbol cannot stand for the
--- emoji being picked, and it is not in a manifest so the dry gate's coverage report never counts it.
--- Olm draws it.
-function obj:_rowFor(entry)
-  return { title = entry.n, subTitle = entry.a, icon = { emoji = entry.e }, item = entry.e }
+-- The words the generator folded into k after the name, aliases, tags and category for an
+-- emoji, and the category word and hand added synonyms for a symbol, as comma separated
+-- phrases. data.lua keeps them only inside k, lowered, with the name in front, so they are
+-- read back from there rather than regenerated. Each word is its own phrase, except that an
+-- ampersand joins its neighbours into one, so a category like smileys & emotion stays one
+-- phrase and its words can be typed run together. A word repeated is kept once.
+local function keywordsOf(entry)
+  local k = entry.k or ""
+  local name = (entry.n or ""):lower() .. " "
+  if k:sub(1, #name) == name then k = k:sub(#name + 1) end
+  local phrases, join = {}, false
+  for w in k:gmatch("%S+") do
+    if w == "&" and #phrases > 0 then
+      phrases[#phrases] = phrases[#phrases] .. " &"
+      join = true
+    elseif join then
+      phrases[#phrases] = phrases[#phrases] .. " " .. w
+      join = false
+    else
+      phrases[#phrases + 1] = w
+    end
+  end
+  local out, seen = {}, {}
+  for _, ph in ipairs(phrases) do
+    if not seen[ph] then
+      seen[ph] = true
+      out[#out + 1] = ph
+    end
+  end
+  return table.concat(out, ", ")
 end
 
---- Emoji.hammerspoon:_rows(query)
+-- One entry to a chooser row, built once per load and kept, since the supplier hands every
+-- row to the shared search on every keystroke and the rows never change between loads. The
+-- glyph is the row icon, the name is the title, the aliases ride in the subtitle as the
+-- shortcodes you might type, the rest of the folded words are keywords, and the item is just
+-- the glyph string, all the dispatcher needs. tier puts every emoji above every symbol that
+-- matches, the generator's own t tag deciding the kind, so a broad word like arrow lists the
+-- emoji arrows before the glyph arrows rather than weaving them together. The icon is a table
+-- spec of the emoji and never a key, since the glyph is the content being picked, so changing
+-- the icon set never changes which emoji a row shows. It has no sf entry by design, since an
+-- SF Symbol cannot stand for the emoji being picked, and it is not in a manifest so the dry
+-- gate's coverage report never counts it. Olm draws it.
+function obj:_rowFor(entry)
+  local row = self._rowOf[entry.e]
+  if row then return row end
+  row = {
+    title = entry.n,
+    subTitle = entry.a,
+    keywords = keywordsOf(entry),
+    tier = entry.t == "e" and 0 or 1,
+    icon = { emoji = entry.e },
+    item = entry.e,
+  }
+  self._rowOf[entry.e] = row
+  return row
+end
+
+--- Emoji.hammerspoon:_rows()
 --- Method
---- The row supplier. An empty field leads with your most used glyphs, highest decaying
---- score first with the most recent pick breaking a tie, then fills the rest of the leading
---- slice in upstream order with those recents removed so none appears twice, which is emoji
---- first since they lead the dataset. A query keeps every entry whose
---- haystack contains all of the query tokens, then orders them with emoji ranked above
---- symbols and by relevance within each. Either way the list is capped at MAX_RESULTS, which
---- bounds the icons rendered per open, the match itself still runs over the whole set
---- so any glyph stays findable by typing. The haystack is already lowercased by the
---- generator, so only the query is folded here.
-function obj:_rows(query)
-  local q = (query or ""):gsub("^%s+", ""):gsub("%s+$", ""):lower()
+--- The row supplier, every entry in the resting order, for the shared search to filter and
+--- rank. It reads no query. Your most used glyphs lead, highest decaying score first with the
+--- most recent pick breaking a tie, then every other entry in upstream order with those
+--- recents removed so none appears twice, which is emoji first since they lead the dataset.
+--- An empty field shows that order, and the presentation's rowLimit cuts it after ranking,
+--- so a typed query ranks the whole set and the limit keeps its best rows. The recents only
+--- shape the empty view, since under a typed query the search orders by how well a row
+--- matched and the index decides only between rows it calls equal.
+function obj:_rows()
   local out = {}
-  if q == "" then
-    local seen = {}
-    for _, glyph in ipairs(self:_recentGlyphs()) do
-      out[#out + 1] = self:_rowFor(self._byGlyph[glyph])
-      seen[glyph] = true
-    end
-    for i = 1, #self._data do
-      if #out >= MAX_RESULTS then break end
-      local e = self._data[i]
-      if not seen[e.e] then out[#out + 1] = self:_rowFor(e) end
-    end
-    return out
+  local seen = {}
+  for _, glyph in ipairs(self:_recentGlyphs()) do
+    out[#out + 1] = self:_rowFor(self._byGlyph[glyph])
+    seen[glyph] = true
   end
-  local toks = tokenize(q)
-  local matched = {}
-  for i, e in ipairs(self._data) do
-    local ok = true
-    for _, tok in ipairs(toks) do
-      if not e.k:find(tok, 1, true) then ok = false break end
-    end
-    if ok then matched[#matched + 1] = { e = e, i = i, s = score(e, q, toks) } end
+  for i = 1, #self._data do
+    local e = self._data[i]
+    if not seen[e.e] then out[#out + 1] = self:_rowFor(e) end
   end
-  -- Emoji win the top tier, so a query lists every matching emoji before the first
-  -- matching symbol rather than interleaving the two by score. The row's own t tag from
-  -- the generator decides the kind, e for emoji, so the ranking never guesses it. Within
-  -- a tier the text score orders, then upstream order breaks a tie.
-  table.sort(matched, function(x, y)
-    local xEmoji = x.e.t == "e"
-    local yEmoji = y.e.t == "e"
-    if xEmoji ~= yEmoji then return xEmoji end
-    if x.s ~= y.s then return x.s > y.s end
-    return x.i < y.i
-  end)
-  for i = 1, math.min(MAX_RESULTS, #matched) do out[#out + 1] = self:_rowFor(matched[i].e) end
   return out
 end
 
 --- Emoji.hammerspoon:rows(query) -> rows
 --- Method
---- The rows for a query, for a surface other than our own chooser to present. Public because
+--- Every row, for a surface other than our own chooser to present and rank. Public because
 --- this backend's list is worth showing elsewhere, unlike a system picker's, which is why the
---- facade asks whether its chosen backend answers this at all.
-function obj:rows(query)
-  return self:_rows(query)
+--- facade asks whether its chosen backend answers this at all. The query is accepted and
+--- ignored, since filtering belongs to the shared search.
+function obj:rows()
+  return self:_rows()
 end
 
 --- Emoji.hammerspoon:insert(glyph)

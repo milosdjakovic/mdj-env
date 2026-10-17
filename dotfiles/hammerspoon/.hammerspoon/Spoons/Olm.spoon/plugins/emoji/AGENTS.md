@@ -162,24 +162,39 @@ the redundant symbol copy is dropped.
 
 ## The match
 
-An empty field lists a leading slice in upstream order, which is emoji first since
-they lead the dataset, grouped and roughly common first, so it browses. A query is
-split into whitespace tokens and an entry is kept only when every token appears in its
-haystack, so two words narrow with AND rather than widen. Kept entries are then ranked
-in two tiers. The `t` tag is the top tier, every matching emoji sorts above the first
-matching symbol, so a broad word like arrow or star lists the emoji arrows and then
-the glyph arrows below rather than weaving the two together. Within a tier a text
-score orders, an exact alias or exact name first, then a name that starts with the
-query, then the count of tokens found, with ties keeping the upstream order. The scan
-runs over the whole set on each keystroke, a few milliseconds over several thousand
-rows, so no index is needed, unlike a tool whose scan of its source is the expensive part.
+Since phase three of the unified search on 2026-10-17 this list ranks nothing itself. Milos
+decided search never differs per list, so the token scan, the text score, the two tier sort and
+the supplier's cap were deleted, and the shared engine, `lib/chooser/match.lua` and
+`lib/chooser/rank.lua`, matches and orders the rows from what each one declares.
 
-The visible list is capped at a small maximum, `MAX_RESULTS`, both for an empty field
-and a query. The cap bounds only the display, the match still runs over the whole set,
-so any glyph stays findable by typing, and nobody scrolls past a hundred rows to find
-a glyph rather than typing a better word. The cap also bounds how many icons a single
-open has to render, which is the reason it matters here rather than being cosmetic,
-and is why it is kept modest even though the scan itself could show far more.
+A row's title is the glyph's name, its subtitle the shortcode aliases as before, and its
+keywords the words the generator folded into `k` after the name, aliases, tags and category for
+an emoji, and the category word and hand added synonyms for a symbol. `data.lua` keeps those
+words only inside `k`, lowered, with the name in front, and tags and category are not stored
+apart, so nothing was regenerated. The row build reads them back out of `k` with the name taken
+off, each word its own comma separated phrase except that an ampersand joins its neighbours, so
+a category like smileys & emotion stays one phrase. A keyword matches only at the start of one of
+its words and ranks below any match in the name, so happy, money, food and animal still find
+their glyphs, and a name match leads. The rows are built once per load and kept, since the
+supplier hands all of them over on every keystroke.
+
+An emoji is tier zero and a symbol tier one, the generator's `t` tag deciding, so every matching
+emoji sorts above the first matching symbol and a broad word like arrow or star lists the emoji
+arrows and then the glyph arrows below rather than weaving the two together. Within a tier the
+shared search orders by how well the row matched, and a tie keeps the supplier's order, which is
+the upstream order, grouped and roughly common first.
+
+The difference from the old score is the one Milos accepted with the rule. An exact alias no
+longer jumps to the top, an alias being a keyword and below any name match, and a token found
+inside a word no longer counts, since a keyword matches at a word start only.
+
+The visible list is cut to 100 rows by `rowLimit` on the presentation and on the scope, after
+ranking, so the best rows of a broad query are the ones kept and any glyph stays findable by
+typing. It is not cosmetic. The default provider styles every row it is handed at about 17
+microseconds an `hs.styledtext`, so the whole set of 5648 would cost about 190 milliseconds a
+keystroke, and the limit also bounds how many icons one view renders. The cut used to sit in the
+supplier, where it decided which rows could be found before any ranking ran, which
+`decisions/olm-unified-search.md` keeps as a rejection.
 
 ## Icons
 
@@ -207,8 +222,8 @@ reference to a batch of four hundred and collecting three times returns nothing 
 which is what closes the question. So a bounded cache that cleared old icons would be
 worse, not better, since a re render only allocates fresh memory that also never comes
 back, and clearing then redrawing grows the total without bound. Keeping each glyph
-exactly once is therefore the leanest option, and `MAX_RESULTS` is what paces the count,
-since it bounds how many distinct glyphs a session can ever reach.
+exactly once is therefore the leanest option, and the presentation's `rowLimit` is what paces
+the count, since it bounds how many distinct glyphs one view can show.
 
 What that costs was measured wrong once and the corrected figures matter, because the
 wrong ones are what chose `ICON_SIZE`. Resident memory over batches of four hundred
@@ -286,13 +301,13 @@ that opens it is itself the move down key inside so it cannot double as the clos
 an open key that is not also a navigation key can. Escape closes natively. Like the other native choosers it docks the deferred
 shortcut panel through the three chooser callbacks.
 
-It opts out of the shared fuzzy matcher with `matcher = false`, the same escape hatch
-the structured-query tools take. The shared matcher filters and ranks
-over a row's visible title and subtitle, but this tool matches over the hidden haystack
-in `k`, the folded name, aliases, tags, and category, so a glyph found only by a tag
-would be dropped if the atom filtered again. `_rows` also caps the visible rows to bound
-the icon render, which the atom styling every survivor would undo. So `_rows` owns the
-query end to end and the atom does no second pass.
+It inherits the shared search, declaring no matcher, since phase three of the unified search on
+2026-10-17. Until then it opted out with `matcher = false`, because the shared matcher read only
+a row's visible title and subtitle while this tool matched over the hidden haystack in `k`, and
+because `_rows` capped the visible rows to bound the icon render, which the atom styling every
+survivor would have undone. Both reasons are answered by fields now. The hidden words are the
+row's keywords, and the cap is `rowLimit`, which cuts after ranking. `_rows` hands over every row
+and reads no query.
 
 ## Recents, the most used first
 
@@ -319,14 +334,14 @@ only when the recents are read, so a pick is one multiply and one add and never 
 rest of the table. An entry whose decayed score falls below `PRUNE_FLOOR` is dropped on the
 next pick, so the memory stays tiny. The empty view leads with the top glyphs by decayed
 score, the most recent pick breaking a tie, capped at a small `RECENTS_MAX`, and the rest of
-the leading slice follows in upstream order with those recents removed so none appears twice,
-still bounded by `MAX_RESULTS`. A typed query is unchanged, the name and keyword ranking
-stays in charge, so search stays predictable and the memory only shapes the browse view, the
-same split between an empty timeline view and a typed rerank. A remembered
+the list follows in upstream order with those recents removed so none appears twice, the
+presentation's `rowLimit` cutting what an empty field shows to the first hundred. A typed query
+is ordered by the shared search, so search stays predictable and the memory only shapes the
+browse view, the same split between an empty timeline view and a typed rerank. A remembered
 glyph that a regenerated `data.lua` no longer carries is skipped when the recents are built,
 so the list is always renderable and the memory never has to be migrated. The recents glyphs
-are warmed into the icon cache alongside the leading slice, since a favorite may sit outside
-that slice, and there are at most `RECENTS_MAX` of them so the extra render is trivial.
+are warmed into the icon cache alongside the first hundred rows, since a favorite may sit
+outside them, and there are at most `RECENTS_MAX` of them so the extra render is trivial.
 
 ## What it does not do
 
