@@ -500,89 +500,89 @@ scripts one browser and raises one prompt, and the rest are switched on delibera
 added to the root later also starts off, because the default set and not mere presence is what
 turns one on.
 
-## Why the tab list still opts out of the shared matcher, and where Settings sits
+## The tab list is on the shared search, and where Settings sits
 
-The tab list still scores its tab rows itself with the matcher the root injects, so the
-presentation keeps matcher false until phase three of the unified search moves the tabs onto
-the engine. The scoring is by field and with a recency bonus, which the engine does not do
-yet. The settings level does not opt out. It is a list of items like any other, so it filters
-on the shared matcher, Back is pinned so a query never drops it, Back is its first row per the
-chooser menu convention and trails the matching browsers under a typed query, and every other
-row filters on its browser's name.
+Since phase three of the unified search on 2026-10-17 every level of this tool searches through
+the shared engine, `lib/chooser/match.lua` and `lib/chooser/rank.lua`, and nothing here matches
+or ranks a query. Milos decided search never differs per list, so the tab list deleted its own
+scoring, `matchedTabs`, `searchFields`, `bestFieldScore`, `namesBrowser` and `recencyBonus` with
+its two constants, and the presentation and the scope dropped `matcher = false`. The supplier
+hands every tab over in the resting order and each row declares what it answers to.
 
-The Settings row is scored like any row since phase two on 2026-10-17. On an empty query it
-trails the tabs, where it was asked to be. Once something is typed it is one more candidate in
-`matchedTabs`, scored through the same injected matcher against its own title, with no recency
-bonus, merged with the tabs by score and dropped when it does not match. So typing settings
-brings it back above a hundred tabs, which the first build got wrong when the row sat a hundred
-keystrokes away with the chooser's navigation clamping at the ends. A word that is merely like
-a tab name no longer needs a rule of its own, a tab that matches better simply outranks it, and
-the tie goes to the tab. The keyword list `SETTINGS_WORDS` and the `settingsPlace` rule that
-led on a whole word and trailed on a prefix are deleted, since the matcher's own answer for the
-title replaced both. `decisions/olm-unified-search.md` keeps the rejection.
+A tab row declares its title as `filterText`, since its subtitle is a status like line, browser,
+Arc's group and host joined, and searching it would let a query match the word open in a group.
+Its host and its full address are `names`, matched at the title's own levels and never shown, the
+best of the three taken per word and never a sum. Its browser name is a `keyword`. The rows that
+explain an empty list are pinned, so a typed query keeps them, and with no tabs the Settings row
+after them is pinned too, since they point at it.
+
+The settings level was already on the shared search. Back is pinned so a query never drops it,
+leads on an empty query per the chooser menu convention and trails the matching browsers under a
+typed one, and every other row filters on its browser's name.
+
+The Settings row is an ordinary row since phase two. On an empty query it trails the tabs, where
+it was asked to be. Once something is typed it is scored against its own title, its subtitle
+being a count, with no recency bonus, and dropped when it does not match, so typing settings
+brings it back above a hundred tabs and a tie leaves it after a tab. The keyword list
+`SETTINGS_WORDS` and the `settingsPlace` rule were deleted in phase two, and
+`decisions/olm-unified-search.md` keeps that rejection.
 
 Menu steps are in place, using the same Return interceptor `DisplayProfiles` uses, so stepping
 into settings and back never closes and re-shows. Opening a tab is the one terminal action.
 
-## What a query is scored against, which is three fields and never one string
+## What a query is matched against, title, host and address, never one string
 
-The first build glued the title, the address and the browser name into one searchable string and
-handed that to the matcher. That is wrong in a way worth recording, because it looks harmless and
-reads as generosity. The shared matcher is a subsequence scorer, so one string lets a query be
-satisfied by taking a letter from the title, a letter from the address and a letter from whatever
-follows, which is a match no reader would call one.
+History first, since the reasons still bind. The first build glued the title, the address and the
+browser name into one searchable string and handed that to the matcher. That was wrong in a way
+worth recording, because it looks harmless and reads as generosity. The matcher was then a
+subsequence scorer, so one string let a query be satisfied by taking a letter from the title, a
+letter from the address and a letter from whatever followed, which is a match no reader would call
+one. The browser name at the end was the worst of it, measured rather than reasoned about. A
+trailing gap cost almost nothing, so `far` read as a contiguous run inside `Safari` and lifted
+every Safari tab in the list, thirty four rows on this machine, not one of which contained the
+word. Scoring the fields apart cut the same query to twenty five rows, all real hits. Until
+2026-10-17 this file scored the title, the host and the full address on its own, kept the best,
+and admitted the browser name as a fourth field only behind a plain prefix test of two letters or
+more, since admitting it at a fixed low score let a Safari page that fuzzily resembled `chrome`
+sit above sixty six actual Chrome tabs.
 
-The browser name at the end was the worst of it, and it was measured rather than reasoned about.
-A trailing gap costs almost nothing in that matcher, so `far` reads as a contiguous run inside
-`Safari` and lifted every Safari tab in the list, thirty four rows on this machine, not one of
-which contained the word. Scoring the fields apart cut the same query to twenty five rows and
-every one of them was a real hit.
+What is true now. The shared search never joins fields and has no scattered match, so the reason
+for scoring by hand is gone and the same separation is declared instead. The title is the
+primary, the host and the address are names, and a query word takes its best level across the
+three and never spans two, so a tab on `github.com` answers to `git` whatever its page is called,
+and `github pull` finds a page titled Pull request on it.
 
-So the title, the host, and the full address are each scored on their own and the best of them
-wins. The host is scored apart from the address it sits inside, because against the host alone a
-query lands at the start of a short string and earns what it is due, while buried in a long
-address the same letters read as a weaker match, and a tab on `github.com` should answer to `git`
-whatever its page is called.
+The browser name is a keyword rather than a gated name, because a row is built before the query is
+known and the gate read the query. A keyword matches only at the start of one of its words, so
+`far` finds no Safari tab, which is what the gate was for, and it ranks below every name match, so
+`safari` gathers the Safari tabs and a page genuinely named after a browser still outranks them,
+which is what the gate allowed. The one difference is the gate's two letter minimum. A single `s`
+now keeps the Safari tabs as well as every tab with a word starting with s, the same as one letter
+does in every list, since search no longer differs per list.
 
-The browser name is still a field, gated behind a plain prefix test rather than scored freely.
-The gate is the fix, not the removal, and the difference showed up as a regression when the name
-was merely admitted at a fixed low score instead, which let a Safari page that fuzzily resembled
-`chrome` sit above sixty six actual Chrome tabs. Once the gate has passed, the name goes through
-the same matcher as everything else, so typing a browser gathers its tabs and a page genuinely
-named after that browser can still outrank them. A fuzzy match against a short fixed
-name fires on queries that never meant it, which is why the gate stays.
+## Recency orders equal matches, and the unit it is measured in is the point
 
-A row therefore carries no `filterText`. That field is how a row tells the atom what to search,
-and the atom is stood down here and in the launcher scope alike, so a row carrying one would be
-stating a searchable text nothing reads, which is the kind of second source of truth that drifts.
+Recency once decided the whole list until the moment you typed and then stopped counting. Later,
+until 2026-10-17, a bonus of up to three points over the ten most recent tabs was added to the
+matcher's score, set against that matcher's scale so it reordered close scores and never passed a
+clearly better one. Milos decided on 2026-10-17 that recency only orders matches of the same
+level, so it is now the row's `bonus`, which the engine reads only between rows it calls equally
+good, the same tier, level sum and phrase bonus, and before where a word landed. It can no longer
+lift a worse match at all, and no weight has to be tuned against a scale.
 
-## Recency reorders a typed query, and the unit it is measured in is the point
+The bonus is the tab's place among the tabs this tool has opened that are in the listing, scaled
+into zero to one, the most recent at one and the least recent at one over their count. A tab this
+tool never opened earns nothing and takes no position, rather than being treated as infinitely
+old, the same honesty the resting order keeps, which is why the surface asks for a rank that may be
+nil rather than for a number.
 
-Before this, recency decided the whole list until the moment you typed, and then stopped counting
-entirely, surviving only as a tie break between two scores that happened to be exactly equal.
-Typing one letter threw away the ordering the tool is built around. So a bonus scaled by recency
-is now added to the score of every tab that matched.
-
-It reorders and never overturns, which is the rule `FileSearch` already set for its frecency and
-is the only rule that keeps this honest. The weight is set against the matcher's own scale. A
-single better placed character is worth six points or more there, while two tabs matching the same
-shape at different depths in their text differ by fractions of a point, so a bonus of three
-separates the second pair and cannot touch the first. Measured on a real listing, a tab used
-eighth most recently and scoring 62.00 moved above three rows scoring 62.34 to 62.44, and did not
-pass the row above them at 65.78.
-
-The unit is the part that was got wrong first and is worth knowing. Scaling the bonus by a tab's
-place in the remembered order sounds right and is nearly inert, because that order holds every
-address this tool has ever opened, every step of a redirect chain and everything since closed, so
-its most recent stored keys are mostly tabs that are gone. The bonus is scaled by position among
-the tabs actually being listed instead, which the listing already supplies since it arrives in
-order, and then the tenth position means the tenth most recently opened tab you still have open. That count is taken over the whole listing rather than
-over the tabs that matched, because a tab's recency is a fact about the tab and must not change
-with what was typed.
-
-A tab this tool has never opened earns nothing and takes no position, rather than being treated
-as infinitely old. That is the same honesty the resting order keeps, and it is why the surface asks
-for a rank that may be nil rather than for a number.
+The unit is the part that was got wrong first and is worth knowing. Scaling by a tab's place in
+the remembered order sounds right and is nearly inert, because that order holds every address
+this tool has ever opened, every step of a redirect chain and everything since closed, so its most
+recent stored keys are mostly tabs that are gone. The place is counted among the tabs actually
+being listed instead, which the listing already supplies since it arrives in order. That count is
+taken over the whole listing rather than over the tabs that matched, because a tab's recency is a
+fact about the tab and must not change with what was typed.
 
 ## Why the list used to rearrange itself a moment after it opened
 
@@ -644,10 +644,12 @@ the settings level deliberately does not come along, since it is a step into a s
 scope shows one. So the guidance rows take the phrase naming where the browser switches are,
 rather than saying "in settings below" where there is no row below.
 
-The ranking is shared rather than copied. `matchedTabs` was pulled out of the frame supplier and
-both callers go through it, so a scoped list and this chooser cannot disagree about which tabs a
-query matches or in what order. What differs between them is only which extra rows get appended,
-which is exactly the part that is per surface.
+The ranking is shared rather than copied. Both callers hand the same tab rows to the shared
+search, this chooser through its presentation and the scope through the query scope, so a scoped
+list and this chooser cannot disagree about which tabs a query matches or in what order. What
+differs between them is only which extra rows get appended, which is exactly the part that is per
+surface. `tabRows` ignores a query since 2026-10-17, so the integration harness's `rows` command,
+which reads it, now sees the resting order rather than a ranked list.
 
 `prepare` is the one listing path and `reload` is now a call to it. A second ask while one is in
 flight joins that flight and every waiter is called when it lands, so two surfaces asking at once

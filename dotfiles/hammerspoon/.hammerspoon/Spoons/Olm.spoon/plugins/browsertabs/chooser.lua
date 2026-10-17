@@ -24,8 +24,9 @@
 ---
 --- Settings is the only row that is not a tab. On an empty query it is the last row, outside the
 --- recency order. Last does not make it reachable though, since a hundred tabs put it a hundred
---- keystrokes away, so once something is typed it is scored like any tab against its own title,
---- with no recency, and typing settings brings it back while an unrelated word drops it.
+--- keystrokes away, so once something is typed the shared search scores it like any tab against
+--- its own title, with no recency, and typing settings brings it back while an unrelated word
+--- drops it.
 ---
 --- Settings has no level beneath it. Each browser is one row, and choosing it switches that
 --- browser on or off where it stands. A permission row sits directly under a switched on browser,
@@ -136,19 +137,35 @@ end
 -- One tab. The title is the page, the subtitle names the browser, Arc's sidebar group when it
 -- has one, and the host. The icon is the browser's, so the tab's origin reads visually.
 --
--- There is deliberately no `filterText`. That field is how a row tells the Chooser atom what to
--- search, and the atom does not filter for this tool, it is stood down both here and in the
--- launcher scope, so a row carrying one would be stating a searchable text nothing reads. What
--- a query is actually scored against is decided in `matchedTabs` below, field by field.
-local function tabRow(t)
+-- What a query is matched against is declared here and applied by the shared search, which
+-- phase three of docs/PLAN-UNIFIED-SEARCH.md moved this list onto. The subtitle is a status
+-- like line, browser, group and host joined, so filterText is the title and the subtitle is not
+-- searched, which keeps a query from matching the word open in Arc's group. The host and the
+-- full address are names, matched at the title's own levels, so a tab on github.com answers to
+-- git whatever its page is called and github pull finds a page titled Pull request on it. The
+-- browser name is a keyword, matched only at the start of one of its words and below every
+-- name, so far never finds Safari, safari gathers its tabs, and a page genuinely named after a
+-- browser still outranks them.
+--
+-- bonus is recency, worth something only between tabs the search calls equally good. Its
+-- position is counted among the tabs in this listing, see tabRows below.
+local function tabRow(t, bonus)
   local parts = { t.browser }
   local group = t.group and GROUP_LABEL[t.group]
   if group then parts[#parts + 1] = group end
   local host = hostOf(t.url)
   if host ~= "" then parts[#parts + 1] = host end
+  local title = titleOf(t)
+  local names = {}
+  if host ~= "" then names[#names + 1] = host end
+  if t.url and t.url ~= "" and t.url ~= host then names[#names + 1] = t.url end
   return {
-    title = titleOf(t),
+    title = title,
     subTitle = table.concat(parts, " · "),
+    filterText = title,
+    names = names,
+    keywords = t.browser,
+    bonus = bonus,
     image = appIcon(t.bundleID),
     item = { kind = "tab", tab = t },
   }
@@ -162,13 +179,21 @@ end
 -- `where` names where the settings door is, because two of these rows tell you to go there and
 -- the door is only ever a row below when this list is our own chooser. Scoped into another
 -- surface there is no row below, so the caller says what to point at instead.
+--
+-- Every one is pinned, since each says why there is nothing to search and must stay whatever is
+-- typed, which is what it did while this list ranked its own query.
+local function pinnedAll(list)
+  for _, r in ipairs(list) do r.pinned = true end
+  return list
+end
+
 local function emptyRows(where)
   where = where or "in settings below"
   local out = {}
   if loading then
     out[#out + 1] = glyphRow("Reading tabs", "Asking the browsers that are open", "reading",
       { noop = true }, false)
-    return out
+    return pinnedAll(out)
   end
 
   local refused = {}
@@ -180,7 +205,7 @@ local function emptyRows(where)
   if #refused > 0 then
     out[#out + 1] = glyphRow("Hammerspoon may not read " .. table.concat(refused, ", "),
       "Allow it " .. where, "locked", { noop = true }, false)
-    return out
+    return pinnedAll(out)
   end
 
   local anyEnabled, anyRunning = false, false
@@ -200,170 +225,69 @@ local function emptyRows(where)
     out[#out + 1] = glyphRow("No open tabs", "The browsers that are open reported none",
       "none", { noop = true }, false)
   end
-  return out
+  return pinnedAll(out)
 end
 
 -- The settings door. On an empty query it trails the tabs, which is where it was asked to be.
--- Once something is typed it is one more candidate in the ranking, scored through the same
--- matcher against its own title and given no recency, so typing settings brings it back above
--- a hundred tabs and an unrelated word drops it. matchedTabs below does the scoring.
+-- Once something is typed it is an ordinary row, scored by the shared search against its own
+-- title, with no recency, so typing settings brings it back above a hundred tabs and an
+-- unrelated word drops it. Its subtitle is a count, so filterText is the title. A tie leaves it
+-- after a tab, since it comes last in the supplier's order.
 local function settingsRow()
   local on, total = 0, 0
   for _, s in ipairs(cfg.api.status()) do
     total = total + 1
     if s.enabled then on = on + 1 end
   end
-  return glyphRow("Settings", on .. " of " .. total .. " browsers switched on", "settings",
+  local r = glyphRow("Settings", on .. " of " .. total .. " browsers switched on", "settings",
     { nav = true, to = "settings" }, true)
+  r.filterText = r.title
+  return r
 end
 
--- Whether a query is naming a browser rather than a page. A plain prefix test, deliberately not
--- the injected matcher, for the same reason the settings door uses one. A fuzzy test against a
--- short fixed name is lenient enough to fire on queries that never meant it, and here that would
--- pull a whole browser's worth of tabs into a list about something else. Two letters minimum,
--- since one letter names nothing yet.
-local function namesBrowser(query, browser)
-  if #query < 2 or browser == nil then return false end
-  local q = query:lower()
-  return browser:lower():sub(1, #q) == q
-end
-
--- The three things a query is scored against, each on its own. Scoring them separately and
--- keeping the best is the whole point, because gluing them into one string lets a subsequence
--- matcher satisfy a query by taking a letter from the page title, a letter from the address and
--- a letter from whatever follows, which is a match no reader would call one. The host is scored
--- apart from the full address even though it sits inside it, since against the host alone a
--- query lands at the very start of a short string and earns what it is due, while against a
--- long address the same letters are buried and read as a weaker match.
+-- Every tab, in the listing's own order, which is the resting order, for the shared search to
+-- filter and rank. Nothing here reads the query, so a scope and this chooser hand the engine
+-- the same rows.
 --
--- The browser name is a fourth field, but only once the query is really naming it, which is
--- what `namesBrowser` gates. Scoring it unconditionally is what the old single string did and it
--- is the bug, since a subsequence matcher charges almost nothing for a gap at the end of a
--- string, so `far` reads as a contiguous run inside `Safari` and quietly lifted every Safari tab
--- in the list. Once the gate has passed, the name is scored by the same matcher as every other
--- field rather than given a made up weight, so typing a browser's name gathers its tabs and a
--- page that genuinely matches that word can still outrank them.
-local function searchFields(t, query)
-  local fields = { titleOf(t), hostOf(t.url), t.url or "" }
-  if namesBrowser(query, t.browser) then fields[#fields + 1] = t.browser end
-  return fields
-end
-
-local function bestFieldScore(matcher, query, t)
-  local best = nil
-  for _, field in ipairs(searchFields(t, query)) do
-    if field ~= "" then
-      local score = matcher(query, field)
-      if score ~= nil and (best == nil or score > best) then best = score end
-    end
-  end
-  return best
-end
-
--- What recency is worth once something has been typed. It reorders and never overturns, the
--- same rule FileSearch's frecency follows, and the weight is set against the matcher's own
--- scale. A single better placed character is worth six points or more there, so no bonus here
--- can lift a tab above one that genuinely matched better, while two tabs matching the same
--- shape at different depths in their text differ by fractions of a point, which is exactly what
--- this settles. Beyond the span it is worth nothing, so the long tail is ranked on the query
--- alone.
---
--- The position counted is among the tabs in this listing, not the place in the remembered order,
--- and the difference is not a detail. The remembered order holds every address this tool has ever
--- opened, including each step of a redirect chain and everything since closed, so its most recent
--- stored keys are mostly tabs that are gone. Counting stored ranks made the bonus inert almost
--- every time it was asked for. Counted among the tabs on offer it means what it says, the tenth
--- most recently opened tab you still have open.
---
--- A tab this tool has never opened earns nothing and takes no position, rather than being treated
--- as infinitely old. That is the same honesty the resting order keeps, recency is only ever
--- claimed for what this tool actually did.
-local RECENCY_WEIGHT = 3
-local RECENCY_SPAN = 10
-local function recencyBonus(position)
-  if position == nil or position > RECENCY_SPAN then return 0 end
-  return RECENCY_WEIGHT * (RECENCY_SPAN - position + 1) / RECENCY_SPAN
-end
-
--- The matching tabs, no guidance row. The atom does not filter for this tool yet, so the query
--- is scored here. When the caller hands over door, the settings row, it is scored as one more
--- candidate with the matcher's answer for its own title and no recency, merged with the tabs by
--- score and dropped when it does not match, and a tie leaves it after the tabs. The hosted list
--- passes none, since it has no level to push. On an empty query the recency order stands,
--- already applied to the listing before it arrived, and the caller adds the door at the end.
---
-local function matchedTabs(query, door)
+-- The listing arrives with every tab this tool has opened ahead of every other one, in recency
+-- order, so walking it and counting only those gives each its place among the tabs on offer,
+-- and the bonus is that place scaled into zero to one, the most recent highest at one and the
+-- least recent at one over their count. A tab this tool never opened earns nothing. The count is
+-- taken over the whole listing and not over the tabs that match, since a tab's recency is a fact
+-- about the tab and must not change with what was typed, and it is never counted in the
+-- remembered order, whose newest keys are mostly tabs since closed.
+local function allTabRows()
   local list = tabs or {}
-  if query == "" then
-    local out = {}
-    for _, t in ipairs(list) do out[#out + 1] = tabRow(t) end
-    return out
-  end
-
-  local matcher = cfg.matcher
-  local out = {}
-  if type(matcher) ~= "function" then
-    -- No matcher injected, so fall back to a plain case insensitive substring test over the
-    -- same fields a matcher would have scored. The tool still filters, just without ranking.
-    local q = query:lower()
-    for _, t in ipairs(list) do
-      for _, field in ipairs(searchFields(t, query)) do
-        if field:lower():find(q, 1, true) then
-          out[#out + 1] = tabRow(t)
-          break
-        end
-      end
-    end
-    if door and door.title:lower():find(q, 1, true) then out[#out + 1] = door end
-    return out
-  end
-
-  -- The listing arrives with every observed tab ahead of every unobserved one and in recency
-  -- order, so walking it and counting only the observed gives each of them its place among the
-  -- tabs on offer. That is what the bonus is scaled against, and it is why the count is taken
-  -- over the whole list rather than over the tabs that matched, since a tab's recency is a fact
-  -- about the tab and must not change with what was typed.
-  local ranked = {}
-  local position = 0
+  local observed = {}
+  local count = 0
   for i, t in ipairs(list) do
-    local observed = cfg.api.recencyRank(t) ~= nil
-    if observed then position = position + 1 end
-    local score = bestFieldScore(matcher, query, t)
-    if score ~= nil then
-      ranked[#ranked + 1] = {
-        tab = t,
-        score = score + recencyBonus(observed and position or nil),
-        idx = i,
-      }
+    if cfg.api.recencyRank(t) ~= nil then
+      count = count + 1
+      observed[i] = count
     end
   end
-  if door then
-    local score = matcher(query, door.title)
-    if score ~= nil then ranked[#ranked + 1] = { row = door, score = score, idx = #list + 1 } end
+  local out = {}
+  for i, t in ipairs(list) do
+    local position = observed[i]
+    out[i] = tabRow(t, position and (count - position + 1) / count or nil)
   end
-  table.sort(ranked, function(a, b)
-    if a.score ~= b.score then return a.score > b.score end
-    return a.idx < b.idx
-  end)
-  for _, e in ipairs(ranked) do out[#out + 1] = e.row or tabRow(e.tab) end
   return out
 end
 
--- The tab list as our own chooser shows it, the matching tabs plus the settings door. The door
--- trails an empty query, where it was asked to be, and is scored among the tabs once something
--- is typed, matchedTabs above saying how.
-local function tabRows(query)
+-- The tab list as our own chooser shows it, every tab and then the settings door. With no tabs
+-- the guidance rows stand alone with the door after them, all pinned, since both are what the
+-- person needs whatever is typed and the guidance points at the door.
+local function tabRows()
   if #(tabs or {}) == 0 then
     local out = emptyRows()
-    out[#out + 1] = settingsRow()
+    local door = settingsRow()
+    door.pinned = true
+    out[#out + 1] = door
     return out
   end
-  if query == "" then
-    local out = matchedTabs(query)
-    out[#out + 1] = settingsRow()
-    return out
-  end
-  return matchedTabs(query, settingsRow())
+  local out = allTabRows()
+  out[#out + 1] = settingsRow()
+  return out
 end
 
 --------------------------------------------------------------------------------
@@ -641,12 +565,14 @@ function M.ready()
   return tabs ~= nil
 end
 
---- M.tabRows(query) - the matching tabs alone, for a surface other than our own chooser. No
---- settings door and no guidance row, since both are ours: the door is a step into a second
---- level only this chooser can show, and what to say about an empty list is the caller's to
---- decide. Nothing here is remembered, so this is safe to call on every keystroke.
-function M.tabRows(query)
-  return matchedTabs(query or "")
+--- M.tabRows() - every tab alone, in the resting order, for a surface other than our own
+--- chooser, which ranks them through the shared search. No settings door and no guidance row,
+--- since both are ours, the door is a step into a second level only this chooser can show, and
+--- what to say about an empty list is the caller's to decide. A query argument is accepted and
+--- ignored, since filtering belongs to the engine. Nothing here is remembered, so this is safe
+--- to call on every keystroke.
+function M.tabRows()
+  return allTabRows()
 end
 
 --- M.explain(where) - why the list is empty, as rows, with `where` naming where the browser
@@ -665,13 +591,15 @@ end
 --- has landed, the same trigger M.show already uses, but redrawing through the caller's own
 --- hook instead of this chooser's own M.refresh, since a scope has no chooser of its own to
 --- redraw. redraw arrives from whoever is holding these rows for the scope, so this file still
---- never learns what that is. What to say about an empty list still comes from M.explain,
---- naming this tool's own settings rather than a settings row a scope cannot show.
+--- never learns what that is. Every tab comes back and the query scope ranks them against rest
+--- through the shared search. What to say about an empty list still comes from M.explain,
+--- naming this tool's own settings rather than a settings row a scope cannot show, and those
+--- rows are pinned so a typed rest keeps them while the tabs are still being read.
 function M.scopeRows(rest, redraw)
   if rest == "" or not M.ready() then
     M.prepare(redraw)
   end
-  local out = M.tabRows(rest)
+  local out = M.tabRows()
   if #out == 0 and (rest == "" or not M.ready()) then
     return M.explain("in Browser tabs settings")
   end
@@ -688,8 +616,8 @@ function M.show()
   if cfg.stagePresent then cfg.stagePresent("browserTabs") end
 end
 
---- M.rows(query) -> list. The tab list's own row supplier, named on the manifest's own
---- presentation block as the contract's rows.
+--- M.rows() -> list. The tab list's own row supplier, named on the manifest's own
+--- presentation block as the contract's rows. It ignores the query, the shared search filters.
 M.rows = tabRows
 
 -- M.intercept, the disabled row guard this level once carried by hand, is gone, review
@@ -780,9 +708,9 @@ end
 
 --- M:configure(opts) - merge injected deps across two callers. The spoon composition root
 --- injects `api`, its merged view over the engine, the recency memory and the permission
---- probe. The main root injects the `matcher` this tool scores its tab rows with,
---- stagePresent, stagePop, and redrawPresented, the root published words this migration
---- needs. Builds no chooser any more, the trickle migration, so theme and the Chooser
+--- probe. The main root injects stagePresent, stagePop, and redrawPresented, the root
+--- published words this migration needs. It also hands over the shared matcher every surface
+--- earns, which nothing here reads since the shared search ranks the rows. Builds no chooser any more, the trickle migration, so theme and the Chooser
 --- factory are no longer read here.
 --
 -- Colon here, not dot, because every caller, the plugin root's own configure, the live top

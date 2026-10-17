@@ -1,8 +1,8 @@
 -- BrowserTabs, what it declares about itself.
 --
 -- The third of the prototype three because it fails differently again. It has providers
--- the root names, persisted per machine state, a nested settings level, and it opts out of
--- the shared matcher, so it exercises the parts of the manifest the other two do not.
+-- the root names, persisted per machine state and a nested settings level, so it exercises
+-- the parts of the manifest the other two do not.
 return {
   -- The contract this manifest was written against, see apiVersion in docs/PLUGIN-CONTRACT.md.
   apiVersion = 1,
@@ -167,13 +167,8 @@ return {
     -- click alike are ever let through, so nothing here needs a private mechanism to keep
     -- the window open through a step any more.
     primary = { action = "insertSelected", description = "Select" },
-    -- No matcher line, and its absence is the correct statement rather than an omission.
-    -- This plugin scores its own rows, because a uniform filter would rank away the Back row
-    -- and pull the Settings row into the tab ranking, and it opts the shared instance out
-    -- through presentation.matcher below rather than here. What the manifest would be saying
-    -- with a value here is which STRATEGY to inject, and this plugin wants the shared
-    -- default, which bestFieldScore in chooser.lua then uses to rank the tabs. Writing false
-    -- here injected nothing and quietly degraded ranked tabs to unranked order.
+    -- No matcher line. Every level of this tool searches through the shared default, the
+    -- tab rows declaring their names, keywords and recency bonus for it to apply.
   },
 
   -- The presentation contract, contract v3, docs/BRIEF-CONTRACT-V3.md. rows and select are
@@ -187,10 +182,11 @@ return {
   -- fresh listing M.show used to do inline before this plugin had a presentation to defer
   -- through instead, run on both doors, present and push alike.
   --
-  -- matcher is a real false, unchanged by the migration. This plugin scores its own rows
-  -- with the injected matcher strategy, still read off cfg.matcher inside chooser.lua's own
-  -- bestFieldScore, and a uniform pass by the shared instance would rank the Back row away
-  -- and pull the Settings row into the tab ranking.
+  -- No matcher, so the tab list inherits the shared search, phase three of
+  -- docs/PLAN-UNIFIED-SEARCH.md on 2026-10-17. Each tab row says what it answers to, its title,
+  -- its host and address as names and its browser as a keyword, and carries its recency as a
+  -- bonus, chooser.lua's tabRow says why. The Settings row is scored like a tab, and the rows
+  -- explaining an empty list are pinned.
   -- No intercept at this level any more. It once existed for one narrow reason, standing
   -- on a stray selection of one of this level's own disabled guidance rows, emptyRows in
   -- chooser.lua, and that reason is gone, review findings H1 and H2, rework, host/stage's
@@ -208,7 +204,6 @@ return {
     -- direct reach into this submodule's state, left untouched per the standing
     -- instruction that its own directory is not this migration's to edit.
     onClose = { member = "chooser.onClose", call = "dot" },
-    matcher = false,
   },
 
   -- Configure alone leaves this plugin half wired. Start warms the permission probe so
@@ -225,16 +220,15 @@ return {
   -- functions, so the scope below says dot rather than taking the default. surface is no
   -- longer declared, host/stage's own surfaceFor answering the five generic nav verbs now
   -- that presentation above exists, and this plugin binds no verb beyond them, insertSelected
-  -- replacing the retired enter being exactly what closed that gap. matcher is false for the
-  -- same reason presentation.matcher above is, this plugin scores its own rows until phase
-  -- three of the unified search moves them onto the engine.
+  -- replacing the retired enter being exactly what closed that gap. The scope declares no
+  -- matcher, so the query scope ranks the same tab rows against the typed rest through the
+  -- shared search, exactly as the tab list does.
   registry = {
     row = { category = "Tools" },
     open = "show",
     hosted = true,
     shortcut = "leader",
     scope = {
-      matcher = false,
       rows = { member = "chooser.scopeRows", call = "dot" },
       run = { member = "chooser.activate", call = "dot" },
     },

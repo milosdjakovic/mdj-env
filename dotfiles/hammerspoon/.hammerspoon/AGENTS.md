@@ -1232,9 +1232,10 @@ microseconds an `hs.styledtext`, so the emoji set's 5648 rows would cost about 1
 keystroke. The action panel takes the search off the instance while it is open, since its verbs
 do not speak a tool's grammar. The DisplayProfiles, Workspaces and
 TmuxSessions lists and the settings page all inherit now, and the query scope and launcher
-query rows mark what a scope hands over as fromQuery. The emoji picker, the clipboard, FileSearch,
-BrowserTabs tabs and the launcher itself still rank their own query, each behind its own
-reason its own file explains, and phases three and four of the plan move them.
+query rows mark what a scope hands over as fromQuery. BrowserTabs tabs moved in phase three and
+declare their fields. The emoji picker, Obsidian, Processes, the clipboard, FileSearch and the
+launcher itself still rank their own query, each behind its own reason its own file explains,
+and phases three and four of the plan move them.
 
 So every list chooser is fuzzy by default with no per-tool wiring, and a future list
 chooser inherits it for free, while a field that is input opts out in one word.
@@ -1711,10 +1712,11 @@ Three cross-cutting facts worth knowing here. A browser that is switched off or 
 never scripted at all, so it costs no Apple Events and raises no permission prompt. Nothing
 watches the browsers, so the list is ordered by what you have opened through the tool and by
 nothing that happens in a browser, which is what stops it rearranging itself between one open and
-the next. And the tool opts out of the atom's shared matcher and scores its tab rows itself with
-the matcher the root injects, because it is a stack of frames with pinned rows and uniform
-filtering would rank away the Back row and pull the Settings row into the tab ranking, so the
-matcher is passed in explicitly rather than inherited. Everything else, why the order stopped
+the next. And the tab list searches through the shared engine like every list since phase three
+of the unified search, each tab row declaring its title, its host and address as names and its
+browser as a keyword, with its recency as a bonus that only orders equally good matches, while
+the rows explaining an empty list are pinned. Everything else, what a query is matched against
+and why the browser name is a keyword, why the order stopped
 being observed and what that cost, why the last tab you opened leads and what was tried on top of
 that before it was taken back out, why a window is placed by its id and never by its index, why tab
 identity is the bundle id plus the URL and what that costs when a page navigates, why the

@@ -134,7 +134,7 @@ start or as a phrase typed run together, below any title match, and the words of
 their own with a bonus for staying in one phrase. The authoring guide carries the detail. A subtitle that is a category, a status or a chord is
 taken out of search by setting `filterText` to the title. `lib/chooser/rank.lua` states the
 vocabulary. `matcher = false` only declares a field that is not a search, an input page where
-the typed text is a name, or a confirm. The exceptions still standing are BrowserTabs tabs, the
+the typed text is a name, or a confirm. The exceptions still standing are the
 clipboard, FileSearch, emoji, Obsidian, processes and the launcher, which still rank their own
 query until phases three and four of `docs/PLAN-UNIFIED-SEARCH.md` move them, so none of them is
 a model to copy. A row that always shows comes in two kinds, and neither fakes a match through
