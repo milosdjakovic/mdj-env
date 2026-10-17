@@ -215,11 +215,24 @@ local function providerNamed(name, chromeBundleID)
   if name == "safari" then return obj.providers.safari end
   if name == "arc" then return obj.providers.arc end
   if name == "chrome" then
-    if not chromeBundleID then
+    -- An empty string is truthy in Lua, so a bare nil check let it through to the factory, which
+    -- refuses it by raising, and that raise escaped configure and took Safari and Arc down with
+    -- it. Nothing usable and nothing supplied are the same case for the person, so both get the
+    -- friendly message.
+    if chromeBundleID == nil or chromeBundleID == "" then
       return nil, "no Chrome bundle id was supplied, set data.browserTabs.chromeBundleID "
         .. "in the top level init.lua, normally apps.GoogleChrome from config/apps.lua"
     end
-    return obj.providers.chromium({ name = "Chrome", bundleID = chromeBundleID })
+    -- A value that is present but wrong, a number for instance, is the factory's to judge, and
+    -- this does not repeat its checks here where they would drift. What it does is call the
+    -- factory under pcall, so a refusal becomes the reason configure logs for this one browser
+    -- and the loop carries on with the others. The position prefix pcall leaves on the text is
+    -- trimmed, since the reason is read by a person and the file and line only add noise.
+    local built, result = pcall(obj.providers.chromium, { name = "Chrome", bundleID = chromeBundleID })
+    if not built then
+      return nil, (tostring(result):gsub("^[^:]*:%d+: ", ""))
+    end
+    return result
   end
   return nil, "no provider answers to that name"
 end
