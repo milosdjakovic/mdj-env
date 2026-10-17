@@ -296,9 +296,9 @@ is the point of asking. Asking again re-sorts against whatever the numbers say b
 and a rescan puts the engine's own order back, so heat order is a one shot rather than
 a mode and there is no state to remember you are in.
 
-The live figures are kept out of the search haystack. A query of "3" is asking about
+The live figures are kept out of search. A query of "3" is asking about
 port 3000, never about a row that happens to be at three percent this second, and
-folding a moving number into the haystack would mean the set of matching rows changed
+searching a moving number would mean the set of matching rows changed
 on its own every tick with nobody having typed anything.
 
 The subtitle gained the two live figures at the front and lost the resident memory the
@@ -309,6 +309,35 @@ a number that changes under the eye has to sit in one fixed place, otherwise rea
 down the column becomes a hunt. Until the first sample lands the memory falls back to
 the listener's own reading, so the line is never briefly missing a number it is about
 to have.
+
+## A query ranks by match first, and the group only orders equal matches
+
+Since phase three of the unified search on 2026-10-17 this list ranks nothing itself and
+declares no matcher. Until then it overrode the shared fuzzy matcher to `words`, a word
+tokenizer that kept a row when every word was a substring of one lowered string, the title, the
+static subtitle, the working directory, the container, the runtime and the ports, and that
+scored every match alike, so the scan's order decided everything. Milos decided search never
+differs per list and that a query ranks by match first, so the row now declares its fields and
+the shared engine, `lib/chooser/match.lua` and `lib/chooser/rank.lua`, applies them.
+
+A row's `filterText` is its title, the name with its ports after a colon, so a port typed
+bare or with its colon matches at the start of a word in the title. The shown subtitle is not
+searched, since it leads with the live figures. Its `keywords` are the framework label and the
+runtime it displaced, the command, the working directory's own folder name and a container's
+name, each matched at a word start and below any title match. The pid and the status are no
+longer searched, and a folder is matched by its own name rather than anywhere in its path.
+
+The group order the engine sorts by, port holders, then containers, then whatever holds
+neither, newest first inside each, is the row's `bonus`, its place in the scan's order scaled
+into zero to one, the first row at one and the last at one over the count. The engine reads a
+bonus only between rows it calls equally good, so a container named api leads a node server
+found only through its api folder, while two rows matching alike keep the group order. A `tier`
+was the other way to say it and was not taken, since a tier sorts before how well a row matched,
+which is exactly the order Milos ruled out. The place is recorded when a scan lands, so a heat
+sort changes what an empty field shows and never what a typed query prefers.
+
+The two confirmation rows, Keep it running and Stop anyway, are pinned, so typing into the field
+on a confirmation never drops an answer, and the empty state row was pinned in phase two.
 
 ## The pane exists for the tree
 
@@ -432,7 +461,7 @@ handing back a picture and a word, and the surface asks once per row rather than
 
 This is display policy and it lives away from the sources deliberately. A source reports
 what the kernel says, which is that the process is `node`, and that stays true and stays
-in the search haystack. Only the surface decides to call it Next. Pushing the guess down
+one of the row's search keywords. Only the surface decides to call it Next. Pushing the guess down
 into discovery would have a source inventing a fact it cannot see, and the merge in the
 engine reasons about ports and pids and never about labels.
 

@@ -44,6 +44,7 @@ local icons = loadfile(chooserPath .. "icons.lua")()
 
 local cfg = {}         -- injected, api from the spoon root, view deps from the main root
 local rows = {}        -- rows from the most recent scan, read by the supplier
+local scanPlace = {}   -- each of those rows to its place in the scan's own order, see setRows
 local pending = nil    -- a stop awaiting confirmation, { row = ..., message = ... }
 local reopen = false   -- ask onClose to re-show rather than end, for the confirmation
 local scanning = false -- guards against overlapping scans from a fast refresh
@@ -136,7 +137,7 @@ local function titleFor(row)
   return row.title .. "   " .. table.concat(parts, " ")
 end
 
--- The half of the subtitle that does not move, and the only half a query searches.
+-- The half of the subtitle that does not move.
 --
 -- The resident memory the scan reported used to sit here and no longer does. The live
 -- figure below supersedes it and says more, since it covers the whole process group
@@ -148,7 +149,7 @@ end
 -- The leading word is the framework when one was recognised and the runtime otherwise,
 -- and it replaces rather than joins. Three rows reading node tell you nothing, and next
 -- next node would be the same fact twice on a line that is already full. The runtime it
--- displaced is not lost, it stays in the search haystack below, so a query of node still
+-- displaced is not lost, it is one of the row's keywords below, so a query of node still
 -- finds every one of them.
 local function staticSubtitle(row, label)
   local bits = {}
@@ -192,42 +193,51 @@ local function subtitleFor(row, static)
   return util.elide(live .. " · " .. static, 150)
 end
 
--- Everything a query may match, beyond what is visible. The port matters most, so a
--- half remembered ":3000" or a bare "3000" finds its listener, and the working
--- directory is folded in so a project name that never reaches the label still hits.
+-- What a row answers to beyond its title, as keywords, each matched by the shared search at the
+-- start of one of its words and below any match in the title. The title already carries the
+-- ports after a colon, which starts a word, so a half remembered 3000 or :3000 finds its
+-- listener there and no further name is needed. The framework label and the runtime it
+-- displaced, the command, the working directory's own folder, so a project name that never
+-- reaches the label still hits, and a container's name.
 --
--- It is handed the STATIC subtitle rather than the rendered one, so the live figures
--- are searchable by nothing. A query of "3" is asking about port 3000, never about a
--- row that happens to be at three percent this second, and folding a moving number
--- into the haystack would also mean the set of matching rows changed on its own every
--- tick, with nobody having typed anything.
---
--- Lowercased here because the words matcher folds case on the query only and
--- compares the haystack verbatim, by contract, so the caller owns that fold. Without
--- it a runtime lsof reports as "Python" would not answer to "python", and no
--- container or project name with a capital in it would match a lowercase query.
--- Folding per keystroke is what the clipboard avoids, but these are a couple of
--- dozen short strings rather than long bodies, so the cost is nothing here.
---
--- Appended one at a time rather than built as a table literal. A local row has no
--- container name and a container row has no working directory, so exactly one field
--- is always nil and a literal would leave a hole that makes table.concat throw.
-local function filterTextFor(row, title, subtitle)
-  local bits = {}
-  local function add(v) if v and v ~= "" then bits[#bits + 1] = v end end
-  add(title)
-  add(subtitle)
-  add(row.cwd)
+-- Never a live figure. A query of 3 is asking about port 3000, never about a row that happens to
+-- be at three percent this second, and a moving number would mean the set of matching rows
+-- changed on its own every tick with nobody having typed anything. That is also why filterText
+-- is the title, since the shown subtitle leads with those figures.
+local function keywordsFor(row, label)
+  local out = {}
+  local function add(v)
+    if type(v) == "string" and v ~= "" then out[#out + 1] = v end
+  end
+  add(label)
+  if row.runtime ~= label then add(row.runtime) end
+  if row.command ~= row.title then add(row.command) end
+  add(util.basename(row.cwd))
   add(row.containerName)
-  add(row.runtime)
-  for _, p in ipairs(row.ports or {}) do bits[#bits + 1] = tostring(p) end
-  return table.concat(bits, " "):lower()
+  return out
 end
 
 --------------------------------------------------------------------------------
 -- Row suppliers
 --------------------------------------------------------------------------------
 
+-- The rows from a scan, and each row's place in the order the scan gave them. That order is the
+-- engine's, port holders, then containers, then whatever holds neither, newest first inside each,
+-- and it is what the bonus below is read from, so a heat sort reordering the rows in hand changes
+-- what an empty field shows and never what a typed query prefers.
+local function setRows(result)
+  rows = result or {}
+  scanPlace = {}
+  for i, row in ipairs(rows) do scanPlace[row] = i end
+end
+
+-- Every row, for the shared search to filter and rank, in the order in hand, which an empty
+-- field shows. Milos decided on 2026-10-17 that a query ranks by match first and the group only
+-- orders equal matches, so the scan's order is the bonus, scaled into zero to one, the first row
+-- of the scan at one and the last at one over their count. The engine reads it only between rows
+-- it calls equally good, so a container named api leads a port holder found only through its
+-- folder, while two rows matching alike keep the group order. A tier would have put the group
+-- ahead of the match, which is the opposite of what was decided.
 local function listRows()
   if #rows == 0 then
     return { { title = "Nothing running", enabled = false, pinned = true,
@@ -235,6 +245,7 @@ local function listRows()
                image = icons.emoji(ICON_EMPTY) } }
   end
   local out = {}
+  local count = #rows
   for _, row in ipairs(rows) do
     local title = titleFor(row)
     -- Classified once and read twice. The picture and the word come from the same
@@ -242,11 +253,14 @@ local function listRows()
     -- every keystroke a second time for no new answer.
     local image, label = icons.badge(row)
     local static = staticSubtitle(row, label)
+    local place = scanPlace[row]
     out[#out + 1] = {
       title = title,
       subTitle = subtitleFor(row, static),
       image = image,
-      filterText = filterTextFor(row, title, static),
+      filterText = title,
+      keywords = keywordsFor(row, label),
+      bonus = place and (count - place + 1) / count or nil,
       -- Serializable only. hs.chooser drops a function off a row, which is why
       -- every list tool here carries a descriptor and looks the real thing up on
       -- select rather than closing over it.
@@ -257,13 +271,14 @@ local function listRows()
 end
 
 -- The confirmation. Harmless answer first, so the fresh highlight and a stray Return
--- both leave the thing running.
+-- both leave the thing running. Both are pinned, so whatever is typed into the field the
+-- search never drops either answer.
 local function confirmRows()
   return {
     { title = "Keep it running", subTitle = "", image = icons.emoji(ICON_KEEP),
-      item = { confirm = false } },
+      item = { confirm = false }, pinned = true },
     { title = "Stop anyway", subTitle = pending.message or "",
-      image = icons.emoji(ICON_STOP), item = { confirm = true } },
+      image = icons.emoji(ICON_STOP), item = { confirm = true }, pinned = true },
   }
 end
 
@@ -465,9 +480,8 @@ function M.show()
 end
 
 --- M.rows(query) -> list. The row supplier, named on the manifest's own presentation block
---- as the contract's rows. Ignores query, the same as it always has, since this list has
---- never been a text filter over its own rows, the shared stage's own matcher, "words" per
---- this plugin's own presentation.matcher, doing the only filtering this list ever answers to.
+--- as the contract's rows. Ignores query, the same as it always has, since the shared search
+--- does the only filtering this list answers to, through the fields each row declares.
 M.rows = supplier
 
 --- M.select(item) - apply one of those rows, named on the manifest's own presentation block
@@ -607,7 +621,7 @@ function M.enter(proceed)
   end)
   enterTimeoutTimer = myTimer
   cfg.api.scan(function(result)
-    rows = result or {}
+    setRows(result)
     if enterTimeoutTimer == myTimer then
       myTimer:stop()
       enterTimeoutTimer = nil
@@ -635,7 +649,7 @@ function M.refresh()
   scanning = true
   cfg.api.scan(function(result)
     scanning = false
-    rows = result or {}
+    setRows(result)
     if #entering > 0 then
       local waiting = entering
       entering = {}

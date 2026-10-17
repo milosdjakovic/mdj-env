@@ -1232,10 +1232,11 @@ microseconds an `hs.styledtext`, so the emoji set's 5648 rows would cost about 1
 keystroke. The action panel takes the search off the instance while it is open, since its verbs
 do not speak a tool's grammar. The DisplayProfiles, Workspaces and
 TmuxSessions lists and the settings page all inherit now, and the query scope and launcher
-query rows mark what a scope hands over as fromQuery. BrowserTabs tabs, the emoji picker and
-Obsidian moved in phase three and declare their fields, the emoji picker with a rowLimit of a
-hundred. Processes, the clipboard, FileSearch and the launcher itself still rank their own query, each behind its own reason its own file explains,
-and phases three and four of the plan move them.
+query rows mark what a scope hands over as fromQuery. BrowserTabs tabs, the emoji picker,
+Obsidian and Processes moved in phase three and declare their fields, the emoji picker with a
+rowLimit of a hundred. The clipboard, FileSearch and the launcher itself still rank their own
+query, each behind its own reason its own file explains, and phases three and four of the plan
+move them.
 
 So every list chooser is fuzzy by default with no per-tool wiring, and a future list
 chooser inherits it for free, while a field that is input opts out in one word.
@@ -1742,9 +1743,10 @@ and the main root injects only the view deps every chooser receives. It follows 
 checklist, its `processes` context giving it the shared j, k, i navigation with x to close
 plus three actions only it answers, a force stop, a rescan and a sort by load, routed through `routeNav` so
 they are no ops on any other surface rather than naming this one directly the way the
-clipboard-only append and delete do. It overrides the shared fuzzy matcher to `words`, the
-same choice the clipboard makes, because a query here is a real fragment you remember, a
-port number or a project name, not an abbreviation of a short known label. Adding it needed
+clipboard-only append and delete do. It searches through the shared engine since phase three
+of the unified search, where it once overrode the matcher to `words`. A row's title carries its
+ports, its keywords carry the command, the project folder, the container and the runtime, never
+a live figure, and the group order only orders rows that match equally well. Adding it needed
 a restow, since `~/.hammerspoon/Spoons` holds one symlink per spoon. The source contract,
 the port claim rule that collapses the docker proxy listeners into named containers, the
 group signalling and its guards, and three hs.task and lsof facts that will bite anyone who

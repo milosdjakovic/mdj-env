@@ -155,8 +155,19 @@ stage's highlight hold and the query scope rank with them, and the action panel 
 while it is open. The lowered memo is bounded by entries rather than bytes, since a real
 clipboard history thrashed the byte budget.
 
-**Packet two to come**, moving BrowserTabs tabs, emoji, Obsidian, Processes, the clipboard and
-FileSearch onto the engine with these fields and deleting their own scoring.
+**Packet two A done**, 2026-10-17, BrowserTabs tabs, emoji, Obsidian and Processes on the
+engine, each supplier handing every row over in its resting order and its own matching and
+ranking deleted. A tab filters on its title, names its host and address, declares its browser as
+a keyword and carries its recency as a bonus. An emoji row declares its aliases, tags and
+category as keywords, read back from the folded haystack, an emoji is tier zero and a symbol tier
+one, and the list declares `rowLimit` 100 instead of a cap in the supplier. A note row carries
+its folder as the subtitle, an excluded note is tier one, a note opened here a recency bonus, and
+the create and search rows are pinned. A process row filters on its title with its ports,
+declares the command, the folder, the container and the runtime as keywords, and carries the
+scan's group order as a bonus. Every recency or group order is a bonus scaled zero to one, so it
+orders only equal matches.
+
+**Packet two B to come**, the clipboard and FileSearch, with `names` and `searchText`.
 
 ### Phase 4, the launcher and the gate
 

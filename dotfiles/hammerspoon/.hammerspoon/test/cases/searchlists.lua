@@ -223,3 +223,106 @@ do
   check("with no vault the explaining row stays whatever is typed",
     #kept == 1 and kept[1].title == "Obsidian knows no vaults yet", titles(kept))
 end
+
+--------------------------------------------------------------------------------
+-- Processes
+--------------------------------------------------------------------------------
+
+-- The chooser loads util, metrics, preview and icons beside it. It is loaded into an environment
+-- of its own where those loads answer stand ins, except util, which is pure and loaded for real,
+-- so no canvas is drawn, no sampler runs and the live hs is never touched.
+do
+  local manifest = load("plugins/processes/manifest.lua")
+  check("the Processes list inherits the shared search", manifest.presentation.matcher == nil
+    and manifest.surface.matcher == nil)
+
+  local noop = function() end
+  local heat = {}
+  local stubs = {
+    ["icons.lua"] = { badge = function() return nil, nil end, emoji = function() return nil end, refresh = noop },
+    -- Every row reads thirty three percent, so a query of 33 would match a live figure if one
+    -- were searched. score is what a heat sort orders by.
+    ["metrics.lua"] = { reading = function(key) return { cpu = 33, rss = 2048, score = heat[key] } end,
+      configure = noop, start = noop, stop = noop },
+    ["preview.lua"] = { show = noop, hide = noop, dock = noop, destroy = noop, refresh = noop,
+      configure = noop, isEnabled = function() return false end },
+  }
+  local fakeHs = {
+    logger = { new = function() return setmetatable({}, { __index = function() return noop end }) end },
+    timer = { doAfter = function() return { stop = noop } end },
+    alert = { show = noop },
+  }
+  local env
+  env = setmetatable({
+    hs = fakeHs,
+    loadfile = function(path)
+      local name = path:match("([^/]+)$")
+      if stubs[name] then return function() return stubs[name] end end
+      return loadfile(path, "t", env)
+    end,
+  }, { __index = _G })
+  local M = assert(loadfile(olm .. "plugins/processes/chooser.lua", "t", env))()
+
+  -- The scan's own order, port holders first, then the container, then the portless watcher.
+  local scanned = {
+    { key = "a", title = "node", ports = { 3000 }, runtime = "node", pid = 10,
+      cwd = "/Users/x/dev/api", command = "node server.js" },
+    { key = "c", title = "vite", ports = { 5173 }, runtime = "node", pid = 11,
+      cwd = "/Users/x/dev/web", command = "vite --host" },
+    { key = "b", title = "api", runtime = "docker", containerName = "api", status = "Up 2 hours" },
+    { key = "d", title = "tsc", runtime = "node", pid = 12, cwd = "/Users/x/dev/tools",
+      command = "tsc --watch" },
+  }
+  local stopped = nil
+  M:configure({ api = {
+    scan = function(cb) cb(scanned) end,
+    stop = function(row, opts, cb) stopped = row.key cb(false, "confirm, it has 40 processes") end,
+  } })
+  M.enter(function() return true end)
+
+  local rows = M.rows("")
+  check("the supplier hands every row over in the scan's order",
+    titles(rows) == "node   :3000,vite   :5173,api,tsc", titles(rows))
+  local node = rows[1]
+  check("a row filters on its title, the ports included, never its live subtitle",
+    node.filterText == "node   :3000" and node.subTitle:find("33%%") ~= nil, node.subTitle)
+  check("its keywords are the runtime, the command and the project folder",
+    table.concat(node.keywords or {}, "|") == "node|node server.js|api", table.concat(node.keywords or {}, "|"))
+  check("a container's name is a keyword", table.concat(rows[3].keywords or {}, "|") == "docker|api",
+    table.concat(rows[3].keywords or {}, "|"))
+  check("the group order is the bonus, first at one and last at a quarter",
+    rows[1].bonus == 1 and rows[2].bonus == 0.75 and rows[3].bonus == 0.5 and rows[4].bonus == 0.25)
+
+  local kept = rank.apply(M.rows("api"), "api", fuzzy)
+  check("match first, the api container above the node process found only through its folder",
+    titles(kept) == "api,node   :3000", titles(kept))
+  kept = rank.apply(M.rows("3000"), "3000", fuzzy)
+  check("a bare port finds its listener", titles(kept) == "node   :3000", titles(kept))
+  kept = rank.apply(M.rows(":5173"), ":5173", fuzzy)
+  check("a port with its colon finds its listener", titles(kept) == "vite   :5173", titles(kept))
+  kept = rank.apply(M.rows("33"), "33", fuzzy)
+  check("a live figure is never searched", #kept == 0, titles(kept))
+  kept = rank.apply(M.rows("dev"), "dev", fuzzy)
+  check("a folder is matched by its own name, not anywhere in its path", #kept == 0, titles(kept))
+
+  -- A heat sort puts the watcher first and the port holder last in hand. An empty field shows
+  -- that order, and a typed query still orders equal matches by the scan's group order.
+  heat = { a = 1, c = 2, b = 3, d = 4 }
+  M.sortByLoad()
+  rows = M.rows("")
+  check("after a heat sort an empty field shows the heat order", titles(rows) == "tsc,api,vite   :5173,node   :3000",
+    titles(rows))
+  kept = rank.apply(M.rows("node"), "node", fuzzy)
+  check("the title match leads, then equal keyword matches in group order, not heat order",
+    titles(kept) == "node   :3000,vite   :5173,tsc", titles(kept))
+
+  M.select({ key = "a" })
+  check("a stop the source wants confirmed asks", stopped == "a")
+  rows = M.rows("")
+  check("the confirmation leads with the harmless answer and both are pinned",
+    titles(rows) == "Keep it running,Stop anyway" and rows[1].pinned == true and rows[2].pinned == true,
+    titles(rows))
+  kept = rank.apply(M.rows("zzz"), "zzz", fuzzy)
+  check("typing on a confirmation never drops an answer", titles(kept) == "Keep it running,Stop anyway",
+    titles(kept))
+end

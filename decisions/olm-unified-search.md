@@ -618,3 +618,64 @@ never restoring it 1. A default limit for rows setting nothing failed the unchan
 `test/cases/rankvocabulary.lua`, which with a new case over an empty search proves rows and
 searches setting none of the new fields rank exactly as before.
 
+### 2026-10-17 18:52, phase three packet two A, BrowserTabs, emoji, Obsidian and Processes
+
+Four lists moved onto the engine on `olm/search-lists`, one commit each. Each supplier now hands
+every row over in its resting order and reads no query, each deleted its own matching and
+ranking, and each presentation and scope dropped its matcher, so all four inherit the shared
+search. Every recency or group order became a `bonus` scaled into zero to one, the first place at
+one and the last at one over the count, never a tier, since Milos decided recency and use history
+only order matches of the same level and Processes rank by match first.
+
+BrowserTabs. A tab filters on its title, since its subtitle is a status like line of browser,
+Arc's group and host, names its host and full address, and declares its browser as a keyword. The
+bonus is the tab's place among the tabs this tool opened that are in the listing, counted over
+the whole listing, a tab never opened here earning nothing. `matchedTabs`, `searchFields`,
+`bestFieldScore`, `namesBrowser`, `recencyBonus` and its two constants are deleted. The browser
+name rule could not survive as it was, because it read the query and a row is built before the
+query is known. It became a keyword, which needs no query. A keyword matches only at a word
+start, so far still finds no Safari tab, which is what the gate was for, and it ranks below every
+name, so a page named after a browser still outranks that browser's tabs. What is lost is the two
+letter minimum, one letter matching a browser like any keyword. The rows explaining an empty list
+are pinned, and with no tabs the Settings row after them is pinned too, since they point at it,
+so the empty states read as they did. `tabRows` ignores its query, so the integration harness's
+`rows` command in `test/agent.lua` now answers the resting order rather than a ranking. `run.sh`
+reads it as the precondition of every round that types a query, so every case but `no_query`
+and the cases that never open a tab will report that the intended tab was not the top row, and
+`existing_user_tab` asks it for exactly one row and will always skip. The tool itself is not
+what changed for them, the harness reads a ranking the supplier no longer makes, and it was left
+untouched as instructed until its `topRows` ranks through the shared engine.
+
+Emoji. The tags and the category are not stored apart in `data.lua`, only folded into `k` with the
+name and aliases, so nothing was regenerated and the row build reads the words back out of `k`
+after the name, each its own comma separated phrase with an ampersand joining its neighbours, so
+smileys & emotion stays one phrase. An emoji is tier zero and a symbol tier one. The rows are built
+once per load. `MAX_RESULTS` left the supplier for `rowLimit` 100 on the presentation and the
+scope, cut after ranking. A typed query over the 5648 rows measured 9 to 15 milliseconds in plain
+Lua. An exact alias no longer jumps to the top and a token inside a word no longer counts, which is
+the shared rule.
+
+Obsidian. A note row is titled by its name with its folder, or its vault, as the subtitle, an
+excluded note is tier one and a note opened here carries its recency bonus. New note and Search
+notes are pinned, and so is the row saying no vault is known. The word filter, the subsequence
+gate, the incremental narrowing and the 300 passer cheap rank are deleted, since nothing else
+needed them. The resting rows are built once per scan and again after a pick. A folder word now
+matches at the start of a word of the folder and no longer as letters in order through the path.
+
+Processes. A row filters on its title, the name with its ports after a colon, so a port matches at
+a word start there and needs no names. Its keywords are the framework label, the runtime, the
+command, the working directory's folder name and a container's name, never a live figure. The pid
+and the status are no longer searched. The bonus is the row's place in the scan's order, recorded
+when the scan lands, so a heat sort changes what an empty field shows and not what a typed query
+prefers. Keep it running and Stop anyway are pinned.
+
+Cases in `test/cases/browsertabs-settings.lua` and the new `test/cases/searchlists.lua`. Every
+mutation tried failed at least one case. For BrowserTabs no bonus failed 3, an inverted bonus 3,
+no filterText 2, no names 3, no keyword 2, the empty rows unpinned 2, the door unpinned in the
+empty state 1, the door pinned beside tabs 3 and the door without filterText 2. For emoji no tier
+2, no keywords 3, no ampersand join 1, no recents 5, recents twice 2, a supplier cap 5, no row
+cache 1, matcher false 1 and no scope limit 1. For Obsidian no tier 2, no bonus 2, an inverted
+bonus 1, either action row unpinned 3 and 4, the no vault row unpinned 1, no recency order 2, no
+resting sort 1 and matcher false 1. For Processes no bonus 2, the group as a tier 2, the bonus from
+the order in hand 1, filterText off 2, no keywords 4, the full path as a keyword 2, no container
+1, the confirm unpinned 2 and words back 1.

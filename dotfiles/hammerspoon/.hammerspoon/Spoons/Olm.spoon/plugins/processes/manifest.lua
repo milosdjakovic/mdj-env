@@ -184,14 +184,11 @@ return {
       { key = "f", action = "stopForced",  description = "Force stop",  icon = "stopForced" },
       { key = "r", action = "refreshList", description = "Rescan",      icon = "rescan" },
     },
-    -- A query here is a real remembered fragment, a port number or a project name,
-    -- rather than an abbreviation of a short label, so this plugin wants the words
-    -- matcher over fuzzy. Migrated onto the shared stage, contract v2, this word now
-    -- travels through presentation.matcher below instead, host/stage/init.lua writing
-    -- it onto the live instance before every show and swap, but it stays declared here
-    -- too, unread by the stage, since surface is where a person reading this file
-    -- expects to find what a query means for this tool.
-    matcher = "words",
+    -- No matcher. A query here is a remembered fragment, a port number or a project name,
+    -- and this plugin once overrode the shared matcher to words for it. Since phase three of
+    -- docs/PLAN-UNIFIED-SEARCH.md on 2026-10-17 the shared search reads each row's title,
+    -- ports included, and its declared keywords, the command, the folder, the container and
+    -- the runtime, so a fragment finds its row without a strategy of its own.
     -- The detail pane beside the list is the live sampler's home, the port, the
     -- project, and the process tree that makes pressing stop safe, so it earns the
     -- reserved room.
@@ -236,7 +233,6 @@ return {
     -- the retired layout block's own preview.isEnabled() and (cfg.previewWidth or true) or 0
     -- and is resolved once, at register, after M:start has already configured preview.
     paneWidth = { member = "chooser.paneWidth", call = "dot" },
-    matcher = "words",
   },
 
   -- This plugin's own configure already wires the api and the metrics slice onto
