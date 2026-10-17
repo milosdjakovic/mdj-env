@@ -1171,7 +1171,7 @@ or os in OLM settings, where a camel hump offers a piece start without demanding
 standalone ampersand is no word. In the name at a word start with exactly one edit, from four
 letters on, never on the first letter and never a wrong or extra last letter, dokcer and docekr
 in Docker while note never finds Notifications. In the name inside a word, from three letters on, so do never finds Window. And in a
-secondary field at a word start or in pieces only, below every name level. Every word is
+secondary field only where one of its words starts with it, below every name level. Every word is
 required, google chrome finds nothing in a row titled Chrome, and a row's level is the sum over
 its words, with a step derived per query from the weights so a stronger level always wins while
 the engine still sorts one number. Inside a level the position bonuses order, an earlier word, a
@@ -1180,9 +1180,8 @@ scattered matches. A query word with no letter or digit, an ampersand or a plus 
 substring anywhere in the row and adds no level, so date & time and 2 + 3 still match, and a word
 starting with symbols, $5, matches on its word part with the symbols somewhere in the row. Past 256 bytes a field matches a word only at a word start or inside a word, its
 best occurrence, over a lowered copy `match.lua` keeps in a bounded memo, which costs about what
-`words` costs and is what lets `words` retire. A row listed only through a keyword it does not show
-gets the matched phrase added to its subtitle while a query is typed, Focus for do reading System
-Settings · do not disturb, done once in `rank.lua`. The measurements are in
+`words` costs and is what lets `words` retire. A row always shows the subtitle its supplier gave,
+whatever it matched through. The measurements are in
 `decisions/olm-unified-search.md`.
 
 The atom owns the filtering when a matcher is set and the field is in filter mode. The

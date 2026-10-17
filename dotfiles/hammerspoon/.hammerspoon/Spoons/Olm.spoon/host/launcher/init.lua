@@ -991,7 +991,7 @@ function obj:_rankCatalog(query, rows)
     return rank.before(a, b)
   end)
   local out = {}
-  for i = 1, #scored do out[i] = rank.present(scored[i]) end
+  for i = 1, #scored do out[i] = scored[i].item end
   return out
 end
 

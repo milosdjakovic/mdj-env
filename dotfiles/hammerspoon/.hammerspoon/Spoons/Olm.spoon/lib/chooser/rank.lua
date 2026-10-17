@@ -26,9 +26,9 @@ local M = {}
 -- title is the name, the primary field the shared search ranks first.
 -- subTitle is what the row shows under its name, searched as a secondary field.
 -- keywords is what the row declares it answers to without showing it, a string or a list of
--- strings, each a secondary field. Inside one string a comma, a semicolon, a question or
--- exclamation mark, or a separator such as the middle dot or the triangle ends a phrase, so
--- "focus, do not disturb, dnd" holds three phrases and a match shows the one it was in.
+-- strings, each a secondary field, written as comma separated phrases, "focus, do not
+-- disturb, dnd". A secondary field matches a query word only where one of its words starts
+-- with it. A row always shows exactly the subtitle its supplier gave, whatever matched.
 -- filterText, when a row sets it, replaces both the name and the subtitle. It becomes the
 -- primary field and the subtitle is not searched, so a row whose subtitle is a category, a
 -- status or a chord sets filterText to its title, a menu item sets it to its title and
@@ -48,21 +48,21 @@ end
 M.haystackOf = haystackOf
 
 -- The fields the shared search reads for a row, the vocabulary above as one table,
--- { primary, secondary = { { text, visible }, ... } }.
+-- { primary, secondary = { { text }, ... } }.
 local function fieldsOf(it)
   local secondary = {}
   local primary = it.filterText
   if primary == nil then
     primary = it.title or ""
     if type(it.subTitle) == "string" and it.subTitle ~= "" then
-      secondary[#secondary + 1] = { text = it.subTitle, visible = true }
+      secondary[#secondary + 1] = { text = it.subTitle }
     end
   end
   local kw = it.keywords
   if type(kw) == "string" then kw = { kw } end
   if type(kw) == "table" then
     for _, k in ipairs(kw) do
-      if type(k) == "string" and k ~= "" then secondary[#secondary + 1] = { text = k, visible = false } end
+      if type(k) == "string" and k ~= "" then secondary[#secondary + 1] = { text = k } end
     end
   end
   return { primary = type(primary) == "string" and primary or "", secondary = secondary }
@@ -73,11 +73,10 @@ M.fieldsOf = fieldsOf
 
 --- M.score(items, query, matcher) -> a new list of entries, unsorted.
 --- Every candidate scored through matcher(query, haystackOf(item), fieldsOf(item)), a nil
---- score dropping it. An entry is { item, score, idx, level, within, atStart, shown }, idx
---- the candidate's place in items. The later fields are the later answers
---- lib/chooser/match.lua's fuzzy gives, the row's level sum, its score inside that level,
---- whether every word matched the name at a word start, and the declared phrase it matched
---- in. A matcher answering only a score reads as level zero, within equal to
+--- score dropping it. An entry is { item, score, idx, level, within, atStart }, idx the
+--- candidate's place in items. The later fields are the later answers
+--- lib/chooser/match.lua's fuzzy gives, the row's level sum, its score inside that level, and
+--- whether every word matched the name at a word start. A matcher answering only a score reads as level zero, within equal to
 --- the score, and not at a word start. They exist for a consumer that orders by something
 --- besides the score and needs to know what kind of match a row is, the launcher's nearness
 --- rule today. This is the one scoring
@@ -85,12 +84,11 @@ M.fieldsOf = fieldsOf
 function M.score(items, query, matcher)
   local entries = {}
   for i = 1, #items do
-    local score, level, within, atStart, shown =
-      matcher(query, haystackOf(items[i]), fieldsOf(items[i]))
+    local score, level, within, atStart = matcher(query, haystackOf(items[i]), fieldsOf(items[i]))
     if score ~= nil then
       entries[#entries + 1] = {
         item = items[i], score = score, idx = i, level = level or 0, within = within or score,
-        atStart = atStart == true, shown = shown,
+        atStart = atStart == true,
       }
     end
   end
@@ -106,48 +104,6 @@ end
 function M.before(a, b)
   if a.score ~= b.score then return a.score > b.score end
   return a.idx < b.idx
-end
-
--- Whether the lowered text holds the lowered phrase as whole words, so time is not taken as
--- shown by Sometimes. A letter or a digit on either side means it is part of a longer word.
-local function holdsWhole(text, phrase)
-  local init = 1
-  while true do
-    local i, j = text:find(phrase, init, true)
-    if not i then return false end
-    local before, after = text:sub(i - 1, i - 1), text:sub(j + 1, j + 1)
-    if not before:match("%w") and not after:match("%w") then return true end
-    init = i + 1
-  end
-end
-
---- M.present(entry) -> the row to show for one scored entry.
---- A row listed only through a phrase it declares and does not show would be listed with no
---- visible reason, so the phrase joins its subtitle, Focus for do reading System Settings ·
---- do not disturb. entry.shown is the list of such phrases the matcher answered, each once. A
---- phrase the subtitle already shows as whole words is not repeated, and the row is copied
---- for the rest, never changed, since a supplier may hand the same table back on the next
---- keystroke. Every list ranked by this engine gets this, while a query is typed, because an
---- empty query never scores and so never presents.
-function M.present(entry)
-  local it, shown = entry.item, entry.shown
-  if type(shown) == "string" then shown = { shown } end
-  if type(shown) ~= "table" or #shown == 0 then return it end
-  local sub = type(it.subTitle) == "string" and it.subTitle or ""
-  local lowSub = sub:lower()
-  local add, seen = {}, {}
-  for _, phrase in ipairs(shown) do
-    local low = phrase:lower()
-    if phrase ~= "" and not seen[low] and not holdsWhole(lowSub, low) then
-      seen[low] = true
-      add[#add + 1] = phrase
-    end
-  end
-  if #add == 0 then return it end
-  local copy = {}
-  for k, v in pairs(it) do copy[k] = v end
-  copy.subTitle = (sub ~= "" and (sub .. " · ") or "") .. table.concat(add, ", ")
-  return copy
 end
 
 --- M.apply(items, query, matcher) -> a new list, the ranked items.
@@ -173,7 +129,7 @@ function M.apply(items, query, matcher)
 
   local out = {}
   for i = 1, #ranked do
-    out[i] = M.present(ranked[i])
+    out[i] = ranked[i].item
   end
   return out
 end

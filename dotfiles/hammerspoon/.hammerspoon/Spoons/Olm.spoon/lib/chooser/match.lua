@@ -38,9 +38,8 @@ for b = 0, 127 do ALNUM[b] = string.char(b):match("%w") ~= nil end
 -- their usual neighbours. Each of them also ends a phrase, see BREAK.
 local MULTI_SEP = { "\u{00B7}", "\u{25B8}", "\u{2022}", "\u{2014}", "\u{2013}", "\u{203A}", "\u{2192}" }
 
--- ASCII punctuation that ends a phrase, so pieces never span "disconnect, or" and a declared
--- string "a, b" holds two phrases. The non ASCII separators above end one too, the same set
--- for matching and for the phrase a row shows, so the two never disagree.
+-- ASCII punctuation that ends a phrase, so the pieces of a name never span a comma. The non
+-- ASCII separators above end one too.
 local BREAK = { [string.byte(",")] = true, [string.byte(";")] = true,
                 [string.byte("!")] = true, [string.byte("?")] = true }
 
@@ -420,47 +419,27 @@ local function matchName(w, name)
   return nil
 end
 
--- The phrase of a field holding byte pos, the text between the phrase breaks around it,
--- trimmed. The same breaks the pieces respect, so what a row shows is what was matched in.
-local function phraseAt(text, pos)
-  local from, to, j, m = 1, #text, 1, #text
-  while j <= m do
-    local b = text:byte(j)
-    local len = BREAK[b] and 1 or multiSepAt(text, j)
-    if len then
-      if j < pos then from = j + len else to = j - 1; break end
-      j = j + len
-    else
-      j = j + 1
-    end
-  end
-  return (text:sub(from, to):gsub("^%s+", ""):gsub("%s+$", ""))
-end
-
--- One lowered word against the secondary fields, word start or pieces only, the best field
--- kept, answering its score and, when that field is not shown on the row, the phrase that
--- matched.
+-- One lowered word against the secondary fields, level E. A word of the field must start
+-- with it, nothing more, no pieces across words, no edit and nothing inside a word, which is
+-- Milos's call on 2026-10-17. A subtitle or a keyword is what a row also answers to, never a
+-- second name to spell out, so do finds Focus through do not disturb while dnd finds it only
+-- through the keyword dnd itself. The best field is kept.
 local function matchDeclared(w, secondary)
-  local best, shown
+  local best
   for _, f in ipairs(secondary or {}) do
     local text = f.text
     if type(text) == "string" and text ~= "" then
-      local s, pos
+      local s
       if #text > LONG then
-        local atStart, sc, at = longField(w, text, lowered(text), false)
-        if atStart then s, pos = sc, at end
+        local atStart, sc = longField(w, text, lowered(text), false)
+        if atStart then s = sc end
       else
-        local p = prepare(text)
-        s, pos = atWordStart(w, text, p)
-        if not s then s, pos = inPieces(w, text, p) end
+        s = atWordStart(w, text, prepare(text))
       end
-      if s and (best == nil or s > best) then
-        best = s
-        shown = (not f.visible and pos) and phraseAt(text, pos) or nil
-      end
+      if s and (best == nil or s > best) then best = s end
     end
   end
-  return best, shown
+  return best
 end
 
 -- Whether a field holds the lowered text t anywhere, for the symbol part of a query word.
@@ -478,11 +457,11 @@ local function holds(t, name, secondary)
   return false
 end
 
---- M.fuzzy(query, hay, fields) -> score, level, within, atStart, shown, or nil
+--- M.fuzzy(query, hay, fields) -> score, level, within, atStart, or nil
 --- The one search, docs/PLAN-UNIFIED-SEARCH.md phase one, as Milos settled it on 2026-10-17
 --- after the live test and the review that followed. A row has a primary field, its name, and
 --- secondary fields, the text it shows or declares on purpose. fields is { primary = string,
---- secondary = { { text, visible }, ... } } as lib/chooser/rank.lua builds it. Without fields,
+--- secondary = { { text }, ... } } as lib/chooser/rank.lua builds it. Without fields,
 --- hay is the name and there is nothing secondary, which is how a plugin scoring its own
 --- strings calls it.
 ---
@@ -496,7 +475,7 @@ end
 ---      and never a wrong or extra last letter. dokcer and docekr find Docker.
 ---   D. In the name, whole inside a word, from three letters on. Two letters never do, so do
 ---      does not find Window.
----   E. In a secondary field, A or B only, below every name level.
+---   E. In a secondary field, at the start of a word only, below every name level.
 --- There is no scattered match and so no relevance floor.
 ---
 --- A query word with no letter or digit, an ampersand, a plus, a percent sign, matches as a
@@ -514,14 +493,11 @@ end
 ---
 --- The later answers are for consumers. level is the row's level sum, within its score
 --- inside the level, atStart whether every word matched the name at a word start, which the
---- launcher's memory gate reads, and shown the list of declared phrases, each once, that a
---- word matched in where the field is not shown, which rank.lua puts into the subtitle so a
---- person sees why the row is listed.
+--- launcher's memory gate reads.
 function M.fuzzy(query, hay, fields)
   local name = fields and fields.primary or hay
   local secondary = fields and fields.secondary
   local level, within, step, atStart = 0, 0, 0, true
-  local shownList, shownSeen = nil, nil
   local any = false
   for word in query:lower():gmatch("%S+") do
     any = true
@@ -533,28 +509,19 @@ function M.fuzzy(query, hay, fields)
     else
       if lead ~= "" and not holds(lead, name, secondary) then return nil end
       local wordLevel, score = matchName(core, name)
-      local shown
       if not wordLevel then
-        score, shown = matchDeclared(core, secondary)
+        score = matchDeclared(core, secondary)
         if not score then return nil end
         wordLevel = LEVEL.declared
       end
       level = level + wordLevel
       within = within + score
       if wordLevel ~= LEVEL.nameStart then atStart = false end
-      if shown and shown ~= "" then
-        shownSeen = shownSeen or {}
-        if not shownSeen[shown] then
-          shownSeen[shown] = true
-          shownList = shownList or {}
-          shownList[#shownList + 1] = shown
-        end
-      end
       step = step + #core * TOP + LONG * math.max(-GAP_LEAD, -GAP_TRAIL)
     end
   end
-  if not any then return 0, 0, 0, true, nil end
-  return level * step + within, level, within, atStart, shownList
+  if not any then return 0, 0, 0, true end
+  return level * step + within, level, within, atStart
 end
 
 --- M.substring(query, hay) -> score or nil

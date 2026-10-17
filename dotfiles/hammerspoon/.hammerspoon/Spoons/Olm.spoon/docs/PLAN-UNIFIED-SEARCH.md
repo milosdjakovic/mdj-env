@@ -38,13 +38,13 @@ never matches across fields. Each query word matches at the strongest of five le
 3. In the name, 1 with exactly one edit, from four letters on, never on the first letter and
    never a wrong or extra last letter. dokcer and docekr in Docker.
 4. In the name, inside a word, from three letters on. do never finds Window.
-5. In a secondary field, 1 or 2 only, below every name level.
+5. In a secondary field, only where one of its words starts with the query word, below every
+   name level. do finds Focus through do not disturb and Screen Time through downtime.
 
 There is no scattered match and no relevance floor. Every word is required, so google chrome
 finds nothing in a row titled Chrome, and the words' scores add. Past 256 bytes a field matches a
 word only at a word start or inside a word, which keeps long bodies fast and retires the words
-strategy. A row listed only through a keyword it does not show adds the matched phrase to its
-subtitle while a query is typed.
+strategy. A row shows exactly the subtitle its supplier gave, typed query or not.
 
 ## The row vocabulary
 
@@ -86,8 +86,9 @@ adversarial review and after Milos's live test, awaiting a live load. `match.fuz
 word in the name at a word start, in pieces, with one edit from four letters, or inside a word
 from three, and otherwise in a secondary field at a word start or in pieces, with a step between
 level sums derived from the weights. There is no scattered match and no floor. `rank.lua` builds
-the fields from `title`, `subTitle`, `keywords` and `filterText`, adds a hidden matched phrase to
-the subtitle, and gained `score`, `before`, `fieldsOf` and `present`. The copies in
+the fields from `title`, `subTitle`, `keywords` and `filterText`, and gained `score`, `before`
+and `fieldsOf`. A secondary field matches only at a word start, and a row shows its subtitle as
+its supplier wrote it. The copies in
 host/queryscope, host/actionpanel, the default list model and the launcher's scoring loop are
 gone, with `rank` handed to the three hosts as root data. The launcher hands its catalog over as
 the name plus declared terms, so category, status and chord are not searched, and its memory may

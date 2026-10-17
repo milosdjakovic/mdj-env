@@ -144,8 +144,7 @@ check("a two letter word with a typo matches nothing", M.fuzzy("dp", "Docker") =
 check("a two letter word never matches inside a word", M.fuzzy("do", "Window") == nil)
 check("a three letter word does", levelOf("ndo", "Window") == L.nameInside)
 check("os is not inside Photos", M.fuzzy("os", "Photos") == nil)
-check("pieces never span clause punctuation",
-  M.fuzzy("do", "x", { primary = "x", secondary = { { text = "disconnect, or join", visible = true } } }) == nil)
+check("the pieces of a name never span clause punctuation", M.fuzzy("do", "disconnect, or join") == nil)
 
 do
   local got = table.concat(order("lose", { "Enclosed", "Local Servers", "Loser" }), ",")
@@ -163,17 +162,22 @@ for _, pair in ipairs({
     #got == 1 and got[1] == pair[2], table.concat(got, ","))
 end
 
--- A declared term ranks below every name level, and a hidden one says why the row is listed.
+-- A declared term ranks below every name level, matches only at the start of one of its
+-- words, and never changes what the row shows.
 do
   local focus = { title = "Focus", subTitle = "System Settings", keywords = "focus, do not disturb, dnd" }
   local dock = { title = "Dock", subTitle = "System" }
   local got = rank.apply({ focus, dock }, "do", M.fuzzy)
   check("a name match ranks above a declared term match", got[1] and got[1].title == "Dock")
-  check("the declared phrase joins the subtitle of a row listed by it",
-    got[2] and got[2].subTitle == "System Settings · do not disturb", got[2] and got[2].subTitle)
-  check("the row handed in is never changed", focus.subTitle == "System Settings")
-  local plain = rank.apply({ focus }, "foc", M.fuzzy)
-  check("a row listed by its name shows its subtitle unchanged", plain[1].subTitle == "System Settings")
+  check("a row matched by a hidden keyword shows the subtitle its supplier gave",
+    got[2] == focus and focus.subTitle == "System Settings")
+  local fields = { primary = "Focus", secondary = { { text = "focus, do not disturb", visible = false } } }
+  check("a secondary field matches a word start", M.fuzzy("dist", "Focus", fields) ~= nil)
+  check("a secondary field never matches in pieces", M.fuzzy("dnd", "Focus", fields) == nil)
+  check("a secondary field never matches inside a word", M.fuzzy("turb", "Focus", fields) == nil)
+  check("a secondary field never forgives a typo", M.fuzzy("distrub", "Focus", fields) == nil)
+  check("Screen Time still answers do through downtime", M.fuzzy("do", "Screen Time",
+    { primary = "Screen Time", secondary = { { text = "screen time, limits, downtime", visible = false } } }) ~= nil)
 end
 
 -- Real launcher rows, copied from the live catalog on 2026-10-17 in the shape the launcher now
@@ -289,27 +293,6 @@ do
     got == "Loser,Local Servers,Closet", got)
 end
 
--- What a row shows for a hidden phrase, the review of 2026-10-17.
-do
-  local focus = { title = "Focus", subTitle = "System Settings", keywords = "focus, do not disturb, dnd" }
-  local got = rank.apply({ focus }, "do not", M.fuzzy)
-  check("two words in one hidden phrase show it once",
-    got[1] and got[1].subTitle == "System Settings · do not disturb", got[1] and got[1].subTitle)
-  local pieces = { title = "Screen", subTitle = "", keywords = "lock, screen time limits" }
-  got = rank.apply({ pieces }, "stl", M.fuzzy)
-  check("a pieces match shows the phrase its pieces started in",
-    got[1] and got[1].subTitle == "screen time limits", got[1] and got[1].subTitle)
-  local some = { title = "Clock", subTitle = "Sometimes", keywords = "time" }
-  got = rank.apply({ some }, "time", M.fuzzy)
-  check("a phrase inside a longer subtitle word is still shown",
-    got[1] and got[1].subTitle == "Sometimes · time", got[1] and got[1].subTitle)
-  local menu = { title = "Find Next", subTitle = "Edit ▸ Find", filterText = "Find Next",
-    keywords = "Edit ▸ Find" }
-  got = rank.apply({ menu }, "edit", M.fuzzy)
-  check("a phrase the subtitle shows between triangles is not repeated",
-    got[1] and got[1].subTitle == "Edit ▸ Find", got[1] and got[1].subTitle)
-  check("pieces never span a triangle", M.fuzzy("ef", "x", { primary = "x",
-    secondary = { { text = "Edit ▸ Find", visible = true } } }) == nil)
-  check("pieces never span a middle dot", M.fuzzy("ns", "x", { primary = "x",
-    secondary = { { text = "Network · see", visible = true } } }) == nil)
-end
+-- Phrase breaks inside a name, the review of 2026-10-17.
+check("the pieces of a name never span a triangle", M.fuzzy("ef", "Edit ▸ Find") == nil)
+check("the pieces of a name never span a middle dot", M.fuzzy("ns", "Network · see") == nil)

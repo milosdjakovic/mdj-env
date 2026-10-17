@@ -16,10 +16,9 @@ it declares, and a word never matches across fields. Each query word matches at 
 five levels. In the name at the start of a word. In the name in pieces, each the start of one of
 a run of consecutive words in one phrase, initials being every piece one letter. In the name at
 a word start with one edit, from four letters on, never on the first letter or a wrong last one. In the name inside a word, from three letters on. And in a
-secondary field at a word start or in pieces only, below every name level. There is no scattered
+secondary field only where one of its words starts with the query word, below every name level. There is no scattered
 match and no relevance floor. A word with no letter or digit is a plain substring and adds no
-level. Every word is required and the scores add. A row listed only
-through a hidden keyword shows the phrase in its subtitle while a query is typed.
+level. Every word is required and the scores add. A row shows the subtitle its supplier gave.
 
 Plugins declare a row vocabulary and only core applies it. Today that is `title`, `subTitle`,
 `keywords` and `filterText`, stated at the head of `rank.lua`. Phase two adds several names per
@@ -75,6 +74,13 @@ row, pinned rows, query rows, tiers and a bounded bonus.
   and show finding Shortcuts, and an edit inside pieces let focs find Local Servers. One edit now
   applies to a word start match only, strictly after the first letter, never making the last
   letter wrong or extra.
+
+- **Showing the matched hidden keyword in a row's subtitle.** 2026-10-17, built at 6237367 and
+  removed by Milos after trying d41d57d live. He wants the subtitle to stay exactly as the
+  supplier wrote it, typed query or not.
+- **Matching a secondary field in pieces.** 2026-10-17, removed with it. A subtitle or a keyword
+  is what a row also answers to, never a second name to spell out by initials, so dnd no longer
+  matches Focus through do not disturb, only through the keyword dnd itself.
 
 ## Log
 
@@ -367,3 +373,20 @@ The launcher's lower level pick case is now Loes by two swapped letters over Loc
 pieces for lose, since Closet no longer matches lose by an edit. Mutation results are unchanged.
 
 Gates are in the commit report.
+
+### 2026-10-17 13:34, no shown keywords, secondary fields at a word start only
+
+Milos tried d41d57d live and asked for two changes, both built. A row matched through a hidden
+keyword no longer gets the phrase added to its subtitle, so every row shows exactly the subtitle
+its supplier gave, typed query or not, and `rank.present`, the matcher's list of shown phrases
+and the cases describing them are gone. And a secondary field, a subtitle, a keyword or an alias
+word, now matches a query word only where one of its words starts with it, with no pieces, no
+edit and nothing inside a word. Name levels A to D are unchanged.
+
+On the live catalog, dumped again through a temporary unit case and deleted after, do lists the
+same 9 rows, Dock, Docker, Docker Desktop, Move Down, Google Docs, Desktop & Dock, Focus through
+do not disturb, Local Servers through docker, and Screen Time through downtime, each now showing
+only its own subtitle. dnd still finds Focus through the keyword dnd itself, no longer through the
+initials of do not disturb. 71 of 660 two to four letter queries change their top result against
+main, as before.
+
