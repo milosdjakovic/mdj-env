@@ -9,8 +9,10 @@
 -- start one at all, so this stub is not a copy of anything already in test/, it is new,
 -- and it is deliberately permissive rather than a faithful model of Hammerspoon.
 --
--- THE SHAPE. Every hs.anything, called or indexed, however deep, answers another one of
--- these same stub objects, which is itself truthy, indexable, and callable. A plugin's own
+-- THE SHAPE. Every hs.anything, called or indexed by a name, however deep, answers another
+-- one of these same stub objects, which is itself truthy, indexable, and callable. Indexed by
+-- a number it answers nil, and joined, compared or used in arithmetic it answers a plain
+-- value, see autostub below for why each. A plugin's own
 -- top level code, `local log = hs.logger.new(...)`, `hs.fs.attributes(...)`, whatever a
 -- module happens to reach for while it is merely being LOADED rather than configured, gets
 -- back something it can keep indexing and calling without raising. This is deliberately
@@ -37,30 +39,55 @@
 -- not a finding, it is this gate asking the wrong question. So M.configureModule attempts
 -- configure too, with a generous, entirely inert opts table, generous because getting past a
 -- plugin's own early guard on a required field matters more here than the field's real
--- shape, and inert because every value in it, ambient or lib sourced, is either real plugin
--- data read straight off the manifest or another one of these same harmless stub answers, so
--- nothing a configure call does under it, bind a hotkey, start a timer, touches anything
--- real. A configure that still raises, most often a required capability this gate has no way
--- to assemble, a sibling plugin's own module or a piece of the person's own configuration,
--- degrades the whole plugin to unknown rather than reporting its unconfigured shape as a
--- false finding.
+-- shape, while a needs.data field the manifest calls optional is left absent, the state a
+-- real load reaches for it, see buildOpts in test/drygate.lua, and inert because every value
+-- in it, ambient or lib sourced, is either real plugin data read straight off the manifest
+-- or another one of these same harmless stub answers, so nothing a configure call does under
+-- it, bind a hotkey, start a timer, touches anything real. A configure that still raises,
+-- most often a required capability this gate has no way to assemble, a sibling plugin's own
+-- module or a piece of the person's own configuration, degrades the whole plugin to unknown
+-- rather than reporting its unconfigured shape as a false finding.
 --
 -- THE INSTRUCTION BUDGET. A `while hs.something() do ... end` written to run until a real
 -- Hammerspoon answer eventually turns falsy never terminates against a stub that is always
--- truthy, and did, once, while this file was being built, plugins/processes/init.lua's own
--- load chain hung the shell it ran in. M.budgeted below counts VM instructions during ONE
--- attempt and raises once a generous budget is spent, which its own caller's pcall turns
+-- truthy. plugins/processes/init.lua's own load chain once hung the shell it ran in, and was
+-- then reported unknown on this budget, which measured on 2026-10-17 was not a while loop and
+-- not a heavy load but an ipairs over hs.styledtext.fontNames(), endless only because the stub
+-- then answered every numeric index too. That is fixed in the stub's shape below, and the
+-- budget stays for the loop it was written for. M.budgeted below counts VM instructions during
+-- ONE attempt and raises once a generous budget is spent, which its own caller's pcall turns
 -- into an ordinary failure, reported the same honest UNKNOWN as any other attempt this stub
 -- cannot carry. The count resets before every attempt, so one plugin's own legitimate cost
 -- can never be blamed on the budget a much heavier one ahead of it already spent.
 local M = {}
 
+-- The answer shape is the one test/drygate-composerun.lua's own stand in already gives, so the
+-- two stubs this gate runs plugins under agree on what an hs answer is. Indexed by a number it
+-- answers nil, since every hs call that answers a list answers a real Lua array, and a stand in
+-- that answered another stand in at every position made `for _, n in ipairs(hs.x()) do` a loop
+-- that never ends, which measured, not guessed, is what plugins/processes/icons.lua's own font
+-- walk at load was, the whole budget spent in this __index and none in the plugin's own code.
+-- Joined, compared or used in arithmetic it answers a plain value instead of raising, since a
+-- real answer at those places is a string or a number, and a plugin that writes
+-- `"app:" .. hs.processInfo.bundleID` or a handler name into a reason is correct code that only
+-- this stub made raise. It still never equals anything but itself, so a comparison against a
+-- real bundle id takes the branch a mismatch takes.
 local function autostub()
   local self
   self = setmetatable({}, {
-    __index = function(_, _key) return autostub() end,
+    __index = function(_, key)
+      if type(key) == "number" then return nil end
+      return autostub()
+    end,
     __call = function(_, ...) return autostub() end,
     __tostring = function() return "<olm dry gate hs stub>" end,
+    __concat = function(a, b) return tostring(a) .. tostring(b) end,
+    __add = function() return 0 end, __sub = function() return 0 end,
+    __mul = function() return 0 end, __div = function() return 0 end,
+    __mod = function() return 0 end, __unm = function() return 0 end,
+    __idiv = function() return 0 end, __pow = function() return 0 end,
+    __lt = function() return false end, __le = function() return false end,
+    __len = function() return 0 end,
   })
   return self
 end
@@ -88,8 +115,10 @@ function M.install(spoonDir)
   -- One targeted override, found while this file was being built. hs.fs.attributes is the
   -- ordinary Hammerspoon idiom for asking whether a path exists at all, answering nil for
   -- one that does not, and a stub table is never nil, so `hs.fs.attributes(path,
-  -- "modification")` compared or arithmetic'd the way a real timestamp check does raises
-  -- instead of taking the "not there yet" branch every caller already writes for it, the
+  -- "modification")` compared or arithmetic'd the way a real timestamp check does raised
+  -- instead of taking the "not there yet" branch every caller already writes for it, and
+  -- now that a stub compares and adds without raising it would quietly take the wrong
+  -- branch instead, a file that is there and stale rather than one that is absent, the
   -- concrete failure plugins/eyedropper/init.lua's own binaryFresh hit. A dry gate machine
   -- genuinely has none of a plugin's own cache files, so nil is not only safe, it is the
   -- honest answer. Assigned directly onto a stable table, rather than left to the generic

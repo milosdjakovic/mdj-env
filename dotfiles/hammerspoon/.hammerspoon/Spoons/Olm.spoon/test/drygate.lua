@@ -369,8 +369,19 @@ local function buildOpts(manifest)
   -- which an autostub answers forever, the concrete failure a handful of real configure
   -- calls hit while this file was being built, an opts field the plugin walks as a list it
   -- expects to run out.
-  for field in pairs((manifest.needs or {}).data or {}) do
-    if opts[field] == nil then opts[field] = {} end
+  --
+  -- An optional field is the exception and is left absent. Optional is the manifest's own
+  -- promise that the plugin runs without the value, which is how lib/plugins.lua's own
+  -- obj.data reads the policy, required unless it says otherwise, and absent is a state a real
+  -- load reaches, a fresh install with nothing in the person's config, or a root word whose
+  -- host is switched off. An empty table is a state no real load reaches for such a field,
+  -- since the value is a string, a host object or a function, and handing one over measured
+  -- as two false unknowns, a Chrome bundle id read as present and handed to a factory that
+  -- wants a string, and a stage read as present and asked for a method it does not have.
+  -- Absent puts configure on the path the manifest's own breaks sentence describes.
+  for field, decl in pairs((manifest.needs or {}).data or {}) do
+    local optional = type(decl) == "table" and decl.policy == "optional"
+    if opts[field] == nil and not optional then opts[field] = {} end
   end
 
   return opts

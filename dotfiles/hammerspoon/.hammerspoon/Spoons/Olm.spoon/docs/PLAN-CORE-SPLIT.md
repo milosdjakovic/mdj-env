@@ -287,6 +287,13 @@ shapes, the hs global's own `settings` and a bare local sharing a plugin's word,
 23 accepted and 0 differences, in about 2.4 seconds against 1.2 before. Twenty planted cases,
 eighteen leaks and two harmless shapes, are listed in the decision log.
 
+**Unknowns cleared, 2026-10-17.** Check two had never run for browsertabs, capture, the launcher
+and processes, each reported unknown. The stub in `test/drygate-hsstub.lua` now answers nil at a
+numeric index and a plain value when joined, compared or used in arithmetic, the shape the root
+run's own stub already had, and `test/drygate.lua` leaves an optional `needs.data` field absent
+rather than handing it an empty table. Every module that configured before keeps the same
+members, and the gate reads 0 unknown. The decision log has the measurements.
+
 What stays open. Code that runs only once a person acts, a key handler, a timer callback, a
 chooser's own row and select callbacks, a host's code that runs only when its list shows, never
 runs under the root, so only the scan sees it, and only in the forms it knows. The content

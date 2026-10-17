@@ -175,6 +175,21 @@ surface and empty state, the scroll and the teardown, `pane = true` on a surface
   positions in the snapshot, a clean tree gave 1072 differences, a list core builds by walking a
   table keyed by identity comes out in hash order and a renamed key changes it, so no difference
   could be told apart from a leak.
+- **Giving check two the modules the composition root configured.** 2026-10-17 09:25. The rename
+  proof already runs the person's `init.lua` and the root under a stub, so its modules carry real
+  opts, a real Chrome bundle id among them. But that run is a separate process inside a sandbox
+  with its own `hs`, so check two would have to move into it or run the root a third time in the
+  gate's own process, a plugin the person switched off would never be composed and so never
+  checked, and whether a manifest's members resolve would depend on one person's config, which a
+  contract check must not.
+- **Answering nil from the particular hs getters whose real answer is often absent.** 2026-10-17
+  09:25. It would have cleared capture and the launcher, but it is a list of hs calls kept in
+  step with whatever plugins happen to call, the shape the stub exists to avoid, and the getters
+  in question, a default handler and the running bundle id, answer a string on a real machine,
+  so nil would have been a different lie rather than the truth.
+- **Raising the stub's instruction budget for processes.** 2026-10-17 09:25. Measured with a
+  sampling hook at five times the budget, every sample sat in the stub's own `__index` under one
+  `ipairs` in `plugins/processes/icons.lua`, so no budget would ever have been enough.
 
 ## Log
 
@@ -443,3 +458,25 @@ surface and empty state, the scroll and the teardown, `pane = true` on a surface
   and the plan now says what the proof records rather than every route, and phase 6 of the plan
   lists what stays open, code that runs only once a person acts, state nothing reads back, order,
   and nesting inside one argument.
+- 2026-10-17 09:25. The dry gate's four unknowns cleared, measured one by one. processes was
+  never a heavy load. A sampling hook at five times the budget put every sample in the stub's own
+  `__index` under `ipairs(hs.styledtext.fontNames())` in `plugins/processes/icons.lua`, endless
+  because the stub answered every numeric index with another stub. capture and the launcher were
+  correct code joining a real string answer, a default url handler and `hs.processInfo.bundleID`,
+  that the stub answered with a table. browsertabs, and the launcher once it got past its load,
+  were handed an empty table for an optional `needs.data` field, a Chrome bundle id the chromium
+  factory refused as not a string and a stage asked for a method it lacks, a state no real load
+  reaches. Two general changes, no plugin or host code touched. `test/drygate-hsstub.lua` now
+  gives the answer shape `test/drygate-composerun.lua` already gave, nil at a numeric index and a
+  plain value when joined, compared or used in arithmetic, so the gate's two stubs agree, and
+  `test/drygate.lua` leaves an optional data field absent, the state the manifest's own breaks
+  sentence describes, while a required one keeps its empty table. Before and after were compared
+  in a scratch copy with every configured module's function members dumped, the 27 modules that
+  configured before have identical members after, five more configure now, the four plus the
+  stage host, and the gate's output is identical apart from the four unknown lines. One planted
+  member typo in each of the four manifests, a registry open, a launcher runner, a wiring step and
+  a dotted open, each became a finding. The gate reads 0 findings, 23 accepted, 0 warnings, 0
+  unknown and 0 differences over 5159 lines, in about 2 seconds against 3.1 before, the time the
+  budget used to burn. Noticed and left for a change of its own, browsertabs hands an empty
+  string Chrome bundle id to the factory, which raises and takes Safari down with it, against its
+  manifest's own breaks sentence.
