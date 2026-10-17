@@ -59,7 +59,9 @@
 --- is no longer read here. The text is foreground and the subtitle subtext, the field's
 --- own selection band and the list's own row highlight are both the highlight token, a
 --- disabled row and the placeholder are dimmed by the dim alpha, and the row numbers are
---- the section role's colour, subtext. The caret is left to
+--- the section role's colour, subtext. A typed query that leaves no rows draws the shared
+--- empty state, CanvasPanel.emptyStateElements in the caption role, saying No results in the
+--- band where the rows would be, which list render decides and draws. The caret is left to
 --- field render's own fallback, the text colour standing in for it. The font and the two
 --- text sizes are the body and caption roles, handed to both renderers through the draw
 --- layout, and the rest of the layout is geometry.lua's.
@@ -117,6 +119,16 @@ local UI = nil
 -- something downstream of the field's tap and must pass on. Nil until M.configure runs,
 -- and nil means the field claims everything. This file knows only that it is a predicate.
 local YIELDS = nil
+
+-- The injected CanvasPanel module, nil until M.configure runs. Held at module level rather than
+-- per instance, the same shape lib/panel.lua's own configure already takes for its shared
+-- style, since every instance this file ever builds draws through the identical shared chrome
+-- and the identical empty state. Declared up here because the instance methods read it.
+local PANEL = nil
+
+-- What the list says when a typed query left no rows, drawn through the shared empty state
+-- for every list rather than offered by each tool, so it is never a row anybody can choose.
+local NO_RESULTS = "No results"
 
 -- The injected icon resolver, function(icon, owner) -> hs.image or nil, nil until M.configure
 -- runs. List render asks it for a row's icon at paint, so the colour is read on every draw and
@@ -296,6 +308,11 @@ function Provider:_deriveStyles()
     dimAlpha = T.alpha.dim,
     -- Read late through the module level, so a configure after this instance was built applies.
     icon = function(icon, owner) return ICON and ICON(icon, owner) or nil end,
+    -- The shared empty state, in the caption role and the subtext colour, list render deciding
+    -- when it shows.
+    emptyState = function(w, h)
+      return PANEL and PANEL.emptyStateElements(w, h, { text = NO_RESULTS }) or {}
+    end,
   }
 end
 
@@ -414,6 +431,9 @@ end
 -- matcher a haystack built by concatenating an hs.styledtext value into a string, which
 -- is not what a matcher expects.
 function Provider:_rebuildList(query, resetHighlight)
+  -- The query these rows were ranked for, which is what decides the empty state. The field's
+  -- text can run ahead of it for the length of a setQuery, so it is kept rather than read back.
+  self._rankedQuery = query or ""
   local ranked = self:_rankedRows(query)
   local drawReady = {}
   for i = 1, #ranked do
@@ -466,7 +486,7 @@ function Provider:_redraw()
     -- along the surface's curve at the corners rather than poking past it.
     if (interior.radius or 0) > 0 then clip.round = interior end
   end
-  for _, el in ipairs(listRender.elements(self.listState, listRect, self._drawLayout, self._listStyle, clip)) do
+  for _, el in ipairs(listRender.elements(self.listState, listRect, self._drawLayout, self._listStyle, clip, self._rankedQuery)) do
     els[#els + 1] = el
   end
   self.surface:draw(els)
@@ -1197,12 +1217,6 @@ end
 --------------------------------------------------------------------------------
 
 local M = {}
-
--- The injected CanvasPanel module, nil until M.configure runs. Held at module level
--- rather than per instance, the same shape lib/panel.lua's own configure already takes
--- for its shared style, since every instance this file ever builds draws through the
--- identical shared chrome.
-local PANEL = nil
 
 --- M.configure(opts) takes opts.panel, the CanvasPanel module, and opts.ui, the UI kit, and
 --- optionally opts.icon, the icon resolver function(icon, owner) -> hs.image or nil, and opts.yields, a function(event) answering true for a key down the field's tap

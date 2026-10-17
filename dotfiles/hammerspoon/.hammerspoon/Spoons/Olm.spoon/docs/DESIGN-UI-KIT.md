@@ -226,6 +226,20 @@ the kit because the file search pane, the processes pane and the speedtest pane 
 this way, and three private copies would each drift. Added 2026 10 14 with the processes step, and
 the file search pane's own copy was deleted.
 
+## The empty list
+
+The default chooser's row list has three states, rows, no rows before anything is typed, and
+no rows under a typed query. The last one draws the shared empty state,
+`CanvasPanel.emptyStateElements`, caption and subtext, saying No results, centred in the band
+where the rows would be. It is drawn by `lib/chooser/providers/default/list/render.lua` for
+every list rather than offered by each tool, and it is never a row, so nothing highlights it,
+Return and a digit and a click reach nothing, and the action panel, the stage's held highlight
+and the hint panel see exactly the zero rows they saw before. An empty query with no rows
+stays blank, since no search was made. The band keeps its height when it is empty, because the
+surface is sized from the row count and never from the rows, which gives the message at least
+one row of room and keeps the surface still as a query empties the list and refills it. Added
+2026 10 17, and `test/cases/chooser-emptystate.lua` pins it.
+
 ## What the typography plan's step three removed
 
 The empty pane state, the hint bar, the toasts and the cheat sheet moved onto the five roles

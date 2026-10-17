@@ -29,6 +29,10 @@
 --- style.icon is optional, function(icon, owner) -> hs.image or nil. A row with no image of its
 --- own that names an icon is drawn through it at every paint, which is what keeps an icon in the
 --- colour of the half the system is in now. A row that carries an image keeps it.
+--- style.emptyState is optional, function(w, h) -> elements at the origin, the shared empty state
+--- the provider hands in from CanvasPanel.emptyStateElements. It is drawn centred in the band
+--- when a typed query left no rows, see M.showsEmptyState, and never as a row, so nothing can
+--- highlight it, choose it or number it.
 ---
 --- A row is drawn from the shape lib/chooser/providers/legacy.lua's own head already
 --- documents, title, subTitle, image, enabled and item, filterText playing no part once
@@ -227,18 +231,44 @@ function M.bandHeight(layout)
   return resolved.rowCount * resolved.rowH + resolved.padBottom
 end
 
+--- M.showsEmptyState(state, query) answers whether the band draws the empty state, true only
+--- when the query the rows were ranked for holds text and no row survived it. An empty query
+--- with no rows draws nothing, as it always has, since that is a list still waiting for its
+--- rows or one that has none to offer before anything is typed, and a message there would
+--- claim a search nobody made. query is the one the caller ranked with, since the provider
+--- ranks before this file and hands the model an empty query, so the state cannot say.
+function M.showsEmptyState(state, query)
+  if type(query) ~= "string" or query == "" then return false end
+  return #model.normalized(state).filtered == 0
+end
+
+-- A shallow copy of an element with its frame offset, for the shared empty state, which draws
+-- in its own box at the origin and is placed in the band here, the same copy lib/dockedpane.lua
+-- makes for the same routine.
+local function shifted(el, dx, dy)
+  local copy = {}
+  for k, v in pairs(el) do copy[k] = v end
+  if el.frame then
+    copy.frame = { x = (el.frame.x or 0) + dx, y = (el.frame.y or 0) + dy,
+                   w = el.frame.w, h = el.frame.h }
+  end
+  return copy
+end
+
 --- clip is optional, the rect the band is cut to when it is not the band itself, which is
 --- how a caller keeps a row from being drawn over a border its surface paints at the edge.
 ---
---- M.elements(state, rect, layout, style, clip) answers a list of canvas elements for one row
---- list. rect is x y w h, the box this list occupies inside the caller's own canvas,
+--- query is optional, the text the rows were ranked for, read only by M.showsEmptyState.
+---
+--- M.elements(state, rect, layout, style, clip, query) answers a list of canvas elements for
+--- one row list. rect is x y w h, the box this list occupies inside the caller's own canvas,
 --- ordinarily sitting directly under the field at layout.baseH and standing exactly
 --- M.bandHeight(layout) tall, though this function only ever reads rect.x, rect.y and
 --- rect.w, since every row's own height already comes from layout.rowH and stacking
 --- rowCount of them is what answers rect.h in the first place rather than the other way
 --- around. layout and style are both every field optional, described at the head of this
 --- file.
-function M.elements(state, rect, layout, style, clip)
+function M.elements(state, rect, layout, style, clip, query)
   for _, field in ipairs({ "font", "textSize", "textLine", "subFont", "subSize", "subLine",
                            "numFont", "numSize" }) do
     if not layout or layout[field] == nil then
@@ -400,6 +430,17 @@ function M.elements(state, rect, layout, style, clip)
           w = px(numW), h = px(2 * numH),
         },
       }
+    end
+  end
+
+  -- The empty state fills the band the rows would have filled, so it is centred where a person
+  -- is already looking and inside the same clip. The band keeps its height when it is empty,
+  -- since the surface is sized from the row count and never from the rows, so the message
+  -- always has at least one row of room and nothing jumps as a query empties the list and
+  -- refills it.
+  if style.emptyState and M.showsEmptyState(ns, query) then
+    for _, el in ipairs(style.emptyState(rect.w, bandH) or {}) do
+      els[#els + 1] = shifted(el, rect.x, rect.y)
     end
   end
 
