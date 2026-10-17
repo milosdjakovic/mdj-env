@@ -170,11 +170,6 @@ return {
       -- effective defaults.
       placeholderExamples = { source = "root", policy = "optional",
         breaks = "the empty field only ever says it searches apps and commands, so a person is never told that a typed sum or a unit conversion is answered here at all" },
-      -- The one rank engine, lib/chooser/rank.lua, the same module both chooser providers rank
-      -- through. This host scores and orders its catalog through it, putting only its learned
-      -- query memory ahead, so it keeps no scoring loop of its own, docs/PLAN-UNIFIED-SEARCH.md.
-      rank = { source = "root", policy = "optional",
-        breaks = "typing filters nothing, the whole catalog stays listed in its resting order, since the engine that scores rows against what was typed is never handed in" },
     },
   },
 
@@ -236,13 +231,9 @@ return {
     -- roughly halves how often the top row changes where two rows are used about equally.
     -- Set it to zero for a bare comparison.
     --
-    -- `nearness` is how close to the best match a row must score before any of this is
-    -- allowed to decide it, as a proportion of that best score rather than a number of
-    -- points, since the score grows with every character typed. It is what stops a pick made
-    -- at a short spelling from outranking a name spelled out in full, and it is the one of
-    -- the three that is a correctness guard rather than a preference. Raising it toward one
-    -- makes the memory apply only to near ties, lowering it lets it reach further, and zero
-    -- removes the guard entirely and is very unlikely to be what anyone wants.
+    -- What the memory decides is fixed by the shared search rather than by a number here. A
+    -- remembered row carries a bonus, which orders only rows matching equally well, so a pick
+    -- made at a short spelling never outranks a better match, docs/PLAN-UNIFIED-SEARCH.md.
     -- Where this host's own special rows, the alias directory, lock and sleep, sit among the rows
     -- other plugins contribute, a number compared with each contributor's own launcherOrder.
     -- Thirty puts them after the screenshot actions and the settings search and before the
@@ -253,7 +244,6 @@ return {
     ranking = {
       decay = 0.80,
       margin = 0.6,
-      nearness = 0.9,
     },
 
     specialRows = {

@@ -232,9 +232,14 @@ end
 --------------------------------------------------------------------------------
 -- host/launcher, the ordering itself.
 --
--- Everything above is arithmetic. This is the behaviour that arithmetic was for, run through
--- the host's own _rankCatalog against the real shared matcher, so what is asserted here is
--- what a person actually sees in the list.
+-- Everything above is arithmetic. This is the behaviour that arithmetic was for, run through the
+-- real ranking path, the launcher's own supplier handing its rows to rank.apply with the shared
+-- fuzzy matcher exactly as the stage does, so what is asserted here is what a person sees.
+--
+-- Since phase four of docs/PLAN-UNIFIED-SEARCH.md the launcher ranks nothing itself. Its memory
+-- reaches the engine as a bonus, so it orders only rows that match equally well, Milos's
+-- decision of 2026-10-17. ma still learns Maps over Mail, both a word start, while lose keeps
+-- Local Servers, spelled in pieces, above a remembered Loes, one typo away.
 --------------------------------------------------------------------------------
 
 print("launcher ranking")
@@ -243,30 +248,33 @@ local fuzzy = assert(loadfile(spoon .. "lib/chooser/match.lua"))().fuzzy
 local rank = assert(loadfile(spoon .. "lib/chooser/rank.lua"))()
 local Launcher = assert(loadfile(spoon .. "host/launcher/init.lua"))()
 
+-- A catalog row as _orderedRows holds it, before the supplier turns it into what the engine
+-- reads. The subtitle is a status and is not searched, since the supplier sets filterText to
+-- the title.
 local function appRow(name, bundleID, subTitle)
-  return {
-    title = name, subTitle = subTitle, item = { kind = "app", bundleID = bundleID },
-    -- The name alone, the shape the launcher hands its catalog over in since 2026-10-17, the
-    -- subtitle being a status that is not searched.
-    filterText = name,
-  }
+  return { title = name, subTitle = subTitle or "", item = { kind = "app", bundleID = bundleID } }
 end
 
--- The exact scenario this whole change was argued from, and the reason the shared matcher is
--- used here rather than a fake one. Mail and Maps match "ma" identically, both on the first
--- letter and both extending the run, and Mail wins on nothing but its subtitle being nine
--- characters shorter, which the scorer charges 0.02 a character for.
 local MAIL = appRow("Mail", "com.apple.mail", "Open")
 local MAPS = appRow("Maps", "com.apple.Maps", "Not running")
 
 local function launcher(assoc)
   defaults = {}
-  Launcher._matcher = fuzzy
-  Launcher._rank = rank
   Launcher._assoc = assoc
   Launcher._page = nil
   Launcher._installedApps = nil
+  Launcher._predicates = {}
+  Launcher._queryProviders = {}
+  Launcher._orderedRowsCache = nil
   return Launcher
+end
+
+-- What the list shows for a query. The catalog stands in for _orderedRows in its resting order,
+-- the supplier builds the rows, and rank.apply ranks them with the shared matcher and no search,
+-- since the launcher's presentation declares neither a matcher nor a searchText.
+local function shown(l, query, catalog)
+  l._orderedRowsCache = catalog
+  return rank.apply(l:_commandRows(query), query, fuzzy)
 end
 
 local function titles(rows)
@@ -275,160 +283,150 @@ local function titles(rows)
   return table.concat(out, ",")
 end
 
--- The complaint, stated as a test. Nothing has been picked yet, so the list is ordered on the
--- match alone and the row that loses does so for a reason that has nothing to do with typing.
+-- With nothing remembered Mail and Maps match ma identically, both at the start of their name,
+-- so the resting order decides, which is what the original complaint asked for.
 do
   local l = launcher(nil)
-  eq(titles(l:_rankCatalog("ma", { MAIL, MAPS })), "Mail,Maps",
-    "with nothing remembered the longer subtitle loses")
+  eq(titles(shown(l, "ma", { MAIL, MAPS })), "Mail,Maps", "with nothing remembered the resting order decides")
+  eq(titles(shown(l, "ma", { MAPS, MAIL })), "Maps,Mail", "and the other resting order the other way")
 end
 
--- And the fix. One pick is enough, because an association is a record of what was meant rather
--- than a guess about what is popular.
+-- One pick is enough, because both rows match at the same level and the bonus orders exactly
+-- those.
 do
   local a = fresh()
   local l = launcher(a)
   a.note("ma", "app:com.apple.Maps")
-  eq(titles(l:_rankCatalog("ma", { MAIL, MAPS })), "Maps,Mail",
-    "one pick puts the chosen row first next time")
+  eq(titles(shown(l, "ma", { MAIL, MAPS })), "Maps,Mail", "ma learns Maps over Mail with one pick")
 end
 
--- The prefix half, seen from the list rather than from the store. Picking at a longer spelling
--- improves the shorter searches on the way to it.
+-- The prefix half, seen from the list. Picking at a longer spelling improves the shorter one.
 do
   local a = fresh()
   local l = launcher(a)
   a.note("map", "app:com.apple.Maps")
-  eq(titles(l:_rankCatalog("ma", { MAIL, MAPS })), "Maps,Mail",
-    "a pick at a longer query orders the shorter one too")
+  eq(titles(shown(l, "ma", { MAIL, MAPS })), "Maps,Mail", "a pick at a longer query orders the shorter one too")
 end
 
--- The guard that matters most, and the one this suite found the hard way. Every remembered
--- spelling answers for the longer queries it begins, so a pick made at "ma" is consulted when
--- you type "mail" too, and Maps genuinely does match "mail" by spending the scorer's typo
--- allowance on the letter it cannot place. Without the nearness guard this ordered Maps above
--- Mail while Mail was spelled out in full. Twenty picks is deliberately far more than it takes
--- to lead, to show that no amount of history buys its way past a clearly better match.
+-- The leader changes on the fourth pick in the list as well as in the store, since the bonus
+-- is the store's order and nothing else.
+do
+  local a = fresh()
+  local l = launcher(a)
+  for _ = 1, 10 do a.note("ma", "app:com.apple.mail") end
+  for _ = 1, 3 do a.note("ma", "app:com.apple.Maps") end
+  eq(titles(shown(l, "ma", { MAPS, MAIL })), "Mail,Maps", "three picks do not yet overturn a settled leader")
+  a.note("ma", "app:com.apple.Maps")
+  eq(titles(shown(l, "ma", { MAIL, MAPS })), "Maps,Mail", "the fourth pick takes the top row")
+end
+
+-- Spelling a name out wins whatever was picked at a shorter spelling. mail no longer matches
+-- Maps at all, so twenty picks of Maps at ma leave Mail alone.
 do
   local a = fresh()
   local l = launcher(a)
   for _ = 1, 20 do a.note("ma", "app:com.apple.Maps") end
-  -- Maps used to match mail through the scorer's typo allowance and trail Mail. Since
-  -- 2026-10-17 a four letter word gets one edit at a word start and nothing scattered, so Maps
-  -- does not match at all and Mail stands alone, the same guarantee stated more strongly.
-  eq(titles(l:_rankCatalog("mail", { MAIL, MAPS })), "Mail",
-    "spelling a name out still wins, whatever was picked at a shorter spelling")
-  eq(titles(l:_rankCatalog("ma", { MAIL, MAPS })), "Maps,Mail",
-    "and the same memory still decides where the two match about equally")
+  eq(titles(shown(l, "mail", { MAIL, MAPS })), "Mail", "spelling a name out still wins")
+  eq(titles(shown(l, "ma", { MAIL, MAPS })), "Maps,Mail", "and the memory still decides where both match equally")
 end
 
--- The same guard from the other side. A row that matched a good deal worse stays where the
--- match put it even when the association is for this exact query rather than a prefix of it.
+-- The decision of 2026-10-17. lose spells Local Servers in pieces and Loes with one edit, a
+-- level lower, so the remembered Loes stays below however often it was picked. The old nearness
+-- rule let it lead, which is the case that changed.
 do
   local a = fresh()
   local l = launcher(a)
-  a.note("map", "app:com.apple.mail")
-  -- Mail used to match map weakly and trail Maps. Since 2026-10-17 a three letter word gets no
-  -- edit, so Mail does not match at all and the association has nothing to lift.
-  eq(titles(l:_rankCatalog("map", { MAPS, MAIL })), "Maps",
-    "an exact association cannot bridge a real difference in match quality either")
+  for _ = 1, 20 do a.note("lose", "app:loes") end
+  local servers, loes = appRow("Local Servers", "servers"), appRow("Loes", "loes")
+  eq(titles(shown(l, "lose", { loes, servers })), "Local Servers,Loes",
+    "lose keeps Local Servers above a remembered Loes")
 end
 
--- Nothing is ever added to the list by remembering it. A row has to match what is typed now to
--- be ordered at all, which is what makes the prefix walk back safe however far it goes.
+-- A remembered row never passes a better level. ab starts a word deep in the first row, and
+-- Alpha Bravo spells it by initials, a level lower.
+do
+  local a = fresh()
+  local l = launcher(a)
+  for _ = 1, 20 do a.note("ab", "app:alpha") end
+  local deep = appRow(string.rep("x", 150) .. " ab", "deep")
+  local got = titles(shown(l, "ab", { appRow("Alpha Bravo", "alpha"), deep })):gsub("^x+ ab", "deep")
+  eq(got, "deep,Alpha Bravo", "a remembered row never passes a better level")
+end
+
+-- At one level the memory decides whatever the score inside the level says. Both rows start a
+-- word with ma, Mail scoring better inside the level by where the word sits. The old nearness
+-- rule read them as too far apart, the shared bonus reads them as equally good matches.
+do
+  local a = fresh()
+  local l = launcher(a)
+  a.note("ma", "app:deep")
+  local deep = appRow("Some other words then Map", "deep")
+  eq(titles(shown(l, "ma", { appRow("Mail", "mail"), deep })), "Some other words then Map,Mail",
+    "at one level the remembered row leads whatever the score inside the level")
+end
+
+-- Nothing is ever added by remembering it. A row has to match what is typed now.
 do
   local a = fresh()
   local l = launcher(a)
   a.note("s", "app:com.apple.Safari")
   local SAFARI = appRow("Safari", "com.apple.Safari", "Open")
-  eq(titles(l:_rankCatalog("ma", { MAIL, MAPS, SAFARI })), "Mail,Maps",
-    "a remembered row that does not match is simply not in the list")
+  eq(titles(shown(l, "ma", { MAIL, MAPS, SAFARI })), "Mail,Maps", "a remembered row that does not match is not in the list")
 end
 
--- The resting list is untouched, which is the thing that was explicitly not to change. An
--- empty query is handed back exactly as _orderedRows decided it, unscored and unfiltered.
+-- The resting list is untouched. An empty query shows the recency order whatever is remembered.
 do
   local a = fresh()
   local l = launcher(a)
   a.note("ma", "app:com.apple.Maps")
-  eq(titles(l:_rankCatalog("", { MAIL, MAPS })), "Mail,Maps",
-    "an empty query keeps the recency order untouched")
+  eq(titles(shown(l, "", { MAIL, MAPS })), "Mail,Maps", "an empty query keeps the recency order")
 end
 
--- With no store at all the list still works and orders on the match, which is what the
--- optional policy on the declaration promises.
-do
-  local l = launcher(nil)
-  -- Mail used to win here on its shorter subtitle. The subtitle is a status and is no longer
-  -- searched, so the two names tie on ma and the resting order decides, which is what the
-  -- complaint above asked for.
-  eq(titles(l:_rankCatalog("ma", { MAPS, MAIL })), "Maps,Mail",
-    "no store still scores and sorts")
-end
-
--- The shared search ranks four levels of match, docs/PLAN-UNIFIED-SEARCH.md, and carries the
--- level as a large step in the score. These four cases pin how the memory reads that. Each was
--- proved by mutation on 2026-10-17, decisions/olm-unified-search.md, failing under the rule it
--- guards against.
-local function plainRow(text, id)
-  return { title = text, subTitle = "", item = { kind = "app", bundleID = id }, filterText = text }
-end
-
--- A pick at a lower level can still be learned when the best row is not a word start match.
--- lose spells Local Servers in pieces and Loes with two letters swapped, a level lower, yet
--- the score of Loes inside its level is near, so the pick decides. A gate on the level itself
--- locked this out.
+-- The bonus itself, the leader at one and the last at one over the count, nothing for a row
+-- with no memory and nothing on an empty query.
 do
   local a = fresh()
   local l = launcher(a)
-  a.note("lose", "app:loes")
-  eq(titles(l:_rankCatalog("lose", { plainRow("Local Servers", "servers"), plainRow("Loes", "loes") })),
-    "Loes,Local Servers",
-    "a pick at a lower level leads when the best row is not a word start match")
+  for _ = 1, 3 do a.note("ma", "app:com.apple.mail") end
+  a.note("ma", "app:com.apple.Maps")
+  local b = l:_memoryBonus("ma")
+  eq(b["app:com.apple.mail"], 1, "the leader's bonus is one")
+  eq(b["app:com.apple.Maps"], 0.5, "the last of two is one half")
+  eq(b["app:com.apple.Safari"], nil, "a row with no memory has no bonus")
+  eq(next(l:_memoryBonus("")), nil, "an empty query has no bonus")
+  local rows = (function() l._orderedRowsCache = { MAIL, MAPS }; return l:_commandRows("ma") end)()
+  eq(rows[1].bonus, 1, "the supplier hands the bonus over on the row")
 end
 
--- A pick never lifts a row over a best row matching at a word start when it does not, however
--- near their scores. ab starts a word deep in the first row, and Alpha Bravo spells it by
--- initials with a score inside its level that is near the first row's.
+-- A computed row leads under a typed query, whatever is remembered, and is never recorded.
 do
   local a = fresh()
   local l = launcher(a)
-  a.note("ab", "app:alpha")
-  local deep = plainRow(string.rep("x", 150) .. " ab", "deep")
-  eq(titles(l:_rankCatalog("ab", { deep, plainRow("Alpha Bravo", "alpha") }))
-      :gsub("^x+ ab", "deep"), "deep,Alpha Bravo",
-    "a pick that is not a word start match never leads over a best row that is")
+  for _ = 1, 5 do a.note("ma", "app:com.apple.Maps") end
+  l._queryProviders = { { rows = function(_, q)
+    if q == "ma" then return { { title = "ma = 42", item = { kind = "calc", value = "42" } } } end
+    return {}
+  end } }
+  eq(titles(shown(l, "ma", { MAIL, MAPS })), "ma = 42,Maps,Mail", "a calc row leads and the memory orders the rest")
+  l._stage = { query = function() return "ma" end }
+  l:_noteAssociation({ kind = "calc", value = "42" })
+  eq(a.orderFor("ma")[1], "app:com.apple.Maps", "a calc row is never recorded")
+  eq(#a.orderFor("ma"), 1, "and nothing beside it was added")
 end
 
--- Two rows close only because of the step. Both start a word with ma, so both carry the same
--- large step, but the deep one scores well below Mail inside the level. A proportion of the
--- whole score read them as near, which this rules out.
+-- A hosted page shows only the source's rows, all leading, and the engine keeps them in the
+-- source's order whatever is typed.
 do
-  local a = fresh()
-  local l = launcher(a)
-  a.note("ma", "app:deep")
-  local deep = plainRow("Some other words then Map", "deep")
-  eq(titles(l:_rankCatalog("ma", { plainRow("Mail", "mail"), deep })), "Mail,Some other words then Map",
-    "rows close only because of the step are not near")
-end
-
--- A best row scoring below zero inside its level still admits a pick near it rather than the
--- proportion inverting and dropping every pick. The shared search no longer produces such a
--- score, its gaps are capped well under one matched letter, so a stand in matcher answers the
--- two scores directly, the guard being a property of the rule rather than of today's weights.
-do
-  local a = fresh()
-  local l = launcher(a)
-  a.note("zz", "app:second")
-  local saved = l._matcher
-  l._matcher = function(_, hay)
-    if hay == "First" then return 100 - 4.0, 1, -4.0, false end
-    return 100 - 4.2, 1, -4.2, false
-  end
-  local got = l:_rankCatalog("zz", { plainRow("First", "first"), plainRow("Second", "second") })
-  l._matcher = saved
-  eq(got[1] and got[1].item.bundleID, "second",
-    "a pick near a best row scoring below zero still leads")
+  local l = launcher(fresh())
+  l._page = "vpn "
+  l._queryProviders = { { rows = function(_, q)
+    if q:sub(1, 4) == "vpn " then
+      return { { title = "Zurich", item = { kind = "scope" } }, { title = "Amsterdam", item = { kind = "scope" } } }, true
+    end
+    return {}
+  end } }
+  eq(titles(shown(l, "am", { MAIL, MAPS })), "Zurich,Amsterdam", "a hosted page keeps its source's rows and order")
+  l._page = nil
 end
 
 -- Recording is keyed by the same function the timeline uses, so a row with no identity to

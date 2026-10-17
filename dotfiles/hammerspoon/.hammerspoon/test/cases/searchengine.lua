@@ -96,16 +96,21 @@ do
   check("the query scope keeps a scope's own order on an empty query", whole == titles(rows()))
 end
 
--- The launcher, with nothing remembered, so its order is the engine's order alone. Its learned
--- query memory stays its own until phase four, and test/ranking.lua covers that half.
+-- The launcher, which since phase four ranks nothing itself. Its supplier hands the catalog over
+-- in the resting order with no bonus when nothing is remembered, so the stage ranking it through
+-- the engine answers exactly the engine's order. test/ranking.lua covers the memory, which
+-- reaches the engine as each row's bonus.
 do
-  Launcher._matcher = fuzzy
-  Launcher._rank = rank
   Launcher._assoc = nil
+  Launcher._page = nil
+  Launcher._predicates = {}
+  Launcher._queryProviders = {}
+  Launcher._orderedRowsCache = rows()
   for _, q in ipairs(QUERIES) do
     local want = titles(rank.apply(rows(), q, fuzzy))
-    local got = titles(Launcher:_rankCatalog(q, rows()))
+    local got = titles(rank.apply(Launcher:_commandRows(q), q, fuzzy))
     check("the launcher ranks " .. q .. " exactly as the engine does with nothing remembered",
       got == want, "got " .. got .. ", wanted " .. want)
   end
+  check("the launcher no longer carries a ranking of its own", Launcher._rankCatalog == nil)
 end

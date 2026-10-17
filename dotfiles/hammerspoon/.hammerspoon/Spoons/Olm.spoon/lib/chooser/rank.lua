@@ -130,16 +130,15 @@ M.fieldsOf = fieldsOf
 
 --- M.score(items, query, matcher) -> a new list of entries, unsorted.
 --- Every candidate scored through matcher(query, haystackOf(item), fieldsOf(item)), a nil
---- score dropping it. An entry is { item, score, idx, level, within, atStart, phrase,
---- fromNames, graded, tier, bonus }, idx the candidate's place in items. level, within, atStart,
---- phrase and fromNames are the later answers lib/chooser/match.lua's fuzzy gives, the row's
---- level sum, its score inside that level, whether every word matched the name at a word start,
---- whether it earned the phrase bonus, and how many words reached their level only in a further
---- name. A matcher answering only a score reads as level zero, within equal to the score, not at
---- a word start, no phrase and no further name word, and graded is false for it, so M.before
---- knows it was told nothing about the kind of match. They exist for a consumer that orders by
---- something besides the score and needs to know what kind of match a row is, the launcher's
---- nearness rule today. tier and bonus are the row's own, read as the vocabulary above says.
+--- score dropping it. An entry is { item, score, idx, level, phrase, fromNames, graded, tier,
+--- bonus }, idx the candidate's place in items. level, phrase and fromNames are answers
+--- lib/chooser/match.lua's fuzzy gives, the row's level sum, whether it earned the phrase bonus,
+--- and how many words reached their level only in a further name. A matcher answering only a
+--- score reads as level zero, no phrase and no further name word, and graded is false for it, so
+--- M.before knows it was told nothing about the kind of match. The within and atStart answers
+--- between them are not kept, since phase four of docs/PLAN-UNIFIED-SEARCH.md removed the
+--- launcher's own ordering, their one reader. tier and bonus are the row's own, read as the
+--- vocabulary above says.
 --- pinned and fromQuery are not read here, M.apply keeps those rows out of the loop. This is
 --- the one scoring loop, so no host or list keeps a copy of it, docs/PLAN-UNIFIED-SEARCH.md
 --- phase one.
@@ -147,11 +146,10 @@ function M.score(items, query, matcher)
   local entries = {}
   for i = 1, #items do
     local it = items[i]
-    local score, level, within, atStart, phrase, fromNames = matcher(query, haystackOf(it), fieldsOf(it))
+    local score, level, _, _, phrase, fromNames = matcher(query, haystackOf(it), fieldsOf(it))
     if score ~= nil then
       entries[#entries + 1] = {
-        item = it, score = score, idx = i, level = level or 0, within = within or score,
-        atStart = atStart == true, phrase = phrase == true,
+        item = it, score = score, idx = i, level = level or 0, phrase = phrase == true,
         fromNames = type(fromNames) == "number" and fromNames or 0, graded = level ~= nil,
         tier = tierOf(it), bonus = bonusOf(it),
       }

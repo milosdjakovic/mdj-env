@@ -2369,9 +2369,6 @@ function obj.run(olm, cfg)
       predicates = ownPredicates,
       queryProviders = queryProviders,
       placeholderExamples = placeholderExamples,
-      -- The one rank engine the catalog scores and orders through, the module both chooser
-      -- providers rank with, so the launcher keeps no loop of its own.
-      rank = chooserAtom.rank,
       -- The identity the launcher's own manifest icons are declared under.
       iconOwner = plan.identity.launcher or "launcher",
 

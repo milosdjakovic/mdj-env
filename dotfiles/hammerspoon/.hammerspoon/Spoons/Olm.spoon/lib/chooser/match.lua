@@ -766,11 +766,12 @@ end
 --- before.
 ---
 --- The later answers are for consumers. level is the row's level sum, within its score
---- inside the level, atStart whether every word matched the name at a word start, which the
---- launcher's memory gate reads, phrase whether the phrase bonus was earned, and fromNames how
+--- inside the level, atStart whether every word matched the name at a word start, phrase whether the phrase bonus was earned, and fromNames how
 --- many words reached their level only in a further name. within carries the phrase bonus as one
 --- spread and each further name word as minus one, so a row with no names answers the within it
---- always did, which the launcher's nearness reads as a proportion. Two rows with the same level,
+--- always did. No list reads within or atStart since phase four of docs/PLAN-UNIFIED-SEARCH.md
+--- removed the launcher's own ordering, and they stay answered so the positions of the two after
+--- them never move under a caller. Two rows with the same level,
 --- the same phrase and the same fromNames are equally good, and only the near free gaps and the
 --- bonuses of where a word landed tell them apart, which is what lib/chooser/rank.lua lets a
 --- row's own bonus decide. phrase and fromNames are answered on their own because within folds

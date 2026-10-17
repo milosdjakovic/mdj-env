@@ -72,8 +72,6 @@ obj._warmTimer = nil             -- the debounced disk scan warm up, see _warmAp
 obj._chordWarned = nil           -- one shot flag, so a missing chord speller warns once, at the first open
 obj._mru = nil              -- most-recently-used item keys, front is most recent
 obj._assoc = nil            -- the query association store, what each typed query has come to mean
-obj._matcher = nil          -- the shared fuzzy strategy, since this host scores its own rows now
-obj._rank = nil             -- the one rank engine, lib/chooser/rank.lua, handed over by the root
 obj._ranking = nil          -- the two numbers the association store is built with
 obj._selfKey = nil          -- our own app key, never promoted
 obj._page = nil             -- an opaque query prefix while somebody else's list is hosted
@@ -103,11 +101,6 @@ local MRU_MAX = 50
 -- list opens on. This says what a particular query has come to mean, which is what orders the
 -- list once something has been typed, and the two are wanted at different moments.
 local ASSOC_SETTINGS_KEY = "launcherQueryAssoc"
--- How close to the best match a row must score before what was picked before is allowed to
--- decide, as a proportion of that best score rather than a number of points, since the score
--- grows with every character typed. See _rankCatalog for the measurements this sits between.
--- Overridable through the ranking defaults beside the other two numbers.
-local DEFAULT_NEARNESS = 0.9
 -- Our own activations must not reorder the list, else opening the launcher would
 -- float Hammerspoon to the top instead of the app the user was just in.
 local SELF_BUNDLE = hs.processInfo and hs.processInfo.bundleID
@@ -236,14 +229,6 @@ function obj:configure(opts)
       margin = self._ranking.margin,
     })
   end
-  -- The shared matching strategy. This host has always been handed one and never read it,
-  -- because the chooser atom underneath did the scoring itself. It scores its own rows now,
-  -- see _rankCatalog, so this is the function that does it, and the same keep rather than
-  -- overwrite rule applies since only the generic stage supplies it.
-  self._matcher = opts.matcher or self._matcher
-  -- The one rank engine the catalog scores and sorts through, kept rather than overwritten for
-  -- the same reason, since only the root's own call hands it over.
-  self._rank = opts.rank or self._rank
   self._predicates = opts.predicates or {}
   self._actions = opts.actions or {}
   -- The tool registry, phase seven of the build plan. Optional, and a launcher configured
@@ -337,19 +322,10 @@ function obj:configure(opts)
     -- of its own in the root. See host/stage's own surface, which delegates it to whichever
     -- presentation is current when one answers it.
     peekPreview = function() self:peekSelected() end,
-    -- The atom does no scoring and no sorting for this list. _commandRows below hands back
-    -- rows already filtered and already in their final order, because the order depends on
-    -- something the atom cannot see, what this query has come to mean. Left to the atom, the
-    -- text score decides outright and the arrival order it falls back to for a tie never gets
-    -- a chance, since two rows matching equally well still differ by hundredths of a point
-    -- over incidental things like how long their subtitle happens to be.
-    --
-    -- This is the presentation's own field and not the manifest's. The manifest states which
-    -- STRATEGY to inject and this host wants the shared one, so its surface names no matcher
-    -- and receives the real function on opts. Writing false there instead would inject
-    -- nothing and leave this host with no way to score anything at all, which is the exact
-    -- trap that once degraded BrowserTabs to an unranked list.
-    matcher = false,
+    -- No matcher field. This list is searched by the shared search exactly as every other list
+    -- is, docs/PLAN-UNIFIED-SEARCH.md phase four. What this query has come to mean reaches the
+    -- engine as each catalog row's bonus, see _commandRows, so it orders only rows that match
+    -- equally well and a better match always leads.
   }
 
   -- The stage's own nav adapter, scoped to this presentation's own name rather than the
@@ -861,13 +837,17 @@ end
 
 --- Launcher:_commandRows(query)
 --- Method
---- The row supplier. Any rows the query sources computed lead, then the full
---- recency-ordered list, and the atom's shared matcher filters and ranks what follows,
---- exposing the visible text plus any hidden keywords as filterText so a settings pane is
---- still found by a synonym its name lacks. On the empty query the atom keeps the recency
---- order untouched, and when the user types, match quality leads with recency breaking
---- ties. Gated rows drop out live through the shared predicate registry the window
---- bindings use.
+--- The row supplier. Any rows the query sources computed lead, then the full catalog in its
+--- resting recency order, and the shared search filters and ranks it like every other list,
+--- docs/PLAN-UNIFIED-SEARCH.md. A catalog row is searched by its name, filterText set to the
+--- title, and its declared keywords, so a settings pane is still found by a synonym its name
+--- lacks. On an empty query the engine keeps the recency order untouched. Gated rows drop out
+--- live through the shared predicate registry the window bindings use.
+---
+--- What this query has come to mean reaches the engine as each catalog row's bonus, see
+--- _memoryBonus, so the learned memory orders only rows that match equally well, exactly as
+--- recency does in every other list, and never lifts a row over a better match. The resting
+--- position carries the recency order underneath it.
 ---
 --- A computed row is fromQuery, made from what was typed, so the engine never scores or drops
 --- it and it leads under a typed query, which is what keeps a result at the top of the list
@@ -885,113 +865,41 @@ function obj:_commandRows(query)
   -- skipped. This one line is the whole of what the launcher knows about being scoped.
   if exclusive then return out end
   local preds = self._predicates
-  local catalog = {}
+  local bonus = self:_memoryBonus(query)
   for _, row in ipairs(self:_orderedRows()) do
     if not (row.when and not (preds[row.when] and preds[row.when]())) then
       -- The name is searched first and the declared terms after it. The subtitle is not, since
       -- here it is a category, a status and a chord, which filterText set to the title says,
       -- lib/chooser/rank.lua.
-      catalog[#catalog + 1] = { title = row.title, subTitle = self:_rowSubTitle(row),
-                                image = row.image, icon = row.icon, iconOwner = row.iconOwner,
-                                item = row.item, filterText = row.title, keywords = row.keywords }
+      out[#out + 1] = { title = row.title, subTitle = self:_rowSubTitle(row),
+                        image = row.image, icon = row.icon, iconOwner = row.iconOwner,
+                        item = row.item, filterText = row.title, keywords = row.keywords,
+                        bonus = bonus[recencyKey(row.item)] }
     end
   end
-  for _, row in ipairs(self:_rankCatalog(query, catalog)) do out[#out + 1] = row end
   return out
 end
 
---- Launcher:_rankCatalog(query, rows) -> rows
+--- Launcher:_memoryBonus(query) -> { [recencyKey] = bonus }
 --- Method
---- The catalog rows that match what was typed, in the order they should be read. The work the
---- chooser atom used to do for this list, taken over here because the answer depends on
---- something the atom has no way to know.
+--- What this query has come to mean, as the bonus the shared search reads, docs/PLAN-UNIFIED-SEARCH.md.
+--- lib/queryassoc.lua answers the remembered keys best first, the leader at the front, and a
+--- key's bonus is its place scaled into zero to one, the leader at one and the last at one over
+--- the count, the scale every list's recency uses. A row with no memory gets no entry and reads
+--- as zero. An empty query answers nothing, so the resting list is the recency timeline alone.
 ---
---- An empty query is returned untouched, which is the whole of what the resting list is. The
---- recency order _orderedRows decided stands, nothing is scored, and nothing is dropped.
----
---- Once something is typed the shared strategy scores every row and the misses go, exactly as
---- the atom did it. What differs is the order of the survivors. A row this query has been used
---- to pick before leads, in the order the store puts them, and everything else follows on match
---- alone with the resting position breaking a tie so recency still shows through underneath.
----
---- An association leads outright rather than adding points to the score, and that is a
---- deliberate departure from plugins/browsertabs/chooser.lua, whose own recency bonus is capped
---- so that it reorders and never overturns. That cap is right there, because general recency is
---- a guess about what is probably wanted. It is wrong here, because an association is not a
---- guess. It is a record that this exact query was typed and this exact row was chosen, which
---- is a statement of intent and the one thing that should be allowed to beat a better spelled
---- match.
----
---- BUT ONLY AMONG ROWS THAT MATCHED COMPARABLY, and the guard is not a refinement, it is what
---- keeps the feature from being an obvious bug. Every remembered spelling of a query answers
---- for the longer queries it begins, which is what makes the memory fill in as you type. So a
---- pick made at "ma" is also consulted when you type "mail", and Maps does match "mail",
---- weakly, by spending the scorer's own typo allowance on the letter it cannot place. Measured
---- against the real strategy, "mail" scores Mail at 43.90 and Maps at 12.56, while "ma" scores
---- them 21.86 and 21.72. Letting a remembered pick lead unconditionally puts Maps above Mail
---- when Mail is spelled out in full, which nobody would read as anything but broken.
----
---- So an association decides only where the scores are near each other, and near is a
---- proportion rather than a number of points, because the score grows with every character
---- typed and a fixed distance would mean something different on every query. The three cases
---- above sit at 99.4%, 65%, and 28.6% of their own best, so the two that must not be bridged
---- are nowhere close to the one that must, and the default leaves a wide margin either side.
----
---- Nothing is ever added to the list this way. A row must have matched to be ordered at all, so
---- a remembered pick that does not match what is typed now is simply not here.
-function obj:_rankCatalog(query, rows)
-  local matcher, rank = self._matcher, self._rank
-  if query == "" or type(matcher) ~= "function" or not rank then return rows end
-
-  -- Where each remembered key sits for this query, one being what it has most come to mean.
-  local place = {}
-  if self._assoc then
-    for i, key in ipairs(self._assoc.orderFor(query)) do
-      if place[key] == nil then place[key] = i end
-    end
-  end
-
-  -- Scored by the one rank engine, the same loop every list runs, so the match itself means
-  -- here exactly what it means anywhere else.
-  local scored = rank.score(rows, query, matcher)
-  local best = nil
-  for _, entry in ipairs(scored) do
-    if best == nil or rank.before(entry, best) then best = entry end
-    entry.assoc = place[recencyKey(entry.item.item)]
-  end
-
-  -- What was picked before only decides between rows that matched about as well as the best
-  -- one did, see the note above. A row further away than that keeps its place on the match
-  -- alone, however often it has been chosen for some shorter spelling of this query.
-  --
-  -- About as well is two tests. The first is the kind of match. When the best row matches
-  -- every word at the start of a word of its name, a remembered row that does not is never
-  -- lifted over it, which is the Mail and Maps guard above stated as a kind rather than a
-  -- number. Below that the shared search's levels do not lock a pick out, so a pick at a lower
-  -- level can still be learned, Loes for lose against Local Servers for one example. The
-  -- second is the proportion, taken of the score inside the level and never of the whole
-  -- score, since the whole score carries a large step per level and a proportion of it would
-  -- read every pair at the same level as near. The proportion is measured downward from the
-  -- best row's own score by its size, so a best score below zero, which a matcher may answer,
-  -- still admits the best row itself rather than inverting and dropping its own pick.
-  local nearness = tonumber((self._ranking or {}).nearness) or DEFAULT_NEARNESS
-  local nearFloor = best and (best.within - math.abs(best.within) * (1 - nearness))
-  for _, entry in ipairs(scored) do
-    if entry.assoc then
-      local lockedOut = best.atStart and not entry.atStart
-      if lockedOut or entry.within < nearFloor then entry.assoc = nil end
-    end
-  end
-
-  -- The remembered rows lead in the order this query has come to mean them, and everything
-  -- else follows the engine's own order, score first and the resting position breaking a tie.
-  table.sort(scored, function(a, b)
-    if (a.assoc ~= nil) ~= (b.assoc ~= nil) then return a.assoc ~= nil end
-    if a.assoc and b.assoc then return a.assoc < b.assoc end
-    return rank.before(a, b)
-  end)
+--- The bonus orders only rows the shared search calls equally good, the same level, phrase and
+--- further name words, so ma still learns Maps over Mail, both a word start, while lose keeps
+--- Local Servers, spelled in pieces, above a remembered Loes, one typo away, Milos's decision of
+--- 2026-10-17. A remembered row is never added either, it has to match what is typed now.
+function obj:_memoryBonus(query)
   local out = {}
-  for i = 1, #scored do out[i] = scored[i].item end
+  if not self._assoc or query == nil or query == "" then return out end
+  local order = self._assoc.orderFor(query)
+  local n = #order
+  for i, key in ipairs(order) do
+    if out[key] == nil then out[key] = (n - i + 1) / n end
+  end
   return out
 end
 

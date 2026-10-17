@@ -418,7 +418,7 @@ do
   check("a word in the title came from no further name", fromNames == 0, tostring(fromNames))
 
   -- A row with no names answers within exactly as before, the words' scores plus one spread for
-  -- the phrase, which the launcher's nearness reads as a proportion.
+  -- the phrase.
   local row = { title = "Focus", keywords = "do not disturb" }
   local _, _, within = graded("do not", row)
   local _, _, a = graded("do", row)
