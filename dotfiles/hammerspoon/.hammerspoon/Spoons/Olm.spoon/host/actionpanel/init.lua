@@ -71,6 +71,8 @@ obj._kindOf = nil -- function(action) -> a member of obj.kinds or nil, required
 obj._rowsFor = nil -- function(contextName) -> ordered rows { action, title, chord, icon, owner }, required
 obj._run = nil -- function(action), runs a named action, required
 obj._log = nil -- w(message), defaults to this module's own hs.logger instance
+obj._rank = nil -- the one rank engine, lib/chooser/rank.lua, optional
+obj._ownRowsMatcher = nil -- the strategy the panel's own rows are filtered with, optional
 
 -- The panel's own runtime state, set only by decorate, toggle, and the private helpers below,
 -- and read by nothing outside this file. _instances is every raw Chooser instance decorate has
@@ -122,6 +124,12 @@ end
 ---               against it. The root owns that too, since it already keeps the one map from
 ---               an action name to what it does, contextActions, and now also the routing
 ---               that lets a scope's own declared verb answer first.
+--- deps.rank     optional, the one rank engine, lib/chooser/rank.lua, handed over by the
+---               root. The panel's own rows are filtered through it when the presentation
+---               under the panel owns its filtering, so this module keeps no loop of its own.
+--- deps.ownRowsMatcher  optional, the strategy that filter uses, chosen by the root. Today a
+---               plain substring test, which is what this panel always did there. Without
+---               either the panel's rows are answered whole.
 --- deps.log      optional, the logger every warning below is written through, defaulting to
 ---               this module's own hs.logger instance. It exists only so a unit case can hand
 ---               in a small table answering w(message) and read a warning back directly,
@@ -142,6 +150,8 @@ function obj:configure(deps)
   self._kindOf = deps.kindOf
   self._rowsFor = deps.rowsFor
   self._run = deps.run
+  self._rank = deps.rank
+  self._ownRowsMatcher = deps.ownRowsMatcher
   self._log = deps.log or log
   return self
 end
@@ -231,21 +241,17 @@ end
 --------------------------------------------------------------------------------
 
 -- The panel's own rows, as decorate's wrapped rows function answers them while the panel is
--- open, filtered by a plain case insensitive substring against the title when the instance's
--- own supplier owns filtering (instance:matcher() is false, filtersItself below, read live at
--- config.rows's own call site, review finding M3, rework, rather than captured once here),
--- or answered whole so the instance's own matcher ranks them, exactly the choice the atom
--- already gives every consumer over its ordinary rows. Every panel row's title already
--- doubles as its filterText, set where rows below builds them, so there is nothing separate to
--- read here.
-local function filterOwnRows(rows, query, filtersItself)
+-- open, filtered when the instance's own supplier owns filtering (instance:matcher() is false,
+-- filtersItself below, read live at config.rows's own call site, review finding M3, rework,
+-- rather than captured once here), or answered whole so the instance's own matcher ranks them,
+-- exactly the choice the atom already gives every consumer over its ordinary rows. The filter
+-- is the one rank engine with the strategy the root chose for it, a plain case insensitive
+-- substring today, so the panel keeps no loop of its own. Every panel row's title already
+-- doubles as its filterText, set where rows below builds them, so the engine searches the title.
+local function filterOwnRows(self, rows, query, filtersItself)
   if not filtersItself or not query or query == "" then return rows end
-  local q = query:lower()
-  local out = {}
-  for _, r in ipairs(rows) do
-    if (r.title or ""):lower():find(q, 1, true) then out[#out + 1] = r end
-  end
-  return out
+  if not self._rank or type(self._ownRowsMatcher) ~= "function" then return rows end
+  return self._rank.apply(rows, query, self._ownRowsMatcher)
 end
 
 -- Chooser row shaped entries { title, subTitle, image, item, filterText } built from
@@ -427,7 +433,7 @@ function obj:decorate(instance, config)
   config.rows = function(query, ...)
     if self._openInstance == instance then
       local filtersItself = instance:matcher() == false
-      return filterOwnRows(self._panelRows or {}, query, filtersItself)
+      return filterOwnRows(self, self._panelRows or {}, query, filtersItself)
     end
     return originalRows and originalRows(query, ...) or {}
   end

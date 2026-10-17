@@ -13,15 +13,15 @@
 --- list needs no translation between the two and no consumer ever learns which backend
 --- answered a given row.
 ---
---- Filtering reuses lib/chooser/match.lua rather than reimplementing any matching rule
---- of its own, loaded by path exactly the way field input.lua loads its own siblings.
---- The fuzzy strategy in that file is the one every list in this configuration ranks
---- with today, and this file asks for nothing else, since a difference in what ranks
---- first would read as this backend being worse when it would only be different. The
---- haystack a row is searched on is its own filterText when it carries one, otherwise
---- its title and subTitle joined with a space, matching haystackOf in the native
---- provider, restated here rather than imported since it is one line of string
---- concatenation and not a matching rule the brief asks this file to reuse.
+--- Filtering is lib/chooser/rank.lua, the one rank engine, loaded by path exactly the way
+--- field input.lua loads its own siblings, with the matcher the caller hands in. This file
+--- used to carry its own copy of that loop hard wired to match.fuzzy, so a caller's matcher
+--- was ignored, and phase one of docs/PLAN-UNIFIED-SEARCH.md deleted it on 2026-10-17. The
+--- haystack a row is searched on is the engine's own rule, its filterText when it carries
+--- one, otherwise its title and subTitle joined with a space. The default provider never
+--- asks this file to rank at all, it ranks through the same engine itself and hands the
+--- result here with an empty query, so a query and a matcher reach this file only from a
+--- case or a probe exercising it alone.
 ---
 --- State is a plain table, rows, query, filtered, highlight, scrollTop, rowH,
 --- visibleCount. rows is exactly what the caller supplied, kept so a later setQuery can
@@ -84,20 +84,19 @@ local M = {}
 
 local spoonPath = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 
--- lib/chooser/match.lua sits three directories above this file, list up to canvas up to
--- providers up to chooser, where the real matcher lives beside the atom every other
--- chooser in this configuration already ranks through.
-local MATCH_PATH = spoonPath .. "../../../match.lua"
+-- lib/chooser/rank.lua sits three directories above this file, list up to default up to
+-- providers up to chooser, the one rank engine every list in this configuration ranks through.
+local RANK_PATH = spoonPath .. "../../../rank.lua"
 
-local function loadMatch()
-  local chunk, err = loadfile(MATCH_PATH)
+local function loadRank()
+  local chunk, err = loadfile(RANK_PATH)
   if not chunk then
-    error("Canvas list model, failed to load match.lua, " .. tostring(err))
+    error("Canvas list model, failed to load rank.lua, " .. tostring(err))
   end
   return chunk()
 end
 
-local match = loadMatch()
+local rank = loadRank()
 
 -- The visible row count a state falls back to when a caller passes no layout at all, or
 -- a layout naming no rowCount of its own, ten, matching DEFAULT_LAYOUT.rowCount in the
@@ -108,45 +107,6 @@ local match = loadMatch()
 -- defaults at once.
 local DEFAULT_VISIBLE_COUNT = 10
 local DEFAULT_ROW_H = 42
-
---------------------------------------------------------------------------------
--- The haystack a row is searched on, decision two of the brief
---------------------------------------------------------------------------------
-
-local function haystackOf(row)
-  return row.filterText or ((row.title or "") .. " " .. (row.subTitle or ""))
-end
-
--- Ranks rows against a query through match.fuzzy, the one matcher this file asks for,
--- and answers a fresh array of the surviving rows in the order they should draw. An
--- empty query answers every row in its original order, matching what the native
--- provider's own _build does when a matcher is set but the query is empty, no filtering
--- and no reordering, so a list opened with nothing typed yet shows exactly what it was
--- handed. A non empty query scores every row, drops the ones match.fuzzy answers nil
--- for, and sorts survivors by score, the original position breaking a tie, so a stable
--- order upstream of this file, a supplier's own recency for one example, still shows
--- through the ranking exactly the way the native provider preserves it today.
-local function rankRows(rows, query)
-  if query == "" then
-    local out = {}
-    for i = 1, #rows do out[i] = rows[i] end
-    return out
-  end
-  local ranked = {}
-  for i = 1, #rows do
-    local score = match.fuzzy(query, haystackOf(rows[i]))
-    if score ~= nil then
-      ranked[#ranked + 1] = { row = rows[i], score = score, idx = i }
-    end
-  end
-  table.sort(ranked, function(a, b)
-    if a.score ~= b.score then return a.score > b.score end
-    return a.idx < b.idx
-  end)
-  local out = {}
-  for i = 1, #ranked do out[i] = ranked[i].row end
-  return out
-end
 
 --------------------------------------------------------------------------------
 -- State construction and the total, never raising normalize every operation opens with
@@ -238,33 +198,35 @@ M.normalized = normalizeState
 M.DEFAULT_VISIBLE_COUNT = DEFAULT_VISIBLE_COUNT
 M.DEFAULT_ROW_H = DEFAULT_ROW_H
 
---- M.newState(rows, layout, query) answers a fresh state for a whole supplied row set.
+--- M.newState(rows, layout, query, matcher) answers a fresh state for a whole supplied row set.
 --- layout is read once for its rowCount and rowH fields, the same field names the canvas
 --- list brief and render.lua both use, and falls back to DEFAULT_VISIBLE_COUNT and
 --- DEFAULT_ROW_H when layout is nil or names neither field of its own. query seeds the
 --- initial filter, defaulting to the empty string, an untyped list showing every row it
---- was handed in the order it arrived, scrolled to its own top.
-function M.newState(rows, layout, query)
+--- was handed in the order it arrived, scrolled to its own top. matcher is the strategy
+--- the query is ranked with through lib/chooser/rank.lua, and with none every row is kept in
+--- the order it arrived, the same answer the engine gives any list with no matcher.
+function M.newState(rows, layout, query, matcher)
   rows = rows or {}
   query = query or ""
   local visibleCount = (layout and layout.rowCount) or DEFAULT_VISIBLE_COUNT
   local rowH = (layout and layout.rowH) or DEFAULT_ROW_H
   local padEnd = (layout and layout.padBottom) or 0
-  local filtered = rankRows(rows, query)
+  local filtered = rank.apply(rows, query, matcher)
   local highlight = (#filtered > 0) and 1 or nil
   local scrollTop = scrollToShowHighlight(highlight, 0, #filtered, rowH, visibleCount)
   return newRawState(rows, query, filtered, highlight, scrollTop, rowH, visibleCount, padEnd)
 end
 
---- M.setQuery(state, query) reranks the same rows the state already holds against a new
+--- M.setQuery(state, query, matcher) reranks the same rows the state already holds against a new
 --- query, matching how a real chooser resets to the top of a freshly built list rather
 --- than trying to hold a highlight over a row that may not even survive the new filter.
 --- The state's own rows, rowH and visibleCount travel through unchanged, only what the
---- query touches is answered fresh.
-function M.setQuery(rawState, query)
+--- query touches is answered fresh. matcher is read the way newState reads it.
+function M.setQuery(rawState, query, matcher)
   local ns = normalizeState(rawState)
   query = query or ""
-  local filtered = rankRows(ns.rows, query)
+  local filtered = rank.apply(ns.rows, query, matcher)
   local highlight = (#filtered > 0) and 1 or nil
   local scrollTop = scrollToShowHighlight(highlight, 0, #filtered, ns.rowH, ns.visibleCount)
   return newRawState(ns.rows, query, filtered, highlight, scrollTop, ns.rowH, ns.visibleCount, ns.padEnd)

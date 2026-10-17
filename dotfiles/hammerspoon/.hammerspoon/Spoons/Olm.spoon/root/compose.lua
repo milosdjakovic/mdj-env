@@ -1664,6 +1664,7 @@ function obj.run(olm, cfg)
   -- without was missing.
   local queryScopeOpts = {
     matcher = chooserAtom.matchers and chooserAtom.matchers[policy.matcher],
+    rank = chooserAtom.rank,
     stampIcons = iconRows.stampAll,
   }
 
@@ -1686,6 +1687,11 @@ function obj.run(olm, cfg)
       local fn = dispatchTable and dispatchTable[action]
       if fn then fn() end
     end,
+    -- The panel filters its own rows through the one rank engine when the list under it owns
+    -- its filtering. substring is what it always did there, kept until phase three of
+    -- docs/PLAN-UNIFIED-SEARCH.md moves every list onto the one search.
+    rank = chooserAtom.rank,
+    ownRowsMatcher = chooserAtom.matchers and chooserAtom.matchers.substring,
   }
 
   -- deps.hints receives this same table forwarded whole into shortcutPanelFor for whichever
@@ -2254,8 +2260,8 @@ function obj.run(olm, cfg)
         .. "of the two declarations.")
     end
 
-    local queryScopeLate = { matcher = queryScopeOpts.matcher, stampIcons = iconRows.stampAll,
-      scopes = scopes }
+    local queryScopeLate = { matcher = queryScopeOpts.matcher, rank = queryScopeOpts.rank,
+      stampIcons = iconRows.stampAll, scopes = scopes }
     queryScopeModule:configure(queryScopeLate)
     lateData.queryscope = queryScopeLate
   end
@@ -2344,6 +2350,9 @@ function obj.run(olm, cfg)
       predicates = ownPredicates,
       queryProviders = queryProviders,
       placeholderExamples = placeholderExamples,
+      -- The one rank engine the catalog scores and orders through, the module both chooser
+      -- providers rank with, so the launcher keeps no loop of its own.
+      rank = chooserAtom.rank,
       -- The identity the launcher's own manifest icons are declared under.
       iconOwner = plan.identity.launcher or "launcher",
 

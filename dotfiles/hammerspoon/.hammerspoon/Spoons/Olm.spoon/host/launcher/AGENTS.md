@@ -542,11 +542,12 @@ while typing was the text score alone and nothing you did ever changed it.
 
 `_rankCatalog` now does that work. On an empty query it hands the rows straight
 back, untouched, which is what keeps the resting list exactly as it was. Once
-something is typed it scores every row with the shared strategy and drops the
-misses, exactly as the atom did, and then orders the survivors with anything
-this query has been used to pick before leading, the rest on match alone, and
-the resting position breaking a tie so the timeline still shows through
-underneath. The presentation therefore carries `matcher = false`, which is the
+something is typed it scores every row through the one rank engine,
+`lib/chooser/rank.lua`, handed over by the root as `rank`, and drops the misses,
+exactly as the atom does, and then orders the survivors with anything this query
+has been used to pick before leading, the rest by the engine's own order, score
+first and the resting position breaking a tie so the timeline still shows
+through underneath. The presentation therefore carries `matcher = false`, which is the
 presentation's own field and not the manifest's, the manifest naming which
 strategy to inject rather than whether the atom should use it.
 
@@ -578,6 +579,10 @@ only among rows that scored close to the best one, as a proportion rather than a
 number of points since the score grows with every character. Measured, `mail`
 puts Maps at 28.6% of Mail, `map` puts Mail at 65% of Maps, and `ma` puts them
 at 99.4% of each other, so the default of 0.9 sits a long way from both edges.
+Since the shared search ranks a word found whole a tier above any scattered
+match, a remembered row must also sit in the best row's tier, and the proportion
+is taken of the score inside that tier, the number those measurements were made
+on, so a step between tiers never reads as closeness.
 
 Pruning is deliberately partial. An application that has gone is proven gone by
 the disk scan, so its pairs are dropped in `_pruneAssociations`, hung off the

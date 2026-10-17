@@ -31,6 +31,7 @@ obj.license = "MIT"
 
 -- Injected via configure
 obj._matcher = nil    -- shared filter strategy, applied for a scope that wants one
+obj._rank = nil       -- the one rank engine, lib/chooser/rank.lua, handed over by the root
 obj._scopes = nil     -- the admitted scopes, in the order they were given
 obj._byAlias = nil    -- lowercased alias to scope
 obj._byName = nil     -- scope name to scope, so a chosen row finds its way home
@@ -101,6 +102,9 @@ end
 ---              uses, so a list shaped scope filters exactly like every other list. A scope
 ---              setting matcher false owns its own filtering, which is right when its field
 ---              is a value being typed rather than a filter over rows.
+--- opts.rank    the one rank engine, lib/chooser/rank.lua, handed over by the composition
+---              root, which a scope's rows are ranked through so a scope orders exactly like
+---              the presenter would. Without it a scope's rows keep their own order unfiltered.
 ---
 --- Registration is order sensitive on purpose. The first scope to claim an alias keeps it
 --- and a later claim is refused by name, so a collision is visible and resolves the same way
@@ -108,6 +112,7 @@ end
 function obj:configure(opts)
   opts = opts or {}
   self._matcher = opts.matcher
+  self._rank = opts.rank
   self._stampIcons = opts.stampIcons
   self._scopes = {}
   self._byAlias = {}
@@ -207,28 +212,13 @@ end
 
 -- Rank a scope's rows against its own query, using the scope's matcher or the shared one.
 -- Skipped for a scope that opted out and for an empty query, where the scope's natural order
--- is what it means. This mirrors the presenter's own filtering step rather than inventing a
--- second policy, so a list shaped scope needs no filter loop of its own.
+-- is what it means. The ranking itself is the presenter's own engine, handed over as rank, so a
+-- list shaped scope orders exactly like every other list and keeps no loop of its own.
 function obj:_filter(scope, rest, rows)
   local matcher = scope.matcher
   if matcher == nil then matcher = self._matcher end
-  if type(matcher) ~= "function" or rest == "" then return rows end
-  local ranked = {}
-  for i = 1, #rows do
-    local r = rows[i]
-    local hay = r.filterText or ((r.title or "") .. " " .. (r.subTitle or ""))
-    local score = matcher(rest, hay)
-    if score ~= nil then
-      ranked[#ranked + 1] = { row = r, score = score, idx = i }
-    end
-  end
-  table.sort(ranked, function(a, b)
-    if a.score ~= b.score then return a.score > b.score end
-    return a.idx < b.idx
-  end)
-  local out = {}
-  for i = 1, #ranked do out[i] = ranked[i].row end
-  return out
+  if not self._rank then return rows end
+  return self._rank.apply(rows, rest, matcher)
 end
 
 -- The fields that give a row a scope's own identity icon, for a row that names none and for the

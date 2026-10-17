@@ -72,7 +72,16 @@ merge.
 The algorithm goes into match.lua and one rank engine goes into rank.lua. The four copies are
 deleted and routed to `rank.apply`. No list changes how it looks, only how its matches rank.
 
-**Done.**
+**Done.** Built 2026-10-17 on `olm/search-algorithm`, awaiting review and a live load.
+`match.fuzzy` is the one search. A word found whole adds a tier, a step derived per query from the
+weights so it always outranks any spread of ordinary scores, every word is matched separately and
+required, and past 256 bytes a word matches only whole, over a lowered copy kept in a bounded
+memo. The scorer and the floor are unchanged inside a tier, and so is the boundary bonus, since
+the tier alone puts the four addresses below Settings. `rank.lua` gained `score` and `before`,
+and the copies in host/queryscope, host/actionpanel, the default list model and the launcher's
+scoring loop are gone, with `rank` handed to the three hosts as root data. The launcher keeps its
+query memory, now near only inside the best row's tier. File paths fall under the 256 byte
+bound, which phase three has to answer. `decisions/olm-unified-search.md` has the measurements.
 
 ### Phase 2, the vocabulary and the simple lists
 

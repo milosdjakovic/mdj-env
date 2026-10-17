@@ -170,6 +170,11 @@ return {
       -- effective defaults.
       placeholderExamples = { source = "root", policy = "optional",
         breaks = "the empty field only ever says it searches apps and commands, so a person is never told that a typed sum or a unit conversion is answered here at all" },
+      -- The one rank engine, lib/chooser/rank.lua, the same module both chooser providers rank
+      -- through. This host scores and orders its catalog through it, putting only its learned
+      -- query memory ahead, so it keeps no scoring loop of its own, docs/PLAN-UNIFIED-SEARCH.md.
+      rank = { source = "root", policy = "optional",
+        breaks = "typing filters nothing, the whole catalog stays listed in its resting order, since the engine that scores rows against what was typed is never handed in" },
     },
   },
 

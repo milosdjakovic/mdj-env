@@ -51,6 +51,11 @@ return {
         breaks = "a scope row that names an icon by key has no owner to read it against, so a tool's rows in the launcher look bare beside the same rows in its own list" },
       matcher = { source = "root", policy = "optional",
         breaks = "a scope shaped like a list stops ranking its rows against what was typed, since the plain substring or dynamic program that would otherwise score them is never handed in" },
+      -- The one rank engine, lib/chooser/rank.lua, the same module both chooser providers rank
+      -- through. Handed over rather than loaded, since a host loads only its own siblings, and
+      -- asked for so this host keeps no ranking loop of its own, docs/PLAN-UNIFIED-SEARCH.md.
+      rank = { source = "root", policy = "optional",
+        breaks = "a scope shaped like a list shows its rows unfiltered in their own order, since the engine that ranks them against what was typed is never handed in" },
     },
   },
 

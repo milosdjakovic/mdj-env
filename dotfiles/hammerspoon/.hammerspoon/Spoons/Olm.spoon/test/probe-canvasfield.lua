@@ -98,6 +98,8 @@ local input = loadFrom(fieldDir, "input.lua")
 local fieldRender = loadFrom(fieldDir, "render.lua")
 local listModel = loadFrom(listDir, "model.lua")
 local listRender = loadFrom(listDir, "render.lua")
+-- The list model ranks only with a matcher handed in, so the probe hands it the shared one.
+local fuzzy = loadFrom(here .. "../lib/chooser/", "match.lua").fuzzy
 
 --------------------------------------------------------------------------------
 -- A plausible surface, centred on the screen holding the mouse
@@ -507,7 +509,7 @@ local function syncListQuery()
   if text ~= lastQuery then
     lastQuery = text
     stopScrollEase()
-    listState = listModel.setQuery(listState, text)
+    listState = listModel.setQuery(listState, text, fuzzy)
   end
 end
 

@@ -1179,11 +1179,26 @@ the query that is mostly wrong. The weights, the floor, and the typo cost are na
 constants at the top of `match.lua`, tuned so the floor cuts obvious noise while
 staying loose enough to forgive a fumbled letter; raising the floor step cuts more.
 
+Since 2026-10-17 `fuzzy` is also the one search every list is moving onto,
+`Spoons/Olm.spoon/docs/PLAN-UNIFIED-SEARCH.md`, and three rules sit on top of the scorer. A word
+found whole in a row, ignoring case, puts the row a tier above every row that only matches it
+with gaps or typos, so typing se ranks Settings and even Base above Some example, and inside a
+tier the scorer orders as before. The tier is a step in the one score, derived per query from the
+weights as the widest the ordinary scores can spread, so the engine still sorts one number, and a
+word found whole skips the floor. Each word of a query is matched separately, every word is
+required, and the scores add. Past 256 bytes a row matches a word only where it sits whole, over a
+lowered copy `match.lua` keeps in a bounded memo, which costs about what `words` costs and is what
+lets `words` retire. `fuzzy` answers the tier and the score inside it as a second and third value
+for a consumer comparing by proportion, the launcher's nearness rule. The measurements behind the
+bound and the memo are in `decisions/olm-unified-search.md`.
+
 The atom owns the filtering when a matcher is set and the field is in filter mode. The
 supplier returns the full candidate list and the atom scores it, keeps the matches,
 sorts by score, and styles only the survivors, so a supplier no longer writes its own
 `:find` test and the matching logic exists in exactly one place rather than copied into
-each tool. A row searchable by more than its visible text sets `filterText` to fold in
+each tool. The ranking is `Spoons/Olm.spoon/lib/chooser/rank.lua`, the one engine both
+providers, the stage, the query scope, the action panel and the launcher rank through, and a
+host that needs it is handed it as root data rather than keeping a loop of its own. A row searchable by more than its visible text sets `filterText` to fold in
 hidden keywords or synonyms, defaulting to the title plus the subtitle. On an empty
 query the atom skips scoring and keeps the supplier's order, which is what makes the
 launcher's recency order and the VPN action row survive until the user types.

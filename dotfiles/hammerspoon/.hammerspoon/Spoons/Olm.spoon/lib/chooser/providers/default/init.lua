@@ -14,15 +14,14 @@
 --- together into one instance satisfying the picker contract, and the three places it
 --- is not plain wiring are named where they happen below.
 ---
---- The first is ranking. list/model.lua carries its own matching through
---- lib/chooser/match.lua, built standalone before this provider existed, and if this
---- file let it run, every query would be filtered twice, once by the contract's own
---- live matcher and again by the list's own fuzzy strategy, silently ignoring a
---- presentation that set matcher to false to own its filtering, and silently answering
---- a different order than the native backend for the same query. So this file ranks
---- through lib/chooser/rank.lua itself, using the live matcher, and hands the already
---- ranked rows to the list model with an EMPTY query every time, so the list model
---- ranks nothing and only holds, highlights and scrolls what it was given. See
+--- The first is ranking. list/model.lua can rank a query itself, through the same
+--- lib/chooser/rank.lua, and if this file let it, every query would be filtered twice,
+--- once here and again over rows already styled. Before 2026-10-17 the model's own copy
+--- was also hard wired to the fuzzy strategy, so it silently ignored a presentation that
+--- set matcher to false. So this file ranks through lib/chooser/rank.lua itself, using
+--- the live matcher, and hands the already ranked rows to the list model with an EMPTY
+--- query and no matcher every time, so the list model ranks nothing and only holds,
+--- highlights and scrolls what it was given. See
 --- Provider colon underscore rebuildList below for where that happens, restated there
 --- too since it reads like a bug to anyone who has not been told.
 ---
@@ -392,14 +391,11 @@ end
 -- Rebuilds self.listState from config.rows(query), ranked through
 -- lib/chooser/rank.lua and styled through colon underscore styleRow above, then handed
 -- to list model with an EMPTY query, the ranking trap this whole file exists to avoid.
--- list/model.lua does its own matching through lib/chooser/match.lua, built standalone
--- before this provider existed, and letting it rank a second time behind this file's
--- own ranking would filter every query twice, once by the contract's own live matcher
--- and again by the list's own fuzzy strategy, silently ignoring a presentation that
--- set matcher to false to own its filtering and silently answering a different order
--- than the native backend for the same query. Handing over an empty query is what
--- keeps list model from ever calling its own matcher at all, it only holds, highlights
--- and scrolls whatever this file already decided the order should be.
+-- list/model.lua can rank a query itself through the same engine, and letting it rank a
+-- second time behind this file's own ranking would filter every query twice, the second
+-- time over rows already styled. Handing over an empty query and no matcher is what keeps
+-- list model from ranking at all, it only holds, highlights and scrolls whatever this file
+-- already decided the order should be.
 --
 -- resetHighlight true answers a fresh state, highlight on row one and scrollTop at the
 -- top, list model's own newState. False preserves whatever row and scroll position
@@ -414,9 +410,9 @@ end
 -- colon underscore styleRow above, in both its rows and its filtered fields. list
 -- model's own setQuery must never be called on this state. Nothing here does, the
 -- empty query handed to newState is what keeps its internal ranking from running at
--- all, but a future caller reaching for setQuery on it would hand match.fuzzy a
--- haystack built by concatenating an hs.styledtext value into a string, which is not
--- what that function expects.
+-- all, but a future caller reaching for setQuery on it with a matcher would hand that
+-- matcher a haystack built by concatenating an hs.styledtext value into a string, which
+-- is not what a matcher expects.
 function Provider:_rebuildList(query, resetHighlight)
   local ranked = self:_rankedRows(query)
   local drawReady = {}

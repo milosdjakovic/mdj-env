@@ -20,6 +20,11 @@ local source = debug.getinfo(1, "S").source
 local herePath = source:match("^@(.*)$") or source
 local caseDir = herePath:match("^(.*)/[^/]+$")
 local modulePath = caseDir .. "/../../Spoons/Olm.spoon/host/actionpanel/init.lua"
+-- The one rank engine and the strategy the root hands the panel for its own rows, the real
+-- modules rather than stand ins, so the panel's filter is the engine's answer.
+local chooserDir = caseDir .. "/../../Spoons/Olm.spoon/lib/chooser/"
+local rank = assert(loadfile(chooserDir .. "rank.lua"))()
+local substring = assert(loadfile(chooserDir .. "match.lua"))().substring
 
 local function check(description, ok, detail)
   if ok then
@@ -150,6 +155,8 @@ local function configuredPanel(rowsByContext)
     kindOf = function() return nil end,
     rowsFor = function(name) return (rowsByContext or {})[name] or {} end,
     run = function(action) runCalls[#runCalls + 1] = action end,
+    rank = rank,
+    ownRowsMatcher = substring,
     log = { w = function(message) warnings[#warnings + 1] = message end },
   })
   return ap, runCalls, warnings
@@ -737,6 +744,34 @@ do
     "the panel filters its own rows by a case insensitive substring when the supplier owns filtering",
     #filtered == 1 and filtered[1].title == "Do The Thing"
   )
+end
+
+-- The panel keeps no filter loop of its own. Its rows over a list that owns its filtering are
+-- exactly what the one rank engine answers with the strategy the root handed it, here the same
+-- substring test the panel always ran, docs/PLAN-UNIFIED-SEARCH.md phase one.
+do
+  local ap = configuredPanel({
+    demo = {
+      { action = "seek", title = "Seek Ahead" },
+      { action = "base", title = "Base Case" },
+      { action = "other", title = "Something Else" },
+      { title = "Back" },
+    },
+  })
+  local config = fakeConfig()
+  local instance = fakeInstance({ showing = true, matcher = false })
+  ap:decorate(instance, config)
+  ap:toggle("demo")
+  local whole = config.rows("")
+  local same = true
+  for _, q in ipairs({ "se", "e", "back", "zz" }) do
+    local got, want = config.rows(q), rank.apply(whole, q, substring)
+    if #got ~= #want then same = false end
+    for i = 1, #want do
+      if got[i] ~= want[i] then same = false end
+    end
+  end
+  check("the panel's own filter answers exactly what the one rank engine answers", same)
 end
 
 do

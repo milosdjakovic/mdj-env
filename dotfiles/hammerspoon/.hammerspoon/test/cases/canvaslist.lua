@@ -5,7 +5,7 @@
 -- them, the same reason test/cases/canvasfield.lua drives field model.lua alone rather
 -- than through its own shell.
 --
--- model.lua loads lib/chooser/match.lua itself, and render.lua loads model.lua itself,
+-- model.lua loads lib/chooser/rank.lua itself, and render.lua loads model.lua itself,
 -- both by a relative path resolved through debug.getinfo the same way field input.lua
 -- resolves its own siblings, so this case loads both with the plain global environment
 -- rather than a restricted one, the same choice test/cases/match.lua already makes for a
@@ -37,6 +37,10 @@ if not renderChunk then
   return
 end
 local render = renderChunk()
+
+-- The model ranks only with the matcher it is handed, since phase one of the unified search
+-- deleted its own copy hard wired to fuzzy, so the filtering cases below hand it the real one.
+local fuzzy = assert(loadfile(caseDir .. "/../../Spoons/Olm.spoon/lib/chooser/match.lua"))().fuzzy
 
 local function check(description, ok, detail)
   if ok then
@@ -114,7 +118,7 @@ do
   local rows = rowSet(5)
   rows[3].filterText = "special keyword"
   local s = model.newState(rows, ROWS_10)
-  local filtered = model.setQuery(s, "special")
+  local filtered = model.setQuery(s, "special", fuzzy)
   check("a query narrows the filtered set to the rows the real matcher keeps",
     #filtered.filtered == 1, "got " .. tostring(#filtered.filtered))
   check("the surviving row is the one whose filterText the matcher was asked to search",
@@ -127,7 +131,7 @@ do
     row("Downloads System Preferences Look", "an unrelated bag of words", 2),
   }
   local s = model.newState(rows, ROWS_10)
-  local filtered = model.setQuery(s, "dspl")
+  local filtered = model.setQuery(s, "dspl", fuzzy)
   check("ranking through the real fuzzy strategy puts a near contiguous match first",
     #filtered.filtered >= 1 and filtered.filtered[1].item == 1,
     "got " .. tostring(filtered.filtered[1] and filtered.filtered[1].item))
@@ -136,7 +140,7 @@ end
 do
   local rows = rowSet(4)
   local s = model.newState(rows, ROWS_10)
-  local filtered = model.setQuery(s, "nothing matches this at all")
+  local filtered = model.setQuery(s, "nothing matches this at all", fuzzy)
   check("a query the matcher rejects for every row answers an empty filtered set",
     #filtered.filtered == 0)
   check("an empty filtered set carries no highlight rather than one on nothing",
@@ -148,7 +152,7 @@ do
   rows[2].filterText = nil
   rows[2].title, rows[2].subTitle = "Alpha", "Beta"
   local s = model.newState(rows, ROWS_10)
-  local filtered = model.setQuery(s, "Alpha Beta")
+  local filtered = model.setQuery(s, "Alpha Beta", fuzzy)
   check("a row with no filterText is searched on its title and subTitle joined, matching haystackOf",
     #filtered.filtered == 1 and filtered.filtered[1].item == 2)
 end
@@ -360,7 +364,7 @@ do
 end
 
 do
-  local s = model.setQuery(model.newState(rowSet(3), ROWS_10), "nothing at all matches")
+  local s = model.setQuery(model.newState(rowSet(3), ROWS_10), "nothing at all matches", fuzzy)
   check("highlightedRow answers nil rather than raising when nothing is highlighted",
     model.highlightedRow(s) == nil)
 end

@@ -50,6 +50,14 @@ return {
         breaks = "configure refuses to run, since the panel would have no ordered rows to build for any context it borrows" },
       run = { source = "root", policy = "required",
         breaks = "configure refuses to run, since a chosen verb would have nowhere to go once the row it acted on was restored" },
+      -- The one rank engine, lib/chooser/rank.lua, and the strategy it filters the panel's own
+      -- rows with when the presentation under the panel owns its filtering. Both handed over by
+      -- the root, so this host keeps no filter loop of its own, docs/PLAN-UNIFIED-SEARCH.md, and
+      -- the choice of strategy stays where every other one is made.
+      rank = { source = "root", policy = "optional",
+        breaks = "typing while the panel is open over a list that owns its own filtering narrows nothing, every verb stays listed" },
+      ownRowsMatcher = { source = "root", policy = "optional",
+        breaks = "typing while the panel is open over a list that owns its own filtering narrows nothing, every verb stays listed" },
     },
   },
 

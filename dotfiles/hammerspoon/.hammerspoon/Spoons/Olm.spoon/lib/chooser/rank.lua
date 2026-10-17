@@ -12,6 +12,12 @@
 --- function answered before the move, tie break included, and holding that identity is
 --- the whole reason this lives in one place now rather than the canvas provider
 --- carrying a second copy of the same policy.
+---
+--- It is the one rank engine, docs/PLAN-UNIFIED-SEARCH.md. Phase one on 2026-10-17 deleted
+--- the four copies of this loop that had grown elsewhere, in host/queryscope, in the default
+--- provider's list model, in host/actionpanel and in the launcher's catalog ranking, and
+--- each now scores and sorts through here. A host reaches it as the rank value the
+--- composition root hands over, never by loading this file itself.
 
 local M = {}
 
@@ -21,6 +27,43 @@ local M = {}
 -- substring test relied on before this policy had a name.
 local function haystackOf(it)
   return it.filterText or ((it.title or "") .. " " .. (it.subTitle or ""))
+end
+
+--- M.haystackOf(item) -> the text a matcher searches for one row, exposed so a consumer
+--- scoring rows through M.score below never restates the rule.
+M.haystackOf = haystackOf
+
+--- M.score(items, query, matcher) -> a new list of entries, unsorted.
+--- Every candidate scored through matcher(query, haystackOf(item)), a nil score dropping
+--- it. An entry is { item, score, idx, tier, within }, idx the candidate's place in items.
+--- tier and within are the second and third answers lib/chooser/match.lua's fuzzy gives,
+--- the count of words found whole and the score inside that tier, and a matcher answering
+--- only a score reads as tier zero with within equal to the score. They exist for a
+--- consumer that orders by something besides the score and needs to know which rows are a
+--- comparable kind of match, the launcher's nearness rule today. This is the one scoring
+--- loop, so no host or list keeps a copy of it, docs/PLAN-UNIFIED-SEARCH.md phase one.
+function M.score(items, query, matcher)
+  local entries = {}
+  for i = 1, #items do
+    local score, tier, within = matcher(query, haystackOf(items[i]))
+    if score ~= nil then
+      entries[#entries + 1] = {
+        item = items[i], score = score, idx = i, tier = tier or 0, within = within or score,
+      }
+    end
+  end
+  return entries
+end
+
+--- M.before(a, b) -> true when entry a sorts ahead of entry b.
+--- Score descending, a tie broken on the original index ascending, so a stable order the
+--- supplier already carries, the launcher's own recency for one example, still shows
+--- through equal scores. Lua's sort is not stable, which is why the index is folded in
+--- rather than relied on. Exposed as the one tie rule, for a consumer that puts something
+--- of its own ahead of it.
+function M.before(a, b)
+  if a.score ~= b.score then return a.score > b.score end
+  return a.idx < b.idx
 end
 
 --- M.apply(items, query, matcher) -> a new list, the ranked items.
@@ -41,21 +84,12 @@ function M.apply(items, query, matcher)
     return out
   end
 
-  local ranked = {}
-  for i = 1, #items do
-    local score = matcher(query, haystackOf(items[i]))
-    if score ~= nil then
-      ranked[#ranked + 1] = { it = items[i], score = score, idx = i }
-    end
-  end
-  table.sort(ranked, function(a, b)
-    if a.score ~= b.score then return a.score > b.score end
-    return a.idx < b.idx
-  end)
+  local ranked = M.score(items, query, matcher)
+  table.sort(ranked, M.before)
 
   local out = {}
   for i = 1, #ranked do
-    out[i] = ranked[i].it
+    out[i] = ranked[i].item
   end
   return out
 end

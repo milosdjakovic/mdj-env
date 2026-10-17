@@ -240,6 +240,7 @@ end
 print("launcher ranking")
 
 local fuzzy = assert(loadfile(spoon .. "lib/chooser/match.lua"))().fuzzy
+local rank = assert(loadfile(spoon .. "lib/chooser/rank.lua"))()
 local Launcher = assert(loadfile(spoon .. "host/launcher/init.lua"))()
 
 local function appRow(name, bundleID, subTitle)
@@ -259,6 +260,7 @@ local MAPS = appRow("Maps", "com.apple.Maps", "Not running")
 local function launcher(assoc)
   defaults = {}
   Launcher._matcher = fuzzy
+  Launcher._rank = rank
   Launcher._assoc = assoc
   Launcher._page = nil
   Launcher._installedApps = nil

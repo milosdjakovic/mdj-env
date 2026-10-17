@@ -116,3 +116,14 @@ scorer's typo tolerance. Measured, `mail` scores Mail 43.90 and Maps 12.56, agai
 points, since the score grows with every character typed. The three cases sit at 99.4%, 65% and
 28.6% of their own best, so the default 0.9 has a wide margin on both sides. Both new checks
 were mutation tested by setting the constant to zero and confirming they fail.
+
+### 2026-10-17 12:04
+
+The shared search now ranks a word found whole a tier above any scattered match, carried in the
+score as a large step, `olm-unified-search.md`. A proportion of the whole score would read two
+rows a tier apart as near, so nearness now admits a remembered row only from the best row's
+tier and takes the proportion of the score inside that tier, which is the number the 99.4%, 65%
+and 28.6% measurements were made on. Inside a tier the order is what it was, and a remembered row
+can no longer lift a scattered match over a whole one. `_rankCatalog` scores and sorts through
+`lib/chooser/rank.lua` behind the query memory instead of its own loop. Every expectation in
+`test/ranking.lua` passed unchanged.

@@ -73,6 +73,7 @@ obj._chordWarned = nil           -- one shot flag, so a missing chord speller wa
 obj._mru = nil              -- most-recently-used item keys, front is most recent
 obj._assoc = nil            -- the query association store, what each typed query has come to mean
 obj._matcher = nil          -- the shared fuzzy strategy, since this host scores its own rows now
+obj._rank = nil             -- the one rank engine, lib/chooser/rank.lua, handed over by the root
 obj._ranking = nil          -- the two numbers the association store is built with
 obj._selfKey = nil          -- our own app key, never promoted
 obj._page = nil             -- an opaque query prefix while somebody else's list is hosted
@@ -240,6 +241,9 @@ function obj:configure(opts)
   -- see _rankCatalog, so this is the function that does it, and the same keep rather than
   -- overwrite rule applies since only the generic stage supplies it.
   self._matcher = opts.matcher or self._matcher
+  -- The one rank engine the catalog scores and sorts through, kept rather than overwritten for
+  -- the same reason, since only the root's own call hands it over.
+  self._rank = opts.rank or self._rank
   self._predicates = opts.predicates or {}
   self._actions = opts.actions or {}
   -- The tool registry, phase seven of the build plan. Optional, and a launcher configured
@@ -919,8 +923,8 @@ end
 --- Nothing is ever added to the list this way. A row must have matched to be ordered at all, so
 --- a remembered pick that does not match what is typed now is simply not here.
 function obj:_rankCatalog(query, rows)
-  local matcher = self._matcher
-  if query == "" or type(matcher) ~= "function" then return rows end
+  local matcher, rank = self._matcher, self._rank
+  if query == "" or type(matcher) ~= "function" or not rank then return rows end
 
   -- Where each remembered key sits for this query, one being what it has most come to mean.
   local place = {}
@@ -930,36 +934,41 @@ function obj:_rankCatalog(query, rows)
     end
   end
 
-  local scored = {}
+  -- Scored by the one rank engine, the same loop every list runs, so the match itself means
+  -- here exactly what it means anywhere else.
+  local scored = rank.score(rows, query, matcher)
   local best = nil
-  for i, row in ipairs(rows) do
-    local score = matcher(query, row.filterText)
-    if score ~= nil then
-      if best == nil or score > best then best = score end
-      scored[#scored + 1] = {
-        row = row, score = score, n = i, assoc = place[recencyKey(row.item)],
-      }
-    end
+  for _, entry in ipairs(scored) do
+    if best == nil or rank.before(entry, best) then best = entry end
+    entry.assoc = place[recencyKey(entry.item.item)]
   end
 
   -- What was picked before only decides between rows that matched about as well as the best
   -- one did, see the note above. A row further away than that keeps its place on the match
   -- alone, however often it has been chosen for some shorter spelling of this query.
-  local near = (best or 0) * (tonumber((self._ranking or {}).nearness) or DEFAULT_NEARNESS)
+  --
+  -- About as well means the same kind of match first. The shared search ranks a word found
+  -- whole in a tier above every scattered match, and the score carries that tier as a large
+  -- step, so a proportion of the whole score would read two rows a tier apart as near and two
+  -- rows in one tier as nearer than they are. So a remembered row must sit in the best row's
+  -- tier, and the proportion is taken of the score inside that tier, which is the number the
+  -- measurements above were made on.
+  local nearness = tonumber((self._ranking or {}).nearness) or DEFAULT_NEARNESS
   for _, entry in ipairs(scored) do
-    if entry.assoc and entry.score < near then entry.assoc = nil end
+    if entry.assoc and (entry.tier ~= best.tier or entry.within < best.within * nearness) then
+      entry.assoc = nil
+    end
   end
 
-  -- Lua's sort is not stable, so the resting position is folded in as the last comparison
-  -- rather than relied on, the same trick lib/recency.lua's own order already uses.
+  -- The remembered rows lead in the order this query has come to mean them, and everything
+  -- else follows the engine's own order, score first and the resting position breaking a tie.
   table.sort(scored, function(a, b)
     if (a.assoc ~= nil) ~= (b.assoc ~= nil) then return a.assoc ~= nil end
     if a.assoc and b.assoc then return a.assoc < b.assoc end
-    if a.score ~= b.score then return a.score > b.score end
-    return a.n < b.n
+    return rank.before(a, b)
   end)
   local out = {}
-  for i = 1, #scored do out[i] = scored[i].row end
+  for i = 1, #scored do out[i] = scored[i].item end
   return out
 end
 
