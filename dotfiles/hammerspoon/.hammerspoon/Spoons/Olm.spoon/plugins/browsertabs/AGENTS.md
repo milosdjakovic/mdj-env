@@ -649,7 +649,9 @@ search, this chooser through its presentation and the scope through the query sc
 list and this chooser cannot disagree about which tabs a query matches or in what order. What
 differs between them is only which extra rows get appended, which is exactly the part that is per
 surface. `tabRows` ignores a query since 2026-10-17, so the integration harness's `rows` command,
-which reads it, now sees the resting order rather than a ranked list.
+which read it, saw the resting order rather than a ranked list until the same day's packet two B,
+when `test/agent.lua` began ranking the presentation's rows itself through the shared search, the
+way the stage does.
 
 `prepare` is the one listing path and `reload` is now a call to it. A second ask while one is in
 flight joins that flight and every waiter is called when it lands, so two surfaces asking at once

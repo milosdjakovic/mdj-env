@@ -11,7 +11,8 @@
 --- It loads only when the marker file beside it is present, which the runner writes at the
 --- start of a suite and removes at the end, so a normal machine never has this in its config.
 --- Nothing in the spoon depends on it and it depends on nothing but the chooser's public
---- surface.
+--- surface, the tool's manifest and the shared search's two files, which it loads to rank the
+--- rows the way the stage does.
 ---
 --- Commands arrive as files rather than through hs.ipc or a URL, and both exclusions are
 --- measured. The CLI stalls while asynchronous work is in flight, which this tool always has,
@@ -104,16 +105,52 @@ end
 -- Reading the tool's own state
 --------------------------------------------------------------------------------
 
+-- The shared search, loaded from the spoon this harness ships in, the same two files the stage
+-- ranks every list through. Loaded once, on the first ask, since a load costs a parse and the
+-- harness asks for rows on every poll of a round.
+local olmPath = spoonPath .. "../../../"
+local shared
+local function sharedSearch()
+  if shared then return shared end
+  local rank = assert(loadfile(olmPath .. "lib/chooser/rank.lua"))()
+  local match = assert(loadfile(olmPath .. "lib/chooser/match.lua"))()
+  -- The presentation's own searchText and rowLimit, read from the manifest beside the tool, so a
+  -- ranking here keeps exactly the rows the stage would. A searchText is a member spec, resolved
+  -- against the live plugin the way the registrar resolves it, a dotted path called with a dot.
+  local manifest = assert(loadfile(spoonPath .. "../manifest.lua"))()
+  local p = manifest.presentation or {}
+  local search = { rowLimit = p.rowLimit }
+  if type(p.searchText) == "table" and type(p.searchText.member) == "string" then
+    search.searchText = function(raw)
+      local fn = spoon.BrowserTabs
+      for part in p.searchText.member:gmatch("[^.]+") do fn = fn and fn[part] end
+      return fn(raw)
+    end
+  end
+  shared = { rank = rank, matcher = match.fuzzy, search = search }
+  return shared
+end
+
 -- The rows the chooser would show for a query, top first. The runner checks that the tab it
 -- means to open is the top row before it presses Return, because the top row is what Return
 -- takes. It deliberately does not require the query to match one row only, since a fuzzy match
 -- over a hundred tabs always matches more than one and an earlier version of this harness
 -- aborted every round for that reason.
+--
+-- The supplier hands every row over in its resting order and reads no query since phase three of
+-- the unified search on 2026-10-17, so the ranking is done here exactly as the chooser does it,
+-- the presentation's own rows, the settings door included, through rank.apply with the shared
+-- fuzzy matcher and the presentation's search. Reading the supplier alone would answer the
+-- resting order, so every typed round would find the wrong top row and a case asking for exactly
+-- one row would always skip.
 local function topRows(query, n)
   local ui = spoon.BrowserTabs and spoon.BrowserTabs.chooser
   if not ui then return nil end
+  local s = sharedSearch()
+  local supplied = (ui.rows or ui.tabRows)(query or "")
+  local ranked = s.rank.apply(supplied, query or "", s.matcher, s.search)
   local out = {}
-  for i, r in ipairs(ui.tabRows(query or "")) do
+  for i, r in ipairs(ranked) do
     if i > (n or 3) then break end
     local tab = r.item and r.item.tab or {}
     out[#out + 1] = {

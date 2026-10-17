@@ -167,7 +167,18 @@ declares the command, the folder, the container and the runtime as keywords, and
 scan's group order as a bonus. Every recency or group order is a bonus scaled zero to one, so it
 orders only equal matches.
 
-**Packet two B to come**, the clipboard and FileSearch, with `names` and `searchText`.
+**Packet two B done**, 2026-10-17, the clipboard and FileSearch on the engine, and two
+corrections. A clipboard row filters on its title, names its full body and every file path, and
+carries its store place as a bonus, the preview is no longer searched, the type prefix still
+narrows the candidates by kind in the supplier and `searchText` answers the rest, and answers
+nothing on the manage history page, whose field is a duration. FileSearch's engine hands every
+held row over unranked and still decides when a round trip is needed, by shape alone, the shared
+search ranks the held rows by the free text `searchText` parses out, a file row filters on its
+name with frecency as its bonus, every status, help and up row is pinned, and `rowLimit` 200
+replaced the engine's display cap. Neither list names `words` any more and both dropped
+`matcher = false`. An emoji's shortcode aliases became names rather than keywords, and the
+BrowserTabs integration harness ranks the presentation's rows through the shared search itself,
+since the supplier no longer does. Phase three is done, and the launcher is the one list left.
 
 ### Phase 4, the launcher and the gate
 

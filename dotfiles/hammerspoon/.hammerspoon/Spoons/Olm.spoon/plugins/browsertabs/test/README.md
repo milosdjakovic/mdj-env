@@ -140,7 +140,14 @@ inside its own Return handler, and read from outside it reports the first row of
 list however the list is actually filtered. That reading was believed briefly and it accused the
 tool of opening tabs it had never been asked for, while a real Return in the same state opened the
 right one every time. The ranking is recomputed here instead, and the check that counts is the one
-after Return.
+after Return. Since phase three of the unified search on 2026-10-17 the tool's supplier hands
+every row over in its resting order and the shared search ranks them, so `agent.lua` ranks the
+presentation's rows itself through `lib/chooser/rank.lua` and the shared fuzzy matcher with the
+presentation's own search, loaded from the spoon. Reading the supplier alone would answer the
+resting order, every typed round would report the wrong top row and `existing_user_tab` would
+always skip. No case's expectation changed with it. Every typed round types a token unique to the
+round, which only its own tab answers, and `no_query` reads the resting order, which still leads
+with the tab opened last.
 
 The chooser keeps the previous listing on screen while a new one is in flight, which is right for a
 person and a trap here, since rows read just after opening do not contain what the case arranged.

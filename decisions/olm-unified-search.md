@@ -696,3 +696,82 @@ bonus 1, either action row unpinned 3 and 4, the no vault row unpinned 1, no rec
 resting sort 1 and matcher false 1. For Processes no bonus 2, the group as a tier 2, the bonus from
 the order in hand 1, filterText off 2, no keywords 4, the full path as a keyword 2, no container
 1, the confirm unpinned 2 and words back 1.
+
+### 2026-10-17 19:14, phase three packet two B, the clipboard, FileSearch and two corrections
+
+The last two lists with their own scoring moved onto the engine on `olm/search-lists`, with an
+emoji correction and the BrowserTabs harness, one commit each.
+
+Clipboard. A history row filters on its one line title, since its subtitle is a kind, an age and a
+count, names its full text body and every file path, and carries its place in the store as a
+bonus, newest one and oldest one over the count, so the newer leads only among equal matches. A
+first line match therefore leads a newer entry that matches only inside a word of its body, while
+a body word at a word start matches at the same level as the title and the newer leads there. The
+preview line is not searched, since it reads 1200 chars or URL and made chars match every text
+entry. The type prefix stays the clipboard's grammar, the supplier still reads it to keep only that
+kind, and the presentation's `searchText` answers the rest. The manage history page shares the
+presentation and swaps inside it, so the matcher the stage writes before a show cannot follow it,
+and `searchText` answers nothing on that page, which keeps its rows in prune.lua's order whatever
+is typed, what matcher false did. `haystack`, `hayCache`, the words matcher, matcher false and the
+cache drop in `UI.entryChanged` are deleted. An appended entry is searched by its new text with
+nothing dropped, since the row names its body afresh and the memo is keyed by the string the
+append replaced. Measured by `Spoons/Olm.spoon/test/search-timing.lua` over the same thousand
+bodies and fourteen megabytes, building the rows as the supplier does minus the icons and ranking
+them, a keystroke after the first cost 3 to 11 milliseconds, against 1.4 to 7 for the words
+strategy over lowered bodies, and 20 for ump, a word found only inside words.
+
+FileSearch. The sources still fetch by the whole parse and the engine still decides recent, keep
+typing, browse or search and dispatches round trips, but it hands every held row over, up to the
+retain cap of 2000, unfiltered and in the order its source gave. `_filter`, `_order`, `allWordsIn`,
+the injected matcher, `displayCap`, `frecencyWeight`, the folded `lower` path field and matcher
+false are deleted. The shared search ranks the held rows by the free text `searchText` answers from
+the engine's own parse, so `.js ~/dev/ foo` ranks by foo and a browse or a bare type keeps the
+source's order. Narrowing between round trips is now that ranking over the held rows. Whether a
+round trip is needed is still decided by shape alone, `query.narrows`, the truncation flag and the
+narrowable flag, never by matching a row, so no yes or no matching step was needed. A file row
+filters on its file name and carries frecency, used over used plus two, as its bonus. `rowLimit`
+200 on the presentation and the scope replaces the display cap, after ranking.
+
+The full path is not a name and not a keyword. The old narrow searched the folded full path while
+Spotlight, which answers every unscoped query, matches names only, so typing on kept rows a round
+trip for the same text never returned, and a folder word as a name would tie with a file actually
+called that. A row fzf or the walker found through its folders, or fzf by scattered letters, is
+now dropped by the shared search, the rule every list has.
+
+Status, help and up rows are pinned. A status row also trails the files whenever the engine
+reports one, not only when it holds none, and the engine reports searching as soon as it arms the
+debounce. Without that, the held rows from the last query ranked by the new text often kept none,
+so every round trip would have said no results until the answer landed, and a one or two letter
+query matching no recent file would have said no results rather than keep typing. That is a
+visible change, a Searching or Keep typing row trailing the files that do match while it applies.
+Building the rows for 2000 held paths and ranking them measured 5 to 9 milliseconds a keystroke in
+plain Lua. Fitting each new folder to the row is measured against the live instance and is not in
+that number, so the budget is now taken once per list rather than once per row, and a new folder
+is fitted once per open and cached as before.
+
+Emoji, a correction. Packet two A read an emoji's shortcode aliases as keywords, below any name
+match, so grin listed grinning face above the beaming face whose shortcode it is. Milos corrected
+that aliases are names, what a person types as the emoji's name. Each alias is now a name, tags and
+category stay keywords, and grin leads with the beaming face, its alias matched whole scoring
+above grinning face, whose name only starts with it. A symbol's a field is a synonym line or its
+category, so a symbol declares no names.
+
+BrowserTabs harness. `test/agent.lua` ranks the presentation's own rows, the settings door
+included, through rank.apply with the shared fuzzy matcher and the presentation's search, loading
+`rank.lua`, `match.lua` and the manifest from the spoon. No case's expectation changed, since
+every typed round types a token unique to its own tab and `no_query` reads the resting order. The
+harness was not run.
+
+`words` stays in `match.lua`. No list or manifest names it, and `test/search-timing.lua` measures
+the shared search against it and `test/cases/match.lua` covers it while it is exported.
+
+Cases in `test/cases/clipboard-search.lua`, `test/cases/filesearch-search.lua` and
+`test/cases/searchlists.lua`. Every mutation tried failed at least one case. For the clipboard no
+bonus failed 2, an inverted bonus 2, no filterText 1, the preview as a name 4, the prune page
+ranked 1, the prefix left in the search text 3, the supplier filtering by the query 5 and no names
+6. For FileSearch no filterText 3, no bonus 3, frecency as a tier 4, a status only when no file is
+held 4, the status row unpinned 5, the up row unpinned 1, the help rows unpinned 1, searchText
+answering the raw query 6, no searching status while the debounce waits 2, the display cap back
+in the engine 1, the engine filtering by path 3 and no preference 2. For emoji no names 3, a
+symbol's synonyms as names 1, the aliases left among the keywords 1 and the aliases joined as one
+name 1.
