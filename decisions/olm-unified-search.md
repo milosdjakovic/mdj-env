@@ -19,6 +19,10 @@ a word start with one edit, from four letters on, never on the first letter or a
 secondary field only where one of its words starts with the query word, below every name level. There is no scattered
 match and no relevance floor. A word with no letter or digit is a plain substring and adds no
 level. Every word is required and the scores add. A row shows the subtitle its supplier gave.
+Every query and every field is folded before it is lowered, Latin letters with diacritics to
+their base letters, so resume finds Résumé, Milos's decision of 2026-10-17. At one level a word
+found in the name leads the same level found only in a further name, unless it spells that name
+whole.
 
 Plugins declare a row vocabulary and only core applies it. Today that is `title`, `subTitle`,
 `keywords`, `filterText`, `names`, `pinned`, `fromQuery`, `tier` and `bonus` on a row, and
@@ -97,6 +101,23 @@ Plugins declare a row vocabulary and only core applies it. Today that is `title`
   over inside every keystroke and lowered the whole history again, 21 to 27 milliseconds a
   keystroke against 1.4 to 7.3 for the words strategy. Replaced by two generations bounded by
   entries.
+- **Two generations bounded by count alone.** 2026-10-17, built in phase three packet one and
+  replaced the same day after the review. Four thousand bodies a generation fixed the thrash and
+  kept every body alive until four thousand distinct ones arrived, so an append accumulator
+  growing one entry to 5.6 megabytes left 540 megabytes held after the entry was gone. A byte
+  bound of 48 megabytes a generation was added beside the count.
+- **Trying every occurrence of a word in a long field for a word start.** 2026-10-17, replaced
+  after the review. ng over twenty bodies of a megabyte of words like running cost 405 to 455
+  milliseconds a keystroke. An exact answer for a word shorter than three letters past the bound
+  needs the whole body read per keystroke, and the cheapest exact form, a frontier pattern,
+  measured 11.8 milliseconds a megabyte. Bounded at 256 occurrences instead.
+- **Hiding held FileSearch rows whenever the query does not narrow the held one.** 2026-10-17,
+  weighed for the review's fifth finding and not built. query.narrows fails on a backspace or an
+  edit, so the list would blank to Searching on every backspace although the held rows are files
+  of the same population matching what is typed. Hidden only when query.sameShape fails.
+- **Restricting fzf to the file name with a slash delimiter and the last field.** 2026-10-17,
+  tried in a shell. A directory line ends in a slash, so its last field is empty and every
+  directory dropped. `--exact --scheme=path` instead.
 - **Capping a long list in its supplier.** 2026-10-17. The emoji supplier keeps 100 rows before
   any ranking the shared search could do, so the cap decides which rows can be found first. A
   list of thousands hands the engine every row and declares `rowLimit`, which cuts after ranking.
@@ -775,3 +796,84 @@ answering the raw query 6, no searching status while the debounce waits 2, the d
 in the engine 1, the engine filtering by path 3 and no preference 2. For emoji no names 3, a
 symbol's synonyms as names 1, the aliases left among the keywords 1 and the aliases joined as one
 name 1.
+
+### 2026-10-17 20:00, phase three reworked after the adversarial review
+
+Every finding of the review of e3989a6 was answered on `olm/search-lists`, in four commits.
+
+The memo. The long field memo keeps its two generations of 4096 bodies and now also turns a
+generation once its bytes pass 48 megabytes, counting the body, any folded text and the lowered
+copy, since the memo is what keeps a body alive once no row holds it. The review's probe, an
+append accumulator growing one entry to 5.6 megabytes with a search between appends, held 540
+megabytes after the entry was dropped and now holds 31.7, and 32 at 400 appends, so it no longer
+grows with them. The measured history, fourteen megabytes and twenty eight counted, fits in one
+generation, so the thrash numbers of 18:33 hold, 2.2 to 8.9 milliseconds a keystroke after the
+first for every query of that table.
+
+The occurrences. A long field tries a word at 256 places at most. Past them with no word start
+the word is read as found inside a word at its first place, which keeps the row for a word of
+three letters or more in a name, at the inside level, and does not match a shorter word or a
+secondary field. So which rows match is unchanged whenever a word start lies within the first 256
+places, and a word start later lands at the inside level. The review's probe, ng and ing over
+twenty bodies of a megabyte, went from 405 to 455 milliseconds to 1.0 after the first keystroke,
+and ump over the fourteen megabyte history from 20 to 7.
+
+Accents, Milos's decision of today. The matcher folds Latin-1 and Latin Extended-A letters and
+the Romanian comma letters to their base letters, upper case to upper case so a camel hump
+survives, ß to ss, and drops combining marks, the decomposed form macOS gives file names, for the
+query and every field, before lowering. Only a text holding one of six lead bytes is folded,
+found by plain byte scans, since a pattern for any byte above 127 measured near six milliseconds
+a megabyte. The query is parsed once per distinct query rather than once per row.
+
+Titles before further names. At one level a word found in the title or filterText leads the same
+level found only in a further name. fuzzy answers a sixth value, how many words came only from
+further names, rank.lua compares it after the phrase and before the row's bonus, so a recent tab
+never lifts over one whose title holds the word, and the score folds it in, one spread a word,
+with the phrase bonus inside the score widened to the words plus one spreads and the step to
+twice that. within still carries the phrase as one spread, so a row with no names answers the
+within it always did and the launcher's nearness reads the same proportion. face now lists person
+facepalming before oncoming fist, flag lists the flags before carp streamer, github pull lists
+Pull request github before the tab on github.com. A further name the word spells whole counts as
+the name, which this entry adds to the review's rule so Milos's emoji correction of 19:14 still
+holds, grin listing the beaming face whose shortcode is grin before grinning face. Milos should
+confirm that refinement.
+
+The ampersand. The run together key of a phrase drops a token that is only ampersands, and the
+key with it is kept beside it when they differ, so smileysemo and smileys&emo both find smileys &
+emotion. A consequence worth knowing, foodd now finds every food & drink emoji, as fooddrink
+typed run together.
+
+FileSearch. The root hands the engine keeps, from the shared matcher every surfaced plugin is
+handed and the surface's new searchName, and the engine fills the retain cap with rows the search
+keeps first, each part in the source's order, and reports nothing found when a round trip brought
+back rows the search keeps none of, so the list says No matches rather than nothing. The root asks
+the matcher how many letters a word needs to be kept inside a word, three, rather than restating
+it, and hands that to Spotlight and the walker. Spotlight asks a shorter word with LIKE[cdw] "w*",
+word based, measured through NSMetadataQuery over one folder at 28 names for ab against 660
+anywhere and 6 for ng against 4326. The walker hands a short first word to fd as a word start
+pattern with its case stated inside it and matches later words on the file name, not the path.
+fzf is asked --exact --scheme=path, each word whole and the file name ranked first. While a round
+trip for another population is pending, a scope, a type or a sigil changed, only the pinned
+searching status shows, and over the same population the held rows stay, see Rejected for why
+not query.narrows.
+
+Clipboard and Obsidian. Both presentations declare rowLimit 200, and Obsidian's scope too, so an
+empty field now shows the newest two hundred entries or notes. The clipboard caches each entry's
+row, weak keyed, rebuilt on UI.entryChanged, on every open and when media lands, since an icon or
+a badge may then differ, when its batch position moves, and when its age text would read
+differently, at the time the new util.relTimeChanges answers, so the subtitle is always what a
+fresh build would say. Only the bonus is written per keystroke. In plain Lua the ranking dominates
+and a keystroke measured about the same, 2.4 to 9.2 milliseconds, the saving being the provider's
+styling of eight hundred fewer rows.
+
+Docs. docs/PLUGIN-CONTRACT.md no longer uses the words matcher as its example or says three
+plugins want it.
+
+Cases in test/cases/match.lua, searchfields.lua, filesearch-search.lua, the new
+filesearch-sources.lua, clipboard-search.lua and searchlists.lua. Every mutation tried failed at
+least one case. No fold failed 10, the query unfolded 2, the ampersand kept 3, no occurrence bound
+3, no byte bound 2, no further name count 3, rank ignoring it 1, no whole name refinement 3, the
+score keeping the old step 1, no kept first 2, no nothing found 1, held rows never hidden 1,
+narrows in place of sameShape 1, Spotlight asking anywhere 1, fzf scattered 1, the walker fixed 1,
+entryChanged keeping the row 3, an age that never refreshes 1, an open keeping rows 1, a stale
+bonus 1 and no cache 4.

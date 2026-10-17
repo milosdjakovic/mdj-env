@@ -924,7 +924,8 @@ surface = {
 ```
 
 `matcher` and `pane` live here rather than being ambient because they are per plugin
-choices. Three plugins want the words matcher rather than fuzzy, and five want the
+choices. Since phase three of the unified search on 2026-10-17 no plugin names a matcher, every
+list ranks through the shared search, and a list that differs is a defect. Five want the
 preview pane. The rest want neither and say nothing.
 
 ### The docked pane
@@ -1022,7 +1023,7 @@ presentation = {
   onPositioned = { member = "onPositioned", call = "dot" }, -- optional
   rowCount    = 2,                                       -- optional, a plain number
   paneWidth   = 320,                                     -- optional, a plain number, true, or a member spec
-  matcher     = "words",                                 -- optional, false or a strategy name
+  matcher     = false,                                   -- optional, false or a strategy name, rarely right
   titleLineBreak = "truncateMiddle",                     -- optional, a plain string
   searchText  = { member = "searchText", call = "dot" }, -- optional
   rowLimit    = 200,                                     -- optional, a positive whole number
@@ -1111,7 +1112,8 @@ supplier's order. `matcher` is `false`, meaning the field is not a
 search and the supplier owns what shows, the one case that stays for an input page or a confirm,
 and it was what filesearch and clipboard asked their own standalone `Chooser.new` for, or a string naming a strategy in `Chooser.matchers`, the identical table
 `root/compose.lua` already resolves this word against for every consumer that still builds its
-own instance, `words` for processes among them. Absent inherits the root default, the version
+own instance. No presentation names one since phase three of the unified search, and absent
+inherits the root default, the version
 one behaviour, unchanged for every plugin that names nothing here. The registrar checks a
 declared string against the real strategy names at register, the same loud refusal `rowCount`
 and `paneWidth` already get, since a typo left to `host/stage`'s own `_resolveMatcher` would

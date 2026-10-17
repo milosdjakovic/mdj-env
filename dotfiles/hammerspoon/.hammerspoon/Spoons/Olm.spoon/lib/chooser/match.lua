@@ -14,7 +14,7 @@
 ---
 --- fuzzy is the one search every list is moving onto, docs/PLAN-UNIFIED-SEARCH.md. The name
 --- stays because the root and the manifests name it, though since 2026-10-17 it matches no
---- scattered letters at all. It answers four more values after the score, see M.fuzzy, which
+--- scattered letters at all. It answers five more values after the score, see M.fuzzy, which
 --- rank.lua carries along for a consumer that has to tell a better kind of match from a
 --- better scored one of the same kind and for the row that has to say why it is listed. A
 --- caller reading only the first value loses nothing, the score alone orders every row.
