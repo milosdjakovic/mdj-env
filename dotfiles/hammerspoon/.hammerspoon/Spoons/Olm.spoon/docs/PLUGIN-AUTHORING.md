@@ -274,8 +274,11 @@ Your plugin supplies rows and answers questions about them. It never moves the h
 Selection is the person's, the nav layer owns j and k, and the stage resets to the top on
 present because the list changed underneath. The one sanctioned way to ask for the top back is
 `redrawPresented(name, true)`, and only when a reorder left no row worth preserving. A
-background correction landing while somebody is reading has to check `stageSelectedRow()` and
-defer rather than redraw under a hand.
+redraw without it keeps the highlight on the same item when the item states a `key`, found
+again in the list as shown, typed query and all, so a row appearing above never moves the
+person onto a neighbour. A row with no key keeps its row number, so a background correction
+landing on such a list while somebody is reading has to check `stageSelectedRow()` and defer
+rather than redraw under a hand.
 
 ## What the wiring layer refuses, loudly
 

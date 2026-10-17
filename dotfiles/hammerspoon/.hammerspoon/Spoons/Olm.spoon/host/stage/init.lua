@@ -839,22 +839,30 @@ function obj:pop()
   return true
 end
 
---- Stage:selectWhere(match) -> bool
---- Method
---- Moves the highlight to the first row whose item carries every field of match with an equal
---- value, answering whether one was found. Only while the rows on screen are the current
---- presentation's rows in their own order, an empty field or a presentation that declares
---- matcher false, since a ranked list has an order only the atom knows. For the stage's own
---- hold by key and for a resumed highlight, never for a plugin, since the highlight belongs to
---- the person.
-function obj:selectWhere(match)
+-- Where the first row whose item carries every field of match stands in the list as the
+-- provider shows it now, or nil. Under a typed query the shown order is the ranked one, and
+-- the stage finds it by running the current rows through the facade's own rank with the
+-- instance's own matcher, the same module and the same three inputs the provider ranks with,
+-- so the index is the one on screen without the provider having to hand its rows out. A
+-- facade with no rank can only answer for an order it already knows, an empty field or a
+-- level that stood the matcher down.
+function obj:_shownIndexWhere(match)
   local p = self:_current()
   if not (p and self._instance and type(match) == "table" and next(match) ~= nil) then
-    return false
+    return nil
   end
   local query = self:query()
-  if query ~= "" and p.matcher ~= false then return false end
-  for index, row in ipairs(self:_rows(query)) do
+  local rows = self:_rows(query)
+  if query ~= "" then
+    local matcher = self._instance:matcher()
+    local rank = self._chooser and self._chooser.rank
+    if rank and rank.apply then
+      rows = rank.apply(rows, query, matcher)
+    elseif type(matcher) == "function" then
+      return nil
+    end
+  end
+  for index, row in ipairs(rows) do
     local item = type(row) == "table" and row.item or nil
     local all = type(item) == "table"
     if all then
@@ -862,12 +870,37 @@ function obj:selectWhere(match)
         if item[k] ~= v then all = false break end
       end
     end
-    if all then
-      self._instance:selectRow(index)
-      return true
-    end
+    if all then return index end
   end
-  return false
+  return nil
+end
+
+-- The one place the highlight is held on the same item across a repaint that keeps the person
+-- on the same level, a stay, a refresh and an async redraw alike. The provider keeps the row
+-- number on its own, which is the item the person chose only while nothing above it moved. A
+-- permission line landing above, an Apply row appearing, or a typed query ranking the rebuilt
+-- rows differently would each leave the highlight on a different item, and Enter would then act
+-- on something the person never chose. So an item that states a key is found again by that key
+-- after the rows are rebuilt. With no key, or a key that is gone, the row number stands, which
+-- is exactly what every level without keys had before.
+function obj:_repaintHolding(key)
+  self._instance:refresh(false)
+  if key == nil then return end
+  local index = self:_shownIndexWhere({ key = key })
+  if index and index ~= self._instance:selectedRow() then self._instance:selectRow(index) end
+end
+
+--- Stage:selectWhere(match) -> bool
+--- Method
+--- Moves the highlight to the first row whose item carries every field of match with an equal
+--- value, answering whether one was found. The row is found in the list as currently filtered
+--- and ranked, so it works under a typed query too. For the stage's own hold by key and for a
+--- resumed highlight, never for a plugin, since the highlight belongs to the person.
+function obj:selectWhere(match)
+  local index = self:_shownIndexWhere(match)
+  if not index then return false end
+  self._instance:selectRow(index)
+  return true
 end
 
 --- Stage:presentAt(p, path, highlight) -> bool
@@ -964,10 +997,20 @@ end
 --- guarded behaviour, a query source redrawing late through Launcher:refresh should still be a
 --- no op while closed, so the guard stays the default and force is how one caller opts out of
 --- it rather than the guard being removed for everybody.
+---
+--- Keeping the highlight means keeping it on the same item, not the same row number. An async
+--- redraw lands while the person is looking at the list, so a row inserted above the one they
+--- are on would otherwise slide the highlight onto a neighbour, and the item under it is read
+--- before the rebuild and found again after through _repaintHolding, by its key when it states
+--- one.
 function obj:refresh(resetRow, force)
-  if self._instance and (force or self._instance:isShowing()) then
+  if not (self._instance and (force or self._instance:isShowing())) then return end
+  if resetRow then
     self._instance:refresh(resetRow)
+    return
   end
+  local held = self._instance:selectedItem()
+  self:_repaintHolding(type(held) == "table" and held.key or nil)
 end
 
 --- Stage:isShowing() -> bool
@@ -1234,14 +1277,13 @@ function obj:_intercept(item, enabled)
   local p = self:_current()
   if p and p.intercept then
     local answer = p.intercept(item)
-    -- "stay" holds the highlight by row number, which is the row the person chose only while
-    -- the rows above it stay put. A choice that adds or removes a row above, a pending line
-    -- appearing at the top of a page, would leave the highlight one row off. An item that states
-    -- its own key is held by that key instead, the rows rebuilt now and the highlight put back
-    -- on the row carrying it, and the atom's own rebuild after this keeps that row.
+    -- "stay" alone holds the highlight by row number, which is the row the person chose only
+    -- while the rows above it stay put. A choice that adds or removes a row above, a pending
+    -- line appearing at the top of a page, would leave the highlight one row off. An item that
+    -- states its own key is held by that key instead through _repaintHolding, the same hold a
+    -- refresh and an async redraw get, and the atom's own rebuild after this keeps that row.
     if answer == "stay" and type(item) == "table" and item.key ~= nil and self._instance then
-      self._instance:refresh(false)
-      self:selectWhere({ key = item.key })
+      self:_repaintHolding(item.key)
     end
     if answer then return answer end
   end

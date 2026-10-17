@@ -41,6 +41,7 @@ local factory = { matchers = {}, new = function(config)
   function inst:query() return self.q end
   function inst:refresh(reset) self.rows = config.rows(self.q) if reset then self.hl = 1 end end
   function inst:selectRow(n) self.hl = n end
+  function inst:selectedRow() return self.hl end
   function inst:selectedItem() local r = self.rows[self.hl] return r and r.item end
   function inst:choose() -- Return on the highlight, as the provider does
     local r = self.rows[self.hl]

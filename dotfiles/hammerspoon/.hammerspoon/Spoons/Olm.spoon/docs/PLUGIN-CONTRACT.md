@@ -1173,10 +1173,15 @@ the top instead. Any answer besides these two, including nil and false, is not a
 interception at all, and a row that mutates the list it stands on and only ever answers true
 is the wrong shape now, not merely an older style.
 
-"stay" holds the highlight by row number, which is the chosen row only while nothing above it
-moves. A row whose choice adds or removes a row above it, the Plugins page's own Apply now row
-appearing after Back, states a `key` on its item, and the stage then holds the highlight on the
-row carrying that key rather than on the number.
+A row number is the chosen row only while nothing above it moves, so the stage holds the
+highlight on the same item instead whenever the item states a `key`. That holds across every
+repaint that keeps the person on the same level, a "stay", a `redrawPresented` without
+`resetRow`, and any other refresh, and it holds under a typed query, where the item is found in
+the list as filtered and ranked, the order the provider shows. A row appearing above, the
+Plugins page's own Apply now row after Back or a permission line landing in a settings list,
+then leaves the highlight where the person put it. An item with no `key`, or a key no row
+carries any more, keeps the row number exactly as before, so give every row of a list that can
+grow or shrink above the highlight a stable key.
 
 `onScroll` is a third addition the trickle migrations found rather than either contract brief
 naming, `function(points)` for a trackpad or a wheel scrolled over the companion rect, which a

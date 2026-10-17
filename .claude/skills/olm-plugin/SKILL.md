@@ -117,7 +117,9 @@ sanctioned only when a reorder left no row worth preserving. A row that mutates 
 is standing on answers "stay" from intercept, never plain true, so the highlight never
 leaves the row the person chose, and a page of options a person flips never pops or closes
 on selection, leaving is always the person's own key. Plain true from intercept is for a
-wholesale swap of the list and nothing else.
+wholesale swap of the list and nothing else. A list whose rows can appear or vanish above the
+highlight, on a stay or an async redraw, gives every item a stable `key`, and the stage holds
+the highlight on that item, typed query included, while a row with no key keeps its number.
 
 A list of items a person picks from always filters on the shared matcher, so leave matcher
 undeclared. `matcher = false` is only for a page of a few fixed options, or for a plugin that

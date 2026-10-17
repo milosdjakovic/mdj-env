@@ -60,6 +60,13 @@ obj.providers = { default = default, legacy = legacy }
 --- match(query, hay) -> score or nil. See match.lua.
 obj.matchers = load("match.lua")
 
+--- Chooser.rank, the ranking policy both providers run their rows through, exposed so a
+--- consumer can tell where an item stands in the list a provider is showing without asking
+--- the provider for its rows. host/stage holds the highlight on the same item across a
+--- repaint this way. It is the same module each provider loads, so the order it answers
+--- for the same rows, query and matcher is the order on screen by construction.
+obj.rank = load("rank.lua")
+
 -- The picker contract, docs/CONTRACT-PICKER.md, added by the contract freeze phase. Every
 -- instance new below builds is validated against it before decorate ever runs, so a
 -- provider missing a method fails at construction with a reason naming the gap, rather
