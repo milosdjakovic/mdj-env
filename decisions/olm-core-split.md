@@ -496,4 +496,12 @@ surface and empty state, the scroll and the teardown, `pane = true` on a surface
   unknown rather than a false pass. Both comments now say this, in `test/drygate.lua` and
   `test/drygate-hsstub.lua`. No behaviour changed.
 
-- 2026-10-17 09:36. The browsertabs defect noted on 2026-10-17, an empty Chrome bundle id raising out of configure and costing Safari and Arc their load, is fixed. `providerNamed` now reads nil and an empty string as the same absent case and keeps its friendly message, and calls the provider factory under `pcall`, so a factory that refuses a present but wrong value, a number for instance, becomes the skip reason `configure` already logs while the other browsers still load. `chromium.lua` keeps its own validation unchanged. A unit case, `test/cases/browsertabs-chromeid.lua`, configures safari and chrome with nil, an empty string, a number and a valid id, and proves configure never raises, Safari is always built and Chrome is built only for the valid string.
+- 2026-10-17 09:36. The browsertabs defect noted on 2026-10-17, an empty Chrome bundle id raising
+  out of configure and costing Safari and Arc their load, is fixed. `providerNamed` now reads nil
+  and an empty string as the same absent case and keeps its friendly message, and calls the provider
+  factory under `pcall`, so a factory that refuses a present but wrong value, a number for instance,
+  becomes the skip reason `configure` already logs while the other browsers still load.
+  `chromium.lua` keeps its own validation unchanged. A unit case,
+  `test/cases/browsertabs-chromeid.lua`, configures safari and chrome with nil, an empty string, a
+  number and a valid id, and proves configure never raises, Safari is always built and Chrome is
+  built only for the valid string.
