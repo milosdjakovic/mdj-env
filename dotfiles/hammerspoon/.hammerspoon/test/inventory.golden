@@ -379,7 +379,7 @@ launcherrows.entry name=clipboard subTitle=Clipboard · Hyper X
 launcherrows.entry name=colorPicker subTitle=Tools · Hyper 2
 launcherrows.entry name=displayProfiles subTitle=Displays · inspect and manage arrangements
 launcherrows.entry name=dockAutoHide subTitle=System · hides or reveals the Dock (d, dock)
-launcherrows.entry name=emoji subTitle=Tools · Hyper J (e, emoji)
+launcherrows.entry name=emoji subTitle=Tools · Hyper J (e, em, emoji)
 launcherrows.entry name=fileSearch subTitle=Tools · Hyper / (/)
 launcherrows.entry name=lock subTitle=System · Hyper §
 launcherrows.entry name=manageHistory subTitle=Clipboard

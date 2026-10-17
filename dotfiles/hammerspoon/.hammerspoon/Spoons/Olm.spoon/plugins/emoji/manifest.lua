@@ -87,13 +87,14 @@ return {
   -- with it and no manifest changes.
   --
   -- J rather than E because Hyper and E is already the menu search handoff combo. The
-  -- aliases are the letter anyone would try first plus the whole word.
+  -- aliases are the letter anyone would try first, two letters for the same reach, and the
+  -- whole word.
   defaults = {
     leader = "app",
     key = "j",
     description = "Emoji picker",
     icon = "emoji",
-    aliases = { "e", "emoji" },
+    aliases = { "e", "em", "emoji" },
   },
 
   -- It has a chooser, so it takes the shared navigation, its predicate, its registry

@@ -183,3 +183,10 @@ the same path a directory row takes, and `special.aliasDirectory` stays as the f
 click whose row could not be resolved. `enterPage` has no caller left. The notes that said the
 Aliases row was hosted were wrong and are corrected in `AGENTS.md`. `test/cases/launcher-aliasrow.lua`
 covers it.
+
+### 2026-10-17 17:33
+
+Not about ranking either. The emoji picker answers to em as well as e and emoji, since two letters
+is what gets typed for it. Nothing else holds em. The word s and system were checked as a possible
+collision between the System Settings plugin and the launcher's settings pane scope, and there is
+none, because the plugin registers no scope and its aliases only word the launcher row's hint.
