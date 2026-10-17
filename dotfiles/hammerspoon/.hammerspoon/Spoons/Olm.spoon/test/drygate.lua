@@ -849,13 +849,15 @@ do
 end
 
 ----------------------------------------------------------------------------------------
--- Ten, the search rule, see test/drygate-search.lua. Every list is searched by the shared
--- matcher and ranked by lib/chooser/rank.lua, docs/PLAN-UNIFIED-SEARCH.md phase four, so outside
--- lib/chooser and the test directories a matcher = false, a call of a matcher, a call of the
--- engine outside the three hosts that rank for a list, and a sort by a query or a match score
--- are findings, each naming its file and line. A line carrying a search-exempt comment with a
--- reason, a field that is input or a confirm, a source narrowing its own request, is counted
--- as accepted and still printed, the way a type-exempt line is, so an exemption is never silent.
+-- Ten, the search rule, see test/drygate-search.lua, which states every shape it hits and the
+-- ones a static scan cannot see. Every list is searched by the shared matcher and ranked by
+-- lib/chooser/rank.lua, docs/PLAN-UNIFIED-SEARCH.md phase four, so outside lib/chooser, lib/ui
+-- and the test directories a false or named matcher, a call of a matcher or of a local aliasing
+-- one, the engine outside the three hosts that rank for a list, a find of the typed text
+-- deciding a row and a sort by a query or a match score are findings, each naming its file and
+-- line. A line carrying a search-exempt comment with a comma and a reason, a field that is input
+-- or a confirm, is counted as accepted and still printed, the way a type-exempt line is, so an
+-- exemption is never silent.
 ----------------------------------------------------------------------------------------
 
 do
