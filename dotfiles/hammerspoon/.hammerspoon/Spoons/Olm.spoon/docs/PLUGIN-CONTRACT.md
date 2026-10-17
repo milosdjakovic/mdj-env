@@ -494,7 +494,7 @@ notices the difference, its top level is always what `presentationFor` answers a
 by name or by that table means the same thing. Given `token`, a presentation table a plugin
 closed over while building a child, the check becomes `Stage:isCurrent(token)` instead,
 identity against whatever is actually current, so a child's own async operation, a
-permission read on browsertabs' own settings and browser levels being the shipped example,
+permission read on browsertabs' own settings level being the shipped example,
 redraws itself specifically and nothing else, self referential locals, `local child; child =
 { ... }`, being how a plugin gets a table to close over before that table exists to be
 returned. `stageHide()` hides the shared window outright. `stagePop()`, contract v3's own addition, docs/BRIEF-CONTRACT-V3.md, asks the stage

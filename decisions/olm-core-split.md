@@ -190,6 +190,19 @@ surface and empty state, the scroll and the teardown, `pane = true` on a surface
 - **Raising the stub's instruction budget for processes.** 2026-10-17 09:25. Measured with a
   sampling hook at five times the budget, every sample sat in the stub's own `__index` under one
   `ipairs` in `plugins/processes/icons.lua`, so no budget would ever have been enough.
+- **Exposing the shown rows as a new picker contract method.** 2026-10-17 10:17. It would let
+  the stage read the ranked list straight off the provider, but it adds a twenty sixth required
+  method to both providers, the contract, its document and every fake in the tests, for a list
+  the stage can already rebuild exactly, since both providers rank through `lib/chooser/rank.lua`
+  with the instance's own matcher. The facade exposes that module instead.
+- **Holding the highlight by key inside each provider's own refresh.** 2026-10-17 10:17. The
+  provider knows the shown rows, but it treats an item as opaque, `key` is a stage word rather
+  than a picker one, and the hold would be written twice, once per provider. It lives once in
+  `host/stage`.
+- **Leading the BrowserTabs Settings row on every two letter prefix of a settings word.**
+  2026-10-17 10:17. It shipped in 91cf8be and opened settings on Enter for di, meant for
+  Discord, and en, since a prefix is often the start of a tab's name and the first row takes
+  Enter. Only a whole word leads.
 
 ## Log
 
@@ -511,3 +524,23 @@ surface and empty state, the scroll and the teardown, `pane = true` on a surface
   permission asks something, each naming the browser. The settings list also filters now, with
   Back and every row stating a filterText, and a settings word typed in the tab list puts the
   Settings row first instead of last.
+- 2026-10-17 10:17. A review of the 10:15 change found the highlight could leave the browser the
+  person was on. A permission read lands through an async redraw, which kept the row number, so
+  on a first open with Chrome highlighted, Safari's read inserting Ask Safari for permission above
+  it put the highlight on that row and Enter asked Safari. A stay held by key, but under a typed
+  query `selectWhere` refused and fell back to the number, which in a ranked list is a different
+  item. `host/stage` now holds the highlight on the same item across every repaint that keeps the
+  person on the same level, a stay, a refresh and an async redraw, in one routine. The item under
+  the highlight is read before the rebuild and found again by its `key` in the list as shown,
+  ranked through the facade's own `rank` with the instance's matcher, the same module and inputs
+  the provider uses, so the index is the one on screen. An item with no key, or a key that is
+  gone, keeps the row number as before. processes, menusearch and speedtest rows already state
+  keys, so their async redraws now follow the item rather than the number. A unit case,
+  `test/cases/stage-holdkey.lua`, runs the real stage over the real default provider kept off
+  screen and fails five checks against the old stage. Two things moved in BrowserTabs with it. A
+  permission row now filters on its browser's name alone, so it no longer shows on a state word
+  such as a or o without its browser, nor ranks above it for sf or co. And the belief the plugin's
+  AGENTS.md held, that drilling in is for acting on one browser, was reversed at Milos's request
+  at 10:15, its sections now describe the flat list. The Settings row leads the tab list only when
+  the trimmed query, ignoring case, is a whole settings word, and on a prefix of one it trails the
+  tabs as it did before 91cf8be, since di for Discord or en then Enter opened settings.

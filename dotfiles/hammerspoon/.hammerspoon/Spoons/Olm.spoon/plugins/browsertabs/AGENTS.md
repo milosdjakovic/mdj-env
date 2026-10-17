@@ -418,8 +418,9 @@ immediate binary. That is what makes this work, and it is verifiable: the same b
 `granted` from a terminal that holds the grants and `notDetermined` from Hammerspoon, which
 held none. Reading the TCC database confirms the grants are recorded against the parent.
 
-Four states need different offers, which is why the browser level is a menu and not a single
-toggle. `granted` needs nothing. `notDetermined` can become `granted` by asking, so the tool
+Four states need different offers, which is why a switched on browser can carry one permission
+row beneath its own row in settings, and why that row's action differs by state. `granted` needs
+nothing, so it shows no row. `notDetermined` can become `granted` by asking, so the tool
 offers that, and only while the browser is running, since a permission for a closed app cannot
 resolve. `denied` cannot be re-prompted at all, so the only honest offer is the Automation
 pane in System Settings. `notRunning` means there is nothing to ask about yet.
@@ -453,15 +454,22 @@ answered in this spoon's own words through the permission rows.
 
 ## A row appears only when it asks something of you
 
-The browser level showed its state as read only rows at first, installed, open, and the
-permission, whatever they said. That reads as thorough and works as clutter. Three rows all
-confirming that nothing is wrong bury the fourth that is not, and the reader has to check each
-one to learn there was nothing to do. So the switch is always there, since it is what the level
-is for, and everything past it is shown only when it blocks you. Installed, allowed, switched
-on, and the level is two rows.
+Settings is one flat list, one row per browser, and choosing a browser switches it on or off
+where it stands. There used to be a level per browser beneath it, which first showed its state
+as read only rows, installed, open, and the permission, whatever they said. That reads as
+thorough and works as clutter. Three rows all confirming that nothing is wrong bury the fourth
+that is not, and the reader has to check each one to learn there was nothing to do. So the one
+extra row a browser can carry, its permission row, appears directly under it only when the
+permission asks something, and a browser that is installed, allowed and switched on is a single
+row.
 
-Nothing is lost by hiding them, because every browser already carries its state in its subtitle
-one level up, which is where glancing at a set belongs. Drilling in is for acting on one.
+Nothing is lost by hiding the rest, because every browser carries its state in its subtitle,
+which is where glancing at a set belongs. The per browser level was dropped at Milos's request,
+since a switch a person flips belongs on the list they are looking at, and the permission row
+names its browser in its title because a flat list has no level above it to say which browser
+it is for. It filters on the browser's name alone, so it always shows and ranks with its
+browser, and every row carries a key so the stage holds the highlight on the browser the person
+is on when a permission row lands above it.
 
 The pairing that makes this safe is the console. Since a state that reads fine leaves no trace
 on screen, a quiet screen has to mean nothing was wrong rather than nothing was noticed, so
@@ -492,27 +500,33 @@ scripts one browser and raises one prompt, and the rest are switched on delibera
 added to the root later also starts off, because the default set and not mere presence is what
 turns one on.
 
-## Why the surface opts out of the shared matcher
+## Why the tab list opts out of the shared matcher
 
-It is a stack of frames, not one flat list, so letting the atom filter uniformly would rank
-away the Back row on the settings levels and pull the pinned Settings row into the tab ranking.
-So it opts out and scores its tab rows itself with the matcher the root injects, which keeps
-the one shared matching policy while leaving the pinned rows outside it. That is the same
-reason `DisplayProfiles` opts out, with the difference that this tool still uses the shared
-matcher rather than writing its own filter.
+Letting the atom filter the tab list uniformly would pull the pinned Settings row into the tab
+ranking. So the tab list opts out and scores its tab rows itself with the matcher the root
+injects, which keeps the one shared matching policy while leaving the pinned row outside it.
+That is the same reason `DisplayProfiles` opts out, with the difference that this tool still
+uses the shared matcher rather than writing its own filter. The settings level does not opt
+out. It is a list of items like any other, so it filters on the shared matcher, Back states an
+empty filterText so a query never leaves it above the rows that matched, Back is its first row
+per the chooser menu convention, and every other row filters on its browser's name.
 
 The Settings row is pinned last rather than ordered, so it never drifts up into the recency
 order and a typed filter targets the tabs, the same reason `Vpn` pins its action row above the
-cities. Back is the first row on the settings levels, per the chooser menu convention.
+cities.
 
 Last is not the same as reachable, though, and the first build got that wrong. With a hundred
 tabs above it the row sat a hundred keystrokes away, and the chooser's navigation clamps at the
-ends rather than wrapping, so in practice it could only be reached with the mouse. It is still
-last, and now a typed word that means settings brings it back, appended after whatever tabs
-matched rather than ranked among them. That test is a prefix match over a small fixed keyword
-list and deliberately not the injected matcher, because fuzzy matching against a keyword list
-also fires on queries that never meant it, and a settings row appearing unbidden under a tab
-list is noise.
+ends rather than wrapping, so in practice it could only be reached with the mouse. So a typed
+query that reaches for a word meaning settings brings it back, placed beside whatever tabs
+matched rather than ranked among them. The query, trimmed and ignoring case, equal to a whole
+word in the list puts it first, since that is a clear reach for the door. A query that is only
+the start of one, two letters or more, puts it after the tabs instead, because a prefix is too
+often the start of a tab's name, di for Discord or en for an English page, and the first row is
+what Enter takes. Leading on every prefix was tried and opened settings on those. The test is a
+match over a small fixed keyword list and deliberately not the injected matcher, because fuzzy
+matching against a keyword list also fires on queries that never meant it, and a settings row
+appearing unbidden is noise.
 
 Menu steps are in place, using the same Return interceptor `DisplayProfiles` uses, so stepping
 into settings and back never closes and re-shows. Opening a tab is the one terminal action.

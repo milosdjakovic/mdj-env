@@ -1178,9 +1178,10 @@ function obj.run(olm, cfg)
     -- can be compared against that a shared name cannot. Given a token, the check is
     -- Stage:isCurrent(token) instead, table identity against whatever presentation table the
     -- caller closed over while building the child, so a child's own async answer lands on
-    -- itself specifically, or not at all, browsertabs' own settings and browser children
-    -- passing themselves this way. An async answer lands on its own level or not at all, the
-    -- rule this word now keeps for every caller, token or none.
+    -- itself specifically, or not at all, browsertabs' own settings child passing itself this
+    -- way. An async answer lands on its own level or not at all, the rule this word now keeps
+    -- for every caller, token or none. Without resetRow the stage keeps the highlight on the
+    -- same item by its key, so an answer that inserts a row above the person never moves them.
     redrawPresented = function(name, resetRow, token)
       if not stageModule then return end
       if token ~= nil then

@@ -1,6 +1,6 @@
 --- === BrowserTabs.chooser ===
 ---
---- The surface. Three levels shown through the shared stage, the same shape DisplayProfiles
+--- The surface. Two levels shown through the shared stage, the same shape DisplayProfiles
 --- uses, contract v3. The tab list and the settings list of browsers, where a browser is
 --- switched on or off in place.
 ---
@@ -10,9 +10,9 @@
 --- intercept, decision three's reserved case, a row that mutates the list it is on and stands,
 --- reached through cfg.stagePop. A browser's toggle and permission request mutate the settings
 --- level in place through intercept too, standing exactly as they always did, while opening a
---- tab and opening Automation settings both answer through select with nothing, the ordinary meaning this
---- contract gives nil, the whole tool closing exactly as chooser:hide() always did. The
---- private Return swallowing eventtap, the hand kept frame stack, and the zero timer
+--- tab and opening Automation settings both answer through select with nothing, the ordinary
+--- meaning this contract gives nil, the whole tool closing exactly as chooser:hide() always
+--- did. The private Return swallowing eventtap, the hand kept frame stack, and the zero timer
 --- re-show the click path used to need are all gone, since intercept is asked before
 --- Return, insertSelected, and a click alike are ever let through to a real completion, the
 --- one gate capable of keeping the window open through a swap at all.
@@ -26,9 +26,12 @@
 --- drifts up into the recency order, and a typed filter targets the tabs and never has to
 --- filter it out. That is the same reason Vpn pins its action row above the cities. On an empty
 --- query it is the last row. Last does not make it reachable though, since a hundred tabs put it
---- a hundred keystrokes away, so typing a word that means settings brings it back, and then it
---- leads, above the tabs that matched. A person typing a settings word is reaching for the door,
---- and four Chrome tabs matching the same word should not sit between them and it.
+--- a hundred keystrokes away, so typing toward a word that means settings brings it back. It
+--- leads, above the tabs that matched, only once the query is that whole word, since a whole word
+--- is a clear reach for the door and four Chrome tabs matching it should not sit between the
+--- person and it. On a prefix of one it trails the tabs instead, because a prefix is too often
+--- the start of a tab's name, di for Discord or en for an English page, and the first row is
+--- what Enter takes.
 ---
 --- Settings has no level beneath it. Each browser is one row, and choosing it switches that
 --- browser on or off where it stands. A permission row sits directly under a switched on browser,
@@ -210,9 +213,9 @@ local SETTINGS_WORDS = {
 
 -- The settings door. Never inside the ranking. It is reachable two ways because last is not the
 -- same as visible. On an empty query it trails the tabs, which is where it was asked to be. But a
--- list of a hundred tabs puts it a hundred keystrokes away, so a query that matches it brings it
--- back, and then it leads, placed above whatever tabs matched rather than scored among them. A
--- person typing a settings word is reaching for the door, so it comes first.
+-- list of a hundred tabs puts it a hundred keystrokes away, so a query that reaches for it brings
+-- it back, placed beside whatever tabs matched rather than scored among them. Where is decided
+-- by settingsPlace below.
 local function settingsRow()
   local on, total = 0, 0
   for _, s in ipairs(cfg.api.status()) do
@@ -223,18 +226,26 @@ local function settingsRow()
     { nav = true, to = "settings" }, true)
 end
 
--- Whether a typed query is reaching for the settings door. This is a prefix test against a
--- fixed keyword list and deliberately not the injected matcher. The matcher is the right policy
--- for tab rows, which are the user's own content, but a fuzzy match against a keyword list is
--- lenient enough to surface this row on queries that never meant it, and a row that appears
--- unbidden below a tab list is noise. Two letters minimum, since one letter means nothing yet.
-local function wantsSettings(query)
-  if #query < 2 then return false end
-  local q = query:lower()
+-- Where a typed query puts the settings door, "lead", "trail" or nil for not at all. This is a
+-- test against a fixed keyword list and deliberately not the injected matcher. The matcher is
+-- the right policy for tab rows, which are the user's own content, but a fuzzy match against a
+-- keyword list is lenient enough to surface this row on queries that never meant it, and a row
+-- that appears unbidden is noise.
+--
+-- The trimmed query, ignoring case, equal to a whole word leads, since that is a clear reach for
+-- the door and the first row is what Enter takes. A prefix of one of two letters or more trails
+-- the tabs, so the door is still in reach while typing toward the word, but a prefix is too
+-- often the start of a tab's name, di for Discord or en for an English page, and leading there
+-- made Enter open settings instead of the tab. One letter means nothing yet.
+local function settingsPlace(query)
+  local q = query:lower():match("^%s*(.-)%s*$")
+  if #q < 2 then return nil end
+  local prefix = false
   for _, word in ipairs(SETTINGS_WORDS) do
-    if word:sub(1, #q) == q then return true end
+    if word == q then return "lead" end
+    if word:sub(1, #q) == q then prefix = true end
   end
-  return false
+  return prefix and "trail" or nil
 end
 
 -- Whether a query is naming a browser rather than a page. A plain prefix test, deliberately not
@@ -363,8 +374,8 @@ local function matchedTabs(query)
 end
 
 -- The tab list as our own chooser shows it, the matching tabs plus the settings door. The door
--- trails an empty query, where it was asked to be, and leads a query that reaches for it, since
--- a person typing a settings word is reaching for the door and not for the tabs that share it.
+-- trails an empty query, where it was asked to be, leads a query that is a whole settings word,
+-- and trails a query that is only the start of one, settingsPlace above saying why.
 local function tabRows(query)
   if #(tabs or {}) == 0 then
     local out = emptyRows()
@@ -372,9 +383,10 @@ local function tabRows(query)
     return out
   end
   local out = matchedTabs(query)
-  if query == "" then
+  local place = query == "" and "trail" or settingsPlace(query)
+  if place == "trail" then
     out[#out + 1] = settingsRow()
-  elseif wantsSettings(query) then
+  elseif place == "lead" then
     table.insert(out, 1, settingsRow())
   end
   return out
@@ -421,7 +433,10 @@ local function attentionRow(s)
     item.key = key
     item.bundleID = s.bundleID
     local r = glyphRow(title, subTitle, icon, item, enabled)
-    r.filterText = s.name .. " " .. title
+    -- The browser's name alone, the same text its browser row filters on, so the two always
+    -- match together and score the same, and the permission row stays under its browser
+    -- rather than showing alone on a state word or ranking above it.
+    r.filterText = s.name
     return r
   end
   if perm == cfg.api.states.notDetermined then
@@ -449,11 +464,14 @@ end
 -- The settings level is the whole of the settings. Selecting a browser row switches it on or off
 -- where it stands, there is no level beneath it, so a person flips a browser and sees the answer
 -- on the same screen. Back is the first row and filters on nothing, so a typed query never
--- leaves it sitting above the rows that matched. Every other row filters on the browser's name,
--- never on the state words, so a toggle never changes whether a row matches and the redraw keeps
--- the highlight on the row that was pressed. The key is the bundle id for the same reason, the
--- stage holds the highlight on the same browser when a permission row appears or goes above or
--- below it.
+-- leaves it sitting above the rows that matched. Every other row, a permission row included,
+-- filters on the browser's name alone, so a toggle never changes whether a row matches, and a
+-- permission row matches exactly when its browser does, sits right under it in a ranked list
+-- and never shows on its own. Every row carries a key, the bundle id for a browser and the
+-- bundle id with a suffix for its permission row, because the stage holds the highlight on the
+-- item with the same key across every repaint of this level, a toggle, a permission read
+-- landing late, or either under a typed query, so a permission row appearing above the browser
+-- the person is on never moves them onto it.
 local function settingsRows()
   local back = backRow()
   back.filterText = ""
@@ -505,7 +523,6 @@ local function refreshPermissions(token)
 end
 
 --------------------------------------------------------------------------------
---------------------------------------------------------------------------------
 -- The settings level, built lazily and pushed the moment the Settings row is chosen
 --------------------------------------------------------------------------------
 
@@ -521,8 +538,8 @@ end
 -- a typed query and keeps a state word from deciding whether a browser matches.
 --
 -- A browser's switch and a permission request both mutate this level in place and stand, so
--- both answer "stay" from intercept, the highlight holding on the row that was pressed and the
--- list repainting with the new state. Back is the one row that leaves, through cfg.stagePop.
+-- both answer "stay" from intercept, the stage holding the highlight on the pressed item by its
+-- key and the list repainting with the new state. Back is the one row that leaves, through cfg.stagePop.
 -- Opening Automation settings is a genuine completion, not a level, so it answers through
 -- onSelect, calling the api and returning nothing, the ordinary meaning this contract has always
 -- given nil, the whole stack tears down and the tool closes for good.

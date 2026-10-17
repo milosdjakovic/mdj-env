@@ -4,8 +4,9 @@
 --
 -- The promises under test are three. Choosing a browser row switches it where it stands, so
 -- the intercept answers "stay" and the state flips. A permission row appears under a switched
--- on browser only when the permission asks something, and names the browser. The Settings row
--- leads the tab list when the query asks for it and trails it on an empty one. Everything is
+-- on browser only when the permission asks something, names the browser and filters on its name
+-- alone. The Settings row leads the tab list only when the query is a whole settings word, and
+-- trails it on an empty query and on the start of one. Everything is
 -- read through the module's own select, rows and intercept over a fake api, no test hook.
 
 local source = debug.getinfo(1, "S").source
@@ -79,7 +80,11 @@ rows = child.rows()
 bravo, bi = find("Bravo")
 local ask = rows[bi + 1]
 check("a permission that can be asked adds one row under its browser, naming it",
-  ask ~= nil and ask.title == "Ask Bravo for permission" and ask.filterText:find("Bravo", 1, true) ~= nil)
+  ask ~= nil and ask.title == "Ask Bravo for permission")
+check("a permission row filters on its browser's name alone, so it travels with it",
+  ask ~= nil and ask.filterText == "Bravo", ask and ask.filterText)
+check("a permission row carries a key of its own", ask ~= nil and ask.item.key == "com.test.b.permission"
+  and bravo.item.key == "com.test.b")
 check("a browser whose permission reads fine adds no row", find("Alpha") and rows[select(2, find("Alpha")) + 1].title == "Bravo")
 
 local result = child.intercept(alpha.item)
@@ -98,10 +103,21 @@ check("a switched off browser carries no permission row", rows[bi + 1] == nil or
 
 -- The tab list, with one tab so the empty reasons are not what is shown.
 api.listTabs = function(cb)
-  cb({ { title = "Settings page", url = "https://example.com/a", browser = "Alpha", bundleID = "com.test.a" } }, {})
+  cb({ { title = "Settings page", url = "https://example.com/a", browser = "Alpha", bundleID = "com.test.a" },
+    { title = "Discord", url = "https://discord.com/app", browser = "Alpha", bundleID = "com.test.a" } }, {})
 end
 M.reload()
 local list = M.rows("")
 check("with an empty query Settings is the last row", list[#list].title == "Settings")
 list = M.rows("settings")
-check("typing a settings word puts Settings first", list[1].title == "Settings" and list[2] ~= nil)
+check("typing a whole settings word puts Settings first", list[1].title == "Settings" and list[2] ~= nil)
+list = M.rows("  Browsers ")
+check("a whole word leads whatever its case and spaces", list[1].title == "Settings")
+list = M.rows("di")
+check("the start of a settings word that is also a tab's name leaves the tab first",
+  list[1].title == "Discord" and list[#list].title == "Settings", list[1].title)
+list = M.rows("sett")
+check("the start of a settings word keeps Settings in reach after the tabs",
+  list[1].title == "Settings page" and list[#list].title == "Settings", list[1].title)
+list = M.rows("disc")
+check("a query reaching for no settings word shows no Settings row", list[#list].title ~= "Settings")
