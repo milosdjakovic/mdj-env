@@ -32,9 +32,37 @@ local M = {}
 -- filterText, when a row sets it, replaces both the name and the subtitle. It becomes the
 -- primary field and the subtitle is not searched, so a row whose subtitle is a category, a
 -- status or a chord sets filterText to its title, a menu item sets it to its title and
--- declares its parents as keywords, a computed row sets it to the query, and a row setting it
--- empty never matches by its name. keywords are searched either way. Prose is never a search
--- term, a description sentence matches words nobody meant.
+-- declares its parents as keywords, and a row setting it empty never matches by its name.
+-- keywords are searched either way. Prose is never a search term, a description sentence
+-- matches words nobody meant.
+--
+-- Three fields say where a row goes rather than what it answers to, settled 2026-10-17 for
+-- phase two. A field of the wrong type is read as absent.
+-- pinned, when true, means the row is never scored and never dropped. A pinned row the
+-- supplier gives before every unpinned row leads, any other trails after every ranked row,
+-- both in the supplier's order. A row that is the query itself, a calculator answer or a save
+-- row, is pinned too, since its supplier already decided it exists for this query.
+-- tier is a number, zero when absent, and a smaller tier sorts first among ranked rows, ahead
+-- of how well a row matched, so a list can keep one kind of row above another.
+-- bonus is a number from zero to one, clamped, zero when absent. It orders only rows the
+-- matcher calls equally good, the same tier, the same level sum and the same phrase bonus,
+-- and there it leads before where a word landed. It never lifts a row over a better match,
+-- which is what makes it safe to feed from recency or frecency.
+
+-- tier and bonus as M.before reads them, a wrong type being the default. A NaN fails both
+-- comparisons below and so reads as the default too, since it would break the sort's order.
+local function tierOf(it)
+  local t = it.tier
+  if type(t) == "number" and t == t then return t end
+  return 0
+end
+local function bonusOf(it)
+  local b = it.bonus
+  if type(b) ~= "number" or b ~= b then return 0 end
+  if b < 0 then return 0 end
+  if b > 1 then return 1 end
+  return b
+end
 
 -- The text a strategy that reads one string searches for a row, substring and words, the
 -- row's own filterText when it carries one, otherwise its title and subtitle joined with a
@@ -74,22 +102,27 @@ M.fieldsOf = fieldsOf
 
 --- M.score(items, query, matcher) -> a new list of entries, unsorted.
 --- Every candidate scored through matcher(query, haystackOf(item), fieldsOf(item)), a nil
---- score dropping it. An entry is { item, score, idx, level, within, atStart }, idx the
---- candidate's place in items. The later fields are the later answers
---- lib/chooser/match.lua's fuzzy gives, the row's level sum, its score inside that level, and
---- whether every word matched the name at a word start. A matcher answering only a score reads as level zero, within equal to
---- the score, and not at a word start. They exist for a consumer that orders by something
---- besides the score and needs to know what kind of match a row is, the launcher's nearness
---- rule today. This is the one scoring
+--- score dropping it. An entry is { item, score, idx, level, within, atStart, phrase, graded,
+--- tier, bonus }, idx the candidate's place in items. level, within, atStart and phrase are
+--- the later answers lib/chooser/match.lua's fuzzy gives, the row's level sum, its score
+--- inside that level, whether every word matched the name at a word start, and whether it
+--- earned the phrase bonus. A matcher answering only a score reads as level zero, within equal
+--- to the score, not at a word start and no phrase, and graded is false for it, so M.before
+--- knows it was told nothing about the kind of match. They exist for a consumer that orders by
+--- something besides the score and needs to know what kind of match a row is, the launcher's
+--- nearness rule today. tier and bonus are the row's own, read as the vocabulary above says.
+--- pinned is not read here, M.apply keeps pinned rows out of the loop. This is the one scoring
 --- loop, so no host or list keeps a copy of it, docs/PLAN-UNIFIED-SEARCH.md phase one.
 function M.score(items, query, matcher)
   local entries = {}
   for i = 1, #items do
-    local score, level, within, atStart = matcher(query, haystackOf(items[i]), fieldsOf(items[i]))
+    local it = items[i]
+    local score, level, within, atStart, phrase = matcher(query, haystackOf(it), fieldsOf(it))
     if score ~= nil then
       entries[#entries + 1] = {
-        item = items[i], score = score, idx = i, level = level or 0, within = within or score,
-        atStart = atStart == true,
+        item = it, score = score, idx = i, level = level or 0, within = within or score,
+        atStart = atStart == true, phrase = phrase == true, graded = level ~= nil,
+        tier = tierOf(it), bonus = bonusOf(it),
       }
     end
   end
@@ -97,25 +130,42 @@ function M.score(items, query, matcher)
 end
 
 --- M.before(a, b) -> true when entry a sorts ahead of entry b.
---- Score descending, a tie broken on the original index ascending, so a stable order the
---- supplier already carries, the launcher's own recency for one example, still shows
---- through equal scores. Lua's sort is not stable, which is why the index is folded in
---- rather than relied on. Exposed as the one tie rule, for a consumer that puts something
---- of its own ahead of it.
+--- The one comparison, exposed for a consumer that puts something of its own ahead of it.
+--- Tier ascending first. Then how good the match is, the level sum descending and the phrase
+--- bonus ahead of none, which is exactly what the score already orders by, since the score
+--- steps two spreads per level sum and one for the phrase. Then the row's bonus descending
+--- inside that group, then the score descending, which is where a word landed, and the
+--- original index ascending last, so a stable order the supplier already carries, the
+--- launcher's own recency for one example, still shows through equal scores. Lua's sort is
+--- not stable, which is why the index is folded in rather than relied on.
+---
+--- A matcher that answered only a score said nothing about the kind of match, so for its
+--- rows only an equal score is equally good and the score decides before the bonus does.
+--- Rows setting no tier and no bonus therefore order exactly as score then index did before
+--- the fields existed. A field missing from an entry built elsewhere reads as its default.
 function M.before(a, b)
+  local ta, tb = a.tier or 0, b.tier or 0
+  if ta ~= tb then return ta < tb end
+  if a.graded and b.graded then
+    if a.level ~= b.level then return a.level > b.level end
+    if (a.phrase == true) ~= (b.phrase == true) then return a.phrase == true end
+  elseif a.score ~= b.score then
+    return a.score > b.score
+  end
+  local ba, bb = a.bonus or 0, b.bonus or 0
+  if ba ~= bb then return ba > bb end
   if a.score ~= b.score then return a.score > b.score end
   return a.idx < b.idx
 end
 
 --- M.apply(items, query, matcher) -> a new list, the ranked items.
---- With matcher a function and query not empty, this owns filtering. Every candidate is
---- scored through matcher(query, haystackOf(item)), a nil score drops the candidate, and
---- the survivors are sorted by score descending, a tie broken on the original index
---- ascending, so a stable order the supplier already carries, the launcher's own
---- recency for one example, still shows through equal scores. With no matcher, an empty
---- query, or matcher set to false, every candidate is kept in the order the supplier
---- gave them, since false means the supplier already owns its own filtering and an
---- empty query has nothing yet to score against.
+--- With matcher a function and query not empty, this owns filtering. Pinned rows are set
+--- aside, the leading ones and the trailing ones, every other candidate is scored through
+--- M.score, a nil score drops it, and the survivors are sorted by M.before. The answer is the
+--- leading pinned rows, the ranked rows, then the trailing pinned rows. With no matcher, an
+--- empty query, or matcher set to false, every candidate is kept in the order the supplier
+--- gave them, pinned or not, since false means the supplier already owns its own filtering
+--- and an empty query has nothing yet to score against.
 function M.apply(items, query, matcher)
   if type(matcher) ~= "function" or query == "" then
     local out = {}
@@ -125,13 +175,34 @@ function M.apply(items, query, matcher)
     return out
   end
 
-  local ranked = M.score(items, query, matcher)
+  -- The leading pinned rows are the run before the first unpinned one. A list without a
+  -- pinned row hands M.score its own items, so the common case builds nothing extra.
+  local lead, trail, rest = {}, {}, items
+  local anyPinned = false
+  for i = 1, #items do
+    if items[i].pinned == true then anyPinned = true; break end
+  end
+  if anyPinned then
+    rest = {}
+    for i = 1, #items do
+      local it = items[i]
+      if it.pinned ~= true then
+        rest[#rest + 1] = it
+      elseif #rest == 0 then
+        lead[#lead + 1] = it
+      else
+        trail[#trail + 1] = it
+      end
+    end
+  end
+
+  local ranked = M.score(rest, query, matcher)
   table.sort(ranked, M.before)
 
   local out = {}
-  for i = 1, #ranked do
-    out[i] = ranked[i].item
-  end
+  for i = 1, #lead do out[#out + 1] = lead[i] end
+  for i = 1, #ranked do out[#out + 1] = ranked[i].item end
+  for i = 1, #trail do out[#out + 1] = trail[i] end
   return out
 end
 

@@ -516,7 +516,7 @@ local function holds(t, name, secondary)
   return false
 end
 
---- M.fuzzy(query, hay, fields) -> score, level, within, atStart, or nil
+--- M.fuzzy(query, hay, fields) -> score, level, within, atStart, phrase, or nil
 --- The one search, docs/PLAN-UNIFIED-SEARCH.md phase one, as Milos settled it on 2026-10-17
 --- after the live test and the review that followed. A row has a primary field, its name, and
 --- secondary fields, the text it shows or declares on purpose. fields is { primary = string,
@@ -558,7 +558,11 @@ end
 ---
 --- The later answers are for consumers. level is the row's level sum, within its score
 --- inside the level, atStart whether every word matched the name at a word start, which the
---- launcher's memory gate reads.
+--- launcher's memory gate reads, and phrase whether the phrase bonus was earned. Two rows with
+--- the same level and the same phrase are equally good, and only the near free gaps and the
+--- bonuses of where a word landed tell them apart, which is what lib/chooser/rank.lua lets a
+--- row's own bonus decide. phrase is answered on its own because within folds it in, and one
+--- spread cannot be read back out of within without restating the spread here.
 function M.fuzzy(query, hay, fields)
   local name = fields and fields.primary or hay
   local secondary = fields and fields.secondary
@@ -586,12 +590,13 @@ function M.fuzzy(query, hay, fields)
       cores[#cores + 1] = core
     end
   end
-  if not any then return 0, 0, 0, true end
+  if not any then return 0, 0, 0, true, false end
   -- The phrase bonus is one spread, so a row whose words all sit in one declared phrase leads
   -- every row at its level sum, and the step is two spreads, so the bonus never reaches the
   -- next level.
-  if inOnePhrase(cores, secondary) then within = within + spread end
-  return level * 2 * spread + within, level, within, atStart
+  local phrase = inOnePhrase(cores, secondary)
+  if phrase then within = within + spread end
+  return level * 2 * spread + within, level, within, atStart, phrase
 end
 
 --- M.substring(query, hay) -> score or nil

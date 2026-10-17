@@ -426,3 +426,23 @@ commands, and no description or detail was touched. The one test that asserted a
 Wi-Fi pane keywords in launcher-contributions, was updated to the new list, since the audit
 plainly removed internet and network there. The inventory golden was not rerun and carries no
 keyword lines.
+
+
+### 2026-10-17 15:06, phase two packet one, pinned, tier and bonus
+
+`rank.lua` now applies three row fields. pinned true keeps a row out of scoring and never drops
+it, leading when the supplier gives it before every unpinned row and trailing otherwise, so a row
+that is the query itself is pinned by its supplier rather than given filterText equal to the
+query. tier, a number, orders before how well a row matched. bonus, clamped to zero to one, orders
+only rows the search calls equally good, the same tier, level sum and phrase bonus, ahead of where
+a word landed. It is a structural group from the matcher and not a distance between scores, so
+it is not the hard band `decisions/olm-launcher-ranking.md` rejects.
+
+`M.before` is the one comparison, tier, then level sum, then phrase, then bonus, then score, then
+index. The phrase bonus is folded into within, so fuzzy now answers it as a fifth value rather
+than rank reading one spread back out of the score. A matcher answering only a score gives no
+level, and for its rows only an equal score is equally good, so its score decides before a bonus.
+The score steps two spreads per level sum and one for the phrase, so ordering by level and phrase
+first is what the score already did, and a case over fourteen rows, ten queries and three matchers
+proves rows setting none of the fields keep the old order exactly. Every case in
+`test/cases/rankvocabulary.lua` failed under a mutation switching off the feature it proves.
