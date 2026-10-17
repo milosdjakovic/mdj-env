@@ -84,6 +84,12 @@ of it in plain Lua, which matters because this host is the dry gate's permanent 
   held dd whole. The gate keyed on a score shape rather than on the one case the memory must not
   bridge, a best row the person spelled out.
 
+- **A typed size under the floor offering no row at all.** Until 2026-10-17, rejected that day
+  by Milos because nothing conveyed why. Window Size answered nothing for a size with an edge
+  under `smallestEdge`, on the reasoning that a typo which quietly acts is worse than one that
+  quietly does not. The row simply vanished, so a person could not tell a refused size from a
+  grammar the launcher does not know.
+
 ## Log
 
 ### 2026-09-21 20:40
@@ -198,3 +204,17 @@ and nothing else, and the Converting placeholder has no subtitle. The category w
 expression are gone, since the field already holds the query. The category option had no other
 reader, so it was removed from both plugins and from the Arithmetic manifest. Subtitles are not
 searched, so nothing in ranking moves.
+
+### 2026-10-17 17:37
+
+Not about ranking. The Window Size row is titled `Resize` and the application the launcher is
+covering, read through the root word `coveredApp` that menu search and text case already
+declare, since the launcher gives focus back to that app before a window row runs and asking
+macOS while the list is up answers the list itself. With no app known it reads `Resize window`.
+The subtitle is the size that will land and nothing else, `1920 x 1080`, with `, display limit`
+when the screen trims it. An edge under `smallestEdge`, still 200, is now raised to it and reads
+`, size limit`, and the descriptor carries the raised size, since the floor depends on no screen,
+while the display trim still runs against the real screen when the row is chosen. When both
+apply the subtitle names the size limit, because it holds on every display while the display
+limit is a guess about which screen is involved. The category option lost its reader and was
+removed. `test/cases/windowsize-row.lua` covers it.

@@ -8,13 +8,16 @@
 --- The resize is not here. Window geometry belongs to the window manager, which already
 --- sizes a window to exact pixels and centers it in one call, so this plugin holds the
 --- grammar and the wording and nothing else. It asks that plugin what a request would
---- actually do before offering it, so a size the display cannot hold reads as trimmed on the
---- row rather than surprising a person after they have pressed return.
+--- actually do before offering it, so the subtitle names the size that will land, and says
+--- which limit trimmed it, before a person has pressed return.
 ---
 --- The row does not act either. It carries the size it means as a plain descriptor and the
 --- launcher's own window dispatch runs the window manager's action with it, once focus is
 --- back on the application the list was covering. That is what keeps the acting window the
---- one a person was looking at rather than whatever the chooser left focused.
+--- one a person was looking at rather than whatever the chooser left focused, and it is why
+--- the title names that application. The root publishes it as coveredApp, captured by the
+--- launcher before its list took focus, since asking macOS for the focused window while the
+--- list is up answers the list itself.
 ---
 --- THE GRAMMAR IS DELIBERATELY NARROW. Two whole numbers with an x between them and nothing
 --- else in the field, so an ordinary search that happens to contain a number never grows a
@@ -34,9 +37,9 @@ obj.license = "MIT"
 -- Injected via configure
 obj._plan = nil          -- the window manager's own answer for what a request would do
 obj._windowActions = nil -- the window manager's action map, for running a chosen row
+obj._coveredApp = nil    -- function() -> the app the launcher opened over, which the row acts on
 obj._icon = nil          -- the row icon, a key into this plugin's manifest icons, drawn by Olm
-obj._category = nil      -- the subtitle category word, so the visible wording stays config
-obj._smallestEdge = nil  -- the shortest edge worth a row
+obj._smallestEdge = nil  -- the shortest edge a row will size a window to
 
 -- A width, a separator, a height, and nothing else. Anchored at both ends, so a size inside
 -- a longer query is deliberately ignored rather than pulled out of a sentence.
@@ -58,16 +61,16 @@ end
 --- WindowSize:configure(opts)
 --- Method
 --- opts.plan         the window manager's exactSizePlan, asked what a request would land as.
+--- opts.coveredApp   the root's closure answering the app the launcher opened over, which is
+---                   the app whose window the row resizes, so the title can name it.
 --- opts.icon         the key into this plugin's manifest icons shown as the row icon, drawn by Olm.
---- opts.category     the word leading the row subtitle, so the visible wording is config
----                   rather than something this plugin decides for a surface it cannot see.
---- opts.smallestEdge the shortest edge this plugin will offer a row for.
+--- opts.smallestEdge the shortest edge a row will size a window to, raising a smaller one.
 function obj:configure(opts)
   opts = opts or {}
   self._plan = opts.plan
   self._windowActions = opts.windowActions
+  self._coveredApp = opts.coveredApp
   self._icon = opts.icon or "windowsize"
-  self._category = opts.category or "Window size"
   self._smallestEdge = tonumber(opts.smallestEdge) or 200
   return self
 end
@@ -86,8 +89,20 @@ function obj:parse(query)
   if not w then return nil end
   w, h = tonumber(w), tonumber(h)
   if not w or not h then return nil end
-  if w < self._smallestEdge or h < self._smallestEdge then return nil end
   return w, h
+end
+
+-- The name of the application the row will act on, or nil when none can be known. The app
+-- object can outlive the app it names, one that quit while the list was up, and a query row
+-- source runs on every keystroke, so a failed read answers nil rather than raising into the
+-- launcher's own rebuild.
+local function coveredAppName(self)
+  if not self._coveredApp then return nil end
+  local app = self._coveredApp()
+  if not app then return nil end
+  local ok, name = pcall(function() return app:name() end)
+  if ok and type(name) == "string" and name ~= "" then return name end
+  return nil
 end
 
 --- WindowSize:rows(query) -> list
@@ -102,30 +117,45 @@ end
 --- matcher keeps this row at the top rather than scoring the size it produced against the size
 --- that was typed.
 ---
---- The descriptor carries the size AS TYPED and not the size the plan says would land. The
---- plan is read here, while the list is up and there is no ordinary focused window to read a
---- screen from, and the action runs a tenth of a second later against the real one. Handing
---- over an already trimmed size would freeze this moment's guess about which display is
---- involved into the thing that acts, so the size travels untouched and the action trims it
---- against the screen it actually finds.
+--- Two limits can change the size, and they are applied differently on purpose. The floor,
+--- smallestEdge, does not depend on any screen, so an edge under it is raised here and the
+--- descriptor carries the raised size, which is exactly what the action will be handed. The
+--- display ceiling does depend on a screen, and the plan is read while the list is up and
+--- there is no ordinary focused window to read one from, while the action runs a tenth of a
+--- second later against the real one. So the descriptor carries the size before that ceiling,
+--- and the action trims it against the screen it actually finds, which is what the window
+--- manager's exactSizePlan comment asks of a caller.
+---
+--- The subtitle is the size that will land and nothing else, plus the limit that trimmed it
+--- when one did. When both did, it names the size limit, since that one holds wherever the
+--- window is, while the display limit is this moment's guess about which screen is involved
+--- and the action may find another.
 function obj:rows(query)
   local w, h = self:parse(query)
   if not w then return {} end
   if not self._plan then return {} end
 
-  local plan = self._plan(w, h)
+  local floor = self._smallestEdge
+  local floored = w < floor or h < floor
+  local fw, fh = math.max(w, floor), math.max(h, floor)
+
+  local plan = self._plan(fw, fh)
   if not plan then return {} end
 
-  local asked = w .. " x " .. h
   local lands = plan.width .. " x " .. plan.height
-  local detail = plan.clamped
-    and (asked .. " is larger than the display, so this is the largest that fits")
-    or "size the window to that and center it"
+  local subTitle = lands
+  if floored then
+    subTitle = lands .. ", size limit"
+  elseif plan.clamped then
+    subTitle = lands .. ", display limit"
+  end
+
+  local name = coveredAppName(self)
 
   return {
     {
-      title = lands,
-      subTitle = self._category .. " · " .. detail,
+      title = name and ("Resize " .. name) or "Resize window",
+      subTitle = subTitle,
       icon = self._icon,
       fromQuery = true,
       -- The window kind, naming the window manager's own exact size action and carrying the
@@ -133,7 +163,7 @@ function obj:rows(query)
       -- plugin as the row's owner. The row is computed rather than catalogued.
       -- remember false keeps it out of the launcher's recency and its query memory, since it
       -- exists only for the size that was typed and has no identity to remember.
-      item = { kind = "window", name = "exactSize", size = { width = w, height = h },
+      item = { kind = "window", name = "exactSize", size = { width = fw, height = fh },
         remember = false },
     },
   }

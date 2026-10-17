@@ -308,7 +308,7 @@ eq("a pane is remembered by its url", keyOf(actionRows[lastWindow + 1].item),
   "settingsPane:x-apple.systempreferences:com.apple.wifi-settings-extension")
 
 local sized = launcher:_queryRows("1920x1080")[1]
-eq("a typed size reaches the launcher as a row", (sized or {}).title, "1920 x 1080")
+eq("a typed size reaches the launcher as a row", (sized or {}).title, "Resize window")
 eq("the query row carries its owner", ((sized or {}).item or {}).owner, "windowsize")
 eq("the query row's icon is read against its owner", (sized or {}).iconOwner, "windowsize")
 eq("a typed size is never remembered", keyOf((sized or {}).item or {}), nil)

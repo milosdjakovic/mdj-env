@@ -433,7 +433,7 @@ publishes the following words. `windowBindings`, every binding any plugin declar
 window leader, collected by walking the plan and stamped with the window keycode, which the
 window cheat sheet host reads. `coveredApp`, the application the launcher opened over and the
 id of that open, and `refreshLauncher`, asking the launcher to draw again, both closures over
-the launcher for a plugin that works in the app underneath it, MenuSearch and TextCase today. `predicates`, the shared when name to
+the launcher for a plugin that works in the app underneath it, MenuSearch, TextCase and WindowSize today. `predicates`, the shared when name to
 predicate table every gated binding is resolved against. `leaders`, what the window
 leader's own overlay section is called, since the leader's own name says nothing to
 somebody reading a list of window actions. `redraw`, repaint whichever list is on screen,
