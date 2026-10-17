@@ -75,12 +75,17 @@ do
   local grin = rows[3]
   check("an emoji row is titled by its name with its shortcodes under it",
     grin.title == "grinning face" and grin.subTitle == "grinning", grin.subTitle)
-  check("its aliases, tags and category are keywords, a category joined at the ampersand",
-    grin.keywords == "grinning, smile, happy, smileys & emotion", grin.keywords)
+  check("its shortcode aliases are names of the row",
+    type(grin.names) == "table" and #grin.names == 1 and grin.names[1] == "grinning",
+    table.concat(grin.names or {}, "/"))
+  check("its tags and category are keywords, a category joined at the ampersand",
+    grin.keywords == "smile, happy, smileys & emotion", grin.keywords)
   check("an emoji is tier zero", grin.tier == 0)
   local symbol
   for _, r in ipairs(rows) do if r.tier == 1 then symbol = r break end end
   check("a symbol is tier one", symbol ~= nil)
+  check("a symbol has no names, its synonym line stays a keyword",
+    symbol ~= nil and #symbol.names == 0 and symbol.keywords ~= "", symbol and symbol.keywords)
   check("a row is built once and handed out again", P:rows("")[3] == grin)
 
   local kept = rank.apply(rows, "", fuzzy, search)
@@ -99,6 +104,12 @@ do
   local tears, bigEyes = position(kept, "face with tears of joy"), position(kept, "grinning face with big eyes")
   check("a name match leads a glyph found by a keyword", tears ~= nil and bigEyes ~= nil and tears < bigEyes,
     tostring(tears) .. " " .. tostring(bigEyes))
+  kept = rank.apply(rows, "grin", fuzzy, search)
+  check("an exact alias leads an emoji whose name only starts with it",
+    kept[1] and kept[1].title == "beaming face with smiling eyes"
+      and position(kept, "grinning face") == 2, titles(kept, 3))
+  kept = rank.apply(rows, "thumbsup", fuzzy, search)
+  check("a shortcode finds its emoji by name", kept[1] and kept[1].title == "thumbs up", titles(kept, 3))
   kept = rank.apply(rows, "food", fuzzy, search)
   check("a category word still finds its group", position(kept, "pizza") ~= nil, titles(kept, 5))
 

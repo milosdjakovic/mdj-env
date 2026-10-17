@@ -16,10 +16,10 @@
 --- something to answer for.
 ---
 --- The match belongs to the shared search since phase three of docs/PLAN-UNIFIED-SEARCH.md.
---- Each row declares its name as the title, its shortcodes as the subtitle, and the words the
---- generator folded in after the name, aliases, tags and category, as keywords, so a word like
---- happy or money or a group word like food or animal still finds the right glyphs without the
---- precise Unicode name. An emoji is tier zero and a symbol tier one. The decision trail, the
+--- Each row declares its name as the title, its shortcodes as the subtitle and, for an emoji, as
+--- further names, and the words the generator folded in after them, tags and category, as
+--- keywords, so a word like happy or money or a group word like food or animal still finds the
+--- right glyphs without the precise Unicode name. An emoji is tier zero and a symbol tier one. The decision trail, the
 --- data source, and the tradeoffs live in AGENTS.md beside this file.
 ---
 --- Rows are data, never functions. Each row carries only the glyph string as its item,
@@ -167,16 +167,32 @@ function obj:_promote(glyph)
   hs.settings.set(RECENCY_KEY, mem)
 end
 
--- The words the generator folded into k after the name, aliases, tags and category for an
--- emoji, and the category word and hand added synonyms for a symbol, as comma separated
--- phrases. data.lua keeps them only inside k, lowered, with the name in front, so they are
--- read back from there rather than regenerated. Each word is its own phrase, except that an
--- ampersand joins its neighbours into one, so a category like smileys & emotion stays one
--- phrase and its words can be typed run together. A word repeated is kept once.
+-- An emoji's shortcode aliases, each a further name of the row, since a shortcode is what a
+-- person types as the emoji's name, grin for the beaming face. They are matched at the name's
+-- own levels, so an exact alias leads a glyph whose name only starts with it. A symbol has no
+-- shortcodes, its a field is a synonym line or its category, which stay keywords.
+local function aliasesOf(entry)
+  local out = {}
+  if entry.t ~= "e" then return out end
+  for alias in (entry.a or ""):gmatch("%S+") do out[#out + 1] = alias end
+  return out
+end
+
+-- The words the generator folded into k after the name and, for an emoji, after its aliases,
+-- which are names rather than keywords, so tags and category for an emoji, and the category word
+-- and hand added synonyms for a symbol, as comma separated phrases. data.lua keeps them only
+-- inside k, lowered, with the name and the aliases in front, so they are read back from there
+-- rather than regenerated. Each word is its own phrase, except that an ampersand joins its
+-- neighbours into one, so a category like smileys & emotion stays one phrase and its words can be
+-- typed run together. A word repeated is kept once.
 local function keywordsOf(entry)
   local k = entry.k or ""
   local name = (entry.n or ""):lower() .. " "
   if k:sub(1, #name) == name then k = k:sub(#name + 1) end
+  if entry.t == "e" and entry.a and entry.a ~= "" then
+    local aliases = entry.a:lower() .. " "
+    if k:sub(1, #aliases) == aliases then k = k:sub(#aliases + 1) end
+  end
   local phrases, join = {}, false
   for w in k:gmatch("%S+") do
     if w == "&" and #phrases > 0 then
@@ -202,12 +218,12 @@ end
 -- One entry to a chooser row, built once per load and kept, since the supplier hands every
 -- row to the shared search on every keystroke and the rows never change between loads. The
 -- glyph is the row icon, the name is the title, the aliases ride in the subtitle as the
--- shortcodes you might type, the rest of the folded words are keywords, and the item is just
--- the glyph string, all the dispatcher needs. tier puts every emoji above every symbol that
--- matches, the generator's own t tag deciding the kind, so a broad word like arrow lists the
--- emoji arrows before the glyph arrows rather than weaving them together. The icon is a table
--- spec of the emoji and never a key, since the glyph is the content being picked, so changing
--- the icon set never changes which emoji a row shows. It has no sf entry by design, since an
+-- shortcodes you might type and are names of the row, the rest of the folded words are keywords,
+-- and the item is just the glyph string, all the dispatcher needs. tier puts every emoji above
+-- every symbol that matches, the generator's own t tag deciding the kind, so a broad word like
+-- arrow lists the emoji arrows before the glyph arrows rather than weaving them together. The
+-- icon is a table spec of the emoji and never a key, since the glyph is the content being
+-- picked, so changing the icon set never changes which emoji a row shows. It has no sf entry by design, since an
 -- SF Symbol cannot stand for the emoji being picked, and it is not in a manifest so the dry
 -- gate's coverage report never counts it. Olm draws it.
 function obj:_rowFor(entry)
@@ -216,6 +232,7 @@ function obj:_rowFor(entry)
   row = {
     title = entry.n,
     subTitle = entry.a,
+    names = aliasesOf(entry),
     keywords = keywordsOf(entry),
     tier = entry.t == "e" and 0 or 1,
     icon = { emoji = entry.e },

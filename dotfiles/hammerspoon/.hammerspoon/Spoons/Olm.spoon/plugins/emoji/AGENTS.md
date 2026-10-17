@@ -167,12 +167,15 @@ decided search never differs per list, so the token scan, the text score, the tw
 the supplier's cap were deleted, and the shared engine, `lib/chooser/match.lua` and
 `lib/chooser/rank.lua`, matches and orders the rows from what each one declares.
 
-A row's title is the glyph's name, its subtitle the shortcode aliases as before, and its
-keywords the words the generator folded into `k` after the name, aliases, tags and category for
-an emoji, and the category word and hand added synonyms for a symbol. `data.lua` keeps those
-words only inside `k`, lowered, with the name in front, and tags and category are not stored
+A row's title is the glyph's name and its subtitle the shortcode aliases as before. An emoji's
+aliases are also its `names`, one name per shortcode, since a shortcode is what a person types as
+the emoji's name, so they match at the name's own levels. Its keywords are the words the
+generator folded into `k` after the name and the aliases, tags and category for an emoji, and the
+category word and hand added synonyms for a symbol, whose `a` field is a synonym line or its
+category rather than shortcodes, so a symbol declares no names. `data.lua` keeps those words only
+inside `k`, lowered, with the name and the aliases in front, and tags and category are not stored
 apart, so nothing was regenerated. The row build reads them back out of `k` with the name taken
-off, each word its own comma separated phrase except that an ampersand joins its neighbours, so
+off, and for an emoji the aliases too, each word its own comma separated phrase except that an ampersand joins its neighbours, so
 a category like smileys & emotion stays one phrase. A keyword matches only at the start of one of
 its words and ranks below any match in the name, so happy, money, food and animal still find
 their glyphs, and a name match leads. The rows are built once per load and kept, since the
@@ -184,9 +187,13 @@ arrows and then the glyph arrows below rather than weaving the two together. Wit
 shared search orders by how well the row matched, and a tie keeps the supplier's order, which is
 the upstream order, grouped and roughly common first.
 
-The difference from the old score is the one Milos accepted with the rule. An exact alias no
-longer jumps to the top, an alias being a keyword and below any name match, and a token found
-inside a word no longer counts, since a keyword matches at a word start only.
+The difference from the old score is the one Milos accepted with the rule. A tag or category
+token found inside a word no longer counts, since a keyword matches at a word start only. An exact
+alias leads again, though not by a bonus of its own. Packet two A of phase three read the aliases
+as keywords, below any name match, so grin listed grinning face above the beaming face whose
+shortcode it is. Milos corrected that the same day, an alias being a name, and grin now matches
+the beaming face's alias whole, which the shared search scores above grinning face, whose name
+only starts with it.
 
 The visible list is cut to 100 rows by `rowLimit` on the presentation and on the scope, after
 ranking, so the best rows of a broad query are the ones kept and any glyph stays findable by

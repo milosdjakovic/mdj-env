@@ -113,9 +113,10 @@ return {
   -- obj:insert already having done exactly that before the stage existed to ask for either.
   --
   -- No matcher, so the list inherits the shared search, phase three of
-  -- docs/PLAN-UNIFIED-SEARCH.md on 2026-10-17. Each row declares its name, its shortcodes and
-  -- its aliases, tags and category as keywords, and an emoji ranks above a symbol by tier, so
-  -- the hidden haystack this tool once scanned itself is now fields the engine reads.
+  -- docs/PLAN-UNIFIED-SEARCH.md on 2026-10-17. Each row declares its name, an emoji its
+  -- shortcode aliases as further names, and its tags and category as keywords, and an emoji
+  -- ranks above a symbol by tier, so the hidden haystack this tool once scanned itself is now
+  -- fields the engine reads.
   -- placeholder resolves once, at register, to the hammerspoon backend's own wording, the only
   -- backend ever shown through this presentation.
   --
