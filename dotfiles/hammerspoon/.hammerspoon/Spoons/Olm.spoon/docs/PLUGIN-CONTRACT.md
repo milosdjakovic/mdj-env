@@ -610,12 +610,20 @@ builds its rows rather than at load, so a list assembled inside configure is rea
   chord = { leader = "app", key = "4", mods = { "shift" } },
   icon = "screenshot",                      -- a key into this plugin's own manifest icons
   when = nil,                               -- a predicate name gating the row live, optional
-  keywords = nil,                           -- hidden words the matcher reads, optional
+  keywords = nil,                           -- comma separated phrases a person types, optional
   order = nil,                              -- this row's own place, else the plugin's
   item = { kind = "capture", name = "captureArea",
            key = nil,                       -- what it is remembered by, else the name
            remember = nil } }               -- false keeps it out of every memory
 ```
+
+`keywords` is a string or a list of strings, comma separated phrases a person would actually
+type to find the row that are not in its title, a synonym, an abbreviation, an old or an Apple
+name, a closely related task. A few phrases, never a title word, never a generic word such as
+settings, the or app, never a sentence. Each matches where one of its words starts with a query
+word or where the phrase is typed run together from its start, always below a title match, and a
+query's words match on their own with a bonus when all land in one phrase in order.
+PLUGIN-AUTHORING.md says more.
 
 A row is data and never a function, because the launcher hands every row to `hs.chooser`,
 which drops a row holding one without a word. The subtitle is either a finished `subTitle` or

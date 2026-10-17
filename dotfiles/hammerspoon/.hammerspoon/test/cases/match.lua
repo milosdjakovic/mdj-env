@@ -296,3 +296,37 @@ end
 -- Phrase breaks inside a name, the review of 2026-10-17.
 check("the pieces of a name never span a triangle", M.fuzzy("ef", "Edit ▸ Find") == nil)
 check("the pieces of a name never span a middle dot", M.fuzzy("ns", "Network · see") == nil)
+
+-- Phrases typed run together and the same phrase bonus, Milos's table of 2026-10-17. Focus
+-- declares "no more, do not disturb".
+do
+  local fields = { primary = "Focus", secondary = { { text = "no more, do not disturb", declared = true } } }
+  for _, q in ipairs({ "nomore", "nomo", "no more", "no", "more", "mo", "donotd", "focus disturb" }) do
+    check(q .. " finds Focus", M.fuzzy(q, "Focus", fields) ~= nil)
+  end
+  for _, q in ipairs({ "ore", "otdisturb", "moredo" }) do
+    check(q .. " does not find Focus, a run together phrase starts at its phrase and stops at a comma",
+      M.fuzzy(q, "Focus", fields) == nil)
+  end
+  local shown = { primary = "Focus", secondary = { { text = "no more" } } }
+  check("a subtitle a row shows does not answer a phrase typed run together",
+    M.fuzzy("nomore", "Focus", shown) == nil)
+  check("a run together phrase ranks at the declared level",
+    select(2, M.fuzzy("nomore", "Focus", fields)) == L.declared)
+
+  local together = { title = "Together", keywords = "do not disturb" }
+  local apart = { title = "Apart", keywords = "do, not" }
+  local named = { title = "Do Not Track" }
+  local got = table.concat(order("do not", { apart, together }), ",")
+  check("words in one declared phrase rank above the same words spread across phrases",
+    got == "Together,Apart", got)
+  -- The words scored one at a time, which is the whole score without the bonus.
+  local function plain(row)
+    local f = rank.fieldsOf(row)
+    return select(3, M.fuzzy("do", row.title, f)) + select(3, M.fuzzy("not", row.title, f))
+  end
+  check("without the bonus the spread row would lead, so the case proves the bonus",
+    plain(apart) > plain(together), string.format("%.2f %.2f", plain(apart), plain(together)))
+  got = table.concat(order("do not", { together, named }), ",")
+  check("the phrase bonus never lifts a row past a name match", got == "Do Not Track,Together", got)
+end

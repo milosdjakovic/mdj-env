@@ -202,7 +202,20 @@ local function prepare(s)
     end
     w.breakAfter = broken
   end
-  p = { low = low, words = words, byFirst = byFirst, wb = wb }
+  -- The phrases, runs of words with no break between them, each with its first word and its
+  -- text lowered with the spaces taken out, which is what a phrase typed run together is
+  -- compared with. Every word knows its phrase.
+  local phrases = {}
+  local k = 1
+  while k <= #words do
+    local last = k
+    while last < #words and not words[last].breakAfter do last = last + 1 end
+    local compact = low:sub(words[k].s, words[last].e):gsub("%s+", "")
+    phrases[#phrases + 1] = { first = k, last = last, compact = compact }
+    for x = k, last do words[x].phrase = #phrases end
+    k = last + 1
+  end
+  p = { low = low, words = words, byFirst = byFirst, wb = wb, phrases = phrases }
   preparedCount = preparedCount + 1
   if preparedCount > PREP_LIMIT then prepared, preparedCount = {}, 1 end
   prepared[s] = p
@@ -419,11 +432,28 @@ local function matchName(w, name)
   return nil
 end
 
+-- A phrase typed run together, the lowered word a prefix of a declared phrase with its spaces
+-- taken out, counted from the phrase's start. nomore and nomo find "no more", donotd finds "do
+-- not disturb", ore and otdisturb find nothing, and a comma ends a phrase so nothing runs across
+-- one. Scored like a word start run of the word's length at the phrase's first word, which keeps
+-- it inside the range the step is derived for.
+local function runTogether(w, text, p)
+  local best, m = nil, #text
+  for _, ph in ipairs(p.phrases) do
+    if ph.compact:sub(1, #w) == w then
+      local first = p.words[ph.first]
+      local sc = framed(m, first.s, math.min(m, first.s + #w - 1), pieceScore(first.bonus, #w))
+      if best == nil or sc > best then best = sc end
+    end
+  end
+  return best
+end
+
 -- One lowered word against the secondary fields, level E. A word of the field must start
--- with it, nothing more, no pieces across words, no edit and nothing inside a word, which is
--- Milos's call on 2026-10-17. A subtitle or a keyword is what a row also answers to, never a
--- second name to spell out, so do finds Focus through do not disturb while dnd finds it only
--- through the keyword dnd itself. The best field is kept.
+-- with it, no pieces across words, no edit and nothing inside a word, which is Milos's call
+-- on 2026-10-17. A subtitle or a keyword is what a row also answers to, never a second name to
+-- spell out. A declared field, keywords and alias words, also answers a phrase typed run
+-- together, the subtitle a row shows does not. The best field is kept.
 local function matchDeclared(w, secondary)
   local best
   for _, f in ipairs(secondary or {}) do
@@ -434,12 +464,41 @@ local function matchDeclared(w, secondary)
         local atStart, sc = longField(w, text, lowered(text), false)
         if atStart then s = sc end
       else
-        s = atWordStart(w, text, prepare(text))
+        local p = prepare(text)
+        s = atWordStart(w, text, p)
+        if f.declared then
+          local r = runTogether(w, text, p)
+          if r and (s == nil or r > s) then s = r end
+        end
       end
       if s and (best == nil or s > best) then best = s end
     end
   end
   return best
+end
+
+-- Whether every word of a query of two or more starts a word of one secondary phrase, in the
+-- order typed, focus disturb never, do not d inside "do not disturb" always. Such a row was
+-- found by one thing a person declared, not by words that happen to sit apart, so it earns the
+-- phrase bonus below.
+local function inOnePhrase(cores, secondary)
+  if #cores < 2 then return false end
+  for _, f in ipairs(secondary or {}) do
+    local text = f.text
+    if type(text) == "string" and text ~= "" and #text <= LONG then
+      local p = prepare(text)
+      for _, ph in ipairs(p.phrases) do
+        local k, ok = ph.first, true
+        for _, c in ipairs(cores) do
+          while k <= ph.last and not prefixAt(p.low, p.words[k].s, c) do k = k + 1 end
+          if k > ph.last then ok = false; break end
+          k = k + 1
+        end
+        if ok then return true end
+      end
+    end
+  end
+  return false
 end
 
 -- Whether a field holds the lowered text t anywhere, for the symbol part of a query word.
@@ -461,7 +520,7 @@ end
 --- The one search, docs/PLAN-UNIFIED-SEARCH.md phase one, as Milos settled it on 2026-10-17
 --- after the live test and the review that followed. A row has a primary field, its name, and
 --- secondary fields, the text it shows or declares on purpose. fields is { primary = string,
---- secondary = { { text }, ... } } as lib/chooser/rank.lua builds it. Without fields,
+--- secondary = { { text, declared }, ... } } as lib/chooser/rank.lua builds it. Without fields,
 --- hay is the name and there is nothing secondary, which is how a plugin scoring its own
 --- strings calls it.
 ---
@@ -475,7 +534,9 @@ end
 ---      and never a wrong or extra last letter. dokcer and docekr find Docker.
 ---   D. In the name, whole inside a word, from three letters on. Two letters never do, so do
 ---      does not find Window.
----   E. In a secondary field, at the start of a word only, below every name level.
+---   E. In a secondary field, at the start of a word only, below every name level. A declared
+---      field, keywords and alias words, also answers a phrase typed run together, nomore for
+---      "no more".
 --- There is no scattered match and so no relevance floor.
 ---
 --- A query word with no letter or digit, an ampersand, a plus, a percent sign, matches as a
@@ -484,12 +545,16 @@ end
 --- part, and its symbol part must appear somewhere in the row.
 ---
 --- Every word is required, scored on its own, and summed, so google chrome finds nothing in a
---- row titled Chrome. A row's level is the sum of its words' levels. The step between level
---- sums is derived per query from the weights. A word of n letters scores at most n times TOP,
---- an edit never adding a letter to what is scored, and more than minus LONG times the near
---- free gap, since a short field pays at most its length in gap and a long one has its gap
---- capped. So two rows at one level sum differ by less than the sum over the words of that
---- spread, the step is that sum, and a row with a higher level sum always scores higher.
+--- row titled Chrome. A row's level is the sum of its words' levels. A word of n letters scores
+--- at most n times TOP, an edit or a phrase typed run together never adding a letter to what is
+--- scored, and more than minus LONG times the near free gap, since a short field pays at most
+--- its length in gap and a long one has its gap capped. So two rows at one level sum differ by
+--- less than the spread, the sum over the words of n times TOP plus that gap. A query of two or
+--- more words whose words all start words of one secondary phrase, in order, adds one spread,
+--- the phrase bonus, so such a row leads every row at its level sum, and the step between level
+--- sums is two spreads, so the bonus never lifts a row past a higher level sum. Each word still
+--- matches on its own, focus disturb finds Focus with focus in its name and disturb in a
+--- keyword, only without the bonus.
 ---
 --- The later answers are for consumers. level is the row's level sum, within its score
 --- inside the level, atStart whether every word matched the name at a word start, which the
@@ -497,8 +562,8 @@ end
 function M.fuzzy(query, hay, fields)
   local name = fields and fields.primary or hay
   local secondary = fields and fields.secondary
-  local level, within, step, atStart = 0, 0, 0, true
-  local any = false
+  local level, within, spread, atStart = 0, 0, 0, true
+  local any, cores = false, {}
   for word in query:lower():gmatch("%S+") do
     any = true
     local lead = word:match("^[%p%c]*")
@@ -517,11 +582,16 @@ function M.fuzzy(query, hay, fields)
       level = level + wordLevel
       within = within + score
       if wordLevel ~= LEVEL.nameStart then atStart = false end
-      step = step + #core * TOP + LONG * math.max(-GAP_LEAD, -GAP_TRAIL)
+      spread = spread + #core * TOP + LONG * math.max(-GAP_LEAD, -GAP_TRAIL)
+      cores[#cores + 1] = core
     end
   end
   if not any then return 0, 0, 0, true end
-  return level * step + within, level, within, atStart
+  -- The phrase bonus is one spread, so a row whose words all sit in one declared phrase leads
+  -- every row at its level sum, and the step is two spreads, so the bonus never reaches the
+  -- next level.
+  if inOnePhrase(cores, secondary) then within = within + spread end
+  return level * 2 * spread + within, level, within, atStart
 end
 
 --- M.substring(query, hay) -> score or nil

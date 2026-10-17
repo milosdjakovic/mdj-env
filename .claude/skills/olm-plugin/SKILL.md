@@ -125,8 +125,13 @@ rebuild never compares equal and a duplicate lands the highlight on the first ro
 
 A list of items a person picks from always filters on the shared matcher, so leave matcher
 undeclared. A row is found by its title first and its subtitle after, and a word it should
-answer to without showing goes in `keywords`, a string or a list, a comma between phrases, never
-padded into the title or the subtitle. A subtitle that is a category, a status or a chord is
+answer to without showing goes in `keywords`, never padded into the title or the subtitle.
+Keywords are words a person would actually type that are not in the title, a synonym, an
+abbreviation, an old or an Apple name, a closely related task. Keep them to a few comma
+separated phrases, each what a person types as one thing. Never a title word, never a generic word
+that would match half a list, never a sentence and never the description. They match at a word
+start or as a phrase typed run together, below any title match, and the words of a query match on
+their own with a bonus for staying in one phrase. The authoring guide carries the detail. A subtitle that is a category, a status or a chord is
 taken out of search by setting `filterText` to the title. `lib/chooser/rank.lua` states the
 vocabulary. `matcher = false` is only for a page of a few fixed options, or for a plugin that
 ranks the query itself. A false matcher on a long list shows an unfiltered list and nothing

@@ -390,3 +390,28 @@ only its own subtitle. dnd still finds Focus through the keyword dnd itself, no 
 initials of do not disturb. 71 of 660 two to four letter queries change their top result against
 main, as before.
 
+### 2026-10-17 13:50, run together phrases, the phrase bonus and the keyword rules
+
+Milos asked for four things and three are built. A declared keyword or alias phrase also matches
+a query word that is a prefix of the whole phrase with its spaces taken out, counted from the
+phrase's start, so nomore and nomo find "no more" and donotd finds "do not disturb", while ore and
+otdisturb find nothing and nothing runs across a comma. It is the same level as any secondary
+match, applies to declared keywords and alias words only and not to the subtitle a row shows, and
+reads phrases from the prepared field memo, so it costs one prefix compare per phrase.
+
+The phrase bonus. A query of two or more words whose words all start words of one secondary
+phrase, in order, ranks above rows whose words are spread across phrases or fields at the same
+level sum. The scores inside a level sum spread less than one spread, the sum over the words of
+the word length times eleven plus 256 times 0.02. The bonus is one spread and the step between
+level sums is now two spreads, so a row with the bonus leads every row at its level sum and never
+reaches the next one. Words still match on their own, focus disturb finds Focus with focus in its
+name and disturb in a keyword. A case proves the bonus decides, the spread row scoring higher
+without it, and fails when the bonus is switched off.
+
+The rules for keywords are now in the olm-plugin skill, PLUGIN-AUTHORING.md and
+PLUGIN-CONTRACT.md. The fourth item, an audit of every declared keyword list, was written as a
+proposal outside the repository and nothing in the manifests was changed by it. Over 54 lists in
+14 manifests it proposes removing 150 phrases and adding 79, most removals being title words,
+plurals and generic words, and it moves the search words of nine descriptions into keywords. It
+proposes taking docker out of Local Servers, which is why do lists that row beside Docker.
+

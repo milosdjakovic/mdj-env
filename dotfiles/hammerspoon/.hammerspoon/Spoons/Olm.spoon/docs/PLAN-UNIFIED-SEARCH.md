@@ -39,7 +39,13 @@ never matches across fields. Each query word matches at the strongest of five le
    never a wrong or extra last letter. dokcer and docekr in Docker.
 4. In the name, inside a word, from three letters on. do never finds Window.
 5. In a secondary field, only where one of its words starts with the query word, below every
-   name level. do finds Focus through do not disturb and Screen Time through downtime.
+   name level. do finds Focus through do not disturb and Screen Time through downtime. A
+   declared keyword or alias phrase also answers the query word typed run together from the
+   phrase's start, nomore for "no more", never across a comma.
+
+A query of several words whose words all start words of one secondary phrase, in order, ranks
+above rows whose words are spread across phrases or fields at the same level sum, a bonus folded
+into the score that never crosses a level.
 
 There is no scattered match and no relevance floor. Every word is required, so google chrome
 finds nothing in a row titled Chrome, and the words' scores add. Past 256 bytes a field matches a
@@ -53,7 +59,10 @@ Plugins declare these, and only core applies them.
 1. Several searchable fields per row, so a match cannot be assembled across a title and an
    address. Phase one built the first of them, the name as `title` or `filterText`, the
    subtitle, and `keywords`, a string or a list with a comma between phrases, stated at the
-   head of `lib/chooser/rank.lua`. A description sentence is never a search term, since prose
+   head of `lib/chooser/rank.lua`. Keywords are a few comma separated phrases a person would
+   type that are not in the title, a synonym, an abbreviation, an old or Apple name, a related
+   task, never a title word, never a generic word, never a sentence, as the olm-plugin skill and
+   PLUGIN-AUTHORING.md state. A description sentence is never a search term, since prose
    matches words nobody meant, set listing Wi-Fi through "see the current network". A row with several names of equal weight, a tab's title, host
    and address, is phase two.
 2. Pinned rows that are never ranked or dropped. These are Back, Settings, Capture current

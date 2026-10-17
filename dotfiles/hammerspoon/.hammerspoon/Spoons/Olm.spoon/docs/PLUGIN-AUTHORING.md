@@ -603,7 +603,17 @@ from what was typed states `remember = false` and is never remembered at all.
 
 `icon` is a key into your own manifest icons, read against your identity like every row icon.
 `when` names a predicate that hides the row live, the way a window binding's gate hides its key.
-`keywords` is hidden text the matcher reads. Where your rows sit is `defaults.launcherOrder`,
+`keywords` are what a person would actually type to find the row that is not already in its
+title, a synonym, an abbreviation, an old or an Apple name, or a closely related task. Keep them
+few, a handful of phrases rather than a bag. Never repeat a word of the title, never a generic
+word that would match half a list, settings, the, app, and never the description sentence, since
+prose matches words nobody meant. Write them as comma separated phrases, each phrase what a
+person types as one thing, `"dnd, do not disturb, quiet hours"`, never a sentence. A keyword
+matches where one of its words starts with a query word, or when a phrase is typed run together
+from its start, donotd for do not disturb. It always ranks below any match in the title, and the
+words of a query match on their own, with a bonus when all of them land in one phrase in order.
+The same rules hold for a tool's `row.keywords` and a settings pane's keywords.
+`lib/chooser/rank.lua` states the row vocabulary. Where your rows sit is `defaults.launcherOrder`,
 a number compared with every other contributor's, and a single row may state its own `order`
 to sit apart from the rest of yours. The contract lists the shipped numbers, so choose one in a
 gap between them.

@@ -48,7 +48,8 @@ end
 M.haystackOf = haystackOf
 
 -- The fields the shared search reads for a row, the vocabulary above as one table,
--- { primary, secondary = { { text }, ... } }.
+-- { primary, secondary = { { text, declared }, ... } }, declared marking keywords, which also
+-- answer a phrase typed run together where the subtitle does not.
 local function fieldsOf(it)
   local secondary = {}
   local primary = it.filterText
@@ -62,7 +63,7 @@ local function fieldsOf(it)
   if type(kw) == "string" then kw = { kw } end
   if type(kw) == "table" then
     for _, k in ipairs(kw) do
-      if type(k) == "string" and k ~= "" then secondary[#secondary + 1] = { text = k } end
+      if type(k) == "string" and k ~= "" then secondary[#secondary + 1] = { text = k, declared = true } end
     end
   end
   return { primary = type(primary) == "string" and primary or "", secondary = secondary }
